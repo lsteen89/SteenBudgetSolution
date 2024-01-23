@@ -1,33 +1,23 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Configuration;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Data.SqlClient;
-using Dapper;
+﻿using System.Data.SqlClient;
 using System.Data;
 
-namespace Backend.DataAccess
+public class GlobalConfig
 {
-    public class GlobalConfig
+    private static IConfiguration _configuration;
+
+    public static void Initialize(IConfiguration configuration)
     {
-        private static readonly string connectionString;
+        _configuration = configuration;
+    }
 
-        static GlobalConfig()
+    public static IDbConnection GetConnection()
+    {
+        var connectionString = _configuration.GetConnectionString("BudgetDatabase");
+        IDbConnection connection = new SqlConnection(connectionString);
+        if (connection.State != ConnectionState.Open)
         {
-
-            connectionString = System.Configuration.ConfigurationManager.ConnectionStrings["BudgetDatabase"].ConnectionString;
+            connection.Open();
         }
-
-        public static IDbConnection GetConnection()
-        {
-            IDbConnection connection = new SqlConnection(connectionString);
-            if (connection.State != ConnectionState.Open)
-            {
-                connection.Open();
-            }
-            return connection;
-        }
+        return connection;
     }
 }

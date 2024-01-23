@@ -3,8 +3,8 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
-
-
+var configuration = builder.Configuration;
+GlobalConfig.Initialize(configuration);
 // Add services to the container.
 var key = builder.Configuration["JwtSecretKey"];
 // Use a secure way to store and retrieve this key

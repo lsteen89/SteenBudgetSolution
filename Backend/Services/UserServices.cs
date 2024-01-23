@@ -1,4 +1,5 @@
 ﻿using Backend.DataAccess;
+using Backend.Models;
 
 namespace Backend.Services
 {
@@ -10,6 +11,12 @@ namespace Backend.Services
         {
             _sqlExecutor = new SqlExecutor();
             return _sqlExecutor.IsUserExistInDatabase(email);
+        }
+        public bool CreateNewRegisteredUser(UserModel user)
+        {
+            _sqlExecutor = new SqlExecutor();
+            bool UserInserted = _sqlExecutor.InsertNewUserDatabase(user);
+            return UserInserted;
         }
     }
 }
