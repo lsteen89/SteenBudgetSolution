@@ -1,12 +1,12 @@
 import React from 'react';
-import RegistrationForm from './RegistrationForm'; // Ensure this path is correct
+import cloudImage from './assets/cloud.PNG'; // Ensure the path is correct
 
-function App() {
+const CloudComponent = () => {
   return (
-    <div className="App">
-      <RegistrationForm />
+    <div>
+      <img src={cloudImage} alt="Cloud" />
     </div>
   );
-}
+};
 
-export default App;
+export default CloudComponent;
