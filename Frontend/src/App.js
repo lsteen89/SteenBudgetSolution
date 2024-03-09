@@ -1,12 +1,20 @@
+// App.js or where you define your routes
 import React from 'react';
-import cloudImage from './assets/cloud.PNG'; // Ensure the path is correct
+import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
+import Layout from './Components/Layout';
 
-const CloudComponent = () => {
+//import HomePage from './pages/HomePage';
+//import Page1 from './pages/Page1';
+// Import other pages
+
+function App() {
   return (
-    <div>
-      <img src={cloudImage} alt="Cloud" />
-    </div>
-  );
-};
+    <Router>
+      <Layout>
 
-export default CloudComponent;
+      </Layout>
+    </Router>
+  );
+}
+
+export default App;
