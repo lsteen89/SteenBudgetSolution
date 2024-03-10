@@ -1,19 +1,18 @@
-// App.js or where you define your routes
 import React from 'react';
-import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
-import Layout from './Components/Layout';
-
-//import HomePage from './pages/HomePage';
-//import Page1 from './pages/Page1';
-// Import other pages
+import { ReactComponent as MenuSvg } from './assets/Images/CloudMenu.svg';
+import './App.css'; // Make sure your CSS file is correctly imported
 
 function App() {
   return (
-    <Router>
-      <Layout>
-
-      </Layout>
-    </Router>
+    <div className="App">
+      <header className="App-header">
+        <div className="svg-container">
+          <MenuSvg className="menuSvg" />
+        </div>
+        {/* Other header content */}
+      </header>
+      {/* Rest of your application content */}
+    </div>
   );
 }
 

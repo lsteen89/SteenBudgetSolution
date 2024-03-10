@@ -1,3 +1,22 @@
-.app {
+/* Assuming .App-header is a flex container */
+.App-header {
+  display: flex;
+  justify-content: center; /* Centers children horizontally in the container */
+  align-items: center; /* Centers children vertically in the container */
+  /* Other styling for your header */
+}
+
+.App {
   font-family: 'Open Sans', sans-serif;
+}
+
+.svg-container {
+  display: flex;
+  justify-content: center; /* Centers children horizontally within the container */
+  width: 100%; /* Adjust if you want the container to have a specific width */
+}
+
+.menuSvg {
+  width: auto; /* Adjust based on your design needs */
+  height: auto; /* This maintains the SVG's aspect ratio */
 }
