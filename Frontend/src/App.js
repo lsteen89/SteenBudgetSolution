@@ -1,18 +1,19 @@
 import React from 'react';
-import { ReactComponent as MenuSvg } from './assets/Images/CloudMenu.svg';
-import './App.css'; // Make sure your CSS file is correctly imported
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+//import Home from './components/Home'; // Import your components
+//import About from './components/About';
+//import Services from './components/Services';
+//import Contact from './components/Contact';
+import MenuComponent from './components/MenuComponent'; // Incorrect if the folder is named 'components'
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <div className="svg-container">
-          <MenuSvg className="menuSvg" />
-        </div>
-        {/* Other header content */}
-      </header>
-      {/* Rest of your application content */}
-    </div>
+    <BrowserRouter>
+      <div className="App">
+        <MenuComponent /> {/* Your cloud menu */}
+
+      </div>
+    </BrowserRouter>
   );
 }
 

@@ -1,0 +1,27 @@
+.cloud-menu-container {
+    position: relative;
+    display: inline-block; /* Or 'block', depending on how you want to display the SVG */
+  }
+  
+  .menuSvg {
+    width: 100%; /* Adjust according to your needs */
+    height: auto;
+  }
+  
+  .button {
+    text-decoration: none; /* Removes underline */
+    color: black; /* Text color */
+    position: absolute; /* Absolute positioning */
+    transform: translate(-50%, -50%); /* Centering adjustment if needed */
+    
+  }
+  
+  .button:hover {
+    background-color: #e0e0e0; /* Slightly darker on hover */
+    cursor: pointer; /* Change cursor to indicate clickable */
+  }
+  .plain-text-link {
+    text-decoration: none;
+    color: inherit; /* Ensures the link color matches surrounding text */
+  }
+  

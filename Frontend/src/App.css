@@ -18,5 +18,9 @@
 
 .menuSvg {
   width: auto; /* Adjust based on your design needs */
-  height: auto; /* This maintains the SVG's aspect ratio */
+  height: 'auto'; /* This maintains the SVG's aspect ratio */
+}
+.plain-text-link {
+  text-decoration: none;
+  color: inherit; /* Ensures the link color matches surrounding text */
 }
