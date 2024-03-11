@@ -1,0 +1,50 @@
+.containerStyle {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 20vh;
+    max-height: 100vh;
+    height: 79.85vh;
+    width: 30%;
+    padding: 20px;
+    margin-top: 200px;
+    margin-right: 20%; 
+    box-sizing: border-box;
+    background-image: url('../assets/Images/MainPageRect.svg');
+    background-size: cover;
+    position: relative;
+  }
+  
+  .containerStyle p {
+    color: #ffffff; /* Example text color */
+    font-size: 50px; /* Example font size */
+    text-align: justify; /* Example text alignment */
+    margin-bottom: 600px /* Example top margin */
+    /* Add any other styles you need for your paragraph text */
+  }
+  
+
+  @media only screen and (max-width: 600px) {
+    .containerStyle {
+      left: 2%; /* Less shift for smaller screens */
+    }
+  }
+  
+  @media only screen and (min-width: 768px) {
+    .containerStyle {
+      left: 8%; /* Slightly more shift for medium screens */
+    }
+  }
+  
+  @media only screen and (min-width: 992px) {
+    .containerStyle {
+      left: 10%; /* Even more shift for large screens */
+    }
+  }
+  
+  @media only screen and (min-width: 1200px) {
+    .containerStyle {
+      left: 20%; /* Maximum shift for extra-large screens */
+    }
+  }
