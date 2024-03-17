@@ -1,4 +1,4 @@
-.containerStyle {
+.MainPageTextContainer {
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -16,35 +16,64 @@
     position: relative;
   }
   
-  .containerStyle p {
+  .MainPageTextContainer p {
     color: #ffffff; /* Example text color */
-    font-size: 50px; /* Example font size */
+    font-size: 40px; /* Example font size, adjust if you want it smaller */
     text-align: justify; /* Example text alignment */
-    margin-bottom: 600px /* Example top margin */
-    /* Add any other styles you need for your paragraph text */
+    margin-bottom: 50vh; /* Consider reducing this if you're referring to vertical compactness */
+    line-height: auto; /* Reduces the height of lines, making text more compact */
+    letter-spacing: 0%; /* Adjusts spacing between characters for a more compact look */
+    max-width: 375px;
+    max-height: 600px;
+    overflow: auto; /* Ensures content exceeding the max height is scrollable */
   }
+  
   
 
   @media only screen and (max-width: 600px) {
-    .containerStyle {
+    .MainPageTextContainer {
       left: 2%; /* Less shift for smaller screens */
     }
   }
   
   @media only screen and (min-width: 768px) {
-    .containerStyle {
+    .MainPageTextContainer {
       left: 8%; /* Slightly more shift for medium screens */
     }
   }
   
   @media only screen and (min-width: 992px) {
-    .containerStyle {
+    .MainPageTextContainer {
       left: 10%; /* Even more shift for large screens */
     }
   }
   
   @media only screen and (min-width: 1200px) {
-    .containerStyle {
+    .MainPageTextContainer {
       left: 20%; /* Maximum shift for extra-large screens */
     }
+  }
+  .Skaffa-Ebudget {
+    background-color: #98FF98; /* Green */
+    border: none;
+    color: rgb(0, 0, 0);
+    padding: 15px 32px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    margin: 4px 2px;
+    cursor: pointer;
+    border-radius: 8px; /* Rounded corners */
+    width: 30%;
+    height: 10vh;
+    margin-top: -50vh;
+    position: relative;
+    left: 40vh;
+
+  }
+  .MainPageWrapper {
+    display: flex;
+    justify-content: space-between; /* Adjusts space between the text container and the button */
+    align-items: center; /* Vertically aligns items in the middle */
   }
