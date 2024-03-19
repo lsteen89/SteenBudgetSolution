@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import './Registration.css';
 
 function RegistrationForm() {
     const [firstName, setFirstName] = useState('');
@@ -13,7 +14,8 @@ function RegistrationForm() {
     };
 
     return (
-        <form onSubmit={handleSubmit}>
+        
+        <form onSubmit={handleSubmit} className="user-info-form">
             <div>
                 <label>First Name:</label>
                 <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} />

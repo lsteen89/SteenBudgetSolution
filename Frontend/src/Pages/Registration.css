@@ -1,0 +1,34 @@
+.user-info-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px; /* Adjust the space between fields */
+    width: 100%; /* Adjust based on your design */
+    max-width: 400px; /* Ensures form doesn't stretch too wide */
+    margin: auto; /* Center the form */
+    
+  }
+  
+  .user-info-form input {
+    padding: 10px; /* Adjust for padding inside the fields */
+    border-radius: 20px; /* Adjust for rounded corners */
+    border: 1px solid #ccc; /* Light grey border */
+    font-size: 16px; /* Adjust as needed */
+    width: 65vh;
+    margin-left: -15vh;
+    
+  }
+  
+  .user-info-form button {
+    padding: 10px 20px;
+    border-radius: 20px; /* Match input field border-radius */
+    border: none;
+    background-color: #007bff; /* Example button color */
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  
+  .user-info-form button:hover {
+    background-color: #0056b3; /* Darker shade on hover */
+  }
+  
