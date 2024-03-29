@@ -1,79 +1,162 @@
 .MainPageTextContainer {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    min-height: 20vh;
-    max-height: 100vh;
-    height: 79.85vh;
-    width: 30%;
-    padding: 20px;
-    margin-top: 200px;
-    margin-right: 20%; 
-    box-sizing: border-box;
-    background-image: url('../assets/Images/MainPageRect.svg');
-    background-size: cover;
-    position: relative;
-  }
-  
-  .MainPageTextContainer p {
-    color: #ffffff; /* Example text color */
-    font-size: 40px; /* Example font size, adjust if you want it smaller */
-    text-align: justify; /* Example text alignment */
-    margin-bottom: 50vh; /* Consider reducing this if you're referring to vertical compactness */
-    line-height: auto; /* Reduces the height of lines, making text more compact */
-    letter-spacing: 0%; /* Adjusts spacing between characters for a more compact look */
-    max-width: 375px;
-    max-height: 600px;
-    overflow: auto; /* Ensures content exceeding the max height is scrollable */
-  }
-  
-  
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 20vh;
+  max-height: 100vh;
+  height: 79.85vh;
+  width: 90%; /* Start with a higher width for smaller screens */
+  padding: 20px;
+  margin-top: 100px; /* Adjusted for better alignment on smaller screens */
+  margin-right: auto; /* Center align the container for smaller screens */
+  margin-left: auto; /* Center align the container for smaller screens */
+  box-sizing: border-box;
+  background-image: url('../assets/Images/MainPageRect.svg');
+  background-size: cover;
+  position: relative;
+}
 
-  @media only screen and (max-width: 600px) {
-    .MainPageTextContainer {
-      left: 2%; /* Less shift for smaller screens */
-    }
+.MainPageTextContainer p {
+  color: #ffffff;
+  font-size: calc(16px + 1vw); /* Responsive font size */
+  text-align: justify;
+  margin-bottom: 35vh; /* Adjusted for better spacing */
+  line-height: 1.5; /* Standard line height for readability */
+  letter-spacing: normal; /* Default letter spacing */
+  max-width: 375px;
+  max-height: 600px;
+  overflow: auto;
+}
+
+.Skaffa-Ebudget {
+  background-color: #98FF98;
+  border: none;
+  color: rgb(0, 0, 0);
+  padding: 15px 32px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 16px;
+  margin: 4px 2px;
+  cursor: pointer;
+  border-radius: 8px;
+  width: 80%; /* Responsive width */
+  height: 8vh;
+  margin-bottom: 52vh; /* Adjusted */
+  position: relative;
+  left: 10%; /* Adjust for better centering */
+}
+
+.MainPageWrapper {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap; /* Ensure elements wrap on smaller screens */
+  margin-top: -8%;
+}
+
+.main-page-bird {
+  max-width: 100%; /* Ensures the image is responsive and does not overflow its container */
+  height: auto; /* Maintains the aspect ratio of the image */
+  transform: translateX(-150px); 
+  margin-top: 25vh;
+}
+
+
+
+
+
+
+
+/* Media Queries */
+
+@media only screen and (max-width: 600px) {
+  .MainPageTextContainer {
+      left: 0; /* Center for small screens */
+      width: 45%; /* Use more width on small screens */
   }
-  
-  @media only screen and (min-width: 768px) {
-    .MainPageTextContainer {
-      left: 8%; /* Slightly more shift for medium screens */
-    }
-  }
-  
-  @media only screen and (min-width: 992px) {
-    .MainPageTextContainer {
-      left: 10%; /* Even more shift for large screens */
-    }
-  }
-  
-  @media only screen and (min-width: 1200px) {
-    .MainPageTextContainer {
-      left: 20%; /* Maximum shift for extra-large screens */
-    }
+}
+
+@media only screen and (min-width: 768px) {
+  .MainPageTextContainer {
+      width: 50%; /* Adjust width for tablet screens */
+      margin-top: 150px; /* Adjust top margin for better visibility */
   }
   .Skaffa-Ebudget {
-    background-color: #98FF98; /* Green */
-    border: none;
-    color: rgb(0, 0, 0);
-    padding: 15px 32px;
-    text-align: center;
-    text-decoration: none;
-    display: inline-block;
-    font-size: 16px;
-    margin: 4px 2px;
-    cursor: pointer;
-    border-radius: 8px; /* Rounded corners */
-    width: 30%;
-    height: 10vh;
-    margin-top: -50vh;
-    position: relative;
-    left: 40vh;
+      left: 5%; /* Adjust button positioning for tablet screens */
+  }
+}
 
+@media only screen and (min-width: 1366px) {
+  .MainPageTextContainer {
+      width: 25%; /* Optimal width for laptop screens */
+      margin-top: 100px; /* More margin for top alignment */
   }
-  .MainPageWrapper {
-    display: flex;
-    justify-content: space-between; /* Adjusts space between the text container and the button */
-    align-items: center; /* Vertically aligns items in the middle */
+  .Skaffa-Ebudget {
+      width: 20%; /* Adjust button width for consistency */
+      left: 10%; /* Center the button more accurately */
   }
+  .main-page-bird {
+    max-width: 30%; /* Ensures the image is responsive and does not overflow its container */
+    height: auto; /* Maintains the aspect ratio of the image */
+    transform: translateX(-150px); 
+    margin-top: 25vh;
+  }
+}
+
+@media only screen and (min-width: 1920px) {
+  .MainPageTextContainer {
+      width: 30%; /* Ideal width for large desktop screens */
+      margin-top: 250px; /* Increase top margin for visual balance */
+  }
+  .Skaffa-Ebudget {
+      width: 20%; /* Refine button width for large screens */
+      left: 15%; /* Adjust for better alignment */
+  }
+}
+
+@media only screen and (min-width: 1260px) and (max-width: 1300px) {
+  .MainPageTextContainer {
+    right: 20%; /* Center for small screens */
+    width: 35%; /* Use more width on small screens */
+    margin-top: 1%;
+  }
+.MainPageWrapper {
+  width: 80%;
+  min-height: 5vh; /* Ensures the wrapper takes at least the height of the viewport */
+  margin-top: 0%;
+  margin-left: 25%;
+  display: flex;
+  flex-direction: row; /* Aligns children side by side */
+  align-items: center; /* Aligns children vertically in the center */
+  justify-content: center; /* Centers children horizontally */
+  flex-wrap: wrap; /* Allows items to wrap to a new line on smaller screens */
+}
+.Skaffa-Ebudget {
+  align-self: center; /* Centers the button within the flex container */
+  margin-bottom: 70vh; /* Adjust to fine-tune the spacing, removing the 70vh */
+  width: auto;
+  max-width: 200px;
+  margin-right: 3%;
+}
+.MainPageTextContainer p {
+  color: #ffffff;
+  font-size: calc(16px + 1vw); /* Responsive font size */
+  text-align: justify;
+  margin-bottom: 30vh; /* Adjusted for better spacing */
+  line-height: 1.5; /* Standard line height for readability */
+  letter-spacing: normal; /* Default letter spacing */
+  max-width: 375px;
+  max-height: 400px;
+  overflow: auto;
+}
+.main-page-bird {
+  max-width: 40%;
+  height: auto;
+  transform: translateX(-150px);
+  margin-top: -80vh; /* Adjust value to move the image up */
+  margin-left: 50vh;
+}
+
+}

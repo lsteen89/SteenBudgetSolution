@@ -15,7 +15,7 @@ const HomePage = () => {
       </div>
       {/* Modified button to include onClick event for navigation */}
       <button className="Skaffa-Ebudget" onClick={() => navigate('/registration')}>Skaffa eBudget</button>
-      <img src={MainPageBird} alt="Bird" style={{ marginTop: '10vh' }} />
+      <img src={MainPageBird} alt="Bird" className="main-page-bird" />
     </div>
   );
 };
