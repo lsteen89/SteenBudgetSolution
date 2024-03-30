@@ -86,7 +86,7 @@
 }
 @media only screen and (min-width: 1440px)  and (max-width: 1440px){
   .cloud-menu-container {
-    display: flex;
+    display: flex; 
     flex-direction: column; /* Stack vertically, adjust as needed */
     align-items: center; /* Center-align items, adjust as needed */
     width: 100%;
