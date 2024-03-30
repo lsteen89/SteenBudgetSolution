@@ -136,12 +136,14 @@
 
 @media only screen and (min-width: 1366px) {
   .MainPageTextContainer {
-      width: 25%; /* Optimal width for laptop screens */
-      margin-top: 100px; /* More margin for top alignment */
+      width: 15%; /* Optimal width for laptop screens */
+      margin-top: 0px; /* More margin for top alignment */
   }
   .Skaffa-Ebudget {
       width: 20%; /* Adjust button width for consistency */
       left: 10%; /* Center the button more accurately */
+      margin-top: -80px;
+      font-size: 16px;
   }
   .main-page-bird {
     max-width: 30%; /* Ensures the image is responsive and does not overflow its container */
@@ -149,9 +151,25 @@
     transform: translateX(-150px); 
     margin-top: 25vh;
   }
+  .MainPageTextContainer p {
+    font-size: 20px;
+  }
+    .main-page-bird {
+    margin-left: -10vh;
+  }  
 }
 @media only screen and (min-width: 1920px) {
   .main-page-bird {
     margin-left: -10vh;
   }  
+  .MainPageTextContainer {
+    width: 15%; /* Optimal width for laptop screens */
+    margin-top: 150px; /* More margin for top alignment */
+}
+.Skaffa-Ebudget {
+  width: 20%; /* Adjust button width for consistency */
+  left: 10%; /* Center the button more accurately */
+  margin-top: 80px;
+  font-size: 16px;
+}
 }

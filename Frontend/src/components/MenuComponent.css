@@ -85,18 +85,10 @@
   }
 }
 @media only screen and (min-width: 1440px)  and (max-width: 1440px){
-  .cloud-menu-container {
-    display: flex; 
-    flex-direction: column; /* Stack vertically, adjust as needed */
-    align-items: center; /* Center-align items, adjust as needed */
-    width: 100%;
-    overflow-x: auto; /* Retain this if you want to allow scrolling */
-  
-  }
-  .om-oss { top: 45%; left: 43%; }
-  .kontakt { top: 45%; left: 55%; }
-  .vanliga-fragor { top: 45%; left: 70%; }
-  .logga-in { top: 45%; left: 90%; }
+  .om-oss { top: 50%; left: 43%; }
+  .kontakt { top: 50%; left: 55%; }
+  .vanliga-fragor { top: 50%; left: 70%; }
+  .logga-in { top: 50%; left: 90%; }
   .menuSvg {
     max-width: 100%; /* Limits SVG size */
     height: 20vw; /* Maintains aspect ratio */
