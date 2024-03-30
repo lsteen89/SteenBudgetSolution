@@ -10,7 +10,7 @@ const HomePage = () => {
     <div className="MainPageWrapper">
       <div className="MainPageTextContainer">
         <p>
-          Ta kontroll över din ekonomi och skapa trygghet för framtiden genom smart budgetering!
+          Ta kontroll <br></br>över din <br></br>ekonomi och <br></br>skapa <br></br>trygghet för<br></br> framtiden <br></br>genom smart <br></br>budgetering!
         </p>
       </div>
       {/* Modified button to include onClick event for navigation */}
