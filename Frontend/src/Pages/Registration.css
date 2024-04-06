@@ -3,8 +3,9 @@
     flex-direction: column;
     gap: 10px; /* Adjust the space between fields */
     width: 100%; /* Adjust based on your design */
-    max-width: 400px; /* Ensures form doesn't stretch too wide */
+    max-width: 900px; /* Ensures form doesn't stretch too wide */
     margin: auto; /* Center the form */
+
     
   }
   
@@ -13,9 +14,12 @@
     border-radius: 20px; /* Adjust for rounded corners */
     border: 1px solid #ccc; /* Light grey border */
     font-size: 16px; /* Adjust as needed */
-    width: 65vh;
-    margin-left: -15vh;
-    box-shadow: 0px 4px 10px 0px rgba(0,0,0,0.25); /* Drop shadow effect */
+    box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+    background: #FFFFFF;
+    display: block; /* Ensures inputs and button take full width */
+    margin: 10px auto; /* Centers them horizontally */
+    width: 100%; /* Adjust based on preference, ensures some padding from edges */
+    max-width: 900px; /* Adjust as needed for your design */
   }
   
   .user-info-form button {
@@ -28,8 +32,65 @@
     cursor: pointer;
     
   }
-  
+  .form-submit {
+    margin-top: 20px; /* Adds space between the last input field and the submit button */
+    text-align: center; /* Centers the button if that's the desired look */
+    display: flex; /* Aligns children (button and image) in a row */
+    align-items: center; /* Centers children vertically */
+    justify-content: center; /* Centers children horizontally, adjust as needed */
+    gap: 20px; /* Adds some space between the button and the image */
+}
   .user-info-form button:hover {
     background-color: #0056b3; /* Darker shade on hover */
   }
-  
+  .CreateAccountText {
+    font-size: 18px; /* Sets the size of the font */
+    margin-left: auto; /* Together with margin-right, centers the paragraph block */
+    font-family: 'Outfit';
+    font-style: normal;
+    font-weight: 600;
+    font-size: 36px;
+    line-height: 45px;
+    letter-spacing: 0.1em;
+    color: #333333;
+    width: 100%; /* You might want to adjust this for larger screens */
+    max-width: 100%; /* Maximum width of the form */
+    margin-bottom: 50px;
+  }
+  .label-style {
+    display: block; /* Makes the label take the full width, aligning text to center */
+    margin: 0 auto; /* Additional adjustment if needed */
+    text-align: left;
+    margin-bottom: 10px;
+  }
+  .registration-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center; /* Centers the text inside the container */
+    
+    justify-content: space-between; /* Add space between the form and the image */
+    
+  }
+  .form-submit button {
+    background: #98FF98;
+    border-radius: 20px;
+    font-family: 'Outfit';
+    font-style: normal;
+    font-weight: 800;
+    font-size: 32px;
+    line-height: 40px;
+    letter-spacing: 0.3em;
+    color: #333333;
+  }
+  .reg-bird-image {
+    margin-left: 150vh; /* Adjust based on your design */
+    margin-top: -200px;
+    background: none;
+  }
+
+
+
+
+
+
