@@ -10,28 +10,44 @@ function RegistrationForm() {
     const [password, setPassword] = useState('');
     const [repeatPassword, setRepeatPassword] = useState(''); // New state for repeated password
 
+    const [touched, setTouched] = useState({
+        firstName: false,
+        lastName: false,
+        email: false,
+        repeatEmail: false,
+        password: false,
+        repeatPassword: false,
+      });
+   
     const validateEmail = (email) => {
         const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return re.test(String(email).toLowerCase());
     };
 
+    const handleBlur = (fieldName) => {
+        setTouched(prev => ({ ...prev, [fieldName]: true }));
+      };
+      const fieldValues = { firstName, lastName, email, repeatEmail, password, repeatPassword };
 
+      const getErrorState = (fieldName) => touched[fieldName] && !fieldValues[fieldName];
+      console.log(getErrorState('firstName'));
+    
     const handleSubmit = (e) => {
         e.preventDefault();
         
         if (!validateEmail(email)) {
-            alert("Please enter a valid email address.");
+            alert("Vänligen ange giltig epost.");
             return;
         }
 
         // Validation for repeated email and password
         if(email !== repeatEmail) {
-            alert("Emails do not match.");
+            alert("Epost matchar inte.");
             return;
         }
 
         if(password !== repeatPassword) {
-            alert("Passwords do not match.");
+            alert("Lösenord matchar inte.");
             return;
         }
 
@@ -45,36 +61,73 @@ function RegistrationForm() {
                 <form onSubmit={handleSubmit} className="user-info-form">
                     <div className="form-fields">
                         <div>
-                            <label className="label-style">Förnamn:</label>
-                            <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+                            <input
+                                type="text"
+                                value={firstName}
+                                onChange={(e) => setFirstName(e.target.value)}
+                                onBlur={() => handleBlur('firstName')}
+                                className={`input-style ${getErrorState('firstName') ? 'input-error' : ''}`}
+                                placeholder="Ange ditt förnamn.."
+                            />
                         </div>
                         <div>
-                            <label className="label-style">Efternamn:</label>
-                            <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} />
+                            <input 
+                                type="text" 
+                                value={lastName} 
+                                onChange={(e) => setLastName(e.target.value)}
+                                onBlur={() => handleBlur('lastName')}
+                                className={`input-style ${getErrorState('lastName') ? 'input-error' : ''}`}       
+                                placeholder="Ange ditt Efternamn.."
+                            />
                         </div>
                         <div>
-                            <label className="label-style">E-post:</label>
-                            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                            <input  
+                                type="email" 
+                                value={email} 
+                                onChange={(e) => setEmail(e.target.value)}
+                                onBlur={() => handleBlur('email')}
+                                className={`input-style ${getErrorState('email') ? 'input-error' : ''}`}
+                                placeholder="Ange din E-post.."
+                            />
                         </div>
                         <div>
-                            <label className="label-style">Upprepa e-post:</label>
-                            <input type="email" value={repeatEmail} onChange={(e) => setRepeatEmail(e.target.value)} />
+                            <input 
+                                type="email" 
+                                value={repeatEmail} 
+                                onChange={(e) => setRepeatEmail(e.target.value)}
+                                onBlur={() => handleBlur('repeatEmail')}
+                                className={`input-style ${getErrorState('repeatEmail') ? 'input-error' : ''}`}
+                                placeholder="Upprepa e-post"
+                            />
                         </div>
                         <div>
-                            <label className="label-style">Lösenord:</label>
-                            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+                            <input 
+                                type="password" 
+                                value={password} 
+                                onChange={(e) => setPassword(e.target.value)}
+                                onBlur={() => handleBlur('password')}
+                                className={`input-style ${getErrorState('password') ? 'input-error' : ''}`}
+                                placeholder="Välj löseord, minst 6 tecken."
+                            />                            
                         </div>
                         <div>
-                            <label className="label-style">Upprepa lösenord:</label>
-                            <input type="password" value={repeatPassword} onChange={(e) => setRepeatPassword(e.target.value)} />
+                            <input 
+                                type="password" 
+                                value={repeatPassword} 
+                                onChange={(e) => setRepeatPassword(e.target.value)}
+                                onBlur={() => handleBlur('repeatPassword')}
+                                className={`input-style ${getErrorState('repeatPassword') ? 'input-error' : ''}`}
+                                placeholder="Upprepa löseord"
+                            />         
                         </div>
+
                         </div>
-                    <div className="form-submit">
-                        <button type="submit">Sätt igång!</button>
+                        <div className="form-submit">
+                            <button type="submit">Sätt igång!</button>
 
                     </div>
                 </form>
-                <img src={RegBird} alt="RegBird" className="reg-bird-image" />
+            <img src={RegBird} alt="RegBird" className="reg-bird-image" />
     </div>
     );
 }

@@ -20,6 +20,7 @@
     margin: 10px auto; /* Centers them horizontally */
     width: 100%; /* Adjust based on preference, ensures some padding from edges */
     max-width: 900px; /* Adjust as needed for your design */
+    
   }
   
   .user-info-form button {
@@ -39,6 +40,7 @@
     align-items: center; /* Centers children vertically */
     justify-content: center; /* Centers children horizontally, adjust as needed */
     gap: 20px; /* Adds some space between the button and the image */
+    
 }
   .user-info-form button:hover {
     background-color: #0056b3; /* Darker shade on hover */
@@ -68,7 +70,7 @@
     flex-direction: column;
     align-items: center;
     text-align: center; /* Centers the text inside the container */
-    
+
     justify-content: space-between; /* Add space between the form and the image */
     
   }
@@ -89,8 +91,9 @@
     background: none;
   }
 
-
-
-
-
+  .input-error {
+    color: #ff0000;
+  
+  }
+  
 
