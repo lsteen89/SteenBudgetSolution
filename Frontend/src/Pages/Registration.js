@@ -55,7 +55,7 @@ function RegistrationForm() {
             return;
         }
     
-        // Define the payload here to use the latest state values
+        
         const payload = { firstName, lastName, email, password };
     
         try {
@@ -65,12 +65,15 @@ function RegistrationForm() {
                 body: JSON.stringify(payload),
             });
     
+            console.log('Sending payload:', payload);
+
             if (response.ok) {
-                // Handle success
-                console.log('Registration successful');
+                const data = await response.json();
+                console.log('Registration successful:', data);
             } else {
-                // Handle errors
-                console.error('Registration failed');
+                console.error('Registration failed with status:', response.status);
+                const errorData = await response.json(); 
+                console.error('Error response body:', errorData);
             }
         } catch (error) {
             console.error('Error during registration:', error);
