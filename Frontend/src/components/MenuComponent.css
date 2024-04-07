@@ -11,7 +11,19 @@
   width: 100%;
   height: auto;
 }
+.svg-and-clickable-area {
+  position: relative;
+}
 
+.clickable-area {
+  position: absolute;
+  top: 70px; /* Adjust these values based on the clickable area's position */
+  left: 0; /* Adjust these values based on the clickable area's position */
+  width: 300px; /* Adjust based on the clickable area's size */
+  height: 150px; /* Adjust based on the clickable area's size */
+  cursor: pointer;
+  background-color: rgba(255, 4, 0, 0); /* Transparent */
+}
 /* Styling for the button, making it responsive */
 .button {
   text-decoration: none;
@@ -41,6 +53,13 @@
 .kontakt { top: 55%; left: 55%; }
 .vanliga-fragor { top: 55%; left: 70%; }
 .logga-in { top: 55%; left: 90%; }
+
+
+
+
+
+
+
 
 /* Media queries for adjusting layout on smaller screens */
 @media (max-width: 768px) {
