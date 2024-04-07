@@ -18,7 +18,14 @@ function RegistrationForm() {
         password: false,
         repeatPassword: false,
       });
-   
+
+  
+
+    const apiUrl = 'https://localhost:7224/Registration/register'; 
+
+
+
+
     const validateEmail = (email) => {
         const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return re.test(String(email).toLowerCase());
@@ -32,26 +39,42 @@ function RegistrationForm() {
       const getErrorState = (fieldName) => touched[fieldName] && !fieldValues[fieldName];
       console.log(getErrorState('firstName'));
     
-    const handleSubmit = (e) => {
+      const handleSubmit = async (e) => {
         e.preventDefault();
         
         if (!validateEmail(email)) {
-            alert("Vänligen ange giltig epost.");
+            alert("Vänligen ange en giltig e-postadress.");
             return;
         }
-
-        // Validation for repeated email and password
-        if(email !== repeatEmail) {
-            alert("Epost matchar inte.");
+        if (email !== repeatEmail) {
+            alert("E-postadresserna matchar inte.");
             return;
         }
-
-        if(password !== repeatPassword) {
-            alert("Lösenord matchar inte.");
+        if (password !== repeatPassword) {
+            alert("Lösenorden matchar inte.");
             return;
         }
-
-        console.log(firstName, lastName, email, password);
+    
+        // Define the payload here to use the latest state values
+        const payload = { firstName, lastName, email, password };
+    
+        try {
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+    
+            if (response.ok) {
+                // Handle success
+                console.log('Registration successful');
+            } else {
+                // Handle errors
+                console.error('Registration failed');
+            }
+        } catch (error) {
+            console.error('Error during registration:', error);
+        }
     };
 
     return (
