@@ -54,7 +54,7 @@ namespace Backend.DataAccess
                 catch (Exception ex)
                 {
                     transaction?.Rollback();
-                    LogWriter(user, ex.ToString()); // CallerMemberName will be auto-filled
+                    LogWriter(user, ex.ToString()); 
                     return false;
                 }
                 finally
