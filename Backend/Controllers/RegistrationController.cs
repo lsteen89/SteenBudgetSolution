@@ -29,10 +29,14 @@ namespace Backend.Controllers
             _userServices = new Services.UserServices();
             bool userExists = _userServices.CheckIfUserExists(user.Email);
             if (userExists)
-                return BadRequest(ModelState);
+            {
+                ModelState.AddModelError("Email", "This email is already taken.");
+                return BadRequest(new { message = "This email is already taken." });
+            }
 
             //Hash the PW with BCrypt, which also salts it and keeps the salt in the string
             var hashedPassword = BCrypt.Net.BCrypt.HashPassword(user.Password);
+            user.Password = hashedPassword;
             bool isSuccessfulRegistration = _userServices.CreateNewRegisteredUser(user);
             if (!isSuccessfulRegistration)
             {

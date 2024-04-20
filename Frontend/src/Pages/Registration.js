@@ -6,156 +6,183 @@ function RegistrationForm() {
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
     const [email, setEmail] = useState('');
-    const [repeatEmail, setRepeatEmail] = useState(''); // New state for repeated email
+    const [repeatEmail, setRepeatEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [repeatPassword, setRepeatPassword] = useState(''); // New state for repeated password
+    const [repeatPassword, setRepeatPassword] = useState('');
+    const [errors, setErrors] = useState({});
 
-    const [touched, setTouched] = useState({
-        firstName: false,
-        lastName: false,
-        email: false,
-        repeatEmail: false,
-        password: false,
-        repeatPassword: false,
-      });
+    const apiUrl = 'https://localhost:7224/Registration/register';
 
-  
-
-    const apiUrl = 'https://localhost:7224/Registration/register'; 
-
-
-
-
-    const validateEmail = (email) => {
-        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return re.test(String(email).toLowerCase());
+    const validateField = (name, value) => {
+        let error = '';
+        switch (name) {
+            case 'firstName':
+            case 'lastName':
+                if (!value) error = 'This field is required.';
+                else if (value.length > 50) error = 'Cannot be longer than 50 characters.';
+                else if (!/^[a-zA-Z]+(([',. -][a-zA-Z ])?[a-zA-Z]*)*$/.test(value)) error = 'Invalid format.';
+                break;
+            case 'email':
+                if (!value) error = 'Email is required.';
+                else if (value.length > 100) error = 'E-mail cannot be longer than 100 characters.';
+                else if (!/^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/.test(value)) error = 'Invalid email format';
+                break;
+            case 'repeatEmail':
+                if (!value) error = 'Email confirmation is required.';
+                else if (value !== email) error = 'Emails do not match';
+                break;
+            case 'password':
+                if (!value) error = 'Password is required.';
+                else if (value.length > 100) error = 'Password cannot be longer than 100 characters.';
+                else if (!/^(?=.*[A-Z])(?=.*\d)(?=.*[\W]).{8,}$/.test(value)) error = 'Password must include at least one uppercase, one number, and one symbol.';
+                break;
+            case 'repeatPassword':
+                if (!value) error = 'Password confirmation is required.';
+                else if (value !== password) error = 'Passwords do not match';
+                break;
+        }
+        return error;
     };
 
-    const handleBlur = (fieldName) => {
-        setTouched(prev => ({ ...prev, [fieldName]: true }));
-      };
-      const fieldValues = { firstName, lastName, email, repeatEmail, password, repeatPassword };
+    const handleChange = (event) => {
+        const { name, value } = event.target;
+        setErrors(errors => ({ ...errors, [name]: validateField(name, value) }));
+        switch (name) {
+            case 'firstName': setFirstName(value); break;
+            case 'lastName': setLastName(value); break;
+            case 'email': setEmail(value); break;
+            case 'repeatEmail': setRepeatEmail(value); break;
+            case 'password': setPassword(value); break;
+            case 'repeatPassword': setRepeatPassword(value); break;
+        }
+    };
 
-      const getErrorState = (fieldName) => touched[fieldName] && !fieldValues[fieldName];
-      console.log(getErrorState('firstName'));
-    
-      const handleSubmit = async (e) => {
-        e.preventDefault();
-        
-        if (!validateEmail(email)) {
-            alert("Vänligen ange en giltig e-postadress.");
-            return;
-        }
-        if (email !== repeatEmail) {
-            alert("E-postadresserna matchar inte.");
-            return;
-        }
-        if (password !== repeatPassword) {
-            alert("Lösenorden matchar inte.");
-            return;
-        }
-    
-        
-        const payload = { firstName, lastName, email, password };
-    
-        try {
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
-    
-            console.log('Sending payload:', payload);
+    const handleSubmit = async (event) => {
+        event.preventDefault();
+        const fieldNames = ['firstName', 'lastName', 'email', 'repeatEmail', 'password', 'repeatPassword'];
+        const validationErrors = fieldNames.reduce((acc, fieldName) => {
+            acc[fieldName] = validateField(fieldName, eval(fieldName));
+            return acc;
+        }, {});
 
-            if (response.ok) {
-                const data = await response.json();
-                console.log('Registration successful:', data);
+        if (Object.values(validationErrors).some(error => error)) {
+            setErrors(validationErrors);
+            return;
+        }
+
+    // If all validations pass, submit data to server
+    try {
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ firstName, lastName, email, password }),
+        });
+
+        if (response.ok) {
+            console.log('Registration successful');
+            // Redirect to login or another appropriate page
+        } else {
+            const errorData = await response.json();
+            console.error('Registration failed:', errorData);
+            // Check if the error is about the email already taken
+            if (errorData.message === "This email is already taken.") {
+                setErrors(prev => ({ ...prev, email: 'This email is already taken.' }));
             } else {
-                console.error('Registration failed with status:', response.status);
-                const errorData = await response.json(); 
-                console.error('Error response body:', errorData);
+                setErrors(prev => ({ ...prev, form: errorData.message }));
             }
-        } catch (error) {
-            console.error('Error during registration:', error);
         }
+    } catch (error) {
+        console.error('Error during registration:', error);
+        setErrors({ form: 'An unexpected error occurred. Please try again.' });
+    }
     };
 
     return (
-        
-    <div className="registration-container">
-        <p className="CreateAccountText">Skapa konto för att komma igång med eBudget</p>
-                <form onSubmit={handleSubmit} className="user-info-form">
-                    <div className="form-fields">
-                        <div>
-                            <input
-                                type="text"
-                                value={firstName}
-                                onChange={(e) => setFirstName(e.target.value)}
-                                onBlur={() => handleBlur('firstName')}
-                                className={`input-style ${getErrorState('firstName') ? 'input-error' : ''}`}
-                                placeholder="Ange ditt förnamn.."
-                            />
-                        </div>
-                        <div>
-                            <input 
-                                type="text" 
-                                value={lastName} 
-                                onChange={(e) => setLastName(e.target.value)}
-                                onBlur={() => handleBlur('lastName')}
-                                className={`input-style ${getErrorState('lastName') ? 'input-error' : ''}`}       
-                                placeholder="Ange ditt Efternamn.."
-                            />
-                        </div>
-                        <div>
-                            <input  
-                                type="email" 
-                                value={email} 
-                                onChange={(e) => setEmail(e.target.value)}
-                                onBlur={() => handleBlur('email')}
-                                className={`input-style ${getErrorState('email') ? 'input-error' : ''}`}
-                                placeholder="Ange din E-post.."
-                            />
-                        </div>
-                        <div>
-                            <input 
-                                type="email" 
-                                value={repeatEmail} 
-                                onChange={(e) => setRepeatEmail(e.target.value)}
-                                onBlur={() => handleBlur('repeatEmail')}
-                                className={`input-style ${getErrorState('repeatEmail') ? 'input-error' : ''}`}
-                                placeholder="Upprepa e-post"
-                            />
-                        </div>
-                        <div>
-                            <input 
-                                type="password" 
-                                value={password} 
-                                onChange={(e) => setPassword(e.target.value)}
-                                onBlur={() => handleBlur('password')}
-                                className={`input-style ${getErrorState('password') ? 'input-error' : ''}`}
-                                placeholder="Välj löseord, minst 6 tecken."
-                            />                            
-                        </div>
-                        <div>
-                            <input 
-                                type="password" 
-                                value={repeatPassword} 
-                                onChange={(e) => setRepeatPassword(e.target.value)}
-                                onBlur={() => handleBlur('repeatPassword')}
-                                className={`input-style ${getErrorState('repeatPassword') ? 'input-error' : ''}`}
-                                placeholder="Upprepa löseord"
-                            />         
-                        </div>
-
-                        </div>
-                        <div className="form-submit">
-                            <button type="submit">Sätt igång!</button>
-
+        <div className="registration-container">
+            <p className="CreateAccountText">Skapa konto för att komma igång med eBudget</p>
+            <form onSubmit={handleSubmit} className="user-info-form">
+                <div className="form-fields">
+                    {/* Input for First Name */}
+                    <div>
+                        <input
+                            type="text"
+                            name="firstName"
+                            value={firstName}
+                            onChange={handleChange} // Updated to handle change for validation
+                            className={`input-style ${errors.firstName ? 'input-error' : ''}`}
+                            placeholder="Ange ditt förnamn.."
+                        />
+                        {errors.firstName && <div className="error-message">{errors.firstName}</div>}
                     </div>
-                </form>
+                    {/* Input for Last Name */}
+                    <div>
+                        <input
+                            type="text"
+                            name="lastName"
+                            value={lastName}
+                            onChange={handleChange} // Updated to handle change for validation
+                            className={`input-style ${errors.lastName ? 'input-error' : ''}`}
+                            placeholder="Ange ditt Efternamn.."
+                        />
+                        {errors.lastName && <div className="error-message">{errors.lastName}</div>}
+                    </div>
+                    {/* Input for Email */}
+                    <div>
+                        <input
+                            type="email"
+                            name="email"
+                            value={email}
+                            onChange={handleChange} // Updated to handle change for validation
+                            className={`input-style ${errors.email ? 'input-error' : ''}`}
+                            placeholder="Ange din E-post.."
+                        />
+                        {errors.email && <div className="error-message">{errors.email}</div>}
+                    </div>
+                    {/* Input for Repeat Email */}
+                    <div>
+                        <input
+                            type="email"
+                            name="repeatEmail"
+                            value={repeatEmail}
+                            onChange={handleChange} // Updated to handle change for validation
+                            className={`input-style ${errors.repeatEmail ? 'input-error' : ''}`}
+                            placeholder="Upprepa e-post"
+                        />
+                        {errors.repeatEmail && <div className="error-message">{errors.repeatEmail}</div>}
+                    </div>
+                    {/* Input for Password */}
+                    <div>
+                        <input
+                            type="password"
+                            name="password"
+                            value={password}
+                            onChange={handleChange} // Updated to handle change for validation
+                            className={`input-style ${errors.password ? 'input-error' : ''}`}
+                            placeholder="Välj löseord, minst 6 tecken."
+                        />
+                        {errors.password && <div className="error-message">{errors.password}</div>}
+                    </div>
+                    {/* Input for Repeat Password */}
+                    <div>
+                        <input
+                            type="password"
+                            name="repeatPassword"
+                            value={repeatPassword}
+                            onChange={handleChange} // Updated to handle change for validation
+                            className={`input-style ${errors.repeatPassword ? 'input-error' : ''}`}
+                            placeholder="Upprepa löseord"
+                        />
+                        {errors.repeatPassword && <div className="error-message">{errors.repeatPassword}</div>}
+                    </div>
+                </div>
+                <div className="form-submit">
+                    <button type="submit">Sätt igång!</button>
+                </div>
+            </form>
             <img src={RegBird} alt="RegBird" className="reg-bird-image" />
-    </div>
+        </div>
     );
+    
 }
 
 export default RegistrationForm;
