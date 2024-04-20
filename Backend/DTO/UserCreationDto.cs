@@ -6,12 +6,12 @@ namespace Backend.DTO
     {
         [Required(ErrorMessage = "First name is required.")]
         [StringLength(50, ErrorMessage = "First name cannot be longer than 50 characters.")]
-        [RegularExpression(@"^[a-zA-Z]+(([',. -][a-zA-Z ])?[a-zA-Z]*)*$", ErrorMessage = "Invalid first name format.")]
+        [RegularExpression(@"^[\p{L}]+(([',. -][\p{L} ])?[\p{L}]*)*$", ErrorMessage = "Invalid first name format.")]
         public string FirstName { get; set; }
 
         [Required(ErrorMessage = "Last name is required.")]
         [StringLength(50, ErrorMessage = "Last name cannot be longer than 50 characters.")]
-        [RegularExpression(@"^[a-zA-Z]+(([',. -][a-zA-Z ])?[a-zA-Z]*)*$", ErrorMessage = "Invalid last name format.")]
+        [RegularExpression(@"^[\p{L}]+(([',. -][\p{L} ])?[\p{L}]*)*$", ErrorMessage = "Invalid last name format.")]
         public string LastName { get; set; }
 
         [Required(ErrorMessage = "Email is required.")]

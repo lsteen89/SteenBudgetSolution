@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import './Registration.css';
 import RegBird from '../assets/Images/RegBird.png';
+import { useNavigate } from 'react-router-dom';  // Import useNavigate
 
 function RegistrationForm() {
     const [firstName, setFirstName] = useState('');
@@ -12,6 +13,7 @@ function RegistrationForm() {
     const [errors, setErrors] = useState({});
 
     const apiUrl = 'https://localhost:7224/Registration/register';
+    const navigate = useNavigate();  
 
     const validateField = (name, value) => {
         let error = '';
@@ -20,7 +22,7 @@ function RegistrationForm() {
             case 'lastName':
                 if (!value) error = 'This field is required.';
                 else if (value.length > 50) error = 'Cannot be longer than 50 characters.';
-                else if (!/^[a-zA-Z]+(([',. -][a-zA-Z ])?[a-zA-Z]*)*$/.test(value)) error = 'Invalid format.';
+                else if (!/^\p{L}+(([',. -]\p{L} )?\p{L}*)*$/u.test(value)) error = 'Invalid format.'; 
                 break;
             case 'email':
                 if (!value) error = 'Email is required.';
@@ -80,7 +82,7 @@ function RegistrationForm() {
 
         if (response.ok) {
             console.log('Registration successful');
-            // Redirect to login or another appropriate page
+                navigate('/welcomepage'); 
         } else {
             const errorData = await response.json();
             console.error('Registration failed:', errorData);
@@ -158,7 +160,7 @@ function RegistrationForm() {
                             value={password}
                             onChange={handleChange} // Updated to handle change for validation
                             className={`input-style ${errors.password ? 'input-error' : ''}`}
-                            placeholder="Välj löseord, minst 6 tecken."
+                            placeholder="Välj löseord, minst 8 tecken, en stor och en liten bokstav, minst ett specialtecken och minst en siffra."
                         />
                         {errors.password && <div className="error-message">{errors.password}</div>}
                     </div>
