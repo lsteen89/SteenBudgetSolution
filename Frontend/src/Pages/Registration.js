@@ -176,12 +176,14 @@ function RegistrationForm() {
                         />
                         {errors.repeatPassword && <div className="error-message">{errors.repeatPassword}</div>}
                     </div>
-                </div>
-                <div className="form-submit">
+                    <div className="form-submit">
                     <button type="submit">Sätt igång!</button>
+                    <img src={RegBird} alt="RegBird" className="reg-bird-image" />
                 </div>
+                </div>
+
             </form>
-            <img src={RegBird} alt="RegBird" className="reg-bird-image" />
+            
         </div>
     );
     

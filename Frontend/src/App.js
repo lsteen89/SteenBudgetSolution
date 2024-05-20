@@ -1,11 +1,12 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import HomePage from './Pages/HomePage.js';
+import HomePage from './Pages/HomePage';
 import MenuComponent from './components/MenuComponent';
-import Registration from './Pages/Registration.js';
-import WelcomePage from './Pages/WelcomePage.js';
+import Registration from './Pages/Registration';
+import WelcomePage from './Pages/WelcomePage';
+import AboutUs from './Pages/AboutUs'; // Import AboutUs component
+
 // Uncomment and import other components as you add new routes/pages
-// import About from './components/About';
 // import Services from './components/Services';
 // import Contact from './components/Contact';
 
@@ -20,9 +21,9 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/registration" element={<Registration />} />
           <Route path="/welcomepage" element={<WelcomePage />} />
+          <Route path="/about-us" element={<AboutUs />} /> {/* Add the AboutUs route */}
           {/* Future routes for other pages can be defined here */}
-          {/* <Route path="/about" element={<About />} />
-          <Route path="/services" element={<Services />} />
+          {/* <Route path="/services" element={<Services />} />
           <Route path="/contact" element={<Contact />} /> */}
         </Routes>
       </div>
