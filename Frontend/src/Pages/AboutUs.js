@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import './AboutUs.css'; // Make sure to import the CSS file
-import AboutUsBird from '../assets/Images/AboutUsBird.png'; // Update the path as needed
+import './AboutUs.css'; 
+import AboutUsBird from '../assets/Images/AboutUsBird.png'; 
 
 function AboutUs() {
   const navigate = useNavigate(); // Initialize the useNavigate hook

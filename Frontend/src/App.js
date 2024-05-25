@@ -5,6 +5,7 @@ import MenuComponent from './components/MenuComponent';
 import Registration from './Pages/Registration';
 import WelcomePage from './Pages/WelcomePage';
 import AboutUs from './Pages/AboutUs'; // Import AboutUs component
+import Contact from './Pages/Contact';
 
 // Uncomment and import other components as you add new routes/pages
 // import Services from './components/Services';
@@ -22,6 +23,7 @@ function App() {
           <Route path="/registration" element={<Registration />} />
           <Route path="/welcomepage" element={<WelcomePage />} />
           <Route path="/about-us" element={<AboutUs />} /> {/* Add the AboutUs route */}
+          <Route path="/contact" element={<Contact />} /> {/* Add the AboutUs route */}
           {/* Future routes for other pages can be defined here */}
           {/* <Route path="/services" element={<Services />} />
           <Route path="/contact" element={<Contact />} /> */}

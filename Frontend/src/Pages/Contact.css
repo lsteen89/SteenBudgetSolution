@@ -1,0 +1,90 @@
+.contact-container-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start; /* Align items to the start (top) of the container */
+    height: 80vh; /* Adjust height to be shorter */
+    margin-top: 20px; /* Add top margin to push content upwards */
+    margin-right: 200px;
+  }
+  
+  .ContactUs-bird-image {
+    margin-right: 20px; /* Add space between the image and the contact container */
+    align-self: center; /* Center the image vertically */
+  }
+  
+  .contact-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  
+  .contact-text {
+    font-weight: bold;
+    margin-bottom: 20px;
+  }
+  
+  .contact-form {
+    display: flex;
+    flex-direction: column;
+    width: 90%; /* Adjust based on preference, ensures some padding from edges */
+    max-width: 900px; /* Adjust as needed for your design */
+  }
+  
+  .form-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px; /* Adds space between the inputs */
+  }
+  
+  .form-row input {
+    width: 48%; /* Adjust width to fit two inputs in one row */
+  }
+  
+  .form-row input:last-child {
+    margin-right: 0; /* Remove margin on the last input to prevent overflow */
+  }
+  
+  .contact-form input,
+  .contact-form textarea {
+    padding: 10px; /* Adjust for padding inside the fields */
+    border-radius: 20px; /* Adjust for rounded corners */
+    border: 1px solid #ccc; /* Light grey border */
+    font-size: 16px; /* Adjust as needed */
+    box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+    background: #FFFFFF;
+    display: block; /* Ensures inputs and button take full width */
+    margin: 10px auto; /* Centers them horizontally */
+    width: 100%; /* Ensures the inputs take full width of their container */
+  }
+  
+  .contact-form button {
+    padding: 10px;
+    font-size: 16px;
+    background-color: #007BFF;
+    color: white;
+    border: none;
+    cursor: pointer;
+  }
+  
+  .contact-form button:hover {
+    background-color: #0056b3;
+  }
+  
+  /* Submit button specific styles */
+  .form-submit button {
+    background: #98FF98;
+    border-radius: 20px;
+    font-family: 'Outfit', sans-serif;
+    font-style: normal;
+    font-weight: 800;
+    font-size: 20px; /* Smaller font size for the submit button */
+    line-height: 28px;
+    letter-spacing: 0.1em;
+    color: #333333;
+    width: 100%; /* Makes the button take full width of its container */
+    max-width: 300px; /* Optional: Set a maximum width if needed */
+    padding: 10px 20px; /* Optional: Adjust padding for better look */
+    margin: 0 auto; /* Center the button horizontally */
+  }
+  
