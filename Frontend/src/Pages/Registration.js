@@ -20,27 +20,27 @@ function RegistrationForm() {
         switch (name) {
             case 'firstName':
             case 'lastName':
-                if (!value) error = 'This field is required.';
-                else if (value.length > 50) error = 'Cannot be longer than 50 characters.';
-                else if (!/^\p{L}+(([',. -]\p{L} )?\p{L}*)*$/u.test(value)) error = 'Invalid format.'; 
+                if (!value) error = 'Detta fältet är obligatoriskt!';
+                else if (value.length > 50) error = 'Kan inte vara längre än 50 tecken!.';
+                else if (!/^\p{L}+(([',. -]\p{L} )?\p{L}*)*$/u.test(value)) error = 'Ogiltigt format!.'; 
                 break;
             case 'email':
-                if (!value) error = 'Email is required.';
-                else if (value.length > 100) error = 'E-mail cannot be longer than 100 characters.';
-                else if (!/^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/.test(value)) error = 'Invalid email format';
+                if (!value) error = 'Detta fältet är obligatoriskt!';
+                else if (value.length > 100) error = 'E-mail kan inte vara längre än 100 tecken!';
+                else if (!/^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/.test(value)) error = 'Ogiltigt format!';
                 break;
             case 'repeatEmail':
-                if (!value) error = 'Email confirmation is required.';
-                else if (value !== email) error = 'Emails do not match';
+                if (!value) error = 'Detta fältet är obligatoriskt!';
+                else if (value !== email) error = 'Eposter matchar inte!';
                 break;
             case 'password':
-                if (!value) error = 'Password is required.';
-                else if (value.length > 100) error = 'Password cannot be longer than 100 characters.';
-                else if (!/^(?=.*[A-Z])(?=.*\d)(?=.*[\W]).{8,}$/.test(value)) error = 'Password must include at least one uppercase, one number, and one symbol.';
+                if (!value) error = 'Detta fältet är obligatoriskt!';
+                else if (value.length > 100) error = 'Lösenordet kan  inte vara längre än 100 tecken!';
+                else if (!/^(?=.*[A-Z])(?=.*\d)(?=.*[\W]).{8,}$/.test(value)) error = 'Lösenordet måste ha minst en stor bokstav, en siffra och en symbol! (special tecken)';
                 break;
             case 'repeatPassword':
-                if (!value) error = 'Password confirmation is required.';
-                else if (value !== password) error = 'Passwords do not match';
+                if (!value) error = 'Detta fältet är obligatoriskt!';
+                else if (value !== password) error = 'Lösenord matchar inte!';
                 break;
         }
         return error;

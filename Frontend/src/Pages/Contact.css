@@ -1,10 +1,10 @@
 .contact-container-wrapper {
     display: flex;
-    justify-content: center;
+    justify-content: flex-start; /* Align items to the start (left) of the container */
     align-items: flex-start; /* Align items to the start (top) of the container */
     height: 80vh; /* Adjust height to be shorter */
     margin-top: 20px; /* Add top margin to push content upwards */
-    margin-right: 200px;
+    padding-left: 20px; /* Add left padding to shift content to the left */
   }
   
   .ContactUs-bird-image {
@@ -86,5 +86,11 @@
     max-width: 300px; /* Optional: Set a maximum width if needed */
     padding: 10px 20px; /* Optional: Adjust padding for better look */
     margin: 0 auto; /* Center the button horizontally */
+  }
+  
+  .error-message {
+    color: red;
+    font-size: 14px;
+    margin-top: 5px;
   }
   
