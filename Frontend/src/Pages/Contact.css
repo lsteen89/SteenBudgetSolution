@@ -4,7 +4,7 @@
     align-items: flex-start; /* Align items to the start (top) of the container */
     height: 80vh; /* Adjust height to be shorter */
     margin-top: 20px; /* Add top margin to push content upwards */
-    padding-left: 20px; /* Add left padding to shift content to the left */
+    padding-left: 220px; /* Add left padding to shift content to the left */
   }
   
   .ContactUs-bird-image {
