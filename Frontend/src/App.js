@@ -4,29 +4,22 @@ import HomePage from './Pages/HomePage';
 import MenuComponent from './components/MenuComponent';
 import Registration from './Pages/Registration';
 import WelcomePage from './Pages/WelcomePage';
-import AboutUs from './Pages/AboutUs'; // Import AboutUs component
+import AboutUs from './Pages/AboutUs';
 import Contact from './Pages/Contact';
-
-// Uncomment and import other components as you add new routes/pages
-// import Services from './components/Services';
-// import Contact from './components/Contact';
+import Faq from './Pages/Faq'; // Ensure this import is correct
 
 function App() {
   return (
     <BrowserRouter>
       <div className="App">
-        {/* MenuComponent will be visible on all pages */}
         <MenuComponent />
         <Routes>
-          {/* Define the route for the HomePage as the main/starting page */}
           <Route path="/" element={<HomePage />} />
           <Route path="/registration" element={<Registration />} />
           <Route path="/welcomepage" element={<WelcomePage />} />
-          <Route path="/about-us" element={<AboutUs />} /> {/* Add the AboutUs route */}
-          <Route path="/contact" element={<Contact />} /> {/* Add the AboutUs route */}
-          {/* Future routes for other pages can be defined here */}
-          {/* <Route path="/services" element={<Services />} />
-          <Route path="/contact" element={<Contact />} /> */}
+          <Route path="/about-us" element={<AboutUs />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/faq" element={<Faq />} /> {}
         </Routes>
       </div>
     </BrowserRouter>

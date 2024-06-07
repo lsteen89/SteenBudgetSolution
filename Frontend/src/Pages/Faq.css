@@ -1,0 +1,31 @@
+/* Faq.css */
+.faq-wrapper {
+    position: relative;
+  }
+  
+  .faq-container {
+    position: relative;
+    width: 60%; /* Adjust the width as needed */
+    margin: 0 auto; /* Center the container */
+    padding: 20px; /* Add padding for better spacing */
+    margin-left: 200px;
+    margin-bottom: 200px;
+  }
+  
+  .faq-content p {
+    margin-bottom: 15px; /* Add space between paragraphs */
+    margin-right: 200px;
+  }
+  
+  .h1-top {
+    margin-left: 20px; /* Adjust the value as needed to move it more to the right */
+  }
+  
+  .faq-bird-image {
+    position: absolute;
+    top: 100px; /* Adjust as needed */
+    right: 200px; /* Adjust this value to move the image outside the container */
+    width: auto; /* Adjust the size as needed */
+    height: auto;
+  }
+  
