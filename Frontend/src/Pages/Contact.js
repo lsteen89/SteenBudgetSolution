@@ -15,6 +15,7 @@ function AboutUs() {
   });
 
   const [errors, setErrors] = useState({});
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
   const validateForm = () => {
     const newErrors = {};
@@ -42,11 +43,30 @@ function AboutUs() {
     setFormData({ ...formData, [name]: value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log('Form submitted', formData); // Debugging: Check if handleSubmit is called
     if (validateForm()) {
-      // Proceed with form submission
-      console.log('Form submitted', formData);
+      try {
+        const response = await fetch('https://jsonplaceholder.typicode.com/posts', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData)
+        });
+        const result = await response.json();
+        if (response.ok) {
+          console.log('Form submitted successfully:', result);
+          setIsSubmitted(true); // Set submission status to true
+        } else {
+          console.log('Form submission failed:', result);
+        }
+      } catch (error) {
+        console.error('Error submitting form:', error);
+      }
+    } else {
+      console.log('Validation failed:', errors); // Debugging: Check validation errors
     }
   };
 
@@ -110,6 +130,9 @@ function AboutUs() {
             <button type="submit">Skicka</button>
           </div>
         </form>
+        {isSubmitted && (
+          <p className="success-message">Skickat!</p>
+        )}
       </div>
     </div>
   );

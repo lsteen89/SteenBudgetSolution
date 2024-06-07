@@ -93,4 +93,8 @@
     font-size: 14px;
     margin-top: 5px;
   }
-  
+  .success-message {
+    color: green;
+    font-weight: bold;
+    margin-top: 10px;
+  }
