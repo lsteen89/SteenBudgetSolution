@@ -1,6 +1,7 @@
 import React from 'react';
 import './Faq.css'; // Make sure to import the CSS file
 import FaqBird from '../assets/Images/FaqBird.png'; // Adjust the path as needed
+import { Link } from 'react-router-dom'; // Import Link from react-router-dom
 
 function Faq() {
   return (
@@ -14,7 +15,7 @@ function Faq() {
             Registrera helt enkelt ett konto, fyll i din inkomst och dina utgifter, 
             sätt dina sparande mål och börja budgetera! Om du behöver ytterligare 
             hjälp finns vårt supportteam här för att assistera. Du når oss på 
-            support@ebudget.se.
+            <Link to="/contact" className="highlighted-link"> support@ebudget.se</Link>.
           </p>
           <p>
             <strong>Fråga 2: Är mina data säkra med eBudget?</strong><br />

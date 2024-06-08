@@ -28,4 +28,8 @@
     width: auto; /* Adjust the size as needed */
     height: auto;
   }
-  
+  .highlighted-link {
+    color: blue; /* Change the color to make it stand out */
+    font-weight: bold; /* Make the link bold */
+    text-decoration: underline; /* Underline the link */
+  }
