@@ -20,7 +20,7 @@ jobs:
 
       - name: Deploy to Raspberry Pi
         run: |
-          ssh -o StrictHostKeyChecking=no -p 22 pi@<RaspberryPi_IP_Address> << 'EOF'
+          ssh -o StrictHostKeyChecking=no -p 22 pi@<RaspberryPi_IP_Address> 'bash -s' <<'EOF'
             set -e
             cd /home/pi/SteenBudgetSolution
             echo "Current Git Status:"
