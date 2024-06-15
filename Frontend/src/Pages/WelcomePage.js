@@ -15,10 +15,11 @@ function WelcomePage() {
                     <p><u>Klicka här för att skicka en ny verifieringslänk.</u><br />(Om du inte kan se e-posten eller har problem med att hitta den)</p>
                     <p>Om du har några frågor eller behöver hjälp, tveka inte att kontakta vår support på support@ebudget.se.</p>
                 </div>
-                <div className="form-submit">
+
+            </div>
+            <div className="form-submit">
                     <button>Logga in!</button>
                 </div>
-            </div>
             <img src={RegBird} alt="RegBird" className="reg-bird-image" />
         </div>
     );

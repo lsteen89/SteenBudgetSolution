@@ -6,7 +6,9 @@ import Registration from './Pages/Registration';
 import WelcomePage from './Pages/WelcomePage';
 import AboutUs from './Pages/AboutUs';
 import Contact from './Pages/Contact';
-import Faq from './Pages/Faq'; // Ensure this import is correct
+import Faq from './Pages/Faq';
+import Login from './Pages/Login';
+
 
 function App() {
   return (
@@ -20,6 +22,7 @@ function App() {
           <Route path="/about-us" element={<AboutUs />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/faq" element={<Faq />} /> {}
+          <Route path="/login" element={<Login />} /> {}
         </Routes>
       </div>
     </BrowserRouter>
