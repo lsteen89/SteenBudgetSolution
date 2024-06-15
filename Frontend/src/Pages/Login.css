@@ -54,7 +54,7 @@
   border: none; /* Remove border for the submit button */
   margin-top: 20px; /* Space between the password input and the submit button */
   padding: 10px 0; /* Adjust padding for height */
-  width: 100%; /* Full width of the form container */
+  width: 60%; /* Full width of the form container */
   cursor: pointer;
 }
 
