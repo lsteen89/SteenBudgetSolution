@@ -22,7 +22,11 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no -p 2222 pi@155.4.68.41 << 'EOF'
             cd /home/pi/SteenBudgetSolution
+            echo "Current Git Status:"
+            git status
             git pull origin master
+            echo "After Git Pull:"
+            git log -1
             cd /home/pi/SteenBudgetSolution/backend
             dotnet publish -c Release -o /var/www/backend
             sudo systemctl restart steenbudget
@@ -31,4 +35,6 @@ jobs:
             npm run build
             sudo cp -r build/* /var/www/html/
             sudo systemctl restart nginx
+            echo "Contents of /var/www/html:"
+            ls -l /var/www/html
           EOF
