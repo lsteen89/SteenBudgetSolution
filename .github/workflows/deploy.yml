@@ -27,14 +27,28 @@ jobs:
             git pull origin master
             echo "After Git Pull:"
             git log -1
-            cd /home/pi/SteenBudgetSolution/backend
-            dotnet publish -c Release -o /var/www/backend
-            sudo systemctl restart steenbudget
-            cd /home/pi/SteenBudgetSolution/frontend
-            npm install
-            npm run build
-            sudo cp -r build/* /var/www/html/
-            sudo systemctl restart nginx
+            
+            # Correct backend directory and permissions
+            if [ -d "Backend" ]; then
+              cd Backend
+              sudo chmod -R 777 .
+              dotnet publish -c Release -o /var/www/backend
+              sudo systemctl restart steenbudget
+            else
+              echo "Backend directory not found!"
+            fi
+
+            # Correct frontend directory
+            if [ -d "Frontend" ]; then
+              cd ../Frontend
+              npm install
+              npm run build
+              sudo cp -r build/* /var/www/html/
+              sudo systemctl restart nginx
+            else
+              echo "Frontend directory not found!"
+            fi
+
             echo "Contents of /var/www/html:"
             ls -l /var/www/html
           EOF
