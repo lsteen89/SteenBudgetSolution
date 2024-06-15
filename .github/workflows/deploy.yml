@@ -1,0 +1,34 @@
+name: Deploy to Raspberry Pi
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Deploy to Raspberry Pi
+        run: |
+          ssh -o StrictHostKeyChecking=no pi@192.168.50.61 << 'EOF'
+            cd /home/pi/SteenBudgetSolution
+            git pull origin master
+            cd /home/pi/SteenBudgetSolution/backend
+            dotnet publish -c Release -o /var/www/backend
+            sudo systemctl restart steenbudget
+            cd /home/pi/SteenBudgetSolution/frontend
+            npm install
+            npm run build
+            sudo cp -r build/* /var/www/html/
+            sudo systemctl restart nginx
+          EOF
