@@ -28,22 +28,29 @@ jobs:
             git pull origin master
             echo "After Git Pull:"
             git log -1
-
+            
+            # Ensure necessary directories exist
+            sudo mkdir -p /var/www/backend
+            sudo mkdir -p /var/www/html
+            
             # Fix permissions for backend directory
             sudo chmod -R 777 /var/www/backend
-
+            
             # Publish and deploy backend
             cd Backend
             dotnet publish -c Release -o /var/www/backend
             sudo systemctl restart steenbudget
-
+            
             # Build and deploy frontend
             cd ../Frontend
             npm install
             npm run build
+            
+            # Clean the existing content in /var/www/html before copying
+            sudo rm -rf /var/www/html/*
             sudo cp -r build/* /var/www/html/
             sudo systemctl restart nginx
-
+            
             echo "Contents of /var/www/html:"
             ls -l /var/www/html
           EOF
