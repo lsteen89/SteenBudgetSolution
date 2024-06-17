@@ -49,7 +49,10 @@ namespace Backend.Controllers
                 return BadRequest("Registration failed due to an internal error. Please try again.");
             }
 
-            return Ok();
+            // Generate JWT token
+            var token = _userServices.GenerateJwtToken(user);
+
+            return Ok(new { Token = token });
         }
     }
 }

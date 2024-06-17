@@ -8,21 +8,37 @@ var builder = WebApplication.CreateBuilder(args);
 var configuration = builder.Configuration;
 GlobalConfig.Initialize(configuration);
 
-// Add services to the container.
-var key = builder.Configuration["JwtSecretKey"];
-// Use a secure way to store and retrieve this key
+// Debugging: Print all environment variables
+var allVariables = Environment.GetEnvironmentVariables();
+foreach (var key in allVariables.Keys)
+{
+    Console.WriteLine($"{key}={allVariables[key]}");
+}
+
+// Load the JWT secret key from environment variables
+var jwtKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY");
+if (string.IsNullOrEmpty(jwtKey))
+{
+    throw new InvalidOperationException("JWT secret key not configured in environment variables.");
+}
+
+var keyBytes = Encoding.UTF8.GetBytes(jwtKey);
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
+            IssuerSigningKey = new SymmetricSecurityKey(keyBytes),
             ValidateIssuer = false,
-            ValidateAudience = false
+            ValidateAudience = false,
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero
         };
     });
 
+// Add services to the container.
 builder.Services.AddScoped<SqlExecutor>(); // Inject SqlExecutor
 builder.Services.AddScoped<UserServices>(); // Inject UserServices
 
