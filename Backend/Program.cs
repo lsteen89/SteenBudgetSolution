@@ -1,3 +1,5 @@
+using Backend.DataAccess;
+using Backend.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -21,7 +23,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-//Adding CORS-policies
+builder.Services.AddScoped<SqlExecutor>(); // Inject SqlExecutor
+builder.Services.AddScoped<UserServices>(); // Inject UserServices
+
+// Adding CORS policies
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("DevelopmentCorsPolicy",
@@ -47,7 +52,6 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -56,11 +60,12 @@ if (app.Environment.IsDevelopment())
 }
 else
 {
+    app.UseHttpsRedirection();
     app.UseCors("ProductionCorsPolicy"); // Apply the CORS policy for production
 }
 
-app.UseAuthorization();
 app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 
