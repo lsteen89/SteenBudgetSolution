@@ -23,6 +23,12 @@ jobs:
           ssh -o StrictHostKeyChecking=no -p 2222 pi@155.4.68.41 << 'EOF'
             set -e
             cd /home/pi/SteenBudgetSolution
+
+            # Discard any local changes
+            echo "Resetting local changes..."
+            git reset --hard
+            git clean -fd
+            
             echo "Current Git Status:"
             git status
             git pull origin master
