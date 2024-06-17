@@ -6,14 +6,22 @@ using Backend.DTO;
 namespace Backend.Controllers
 {
     [ApiController]
-    [Route("[controller]")]
+    [Route("api/[controller]")]
     public class RegistrationController : ControllerBase
     {
-        private UserServices _userServices;
+        private readonly UserServices _userServices;
+
+        public RegistrationController(UserServices userServices)
+        {
+            _userServices = userServices;
+        }
 
         [HttpPost("register")]
-        public IActionResult Register(UserCreationDto userDto)
+        public IActionResult Register([FromBody] UserCreationDto userDto)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
             var user = new UserModel
             {
                 FirstName = userDto.FirstName,
@@ -21,12 +29,8 @@ namespace Backend.Controllers
                 Email = userDto.Email,
                 Password = userDto.Password,
             };
-            //First check if the fields entered are valid
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
 
-            //See if user exists
-            _userServices = new Services.UserServices();
+            // Check if user exists
             bool userExists = _userServices.CheckIfUserExists(user.Email);
             if (userExists)
             {
@@ -34,15 +38,18 @@ namespace Backend.Controllers
                 return BadRequest(new { message = "This email is already taken." });
             }
 
-            //Hash the PW with BCrypt, which also salts it and keeps the salt in the string
+            // Hash the password with BCrypt
             var hashedPassword = BCrypt.Net.BCrypt.HashPassword(user.Password);
             user.Password = hashedPassword;
+
+            // Create new registered user
             bool isSuccessfulRegistration = _userServices.CreateNewRegisteredUser(user);
             if (!isSuccessfulRegistration)
             {
                 return BadRequest("Registration failed due to an internal error. Please try again.");
             }
-            return Ok(); 
+
+            return Ok();
         }
     }
 }

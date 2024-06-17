@@ -5,18 +5,21 @@ namespace Backend.Services
 {
     public class UserServices
     {
-        private SqlExecutor _sqlExecutor;       
+        private readonly SqlExecutor _sqlExecutor;
+
+        public UserServices(SqlExecutor sqlExecutor)
+        {
+            _sqlExecutor = sqlExecutor;
+        }
 
         public bool CheckIfUserExists(string email)
         {
-            _sqlExecutor = new SqlExecutor();
             return _sqlExecutor.IsUserExistInDatabase(email);
         }
+
         public bool CreateNewRegisteredUser(UserModel user)
         {
-            _sqlExecutor = new SqlExecutor();
-            bool UserInserted = _sqlExecutor.InsertNewUserDatabase(user);
-            return UserInserted;
+            return _sqlExecutor.InsertNewUserDatabase(user);
         }
     }
 }
