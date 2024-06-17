@@ -19,6 +19,8 @@ jobs:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
       - name: Deploy to Raspberry Pi
+        env:
+          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
         run: |
           ssh -o StrictHostKeyChecking=no -p 2222 pi@155.4.68.41 << 'EOF'
             set -e
@@ -44,7 +46,7 @@ jobs:
             
             # Publish and deploy backend
             cd Backend
-            dotnet publish -c Release -o /var/www/backend
+            JWT_SECRET_KEY=${JWT_SECRET_KEY} dotnet publish -c Release -o /var/www/backend
             sudo systemctl restart steenbudget
             
             # Build and deploy frontend
