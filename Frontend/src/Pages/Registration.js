@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import './Registration.css';
 import RegBird from '../assets/Images/RegBird.png';
-import { useNavigate } from 'react-router-dom';  // Import useNavigate
+import { useNavigate } from 'react-router-dom'; 
+import { registerUser } from '../api/api'; // Import the registerUser function
 
 function RegistrationForm() {
     const [firstName, setFirstName] = useState('');
@@ -11,8 +12,6 @@ function RegistrationForm() {
     const [password, setPassword] = useState('');
     const [repeatPassword, setRepeatPassword] = useState('');
     const [errors, setErrors] = useState({});
-
-    const apiUrl = 'https://localhost:7224/Registration/register';
     const navigate = useNavigate();  
 
     const validateField = (name, value) => {
@@ -72,31 +71,18 @@ function RegistrationForm() {
             return;
         }
 
-    // If all validations pass, submit data to server
-    try {
-        const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ firstName, lastName, email, password }),
-        });
-
-        if (response.ok) {
+        try {
+            const result = await registerUser({ firstName, lastName, email, password });
             console.log('Registration successful');
-                navigate('/welcomepage'); 
-        } else {
-            const errorData = await response.json();
-            console.error('Registration failed:', errorData);
-            // Check if the error is about the email already taken
-            if (errorData.message === "This email is already taken.") {
+            navigate('/welcomepage'); 
+        } catch (error) {
+            console.error('Registration failed:', error);
+            if (error.message === "This email is already taken.") {
                 setErrors(prev => ({ ...prev, email: 'This email is already taken.' }));
             } else {
-                setErrors(prev => ({ ...prev, form: errorData.message }));
+                setErrors(prev => ({ ...prev, form: error.message }));
             }
         }
-    } catch (error) {
-        console.error('Error during registration:', error);
-        setErrors({ form: 'An unexpected error occurred. Please try again.' });
-    }
     };
 
     return (
@@ -110,7 +96,7 @@ function RegistrationForm() {
                             type="text"
                             name="firstName"
                             value={firstName}
-                            onChange={handleChange} // Updated to handle change for validation
+                            onChange={handleChange} 
                             className={`input-style ${errors.firstName ? 'input-error' : ''}`}
                             placeholder="Ange ditt förnamn.."
                         />
@@ -122,7 +108,7 @@ function RegistrationForm() {
                             type="text"
                             name="lastName"
                             value={lastName}
-                            onChange={handleChange} // Updated to handle change for validation
+                            onChange={handleChange} 
                             className={`input-style ${errors.lastName ? 'input-error' : ''}`}
                             placeholder="Ange ditt Efternamn.."
                         />
@@ -134,7 +120,7 @@ function RegistrationForm() {
                             type="email"
                             name="email"
                             value={email}
-                            onChange={handleChange} // Updated to handle change for validation
+                            onChange={handleChange} 
                             className={`input-style ${errors.email ? 'input-error' : ''}`}
                             placeholder="Ange din E-post.."
                         />
@@ -146,7 +132,7 @@ function RegistrationForm() {
                             type="email"
                             name="repeatEmail"
                             value={repeatEmail}
-                            onChange={handleChange} // Updated to handle change for validation
+                            onChange={handleChange} 
                             className={`input-style ${errors.repeatEmail ? 'input-error' : ''}`}
                             placeholder="Upprepa e-post"
                         />
@@ -158,7 +144,7 @@ function RegistrationForm() {
                             type="password"
                             name="password"
                             value={password}
-                            onChange={handleChange} // Updated to handle change for validation
+                            onChange={handleChange} 
                             className={`input-style ${errors.password ? 'input-error' : ''}`}
                             placeholder="Välj löseord, minst 8 tecken, en stor och en liten bokstav, minst ett specialtecken och minst en siffra."
                         />
@@ -170,7 +156,7 @@ function RegistrationForm() {
                             type="password"
                             name="repeatPassword"
                             value={repeatPassword}
-                            onChange={handleChange} // Updated to handle change for validation
+                            onChange={handleChange} 
                             className={`input-style ${errors.repeatPassword ? 'input-error' : ''}`}
                             placeholder="Upprepa löseord"
                         />
@@ -181,12 +167,9 @@ function RegistrationForm() {
                     <img src={RegBird} alt="RegBird" className="reg-bird-image" />
                 </div>
                 </div>
-
             </form>
-            
         </div>
     );
-    
 }
 
 export default RegistrationForm;

@@ -5,6 +5,7 @@ using System.Text;
 var builder = WebApplication.CreateBuilder(args);
 var configuration = builder.Configuration;
 GlobalConfig.Initialize(configuration);
+
 // Add services to the container.
 var key = builder.Configuration["JwtSecretKey"];
 // Use a secure way to store and retrieve this key
@@ -19,35 +20,46 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = false
         };
     });
+
+//Adding CORS-policies
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowSpecificOrigin",
-        builder => builder.WithOrigins("http://localhost:3000")
-                          .AllowAnyMethod()
-                          .AllowAnyHeader());
+    options.AddPolicy("DevelopmentCorsPolicy",
+        builder =>
+        {
+            builder.WithOrigins("http://localhost:3000") // Local frontend URL
+                   .AllowAnyHeader()
+                   .AllowAnyMethod();
+        });
+
+    options.AddPolicy("ProductionCorsPolicy",
+        builder =>
+        {
+            builder.WithOrigins("http://ebudget.se") // Production frontend URL
+                   .AllowAnyHeader()
+                   .AllowAnyMethod();
+        });
 });
 
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+    app.UseCors("DevelopmentCorsPolicy"); // Apply the CORS policy for development
+}
+else
+{
+    app.UseCors("ProductionCorsPolicy"); // Apply the CORS policy for production
 }
 
-app.UseCors("AllowSpecificOrigin");
-
-app.UseHttpsRedirection();
-
 app.UseAuthorization();
-
 app.UseAuthentication();
 
 app.MapControllers();
