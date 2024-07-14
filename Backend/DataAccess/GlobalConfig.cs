@@ -1,5 +1,6 @@
-﻿using System.Data.SqlClient;
-using System.Data;
+﻿using System.Data;
+using MySqlConnector;
+using Microsoft.Extensions.Configuration;
 
 public class GlobalConfig
 {
@@ -12,8 +13,15 @@ public class GlobalConfig
 
     public static IDbConnection GetConnection()
     {
-        var connectionString = _configuration.GetConnectionString("BudgetDatabase");
-        IDbConnection connection = new SqlConnection(connectionString);
+        var connectionString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
+
+        // If the environment variable is not set, throw exception
+        if (string.IsNullOrEmpty(connectionString))
+        {
+            throw new InvalidOperationException("Database connection string not configured in environment variables.");
+        }
+
+        IDbConnection connection = new MySqlConnection(connectionString);
         if (connection.State != ConnectionState.Open)
         {
             connection.Open();
