@@ -1,10 +1,3 @@
-name: Deploy to Raspberry Pi
-
-on:
-  push:
-    branches:
-      - master
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -21,6 +14,7 @@ jobs:
       - name: Deploy to Raspberry Pi
         env:
           JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+          CONNECTION_STRING: ${{ secrets.CONNECTION_STRING }}
         run: |
           ssh -o StrictHostKeyChecking=no -p 2222 pi@155.4.68.41 << 'EOF'
             set -e
@@ -46,8 +40,17 @@ jobs:
             
             # Publish and deploy backend
             cd Backend
-            JWT_SECRET_KEY=${JWT_SECRET_KEY} dotnet publish -c Release -o /var/www/backend
+            JWT_SECRET_KEY=${JWT_SECRET_KEY} CONNECTION_STRING=${CONNECTION_STRING} dotnet publish -c Release -o /var/www/backend
             sudo systemctl restart steenbudget
+            
+            # Check if steenbudget.service needs to be updated
+            if ! sudo grep -q "JWT_SECRET_KEY=${JWT_SECRET_KEY}" /etc/systemd/system/steenbudget.service || ! sudo grep -q "CONNECTION_STRING=${CONNECTION_STRING}" /etc/systemd/system/steenbudget.service; then
+              echo "Updating steenbudget.service with new environment variables..."
+              sudo sed -i '/Environment=JWT_SECRET_KEY=/c\Environment=JWT_SECRET_KEY=${JWT_SECRET_KEY}' /etc/systemd/system/steenbudget.service
+              sudo sed -i '/Environment=CONNECTION_STRING=/c\Environment=CONNECTION_STRING=${CONNECTION_STRING}' /etc/systemd/system/steenbudget.service
+              sudo systemctl daemon-reload
+              sudo systemctl restart steenbudget
+            fi
             
             # Build and deploy frontend
             cd ../Frontend
