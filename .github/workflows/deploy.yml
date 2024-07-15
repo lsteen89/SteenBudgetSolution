@@ -51,13 +51,22 @@ jobs:
             sudo systemctl restart steenbudget
             
             # Check if steenbudget.service needs to be updated
-            if ! sudo grep -q "JWT_SECRET_KEY=${JWT_SECRET_KEY}" /etc/systemd/system/steenbudget.service || ! sudo grep -q "CONNECTION_STRING=${CONNECTION_STRING}" /etc/systemd/system/steenbudget.service; then
-              echo "Updating steenbudget.service with new environment variables..."
-              sudo sed -i '/Environment=JWT_SECRET_KEY=/c\Environment=JWT_SECRET_KEY=${JWT_SECRET_KEY}' /etc/systemd/system/steenbudget.service
-              sudo sed -i '/Environment=CONNECTION_STRING=/c\Environment=CONNECTION_STRING=${CONNECTION_STRING}' /etc/systemd/system/steenbudget.service
-              sudo systemctl daemon-reload
-              sudo systemctl restart steenbudget
+            if ! sudo grep -q "Environment=JWT_SECRET_KEY=" /etc/systemd/system/steenbudget.service; then
+              echo "Adding JWT_SECRET_KEY to steenbudget.service"
+              echo "Environment=JWT_SECRET_KEY=${JWT_SECRET_KEY}" | sudo tee -a /etc/systemd/system/steenbudget.service
+            else
+              sudo sed -i "s|Environment=JWT_SECRET_KEY=.*|Environment=JWT_SECRET_KEY=${JWT_SECRET_KEY}|" /etc/systemd/system/steenbudget.service
             fi
+            
+            if ! sudo grep -q "Environment=CONNECTION_STRING=" /etc/systemd/system/steenbudget.service; then
+              echo "Adding CONNECTION_STRING to steenbudget.service"
+              echo "Environment=CONNECTION_STRING=${CONNECTION_STRING}" | sudo tee -a /etc/systemd/system/steenbudget.service
+            else
+              sudo sed -i "s|Environment=CONNECTION_STRING=.*|Environment=CONNECTION_STRING=${CONNECTION_STRING}|" /etc/systemd/system/steenbudget.service
+            fi
+
+            sudo systemctl daemon-reload
+            sudo systemctl restart steenbudget
             
             # Build and deploy frontend
             cd ../Frontend
