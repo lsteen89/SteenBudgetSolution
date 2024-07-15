@@ -23,7 +23,7 @@ jobs:
           JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
           CONNECTION_STRING: ${{ secrets.CONNECTION_STRING }}
         run: |
-          ssh -o StrictHostKeyChecking=no -p 2222 pi@155.4.68.41 << 'EOF'
+          ssh -o StrictHostKeyChecking=no -p 2222 pi@155.4.68.41 << EOF
             set -e
             cd /home/pi/SteenBudgetSolution
 
@@ -45,11 +45,6 @@ jobs:
             # Fix permissions for backend directory
             sudo chmod -R 777 /var/www/backend
             
-            # Publish and deploy backend
-            cd Backend
-            JWT_SECRET_KEY=${JWT_SECRET_KEY} CONNECTION_STRING=${CONNECTION_STRING} dotnet publish -c Release -o /var/www/backend
-            sudo systemctl restart steenbudget
-
             # Function to add or update environment variables
             add_or_update_env_var() {
               local var_name=$1
@@ -73,8 +68,13 @@ jobs:
             add_or_update_env_var "JWT_SECRET_KEY" "${JWT_SECRET_KEY}" "$service_file"
             add_or_update_env_var "CONNECTION_STRING" "${CONNECTION_STRING}" "$service_file"
 
+            # Reload systemd daemon and restart service
             sudo systemctl daemon-reload
             sudo systemctl restart steenbudget
+
+            # Publish and deploy backend
+            cd Backend
+            dotnet publish -c Release -o /var/www/backend
             
             # Build and deploy frontend
             cd ../Frontend
@@ -88,4 +88,4 @@ jobs:
             
             echo "Contents of /var/www/html:"
             ls -l /var/www/html
-          EOF
+EOF
