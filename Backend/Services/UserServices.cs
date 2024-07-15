@@ -15,7 +15,11 @@ namespace Backend.Services
         public UserServices(SqlExecutor sqlExecutor, IConfiguration configuration)
         {
             _sqlExecutor = sqlExecutor;
-            _jwtSecretKey = configuration["JwtSecretKey"];
+            _jwtSecretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY");
+            if (string.IsNullOrEmpty(_jwtSecretKey))
+            {
+                throw new InvalidOperationException("JWT secret key not configured in environment variables.");
+            }
         }
 
         public bool CheckIfUserExists(string email)
