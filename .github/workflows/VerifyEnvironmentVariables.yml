@@ -23,5 +23,5 @@ jobs:
           JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
           CONNECTION_STRING: ${{ secrets.CONNECTION_STRING }}
         run: |
-          echo "JWT_SECRET_KEY=${JWT_SECRET_KEY}"
-          echo "CONNECTION_STRING=${CONNECTION_STRING}"
+          echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}"
+          echo "CONNECTION_STRING=${{ secrets.CONNECTION_STRING }}"
