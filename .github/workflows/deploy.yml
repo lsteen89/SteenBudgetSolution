@@ -49,21 +49,29 @@ jobs:
             cd Backend
             JWT_SECRET_KEY=${JWT_SECRET_KEY} CONNECTION_STRING=${CONNECTION_STRING} dotnet publish -c Release -o /var/www/backend
             sudo systemctl restart steenbudget
+
+            # Function to add or update environment variables
+            add_or_update_env_var() {
+              local var_name=$1
+              local new_value=$2
+              local service_file=$3
+
+              if sudo grep -q "^Environment=${var_name}=" "$service_file"; then
+                local current_value=$(sudo grep "^Environment=${var_name}=" "$service_file" | cut -d'=' -f2-)
+                if [ -z "$current_value" ] || [ "$current_value" != "$new_value" ]; then
+                  echo "Updating ${var_name} in ${service_file}"
+                  sudo sed -i "s|^Environment=${var_name}=.*|Environment=${var_name}=${new_value}|" "$service_file"
+                fi
+              else
+                echo "Adding ${var_name} to ${service_file}"
+                echo "Environment=${var_name}=${new_value}" | sudo tee -a "$service_file" > /dev/null
+              fi
+            }
+
+            service_file="/etc/systemd/system/steenbudget.service"
             
-            # Check if steenbudget.service needs to be updated
-            if ! sudo grep -q "Environment=JWT_SECRET_KEY=" /etc/systemd/system/steenbudget.service; then
-              echo "Adding JWT_SECRET_KEY to steenbudget.service"
-              echo "Environment=JWT_SECRET_KEY=${JWT_SECRET_KEY}" | sudo tee -a /etc/systemd/system/steenbudget.service > /dev/null
-            else
-              sudo sed -i "s|Environment=JWT_SECRET_KEY=.*|Environment=JWT_SECRET_KEY=${JWT_SECRET_KEY}|" /etc/systemd/system/steenbudget.service
-            fi
-            
-            if ! sudo grep -q "Environment=CONNECTION_STRING=" /etc/systemd/system/steenbudget.service; then
-              echo "Adding CONNECTION_STRING to steenbudget.service"
-              echo "Environment=CONNECTION_STRING=${CONNECTION_STRING}" | sudo tee -a /etc/systemd/system/steenbudget.service > /dev/null
-            else
-              sudo sed -i "s|Environment=CONNECTION_STRING=.*|Environment=CONNECTION_STRING=${CONNECTION_STRING}|" /etc/systemd/system/steenbudget.service
-            fi
+            add_or_update_env_var "JWT_SECRET_KEY" "${JWT_SECRET_KEY}" "$service_file"
+            add_or_update_env_var "CONNECTION_STRING" "${CONNECTION_STRING}" "$service_file"
 
             sudo systemctl daemon-reload
             sudo systemctl restart steenbudget
