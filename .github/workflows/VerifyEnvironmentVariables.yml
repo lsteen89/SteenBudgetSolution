@@ -23,5 +23,16 @@ jobs:
           JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
           CONNECTION_STRING: ${{ secrets.CONNECTION_STRING }}
         run: |
-          echo "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}"
-          echo "CONNECTION_STRING=${{ secrets.CONNECTION_STRING }}"
+          if [ -z "$JWT_SECRET_KEY" ]; then
+            echo "JWT_SECRET_KEY is not set!"
+            exit 1
+          else
+            echo "JWT_SECRET_KEY is set and its length is ${#JWT_SECRET_KEY}"
+          fi
+
+          if [ -z "$CONNECTION_STRING" ]; then
+            echo "CONNECTION_STRING is not set!"
+            exit 1
+          else
+            echo "CONNECTION_STRING is set and its length is ${#CONNECTION_STRING}"
+          fi
