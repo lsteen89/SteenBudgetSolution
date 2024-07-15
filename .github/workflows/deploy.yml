@@ -3,7 +3,7 @@ name: Deploy to Raspberry Pi
 on:
   push:
     branches:
-      - master1
+      - master
 
 jobs:
   deploy:
@@ -55,11 +55,11 @@ jobs:
                 local current_value=$(sudo grep "^Environment=${var_name}=" "$service_file" | cut -d'=' -f2-)
                 if [ -z "$current_value" ] || [ "$current_value" != "$new_value" ]; then
                   echo "Updating ${var_name} in ${service_file}"
-                  sudo sed -i "s|^Environment=${var_name}=.*|Environment=${var_name}=${new_value}|" "$service_file"
+                  sudo sed -i "s|^Environment=${var_name}=.*|Environment=${var_name}='${new_value}'|" "$service_file"
                 fi
               else
                 echo "Adding ${var_name} to ${service_file}"
-                echo "Environment=${var_name}=${new_value}" | sudo tee -a "$service_file" > /dev/null
+                echo "Environment=${var_name}='${new_value}'" | sudo tee -a "$service_file" > /dev/null
               fi
             }
 
