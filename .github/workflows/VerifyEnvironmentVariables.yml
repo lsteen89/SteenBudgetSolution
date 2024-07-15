@@ -1,0 +1,27 @@
+name: Verify Environment Variables
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  testjob:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Verify Environment Variables
+        env:
+          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+          CONNECTION_STRING: ${{ secrets.CONNECTION_STRING }}
+        run: |
+          echo "JWT_SECRET_KEY=${JWT_SECRET_KEY}"
+          echo "CONNECTION_STRING=${CONNECTION_STRING}"
