@@ -56,7 +56,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("ProductionCorsPolicy",
         builder =>
         {
-            builder.WithOrigins("http://ebudget.se") // Production frontend URL
+            builder.WithOrigins("https://www.ebudget.se") // Production frontend URL
                    .AllowAnyHeader()
                    .AllowAnyMethod();
         });
