@@ -2,6 +2,11 @@
 using Microsoft.AspNetCore.Mvc;
 using Backend.Services;
 using Backend.DTO;
+using System.IdentityModel.Tokens.Jwt;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using System;
+using System.Linq;
 
 namespace Backend.Controllers
 {
@@ -10,10 +15,12 @@ namespace Backend.Controllers
     public class RegistrationController : ControllerBase
     {
         private readonly UserServices _userServices;
+        private readonly string _jwtSecretKey;
 
-        public RegistrationController(UserServices userServices)
+        public RegistrationController(UserServices userServices, IConfiguration configuration)
         {
             _userServices = userServices;
+            _jwtSecretKey = configuration["Jwt:Key"];
         }
 
         [HttpPost("register")]
@@ -49,10 +56,47 @@ namespace Backend.Controllers
                 return BadRequest("Registration failed due to an internal error. Please try again.");
             }
 
-            // Generate JWT token
+            // Generate JWT token for email verification
             var token = _userServices.GenerateJwtToken(user);
 
-            return Ok(new { Token = token });
+            // Send verification email
+            _userServices.SendVerificationEmail(user.Email, token);
+
+            return Ok(new { message = "Registration successful. Please check your email for verification link." });
+        }
+
+        [HttpGet("verify-email")]
+        public IActionResult VerifyEmail(string token)
+        {
+            try
+            {
+                var tokenHandler = new JwtSecurityTokenHandler();
+                var key = Encoding.UTF8.GetBytes(_jwtSecretKey);
+                tokenHandler.ValidateToken(token, new TokenValidationParameters
+                {
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(key),
+                    ValidateIssuer = false,
+                    ValidateAudience = false,
+                    ClockSkew = TimeSpan.Zero
+                }, out SecurityToken validatedToken);
+
+                var jwtToken = (JwtSecurityToken)validatedToken;
+                var email = jwtToken.Claims.First(x => x.Type == "email").Value;
+
+                var user = _userServices.GetUserByEmail(email);
+                if (user == null)
+                    return BadRequest(new { message = "Invalid token" });
+
+                user.IsVerified = true;
+                _userServices.UpdateUser(user);
+
+                return Ok(new { message = "Email verified successfully" });
+            }
+            catch
+            {
+                return BadRequest(new { message = "Invalid or expired token" });
+            }
         }
     }
 }

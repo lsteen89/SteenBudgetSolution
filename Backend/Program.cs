@@ -42,6 +42,17 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddScoped<SqlExecutor>(); // Inject SqlExecutor
 builder.Services.AddScoped<UserServices>(); // Inject UserServices
 
+// Configure EmailService based on environment
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddSingleton<IEmailService, MockEmailService>();
+}
+else
+{
+    builder.Services.AddSingleton<IEmailService, EmailService>();
+
+}
+
 // Adding CORS policies
 builder.Services.AddCors(options =>
 {
