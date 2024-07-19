@@ -29,6 +29,7 @@ namespace Backend.Models
         public string Password { get; set; }
         public string? Roles { get; set; }
         public bool FirstLogin { get; set; }
+        public bool IsVerified { get; set; }
         public string? CreatedBy { get; set; }
         public DateTime CreatedTime { get; set; }
         public DateTime? LastUpdatedTime { get; set; }
