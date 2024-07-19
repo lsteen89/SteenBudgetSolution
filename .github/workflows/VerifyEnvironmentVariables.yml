@@ -19,7 +19,15 @@ jobs:
       - name: Verify SSH key
         run: ssh-add -l
 
+      - name: Debug SSH Key
+        run: |
+          echo "Private key from secret:"
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" | tr -d '\n' | head -c 50
+          echo "..."
+          echo "SSH Agent Keys:"
+          ssh-add -l
+
       - name: Test SSH Connection
         run: |
           echo "Testing SSH connection to Raspberry Pi..."
-          ssh -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -p 2222 pi@155.4.68.41 "echo 'SSH connection successful!'"
+          ssh -v -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -p 2222 pi@155.4.68.41 "echo 'SSH connection successful!'"
