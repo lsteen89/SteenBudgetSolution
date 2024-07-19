@@ -24,9 +24,8 @@ namespace Backend.DataAccess
         {
             using (var connection = GlobalConfig.GetConnection())
             {
-                string sqlQuery = "SELECT * FROM Users WHERE Email = @Email";
-                var user = connection.QueryFirstOrDefault(sqlQuery, new { Email = email });
-                return user != null;
+                string sqlQuery = "SELECT COUNT(1) FROM Users WHERE Email = @Email";
+                return connection.ExecuteScalar<bool>(sqlQuery, new { Email = email });
             }
         }
         public bool InsertNewUserDatabase(UserModel user) 
@@ -61,6 +60,23 @@ namespace Backend.DataAccess
                 {
                     connection.Close();
                 }
+            }
+        }
+        public UserModel GetUserByEmailFromDatabase(string email)
+        {
+            using (var connection = GlobalConfig.GetConnection())
+            {
+                string sqlQuery = "SELECT * FROM Users WHERE Email = @Email";
+                return connection.QueryFirstOrDefault<UserModel>(sqlQuery, new { Email = email });
+            }
+        }
+        public bool UpdateUserInDatabase(UserModel user)
+        {
+            using (var connection = GlobalConfig.GetConnection())
+            {
+                string sqlQuery = "UPDATE Users SET EmailConfirmed = @IsVerified WHERE Email = @Email";
+                var result = connection.Execute(sqlQuery, new { IsVerified = user.IsVerified, Email = user.Email });
+                return result > 0;
             }
         }
 
