@@ -3,7 +3,7 @@ name: Deploy to Raspberry Pi
 on:
   push:
     branches:
-      - master1
+      - master
 
 jobs:
   deploy:
