@@ -1,6 +1,6 @@
 name: Test SSH Key
 
-on: [push]
+on: 1
 
 jobs:
   test-ssh:
