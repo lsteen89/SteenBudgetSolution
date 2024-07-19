@@ -20,7 +20,7 @@ jobs:
 
       - name: Deploy to Raspberry Pi
         run: |
-          ssh -o StrictHostKeyChecking=no -o IdentitiesOnly=yes -p 2222 pi@155.4.68.41 << 'EOF'
+            ssh -o StrictHostKeyChecking=no -p 2222 pi@155.4.68.41 << 'EOF'
             set -e
             cd /home/pi/SteenBudgetSolution
 
