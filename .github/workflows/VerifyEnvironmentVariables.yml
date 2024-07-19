@@ -21,8 +21,8 @@ jobs:
 
       - name: Debug SSH Key
         run: |
-          echo "Private key from secret:"
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" | tr -d '\n' | head -c 50
+          echo "Private key from secret (first few characters):"
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" | head -c 50
           echo "..."
           echo "SSH Agent Keys:"
           ssh-add -l
