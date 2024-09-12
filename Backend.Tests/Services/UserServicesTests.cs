@@ -18,7 +18,9 @@ public class UserServicesTests
 
         var serviceProvider = serviceCollection.BuildServiceProvider();
         _userServices = serviceProvider.GetService<UserServices>();
-        _mockEmailService = (MockEmailService)serviceProvider.GetService<IEmailService>();
+
+        // Cast IEmailService to MockEmailService
+        _mockEmailService = serviceProvider.GetService<IEmailService>() as MockEmailService;
     }
 
     [Fact]
