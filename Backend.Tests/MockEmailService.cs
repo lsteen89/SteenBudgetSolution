@@ -1,20 +1,29 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Xunit;
+using Moq;
+using Microsoft.Extensions.Logging;
 
-public class MockEmailService : IEmailService
+public class MockEmailServiceTests
 {
-    private readonly ILogger<MockEmailService> _logger;
-    public string LastSentEmail { get; private set; }
-    public string LastSentToken { get; private set; }
-
-    public MockEmailService(ILogger<MockEmailService> logger)
+    [Fact]
+    public void SendVerificationEmail_ShouldLogCorrectInformation()
     {
-        _logger = logger;
-    }
+        // Arrange
+        var mockLogger = new Mock<ILogger<MockEmailService>>();
+        var emailService = new MockEmailService(mockLogger.Object);
+        string testEmail = "test@example.com";
+        string testToken = "123456";
 
-    public void SendVerificationEmail(string email, string token)
-    {
-        LastSentEmail = email;
-        LastSentToken = token;
-        _logger.LogInformation($"Mock send email to {email} with token {token}");
+        // Act
+        emailService.SendVerificationEmail(testEmail, testToken);
+
+        // Assert
+        mockLogger.Verify(
+            x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => v.ToString().Contains($"Mock send email to {testEmail} with token {testToken}")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception, string>>()
+            ), Times.Once);
     }
 }
