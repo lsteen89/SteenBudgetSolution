@@ -4,10 +4,20 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System;
 using System.Text;
+using Serilog;
+using Microsoft.Extensions.Hosting;
 
 var builder = WebApplication.CreateBuilder(args);
 var configuration = builder.Configuration;
 GlobalConfig.Initialize(configuration);
+
+// Configure Serilog
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .WriteTo.File("logs/app-log.txt", rollingInterval: RollingInterval.Day)
+    .CreateLogger();
+
+builder.Host.UseSerilog();
 
 // Debugging: Print all environment variables
 var allVariables = Environment.GetEnvironmentVariables();
@@ -37,6 +47,7 @@ if (string.IsNullOrEmpty(jwtKey))
 {
     throw new InvalidOperationException("JWT secret key not configured in environment variables.");
 }
+
 
 var keyBytes = Encoding.UTF8.GetBytes(jwtKey);
 
@@ -92,7 +103,7 @@ builder.Services.AddCors(options =>
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-
+    
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
