@@ -2,6 +2,7 @@ using Backend.DataAccess;
 using Backend.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using System;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,6 +14,21 @@ var allVariables = Environment.GetEnvironmentVariables();
 foreach (var key in allVariables.Keys)
 {
     Console.WriteLine($"{key}={allVariables[key]}");
+}
+// Load the SMTP configuration from environment variables
+var smtpPassword = Environment.GetEnvironmentVariable("SMTP_PASSWORD");
+if (string.IsNullOrEmpty(smtpPassword) && builder.Environment.IsProduction())
+{
+    throw new InvalidOperationException("SMTP password not configured in environment variables.");
+}
+
+if (builder.Environment.IsDevelopment())
+{
+    Console.WriteLine("Running in development mode, skipping email setup.");
+}
+else
+{
+    Console.WriteLine("SMTP password loaded successfully.");
 }
 
 // Load the JWT secret key from environment variables
