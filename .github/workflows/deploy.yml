@@ -8,6 +8,8 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }} 
 
     steps:
       - name: Checkout code
