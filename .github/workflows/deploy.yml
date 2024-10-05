@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }} 
-
+      JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}  # Inject JWT_SECRET_KEY here           
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
