@@ -4,7 +4,7 @@ CREATE DATABASE IF NOT EXISTS SteenBudgetSystem;
 -- Use the database
 USE SteenBudgetSystem;
 
--- Create Users table
+-- Create User table (notice the singular 'User')
 CREATE TABLE IF NOT EXISTS User (
     Id INT AUTO_INCREMENT PRIMARY KEY,
     Persoid CHAR(36) NOT NULL UNIQUE,
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS Income (
     CreatedBy VARCHAR(50) NOT NULL,
     CreatedTime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     LastUpdatedTime DATETIME,
-    FOREIGN KEY (PersoId) REFERENCES Users(PersoId)
+    FOREIGN KEY (PersoId) REFERENCES User(PersoId)  -- Reference to 'User'
 );
 
 -- Create Partner table
@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS Partner (
     CreatedBy VARCHAR(50) NOT NULL,
     CreatedTime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     LastUpdatedTime DATETIME,
-    FOREIGN KEY (PersoId) REFERENCES Users(PersoId)
+    FOREIGN KEY (PersoId) REFERENCES User(PersoId)  -- Reference to 'User'
 );
 
 -- Create PartnerIncome table
@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS UserExpenseRatio (
     CreatedBy VARCHAR(50) NOT NULL,
     CreatedTime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     LastUpdatedTime DATETIME,
-    FOREIGN KEY (PersoId) REFERENCES Users(PersoId)
+    FOREIGN KEY (PersoId) REFERENCES User(PersoId)  -- Reference to 'User'
 );
 
 -- Create ErrorLog table
@@ -85,5 +85,5 @@ CREATE TABLE IF NOT EXISTS VerificationToken (
     Token CHAR(36) NOT NULL UNIQUE,
     TokenExpiryDate DATETIME NOT NULL,
     CreatedTime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (PersoId) REFERENCES Users(PersoId) ON DELETE CASCADE
+    FOREIGN KEY (PersoId) REFERENCES User(PersoId) ON DELETE CASCADE  -- Reference to 'User'
 );
