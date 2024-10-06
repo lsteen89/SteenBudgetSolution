@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import axios from 'axios';
 import './Registration.css';
 import RegBird from '../assets/Images/RegBird.png';
 import { useNavigate } from 'react-router-dom'; 
@@ -65,22 +66,31 @@ function RegistrationForm() {
             acc[fieldName] = validateField(fieldName, eval(fieldName));
             return acc;
         }, {});
-
+    
         if (Object.values(validationErrors).some(error => error)) {
             setErrors(validationErrors);
             return;
         }
-
+    
         try {
-            const result = await registerUser({ firstName, lastName, email, password });
+            // Register the user first
+            const result = await registerUser({ firstName, lastName, email, password }); 
             console.log('Registration successful');
-            navigate('/welcomepage'); 
+            
+            // TODO: The call needs a token, it should come from the return from register. 
+
+            // Call the backend to send verification email after successful registration
+            const verificationResult = await sendVerificationEmail({ email });
+            console.log('Verification email sent successfully');
+    
+            // Navigate to welcome page after both registration and email sending are successful
+            navigate('/welcomepage');
         } catch (error) {
-            console.error('Registration failed:', error);
-            if (error.message === "This email is already taken.") {
+            console.error('Registration or verification failed:', error);
+            if (error.response && error.response.data && error.response.data.message === "This email is already taken.") {
                 setErrors(prev => ({ ...prev, email: 'This email is already taken.' }));
             } else {
-                setErrors(prev => ({ ...prev, form: error.message }));
+                setErrors(prev => ({ ...prev, form: error.message || error }));
             }
         }
     };
