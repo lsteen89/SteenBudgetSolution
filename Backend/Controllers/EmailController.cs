@@ -21,6 +21,6 @@ public class EmailController : ControllerBase
 
 public class EmailRequest
 {
-    public string Email { get; set; }
-    public string Token { get; set; }
+    public string? Email { get; set; } // Nullable email
+    public string? Token { get; set; } // Nullable token
 }
