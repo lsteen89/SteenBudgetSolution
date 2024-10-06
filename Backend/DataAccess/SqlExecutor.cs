@@ -24,7 +24,7 @@ namespace Backend.DataAccess
         {
             using (var connection = GlobalConfig.GetConnection())
             {
-                string sqlQuery = "SELECT COUNT(1) FROM Users WHERE Email = @Email";
+                string sqlQuery = "SELECT COUNT(1) FROM User WHERE Email = @Email";
                 return connection.ExecuteScalar<bool>(sqlQuery, new { Email = email });
             }
         }
@@ -32,7 +32,7 @@ namespace Backend.DataAccess
         {
             using (var connection = GlobalConfig.GetConnection())
             {
-            string sqlQuery = @"INSERT INTO Users (Persoid, Firstname, Lastname, Email, Password, Roles, CreatedBy)
+            string sqlQuery = @"INSERT INTO User (Persoid, Firstname, Lastname, Email, Password, Roles, CreatedBy)
                 VALUES (@Persoid, @Firstname, @Lastname, @Email, @Password, @Roles, 'System')";
 
             IDbTransaction transaction = null;
@@ -66,7 +66,7 @@ namespace Backend.DataAccess
         {
             using (var connection = GlobalConfig.GetConnection())
             {
-                string sqlQuery = "SELECT * FROM Users WHERE Email = @Email";
+                string sqlQuery = "SELECT * FROM User WHERE Email = @Email";
                 return connection.QueryFirstOrDefault<UserModel>(sqlQuery, new { Email = email });
             }
         }
@@ -74,7 +74,7 @@ namespace Backend.DataAccess
         {
             using (var connection = GlobalConfig.GetConnection())
             {
-                string sqlQuery = "UPDATE Users SET EmailConfirmed = @IsVerified WHERE Email = @Email";
+                string sqlQuery = "UPDATE User SET EmailConfirmed = @IsVerified WHERE Email = @Email";
                 var result = connection.Execute(sqlQuery, new { IsVerified = user.IsVerified, Email = user.Email });
                 return result > 0;
             }
