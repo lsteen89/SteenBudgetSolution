@@ -5,7 +5,7 @@ CREATE DATABASE IF NOT EXISTS SteenBudgetSystem;
 USE SteenBudgetSystem;
 
 -- Create Users table
-CREATE TABLE IF NOT EXISTS Users (
+CREATE TABLE IF NOT EXISTS User (
     Id INT AUTO_INCREMENT PRIMARY KEY,
     Persoid CHAR(36) NOT NULL UNIQUE,
     Firstname VARCHAR(50) NOT NULL,
@@ -76,4 +76,14 @@ CREATE TABLE IF NOT EXISTS ErrorLog (
     Caller VARCHAR(100),
     SubmittedBy VARCHAR(100),
     UserInput TEXT
+);
+
+-- Create VerificationToken table
+CREATE TABLE IF NOT EXISTS VerificationToken (
+    Id INT AUTO_INCREMENT PRIMARY KEY,
+    PersoId CHAR(36),
+    Token CHAR(36) NOT NULL UNIQUE,
+    TokenExpiryDate DATETIME NOT NULL,
+    CreatedTime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (PersoId) REFERENCES Users(PersoId) ON DELETE CASCADE
 );
