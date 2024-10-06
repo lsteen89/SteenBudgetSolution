@@ -57,11 +57,11 @@ namespace Backend.Controllers
             }
 
             // Retrieve the verification token from the database
-            string verificationToken = _userServices.GetUserVerificationToken(user.PersoId);
+            string? verificationToken = _userServices.GetUserVerificationToken(user.PersoId);
 
 
             // Send verification email
-            _userServices.SendVerificationEmail(user.Email, token);
+            _userServices.SendVerificationEmail(user.Email, verificationToken);
 
             return Ok(new { message = "Registration successful. Please check your email for verification link." });
         }
