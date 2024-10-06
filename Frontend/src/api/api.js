@@ -19,15 +19,11 @@ export const registerUser = async (userData) => {
     }
 };
 // Function to send verification email
-export const sendVerificationEmail = async (emailData) => {
+export const sendVerificationEmail = async (email) => {
     try {
-        const response = await axios.post(`${API_URL}/email/send-verification`, emailData, {
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
+        const response = await axios.post(`${API_URL}/Email/SendVerification`, { email });
         return response.data;
     } catch (error) {
-        throw new Error(error.response?.data?.message || 'Failed to send verification email');
+        throw new Error('Failed to send verification email');
     }
 };

@@ -72,5 +72,9 @@ namespace Backend.Services
         {
             return _sqlExecutor.UpdateUserInDatabase(user);
         }
+        public string GetUserVerificationToken(string persoId)
+        {
+            return _sqlExecutor.GetUserVerificationToken(persoId);
+        }
     }
 }
