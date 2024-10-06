@@ -3,7 +3,7 @@ import axios from 'axios';
 import './Registration.css';
 import RegBird from '../assets/Images/RegBird.png';
 import { useNavigate } from 'react-router-dom'; 
-import { registerUser } from '../api/api'; // Import the registerUser function
+import { registerUser, sendVerificationEmail } from '../api/api'; // Import necessary API functions
 
 function RegistrationForm() {
     const [firstName, setFirstName] = useState('');
@@ -76,11 +76,12 @@ function RegistrationForm() {
             // Register the user first
             const result = await registerUser({ firstName, lastName, email, password }); 
             console.log('Registration successful');
-            
-            // TODO: The call needs a token, it should come from the return from register. 
 
-            // Call the backend to send verification email after successful registration
-            const verificationResult = await sendVerificationEmail({ email });
+
+            const verificationToken = result.token;  
+
+            // Call the backend to send verification email after successful registration with the token
+            const verificationResult = await sendVerificationEmail({ email, token: verificationToken }); 
             console.log('Verification email sent successfully');
     
             // Navigate to welcome page after both registration and email sending are successful

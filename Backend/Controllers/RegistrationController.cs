@@ -56,8 +56,9 @@ namespace Backend.Controllers
                 return BadRequest("Registration failed due to an internal error. Please try again.");
             }
 
-            // Generate JWT token for email verification
-            var token = _userServices.GenerateJwtToken(user);
+            // Retrieve the verification token from the database
+            string verificationToken = _userServices.GetUserVerificationToken(user.PersoId);
+
 
             // Send verification email
             _userServices.SendVerificationEmail(user.Email, token);

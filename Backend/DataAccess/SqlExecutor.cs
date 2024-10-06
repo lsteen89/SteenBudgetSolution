@@ -40,11 +40,15 @@ namespace Backend.DataAccess
                 {
                     transaction = connection.BeginTransaction();
 
+                    //Create persoid and roles for new user
                     user.PersoId = Guid.NewGuid().ToString();
-
                     user.Roles = "1";    
 
+                    //Insert user into database
                     connection.Execute(sqlQuery, user, transaction);
+
+                    //Generate token for user
+                    GenerateUserToken(user.PersoId, connection, transaction);
 
                     transaction.Commit();
 
@@ -79,6 +83,33 @@ namespace Backend.DataAccess
                 return result > 0;
             }
         }
+        public void GenerateUserToken(string persoId, IDbConnection connection, IDbTransaction transaction)
+        {
+            string token = Guid.NewGuid().ToString(); // Generate a new token
+            DateTime expiryDate = DateTime.UtcNow.AddHours(24); // Token expires in 24 hours, because why not?
+
+            string insertTokenQuery = @"INSERT INTO VerificationTokens (PersoId, Token, TokenExpiryDate)
+                                VALUES (@PersoId, @Token, @TokenExpiryDate)";
+
+            connection.Execute(insertTokenQuery, new
+            {
+                PersoId = persoId,
+                Token = token,
+                TokenExpiryDate = expiryDate
+            }, transaction);
+        }
+        public string GetUserVerificationToken(string persoId)
+        {
+            using (var connection = GlobalConfig.GetConnection())
+            {
+                string sqlQuery = "SELECT Token FROM VerificationTokens WHERE PersoId = @PersoId";
+
+                var token = connection.QuerySingleOrDefault<string>(sqlQuery, new { PersoId = persoId });
+
+                return token;
+            }
+        }
+
 
     }
 }
