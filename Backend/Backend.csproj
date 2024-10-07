@@ -8,15 +8,13 @@
     <UserSecretsId>a0a75577-22e0-4d07-ade2-629e75f17c81</UserSecretsId>
   </PropertyGroup>
 
+  <!-- Correct handling of SQL files -->
   <ItemGroup>
-    <None Remove="SqlCode\MariaDB\CreateTables.sql" />
+    <!-- Include all SQL files in SqlCode folder, but treat them as 'None' -->
+    <None Include="SqlCode\**\*.sql" />
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="SqlCode\MariaDB\CreateTables.sql" />
-  </ItemGroup>
-
-<ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     <PackageReference Include="Dapper" Version="2.1.35" />
     <PackageReference Include="MailKit" Version="4.7.1.1" />
@@ -36,6 +34,5 @@
     <PackageReference Include="System.Data.SqlClient" Version="4.8.6" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.6.3" />
   </ItemGroup>
-
 
 </Project>
