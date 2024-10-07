@@ -20,10 +20,13 @@ Log.Logger = new LoggerConfiguration()
 builder.Host.UseSerilog();
 
 // Debugging: Print all environment variables
-var allVariables = Environment.GetEnvironmentVariables();
-foreach (var key in allVariables.Keys)
+if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development")
 {
-    Console.WriteLine($"{key}={allVariables[key]}");
+    var allVariables = Environment.GetEnvironmentVariables();
+    foreach (var key in allVariables.Keys)
+    {
+        Console.WriteLine($"{key}={allVariables[key]}");
+    }
 }
 // Load the SMTP configuration from environment variables
 var smtpPassword = Environment.GetEnvironmentVariable("SMTP_PASSWORD");
