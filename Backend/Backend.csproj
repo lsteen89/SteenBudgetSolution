@@ -8,6 +8,14 @@
     <UserSecretsId>a0a75577-22e0-4d07-ade2-629e75f17c81</UserSecretsId>
   </PropertyGroup>
 
+  <ItemGroup>
+    <None Remove="SqlCode\MariaDB\CreateTables.sql" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="SqlCode\MariaDB\CreateTables.sql" />
+  </ItemGroup>
+
 <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     <PackageReference Include="Dapper" Version="2.1.35" />
