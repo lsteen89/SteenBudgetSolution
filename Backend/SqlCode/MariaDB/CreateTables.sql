@@ -1,10 +1,23 @@
+﻿-- Declare the environment variable (either 'prod' or 'test')
+SET @env = 'test';  -- Change this to 'prod' for production
+
+-- Set the database name based on the environment
+SET @dbName = IF(@env = 'prod', 'SteenBudgetSystemPROD', 'SteenBudgetSystemTEST');
+
 -- Create the database if it doesn't exist
-CREATE DATABASE IF NOT EXISTS SteenBudgetSystem;
+SET @createDB = CONCAT('CREATE DATABASE IF NOT EXISTS ', @dbName, ';');
+PREPARE stmt FROM @createDB;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
--- Use the database
-USE SteenBudgetSystem;
+-- Use the selected database
+SET @useDB = CONCAT('USE ', @dbName, ';');
+PREPARE stmt FROM @useDB;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+-- Create the tables
 
--- Create User table (notice the singular 'User')
+-- Create User table
 CREATE TABLE IF NOT EXISTS User (
     Id INT AUTO_INCREMENT PRIMARY KEY,
     Persoid CHAR(36) NOT NULL UNIQUE,

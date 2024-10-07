@@ -16,8 +16,25 @@ namespace Backend.DataAccess
             string userInput = _logHelper.CreateUserLogHelper(user);
             using (var logConnection = GlobalConfig.GetConnection())
             {
-                string logSql = "INSERT INTO ErrorLog (ErrorMessage, MethodOrigin, SubmittedBy, UserInput) VALUES (@ErrorMessage, @MethodOrigin, @SubmittedBy, @UserInput)";
-                logConnection.Execute(logSql, new { ErrorMessage = message, MethodOrigin = methodName, SubmittedBy = "System", UserInput = userInput });
+                //For testing purposes
+                string logSql = "INSERT INTO ErrorLog (ErrorMessage, Caller, SubmittedBy, UserInput) VALUES ('Test Error', 'TestMethod', 'System', 'TestInput')";
+                logConnection.Execute(logSql);
+                // Test SELECT statement to check if INSERT was successful
+                var result = logConnection.Query("SELECT * FROM ErrorLog WHERE ErrorMessage = 'Test Error'");
+                foreach (var row in result)
+                {
+                    Console.WriteLine($"{row.ErrorMessage} | {row.Caller} | {row.SubmittedBy} | {row.UserInput}");
+                }
+
+                // Test the actual logging with parameters
+                string paramSql = "INSERT INTO ErrorLog (ErrorMessage, Caller, SubmittedBy, UserInput) VALUES (@ErrorMessage, @Caller, @SubmittedBy, @UserInput)";
+                logConnection.Execute(paramSql, new { ErrorMessage = message, Caller = methodName, SubmittedBy = "System", UserInput = userInput });
+
+                //For production
+                /*
+                string logSql = "INSERT INTO ErrorLog (ErrorMessage, Caller, SubmittedBy, UserInput) VALUES (@ErrorMessage, @Caller, @SubmittedBy, @UserInput)";
+                logConnection.Execute(logSql, new { ErrorMessage = message, Caller = methodName, SubmittedBy = "System", UserInput = userInput });
+                */
             }
         }
         public bool IsUserExistInDatabase(string email)
