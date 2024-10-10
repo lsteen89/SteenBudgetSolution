@@ -6,10 +6,15 @@ using System;
 using System.Text;
 using Serilog;
 using Microsoft.Extensions.Hosting;
+using Backend.Helpers;
+using Dapper;
 
 var builder = WebApplication.CreateBuilder(args);
 var configuration = builder.Configuration;
 GlobalConfig.Initialize(configuration);
+
+// Register the GUID Type Handler for Dapper
+SqlMapper.AddTypeHandler(new GuidTypeHandler());
 
 // Configure Serilog
 Log.Logger = new LoggerConfiguration()
