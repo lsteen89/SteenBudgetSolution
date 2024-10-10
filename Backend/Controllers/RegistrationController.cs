@@ -15,12 +15,14 @@ namespace Backend.Controllers
     public class RegistrationController : ControllerBase
     {
         private readonly UserServices _userServices;
-        private readonly string _jwtSecretKey;
+        private readonly string? _jwtSecretKey;
+        private readonly ILogger<RegistrationController> _logger; 
 
-        public RegistrationController(UserServices userServices, IConfiguration configuration)
+        public RegistrationController(UserServices userServices, IConfiguration configuration, ILogger<RegistrationController> logger)
         {
             _userServices = userServices;
             _jwtSecretKey = configuration["Jwt:Key"];
+            _logger = logger;
         }
 
         [HttpPost("register")]
@@ -56,13 +58,9 @@ namespace Backend.Controllers
                 return BadRequest("Registration failed due to an internal error. Please try again.");
             }
 
-            // Retrieve the verification token from the database
-            string? verificationToken = _userServices.GetUserVerificationToken(user.PersoId);
-
-
+            string? verificationToken = _userServices.GetUserVerificationToken(user.PersoId.ToString());
             // Send verification email
             _userServices.SendVerificationEmail(user.Email, verificationToken);
-
             return Ok(new { message = "Registration successful. Please check your email for verification link." });
         }
 
@@ -71,33 +69,36 @@ namespace Backend.Controllers
         {
             try
             {
-                var tokenHandler = new JwtSecurityTokenHandler();
-                var key = Encoding.UTF8.GetBytes(_jwtSecretKey);
-                tokenHandler.ValidateToken(token, new TokenValidationParameters
+                // Retrieve the PersoID of the token and its expiry date from the database
+                var tokenData = _userServices.GetUserVerificationTokenData(token);
+
+                if (tokenData == null)
                 {
-                    ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = new SymmetricSecurityKey(key),
-                    ValidateIssuer = false,
-                    ValidateAudience = false,
-                    ClockSkew = TimeSpan.Zero
-                }, out SecurityToken validatedToken);
-
-                var jwtToken = (JwtSecurityToken)validatedToken;
-                var email = jwtToken.Claims.First(x => x.Type == "email").Value;
-
-                var user = _userServices.GetUserByEmail(email);
-                if (user == null)
                     return BadRequest(new { message = "Invalid token" });
+                }
 
-                user.IsVerified = true;
-                _userServices.UpdateUser(user);
+                // Check if the token has expired
+                if (tokenData.TokenExpiryDate < DateTime.UtcNow)
+                {
+                    return BadRequest(new { message = "Token has expired" });
+                }
 
+                // Fetch the user associated with the token (using PersoId)
+                var user = _userServices.GetUserForRegistrationByPersoId(tokenData.PersoId);
+
+                // Mark the user as verified and update
+                user!.IsVerified = true;
+                _userServices.UpdateEmailConfirmationStatus(user);
+
+                // Return success response
                 return Ok(new { message = "Email verified successfully" });
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "Verification failed");
                 return BadRequest(new { message = "Invalid or expired token" });
             }
         }
+
     }
 }
