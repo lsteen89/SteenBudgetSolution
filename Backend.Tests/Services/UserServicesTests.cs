@@ -17,16 +17,13 @@ public class UserServicesTests
         startup.ConfigureServices(serviceCollection);
 
         var serviceProvider = serviceCollection.BuildServiceProvider();
-        _userServices = serviceProvider.GetService<UserServices>();
-
-        // Cast IEmailService to MockEmailService
-        _mockEmailService = serviceProvider.GetService<IEmailService>() as MockEmailService;
+        _userServices = serviceProvider.GetService<UserServices>() ?? throw new InvalidOperationException("UserServices not registered.");
+        _mockEmailService = serviceProvider.GetService<IEmailService>() as MockEmailService ?? throw new InvalidOperationException("IEmailService not registered.");
     }
 
     [Fact]
     public void Register_ShouldSendVerificationEmail_WithToken()
     {
-        // Arrange
         var userDto = new UserCreationDto
         {
             FirstName = "Test",
@@ -35,20 +32,23 @@ public class UserServicesTests
             Password = "Password123!"
         };
 
-        // Act
         var userModel = new UserModel
         {
             FirstName = userDto.FirstName,
             LastName = userDto.LastName,
             Email = userDto.Email,
-            Password = userDto.Password
+            Password = userDto.Password,
+            IsVerified = false // Make sure user is not verified initially
         };
+        // Act
         var result = _userServices.CreateNewRegisteredUser(userModel);
 
+        // Update email confirmation status (now passing UserModel instead of just Email)
+        _userServices.UpdateEmailConfirmationStatus(userModel);
+
         // Generate token and send verification email
-        var user = _userServices.UpdateEmailConfirmationStatus(userDto.Email);
-        var token = _userServices.GenerateJwtToken(user);
-        _userServices.SendVerificationEmail(user.Email, token);
+        var token = _userServices.GenerateJwtToken(userModel);
+        _userServices.SendVerificationEmail(userModel.Email, token);
 
         // Assert
         Assert.True(result);
