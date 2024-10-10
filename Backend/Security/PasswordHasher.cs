@@ -16,12 +16,9 @@ public class PasswordHasher
 
     public static byte[] GenerateSalt(int size)
     {
-        using (var rng = new RNGCryptoServiceProvider())
-        {
-            var salt = new byte[size];
-            rng.GetBytes(salt);
-            return salt;
-        }
+        var salt = new byte[size];
+        RandomNumberGenerator.Fill(salt);
+        return salt;
     }
 
     public static string HashPasswordWithSalt(string password, byte[] salt)
