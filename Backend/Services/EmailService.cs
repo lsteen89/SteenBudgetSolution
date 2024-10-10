@@ -34,7 +34,7 @@ public class EmailService : IEmailService
 
                 using (var client = new SmtpClient())
                 {
-                    client.Connect(_configuration["Smtp:Host"], int.Parse(_configuration["Smtp:Port"]), MailKit.Security.SecureSocketOptions.StartTls);
+                    client.Connect(_configuration["Smtp:Host"], int.Parse(_configuration["Smtp:Port"]!), MailKit.Security.SecureSocketOptions.StartTls);
                     client.Authenticate(_configuration["Smtp:Username"], _configuration["Smtp:Password"]);
                     client.Send(emailMessage);
                     client.Disconnect(true);
