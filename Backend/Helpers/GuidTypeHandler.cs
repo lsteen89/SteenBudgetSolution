@@ -16,8 +16,13 @@ namespace Backend.Helpers
         // This method parses the value from the database (CHAR(36)) to a GUID when retrieving data
         public override Guid Parse(object value)
         {
+            if (value == null || string.IsNullOrEmpty(value.ToString()))
+            {
+                throw new ArgumentNullException(nameof(value), "Value cannot be null or empty when parsing to Guid.");
+            }
+
             // Convert the CHAR(36) string from the database to a Guid
-            return Guid.Parse(value.ToString());
+            return Guid.Parse(value.ToString()!);
         }
     }
 }
