@@ -3,7 +3,8 @@ import axios from 'axios';
 import './Registration.css';
 import RegBird from '../assets/Images/RegBird.png';
 import { useNavigate } from 'react-router-dom'; 
-import { registerUser, sendVerificationEmail } from '../api/api'; // Import necessary API functions
+import { registerUser, sendVerificationEmail } from '../api/authApi';
+
 
 function RegistrationForm() {
     const [firstName, setFirstName] = useState('');

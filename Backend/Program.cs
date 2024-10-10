@@ -96,7 +96,8 @@ builder.Services.AddCors(options =>
         {
             builder.WithOrigins("http://localhost:3000") // Local frontend URL
                    .AllowAnyHeader()
-                   .AllowAnyMethod();
+                   .AllowAnyMethod()
+                   .AllowCredentials(); 
         });
 
     options.AddPolicy("ProductionCorsPolicy",
@@ -104,7 +105,8 @@ builder.Services.AddCors(options =>
         {
             builder.WithOrigins("https://www.ebudget.se") // Production frontend URL
                    .AllowAnyHeader()
-                   .AllowAnyMethod();
+                   .AllowAnyMethod()
+                   .AllowCredentials();
         });
 });
 
@@ -122,10 +124,11 @@ if (app.Environment.IsDevelopment())
 }
 else
 {
-    app.UseHttpsRedirection();
+    //app.UseHttpsRedirection();
     app.UseCors("ProductionCorsPolicy"); // Apply the CORS policy for production
 }
 
+app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 
