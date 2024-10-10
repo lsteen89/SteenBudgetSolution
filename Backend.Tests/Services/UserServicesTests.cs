@@ -46,7 +46,7 @@ public class UserServicesTests
         var result = _userServices.CreateNewRegisteredUser(userModel);
 
         // Generate token and send verification email
-        var user = _userServices.GetUserByEmail(userDto.Email);
+        var user = _userServices.UpdateEmailConfirmationStatus(userDto.Email);
         var token = _userServices.GenerateJwtToken(user);
         _userServices.SendVerificationEmail(user.Email, token);
 
