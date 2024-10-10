@@ -2,28 +2,28 @@ import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_API_URL; // The base URL for your backend API
 
-// Refactor registerUser to use axios
 export const registerUser = async (userData) => {
     try {
-        const response = await axios.post(`${API_URL}/Registration/register`, userData, {
+        const response = await axios.post(`${API_URL}/api/Registration/register`, userData, {
             headers: {
                 'Content-Type': 'application/json',
             },
         });
-        
         return response.data; // Return the API response data
 
     } catch (error) {
-        // Throw a descriptive error if the request fails
-        throw new Error(error.response?.data?.message || 'Failed to register user');
+        const errorMessage = error.response?.data?.message || `Failed to register user: ${error.response?.statusText || 'Unknown error'}`;
+        throw new Error(errorMessage);
     }
 };
+
 // Function to send verification email
 export const sendVerificationEmail = async (email) => {
     try {
-        const response = await axios.post(`${API_URL}/Email/SendVerification`, { email });
+        const response = await axios.post(`${API_URL}/api/Email/SendVerification`, { email });
         return response.data;
     } catch (error) {
-        throw new Error('Failed to send verification email');
+        const errorMessage = `Failed to send verification email: ${error.response?.statusText || 'Unknown error'}`;
+        throw new Error(errorMessage);
     }
 };
