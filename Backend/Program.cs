@@ -31,6 +31,7 @@ Log.Logger = new LoggerConfiguration()
 
 
 builder.Host.UseSerilog();
+Console.WriteLine($"Log file path: {logFilePath}");
 
 // Debugging: Print all environment variables
 if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development")
