@@ -116,6 +116,9 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+// Enable static file serving
+app.UseStaticFiles();
+
 
 // Enable Swagger for both Development and Production
 if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
