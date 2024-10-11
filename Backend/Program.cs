@@ -104,9 +104,9 @@ builder.Services.AddCors(options =>
         builder =>
         {
             builder.WithOrigins("https://www.ebudget.se") // Production frontend URL
-   .                AllowAnyHeader()
+                   .AllowAnyHeader()
                    .AllowAnyMethod()
-                   .AllowCredentials();
+                   .AllowCredentials(); // Corrected syntax
         });
 });
 
@@ -118,6 +118,8 @@ builder.Services.AddSwaggerGen();
 var app = builder.Build();
 // Enable static file serving
 app.UseStaticFiles();
+app.UseRouting();
+
 
 
 // Enable Swagger for both Development and Production
@@ -127,7 +129,7 @@ if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "My API V1");
-        c.RoutePrefix = "swagger"; // Customize this path if needed
+        c.RoutePrefix = "api-docs"; // Serve Swagger at /api-docs
     });
 }
 
@@ -143,6 +145,9 @@ else
 
 // Keep HTTPS redirection enabled for secure communication
 app.UseHttpsRedirection();
+
+// Fallback to React for unknown routes
+app.MapFallbackToFile("index.html"); // This ensures React handles its own routes
 
 // Enable authentication and authorization
 app.UseAuthentication();
