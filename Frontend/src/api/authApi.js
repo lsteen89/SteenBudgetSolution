@@ -16,14 +16,3 @@ export const registerUser = async (userData) => {
         throw new Error(errorMessage);
     }
 };
-
-// Function to send verification email
-export const sendVerificationEmail = async (email) => {
-    try {
-        const response = await axios.post(`${API_URL}/api/Email/SendVerification`, { email });
-        return response.data;
-    } catch (error) {
-        const errorMessage = `Failed to send verification email: ${error.response?.statusText || 'Unknown error'}`;
-        throw new Error(errorMessage);
-    }
-};

@@ -75,20 +75,15 @@ function RegistrationForm() {
     
         try {
             // Register the user first
-            const result = await registerUser({ firstName, lastName, email, password }); 
+            const result = await registerUser({ firstName, lastName, email, password });
             console.log('Registration successful');
-
-
-            const verificationToken = result.token;  
-
-            // Call the backend to send verification email after successful registration with the token
-            const verificationResult = await sendVerificationEmail({ email, token: verificationToken }); 
-            console.log('Verification email sent successfully');
-    
-            // Navigate to welcome page after both registration and email sending are successful
+        
+            // Navigate to the welcome page after successful registration
             navigate('/welcomepage');
         } catch (error) {
-            console.error('Registration or verification failed:', error);
+            console.error('Registration failed:', error);
+            
+            // Handle specific error for "email already taken"
             if (error.response && error.response.data && error.response.data.message === "This email is already taken.") {
                 setErrors(prev => ({ ...prev, email: 'This email is already taken.' }));
             } else {
