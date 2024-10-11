@@ -97,41 +97,55 @@ builder.Services.AddCors(options =>
             builder.WithOrigins("http://localhost:3000") // Local frontend URL
                    .AllowAnyHeader()
                    .AllowAnyMethod()
-                   .AllowCredentials(); 
+                   .AllowCredentials();
         });
 
     options.AddPolicy("ProductionCorsPolicy",
         builder =>
         {
-            builder.WithOrigins("https://www.ebudget.se") // Production frontend URL
+                
                    .AllowAnyHeader()
                    .AllowAnyMethod()
                    .AllowCredentials();
         });
 });
 
+// Add Swagger and API explorer
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-    
+
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
+// Enable Swagger for both Development and Production
+if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
-    app.UseCors("DevelopmentCorsPolicy"); // Apply the CORS policy for development
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "My API V1");
+        c.RoutePrefix = "swagger"; // Customize this path if needed
+    });
+}
+
+// Apply the correct CORS policy based on environment
+if (app.Environment.IsDevelopment())
+{
+    app.UseCors("DevelopmentCorsPolicy"); // Development CORS
 }
 else
 {
-    //app.UseHttpsRedirection();
-    app.UseCors("ProductionCorsPolicy"); // Apply the CORS policy for production
+    app.UseCors("ProductionCorsPolicy"); // Production CORS
 }
 
+// Keep HTTPS redirection enabled for secure communication
 app.UseHttpsRedirection();
+
+// Enable authentication and authorization
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
 
 app.Run();
+
