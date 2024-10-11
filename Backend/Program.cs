@@ -145,7 +145,8 @@ else
 {
     app.UseCors("ProductionCorsPolicy"); // Production CORS
 }
-Console.WriteLine($"Current environment: {app.Environment.EnvironmentName}");
+Log.Information($"Current environment: {app.Environment.EnvironmentName}");
+
 // Keep HTTPS redirection enabled for secure communication
 app.UseHttpsRedirection();
 
