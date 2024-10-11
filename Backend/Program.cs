@@ -19,10 +19,16 @@ GlobalConfig.Initialize(configuration);
 SqlMapper.AddTypeHandler(new GuidTypeHandler());
 
 // Configure Serilog
+var logFilePath = builder.Environment.IsProduction()
+    ? "/var/www/backend/logs/app-log.txt"
+    : "logs/app-log.txt"; // Default to this path for test and dev environments
+
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
-    .WriteTo.File("logs/app-log.txt", rollingInterval: RollingInterval.Day)
+    .WriteTo.File(logFilePath, rollingInterval: RollingInterval.Day)
     .CreateLogger();
+
+
 
 builder.Host.UseSerilog();
 
