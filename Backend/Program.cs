@@ -8,6 +8,8 @@ using Serilog;
 using Microsoft.Extensions.Hosting;
 using Backend.Helpers;
 using Dapper;
+using Microsoft.OpenApi.Models;
+
 
 var builder = WebApplication.CreateBuilder(args);
 var configuration = builder.Configuration;
@@ -129,7 +131,8 @@ if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "My API V1");
-        c.RoutePrefix = "api-docs"; // Serve Swagger at /api-docs
+        c.RoutePrefix = "api-docs"; // Swagger will be available at /api-docs
+        c.DisplayRequestDuration(); // Displays request duration in Swagger UI
     });
 }
 
