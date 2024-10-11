@@ -140,6 +140,7 @@ if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
 if (app.Environment.IsDevelopment())
 {
     app.UseCors("DevelopmentCorsPolicy"); // Development CORS
+    Console.WriteLine($"Current environment: {app.Environment.EnvironmentName}");
 }
 else
 {
