@@ -28,49 +28,64 @@ namespace Backend.Controllers
         [HttpPost("register")]
         public IActionResult Register([FromBody] UserCreationDto userDto)
         {
-            _logger.LogInformation("POST /api/Registration/register called");
+            _logger.LogInformation("POST /api/Registration/register called for email: {Email}", userDto.Email);
 
+            // Check if model state is valid
             if (!ModelState.IsValid)
             {
-                _logger.LogWarning("Model state is invalid");
+                _logger.LogWarning("Invalid model state for email: {Email}", userDto.Email);
                 return BadRequest(ModelState);
             }
 
-            _logger.LogInformation("Processing registration for user: {UserName}", userDto.Email);
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+            _logger.LogInformation("Processing registration for user: {Email}", userDto.Email);
 
-            var user = new UserModel
+            try
             {
-                FirstName = userDto.FirstName,
-                LastName = userDto.LastName,
-                Email = userDto.Email,
-                Password = userDto.Password,
-            };
+                // Check if user exists
+                bool userExists = _userServices.CheckIfUserExists(userDto.Email);
+                if (userExists)
+                {
+                    _logger.LogWarning("Registration attempt with already taken email: {Email}", userDto.Email);
+                    ModelState.AddModelError("Email", "This email is already taken.");
+                    return BadRequest(new { message = "This email is already taken." });
+                }
 
-            // Check if user exists
-            bool userExists = _userServices.CheckIfUserExists(user.Email);
-            if (userExists)
-            {
-                ModelState.AddModelError("Email", "This email is already taken.");
-                return BadRequest(new { message = "This email is already taken." });
+                // Hash the password with BCrypt
+                _logger.LogInformation("Hashing password for user: {Email}", userDto.Email);
+                var hashedPassword = BCrypt.Net.BCrypt.HashPassword(userDto.Password);
+
+                var user = new UserModel
+                {
+                    FirstName = userDto.FirstName,
+                    LastName = userDto.LastName,
+                    Email = userDto.Email,
+                    Password = hashedPassword,
+                };
+
+                // Create new registered user
+                _logger.LogInformation("Creating new registered user for email: {Email}", userDto.Email);
+                bool isSuccessfulRegistration = _userServices.CreateNewRegisteredUser(user);
+                if (!isSuccessfulRegistration)
+                {
+                    _logger.LogError("Failed to register user for email: {Email}", userDto.Email);
+                    return BadRequest("Registration failed due to an internal error. Please try again.");
+                }
+
+                // Retrieve verification token and send verification email
+                _logger.LogInformation("Generating verification token for user: {Email}", userDto.Email);
+                string? verificationToken = _userServices.GetUserVerificationToken(user.PersoId.ToString());
+
+                _logger.LogInformation("Sending verification email to: {Email}", userDto.Email);
+                _userServices.SendVerificationEmail(user.Email, verificationToken);
+
+                _logger.LogInformation("Registration successful for user: {Email}", userDto.Email);
+                return Ok(new { message = "Registration successful. Please check your email for verification link." });
             }
-
-            // Hash the password with BCrypt
-            var hashedPassword = BCrypt.Net.BCrypt.HashPassword(user.Password);
-            user.Password = hashedPassword;
-
-            // Create new registered user
-            bool isSuccessfulRegistration = _userServices.CreateNewRegisteredUser(user);
-            if (!isSuccessfulRegistration)
+            catch (Exception ex)
             {
-                return BadRequest("Registration failed due to an internal error. Please try again.");
+                _logger.LogError(ex, "Error occurred while processing registration for email: {Email}", userDto.Email);
+                return StatusCode(500, "An error occurred while processing your request.");
             }
-
-            string? verificationToken = _userServices.GetUserVerificationToken(user.PersoId.ToString());
-            // Send verification email
-            _userServices.SendVerificationEmail(user.Email, verificationToken);
-            return Ok(new { message = "Registration successful. Please check your email for verification link." });
         }
 
         [HttpGet("verify-email")]
