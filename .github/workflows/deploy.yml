@@ -40,15 +40,14 @@ jobs:
             
             # Ensure necessary directories exist
             sudo mkdir -p /var/www/backend
-            sudo mkdir -p /var/www/backend/logs
             sudo mkdir -p /var/www/html
             
             # Fix permissions for backend directory
             sudo chmod -R 777 /var/www/backend
-            sudo mkdir -p /var/www/backend/logs
+
             # Publish and deploy backend
             cd Backend
-            dotnet publish -c Release -o /var/www/backend --verbosity detailed
+            dotnet publish -c Release -o /var/www/backend
             
             # Build and deploy frontend
             cd ../Frontend
