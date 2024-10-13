@@ -28,6 +28,15 @@ namespace Backend.Controllers
         [HttpPost("register")]
         public IActionResult Register([FromBody] UserCreationDto userDto)
         {
+            _logger.LogInformation("POST /api/Registration/register called");
+
+            if (!ModelState.IsValid)
+            {
+                _logger.LogWarning("Model state is invalid");
+                return BadRequest(ModelState);
+            }
+
+            _logger.LogInformation("Processing registration for user: {UserName}", userDto.Email);
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
