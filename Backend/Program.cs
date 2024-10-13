@@ -124,7 +124,16 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+//Add logger
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
+builder.Logging.SetMinimumLevel(LogLevel.Debug);
+
 var app = builder.Build();
+
+app.UseExceptionHandler("/error"); // global exception handling
+
 // Enable static file serving
 app.UseStaticFiles();
 app.UseRouting();
