@@ -8,10 +8,6 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    env:
-      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }} 
-      JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}     
-      DB_CONNECTION_STRING: ${{ secrets.CONNECTION_STRING }}  
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
