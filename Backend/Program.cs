@@ -112,10 +112,10 @@ builder.Services.AddCors(options =>
     options.AddPolicy("ProductionCorsPolicy",
         builder =>
         {
-            builder.WithOrigins("https://www.ebudget.se") // Production frontend URL
+            builder.WithOrigins("https://www.ebudget.se", "https://ebudget.se")
                    .AllowAnyHeader()
                    .AllowAnyMethod()
-                   .AllowCredentials(); // Corrected syntax
+                   .AllowCredentials();
         });
 });
 
