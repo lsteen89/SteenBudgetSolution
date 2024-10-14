@@ -29,7 +29,7 @@ namespace Backend.Controllers
         public IActionResult Register([FromBody] UserCreationDto userDto)
         {
             _logger.LogInformation("POST /api/Registration/register called for email: {Email}", userDto.Email);
-
+            _logger.LogInformation("test log {Email}", userDto.Email);
             // Check if model state is valid
             if (!ModelState.IsValid)
             {
