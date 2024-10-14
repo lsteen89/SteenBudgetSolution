@@ -7,6 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Backend", "Backend\Backend.
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Backend.Tests", "Backend.Tests\Backend.Tests.csproj", "{170DE53C-5B17-49F4-9C10-8167C9B3F17C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EmailDebugger", "EmailDebugger\EmailDebugger.csproj", "{5DB89601-72DD-47DF-A14A-FAFB3D2A8290}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{170DE53C-5B17-49F4-9C10-8167C9B3F17C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{170DE53C-5B17-49F4-9C10-8167C9B3F17C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{170DE53C-5B17-49F4-9C10-8167C9B3F17C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5DB89601-72DD-47DF-A14A-FAFB3D2A8290}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5DB89601-72DD-47DF-A14A-FAFB3D2A8290}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5DB89601-72DD-47DF-A14A-FAFB3D2A8290}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5DB89601-72DD-47DF-A14A-FAFB3D2A8290}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

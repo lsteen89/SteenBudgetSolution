@@ -2,8 +2,10 @@ using Backend.DataAccess;
 using Backend.Helpers;
 using Backend.Services;
 using Dapper;
-using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 using Serilog;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -30,78 +32,16 @@ Log.Logger = new LoggerConfiguration()
 builder.Host.UseSerilog();
 Log.Information($"Log file path: {logFilePath}");
 
-var app = builder.Build();
-
-ILogger<Program> _logger = app.Services.GetRequiredService<ILogger<Program>>();
-
-// Log environment information
-_logger.LogInformation("Application starting in environment: {Env}", builder.Environment.EnvironmentName);
-
-// Debugging: Print all environment variables (remove or limit this in production)
-if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development")
-{
-    var allVariables = Environment.GetEnvironmentVariables();
-    foreach (var key in allVariables.Keys)
-    {
-        _logger.LogInformation($"{key} = {allVariables[key]}");
-    }
-}
-
-// Load the SMTP configuration from environment variables
-var smtpPassword = Environment.GetEnvironmentVariable("SMTP_PASSWORD");
-if (string.IsNullOrEmpty(smtpPassword) && builder.Environment.IsProduction())
-{
-    _logger.LogError("SMTP password not configured in environment variables.");
-    throw new InvalidOperationException("SMTP password not configured.");
-}
-
-if (builder.Environment.IsDevelopment())
-{
-    _logger.LogInformation("Running in development mode, skipping email setup.");
-}
-else
-{
-    _logger.LogInformation("SMTP password loaded successfully.");
-}
-
-// Add JWT secret key logging
-var jwtKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY");
-if (string.IsNullOrEmpty(jwtKey))
-{
-    _logger.LogError("JWT secret key not configured in environment variables.");
-    throw new InvalidOperationException("JWT secret key not configured.");
-}
-else
-{
-    _logger.LogInformation("JWT secret key loaded successfully.");
-}
-
-// Swagger setup logs
-_logger.LogInformation("Configuring Swagger...");
-if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
-{
-    _logger.LogInformation("Enabling Swagger for environment: {Env}", app.Environment.EnvironmentName);
-
-    app.UseSwagger();
-    _logger.LogInformation("Swagger JSON endpoint enabled.");
-
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "My API V1");
-        c.RoutePrefix = "api-docs"; // Make Swagger UI available at /api-docs
-        c.DisplayRequestDuration();
-        _logger.LogInformation("Swagger UI enabled at /api-docs.");
-    });
-}
-else
-{
-    _logger.LogWarning("Swagger not enabled for the current environment: {Env}", app.Environment.EnvironmentName);
-}
-
-// Add services to the container.
+// Add services to the container (before Build)
 builder.Services.AddScoped<SqlExecutor>(); // Inject SqlExecutor
 builder.Services.AddScoped<UserServices>(); // Inject UserServices
 builder.Services.AddScoped<TokenService>(); // Inject TokenService
+
+// Register Swagger services
+builder.Services.AddSwaggerGen();
+
+// Add controller services to support routing to your controllers
+builder.Services.AddControllers(); // <-- Required for app.MapControllers() to work
 
 // Configure EmailService based on environment
 if (builder.Environment.IsDevelopment())
@@ -112,6 +52,28 @@ else
 {
     builder.Services.AddSingleton<IEmailService, EmailService>();
 }
+
+// Adding Authentication and Authorization
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    var jwtKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY") ?? "development-fallback-key";
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+        ValidateIssuer = false,
+        ValidateAudience = false,
+        ValidateLifetime = true,
+        ClockSkew = TimeSpan.Zero // Token expiration tolerance
+    };
+});
+
+builder.Services.AddAuthorization(); // Required to resolve the error
 
 // Adding CORS policies
 builder.Services.AddCors(options =>
@@ -135,29 +97,39 @@ builder.Services.AddCors(options =>
         });
 });
 
-// Log CORS policy
-if (app.Environment.IsDevelopment())
-{
-    _logger.LogInformation("Applying Development CORS policy.");
-    app.UseCors("DevelopmentCorsPolicy");
-}
-else
-{
-    _logger.LogInformation("Applying Production CORS policy.");
-    app.UseCors("ProductionCorsPolicy");
-}
+// Build the app (after service registration)
+var app = builder.Build();
 
-// Continue with your regular setup (static files, routes, etc.)
+// Get the logger after app is built
+ILogger<Program> _logger = app.Services.GetRequiredService<ILogger<Program>>();
+
+// Log environment information
+_logger.LogInformation("Application starting in environment: {Env}", builder.Environment.EnvironmentName);
+
+// Middleware setup
 app.UseExceptionHandler("/error"); // Global exception handling
 app.UseStaticFiles();
 app.UseRouting();
 
+// Swagger middleware
+app.UseSwagger();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "My API V1");
+    c.RoutePrefix = "api-docs"; // Make Swagger UI available at /api-docs
+    c.DisplayRequestDuration();
+});
+
 // HTTPS redirection and fallback
 app.UseHttpsRedirection();
 app.MapFallbackToFile("index.html"); // Ensure React handles routes
-app.UseAuthentication();
-app.UseAuthorization();
-app.MapControllers();
+
+// Enable Authentication and Authorization middleware
+app.UseAuthentication();  // Required for using the [Authorize] attribute in controllers
+app.UseAuthorization();   // Required for authorization policies
+
+// Map controllers
+app.MapControllers(); // This will now work because AddControllers() is registered
 
 _logger.LogInformation("Application setup complete. Running app...");
 app.Run();
