@@ -18,6 +18,9 @@ public class EmailService : IEmailService
     {
         var verificationUrl = $"{_configuration["AppSettings:BaseUrl"]}/verify-email?token={token}";
 
+        // Log the generated verification URL
+        _logger.LogInformation("Generated verification URL: {VerificationUrl}", verificationUrl);
+
         using (var emailMessage = new MimeMessage())
         {
             emailMessage.From.Add(new MailboxAddress("No Reply", _configuration["Smtp:Username"]));
@@ -34,20 +37,34 @@ public class EmailService : IEmailService
 
                 using (var client = new SmtpClient())
                 {
-                    client.Connect(_configuration["Smtp:Host"], int.Parse(_configuration["Smtp:Port"]!), MailKit.Security.SecureSocketOptions.StartTls);
-                    client.Authenticate(_configuration["Smtp:Username"], _configuration["Smtp:Password"]);
-                    client.Send(emailMessage);
-                    client.Disconnect(true);
-                }
+                    _logger.LogInformation("Connecting to SMTP server {Host} on port {Port}",
+                        _configuration["Smtp:Host"], _configuration["Smtp:Port"]);
 
-                _logger.LogInformation("Verification email sent to {Email}", email);
+                    client.Connect(_configuration["Smtp:Host"], int.Parse(_configuration["Smtp:Port"]!), MailKit.Security.SecureSocketOptions.StartTls);
+                    _logger.LogInformation("SMTP connection established.");
+
+                    // Authenticate
+                    _logger.LogInformation("Authenticating as {Username}", _configuration["Smtp:Username"]);
+                    client.Authenticate(_configuration["Smtp:Username"], _configuration["Smtp:Password"]);
+                    _logger.LogInformation("SMTP authentication successful.");
+
+                    // Send the email
+                    client.Send(emailMessage);
+                    _logger.LogInformation("Verification email sent to {Email}", email);
+
+                    // Disconnect
+                    client.Disconnect(true);
+                    _logger.LogInformation("SMTP connection closed.");
+                }
             }
             catch (Exception ex)
             {
-                // Log the exception with Serilog
-                _logger.LogError(ex, "Error sending verification email to {Email}", email);
-                throw; // Optional: rethrow the exception or handle it accordingly
+                // Log detailed error
+                _logger.LogError(ex, "Error sending verification email to {Email}. SMTP Host: {Host}, Port: {Port}",
+                    email, _configuration["Smtp:Host"], _configuration["Smtp:Port"]);
+                throw; // Optional rethrow for further handling
             }
         }
     }
+
 }
