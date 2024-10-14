@@ -25,6 +25,7 @@ var logFilePath = builder.Environment.IsProduction()
     : "logs/app-log.txt"; // Default to this path for test and dev environments
 
 Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()  
     .WriteTo.Console()
     .WriteTo.File(logFilePath, rollingInterval: RollingInterval.Day)
     .CreateLogger();
