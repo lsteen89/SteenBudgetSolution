@@ -112,14 +112,20 @@ app.UseExceptionHandler("/error"); // Global exception handling
 app.UseStaticFiles();
 app.UseRouting();
 
+// Todo disable swagger in prod later on
 // Swagger middleware
-app.UseSwagger();
-app.UseSwaggerUI(c =>
+// Conditionally enable Swagger
+if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "My API V1");
-    c.RoutePrefix = "api-docs"; // Make Swagger UI available at /api-docs
-    c.DisplayRequestDuration();
-});
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "My API V1");
+        c.RoutePrefix = "api-docs";
+        c.DisplayRequestDuration();
+    });
+}
+
 
 // HTTPS redirection and fallback
 app.UseHttpsRedirection();
@@ -134,3 +140,4 @@ app.MapControllers(); // This will now work because AddControllers() is register
 
 _logger.LogInformation("Application setup complete. Running app...");
 app.Run();
+Log.CloseAndFlush(); // Ensures Serilog flushes logs before shutdown
