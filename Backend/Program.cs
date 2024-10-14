@@ -9,40 +9,41 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add logging services
-builder.Logging.ClearProviders(); // Remove default logging providers
-builder.Logging.AddSerilog(); // Use Serilog as the logger
+// Configure Serilog early in the application lifecycle
+var logFilePath = builder.Environment.IsProduction()
+    ? "/var/www/backend/logs/app-log.txt"
+    : "logs/app-log.txt";  // Default to this path for test and dev environments
 
+// Initialize Serilog and set up logging before anything else
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .WriteTo.Console()
+    .WriteTo.File(logFilePath, rollingInterval: RollingInterval.Day)
+    .CreateLogger();
+
+// Log the file path after Serilog is initialized
+Log.Information($"Log file path: {logFilePath}");
+
+// Set Serilog as the logging provider
+builder.Host.UseSerilog();
+
+// Continue configuring services and the rest of the application
 var configuration = builder.Configuration;
 GlobalConfig.Initialize(configuration);
 
 // Register the GUID Type Handler for Dapper
 SqlMapper.AddTypeHandler(new GuidTypeHandler());
 
-// Configure Serilog
-var logFilePath = builder.Environment.IsProduction()
-    ? "/var/www/backend/logs/app-log.txt"
-    : "logs/app-log.txt"; // Default to this path for test and dev environments
-
-Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Information()  
-    .WriteTo.Console()
-    .WriteTo.File(logFilePath, rollingInterval: RollingInterval.Day)
-    .CreateLogger();
-
-builder.Host.UseSerilog();
-Log.Information($"Log file path: {logFilePath}");
-
-// Add services to the container (before Build)
-builder.Services.AddScoped<SqlExecutor>(); // Inject SqlExecutor
-builder.Services.AddScoped<UserServices>(); // Inject UserServices
-builder.Services.AddScoped<TokenService>(); // Inject TokenService
+// Add services to the container
+builder.Services.AddScoped<SqlExecutor>();  // Inject SqlExecutor
+builder.Services.AddScoped<UserServices>();  // Inject UserServices
+builder.Services.AddScoped<TokenService>();  // Inject TokenService
 
 // Register Swagger services
 builder.Services.AddSwaggerGen();
 
 // Add controller services to support routing to your controllers
-builder.Services.AddControllers(); // <-- Required for app.MapControllers() to work
+builder.Services.AddControllers();  // <-- Required for app.MapControllers() to work
 
 // Configure EmailService based on environment
 if (builder.Environment.IsDevelopment())
@@ -70,11 +71,11 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuer = false,
         ValidateAudience = false,
         ValidateLifetime = true,
-        ClockSkew = TimeSpan.Zero // Token expiration tolerance
+        ClockSkew = TimeSpan.Zero  // Token expiration tolerance
     };
 });
 
-builder.Services.AddAuthorization(); // Required to resolve the error
+builder.Services.AddAuthorization();  // Required to resolve the error
 
 // Adding CORS policies
 builder.Services.AddCors(options =>
@@ -82,7 +83,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("DevelopmentCorsPolicy",
         builder =>
         {
-            builder.WithOrigins("http://localhost:3000") // Local frontend URL
+            builder.WithOrigins("http://localhost:3000")  // Local frontend URL
                    .AllowAnyHeader()
                    .AllowAnyMethod()
                    .AllowCredentials();
@@ -108,12 +109,10 @@ ILogger<Program> _logger = app.Services.GetRequiredService<ILogger<Program>>();
 _logger.LogInformation("Application starting in environment: {Env}", builder.Environment.EnvironmentName);
 
 // Middleware setup
-app.UseExceptionHandler("/error"); // Global exception handling
+app.UseExceptionHandler("/error");  // Global exception handling
 app.UseStaticFiles();
 app.UseRouting();
 
-// Todo disable swagger in prod later on
-// Swagger middleware
 // Conditionally enable Swagger
 if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
 {
@@ -126,18 +125,21 @@ if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
     });
 }
 
-
 // HTTPS redirection and fallback
 app.UseHttpsRedirection();
-app.MapFallbackToFile("index.html"); // Ensure React handles routes
+app.MapFallbackToFile("index.html");  // Ensure React handles routes
 
 // Enable Authentication and Authorization middleware
 app.UseAuthentication();  // Required for using the [Authorize] attribute in controllers
-app.UseAuthorization();   // Required for authorization policies
+app.UseAuthorization();  // Required for authorization policies
 
 // Map controllers
-app.MapControllers(); // This will now work because AddControllers() is registered
+app.MapControllers();  // This will now work because AddControllers() is registered
 
+// Final log before running the app
 _logger.LogInformation("Application setup complete. Running app...");
+
 app.Run();
-Log.CloseAndFlush(); // Ensures Serilog flushes logs before shutdown
+
+// Ensure logs are flushed before the app shuts down
+Log.CloseAndFlush();
