@@ -76,7 +76,17 @@ namespace Backend.Controllers
                 string? verificationToken = _userServices.GetUserVerificationToken(user.PersoId.ToString());
 
                 _logger.LogInformation("Sending verification email to: {Email}", userDto.Email);
-                _userServices.SendVerificationEmail(user.Email, verificationToken);
+                try
+                {
+                    _logger.LogInformation("Calling SendVerificationEmail for {Email}", userDto.Email);
+                    _logger.LogInformation("Checking _userServices: {UserServiceIsNull}", _userServices == null);
+                    _userServices.SendVerificationEmail(user.Email, verificationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to send verification email for {Email}", userDto.Email);
+                    throw; // Optional rethrow for further handling
+                }
 
                 _logger.LogInformation("Registration successful for user: {Email}", userDto.Email);
                 return Ok(new { message = "Registration successful. Please check your email for verification link." });
