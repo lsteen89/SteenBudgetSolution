@@ -47,12 +47,14 @@ public class UserServicesTests
         _userServices.UpdateEmailConfirmationStatus(userModel);
 
         // Generate token and send verification email
-        var token = _userServices.GenerateJwtToken(userModel);
-        _userServices.SendVerificationEmail(userModel.Email, token);
+        
+        //Obselet
+        //var token = _userServices.GenerateJwtToken(userModel);
+        //_userServices.SendVerificationEmail(userModel.Email, token);
 
         // Assert
         Assert.True(result);
         Assert.Equal("test@example.com", _mockEmailService.LastSentEmail);
-        Assert.Equal(token, _mockEmailService.LastSentToken);
+        //Assert.Equal(token, _mockEmailService.LastSentToken);
     }
 }

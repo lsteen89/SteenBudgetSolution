@@ -76,6 +76,11 @@ namespace Backend.Controllers
                 string? verificationToken = _userServices.GetUserVerificationToken(user.PersoId.ToString());
 
                 _logger.LogInformation("Sending verification email to: {Email}", userDto.Email);
+                if (_userServices == null)
+                {
+                    _logger.LogError("_userServices is null. Unable to send verification email.");
+                    throw new InvalidOperationException("_userServices is not properly injected.");
+                }
                 try
                 {
                     _logger.LogInformation("Calling SendVerificationEmail for {Email}", userDto.Email);
