@@ -1,17 +1,16 @@
 using Backend.DataAccess;
-using Backend.Services;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
-using System;
-using System.Text;
-using Serilog;
-using Microsoft.Extensions.Hosting;
 using Backend.Helpers;
+using Backend.Services;
 using Dapper;
-using Microsoft.OpenApi.Models;
-
+using Microsoft.Extensions.Logging;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Add logging services
+builder.Logging.ClearProviders(); // Remove default logging providers
+builder.Logging.AddSerilog(); // Use Serilog as the logger
+
 var configuration = builder.Configuration;
 GlobalConfig.Initialize(configuration);
 
@@ -28,63 +27,81 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.File(logFilePath, rollingInterval: RollingInterval.Day)
     .CreateLogger();
 
-
-
 builder.Host.UseSerilog();
-Console.WriteLine($"Log file path: {logFilePath}");
+Log.Information($"Log file path: {logFilePath}");
 
-// Debugging: Print all environment variables
+var app = builder.Build();
+
+ILogger<Program> _logger = app.Services.GetRequiredService<ILogger<Program>>();
+
+// Log environment information
+_logger.LogInformation("Application starting in environment: {Env}", builder.Environment.EnvironmentName);
+
+// Debugging: Print all environment variables (remove or limit this in production)
 if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development")
 {
     var allVariables = Environment.GetEnvironmentVariables();
     foreach (var key in allVariables.Keys)
     {
-        Console.WriteLine($"{key}={allVariables[key]}");
+        _logger.LogInformation($"{key} = {allVariables[key]}");
     }
 }
+
 // Load the SMTP configuration from environment variables
 var smtpPassword = Environment.GetEnvironmentVariable("SMTP_PASSWORD");
 if (string.IsNullOrEmpty(smtpPassword) && builder.Environment.IsProduction())
 {
-    throw new InvalidOperationException("SMTP password not configured in environment variables.");
+    _logger.LogError("SMTP password not configured in environment variables.");
+    throw new InvalidOperationException("SMTP password not configured.");
 }
 
 if (builder.Environment.IsDevelopment())
 {
-    Console.WriteLine("Running in development mode, skipping email setup.");
+    _logger.LogInformation("Running in development mode, skipping email setup.");
 }
 else
 {
-    Console.WriteLine("SMTP password loaded successfully.");
+    _logger.LogInformation("SMTP password loaded successfully.");
 }
 
-// Load the JWT secret key from environment variables
+// Add JWT secret key logging
 var jwtKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY");
 if (string.IsNullOrEmpty(jwtKey))
 {
-    throw new InvalidOperationException("JWT secret key not configured in environment variables.");
+    _logger.LogError("JWT secret key not configured in environment variables.");
+    throw new InvalidOperationException("JWT secret key not configured.");
+}
+else
+{
+    _logger.LogInformation("JWT secret key loaded successfully.");
 }
 
+// Swagger setup logs
+_logger.LogInformation("Configuring Swagger...");
+if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
+{
+    _logger.LogInformation("Enabling Swagger for environment: {Env}", app.Environment.EnvironmentName);
 
-var keyBytes = Encoding.UTF8.GetBytes(jwtKey);
+    app.UseSwagger();
+    _logger.LogInformation("Swagger JSON endpoint enabled.");
 
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
+    app.UseSwaggerUI(c =>
     {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(keyBytes),
-            ValidateIssuer = false,
-            ValidateAudience = false,
-            ValidateLifetime = true,
-            ClockSkew = TimeSpan.Zero
-        };
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "My API V1");
+        c.RoutePrefix = "api-docs"; // Make Swagger UI available at /api-docs
+        c.DisplayRequestDuration();
+        _logger.LogInformation("Swagger UI enabled at /api-docs.");
     });
+}
+else
+{
+    _logger.LogWarning("Swagger not enabled for the current environment: {Env}", app.Environment.EnvironmentName);
+}
 
 // Add services to the container.
 builder.Services.AddScoped<SqlExecutor>(); // Inject SqlExecutor
 builder.Services.AddScoped<UserServices>(); // Inject UserServices
+builder.Services.AddScoped<TokenService>(); // Inject TokenService
 
 // Configure EmailService based on environment
 if (builder.Environment.IsDevelopment())
@@ -94,7 +111,6 @@ if (builder.Environment.IsDevelopment())
 else
 {
     builder.Services.AddSingleton<IEmailService, EmailService>();
-
 }
 
 // Adding CORS policies
@@ -119,61 +135,29 @@ builder.Services.AddCors(options =>
         });
 });
 
-// Add Swagger and API explorer
-builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-
-//Add logger
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
-builder.Logging.AddDebug();
-builder.Logging.SetMinimumLevel(LogLevel.Debug);
-
-var app = builder.Build();
-
-app.UseExceptionHandler("/error"); // global exception handling
-
-// Enable static file serving
-app.UseStaticFiles();
-app.UseRouting();
-
-
-
-// Enable Swagger for both Development and Production
-if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "My API V1");
-        c.RoutePrefix = "api-docs"; // Swagger will be available at /api-docs
-        c.DisplayRequestDuration(); // Displays request duration in Swagger UI
-    });
-}
-
-// Apply the correct CORS policy based on environment
+// Log CORS policy
 if (app.Environment.IsDevelopment())
 {
-    app.UseCors("DevelopmentCorsPolicy"); // Development CORS
+    _logger.LogInformation("Applying Development CORS policy.");
+    app.UseCors("DevelopmentCorsPolicy");
 }
 else
 {
-    app.UseCors("ProductionCorsPolicy"); // Production CORS
+    _logger.LogInformation("Applying Production CORS policy.");
+    app.UseCors("ProductionCorsPolicy");
 }
-Log.Information($"Current environment: {app.Environment.EnvironmentName}");
 
-// Keep HTTPS redirection enabled for secure communication
+// Continue with your regular setup (static files, routes, etc.)
+app.UseExceptionHandler("/error"); // Global exception handling
+app.UseStaticFiles();
+app.UseRouting();
+
+// HTTPS redirection and fallback
 app.UseHttpsRedirection();
-
-// Fallback to React for unknown routes
-app.MapFallbackToFile("index.html"); // This ensures React handles its own routes
-
-// Enable authentication and authorization
+app.MapFallbackToFile("index.html"); // Ensure React handles routes
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
 
+_logger.LogInformation("Application setup complete. Running app...");
 app.Run();
-
