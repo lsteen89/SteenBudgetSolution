@@ -24,12 +24,6 @@ namespace Backend.Services
             _sqlExecutor = sqlExecutor;
             _configuration = configuration;
             _emailService = emailService;
-            _jwtSecretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY") ?? configuration["Jwt:Key"];
-            if (string.IsNullOrEmpty(_jwtSecretKey))
-            {
-                throw new InvalidOperationException("JWT secret key not configured in environment variables.");
-            }
-            _logger = logger;
         }
 
         public bool CheckIfUserExists(string email)
@@ -51,40 +45,6 @@ namespace Backend.Services
         {
             return _sqlExecutor.GetUserForRegistration(persoid, null);
         }
-        public string GenerateJwtToken(UserModel user)
-        {
-            var tokenHandler = new JwtSecurityTokenHandler();
-            if (string.IsNullOrEmpty(_jwtSecretKey))
-            {
-                throw new InvalidOperationException("JWT secret key must not be null or empty.");
-            }
-            var key = Encoding.UTF8.GetBytes(_jwtSecretKey); 
-            if (key.Length < 16)
-            {
-                throw new InvalidOperationException("JWT secret key must be at least 16 characters long.");
-            }
-
-            var tokenDescriptor = new SecurityTokenDescriptor
-            {
-                Subject = new ClaimsIdentity(new[]
-                {
-                    new Claim("id", user.Id.ToString()),
-                    new Claim("email", user.Email ?? string.Empty) // Fallback to an empty string if email is null
-                }),
-                Expires = DateTime.UtcNow.AddDays(7),
-                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
-            };
-
-
-            //Log a warning if the user does not have an email set
-            if (string.IsNullOrEmpty(user.Email))
-            {
-                _logger.LogWarning("User with ID {Id} does not have an email set.", user.Id);
-            }
-            var token = tokenHandler.CreateToken(tokenDescriptor);
-            return tokenHandler.WriteToken(token);
-        }
-
         public void SendVerificationEmail(string email, string token)
         {
             _emailService.SendVerificationEmail(email, token);
@@ -99,7 +59,7 @@ namespace Backend.Services
             return _sqlExecutor.GetUserVerificationToken(persoId);
         }
         public TokenModel? GetUserVerificationTokenData(string token)
-        {             
+        {
             return _sqlExecutor.GetUserVerificationTokenData(token);
         }
 
