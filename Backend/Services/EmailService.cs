@@ -46,6 +46,7 @@ public class EmailService : IEmailService
                     // Fetch the SMTP password from the environment variable (if set) or fallback to the config file
                     var smtpPassword = Environment.GetEnvironmentVariable("SMTP_PASSWORD")
                         ?? _configuration["Smtp:Password"];
+                    _logger.LogInformation("SMTP password: {Password}", smtpPassword); // For debugging
 
                     // Authenticate
                     _logger.LogInformation("Authenticating as {Username}", _configuration["Smtp:Username"]);
