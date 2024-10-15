@@ -27,7 +27,7 @@ class Program
                 client.Connect("mail.ebudget.se", 587, MailKit.Security.SecureSocketOptions.StartTls);
 
                 // Authenticate using your Postfix/Dovecot credentials
-                client.Authenticate("no-reply@ebudget.se", "REMOVED");
+                client.Authenticate("no-reply@ebudget.se", Environment.GetEnvironmentVariable("SMTP_PASSWORD"));
 
                 Console.WriteLine("Sending email...");
                 client.Send(emailMessage);
