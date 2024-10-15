@@ -43,9 +43,13 @@ public class EmailService : IEmailService
                     client.Connect(_configuration["Smtp:Host"], int.Parse(_configuration["Smtp:Port"]!), MailKit.Security.SecureSocketOptions.StartTls);
                     _logger.LogInformation("SMTP connection established.");
 
+                    // Fetch the SMTP password from the environment variable (if set) or fallback to the config file
+                    var smtpPassword = Environment.GetEnvironmentVariable("SMTP_PASSWORD")
+                        ?? _configuration["Smtp:Password"];
+
                     // Authenticate
                     _logger.LogInformation("Authenticating as {Username}", _configuration["Smtp:Username"]);
-                    client.Authenticate(_configuration["Smtp:Username"], _configuration["Smtp:Password"]);
+                    client.Authenticate(_configuration["Smtp:Username"], smtpPassword);
                     _logger.LogInformation("SMTP authentication successful.");
 
                     // Send the email
@@ -66,5 +70,4 @@ public class EmailService : IEmailService
             }
         }
     }
-
 }
