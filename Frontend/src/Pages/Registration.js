@@ -83,10 +83,17 @@ function RegistrationForm() {
         } catch (error) {
             console.error('Registration failed:', error);
             
-            // Handle specific error for "email already taken"
+            // Log the entire error object to inspect its structure
+            console.log("Error details:", error);
+    
+            // Check for the error message in both the error object and response data
             if (error.response && error.response.data && error.response.data.message === "This email is already taken.") {
                 setErrors(prev => ({ ...prev, email: 'This email is already taken.' }));
+            } else if (error.message === "This email is already taken.") {
+                // This will catch the case where `error.message` contains the error string
+                setErrors(prev => ({ ...prev, email: 'This email is already taken.' }));
             } else {
+                // Handle other types of errors (e.g., network issues)
                 setErrors(prev => ({ ...prev, form: error.message || error }));
             }
         }
@@ -131,7 +138,6 @@ function RegistrationForm() {
                             className={`input-style ${errors.email ? 'input-error' : ''}`}
                             placeholder="Ange din E-post.."
                         />
-                        {errors.email && <div className="error-message">{errors.email}</div>}
                     </div>
                     {/* Input for Repeat Email */}
                     <div>
@@ -169,6 +175,13 @@ function RegistrationForm() {
                         />
                         {errors.repeatPassword && <div className="error-message">{errors.repeatPassword}</div>}
                     </div>
+
+                    {/* Display "E-post redan tagen!" error message*/}
+                    {errors.email === "This email is already taken." && (
+                        <div className="error-message">
+                            E-post redan tagen!
+                        </div>
+                    )}
                     <div className="form-submit">
                     <button type="submit">Sätt igång!</button>
                     <img src={RegBird} alt="RegBird" className="reg-bird-image" />
