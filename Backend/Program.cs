@@ -99,8 +99,18 @@ builder.Services.AddCors(options =>
         });
 });
 
+
 // Build the app (after service registration)
 var app = builder.Build();
+
+if (builder.Environment.IsDevelopment())
+{
+    app.UseCors("DevelopmentCorsPolicy");  // Apply CORS for development
+}
+else
+{
+    app.UseCors("ProductionCorsPolicy");   // Apply CORS for production
+}
 
 // Get the logger after app is built
 ILogger<Program> _logger = app.Services.GetRequiredService<ILogger<Program>>();
@@ -110,8 +120,13 @@ _logger.LogInformation("Application starting in environment: {Env}", builder.Env
 
 // Middleware setup
 app.UseExceptionHandler("/error");  // Global exception handling
-app.UseStaticFiles();
-app.UseRouting();
+app.UseStaticFiles();               // Serve static files
+
+app.UseRouting();                   // Enable routing
+
+// Enable Authentication and Authorization middleware
+app.UseAuthentication();  // Required for using the [Authorize] attribute in controllers
+app.UseAuthorization();   // Required for authorization policies
 
 // Conditionally enable Swagger
 if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
@@ -129,12 +144,8 @@ if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
 app.UseHttpsRedirection();
 app.MapFallbackToFile("index.html");  // Ensure React handles routes
 
-// Enable Authentication and Authorization middleware
-app.UseAuthentication();  // Required for using the [Authorize] attribute in controllers
-app.UseAuthorization();  // Required for authorization policies
-
 // Map controllers
-app.MapControllers();  // This will now work because AddControllers() is registered
+app.MapControllers();  // Ensure the controllers are mapped
 
 // Final log before running the app
 _logger.LogInformation("Application setup complete. Running app...");
