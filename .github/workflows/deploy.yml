@@ -43,7 +43,8 @@ jobs:
 
             # Publish and deploy backend
             cd Backend
-            dotnet publish -c Release -o /var/www/backend
+            dotnet publish /home/pi/SteenBudgetSolution/Backend/Backend.csproj -c Release -o /var/www/backend
+
             
             # Build and deploy frontend
             cd ../Frontend
