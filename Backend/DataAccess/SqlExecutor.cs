@@ -121,7 +121,7 @@ namespace Backend.DataAccess
             using (var connection = GlobalConfig.GetConnection())
             {
                 // First, check if the user is already verified
-                string checkQuery = "SELECT EmailConfirmed FROM User WHERE PersoId = @PersoId";
+                string checkQuery = "SELECT COALESCE(EmailConfirmed, 0) FROM User WHERE PersoId = @PersoId";
                 bool isAlreadyVerified = connection.QueryFirstOrDefault<bool>(checkQuery, new { PersoId = user.PersoId });
 
                 if (isAlreadyVerified)
