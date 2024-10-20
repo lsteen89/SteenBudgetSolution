@@ -18,7 +18,9 @@ public class EmailService : IEmailService
     {
         // Generate the verification URL
         //var verificationUrl = $"{_configuration["AppSettings:BaseUrl"]}/api/Registration/verify-email?token={token}";
-        var verificationUrl = $"{_configuration["AppSettings:BaseUrl"]}/verify-email/{token}";
+        var verificationUrl = $"{_configuration["AppSettings:BaseUrl"]}/api/Registration/verify-email/{token}";
+
+
         // Log the generated verification URL
         _logger.LogInformation("Generated verification URL: {VerificationUrl}", verificationUrl);
 
