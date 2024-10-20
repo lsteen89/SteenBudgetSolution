@@ -8,7 +8,7 @@ import AboutUs from './Pages/AboutUs';
 import Contact from './Pages/Contact';
 import Faq from './Pages/Faq';
 import Login from './Pages/Login';
-
+import EmailVerification from './Pages/EmailVerification';  
 
 function App() {
   return (
@@ -23,6 +23,7 @@ function App() {
           <Route path="/contact" element={<Contact />} />
           <Route path="/faq" element={<Faq />} /> {}
           <Route path="/login" element={<Login />} /> {}
+          <Route path="/verify-email" element={<EmailVerification />} />
         </Routes>
       </div>
     </BrowserRouter>
