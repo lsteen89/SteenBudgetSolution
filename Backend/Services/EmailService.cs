@@ -44,6 +44,8 @@ public class EmailService : IEmailService
                     client.Connect(_configuration["Smtp:Host"], int.Parse(_configuration["Smtp:Port"]!), MailKit.Security.SecureSocketOptions.StartTls);
                     _logger.LogInformation("SMTP connection established.");
 
+                    _logger.LogInformation("THIS IS A TEST TO ENSURE PROPER BUILD IS PREFORMED");
+
                     // Fetch the SMTP password from the environment variable (if set) or fallback to the config file
                     var smtpPassword = Environment.GetEnvironmentVariable("SMTP_PASSWORD")
                         ?? _configuration["Smtp:Password"];
