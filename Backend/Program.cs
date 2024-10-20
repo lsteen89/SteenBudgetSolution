@@ -6,8 +6,11 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using System.Text;
+using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
+
+
 
 // Configure Serilog early in the application lifecycle
 var logFilePath = builder.Environment.IsProduction()
@@ -27,6 +30,9 @@ Log.Information($"Log file path: {logFilePath}");
 // Set Serilog as the logging provider
 builder.Host.UseSerilog();
 
+// Get the build date and time of the application
+var buildDateTime = BuildInfoHelper.GetBuildDate(Assembly.GetExecutingAssembly());
+Log.Information($"Application build date and time: {buildDateTime}");
 // Continue configuring services and the rest of the application
 var configuration = builder.Configuration;
 GlobalConfig.Initialize(configuration);

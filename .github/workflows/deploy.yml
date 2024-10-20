@@ -45,6 +45,9 @@ jobs:
             cd Backend
             dotnet publish /home/pi/SteenBudgetSolution/Backend/Backend.csproj -c Release -o /var/www/backend
 
+            # Capture the build date and time of the application
+            echo "Build completed on:"
+            date "+%Y-%m-%d %H:%M:%S"
             
             # Build and deploy frontend
             cd ../Frontend
