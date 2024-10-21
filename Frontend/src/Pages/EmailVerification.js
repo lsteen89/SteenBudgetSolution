@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from '../api/axiosConfig';  // Import your configured Axios instance
 
+const API_URL = process.env.REACT_APP_API_URL; // The base URL the backend API
 
 const EmailVerification = () => {
   const [statusMessage, setStatusMessage] = useState('');
@@ -17,8 +18,8 @@ const EmailVerification = () => {
 
     const verifyEmail = async () => {
       try {
-        // Use full URL based on environment
-        const response = await axios.get(`${API_BASE_URL}/api/Registration/verify-email?token=${token}`);
+        // Use full URL based on environment 
+        const response = await axios.post(`${API_URL}/api/Registration/verify-email?token=${token}`);
         setStatusMessage('Email verified successfully!');
       } catch (error) {
         setStatusMessage('Invalid or expired token.');
