@@ -4,7 +4,7 @@ import './Registration.css';
 import RegBird from '../assets/Images/RegBird.png';
 import { useNavigate } from 'react-router-dom'; 
 import { registerUser, sendVerificationEmail } from '../api/authApi';
-
+import ReCAPTCHA from 'react-google-recaptcha';  // Import reCAPTCHA
 
 function RegistrationForm() {
     const [firstName, setFirstName] = useState('');
@@ -14,6 +14,7 @@ function RegistrationForm() {
     const [password, setPassword] = useState('');
     const [repeatPassword, setRepeatPassword] = useState('');
     const [errors, setErrors] = useState({});
+    const [captchaToken, setCaptchaToken] = useState(null);  // reCAPTCHA token
     const navigate = useNavigate();  
 
     const validateField = (name, value) => {
@@ -60,6 +61,10 @@ function RegistrationForm() {
         }
     };
 
+    const handleCaptchaChange = (token) => {
+        setCaptchaToken(token);  // Store the token in state
+    };
+
     const handleSubmit = async (event) => {
         event.preventDefault();
         const fieldNames = ['firstName', 'lastName', 'email', 'repeatEmail', 'password', 'repeatPassword'];
@@ -73,9 +78,14 @@ function RegistrationForm() {
             return;
         }
     
+        if (!captchaToken) {
+            setErrors(prev => ({ ...prev, captcha: "Please verify you're not a robot." }));
+            return;
+        }
+
         try {
             // Register the user first
-            const result = await registerUser({ firstName, lastName, email, password });
+            const result = await registerUser({ firstName, lastName, email, password, captchaToken});
             console.log('Registration successful');
         
             // Navigate to the welcome page after successful registration
@@ -182,6 +192,14 @@ function RegistrationForm() {
                             E-post redan tagen!
                         </div>
                     )}
+                    
+                    {/* Add reCAPTCHA component */}
+                    <ReCAPTCHA
+                        sitekey={process.env.REACT_APP_RECAPTCHA_SITE_KEY}  
+                        onChange={handleCaptchaChange}  // Handle reCAPTCHA token change
+                    />
+
+                    {errors.captcha && <div className="error-message">{errors.captcha}</div>}
                     <div className="form-submit">
                     <button type="submit">Sätt igång!</button>
                     <img src={RegBird} alt="RegBird" className="reg-bird-image" />
