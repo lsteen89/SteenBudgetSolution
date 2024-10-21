@@ -70,9 +70,11 @@
   flex-direction: column;
   align-items: center;
   text-align: center; /* Centers the text inside the container */
-
-  justify-content: space-between; /* Add space between the form and the image */
   
+  justify-content: center; /* Center the content vertically */
+  max-height: 80vh; /* Limit the height to the viewport */
+  overflow: hidden; /* Prevent overflow and scrolling */
+  padding: 20px; /* Optional: adds some padding for better spacing */
 }
 .form-submit button {
   background: #ff9898;
