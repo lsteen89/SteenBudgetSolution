@@ -19,7 +19,7 @@ const EmailVerification = () => {
     const verifyEmail = async () => {
       try {
         // Use full URL based on environment 
-        const response = await axios.post(`${API_URL}/api/Registration/verify-email?token=${token}`);
+        const response = await axios.get(`${API_URL}/api/Registration/verify-email?token=${token}`);
         setStatusMessage('Email verified successfully!');
       } catch (error) {
         setStatusMessage('Invalid or expired token.');
