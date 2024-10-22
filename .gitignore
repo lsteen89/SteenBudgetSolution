@@ -364,3 +364,6 @@ FodyWeavers.xsd
 
 # Other ignored files and folders
 NOTES.md 
+
+Frontend/.env.development
+Frontend/.env.production
