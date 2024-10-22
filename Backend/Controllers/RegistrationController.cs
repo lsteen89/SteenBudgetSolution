@@ -26,7 +26,7 @@ namespace Backend.Controllers
         }
 
         [HttpPost("register")]
-        public IActionResult Register([FromBody] UserCreationDto userDto)
+        public IActionResult Register([FromBody] RegistrationModel userDto)
         {
             _logger.LogInformation("POST /api/Registration/register called for email: {Email}", userDto.Email);
             _logger.LogInformation("test log new {Email}", userDto.Email);

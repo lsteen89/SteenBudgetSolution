@@ -197,7 +197,7 @@ function RegistrationForm() {
                     
                     {/* Add reCAPTCHA component */}
                     <ReCAPTCHA
-                        sitekey={RECAPTCHA_SITE_KEY}  // Use your constant here
+                        sitekey={RECAPTCHA_SITE_KEY}  
                         onChange={handleCaptchaChange}  // Handle reCAPTCHA token change
                     />
 
