@@ -19,11 +19,11 @@ jobs:
 
       - name: Deploy to Raspberry Pi
         run: |
-            # Export the secret to make it accessible in this session
-            export REACT_APP_RECAPTCHA_SITE_KEY=${{ secrets.REACT_APP_RECAPTCHA_SITE_KEY }}
+          # Export the secret to make it accessible in this session
+          export REACT_APP_RECAPTCHA_SITE_KEY=${{ secrets.REACT_APP_RECAPTCHA_SITE_KEY }}
           
-            # Pass the environment variable into the ssh session
-            ssh -o StrictHostKeyChecking=no -p 2222 pi@155.4.68.41 << EOF
+          # Pass the environment variable into the ssh session
+          ssh -o StrictHostKeyChecking=no -p 2222 pi@155.4.68.41 << EOF
             set -e
             cd /home/pi/SteenBudgetSolution
 
