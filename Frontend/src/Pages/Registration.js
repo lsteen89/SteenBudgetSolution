@@ -17,6 +17,8 @@ function RegistrationForm() {
     const [captchaToken, setCaptchaToken] = useState(null);  // reCAPTCHA token
     const navigate = useNavigate();  
 
+    const RECAPTCHA_SITE_KEY = process.env.REACT_APP_RECAPTCHA_SITE_KEY;
+
     const validateField = (name, value) => {
         let error = '';
         switch (name) {
@@ -195,7 +197,7 @@ function RegistrationForm() {
                     
                     {/* Add reCAPTCHA component */}
                     <ReCAPTCHA
-                        sitekey={process.env.REACT_APP_RECAPTCHA_SITE_KEY}  
+                        sitekey={RECAPTCHA_SITE_KEY}  // Use your constant here
                         onChange={handleCaptchaChange}  // Handle reCAPTCHA token change
                     />
 
