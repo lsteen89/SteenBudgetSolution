@@ -7,6 +7,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System;
 using System.Linq;
+using Backend.Helpers;
 
 namespace Backend.Controllers
 {
@@ -16,17 +17,19 @@ namespace Backend.Controllers
     {
         private readonly UserServices _userServices;
         private readonly string? _jwtSecretKey;
-        private readonly ILogger<RegistrationController> _logger; 
+        private readonly ILogger<RegistrationController> _logger;
+        private readonly RecaptchaHelper _recaptchaHelper;
 
-        public RegistrationController(UserServices userServices, IConfiguration configuration, ILogger<RegistrationController> logger)
+        public RegistrationController(UserServices userServices, IConfiguration configuration, ILogger<RegistrationController> logger, RecaptchaHelper recaptchaHelper)
         {
             _userServices = userServices;
             _jwtSecretKey = configuration["Jwt:Key"];
             _logger = logger;
+            _recaptchaHelper = recaptchaHelper;
         }
 
         [HttpPost("register")]
-        public IActionResult Register([FromBody] RegistrationModel userDto)
+        public async Task<IActionResult> Register([FromBody] RegistrationModel userDto)
         {
             _logger.LogInformation("POST /api/Registration/register called for email: {Email}", userDto.Email);
             _logger.LogInformation("test log new {Email}", userDto.Email);
@@ -35,6 +38,14 @@ namespace Backend.Controllers
             {
                 _logger.LogWarning("Invalid model state for email: {Email}", userDto.Email);
                 return BadRequest(ModelState);
+            }
+
+            // Verify reCAPTCHA token
+            var recaptchaValid = await _recaptchaHelper.VerifyRecaptchaAsync(userDto.CaptchaToken); 
+            if (!recaptchaValid)
+            {
+                _logger.LogWarning("Invalid reCAPTCHA for email: {Email}", userDto.Email);
+                return BadRequest(new { message = "Invalid reCAPTCHA. Please try again." });
             }
 
             _logger.LogInformation("Processing registration for user: {Email}", userDto.Email);

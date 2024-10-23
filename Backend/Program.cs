@@ -44,6 +44,7 @@ SqlMapper.AddTypeHandler(new GuidTypeHandler());
 builder.Services.AddScoped<SqlExecutor>();  // Inject SqlExecutor
 builder.Services.AddScoped<UserServices>();  // Inject UserServices
 builder.Services.AddScoped<TokenService>();  // Inject TokenService
+builder.Services.AddTransient<RecaptchaHelper>();
 
 // Register Swagger services
 builder.Services.AddSwaggerGen();
