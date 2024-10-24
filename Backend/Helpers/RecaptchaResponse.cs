@@ -29,6 +29,9 @@ namespace Backend.Helpers
                 var secretKey = Environment.GetEnvironmentVariable("RECAPTCHA_SECRET_KEY")
                     ?? throw new InvalidOperationException("reCAPTCHA secret key not found.");
 
+                // Log token and secret key to verify values before making the Google API request
+                _logger.LogInformation("Verifying reCAPTCHA with token: {Token}", token);
+
                 var client = new HttpClient();
                 var url = $"https://www.google.com/recaptcha/api/siteverify?secret={secretKey}&response={token}";
 
