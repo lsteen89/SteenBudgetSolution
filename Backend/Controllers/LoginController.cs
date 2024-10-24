@@ -10,6 +10,7 @@ namespace Backend.Controllers
         [HttpPost("login")]
         public IActionResult Login(LoginModel loginModel)
         {
+            /*
             // Validate credentials
             // If valid:
             var token = GenerateJwtToken(loginModel.Username);
@@ -17,6 +18,17 @@ namespace Backend.Controllers
 
             // If invalid:
             // return Unauthorized();
+        
+            */
+
+            return Ok(new { message = "Login API called successfully!" });
+
+            
+        }
+        [HttpGet("test")]
+        public IActionResult Test()
+        {
+            return Ok(new { message = "Test API (GET) called successfully!" });
         }
 
         private string GenerateJwtToken(string username)
