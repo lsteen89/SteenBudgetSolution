@@ -22,6 +22,7 @@ jobs:
           # Export the frontend and backend secrets
           export REACT_APP_RECAPTCHA_SITE_KEY=${{ secrets.REACT_APP_RECAPTCHA_SITE_KEY }}
           export RECAPTCHA_SECRET_KEY=${{ secrets.RECAPTCHA_SECRET_KEY }}
+          export REACT_APP_API_URL=${{ vars.REACT_APP_API_URL }}
           
           # Pass the environment variable into the ssh session
           ssh -o StrictHostKeyChecking=no -p 2222 pi@155.4.68.41 << EOF
@@ -61,7 +62,7 @@ jobs:
             cd ../Frontend
             npm install
             
-            REACT_APP_RECAPTCHA_SITE_KEY=$REACT_APP_RECAPTCHA_SITE_KEY npm run build
+            REACT_APP_RECAPTCHA_SITE_KEY=$REACT_APP_RECAPTCHA_SITE_KEY REACT_APP_API_URL=$REACT_APP_API_URL npm run build
             
             # Clean the existing content in /var/www/html before copying
             sudo rm -rf /var/www/html/*
