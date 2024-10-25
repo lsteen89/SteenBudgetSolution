@@ -21,7 +21,6 @@ jobs:
         run: |
           # Export the frontend and backend secrets
           export REACT_APP_RECAPTCHA_SITE_KEY=${{ secrets.REACT_APP_RECAPTCHA_SITE_KEY }}
-          export RECAPTCHA_SECRET_KEY=${{ secrets.RECAPTCHA_SECRET_KEY }}
           export REACT_APP_API_URL=${{ vars.REACT_APP_API_URL }}
           
           # Pass the environment variable into the ssh session
@@ -49,7 +48,7 @@ jobs:
 
             # Publish and deploy backend
             cd Backend
-            RECAPTCHA_SECRET_KEY=$RECAPTCHA_SECRET_KEY dotnet publish /home/pi/SteenBudgetSolution/Backend/Backend.csproj -c Release -o /var/www/backend
+            dotnet publish /home/pi/SteenBudgetSolution/Backend/Backend.csproj -c Release -o /var/www/backend
 
             # Restart the backend service
             sudo systemctl restart steenbudget.service
