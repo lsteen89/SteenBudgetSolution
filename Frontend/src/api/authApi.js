@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL; // The base URL for the backend API
+const API_URL = process.env.REACT_APP_API_URL; 
 
 export const registerUser = async (userData) => {
     try {

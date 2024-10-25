@@ -87,6 +87,7 @@ function RegistrationForm() {
 
         try {
             // Register the user first
+            console.log('Captcha Token before API call:', captchaToken);
             const result = await registerUser({ firstName, lastName, email, password, captchaToken});
             console.log('Registration successful');
         
