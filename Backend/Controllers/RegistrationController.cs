@@ -31,7 +31,7 @@ namespace Backend.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegistrationModel userDto)
         {
-            _logger.LogInformation("CAPTCHA token: {CaptchaToken]", userDto.CaptchaToken); // Log token for debugging
+            _logger.LogInformation("CAPTCHA token: {CaptchaToken}", userDto.CaptchaToken); // Log token for debugging
 
             _logger.LogInformation("POST /api/Registration/register called for email: {Email}", userDto.Email);
             _logger.LogInformation("test log new {Email}", userDto.Email);
