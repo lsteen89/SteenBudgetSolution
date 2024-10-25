@@ -100,3 +100,15 @@ CREATE TABLE IF NOT EXISTS VerificationToken (
     CreatedTime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (PersoId) REFERENCES User(PersoId) ON DELETE CASCADE  -- Reference to 'User'
 );
+
+-- Create UserVerificationTracking table
+CREATE TABLE UserVerificationTracking (
+    Id INT PRIMARY KEY AUTO_INCREMENT,           
+    PersoId CHAR(36) NOT NULL,                   
+    LastResendRequestTime DATETIME,              -- Timestamp of the last resend request
+    DailyResendCount INT DEFAULT 0,              -- Counter for resend attempts in the current day
+    LastResendRequestDate DATE,                  -- Date of the last resend attempt for daily reset
+    CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP, -- Timestamp for when the record was created
+    UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, -- Timestamp for last update
+    FOREIGN KEY (Persoid) REFERENCES user(PersoId) 
+);
