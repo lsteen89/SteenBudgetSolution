@@ -17,8 +17,6 @@ function RegistrationForm() {
     const [captchaToken, setCaptchaToken] = useState(null);  // reCAPTCHA token
     const navigate = useNavigate();  
 
-    const RECAPTCHA_SITE_KEY = process.env.REACT_APP_RECAPTCHA_SITE_KEY;
-
     const validateField = (name, value) => {
         let error = '';
         switch (name) {
@@ -88,6 +86,7 @@ function RegistrationForm() {
         try {
             // Register the user first
             console.log('Captcha Token before API call:', captchaToken);
+            console.log('ReCAPTCHA Site Key:', process.env.REACT_APP_RECAPTCHA_SITE_KEY);
             const result = await registerUser({ firstName, lastName, email, password, captchaToken});
             console.log('Registration successful');
         
