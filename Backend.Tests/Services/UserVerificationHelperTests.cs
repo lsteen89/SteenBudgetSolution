@@ -6,7 +6,7 @@ using Backend.Models;
 using Microsoft.Extensions.DependencyInjection;
 using Backend.DataAccess;
 
-public class UserVerificationHelperIntegrationTests : IDisposable
+public class UserVerificationHelperIntegrationTests : IAsyncLifetime
 {
     private readonly ServiceProvider _serviceProvider;
     private readonly UserVerificationHelper _helper;
@@ -33,7 +33,7 @@ public class UserVerificationHelperIntegrationTests : IDisposable
         // Arrange: Set up test user in the database
         var testEmail = "test@example.com";
         var userId = Guid.NewGuid();
-        await _sqlExecutor.InsertNewUserDatabase(new UserModel { Email = testEmail, PersoId = userId });
+        await _sqlExecutor.InsertNewUserDatabaseAsync(new UserModel { Email = testEmail, PersoId = userId });
 
         // Act: Call the method under test
         var result = await _helper.ResendVerificationEmailAsync(testEmail);
@@ -56,12 +56,15 @@ public class UserVerificationHelperIntegrationTests : IDisposable
     }
 
     // Cleanup method to reset data after each test
-    public void Dispose()
+    public async Task DisposeAsync()
     {
-        // Clean up any test data to avoid test conflicts
-        _sqlExecutor.Execute("DELETE FROM UserVerificationTracking WHERE Email = 'test@example.com'");
+        // Clean up any test data to avoid test conflicts asynchronously
+        await _sqlExecutor.ExecuteAsync("DELETE FROM UserVerificationTracking WHERE Email = 'test@example.com'");
 
         // Dispose of the ServiceProvider when done
         _serviceProvider.Dispose();
     }
+
+    // Setup method required by IAsyncLifetime
+    public Task InitializeAsync() => Task.CompletedTask;
 }

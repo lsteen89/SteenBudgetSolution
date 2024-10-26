@@ -98,7 +98,7 @@ namespace Backend.Controllers
                 {
                     _logger.LogInformation("Calling SendVerificationEmail for {Email}", userDto.Email);
                     _logger.LogInformation("Checking _userServices: {UserServiceIsNull}", _userServices == null);
-                    _userServices!.SendVerificationEmail(user.Email, verificationToken);
+                    await _userServices!.SendVerificationEmailAsync(user.Email, verificationToken);
                 }
                 catch (Exception ex)
                 {

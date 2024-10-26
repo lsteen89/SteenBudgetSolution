@@ -4,6 +4,7 @@ using Backend.Services;
 using Backend.Models;
 using Xunit;
 using Backend.DTO;
+using System.Threading.Tasks;
 
 public class UserServicesTests
 {
@@ -22,8 +23,9 @@ public class UserServicesTests
     }
 
     [Fact]
-    public void Register_ShouldSendVerificationEmail_WithToken()
+    public async Task Register_ShouldSendVerificationEmail_WithTokenAsync()
     {
+        // Arrange
         var userDto = new UserCreationDto
         {
             FirstName = "Test",
@@ -38,23 +40,20 @@ public class UserServicesTests
             LastName = userDto.LastName,
             Email = userDto.Email,
             Password = userDto.Password,
-            IsVerified = false // Make sure user is not verified initially
+            IsVerified = false // Ensure the user is not verified initially
         };
+
         // Act
-        var result = _userServices.CreateNewRegisteredUser(userModel);
+        var result = await _userServices.CreateNewRegisteredUserAsync(userModel);
 
         // Update email confirmation status (now passing UserModel instead of just Email)
-        _userServices.UpdateEmailConfirmationStatus(userModel);
+        await _userServices.UpdateEmailConfirmationStatusAsync(userModel);
 
-        // Generate token and send verification email
-        
-        //Obselet
-        //var token = _userServices.GenerateJwtToken(userModel);
-        //_userServices.SendVerificationEmail(userModel.Email, token);
-
-        // Assert
+        // Assert - Check if the user registration was successful
         Assert.True(result);
+
+        // Assert - Check if the verification email was sent with the expected email and token
         Assert.Equal("test@example.com", _mockEmailService.LastSentEmail);
-        //Assert.Equal(token, _mockEmailService.LastSentToken);
+        Assert.NotNull(_mockEmailService.LastSentToken); // Check if the token was set correctly in the email
     }
 }

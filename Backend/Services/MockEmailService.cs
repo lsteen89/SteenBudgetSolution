@@ -3,7 +3,6 @@
     private readonly IConfiguration _configuration;
     private readonly ILogger<MockEmailService> _logger;
 
-    // Properties to store the last email and token sent
     public string? LastSentEmail { get; private set; }
     public string? LastSentToken { get; private set; }
 
@@ -13,7 +12,7 @@
         _logger = logger;
     }
 
-    public void SendVerificationEmail(string email, string token)
+    public async Task SendVerificationEmailAsync(string email, string token)
     {
         // Store the email and token for testing purposes
         LastSentEmail = email;
@@ -22,7 +21,10 @@
         // Generate the verification URL
         var verificationUrl = $"{_configuration["AppSettings:BaseUrl"]}/api/Registration/verify-email?token={token}";
 
-        // Log the generated verification URL (mimicking real email body)
+        // Mimic async behavior
+        await Task.Delay(1); // Simulate an asynchronous operation
+
+        // Log the generated verification URL
         _logger.LogInformation("Mock: Generated verification URL: {VerificationUrl}", verificationUrl);
 
         // Log the email sending event

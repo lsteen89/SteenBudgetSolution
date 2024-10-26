@@ -46,9 +46,9 @@ namespace Backend.Services
         {
             return await _sqlExecutor.GetUserForRegistrationAsync(persoid, null);
         }
-        public void SendVerificationEmail(string email, string token)
+        public async Task SendVerificationEmailAsync(string email, string token)
         {
-            _emailService.SendVerificationEmail(email, token);
+            await _emailService.SendVerificationEmailAsync(email, token);
         }
         public async Task<bool> UpdateEmailConfirmationStatusAsync(UserModel user)
         {

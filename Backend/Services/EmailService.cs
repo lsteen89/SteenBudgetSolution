@@ -14,7 +14,7 @@ public class EmailService : IEmailService
         _logger = logger;
     }
 
-    public void SendVerificationEmail(string email, string token)
+    public async Task SendVerificationEmailAsync(string email, string token)
     {
         // Generate the verification URL send them to the frontend route
         var verificationUrl = $"{_configuration["AppSettings:BaseUrl"]}/verify-email?token={token}";

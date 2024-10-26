@@ -51,7 +51,7 @@ namespace Backend.Helpers
             var token = await _sqlExecutor.GetUserVerificationTokenAsync(user.PersoId.ToString());
 
             // Step 5: Send verification email
-            _emailService.SendVerificationEmail(user.Email, token);
+            await _emailService.SendVerificationEmailAsync(user.Email, token);
 
             // Step 6: Update tracking info
             tracking.LastResendRequestTime = currentTime;
