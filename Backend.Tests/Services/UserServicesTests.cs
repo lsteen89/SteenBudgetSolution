@@ -23,7 +23,7 @@ public class UserServicesTests
     }
 
     [Fact]
-    public async Task Register_ShouldSendVerificationEmail_WithTokenAsync()
+    public async Task RegisterAndVerifyUser_ShouldCreateAndSetUserAsVerifiedAsync()
     {
         // Arrange
         var userDto = new UserCreationDto
@@ -40,20 +40,32 @@ public class UserServicesTests
             LastName = userDto.LastName,
             Email = userDto.Email,
             Password = userDto.Password,
-            IsVerified = false // Ensure the user is not verified initially
+            EmailConfirmed = false // Ensure the user is not verified initially
         };
 
-        // Act
-        var result = await _userServices.CreateNewRegisteredUserAsync(userModel);
+        // Act - Register the user
+        var registrationResult = await _userServices.CreateNewRegisteredUserAsync(userModel);
 
-        // Update email confirmation status (now passing UserModel instead of just Email)
-        await _userServices.UpdateEmailConfirmationStatusAsync(userModel);
+        // Assert - Verify user registration was successful
+        Assert.True(registrationResult);
 
-        // Assert - Check if the user registration was successful
-        Assert.True(result);
+        // Act - Update email confirmation status
+        userModel.EmailConfirmed = true; // Manually set to verified
+        var verificationResult = await _userServices.UpdateEmailConfirmationStatusAsync(userModel);
 
-        // Assert - Check if the verification email was sent with the expected email and token
-        Assert.Equal("test@example.com", _mockEmailService.LastSentEmail);
-        Assert.NotNull(_mockEmailService.LastSentToken); // Check if the token was set correctly in the email
+        // Assert - Verify email confirmation status was updated successfully
+        Assert.True(verificationResult);
+
+        // Verify that the user data in the database reflects the changes
+        var updatedUser = await _userServices.GetUserForRegistrationByEmailAsync(userModel.Email);
+        Assert.NotNull(updatedUser);
+        Assert.Equal(userDto.Email, updatedUser.Email);
+        Assert.Equal(userDto.FirstName, updatedUser.FirstName);
+        Assert.Equal(userDto.LastName, updatedUser.LastName);
+        Assert.True(updatedUser.EmailConfirmed); // Ensure user is marked as verified
     }
+
+
+
+
 }

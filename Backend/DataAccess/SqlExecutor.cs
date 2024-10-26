@@ -51,8 +51,12 @@ namespace Backend.DataAccess
                 }
                 using (var transaction = await _connection.BeginTransactionAsync())
                 {
+                    _logger.LogInformation("Inserting new user into the database.");
                     await ExecuteAsync(sqlQuery, user, transaction);
+                    _logger.LogInformation("User inserted successfully, generating token.");
+
                     await GenerateUserTokenAsync(user.PersoId, transaction);
+                    _logger.LogInformation("Token generated successfully.");
                     await transaction.CommitAsync();
                 }
                 return true;
@@ -117,7 +121,7 @@ namespace Backend.DataAccess
             }
 
             string updateQuery = "UPDATE User SET EmailConfirmed = @IsVerified WHERE PersoId = @PersoId";
-            var result = await _connection.ExecuteAsync(updateQuery, new { IsVerified = user.IsVerified, PersoId = user.PersoId });
+            var result = await _connection.ExecuteAsync(updateQuery, new { IsVerified = user.EmailConfirmed, PersoId = user.PersoId });
 
             return result > 0;
         }

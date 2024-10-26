@@ -139,7 +139,7 @@ namespace Backend.Controllers
                 var user = await _userServices.GetUserForRegistrationByPersoId(tokenData.PersoId);
 
                 // Mark the user as verified and update
-                user!.IsVerified = true;
+                user!.EmailConfirmed = true;
                 await _userServices.UpdateEmailConfirmationStatusAsync(user);
 
                 // Return success response
