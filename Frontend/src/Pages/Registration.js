@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import './Registration.css';
 import RegBird from '../assets/Images/RegBird.png';
 import { useNavigate } from 'react-router-dom'; 
-import { registerUser, sendVerificationEmail } from '../api/authApi';
+import { registerUser, sendVerificationEmail } from '../api/auth/authApi';
 import ReCAPTCHA from 'react-google-recaptcha';  // Import reCAPTCHA
 
 function RegistrationForm() {

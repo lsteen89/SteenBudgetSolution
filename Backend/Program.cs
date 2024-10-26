@@ -7,6 +7,8 @@ using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using System.Text;
 using System.Reflection;
+using MySqlConnector;
+using System.Data.Common;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -35,7 +37,6 @@ var buildDateTime = BuildInfoHelper.GetBuildDate(Assembly.GetExecutingAssembly()
 Log.Information($"Application build date and time: {buildDateTime}");
 // Continue configuring services and the rest of the application
 var configuration = builder.Configuration;
-GlobalConfig.Initialize(configuration);
 
 // Register the GUID Type Handler for Dapper
 SqlMapper.AddTypeHandler(new GuidTypeHandler());
@@ -45,6 +46,18 @@ builder.Services.AddScoped<SqlExecutor>();  // Inject SqlExecutor
 builder.Services.AddScoped<UserServices>();  // Inject UserServices
 builder.Services.AddScoped<TokenService>();  // Inject TokenService
 builder.Services.AddTransient<RecaptchaHelper>();
+builder.Services.AddScoped<DbConnection>(provider =>
+{
+    var connectionString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
+
+    if (string.IsNullOrEmpty(connectionString))
+    {
+        throw new InvalidOperationException("Database connection string not found in environment variables.");
+    }
+
+    // Return a new MySqlConnection instance with the connection string
+    return new MySqlConnection(connectionString);
+});
 
 // Register Swagger services
 builder.Services.AddSwaggerGen();

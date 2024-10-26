@@ -10,15 +10,6 @@ public class EmailController : ControllerBase
     {
         _emailService = emailService;
     }
-/*
-    [HttpPost("SendVerificationEmail")]
-    public IActionResult SendVerificationEmail([FromBody] EmailRequest request)
-    {
-        _emailService.SendVerificationEmail(request.Email, request.Token);
-        return Ok(new { message = "Verification email sent successfully!" });
-    }
-
-    */
 }
 
 public class EmailRequest
