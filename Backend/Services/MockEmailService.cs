@@ -5,6 +5,7 @@
 
     public string? LastSentEmail { get; private set; }
     public string? LastSentToken { get; private set; }
+    public bool EmailWasSent { get; private set; }
 
     public MockEmailService(IConfiguration configuration, ILogger<MockEmailService> logger)
     {
@@ -17,6 +18,7 @@
         // Store the email and token for testing purposes
         LastSentEmail = email;
         LastSentToken = token;
+        EmailWasSent = true;
 
         // Generate the verification URL
         var verificationUrl = $"{_configuration["AppSettings:BaseUrl"]}/api/Registration/verify-email?token={token}";

@@ -178,5 +178,10 @@ namespace Backend.DataAccess
                          "LastResendRequestDate = @LastResendRequestDate, UpdatedAt = @UpdatedAt WHERE PersoId = @PersoId";
             await _connection.ExecuteAsync(sql, tracking);
         }
+        public async Task<int> DeleteUserByEmailAsync(string email)
+        {
+            string sqlQuery = "DELETE FROM User WHERE Email = @Email";
+            return await _connection.ExecuteAsync(sqlQuery, new { Email = email });
+        }
     }
 }

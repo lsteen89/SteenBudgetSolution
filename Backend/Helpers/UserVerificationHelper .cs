@@ -7,11 +7,13 @@ namespace Backend.Helpers
     {
         private readonly SqlExecutor _sqlExecutor;
         private readonly IEmailService _emailService;
+        private readonly Func<DateTime> _getCurrentTime;
 
-        public UserVerificationHelper(SqlExecutor sqlExecutor, IEmailService emailService)
+        public UserVerificationHelper(SqlExecutor sqlExecutor, IEmailService emailService, Func<DateTime> getCurrentTime = null)
         {
             _sqlExecutor = sqlExecutor;
             _emailService = emailService;
+            _getCurrentTime = getCurrentTime ?? (() => DateTime.UtcNow); // Default to UtcNow if no mock time is provided
         }
 
         public async Task<(bool IsSuccess, int StatusCode, string Message)> ResendVerificationEmailAsync(string email)
@@ -21,22 +23,22 @@ namespace Backend.Helpers
             if (user == null)
                 return (false, 404, "User not found.");
 
-            // Step 2: Fetch or initialize tracking info for this user
+            // Step 2: Fetch tracking info for this user
             var tracking = await _sqlExecutor.GetUserVerificationTrackingAsync(user.PersoId);
+
             if (tracking == null)
             {
                 // Initialize tracking if it doesn’t exist
                 tracking = new UserVerificationTracking
                 {
                     PersoId = user.PersoId,
-                    LastResendRequestTime = null,
-                    DailyResendCount = 0,
-                    LastResendRequestDate = DateTime.UtcNow.Date
+                    LastResendRequestDate = _getCurrentTime()
                 };
                 await _sqlExecutor.InsertUserVerificationTrackingAsync(tracking);
             }
 
-            var currentTime = DateTime.UtcNow;
+            // Get the current time from the injected or default time provider
+            var currentTime = _getCurrentTime();
             var cooldownPeriod = TimeSpan.FromMinutes(15);
             var dailyLimit = 3;
 

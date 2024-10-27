@@ -110,5 +110,5 @@ CREATE TABLE UserVerificationTracking (
     LastResendRequestDate DATE,                  -- Date of the last resend attempt for daily reset
     CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP, -- Timestamp for when the record was created
     UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, -- Timestamp for last update
-    FOREIGN KEY (Persoid) REFERENCES user(PersoId) 
+    FOREIGN KEY (PersoId) REFERENCES User(PersoId) ON DELETE CASCADE -- Enable cascade delete
 );

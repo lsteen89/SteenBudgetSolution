@@ -68,6 +68,11 @@ namespace Backend.Services
             var userVerificationHelper = new UserVerificationHelper(_sqlExecutor, _emailService);
             return await userVerificationHelper.ResendVerificationEmailAsync(email);
         }
+        public async Task<bool> DeleteUserByEmailAsync(string email)
+        {
+            var rowsAffected = await _sqlExecutor.DeleteUserByEmailAsync(email);
+            return rowsAffected > 0; 
+        }
 
     }
 }
