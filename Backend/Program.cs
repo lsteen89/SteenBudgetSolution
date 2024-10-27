@@ -9,10 +9,9 @@ using System.Text;
 using System.Reflection;
 using MySqlConnector;
 using System.Data.Common;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
-
-
 
 // Configure Serilog early in the application lifecycle
 var logFilePath = builder.Environment.IsProduction()
@@ -57,6 +56,33 @@ builder.Services.AddScoped<DbConnection>(provider =>
 
     // Return a new MySqlConnection instance with the connection string
     return new MySqlConnection(connectionString);
+});
+
+// Add rate limiting services
+builder.Services.AddRateLimiter(options =>
+{
+    // Set a global limiter using PartitionedRateLimiter.Create
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "global",
+            factory: key => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,               // Allow 10 requests per minute
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 2
+            }));
+
+    // Registration-specific rate limit policy
+    options.AddPolicy("RegistrationPolicy", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(httpContext.Connection.RemoteIpAddress!, key =>
+            new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 3,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 1
+            }));
 });
 
 // Register Swagger services
@@ -131,6 +157,13 @@ else
 {
     app.UseCors("ProductionCorsPolicy");   // Apply CORS for production
 }
+
+
+// Use rate limiter middleware globally
+app.UseRateLimiter();
+
+// Map controllers and assign specific policies per controller route
+app.MapControllers(); // Automatically maps and applies rate limits set in controllers
 
 // Get the logger after app is built
 ILogger<Program> _logger = app.Services.GetRequiredService<ILogger<Program>>();
