@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import './WelcomePage.css';
 import RegBird from '../assets/Images/RegBird.png';
 import { useNavigate } from 'react-router-dom';
-import axios from '../api/axiosConfig'; 
+import { resendVerificationEmail } from '../api/auth/authApi';
 
 function WelcomePage() {
     const navigate = useNavigate();
@@ -21,20 +21,24 @@ function WelcomePage() {
     };
 
     const handleResendVerification = async () => {
-        try {
-            setResendMessage('Skickar verifieringslänk...');
-            await axios.post('/api/auth/resend-verification', { email });
+        setResendMessage('Skickar verifieringslänk...');
+    
+        // Call the API function and get the status and message from the response
+        const { status, message } = await resendVerificationEmail(email);
+    
+        // Check response to show the appropriate message based on status
+        if (status === 200) {
             setResendMessage('En ny verifieringslänk har skickats. Kontrollera din e-post.');
             setResendMessageType('success');
-        } catch (error) {
-            if (error.response && error.response.status === 429) {
-                setResendMessage('Vänligen vänta några minuter innan du försöker igen.');
-            } else {
-                setResendMessage('Det gick inte att skicka verifieringslänken. Försök igen senare.');
-            }
+        } else if (status === 429) {
+            setResendMessage('Vänligen vänta några minuter innan du försöker igen.');
+            setResendMessageType('error');
+        } else {
+            setResendMessage(message || 'Det gick inte att skicka verifieringslänken. Försök igen senare.');
             setResendMessageType('error');
         }
     };
+    
 
     return (
         <div className="registration-container">
