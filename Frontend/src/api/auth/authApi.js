@@ -25,18 +25,16 @@ export const registerUser = async (userData) => {
  * @param {string} email - The email address to resend the verification link to
  * @returns {Promise} - Axios response promise
  */
+
 export const resendVerificationEmail = async (email) => {
     try {
-        const response = await axios.post('/api/auth/resend-verification', { email }, {
-            headers: {
-                'Content-Type': 'application/json',
-            },
-        });
-        return response.data; // Return the API response data
-
+        const response = await axios.post('/api/Registration/resend-verification', { email });
+        return { status: response.status, message: response.data.message };
     } catch (error) {
-        const errorMessage = error.response?.data?.message || `Failed to resend verification email: ${error.response?.statusText || 'Unknown error'}`;
-        throw new Error(errorMessage);
+        // If the response has an error status (e.g., 429), catch it here
+        const status = error.response?.status;
+        const message = error.response?.data?.message || 'Something went wrong';
+        return { status, message }; // Return status and message to handle in React
     }
 };
 
@@ -54,3 +52,5 @@ export const verifyEmail = async (token) => {
         throw new Error(errorMessage);
     }
 };
+
+
