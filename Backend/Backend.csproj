@@ -8,7 +8,6 @@
     <UserSecretsId>a0a75577-22e0-4d07-ade2-629e75f17c81</UserSecretsId>
   </PropertyGroup>
 
-  <!-- Correct handling of SQL files -->
   <ItemGroup>
     <!-- Include all SQL files in SqlCode folder, but treat them as 'None' -->
     <None Include="SqlCode\**\*.sql" />

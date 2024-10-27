@@ -1,4 +1,6 @@
-﻿public interface IEmailService
+﻿using System.Threading.Tasks;
+
+public interface IEmailService
 {
-    void SendVerificationEmail(string email, string token);
+    Task SendVerificationEmailAsync(string email, string token);
 }

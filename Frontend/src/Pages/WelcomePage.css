@@ -103,3 +103,38 @@
     color: white; /* Sets text color to white for better contrast */
 }
 
+.form-submit button:hover {
+  background-color: #0056b3; /* Background color on hover */
+  cursor: pointer; 
+}
+
+.resend-link {
+  color: #007bff;
+  text-decoration: none;
+  padding: 5px 10px;
+  background-color: #f0f8ff; /* Light background to start */
+  border-radius: 5px;
+  transition: all 0.3s ease; /* Smooth transition */
+}
+
+.resend-link:hover {
+  color: #ffffff;
+  background-color: #0eb9e4ad; 
+  cursor: pointer;
+  text-decoration: none;
+}
+.resend-message {
+  font-weight: bold;
+  margin-top: 8px;
+  color: #dc3545;
+}
+
+/* Success message style */
+.resend-message.success {
+  color: #28a745; /* Green color for success */
+}
+
+/* Error message style */
+.resend-message.error {
+  color: #dc3545; /* Red color for error */
+}

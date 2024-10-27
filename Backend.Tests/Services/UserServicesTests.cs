@@ -1,29 +1,21 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Backend.Services;
+﻿using Backend.DTO;
 using Backend.Models;
-using Xunit;
-using Backend.DTO;
+using Microsoft.Extensions.DependencyInjection;
 
-public class UserServicesTests
+public class UserServicesTests : UserServicesTestBase
 {
-    private readonly UserServices _userServices;
     private readonly MockEmailService _mockEmailService;
 
-    public UserServicesTests()
+    public UserServicesTests() : base()
     {
-        var serviceCollection = new ServiceCollection();
-        var startup = new StartupTest();
-        startup.ConfigureServices(serviceCollection);
-
-        var serviceProvider = serviceCollection.BuildServiceProvider();
-        _userServices = serviceProvider.GetService<UserServices>() ?? throw new InvalidOperationException("UserServices not registered.");
-        _mockEmailService = serviceProvider.GetService<IEmailService>() as MockEmailService ?? throw new InvalidOperationException("IEmailService not registered.");
+        _mockEmailService = ServiceProvider.GetService<IEmailService>() as MockEmailService
+                            ?? throw new InvalidOperationException("IEmailService not registered.");
     }
 
     [Fact]
-    public void Register_ShouldSendVerificationEmail_WithToken()
+    public async Task RegisterAndVerifyUser_ShouldCreateAndSetUserAsVerifiedAsync()
     {
+        // Arrange
         var userDto = new UserCreationDto
         {
             FirstName = "Test",
@@ -38,23 +30,28 @@ public class UserServicesTests
             LastName = userDto.LastName,
             Email = userDto.Email,
             Password = userDto.Password,
-            IsVerified = false // Make sure user is not verified initially
+            EmailConfirmed = false
         };
-        // Act
-        var result = _userServices.CreateNewRegisteredUser(userModel);
 
-        // Update email confirmation status (now passing UserModel instead of just Email)
-        _userServices.UpdateEmailConfirmationStatus(userModel);
+        // Act - Register the user
+        var registrationResult = await UserServices.CreateNewRegisteredUserAsync(userModel);
 
-        // Generate token and send verification email
-        
-        //Obselet
-        //var token = _userServices.GenerateJwtToken(userModel);
-        //_userServices.SendVerificationEmail(userModel.Email, token);
+        // Assert - Verify user registration was successful
+        Assert.True(registrationResult);
 
-        // Assert
-        Assert.True(result);
-        Assert.Equal("test@example.com", _mockEmailService.LastSentEmail);
-        //Assert.Equal(token, _mockEmailService.LastSentToken);
+        // Act - Update email confirmation status
+        userModel.EmailConfirmed = true; // Manually set to verified
+        var verificationResult = await UserServices.UpdateEmailConfirmationStatusAsync(userModel);
+
+        // Assert - Verify email confirmation status was updated successfully
+        Assert.True(verificationResult);
+
+        // Verify that the user data in the database reflects the changes
+        var updatedUser = await UserServices.GetUserForRegistrationByEmailAsync(userModel.Email);
+        Assert.NotNull(updatedUser);
+        Assert.Equal(userDto.Email, updatedUser.Email);
+        Assert.Equal(userDto.FirstName, updatedUser.FirstName);
+        Assert.Equal(userDto.LastName, updatedUser.LastName);
+        Assert.True(updatedUser.EmailConfirmed); // Ensure user is marked as verified
     }
 }

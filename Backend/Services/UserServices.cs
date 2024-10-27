@@ -8,6 +8,7 @@ using System.Text;
 using Backend.DataAccess;
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Backend.Controllers;
+using Backend.Helpers;
 
 namespace Backend.Services
 {
@@ -26,41 +27,51 @@ namespace Backend.Services
             _emailService = emailService;
         }
 
-        public bool CheckIfUserExists(string email)
+        public async Task<bool> CheckIfUserExistsAsync(string email)
         {
-            return _sqlExecutor.IsUserExistInDatabase(email);
+            return await _sqlExecutor.IsUserExistInDatabaseAsync(email);
         }
 
-        public bool CreateNewRegisteredUser(UserModel user)
+        public async Task<bool> CreateNewRegisteredUserAsync(UserModel user)
         {
-            return _sqlExecutor.InsertNewUserDatabase(user);
+            return await _sqlExecutor.InsertNewUserDatabaseAsync(user);
         }
 
-        public UserModel GetUserForRegistrationByEmail(string email)
+        public async Task<UserModel> GetUserForRegistrationByEmailAsync(string email)
         {
-            return _sqlExecutor.GetUserForRegistration(null, email);
+            return await _sqlExecutor.GetUserForRegistrationAsync(email: email);
         }
 
-        public UserModel? GetUserForRegistrationByPersoId(Guid persoid)
+        public async Task<UserModel>? GetUserForRegistrationByPersoId(Guid persoid)
         {
-            return _sqlExecutor.GetUserForRegistration(persoid, null);
+            return await _sqlExecutor.GetUserForRegistrationAsync(persoid, null);
         }
-        public void SendVerificationEmail(string email, string token)
+        public async Task SendVerificationEmailAsync(string email, string token)
         {
-            _emailService.SendVerificationEmail(email, token);
+            await _emailService.SendVerificationEmailAsync(email, token);
+        }
+        public async Task<bool> UpdateEmailConfirmationStatusAsync(UserModel user)
+        {
+            return await _sqlExecutor.UpdateEmailConfirmationStatusAsync(user);
         }
 
-        public bool UpdateEmailConfirmationStatus(UserModel user)
+        public async Task<string> GetUserVerificationTokenAsync(string persoId)
         {
-            return _sqlExecutor.UpdateEmailConfirmationStatus(user);
+            return await _sqlExecutor.GetUserVerificationTokenAsync(persoId);
         }
-        public string GetUserVerificationToken(string persoId)
+        public async Task<TokenModel?> GetUserVerificationTokenDataAsync(string token)
         {
-            return _sqlExecutor.GetUserVerificationToken(persoId);
+            return await _sqlExecutor.GetUserVerificationTokenDataAsync(token);
         }
-        public TokenModel? GetUserVerificationTokenData(string token)
+        public async Task<(bool IsSuccess, int StatusCode, string Message)> ResendVerificationEmailAsync(string email)
         {
-            return _sqlExecutor.GetUserVerificationTokenData(token);
+            var userVerificationHelper = new UserVerificationHelper(_sqlExecutor, _emailService);
+            return await userVerificationHelper.ResendVerificationEmailAsync(email);
+        }
+        public async Task<bool> DeleteUserByEmailAsync(string email)
+        {
+            var rowsAffected = await _sqlExecutor.DeleteUserByEmailAsync(email);
+            return rowsAffected > 0; 
         }
 
     }
