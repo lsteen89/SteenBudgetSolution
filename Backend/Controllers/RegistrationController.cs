@@ -1,13 +1,8 @@
-﻿using Backend.Models;
-using Microsoft.AspNetCore.Mvc;
+﻿using Backend.Helpers;
+using Backend.Models;
 using Backend.Services;
-using Backend.DTO;
-using System.IdentityModel.Tokens.Jwt;
-using Microsoft.IdentityModel.Tokens;
-using System.Text;
-using System;
-using System.Linq;
-using Backend.Helpers;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Backend.Controllers
 {
@@ -29,6 +24,7 @@ namespace Backend.Controllers
         }
 
         [HttpPost("register")]
+        [EnableRateLimiting("RegistrationPolicy")]
         public async Task<IActionResult> Register([FromBody] RegistrationModel userDto)
         {
             _logger.LogInformation("CAPTCHA token: {CaptchaToken}", userDto.CaptchaToken); // Log token for debugging
