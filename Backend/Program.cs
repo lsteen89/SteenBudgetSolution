@@ -10,6 +10,7 @@ using System.Reflection;
 using MySqlConnector;
 using System.Data.Common;
 using System.Threading.RateLimiting;
+using Serilog.Sinks.Graylog;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,8 +23,14 @@ var logFilePath = builder.Environment.IsProduction()
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
     .WriteTo.Console()
-    .WriteTo.File(logFilePath, rollingInterval: RollingInterval.Day)
+    //.WriteTo.File(logFilePath, rollingInterval: RollingInterval.Day)
+    .WriteTo.Graylog(new GraylogSinkOptions
+    {
+        HostnameOrAddress = "192.168.50.61",  
+        Port = 12201
+    })
     .CreateLogger();
+
 
 // Log the file path after Serilog is initialized
 Log.Information($"Log file path: {logFilePath}");
