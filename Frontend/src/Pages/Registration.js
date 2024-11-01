@@ -113,97 +113,83 @@ function RegistrationForm() {
             <p className="CreateAccountText">Skapa konto för att komma igång med eBudget</p>
             <form onSubmit={handleSubmit} className="user-info-form">
                 <div className="form-fields">
-                    {/* Input for First Name */}
-                    <div>
-                        <input
-                            type="text"
-                            name="firstName"
-                            value={firstName}
-                            onChange={handleChange} 
-                            className={`input-style ${errors.firstName ? 'input-error' : ''}`}
-                            placeholder="Ange ditt förnamn.."
-                        />
-                        {errors.firstName && <div className="error-message">{errors.firstName}</div>}
-                    </div>
-                    {/* Input for Last Name */}
-                    <div>
-                        <input
-                            type="text"
-                            name="lastName"
-                            value={lastName}
-                            onChange={handleChange} 
-                            className={`input-style ${errors.lastName ? 'input-error' : ''}`}
-                            placeholder="Ange ditt Efternamn.."
-                        />
-                        {errors.lastName && <div className="error-message">{errors.lastName}</div>}
-                    </div>
-                    {/* Input for Email */}
-                    <div>
-                        <input
-                            type="email"
-                            name="email"
-                            value={email}
-                            onChange={handleChange} 
-                            className={`input-style ${errors.email ? 'input-error' : ''}`}
-                            placeholder="Ange din E-post.."
-                        />
-                    </div>
-                    {/* Input for Repeat Email */}
-                    <div>
-                        <input
-                            type="email"
-                            name="repeatEmail"
-                            value={repeatEmail}
-                            onChange={handleChange} 
-                            className={`input-style ${errors.repeatEmail ? 'input-error' : ''}`}
-                            placeholder="Upprepa e-post"
-                        />
-                        {errors.repeatEmail && <div className="error-message">{errors.repeatEmail}</div>}
-                    </div>
-                    {/* Input for Password */}
-                    <div>
-                        <input
-                            type="password"
-                            name="password"
-                            value={password}
-                            onChange={handleChange} 
-                            className={`input-style ${errors.password ? 'input-error' : ''}`}
-                            placeholder="Välj löseord, minst 8 tecken, en stor och en liten bokstav, minst ett specialtecken och minst en siffra."
-                        />
-                        {errors.password && <div className="error-message">{errors.password}</div>}
-                    </div>
-                    {/* Input for Repeat Password */}
-                    <div>
-                        <input
-                            type="password"
-                            name="repeatPassword"
-                            value={repeatPassword}
-                            onChange={handleChange} 
-                            className={`input-style ${errors.repeatPassword ? 'input-error' : ''}`}
-                            placeholder="Upprepa löseord"
-                        />
-                        {errors.repeatPassword && <div className="error-message">{errors.repeatPassword}</div>}
-                    </div>
+                    <input
+                        type="text"
+                        name="firstName"
+                        value={firstName}
+                        onChange={handleChange} 
+                        className={`input-style ${errors.firstName ? 'input-error' : ''}`}
+                        placeholder="Ange ditt förnamn.."
+                    />
+                    {errors.firstName && <div className="error-message">{errors.firstName}</div>}
+                    
+                    <input
+                        type="text"
+                        name="lastName"
+                        value={lastName}
+                        onChange={handleChange} 
+                        className={`input-style ${errors.lastName ? 'input-error' : ''}`}
+                        placeholder="Ange ditt Efternamn.."
+                    />
+                    {errors.lastName && <div className="error-message">{errors.lastName}</div>}
+                    
+                    <input
+                        type="email"
+                        name="email"
+                        value={email}
+                        onChange={handleChange} 
+                        className={`input-style ${errors.email ? 'input-error' : ''}`}
+                        placeholder="Ange din E-post.."
+                    />
+                    {errors.email && <div className="error-message">{errors.email}</div>}
 
-                    {/* Display "E-post redan tagen!" error message*/}
+                    <input
+                        type="email"
+                        name="repeatEmail"
+                        value={repeatEmail}
+                        onChange={handleChange} 
+                        className={`input-style ${errors.repeatEmail ? 'input-error' : ''}`}
+                        placeholder="Upprepa e-post"
+                    />
+                    {errors.repeatEmail && <div className="error-message">{errors.repeatEmail}</div>}
+
+                    <input
+                        type="password"
+                        name="password"
+                        value={password}
+                        onChange={handleChange} 
+                        className={`input-style ${errors.password ? 'input-error' : ''}`}
+                        placeholder="Välj lösenord, minst 8 tecken, en stor och en liten bokstav, minst ett specialtecken och minst en siffra."
+                    />
+                    {errors.password && <div className="error-message">{errors.password}</div>}
+                    
+                    <input
+                        type="password"
+                        name="repeatPassword"
+                        value={repeatPassword}
+                        onChange={handleChange} 
+                        className={`input-style ${errors.repeatPassword ? 'input-error' : ''}`}
+                        placeholder="Upprepa lösenord"
+                    />
+                    {errors.repeatPassword && <div className="error-message">{errors.repeatPassword}</div>}
+
                     {errors.email === "This email is already taken." && (
                         <div className="error-message">
                             E-post redan tagen!
                         </div>
                     )}
-                    
-                    {/* Add reCAPTCHA component */}
-                    <ReCAPTCHA
-                        sitekey={process.env.REACT_APP_RECAPTCHA_SITE_KEY}
-                        onChange={handleCaptchaChange}  // Handle reCAPTCHA token change
-                    />
-
+    
                     {errors.captcha && <div className="error-message">{errors.captcha}</div>}
+                    
                     <div className="form-submit">
-                    <button type="submit">Sätt igång!</button>
-                    <img src={RegBird} alt="RegBird" className="reg-bird-image" />
+                        <button type="submit">Sätt igång!</button>
+                        <ReCAPTCHA
+                            sitekey={process.env.REACT_APP_RECAPTCHA_SITE_KEY}
+                            onChange={handleCaptchaChange}
+                        />
+                    </div>
                 </div>
-                </div>
+                <img src={RegBird} alt="RegBird" className="reg-bird-image" />
             </form>
         </div>
     );
