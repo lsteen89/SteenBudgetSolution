@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useRef  } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Contact.css';
 import ContactUsBird from '../assets/Images/ContactUsBird.png';
 import ReCAPTCHA from 'react-google-recaptcha';
-//import { submitContactForm } from '../api/services/contactUs'; 
+import { submitContactForm } from '../api/Services/Mail/contactUs'; 
 
 function AboutUs() {
+  const captchaRef = useRef(null); 
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     fornamn: '',
@@ -17,18 +18,28 @@ function AboutUs() {
   const [captchaToken, setCaptchaToken] = useState(null);
   const [errors, setErrors] = useState({});
   const [isSubmitted, setIsSubmitted] = useState(false);
-
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
   const handleCaptchaChange = (token) => {
     setCaptchaToken(token);
   };
 
-
+/* Mock for testing
+*/
+// Mock for testing, simulating both success and error scenarios
+/*
 const submitContactForm = async (data) => {
-  return new Promise((resolve) => {
-    setTimeout(() => resolve({ message: "Form submitted successfully" }), 500);
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      if (data && data.epost !== 'error@example.com') { // Mocking a specific case for error
+        resolve({ message: "Form submitted successfully" });
+      } else {
+        reject(new Error("Submission failed. Please try again."));
+      }
+    }, 5000); // 5-second delay
   });
 };
-
+*/
 const validateForm = () => {
   const newErrors = {};
 
@@ -85,11 +96,32 @@ const validateForm = () => {
         return;
       }
       try {
+        setIsSubmitting(true); 
         const result = await submitContactForm({ ...formData, captchaToken });
         console.log('Form submitted successfully:', result);
         setIsSubmitted(true);
+
+        // Reset form data upon successful submission
+        setFormData({
+          fornamn: '',
+          efternamn: '',
+          epost: '',
+          amne: '',
+          meddelande: ''
+        });
+
+      setCaptchaToken(null);
+      captchaRef.current.reset();
+      setErrors({}); // Clear any errors
+
       } catch (error) {
         console.error('Error submitting form:', error);
+        setErrors((prevErrors) => ({
+          ...prevErrors,
+          form: 'Något gick fel, försök igen', 
+        }));
+      } finally {
+        setIsSubmitting(false); 
       }
     } else {
       console.log('Validation failed:', errors);
@@ -159,17 +191,41 @@ const validateForm = () => {
             value={formData.meddelande}
             onChange={handleChange}
           />
-          {/* Error display for captcha or message to short*/}
+          {/* Error display for specific field errors */}
           {errors.meddelande && <span className="error-message">{errors.meddelande}</span>}
           {errors.captcha && <div className="error-message">{errors.captcha}</div>}
-          {isSubmitted && (
-          <p className="success-message">Skickat!</p>
-        )}
+
+          {/* General error message display */}
+          {errors.form && <div className="error-message">{errors.form}</div>}
+
+          {/* Success message display */}
+          {isSubmitted && <p className="success-message">Skickat!</p>}
           <div className="form-submit">
-            <button type="submit">Skicka</button>
+           <button
+              type="submit"
+              disabled={isSubmitting}
+              style={{
+                backgroundColor: isSubmitting ? '#ccc' : '#98FF98',
+                borderRadius: '20px',
+                fontFamily: 'Outfit, sans-serif',
+                fontWeight: '800',
+                fontSize: '20px',
+                color: '#333333',
+                padding: '10px 20px',
+                cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                maxWidth: '150px',
+              }}
+            >
+              {isSubmitting ? (
+                <div className="spinner"></div>
+              ) : (
+                'Skicka'
+              )}
+            </button>
             <ReCAPTCHA
               sitekey={process.env.REACT_APP_RECAPTCHA_SITE_KEY}
               onChange={handleCaptchaChange}
+              ref={captchaRef}
             />
           </div>
         </form>

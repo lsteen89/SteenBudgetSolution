@@ -84,7 +84,7 @@
   margin: 0 auto; /* Center the form-submit on the page */
 }
 
-/* Button styling */
+/* Button styling 
 .form-submit button {
   flex: 1;
   background: #98FF98;
@@ -97,7 +97,7 @@
   cursor: pointer;
   max-width: 150px;
 }
-
+*/
 /* reCAPTCHA styling */
 .form-submit .g-recaptcha {
   flex: 1;
@@ -105,7 +105,7 @@
 }
 .error-message {
   color: red;
-  font-size: 14px;
+  font-size: 20px;
   margin-top: 5px;
   min-height: 20px; /* Ensure space for error text */
 }
@@ -123,4 +123,19 @@
   padding: 0 5px; /* Add horizontal padding */
   min-height: 80px; /* Adjust based on the height of input + error text */
   
+}
+.spinner {
+  border: 4px solid #f3f3f3; /* Light grey */
+  border-top: 4px solid #333; /* Dark grey */
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  animation: spin 1s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }

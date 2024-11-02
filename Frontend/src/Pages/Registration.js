@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import './Registration.css';
 import RegBird from '../assets/Images/RegBird.png';
 import { useNavigate } from 'react-router-dom'; 
-import { registerUser, sendVerificationEmail } from '../api/auth/authApi';
+import { registerUser } from '../api/Services/User/registerUser';
+
 import ReCAPTCHA from 'react-google-recaptcha';  // Import reCAPTCHA
 
 function RegistrationForm() {
