@@ -1,19 +1,29 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Backend.Controllers;
+using Backend.DTO;
+using Backend.Helpers;
+using Backend.Models;
+using Backend.Services;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 [ApiController]
 [Route("api/[controller]")]
 public class EmailController : ControllerBase
 {
-    private readonly IEmailService _emailService;
+    private readonly ILogger<EmailController> _logger;
+    private readonly UserServices _userServices;
+    private readonly RecaptchaHelper _recaptchaHelper;
 
-    public EmailController(IEmailService emailService)
+    public EmailController(IEmailService emailService, UserServices userServices, IConfiguration configuration, ILogger<EmailController> logger, RecaptchaHelper recaptchaHelper)
     {
-        _emailService = emailService;
+        _userServices = userServices;
+        _logger = logger;
+        _recaptchaHelper = recaptchaHelper;
     }
-}
-
-public class EmailRequest
-{
-    public string? Email { get; set; } // Nullable email
-    public string? Token { get; set; } // Nullable token
+    [HttpPost("ContactUs")]
+    [EnableRateLimiting("EmailSendingPolicy")]
+    public async Task<IActionResult> ContactUs([FromBody] SendEmailDto sendEmailDto)
+    {
+        return Ok();
+    }
 }
