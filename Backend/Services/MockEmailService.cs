@@ -32,4 +32,13 @@
         // Log the email sending event
         _logger.LogInformation($"Mock send email to {email} with token {token}.");
     }
+    public async Task SendContactUsEmail(string subject, string body, string SenderEmail)
+    {
+        // Store the email and token for testing purposes
+        LastSentEmail = SenderEmail;
+        EmailWasSent = true;
+
+        // Log the email sending event
+        _logger.LogInformation($"Mock send email to {SenderEmail} with subject {subject} and body {body}.");
+    }
 }

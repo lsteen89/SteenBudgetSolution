@@ -5,7 +5,8 @@
         public string? FirstName { get; set; }
         public string? LastName { get; set; }
         public string? subject { get; set; }
-        public string? Email { get; set; }
-        public string? Token { get; set; }
+        public string? body { get; set; }
+        public string? SenderEmail { get; set; }
+        public string? CaptchaToken { get; set; }
     }
 }

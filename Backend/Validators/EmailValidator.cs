@@ -22,11 +22,16 @@ namespace Backend.Validators
                 .Matches("^[a-zA-Z]{1,50}$").WithMessage("Subject must contain only letters and be 1 to 50 characters long.")
                 .MaximumLength(50).WithMessage("Subject cannot be longer than 50 characters.");
 
-            RuleFor(x => x.Email)
+            RuleFor(x => x.body)
+                .NotEmpty().WithMessage("Body is required.")
+                .MaximumLength(500).WithMessage("Body cannot be longer than 500 characters.")
+                .MinimumLength(10).WithMessage("Body must be at least 10 characters long.");
+
+            RuleFor(x => x.SenderEmail)
                 .NotEmpty().WithMessage("Email is required.")
                 .Matches(@"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$").WithMessage("Invalid email format.");
 
-            RuleFor(x => x.Token)
+            RuleFor(x => x.CaptchaToken)
                 .NotEmpty().WithMessage("Token is required.");
 
         }

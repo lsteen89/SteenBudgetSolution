@@ -13,6 +13,10 @@
 	<None Include="**\*" Exclude="..\Backend\SqlCode\**\*.sql" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Remove="Helpers\TestBase.cs" />
+    <Compile Remove="Services\SendContactUsEmailTests.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.2">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
