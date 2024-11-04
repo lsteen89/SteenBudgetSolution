@@ -13,8 +13,7 @@
 	<None Include="**\*" Exclude="..\Backend\SqlCode\**\*.sql" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Remove="Helpers\TestBase.cs" />
-    <Compile Remove="Services\SendContactUsEmailTests.cs" />
+    <Compile Remove="UnitTests\Services\SendContactUsEmailTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.2">

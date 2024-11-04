@@ -3,12 +3,12 @@ using System;
 using System.Threading.Tasks;
 using Xunit;
 
-public abstract class UserVerificationTestBase : TestBase, IAsyncLifetime
+public abstract class VerificationEmailIntegrationTestBase : TestBase, IAsyncLifetime
 {
     protected UserVerificationHelper UserVerificationHelper;
     protected Func<DateTime> MockTimeProvider;
 
-    protected UserVerificationTestBase(Func<DateTime>? mockTimeProvider = null)
+    protected VerificationEmailIntegrationTestBase(Func<DateTime>? mockTimeProvider = null)
     {
         MockTimeProvider = mockTimeProvider ?? (() => DateTime.UtcNow); // Default to current time if none provided
         UserVerificationHelper = new UserVerificationHelper(SqlExecutor, MockEmailService, MockTimeProvider);
