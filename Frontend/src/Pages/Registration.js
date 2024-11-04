@@ -183,11 +183,12 @@ function RegistrationForm() {
                     {errors.captcha && <div className="error-message">{errors.captcha}</div>}
                     
                     <div className="form-submit">
-                        <button type="submit">Sätt igång!</button>
-                        <ReCAPTCHA
+                    <ReCAPTCHA
                             sitekey={process.env.REACT_APP_RECAPTCHA_SITE_KEY}
                             onChange={handleCaptchaChange}
                         />
+                        <button type="submit">Sätt igång!</button>
+
                     </div>
                 </div>
                 <img src={RegBird} alt="RegBird" className="reg-bird-image" />
