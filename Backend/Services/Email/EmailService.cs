@@ -25,6 +25,6 @@
     }
     public async Task SendContactUsEmail(string subject, string body, string SenderEmail)
     {
-        await SendContactUsEmail(subject, body, SenderEmail);
+        await SendContactEmail(subject, body, SenderEmail);
     }
 }
