@@ -1,40 +1,27 @@
-﻿using System;
+﻿using Backend.Helpers;
+using System;
 using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
-using Backend.DataAccess;
-using Backend.Helpers;
-using Backend.Services;
+using Xunit;
 
-public abstract class UserVerificationTestBase : IAsyncLifetime
+public abstract class UserVerificationTestBase : TestBase, IAsyncLifetime
 {
-    protected readonly ServiceProvider ServiceProvider;
-    protected readonly SqlExecutor SqlExecutor;
-    protected readonly UserServices UserServices;
-    protected readonly MockEmailService MockEmailService;
     protected UserVerificationHelper UserVerificationHelper;
     protected Func<DateTime> MockTimeProvider;
 
-    protected UserVerificationTestBase()
+    protected UserVerificationTestBase(Func<DateTime>? mockTimeProvider = null)
     {
-        var serviceCollection = new ServiceCollection();
-        var startup = new StartupTest();
-        startup.ConfigureServices(serviceCollection);
-
-        // Build the service provider and retrieve necessary services
-        ServiceProvider = serviceCollection.BuildServiceProvider();
-        SqlExecutor = ServiceProvider.GetRequiredService<SqlExecutor>();
-        UserServices = ServiceProvider.GetRequiredService<UserServices>();
-        MockEmailService = ServiceProvider.GetRequiredService<IEmailService>() as MockEmailService
-                           ?? throw new InvalidOperationException("MockEmailService not registered.");
-        UserVerificationHelper = ServiceProvider.GetRequiredService<UserVerificationHelper>();
+        MockTimeProvider = mockTimeProvider ?? (() => DateTime.UtcNow); // Default to current time if none provided
+        UserVerificationHelper = new UserVerificationHelper(SqlExecutor, MockEmailService, MockTimeProvider);
     }
 
-    public async Task InitializeAsync() => await ClearDatabaseAsync();
+    public async Task InitializeAsync()
+    {
+        await ClearDatabaseAsync(); // Prepare a clean state for each test
+    }
 
     public async Task DisposeAsync()
     {
-        await ClearDatabaseAsync();
-        ServiceProvider.Dispose();
+        await ClearDatabaseAsync(); // Clean up after each test
     }
 
     private async Task ClearDatabaseAsync()

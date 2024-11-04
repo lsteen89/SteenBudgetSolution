@@ -12,12 +12,13 @@ public class UserVerificationHelperIntegrationTests : UserVerificationTestBase
     private readonly UserVerificationHelper _helper;
     private readonly MockEmailService _mockEmailService;
 
-    public UserVerificationHelperIntegrationTests() : base()
+    public UserVerificationHelperIntegrationTests()
+        : base(() => new DateTime(2023, 1, 1, 12, 0, 0)) // Set custom time for testing
     {
-        _helper = ServiceProvider.GetRequiredService<UserVerificationHelper>();
-        _mockEmailService = ServiceProvider.GetRequiredService<IEmailService>() as MockEmailService
-                            ?? throw new InvalidOperationException("MockEmailService not registered.");
+        _helper = UserVerificationHelper; 
+        _mockEmailService = MockEmailService;
     }
+
 
     [Fact]
     public async Task ResendVerificationEmail_ShouldEnforceDailyLimit()
