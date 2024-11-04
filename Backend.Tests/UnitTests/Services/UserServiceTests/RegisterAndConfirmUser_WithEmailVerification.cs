@@ -2,11 +2,11 @@
 using Backend.Models;
 using Microsoft.Extensions.DependencyInjection;
 
-public class UserServicesTests : UserServicesTestBase
+public class RegisterAndConfirmUser_WithEmailVerification : UserServicesTestBase
 {
     private readonly MockEmailService _mockEmailService;
 
-    public UserServicesTests() : base()
+    public RegisterAndConfirmUser_WithEmailVerification() : base()
     {
         _mockEmailService = ServiceProvider.GetService<IEmailService>() as MockEmailService
                             ?? throw new InvalidOperationException("IEmailService not registered.");
@@ -38,6 +38,15 @@ public class UserServicesTests : UserServicesTestBase
 
         // Assert - Verify user registration was successful
         Assert.True(registrationResult);
+
+        // Act - Send verification email
+        var verificationToken = Guid.NewGuid().ToString(); // Generate a mock token
+        await _mockEmailService.SendVerificationEmailAsync(userModel.Email, verificationToken);
+
+        // Assert - Verify the email was sent
+        Assert.True(_mockEmailService.EmailWasSent, "The verification email should have been sent.");
+        Assert.Equal(userModel.Email, _mockEmailService.LastSentEmail); // Check email was sent to correct address
+        Assert.Equal(verificationToken, _mockEmailService.LastSentToken); // Ensure the token is correct
 
         // Act - Update email confirmation status
         userModel.EmailConfirmed = true; // Manually set to verified

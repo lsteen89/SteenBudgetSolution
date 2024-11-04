@@ -1,11 +1,12 @@
 ﻿namespace Backend.DTO
 {
-    public class UserCreationDto
+    public class SendEmailDto
     {
         public string? FirstName { get; set; }
         public string? LastName { get; set; }
-        public string? Email { get; set; }
-        public string? Password { get; set; }
+        public string? subject { get; set; }
+        public string? body { get; set; }
+        public string? SenderEmail { get; set; }
         public string? CaptchaToken { get; set; }
     }
 }

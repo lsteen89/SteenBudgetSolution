@@ -1,14 +1,7 @@
-﻿using Backend.Models;
-using Microsoft.Extensions.Configuration;
-using Microsoft.IdentityModel.Tokens;
-using System;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
+﻿using Backend.Controllers;
 using Backend.DataAccess;
-using Microsoft.AspNetCore.DataProtection.KeyManagement;
-using Backend.Controllers;
 using Backend.Helpers;
+using Backend.Models;
 
 namespace Backend.Services
 {

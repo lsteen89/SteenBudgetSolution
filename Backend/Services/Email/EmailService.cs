@@ -23,4 +23,8 @@
         // Send the email using the base class method
         await SendEmailAsync(email, subject, body);
     }
+    public async Task SendContactUsEmail(string subject, string body, string SenderEmail)
+    {
+        await SendContactUsEmail(subject, body, SenderEmail);
+    }
 }

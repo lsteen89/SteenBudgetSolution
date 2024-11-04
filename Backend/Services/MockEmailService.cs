@@ -5,7 +5,10 @@
 
     public string? LastSentEmail { get; private set; }
     public string? LastSentToken { get; private set; }
+    public string? LastSenderEmail { get; private set; }
     public bool EmailWasSent { get; private set; }
+    public string? LastSentSubject { get; private set; }
+    public string? LastSentBody { get; private set; }
 
     public MockEmailService(IConfiguration configuration, ILogger<MockEmailService> logger)
     {
@@ -31,5 +34,19 @@
 
         // Log the email sending event
         _logger.LogInformation($"Mock send email to {email} with token {token}.");
+    }
+    public async Task SendContactUsEmail(string subject, string body, string senderEmail)
+    {
+        // Set mock properties for testing
+        LastSentEmail = "info@ebudget.se";      // Hardcoded recipient
+        LastSenderEmail  = senderEmail;            // Track sender's email
+        LastSentSubject = subject;              // Track subject
+        LastSentBody = body;                    // Track body content
+        EmailWasSent = true;
+
+        // Log the email sending event
+        _logger.LogInformation($"Mock send email to {LastSentEmail} with subject {subject} and body {body}.");
+
+        await Task.CompletedTask;
     }
 }

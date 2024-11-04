@@ -1,4 +1,5 @@
-﻿using Backend.Helpers;
+﻿using Backend.DTO;
+using Backend.Helpers;
 using Backend.Models;
 using Backend.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -25,7 +26,7 @@ namespace Backend.Controllers
 
         [HttpPost("register")]
         [EnableRateLimiting("RegistrationPolicy")]
-        public async Task<IActionResult> Register([FromBody] RegistrationModel userDto)
+        public async Task<IActionResult> Register([FromBody] UserCreationDto userDto)
         {
             _logger.LogInformation("CAPTCHA token: {CaptchaToken}", userDto.CaptchaToken); // Log token for debugging
 

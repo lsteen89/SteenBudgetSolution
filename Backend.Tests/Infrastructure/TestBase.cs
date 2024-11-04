@@ -5,16 +5,15 @@ using Backend.DataAccess;
 using Backend.Helpers;
 using Backend.Services;
 
-public abstract class UserVerificationTestBase : IAsyncLifetime
+public abstract class TestBase : IDisposable
 {
     protected readonly ServiceProvider ServiceProvider;
     protected readonly SqlExecutor SqlExecutor;
     protected readonly UserServices UserServices;
     protected readonly MockEmailService MockEmailService;
-    protected UserVerificationHelper UserVerificationHelper;
-    protected Func<DateTime> MockTimeProvider;
+    protected readonly UserVerificationHelper UserVerificationHelper;
 
-    protected UserVerificationTestBase()
+    protected TestBase()
     {
         var serviceCollection = new ServiceCollection();
         var startup = new StartupTest();
@@ -29,16 +28,5 @@ public abstract class UserVerificationTestBase : IAsyncLifetime
         UserVerificationHelper = ServiceProvider.GetRequiredService<UserVerificationHelper>();
     }
 
-    public async Task InitializeAsync() => await ClearDatabaseAsync();
-
-    public async Task DisposeAsync()
-    {
-        await ClearDatabaseAsync();
-        ServiceProvider.Dispose();
-    }
-
-    private async Task ClearDatabaseAsync()
-    {
-        await UserServices.DeleteUserByEmailAsync("test@example.com");
-    }
+    public void Dispose() => ServiceProvider.Dispose();
 }

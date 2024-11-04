@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import './WelcomePage.css';
 import RegBird from '../assets/Images/RegBird.png';
 import { useNavigate } from 'react-router-dom';
-import { resendVerificationEmail } from '../api/auth/authApi';
+import { resendVerificationEmail } from '../api/Services/User/resendVerificationEmail';
 
 function WelcomePage() {
     const navigate = useNavigate();

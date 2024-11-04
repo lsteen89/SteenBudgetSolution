@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { verifyEmail } from '../api/auth/authApi'; 
+import { verifyEmail } from '../api/Services/User/verifyEmail'; 
 
 const EmailVerification = () => {
   const [statusMessage, setStatusMessage] = useState('');

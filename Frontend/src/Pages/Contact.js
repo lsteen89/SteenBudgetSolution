@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useRef  } from 'react';
 import { useNavigate } from 'react-router-dom';
-import './Contact.css'; // Make sure to import the CSS file
-import ContactUsBird from '../assets/Images/ContactUsBird.png'; // Update the path as needed
+import './Contact.css';
+import ContactUsBird from '../assets/Images/ContactUsBird.png';
+import ReCAPTCHA from 'react-google-recaptcha';
+import { submitContactForm } from '../api/Services/Mail/contactUs'; 
 
 function AboutUs() {
-  const navigate = useNavigate(); // Initialize the useNavigate hook
-
+  const captchaRef = useRef(null); 
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     fornamn: '',
     efternamn: '',
@@ -13,30 +15,68 @@ function AboutUs() {
     amne: '',
     meddelande: ''
   });
-
+  const [captchaToken, setCaptchaToken] = useState(null);
   const [errors, setErrors] = useState({});
   const [isSubmitted, setIsSubmitted] = useState(false);
-
-  const validateForm = () => {
-    const newErrors = {};
-    if (!/^[a-zA-Z]{1,20}$/.test(formData.fornamn)) {
-      newErrors.fornamn = 'Förnamn får inte innehålla mellanslag och kan inte vara längre än 20 tecken!';
-    }
-    if (!/^[a-zA-Z]{1,20}$/.test(formData.efternamn)) {
-      newErrors.efternamn = 'Efternamn får inte innehålla mellanslag och kan inte vara längre än 20 tecken!';
-    }
-    if (!/^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/.test(formData.epost)) {
-      newErrors.epost = 'Ogiltigt epost format!';
-    }
-    if (formData.amne.trim() === '') {
-      newErrors.amne = 'Ämne kan inte vara tomt!';
-    }
-    if (formData.meddelande.length < 10) {
-      newErrors.meddelande = 'Meddelande måste vara minst 10 tecken långt!';
-    }
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const handleCaptchaChange = (token) => {
+    setCaptchaToken(token);
   };
+
+/* Mock for testing
+*/
+// Mock for testing, simulating both success and error scenarios
+/*
+const submitContactForm = async (data) => {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      if (data && data.epost !== 'error@example.com') { // Mocking a specific case for error
+        resolve({ message: "Form submitted successfully" });
+      } else {
+        reject(new Error("Submission failed. Please try again."));
+      }
+    }, 5000); // 5-second delay
+  });
+};
+*/
+const validateForm = () => {
+  const newErrors = {};
+
+  if (!/^[a-zA-Z]{1,20}$/.test(formData.fornamn)) {
+    newErrors.fornamn = 'Vänligen ange';
+    setErrors(newErrors);
+    return false; // Stop validation once the first error is encountered
+  }
+  
+  if (!/^[a-zA-Z]{1,20}$/.test(formData.efternamn)) {
+    newErrors.efternamn = 'Vänligen ange';
+    setErrors(newErrors);
+    return false;
+  }
+
+  if (!/^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/.test(formData.epost)) {
+    newErrors.epost = 'Ogiltigt epost format!';
+    setErrors(newErrors);
+    return false;
+  }
+
+  if (formData.amne.trim() === '') {
+    newErrors.amne = 'Ämne kan inte vara tomt!';
+    setErrors(newErrors);
+    return false;
+  }
+
+  if (formData.meddelande.length < 10) {
+    newErrors.meddelande = 'Meddelande måste vara minst 10 tecken långt!';
+    setErrors(newErrors);
+    return false;
+  }
+
+  setErrors({}); // Clear errors if all fields are valid
+  return true; // Return true if there are no validation errors
+};
+
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -45,28 +85,46 @@ function AboutUs() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Form submitted', formData); // Debugging: Check if handleSubmit is called
+    console.log('Form submitted', formData);
+
     if (validateForm()) {
+      if (!captchaToken) {
+        setErrors((prevErrors) => ({
+          ...prevErrors,
+          captcha: 'Captcha är obligatoriskt!',
+        }));
+        return;
+      }
       try {
-        const response = await fetch('https://jsonplaceholder.typicode.com/posts', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(formData)
+        setIsSubmitting(true); 
+        const result = await submitContactForm({ ...formData, captchaToken });
+        console.log('Form submitted successfully:', result);
+        setIsSubmitted(true);
+
+        // Reset form data upon successful submission
+        setFormData({
+          fornamn: '',
+          efternamn: '',
+          epost: '',
+          amne: '',
+          meddelande: ''
         });
-        const result = await response.json();
-        if (response.ok) {
-          console.log('Form submitted successfully:', result);
-          setIsSubmitted(true); // Set submission status to true
-        } else {
-          console.log('Form submission failed:', result);
-        }
+
+      setCaptchaToken(null);
+      captchaRef.current.reset();
+      setErrors({}); // Clear any errors
+
       } catch (error) {
         console.error('Error submitting form:', error);
+        setErrors((prevErrors) => ({
+          ...prevErrors,
+          form: 'Något gick fel, försök igen', 
+        }));
+      } finally {
+        setIsSubmitting(false); 
       }
     } else {
-      console.log('Validation failed:', errors); // Debugging: Check validation errors
+      console.log('Validation failed:', errors);
     }
   };
 
@@ -80,24 +138,35 @@ function AboutUs() {
         </p>
         <form className="contact-form" onSubmit={handleSubmit}>
           <div className="form-row">
-            <input
-              type="text"
-              name="fornamn"
-              placeholder="Förnamn"
-              value={formData.fornamn}
-              onChange={handleChange}
-              required
-            />
-            {errors.fornamn && <span className="error-message">{errors.fornamn}</span>}
-            <input
-              type="text"
-              name="efternamn"
-              placeholder="Efternamn"
-              value={formData.efternamn}
-              onChange={handleChange}
-              required
-            />
-            {errors.efternamn && <span className="error-message">{errors.efternamn}</span>}
+            <div className="input-wrapper">
+              <input
+                type="text"
+                name="fornamn"
+                placeholder="Förnamn"
+                value={formData.fornamn}
+                onChange={handleChange}
+              />
+              {errors.fornamn ? (
+                <span className="error-message">{errors.fornamn}</span>
+              ) : (
+                <span className="error-message" style={{ visibility: 'hidden' }}>Placeholder</span>
+              )}
+              </div>
+
+              <div className="input-wrapper">
+              <input
+                type="text"
+                name="efternamn"
+                placeholder="Efternamn"
+                value={formData.efternamn}
+                onChange={handleChange}
+              />
+            {errors.efternamn ? (
+              <span className="error-message">{errors.efternamn}</span>
+            ) : (
+              <span className="error-message" style={{ visibility: 'hidden' }}>Placeholder</span>
+            )}
+            </div>
           </div>
           <input
             type="email"
@@ -105,7 +174,6 @@ function AboutUs() {
             placeholder="Epost"
             value={formData.epost}
             onChange={handleChange}
-            required
           />
           {errors.epost && <span className="error-message">{errors.epost}</span>}
           <input
@@ -114,7 +182,6 @@ function AboutUs() {
             placeholder="Ämne"
             value={formData.amne}
             onChange={handleChange}
-            required
           />
           {errors.amne && <span className="error-message">{errors.amne}</span>}
           <textarea
@@ -123,16 +190,46 @@ function AboutUs() {
             rows="4"
             value={formData.meddelande}
             onChange={handleChange}
-            required
           />
+          {/* Error display for specific field errors */}
           {errors.meddelande && <span className="error-message">{errors.meddelande}</span>}
+          {errors.captcha && <div className="error-message">{errors.captcha}</div>}
+
+          {/* General error message display */}
+          {errors.form && <div className="error-message">{errors.form}</div>}
+
+          {/* Success message display */}
+          {isSubmitted && <p className="success-message">Skickat!</p>}
           <div className="form-submit">
-            <button type="submit">Skicka</button>
+           <button
+              type="submit"
+              disabled={isSubmitting}
+              style={{
+                backgroundColor: isSubmitting ? '#ccc' : '#98FF98',
+                borderRadius: '20px',
+                fontFamily: 'Outfit, sans-serif',
+                fontWeight: '800',
+                fontSize: '20px',
+                color: '#333333',
+                padding: '10px 20px',
+                cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                maxWidth: '150px',
+              }}
+            >
+              {isSubmitting ? (
+                <div className="spinner"></div>
+              ) : (
+                'Skicka'
+              )}
+            </button>
+            <ReCAPTCHA
+              sitekey={process.env.REACT_APP_RECAPTCHA_SITE_KEY}
+              onChange={handleCaptchaChange}
+              ref={captchaRef}
+            />
           </div>
         </form>
-        {isSubmitted && (
-          <p className="success-message">Skickat!</p>
-        )}
+
       </div>
     </div>
   );
