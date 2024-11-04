@@ -76,22 +76,7 @@
   text-align: center;
 }
 
-.user-info-form button {
-  background-color: #ff9898;
-  color: #333333;
-  font-family: 'Outfit', sans-serif;
-  font-weight: 800;
-  font-size: 20px;
-  letter-spacing: 0.1em;
-  cursor: pointer;
-  padding: 15px 30px; /* Adds more padding around text */
-  min-width: 200px; /* Ensures minimum button width to cover text */
-  border-radius: 20px;
-  white-space: nowrap; /* Prevents text from wrapping */
-  box-sizing: border-box;
-  display: inline-block; /* Ensures button fully contains padding */
-  text-align: center; /* Centers text within the button */
-}
+
 
 .form-submit button:hover {
   background-color: #0056b3;
@@ -119,4 +104,11 @@
   margin: auto; /* Center the form fields within the form */
   padding: 0 20px; /* Optional: Adds some padding for spacing inside */
   box-sizing: border-box; /* Ensures padding doesn’t increase overall width */
+}
+
+.form-submit button {
+  padding: 0.5em 1em; /* Adjust padding for a better fit */
+  font-size: 1rem;    /* Adjust font size if needed */
+  width: auto;        /* Ensure the width adjusts based on text */
+  white-space: nowrap; /* Prevent text wrapping */
 }
