@@ -86,7 +86,7 @@ const validateForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     console.log('Form submitted', formData);
-
+  
     if (validateForm()) {
       if (!captchaToken) {
         setErrors((prevErrors) => ({
@@ -95,6 +95,7 @@ const validateForm = () => {
         }));
         return;
       }
+  
       try {
         setIsSubmitting(true); 
         const translatedData = {
@@ -105,31 +106,45 @@ const validateForm = () => {
           body: formData.meddelande,
           CaptchaToken: captchaToken
         };
+  
         const result = await submitContactForm(translatedData);
         console.log('Form submitted successfully:', result);
-        setIsSubmitted(true);
-
-        // Reset form data upon successful submission
-        if (formData.epost !== 'l@l.se') {
-          setFormData({
-            fornamn: '',
-            efternamn: '',
-            epost: '',
-            amne: '',
-            meddelande: ''
-          });
+  
+        // Only set `isSubmitted` to true if the submission was successful
+        if (result.status === 200) {
+          setIsSubmitted(true);
+  
+          // Reset form data upon successful submission, unless email is "l@l.se"
+          if (formData.epost !== 'l@l.se') {
+            setFormData({
+              fornamn: '',
+              efternamn: '',
+              epost: '',
+              amne: '',
+              meddelande: ''
+            });
+          }
+  
+          setCaptchaToken(null);
+          captchaRef.current.reset();
+          setErrors({}); // Clear any errors
+  
+        } else {
+          // Handle a non-200 status by showing an error message
+          setErrors((prevErrors) => ({
+            ...prevErrors,
+            form: 'Något gick fel, försök igen',
+          }));
         }
-
-      setCaptchaToken(null);
-      captchaRef.current.reset();
-      setErrors({}); // Clear any errors
-
+  
       } catch (error) {
         console.error('Error submitting form:', error);
+        // Catch block for network or server errors
         setErrors((prevErrors) => ({
           ...prevErrors,
           form: 'Något gick fel, försök igen', 
         }));
+  
       } finally {
         setIsSubmitting(false); 
       }
