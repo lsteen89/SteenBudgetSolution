@@ -8,7 +8,7 @@ import axios from '../../axiosConfig'; // Use axiosConfig for consistent configu
 
 export const submitContactForm = async (formData) => {
   try {
-    const response = await axios.post('/api/ContactUs', formData, {
+    const response = await axios.post('/api/Email/ContactUs', formData, {
       headers: {
         'Content-Type': 'application/json',
       },

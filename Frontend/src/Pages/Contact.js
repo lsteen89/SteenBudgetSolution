@@ -97,18 +97,28 @@ const validateForm = () => {
       }
       try {
         setIsSubmitting(true); 
-        const result = await submitContactForm({ ...formData, captchaToken });
+        const translatedData = {
+          FirstName: formData.fornamn,
+          LastName: formData.efternamn,
+          SenderEmail: formData.epost,
+          subject: formData.amne,
+          body: formData.meddelande,
+          CaptchaToken: captchaToken
+        };
+        const result = await submitContactForm(translatedData);
         console.log('Form submitted successfully:', result);
         setIsSubmitted(true);
 
         // Reset form data upon successful submission
-        setFormData({
-          fornamn: '',
-          efternamn: '',
-          epost: '',
-          amne: '',
-          meddelande: ''
-        });
+        if (formData.epost !== 'l@l.se') {
+          setFormData({
+            fornamn: '',
+            efternamn: '',
+            epost: '',
+            amne: '',
+            meddelande: ''
+          });
+        }
 
       setCaptchaToken(null);
       captchaRef.current.reset();
