@@ -1,40 +1,48 @@
-SteenBudgetSolution
-
-SteenBudgetSolution is a full-stack personal finance management application designed to help users track income, expenses, and manage their budgets. Built with a focus on scalability and secure deployment, the project leverages cutting-edge technologies across both backend and frontend systems.
+SteenBudgetSolution is a full-stack personal finance management application designed to help users track income, expenses, and manage budgets. Built with a focus on scalability and secure deployment, the project leverages modern technologies for both backend and frontend.
 Key Features:
 
-    Secure User Authentication: JWT-based authentication for secure access to user accounts.
-    ReCAPTCHA Integration: Protects the registration process against bots with Google reCAPTCHA.
-    CRUD Operations: Full Create, Read, Update, and Delete functionality for managing financial data.
-    Email Notifications: SMTP server configuration for user verification and notifications.
-    Responsive Design: Frontend built with React for seamless user experience across devices.
+    Secure User Authentication: JWT-based for secure user access.
+    ReCAPTCHA Integration: Protects against bot registrations using Google reCAPTCHA.
+    CRUD Operations: Manage financial data with full Create, Read, Update, and Delete functionality.
+    Email Notifications: Integrated SMTP for user verification and notifications.
+    Responsive Design: React frontend ensures seamless cross-device user experience.
 
 Tech Stack:
 
     Backend:
         C# with .NET 8
-        MariaDB for the database (SQL-based)
-        Dapper for lightweight, fast database access
-        Deployed on Raspberry Pi with a fully configured web server
+        MariaDB (SQL-based)
+        Dapper for optimized database access
+        Deployed on a self-hosted Raspberry Pi with a fully configured web server
     Frontend:
-        React with Axios for API integration
+        React with Axios for API communication
         State management and routing for smooth client-side navigation
     Infrastructure:
-        Fully configured on a Raspberry Pi, including a web server, SQL server, and SMTP server
-        Custom domain hosted behind a firewall for enhanced security
+        Custom domain hosted behind a firewall
+        Graylog for centralized logging and monitoring, ensuring insights into application and server health
+        Fail2Ban, UFW, and secure SSH for additional protection
     CI/CD:
-        GitHub Actions configured for Continuous Integration and Deployment (CI/CD)
-        GitHub Secrets for secure handling of sensitive environment variables (such as JWT keys, reCAPTCHA keys, and SMTP credentials)
+        GitHub Actions for Continuous Integration and Deployment
+        Secrets management with GitHub Secrets for handling sensitive environment variables (JWT, SMTP credentials, etc.)
 
 Deployment & Infrastructure:
 
-The entire solution is deployed on a self-hosted Raspberry Pi, which serves as the primary web server. The infrastructure includes:
+This application is deployed on a self-hosted Raspberry Pi, serving as the primary web server. Key infrastructure elements include:
 
-    MariaDB Database for storing user and financial data.
-    SMTP Configuration for sending verification and notification emails to users.
-    Firewall Protection to safeguard the domain and ensure secure communication between the client and server.
-    GitHub Actions for automated testing, building, and deploying code updates from the repository, ensuring smooth, error-free releases.
+    MariaDB for secure storage of user and financial data
+    SMTP Configuration for sending verification and notification emails
+    Graylog for centralized logging and monitoring of application events and errors
+    Firewall Protection for secure client-server communication
+    CI/CD via GitHub Actions for automated testing, building, and deployment
 
+Security:
+
+Security tools like Fail2Ban, UFW, and enforced SSH key-based authentication further harden the deployment. Sensitive data is managed using environment variables securely loaded on the Raspberry Pi. Graylog integration provides additional monitoring, helping to quickly identify and respond to any unusual activity or application errors.
+Scalability:
+
+While deployed on a Raspberry Pi, SteenBudgetSolution is built to scale. With minor adjustments, it can be migrated to cloud hosting if user demand grows.
 Why This Project:
 
-This project showcases my ability to set up, deploy, and manage a full-stack application independently, from frontend to backend, and handle CI/CD pipelines. It demonstrates proficiency with modern development practices, cloud infrastructure, and production-grade deployments.
+This project demonstrates my ability to design, deploy, and manage a complete full-stack application independently, with a strong focus on secure practices, efficient CI/CD workflows, and the use of modern development tools.
+
+Installation & Setup: See INSTALL.md for a full setup guide, including environment configuration, database initialization, and security recommendations.
