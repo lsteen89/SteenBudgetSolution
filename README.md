@@ -25,15 +25,23 @@ Tech Stack:
         GitHub Actions for Continuous Integration and Deployment
         Secrets management with GitHub Secrets for handling sensitive environment variables (JWT, SMTP credentials, etc.)
 
-Deployment & Infrastructure:
+Deployment & Infrastructure
 
-This application is deployed on a self-hosted Raspberry Pi, serving as the primary web server. Key infrastructure elements include:
+The entire solution is deployed on a self-hosted Raspberry Pi, which serves as the primary web server. The infrastructure includes:
 
-    MariaDB for secure storage of user and financial data
-    SMTP Configuration for sending verification and notification emails
-    Graylog for centralized logging and monitoring of application events and errors
-    Firewall Protection for secure client-server communication
-    CI/CD via GitHub Actions for automated testing, building, and deployment
+    MariaDB Database for storing user and financial data.
+    SMTP Configuration for sending verification and notification emails to users.
+    Graylog Logging for centralized log management, using Docker containers for MongoDB and Elasticsearch as required dependencies. Graylog enhances the monitoring and logging capabilities for the solution.
+    Dockerized Services: MongoDB and Elasticsearch are set up in Docker containers, simplifying deployment and management for Graylog.
+    Firewall Protection to safeguard the domain and ensure secure communication between the client and server.
+    GitHub Actions for automated testing, building, and deploying code updates from the repository, ensuring smooth, error-free releases.
+
+If users want to enable Graylog logging, they can uncomment the Graylog configuration in Program.cs and follow the installation guide to set up Docker-based MongoDB, Elasticsearch, and Graylog.
+
+Domain and Email Configuration:
+
+    DNS Setup: Users should configure DNS records for their domain to make the application accessible publicly. See INSTALL.md for a detailed guide on DNS settings.
+    SPF and DKIM: For improved email deliverability and security, set up SPF and DKIM records to authenticate outgoing emails from your domain.
 
 Security:
 
