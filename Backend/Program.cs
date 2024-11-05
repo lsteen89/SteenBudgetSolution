@@ -14,6 +14,8 @@ using System.Threading.RateLimiting;
 using Serilog.Sinks.Graylog;
 using FluentValidation;
 using FluentValidation.AspNetCore;
+using Backend.Interfaces;
+using Backend.Services.Validation;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -62,6 +64,7 @@ builder.Services.AddScoped<SqlExecutor>();
 builder.Services.AddScoped<UserServices>();
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddTransient<RecaptchaHelper>();
+builder.AddScoped<IRecaptchaService, RecaptchaService>();
 builder.Services.AddScoped<DbConnection>(provider =>
 {
     var connectionString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");

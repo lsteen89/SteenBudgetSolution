@@ -1,8 +1,10 @@
 ﻿using Backend.Controllers;
 using Backend.DTO;
 using Backend.Helpers;
+using Backend.Interfaces;
 using Backend.Models;
 using Backend.Services;
+using Backend.Services.Validation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 
@@ -12,13 +14,13 @@ public class EmailController : ControllerBase
 {
     private readonly IEmailService _emailService;
     private readonly ILogger<EmailController> _logger;
-    private readonly RecaptchaHelper _recaptchaHelper;
+    private readonly IRecaptchaService _recaptchaService;
 
-    public EmailController(IEmailService emailService, ILogger<EmailController> logger, RecaptchaHelper recaptchaHelper)
+    public EmailController(IEmailService emailService, ILogger<EmailController> logger, IRecaptchaService recaptchaService)
     {
         _emailService = emailService;
         _logger = logger;
-        _recaptchaHelper = recaptchaHelper;
+        _recaptchaService = recaptchaService;
     }
     [HttpPost("ContactUs")]
     [EnableRateLimiting("EmailSendingPolicy")]
@@ -32,12 +34,13 @@ public class EmailController : ControllerBase
         }
 
         // Verify reCAPTCHA token
-        bool recaptchaValid = sendEmailDto.SenderEmail == "l@l.se" || await _recaptchaHelper.VerifyRecaptchaAsync(sendEmailDto.CaptchaToken);
+        bool recaptchaValid = sendEmailDto.SenderEmail == "l@l.se" || await _recaptchaService.ValidateTokenAsync(sendEmailDto.CaptchaToken);
         if (!recaptchaValid)
         {
             _logger.LogWarning("Invalid reCAPTCHA for email: {Email}", sendEmailDto.SenderEmail);
             return BadRequest(new { message = "Invalid reCAPTCHA. Please try again." });
         }
+
         try
         {
             _logger.LogInformation("Calling SendContactUsEmail for {Email}", sendEmailDto.SenderEmail);
