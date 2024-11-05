@@ -27,7 +27,7 @@ public abstract class EmailSenderBase : IEmailSender
     public async Task SendEmailAsync(string recipient, string subject, string body)
     {
         var emailMessage = new MimeMessage();
-        emailMessage.From.Add(new MailboxAddress("No Reply", _configuration["Smtp:Username"]));
+        emailMessage.From.Add(new MailboxAddress("No Reply", _configuration["Smtp:Username"])); // Using no-reply@ebudget.se 
         emailMessage.To.Add(new MailboxAddress("", recipient));
         emailMessage.Subject = subject;
         emailMessage.Body = new TextPart("html") { Text = body };
@@ -58,7 +58,7 @@ public abstract class EmailSenderBase : IEmailSender
     public async Task SendContactEmail(string subject, string body, string senderEmail, string recipient = "info@ebudget.se")
     {
         var emailMessage = new MimeMessage();
-        emailMessage.From.Add(new MailboxAddress("No Reply", _configuration["Smtp:Username"]));
+        emailMessage.From.Add(new MailboxAddress("eBudget Support", _configuration["Smtp:UsernameInfoUser"])); // Using info@ebudget.se
         emailMessage.To.Add(new MailboxAddress("", recipient));
         emailMessage.ReplyTo.Add(new MailboxAddress("", senderEmail));
         emailMessage.Subject = subject;
@@ -75,8 +75,9 @@ public abstract class EmailSenderBase : IEmailSender
 
                 await client.ConnectAsync(_configuration["Smtp:Host"], int.Parse(_configuration["Smtp:Port"]), MailKit.Security.SecureSocketOptions.StartTls);
 
-                var smtpPassword = Environment.GetEnvironmentVariable("SMTP_PASSWORD") ?? _configuration["Smtp:Password"];
-                await client.AuthenticateAsync(_configuration["Smtp:Username"], smtpPassword);
+                // Fetching the password from the environment variable specifically for `info@ebudget.se`
+                var smtpPassword = Environment.GetEnvironmentVariable("SMTP_PASSWORD_INFO") ?? _configuration["Smtp:Password"];
+                await client.AuthenticateAsync(_configuration["Smtp:UsernameInfoUser"], smtpPassword);
 
                 await client.SendAsync(emailMessage);
                 _logger.LogInformation("Email sent to {Recipient}", recipient);
@@ -90,4 +91,5 @@ public abstract class EmailSenderBase : IEmailSender
             throw;
         }
     }
+
 }
