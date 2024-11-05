@@ -64,7 +64,7 @@ builder.Services.AddScoped<SqlExecutor>();
 builder.Services.AddScoped<UserServices>();
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddTransient<RecaptchaHelper>();
-builder.AddScoped<IRecaptchaService, RecaptchaService>();
+builder.Services.AddScoped<IRecaptchaService, RecaptchaService>();
 builder.Services.AddScoped<DbConnection>(provider =>
 {
     var connectionString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
