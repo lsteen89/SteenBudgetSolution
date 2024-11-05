@@ -170,6 +170,30 @@ Step 6: Log In to Graylog
 
 Access Graylog from your browser at http://<your-server-ip>:9000. Log in with the default credentials (admin / admin). You can create dashboards, set up alerts, and monitor logs from here.   
 
+8. Domain, DNS, and Email Configuration Optional
+
+For users who wish to make SteenBudgetSolution accessible publicly and ensure secure, authenticated email delivery, follow these optional steps:
+
+    DNS Configuration with Cloudflare
+        Add DNS Records: In your Cloudflare account (or another DNS provider), create DNS records to point your domain to your server's IP address. For example:
+            A record for @ pointing to your server's IP (e.g., 123.45.67.89)
+            A or CNAME record for www pointing to @ or your server’s IP.
+        Set Up Subdomains (if needed): Add records for any subdomains, such as api.yourdomain.com.
+
+    SPF and DKIM for Email Authentication
+        SPF Record: Add an SPF record to authenticate emails sent from your domain. This record helps reduce spam and protects your domain’s reputation:
+            Example: v=spf1 ip4:123.45.67.89 include:_spf.google.com ~all
+            Replace 123.45.67.89 with your server’s IP and adjust if you’re using third-party email services.
+        DKIM (DomainKeys Identified Mail): Configure DKIM to sign emails, adding another layer of security and helping prevent email spoofing.
+            You’ll need to generate a DKIM key pair and add the public key as a TXT record in your DNS settings. Many email servers, like Postfix, support DKIM signing through plugins like OpenDKIM.
+
+    SSL Certificates
+        Generate SSL Certificates: Secure your domain with SSL to enable HTTPS. You can use Let’s Encrypt for free SSL certificates:
+            Install Certbot (sudo apt install certbot) and run: sudo certbot --nginx (or --apache if you’re using Apache).
+        Renew SSL Automatically: Configure Certbot to renew certificates automatically by adding a cron job: 0 0,12 * * * /usr/bin/certbot renew --quiet
+
+    Once SSL is set up, update your web server configuration to redirect HTTP requests to HTTPS for added security.
+
 9. Final Security and Maintenance
 
     SSH: Ensure your SSH access is secured as mentioned.
