@@ -104,7 +104,73 @@ For serving the frontend:
     sudo systemctl start steenbudget.service
     sudo systemctl enable steenbudget.service
 
-7. Final Security and Maintenance
+7. Setting Up Graylog for Logging (Optional)
+
+To enable centralized logging with Graylog, follow these steps to set up Graylog along with MongoDB and Elasticsearch using Docker. This setup is optional but highly recommended for enhanced monitoring and logging.
+Step 1: Install Docker (if not already installed)
+
+To install Docker on your system:
+
+bash
+
+sudo apt update
+sudo apt install docker.io
+sudo systemctl start docker
+sudo systemctl enable docker
+
+Step 2: Set Up MongoDB and Elasticsearch with Docker
+
+Graylog requires MongoDB and Elasticsearch. Use Docker to create instances of each:
+
+    MongoDB: Run the following command to start MongoDB.
+
+    bash
+
+docker run --name mongodb -d mongo:4.2
+
+Elasticsearch: Run the following command to start Elasticsearch.
+
+bash
+
+    docker run --name elasticsearch -e "discovery.type=single-node" -d docker.elastic.co/elasticsearch/elasticsearch:7.10.2
+
+Step 3: Run Graylog in Docker
+
+Now, start Graylog and connect it to MongoDB and Elasticsearch.
+
+bash
+
+docker run --name graylog --link mongo:mongo --link elasticsearch:elasticsearch -p 9000:9000 -d graylog/graylog:4.0
+
+Graylog will be accessible on your private network at http://<your-server-ip>:9000.
+Step 4: Configure Graylog Sink in Program.cs (Optional)
+
+To enable Graylog logging in your SteenBudgetSolution, uncomment the Graylog configuration in Program.cs:
+
+csharp
+
+/*
+.WriteTo.Graylog(new GraylogSinkOptions
+{
+    HostnameOrAddress = "<your-server-ip>",
+    Port = <graylog-port>
+})
+*/
+
+Replace <your-server-ip> with the IP address of your server and <graylog-port> with the Graylog listening port (default is 12201).
+Step 5: Restart SteenBudget Solution
+
+After making changes, restart the application to apply the Graylog logging configuration:
+
+bash
+
+sudo systemctl restart steenbudget.service
+
+Step 6: Log In to Graylog
+
+Access Graylog from your browser at http://<your-server-ip>:9000. Log in with the default credentials (admin / admin). You can create dashboards, set up alerts, and monitor logs from here.   
+
+9. Final Security and Maintenance
 
     SSH: Ensure your SSH access is secured as mentioned.
     Database Security: Restrict database access to only the necessary IPs or local requests.
