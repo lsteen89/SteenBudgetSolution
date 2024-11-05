@@ -40,8 +40,11 @@ If users want to enable Graylog logging, they can uncomment the Graylog configur
 
 Domain and Email Configuration:
 
-    DNS Setup: Users should configure DNS records for their domain to make the application accessible publicly. See INSTALL.md for a detailed guide on DNS settings.
-    SPF and DKIM: For improved email deliverability and security, set up SPF and DKIM records to authenticate outgoing emails from your domain.
+    SSL Certificates: It’s recommended to secure your deployment with SSL certificates to enable HTTPS. This can be achieved with free tools like Let's Encrypt to provide encrypted connections for all users.
+    DNS Setup: Configure DNS records for your domain to make the application accessible publicly. See INSTALL.md for a detailed guide on DNS settings.
+    SPF and DKIM: Improve email deliverability and security by setting up SPF and DKIM records to authenticate outgoing emails from your domain.
+
+Firewall and Access Controls: Use UFW and SSH key-based authentication to secure server access.
 
 Security:
 
