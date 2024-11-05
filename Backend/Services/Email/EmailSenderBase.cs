@@ -27,7 +27,7 @@ public abstract class EmailSenderBase : IEmailSender
     public async Task SendEmailAsync(string recipient, string subject, string body)
     {
         var emailMessage = new MimeMessage();
-        emailMessage.From.Add(new MailboxAddress("No Reply", _configuration["Smtp:Username"])); // Using no-reply@ebudget.se 
+        emailMessage.From.Add(new MailboxAddress("No Reply", _configuration["Smtp:UsernameNoReply"])); // Using no-reply@ebudget.se 
         emailMessage.To.Add(new MailboxAddress("", recipient));
         emailMessage.Subject = subject;
         emailMessage.Body = new TextPart("html") { Text = body };
@@ -41,7 +41,7 @@ public abstract class EmailSenderBase : IEmailSender
                 await client.ConnectAsync(_configuration["Smtp:Host"], int.Parse(_configuration["Smtp:Port"]), MailKit.Security.SecureSocketOptions.StartTls);
 
                 var smtpPassword = Environment.GetEnvironmentVariable("SMTP_PASSWORD") ?? _configuration["Smtp:Password"];
-                await client.AuthenticateAsync(_configuration["Smtp:Username"], smtpPassword);
+                await client.AuthenticateAsync(_configuration["Smtp:UsernameNoReply"], smtpPassword);
 
                 await client.SendAsync(emailMessage);
                 _logger.LogInformation("Email sent to {Recipient}", recipient);
@@ -58,8 +58,8 @@ public abstract class EmailSenderBase : IEmailSender
     public async Task SendContactEmail(string subject, string body, string senderEmail)
     {
         var emailMessage = new MimeMessage();
-        emailMessage.From.Add(new MailboxAddress("No Reply", _configuration["Smtp:NoReplyAddress"])); // no-reply@ebudget.se
-                                                                                                      
+        emailMessage.From.Add(new MailboxAddress("No Reply", _configuration["Smtp:UsernameNoReply"])); // Using no-reply@ebudget.se 
+
         var recipient = _configuration["Smtp:UsernameInfoUser"];    // info@mail.ebudget.se
         emailMessage.To.Add(new MailboxAddress("eBudget Support", recipient));
 
