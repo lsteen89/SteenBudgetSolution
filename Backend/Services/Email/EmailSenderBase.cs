@@ -55,11 +55,10 @@ public abstract class EmailSenderBase : IEmailSender
             throw;
         }
     }
-    public async Task SendContactEmail(string subject, string body, string senderEmail, string recipient = "info@ebudget.se")
+    public async Task SendContactEmail(string subject, string body, string senderEmail)
     {
         var emailMessage = new MimeMessage();
-        emailMessage.From.Add(new MailboxAddress("eBudget Support", _configuration["Smtp:UsernameInfoUser"])); // Using info@ebudget.se
-        emailMessage.To.Add(new MailboxAddress("", recipient));
+        emailMessage.From.Add(new MailboxAddress("eBudget Support", _configuration["Smtp:UsernameInfoUser"])); // Using info@mail.ebudget.se
         emailMessage.ReplyTo.Add(new MailboxAddress("", senderEmail));
         emailMessage.Subject = subject;
         emailMessage.Body = new TextPart("html")
@@ -77,17 +76,18 @@ public abstract class EmailSenderBase : IEmailSender
 
                 // Fetching the password from the environment variable specifically for `info@ebudget.se`
                 var smtpPassword = Environment.GetEnvironmentVariable("SMTP_PASSWORD_INFO") ?? _configuration["Smtp:Password"];
+                _logger.LogInformation("Send mail from {Host}:{Port} to {Recipient}", _configuration["Smtp:Host"], _configuration["Smtp:Port"], _configuration["Smtp:UsernameInfoUser"]);
                 await client.AuthenticateAsync(_configuration["Smtp:UsernameInfoUser"], smtpPassword);
 
                 await client.SendAsync(emailMessage);
-                _logger.LogInformation("Email sent to {Recipient}", recipient);
+                _logger.LogInformation("Email sent to {Recipient}", _configuration["Smtp:UsernameInfoUser"]);
 
                 await client.DisconnectAsync(true);
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error sending email to {Recipient}", recipient);
+            _logger.LogError(ex, "Error sending email to {Recipient} from {SenderMail}", _configuration["Smtp:UsernameInfoUser"], senderEmail);
             throw;
         }
     }
