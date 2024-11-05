@@ -58,7 +58,11 @@ public abstract class EmailSenderBase : IEmailSender
     public async Task SendContactEmail(string subject, string body, string senderEmail)
     {
         var emailMessage = new MimeMessage();
-        emailMessage.From.Add(new MailboxAddress("eBudget Support", _configuration["Smtp:UsernameInfoUser"])); // Using info@mail.ebudget.se
+        emailMessage.From.Add(new MailboxAddress("No Reply", _configuration["Smtp:NoReplyAddress"])); // no-reply@ebudget.se
+                                                                                                      
+        var recipient = _configuration["Smtp:UsernameInfoUser"];    // info@mail.ebudget.se
+        emailMessage.To.Add(new MailboxAddress("eBudget Support", recipient));
+
         emailMessage.ReplyTo.Add(new MailboxAddress("", senderEmail));
         emailMessage.Subject = subject;
         emailMessage.Body = new TextPart("html")
