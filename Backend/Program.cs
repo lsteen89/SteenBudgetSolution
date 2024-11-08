@@ -11,11 +11,13 @@ using System.Reflection;
 using MySqlConnector;
 using System.Data.Common;
 using System.Threading.RateLimiting;
-using Serilog.Sinks.Graylog;
+using Serilog.Sinks.Graylog; // Will be used in the future
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Backend.Interfaces;
 using Backend.Services.Validation;
+using Backend.Helpers.Converters;
+using Backend.Settings;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -65,6 +67,8 @@ builder.Services.AddScoped<UserServices>();
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddTransient<RecaptchaHelper>();
 builder.Services.AddScoped<IRecaptchaService, RecaptchaService>();
+builder.Services.AddScoped<UserVerificationHelper>();
+builder.Services.Configure<ResendEmailSettings>(builder.Configuration.GetSection("ResendEmailSettings"));
 builder.Services.AddScoped<DbConnection>(provider =>
 {
     var connectionString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");

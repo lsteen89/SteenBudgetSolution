@@ -1,30 +1,59 @@
-﻿public class EmailService : EmailSenderBase, IEmailService
+﻿using Backend.Models;
+using System.Net.Mail;
+using Backend.Services.Email;
+
+/// <summary>
+/// Manages the flow of email preparation and sending based on email type.
+/// Provides configuration and logging for both verification and contact emails.
+/// </summary>
+public class EmailService : EmailSenderBase, IEmailService
 {
     private readonly IConfiguration _configuration;
     private readonly ILogger<EmailService> _logger;
+    EmailPreparationService emailPreparationService;
 
-    public EmailService(IConfiguration configuration, ILogger<EmailService> logger)
+    public EmailService(IConfiguration configuration, ILogger<EmailService> logger, EmailPreparationService emailPreparationService)
         : base(configuration, logger)
     {
         _configuration = configuration;
         _logger = logger;
+        this.emailPreparationService = emailPreparationService;
     }
-
-    public async Task SendVerificationEmailAsync(string email, string token)
+    public async Task<bool> ProcessAndSendEmailAsync(EmailMessageModel emailMessage)
     {
-        // Generate the verification URL
-        var verificationUrl = $"{_configuration["AppSettings:BaseUrl"]}/verify-email?token={token}";
-        _logger.LogInformation("Generated verification URL: {VerificationUrl}", verificationUrl);
+        try
+        {
 
-        // Define the subject and body
-        var subject = "Email Verification";
-        var body = $"Please verify your email by clicking the following link: <a href='{verificationUrl}'>Verify Email</a>";
+            switch (emailMessage.EmailType)
+            {
+                // Determine the type of email and prepare it accordingly
+                case EmailType.Verification:
+                    emailMessage = await emailPreparationService.PrepareVerificationEmailAsync(emailMessage);
+                    break;
+                case EmailType.ContactUs:
+                    emailMessage = await emailPreparationService.PrepareContactUsEmailAsync(emailMessage);
+                    break;
+                default:
+                    throw new InvalidOperationException("Unknown email type");
+            }
+            // Call SendEmailAsync with the details from EmailMessage
+            bool emailSent = await TrySendEmailAsync(emailMessage);
+            if (emailSent)
+            {
+                _logger.LogInformation("Email sent successfully to: {Email}", emailMessage.Recipient);
+                return true;
+            }
+            else
+            {
+                _logger.LogError("Failed to send email to: {Email}", emailMessage.Recipient);
+                return false;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "An error occurred while processing email for: {Email}", emailMessage.Recipient);
+            return false;
+        }
 
-        // Send the email using the base class method
-        await SendEmailAsync(email, subject, body);
-    }
-    public async Task SendContactUsEmail(string subject, string body, string SenderEmail)
-    {
-        await SendContactEmail(subject, body, SenderEmail);
     }
 }

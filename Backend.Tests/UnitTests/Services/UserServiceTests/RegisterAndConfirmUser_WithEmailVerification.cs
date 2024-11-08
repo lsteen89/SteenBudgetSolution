@@ -1,5 +1,6 @@
 ﻿using Backend.DTO;
 using Backend.Models;
+using Backend.Services;
 using Microsoft.Extensions.DependencyInjection;
 
 public class RegisterAndConfirmUser_WithEmailVerification : UserServicesTestBase
@@ -11,56 +12,47 @@ public class RegisterAndConfirmUser_WithEmailVerification : UserServicesTestBase
         _mockEmailService = ServiceProvider.GetService<IEmailService>() as MockEmailService
                             ?? throw new InvalidOperationException("IEmailService not registered.");
     }
-
+    // Test for registration flow
     [Fact]
-    public async Task RegisterAndVerifyUser_ShouldCreateAndSetUserAsVerifiedAsync()
+    public async Task RegisterUser_ShouldCreateUserAsync()
     {
         // Arrange
-        var userDto = new UserCreationDto
+        var userCreationDto = new UserCreationDto
         {
             FirstName = "Test",
             LastName = "User",
             Email = "test@example.com",
-            Password = "Password123!"
-        };
-
-        var userModel = new UserModel
-        {
-            FirstName = userDto.FirstName,
-            LastName = userDto.LastName,
-            Email = userDto.Email,
-            Password = userDto.Password,
-            EmailConfirmed = false
+            Password = "Password123!",
+            CaptchaToken = "mock-captcha-token"
         };
 
         // Act - Register the user
-        var registrationResult = await UserServices.CreateNewRegisteredUserAsync(userModel);
+        var registrationResult = await UserServices.RegisterUserAsync(userCreationDto);
 
-        // Assert - Verify user registration was successful
+        // Fetch the newly created user to verify registration details
+        var registeredUser = await UserServices.GetUserModelAsync(email: userCreationDto.Email);
+        // Assert
         Assert.True(registrationResult);
+        Assert.NotNull(registeredUser);
+        Assert.Equal(userCreationDto.Email, registeredUser.Email);
+        Assert.False(registeredUser.EmailConfirmed); // Ensure not yet verified
+        Assert.Equal(userCreationDto.FirstName, registeredUser.FirstName);
+        Assert.Equal(userCreationDto.LastName, registeredUser.LastName);
+    }
+    [Fact]
+    public async Task VerifyUser_ShouldSetEmailConfirmedToTrueAsync()
+    {
+        // Arrange
+        await PrepareUserDataAsync(); // Inserts user and token
+        var user = await UserServices.GetUserModelAsync(email: "test@example.com");
 
-        // Act - Send verification email
-        var verificationToken = Guid.NewGuid().ToString(); // Generate a mock token
-        await _mockEmailService.SendVerificationEmailAsync(userModel.Email, verificationToken);
+        // Act - Simulate verification
+        var tokenModel = await UserServices.GetUserVerificationTokenDataAsync(persoid: user.PersoId);
+        var verificationResult = await UserServices.VerifyEmailTokenAsync(tokenModel.Token);
 
-        // Assert - Verify the email was sent
-        Assert.True(_mockEmailService.EmailWasSent, "The verification email should have been sent.");
-        Assert.Equal(userModel.Email, _mockEmailService.LastSentEmail); // Check email was sent to correct address
-        Assert.Equal(verificationToken, _mockEmailService.LastSentToken); // Ensure the token is correct
-
-        // Act - Update email confirmation status
-        userModel.EmailConfirmed = true; // Manually set to verified
-        var verificationResult = await UserServices.UpdateEmailConfirmationStatusAsync(userModel);
-
-        // Assert - Verify email confirmation status was updated successfully
+        // Assert
         Assert.True(verificationResult);
-
-        // Verify that the user data in the database reflects the changes
-        var updatedUser = await UserServices.GetUserForRegistrationByEmailAsync(userModel.Email);
-        Assert.NotNull(updatedUser);
-        Assert.Equal(userDto.Email, updatedUser.Email);
-        Assert.Equal(userDto.FirstName, updatedUser.FirstName);
-        Assert.Equal(userDto.LastName, updatedUser.LastName);
-        Assert.True(updatedUser.EmailConfirmed); // Ensure user is marked as verified
+        var verifiedUser = await UserServices.GetUserModelAsync(email: "test@example.com");
+        Assert.True(verifiedUser.EmailConfirmed); // Confirm email was verified
     }
 }

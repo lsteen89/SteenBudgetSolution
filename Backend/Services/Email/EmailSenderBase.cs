@@ -1,17 +1,15 @@
 ﻿using MimeKit;
 using MailKit.Net.Smtp;
+using Backend.Services.Email;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Backend.Interfaces;
+using Backend.Models;
 
 /// <summary>
 /// Base class for managing common email functionality across different controllers.
 /// Provides foundational methods for sending and validating email requests.
 /// </summary>
-
-public interface IEmailSender
-{
-    Task SendEmailAsync(string recipient, string subject, string body);
-}
 
 public abstract class EmailSenderBase : IEmailSender
 {
@@ -23,77 +21,90 @@ public abstract class EmailSenderBase : IEmailSender
         _configuration = configuration;
         _logger = logger;
     }
-
-    public async Task SendEmailAsync(string recipient, string subject, string body)
+    public async Task<bool> TrySendEmailAsync(EmailMessageModel emailMessageModel)
     {
-        var emailMessage = new MimeMessage();
-        emailMessage.From.Add(new MailboxAddress("No Reply", _configuration["Smtp:UsernameNoReply"])); // Using no-reply@ebudget.se 
-        emailMessage.To.Add(new MailboxAddress("", recipient));
-        emailMessage.Subject = subject;
-        emailMessage.Body = new TextPart("html") { Text = body };
+        try
+        {
+            // Configure email settings based on the type
+            ConfigureEmailSettings(emailMessageModel);
+
+            // Call method to handle sending email
+            return await SendEmailAsync(emailMessageModel);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send email of type {EmailType} to {Recipient}", emailMessageModel.EmailType, emailMessageModel.Recipient);
+            return false;
+        }
+    }
+    private void ConfigureEmailSettings(EmailMessageModel emailMessageModel)
+    {
+        switch (emailMessageModel.EmailType)
+        {
+            case EmailType.Verification:
+                ConfigureVerificationEmailSettings(emailMessageModel);
+                break;
+            case EmailType.ContactUs:
+                ConfigureContactUsEmailSettings(emailMessageModel);
+                break;
+            default:
+                throw new InvalidOperationException("Unknown email type");
+        }
+    }
+    private async Task<bool> SendEmailAsync(EmailMessageModel emailMessageModel)
+    {
+        MimeMessage emailMessage = BuildMimeMessage(emailMessageModel);
 
         try
         {
             using (var client = new SmtpClient())
             {
                 _logger.LogInformation("Connecting to SMTP server at {Host}:{Port}", _configuration["Smtp:Host"], _configuration["Smtp:Port"]);
-
                 await client.ConnectAsync(_configuration["Smtp:Host"], int.Parse(_configuration["Smtp:Port"]), MailKit.Security.SecureSocketOptions.StartTls);
 
-                var smtpPassword = Environment.GetEnvironmentVariable("SMTP_PASSWORD") ?? _configuration["Smtp:Password"];
-                await client.AuthenticateAsync(_configuration["Smtp:UsernameNoReply"], smtpPassword);
-
+                await client.AuthenticateAsync(emailMessageModel.Sender, emailMessageModel.SmtpPassword);
                 await client.SendAsync(emailMessage);
-                _logger.LogInformation("Email sent to {Recipient}", recipient);
 
+                _logger.LogInformation("Email sent to {Recipient}", emailMessageModel.Recipient);
                 await client.DisconnectAsync(true);
             }
+            return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error sending email to {Recipient}", recipient);
-            throw;
+            _logger.LogError(ex, "Error sending email to {Recipient}", emailMessageModel.Recipient);
+            return false;
         }
     }
-    public async Task SendContactEmail(string subject, string body, string senderEmail)
+    private MimeMessage BuildMimeMessage(EmailMessageModel emailMessageModel)
     {
+        // Build the MimeMessage from the email message model
         var emailMessage = new MimeMessage();
-        emailMessage.From.Add(new MailboxAddress("No Reply", _configuration["Smtp:UsernameNoReply"])); // Using no-reply@ebudget.se 
+        emailMessage.From.Add(new MailboxAddress(emailMessageModel.FromName, emailMessageModel.Sender));
+        emailMessage.To.Add(new MailboxAddress(emailMessageModel.ToName, emailMessageModel.Recipient));
 
-        var recipient = _configuration["Smtp:UsernameInfoUser"];    // info@mail.ebudget.se
-        emailMessage.To.Add(new MailboxAddress("eBudget Support", recipient));
-
-        emailMessage.ReplyTo.Add(new MailboxAddress("", senderEmail));
-        emailMessage.Subject = subject;
-        emailMessage.Body = new TextPart("html")
+        if (!string.IsNullOrEmpty(emailMessageModel.ReplyTo))
         {
-            Text = $"<p><strong>From:</strong> {senderEmail}</p><p>{body}</p>"
-        };
-
-        try
-        {
-            using (var client = new SmtpClient())
-            {
-                _logger.LogInformation("Connecting to SMTP server at {Host}:{Port}", _configuration["Smtp:Host"], _configuration["Smtp:Port"]);
-
-                await client.ConnectAsync(_configuration["Smtp:Host"], int.Parse(_configuration["Smtp:Port"]), MailKit.Security.SecureSocketOptions.StartTls);
-
-                // Fetching the password from the environment variable specifically for `info@ebudget.se`
-                var smtpPassword = Environment.GetEnvironmentVariable("SMTP_PASSWORD_INFO") ?? _configuration["Smtp:Password"];
-                _logger.LogInformation("Send mail from {Host}:{Port} to {Recipient}", _configuration["Smtp:Host"], _configuration["Smtp:Port"], _configuration["Smtp:UsernameInfoUser"]);
-                await client.AuthenticateAsync(_configuration["Smtp:UsernameInfoUser"], smtpPassword);
-
-                await client.SendAsync(emailMessage);
-                _logger.LogInformation("Email sent to {Recipient}", _configuration["Smtp:UsernameInfoUser"]);
-
-                await client.DisconnectAsync(true);
-            }
+            emailMessage.ReplyTo.Add(new MailboxAddress("", emailMessageModel.ReplyTo));
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error sending email to {Recipient} from {SenderMail}", _configuration["Smtp:UsernameInfoUser"], senderEmail);
-            throw;
-        }
+
+        emailMessage.Subject = emailMessageModel.Subject;
+        emailMessage.Body = new TextPart("html") { Text = emailMessageModel.Body };
+
+        return emailMessage;
+    }
+    // Method to configure settings for verification email
+    private void ConfigureVerificationEmailSettings(EmailMessageModel emailMessageModel)
+    {
+        emailMessageModel.Sender = _configuration["Smtp:UsernameNoReply"];
+        emailMessageModel.FromName = "No Reply";
+        emailMessageModel.SmtpPassword = Environment.GetEnvironmentVariable("SMTP_PASSWORD") ?? _configuration["Smtp:Password"];
     }
 
+    private void ConfigureContactUsEmailSettings(EmailMessageModel emailMessageModel)
+    {
+        emailMessageModel.Sender = _configuration["Smtp:UsernameInfoUser"];
+        emailMessageModel.FromName = "eBudget Support";
+        emailMessageModel.SmtpPassword = Environment.GetEnvironmentVariable("SMTP_PASSWORD_INFO") ?? _configuration["Smtp:Password"];
+    }
 }

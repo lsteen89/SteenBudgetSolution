@@ -43,8 +43,6 @@ namespace Backend.DataAccess
 
             try
             {
-                user.PersoId = Guid.NewGuid();
-                user.Roles = "1";
                 if (_connection.State == ConnectionState.Closed)
                 {
                     await _connection.OpenAsync();
@@ -53,10 +51,7 @@ namespace Backend.DataAccess
                 {
                     _logger.LogInformation("Inserting new user into the database.");
                     await ExecuteAsync(sqlQuery, user, transaction);
-                    _logger.LogInformation("User inserted successfully, generating token.");
-
-                    await GenerateUserTokenAsync(user.PersoId, transaction);
-                    _logger.LogInformation("Token generated successfully.");
+                    _logger.LogInformation("User inserted successfully");
                     await transaction.CommitAsync();
                 }
                 return true;
@@ -75,8 +70,7 @@ namespace Backend.DataAccess
                 }
             }
         }
-
-        public async Task<UserModel> GetUserForRegistrationAsync(Guid? persoid = null, string? email = null)
+        public async Task<UserModel> GetUserModelAsync(Guid? persoid = null, string? email = null)
         {
             if (persoid == null && string.IsNullOrEmpty(email))
             {
@@ -84,7 +78,7 @@ namespace Backend.DataAccess
             }
 
             string sqlQuery = persoid != null
-                ? "SELECT PersoId, Email, EmailConfirmed FROM User WHERE PersoId = @PersoId"
+                ? "SELECT * FROM User WHERE PersoId = @PersoId"
                 : "SELECT * FROM User WHERE Email = @Email";
 
             var parameters = new DynamicParameters();
@@ -109,70 +103,110 @@ namespace Backend.DataAccess
             return user;
         }
 
-        public async Task<bool> UpdateEmailConfirmationStatusAsync(UserModel user)
+        public async Task<bool> UpdateEmailConfirmationStatusAsync(Guid persoid)
         {
-            string checkQuery = "SELECT COALESCE(EmailConfirmed, 0) FROM User WHERE PersoId = @PersoId";
-            bool isAlreadyVerified = await _connection.QueryFirstOrDefaultAsync<bool>(checkQuery, new { PersoId = user.PersoId });
-
-            if (isAlreadyVerified)
+            try
             {
-                _logger.LogWarning("User is already verified: {Email}", user.Email);
-                throw new InvalidOperationException("User has already been verified.");
+                string checkQuery = "SELECT COALESCE(EmailConfirmed, 0) FROM User WHERE PersoId = @PersoId";
+                bool isAlreadyVerified = await _connection.QueryFirstOrDefaultAsync<bool>(checkQuery, new { PersoId = persoid });
+
+                if (isAlreadyVerified)
+                {
+                    _logger.LogWarning("User is already verified: {Persoid}", persoid);
+                    throw new InvalidOperationException("User has already been verified.");
+                }
+
+                string updateQuery = "UPDATE User SET EmailConfirmed = 1 WHERE PersoId = @PersoId";
+                var result = await _connection.ExecuteAsync(updateQuery, new { PersoId = persoid });
+
+                return result > 0;
             }
-
-            string updateQuery = "UPDATE User SET EmailConfirmed = @IsVerified WHERE PersoId = @PersoId";
-            var result = await _connection.ExecuteAsync(updateQuery, new { IsVerified = user.EmailConfirmed, PersoId = user.PersoId });
-
-            return result > 0;
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to update email confirmation status for Persoid: {Persoid}", persoid);
+                throw; // Re-throwing to let the calling method handle if necessary
+            }
         }
 
-        private async Task GenerateUserTokenAsync(Guid persoId, DbTransaction transaction)
+        public async Task<UserTokenModel> GenerateUserTokenAsync(Guid persoId)
         {
-            string token = Guid.NewGuid().ToString();
-            DateTime expiryDate = DateTime.UtcNow.AddHours(24);
-
-            string insertTokenQuery = @"INSERT INTO VerificationToken (PersoId, Token, TokenExpiryDate)
-                                        VALUES (@PersoId, @Token, @TokenExpiryDate)";
-
-            await ExecuteAsync(insertTokenQuery, new
+            return new UserTokenModel
             {
                 PersoId = persoId,
-                Token = token,
-                TokenExpiryDate = expiryDate
-            }, transaction);
+                Token = Guid.NewGuid().ToString(),
+                TokenExpiryDate = DateTime.UtcNow.AddHours(24)
+            };
         }
-
-        public async Task<string> GetUserVerificationTokenAsync(string persoId)
+        public async Task<bool> InsertUserTokenAsync(UserTokenModel tokenModel)
         {
-            string sqlQuery = "SELECT CAST(Token AS CHAR(36)) FROM VerificationToken WHERE PersoId = @PersoId";
-            var token = await _connection.QuerySingleOrDefaultAsync<string>(sqlQuery, new { PersoId = persoId });
-            if (token == null)
+            try
             {
-                _logger.LogWarning("Token not found in database for PersoId: {PersoId}", persoId);
-                throw new KeyNotFoundException("Token not found");
-            }
-            return token;
-        }
+                string insertTokenQuery = @"INSERT INTO VerificationToken (PersoId, Token, TokenExpiryDate)
+                                    VALUES (@PersoId, @Token, @TokenExpiryDate)";
 
-        public async Task<TokenModel?> GetUserVerificationTokenDataAsync(string token)
-        {
-            string sqlQuery = "SELECT PersoId, TokenExpiryDate FROM VerificationToken WHERE Token = @Token";
-            return await _connection.QueryFirstOrDefaultAsync<TokenModel>(sqlQuery, new { Token = token });
+                // Execute the query and check the result
+                int rowsAffected = await ExecuteAsync(insertTokenQuery, new
+                {
+                    PersoId = tokenModel.PersoId,
+                    Token = tokenModel.Token,
+                    TokenExpiryDate = tokenModel.TokenExpiryDate
+                });
+
+                if (rowsAffected > 0)
+                {
+                    return true;
+                }
+                else
+                {
+                    _logger.LogWarning("Token generation query did not affect any rows. PersoId: {PersoId}", tokenModel.PersoId);
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while generating user token for PersoId: {PersoId}", tokenModel.PersoId);
+                return false;
+            }
         }
-        public async Task<UserVerificationTracking> GetUserVerificationTrackingAsync(Guid persoId)
+        
+        public async Task<UserTokenModel?> GetUserVerificationTokenDataAsync(Guid? persoid = null, string? token = null)
+        {
+            if (persoid == null && token == null)
+            {
+                throw new ArgumentException("Either PersoId or Token must be provided.");
+            }
+            string sqlQuery = persoid != null
+                ? "SELECT PersoId, TokenExpiryDate, Token FROM VerificationToken WHERE PersoId = @PersoId"
+                : "SELECT PersoId, TokenExpiryDate, Token FROM VerificationToken WHERE Token = @Token";
+
+            object parameters = persoid != null
+                ? new { PersoId = persoid }
+                : new { Token = token };
+
+            var tokenData = await _connection.QueryFirstOrDefaultAsync<UserTokenModel>(sqlQuery, parameters);
+
+            if (tokenData == null)
+            {
+                _logger.LogWarning("Token not found in database for {IdentifierType}: {Identifier}", persoid != null ? "PersoId" : "Token", persoid ?? (object)token!);
+                throw new KeyNotFoundException($"{(persoid != null ? "PersoId" : "Token")} not found");
+            }
+
+            return tokenData;
+        }
+        public async Task<UserVerificationTrackingModel> GetUserVerificationTrackingAsync(Guid persoId)
         {
             string sql = "SELECT * FROM UserVerificationTracking WHERE PersoId = @PersoId";
-            return await _connection.QueryFirstOrDefaultAsync<UserVerificationTracking>(sql, new { PersoId = persoId });
+            return await _connection.QueryFirstOrDefaultAsync<UserVerificationTrackingModel>(sql, new { PersoId = persoId });
         }
 
-        public async Task InsertUserVerificationTrackingAsync(UserVerificationTracking tracking)
+        public async Task InsertUserVerificationTrackingAsync(UserVerificationTrackingModel tracking)
         {
             string sql = "INSERT INTO UserVerificationTracking (PersoId, LastResendRequestTime, DailyResendCount, LastResendRequestDate, CreatedAt, UpdatedAt) " +
                          "VALUES (@PersoId, @LastResendRequestTime, @DailyResendCount, @LastResendRequestDate, @CreatedAt, @UpdatedAt)";
             await _connection.ExecuteAsync(sql, tracking);
         }
 
-        public async Task UpdateUserVerificationTrackingAsync(UserVerificationTracking tracking)
+        public async Task UpdateUserVerificationTrackingAsync(UserVerificationTrackingModel tracking)
         {
             string sql = "UPDATE UserVerificationTracking SET LastResendRequestTime = @LastResendRequestTime, DailyResendCount = @DailyResendCount, " +
                          "LastResendRequestDate = @LastResendRequestDate, UpdatedAt = @UpdatedAt WHERE PersoId = @PersoId";
@@ -182,6 +216,11 @@ namespace Backend.DataAccess
         {
             string sqlQuery = "DELETE FROM User WHERE Email = @Email";
             return await _connection.ExecuteAsync(sqlQuery, new { Email = email });
+        }
+        public async Task<int> DeleteUserTokenByPersoidAsync(Guid persoid)
+        {
+            string sqlQuery = "DELETE FROM verificationtoken WHERE Persoid = @Persoid";
+            return await _connection.ExecuteAsync(sqlQuery, new { Persoid = persoid });
         }
     }
 }

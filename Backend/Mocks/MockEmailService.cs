@@ -1,4 +1,6 @@
-﻿public class MockEmailService : IEmailService
+﻿using Backend.Models;
+
+public class MockEmailService : IEmailService
 {
     private readonly IConfiguration _configuration;
     private readonly ILogger<MockEmailService> _logger;
@@ -15,7 +17,10 @@
         _configuration = configuration;
         _logger = logger;
     }
-
+    public async Task<bool> ProcessAndSendEmailAsync(EmailMessageModel emailMessage)
+    {
+        throw new NotImplementedException();
+    }
     public async Task SendVerificationEmailAsync(string email, string token)
     {
         // Store the email and token for testing purposes
@@ -49,4 +54,6 @@
 
         await Task.CompletedTask;
     }
+
+
 }
