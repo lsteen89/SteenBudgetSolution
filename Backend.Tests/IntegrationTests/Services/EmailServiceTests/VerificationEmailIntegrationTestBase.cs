@@ -11,7 +11,7 @@ public abstract class VerificationEmailIntegrationTestBase : TestBase, IAsyncLif
     protected VerificationEmailIntegrationTestBase(Func<DateTime>? mockTimeProvider = null)
     {
         MockTimeProvider = mockTimeProvider ?? (() => DateTime.UtcNow); // Default to current time if none provided
-        UserVerificationHelper = new UserVerificationHelper(SqlExecutor, MockEmailService, MockTimeProvider);
+        //UserVerificationHelper = new UserVerificationHelper(SqlExecutor, MockEmailService, MockTimeProvider);
     }
 
     public async Task InitializeAsync()

@@ -7,7 +7,10 @@ using Backend.DataAccess;
 using Backend.Helpers;
 using MySqlConnector;
 using System.Data.Common;
-
+using System;
+using Backend.Settings;
+using Microsoft.Extensions.Options;
+using System.Threading.Tasks;
 public class StartupTest
 {
     public void ConfigureServices(IServiceCollection services)
@@ -37,11 +40,30 @@ public class StartupTest
 
         // Register other dependencies
         services.AddScoped<SqlExecutor>();
-        services.AddScoped<UserVerificationHelper>();
         services.AddScoped<UserServices>();
         services.AddSingleton<IEmailService, MockEmailService>();
+        services.AddScoped<UserVerificationHelper>(provider =>
+        {
+            var sqlExecutor = provider.GetRequiredService<SqlExecutor>();
+            var emailService = provider.GetRequiredService<IEmailService>();
+            var options = provider.GetRequiredService<IOptions<ResendEmailSettings>>();
+            var logger = provider.GetRequiredService<ILogger<UserVerificationHelper>>();
+
+            // Define delegates for email sending and current time retrieval
+            Func<string, Task<bool>> sendVerificationEmail = email =>
+                provider.GetRequiredService<UserServices>().SendVerificationEmailWithTokenAsync(email);
+
+            Func<DateTime> getCurrentTime = () => DateTime.UtcNow;
+
+            // Pass delegates into UserVerificationHelper constructor
+            return new UserVerificationHelper(sqlExecutor, emailService, options, logger, sendVerificationEmail, getCurrentTime);
+        });
 
         // Add logging
-        services.AddLogging();
+        services.AddLogging(builder =>
+        {
+            builder.AddConsole(); // Console logging for test output
+            builder.SetMinimumLevel(LogLevel.Information);
+        });
     }
 }

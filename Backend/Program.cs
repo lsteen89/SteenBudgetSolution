@@ -18,6 +18,7 @@ using Backend.Interfaces;
 using Backend.Services.Validation;
 using Backend.Helpers.Converters;
 using Backend.Settings;
+using Microsoft.Extensions.Options;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -67,7 +68,6 @@ builder.Services.AddScoped<UserServices>();
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddTransient<RecaptchaHelper>();
 builder.Services.AddScoped<IRecaptchaService, RecaptchaService>();
-builder.Services.AddScoped<UserVerificationHelper>();
 builder.Services.Configure<ResendEmailSettings>(builder.Configuration.GetSection("ResendEmailSettings"));
 builder.Services.AddScoped<DbConnection>(provider =>
 {
@@ -90,6 +90,22 @@ else
 {
     builder.Services.AddSingleton<IEmailService, EmailService>();
 }
+builder.Services.AddScoped<UserVerificationHelper>(provider =>
+{
+    var sqlExecutor = provider.GetRequiredService<SqlExecutor>();
+    var emailService = provider.GetRequiredService<IEmailService>();
+    var options = provider.GetRequiredService<IOptions<ResendEmailSettings>>();
+    var logger = provider.GetRequiredService<ILogger<UserVerificationHelper>>();
+
+    // Define delegates for email sending and current time retrieval
+    Func<string, Task<bool>> sendVerificationEmail = email =>
+        provider.GetRequiredService<UserServices>().SendVerificationEmailWithTokenAsync(email);
+
+    Func<DateTime> getCurrentTime = () => DateTime.UtcNow;
+
+    // Pass delegates into UserVerificationHelper constructor
+    return new UserVerificationHelper(sqlExecutor, emailService, options, logger, sendVerificationEmail, getCurrentTime);
+});
 #endregion
 
 #region Rate Limiter Configuration

@@ -44,7 +44,7 @@ public class EmailController : ControllerBase
         try
         {
             _logger.LogInformation("Calling SendContactUsEmail for {Email}", sendEmailDto.SenderEmail);
-            await _emailService!.SendContactUsEmail(sendEmailDto.subject, sendEmailDto.body, sendEmailDto.SenderEmail);
+            //await _emailService!.SendContactUsEmail(sendEmailDto.subject, sendEmailDto.body, sendEmailDto.SenderEmail);
         }
         catch (Exception ex)
         {

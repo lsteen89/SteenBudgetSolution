@@ -43,7 +43,7 @@ public class VerificationEmailIntegrationTests : VerificationEmailIntegrationTes
     private void SetMockTime(DateTime mockTime)
     {
         MockTimeProvider = () => mockTime;
-        UserVerificationHelper = new UserVerificationHelper(SqlExecutor, MockEmailService, MockTimeProvider);
+        //UserVerificationHelper = new UserVerificationHelper(SqlExecutor, MockEmailService, MockTimeProvider);
     }
 
     [Fact]

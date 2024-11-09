@@ -168,7 +168,7 @@ namespace Backend.DataAccess
                 return false;
             }
         }
-        
+
         public async Task<UserTokenModel?> GetUserVerificationTokenDataAsync(Guid? persoid = null, string? token = null)
         {
             if (persoid == null && token == null)
@@ -221,6 +221,11 @@ namespace Backend.DataAccess
         {
             string sqlQuery = "DELETE FROM verificationtoken WHERE Persoid = @Persoid";
             return await _connection.ExecuteAsync(sqlQuery, new { Persoid = persoid });
+        }
+        public async Task<int> UpdateUserTokenAsync(UserTokenModel userTokenModel)
+        {
+            string sqlQuery = "UPDATE VerificationToken SET TokenExpiryDate = @TokenExpiryDate WHERE Persoid = @Persoid";
+            return await _connection.ExecuteAsync(sqlQuery, new { Persoid = userTokenModel.PersoId, TokenExpiryDate = DateTime.UtcNow.AddHours(24) });
         }
     }
 }

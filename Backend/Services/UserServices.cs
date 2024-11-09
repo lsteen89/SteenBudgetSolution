@@ -16,14 +16,15 @@ namespace Backend.Services
         private readonly IConfiguration _configuration;
         private readonly IEmailService _emailService;
         private readonly UserVerificationHelper _userVerificationHelper;
-        private readonly ILogger<RegistrationController> _logger;
+        private readonly ILogger<UserServices> _logger;
 
-        public UserServices(SqlExecutor sqlExecutor, IConfiguration configuration, IEmailService emailService, ILogger<RegistrationController> logger, UserVerificationHelper userVerificationHelper)
+        public UserServices(SqlExecutor sqlExecutor, IConfiguration configuration, IEmailService emailService, ILogger<UserServices> logger, UserVerificationHelper userVerificationHelper)
         {
             _sqlExecutor = sqlExecutor;
             _configuration = configuration;
             _emailService = emailService;
             _userVerificationHelper = userVerificationHelper;
+            _logger = logger;
         }
         // Method for registering a new user
         public async Task<bool> RegisterUserAsync(UserCreationDto userCreationDto)
@@ -178,6 +179,11 @@ namespace Backend.Services
         public async Task<bool> DeleteUserTokenByEmailAsync(Guid persoid)
         {
             var rowsAffected = await _sqlExecutor.DeleteUserTokenByPersoidAsync(persoid);
+            return rowsAffected > 0;
+        }
+        public async Task<bool> UpdateUserTokenAsync(UserTokenModel tokenModel)
+        {
+            var rowsAffected = await _sqlExecutor.UpdateUserTokenAsync(tokenModel);
             return rowsAffected > 0;
         }
 
