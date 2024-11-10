@@ -3,8 +3,8 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Backend.DataAccess;
 using Backend.Helpers;
-using Backend.Services;
-
+using Backend.Services.UserServices;
+using Backend.Tests.Mocks;
 public abstract class TestBase : IDisposable
 {
     protected readonly ServiceProvider ServiceProvider;

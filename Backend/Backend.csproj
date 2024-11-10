@@ -38,4 +38,11 @@
     <Folder Include="logs\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="Backend - Copy (2).csproj" />
+    <None Include="Backend - Copy (2).csproj.user" />
+    <None Include="Backend - Copy.csproj" />
+    <None Include="Backend - Copy.csproj.user" />
+  </ItemGroup>
+
 </Project>

@@ -2,11 +2,17 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Backend.Services;
 using Backend.DataAccess;
 using Backend.Helpers;
 using MySqlConnector;
 using System.Data.Common;
+using System;
+using Backend.Settings;
+using Microsoft.Extensions.Options;
+using System.Threading.Tasks;
+using Backend.Helpers.TestClasses.UserTests.Backend.Helpers.TestClasses.UserTests;
+using Backend.Services.UserServices;
+using Backend.Tests.Mocks;
 
 public class StartupTest
 {
@@ -37,11 +43,31 @@ public class StartupTest
 
         // Register other dependencies
         services.AddScoped<SqlExecutor>();
-        services.AddScoped<UserVerificationHelper>();
         services.AddScoped<UserServices>();
         services.AddSingleton<IEmailService, MockEmailService>();
+        services.AddScoped<UserServiceTest>();
+        services.AddScoped<UserVerificationHelper>(provider =>
+        {
+            var sqlExecutor = provider.GetRequiredService<SqlExecutor>();
+            var emailService = provider.GetRequiredService<IEmailService>();
+            var options = provider.GetRequiredService<IOptions<ResendEmailSettings>>();
+            var logger = provider.GetRequiredService<ILogger<UserVerificationHelper>>();
+
+            // Define delegates for email sending and current time retrieval
+            Func<string, Task<bool>> sendVerificationEmail = email =>
+                provider.GetRequiredService<UserServices>().SendVerificationEmailWithTokenAsync(email);
+
+            Func<DateTime> getCurrentTime = () => DateTime.UtcNow;
+
+            // Pass delegates into UserVerificationHelper constructor
+            return new UserVerificationHelper(sqlExecutor, emailService, options, logger, sendVerificationEmail, getCurrentTime);
+        });
 
         // Add logging
-        services.AddLogging();
+        services.AddLogging(builder =>
+        {
+            builder.AddConsole(); // Console logging for test output
+            builder.SetMinimumLevel(LogLevel.Information);
+        });
     }
 }

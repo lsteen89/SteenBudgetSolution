@@ -1,6 +1,6 @@
 ﻿namespace Backend.Models
 {
-    public class UserVerificationTracking
+    public class UserVerificationTrackingModel
     {
         public int Id { get; set; } // Primary key
 
