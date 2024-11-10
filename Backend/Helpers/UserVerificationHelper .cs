@@ -68,7 +68,7 @@ namespace Backend.Helpers
 
 
             // Step 5: Check existing token, delete if expired
-            var existingToken = await _sqlExecutor.GetUserVerificationTokenDataAsync(user.PersoId);
+            var existingToken = await _sqlExecutor.GetUserVerificationTokenByPersoIdAsync(user.PersoId);
             if (existingToken != null && existingToken.TokenExpiryDate < currentTime)
             {
                 int rowsDeleted = await _sqlExecutor.DeleteUserTokenByPersoidAsync(user.PersoId);

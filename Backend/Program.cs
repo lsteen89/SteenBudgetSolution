@@ -1,6 +1,5 @@
 using Backend.DataAccess;
 using Backend.Helpers;
-using Backend.Services;
 using Backend.Validators;
 using Dapper;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -19,7 +18,9 @@ using Backend.Services.Validation;
 using Backend.Helpers.Converters;
 using Backend.Settings;
 using Microsoft.Extensions.Options;
-
+using Backend.Services.UserServices;
+using Backend.Services;
+using Backend.Tests.Mocks;
 
 var builder = WebApplication.CreateBuilder(args);
 #region Serilog Configuration

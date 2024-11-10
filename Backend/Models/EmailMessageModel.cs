@@ -20,7 +20,7 @@ namespace Backend.Models
         public string ToName { get; set; }     // Display name for recipient
         public string ReplyTo { get; set; }    // Reply-to email address
         public EmailType EmailType { get; set; } // Type of email
-        public string Token { get; set; }      // Token for email verification
+        public Guid Token { get; set; }      // Token for email verification
         public string SmtpPassword { get; set; } // SMTP password
     }
 }

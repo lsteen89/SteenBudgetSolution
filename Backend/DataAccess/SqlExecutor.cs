@@ -133,7 +133,7 @@ namespace Backend.DataAccess
             return new UserTokenModel
             {
                 PersoId = persoId,
-                Token = Guid.NewGuid().ToString(),
+                Token = Guid.NewGuid(),
                 TokenExpiryDate = DateTime.UtcNow.AddHours(24)
             };
         }
@@ -168,31 +168,40 @@ namespace Backend.DataAccess
                 return false;
             }
         }
-
-        public async Task<UserTokenModel?> GetUserVerificationTokenDataAsync(Guid? persoid = null, string? token = null)
+        
+        public async Task<UserTokenModel?> GetUserVerificationTokenByPersoIdAsync(Guid persoid)
         {
-            if (persoid == null && token == null)
+            string sqlQuery = "SELECT PersoId, Token, TokenExpiryDate FROM VerificationToken WHERE PersoId = @PersoId";
+            var result = await _connection.QueryFirstOrDefaultAsync(sqlQuery, new { PersoId = persoid });
+
+            if (result == null)
+                return null;
+
+            return new UserTokenModel
             {
-                throw new ArgumentException("Either PersoId or Token must be provided.");
-            }
-            string sqlQuery = persoid != null
-                ? "SELECT PersoId, TokenExpiryDate, Token FROM VerificationToken WHERE PersoId = @PersoId"
-                : "SELECT PersoId, TokenExpiryDate, Token FROM VerificationToken WHERE Token = @Token";
-
-            object parameters = persoid != null
-                ? new { PersoId = persoid }
-                : new { Token = token };
-
-            var tokenData = await _connection.QueryFirstOrDefaultAsync<UserTokenModel>(sqlQuery, parameters);
-
-            if (tokenData == null)
-            {
-                _logger.LogWarning("Token not found in database for {IdentifierType}: {Identifier}", persoid != null ? "PersoId" : "Token", persoid ?? (object)token!);
-                throw new KeyNotFoundException($"{(persoid != null ? "PersoId" : "Token")} not found");
-            }
-
-            return tokenData;
+                PersoId = result.PersoId,
+                Token = result.Token,
+                TokenExpiryDate = result.TokenExpiryDate
+            };
         }
+
+        public async Task<UserTokenModel?> GetUserVerificationTokenByTokenAsync(Guid token)
+        {
+            string sqlQuery = "SELECT PersoId, Token, TokenExpiryDate FROM VerificationToken WHERE Token = @Token";
+            var result = await _connection.QueryFirstOrDefaultAsync(sqlQuery, new { Token = token });
+
+            if (result == null)
+                return null;
+
+
+            return new UserTokenModel
+            {
+                PersoId = result.PersoId,
+                Token = result.Token,
+                TokenExpiryDate = result.TokenExpiryDate
+            };
+        }
+
         public async Task<UserVerificationTrackingModel> GetUserVerificationTrackingAsync(Guid persoId)
         {
             string sql = "SELECT * FROM UserVerificationTracking WHERE PersoId = @PersoId";
@@ -221,11 +230,6 @@ namespace Backend.DataAccess
         {
             string sqlQuery = "DELETE FROM verificationtoken WHERE Persoid = @Persoid";
             return await _connection.ExecuteAsync(sqlQuery, new { Persoid = persoid });
-        }
-        public async Task<int> UpdateUserTokenAsync(UserTokenModel userTokenModel)
-        {
-            string sqlQuery = "UPDATE VerificationToken SET TokenExpiryDate = @TokenExpiryDate WHERE Persoid = @Persoid";
-            return await _connection.ExecuteAsync(sqlQuery, new { Persoid = userTokenModel.PersoId, TokenExpiryDate = DateTime.UtcNow.AddHours(24) });
         }
     }
 }

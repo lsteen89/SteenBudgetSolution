@@ -7,7 +7,7 @@ using Backend.Models;
 using System.Data.Common;
 using System.Transactions;
 
-namespace Backend.Services
+namespace Backend.Services.UserServices
 {
     public class UserServices
     {
@@ -35,7 +35,8 @@ namespace Backend.Services
                 _logger.LogWarning("Registration attempt with already taken email: {Email}", userCreationDto.Email);
                 return false;
             }
-            else if(userCreationDto.Email == null) {
+            else if (userCreationDto.Email == null)
+            {
                 _logger.LogWarning("Registration attempt with null email");
                 return false;
             }
@@ -44,7 +45,7 @@ namespace Backend.Services
             _logger.LogInformation("Hashing password for user: {Email}", userCreationDto.Email);
             var hashedPassword = BCrypt.Net.BCrypt.HashPassword(userCreationDto.Password);
             var userPersoId = Guid.NewGuid();
-            var roles =  "1"; // Assigning default role TODO: this should be configurable somehow
+            var roles = "1"; // Assigning default role TODO: this should be configurable somehow
 
             var user = new UserModel
             {
@@ -126,9 +127,13 @@ namespace Backend.Services
         {
             return await _sqlExecutor.UpdateEmailConfirmationStatusAsync(persoid);
         }
-        public async Task<UserTokenModel?> GetUserVerificationTokenDataAsync(Guid? persoid = null, string? token = null)
+        public async Task<UserTokenModel?> GetUserVerificationTokenByPersoIdAsync(Guid persoid)
         {
-            return await _sqlExecutor.GetUserVerificationTokenDataAsync(persoid: persoid, token: token);
+            return await _sqlExecutor.GetUserVerificationTokenByPersoIdAsync(persoid);
+        }
+        public async Task<UserTokenModel?> GetUserVerificationTokenByTokenAsync(Guid token)
+        {
+            return await _sqlExecutor.GetUserVerificationTokenByTokenAsync(token);
         }
         public async Task<(bool IsSuccess, int StatusCode, string Message)> ResendVerificationEmailAsync(string email)
         {
@@ -140,15 +145,15 @@ namespace Backend.Services
             var tokenModel = await _sqlExecutor.GenerateUserTokenAsync(persoid);
             return tokenModel;
         }
-        public async Task<bool> InsertUserTokenAsync (UserTokenModel tokenModel)
+        public async Task<bool> InsertUserTokenAsync(UserTokenModel tokenModel)
         {
             bool insertationSuccess = await _sqlExecutor.InsertUserTokenAsync(tokenModel);
             return insertationSuccess;
         }
-        public async Task<bool> VerifyEmailTokenAsync(string token)
+        public async Task<bool> VerifyEmailTokenAsync(Guid token)
         {
             // step 1: Get token data
-            var tokenData = await GetUserVerificationTokenDataAsync(token: token);
+            var tokenData = await GetUserVerificationTokenByTokenAsync(token);
 
             // Step 2: Check if token is valid
             if (tokenData == null)
@@ -174,18 +179,12 @@ namespace Backend.Services
         public async Task<bool> DeleteUserByEmailAsync(string email)
         {
             var rowsAffected = await _sqlExecutor.DeleteUserByEmailAsync(email);
-            return rowsAffected > 0; 
+            return rowsAffected > 0;
         }
         public async Task<bool> DeleteUserTokenByEmailAsync(Guid persoid)
         {
             var rowsAffected = await _sqlExecutor.DeleteUserTokenByPersoidAsync(persoid);
             return rowsAffected > 0;
         }
-        public async Task<bool> UpdateUserTokenAsync(UserTokenModel tokenModel)
-        {
-            var rowsAffected = await _sqlExecutor.UpdateUserTokenAsync(tokenModel);
-            return rowsAffected > 0;
-        }
-
     }
 }

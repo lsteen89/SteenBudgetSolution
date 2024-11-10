@@ -2,7 +2,7 @@
 using Backend.Helpers;
 using Backend.Interfaces;
 using Backend.Models;
-using Backend.Services;
+using Backend.Services.UserServices;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Transactions;
@@ -79,8 +79,13 @@ namespace Backend.Controllers
         }
 
         [HttpGet("verify-email")]
-        public async Task<IActionResult> VerifyEmail(string token)
+        public async Task<IActionResult> VerifyEmail(Guid token)
         {
+            if (!Guid.TryParse(token.ToString(), out Guid parsedToken))
+            {
+                _logger.LogWarning("Invalid token format: {token}", token);
+                return BadRequest(new { message = "Invalid token format" });
+            }
             bool emailConfirmed = await _userServices.VerifyEmailTokenAsync(token);
             if (!emailConfirmed)
             {

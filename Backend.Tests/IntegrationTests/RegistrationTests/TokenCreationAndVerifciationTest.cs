@@ -39,7 +39,8 @@ namespace Backend.Tests.IntegrationTests.RegistrationTests
 
             // Act - Generate and verify token
             var tokenModel = await GenerateAndInsertTokenAsync(registeredUser.PersoId);
-            var verificationResult = await UserServices.VerifyEmailTokenAsync("invalid-token");
+            Guid invalidGuid = Guid.NewGuid(); // Generate invalid token
+            var verificationResult = await UserServices.VerifyEmailTokenAsync(invalidGuid);
 
             // Assert
             Assert.False(verificationResult);
@@ -57,7 +58,7 @@ namespace Backend.Tests.IntegrationTests.RegistrationTests
             // Act - Generate and verify token
             var tokenModel = await GenerateAndInsertTokenAsync(registeredUser.PersoId);
             tokenModel.TokenExpiryDate = DateTime.UtcNow.AddMinutes(-1); // Set expiry date to past
-            await UserServices.UpdateUserTokenAsync(tokenModel); // Update the expiry in DB
+            await UserServiceTest.ModifyTokenExpiryAndRetrieveAsync(tokenModel); // Update the expiry in DB
             var verificationResult = await UserServices.VerifyEmailTokenAsync(tokenModel.Token);
 
             // Assert

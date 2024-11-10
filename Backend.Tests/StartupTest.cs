@@ -2,7 +2,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Backend.Services;
 using Backend.DataAccess;
 using Backend.Helpers;
 using MySqlConnector;
@@ -11,6 +10,10 @@ using System;
 using Backend.Settings;
 using Microsoft.Extensions.Options;
 using System.Threading.Tasks;
+using Backend.Helpers.TestClasses.UserTests.Backend.Helpers.TestClasses.UserTests;
+using Backend.Services.UserServices;
+using Backend.Tests.Mocks;
+
 public class StartupTest
 {
     public void ConfigureServices(IServiceCollection services)
@@ -42,6 +45,7 @@ public class StartupTest
         services.AddScoped<SqlExecutor>();
         services.AddScoped<UserServices>();
         services.AddSingleton<IEmailService, MockEmailService>();
+        services.AddScoped<UserServiceTest>();
         services.AddScoped<UserVerificationHelper>(provider =>
         {
             var sqlExecutor = provider.GetRequiredService<SqlExecutor>();
