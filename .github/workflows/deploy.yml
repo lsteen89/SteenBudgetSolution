@@ -25,6 +25,7 @@ jobs:
           
           # Pass the environment variable into the ssh session
           ssh -o StrictHostKeyChecking=no -p 2222 pi@155.4.68.41 << EOF
+            export PATH=$PATH:/usr/share/dotnet:/usr/bin
             set -e
             cd /home/pi/SteenBudgetSolution
 
