@@ -60,7 +60,7 @@ jobs:
             
             # Build and deploy frontend
             cd ../Frontend
-            npm install --legacy-peer-deps
+            npm install
             
             # Fix permissions for node_modules
             sudo chmod -R 755 node_modules
