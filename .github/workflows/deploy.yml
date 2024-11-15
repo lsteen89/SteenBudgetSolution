@@ -60,7 +60,10 @@ jobs:
             
             # Build and deploy frontend
             cd ../Frontend
-            npm install
+            npm install --legacy-peer-deps
+            
+            # Fix permissions for node_modules
+            sudo chmod -R 755 node_modules
             
             REACT_APP_RECAPTCHA_SITE_KEY=$REACT_APP_RECAPTCHA_SITE_KEY REACT_APP_API_URL=$REACT_APP_API_URL npm run build
             
