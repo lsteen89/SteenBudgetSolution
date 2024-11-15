@@ -1,9 +1,9 @@
 ﻿using System.Threading.Tasks;
-using Backend.Interfaces;
-using Backend.Models;
-using Backend.Services;
-using Backend.Services.Email;
+using Backend.Domain.Entities;
+using Backend.Application.Services;
+using Backend.Infrastructure.Email;
 using Microsoft.Extensions.Logging;
+using Backend.Domain.Interfaces;
 
 namespace Backend.Tests.Mocks
 {

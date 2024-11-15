@@ -1,4 +1,4 @@
-﻿using Backend.Models;
+﻿using Backend.Domain.Entities;
 using System.Threading.Tasks;
 using System;
 using Xunit;

@@ -1,14 +1,15 @@
 ﻿using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
-using Backend.DataAccess;
-using Backend.Helpers;
-using Backend.Services.UserServices;
 using Backend.Tests.Mocks;
+using Backend.Infrastructure.Data;
+using Backend.Application.Services.UserServices;
+using Backend.Infrastructure.Helpers;
+using Backend.Infrastructure.Data.Sql.UserQueries;
 public abstract class TestBase : IDisposable
 {
     protected readonly ServiceProvider ServiceProvider;
-    protected readonly SqlExecutor SqlExecutor;
+    private readonly UserSqlExecutor UserSqlExecutor;
     protected readonly UserServices UserServices;
     protected readonly MockEmailService MockEmailService;
     protected readonly UserVerificationHelper UserVerificationHelper;
@@ -21,7 +22,7 @@ public abstract class TestBase : IDisposable
 
         // Build the service provider and retrieve necessary services
         ServiceProvider = serviceCollection.BuildServiceProvider();
-        SqlExecutor = ServiceProvider.GetRequiredService<SqlExecutor>();
+        UserSqlExecutor = ServiceProvider.GetRequiredService<UserSqlExecutor>();
         UserServices = ServiceProvider.GetRequiredService<UserServices>();
         MockEmailService = ServiceProvider.GetRequiredService<IEmailService>() as MockEmailService
                            ?? throw new InvalidOperationException("MockEmailService not registered.");

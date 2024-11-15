@@ -2,12 +2,12 @@
 using Xunit;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Backend.Models;
-using Backend.Services;
+using Backend.Application.Services;
 using Backend.Helpers;
-using Backend.Interfaces;
 using Backend.Tests.Mocks;
 using System;
+using Backend.Domain.Entities;
+using Backend.Domain.Interfaces;
 
 public class SendAndPrepareVerificationEmail
 {
