@@ -1,6 +1,7 @@
 ﻿using System.Net.Mail;
 using Backend.Infrastructure.Email;
 using Backend.Domain.Entities;
+using Backend.Application.DTO;
 
 /// <summary>
 /// Manages the flow of email preparation and sending based on email type.
@@ -55,5 +56,16 @@ public class EmailService : EmailSenderBase, IEmailService
             return false;
         }
 
+    }
+    public async Task<bool> SendContactUsEmail (string subject, string body, string SenderEmail)
+    {
+        EmailMessageModel emailMessageModel = new EmailMessageModel
+        {
+            Subject = subject,
+            Body = body,
+            FromName = SenderEmail,
+            EmailType = EmailType.ContactUs
+        };
+        return await ProcessAndSendEmailAsync(emailMessageModel);
     }
 }

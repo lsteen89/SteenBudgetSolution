@@ -14,8 +14,10 @@ using Backend.Infrastructure.Email;
 using Backend.Application.Services.UserServices;
 using Backend.Infrastructure.Helpers;
 using Backend.Application.Settings;
-using Backend.Domain.Interfaces;
 using Backend.Infrastructure.Data.Sql.UserQueries;
+using Backend.Application.Services.EmailServices;
+using Backend.Application.Interfaces;
+using Backend.Infrastructure.Data.Sql.Interfaces;
 
 public class StartupTest
 {
@@ -45,18 +47,21 @@ public class StartupTest
         });
 
         // Register other dependencies
-        services.AddScoped<UserSqlExecutor>();
+        services.AddScoped<IUserSqlExecutor, UserSqlExecutor>();
+        services.AddScoped<ITokenSqlExecutor, TokenSqlExecutor>();
         services.AddScoped<UserServices>();
         //services.AddSingleton<IEmailService, MockEmailService>();
         services.AddSingleton<IEmailPreparationService, EmailPreparationService>();
+        services.AddSingleton<IEmailService, MockEmailService>();
 
         services.AddScoped<UserServiceTest>();
-        services.AddScoped<UserVerificationHelper>(provider =>
+        services.AddScoped<EmailVerificationService>(provider =>
         {
-            var UserSqlExecutor = provider.GetRequiredService<UserSqlExecutor>();
+            var userSqlExecutor = provider.GetRequiredService<IUserSqlExecutor>();
+            var tokenSqlExecutor = provider.GetRequiredService<ITokenSqlExecutor>();
             var emailService = provider.GetRequiredService<IEmailService>();
             var options = provider.GetRequiredService<IOptions<ResendEmailSettings>>();
-            var logger = provider.GetRequiredService<ILogger<UserVerificationHelper>>();
+            var logger = provider.GetRequiredService<ILogger<EmailVerificationService>>();
 
             // Define delegates for email sending and current time retrieval
             Func<string, Task<bool>> sendVerificationEmail = email =>
@@ -65,7 +70,7 @@ public class StartupTest
             Func<DateTime> getCurrentTime = () => DateTime.UtcNow;
 
             // Pass delegates into UserVerificationHelper constructor
-            return new UserVerificationHelper(UserSqlExecutor, emailService, options, logger, sendVerificationEmail, getCurrentTime);
+            return new EmailVerificationService(userSqlExecutor, tokenSqlExecutor, emailService, options, logger, sendVerificationEmail, getCurrentTime);
         });
 
         // Add logging

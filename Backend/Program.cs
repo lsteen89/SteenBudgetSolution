@@ -22,11 +22,12 @@ using Backend.Application.Services.Validation;
 using Backend.Application.Validators;
 using Backend.Infrastructure.Helpers;
 using Backend.Application.Settings;
-using Backend.Domain.Interfaces;
 using Backend.Application.Interfaces;
 using Backend.Infrastructure.Data.Sql.UserQueries;
 using Microsoft.Extensions.DependencyInjection;
 using Backend.Application.Services.TokenServices;
+using Backend.Application.Services.EmailServices;
+using Backend.Infrastructure.Data.Sql.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 #region Serilog Configuration
@@ -72,8 +73,8 @@ var configuration = builder.Configuration;
 #region Injected Services
 
 // Section for SQL related services
-builder.Services.AddScoped<UserSqlExecutor>();
-builder.Services.AddScoped<TokenSqlExecutor>();
+builder.Services.AddScoped<IUserSqlExecutor, UserSqlExecutor>();
+builder.Services.AddScoped<ITokenSqlExecutor, TokenSqlExecutor>();
 
 builder.Services.AddScoped<UserServices>();
 builder.Services.AddScoped<TokenService>();
@@ -114,12 +115,13 @@ else
     builder.Services.AddSingleton<IEmailPreparationService, EmailPreparationService>();
 }
 
-builder.Services.AddScoped<UserVerificationHelper>(provider =>
+builder.Services.AddScoped<EmailVerificationService>(provider =>
 {
     var userSqlExecutor = provider.GetRequiredService<UserSqlExecutor>();
-    var emailService = provider.GetRequiredService<IEmailService>();
+    var tokenSqlExecutor = provider.GetRequiredService<TokenSqlExecutor>();
+    var emailService = provider.GetRequiredService<EmailService>();
     var options = provider.GetRequiredService<IOptions<ResendEmailSettings>>();
-    var logger = provider.GetRequiredService<ILogger<UserVerificationHelper>>();
+    var logger = provider.GetRequiredService<ILogger<EmailVerificationService>>();
 
 
     Func<string, Task<bool>> sendVerificationEmail = async email =>
@@ -128,7 +130,7 @@ builder.Services.AddScoped<UserVerificationHelper>(provider =>
     Func<DateTime> getCurrentTime = () => DateTime.UtcNow;
 
 
-    return new UserVerificationHelper(userSqlExecutor, emailService, options, logger, sendVerificationEmail, getCurrentTime);
+    return new EmailVerificationService(userSqlExecutor, tokenSqlExecutor, emailService, options, logger, sendVerificationEmail, getCurrentTime);
 });
 #endregion
 

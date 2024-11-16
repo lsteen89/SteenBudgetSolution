@@ -4,7 +4,7 @@ using Backend.Infrastructure.Email;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Backend.Domain.Entities;
-using Backend.Domain.Interfaces;
+using Backend.Application.Interfaces;
 
 /// <summary>
 /// Base class for managing common email functionality across different controllers.

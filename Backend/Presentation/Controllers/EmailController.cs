@@ -15,7 +15,7 @@ public class EmailController : ControllerBase
     private readonly ILogger<EmailController> _logger;
     private readonly IRecaptchaService _recaptchaService;
 
-    public EmailController(IEmailService emailService, ILogger<EmailController> logger, IRecaptchaService recaptchaService)
+    public EmailController(EmailService emailService, ILogger<EmailController> logger, IRecaptchaService recaptchaService)
     {
         _emailService = emailService;
         _logger = logger;
@@ -43,7 +43,9 @@ public class EmailController : ControllerBase
         try
         {
             _logger.LogInformation("Calling SendContactUsEmail for {Email}", sendEmailDto.SenderEmail);
-            //await _emailService!.SendContactUsEmail(sendEmailDto.subject, sendEmailDto.body, sendEmailDto.SenderEmail);
+            bool SentContactUsMail = await _emailService!.SendContactUsEmail(sendEmailDto.subject, sendEmailDto.body, sendEmailDto.SenderEmail);
+            if (!SentContactUsMail)
+                return BadRequest(new { message = "Failed to send contact us email. Please try again." });
         }
         catch (Exception ex)
         {

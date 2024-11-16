@@ -36,6 +36,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="Domain\Interfaces\" />
     <Folder Include="logs\" />
   </ItemGroup>
 

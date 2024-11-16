@@ -1,5 +1,5 @@
-﻿using Backend.Domain.Entities;
-using Backend.Domain.Interfaces;
+﻿using Backend.Application.Interfaces;
+using Backend.Domain.Entities;
 using MimeKit;
 using Org.BouncyCastle.Cms;
 using System.Net.Mail;
@@ -39,9 +39,9 @@ namespace Backend.Infrastructure.Email
                 Subject = emailMessageModel.Subject,
                 Body = emailMessageModel.Subject,
                 Sender = _configuration["Smtp:UsernameNoReply"],         // no-reply@ebudget.se
-                FromName = "No Reply",
+                FromName = emailMessageModel.FromName,
                 ToName = "eBudget Support",
-                ReplyTo = emailMessageModel.ReplyTo
+                ReplyTo = emailMessageModel.FromName
             };
         }
     }

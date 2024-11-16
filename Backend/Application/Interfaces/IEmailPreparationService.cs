@@ -1,6 +1,6 @@
 ﻿using Backend.Domain.Entities;
 
-namespace Backend.Domain.Interfaces
+namespace Backend.Application.Interfaces
 {
     public interface IEmailPreparationService
     {

@@ -2,10 +2,11 @@
 using Dapper;
 using System.Data.Common;
 using System.Data;
+using Backend.Infrastructure.Data.Sql.Interfaces;
 
 namespace Backend.Infrastructure.Data.Sql.UserQueries
 {
-    public class UserSqlExecutor : SqlBase
+    public class UserSqlExecutor : SqlBase, IUserSqlExecutor
     {
         public UserSqlExecutor(DbConnection connection, ILogger<UserSqlExecutor> logger)
         : base(connection, logger)
@@ -25,6 +26,10 @@ namespace Backend.Infrastructure.Data.Sql.UserQueries
 
             try
             {
+                if(_connection.State == ConnectionState.Closed)
+                {
+                    await _connection.OpenAsync();
+                }
                 using (var transaction = await _connection.BeginTransactionAsync())
                 {
                     _logger.LogInformation("Inserting new user into the database.");

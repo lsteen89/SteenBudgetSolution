@@ -7,7 +7,7 @@ using Backend.Helpers;
 using Backend.Tests.Mocks;
 using System;
 using Backend.Domain.Entities;
-using Backend.Domain.Interfaces;
+using Backend.Application.Interfaces;
 
 public class SendAndPrepareVerificationEmail
 {
@@ -21,7 +21,7 @@ public class SendAndPrepareVerificationEmail
         _loggerMock = new Mock<ILogger<MockEmailService>>();
 
         // Initialize the MockEmailService with mocked dependencies
-        _mockEmailService = new MockEmailService(_emailPreparationServiceMock.Object, _loggerMock.Object);
+        _mockEmailService = new MockEmailService(_loggerMock.Object, _emailPreparationServiceMock.Object);
     }
 
     [Fact]

@@ -1,9 +1,10 @@
 ﻿using Backend.Domain.Entities;
 using System.Data.Common;
 using Dapper;
+using Backend.Infrastructure.Data.Sql.Interfaces;
 namespace Backend.Infrastructure.Data.Sql.UserQueries
 {
-    public class TokenSqlExecutor : SqlBase
+    public class TokenSqlExecutor : SqlBase, ITokenSqlExecutor
     {
         public TokenSqlExecutor(DbConnection connection, ILogger<UserSqlExecutor> logger)
 :       base(connection, logger)

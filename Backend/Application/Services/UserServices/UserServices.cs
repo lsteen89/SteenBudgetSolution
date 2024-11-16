@@ -6,24 +6,28 @@ using Backend.Infrastructure.Helpers;
 using System.Data.Common;
 using System.Transactions;
 using Backend.Infrastructure.Data.Sql.UserQueries;
+using Backend.Application.Services.EmailServices;
+using Backend.Infrastructure.Data.Sql.Interfaces;
 
 namespace Backend.Application.Services.UserServices
 {
     public class UserServices
     {
-        private readonly UserSqlExecutor _userSqlExecutor;
+        private readonly IUserSqlExecutor _userSqlExecutor;
+        private readonly ITokenSqlExecutor _tokenSqlExecutor;
         private readonly string? _jwtSecretKey;
         private readonly IConfiguration _configuration;
-        private readonly IEmailService _emailService;
-        private readonly UserVerificationHelper _userVerificationHelper;
+        private readonly IEmailService _iEmailService;
+        private readonly EmailVerificationService _emailVerificationService;
         private readonly ILogger<UserServices> _logger;
 
-        public UserServices(UserSqlExecutor userSqlExecutor, IConfiguration configuration, IEmailService emailService, ILogger<UserServices> logger, UserVerificationHelper userVerificationHelper)
+        public UserServices(IUserSqlExecutor userSqlExecutor, ITokenSqlExecutor tokenSqlExecutor, IConfiguration configuration, IEmailService IemailService, ILogger<UserServices> logger, EmailVerificationService emailVerificationService)
         {
             _userSqlExecutor = userSqlExecutor;
+            _tokenSqlExecutor = tokenSqlExecutor;
             _configuration = configuration;
-            _emailService = emailService;
-            _userVerificationHelper = userVerificationHelper;
+            _iEmailService = IemailService;
+            _emailVerificationService = emailVerificationService;
             _logger = logger;
         }
         // Method for registering a new user
@@ -95,7 +99,7 @@ namespace Backend.Application.Services.UserServices
                 Token = tokenModel.Token,
                 EmailType = EmailType.Verification
             };
-            bool emailSent = await _emailService.ProcessAndSendEmailAsync(emailMessageModel);
+            bool emailSent = await _iEmailService.ProcessAndSendEmailAsync(emailMessageModel);
             if (!emailSent)
             {
                 _logger.LogError("Failed to send verification email for email: {Email}", user.Email);
@@ -129,25 +133,25 @@ namespace Backend.Application.Services.UserServices
         }
         public async Task<UserTokenModel?> GetUserVerificationTokenByPersoIdAsync(Guid persoid)
         {
-            return await _userSqlExecutor.GetUserVerificationTokenByPersoIdAsync(persoid);
+            return await _tokenSqlExecutor.GetUserVerificationTokenByPersoIdAsync(persoid);
         }
         public async Task<UserTokenModel?> GetUserVerificationTokenByTokenAsync(Guid token)
         {
-            return await _userSqlExecutor.GetUserVerificationTokenByTokenAsync(token);
+            return await _tokenSqlExecutor.GetUserVerificationTokenByTokenAsync(token);
         }
         public async Task<(bool IsSuccess, int StatusCode, string Message)> ResendVerificationEmailAsync(string email)
         {
-            return await _userVerificationHelper.ResendVerificationEmailAsync(email);
+            return await _emailVerificationService.ResendVerificationEmailAsync(email); 
         }
         public async Task<UserTokenModel> CreateEmailTokenAsync(Guid persoid)
         {
             // Generate token for user
-            var tokenModel = await _userSqlExecutor.GenerateUserTokenAsync(persoid);
+            var tokenModel = await _tokenSqlExecutor.GenerateUserTokenAsync(persoid);
             return tokenModel;
         }
         public async Task<bool> InsertUserTokenAsync(UserTokenModel tokenModel)
         {
-            bool insertationSuccess = await _userSqlExecutor.InsertUserTokenAsync(tokenModel);
+            bool insertationSuccess = await _tokenSqlExecutor.InsertUserTokenAsync(tokenModel);
             return insertationSuccess;
         }
         public async Task<bool> VerifyEmailTokenAsync(Guid token)
@@ -183,7 +187,7 @@ namespace Backend.Application.Services.UserServices
         }
         public async Task<bool> DeleteUserTokenByEmailAsync(Guid persoid)
         {
-            var rowsAffected = await _userSqlExecutor.DeleteUserTokenByPersoidAsync(persoid);
+            var rowsAffected = await _tokenSqlExecutor.DeleteUserTokenByPersoidAsync(persoid);
             return rowsAffected > 0;
         }
     }

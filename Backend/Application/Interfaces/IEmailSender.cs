@@ -1,7 +1,7 @@
 ﻿using Backend.Domain.Entities;
 using MimeKit;
 
-namespace Backend.Domain.Interfaces
+namespace Backend.Application.Interfaces
 {
     public interface IEmailSender
     {

@@ -3,21 +3,24 @@ using Backend.Infrastructure.Data.Sql.UserQueries;
 using Microsoft.Extensions.Options;
 using Backend.Application.Settings;
 using Microsoft.Extensions.Logging;
+using Backend.Infrastructure.Data.Sql.Interfaces;
 
 namespace Backend.Application.Services.EmailServices
 {
     public class EmailVerificationService
     {
-        private readonly UserSqlExecutor _userSqlExecutor;
+        private readonly IUserSqlExecutor _userSqlExecutor;
+        private readonly ITokenSqlExecutor _tokenSqlExecutor;
         private readonly IEmailService _emailService;
         private readonly ILogger<EmailVerificationService> _logger;
         private readonly Func<string, Task<bool>> _sendVerificationEmail;
         private readonly Func<DateTime> _getCurrentTime;
         private readonly ResendEmailSettings _settings;
 
-        public EmailVerificationService(UserSqlExecutor userSqlExecutor, IEmailService emailService, IOptions<ResendEmailSettings> options, ILogger<EmailVerificationService> logger, Func<string, Task<bool>> sendVerificationEmail, Func<DateTime> getCurrentTime = null)
+        public EmailVerificationService(IUserSqlExecutor userSqlExecutor, ITokenSqlExecutor tokenSqlExecutor,IEmailService emailService, IOptions<ResendEmailSettings> options, ILogger<EmailVerificationService> logger, Func<string, Task<bool>> sendVerificationEmail, Func<DateTime> getCurrentTime = null)
         {
             _userSqlExecutor = userSqlExecutor;
+            _tokenSqlExecutor = tokenSqlExecutor;
             _emailService = emailService;
             _getCurrentTime = getCurrentTime ?? (() => DateTime.UtcNow);
             _settings = options.Value;
@@ -61,7 +64,7 @@ namespace Backend.Application.Services.EmailServices
 
         private async Task<UserVerificationTrackingModel> GetOrInitializeTrackingAsync(Guid persoId)
         {
-            var tracking = await _userSqlExecutor.GetUserVerificationTrackingAsync(persoId);
+            var tracking = await _tokenSqlExecutor.GetUserVerificationTrackingAsync(persoId);
             if (tracking == null)
             {
                 tracking = new UserVerificationTrackingModel
@@ -69,7 +72,7 @@ namespace Backend.Application.Services.EmailServices
                     PersoId = persoId,
                     LastResendRequestDate = _getCurrentTime()
                 };
-                await _userSqlExecutor.InsertUserVerificationTrackingAsync(tracking);
+                await _tokenSqlExecutor.InsertUserVerificationTrackingAsync(tracking);
             }
             return tracking;
         }
@@ -85,12 +88,12 @@ namespace Backend.Application.Services.EmailServices
             return (true, 200, "Resend allowed.");
         }
 
-        private async Task<bool> CheckAndDeleteExpiredTokenAsync(int persoId, DateTime currentTime)
+        private async Task<bool> CheckAndDeleteExpiredTokenAsync(Guid persoId, DateTime currentTime)
         {
-            var existingToken = await _userSqlExecutor.GetUserVerificationTokenByPersoIdAsync(persoId);
+            var existingToken = await _tokenSqlExecutor.GetUserVerificationTokenByPersoIdAsync(persoId);
             if (existingToken != null && existingToken.TokenExpiryDate < currentTime)
             {
-                int rowsDeleted = await _userSqlExecutor.DeleteUserTokenByPersoidAsync(persoId);
+                int rowsDeleted = await _tokenSqlExecutor.DeleteUserTokenByPersoidAsync(persoId);
                 if (rowsDeleted == 0)
                 {
                     _logger.LogError("Failed to delete expired verification token for user {PersoId}.", persoId);
@@ -114,7 +117,7 @@ namespace Backend.Application.Services.EmailServices
             tracking.DailyResendCount = tracking.LastResendRequestDate == currentTime.Date ? tracking.DailyResendCount + 1 : 1;
             tracking.LastResendRequestDate = currentTime.Date;
             tracking.UpdatedAt = currentTime;
-            await _userSqlExecutor.UpdateUserVerificationTrackingAsync(tracking);
+            await _tokenSqlExecutor.UpdateUserVerificationTrackingAsync(tracking);
         }
     }
 }

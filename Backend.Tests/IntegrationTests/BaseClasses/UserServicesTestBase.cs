@@ -8,7 +8,7 @@ using Backend.Helpers.TestClasses.UserTests.Backend.Helpers.TestClasses.UserTest
 using Backend.Domain.Entities;
 using Backend.Application.Services.UserServices;
 using Backend.Application.DTO;
-public abstract class UserServicesTestBase : TestBase, IAsyncLifetime
+public abstract class UserServicesTestBase : IntegrationTestBase, IAsyncLifetime
 {
     protected readonly ILogger<UserServicesTestBase> Logger;
     protected UserCreationDto _userCreationDto;
