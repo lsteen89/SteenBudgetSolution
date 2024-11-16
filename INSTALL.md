@@ -1,90 +1,307 @@
-Installation Notes for SteenBudgetSolution
+Installation Guide for SteenBudgetSolution
+
+This guide provides detailed instructions for installing and configuring SteenBudgetSolution on both Linux (e.g., Raspberry Pi OS Bookworm) and Windows systems. The guide covers both production and development setups, with notes indicating steps that are specific to production environments.
+Table of Contents
+
+    Prerequisites
+    Environment Variables
+    Security Configuration (Production Only)
+    Database Setup
+    Building and Running the Backend
+    Building and Running the Frontend
+    Web Server Configuration (Production Only)
+    Setting Up Graylog for Logging (Optional)
+    Domain, DNS, and Email Configuration (Optional)
+    Final Security and Maintenance
+    Conclusion
+
 1. Prerequisites
+Operating System
 
-Ensure the following are installed on your Linux server:
+    Linux: Raspberry Pi OS Bookworm (without GUI) with SSH access for production.
+    Windows: For development and testing environments.
 
-    Nginx (or another web server) for serving the frontend.
-    Dovecot (or another SMTP server) for handling outgoing emails.
-    MariaDB (or MySQL) for database storage.
-    Fail2Ban and UFW for enhanced SSH and SMTP security.
-    .NET 8 SDK and Runtime for the backend application.
+Software Requirements
+
+Ensure the following software is installed on your system:
+
+    .NET 8 SDK and Runtime
+
+        Linux:
+
+            Install using the script for Raspberry Pi: dotnet8pi
+
+            Verify installation:
+
+            dotnet --version
+
+        Windows:
+            Download and install from Microsoft .NET Downloads.
+
+    SQL Database
+        Production: MariaDB.
+        Development/Test: MariaDB or SQL Server Management Studio (SSMS).
+        Run the database scripts under /Backend/SQL/ for table creation.
+            Two script folders are available:
+                MariaDB/
+                SSMS/
+
+    Web Server (Production Only)
+        Nginx (recommended) or another web server.
+
+    Mail Server (Production Only)
+        Dovecot or another SMTP server for handling outgoing emails.
+        Configure with virtual users and set up DNS records (DMARC, DKIM, SPF) using Cloudflare or another DNS provider.
+        Install OpenDKIM for DKIM signing.
+        Use SSL certificates to enhance security.
+
+    Security Tools (Production Only)
+        Fail2Ban: To monitor and restrict malicious login attempts.
+        UFW (Uncomplicated Firewall): To manage firewall rules.
+
+    Optional Software
+        Graylog, MongoDB, and Elasticsearch: For centralized logging (optional).
 
 2. Environment Variables
 
-Set the following environment variables for secure handling of sensitive data:
+Set the following environment variables to securely handle sensitive data.
+Required for All Environments
 
     JWT_SECRET_KEY: Secret key for JSON Web Token authentication.
     DB_CONNECTION_STRING: Connection string for the MariaDB database.
-    SMTP_PASSWORD: Password for the no-reply@mydomain.com SMTP user (used for user verification and notifications).
     RECAPTCHA_SECRET_KEY: Secret key for Google reCAPTCHA verification.
-    SMTP_PASSWORD_INFO: Password for the info@mydomain.com SMTP user (for contact and support purposes).
 
-Configure the environment variables in /etc/environment.d/steenbudget.conf or use another secure location that is referenced by /etc/systemd/system/steenbudget.service for environment loading.
-3. Security Tips
+Production Only
+
+    SMTP_PASSWORD: Password for the no-reply@yourdomain.com SMTP user (used for user verification and notifications).
+    SMTP_PASSWORD_INFO: Password for the info@yourdomain.com SMTP user (used for contact and support purposes).
+
+Configuring Environment Variables
+
+    Linux:
+        Create a file at /etc/environment.d/steenbudget.conf and add your environment variables.
+        Alternatively, include them directly in the systemd service file.
+
+    Windows:
+        Set environment variables via System Properties or using PowerShell.
+
+3. Security Configuration (Production Only)
 SSH Configuration
 
-    Use SSH keys instead of password-based authentication.
-    Modify /etc/ssh/sshd_config to disable password-based login and enforce key-based authentication.
+    Disable Password Authentication:
+
+    Edit /etc/ssh/sshd_config:
+
+        PasswordAuthentication no
+
+        Enable SSH Key Authentication:
+
+        Ensure PubkeyAuthentication is set to yes.
+
+Restart SSH Service:
+
+    sudo systemctl restart sshd
 
 UFW Firewall
 
-    Allow only necessary ports (typically 22 for SSH (or even better, a random port), 80/443 for HTTP/HTTPS, and the port for your SMTP server).
+Install UFW:
 
-    Enable UFW with sudo ufw enable.
+    sudo apt update
+    sudo apt install ufw
 
-    Example configuration:
-
-    bash
+Allow Necessary Ports:
 
     sudo ufw allow OpenSSH
-    sudo ufw allow "Nginx Full"
-    sudo ufw allow 587  # if using SMTP over TLS
+    sudo ufw allow 'Nginx Full'
+    sudo ufw allow 587  # SMTP over TLS
+
+Enable UFW:
+
+    sudo ufw enable
 
 Fail2Ban
 
-    Configure Fail2Ban to monitor and restrict malicious login attempts on SSH and SMTP.
-    Place configuration files in /etc/fail2ban/jail.local.
+    Install Fail2Ban:
+
+    sudo apt install fail2ban
+
+Configure Fail2Ban:
+
+Create /etc/fail2ban/jail.local:
+
+    [sshd]
+    enabled = true
+    port    = ssh
+    filter  = sshd
+    logpath = /var/log/auth.log
+    maxretry = 5
+
+Restart Fail2Ban:
+
+    sudo systemctl restart fail2ban
 
 4. Database Setup
+Install MariaDB
 
-Run the database scripts included with SteenBudgetSolution to set up your MariaDB tables and relationships.
+    Linux:
 
-    Log into MariaDB:
+        sudo apt update
+        sudo apt install mariadb-server
 
-    bash
+    Windows:
+        Download and install from the official website.
 
-sudo mysql -u root -p
+Secure MariaDB Installation (Linux Only)
 
-Create the database and run the scripts CreateTables.sql and CreateUser.sql: 
-(The script CreateTable automaticly creates Test or Prod version depending on flags, please read for running)
-sql
+    sudo mysql_secure_installation
+
+Follow the prompts to set the root password and remove anonymous users.
+Create Database and Run Scripts
+
+Log into MariaDB:
+
+    sudo mysql -u root -p
+
+Create Database:
+
+    CREATE DATABASE steenbudgetPROD;  -- For production
+    CREATE DATABASE steenbudgetTEST;  -- For testing
+
+Use Database:
+
+    USE steenbudgetPROD;  -- Or steenbudgetTEST
+
+Run Scripts:
+
+    SOURCE /path/to/Backend/SQL/MariaDB/CreateTables.sql;
+    SOURCE /path/to/Backend/SQL/MariaDB/CreateUser.sql;  -- Optional
+
+The CreateTables.sql script automatically creates test or production versions based on flags.
+Read the script comments for detailed instructions.
+
+5. Building and Running the Backend
+Clone the Repository
+
+    Clone from GitHub:
+
+        git clone https://github.com/yourusername/SteenBudgetSolution.git
+
+Navigate to the Backend Directory:
+
+    cd SteenBudgetSolution/Backend/
+
+Build the Project For Production (Linux):
+
     
-    CREATE DATABASE steenbudgetPROD; -- or steenbudgetTEST 
-    USE steenbudgetPROD; -- or steenbudgetTEST
-    SOURCE Backend\SqlCode\MariaDB\CreateTables.sql;
-    SOURCE Backend\SqlCode\MariaDB\CreateUser.sql;
 
-5. Nginx Setup
+    dotnet publish Backend.csproj -c Release -o /var/www/backend
 
-For serving the frontend:
+Ensure /var/www/backend exists and has appropriate permissions.
 
-    Configure Nginx to proxy requests to the backend and serve the React frontend.
+For Development/Test:
 
-    Use a configuration like this (adjust paths and server names as necessary):
+    dotnet build
 
-    nginx
+Configure Systemd Service (Linux Production Only)
+
+Create Service File:
+
+    sudo nano /etc/systemd/system/steenbudget.service
+
+Service File Content:
+
+    [Unit]
+    Description=SteenBudget Backend Service
+    After=network.target
+    
+    [Service]
+    WorkingDirectory=/var/www/backend
+    ExecStart=/usr/bin/dotnet /var/www/backend/Backend.dll
+    Restart=always
+    RestartSec=10
+    KillSignal=SIGINT
+    SyslogIdentifier=steenbudget
+    User=www-data
+    Environment=ASPNETCORE_ENVIRONMENT=Production
+    EnvironmentFile=/etc/environment.d/steenbudget.conf
+    
+    [Install]
+    WantedBy=multi-user.target
+
+Reload Systemd and Start Service:
+
+    sudo systemctl daemon-reload
+    sudo systemctl start steenbudget.service
+    sudo systemctl enable steenbudget.service
+
+Running the Backend (Development/Test)
+
+Run Application:
+
+    dotnet run
+
+The backend will be accessible at http://localhost:5000 by default.
+
+6. Building and Running the Frontend
+Install Dependencies
+
+    Navigate to Frontend Directory:
+
+        cd SteenBudgetSolution/frontend/
+
+Install Dependencies:
+
+    npm install
+
+Build the Frontend
+
+    Set Environment Variables:
+        REACT_APP_RECAPTCHA_SITE_KEY: Your Google reCAPTCHA site key.
+        REACT_APP_API_URL: The URL of your backend API.
+
+    Build Command:
+
+    REACT_APP_RECAPTCHA_SITE_KEY=$REACT_APP_RECAPTCHA_SITE_KEY REACT_APP_API_URL=$REACT_APP_API_URL npm run build
+
+        For Production: Set REACT_APP_API_URL to https://yourdomain.com.
+        For Development/Test: Set REACT_APP_API_URL to http://localhost:5000.
+
+    Build Output:
+        The build artifacts will be located in the build/ directory.
+
+Running the Frontend (Development Only)
+
+    Start Development Server:
+
+    npm start
+
+    Access the frontend at http://localhost:3000.
+
+7. Web Server Configuration (Production Only)
+    Install Nginx
+        
+        sudo apt update
+        sudo apt install nginx
+
+Configure Nginx
+
+Create Nginx Configuration File:
+
+    sudo nano /etc/nginx/sites-available/steenbudget
+
+Example Configuration:
 
     server {
-        listen 80;
-        server_name mydomain.com;
-
+            listen 80;
+            server_name yourdomain.com www.yourdomain.com;
+    
         location / {
             root /path/to/frontend/build;
             try_files $uri /index.html;
         }
-
+    
         location /api/ {
-            proxy_pass http://localhost:5000;  # or your backend URL
+            proxy_pass http://localhost:5000;  # Backend URL
             proxy_http_version 1.1;
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection 'upgrade';
@@ -93,110 +310,136 @@ For serving the frontend:
         }
     }
 
-6. Starting the Application
+Enable Configuration:
 
-    Ensure all environment variables are loaded and accessible to the service.
+    sudo ln -s /etc/nginx/sites-available/steenbudget /etc/nginx/sites-enabled/
 
-    Start and enable the service to run on boot:
+Test and Restart Nginx:
 
-    bash
+    sudo nginx -t
+    sudo systemctl restart nginx
 
-    sudo systemctl start steenbudget.service
-    sudo systemctl enable steenbudget.service
+SSL Configuration (Optional)
 
-7. Setting Up Graylog for Logging (Optional)
+    Install Certbot:
 
-To enable centralized logging with Graylog, follow these steps to set up Graylog along with MongoDB and Elasticsearch using Docker. This setup is optional but highly recommended for enhanced monitoring and logging.
-Step 1: Install Docker (if not already installed)
+    sudo apt install certbot python3-certbot-nginx
 
-To install Docker on your system:
+Obtain SSL Certificate:
 
-bash
+    sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com
 
-sudo apt update
-sudo apt install docker.io
-sudo systemctl start docker
-sudo systemctl enable docker
+    Auto-renewal:
 
-Step 2: Set Up MongoDB and Elasticsearch with Docker
+    Certbot installs a cron job for automatic renewal.
 
-Graylog requires MongoDB and Elasticsearch. Use Docker to create instances of each:
+8. Setting Up Graylog for Logging (Optional)
+Install Docker
 
-    MongoDB: Run the following command to start MongoDB.
+        sudo apt update
+        sudo apt install docker.io
+        sudo systemctl start docker
+        sudo systemctl enable docker
 
-    bash
+Set Up MongoDB and Elasticsearch
 
-docker run --name mongodb -d mongo:4.2
+MongoDB:
 
-Elasticsearch: Run the following command to start Elasticsearch.
+    docker run --name mongodb -d mongo:4.2
 
-bash
+Elasticsearch:
 
     docker run --name elasticsearch -e "discovery.type=single-node" -d docker.elastic.co/elasticsearch/elasticsearch:7.10.2
 
-Step 3: Run Graylog in Docker
+Run Graylog
 
-Now, start Graylog and connect it to MongoDB and Elasticsearch.
+    docker run --name graylog --link mongodb:mongo --link elasticsearch:elasticsearch -p 9000:9000 -d graylog/graylog:4.0
 
-bash
+    Access Graylog at http://your-server-ip:9000.
 
-docker run --name graylog --link mongo:mongo --link elasticsearch:elasticsearch -p 9000:9000 -d graylog/graylog:4.0
+Configure Graylog in Program.cs
 
-Graylog will be accessible on your private network at http://<your-server-ip>:9000.
-Step 4: Configure Graylog Sink in Program.cs (Optional)
+Uncomment and Configure:
 
-To enable Graylog logging in your SteenBudgetSolution, uncomment the Graylog configuration in Program.cs:
+    .WriteTo.Graylog(new GraylogSinkOptions
+    {
+        HostnameOrAddress = "your-server-ip",
+        Port = 12201  // Default Graylog port
+    })
 
-csharp
+Restart Service:
 
-/*
-.WriteTo.Graylog(new GraylogSinkOptions
-{
-    HostnameOrAddress = "<your-server-ip>",
-    Port = <graylog-port>
-})
-*/
+    sudo systemctl restart steenbudget.service
 
-Replace <your-server-ip> with the IP address of your server and <graylog-port> with the Graylog listening port (default is 12201).
-Step 5: Restart SteenBudget Solution
+Note
 
-After making changes, restart the application to apply the Graylog logging configuration:
+Graylog consumes significant resources.
+Ensure your server has adequate capacity.
 
-bash
+9. Domain, DNS, and Email Configuration (Optional)
+DNS Configuration with Cloudflare
 
-sudo systemctl restart steenbudget.service
+    Add DNS Records:
+        A Record for @ pointing to your server's IP.
+        A Record or CNAME for www pointing to @ or your server's IP.
+        Subdomains (if needed): e.g., api.yourdomain.com.
 
-Step 6: Log In to Graylog
+SPF, DKIM, and DMARC Records
 
-Access Graylog from your browser at http://<your-server-ip>:9000. Log in with the default credentials (admin / admin). You can create dashboards, set up alerts, and monitor logs from here.   
+SPF Record:
 
-8. Domain, DNS, and Email Configuration Optional
+    v=spf1 ip4:your-server-ip ~all
 
-For users who wish to make SteenBudgetSolution accessible publicly and ensure secure, authenticated email delivery, follow these optional steps:
+DKIM:
 
-    DNS Configuration with Cloudflare
-        Add DNS Records: In your Cloudflare account (or another DNS provider), create DNS records to point your domain to your server's IP address. For example:
-            A record for @ pointing to your server's IP (e.g., 123.45.67.89)
-            A or CNAME record for www pointing to @ or your server’s IP.
-        Set Up Subdomains (if needed): Add records for any subdomains, such as api.yourdomain.com.
+    Install and configure OpenDKIM.
+    Generate keys and add the public key to your DNS as a TXT record.
 
-    SPF and DKIM for Email Authentication
-        SPF Record: Add an SPF record to authenticate emails sent from your domain. This record helps reduce spam and protects your domain’s reputation:
-            Example: v=spf1 ip4:123.45.67.89 include:_spf.google.com ~all
-            Replace 123.45.67.89 with your server’s IP and adjust if you’re using third-party email services.
-        DKIM (DomainKeys Identified Mail): Configure DKIM to sign emails, adding another layer of security and helping prevent email spoofing.
-            You’ll need to generate a DKIM key pair and add the public key as a TXT record in your DNS settings. Many email servers, like Postfix, support DKIM signing through plugins like OpenDKIM.
+DMARC Record:
 
-    SSL Certificates
-        Generate SSL Certificates: Secure your domain with SSL to enable HTTPS. You can use Let’s Encrypt for free SSL certificates:
-            Install Certbot (sudo apt install certbot) and run: sudo certbot --nginx (or --apache if you’re using Apache).
-        Renew SSL Automatically: Configure Certbot to renew certificates automatically by adding a cron job: 0 0,12 * * * /usr/bin/certbot renew --quiet
+    v=DMARC1; p=none; rua=mailto:postmaster@yourdomain.com
 
-    Once SSL is set up, update your web server configuration to redirect HTTP requests to HTTPS for added security.
+SSL Certificates
 
-9. Final Security and Maintenance
+    Generate SSL Certificates with Let's Encrypt:
 
-    SSH: Ensure your SSH access is secured as mentioned.
-    Database Security: Restrict database access to only the necessary IPs or local requests.
-    Regular Updates: Keep your system updated with sudo apt update && sudo apt upgrade.
-    Monitoring Logs: Periodically check logs for errors or suspicious activity, especially from Fail2Ban and UFW.
+    sudo certbot --nginx
+
+    Auto-renewal:
+
+    Certbot sets up automatic renewal via cron.
+
+10. Final Security and Maintenance
+
+    SSH Security:
+        Use SSH keys.
+        Change default SSH port (optional).
+        Regularly update and manage user access.
+
+    Database Security:
+        Restrict access to necessary IPs or localhost.
+        Use strong passwords and limited privileges for database users.
+
+    Regular Updates:
+
+        sudo apt update && sudo apt upgrade -y
+
+    Monitoring Logs:
+        Check logs for unusual activity.
+        Use tools like Fail2Ban and UFW for added security.
+
+    Backups:
+        Implement regular backups of databases and critical files.
+
+    Performance Monitoring:
+        Use tools like htop or top to monitor system resources.
+
+11. Conclusion
+
+You have successfully installed and configured SteenBudgetSolution. Remember to:
+
+    Keep your system and dependencies updated.
+    Regularly monitor your application's performance and security.
+    Take security seriously, especially if running a mail server or exposing services to the internet.
+
+Note: This installation guide is designed to be comprehensive. If you encounter any issues or have suggestions for improvements, please contribute to the project by submitting an issue or pull request on GitHub.
