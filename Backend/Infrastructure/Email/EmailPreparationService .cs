@@ -26,7 +26,7 @@ namespace Backend.Infrastructure.Email
                 Subject = "Email Verification",
                 Body = $"Please verify your email by clicking the following link: <a href='{verificationUrl}'>Verify Email</a>",
                 Sender = _configuration["Smtp:UsernameNoReply"],    // no-reply@ebudget.se
-                FromName = "No Reply",
+                FromName = "eBudget No Reply",
                 ToName = "",
                 ReplyTo = ""
             };
