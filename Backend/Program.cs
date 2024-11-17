@@ -117,15 +117,15 @@ else
 
 builder.Services.AddScoped<EmailVerificationService>(provider =>
 {
-    var userSqlExecutor = provider.GetRequiredService<UserSqlExecutor>();
-    var tokenSqlExecutor = provider.GetRequiredService<TokenSqlExecutor>();
+    var userSqlExecutor = provider.GetRequiredService<IUserSqlExecutor>();
+    var tokenSqlExecutor = provider.GetRequiredService<ITokenSqlExecutor>();
     var emailService = provider.GetRequiredService<EmailService>();
     var options = provider.GetRequiredService<IOptions<ResendEmailSettings>>();
     var logger = provider.GetRequiredService<ILogger<EmailVerificationService>>();
 
-
+    var userService = provider.GetRequiredService<UserServices>();
     Func<string, Task<bool>> sendVerificationEmail = async email =>
-        await emailService.ProcessAndSendEmailAsync(new EmailMessageModel { Recipient = email });
+        await userService.SendVerificationEmailWithTokenAsync(email);
 
     Func<DateTime> getCurrentTime = () => DateTime.UtcNow;
 

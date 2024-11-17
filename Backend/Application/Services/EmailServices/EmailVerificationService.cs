@@ -25,7 +25,7 @@ namespace Backend.Application.Services.EmailServices
             _getCurrentTime = getCurrentTime ?? (() => DateTime.UtcNow);
             _settings = options.Value;
             _logger = logger;
-            _sendVerificationEmail = sendVerificationEmail;
+            _sendVerificationEmail = sendVerificationEmail; //Delegate for sending email with token from UserServices
         }
 
         public async Task<(bool IsSuccess, int StatusCode, string Message)> ResendVerificationEmailAsync(string email)

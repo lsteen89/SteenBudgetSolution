@@ -27,6 +27,11 @@ public abstract class UnitTestBase
         MockUserSqlExecutor = new Mock<IUserSqlExecutor>();
         MockTokenSqlExecutor = new Mock<ITokenSqlExecutor>();
         MockEmailService = new Mock<IEmailService>();
+        var mockSendVerificationEmailFunc = new Mock<Func<string, Task<bool>>>();
+
+        mockSendVerificationEmailFunc
+            .Setup(func => func(It.IsAny<string>()))
+            .ReturnsAsync(true);
 
         // Register mock instances directly
         services.AddSingleton(MockUserSqlExecutor.Object);
@@ -44,7 +49,7 @@ public abstract class UnitTestBase
             MockEmailService.Object,
             mockOptions,
             provider.GetRequiredService<ILogger<EmailVerificationService>>(),
-            email => MockEmailService.Object.ProcessAndSendEmailAsync(new EmailMessageModel { Recipient = email }),
+            mockSendVerificationEmailFunc.Object, 
             () => DateTime.UtcNow));
 
         // Add logging to avoid potential dependency resolution issues
