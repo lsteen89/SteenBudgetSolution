@@ -2,6 +2,7 @@
 using Backend.Infrastructure.Email;
 using Backend.Domain.Entities;
 using Backend.Application.DTO;
+using Backend.Application.Interfaces;
 
 /// <summary>
 /// Manages the flow of email preparation and sending based on email type.
@@ -11,9 +12,9 @@ public class EmailService : EmailSenderBase, IEmailService
 {
     private readonly IConfiguration _configuration;
     private readonly ILogger<EmailService> _logger;
-    EmailPreparationService emailPreparationService;
+    IEmailPreparationService emailPreparationService;
 
-    public EmailService(IConfiguration configuration, ILogger<EmailService> logger, EmailPreparationService emailPreparationService)
+    public EmailService(IConfiguration configuration, ILogger<EmailService> logger, IEmailPreparationService emailPreparationService)
         : base(configuration, logger)
     {
         _configuration = configuration;
