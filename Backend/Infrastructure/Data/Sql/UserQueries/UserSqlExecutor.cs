@@ -16,41 +16,32 @@ namespace Backend.Infrastructure.Data.Sql.UserQueries
         public async Task<bool> IsUserExistInDatabaseAsync(string email)
         {
             string sqlQuery = "SELECT COUNT(1) FROM User WHERE Email = @Email";
-            return await _connection.ExecuteScalarAsync<bool>(sqlQuery, new { Email = email });
+            var userExists = await ExecuteScalarAsync<int>(sqlQuery, new { Email = email });
+            return userExists > 0;
         }
         public async Task<bool> InsertNewUserDatabaseAsync(UserModel user)
         {
             string sqlQuery = @"INSERT INTO User (Persoid, Firstname, Lastname, Email, Password, Roles, CreatedBy)
-                            VALUES (@Persoid, @Firstname, @Lastname, @Email, @Password, @Roles, 'System')"
-            ;
+                        VALUES (@Persoid, @Firstname, @Lastname, @Email, @Password, @Roles, 'System')";
 
             try
             {
-                if(_connection.State == ConnectionState.Closed)
-                {
-                    await _connection.OpenAsync();
-                }
-                using (var transaction = await _connection.BeginTransactionAsync())
+                _logger.LogInformation("Starting transaction to insert new user into the database.");
+
+                // Use ExecuteInTransactionAsync to handle transaction, connection, and error handling.
+                await ExecuteInTransactionAsync(async transaction =>
                 {
                     _logger.LogInformation("Inserting new user into the database.");
                     await ExecuteAsync(sqlQuery, user, transaction);
-                    _logger.LogInformation("User inserted successfully");
-                    await transaction.CommitAsync();
-                }
+                    _logger.LogInformation("User inserted successfully.");
+                });
+
                 return true;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error inserting new user: {Email}", user.Email);
                 return false;
-            }
-            finally
-            {
-                // Close the connection after use
-                if (_connection.State == ConnectionState.Open)
-                {
-                    await _connection.CloseAsync();
-                }
             }
         }
         public async Task<UserModel> GetUserModelAsync(Guid? persoid = null, string? email = null)
@@ -75,7 +66,7 @@ namespace Backend.Infrastructure.Data.Sql.UserQueries
                 parameters.Add("Email", email);
             }
 
-            var user = await _connection.QueryFirstOrDefaultAsync<UserModel>(sqlQuery, parameters);
+            var user = await QueryFirstOrDefaultAsync<UserModel>(sqlQuery, parameters);
 
             if (user == null)
             {
@@ -91,7 +82,7 @@ namespace Backend.Infrastructure.Data.Sql.UserQueries
             try
             {
                 string checkQuery = "SELECT COALESCE(EmailConfirmed, 0) FROM User WHERE PersoId = @PersoId";
-                bool isAlreadyVerified = await _connection.QueryFirstOrDefaultAsync<bool>(checkQuery, new { PersoId = persoid });
+                bool isAlreadyVerified = await QueryFirstOrDefaultAsync<bool>(checkQuery, new { PersoId = persoid });
 
                 if (isAlreadyVerified)
                 {
@@ -100,7 +91,7 @@ namespace Backend.Infrastructure.Data.Sql.UserQueries
                 }
 
                 string updateQuery = "UPDATE User SET EmailConfirmed = 1 WHERE PersoId = @PersoId";
-                var result = await _connection.ExecuteAsync(updateQuery, new { PersoId = persoid });
+                var result = await ExecuteAsync(updateQuery, new { PersoId = persoid });
 
                 return result > 0;
             }
@@ -113,7 +104,7 @@ namespace Backend.Infrastructure.Data.Sql.UserQueries
         public async Task<int> DeleteUserByEmailAsync(string email)
         {
             string sqlQuery = "DELETE FROM User WHERE Email = @Email";
-            return await _connection.ExecuteAsync(sqlQuery, new { Email = email });
+            return await ExecuteAsync(sqlQuery, new { Email = email });
         }    
     }
 }

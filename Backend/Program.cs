@@ -123,14 +123,22 @@ builder.Services.AddScoped<EmailVerificationService>(provider =>
     var options = provider.GetRequiredService<IOptions<ResendEmailSettings>>();
     var logger = provider.GetRequiredService<ILogger<EmailVerificationService>>();
 
-    var userService = provider.GetRequiredService<UserServices>();
     Func<string, Task<bool>> sendVerificationEmail = async email =>
-        await userService.SendVerificationEmailWithTokenAsync(email);
+    {
+        var userService = provider.GetRequiredService<UserServices>();
+        return await userService.SendVerificationEmailWithTokenAsync(email);
+    };
 
     Func<DateTime> getCurrentTime = () => DateTime.UtcNow;
 
-
-    return new EmailVerificationService(userSqlExecutor, tokenSqlExecutor, emailService, options, logger, sendVerificationEmail, getCurrentTime);
+    return new EmailVerificationService(
+        userSqlExecutor,
+        tokenSqlExecutor,
+        emailService,
+        options,
+        logger,
+        sendVerificationEmail,
+        getCurrentTime);
 });
 #endregion
 

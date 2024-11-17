@@ -78,5 +78,18 @@ namespace Backend.Infrastructure.Data
                 await CloseConnectionAsync();
             }
         }
+        public async Task<T?> QueryFirstOrDefaultAsync<T>(string sql, object? parameters = null, DbTransaction? transaction = null)
+        {
+            try
+            {
+                return await _connection.QueryFirstOrDefaultAsync<T>(sql, parameters, transaction);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error executing SQL query: {Sql}", sql);
+                throw;
+            }
+        }
+
     }
 }

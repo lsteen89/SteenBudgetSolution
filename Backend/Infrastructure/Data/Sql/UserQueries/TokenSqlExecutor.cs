@@ -55,7 +55,7 @@ namespace Backend.Infrastructure.Data.Sql.UserQueries
         public async Task<UserTokenModel?> GetUserVerificationTokenByPersoIdAsync(Guid persoid)
         {
             string sqlQuery = "SELECT PersoId, Token, TokenExpiryDate FROM VerificationToken WHERE PersoId = @PersoId";
-            var result = await _connection.QueryFirstOrDefaultAsync(sqlQuery, new { PersoId = persoid });
+            var result = await QueryFirstOrDefaultAsync<UserTokenModel>(sqlQuery, new { PersoId = persoid });
 
             if (result == null)
                 return null;
@@ -71,7 +71,7 @@ namespace Backend.Infrastructure.Data.Sql.UserQueries
         public async Task<UserTokenModel?> GetUserVerificationTokenByTokenAsync(Guid token)
         {
             string sqlQuery = "SELECT PersoId, Token, TokenExpiryDate FROM VerificationToken WHERE Token = @Token";
-            var result = await _connection.QueryFirstOrDefaultAsync(sqlQuery, new { Token = token });
+            var result = await QueryFirstOrDefaultAsync<UserTokenModel>(sqlQuery, new { Token = token });
 
             if (result == null)
                 return null;
@@ -88,26 +88,26 @@ namespace Backend.Infrastructure.Data.Sql.UserQueries
         public async Task<UserVerificationTrackingModel> GetUserVerificationTrackingAsync(Guid persoId)
         {
             string sql = "SELECT * FROM UserVerificationTracking WHERE PersoId = @PersoId";
-            return await _connection.QueryFirstOrDefaultAsync<UserVerificationTrackingModel>(sql, new { PersoId = persoId });
+            return await QueryFirstOrDefaultAsync<UserVerificationTrackingModel>(sql, new { PersoId = persoId });
         }
 
         public async Task InsertUserVerificationTrackingAsync(UserVerificationTrackingModel tracking)
         {
             string sql = "INSERT INTO UserVerificationTracking (PersoId, LastResendRequestTime, DailyResendCount, LastResendRequestDate, CreatedAt, UpdatedAt) " +
                          "VALUES (@PersoId, @LastResendRequestTime, @DailyResendCount, @LastResendRequestDate, @CreatedAt, @UpdatedAt)";
-            await _connection.ExecuteAsync(sql, tracking);
+            await ExecuteAsync(sql, tracking);
         }
 
         public async Task UpdateUserVerificationTrackingAsync(UserVerificationTrackingModel tracking)
         {
             string sql = "UPDATE UserVerificationTracking SET LastResendRequestTime = @LastResendRequestTime, DailyResendCount = @DailyResendCount, " +
                          "LastResendRequestDate = @LastResendRequestDate, UpdatedAt = @UpdatedAt WHERE PersoId = @PersoId";
-            await _connection.ExecuteAsync(sql, tracking);
+            await ExecuteAsync(sql, tracking);
         }
         public async Task<int> DeleteUserTokenByPersoidAsync(Guid persoid)
         {
             string sqlQuery = "DELETE FROM verificationtoken WHERE Persoid = @Persoid";
-            return await _connection.ExecuteAsync(sqlQuery, new { Persoid = persoid });
+            return await ExecuteAsync(sqlQuery, new { Persoid = persoid });
         }
     }
 }
