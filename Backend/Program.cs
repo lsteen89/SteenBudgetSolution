@@ -1,6 +1,3 @@
-using Backend.DataAccess;
-using Backend.Helpers;
-using Backend.Validators;
 using Dapper;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -13,14 +10,24 @@ using System.Threading.RateLimiting;
 using Serilog.Sinks.Graylog; // Will be used in the future
 using FluentValidation;
 using FluentValidation.AspNetCore;
-using Backend.Interfaces;
-using Backend.Services.Validation;
-using Backend.Helpers.Converters;
-using Backend.Settings;
+using Backend.Infrastructure.Helpers.Converters;
 using Microsoft.Extensions.Options;
-using Backend.Services.UserServices;
-using Backend.Services;
 using Backend.Tests.Mocks;
+using Backend.Infrastructure.Data;
+using Moq;
+using Backend.Infrastructure.Email;
+using Backend.Domain.Entities;
+using Backend.Application.Services.UserServices;
+using Backend.Application.Services.Validation;
+using Backend.Application.Validators;
+using Backend.Infrastructure.Helpers;
+using Backend.Application.Settings;
+using Backend.Application.Interfaces;
+using Backend.Infrastructure.Data.Sql.UserQueries;
+using Microsoft.Extensions.DependencyInjection;
+using Backend.Application.Services.TokenServices;
+using Backend.Application.Services.EmailServices;
+using Backend.Infrastructure.Data.Sql.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 #region Serilog Configuration
@@ -64,7 +71,11 @@ var configuration = builder.Configuration;
 
 // Add services to the container
 #region Injected Services
-builder.Services.AddScoped<SqlExecutor>();
+
+// Section for SQL related services
+builder.Services.AddScoped<IUserSqlExecutor, UserSqlExecutor>();
+builder.Services.AddScoped<ITokenSqlExecutor, TokenSqlExecutor>();
+
 builder.Services.AddScoped<UserServices>();
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddTransient<RecaptchaHelper>();
@@ -86,26 +97,40 @@ builder.Services.AddScoped<DbConnection>(provider =>
 if (builder.Environment.IsDevelopment())
 {
     builder.Services.AddSingleton<IEmailService, MockEmailService>();
+
+    var mockEmailPreparationService = new Mock<IEmailPreparationService>();
+    mockEmailPreparationService
+        .Setup(service => service.PrepareVerificationEmailAsync(It.IsAny<EmailMessageModel>()))
+        .ReturnsAsync((EmailMessageModel email) => email);
+
+    mockEmailPreparationService
+        .Setup(service => service.PrepareContactUsEmailAsync(It.IsAny<EmailMessageModel>()))
+        .ReturnsAsync((EmailMessageModel email) => email);
+
+    builder.Services.AddSingleton<IEmailPreparationService>(mockEmailPreparationService.Object);
 }
 else
 {
     builder.Services.AddSingleton<IEmailService, EmailService>();
+    builder.Services.AddSingleton<IEmailPreparationService, EmailPreparationService>();
 }
-builder.Services.AddScoped<UserVerificationHelper>(provider =>
-{
-    var sqlExecutor = provider.GetRequiredService<SqlExecutor>();
-    var emailService = provider.GetRequiredService<IEmailService>();
-    var options = provider.GetRequiredService<IOptions<ResendEmailSettings>>();
-    var logger = provider.GetRequiredService<ILogger<UserVerificationHelper>>();
 
-    // Define delegates for email sending and current time retrieval
-    Func<string, Task<bool>> sendVerificationEmail = email =>
-        provider.GetRequiredService<UserServices>().SendVerificationEmailWithTokenAsync(email);
+builder.Services.AddScoped<EmailVerificationService>(provider =>
+{
+    var userSqlExecutor = provider.GetRequiredService<IUserSqlExecutor>();
+    var tokenSqlExecutor = provider.GetRequiredService<ITokenSqlExecutor>();
+    var emailService = provider.GetRequiredService<EmailService>();
+    var options = provider.GetRequiredService<IOptions<ResendEmailSettings>>();
+    var logger = provider.GetRequiredService<ILogger<EmailVerificationService>>();
+
+    var userService = provider.GetRequiredService<UserServices>();
+    Func<string, Task<bool>> sendVerificationEmail = async email =>
+        await userService.SendVerificationEmailWithTokenAsync(email);
 
     Func<DateTime> getCurrentTime = () => DateTime.UtcNow;
 
-    // Pass delegates into UserVerificationHelper constructor
-    return new UserVerificationHelper(sqlExecutor, emailService, options, logger, sendVerificationEmail, getCurrentTime);
+
+    return new EmailVerificationService(userSqlExecutor, tokenSqlExecutor, emailService, options, logger, sendVerificationEmail, getCurrentTime);
 });
 #endregion
 

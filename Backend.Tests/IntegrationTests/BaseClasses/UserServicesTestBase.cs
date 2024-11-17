@@ -1,14 +1,14 @@
-﻿using Backend.DataAccess;
-using Backend.DTO;
-using Backend.Models;
+﻿using Backend.Infrastructure.Data;
 using System.Threading.Tasks;
 using Xunit;
 using System;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using Backend.Helpers.TestClasses.UserTests.Backend.Helpers.TestClasses.UserTests;
-using Backend.Services.UserServices;
-public abstract class UserServicesTestBase : TestBase, IAsyncLifetime
+using Backend.Domain.Entities;
+using Backend.Application.Services.UserServices;
+using Backend.Application.DTO;
+public abstract class UserServicesTestBase : IntegrationTestBase, IAsyncLifetime
 {
     protected readonly ILogger<UserServicesTestBase> Logger;
     protected UserCreationDto _userCreationDto;

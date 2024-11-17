@@ -2,17 +2,22 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Backend.DataAccess;
-using Backend.Helpers;
 using MySqlConnector;
 using System.Data.Common;
 using System;
-using Backend.Settings;
 using Microsoft.Extensions.Options;
 using System.Threading.Tasks;
 using Backend.Helpers.TestClasses.UserTests.Backend.Helpers.TestClasses.UserTests;
-using Backend.Services.UserServices;
 using Backend.Tests.Mocks;
+using Backend.Infrastructure.Data;
+using Backend.Infrastructure.Email;
+using Backend.Application.Services.UserServices;
+using Backend.Infrastructure.Helpers;
+using Backend.Application.Settings;
+using Backend.Infrastructure.Data.Sql.UserQueries;
+using Backend.Application.Services.EmailServices;
+using Backend.Application.Interfaces;
+using Backend.Infrastructure.Data.Sql.Interfaces;
 
 public class StartupTest
 {
@@ -42,16 +47,21 @@ public class StartupTest
         });
 
         // Register other dependencies
-        services.AddScoped<SqlExecutor>();
+        services.AddScoped<IUserSqlExecutor, UserSqlExecutor>();
+        services.AddScoped<ITokenSqlExecutor, TokenSqlExecutor>();
         services.AddScoped<UserServices>();
+        //services.AddSingleton<IEmailService, MockEmailService>();
+        services.AddSingleton<IEmailPreparationService, EmailPreparationService>();
         services.AddSingleton<IEmailService, MockEmailService>();
+
         services.AddScoped<UserServiceTest>();
-        services.AddScoped<UserVerificationHelper>(provider =>
+        services.AddScoped<EmailVerificationService>(provider =>
         {
-            var sqlExecutor = provider.GetRequiredService<SqlExecutor>();
+            var userSqlExecutor = provider.GetRequiredService<IUserSqlExecutor>();
+            var tokenSqlExecutor = provider.GetRequiredService<ITokenSqlExecutor>();
             var emailService = provider.GetRequiredService<IEmailService>();
             var options = provider.GetRequiredService<IOptions<ResendEmailSettings>>();
-            var logger = provider.GetRequiredService<ILogger<UserVerificationHelper>>();
+            var logger = provider.GetRequiredService<ILogger<EmailVerificationService>>();
 
             // Define delegates for email sending and current time retrieval
             Func<string, Task<bool>> sendVerificationEmail = email =>
@@ -60,7 +70,7 @@ public class StartupTest
             Func<DateTime> getCurrentTime = () => DateTime.UtcNow;
 
             // Pass delegates into UserVerificationHelper constructor
-            return new UserVerificationHelper(sqlExecutor, emailService, options, logger, sendVerificationEmail, getCurrentTime);
+            return new EmailVerificationService(userSqlExecutor, tokenSqlExecutor, emailService, options, logger, sendVerificationEmail, getCurrentTime);
         });
 
         // Add logging

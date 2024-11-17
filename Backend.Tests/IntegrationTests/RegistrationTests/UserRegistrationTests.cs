@@ -1,6 +1,6 @@
-﻿using Backend.DTO;
-using Backend.Models;
-using Backend.Services;
+﻿
+using Backend.Domain.Entities;
+using Backend.Application.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 using System.Threading.Tasks;

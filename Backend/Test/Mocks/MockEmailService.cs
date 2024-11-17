@@ -1,22 +1,22 @@
 ﻿using System.Threading.Tasks;
-using Backend.Interfaces;
-using Backend.Models;
-using Backend.Services;
-using Backend.Services.Email;
+using Backend.Domain.Entities;
+using Backend.Application.Services;
+using Backend.Infrastructure.Email;
 using Microsoft.Extensions.Logging;
+using Backend.Application.Interfaces;
 
 namespace Backend.Tests.Mocks
 {
     public class MockEmailService : IEmailService
     {
-        private readonly IEmailPreparationService _emailPreparationService;
         private readonly ILogger<MockEmailService> _logger;
+        private readonly IEmailPreparationService _emailPreparationService;
 
-
-        public MockEmailService(IEmailPreparationService emailPreparationService, ILogger<MockEmailService> logger)
+        
+        public MockEmailService(ILogger<MockEmailService> logger, IEmailPreparationService emailPreparationService)
         {
-            _emailPreparationService = emailPreparationService;
             _logger = logger;
+            _emailPreparationService = emailPreparationService;
         }
 
         // Main method to simulate processing and sending an email
@@ -59,6 +59,17 @@ namespace Backend.Tests.Mocks
                 default:
                     throw new InvalidOperationException("Unknown email type");
             }
+        }
+        public async Task<bool> SendContactUsEmail(string subject, string body, string SenderEmail)
+        {
+            EmailMessageModel emailMessageModel = new EmailMessageModel
+            {
+                Subject = subject,
+                Body = body,
+                FromName = SenderEmail,
+                EmailType = EmailType.ContactUs
+            };
+            return await ProcessAndSendEmailAsync(emailMessageModel);
         }
     }
 }

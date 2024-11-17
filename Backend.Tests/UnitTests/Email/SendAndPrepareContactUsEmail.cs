@@ -3,19 +3,18 @@ using Xunit;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Backend.Application.Services;
-using Backend.Helpers;
-using Backend.Tests.Mocks;
-using System;
 using Backend.Domain.Entities;
 using Backend.Application.Interfaces;
+using System;
+using Backend.Tests.Mocks;
 
-public class SendAndPrepareVerificationEmail
+public class SendAndPrepareContactUsEmail
 {
     private readonly Mock<IEmailPreparationService> _emailPreparationServiceMock;
     private readonly Mock<ILogger<MockEmailService>> _loggerMock;
     private readonly MockEmailService _mockEmailService;
 
-    public SendAndPrepareVerificationEmail()
+    public SendAndPrepareContactUsEmail()
     {
         _emailPreparationServiceMock = new Mock<IEmailPreparationService>();
         _loggerMock = new Mock<ILogger<MockEmailService>>();
@@ -25,31 +24,32 @@ public class SendAndPrepareVerificationEmail
     }
 
     [Fact]
-    public async Task SendVerificationEmailAfterUserRegistration_ShouldPrepareAndSendCorrectly()
+    public async Task SendContactUsEmail_ShouldPrepareAndSendCorrectly()
     {
-        // Arrange: Simulate a new user registration and verification email preparation
+        // Arrange: Simulate a "Contact Us" email preparation
         var emailMessage = new EmailMessageModel
         {
-            Recipient = "newuser@example.com",
-            Token = Guid.NewGuid(),
-            EmailType = EmailType.Verification
+            Recipient = "support@example.com",
+            Subject = "Inquiry from a Customer",
+            Body = "I have an issue with my account.",
+            EmailType = EmailType.ContactUs
         };
 
         var expectedPreparedEmail = new EmailMessageModel
         {
-            Recipient = "newuser@example.com",
-            Subject = "Email Verification",
-            Body = "Please verify your email by clicking the following link: <a href='https://yourdomain.com/verify-email?token=12345-67890-ABCDE'>Verify Email</a>",
-            Sender = "no-reply@ebudget.se",
-            FromName = "No Reply"
+            Recipient = "support@example.com",
+            Subject = "Inquiry from a Customer",
+            Body = "I have an issue with my account.",
+            Sender = "support@ebudget.se",
+            FromName = "Customer Support"
         };
 
         // Mock the preparation service to return the expected result
         _emailPreparationServiceMock
-            .Setup(service => service.PrepareVerificationEmailAsync(It.IsAny<EmailMessageModel>()))
+            .Setup(service => service.PrepareContactUsEmailAsync(It.IsAny<EmailMessageModel>()))
             .ReturnsAsync(expectedPreparedEmail);
 
-        // Act: Call the method to prepare and send the verification email
+        // Act: Call the method to prepare and send the "Contact Us" email
         var preparedEmail = await _mockEmailService.PrepareEmailForTestAsync(emailMessage);
 
         // Assert: Verify the email fields after preparation
@@ -59,10 +59,7 @@ public class SendAndPrepareVerificationEmail
         Assert.Equal(expectedPreparedEmail.Sender, preparedEmail.Sender);
         Assert.Equal(expectedPreparedEmail.FromName, preparedEmail.FromName);
 
-        // Verify that the preparation method was called once
-        _emailPreparationServiceMock.Verify(service => service.PrepareVerificationEmailAsync(It.IsAny<EmailMessageModel>()), Times.Once);
-
-        // Log the outcome
-        //_loggerMock.Verify(logger => logger.LogInformation("MockEmailService: Pretending to send email to {Recipient}", emailMessage.Recipient), Times.Once);
+        // Verify that the preparation method was called once for ContactUs
+        _emailPreparationServiceMock.Verify(service => service.PrepareContactUsEmailAsync(It.IsAny<EmailMessageModel>()), Times.Once);
     }
 }

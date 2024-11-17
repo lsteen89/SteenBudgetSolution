@@ -1,5 +1,4 @@
 ﻿using System.Data.Common;
-using Backend.Models;
 using Dapper;
 using System.Data;
 using System.Threading.Tasks;
@@ -7,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Backend.Helpers;
 using System.Data.Common;
 using Backend.Test.UserTests.BaseClass;
+using Backend.Domain.Entities;
 
 namespace Backend.Helpers.TestClasses.UserTests
 {
