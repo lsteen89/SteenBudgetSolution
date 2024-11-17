@@ -119,7 +119,7 @@ builder.Services.AddScoped<EmailVerificationService>(provider =>
 {
     var userSqlExecutor = provider.GetRequiredService<IUserSqlExecutor>();
     var tokenSqlExecutor = provider.GetRequiredService<ITokenSqlExecutor>();
-    var emailService = provider.GetRequiredService<EmailService>();
+    var emailService = provider.GetRequiredService<IEmailService>();
     var options = provider.GetRequiredService<IOptions<ResendEmailSettings>>();
     var logger = provider.GetRequiredService<ILogger<EmailVerificationService>>();
 
