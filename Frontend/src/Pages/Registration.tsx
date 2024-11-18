@@ -45,23 +45,27 @@ const RegistrationForm: React.FC = () => {
             case 'firstName':
             case 'lastName':
                 if (!value) error = 'Detta fältet är obligatoriskt!';
-                else if (value.length > 50) error = 'Kan inte vara längre än 50 tecken!.';
-                else if (!/^\p{L}+(([',. -]\p{L} )?\p{L}*)*$/u.test(value)) error = 'Ogiltigt format!.';
+                else if (value.length > 50) error = 'Kan inte vara längre än 50 tecken!';
+                else if (!/^[\p{L}]+(([',.\s-][\p{L}])?\p{L}*)*$/u.test(value)) error = 'Ogiltigt format!';
                 break;
+
             case 'email':
                 if (!value) error = 'Detta fältet är obligatoriskt!';
                 else if (value.length > 100) error = 'E-mail kan inte vara längre än 100 tecken!';
                 else if (!/^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/.test(value)) error = 'Ogiltigt format!';
                 break;
+
             case 'repeatEmail':
                 if (!value) error = 'Detta fältet är obligatoriskt!';
-                else if (value !== email) error = 'Eposter matchar inte!';
+                else if (value !== email) error = 'E-poster matchar inte!';
                 break;
+
             case 'password':
                 if (!value) error = 'Detta fältet är obligatoriskt!';
                 else if (value.length > 100) error = 'Lösenordet kan inte vara längre än 100 tecken!';
-                else if (!/^(?=.*[A-Z])(?=.*\d)(?=.*[\W]).{8,}$/.test(value)) error = 'Lösenordet måste ha minst en stor bokstav, en siffra och en symbol! (special tecken)';
+                else if (!/^(?=.*[A-Z])(?=.*\d)(?=.*[\W]).{8,}$/.test(value)) error = 'Lösenordet måste ha minst en stor bokstav, en siffra och en symbol!';
                 break;
+
             case 'repeatPassword':
                 if (!value) error = 'Detta fältet är obligatoriskt!';
                 else if (value !== password) error = 'Lösenord matchar inte!';
@@ -72,7 +76,6 @@ const RegistrationForm: React.FC = () => {
 
     const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = event.target;
-        setErrors(errors => ({ ...errors, [name]: validateField(name, value) }));
         switch (name) {
             case 'firstName': setFirstName(value); break;
             case 'lastName': setLastName(value); break;
@@ -81,6 +84,12 @@ const RegistrationForm: React.FC = () => {
             case 'password': setPassword(value); break;
             case 'repeatPassword': setRepeatPassword(value); break;
         }
+    };
+
+    // Handle blur validation
+    const handleBlur = (event: React.FocusEvent<HTMLInputElement>) => {
+        const { name, value } = event.target;
+        setErrors(errors => ({ ...errors, [name]: validateField(name, value) }));
     };
 
     const handleCaptchaChange = (token: string | null) => {
@@ -116,11 +125,11 @@ const RegistrationForm: React.FC = () => {
             navigate('/welcomepage');
         } catch (error: any) {
             setErrors(prev => ({ ...prev, form: error.message }));
+            captchaRef.current?.reset(); // Reset reCAPTCHA on failure
         } finally {
             setIsSubmitting(false);
         }
     };
-    
 
     return (
         <div className="registration-container">
@@ -132,6 +141,7 @@ const RegistrationForm: React.FC = () => {
                         name="firstName"
                         value={firstName}
                         onChange={handleChange}
+                        onBlur={handleBlur}
                         className={`input-style ${errors.firstName ? 'input-error' : ''}`}
                         placeholder="Ange ditt förnamn.."
                     />
@@ -142,6 +152,7 @@ const RegistrationForm: React.FC = () => {
                         name="lastName"
                         value={lastName}
                         onChange={handleChange}
+                        onBlur={handleBlur}
                         className={`input-style ${errors.lastName ? 'input-error' : ''}`}
                         placeholder="Ange ditt Efternamn.."
                     />
@@ -152,6 +163,7 @@ const RegistrationForm: React.FC = () => {
                         name="email"
                         value={email}
                         onChange={handleChange}
+                        onBlur={handleBlur}
                         className={`input-style ${errors.email ? 'input-error' : ''}`}
                         placeholder="Ange din E-post.."
                     />
@@ -162,6 +174,7 @@ const RegistrationForm: React.FC = () => {
                         name="repeatEmail"
                         value={repeatEmail}
                         onChange={handleChange}
+                        onBlur={handleBlur}
                         className={`input-style ${errors.repeatEmail ? 'input-error' : ''}`}
                         placeholder="Upprepa e-post"
                     />
@@ -172,6 +185,7 @@ const RegistrationForm: React.FC = () => {
                         name="password"
                         value={password}
                         onChange={handleChange}
+                        onBlur={handleBlur}
                         className={`input-style ${errors.password ? 'input-error' : ''}`}
                         placeholder="Välj lösenord, minst 8 tecken, en stor och en liten bokstav, minst ett specialtecken och minst en siffra."
                     />
@@ -182,6 +196,7 @@ const RegistrationForm: React.FC = () => {
                         name="repeatPassword"
                         value={repeatPassword}
                         onChange={handleChange}
+                        onBlur={handleBlur}
                         className={`input-style ${errors.repeatPassword ? 'input-error' : ''}`}
                         placeholder="Upprepa lösenord"
                     />
