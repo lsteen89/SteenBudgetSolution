@@ -1,30 +1,52 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import './Registration.css';
 import RegBird from '../assets/Images/RegBird.png';
-import { useNavigate } from 'react-router-dom'; 
+import { useNavigate } from 'react-router-dom';
 import { registerUser } from '../api/Services/User/registerUser';
+import ReCAPTCHA from 'react-google-recaptcha';
 
-import ReCAPTCHA from 'react-google-recaptcha';  // Import reCAPTCHA
+// Define types for state
+interface ErrorState {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    repeatEmail?: string;
+    password?: string;
+    repeatPassword?: string;
+    captcha?: string;
+    form?: string;
+}
 
-function RegistrationForm() {
-    const [firstName, setFirstName] = useState('');
-    const [lastName, setLastName] = useState('');
-    const [email, setEmail] = useState('');
-    const [repeatEmail, setRepeatEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [repeatPassword, setRepeatPassword] = useState('');
-    const [errors, setErrors] = useState({});
-    const [captchaToken, setCaptchaToken] = useState(null);  // reCAPTCHA token
-    const navigate = useNavigate();  
+// User data structure for registration
+interface UserCreationDto {
+    firstName: string;
+    lastName: string;
+    email: string;
+    password: string;
+    captchaToken: string;
+}
 
-    const validateField = (name, value) => {
+const RegistrationForm: React.FC = () => {
+    const [errors, setErrors] = useState<ErrorState>({});
+    const [firstName, setFirstName] = useState<string>('');
+    const [lastName, setLastName] = useState<string>('');
+    const [email, setEmail] = useState<string>('');
+    const [repeatEmail, setRepeatEmail] = useState<string>('');
+    const [password, setPassword] = useState<string>('');
+    const [repeatPassword, setRepeatPassword] = useState<string>('');
+    const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const captchaRef = useRef<ReCAPTCHA>(null);
+    const navigate = useNavigate();
+
+    const validateField = (name: string, value: string): string => {
         let error = '';
         switch (name) {
             case 'firstName':
             case 'lastName':
                 if (!value) error = 'Detta fältet är obligatoriskt!';
                 else if (value.length > 50) error = 'Kan inte vara längre än 50 tecken!.';
-                else if (!/^\p{L}+(([',. -]\p{L} )?\p{L}*)*$/u.test(value)) error = 'Ogiltigt format!.'; 
+                else if (!/^\p{L}+(([',. -]\p{L} )?\p{L}*)*$/u.test(value)) error = 'Ogiltigt format!.';
                 break;
             case 'email':
                 if (!value) error = 'Detta fältet är obligatoriskt!';
@@ -37,7 +59,7 @@ function RegistrationForm() {
                 break;
             case 'password':
                 if (!value) error = 'Detta fältet är obligatoriskt!';
-                else if (value.length > 100) error = 'Lösenordet kan  inte vara längre än 100 tecken!';
+                else if (value.length > 100) error = 'Lösenordet kan inte vara längre än 100 tecken!';
                 else if (!/^(?=.*[A-Z])(?=.*\d)(?=.*[\W]).{8,}$/.test(value)) error = 'Lösenordet måste ha minst en stor bokstav, en siffra och en symbol! (special tecken)';
                 break;
             case 'repeatPassword':
@@ -48,7 +70,7 @@ function RegistrationForm() {
         return error;
     };
 
-    const handleChange = (event) => {
+    const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = event.target;
         setErrors(errors => ({ ...errors, [name]: validateField(name, value) }));
         switch (name) {
@@ -61,53 +83,44 @@ function RegistrationForm() {
         }
     };
 
-    const handleCaptchaChange = (token) => {
-        setCaptchaToken(token);  // Store the token in state
+    const handleCaptchaChange = (token: string | null) => {
+        setCaptchaToken(token);
     };
 
-    const handleSubmit = async (event) => {
+    const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         const fieldNames = ['firstName', 'lastName', 'email', 'repeatEmail', 'password', 'repeatPassword'];
+        
+        if (!captchaToken) {
+            setErrors(prev => ({ ...prev, captcha: "Please verify you're not a robot." }));
+            return;
+        }
+    
         const validationErrors = fieldNames.reduce((acc, fieldName) => {
-            acc[fieldName] = validateField(fieldName, eval(fieldName));
+            const value = eval(fieldName);
+            acc[fieldName as keyof ErrorState] = validateField(fieldName, value);
             return acc;
-        }, {});
+        }, {} as ErrorState);
     
         if (Object.values(validationErrors).some(error => error)) {
             setErrors(validationErrors);
             return;
         }
     
-        if (!captchaToken) {
-            setErrors(prev => ({ ...prev, captcha: "Please verify you're not a robot." }));
-            return;
-        }
-
-        try {
-            // Register the user first
-            const result = await registerUser({ firstName, lastName, email, password, captchaToken});
-            console.log('Registration successful');
-        
-            // Navigate to the welcome page after successful registration
-            navigate('/welcomepage');
-        } catch (error) {
-            console.error('Registration failed:', error);
-            
-            // Log the entire error object to inspect its structure
-            console.log("Error details:", error);
+        const user: UserCreationDto = { firstName, lastName, email, password, captchaToken };
+        setIsSubmitting(true);
     
-            // Check for the error message in both the error object and response data
-            if (error.response && error.response.data && error.response.data.message === "This email is already taken.") {
-                setErrors(prev => ({ ...prev, email: 'This email is already taken.' }));
-            } else if (error.message === "This email is already taken.") {
-                // This will catch the case where `error.message` contains the error string
-                setErrors(prev => ({ ...prev, email: 'This email is already taken.' }));
-            } else {
-                // Handle other types of errors (e.g., network issues)
-                setErrors(prev => ({ ...prev, form: error.message || error }));
-            }
+        try {
+            await registerUser(user);
+            console.log('Registration successful');
+            navigate('/welcomepage');
+        } catch (error: any) {
+            setErrors(prev => ({ ...prev, form: error.message }));
+        } finally {
+            setIsSubmitting(false);
         }
     };
+    
 
     return (
         <div className="registration-container">
@@ -118,27 +131,27 @@ function RegistrationForm() {
                         type="text"
                         name="firstName"
                         value={firstName}
-                        onChange={handleChange} 
+                        onChange={handleChange}
                         className={`input-style ${errors.firstName ? 'input-error' : ''}`}
                         placeholder="Ange ditt förnamn.."
                     />
                     {errors.firstName && <div className="error-message">{errors.firstName}</div>}
-                    
+
                     <input
                         type="text"
                         name="lastName"
                         value={lastName}
-                        onChange={handleChange} 
+                        onChange={handleChange}
                         className={`input-style ${errors.lastName ? 'input-error' : ''}`}
                         placeholder="Ange ditt Efternamn.."
                     />
                     {errors.lastName && <div className="error-message">{errors.lastName}</div>}
-                    
+
                     <input
                         type="email"
                         name="email"
                         value={email}
-                        onChange={handleChange} 
+                        onChange={handleChange}
                         className={`input-style ${errors.email ? 'input-error' : ''}`}
                         placeholder="Ange din E-post.."
                     />
@@ -148,7 +161,7 @@ function RegistrationForm() {
                         type="email"
                         name="repeatEmail"
                         value={repeatEmail}
-                        onChange={handleChange} 
+                        onChange={handleChange}
                         className={`input-style ${errors.repeatEmail ? 'input-error' : ''}`}
                         placeholder="Upprepa e-post"
                     />
@@ -158,43 +171,62 @@ function RegistrationForm() {
                         type="password"
                         name="password"
                         value={password}
-                        onChange={handleChange} 
+                        onChange={handleChange}
                         className={`input-style ${errors.password ? 'input-error' : ''}`}
                         placeholder="Välj lösenord, minst 8 tecken, en stor och en liten bokstav, minst ett specialtecken och minst en siffra."
                     />
                     {errors.password && <div className="error-message">{errors.password}</div>}
-                    
+
                     <input
                         type="password"
                         name="repeatPassword"
                         value={repeatPassword}
-                        onChange={handleChange} 
+                        onChange={handleChange}
                         className={`input-style ${errors.repeatPassword ? 'input-error' : ''}`}
                         placeholder="Upprepa lösenord"
                     />
                     {errors.repeatPassword && <div className="error-message">{errors.repeatPassword}</div>}
 
                     {errors.email === "This email is already taken." && (
-                        <div className="error-message">
-                            E-post redan tagen!
-                        </div>
+                        <div className="error-message">E-post redan tagen!</div>
                     )}
-    
+
                     {errors.captcha && <div className="error-message">{errors.captcha}</div>}
+                    {errors.form && <div className="error-message form-error">{errors.form}</div>}
                     
                     <div className="form-submit">
-                    <ReCAPTCHA
-                            sitekey={process.env.REACT_APP_RECAPTCHA_SITE_KEY}
+                        <button
+                            type="submit"
+                            disabled={isSubmitting}
+                            style={{
+                                backgroundColor: isSubmitting ? '#ccc' : '#98FF98',
+                                borderRadius: '20px',
+                                fontFamily: 'Outfit, sans-serif',
+                                fontWeight: '800',
+                                fontSize: '20px',
+                                color: '#333333',
+                                padding: '10px 20px',
+                                cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                                maxWidth: '150px',
+                            }}
+                        >
+                            {isSubmitting ? (
+                                <div className="spinner"></div>
+                            ) : (
+                                'Skicka'
+                            )}
+                        </button>
+                        <ReCAPTCHA
+                            sitekey={process.env.REACT_APP_RECAPTCHA_SITE_KEY || ''}
                             onChange={handleCaptchaChange}
+                            ref={captchaRef}
                         />
-                        <button type="submit">Sätt igång!</button>
-
                     </div>
                 </div>
                 <img src={RegBird} alt="RegBird" className="reg-bird-image" />
             </form>
         </div>
     );
-}
+};
 
 export default RegistrationForm;
