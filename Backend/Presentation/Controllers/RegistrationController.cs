@@ -44,7 +44,7 @@ namespace Backend.Presentation.Controllers
             if (!recaptchaValid)
             {
                 _logger.LogWarning("Invalid reCAPTCHA for email: {Email}", userCreationDto.Email);
-                return BadRequest(new { message = "Invalid reCAPTCHA. Please try again." });
+                return BadRequest(new { message = "Ogiltig CAPTCHA!" });
             }
 
             try
@@ -55,7 +55,7 @@ namespace Backend.Presentation.Controllers
                 if (!isSuccessfulRegistration)
                 {
                     _logger.LogError("Failed to register user for email: {Email}", userCreationDto.Email);
-                    return BadRequest("Registration failed due to an internal error. Please try again.");
+                    return BadRequest(new { message = "Epost redan upptagen!" });
                 }
 
                 // Step 4: Generate verification token for email and Send verification email
@@ -64,7 +64,7 @@ namespace Backend.Presentation.Controllers
                 if (!isVerificationComplete)
                 {
                     _logger.LogError("Failed to send verification email for email: {Email}", userCreationDto.Email);
-                    return BadRequest("Failed to send verification email. Please try again.");
+                    return BadRequest(new { message = "Internt fel" });
                 }
 
                 _logger.LogInformation("Registration successful for user: {Email}", userCreationDto.Email);

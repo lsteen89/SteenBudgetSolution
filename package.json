@@ -1,0 +1,5 @@
+{
+  "devDependencies": {
+    "@types/react-google-recaptcha": "^2.1.9"
+  }
+}
