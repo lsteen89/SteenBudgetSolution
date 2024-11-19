@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom'; // Import useLocation for current path detection
-import { ReactComponent as MenuSvgDefault } from '../assets/Images/CloudMenu.svg';
+import { ReactComponent as MenuSvgDefault } from '../../assets/Images/CloudMenu.svg';
 import './MenuComponent.css';
+//import MenuComponent from './components/UI/MenuComponent';
 
 const MenuComponent = () => {
   const [MenuSvg, setMenuSvg] = useState(MenuSvgDefault);
@@ -12,7 +13,7 @@ const MenuComponent = () => {
     const updateSvg = () => {
       const screenWidth = window.innerWidth;
       if (screenWidth >= 1440) {
-        import('../assets/Images/CloudMenu_1440.svg')
+        import('../../assets/Images/CloudMenu_1440.svg')
           .then(({ ReactComponent }) => {
             setMenuSvg(() => ReactComponent);
           })

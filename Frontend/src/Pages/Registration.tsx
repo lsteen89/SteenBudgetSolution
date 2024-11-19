@@ -4,6 +4,7 @@ import RegBird from '../assets/Images/RegBird.png';
 import { useNavigate } from 'react-router-dom';
 import { registerUser } from '../api/Services/User/registerUser';
 import ReCAPTCHA from 'react-google-recaptcha';
+import SubmitButton from '../components/buttons/SubmitButton';
 
 // Define types for state
 interface ErrorState {
@@ -210,27 +211,7 @@ const RegistrationForm: React.FC = () => {
                     {errors.form && <div className="error-message form-error">{errors.form}</div>}
                     
                     <div className="form-submit">
-                        <button
-                            type="submit"
-                            disabled={isSubmitting}
-                            style={{
-                                backgroundColor: isSubmitting ? '#ccc' : '#98FF98',
-                                borderRadius: '20px',
-                                fontFamily: 'Outfit, sans-serif',
-                                fontWeight: '800',
-                                fontSize: '20px',
-                                color: '#333333',
-                                padding: '10px 20px',
-                                cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                                maxWidth: '150px',
-                            }}
-                        >
-                            {isSubmitting ? (
-                                <div className="spinner"></div>
-                            ) : (
-                                'Skicka'
-                            )}
-                        </button>
+                    <SubmitButton isSubmitting={isSubmitting} label="Skicka" />
                         <ReCAPTCHA
                             sitekey={process.env.REACT_APP_RECAPTCHA_SITE_KEY || ''}
                             onChange={handleCaptchaChange}

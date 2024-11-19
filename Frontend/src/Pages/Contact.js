@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import './Contact.css';
 import ContactUsBird from '../assets/Images/ContactUsBird.png';
 import ReCAPTCHA from 'react-google-recaptcha';
-import { submitContactForm } from '../api/Services/Mail/contactUs'; 
+//import { submitContactForm } from '../api/Services/Mail/contactUs'; 
+import SubmitButton from '../components/buttons/SubmitButton'; 
 
 function AboutUs() {
   const captchaRef = useRef(null); 
@@ -27,19 +28,20 @@ function AboutUs() {
 /* Mock for testing
 */
 // Mock for testing, simulating both success and error scenarios
-/*
 const submitContactForm = async (data) => {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
-      if (data && data.epost !== 'error@example.com') { // Mocking a specific case for error
-        resolve({ message: "Form submitted successfully" });
+      if (data && data.epost !== 'error@example.com') { 
+        // Resolve with a status to simulate a successful API response
+        resolve({ status: 200, message: "Form submitted successfully" });
       } else {
+        // Reject with an error message to simulate a failure
         reject(new Error("Submission failed. Please try again."));
       }
     }, 5000); // 5-second delay
   });
 };
-*/
+
 const validateForm = () => {
   const newErrors = {};
 
@@ -226,27 +228,8 @@ const validateForm = () => {
           {/* Success message display */}
           {isSubmitted && <p className="success-message">Skickat!</p>}
           <div className="form-submit">
-           <button
-              type="submit"
-              disabled={isSubmitting}
-              style={{
-                backgroundColor: isSubmitting ? '#ccc' : '#98FF98',
-                borderRadius: '20px',
-                fontFamily: 'Outfit, sans-serif',
-                fontWeight: '800',
-                fontSize: '20px',
-                color: '#333333',
-                padding: '10px 20px',
-                cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                maxWidth: '150px',
-              }}
-            >
-              {isSubmitting ? (
-                <div className="spinner"></div>
-              ) : (
-                'Skicka'
-              )}
-            </button>
+            {/* Use SubmitButton here with isSubmitting and label */}
+            <SubmitButton isSubmitting={isSubmitting} label="Skicka" />
             <ReCAPTCHA
               sitekey={process.env.REACT_APP_RECAPTCHA_SITE_KEY}
               onChange={handleCaptchaChange}
