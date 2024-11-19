@@ -1,7 +1,8 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import HomePage from './Pages/HomePage';
-import MenuComponent from './components/MenuComponent';
+//import MenuComponent from './components/UI/MenuComponent';
+import MenuComponent from './components/UI/MenuComponent.js';
 import Registration from './Pages/Registration';
 import WelcomePage from './Pages/WelcomePage';
 import AboutUs from './Pages/AboutUs';
