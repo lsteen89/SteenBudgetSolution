@@ -1,70 +1,127 @@
-# Getting Started with Create React App
+## SteenBudget Frontend
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+The frontend application for the SteenBudget project, built with React and organized using Atomic Design principles for scalable and maintainable development.
 
-## Available Scripts
+## 🛠️ Project Status
 
-In the project directory, you can run:
+⚠️ **Work in Progress**  
+This project is actively being developed. Changes to folder structure, components, and functionality may occur frequently.
 
-### `npm start`
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+🚀 Features
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+    Responsive Design: Scalable for different screen sizes (starting with desktop-focused design).
+    Atomic Design Structure: Components are organized as atoms, molecules, and organisms.
+    Reusable Components: Streamlined and consistent UI elements.
+    SVG Integration: Menu redesigned with SVG-based items.
+    Modern Tech Stack: React with TypeScript for type safety and modular CSS for scoped styling.
 
-### `npm test`
+📂 Folder Structure
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+Here’s the organized folder structure following Atomic Design principles:
 
-### `npm run build`
+    /src
+    ├── Pages/                       # Main application pages
+    │   ├── Home/                    # Home page
+    │   │   ├── HomePage.js
+    │   │   ├── HomePage.module.css
+    │   ├── auth/                    # Authentication pages
+    │   │   ├── CheckEmailPage.js
+    │   │   ├── CheckEmailPage.module.css
+    │   │   ├── EmailConfirmationPage.tsx
+    │   │   ├── EmailConfirmationPage.module.css
+    │   │   ├── Login.js
+    │   │   ├── Login.module.css
+    │   │   ├── Registration.tsx
+    │   │   ├── Registration.module.css
+    │   ├── info/                    # Informational pages
+    │   │   ├── AboutUs.js
+    │   │   ├── AboutUs.module.css
+    │   │   ├── Contact.js
+    │   │   ├── Contact.module.css
+    │   │   ├── Faq.js
+    │   │   ├── Faq.module.css
+    │
+    ├── components/                  # Reusable UI components
+    │   ├── atoms/                   # Basic building blocks
+    │   │   ├── InputField/          # Input field component
+    │   │   │   ├── InputField.tsx
+    │   │   ├── buttons/             # Button components
+    │   │   │   ├── SubmitButton.tsx
+    │   │   │   ├── SubmitButton.module.css
+    │   ├── molecules/               # Grouped components
+    │   │   ├── containers/          # Specialized containers
+    │   │   │   ├── DeepBlueContainer.js
+    │   │   │   ├── DeepBlueContainer.module.css
+    │   ├── organisms/               # Larger UI sections
+    │   │   ├── Menu/                # Menu component
+    │   │   │   ├── MenuComponent.js
+    │   │   │   ├── MenuComponent.module.css
+    │
+    ├── assets/                      # Static files (images, fonts, etc.)
+    ├── declarations.d.ts            # TypeScript declaration file
+    ├── index.css                    # Global styles
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+🛠️ Setup and Installation
+Prerequisites
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+    Node.js and npm installed on your system.
+    Environment variables configured (REACT_APP_API_URL, REACT_APP_RECAPTCHA_SITE_KEY, etc.).
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+Installation
 
-### `npm run eject`
+    Clone the repository:
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+git clone https://github.com/username/SteenBudgetFrontend.git
+cd SteenBudgetFrontend
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+Install dependencies:
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+npm install
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+Run the development server:
 
-## Learn More
+npm start
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+Build for production:
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+    npm run build
 
-### Code Splitting
+⚙️ Environment Variables
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+The project requires the following environment variables to function:
 
-### Analyzing the Bundle Size
+    REACT_APP_API_URL: Base URL for the backend API.
+    REACT_APP_RECAPTCHA_SITE_KEY: Site key for Google reCAPTCHA.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+Set these variables in a .env file in the root of the project:
 
-### Making a Progressive Web App
+REACT_APP_API_URL=https://api.example.com
+REACT_APP_RECAPTCHA_SITE_KEY=your-recaptcha-site-key
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+🧩 Key Components
 
-### Advanced Configuration
+    Atoms: Small, reusable UI elements (e.g., buttons, inputs).
+    Molecules: Groupings of atoms (e.g., form fields, cards).
+    Organisms: Sections of the UI (e.g., navbar, menu).
+    Pages: Complete views such as Home, Login, and Contact pages.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+🔍 Notes and Considerations
 
-### Deployment
+    Styling: Modular CSS is used (*.module.css) to scope styles and avoid global CSS conflicts.
+    Atomic Design: The structure follows the Atomic Design methodology for scalability.
+    Folder Naming: Folders and files follow a PascalCase convention.
+    Case Sensitivity: Ensure file paths match exactly, as this project runs on a case-sensitive server (e.g., Linux).
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+🛡️ Testing
 
-### `npm run build` fails to minify
+    Run tests using:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+    npm test
+
+🤝 Contributing
+
+Feel free to fork the repository and submit a pull request. Contributions are welcome!
+📄 License
+
+This project is licensed under the MIT License. See the LICENSE file for details.
