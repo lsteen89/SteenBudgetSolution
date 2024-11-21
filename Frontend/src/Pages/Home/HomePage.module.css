@@ -1,0 +1,133 @@
+body {
+  overflow: hidden; /* Prevents scrolling */
+}
+.contentWrapper {
+  display: flex;
+  justify-content: center; /* Center horizontally */
+  align-items: center; /* Center vertically */
+  height: 100vh; /* Full height of the viewport */
+  position: relative; /* Ensure positioning works properly */
+}
+.MainPageTextContainer {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 30vh; /* Ensures minimum height */
+  height: calc(100vh - 20vh); /* Expands downwards but stops at the bottom of the page */
+  width: 10vw; /* Keeps the thinner width */
+  padding: 10px;
+  background-image: url('../../assets/Images/MainPageRect.svg');
+  background-size: cover;
+  background-position: center;
+  position: absolute;
+  top: 20vh; 
+  left: 40%; 
+  transform: translate(-50%, 0); /* Remove vertical centering to align with top positioning */
+  overflow: hidden; /* Prevent content overflow */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Optional: Shadow for appeal */
+  border-radius: 8px; /* Optional: Rounded corners */
+  z-index: 1; 
+  justify-content: flex-start; /* Align text to the top */
+  padding-top: 50px; /* Simple and effective */
+  
+}
+.MainPageTextContainer p {
+  color: #ffffff;
+  text-align: left; /* Align text to the left for better readability */
+  margin: 0; 
+  letter-spacing: 0.3em; /* Adjust letter spacing */
+  max-width: 90%; /* Ensure text doesn’t span too wide */
+  font-size: clamp(1rem, 2vw, 1.5rem); 
+  line-height: clamp(1.5, 2.5vw, 2);
+}
+.buttonWrapper {
+  display: flex;
+  justify-content: center; /* Center horizontally */
+  align-items: center;     /* Center vertically */
+  position: absolute;      /* Allow absolute positioning */
+  top: 40%;                /* Adjust vertical position (e.g., 60% of the viewport) */
+  left: 60%;               /* Center horizontally relative to viewport */
+  transform: translate(-50%, -50%); /* Center the button based on its own dimensions */
+  z-index: 2; /* Place them on top of the image */
+}
+
+
+.mainPageBird {
+  max-width: 100%; /* Make the image cover the full width */
+  height: auto; /* Maintain aspect ratio */
+  position: fixed; /* Keeps the image in place */
+  top: 55%; /* Start at the top */
+  left: 49%; /* Shift it to the right */
+  z-index: 0; /* Push it behind other elements */
+}
+
+
+/*Viewport*/
+/* Ultra-Wide Screens */
+@media (min-width: 2560px) {
+  .MainPageTextContainer {
+    max-width: 85%; /* Limit content width for readability */
+    margin: auto;
+  }
+}
+
+/* Standard Desktops (1920px - 2560px) */
+@media (min-width: 1920px) and (max-width: 2559px) {
+  .MainPageTextContainer {
+    left: 30%; 
+    width: 20vw; /* Keeps the thinner width */
+    height: calc(100vh - 15vh);
+  }
+  .mainPageBird {
+    max-width: 100%; /* Make the image cover the full width */
+    height: 40vh; /* Maintain aspect ratio */
+    position: fixed; /* Keeps the image in place */
+    top: 55%; /* Start at the top */
+    left: 45%; /* Shift it to the right */
+    z-index: 0; /* Push it behind other elements */
+  }
+}
+
+/* Laptops (1366px - 1920px) */
+@media (min-width: 1366px) and (max-width: 1919px) {
+  .MainPageTextContainer {
+    left: 30%; 
+    width: 20vw; /* Keeps the thinner width */
+    height: calc(100vh - 15vh);
+  }
+  .mainPageBird {
+    max-width: 100%; /* Make the image cover the full width */
+    height: 40vh; /* Maintain aspect ratio */
+    position: fixed; /* Keeps the image in place */
+    top: 55%; /* Start at the top */
+    left: 45%; /* Shift it to the right */
+    z-index: 0; /* Push it behind other elements */
+  }
+  .buttonWrapper {
+    top: 30%;                /* Adjust vertical position (e.g., 60% of the viewport) */
+  }
+}
+
+/* Smaller Laptops (1024px - 1365px) */
+@media (min-width: 1024px) and (max-width: 1365px) {
+  .MainPageTextContainer {
+    left: 30%; 
+    width: 20vw; /* Keeps the thinner width */
+    height: calc(100vh - 15vh);
+  }
+  .mainPageBird {
+    max-width: 100%; /* Make the image cover the full width */
+    height: 40vh; /* Maintain aspect ratio */
+    position: fixed; /* Keeps the image in place */
+    top: 55%; /* Start at the top */
+    left: 45%; /* Shift it to the right */
+    z-index: 0; /* Push it behind other elements */
+  }
+  .buttonWrapper {
+    top: 30%;                /* Adjust vertical position (e.g., 60% of the viewport) */
+  }
+  .MainPageTextContainer p {
+    letter-spacing: 0.2em; /* Adjust letter spacing */
+  }
+}

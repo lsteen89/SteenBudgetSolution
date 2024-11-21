@@ -1,0 +1,79 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@600;800&display=swap');
+
+.login-container {
+  display: flex;
+  justify-content: center; /* Center the form horizontally */
+  align-items: center; /* Center the form vertically */
+  height: auto; /* Full viewport height to center vertically */
+}
+
+.user-info-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 800px; /* Adjust as needed */
+  padding: 20px; /* Optional: Add padding if needed */
+}
+
+.user-info-form h1 {
+  margin-bottom: 20px; /* Space between the heading and the first input */
+  text-align: left;
+  width: 100%;
+  font-family: 'Outfit', sans-serif; /* Ensure 'Outfit' font is applied */
+  font-style: normal;
+  font-weight: 600;
+  font-size: 36px;
+  line-height: 45px;
+  letter-spacing: 0.3em;
+  color: #333333;
+}
+
+.user-info-form input[type="text"],
+.user-info-form input[type="password"] {
+  padding: 10px; /* Adjust for padding inside the fields */
+  border-radius: 20px; /* Adjust for rounded corners */
+  border: 1px solid #ccc; /* Light grey border */
+  font-size: 16px; /* Adjust as needed */
+  background: #FFFFFF;
+  margin: 10px 0; /* Vertically center and space out inputs */
+  width: 100%; /* Full width of the form container */
+  height: 80px; /* Adjust based on preference */
+}
+
+.user-info-form input[type="submit"] {
+  background: #98FF98;
+  border-radius: 20px;
+  font-family: 'Outfit', sans-serif;
+  font-style: normal;
+  font-weight: 800;
+  font-size: 32px;
+  line-height: 40px;
+  letter-spacing: 0.3em;
+  color: #333333;
+  border: none; /* Remove border for the submit button */
+  margin-top: 20px; /* Space between the password input and the submit button */
+  padding: 10px 0; /* Adjust padding for height */
+  width: 60%; /* Full width of the form container */
+  cursor: pointer;
+}
+
+.additional-links {
+  display: flex;
+  justify-content: space-between;
+  width: 90%;
+  margin-top: 10px;
+}
+
+.additional-links a {
+  font-family: 'Outfit', sans-serif;
+  font-style: normal;
+  font-weight: 600;
+  font-size: 26px;
+  color: #000000;
+  text-decoration: none;
+}
+
+.additional-links a:hover {
+  text-decoration: underline;
+}

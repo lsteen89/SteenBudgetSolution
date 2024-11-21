@@ -1,0 +1,28 @@
+.test-form-submit {
+    display: flex;
+    justify-content: space-between; /* Spread button and reCAPTCHA */
+    align-items: center;
+    gap: 20px; /* Space between elements */
+    width: 100%; /* Full width container */
+    max-width: 400px; /* Optional: limit width to control layout */
+
+    padding: 10px;
+}
+
+.test-form-submit button, .test-form-submit .g-recaptcha {
+    flex: 1;
+    max-width: 150px; /* Fixed width to align them */
+    background: #98FF98;
+    border-radius: 20px;
+    font-family: 'Outfit', sans-serif;
+    font-style: normal;
+    font-weight: 800;
+    font-size: 20px; /* Smaller font size for the submit button */
+    line-height: 28px;
+    letter-spacing: 0.1em;
+    color: #333333;
+    width: 100%; /* Makes the button take full width of its container */
+    max-width: 300px; /* Optional: Set a maximum width if needed */
+    padding: 10px 20px; /* Optional: Adjust padding for better look */
+    margin: 0 auto; /* Center the button horizontally */
+}
