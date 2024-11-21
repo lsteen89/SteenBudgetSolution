@@ -1,16 +1,15 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import HomePage from './Pages/HomePage';
-//import MenuComponent from './components/UI/MenuComponent';
-import MenuComponent from './components/UI/MenuComponent.js';
-import Registration from './Pages/Registration';
-import WelcomePage from './Pages/WelcomePage';
-import AboutUs from './Pages/AboutUs';
-import Contact from './Pages/Contact';
-import Faq from './Pages/Faq';
-import Login from './Pages/Login';
+import HomePage from './Pages/Home/HomePage';
+import MenuComponent from './components/organisms/Menu/MenuComponent.js';
+import Registration from './Pages/auth/Registration';
+import CheckEmailPage from './Pages/auth/CheckEmailPage';
+import AboutUs from './Pages/info/AboutUs';
+import Contact from './Pages/info/Contact';
+import Faq from './Pages/info/Faq';
+import Login from './Pages/auth/Login';
 import TestForm from './Pages/TestForm';
-import EmailVerification from './Pages/EmailVerification';  
+import EmailConfirmationPage from './Pages/auth/EmailConfirmationPage';  
 
 function App() {
   return (
@@ -20,13 +19,13 @@ function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/registration" element={<Registration />} />
-          <Route path="/welcomepage" element={<WelcomePage />} />
+          <Route path="/check-email" element={<CheckEmailPage />} /> {/* After registration */}
+          <Route path="/confirm-email" element={<EmailConfirmationPage />} /> {/* After clicking email link */}
           <Route path="/about-us" element={<AboutUs />} />
           <Route path="/contact" element={<Contact />} />
-          <Route path="/faq" element={<Faq />} /> {}
-          <Route path="/login" element={<Login />} /> {}
-          <Route path="/verify-email" element={<EmailVerification />} />
-          <Route path="/testform" element={<TestForm />} /> {/* TestForm route */}
+          <Route path="/faq" element={<Faq />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/testform" element={<TestForm />} />
         </Routes>
       </div>
     </BrowserRouter>
