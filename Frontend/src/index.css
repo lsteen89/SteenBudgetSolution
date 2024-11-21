@@ -1,14 +1,37 @@
 @import url('https://fonts.googleapis.com/css2?family=Lohit+Tamil&display=swap');
 
-body {
-  margin: 0 auto; /* Centers the content */
-  max-width: 1920px; /* Maximum width */
-  font-family: 'Lohit Tamil', sans-serif;
-  letter-spacing: 0.2em; /* Example of letter-spacing adjustment */
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* Universal Reset */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: inherit; /* Inherit font-family from parent elements */
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+/* Set up the document defaults */
+html, body {
+  width: 100%;
+  height: 100%;
+  font-family: 'Lohit Tamil', sans-serif;
+  color: #333;
+  background-color: #f9f9f9;
+  overflow-x: hidden; /* Prevent horizontal overflow */
+}
+
+/* Root container to handle layout */
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh; /* Ensure the app spans the full viewport height */
+}
+
+/* Utility Classes */
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.text-center {
+  text-align: center;
 }
