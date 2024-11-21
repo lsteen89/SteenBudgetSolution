@@ -72,16 +72,16 @@ Installation
 
     Clone the repository:
 
-git clone https://github.com/username/SteenBudgetFrontend.git
-cd SteenBudgetFrontend
+    git clone https://github.com/username/SteenBudgetFrontend.git
+    cd SteenBudgetFrontend
 
 Install dependencies:
 
-npm install
+    npm install
 
 Run the development server:
 
-npm start
+    npm start
 
 Build for production:
 
@@ -96,8 +96,8 @@ The project requires the following environment variables to function:
 
 Set these variables in a .env file in the root of the project:
 
-REACT_APP_API_URL=https://api.example.com
-REACT_APP_RECAPTCHA_SITE_KEY=your-recaptcha-site-key
+    REACT_APP_API_URL=https://api.example.com
+    REACT_APP_RECAPTCHA_SITE_KEY=your-recaptcha-site-key
 
 🧩 Key Components
 
@@ -115,7 +115,7 @@ REACT_APP_RECAPTCHA_SITE_KEY=your-recaptcha-site-key
 
 🛡️ Testing
 
-    Run tests using:
+Run tests using:
 
     npm test
 
