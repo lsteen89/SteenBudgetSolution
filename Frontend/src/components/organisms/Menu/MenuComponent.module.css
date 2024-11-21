@@ -1,0 +1,61 @@
+.cloudMenuContainer {
+  position: fixed; /* Keeps the menu fixed at the top */
+  top: 0;
+  left: 0;
+  width: 100%; /* Full width */
+  height: 100px; /* Fixed height */
+  z-index: 1000; /* Ensures it's on top of other content */
+  background-color: #fff; /* Optional: Add a background color */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow for separation */
+}
+
+/* Center and scale the SVG with constraints */
+.menuSvg {
+  width: 80vw;
+  max-width: 1400px;
+  height: 220px; /* Let the height adjust based on aspect ratio */
+  margin-top: 100px; /* Add space below the container */
+}
+body {
+  padding-top: 80px; /* Adds space below the fixed menu */
+}
+
+/*Viewport*/
+/* Ultra-Wide Screens */
+@media (min-width: 2560px) {
+  .cloudMenuContainer {
+    height: 100px; /* Fixed height */
+  }
+  
+  /* Center and scale the SVG with constraints */
+  .menuSvg {
+    height: 220px; /* Let the height adjust based on aspect ratio */
+    margin-top: 100px; /* Add space below the container */
+  }
+}
+
+/* Standard Desktops (1920px - 2560px) */
+@media (min-width: 1920px) and (max-width: 2559px) {
+
+}
+
+/* Laptops (1366px - 1920px) */
+@media (min-width: 1366px) and (max-width: 1919px) {
+
+}
+
+/* Smaller Laptops (1024px - 1365px) */
+@media (min-width: 1024px) and (max-width: 1365px) {
+  .cloudMenuContainer {
+    height: 80px; /* Fixed height */
+  }
+  
+  /* Center and scale the SVG with constraints */
+  .menuSvg {
+    height: 160px; /* Let the height adjust based on aspect ratio */
+    margin-top: 80px; /* Add space below the container */
+  }
+}
