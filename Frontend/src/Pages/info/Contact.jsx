@@ -232,7 +232,7 @@ const validateForm = () => {
             {/* Use SubmitButton here with isSubmitting and label */}
             <SubmitButton isSubmitting={isSubmitting} label="Skicka" type="submit" style={{ width: '250px' }} />
             <ReCAPTCHA
-              sitekey={process.env.REACT_APP_RECAPTCHA_SITE_KEY}
+              sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
               onChange={handleCaptchaChange}
               ref={captchaRef}
             />

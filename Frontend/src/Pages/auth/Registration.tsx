@@ -210,12 +210,13 @@ const RegistrationForm: React.FC = () => {
                 {errors.form && <div className="error-message form-error">{errors.form}</div>}
 
                 <div className="form-submit">
-                    <SubmitButton isSubmitting={isSubmitting} label="Submit" type="submit" style={{ width: '250px' }} />
-                    <ReCAPTCHA
-                        sitekey={process.env.REACT_APP_RECAPTCHA_SITE_KEY || ''}
-                        onChange={(token) => setFormData({ ...formData, captchaToken: token || '' })}
-                        ref={captchaRef}
-                    />
+                <SubmitButton isSubmitting={isSubmitting} label="Submit" type="submit" style={{ width: '250px' }} />
+                
+                <ReCAPTCHA
+                    sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY || ''}
+                    onChange={(token) => setFormData({ ...formData, captchaToken: token || '' })}
+                    ref={captchaRef}
+                />
                 </div>
             </form>
         </div>

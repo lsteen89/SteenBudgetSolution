@@ -1,5 +1,6 @@
+/// <reference types="vite-plugin-svgr/client" />
 import React from 'react';
-import { ReactComponent as CloudMenu } from '../../../assets/Images/CloudMenu_1440.svg';
+import CloudMenu from '../../../assets/Images/CloudMenu_1440.svg?react';
 import styles from './MenuComponent.module.css';
 
 const MenuComponent = () => {
