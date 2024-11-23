@@ -2,9 +2,14 @@
   "devDependencies": {
     "@types/react-google-recaptcha": "^2.1.9",
     "@types/react-router-dom": "^5.3.3",
+    "@typescript-eslint/eslint-plugin": "^8.15.0",
+    "@typescript-eslint/parser": "^8.15.0",
     "eslint": "^9.15.0",
-    "eslint-config-react-app": "^7.0.1",
-    "eslint-plugin-jest": "^27.0.0"
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react": "^7.37.2",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "vite-plugin-svgr": "^4.3.0"
   },
   "dependencies": {
     "react-card-flip": "^1.2.3"

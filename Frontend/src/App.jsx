@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import HomePage from './Pages/Home/HomePage';
-import MenuComponent from './components/organisms/Menu/MenuComponent.js';
+import MenuComponent from './components/organisms/Menu/MenuComponent.jsx';
 import Registration from './Pages/auth/Registration';
 import CheckEmailPage from './Pages/auth/CheckEmailPage';
 import AboutUs from './Pages/info/AboutUs';
@@ -26,6 +26,7 @@ function App() {
           <Route path="/faq" element={<Faq />} />
           <Route path="/login" element={<Login />} />
           <Route path="/testform" element={<TestForm />} />
+          <Route path="*" element={<h1>404 - Page Not Found</h1>} />
         </Routes>
       </div>
     </BrowserRouter>
