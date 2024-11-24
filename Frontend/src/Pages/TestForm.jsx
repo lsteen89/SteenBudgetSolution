@@ -27,6 +27,9 @@ const TestPage = () => {
   return (
     <div style={styles.pageContainer}>
       <h2 style={styles.headerText}>Test Form with Input Fields</h2>
+      <div className="bg-red-500 text-white p-4">
+  Hello, Tailwind!
+</div>
       <form style={styles.formContainer} onSubmit={(e) => e.preventDefault()}>
         <div style={styles.formFields}>
           <InputField

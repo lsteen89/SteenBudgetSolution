@@ -10,6 +10,7 @@ import Faq from './Pages/info/Faq';
 import Login from './Pages/auth/Login';
 import TestForm from './Pages/TestForm';
 import EmailConfirmationPage from './Pages/auth/EmailConfirmationPage';  
+import './index.css';
 
 function App() {
   return (
