@@ -58,7 +58,7 @@ Installation
 
 Clone the repository:
 
-    git clone https://github.com/username/SteenBudgetFrontend.git
+    git clone https://github.com/lsteen89/SteenBudgetFrontend.git
     cd SteenBudgetFrontend
 
 Install dependencies:
