@@ -5,7 +5,8 @@ Key Features:
     ReCAPTCHA Integration: Protects against bot registrations using Google reCAPTCHA.
     CRUD Operations: Manage financial data with full Create, Read, Update, and Delete functionality.
     Email Notifications: Integrated SMTP for user verification and notifications.
-    Responsive Design: React frontend ensures seamless cross-device user experience.
+    Responsive Design: Tailwind CSS for a modern, mobile-first responsive UI.
+    TypeScript Integration: Adds type safety and enhanced developer experience to the frontend.
 
 Tech Stack:
 
@@ -15,8 +16,10 @@ Tech Stack:
         Dapper for optimized database access
         Deployed on a self-hosted Raspberry Pi with a fully configured web server
     Frontend:
-        React with Axios for API communication
-        State management and routing for smooth client-side navigation
+        React with TypeScript for a robust, scalable client-side application
+        Axios for API communication
+        Tailwind CSS for modern, responsive UI development
+        Vite as the build tool for fast and efficient frontend bundling
     Infrastructure:
         Custom domain hosted behind a firewall
         Graylog for centralized logging and monitoring, ensuring insights into application and server health
@@ -48,8 +51,8 @@ Firewall and Access Controls: Use UFW and SSH key-based authentication to secure
 
 Security:
 
-Security tools like Fail2Ban, UFW, and enforced SSH key-based authentication further harden the deployment. Sensitive data is managed using environment variables securely loaded on the Raspberry Pi. Graylog integration provides additional monitoring, helping to quickly identify and respond to any unusual activity or application errors.
-Scalability:
+    Security tools like Fail2Ban, UFW, and enforced SSH key-based authentication further harden the deployment. Sensitive data is managed using environment variables securely loaded on the Raspberry Pi. Graylog integration provides additional monitoring, helping to quickly identify and respond to any unusual activity or application errors.
+    Scalability:
 
 While deployed on a Raspberry Pi, SteenBudgetSolution is built to scale. With minor adjustments, it can be migrated to cloud hosting if user demand grows.
 Why This Project:
