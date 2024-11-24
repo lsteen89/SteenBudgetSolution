@@ -1,3 +1,6 @@
+.body{
+    overflow: hidden ;
+}
 .test-form-submit {
     display: flex;
     justify-content: space-between; /* Spread button and reCAPTCHA */
