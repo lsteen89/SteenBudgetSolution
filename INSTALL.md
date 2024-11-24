@@ -256,24 +256,24 @@ Install Dependencies:
 Build the Frontend
 
     Set Environment Variables:
-        REACT_APP_RECAPTCHA_SITE_KEY: Your Google reCAPTCHA site key.
-        REACT_APP_API_URL: The URL of your backend API.
+        VITE_APP_RECAPTCHA_SITE_KEY: Your Google reCAPTCHA site key.
+        VITE_APP_API_URL: The URL of your backend API.
 
     Build Command:
 
-    REACT_APP_RECAPTCHA_SITE_KEY=$REACT_APP_RECAPTCHA_SITE_KEY REACT_APP_API_URL=$REACT_APP_API_URL npm run build
+    VITE_APP_RECAPTCHA_SITE_KEY=$VITE_APP_RECAPTCHA_SITE_KEY VITE_APP_API_URL=$VITE_APP_API_URL npm run build
 
-        For Production: Set REACT_APP_API_URL to https://yourdomain.com.
-        For Development/Test: Set REACT_APP_API_URL to http://localhost:5000.
+        For Production: Set VITE_APP_API_URL to https://yourdomain.com.
+        For Development/Test: Set VITE_APP_API_URL to http://localhost:5000.
 
     Build Output:
-        The build artifacts will be located in the build/ directory.
+        The build artifacts will be located in the dist/ directory.
 
 Running the Frontend (Development Only)
 
     Start Development Server:
 
-    npm start
+    vite
 
     Access the frontend at http://localhost:3000.
 
