@@ -184,7 +184,7 @@ Clone the Repository
 
     Clone from GitHub:
 
-        git clone https://github.com/yourusername/SteenBudgetSolution.git
+        git clone https://github.com/lsteen89/SteenBudgetSolution.git
 
 Navigate to the Backend Directory:
 
