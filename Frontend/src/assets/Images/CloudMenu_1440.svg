@@ -97,7 +97,7 @@
 
     <foreignObject x="50" y="57" width="200" height="70">
       <a 
-        href="/HomePage" 
+        href="/" 
         class="button" 
         xmlns="http://www.w3.org/1999/xhtml" 
         style="color: #004085; font-weight: bold; text-decoration: none; font-size: 18px;">
