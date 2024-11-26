@@ -1,6 +1,11 @@
 import { useEffect } from 'react';
 
-const useDisableScroll = (disable: boolean) => {
+/**
+ * A custom hook to enable or disable scrolling on the page.
+ * 
+ * @param disable - A boolean flag to determine whether scrolling should be disabled.
+ */
+const useDisableScroll = (disable: boolean): void => {
   useEffect(() => {
     if (disable) {
       // Disable scrolling
