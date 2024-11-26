@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import HomePage from './Pages/Home/HomePage';
-import MenuComponent from './components/organisms/Menu/MenuComponent.jsx';
+import MenuComponent from './components/organisms/Menu/MenuComponent';
 import Registration from './Pages/auth/Registration';
 import CheckEmailPage from './Pages/auth/CheckEmailPage';
 import AboutUs from './Pages/info/AboutUs';

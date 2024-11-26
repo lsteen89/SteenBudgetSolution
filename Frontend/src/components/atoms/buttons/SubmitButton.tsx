@@ -1,6 +1,67 @@
-// SubmitButton.tsx
+/**
+ * SubmitButton Component
+ *
+ * A reusable button component with flexible styling, loading state, and optional enhanced hover effects.
+ *
+ * Props:
+ * - `isSubmitting` (boolean, required):
+ *   - Controls the loading state of the button.
+ *   - Displays a spinner and disables interaction when true.
+ *
+ * - `label` (string, optional):
+ *   - The text displayed on the button.
+ *   - Defaults to "Submit" if not provided.
+ *
+ * - `onClick` (function, optional):
+ *   - Callback function invoked when the button is clicked.
+ *
+ * - `style` (React.CSSProperties, optional):
+ *   - Inline styles for custom button styling.
+ *
+ * - `type` ('button' | 'submit' | 'reset', optional):
+ *   - Specifies the button type attribute.
+ *   - Defaults to 'button'.
+ *
+ * - `size` ('small' | 'default' | 'large', optional):
+ *   - Controls the size of the button.
+ *   - Default size is 'default'.
+ *   - Options:
+ *     - `small`: Smaller font and padding.
+ *     - `default`: Standard font and padding.
+ *     - `large`: Larger font and padding.
+ *
+ * - `enhanceOnHover` (boolean, optional):
+ *   - If true, enables enhanced hover effects:
+ *     - Button scales up slightly (`hover:scale-110`).
+ *     - Background color changes to `#001F3F`.
+ *     - Text color changes to white.
+ *   - Default is false (standard hover behavior).
+ *
+ * Behaviors:
+ * - **Hover Effects**:
+ *   - Standard: Changes background color to a lighter green (`#85e085`).
+ *   - Enhanced (if `enhanceOnHover` is true): Scales and changes background to `#001F3F` with white text.
+ *
+ * - **Loading State**:
+ *   - Displays a spinning loader when `isSubmitting` is true.
+ *   - Disables interaction with the button.
+ *
+ * - **Sizing**:
+ *   - Adjusts font size and padding dynamically based on the `size` prop.
+ *
+ * Example Usage:
+ * ```
+ * <SubmitButton
+ *   isSubmitting={false}
+ *   label="Submit"
+ *   size="large"
+ *   enhanceOnHover
+ *   onClick={() => alert('Clicked!')}
+ * />
+ * ```
+ */
+
 import React from 'react';
-import styles from './SubmitButton.module.css';
 
 interface SubmitButtonProps {
   isSubmitting: boolean;
@@ -8,8 +69,15 @@ interface SubmitButtonProps {
   onClick?: () => void;
   style?: React.CSSProperties;
   type?: 'button' | 'submit' | 'reset';
-  size?: 'small' | 'large' | 'default'; // Add size prop
+  size?: 'small' | 'large' | 'default';
+  enhanceOnHover?: boolean; // Optional flag for enhanced hover behavior
 }
+
+const sizeClasses = {
+  small: 'text-[16px] py-2 px-4', // Matches your "small" class
+  default: 'text-[20px] py-3 px-6', // Matches your "default" class
+  large: 'text-[32px] py-4 px-8', // Matches your "large" class
+};
 
 const SubmitButton: React.FC<SubmitButtonProps> = ({
   isSubmitting,
@@ -17,19 +85,35 @@ const SubmitButton: React.FC<SubmitButtonProps> = ({
   onClick,
   style,
   type = 'button',
-  size = 'default', // Default size
+  size = 'default',
+  enhanceOnHover = false, // Default to false
 }) => {
   return (
     <button
       type={type}
       disabled={isSubmitting}
       onClick={onClick}
-      className={`${styles['submit-button']} ${styles[size]} ${
-        isSubmitting ? styles.disabled : ''
-      }`} // Dynamic classes for styles and size
       style={style}
+      className={`inline-flex items-center justify-center font-bold text-[#333] bg-[#98FF98] 
+      rounded-[20px] shadow-md transition-all ease-out duration-300 border-none
+      ${sizeClasses[size]} 
+      ${
+        isSubmitting
+          ? 'bg-gray-300 cursor-not-allowed'
+          : enhanceOnHover
+          ? 'hover:bg-[#001F3F] hover:text-white hover:scale-110'
+          : 'hover:bg-[#85e085]'
+      }`}
     >
-      {isSubmitting ? <div className={styles.spinner}></div> : label}
+      {isSubmitting ? (
+        <div
+          className="w-[20px] h-[20px] border-4 border-[#f3f3f3] border-t-[#333] 
+          rounded-full animate-spin ml-2"
+          aria-label="Loading spinner"
+        ></div>
+      ) : (
+        label
+      )}
     </button>
   );
 };

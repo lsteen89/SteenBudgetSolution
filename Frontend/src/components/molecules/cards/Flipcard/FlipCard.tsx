@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import styles from './FlipCard.module.css';
+import styles from './FlipCard.module.css'; // Importing as a CSS Module
 
 interface FlipCardProps {
   frontText: string;
@@ -16,9 +16,11 @@ const FlipCard: React.FC<FlipCardProps> = ({ frontText, backText }) => {
       onMouseLeave={() => setIsFlipped(false)}
     >
       <div className={styles.card}>
+        {/* Front Side */}
         <div className={styles.frontSide}>
           <p>{frontText}</p>
         </div>
+        {/* Back Side */}
         <div className={styles.backSide}>
           <p>{backText}</p>
         </div>

@@ -1,69 +1,94 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1440px" height="200px" viewBox="0 0 1444 200" version="1.1">
-    
+<svg xmlns="http://www.w3.org/2000/svg" width="1440px" height="200px" viewBox="0 0 1444 200" version="1.1">
   <style>
-    .button {
-      position: relative;
-      display: block;
-      text-transform: uppercase;
-      margin: 20px 0;
-      padding: 10px 20px;
-      text-decoration: none;
-      color: #262626;
-      font-size: 18px;
-      font-weight: 600;
-      transition: .5s;
-      z-index: 1;
-    }
 
-    .button::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      border-top: 2px solid #262626;
-      border-bottom: 2px solid #262626;
-      transform: scaleY(2);
-      opacity: 0;
-      transition: .3s;
-    }
+  /* Define colors */
+  :root {
+    --primary: #98FF98; /* Lime green for hover effect */
+    --primary-light: rgba(255, 255, 255, 0.5); /* Initial color: soft white */
+    --text-color: #111; /* Base text color */
+  }
 
-    .button::after {
-      content: '';
-      position: absolute;
-      top: 2px;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-color: #262626;
-      transform: scale(0);
-      opacity: 0;
-      transition: .3s;
-      z-index: -1;
-    }
+  /* Reset styles */
+  html,
+  body {
+    height: 100%;
+  }
 
-    .button:hover {
-      color: #fff;
-    }
+  body {
+    display: grid;
+    color: var(--text-color);
+  }
 
-    .button:hover::before {
-      transform: scaleY(1);
-      opacity: 1;
-    }
+  /* Anchor link reset */
+  a {
+    text-decoration: none;
+    color: inherit;
+  }
 
-    .button:hover::after {
-      transform: scaleY(1);
-      opacity: 1;
-    }
+  /* CTA button styles */
+  .cta {
+    position: relative;
+    margin: auto;
+    padding: 14px 26px;
+    transition: all 0.2s ease;
+  }
 
-    .clickable-area {
-      fill: transparent;
-      cursor: pointer;
-    }
+  .cta::before {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 5px;
+    display: block;
+    border-radius: 58px; /* Rounded shape */
+    background: var(--primary-light); /* Initial color: white */
+    width: 46px;
+    height: 49px;
+    transition: all 0.3s ease;
+    filter: blur(5px); /* Subtle blur for glow effect */
+    z-index: -1; /* Keeps the effect behind the button */
+  }
+
+  .cta span {
+    position: relative;
+    font-size: 16px;
+    line-height: 60px;
+    font-weight: 900;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    vertical-align: middle;
+  }
+
+  .cta svg {
+    position: relative;
+    top: 0;
+    margin-left: 10px;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke: var(--text-color);
+    stroke-width: 1;
+    transform: translateX(-5px);
+    transition: all 0.3s ease;
+  }
+
+  .cta:hover::before {
+    width: 110%; /* Expands to cover more area on hover */
+    height: 100%; /* Ensure proportional expansion */
+    background: var(--primary); /* Lime green after hover */
+    filter: blur(15px); /* Slightly sharper blur for focus */
+  }
+
+  .cta:hover svg {
+    transform: translateX(0); /* Moves into place */
+  }
+
+  .cta:active {
+    transform: scale(0.96); /* Slight shrinking on click */
+  }
 
   </style>
+
 <path d="M1026.77 97.0083C1026.77 71.7465 1006.51 51.2682 981.516 51.2682C956.523 51.2682 936.263 71.7465 936.263 97.0083C936.263 122.27 956.523 142.748 981.516 142.748C1006.51 142.748 1026.77 122.27 1026.77 97.0083Z" fill="#CCE5FF"/>
 <path d="M1124.25 67.0525C1124.25 31.421 1093.02 2.53246 1054.5 2.53246C1015.98 2.53246 984.749 31.421 984.749 67.0525C984.749 102.684 1015.98 131.569 1054.5 131.569C1093.02 131.569 1124.25 102.684 1124.25 67.0525Z" fill="#CCE5FF"/>
 <path d="M1231.53 94.0088C1231.53 73.3007 1214.92 56.5153 1194.44 56.5153C1173.95 56.5153 1157.34 73.3007 1157.34 94.0088C1157.34 114.713 1173.95 131.502 1194.44 131.502C1214.92 131.502 1231.53 114.713 1231.53 94.0088Z" fill="#CCE5FF"/>
@@ -95,31 +120,54 @@
 <path d="M157.999 116.711C157.999 93.2258 138.475 74.1811 114.389 74.1811C90.3039 74.1811 70.78 93.2258 70.78 116.711C70.78 140.201 90.3039 159.246 114.389 159.246C138.475 159.246 157.999 140.201 157.999 116.711Z" fill="#CCE5FF"/>
 <path d="M231.638 101.375C231.638 77.8856 212.114 58.8448 188.028 58.8448C163.943 58.8448 144.415 77.8856 144.415 101.375C144.415 124.865 163.943 143.905 188.028 143.905C212.114 143.905 231.638 124.865 231.638 101.375Z" fill="#CCE5FF"/>
 
-    <!-- Menu buttons -->
-    <foreignObject x="50" y="57" width="200" height="70">
-      <a 
-        href="/" 
-        class="button" 
-        xmlns="http://www.w3.org/1999/xhtml" 
-        style="color: #004085; font-weight: bold; text-decoration: none; font-size: 18px;">
-        eBudget hem
-      </a>
-    </foreignObject>
+  <!-- Menu buttons -->
+  <foreignObject x="50" y="57" width="200" height="70">
+    <a href="/" class="cta" xmlns="http://www.w3.org/1999/xhtml">
+      <span>eBudget Hem</span>
+      <svg width="10px" height="10px" viewBox="0 0 10 10">
+        <path d="M1,5 L11,5"></path>
+        <polyline points="8 1 12 5 8 9"></polyline>
+      </svg>
+    </a>
+  </foreignObject>
 
+  <foreignObject x="450" y="57" width="200" height="70">
+    <a href="/about-us" class="cta" xmlns="http://www.w3.org/1999/xhtml">
+      <span>Om oss</span>
+      <svg width="13px" height="10px" viewBox="0 0 13 10">
+        <path d="M1,5 L11,5"></path>
+        <polyline points="8 1 12 5 8 9"></polyline>
+      </svg>
+    </a>
+  </foreignObject>
 
-    <foreignObject x="450" y="57" width="200" height="70">
-      <a href="/about-us" class="button" xmlns="http://www.w3.org/1999/xhtml">Om oss</a>
-    </foreignObject>
+  <foreignObject x="700" y="57" width="200" height="70">
+    <a href="/contact" class="cta" xmlns="http://www.w3.org/1999/xhtml">
+      <span>Kontakt</span>
+      <svg width="13px" height="10px" viewBox="0 0 13 10">
+        <path d="M1,5 L11,5"></path>
+        <polyline points="8 1 12 5 8 9"></polyline>
+      </svg>
+    </a>
+  </foreignObject>
 
-    <foreignObject x="700" y="57" width="200" height="70">
-      <a href="/contact" class="button" xmlns="http://www.w3.org/1999/xhtml">Kontakt</a>
-    </foreignObject>
+  <foreignObject x="1020" y="57" width="200" height="70">
+    <a href="/faq" class="cta" xmlns="http://www.w3.org/1999/xhtml">
+      <span>FAQ</span>
+      <svg width="13px" height="10px" viewBox="0 0 13 10">
+        <path d="M1,5 L11,5"></path>
+        <polyline points="8 1 12 5 8 9"></polyline>
+      </svg>
+    </a>
+  </foreignObject>
 
-    <foreignObject x="950" y="57" width="200" height="70">
-      <a href="/faq" class="button" xmlns="http://www.w3.org/1999/xhtml" style="white-space: nowrap;" >Vanliga frågor</a>
-    </foreignObject>
-
-    <foreignObject x="1200" y="57" width="200" height="70">
-      <a href="/login" class="button" xmlns="http://www.w3.org/1999/xhtml">Logga in</a>
-    </foreignObject>
+  <foreignObject x="1200" y="57" width="200" height="70">
+    <a href="/login" class="cta" xmlns="http://www.w3.org/1999/xhtml">
+      <span>Logga In</span>
+      <svg width="13px" height="10px" viewBox="0 0 13 10">
+        <path d="M1,5 L11,5"></path>
+        <polyline points="8 1 12 5 8 9"></polyline>
+      </svg>
+    </a>
+  </foreignObject>
 </svg>

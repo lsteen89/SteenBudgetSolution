@@ -1,0 +1,94 @@
+.cardWrapper {
+  perspective: 1000px;
+  width: 300px;
+  height: 200px;
+}
+
+.card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.6s ease-in-out;
+}
+
+.cardWrapper.isFlipped .card {
+  transform: rotateY(180deg);
+}
+
+/* Front Side with Enhanced Glossy and Glassy Effect */
+.frontSide {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 12px; /* Slightly rounder corners */
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); /* More pronounced shadow */
+  background: rgba(93, 245, 95, 0.45); /* Lighter lime green for better transparency */
+  -webkit-backdrop-filter: blur(15px) saturate(180%); /* Stronger blur and color boost for Safari */
+  backdrop-filter: blur(15px) saturate(180%); /* Frosted glass effect with added saturation */
+
+  color: white;
+  text-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); /* Stronger text shadow for better readability */
+  overflow: hidden; /* Prevents pseudo-elements from spilling out */
+}
+
+.frontSide::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(
+    circle at 50% 50%, 
+    rgba(152, 255, 152, 0.8) 10%, /* Intense lime green at the center */
+    rgba(152, 255, 152, 0.4) 40%, /* Softer lime green in the middle */
+    rgba(255, 255, 255, 0.1) 100% /* Almost transparent at the edges */
+  );
+  opacity: 1; /* Makes the gloss more prominent */
+  border-radius: 12px; /* Matches the `.frontSide` border radius */
+  pointer-events: none; /* Ensures no interaction */
+  z-index: 1; /* Stays on top of the background but behind the text */
+  filter: blur(5px); /* Adds depth to the gloss effect */
+}
+
+.frontSide p {
+  position: relative; /* Keeps text above the gloss */
+  z-index: 2; /* Ensures text stays on top of everything */
+  color: black; /* Explicitly set text color to white */
+  font-size: 1.2rem; /* Slightly larger text for readability */
+  font-weight: bold; /* Makes the text stand out */
+}
+/* Back Side */
+.backSide {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  transform: rotateY(180deg);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  background-color: #001F3F;
+  color: white; /* Updated text color */
+
+  padding: 20px; /* Adds spacing around the text */
+  text-align: center; /* Ensures text is aligned centrally */
+}
+
+.backSide p {
+  margin: 0; /* Removes default margin from the paragraph */
+  line-height: 1.5; /* Improves text readability */
+  font-size: 16px; /* Adjusts text size for better balance */
+  font-weight: bold; /* Makes text more prominent */
+  color: white; /* Explicitly sets text color */
+}
+.backSide p span {
+  color: inherit; /* Allow inline styles or inherited styles to take precedence */
+}
