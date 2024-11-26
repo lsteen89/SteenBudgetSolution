@@ -368,3 +368,7 @@ NOTES.md
 Frontend/.env.development
 Frontend/.env.production
 BACKUP_steenbudget.conf
+
+references/
+package-lock.json
+package.json
