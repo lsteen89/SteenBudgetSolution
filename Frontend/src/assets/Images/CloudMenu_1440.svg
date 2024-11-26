@@ -57,6 +57,9 @@
     letter-spacing: 0.25em;
     text-transform: uppercase;
     vertical-align: middle;
+    margin: 0; /* Remove default margin */
+    text-align: center; /* Keep text centered within the button */
+    display: inline-block; /* Ensures consistent height alignment */
   }
 
   .cta svg {
@@ -121,7 +124,7 @@
 <path d="M231.638 101.375C231.638 77.8856 212.114 58.8448 188.028 58.8448C163.943 58.8448 144.415 77.8856 144.415 101.375C144.415 124.865 163.943 143.905 188.028 143.905C212.114 143.905 231.638 124.865 231.638 101.375Z" fill="#CCE5FF"/>
 
   <!-- Menu buttons -->
-  <foreignObject x="50" y="57" width="200" height="70">
+  <foreignObject x="10" y="65" width="200" height="70">
     <a href="/" class="cta" xmlns="http://www.w3.org/1999/xhtml">
       <span>eBudget Hem</span>
       <svg width="10px" height="10px" viewBox="0 0 10 10">
@@ -131,7 +134,7 @@
     </a>
   </foreignObject>
 
-  <foreignObject x="450" y="57" width="200" height="70">
+  <foreignObject x="550" y="65" width="200" height="70">
     <a href="/about-us" class="cta" xmlns="http://www.w3.org/1999/xhtml">
       <span>Om oss</span>
       <svg width="13px" height="10px" viewBox="0 0 13 10">
@@ -141,7 +144,7 @@
     </a>
   </foreignObject>
 
-  <foreignObject x="700" y="57" width="200" height="70">
+  <foreignObject x="750" y="65" width="200" height="70">
     <a href="/contact" class="cta" xmlns="http://www.w3.org/1999/xhtml">
       <span>Kontakt</span>
       <svg width="13px" height="10px" viewBox="0 0 13 10">
@@ -151,7 +154,7 @@
     </a>
   </foreignObject>
 
-  <foreignObject x="1020" y="57" width="200" height="70">
+  <foreignObject x="1020" y="65" width="200" height="70">
     <a href="/faq" class="cta" xmlns="http://www.w3.org/1999/xhtml">
       <span>FAQ</span>
       <svg width="13px" height="10px" viewBox="0 0 13 10">
@@ -161,7 +164,7 @@
     </a>
   </foreignObject>
 
-  <foreignObject x="1200" y="57" width="200" height="70">
+  <foreignObject x="1200" y="65" width="200" height="70">
     <a href="/login" class="cta" xmlns="http://www.w3.org/1999/xhtml">
       <span>Logga In</span>
       <svg width="13px" height="10px" viewBox="0 0 13 10">
