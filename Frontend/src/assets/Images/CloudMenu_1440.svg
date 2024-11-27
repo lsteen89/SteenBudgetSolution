@@ -26,9 +26,10 @@
     color: inherit;
   }
 
-  /* CTA button styles */
+  /* CTA button styles 
+  REMOVED     position: relative;, since it cannot be used in edge or chrome for some reason
+  */
   .cta {
-    position: relative;
     margin: auto;
     padding: 14px 26px;
     transition: all 0.2s ease;
@@ -37,7 +38,7 @@
   .cta::before {
     content: "";
     position: absolute;
-    top: 2px;
+    top: 5px;
     left: 5px;
     display: block;
     border-radius: 58px; /* Rounded shape */
@@ -76,8 +77,8 @@
   }
 
   .cta:hover::before {
-    width: 110%; /* Expands to cover more area on hover */
-    height: 100%; /* Ensure proportional expansion */
+    width: 70%; /* Expands to cover more area on hover */
+    height: 60%; /* Ensure proportional expansion */
     background: var(--primary); /* Lime green after hover */
     filter: blur(15px); /* Slightly sharper blur for focus */
   }
@@ -123,10 +124,10 @@
 <path d="M157.999 116.711C157.999 93.2258 138.475 74.1811 114.389 74.1811C90.3039 74.1811 70.78 93.2258 70.78 116.711C70.78 140.201 90.3039 159.246 114.389 159.246C138.475 159.246 157.999 140.201 157.999 116.711Z" fill="#CCE5FF"/>
 <path d="M231.638 101.375C231.638 77.8856 212.114 58.8448 188.028 58.8448C163.943 58.8448 144.415 77.8856 144.415 101.375C144.415 124.865 163.943 143.905 188.028 143.905C212.114 143.905 231.638 124.865 231.638 101.375Z" fill="#CCE5FF"/>
 
-  <!-- Menu buttons -->
-  <foreignObject x="10" y="65" width="200" height="70">
+    <!-- Menu buttons -->
+  <foreignObject x="30" y="60" width="200" height="70">
     <a href="/" class="cta" xmlns="http://www.w3.org/1999/xhtml">
-      <span>eBudget Hem</span>
+      <span>eBudget</span>
       <svg width="10px" height="10px" viewBox="0 0 10 10">
         <path d="M1,5 L11,5"></path>
         <polyline points="8 1 12 5 8 9"></polyline>
@@ -134,7 +135,7 @@
     </a>
   </foreignObject>
 
-  <foreignObject x="550" y="65" width="200" height="70">
+  <foreignObject x="550" y="60" width="200" height="70">
     <a href="/about-us" class="cta" xmlns="http://www.w3.org/1999/xhtml">
       <span>Om oss</span>
       <svg width="13px" height="10px" viewBox="0 0 13 10">
@@ -144,7 +145,7 @@
     </a>
   </foreignObject>
 
-  <foreignObject x="750" y="65" width="200" height="70">
+  <foreignObject x="750" y="60" width="200" height="70">
     <a href="/contact" class="cta" xmlns="http://www.w3.org/1999/xhtml">
       <span>Kontakt</span>
       <svg width="13px" height="10px" viewBox="0 0 13 10">
@@ -154,9 +155,9 @@
     </a>
   </foreignObject>
 
-  <foreignObject x="1020" y="65" width="200" height="70">
+  <foreignObject x="980" y="60" width="200" height="70">
     <a href="/faq" class="cta" xmlns="http://www.w3.org/1999/xhtml">
-      <span>FAQ</span>
+      <span>Frågor</span>
       <svg width="13px" height="10px" viewBox="0 0 13 10">
         <path d="M1,5 L11,5"></path>
         <polyline points="8 1 12 5 8 9"></polyline>
@@ -164,7 +165,7 @@
     </a>
   </foreignObject>
 
-  <foreignObject x="1200" y="65" width="200" height="70">
+  <foreignObject x="1200" y="60" width="200" height="70">
     <a href="/login" class="cta" xmlns="http://www.w3.org/1999/xhtml">
       <span>Logga In</span>
       <svg width="13px" height="10px" viewBox="0 0 13 10">
