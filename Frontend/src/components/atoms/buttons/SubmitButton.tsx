@@ -71,12 +71,13 @@ interface SubmitButtonProps {
   type?: 'button' | 'submit' | 'reset';
   size?: 'small' | 'large' | 'default';
   enhanceOnHover?: boolean; // Optional flag for enhanced hover behavior
+  icon?: React.ReactNode; // Optional icon prop
 }
 
 const sizeClasses = {
-  small: 'text-[16px] py-2 px-4', // Matches your "small" class
-  default: 'text-[20px] py-3 px-6', // Matches your "default" class
-  large: 'text-[32px] py-4 px-8', // Matches your "large" class
+  small: 'text-[16px] py-2 px-4',
+  default: 'text-[20px] py-3 px-6',
+  large: 'text-[32px] py-4 px-8',
 };
 
 const SubmitButton: React.FC<SubmitButtonProps> = ({
@@ -86,7 +87,8 @@ const SubmitButton: React.FC<SubmitButtonProps> = ({
   style,
   type = 'button',
   size = 'default',
-  enhanceOnHover = false, // Default to false
+  enhanceOnHover = false,
+  icon, // New icon prop
 }) => {
   return (
     <button
@@ -112,10 +114,14 @@ const SubmitButton: React.FC<SubmitButtonProps> = ({
           aria-label="Loading spinner"
         ></div>
       ) : (
-        label
+        <>
+          {icon && <span className="mr-2">{icon}</span>} {/* Add icon if provided */}
+          {label}
+        </>
       )}
     </button>
   );
 };
 
 export default SubmitButton;
+

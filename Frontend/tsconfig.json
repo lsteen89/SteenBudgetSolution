@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+	"types": ["vite/client", "node"],
     "target": "es6",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
@@ -17,7 +18,15 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "typeRoots": ["node_modules/@types", "src/declarations"],
-    "types": ["vite/client"]
+    "baseUrl": "./src",
+    "paths": {
+      "@utils/*": ["utils/*"],
+      "@pages/*": ["Pages/*"],
+      "@components/*": ["components/*"],
+      "@assets/*": ["assets/*"],
+      "@hooks/*": ["hooks/*"],
+	  "@api/*": ["api/*"],
+    }
   },
   "include": ["src/**/*"]
 }

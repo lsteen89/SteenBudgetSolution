@@ -1,9 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import SubmitButton from '../../components/atoms/buttons/SubmitButton';
-import DeepBlueContainer from '../../components/molecules/containers/DeepBlueContainer';
-import GlossyFlipCard from '../../components/molecules/cards/GlossyFlipCard/GlossyFlipCard';
-import FlipCard from '../../components/molecules/cards/Flipcard/FlipCard';
+import SubmitButton from '@components/atoms/buttons/SubmitButton';
+import DeepBlueContainer from '@components/molecules/containers/DeepBlueContainer';
+import GlossyFlipCard from '@components/molecules/cards/GlossyFlipCard/GlossyFlipCard';
 
 const AboutUs: React.FC = () => {
   const navigate = useNavigate();

@@ -56,7 +56,7 @@
     line-height: 60px;
     font-weight: 900;
     letter-spacing: 0.25em;
-    text-transform: uppercase;
+
     vertical-align: middle;
     margin: 0; /* Remove default margin */
     text-align: center; /* Keep text centered within the button */
