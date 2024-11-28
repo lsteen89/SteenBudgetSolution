@@ -1,9 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import MainPageBird from '../../assets/Images/MainPageBird.svg?react';
-import SubmitButton from '../../components/atoms/buttons/SubmitButton';
-import useDisableScroll from '../../hooks/useDisableScroll';
-
+import MainPageBird from '@assets/Images/MainPageBird.svg?react';
+import SubmitButton from '@components/atoms/buttons/SubmitButton';
+import useDisableScroll from '@hooks/useDisableScroll';
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
 
@@ -11,7 +10,6 @@ const HomePage: React.FC = () => {
   const handleRedirect = (): void => {
     navigate('/Registration');
   };
-
   // Disable scrolling on this page
   useDisableScroll(true);
 

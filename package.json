@@ -1,0 +1,9 @@
+{
+  "devDependencies": {
+    "less": "^4.2.0",
+    "less-loader": "^12.2.0"
+  },
+  "dependencies": {
+    "vite-plugin-svgr": "^4.3.0"
+  }
+}

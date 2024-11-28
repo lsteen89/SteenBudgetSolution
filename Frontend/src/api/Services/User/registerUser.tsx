@@ -1,5 +1,5 @@
 import axios from '../../axiosConfig';
-import { UserCreationDto } from '../../../types/User';
+import { UserCreationDto } from '../../../types/user';
 
 /**
  * Registers a new user

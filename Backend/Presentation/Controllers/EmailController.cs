@@ -15,14 +15,13 @@ public class EmailController : ControllerBase
     private readonly ILogger<EmailController> _logger;
     private readonly IRecaptchaService _recaptchaService;
 
-    public EmailController(EmailService emailService, ILogger<EmailController> logger, IRecaptchaService recaptchaService)
+    public EmailController(IEmailService emailService, ILogger<EmailController> logger, IRecaptchaService recaptchaService)
     {
         _emailService = emailService;
         _logger = logger;
         _recaptchaService = recaptchaService;
     }
     [HttpPost("ContactUs")]
-    [EnableRateLimiting("EmailSendingPolicy")]
     public async Task<IActionResult> ContactUs([FromBody] SendEmailDto sendEmailDto)
     {
         // Check if model state is valid
