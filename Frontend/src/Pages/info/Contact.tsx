@@ -7,7 +7,7 @@ import SubmitButton from '@components/atoms/buttons/SubmitButton';
 import SendIcon from '@assets/icons/MailIcon.svg?react';
 import { validateField } from '@utils/validation/fieldValidator';
 import { getFirstError } from '@utils/validation/getFirstError';
-import { sendEmail } from '../../api/Services/Mail/sendEmail';
+import { sendEmail } from '@api/Services/Mail/sendEmail';
 
 /* Toast */
 import { ToastContainer, toast, ToastContentProps } from 'react-toastify';
