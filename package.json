@@ -1,7 +1,8 @@
 {
   "devDependencies": {
     "less": "^4.2.0",
-    "less-loader": "^12.2.0"
+    "less-loader": "^12.2.0",
+    "vite-plugin-remove-console": "^2.2.0"
   },
   "dependencies": {
     "vite-plugin-svgr": "^4.3.0"
