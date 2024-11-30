@@ -5,6 +5,7 @@
     "vite-plugin-remove-console": "^2.2.0"
   },
   "dependencies": {
+    "@heroicons/react": "^2.2.0",
     "vite-plugin-svgr": "^4.3.0"
   }
 }

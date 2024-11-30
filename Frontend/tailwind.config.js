@@ -15,7 +15,9 @@ module.exports = {
       },
       colors: {
         body: '#333333', // Global default text color
-        background: '#FFFFFF', // Global default backgroundColor
+        body: '#333333',
+        customBlue1: '#f0faff', // Light blue
+        customBlue2: '#d6f4ff', // Slightly darker blue
 		limeGreen: '#98FF98', 
       },
     },

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import SubmitButton from '@components/atoms/buttons/SubmitButton';
 import DeepBlueContainer from '@components/molecules/containers/DeepBlueContainer';
 import GlossyFlipCard from '@components/molecules/cards/GlossyFlipCard/GlossyFlipCard';
+import AboutUsBird from '@assets/Images/AboutUsBird.png';
 
 const AboutUs: React.FC = () => {
   const navigate = useNavigate();
@@ -12,7 +13,7 @@ const AboutUs: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col items-center gap-5 py-[250px]">
+    <div className="flex flex-col items-center gap-5 py-[175px] ">
       {/* Cards Section */}
       <div className="flex flex-row items-center gap-5">
         <GlossyFlipCard
@@ -44,7 +45,7 @@ const AboutUs: React.FC = () => {
       </div>
 
       {/* Main Page Text Container */}
-      <div className="w-full max-w-4xl px-6">
+      <div className="w-full max-w-4xl px-6 ">
         <DeepBlueContainer>
           <div className="text-center p-5 space-y-4">
             {/* Header */}
@@ -69,18 +70,29 @@ const AboutUs: React.FC = () => {
             </p>
           </div>
         </DeepBlueContainer>
+        <div className="flex flex-row items-center justify-center gap-5 mt-10">
+        {/* Button Section */}
+          <div className="flex-shrink-0">
+            <SubmitButton
+              isSubmitting={false}
+              label="Skaffa eBudget!"
+              size="large"
+              enhanceOnHover
+              onClick={handleRedirect}
+            />
+          </div>
+
+          {/* Image Section */}
+          <div>
+            <img 
+              src={AboutUsBird} 
+              alt="About Us Bird" 
+              className="w-auto max-w-xs" 
+            />
+          </div>
+        </div>
       </div>
-
-
-
-      <SubmitButton
-          isSubmitting={false}
-          label="Skaffa eBudget!"
-          size="large"
-          enhanceOnHover
-          onClick={handleRedirect}
-        />
-      </div>
+    </div>
   );
 };
 
