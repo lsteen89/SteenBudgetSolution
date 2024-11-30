@@ -4,7 +4,7 @@
 @tailwind utilities;
 
 html, body {
-  @apply w-full h-full font-inter text-body bg-background;
+  @apply font-inter text-body bg-gradient-to-br from-customBlue1 to-customBlue2;;
 }
 
 #root {

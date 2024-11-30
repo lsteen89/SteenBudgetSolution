@@ -88,7 +88,7 @@ const SubmitButton: React.FC<SubmitButtonProps> = ({
   type = 'button',
   size = 'default',
   enhanceOnHover = false,
-  icon, // New icon prop
+  icon,
 }) => {
   return (
     <button
@@ -96,12 +96,12 @@ const SubmitButton: React.FC<SubmitButtonProps> = ({
       disabled={isSubmitting}
       onClick={onClick}
       style={style}
-      className={`inline-flex items-center justify-center font-bold text-[#333] bg-[#98FF98] 
+      className={`inline-flex items-center justify-center font-bold bg-[#98FF98] 
       rounded-[20px] shadow-md transition-all ease-out duration-300 border-none
       ${sizeClasses[size]} 
       ${
         isSubmitting
-          ? 'bg-gray-300 cursor-not-allowed'
+          ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
           : enhanceOnHover
           ? 'hover:bg-[#001F3F] hover:text-white hover:scale-110'
           : 'hover:bg-[#85e085]'
@@ -115,8 +115,22 @@ const SubmitButton: React.FC<SubmitButtonProps> = ({
         ></div>
       ) : (
         <>
-          {icon && <span className="mr-2">{icon}</span>} {/* Add icon if provided */}
-          {label}
+          {icon && (
+            <span
+              className={`mr-2 transition-colors duration-300 ${
+                enhanceOnHover ? 'hover:text-white' : ''
+              }`}
+            >
+              {icon}
+            </span>
+          )}
+          <span
+            className={`transition-colors duration-300 ${
+              enhanceOnHover ? 'hover:text-white' : ''
+            }`}
+          >
+            {label}
+          </span>
         </>
       )}
     </button>

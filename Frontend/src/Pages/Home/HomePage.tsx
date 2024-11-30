@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import MainPageBird from '@assets/Images/MainPageBird.svg?react';
+import MainPageBird from '@assets/Images/MainPageBird.png';
 import SubmitButton from '@components/atoms/buttons/SubmitButton';
 import useDisableScroll from '@hooks/useDisableScroll';
 const HomePage: React.FC = () => {
@@ -68,7 +68,11 @@ const HomePage: React.FC = () => {
           z-0
         "
       >
-      <MainPageBird className="max-w-full h-auto" />
+        <img 
+          src={MainPageBird} 
+          alt="Main Page Bird" 
+          className="max-w-full h-auto" 
+        />
       </div>
     </div>
   );

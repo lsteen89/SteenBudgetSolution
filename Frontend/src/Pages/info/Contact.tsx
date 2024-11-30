@@ -8,6 +8,7 @@ import SendIcon from '@assets/icons/MailIcon.svg?react';
 import { validateField } from '@utils/validation/fieldValidator';
 import { getFirstError } from '@utils/validation/getFirstError';
 import { sendEmail } from '@api/Services/Mail/sendEmail';
+import MailBird from '@assets/Images/ContactUsBird.png';
 
 /* Toast */
 import { ToastContainer, toast, ToastContentProps } from 'react-toastify';
@@ -175,9 +176,6 @@ const ContactUs: React.FC = () => {
     }
   };
   
-  
-  
-  
   return (
     <>
       <ToastContainer
@@ -189,22 +187,33 @@ const ContactUs: React.FC = () => {
         pauseOnFocusLoss={false}
         pauseOnHover={false}
         style={{ zIndex: 9999 }}
-      />
-      <div className="relative">
-        <div className="flex flex-col items-center py-10 px-5 min-h-screen bg-gray-50 mt-40">
+      />      
+<div className="relative flex justify-center items-start min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 ">
+  {/* Bird Image */}
+  <img 
+    src={MailBird} 
+    alt="Mail Bird" 
+    className="absolute left-[3%] top-[45%] transform translate-y-[10%] w-auto max-w-[320px] z-10
+      1920:left-[250px] 1920:top-[35%] 1920:max-w-[400px]
+      3xl:left-[1000px] 3xl:top-[35%] 3xl:max-w-[400px]"
+  />
+  <div className="flex flex-col items-center pt-40 px-5 w-full
+        1920:pt-50"
+  >
           <p className="font-bold text-lg text-gray-700 text-center leading-relaxed">
             Vi välkomnar din feedback och eventuella frågor! <br />
             Du kan kontakta oss genom att fylla i formuläret nedanför
+            <br /><br />
           </p>
-
           {/* Display form-level error message */}
           {errors.form && (
             <p className="text-red-500 text-sm text-center mb-4">{errors.form}</p>
           )}
 
           <form
-            className="w-full max-w-lg bg-white p-6 shadow-lg rounded-lg space-y-6"
-            onSubmit={handleSubmit}
+          className="w-full max-w-lg bg-white p-6 shadow-lg hover:shadow-2xl transition-shadow duration-300 rounded-lg space-y-6 mb-10"
+
+          onSubmit={handleSubmit}
           >
             {/* First Name and Last Name */}
             <div className="flex space-x-4">
@@ -294,9 +303,11 @@ const ContactUs: React.FC = () => {
               <div className="flex-1 flex justify-center">
                 <SubmitButton
                   isSubmitting={isSubmitting}
-                  icon={<SendIcon />}
+                  icon={<SendIcon className="w-6 h-6" />}
                   label="Skicka"
                   type="submit"
+
+                  enhanceOnHover
                   style={{ width: '100%' }}
                 />
               </div>
