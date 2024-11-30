@@ -36,7 +36,7 @@ export default defineConfig({
       '@assets': path.resolve(__dirname, './src/assets'),
       '@hooks': path.resolve(__dirname, './src/hooks'),
 	  '@api': path.resolve(__dirname, './src/api'),
-	  '@heroicons/react': require.resolve('@heroicons/react'),
+
     },
   },
 });
