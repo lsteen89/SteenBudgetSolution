@@ -1,15 +1,8 @@
 import axios from '../../axiosConfig'; // Use your custom axios instance
 import { AxiosResponse } from 'axios'; // Import Axios types for stricter type checking
+import { EmailSubmissionDto } from '../../../types/emailForm'; // Import TypeScript interface for email data
 
-// Define TypeScript interface for the email data
-export interface EmailData {
-  FirstName?: string;
-  LastName?: string;
-  SenderEmail: string;
-  Subject: string;
-  Body: string;
-  CaptchaToken?: string | null; // Optional for CAPTCHA
-}
+
 
 // Define TypeScript interface for the response
 export interface EmailResponse {
@@ -23,7 +16,7 @@ export interface EmailResponse {
  * @returns {Promise<EmailResponse>} - Promise resolving to status and message
  */
 export const sendEmail = async (
-  emailData: EmailData
+  emailData: EmailSubmissionDto
 ): Promise<EmailResponse> => {
   try {
     console.log('Request Method:', 'POST');

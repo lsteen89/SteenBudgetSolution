@@ -1,7 +1,7 @@
 module.exports = {
   content: [
     "./index.html",
-    "./src/**/*.{js,jsx,ts,tsx}", 
+    "./src/**/*.{js,jsx,ts,tsx,html}", 
   ],
   theme: {
     extend: {
@@ -13,11 +13,13 @@ module.exports = {
       fontFamily: {
         inter: [ 'Inter', 'Roboto', 'Montserrat', 'sans-serif'], // Fallback order
       },
+	backgroundSize: {
+        'cover': 'cover',
+      },
       colors: {
         body: '#333333', // Global default text color
-        body: '#333333',
-        customBlue1: '#f0faff', // Light blue
-        customBlue2: '#d6f4ff', // Slightly darker blue
+        customBlue1: '#eff6ff', // Light blue
+        customBlue2: '#dbeafe', // Slightly darker blue
 		limeGreen: '#98FF98', 
       },
     },

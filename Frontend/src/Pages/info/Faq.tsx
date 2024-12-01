@@ -1,8 +1,7 @@
-import FaqBird from '../../assets/Images/FaqBird.png';
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 //import { ChevronDownIcon, QuestionMarkCircleIcon, LockClosedIcon, ChartBarIcon, CogIcon } from '@heroicons/react/24/outline';
-import { ChevronDownIcon, ChartBarIcon, LockClosedIcon, QuestionMarkCircleIcon, CogIcon, BellIcon, KeyIcon, UsersIcon, SparklesIcon, ArrowDownTrayIcon, AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
+import { ChevronDownIcon, ChartBarIcon, LockClosedIcon, QuestionMarkCircleIcon, BellIcon, KeyIcon, UsersIcon, SparklesIcon, ArrowDownTrayIcon, AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
 import SubmitButton from '@components/atoms/buttons/SubmitButton'; 
 
 const Faq: React.FC = () => {

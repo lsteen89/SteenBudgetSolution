@@ -13,7 +13,8 @@ const AboutUs: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col items-center gap-5 py-[175px] ">
+    <div className="flex flex-col items-center gap-5 py-[225px] ">
+
       {/* Cards Section */}
       <div className="flex flex-row items-center gap-5">
         <GlossyFlipCard
@@ -45,7 +46,7 @@ const AboutUs: React.FC = () => {
       </div>
 
       {/* Main Page Text Container */}
-      <div className="w-full max-w-4xl px-6 ">
+      <div className="w-full max-w-4xl px-6 pt-8">
         <DeepBlueContainer>
           <div className="text-center p-5 space-y-4">
             {/* Header */}

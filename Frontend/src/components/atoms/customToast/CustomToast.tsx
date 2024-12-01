@@ -3,7 +3,7 @@ import { ToastContentProps } from 'react-toastify';
 import styles from './CustomToast.module.css';
 
 interface CustomToastProps extends ToastContentProps {
-  message: string;
+  message?: string;
   type: 'success' | 'error';
 }
 
@@ -16,11 +16,11 @@ const CustomToast: React.FC<CustomToastProps> = ({
     type === 'success'
       ? styles.toastifyContainerSuccess
       : styles.toastifyContainerError;
-
+    const defaultMessage = type === 'error' ? 'Internt fel! Försök igen senare!' : 'Allt gick bra! :)';
   return (
     <div className={containerClass}>
       <div className={styles.toastContainer}>
-        <div className={styles.toastMessage}>{message}</div>
+      <div className={styles.toastMessage}>{message || defaultMessage}</div>
         <button
           onClick={closeToast}
           className={styles.toastCloseButton}
