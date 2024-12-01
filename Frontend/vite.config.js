@@ -18,6 +18,7 @@ export default defineConfig({
     }),
     react(),
   ],
+
   root: '.', // Ensure the root is the directory containing index.html
   server: {
     port: 3000, // Development server port
@@ -36,7 +37,7 @@ export default defineConfig({
       '@assets': path.resolve(__dirname, './src/assets'),
       '@hooks': path.resolve(__dirname, './src/hooks'),
 	  '@api': path.resolve(__dirname, './src/api'),
-
+	  '@types': path.resolve(__dirname, './src/types'),
     },
   },
 });

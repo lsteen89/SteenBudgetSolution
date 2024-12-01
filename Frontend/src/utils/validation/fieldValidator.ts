@@ -7,13 +7,15 @@
  * @returns A string containing the error message for the field, or undefined if valid.
  */
 export const validateField = <T extends Record<string, any>>(
-    fieldName: keyof T,
-    fieldValue: any,
-    validateFn: (data: Partial<T>) => Record<string, string>
-  ): string | undefined => {
-    const fieldData: Partial<T> = { [fieldName]: fieldValue } as Partial<T>; 
-    const validationErrors = validateFn(fieldData);
-    return validationErrors[fieldName as string]; 
-  };
-  
+  fieldName: keyof T,
+  fieldValue: any,
+  validateFn: (data: Partial<T>) => Record<string, string>,
+  formData: Partial<T>
+): string | undefined => {
+  // Merge the current formData with the new field value
+  const updatedFormData: Partial<T> = { ...formData, [fieldName]: fieldValue };
+  const validationErrors = validateFn(updatedFormData);
+  return validationErrors[fieldName as string];
+};
+
   

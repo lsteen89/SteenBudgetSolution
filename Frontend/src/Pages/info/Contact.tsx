@@ -6,9 +6,9 @@ import ContactFormInputField from "@components/atoms/InputField/ContactFormInput
 import SubmitButton from '@components/atoms/buttons/SubmitButton'; 
 import SendIcon from '@assets/icons/MailIcon.svg?react';
 import { validateField } from '@utils/validation/fieldValidator';
-import { getFirstError } from '@utils/validation/getFirstError';
 import { sendEmail } from '@api/Services/Mail/sendEmail';
 import MailBird from '@assets/Images/ContactUsBird.png';
+import FormContainer from '@components/molecules/containers/FormContainer';
 
 /* Toast */
 import { ToastContainer, toast, ToastContentProps } from 'react-toastify';
@@ -78,7 +78,8 @@ const ContactUs: React.FC = () => {
     const error = validateField<EmailSubmissionDto>(
       field,
       formData[field],
-      validateContactForm
+      validateContactForm,
+      formData
     );
     setErrors((prevErrors) => ({
       ...prevErrors,
@@ -126,10 +127,6 @@ const ContactUs: React.FC = () => {
           ),
           {
             autoClose: 5000,
-            closeButton: false,
-            hideProgressBar: true,
-            draggable: false,
-            closeOnClick: false,
             className: styles.toastifyContainer,
           }
         );
@@ -151,8 +148,7 @@ const ContactUs: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Error:', error);
-  
-      // Error toast
+
       // Error toast
       toast(
         (toastProps: ToastContentProps) => (
@@ -164,10 +160,6 @@ const ContactUs: React.FC = () => {
         ),
         {
           autoClose: 5000,
-          closeButton: false,
-          hideProgressBar: true,
-          draggable: false,
-          closeOnClick: false,
           className: styles.toastifyContainer,
         }
       );
@@ -188,33 +180,30 @@ const ContactUs: React.FC = () => {
         pauseOnHover={false}
         style={{ zIndex: 9999 }}
       />      
-<div className="relative flex justify-center items-start min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 ">
-  {/* Bird Image */}
-  <img 
-    src={MailBird} 
-    alt="Mail Bird" 
-    className="absolute left-[3%] top-[45%] transform translate-y-[10%] w-auto max-w-[320px] z-10
-      1920:left-[250px] 1920:top-[35%] 1920:max-w-[400px]
-      3xl:left-[1000px] 3xl:top-[35%] 3xl:max-w-[400px]"
-  />
-  <div className="flex flex-col items-center pt-40 px-5 w-full
-        1920:pt-50"
-  >
+        <div className="relative flex justify-center items-start min-h-screen">
+        {/* Bird Image */}
+        <img 
+          src={MailBird} 
+          alt="Mail Bird" 
+          className="absolute left-[3%] top-[45%] transform translate-y-[10%] w-auto max-w-[320px] z-10
+            1920:left-[250px] 1920:top-[35%] 1920:max-w-[400px]
+            3xl:left-[1000px] 3xl:top-[35%] 3xl:max-w-[400px]"
+        />
+        <div
+          className="flex flex-col items-center pt-40 px-5 w-full 1920:pt-50 3xl:pt-60"
+        >
           <p className="font-bold text-lg text-gray-700 text-center leading-relaxed">
             Vi välkomnar din feedback och eventuella frågor! <br />
             Du kan kontakta oss genom att fylla i formuläret nedanför
             <br /><br />
           </p>
+
           {/* Display form-level error message */}
           {errors.form && (
             <p className="text-red-500 text-sm text-center mb-4">{errors.form}</p>
           )}
 
-          <form
-          className="w-full max-w-lg bg-white p-6 shadow-lg hover:shadow-2xl transition-shadow duration-300 rounded-lg space-y-6 mb-10"
-
-          onSubmit={handleSubmit}
-          >
+          <FormContainer tag="form" onSubmit={handleSubmit}>
             {/* First Name and Last Name */}
             <div className="flex space-x-4">
               <div className="flex-1">
@@ -226,7 +215,7 @@ const ContactUs: React.FC = () => {
                   width="100%"
                   height="50px"
                 />
-                {getFirstError(errors) === errors.FirstName && (
+                {errors.FirstName && (
                   <p className="text-red-500 text-sm">{errors.FirstName}</p>
                 )}
               </div>
@@ -239,7 +228,7 @@ const ContactUs: React.FC = () => {
                   width="100%"
                   height="50px"
                 />
-                {getFirstError(errors) === errors.LastName && (
+                {errors.LastName && (
                   <p className="text-red-500 text-sm">{errors.LastName}</p>
                 )}
               </div>
@@ -257,7 +246,7 @@ const ContactUs: React.FC = () => {
                   width="100%"
                   height="50px"
                 />
-                {getFirstError(errors) === errors.SenderEmail && (
+                {errors.SenderEmail && (
                   <p className="text-red-500 text-sm">{errors.SenderEmail}</p>
                 )}
               </div>
@@ -274,7 +263,7 @@ const ContactUs: React.FC = () => {
                   width="100%"
                   height="50px"
                 />
-                {getFirstError(errors) === errors.Subject && (
+                {errors.Subject && (
                   <p className="text-red-500 text-sm">{errors.Subject}</p>
                 )}
               </div>
@@ -292,8 +281,11 @@ const ContactUs: React.FC = () => {
                   height="200px"
                   multiline={true}
                 />
-                {getFirstError(errors) === errors.Body && (
+                {errors.Body && (
                   <p className="text-red-500 text-sm">{errors.Body}</p>
+                )}
+                {errors.CaptchaToken && (
+                  <p className="text-red-500 text-sm">{errors.CaptchaToken}</p>
                 )}
               </div>
             </div>
@@ -306,7 +298,6 @@ const ContactUs: React.FC = () => {
                   icon={<SendIcon className="w-6 h-6" />}
                   label="Skicka"
                   type="submit"
-
                   enhanceOnHover
                   style={{ width: '100%' }}
                 />
@@ -319,12 +310,9 @@ const ContactUs: React.FC = () => {
                     ref={captchaRef}
                   />
                 </div>
-                {getFirstError(errors) === errors.CaptchaToken && (
-                  <p className="text-red-500 text-sm mt-2">{errors.CaptchaToken}</p>
-                )}
               </div>
             </div>
-          </form>
+          </FormContainer>
         </div>
       </div>
     </>

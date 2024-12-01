@@ -4,12 +4,25 @@
 @tailwind utilities;
 
 html, body {
-  @apply font-inter text-body bg-gradient-to-br from-customBlue1 to-customBlue2;;
+  @apply font-inter text-body;
+  margin: 0;
+  height: auto;
+  min-height: 100%;
+}
+
+body {
+  @apply bg-gradient-to-br from-customBlue1 to-customBlue2 bg-fixed bg-cover;
 }
 
 #root {
   @apply flex flex-col min-h-screen;
 }
+
+/* Optional: Debug styles */
+.debug-outline {
+  outline: 5px solid blue;
+}
+
 .debug-outline * {
-  outline: 1px solid red; /* Gives every element a red border */
+  outline: 1px solid red;
 }

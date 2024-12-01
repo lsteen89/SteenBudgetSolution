@@ -1,11 +1,11 @@
 import axios from '../../axiosConfig';
-import { UserCreationDto } from '../../../types/user';
+import { UserCreationDto } from '../../../types/userCreation';
 
 /**
  * Registers a new user
  * @param {UserCreationDto} user - The registration details for the new user
  * @returns {Promise<void>} - Axios response promise
- * @throws Will throw an error if registration fails with a message from the backend or a default message.
+ * @throws Will throw an error object containing detailed response data if registration fails.
  */
 export const registerUser = async (user: UserCreationDto): Promise<void> => {
     try {
@@ -13,9 +13,23 @@ export const registerUser = async (user: UserCreationDto): Promise<void> => {
             headers: { 'Content-Type': 'application/json' },
         });
     } catch (error: any) {
-        // Capture specific error message from backend or use a generic one
-        const errorMessage = error.response?.data?.message || 'Internt fel, försök igen';
-        throw new Error(errorMessage);
+        if (error.response) {
+            // Log the full response for debugging
+            console.error("Backend Response Error:", error.response);
+
+            
+            const errorMessage = error.response.data?.message || 'Internt fel, försök igen';
+
+            // Throw the full error object with additional context
+            throw {
+                ...error, // Preserve the original Axios error
+                message: errorMessage, // Override the message
+            };
+        } else {
+            // If there's no response, it's likely a network error
+            console.error("Network Error:", error);
+            throw new Error("Unable to connect to the server. Please try again later.");
+        }
     }
 };
 
