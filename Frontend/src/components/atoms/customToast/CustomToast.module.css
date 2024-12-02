@@ -36,7 +36,7 @@
   /* Success toast styles */
   .toastifyContainerSuccess {
     composes: toastifyContainer;
-    background-color: #98FF98;
+    background-color: limeGreen;
   }
   
   /* Error toast styles */

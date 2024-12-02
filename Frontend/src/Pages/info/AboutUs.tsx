@@ -21,7 +21,7 @@ const AboutUs: React.FC = () => {
           frontText="Vad gör vi?"
           backText={
             <>
-              Med <span style={{ color: '#98FF98', fontWeight: 'bold' }}>eBudget</span> förenklar vi din ekonomiska vardag 
+              Med <span style={{ color: 'limeGreen', fontWeight: 'bold' }}>eBudget</span> förenklar vi din ekonomiska vardag 
               genom smart budgetering, sparmål och verktyg som hjälper dig att ta kontroll över din ekonomi.
             </>
           }
@@ -31,7 +31,7 @@ const AboutUs: React.FC = () => {
           frontText="Funktioner"
           backText={
             <>
-              <span style={{ color: '#98FF98', fontWeight: 'bold' }}>eBudget</span> hjälper dig att sätta mål, spåra dina framsteg och hålla koll på din ekonomi med kraftfulla verktyg för budgethantering.
+              <span style={{ color: 'limeGreen', fontWeight: 'bold' }}>eBudget</span> hjälper dig att sätta mål, spåra dina framsteg och hålla koll på din ekonomi med kraftfulla verktyg för budgethantering.
             </>
           }
         />
@@ -39,7 +39,7 @@ const AboutUs: React.FC = () => {
           frontText="Premium funktioner"
           backText={
             <>
-              Med <span style={{ color: '#98FF98', fontWeight: 'bold' }}>eBudget</span> förenklar vi din ekonomiska vardag genom smart budgetering, sparmål och verktyg som hjälper dig att ta kontroll över din ekonomi.
+              Med <span style={{ color: 'limeGreen', fontWeight: 'bold' }}>eBudget</span> förenklar vi din ekonomiska vardag genom smart budgetering, sparmål och verktyg som hjälper dig att ta kontroll över din ekonomi.
             </>
           }
         />
@@ -47,7 +47,7 @@ const AboutUs: React.FC = () => {
 
       {/* Main Page Text Container */}
       <div className="w-full max-w-4xl px-6 pt-8">
-        <DeepBlueContainer>
+        <DeepBlueContainer maxWidth="100%">
           <div className="text-center p-5 space-y-4">
             {/* Header */}
             <p className="text-3xl font-extrabold text-white">
@@ -71,7 +71,7 @@ const AboutUs: React.FC = () => {
             </p>
           </div>
         </DeepBlueContainer>
-        <div className="flex flex-row items-center justify-center gap-5 mt-10">
+        <div className="flex flex-row items-center justify-center gap-5 mt-5">
         {/* Button Section */}
           <div className="flex-shrink-0">
             <SubmitButton
