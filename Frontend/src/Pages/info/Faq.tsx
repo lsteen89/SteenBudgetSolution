@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import faqBird from '@assets/images/FaqBird.png';
+import faqBird from '@assets/Images/FaqBird.png';
 import { ChevronDownIcon, ChartBarIcon, LockClosedIcon, QuestionMarkCircleIcon, BellIcon, KeyIcon, UsersIcon, SparklesIcon, ArrowDownTrayIcon, AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
 import SubmitButton from '@components/atoms/buttons/SubmitButton'; 
 
