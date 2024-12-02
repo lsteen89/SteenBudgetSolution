@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-//import { ChevronDownIcon, QuestionMarkCircleIcon, LockClosedIcon, ChartBarIcon, CogIcon } from '@heroicons/react/24/outline';
+import faqBird from '@assets/images/faqbird.png';
 import { ChevronDownIcon, ChartBarIcon, LockClosedIcon, QuestionMarkCircleIcon, BellIcon, KeyIcon, UsersIcon, SparklesIcon, ArrowDownTrayIcon, AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
 import SubmitButton from '@components/atoms/buttons/SubmitButton'; 
+
 
 const Faq: React.FC = () => {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
@@ -64,56 +65,66 @@ const Faq: React.FC = () => {
 
   ];
 
-  return (
-    <div className="relative flex justify-center items-center min-h-screen py-[200px] bg-gradient-to-br from-blue-50 to-blue-100">
-      {/* FAQ Box */}
-      <div className="max-w-4xl w-full bg-white p-10 rounded-lg shadow-lg border-t-8 border-limeGreen">
-        {/* Title */}
-        <h1 className="text-3xl font-extrabold text-center text-gray-800 mb-6">
-          Vanliga frågor
-        </h1>
+  return (        
+  <div className="relative flex justify-center items-start min-h-screen">
+    {/* Bird Image */}
+    <img 
+      src={faqBird} 
+      alt="faqBird" 
+      className="absolute right-[3%] top-[45%] transform translate-y-[10%] w-auto max-w-[320px] z-10
+        1920:right-[250px] 1920:top-[35%] 1920:max-w-[400px]
+        3xl:right-[1000px] 3xl:top-[35%] 3xl:max-w-[400px]"
+    />
+      <div className="relative flex justify-center items-center min-h-screen py-[200px] bg-gradient-to-br from-blue-50 to-blue-100">
+        {/* FAQ Box */}
+        <div className="max-w-4xl w-full bg-white p-10 rounded-lg shadow-lg border-t-8 border-limeGreen">
+          {/* Title */}
+          <h1 className="text-3xl font-extrabold text-center text-gray-800 mb-6">
+            Vanliga frågor
+          </h1>
 
-        {/* Accordion Section */}
-        <div className="space-y-4 ">
-          {questions.map((item, index) => (
-            <div
-              key={index}
-              className="border rounded-lg shadow-sm hover:shadow-md transition-shadow"
-            >
-              <button
-                className="flex justify-between items-center w-full text-left px-4 py-3 font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 focus:outline-none"
-                onClick={() => toggleAccordion(index)}
+          {/* Accordion Section */}
+          <div className="space-y-4 ">
+            {questions.map((item, index) => (
+              <div
+                key={index}
+                className="border rounded-lg shadow-sm hover:shadow-md transition-shadow"
               >
-                <div className="flex items-center gap-3">
-                  {item.icon}
-                  <span>{item.question}</span>
-                </div>
-                <ChevronDownIcon
-                  className={`w-5 h-5 text-gray-600 transform transition-transform ${
-                    activeIndex === index ? 'rotate-180' : ''
-                  }`}
-                />
-              </button>
-              {activeIndex === index && (
-                <div className="px-4 py-2 bg-gray-50 border-t text-gray-600">
-                  {item.answer}
-                </div>
-              )}
+                <button
+                  className="flex justify-between items-center w-full text-left px-4 py-3 font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 focus:outline-none"
+                  onClick={() => toggleAccordion(index)}
+                >
+                  <div className="flex items-center gap-3">
+                    {item.icon}
+                    <span>{item.question}</span>
+                  </div>
+                  <ChevronDownIcon
+                    className={`w-5 h-5 text-gray-600 transform transition-transform ${
+                      activeIndex === index ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
+                {activeIndex === index && (
+                  <div className="px-4 py-2 bg-gray-50 border-t text-gray-600">
+                    {item.answer}
+                  </div>
+                )}
+              </div>
+              
+            ))}
+                      <div className="mt-10 bg-blue-50 p-6 rounded-lg text-center">
+              <p className="text-lg font-bold text-blue-600">
+                Har du fler frågor? Kontakta oss för att få svar!
+                <br /><br />
+              </p>
+              <SubmitButton
+              isSubmitting={false}
+              label="Kontakta oss"
+              size="large"
+              enhanceOnHover
+              onClick={handleRedirect}
+              />
             </div>
-            
-          ))}
-                    <div className="mt-10 bg-blue-50 p-6 rounded-lg text-center">
-            <p className="text-lg font-bold text-blue-600">
-              Har du fler frågor? Kontakta oss för att få svar!
-              <br /><br />
-            </p>
-            <SubmitButton
-            isSubmitting={false}
-            label="Kontakta oss"
-            size="large"
-            enhanceOnHover
-            onClick={handleRedirect}
-            />
           </div>
         </div>
       </div>
