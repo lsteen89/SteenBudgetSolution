@@ -8,7 +8,7 @@ import { UserFormData } from '../../types/registrationForm';
 import { validateRegistrationForm} from '@utils/validation/userValidation';
 import { validateField } from '@utils/validation/fieldValidator';
 import FormContainer from '@components/molecules/containers/FormContainer';
-import regbird from '@assets/images/regbird.png';
+import regbird from '@assets/images/RegBird.png';
 /* Toast */
 import { ToastContainer, toast, ToastContentProps } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
