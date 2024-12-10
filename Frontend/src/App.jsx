@@ -11,8 +11,12 @@ import Login from './Pages/auth/Login';
 import TestForm from './Pages/TestForm';
 import EmailConfirmationPage from './Pages/auth/EmailConfirmationPage';  
 import './index.css';
+import { mockVerifyEmail } from '@mocks/mockServices/verifyEmailMock.ts';
+import { verifyEmail as realVerifyEmail } from '@api/Services/User/verifyEmail';
 
 function App() {
+
+  const isDebugMode = process.env.NODE_ENV === 'development';
   return (
     <BrowserRouter>
       <div className="App">
@@ -21,7 +25,12 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/registration" element={<Registration />} />
           <Route path="/check-email" element={<CheckEmailPage />} /> {/* After registration */}
-          <Route path="/confirm-email" element={<EmailConfirmationPage />} /> {/* After clicking email link */}
+          <Route path="/email-confirmation" element={<EmailConfirmationPage
+              verifyEmail={isDebugMode ? mockVerifyEmail : realVerifyEmail}
+              debugToken={isDebugMode ? 'debug-token-123' : undefined}
+              />
+            }
+          />;
           <Route path="/about-us" element={<AboutUs />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/faq" element={<Faq />} />
