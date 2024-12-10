@@ -41,6 +41,7 @@ const EmailConfirmationPage: React.FC<EmailConfirmationPageProps> = ({
   useEffect(() => {
     if (!token) {
       setStatusMessage('Felaktigt försök, försök igen eller kontakta oss!');
+      setIsError(true); 
       setVerificationStatus('error');
       return;
     }
