@@ -18,6 +18,7 @@ using Backend.Infrastructure.Data.Sql.UserQueries;
 using Backend.Application.Services.EmailServices;
 using Backend.Application.Interfaces;
 using Backend.Infrastructure.Data.Sql.Interfaces;
+using Backend.Infrastructure.Interfaces;
 
 public class StartupTest
 {
@@ -49,6 +50,7 @@ public class StartupTest
         // Register other dependencies
         services.AddScoped<IUserSqlExecutor, UserSqlExecutor>();
         services.AddScoped<ITokenSqlExecutor, TokenSqlExecutor>();
+        services.AddScoped<IEnvironmentService, EnvironmentService>();
         services.AddScoped<UserServices>();
         //services.AddSingleton<IEmailService, MockEmailService>();
         services.AddSingleton<IEmailPreparationService, EmailPreparationService>();

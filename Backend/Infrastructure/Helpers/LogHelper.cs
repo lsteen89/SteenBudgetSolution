@@ -18,5 +18,12 @@ namespace Backend.Infrastructure.Helpers
             }
             return createUserErrorLog.ToString();
         }
+        public string MaskEmail(string email)
+        {
+            var parts = email.Split('@');
+            if (parts.Length != 2) return email; 
+            var localPart = parts[0].Length > 3 ? parts[0].Substring(0, 3) + "****" : parts[0];
+            return $"{localPart}@{parts[1]}";
+        }
     }
 }

@@ -16,9 +16,14 @@ export default defineConfig({
       // Keep critical logs like warnings and errors
       exclude: ['error', 'warn'],
     }),
+
     react(),
   ],
-
+  test: {
+    globals: true, // Enable global test functions like `describe` and `it`
+    environment: 'jsdom', // Use a browser-like environment for React testing
+    setupFiles: './src/tests/setupTests.ts', // Load test setup file
+  },
   root: '.', // Ensure the root is the directory containing index.html
   server: {
     port: 3000, // Development server port

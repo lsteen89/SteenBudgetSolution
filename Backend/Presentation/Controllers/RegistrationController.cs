@@ -40,7 +40,9 @@ namespace Backend.Presentation.Controllers
             }
 
             // Step 2: Validate reCAPTCHA
-            bool recaptchaValid = userCreationDto.Email == "l@l.se" || await _recaptchaService.ValidateTokenAsync(userCreationDto.CaptchaToken);
+            bool isTestEmail = Environment.GetEnvironmentVariable("ALLOW_TEST_EMAILS") == "true";
+            bool recaptchaValid = (isTestEmail && userCreationDto.Email == "l@l.se") || await _recaptchaService.ValidateTokenAsync(userCreationDto.CaptchaToken);
+
             if (!recaptchaValid)
             {
                 _logger.LogWarning("Invalid reCAPTCHA for email: {Email}", userCreationDto.Email);

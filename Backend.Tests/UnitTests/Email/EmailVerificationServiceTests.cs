@@ -15,7 +15,6 @@ public class EmailVerificationServiceTests : UnitTestBase
 
     public EmailVerificationServiceTests()
     {
-        // Setup method logic (xUnit uses constructors for setup)
         Setup();
     }
 
