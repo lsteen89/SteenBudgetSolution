@@ -71,7 +71,6 @@ namespace Backend.Infrastructure.Data.Sql.UserQueries
             if (user == null)
             {
                 _logger.LogWarning("User not found in database. Email: {Email}, PersoId: {PersoId}", email, persoid);
-                throw new KeyNotFoundException("User not found");
             }
 
             return user;

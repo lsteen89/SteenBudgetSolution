@@ -32,7 +32,8 @@ public class EmailController : ControllerBase
         }
 
         // Verify reCAPTCHA token
-        bool recaptchaValid = sendEmailDto.SenderEmail == "l@l.se" || await _recaptchaService.ValidateTokenAsync(sendEmailDto.CaptchaToken);
+        bool isTestEmail = Environment.GetEnvironmentVariable("ALLOW_TEST_EMAILS") == "true";
+        bool recaptchaValid = (isTestEmail && sendEmailDto.SenderEmail == "l@l.se") || await _recaptchaService.ValidateTokenAsync(sendEmailDto.CaptchaToken);
         if (!recaptchaValid)
         {
             _logger.LogWarning("Invalid reCAPTCHA for email: {Email}", sendEmailDto.SenderEmail);

@@ -25,9 +25,10 @@ using Backend.Application.Settings;
 using Backend.Application.Interfaces;
 using Backend.Infrastructure.Data.Sql.UserQueries;
 using Microsoft.Extensions.DependencyInjection;
-using Backend.Application.Services.TokenServices;
 using Backend.Application.Services.EmailServices;
 using Backend.Infrastructure.Data.Sql.Interfaces;
+using Backend.Infrastructure.Security;
+using Backend.Infrastructure.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 #region Serilog Configuration
@@ -78,6 +79,8 @@ builder.Services.AddScoped<ITokenSqlExecutor, TokenSqlExecutor>();
 
 builder.Services.AddScoped<UserServices>();
 builder.Services.AddScoped<TokenService>();
+builder.Services.AddScoped<LogHelper>();
+builder.Services.AddScoped<IEnvironmentService, EnvironmentService>();
 builder.Services.AddTransient<RecaptchaHelper>();
 builder.Services.AddScoped<IRecaptchaService, RecaptchaService>();
 builder.Services.Configure<ResendEmailSettings>(builder.Configuration.GetSection("ResendEmailSettings"));
@@ -210,8 +213,8 @@ builder.Services.AddAuthentication(options =>
         ClockSkew = TimeSpan.Zero  // Token expiration tolerance
     };
 });
-
-builder.Services.AddAuthorization();  // Required to resolve the error
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddAuthorization();  
 
 // Adding CORS policies
 builder.Services.AddCors(options =>

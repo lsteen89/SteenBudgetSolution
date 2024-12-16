@@ -1,14 +1,10 @@
 ﻿using Backend.Application.DTO;
-using Backend.Presentation.Controllers;
-using Backend.Domain.Entities;
-using Backend.Infrastructure.Data;
-using Backend.Infrastructure.Helpers;
-using System.Data.Common;
-using System.Transactions;
-using Backend.Infrastructure.Data.Sql.UserQueries;
 using Backend.Application.Services.EmailServices;
+using Backend.Domain.Entities;
 using Backend.Infrastructure.Data.Sql.Interfaces;
-
+using Backend.Infrastructure.Interfaces;
+using Backend.Infrastructure.Security;
+using Backend.Infrastructure.Helpers.Validators;
 namespace Backend.Application.Services.UserServices
 {
     public class UserServices
@@ -20,8 +16,11 @@ namespace Backend.Application.Services.UserServices
         private readonly IEmailService _iEmailService;
         private readonly EmailVerificationService _emailVerificationService;
         private readonly ILogger<UserServices> _logger;
+        private readonly TokenService _tokenService;
+        private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IEnvironmentService _environmentService;
 
-        public UserServices(IUserSqlExecutor userSqlExecutor, ITokenSqlExecutor tokenSqlExecutor, IConfiguration configuration, IEmailService IemailService, ILogger<UserServices> logger, EmailVerificationService emailVerificationService)
+        public UserServices(IUserSqlExecutor userSqlExecutor, ITokenSqlExecutor tokenSqlExecutor, IConfiguration configuration, IEmailService IemailService, ILogger<UserServices> logger, EmailVerificationService emailVerificationService, TokenService tokenService, IHttpContextAccessor httpContextAccessor, IEnvironmentService environmentService)
         {
             _userSqlExecutor = userSqlExecutor;
             _tokenSqlExecutor = tokenSqlExecutor;
@@ -29,6 +28,9 @@ namespace Backend.Application.Services.UserServices
             _iEmailService = IemailService;
             _emailVerificationService = emailVerificationService;
             _logger = logger;
+            _tokenService = tokenService;
+            _httpContextAccessor = httpContextAccessor;
+            _environmentService = environmentService;
         }
         // Method for registering a new user
         public async Task<bool> RegisterUserAsync(UserCreationDto userCreationDto)
@@ -107,6 +109,71 @@ namespace Backend.Application.Services.UserServices
             }
             _logger.LogInformation("Verification email and token generated successfully for email: {Email}", email);
             return true;
+        }
+
+        // Method for logging in a user
+        public async Task<LoginResultDto> LoginAsync(UserLoginDto userLoginDto)
+        {
+
+            // Step 1: Validate user credentials
+            var validUser = await ValidateUserAsync(userLoginDto.Email, userLoginDto.Password);
+            if (!validUser.IsValid)
+            {
+                _logger.LogWarning("Invalid credentials for email: {Email}", userLoginDto.Email);
+                return new LoginResultDto { Success = false, Message = validUser.ErrorMessage };
+            }
+
+            // Step 2: Generate JWT Token and set as HTTP-only cookie
+            // Arrange
+            Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Production");
+            
+            var verifiedUser = await GetUserModelAsync(email: userLoginDto.Email);
+            var token = _tokenService.GenerateJwtToken(verifiedUser.PersoId.ToString(), email: userLoginDto.Email);
+            //var isSecure = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Production";
+            
+            var isSecure = _environmentService.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Production";
+
+            _httpContextAccessor.HttpContext.Response.Cookies.Append("auth_token", token, new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = isSecure,
+                SameSite = SameSiteMode.Strict,
+                Expires = DateTime.UtcNow.AddHours(1)
+            });
+
+            
+            return new LoginResultDto
+            {
+                Success = true,
+                Message = "Login successful",
+                UserName = verifiedUser.Email 
+            };
+        }
+
+        // Validate user credentials
+        private async Task<ValidationResult> ValidateUserAsync(string email, string password)
+        {
+            // Step 1: Get user model
+            var user = await _userSqlExecutor.GetUserModelAsync(email: email);
+            if (user == null)
+            {
+                _logger.LogWarning("User not found for email: {Email}", email);
+                return new ValidationResult(false, "Felaktiga uppgifter");
+            }
+            // Step 2: Check if user email is confirmed
+            if (!user.EmailConfirmed)
+            {
+                _logger.LogWarning("User email not confirmed for email: {Email}", email);
+                return new ValidationResult(false, "E-post ej bekräftad");
+            }
+            // Step 3: Verify password
+            if (!BCrypt.Net.BCrypt.Verify(password, user.Password))
+            {
+                _logger.LogWarning("Invalid password for email: {Email}", email);
+                return new ValidationResult(false, "Felaktiga uppgifter");
+            }
+
+            return new ValidationResult(true);
         }
         private async Task<bool> CreateNewRegisteredUserAsync(UserModel user)
         {

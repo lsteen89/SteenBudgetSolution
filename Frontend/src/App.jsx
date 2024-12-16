@@ -7,12 +7,13 @@ import CheckEmailPage from './Pages/auth/CheckEmailPage';
 import AboutUs from './Pages/info/AboutUs';
 import Contact from './Pages/info/Contact';
 import Faq from './Pages/info/Faq';
-import Login from './Pages/auth/Login';
-import TestForm from './Pages/TestForm';
+import Login from './Pages/auth/LoginPage';
+import NotFoundPage from './Pages/info/NotFoundPage';
 import EmailConfirmationPage from './Pages/auth/EmailConfirmationPage';  
 import './index.css';
 import { mockVerifyEmail } from '@mocks/mockServices/verifyEmailMock.ts';
 import { verifyEmail as realVerifyEmail } from '@api/Services/User/verifyEmail';
+
 
 function App() {
 
@@ -35,8 +36,7 @@ function App() {
           <Route path="/contact" element={<Contact />} />
           <Route path="/faq" element={<Faq />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/testform" element={<TestForm />} />
-          <Route path="*" element={<h1>404 - Page Not Found</h1>} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </div>
     </BrowserRouter>
