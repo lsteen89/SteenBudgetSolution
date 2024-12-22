@@ -1,8 +1,6 @@
 ﻿using Backend.Application.DTO;
-using Backend.Application.Interfaces;
-using Backend.Application.Services.UserServices;
-using Backend.Application.Validators;
-using Backend.Domain.Entities;
+using Backend.Application.Interfaces.RecaptchaService;
+using Backend.Application.Interfaces.UserServices;
 using Backend.Infrastructure.Helpers;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,12 +10,12 @@ namespace Backend.Presentation.Controllers
     [Route("api/[controller]")]
     public class AuthController : ControllerBase
     {
-        private readonly UserServices _userServices;
+        private readonly IUserServices _userServices;
         private readonly ILogger<RegistrationController> _logger;
         private readonly IRecaptchaService _recaptchaService;
         private readonly LogHelper _logHelper;
 
-        public AuthController(UserServices userServices, ILogger<RegistrationController> logger, IRecaptchaService recaptchaService, LogHelper logHelper)
+        public AuthController(IUserServices userServices, ILogger<RegistrationController> logger, IRecaptchaService recaptchaService, LogHelper logHelper)
         {
             _userServices = userServices;
             _logger = logger;

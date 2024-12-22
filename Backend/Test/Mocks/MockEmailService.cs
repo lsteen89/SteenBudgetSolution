@@ -3,7 +3,7 @@ using Backend.Domain.Entities;
 using Backend.Application.Services;
 using Backend.Infrastructure.Email;
 using Microsoft.Extensions.Logging;
-using Backend.Application.Interfaces;
+using Backend.Application.Interfaces.EmailServices;
 
 namespace Backend.Tests.Mocks
 {
@@ -29,7 +29,7 @@ namespace Backend.Tests.Mocks
                 emailMessage = await PrepareEmailAsync(emailMessage);
 
                 // Simulate the sending part
-                _logger.LogInformation("MockEmailService: Pretending to send email to {Recipient}", emailMessage.Recipient);
+                //_logger.LogInformation("MockEmailService: Pretending to send email to {Recipient}", emailMessage.Recipient);
                 return await Task.FromResult(true); // Simulate a successful send
 
             }

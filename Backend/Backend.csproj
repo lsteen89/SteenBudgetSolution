@@ -11,6 +11,13 @@
 	<ItemGroup>
 		<Content Include="Infrastructure\Data\SqlCode\**\*.sql" />
 	</ItemGroup>
+
+	<ItemGroup>
+	  <Compile Remove="Application\Services\TokenServices\**" />
+	  <Content Remove="Application\Services\TokenServices\**" />
+	  <EmbeddedResource Remove="Application\Services\TokenServices\**" />
+	  <None Remove="Application\Services\TokenServices\**" />
+	</ItemGroup>
   <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     <PackageReference Include="Dapper" Version="2.1.35" />
@@ -36,7 +43,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Application\Services\TokenServices\" />
     <Folder Include="Domain\Interfaces\" />
     <Folder Include="logs\" />
 	<Folder Include="Infrastructure\Security\" />

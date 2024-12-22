@@ -1,4 +1,4 @@
-﻿using Backend.Application.Interfaces;
+﻿using Backend.Application.Interfaces.RecaptchaService;
 using Backend.Infrastructure.Helpers;
 
 namespace Backend.Application.Services.Validation

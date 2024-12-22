@@ -1,24 +1,16 @@
-﻿using System.Data.Common;
-using Dapper;
-using System.Data;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using Backend.Helpers;
-using System.Data.Common;
+﻿using Backend.Domain.Entities;
 using Backend.Test.UserTests.BaseClass;
-using Backend.Domain.Entities;
+using Dapper;
+using System.Data.Common;
 
-namespace Backend.Helpers.TestClasses.UserTests
+namespace Backend.Test.UserTests
 {
-    namespace Backend.Helpers.TestClasses.UserTests
-    {
         public class UserServiceTest : TestDatabaseHelper
         {
             public UserServiceTest(DbConnection connection, ILogger<UserServiceTest> logger)
                 : base(connection, logger)
             {
             }
-            #region SQL
             public async Task<UserTokenModel> ModifyTokenExpiryAndRetrieveAsync(UserTokenModel userTokenModel)
             {
                 string sqlUpdate = "UPDATE VerificationToken SET TokenExpiryDate = @TokenExpiryDate WHERE Persoid = @Persoid";
@@ -30,7 +22,10 @@ namespace Backend.Helpers.TestClasses.UserTests
 
                 return updatedToken;
             }
-            #endregion
-        }
+            public async Task ConfirmUserEmailAsync(Guid persoId)
+            {
+                const string sql = "UPDATE User SET EmailConfirmed = 1 WHERE PersoId = @PersoId";
+                await ExecuteAsync(sql, new { PersoId = persoId });
+            }
     }
 }

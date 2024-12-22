@@ -4,9 +4,17 @@ namespace Backend.Infrastructure.Helpers
 {
     public class EnvironmentService : IEnvironmentService
     {
+        private readonly IConfiguration _configuration;
+
+        public EnvironmentService(IConfiguration configuration)
+        {
+            _configuration = configuration;
+        }
+
         public string GetEnvironmentVariable(string key)
         {
-            return Environment.GetEnvironmentVariable(key);
+            // Only use environment variable or mock for tests
+            return Environment.GetEnvironmentVariable(key) ?? _configuration[key];
         }
     }
 }

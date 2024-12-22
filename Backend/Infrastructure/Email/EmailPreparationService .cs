@@ -1,4 +1,4 @@
-﻿using Backend.Application.Interfaces;
+﻿using Backend.Application.Interfaces.EmailServices;
 using Backend.Domain.Entities;
 using MimeKit;
 using Org.BouncyCastle.Cms;

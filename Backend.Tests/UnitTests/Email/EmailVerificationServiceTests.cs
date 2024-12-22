@@ -1,27 +1,33 @@
-﻿using Backend.Application.Services.EmailServices;
-using Backend.Domain.Entities;
-using Microsoft.Extensions.Options;
-using Moq;
-using System;
-using System.Threading.Tasks;
-using Backend.Infrastructure.Data.Sql.UserQueries;
+﻿using Backend.Domain.Entities;
 using Backend.Tests.Mocks;
+using Microsoft.Extensions.DependencyInjection;
+using Moq;
 using Xunit;
 
 public class EmailVerificationServiceTests : UnitTestBase
 {
     private const string NonExistentEmail = "nonexistent@example.com";
     private const string TestEmail = "test@example.com";
+    private readonly UserModel _testUser;
+    private readonly UserVerificationTrackingModel _tracking;
 
     public EmailVerificationServiceTests()
     {
-        Setup();
+        // Common setup for tests
+        _testUser = new UserModel { Email = TestEmail, PersoId = Guid.NewGuid() };
+        _tracking = new UserVerificationTrackingModel
+        {
+            DailyResendCount = 0,
+            LastResendRequestDate = DateTime.UtcNow.Date,
+            LastResendRequestTime = null
+        };
     }
 
     [Fact]
     public async Task ResendVerificationEmailAsync_UserNotFound_ReturnsNotFound()
     {
-        // Arrange: User does not exist in the database
+
+        // Arrange
         MockUserSqlExecutor.Setup(x => x.GetUserModelAsync(null, NonExistentEmail))
             .ReturnsAsync((UserModel)null);
 
@@ -37,16 +43,10 @@ public class EmailVerificationServiceTests : UnitTestBase
     [Fact]
     public async Task ResendVerificationEmailAsync_DailyLimitExceeded_ReturnsTooManyRequests()
     {
-        // Arrange: Daily limit is exceeded for this user
-        var user = new UserModel { Email = TestEmail, PersoId = Guid.NewGuid() };
-        var tracking = new UserVerificationTrackingModel
-        {
-            DailyResendCount = 3, // Assume daily limit is 3
-            LastResendRequestDate = DateTime.UtcNow.Date
-        };
-
-        MockUserSqlExecutor.Setup(x => x.GetUserModelAsync(null, TestEmail)).ReturnsAsync(user);
-        MockTokenSqlExecutor.Setup(x => x.GetUserVerificationTrackingAsync(user.PersoId)).ReturnsAsync(tracking);
+        // Arrange
+        _tracking.DailyResendCount = 3; // Assume limit is 3
+        MockUserSqlExecutor.Setup(x => x.GetUserModelAsync(null, TestEmail)).ReturnsAsync(_testUser);
+        MockTokenSqlExecutor.Setup(x => x.GetUserVerificationTrackingAsync(_testUser.PersoId)).ReturnsAsync(_tracking);
 
         // Act
         var result = await EmailVerificationService.ResendVerificationEmailAsync(TestEmail);
@@ -60,15 +60,10 @@ public class EmailVerificationServiceTests : UnitTestBase
     [Fact]
     public async Task ResendVerificationEmailAsync_CooldownNotMet_ReturnsTooManyRequests()
     {
-        // Arrange: Cooldown period has not been met
-        var user = new UserModel { Email = TestEmail, PersoId = Guid.NewGuid() };
-        var tracking = new UserVerificationTrackingModel
-        {
-            LastResendRequestTime = DateTime.UtcNow.AddMinutes(-2) // Less than cooldown period
-        };
-
-        MockUserSqlExecutor.Setup(x => x.GetUserModelAsync(null, TestEmail)).ReturnsAsync(user);
-        MockTokenSqlExecutor.Setup(x => x.GetUserVerificationTrackingAsync(user.PersoId)).ReturnsAsync(tracking);
+        // Arrange
+        _tracking.LastResendRequestTime = DateTime.UtcNow.AddMinutes(-2); // Less than cooldown
+        MockUserSqlExecutor.Setup(x => x.GetUserModelAsync(null, TestEmail)).ReturnsAsync(_testUser);
+        MockTokenSqlExecutor.Setup(x => x.GetUserVerificationTrackingAsync(_testUser.PersoId)).ReturnsAsync(_tracking);
 
         // Act
         var result = await EmailVerificationService.ResendVerificationEmailAsync(TestEmail);
@@ -82,15 +77,12 @@ public class EmailVerificationServiceTests : UnitTestBase
     [Fact]
     public async Task ResendVerificationEmailAsync_ExpiredTokenDeleted_ReturnsSuccess()
     {
-        // Arrange: Expired token exists and is deleted successfully
-        var user = new UserModel { Email = TestEmail, PersoId = Guid.NewGuid() };
-        var token = new UserTokenModel { TokenExpiryDate = DateTime.UtcNow.AddMinutes(-10) }; // Expired token
-        var tracking = new UserVerificationTrackingModel();
-
-        MockUserSqlExecutor.Setup(x => x.GetUserModelAsync(null, TestEmail)).ReturnsAsync(user);
-        MockTokenSqlExecutor.Setup(x => x.GetUserVerificationTrackingAsync(user.PersoId)).ReturnsAsync(tracking);
-        MockTokenSqlExecutor.Setup(x => x.GetUserVerificationTokenByPersoIdAsync(user.PersoId)).ReturnsAsync(token);
-        MockTokenSqlExecutor.Setup(x => x.DeleteUserTokenByPersoidAsync(user.PersoId)).ReturnsAsync(1); // Token deleted
+        // Arrange
+        var expiredToken = new UserTokenModel { TokenExpiryDate = DateTime.UtcNow.AddMinutes(-10) };
+        MockUserSqlExecutor.Setup(x => x.GetUserModelAsync(null, TestEmail)).ReturnsAsync(_testUser);
+        MockTokenSqlExecutor.Setup(x => x.GetUserVerificationTrackingAsync(_testUser.PersoId)).ReturnsAsync(_tracking);
+        MockTokenSqlExecutor.Setup(x => x.GetUserVerificationTokenByPersoIdAsync(_testUser.PersoId)).ReturnsAsync(expiredToken);
+        MockTokenSqlExecutor.Setup(x => x.DeleteUserTokenByPersoidAsync(_testUser.PersoId)).ReturnsAsync(1);
 
         // Act
         var result = await EmailVerificationService.ResendVerificationEmailAsync(TestEmail);
@@ -104,15 +96,12 @@ public class EmailVerificationServiceTests : UnitTestBase
     [Fact]
     public async Task ResendVerificationEmailAsync_FailedToDeleteExpiredToken_ThrowsException()
     {
-        // Arrange: Expired token exists but fails to delete
-        var user = new UserModel { Email = TestEmail, PersoId = Guid.NewGuid() };
-        var token = new UserTokenModel { TokenExpiryDate = DateTime.UtcNow.AddMinutes(-10) }; // Expired token
-        var tracking = new UserVerificationTrackingModel();
-
-        MockUserSqlExecutor.Setup(x => x.GetUserModelAsync(null, TestEmail)).ReturnsAsync(user);
-        MockTokenSqlExecutor.Setup(x => x.GetUserVerificationTrackingAsync(user.PersoId)).ReturnsAsync(tracking);
-        MockTokenSqlExecutor.Setup(x => x.GetUserVerificationTokenByPersoIdAsync(user.PersoId)).ReturnsAsync(token);
-        MockTokenSqlExecutor.Setup(x => x.DeleteUserTokenByPersoidAsync(user.PersoId)).ReturnsAsync(0); // Failed to delete
+        // Arrange
+        var expiredToken = new UserTokenModel { TokenExpiryDate = DateTime.UtcNow.AddMinutes(-10) };
+        MockUserSqlExecutor.Setup(x => x.GetUserModelAsync(null, TestEmail)).ReturnsAsync(_testUser);
+        MockTokenSqlExecutor.Setup(x => x.GetUserVerificationTrackingAsync(_testUser.PersoId)).ReturnsAsync(_tracking);
+        MockTokenSqlExecutor.Setup(x => x.GetUserVerificationTokenByPersoIdAsync(_testUser.PersoId)).ReturnsAsync(expiredToken);
+        MockTokenSqlExecutor.Setup(x => x.DeleteUserTokenByPersoidAsync(_testUser.PersoId)).ReturnsAsync(0);
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
@@ -122,14 +111,9 @@ public class EmailVerificationServiceTests : UnitTestBase
     [Fact]
     public async Task ResendVerificationEmailAsync_SuccessfulResend_ReturnsSuccess()
     {
-        // Arrange: Verification email resend is successful
-        var user = new UserModel { Email = TestEmail, PersoId = Guid.NewGuid() };
-        var tracking = new UserVerificationTrackingModel();
-
-        MockUserSqlExecutor.Setup(x => x.GetUserModelAsync(null, TestEmail)).ReturnsAsync(user);
-        MockTokenSqlExecutor.Setup(x => x.GetUserVerificationTrackingAsync(user.PersoId)).ReturnsAsync(tracking);
-        MockTokenSqlExecutor.Setup(x => x.GetUserVerificationTokenByPersoIdAsync(user.PersoId)).ReturnsAsync((UserTokenModel)null); // No expired token
-        MockEmailService.Setup(x => x.ProcessAndSendEmailAsync(It.IsAny<EmailMessageModel>())).ReturnsAsync(true);
+        // Arrange
+        MockUserSqlExecutor.Setup(x => x.GetUserModelAsync(null, TestEmail)).ReturnsAsync(new UserModel { Email = TestEmail, PersoId = Guid.NewGuid() });
+        MockTokenSqlExecutor.Setup(x => x.GetUserVerificationTrackingAsync(It.IsAny<Guid>())).ReturnsAsync(new UserVerificationTrackingModel());
 
         // Act
         var result = await EmailVerificationService.ResendVerificationEmailAsync(TestEmail);
@@ -139,4 +123,6 @@ public class EmailVerificationServiceTests : UnitTestBase
         Assert.Equal(200, result.StatusCode);
         Assert.Equal("Verification email has been resent.", result.Message);
     }
+
+
 }

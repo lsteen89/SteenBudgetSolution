@@ -1,17 +1,11 @@
 ﻿using Backend.Domain.Entities;
-using System.Threading.Tasks;
-using System;
 using Xunit;
 
 namespace Backend.Tests.IntegrationTests.RegistrationTests
 {
-    public class TokenCreationAndVerificationTests : UserServicesTestBase
+    public class TokenCreationAndVerificationTests : IntegrationTestBase
     {
 
-        public TokenCreationAndVerificationTests()
-        {
-
-        }
         // Test for verifying user email token
         [Fact]
         public async Task VerifyUserToken_ShouldSetEmailConfirmedToTrueAsync()
@@ -20,12 +14,13 @@ namespace Backend.Tests.IntegrationTests.RegistrationTests
             var registeredUser = await SetupUserAsync();
 
             // Act - Generate and verify token
-            var tokenModel = await GenerateAndInsertTokenAsync(registeredUser.PersoId); 
+            var tokenModel = await GenerateAndInsertTokenAsync(registeredUser.PersoId);
+
             var verificationResult = await UserServices.VerifyEmailTokenAsync(tokenModel.Token);
 
             // Assert
             Assert.True(verificationResult);
-            var verifiedUser = await UserServices.GetUserModelAsync(email: registeredUser.Email);
+            var verifiedUser = await UserSqlExecutor.GetUserModelAsync(email: registeredUser.Email);
             Assert.True(verifiedUser.EmailConfirmed); // Confirm email was verified
             Assert.Equal(registeredUser.Email, verifiedUser.Email); // Verify using helper's data
         }
@@ -44,7 +39,7 @@ namespace Backend.Tests.IntegrationTests.RegistrationTests
 
             // Assert
             Assert.False(verificationResult);
-            var verifiedUser = await UserServices.GetUserModelAsync(email: registeredUser.Email);
+            var verifiedUser = await UserSqlExecutor.GetUserModelAsync(email: registeredUser.Email);
             Assert.False(verifiedUser.EmailConfirmed); // Confirm email was not verified
         }
 
@@ -63,8 +58,14 @@ namespace Backend.Tests.IntegrationTests.RegistrationTests
 
             // Assert
             Assert.False(verificationResult);
-            var verifiedUser = await UserServices.GetUserModelAsync(email: registeredUser.Email);
+            var verifiedUser = await UserSqlExecutor.GetUserModelAsync(email: registeredUser.Email);
             Assert.False(verifiedUser.EmailConfirmed); // Confirm email was not verified
+        }
+        private async Task<UserTokenModel> GenerateAndInsertTokenAsync(Guid persoId)
+        {
+            var tokenModel = await UserTokenService.CreateEmailTokenAsync(persoId);
+            var tokenInserted = await UserTokenService.InsertUserTokenAsync(tokenModel);
+            return tokenModel;
         }
     }
 }
