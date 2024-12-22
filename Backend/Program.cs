@@ -1,34 +1,32 @@
+using Backend.Application.Interfaces.EmailServices;
+using Backend.Application.Interfaces.RecaptchaService;
+using Backend.Application.Services.Validation;
+using Backend.Application.Settings;
+using Backend.Application.Validators;
+using Backend.Domain.Entities;
+using Backend.Infrastructure.Data.Sql.Interfaces;
+using Backend.Infrastructure.Data.Sql.UserQueries;
+using Backend.Infrastructure.Email;
+using Backend.Infrastructure.Helpers;
+using Backend.Infrastructure.Helpers.Converters;
+using Backend.Infrastructure.Interfaces;
+using Backend.Infrastructure.Security;
+using Backend.Tests.Mocks;
 using Dapper;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
-using Serilog;
-using System.Text;
-using System.Reflection;
-using MySqlConnector;
-using System.Data.Common;
-using System.Threading.RateLimiting;
-using Serilog.Sinks.Graylog; // Will be used in the future
 using FluentValidation;
 using FluentValidation.AspNetCore;
-using Backend.Infrastructure.Helpers.Converters;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Options;
-using Backend.Tests.Mocks;
-using Backend.Infrastructure.Data;
+using Microsoft.IdentityModel.Tokens;
 using Moq;
-using Backend.Infrastructure.Email;
-using Backend.Domain.Entities;
+using MySqlConnector;
+using Serilog;
+using System.Data.Common;
+using System.Reflection;
+using System.Text;
+using System.Threading.RateLimiting;
+using Backend.Application.Interfaces.UserServices;
 using Backend.Application.Services.UserServices;
-using Backend.Application.Services.Validation;
-using Backend.Application.Validators;
-using Backend.Infrastructure.Helpers;
-using Backend.Application.Settings;
-using Backend.Application.Interfaces;
-using Backend.Infrastructure.Data.Sql.UserQueries;
-using Microsoft.Extensions.DependencyInjection;
-using Backend.Application.Services.EmailServices;
-using Backend.Infrastructure.Data.Sql.Interfaces;
-using Backend.Infrastructure.Security;
-using Backend.Infrastructure.Interfaces;
 
 var builder = WebApplication.CreateBuilder(args);
 #region Serilog Configuration
@@ -77,9 +75,22 @@ var configuration = builder.Configuration;
 builder.Services.AddScoped<IUserSqlExecutor, UserSqlExecutor>();
 builder.Services.AddScoped<ITokenSqlExecutor, TokenSqlExecutor>();
 
-builder.Services.AddScoped<UserServices>();
-builder.Services.AddScoped<TokenService>();
+// Section for user services
+builder.Services.AddScoped<IUserServices, UserServices>();
+builder.Services.AddScoped<IUserManagementService, UserManagementService>();
+builder.Services.AddScoped<IUserTokenService, UserTokenService>();
+
+builder.Services.AddScoped<IUserAuthenticationService, UserAuthenticationService>();
+
+// Section for email services
+builder.Services.AddScoped<IEmailVerificationService, EmailVerificationService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IUserEmailService, UserEmailService>();
+builder.Services.AddScoped<IEmailPreparationService, EmailPreparationService>();
+
+builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<LogHelper>();
+
 builder.Services.AddScoped<IEnvironmentService, EnvironmentService>();
 builder.Services.AddTransient<RecaptchaHelper>();
 builder.Services.AddScoped<IRecaptchaService, RecaptchaService>();
@@ -118,31 +129,7 @@ else
     builder.Services.AddSingleton<IEmailPreparationService, EmailPreparationService>();
 }
 
-builder.Services.AddScoped<EmailVerificationService>(provider =>
-{
-    var userSqlExecutor = provider.GetRequiredService<IUserSqlExecutor>();
-    var tokenSqlExecutor = provider.GetRequiredService<ITokenSqlExecutor>();
-    var emailService = provider.GetRequiredService<IEmailService>();
-    var options = provider.GetRequiredService<IOptions<ResendEmailSettings>>();
-    var logger = provider.GetRequiredService<ILogger<EmailVerificationService>>();
 
-    Func<string, Task<bool>> sendVerificationEmail = async email =>
-    {
-        var userService = provider.GetRequiredService<UserServices>();
-        return await userService.SendVerificationEmailWithTokenAsync(email);
-    };
-
-    Func<DateTime> getCurrentTime = () => DateTime.UtcNow;
-
-    return new EmailVerificationService(
-        userSqlExecutor,
-        tokenSqlExecutor,
-        emailService,
-        options,
-        logger,
-        sendVerificationEmail,
-        getCurrentTime);
-});
 #endregion
 
 #region Rate Limiter Configuration
@@ -291,8 +278,9 @@ app.MapControllers();  // Ensure the controllers are mapped
 ILogger<Program> _logger = app.Services.GetRequiredService<ILogger<Program>>();
 
 // Log environment information
-_logger.LogInformation("Application starting in environment: {Env}", builder.Environment.EnvironmentName);
-
+var environment = builder.Environment.EnvironmentName;
+Console.WriteLine($"Environment: {environment}");
+Console.WriteLine($"BaseUrl: {configuration["AppSettings:BaseUrl"]}");
 // Final log before running the app
 _logger.LogInformation("Application setup complete. Running app...");
 

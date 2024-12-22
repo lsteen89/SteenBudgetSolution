@@ -4,9 +4,9 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using Backend.Application.Services;
 using Backend.Domain.Entities;
-using Backend.Application.Interfaces;
 using System;
 using Backend.Tests.Mocks;
+using Backend.Application.Interfaces.EmailServices;
 
 public class SendAndPrepareContactUsEmail
 {

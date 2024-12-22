@@ -1,24 +1,21 @@
 ﻿using Backend.Application.DTO;
-using Backend.Application.Interfaces;
-using Backend.Application.Services.UserServices;
+using Backend.Application.Interfaces.RecaptchaService;
 using Backend.Domain.Entities;
-using Backend.Helpers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using System.Transactions;
-
+using Backend.Application.Interfaces.UserServices;
 namespace Backend.Presentation.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
     public class RegistrationController : ControllerBase
     {
-        private readonly UserServices _userServices;
+        private readonly IUserServices _userServices;
         private readonly string? _jwtSecretKey;
         private readonly ILogger<RegistrationController> _logger;
         private readonly IRecaptchaService _recaptchaService;
 
-        public RegistrationController(UserServices userServices, IConfiguration configuration, ILogger<RegistrationController> logger, IRecaptchaService recaptchaService)
+        public RegistrationController(IUserServices userServices, IConfiguration configuration, ILogger<RegistrationController> logger, IRecaptchaService recaptchaService)
         {
             _userServices = userServices;
             _jwtSecretKey = configuration["Jwt:Key"];

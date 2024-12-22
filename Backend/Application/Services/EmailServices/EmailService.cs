@@ -2,7 +2,7 @@
 using Backend.Infrastructure.Email;
 using Backend.Domain.Entities;
 using Backend.Application.DTO;
-using Backend.Application.Interfaces;
+using Backend.Application.Interfaces.EmailServices;
 
 /// <summary>
 /// Manages the flow of email preparation and sending based on email type.
@@ -29,11 +29,11 @@ public class EmailService : EmailSenderBase, IEmailService
             switch (emailMessage.EmailType)
             {
                 // Determine the type of email and prepare it accordingly
-                case EmailType.Verification:
-                    emailMessage = await emailPreparationService.PrepareVerificationEmailAsync(emailMessage);
-                    break;
                 case EmailType.ContactUs:
                     emailMessage = await emailPreparationService.PrepareContactUsEmailAsync(emailMessage);
+                    break;
+                case EmailType.Verification:
+                    emailMessage = await emailPreparationService.PrepareVerificationEmailAsync(emailMessage);
                     break;
                 default:
                     throw new InvalidOperationException("Unknown email type");
