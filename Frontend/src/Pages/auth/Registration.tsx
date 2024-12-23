@@ -29,6 +29,7 @@ const Registration: React.FC = () => {
     repeatEmail: '',
     repeatPassword: '',
     captchaToken: '',
+    honeypot: '', 
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -129,34 +130,52 @@ const Registration: React.FC = () => {
       }
 
       if (error.response) {
+        const statusCode = error.response.status;
           const backendMessage = error.response.data?.message;
-  
-          // Handle specific backend error messages
-          if (backendMessage === "Epost redan upptagen!") {
-              setErrors((prevErrors) => ({
-                  ...prevErrors,
-                  email: backendMessage, // Set specific error for the email field
-              }));
-          } 
-        }
-      // Handle network errors
-      else {
-        console.error("Network Error:", error);
-        // Error toast
-        toast(
-          (toastProps: ToastContentProps) => (
-            <CustomToast
-              message="Internt fel! Försök igen senare!"
-              type="error"
-              {...toastProps}
-            />
-          ),
-          {
-            autoClose: 5000,
-            className: styles.toastifyContainer,
-          }
-        );
+        // Handle 429 Too Many Requests
+        if (statusCode === 429) {
+          const retryAfter = error.response.headers['retry-after'];
+          toast(
+            (toastProps: ToastContentProps) => (
+              <CustomToast
+                message={`För många försök. Vänta ${retryAfter || 'några sekunder'} och försök igen.`}
+                type="warning"
+                {...toastProps}
+              />
+            ),
+            {
+              autoClose: retryAfter ? parseInt(retryAfter, 10) * 1000 : 5000,
+              className: styles.toastifyContainer,
+            }
+          );
+          return;
       }
+      // Handle specific backend error messages
+      if (backendMessage === "Epost redan upptagen!") {
+          setErrors((prevErrors) => ({
+              ...prevErrors,
+              email: backendMessage, // Set specific error for the email field
+          }));
+      } 
+    }
+    // Handle network errors
+    else {
+      console.error("Network Error:", error);
+      // Error toast
+      toast(
+        (toastProps: ToastContentProps) => (
+          <CustomToast
+            message="Internt fel! Försök igen senare!"
+            type="error"
+            {...toastProps}
+          />
+        ),
+        {
+          autoClose: 5000,
+          className: styles.toastifyContainer,
+        }
+      );
+    }
   } finally {
       setIsSubmitting(false); // Reset submitting state
   }
@@ -187,94 +206,113 @@ const Registration: React.FC = () => {
           <h2 className="text-2xl font-bold text-center text-gray-800">Registrera dig för eBudget</h2>
             
             <FormContainer tag="form" onSubmit={handleSubmit}>
-            {/* First Name */}
-            <div className="flex-1">
+              {/* First Name */}
+              <div className="flex-1">
+                <InputField
+                  placeholder="Förnamn"
+                  value={formData.firstName}
+                  onChange={(e) => handleInputChange('firstName', e.target.value)}
+                  onBlur={() => handleBlur('firstName')}
+                  width='100%'
+                />
+                {errors.firstName && (
+                  <p className="text-red-500 text-sm">{errors.firstName}</p>
+                )}
+              </div>
+
+              {/* Last Name */}
+              <div className="flex-1">
+                <InputField
+                  placeholder="Efternamn"
+                  value={formData.lastName}
+                  onChange={(e) => handleInputChange('lastName', e.target.value)}
+                  onBlur={() => handleBlur('lastName')}
+                  width='100%'
+                />
+                {errors.lastName && (
+                  <p className="text-red-500 text-sm">{errors.lastName}</p>
+                )}
+              </div>
+
+              {/* Email */}
+              <div className="flex-1">
               <InputField
-                placeholder="Förnamn"
-                value={formData.firstName}
-                onChange={(e) => handleInputChange('firstName', e.target.value)}
-                onBlur={() => handleBlur('firstName')}
-                width='100%'
-              />
-              {errors.firstName && (
-                <p className="text-red-500 text-sm">{errors.firstName}</p>
-              )}
-            </div>
+                  type="email"
+                  placeholder="E-post"
+                  value={formData.email}
+                  onChange={(e) => handleInputChange('email', e.target.value)}
+                  onBlur={() => handleBlur('email')}
+                  width='100%'                            
+                />
+                {errors.email && (
+                  <p className="text-red-500 text-sm">{errors.email}</p>
+                )}
+              </div>
 
-            {/* Last Name */}
-            <div className="flex-1">
+              {/* Repeat Email */}
+              <div className="flex-1">
               <InputField
-                placeholder="Efternamn"
-                value={formData.lastName}
-                onChange={(e) => handleInputChange('lastName', e.target.value)}
-                onBlur={() => handleBlur('lastName')}
-                width='100%'
-              />
-              {errors.lastName && (
-                <p className="text-red-500 text-sm">{errors.lastName}</p>
-              )}
-            </div>
+                  type="email"
+                  placeholder="upprepa E-post"
+                  value={formData.repeatEmail}
+                  onChange={(e) => handleInputChange('repeatEmail', e.target.value)}
+                  onBlur={() => handleBlur('repeatEmail')}
+                  width='100%'              
+                />
+                {errors.repeatEmail && (
+                  <p className="text-red-500 text-sm">{errors.repeatEmail}</p>
+                )}
+              </div>
 
-            {/* Email */}
-            <div className="flex-1">
-            <InputField
-                type="email"
-                placeholder="E-post"
-                value={formData.email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
-                onBlur={() => handleBlur('email')}
-                width='100%'                            
-              />
-              {errors.email && (
-                <p className="text-red-500 text-sm">{errors.email}</p>
-              )}
-            </div>
+              {/* Password */}
+              <div className="flex-1">
+              <InputField
+                  type="password"
+                  placeholder="Lösenord"
+                  value={formData.password}
+                  onChange={(e) => handleInputChange('password', e.target.value)}
+                  onBlur={() => handleBlur('password')}
+                  width='100%'
+                />
+                {errors.password && (
+                  <p className="text-red-500 text-sm">{errors.password}</p>
+                )}
+              </div>
 
-            {/* Repeat Email */}
-            <div className="flex-1">
-            <InputField
-                type="email"
-                placeholder="upprepa E-post"
-                value={formData.repeatEmail}
-                onChange={(e) => handleInputChange('repeatEmail', e.target.value)}
-                onBlur={() => handleBlur('repeatEmail')}
-                width='100%'              
-              />
-              {errors.repeatEmail && (
-                <p className="text-red-500 text-sm">{errors.repeatEmail}</p>
-              )}
-            </div>
-
-            {/* Password */}
-            <div className="flex-1">
-            <InputField
-                type="password"
-                placeholder="Lösenord"
-                value={formData.password}
-                onChange={(e) => handleInputChange('password', e.target.value)}
-                onBlur={() => handleBlur('password')}
-                width='100%'
-              />
-              {errors.password && (
-                <p className="text-red-500 text-sm">{errors.password}</p>
-              )}
-            </div>
-
-            {/* Repeat Password */}
-            <div className="flex-1">
-            <InputField
-                type="password"
-                placeholder="Upprepa Lösenord"
-                value={formData.repeatPassword}
-                onChange={(e) => handleInputChange('repeatPassword', e.target.value)}
-                onBlur={() => handleBlur('repeatPassword')}
-                width='100%'
-              />
-              {errors.repeatPassword && (
-                <p className="text-red-500 text-sm">{errors.repeatPassword}</p>
-              )}
-            </div>
-
+              {/* Repeat Password */}
+              <div className="flex-1">
+              <InputField
+                  type="password"
+                  placeholder="Upprepa Lösenord"
+                  value={formData.repeatPassword}
+                  onChange={(e) => handleInputChange('repeatPassword', e.target.value)}
+                  onBlur={() => handleBlur('repeatPassword')}
+                  width='100%'
+                />
+                {errors.repeatPassword && (
+                  <p className="text-red-500 text-sm">{errors.repeatPassword}</p>
+                )}
+              </div>
+              <div className="hidden">
+                <label htmlFor="honeypot" className="sr-only">
+                    Leave this field blank
+                </label>
+                <input
+                    id="honeypot"
+                    type="text"
+                    name="honeypot"
+                    value={formData.honeypot || ''}
+                    onChange={(e) =>
+                        setFormData((prevData) => ({
+                            ...prevData,
+                            honeypot: e.target.value,
+                        }))
+                    }
+                    aria-hidden="true"
+                    tabIndex={-1}
+                    className="hidden"
+                />
+              </div>              
               {/* Submit Button and ReCAPTCHA */}
               <div className="flex space-x-4">
                 <div className="flex-1 flex justify-center">
