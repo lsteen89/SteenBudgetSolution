@@ -4,5 +4,5 @@ export interface UserCreationDto {
   email: string;
   password: string;
   captchaToken: string;
-
+  honeypot: string;
 }
