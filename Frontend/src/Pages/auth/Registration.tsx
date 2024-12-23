@@ -36,7 +36,7 @@ const Registration: React.FC = () => {
   const handleCaptchaChange = (token: string | null) => {
     setFormData((prevData) => ({
       ...prevData,
-      CaptchaToken: token || '', 
+      captchaToken: token || '', 
     }));
   };
   const handleInputChange = (field: keyof UserFormData, value: string) => {
