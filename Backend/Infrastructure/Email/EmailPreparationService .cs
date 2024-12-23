@@ -18,7 +18,7 @@ namespace Backend.Infrastructure.Email
         public async Task<EmailMessageModel> PrepareVerificationEmailAsync(EmailMessageModel emailMessageModel)
         {
             // Generate the verification URL
-            var verificationUrl = $"{_configuration["AppSettings:BaseUrl"]}/verify-email?token={emailMessageModel.Token}";
+            var verificationUrl = $"{_configuration["AppSettings:BaseUrl"]}/email-confirmation?token={emailMessageModel.Token}";
 
             return new EmailMessageModel
             {

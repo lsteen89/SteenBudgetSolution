@@ -4,6 +4,7 @@ using Backend.Domain.Entities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Backend.Application.Interfaces.UserServices;
+using Org.BouncyCastle.Asn1.Ocsp;
 namespace Backend.Presentation.Controllers
 {
     [ApiController]
@@ -28,7 +29,11 @@ namespace Backend.Presentation.Controllers
         public async Task<IActionResult> Register([FromBody] UserCreationDto userCreationDto)
         {
             _logger.LogInformation("Processing registration for user: {Email}", userCreationDto.Email);
-
+            // Check honeypot field
+            if (!string.IsNullOrWhiteSpace(userCreationDto.Honeypot))
+            {
+                return BadRequest(new { message = "Bot detected." });
+            }
             // Step 1: Validate model state
             if (!ModelState.IsValid)
             {

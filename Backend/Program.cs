@@ -27,6 +27,7 @@ using System.Text;
 using System.Threading.RateLimiting;
 using Backend.Application.Interfaces.UserServices;
 using Backend.Application.Services.UserServices;
+using Microsoft.AspNetCore.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 #region Serilog Configuration
@@ -153,10 +154,10 @@ builder.Services.AddRateLimiter(options =>
         RateLimitPartition.GetFixedWindowLimiter(httpContext.Connection.RemoteIpAddress!, key =>
             new FixedWindowRateLimiterOptions
             {
-                PermitLimit = 3,
-                Window = TimeSpan.FromMinutes(1),
+                PermitLimit = 3,                 // Allow 3 requests
+                Window = TimeSpan.FromMinutes(2), // In a 2-minute window
                 QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                QueueLimit = 1
+                QueueLimit = 0                   // No queueing
             }));
 
     // Email sending rate limit policy
@@ -171,7 +172,22 @@ builder.Services.AddRateLimiter(options =>
                 QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
                 QueueLimit = 1
             }));
-    
+
+    // Log rate-limiting rejections
+    options.OnRejected = (context, cancellationToken) =>
+    {
+        var policyName = context.HttpContext.GetEndpoint()?.Metadata.GetMetadata<EnableRateLimitingAttribute>()?.PolicyName ?? "Global";
+        var ipAddress = context.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+        var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+        logger.LogWarning("Rate limit exceeded: Policy={Policy}, IP={IP}, Endpoint={Endpoint}",
+            policyName, ipAddress, context.HttpContext.Request.Path);
+
+        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        return new ValueTask(context.HttpContext.Response.WriteAsync(
+            "Rate limit exceeded. Please try again later.", cancellationToken));
+    };
+
 });
 #endregion
 
@@ -224,6 +240,8 @@ builder.Services.AddCors(options =>
                    .AllowCredentials();
         });
 });
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
 
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<UserValidator>();

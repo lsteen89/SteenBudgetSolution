@@ -7,5 +7,6 @@
         public string? Email { get; set; }
         public string? Password { get; set; }
         public string? CaptchaToken { get; set; }
+        public string? Honeypot { get; set; }
     }
 }
