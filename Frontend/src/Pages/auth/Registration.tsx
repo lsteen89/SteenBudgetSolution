@@ -35,10 +35,10 @@ const Registration: React.FC = () => {
   const navigate = useNavigate();
   const handleCaptchaChange = (token: string | null) => {
     setFormData((prevData) => ({
-      ...prevData,
-      captchaToken: token || '', 
+        ...prevData,
+        captchaToken: token || '', 
     }));
-  };
+};
   const handleInputChange = (field: keyof UserFormData, value: string) => {
     setFormData((prevData) => ({
       ...prevData,
@@ -71,6 +71,16 @@ const Registration: React.FC = () => {
     const validationErrors = validateRegistrationForm(formData);
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
+      
+      // Reset the captcha if there are validation errors
+      if (captchaRef.current) {
+        captchaRef.current.reset();
+        setFormData((prevData) => ({
+            ...prevData,
+            captchaToken: '', // Clear the captcha token
+        }));
+    }
+
       return;
     }
   
@@ -109,7 +119,15 @@ const Registration: React.FC = () => {
       console.error("Full Error Object:", error);
       console.error("Error Response:", error.response);
       console.error("Error Data:", error.response?.data);
-  
+        // Reset the captcha on failure
+        if (captchaRef.current) {
+          captchaRef.current.reset();
+          setFormData((prevData) => ({
+              ...prevData,
+              captchaToken: '', // Clear the captcha token
+          }));
+      }
+
       if (error.response) {
           const backendMessage = error.response.data?.message;
   
