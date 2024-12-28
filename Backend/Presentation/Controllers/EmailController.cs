@@ -1,6 +1,7 @@
 ﻿using Backend.Application.DTO;
 using Backend.Application.Interfaces.RecaptchaService;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -17,6 +18,7 @@ public class EmailController : ControllerBase
         _recaptchaService = recaptchaService;
     }
     [HttpPost("ContactUs")]
+    [EnableRateLimiting("EmailSendingPolicy")]
     public async Task<IActionResult> ContactUs([FromBody] SendEmailDto sendEmailDto)
     {
         // Check if model state is valid

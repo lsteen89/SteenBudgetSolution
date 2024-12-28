@@ -109,5 +109,33 @@ namespace Backend.Infrastructure.Data.Sql.UserQueries
             string sqlQuery = "DELETE FROM verificationtoken WHERE Persoid = @Persoid";
             return await ExecuteAsync(sqlQuery, new { Persoid = persoid });
         }
+        public async Task SaveResetTokenAsync(Guid persoId, Guid token)
+        {
+            string sqlQuery = @"
+            INSERT INTO PasswordResetTokens (PersoId, Token, Expiry)
+            VALUES (@PersoId, @Token, @Expiry)";
+
+            await ExecuteAsync(sqlQuery, new
+            {
+                PersoId = persoId,
+                Token = token,
+                Expiry = DateTime.UtcNow.AddHours(1) // Token valid for 1 hour
+            });
+        }
+        public async Task<bool> ValidateResetTokenAsync(Guid token)
+        {
+            string sqlQuery = @"
+            SELECT COUNT(*) 
+            FROM PasswordResetTokens 
+            WHERE Token = @Token AND Expiry > @CurrentTime";
+
+            var count = await ExecuteScalarAsync<int>(sqlQuery, new
+            {
+                Token = token,
+                CurrentTime = DateTime.UtcNow
+            });
+
+            return count > 0;
+        }
     }
 }

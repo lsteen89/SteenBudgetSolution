@@ -40,5 +40,12 @@ namespace Backend.Infrastructure.Data.Sql.Interfaces
         /// <param name="email">The email address of the user to delete.</param>
         /// <returns>The number of rows affected by the deletion.</returns>
         Task<int> DeleteUserByEmailAsync(string email);
+        Task<int> GetRecentFailedAttemptsAsync(Guid persoId);
+        Task LockUserAsync(string email, TimeSpan lockoutDuration);
+        Task UnlockUserAsync(Guid persoId);
+        Task RecordFailedLoginAsync(string email, string ipAdress);
+        Task<bool> ShouldLockUserAsync(string email);
+        Task ResetFailedLoginAttemptsAsync(Guid persoId);
+
     }
 }

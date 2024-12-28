@@ -56,6 +56,8 @@ namespace Backend.Tests.Mocks
                     return await _emailPreparationService.PrepareVerificationEmailAsync(emailMessage);
                 case EmailType.ContactUs:
                     return await _emailPreparationService.PrepareContactUsEmailAsync(emailMessage);
+                case EmailType.ResetPassword:
+                    return await _emailPreparationService.PrepareResetPasswordMessage(emailMessage);
                 default:
                     throw new InvalidOperationException("Unknown email type");
             }

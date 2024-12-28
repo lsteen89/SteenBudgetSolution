@@ -42,7 +42,7 @@ public class TokenService : ITokenService
             issuer: "eBudget",
             audience: "eBudget",
             claims: claims,
-            expires: DateTime.UtcNow.AddHours(1), // Token expiration
+            expires: DateTime.UtcNow.AddMinutes(15), // Token expiration
             signingCredentials: credentials
         );
 

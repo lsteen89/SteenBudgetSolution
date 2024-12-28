@@ -90,6 +90,19 @@ namespace Backend.Infrastructure.Data
                 throw;
             }
         }
+        public async Task<List<T>> QueryAsync<T>(string sql, object? parameters = null, DbTransaction? transaction = null)
+        {
+            try
+            {
+                var result = await _connection.QueryAsync<T>(sql, parameters, transaction);
+                return result.ToList(); 
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error executing SQL query: {Sql}", sql);
+                throw;
+            }
+        }
 
     }
 }

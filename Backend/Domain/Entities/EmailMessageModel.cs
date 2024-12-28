@@ -9,6 +9,7 @@ namespace Backend.Domain.Entities
     {
         Verification,
         ContactUs,
+        ResetPassword
     }
     public class EmailMessageModel
     {

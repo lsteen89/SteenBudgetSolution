@@ -35,6 +35,9 @@ public class EmailService : EmailSenderBase, IEmailService
                 case EmailType.Verification:
                     emailMessage = await emailPreparationService.PrepareVerificationEmailAsync(emailMessage);
                     break;
+                case EmailType.ResetPassword:
+                    emailMessage = await emailPreparationService.PrepareResetPasswordMessage(emailMessage);
+                    break;
                 default:
                     throw new InvalidOperationException("Unknown email type");
             }

@@ -14,6 +14,7 @@ namespace Backend.Application.Interfaces.UserServices
         Task<UserTokenModel?> GetUserVerificationTokenByPersoIdAsync(Guid persoid);
         Task<int> DeleteUserTokenByPersoidAsync(Guid persoid);
         Task UpdateUserVerificationTrackingAsync(UserVerificationTrackingModel tracking);
-
+        Task SaveResetTokenAsync(Guid persoId, Guid token);
+        Task<bool> ValidateResetTokenAsync(Guid token);
     }
 }
