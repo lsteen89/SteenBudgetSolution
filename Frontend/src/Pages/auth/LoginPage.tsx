@@ -84,7 +84,7 @@ const LoginPage: React.FC = () => {
     }
   };
 
-  const handleForgotPassword = () => navigate('/forgot-password');
+  const handleForgotPassword = () => navigate('/forgotpassword');
   const handleRegister = () => navigate('/registration');
 
   return (

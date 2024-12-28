@@ -12,6 +12,7 @@ using Moq;
 using Microsoft.Extensions.Configuration;
 using Backend.Infrastructure.Security;
 using Xunit;
+using Backend.Application.Services.UserServices;
 
 public abstract class UnitTestBase
 {
@@ -20,6 +21,7 @@ public abstract class UnitTestBase
     protected Mock<ITokenSqlExecutor> MockTokenSqlExecutor;
     protected EmailVerificationService EmailVerificationService;
     protected Mock<IHttpContextAccessor> MockHttpContextAccessor;
+    protected Mock<ILogger<UserAuthenticationService>> LoggerMockAuth;
     protected Mock<IConfiguration> MockConfiguration;
     protected Mock<ILogger<UserServices>> LoggerMock;
     protected Mock<IEnvironmentService> MockEnvironmentService;
@@ -28,6 +30,7 @@ public abstract class UnitTestBase
     protected Mock<HttpContext> MockHttpContext;
     protected Mock<HttpResponse> MockHttpResponse;
     protected UserServices UserServicesInstance;
+    protected Mock<IEmailResetPasswordService> MockEmailResetPasswordService;
     protected Dictionary<string, (string Value, CookieOptions Options)> CookiesContainer;
 
     public UnitTestBase()
@@ -45,7 +48,9 @@ public abstract class UnitTestBase
         MockHttpContextAccessor = new Mock<IHttpContextAccessor>();
         MockConfiguration = new Mock<IConfiguration>();
         LoggerMock = new Mock<ILogger<UserServices>>();
+        LoggerMockAuth = new Mock<ILogger<UserAuthenticationService>>();
         MockUserTokenService = new Mock<IUserTokenService>();
+        MockEmailResetPasswordService = new Mock<IEmailResetPasswordService>();
         MockEnvironmentService = new Mock<IEnvironmentService>();
         MockHttpContext = new Mock<HttpContext>();
         MockHttpResponse = new Mock<HttpResponse>();
@@ -75,9 +80,11 @@ public abstract class UnitTestBase
         // Register dependencies
         var mockLoggerForMockEmailService = Mock.Of<ILogger<MockEmailService>>();
         var mockEmailPreparationService = Mock.Of<IEmailPreparationService>(); // Can use a real/mock implementation
+        var mockLoggerForUserAuthenticationService = Mock.Of<ILogger<UserAuthenticationService>>();
 
         services.AddScoped<IUserSqlExecutor>(_ => MockUserSqlExecutor.Object);
         services.AddScoped<ITokenSqlExecutor>(_ => MockTokenSqlExecutor.Object);
+        services.AddScoped<IEmailResetPasswordService>(_ => MockEmailResetPasswordService.Object);
 
         // Register MockEmailService as the real implementation of IEmailService
         services.AddScoped<IEmailService>(_ => new MockEmailService(
@@ -121,5 +128,25 @@ public abstract class UnitTestBase
         // Assertions to validate setup
         Assert.NotNull(EmailVerificationService);
         Assert.NotNull(ServiceProvider.GetRequiredService<IEmailService>());
+    }
+    public class TestLogger<T> : ILogger<T>
+    {
+        public List<string> Logs { get; } = new List<string>();
+
+        public IDisposable BeginScope<TState>(TState state) => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception exception,
+            Func<TState, Exception, string> formatter)
+        {
+            if (formatter == null) return;
+            var message = formatter(state, exception);
+            Logs.Add(message);
+        }
     }
 }

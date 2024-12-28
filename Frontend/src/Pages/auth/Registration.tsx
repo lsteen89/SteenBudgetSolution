@@ -139,7 +139,7 @@ const Registration: React.FC = () => {
             (toastProps: ToastContentProps) => (
               <CustomToast
                 message={`För många försök. Vänta ${retryAfter || 'några sekunder'} och försök igen.`}
-                type="warning"
+                type="error"
                 {...toastProps}
               />
             ),
