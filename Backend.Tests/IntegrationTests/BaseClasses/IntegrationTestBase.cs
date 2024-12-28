@@ -32,6 +32,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     protected readonly IUserTokenService UserTokenService;
     protected readonly UserServiceTest UserServiceTest;
     protected UserCreationDto _userCreationDto;
+    protected readonly IEmailResetPasswordService EmailResetPasswordService;
     protected Mock<IEnvironmentService> MockEnvironmentService { get; private set; }
 
     protected IntegrationTestBase()
@@ -72,8 +73,19 @@ public abstract class IntegrationTestBase : IAsyncLifetime
             .Returns("Production");
         serviceCollection.AddSingleton<IEnvironmentService>(MockEnvironmentService.Object);
 
-        MockTokenService = new Mock<ITokenService>();
-        serviceCollection.AddScoped<ITokenService>(_ => MockTokenService.Object);
+        serviceCollection.AddScoped<ITokenService, TokenService>();
+        // Mock IUserTokenService
+        MockUserTokenService = new Mock<IUserTokenService>();
+        serviceCollection.AddSingleton(MockUserTokenService.Object);
+
+        // Mock IEmailResetPasswordService
+        var mockEmailResetPasswordService = new Mock<IEmailResetPasswordService>();
+        mockEmailResetPasswordService
+            .Setup(service => service.ResetPasswordEmailSender(It.IsAny<UserModel>()))
+            .ReturnsAsync(true); // Simulate success
+        serviceCollection.AddScoped<IEmailResetPasswordService>(_ => mockEmailResetPasswordService.Object);
+
+        
 
         // Add other services
         ConfigureTestServices(serviceCollection);
@@ -86,6 +98,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         UserServices = ServiceProvider.GetRequiredService<IUserServices>();
         UserSqlExecutor = ServiceProvider.GetRequiredService<IUserSqlExecutor>();
         EmailService = ServiceProvider.GetRequiredService<IEmailService>();
+        EmailResetPasswordService = ServiceProvider.GetRequiredService<IEmailResetPasswordService>();
 
         UserTokenService = ServiceProvider.GetRequiredService<IUserTokenService>();
         UserServiceTest = ServiceProvider.GetRequiredService<UserServiceTest>();
@@ -95,7 +108,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         HttpContext = ServiceProvider.GetRequiredService<IHttpContextAccessor>().HttpContext;
     }
     protected IUserAuthenticationService UserAuthenticationService { get; private set; }
-
+    protected Mock<IUserTokenService> MockUserTokenService { get; private set; }
     protected virtual void ConfigureTestServices(IServiceCollection services)
     {
         var configuration = new ConfigurationBuilder()
@@ -129,7 +142,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         services.AddScoped<IUserAuthenticationService, UserAuthenticationService>();
         services.AddScoped<IEnvironmentService>(_ => MockEnvironmentService.Object); 
         services.AddScoped<UserServiceTest>();
-        services.AddScoped<ITokenService>(_ => MockTokenService.Object);
+        services.AddScoped<ITokenService, TokenService>(); 
         // Register logging
         services.AddLogging(builder =>
         {
@@ -163,6 +176,8 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         httpContextAccessor.Setup(a => a.HttpContext).Returns(mockHttpContext.Object);
 
         services.AddSingleton<IHttpContextAccessor>(httpContextAccessor.Object);
+
+        services.AddSingleton<ILogger<UserAuthenticationService>, TestLogger<UserAuthenticationService>>();
 
         // Register MockEnvironmentService
         MockEnvironmentService = new Mock<IEnvironmentService>();
@@ -220,6 +235,19 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     protected async Task<UserModel> SetupUserAsync(UserCreationDto userCreationDto)
     {
         return await RegisterUserAsync(userCreationDto);
+    }
+    public class TestLogger<T> : ILogger<T>
+    {
+        public List<string> Logs { get; } = new List<string>();
+
+        public IDisposable BeginScope<TState>(TState state) => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
+        {
+            Logs.Add(formatter(state, exception));
+        }
     }
 
 }

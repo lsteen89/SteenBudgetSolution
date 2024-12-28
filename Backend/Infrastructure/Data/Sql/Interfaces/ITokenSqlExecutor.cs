@@ -57,5 +57,7 @@ namespace Backend.Infrastructure.Data.Sql.Interfaces
         /// <param name="persoid">The unique identifier for the user.</param>
         /// <returns>The number of rows affected by the deletion.</returns>
         Task<int> DeleteUserTokenByPersoidAsync(Guid persoid);
+        Task SaveResetTokenAsync(Guid persoId, Guid token);
+        Task<bool> ValidateResetTokenAsync(Guid token);
     }
 }

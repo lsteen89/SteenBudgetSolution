@@ -9,7 +9,7 @@
   </PropertyGroup>
 
 	<ItemGroup>
-		<Content Include="Infrastructure\Data\SqlCode\**\*.sql" />
+		<Content Remove="Infrastructure\Data\SqlCode\**\*.sql" />
 	</ItemGroup>
 
 	<ItemGroup>

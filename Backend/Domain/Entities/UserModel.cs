@@ -15,6 +15,8 @@ namespace Backend.Domain.Entities
         public string? Password { get; set; }
         public string? Roles { get; set; }
         public bool FirstLogin { get; set; }
+        public bool? locked { get; set; }
+        public DateTime? LockoutUntil { get; set; }
         public string? CreatedBy { get; set; }
         public DateTime CreatedTime { get; set; }
         public DateTime? LastUpdatedTime { get; set; }

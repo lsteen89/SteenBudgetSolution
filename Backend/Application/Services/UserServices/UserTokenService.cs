@@ -30,11 +30,12 @@ namespace Backend.Application.Services.UserServices
                 {
                     ValidateIssuer = true,
                     ValidateAudience = true,
-                    ValidateLifetime = true,
+                    ValidateLifetime = true, 
                     ValidateIssuerSigningKey = true,
                     ValidIssuer = "eBudget",
                     ValidAudience = "eBudget",
-                    IssuerSigningKey = new SymmetricSecurityKey(key)
+                    IssuerSigningKey = new SymmetricSecurityKey(key),
+                    ClockSkew = TimeSpan.Zero 
                 };
 
                 handler.ValidateToken(token, validationParameters, out SecurityToken validatedToken);
@@ -67,5 +68,10 @@ namespace Backend.Application.Services.UserServices
             await _tokenSqlExecutor.DeleteUserTokenByPersoidAsync(persoid);
         public async Task UpdateUserVerificationTrackingAsync(UserVerificationTrackingModel tracking) =>
             await _tokenSqlExecutor.UpdateUserVerificationTrackingAsync(tracking);
+        public async Task SaveResetTokenAsync(Guid persoId, Guid token) =>
+            await _tokenSqlExecutor.SaveResetTokenAsync(persoId, token);
+        public async Task<bool> ValidateResetTokenAsync(Guid token) =>
+            await _tokenSqlExecutor.ValidateResetTokenAsync(token);
+
     }
 }

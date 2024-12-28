@@ -44,5 +44,19 @@ namespace Backend.Infrastructure.Email
                 ReplyTo = emailMessageModel.FromName
             };
         }
+        public async Task<EmailMessageModel> PrepareResetPasswordMessage(EmailMessageModel emailMessageModel)
+        {
+            var resetLink = $"https://yourwebsite.com/reset-password/{emailMessageModel.Token}";
+            return new EmailMessageModel
+            {
+                Recipient = emailMessageModel.Recipient,
+                Subject = "Password Reset Request",
+                Body = $"Click the following link to reset your password: {resetLink}",
+                Sender = _configuration["Smtp:UsernameNoReply"],         // no-reply@ebudget.se
+                FromName = emailMessageModel.FromName,
+                ToName = "eBudget Support",
+                ReplyTo = emailMessageModel.FromName
+            };
+        }
     }
 }

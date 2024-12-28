@@ -6,6 +6,11 @@ namespace Backend.Application.Interfaces.UserServices
     public interface IUserAuthenticationService
     {
         Task<ValidationResult> ValidateCredentialsAsync(string email, string password);
-        Task<LoginResultDto> LoginAsync(string email);
+        Task<LoginResultDto> AuthenticateAndGenerateTokenAsync(string email);
+        Task<bool> CheckLoginAttemptsAsync(string username);
+        Task RecordFailedLoginAsync(string email, string ipAddress);
+        Task<bool> ShouldLockUserAsync(string email);
+        Task LockUserAsync(string email, TimeSpan lockoutDuration);
+        Task<bool> SendResetPasswordEmailAsync(string email);
     }
 }

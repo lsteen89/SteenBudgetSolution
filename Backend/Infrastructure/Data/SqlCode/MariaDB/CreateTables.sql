@@ -27,6 +27,8 @@ CREATE TABLE IF NOT EXISTS User (
     EmailConfirmed BOOLEAN,
     Password VARCHAR(100) NOT NULL,
     roles VARCHAR(20) NOT NULL,
+    Locked BOOLEAN DEFAULT FALSE,
+    LockoutUntil DATETIME,
     FirstLogin BOOLEAN DEFAULT TRUE,
     CreatedBy VARCHAR(50) NOT NULL,
     CreatedTime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -111,4 +113,20 @@ CREATE TABLE UserVerificationTracking (
     CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP, -- Timestamp for when the record was created
     UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, -- Timestamp for last update
     FOREIGN KEY (PersoId) REFERENCES User(PersoId) ON DELETE CASCADE -- Enable cascade delete
+);
+
+CREATE TABLE IF NOT EXISTS FailedLoginAttempts (
+    Id INT AUTO_INCREMENT PRIMARY KEY,
+    PersoId CHAR(36) NOT NULL,
+    AttemptTime DATETIME NOT NULL,
+    IpAddress VARCHAR(45) NULL,
+ FOREIGN KEY (PersoId) REFERENCES User(PersoId)  ON DELETE CASCADE 
+);
+
+CREATE TABLE IF NOT EXISTS  PasswordResetTokens (
+    Id INT AUTO_INCREMENT PRIMARY KEY,
+    PersoId CHAR(36) NOT NULL,
+    Token CHAR(36) NOT NULL, -- GUID format
+    Expiry DATETIME NOT NULL,
+    FOREIGN KEY (PersoId) REFERENCES User(PersoId)
 );

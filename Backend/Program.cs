@@ -28,6 +28,7 @@ using System.Threading.RateLimiting;
 using Backend.Application.Interfaces.UserServices;
 using Backend.Application.Services.UserServices;
 using Microsoft.AspNetCore.RateLimiting;
+using Backend.Application.Services.EmailServices;
 
 var builder = WebApplication.CreateBuilder(args);
 #region Serilog Configuration
@@ -88,6 +89,7 @@ builder.Services.AddScoped<IEmailVerificationService, EmailVerificationService>(
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IUserEmailService, UserEmailService>();
 builder.Services.AddScoped<IEmailPreparationService, EmailPreparationService>();
+builder.Services.AddScoped<IEmailResetPasswordService, EmailResetPasswordService>();
 
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<LogHelper>();
@@ -159,7 +161,16 @@ builder.Services.AddRateLimiter(options =>
                 QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
                 QueueLimit = 0                   // No queueing
             }));
-
+    // Login rate limit policy
+    options.AddPolicy("LoginPolicy", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(httpContext.Connection.RemoteIpAddress!, key =>
+            new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,                  // Allow 5 login attempts
+                Window = TimeSpan.FromMinutes(15), // Within a 15-minute window
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0                    // No queuing for additional requests
+            }));
     // Email sending rate limit policy
     // is used in the EmailController
     // Todo: Measure and adjust the rate limit for production
@@ -167,10 +178,10 @@ builder.Services.AddRateLimiter(options =>
         RateLimitPartition.GetFixedWindowLimiter(httpContext.Connection.RemoteIpAddress!, key =>
             new FixedWindowRateLimiterOptions
             {
-                PermitLimit = 5,
+                PermitLimit = 2,
                 Window = TimeSpan.FromMinutes(15),
                 QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                QueueLimit = 1
+                QueueLimit = 0
             }));
 
     // Log rate-limiting rejections
