@@ -18,12 +18,12 @@ export const resendVerificationEmail = async (
     email: string
 ): Promise<ForgottenPasswordResponse> => {
     if (!isValidEmail(email)) {
-        throw new ValidationError('Invalid email address. Please provide a valid email.');
+        throw new ValidationError('Ogiltig e-post! Ange en giltig e-postadress.');
     }
 
     try {
         const response = await axios.post<ForgottenPasswordResponse>(
-            '/api/Registration/forgot-password',
+            '/api/Auth/reset-password',
             { email }
         );
         return {
@@ -33,7 +33,7 @@ export const resendVerificationEmail = async (
         };
     } catch (error: any) {
         const status = error.response?.status || 500;
-        const message = error.response?.data?.message || 'An error occurred. Please try again.';
+        const message = error.response?.data?.message || 'Ett fel har inträffat, vänligen försök igen senare!';
         throw new Error(`Error ${status}: ${message}`);
     }
 };
