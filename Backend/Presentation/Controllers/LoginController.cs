@@ -75,17 +75,17 @@ namespace Backend.Presentation.Controllers
 
         }
         [HttpPost("reset-password")]
-        [EnableRateLimiting("EmailSendingPolicy")]
+
         public async Task<IActionResult> ResetPassword([FromBody] Backend.Application.DTO.ResetPasswordRequest request)
         {
             var emailSent = await _userAuthenticationService.SendResetPasswordEmailAsync(request.Email);
 
             if (emailSent)
             {
-                return Ok(new { message = "If the email exists, a reset link has been sent." });
+                return Ok(new { message = "Om e-posten finns så har ett återställningsmail skickats!" });
             }
 
-            return StatusCode(500, new { message = "An error occurred while processing the request." });
+            return StatusCode(500, new { message = "Ett fel har inträffat, vänligen försök igen senare!" });
         }
         [HttpPost("validate-reset-token")]
         public async Task<IActionResult> ValidateResetToken([FromBody] ValidateTokenRequest request)
