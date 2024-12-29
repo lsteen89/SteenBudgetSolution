@@ -1,4 +1,4 @@
-﻿namespace Backend.Domain.Entities
+﻿namespace Backend.Application.DTO
 {
     public class ResendVerificationRequest
     {

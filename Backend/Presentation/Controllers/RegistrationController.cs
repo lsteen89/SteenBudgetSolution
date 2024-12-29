@@ -1,6 +1,5 @@
 ﻿using Backend.Application.DTO;
 using Backend.Application.Interfaces.RecaptchaService;
-using Backend.Domain.Entities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Backend.Application.Interfaces.UserServices;

@@ -75,13 +75,9 @@ namespace Backend.Presentation.Controllers
 
         }
         [HttpPost("reset-password")]
-        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+        [EnableRateLimiting("EmailSendingPolicy")]
+        public async Task<IActionResult> ResetPassword([FromBody] Backend.Application.DTO.ResetPasswordRequest request)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(new { message = "Invalid email format." });
-            }
-
             var emailSent = await _userAuthenticationService.SendResetPasswordEmailAsync(request.Email);
 
             if (emailSent)
