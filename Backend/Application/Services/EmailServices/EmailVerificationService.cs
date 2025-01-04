@@ -97,10 +97,6 @@ public class EmailVerificationService: IEmailVerificationService
         var tracking = await _userTokenService.GetUserVerificationTrackingAsync(persoId);
         if (tracking == null)
         {
-            throw new InvalidOperationException("Tracking object is unexpectedly null during the test.");
-        }
-        if (tracking == null)
-        {
             tracking = new UserVerificationTrackingModel
             {
                 PersoId = persoId,
