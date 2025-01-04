@@ -178,15 +178,26 @@ namespace Backend.Application.Services.UserServices
                 return false;
             }
 
-            var user = await _userSQLProvider.UserSqlExecutor.GetUserModelAsync(persoid: token);
+            var user = await _userSQLProvider.TokenSqlExecutor.GetUserFromResetTokenAsync(token);
+
             if (user == null)
             {
                 _logger.LogWarning("User not found for password reset token: {Token}", token);
-                return false;
+                return false; // Explicitly handle missing user
             }
 
+            // Validate that the new password is not the same as the old one
             var hashedPassword = BCrypt.Net.BCrypt.HashPassword(password);
+
+            if (BCrypt.Net.BCrypt.Verify(password, user.Password))
+            {
+                _logger.LogWarning("User attempted to reuse their current password: {Email}", user.Email);
+                return false; // Return validation failure
+            }
+
+            // Update the password
             var success = await _userSQLProvider.AuthenticationSqlExecutor.UpdatePasswordAsync(user.PersoId, hashedPassword);
+
             if (success)
             {
                 _logger.LogInformation("Password successfully updated for user: {Email}", user.Email);
@@ -197,6 +208,7 @@ namespace Backend.Application.Services.UserServices
             }
 
             return success;
+
         }
 
     }

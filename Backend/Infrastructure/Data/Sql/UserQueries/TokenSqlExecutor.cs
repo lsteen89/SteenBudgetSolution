@@ -6,10 +6,11 @@ namespace Backend.Infrastructure.Data.Sql.UserQueries
 {
     public class TokenSqlExecutor : SqlBase, ITokenSqlExecutor
     {
-        public TokenSqlExecutor(DbConnection connection, ILogger<TokenSqlExecutor> logger)
+        private readonly IUserSqlExecutor _userSqlExecutor;
+        public TokenSqlExecutor(DbConnection connection, ILogger<TokenSqlExecutor> logger, IUserSqlExecutor userSqlExecutor)
 :       base(connection, logger)
         {
-
+            _userSqlExecutor = userSqlExecutor; 
         }
         public async Task<UserTokenModel> GenerateUserTokenAsync(Guid persoId)
         {
@@ -111,6 +112,9 @@ namespace Backend.Infrastructure.Data.Sql.UserQueries
         }
         public async Task SaveResetTokenAsync(Guid persoId, Guid token)
         {
+            string deleteOldTokensQuery = "DELETE FROM PasswordResetTokens WHERE PersoId = @PersoId";
+            await ExecuteAsync(deleteOldTokensQuery, new { PersoId = persoId });
+
             string sqlQuery = @"
             INSERT INTO PasswordResetTokens (PersoId, Token, Expiry)
             VALUES (@PersoId, @Token, @Expiry)";
@@ -124,6 +128,7 @@ namespace Backend.Infrastructure.Data.Sql.UserQueries
         }
         public async Task<bool> ValidateResetTokenAsync(Guid token)
         {
+
             string sqlQuery = @"
             SELECT COUNT(*) 
             FROM PasswordResetTokens 
@@ -140,5 +145,30 @@ namespace Backend.Infrastructure.Data.Sql.UserQueries
 
             return count > 0;
         }
+        public async Task<UserModel> GetUserFromResetTokenAsync(Guid token)
+        {
+            string sqlQuery = @"
+                SELECT u.PersoId, u.Email, u.Password 
+                FROM PasswordResetTokens t
+                INNER JOIN User u ON u.PersoId = t.PersoId
+                WHERE t.Token = @Token AND t.Expiry > @CurrentTime";
+
+            _logger.LogInformation("SQL Query: {Query}, Token: {Token}, CurrentTime: {CurrentTime}",
+                sqlQuery, token, DateTime.UtcNow);
+
+            var user = await QueryFirstOrDefaultAsync<UserModel>(sqlQuery, new
+            {
+                Token = token,
+                CurrentTime = DateTime.UtcNow
+            });
+
+            if (user == null)
+            {
+                _logger.LogWarning("No user found for token: {Token}", token);
+            }
+
+            return user;
+        }
+
     }
 }
