@@ -31,7 +31,7 @@ namespace Backend.Application.Services.EmailServices
             var emailMessage = new EmailMessageModel
             {
                 Recipient = email,
-                EmailType = EmailType.Verification,
+                EmailType = EmailType.ResetPassword,
                 Token = Token
             };
             return emailMessage;
