@@ -59,5 +59,6 @@ namespace Backend.Infrastructure.Data.Sql.Interfaces
         Task<int> DeleteUserTokenByPersoidAsync(Guid persoid);
         Task SaveResetTokenAsync(Guid persoId, Guid token);
         Task<bool> ValidateResetTokenAsync(Guid token);
+        Task<UserModel> GetUserFromResetTokenAsync(Guid token);
     }
 }
