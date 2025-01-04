@@ -23,8 +23,8 @@ namespace Backend.Infrastructure.Email
             return new EmailMessageModel
             {
                 Recipient = emailMessageModel.Recipient,
-                Subject = "Email Verification",
-                Body = $"Please verify your email by clicking the following link: <a href='{verificationUrl}'>Verify Email</a>",
+                Subject = "Email verifiering",
+                Body = $"Vänligen tryck på länken för att verifiera din nya användare på eBudget!: <a href='{verificationUrl}'>Verifiera e-post</a>",
                 Sender = _configuration["Smtp:UsernameNoReply"],    // no-reply@ebudget.se
                 FromName = "eBudget No Reply",
                 ToName = "",
@@ -50,8 +50,8 @@ namespace Backend.Infrastructure.Email
             return new EmailMessageModel
             {
                 Recipient = emailMessageModel.Recipient,
-                Subject = "Password Reset Request",
-                Body = $"Click the following link to reset your password: {resetLink}",
+                Subject = "Lösenordsåterställning eBudget",
+                Body = $"Klicka på länken för att återställa ditt lösenord!: {resetLink}",
                 Sender = _configuration["Smtp:UsernameNoReply"],         // no-reply@ebudget.se
                 FromName = emailMessageModel.FromName,
                 ToName = "eBudget Support",

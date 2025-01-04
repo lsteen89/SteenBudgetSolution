@@ -129,6 +129,9 @@ namespace Backend.Infrastructure.Data.Sql.UserQueries
             FROM PasswordResetTokens 
             WHERE Token = @Token AND Expiry > @CurrentTime";
 
+            _logger.LogInformation("SQL Query: {Query}, Token: {Token}, CurrentTime: {CurrentTime}",
+                sqlQuery, token, DateTime.UtcNow);
+
             var count = await ExecuteScalarAsync<int>(sqlQuery, new
             {
                 Token = token,
