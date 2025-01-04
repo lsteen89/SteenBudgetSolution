@@ -7,18 +7,18 @@ namespace Backend.Application.Services.EmailServices
 {
     public class EmailResetPasswordService : IEmailResetPasswordService
     {
-        private readonly ITokenSqlExecutor _tokenSqlExecutor;
+        private readonly IUserSQLProvider _userSQLProvider;
         private readonly IEmailService _emailService;
-        public EmailResetPasswordService(ITokenSqlExecutor tokenSqlExecutor, IEmailService emailService)
+        public EmailResetPasswordService(IUserSQLProvider userSQLProvider, IEmailService emailService)
         {
-            _tokenSqlExecutor = tokenSqlExecutor;
+            _userSQLProvider = userSQLProvider;
             _emailService = emailService;
         }
         public async Task<bool> ResetPasswordEmailSender(UserModel user)
         {
             // Generate a reset token
             var token = Guid.NewGuid();
-            await _tokenSqlExecutor.SaveResetTokenAsync(user.PersoId, token);
+            await _userSQLProvider.TokenSqlExecutor.SaveResetTokenAsync(user.PersoId, token);
 
             // Prepare the reset email
             var emailMessage = PrepareResetPasswordMessage(user.Email, token);

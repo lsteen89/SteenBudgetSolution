@@ -12,5 +12,6 @@ namespace Backend.Application.Interfaces.UserServices
         Task<bool> ShouldLockUserAsync(string email);
         Task LockUserAsync(string email, TimeSpan lockoutDuration);
         Task<bool> SendResetPasswordEmailAsync(string email);
+        Task<bool> UpdatePasswordAsync(Guid token, string password);
     }
 }

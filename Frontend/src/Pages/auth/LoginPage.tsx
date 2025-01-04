@@ -91,7 +91,7 @@ const LoginPage: React.FC = () => {
     
     <div className="relative flex justify-center items-start min-h-screen py-[150px]
     3xl:py-[300px]">
-      <FormContainer tag="form" onSubmit={handleSubmit}>
+      <FormContainer tag="form" bgColor="gradient"onSubmit={handleSubmit}>
         {/* Title */}
         <p className="text-lg font-bold text-gray-800 mb-6 text-center">Välkommen tillbaka! Logga in för att fortsätta</p>
 

@@ -1,10 +1,14 @@
 using Backend.Application.Interfaces.EmailServices;
 using Backend.Application.Interfaces.RecaptchaService;
+using Backend.Application.Interfaces.UserServices;
+using Backend.Application.Services.EmailServices;
+using Backend.Application.Services.UserServices;
 using Backend.Application.Services.Validation;
 using Backend.Application.Settings;
 using Backend.Application.Validators;
 using Backend.Domain.Entities;
 using Backend.Infrastructure.Data.Sql.Interfaces;
+using Backend.Infrastructure.Data.Sql.Provider;
 using Backend.Infrastructure.Data.Sql.UserQueries;
 using Backend.Infrastructure.Email;
 using Backend.Infrastructure.Helpers;
@@ -16,7 +20,7 @@ using Dapper;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Moq;
 using MySqlConnector;
@@ -25,10 +29,6 @@ using System.Data.Common;
 using System.Reflection;
 using System.Text;
 using System.Threading.RateLimiting;
-using Backend.Application.Interfaces.UserServices;
-using Backend.Application.Services.UserServices;
-using Microsoft.AspNetCore.RateLimiting;
-using Backend.Application.Services.EmailServices;
 
 var builder = WebApplication.CreateBuilder(args);
 #region Serilog Configuration
@@ -76,6 +76,10 @@ var configuration = builder.Configuration;
 // Section for SQL related services
 builder.Services.AddScoped<IUserSqlExecutor, UserSqlExecutor>();
 builder.Services.AddScoped<ITokenSqlExecutor, TokenSqlExecutor>();
+builder.Services.AddScoped<IAuthenticationSqlExecutor, AuthenticationSqlExecutor>();
+// Add the UserSQLProvider to the services
+builder.Services.AddScoped<IUserSQLProvider, UserSQLProvider>();
+
 
 // Section for user services
 builder.Services.AddScoped<IUserServices, UserServices>();

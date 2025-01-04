@@ -13,7 +13,8 @@ import EmailConfirmationPage from './Pages/auth/EmailConfirmationPage';
 import './index.css';
 import { mockVerifyEmail } from '@mocks/mockServices/verifyEmailMock.ts';
 import { verifyEmail as realVerifyEmail } from '@api/Services/User/verifyEmail';
-import ForgotPassword from '@pages/auth/ForgotPassword';
+import RequestPasswordReset from '@pages/auth/RequestPasswordReset';
+import ResetPasswordPage from '@pages/auth/PerformPasswordReset';
 
 
 function App() {
@@ -34,10 +35,11 @@ function App() {
             }
           />;
           <Route path="/about-us" element={<AboutUs />} />
-          <Route path="/forgotpassword" element={<ForgotPassword />} />
+          <Route path="/forgotpassword" element={<RequestPasswordReset />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/faq" element={<Faq />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </div>

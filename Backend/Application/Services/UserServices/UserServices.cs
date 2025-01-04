@@ -4,6 +4,7 @@ using Backend.Application.Interfaces.UserServices;
 using Backend.Application.Interfaces.EmailServices;
 using Backend.Infrastructure.Data.Sql.Interfaces;
 using Backend.Infrastructure.Data.Sql.UserQueries;
+using Backend.Application.Services.Validation;
 public class UserServices : IUserServices
 {
     private readonly IUserManagementService _userManagementService;
@@ -11,7 +12,7 @@ public class UserServices : IUserServices
     private readonly IUserEmailService _userEmailService;
     private readonly IEmailVerificationService _emailVerificationService;
     private readonly IUserAuthenticationService _userAuthenticationService;
-    private readonly IUserSqlExecutor userSqlExecutor;
+    private readonly IUserSQLProvider userSQLProvider;
     private readonly ILogger<UserServices> _logger;
 
     public UserServices(
@@ -20,7 +21,8 @@ public class UserServices : IUserServices
         IUserEmailService userEmailService,
         IEmailVerificationService emailVerificationService,
         IUserAuthenticationService userAuthenticationService,
-        IUserSqlExecutor userSqlExecutor,
+        IUserSQLProvider userSQLProvider,
+        
         ILogger<UserServices> logger)
     {
         _userManagementService = userManagementService;
@@ -28,7 +30,7 @@ public class UserServices : IUserServices
         _userEmailService = userEmailService;
         _emailVerificationService = emailVerificationService;
         _userAuthenticationService = userAuthenticationService;
-        this.userSqlExecutor = userSqlExecutor;
+        this.userSQLProvider = userSQLProvider;
         _logger = logger;
     }
 
@@ -109,7 +111,7 @@ public class UserServices : IUserServices
             }
 
             // Step 3: Reset failed attempts
-            var user = await userSqlExecutor.GetUserModelAsync(email: userLoginDto.Email);
+            var user = await userSQLProvider.UserSqlExecutor.GetUserModelAsync(email: userLoginDto.Email);
             if (user != null)
             {
                 await ResetFailedLoginAttempts(user.PersoId, userLoginDto.Email);
@@ -149,7 +151,7 @@ public class UserServices : IUserServices
     {
         try
         {
-            await userSqlExecutor.ResetFailedLoginAttemptsAsync(persoId);
+            await userSQLProvider.AuthenticationSqlExecutor.ResetFailedLoginAttemptsAsync(persoId);
             _logger.LogInformation("Failed login attempts reset for user: {Email}", email);
         }
         catch (Exception ex)
@@ -183,7 +185,7 @@ public class UserServices : IUserServices
     }
 
     public async Task<bool> DeleteUserByEmailAsync(string email) =>
-        await _userManagementService.GetUserByEmailAsync(email) is UserModel user && await userSqlExecutor.DeleteUserByEmailAsync(email) > 0;
+        await _userManagementService.GetUserByEmailAsync(email) is UserModel user && await userSQLProvider.UserSqlExecutor.DeleteUserByEmailAsync(email) > 0;
 
     public async Task<bool> DeleteUserTokenByEmailAsync(Guid persoid) =>
         await _userTokenService.DeleteTokenByPersoidAsync(persoid);

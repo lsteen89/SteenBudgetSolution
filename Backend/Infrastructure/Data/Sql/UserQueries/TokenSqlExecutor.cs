@@ -6,7 +6,7 @@ namespace Backend.Infrastructure.Data.Sql.UserQueries
 {
     public class TokenSqlExecutor : SqlBase, ITokenSqlExecutor
     {
-        public TokenSqlExecutor(DbConnection connection, ILogger<UserSqlExecutor> logger)
+        public TokenSqlExecutor(DbConnection connection, ILogger<TokenSqlExecutor> logger)
 :       base(connection, logger)
         {
 

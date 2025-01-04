@@ -20,7 +20,7 @@ namespace Backend.Tests.IntegrationTests.Services.UserAuthentication
         public UserAuthenticationServiceTests()
         {
             _userAuthenticationService = new UserAuthenticationService(
-                MockUserSqlExecutor.Object,
+                MockUserSQLProvider.Object, // Mocked provider,
                 Mock.Of<ITokenService>(),
                 MockEnvironmentService.Object,
                 MockUserTokenService.Object,
@@ -41,8 +41,8 @@ namespace Backend.Tests.IntegrationTests.Services.UserAuthentication
         {
             // Arrange
             var email = "nonexistent@example.com";
-            MockUserSqlExecutor
-                .Setup(x => x.GetUserModelAsync(null, email))
+            MockUserSQLProvider
+                .Setup(x => x.UserSqlExecutor.GetUserModelAsync(null, email))
                 .ReturnsAsync((UserModel)null);
 
             // Act
@@ -60,8 +60,8 @@ namespace Backend.Tests.IntegrationTests.Services.UserAuthentication
         public async Task SendResetPasswordEmailAsync_EmailSendingFails_ReturnsFalse()
         {
             // Arrange
-            MockUserSqlExecutor
-                .Setup(x => x.GetUserModelAsync(null, _testUser.Email))
+            MockUserSQLProvider
+                .Setup(x => x.UserSqlExecutor.GetUserModelAsync(null, _testUser.Email))
                 .ReturnsAsync(_testUser);
 
             // Simulate email sending failure
@@ -101,8 +101,8 @@ namespace Backend.Tests.IntegrationTests.Services.UserAuthentication
         public async Task SendResetPasswordEmailAsync_EmailSendingSucceeds_LogsMessageAndReturnsTrue()
         {
             // Arrange
-            MockUserSqlExecutor
-                .Setup(x => x.GetUserModelAsync(null, _testUser.Email))
+            MockUserSQLProvider
+                .Setup(x => x.UserSqlExecutor.GetUserModelAsync(null, _testUser.Email))
                 .ReturnsAsync(_testUser);
 
             MockEmailResetPasswordService
@@ -125,7 +125,43 @@ namespace Backend.Tests.IntegrationTests.Services.UserAuthentication
                     It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
                 Times.Once);
         }
+        [Fact]
+        public async Task UpdatePasswordAsync_ValidToken_CallsUpdatePassword()
+        {
+            // Arrange
+            var token = Guid.NewGuid();
+            var newPassword = "Password123!";
+            var testUser = new UserModel { PersoId = token, Email = "test@example.com" };
 
+            MockUserTokenService
+                .Setup(x => x.ValidateResetTokenAsync(token))
+                .ReturnsAsync(true); // Simulate valid token
 
+            MockUserSQLProvider
+                .Setup(provider => provider.UserSqlExecutor.GetUserModelAsync(It.Is<Guid?>(id => id == token), null))
+                .ReturnsAsync(testUser);
+
+            MockUserSQLProvider
+                .Setup(provider => provider.AuthenticationSqlExecutor.UpdatePasswordAsync(It.Is<Guid>(id => id == token), It.IsAny<string>()))
+                .ReturnsAsync(true); // Simulate successful password update
+
+            // Act
+            var result = await _userAuthenticationService.UpdatePasswordAsync(token, newPassword);
+
+            // Assert
+            Assert.True(result);
+
+            MockUserTokenService.Verify(x => x.ValidateResetTokenAsync(token), Times.Once);
+
+            MockUserSQLProvider.Verify(
+                provider => provider.UserSqlExecutor.GetUserModelAsync(It.Is<Guid?>(id => id == token), null),
+                Times.Once
+            );
+
+            MockUserSQLProvider.Verify(
+                provider => provider.AuthenticationSqlExecutor.UpdatePasswordAsync(It.Is<Guid>(id => id == token), It.IsAny<string>()),
+                Times.Once
+            );
+        }
     }
 }

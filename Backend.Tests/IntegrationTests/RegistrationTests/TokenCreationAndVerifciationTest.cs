@@ -20,7 +20,7 @@ namespace Backend.Tests.IntegrationTests.RegistrationTests
 
             // Assert
             Assert.True(verificationResult);
-            var verifiedUser = await UserSqlExecutor.GetUserModelAsync(email: registeredUser.Email);
+            var verifiedUser = await UserSQLProvider.UserSqlExecutor.GetUserModelAsync(email: registeredUser.Email);
             Assert.True(verifiedUser.EmailConfirmed); // Confirm email was verified
             Assert.Equal(registeredUser.Email, verifiedUser.Email); // Verify using helper's data
         }
@@ -39,7 +39,7 @@ namespace Backend.Tests.IntegrationTests.RegistrationTests
 
             // Assert
             Assert.False(verificationResult);
-            var verifiedUser = await UserSqlExecutor.GetUserModelAsync(email: registeredUser.Email);
+            var verifiedUser = await UserSQLProvider.UserSqlExecutor.GetUserModelAsync(email: registeredUser.Email);
             Assert.False(verifiedUser.EmailConfirmed); // Confirm email was not verified
         }
 
@@ -58,7 +58,7 @@ namespace Backend.Tests.IntegrationTests.RegistrationTests
 
             // Assert
             Assert.False(verificationResult);
-            var verifiedUser = await UserSqlExecutor.GetUserModelAsync(email: registeredUser.Email);
+            var verifiedUser = await UserSQLProvider.UserSqlExecutor.GetUserModelAsync(email: registeredUser.Email);
             Assert.False(verifiedUser.EmailConfirmed); // Confirm email was not verified
         }
         private async Task<UserTokenModel> GenerateAndInsertTokenAsync(Guid persoId)
