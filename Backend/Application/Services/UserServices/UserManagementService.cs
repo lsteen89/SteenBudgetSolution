@@ -6,26 +6,26 @@ namespace Backend.Application.Services.UserServices
 {
     public class UserManagementService : IUserManagementService
     {
-        private readonly IUserSqlExecutor _userSqlExecutor;
+        private readonly IUserSQLProvider _userSQLProvider;
         private readonly ILogger<UserManagementService> _logger;
 
-        public UserManagementService(IUserSqlExecutor userSqlExecutor, ILogger<UserManagementService> logger)
+        public UserManagementService(IUserSQLProvider userSQLProvider, ILogger<UserManagementService> logger)
         {
-            _userSqlExecutor = userSqlExecutor;
+            _userSQLProvider = userSQLProvider;
             _logger = logger;
         }
 
         public async Task<bool> CheckIfUserExistsAsync(string email) =>
-            await _userSqlExecutor.IsUserExistInDatabaseAsync(email);
+            await _userSQLProvider.UserSqlExecutor.IsUserExistInDatabaseAsync(email);
 
         public async Task<bool> CreateUserAsync(UserModel user) =>
-            await _userSqlExecutor.InsertNewUserDatabaseAsync(user);
+            await _userSQLProvider.UserSqlExecutor.InsertNewUserDatabaseAsync(user);
 
         public async Task<UserModel?> GetUserByEmailAsync(string email) =>
-            await _userSqlExecutor.GetUserModelAsync(email: email);
+            await _userSQLProvider.UserSqlExecutor.GetUserModelAsync(email: email);
 
         public async Task<bool> UpdateEmailConfirmationAsync(Guid persoid) =>
-            await _userSqlExecutor.UpdateEmailConfirmationStatusAsync(persoid);
+            await _userSQLProvider.UserSqlExecutor.UpdateEmailConfirmationStatusAsync(persoid);
     }
 
 }

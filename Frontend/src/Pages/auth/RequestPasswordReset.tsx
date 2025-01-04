@@ -1,8 +1,13 @@
 import React, { useState } from "react";
-import { resendVerificationEmail } from "@api/Services/User/resetPassword"; 
+import { generateResetPasswordEmail } from "@api/Services/User/generateResetPasswordEmail"; 
 import SubmitButton from "../../components/atoms/buttons/SubmitButton";
 import InputField from "@components/atoms/InputField/ContactFormInputField";
 import { useNavigate } from "react-router-dom";
+import ForgotPasswordBird from '@assets/Images/ForgotPasswordBird.png';
+/* Toast */
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { showToast } from "@utils/toastUtils";
 
 const ForgotPassword: React.FC = () => {
   const [email, setEmail] = useState("");
@@ -15,30 +20,38 @@ const ForgotPassword: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      const response = await resendVerificationEmail(email); 
-      setMessage(response.message);
-
-      // Redirect after showing the success message
-      setTimeout(() => {
-        navigate("/check-email");
-      }, 2000);
+        const response = await generateResetPasswordEmail(email);
+        setMessage(response.message);
+        showToast(response.message, "success", { autoClose: 8000 });
+        
+        setTimeout(() => {
+            navigate("/");
+        }, 8000); // Match success toast timing
     } catch (error: any) {
-      // Handle validation or API errors
-      if (error.name === "ValidationError") {
-        setMessage(error.message); // Handle custom validation errors
-      } else {
-        setMessage("Något gick fel. Försök igen senare."); // General error message
-      }
+        const errorMessage =
+            error.message.includes('429')
+                ? 'Du har gjort för många försök. Vänta en stund och försök igen.'
+                : error.message;
+
+        setMessage(errorMessage);
+        showToast(errorMessage, "error", { autoClose: 5000 });
     } finally {
-      setIsSubmitting(false);
+        setIsSubmitting(false);
     }
-  };
+};
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
+    <div className="flex flex-col items-center justify-center min-h-screen">
+      {/* Bird Image */}
+      <img 
+        src={ForgotPasswordBird} 
+        alt="ForgotPasswordBird" 
+        className="absolute right-[3%] top-[45%] transform translate-y-[10%] w-auto max-w-[320px] z-10
+          1920:right-[250px] 1920:top-[35%] 1920:max-w-[400px]
+          3xl:right-[1000px] 3xl:top-[35%] 3xl:max-w-[400px]"
+      />    
       <h1 className="text-2xl font-bold mb-6">Glömt lösenord</h1>
       <form onSubmit={handleSubmit} className="w-full max-w-md">
-        {/* Email Input Field and Submit Button Container */}
         <div className="flex flex-col items-center space-y-4">
           <div className="w-full">
             <InputField
@@ -49,7 +62,6 @@ const ForgotPassword: React.FC = () => {
               width="100%"
             />
           </div>
-          
           <div className="w-full flex justify-center">
             <SubmitButton
               isSubmitting={isSubmitting}
@@ -61,7 +73,9 @@ const ForgotPassword: React.FC = () => {
           </div>
         </div>
       </form>
-      {message && <p className="mt-4 text-gray-700">{message}</p>}
+
+      {/* Add ToastContainer here */}
+      <ToastContainer />
     </div>
   );  
 };

@@ -59,7 +59,7 @@ namespace Backend.Presentation.Controllers
             if (isLockedOut)
             {
                 _logger.LogWarning("User is locked out for email: {MaskedEmail}", _logHelper.MaskEmail(userLoginDto.Email));
-                return Unauthorized(new { message = "User is locked out. Please try again later." });
+                return Unauthorized(new { message = "Användaren är låst! Kontakta support" });
             }
 
             // Step 4: Validate credentials
@@ -74,7 +74,7 @@ namespace Backend.Presentation.Controllers
             return Ok(new { success = result.Success, message = result.Message });
 
         }
-        [HttpPost("reset-password")]
+        [HttpPost("generate-reset-password-email")]
         [EnableRateLimiting("EmailSendingPolicy")]
         public async Task<IActionResult> ResetPassword([FromBody] Backend.Application.DTO.ResetPasswordRequest request)
         {
@@ -82,22 +82,25 @@ namespace Backend.Presentation.Controllers
 
             if (emailSent)
             {
-                return Ok(new { message = "If the email exists, a reset link has been sent." });
+                return Ok(new { message = "Om den angivna e-postadressen är registrerad har ett återställningsmail skickats." });
             }
 
             return StatusCode(500, new { message = "An error occurred while processing the request." });
         }
-        [HttpPost("validate-reset-token")]
-        public async Task<IActionResult> ValidateResetToken([FromBody] ValidateTokenRequest request)
+
+        [HttpPost("reset-password-with-token")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPassword request)
         {
-            var isValid = await _userTokenService.ValidateResetTokenAsync(request.Token);
+            var success = await _userAuthenticationService.UpdatePasswordAsync(request.Token, request.Password);
 
-            if (isValid)
+            if (success)
             {
-                return Ok(new { message = "Valid token." });
+                return Ok(new { message = "Lösenordet har ändrats!" });
             }
-
-            return BadRequest(new { message = "Invalid or expired token." });
+            else
+            {
+                return BadRequest(new { message = "Felaktig återställingslänk, vänligen försök igen eller kontakta support" });
+            }
         }
     }
 

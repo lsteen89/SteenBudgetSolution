@@ -23,6 +23,18 @@ module.exports = {
 		limeGreen: '#98FF98', 
 		darkLimeGreen: '#32CD32',
       },
+      keyframes: {
+        fadeIn: {
+          '0%': { opacity: 0 },
+          '100%': { opacity: 1 },
+        },
+      },
+      animation: {
+        'fade-in': 'fadeIn 0.5s ease-out', // Define fade-in animation
+      },
+      backgroundImage: {
+        'form-gradient': 'linear-gradient(to bottom, #f3f4f6, #e5e7eb)', // Slight gradient background for forms
+      },
     },
   },
   plugins: [],

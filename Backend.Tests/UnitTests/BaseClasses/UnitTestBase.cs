@@ -17,8 +17,7 @@ using Backend.Application.Services.UserServices;
 public abstract class UnitTestBase
 {
     protected IServiceProvider ServiceProvider;
-    protected Mock<IUserSqlExecutor> MockUserSqlExecutor;
-    protected Mock<ITokenSqlExecutor> MockTokenSqlExecutor;
+    protected Mock<IUserSQLProvider> MockUserSQLProvider;
     protected EmailVerificationService EmailVerificationService;
     protected Mock<IHttpContextAccessor> MockHttpContextAccessor;
     protected Mock<ILogger<UserAuthenticationService>> LoggerMockAuth;
@@ -43,8 +42,7 @@ public abstract class UnitTestBase
         var services = new ServiceCollection();
 
         // Initialize mocks
-        MockUserSqlExecutor = new Mock<IUserSqlExecutor>();
-        MockTokenSqlExecutor = new Mock<ITokenSqlExecutor>();
+        MockUserSQLProvider = new Mock<IUserSQLProvider>();
         MockHttpContextAccessor = new Mock<IHttpContextAccessor>();
         MockConfiguration = new Mock<IConfiguration>();
         LoggerMock = new Mock<ILogger<UserServices>>();
@@ -55,6 +53,17 @@ public abstract class UnitTestBase
         MockHttpContext = new Mock<HttpContext>();
         MockHttpResponse = new Mock<HttpResponse>();
         CookiesContainer = new Dictionary<string, (string Value, CookieOptions Options)>();
+
+        // Mock provider internals for UserSQLProvider
+        MockUserSQLProvider
+            .Setup(provider => provider.UserSqlExecutor)
+            .Returns(Mock.Of<IUserSqlExecutor>());
+        MockUserSQLProvider
+            .Setup(provider => provider.TokenSqlExecutor)
+            .Returns(Mock.Of<ITokenSqlExecutor>());
+        MockUserSQLProvider
+            .Setup(provider => provider.AuthenticationSqlExecutor)
+            .Returns(Mock.Of<IAuthenticationSqlExecutor>());
 
         // Mock Configuration
         MockConfiguration
@@ -80,10 +89,8 @@ public abstract class UnitTestBase
         // Register dependencies
         var mockLoggerForMockEmailService = Mock.Of<ILogger<MockEmailService>>();
         var mockEmailPreparationService = Mock.Of<IEmailPreparationService>(); // Can use a real/mock implementation
-        var mockLoggerForUserAuthenticationService = Mock.Of<ILogger<UserAuthenticationService>>();
 
-        services.AddScoped<IUserSqlExecutor>(_ => MockUserSqlExecutor.Object);
-        services.AddScoped<ITokenSqlExecutor>(_ => MockTokenSqlExecutor.Object);
+        services.AddScoped<IUserSQLProvider>(_ => MockUserSQLProvider.Object);
         services.AddScoped<IEmailResetPasswordService>(_ => MockEmailResetPasswordService.Object);
 
         // Register MockEmailService as the real implementation of IEmailService
@@ -96,7 +103,7 @@ public abstract class UnitTestBase
         services.AddSingleton(mockOptions);
 
         services.AddScoped<IEmailVerificationService>(_ => new EmailVerificationService(
-            MockUserSqlExecutor.Object,
+            MockUserSQLProvider.Object,
             MockUserTokenService.Object,
             ServiceProvider.GetRequiredService<IEmailService>(),
             mockOptions,
@@ -113,7 +120,7 @@ public abstract class UnitTestBase
                 Mock.Of<IUserEmailService>(),
                 provider.GetRequiredService<IEmailVerificationService>(),
                 Mock.Of<IUserAuthenticationService>(),
-                MockUserSqlExecutor.Object,
+                MockUserSQLProvider.Object,
                 LoggerMock.Object
             );
         });
@@ -128,25 +135,5 @@ public abstract class UnitTestBase
         // Assertions to validate setup
         Assert.NotNull(EmailVerificationService);
         Assert.NotNull(ServiceProvider.GetRequiredService<IEmailService>());
-    }
-    public class TestLogger<T> : ILogger<T>
-    {
-        public List<string> Logs { get; } = new List<string>();
-
-        public IDisposable BeginScope<TState>(TState state) => null;
-
-        public bool IsEnabled(LogLevel logLevel) => true;
-
-        public void Log<TState>(
-            LogLevel logLevel,
-            EventId eventId,
-            TState state,
-            Exception exception,
-            Func<TState, Exception, string> formatter)
-        {
-            if (formatter == null) return;
-            var message = formatter(state, exception);
-            Logs.Add(message);
-        }
     }
 }

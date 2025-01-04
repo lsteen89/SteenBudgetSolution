@@ -21,13 +21,14 @@ using Microsoft.AspNetCore.Http;
 using Backend.Test.UserTests;
 using Moq;
 using System.Net;
+using Backend.Infrastructure.Data.Sql.Provider;
 
 public abstract class IntegrationTestBase : IAsyncLifetime
 {
     protected readonly ServiceProvider ServiceProvider;
     protected readonly ILogger Logger;
     protected readonly IUserServices UserServices;
-    protected readonly IUserSqlExecutor UserSqlExecutor;
+    protected readonly IUserSQLProvider UserSQLProvider;
     protected readonly IEmailService EmailService;
     protected readonly IUserTokenService UserTokenService;
     protected readonly UserServiceTest UserServiceTest;
@@ -96,7 +97,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         // Retrieve shared dependencies
         Logger = ServiceProvider.GetRequiredService<ILogger<IntegrationTestBase>>();
         UserServices = ServiceProvider.GetRequiredService<IUserServices>();
-        UserSqlExecutor = ServiceProvider.GetRequiredService<IUserSqlExecutor>();
+        UserSQLProvider = ServiceProvider.GetRequiredService<IUserSQLProvider>();
         EmailService = ServiceProvider.GetRequiredService<IEmailService>();
         EmailResetPasswordService = ServiceProvider.GetRequiredService<IEmailResetPasswordService>();
 
@@ -130,19 +131,18 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         });
 
         // Register application services
-        services.AddScoped<IUserSqlExecutor, UserSqlExecutor>();
         services.AddScoped<IUserServices, UserServices>();
         services.AddSingleton<IEmailService, MockEmailService>();
         services.AddScoped<IUserManagementService, UserManagementService>();
         services.AddScoped<IUserTokenService, UserTokenService>();
-        services.AddScoped<ITokenSqlExecutor, TokenSqlExecutor>();
         services.AddScoped<IUserEmailService, UserEmailService>();
         services.AddScoped<IEmailPreparationService, EmailPreparationService>();
         services.AddScoped<IEmailVerificationService, EmailVerificationService>();
         services.AddScoped<IUserAuthenticationService, UserAuthenticationService>();
         services.AddScoped<IEnvironmentService>(_ => MockEnvironmentService.Object); 
         services.AddScoped<UserServiceTest>();
-        services.AddScoped<ITokenService, TokenService>(); 
+        services.AddScoped<ITokenService, TokenService>();
+        services.AddScoped<IUserSQLProvider, UserSQLProvider>();
         // Register logging
         services.AddLogging(builder =>
         {
@@ -216,7 +216,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     {
         Logger.LogInformation("Registering user: {Email}", userCreationDto.Email);
         await UserServices.RegisterUserAsync(userCreationDto);
-        return await UserSqlExecutor.GetUserModelAsync(email: userCreationDto.Email);
+        return await UserSQLProvider.UserSqlExecutor.GetUserModelAsync(email: userCreationDto.Email);
     }
 
     protected async Task<UserModel> SetupUserAsync()

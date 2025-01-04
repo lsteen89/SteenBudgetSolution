@@ -9,11 +9,11 @@ namespace Backend.Application.Services.UserServices
 {
     public class UserTokenService : IUserTokenService
     {
-        private readonly ITokenSqlExecutor _tokenSqlExecutor;
+        private readonly IUserSQLProvider _userSQLProvider;
         private readonly IConfiguration _configuration;
-        public UserTokenService(ITokenSqlExecutor tokenSqlExecutor, IConfiguration configuration)
+        public UserTokenService(IUserSQLProvider userSQLProvider, IConfiguration configuration)
         {
-            _tokenSqlExecutor = tokenSqlExecutor;
+            _userSQLProvider = userSQLProvider;
             _configuration = configuration;
         }
         public async Task<bool> IsAuthorizedAsync(string token)
@@ -48,30 +48,30 @@ namespace Backend.Application.Services.UserServices
         }
 
         public async Task<UserTokenModel> CreateEmailTokenAsync(Guid persoid) =>
-            await _tokenSqlExecutor.GenerateUserTokenAsync(persoid);
+            await _userSQLProvider.TokenSqlExecutor.GenerateUserTokenAsync(persoid);
 
         public async Task<bool> InsertUserTokenAsync(UserTokenModel tokenModel) =>
-            await _tokenSqlExecutor.InsertUserTokenAsync(tokenModel);
+            await _userSQLProvider.TokenSqlExecutor.InsertUserTokenAsync(tokenModel);
 
         public async Task<UserTokenModel?> GetTokenByGuidAsync(Guid token) =>
-            await _tokenSqlExecutor.GetUserVerificationTokenByTokenAsync(token);
+            await _userSQLProvider.TokenSqlExecutor.GetUserVerificationTokenByTokenAsync(token);
 
         public async Task<bool> DeleteTokenByPersoidAsync(Guid persoid) =>
-            (await _tokenSqlExecutor.DeleteUserTokenByPersoidAsync(persoid)) > 0;
+            (await _userSQLProvider.TokenSqlExecutor.DeleteUserTokenByPersoidAsync(persoid)) > 0;
         public async Task<UserVerificationTrackingModel> GetUserVerificationTrackingAsync(Guid persoId) =>
-            await _tokenSqlExecutor.GetUserVerificationTrackingAsync(persoId);
+            await _userSQLProvider.TokenSqlExecutor.GetUserVerificationTrackingAsync(persoId);
         public async Task InsertUserVerificationTrackingAsync(UserVerificationTrackingModel tracking) =>
-            await _tokenSqlExecutor.InsertUserVerificationTrackingAsync(tracking);
+            await _userSQLProvider.TokenSqlExecutor.InsertUserVerificationTrackingAsync(tracking);
         public async Task<UserTokenModel?> GetUserVerificationTokenByPersoIdAsync(Guid persoid) =>
-            await _tokenSqlExecutor.GetUserVerificationTokenByPersoIdAsync(persoid);
+            await _userSQLProvider.TokenSqlExecutor.GetUserVerificationTokenByPersoIdAsync(persoid);
         public async Task<int> DeleteUserTokenByPersoidAsync(Guid persoid) =>
-            await _tokenSqlExecutor.DeleteUserTokenByPersoidAsync(persoid);
+            await _userSQLProvider.TokenSqlExecutor.DeleteUserTokenByPersoidAsync(persoid);
         public async Task UpdateUserVerificationTrackingAsync(UserVerificationTrackingModel tracking) =>
-            await _tokenSqlExecutor.UpdateUserVerificationTrackingAsync(tracking);
+            await _userSQLProvider.TokenSqlExecutor.UpdateUserVerificationTrackingAsync(tracking);
         public async Task SaveResetTokenAsync(Guid persoId, Guid token) =>
-            await _tokenSqlExecutor.SaveResetTokenAsync(persoId, token);
+            await _userSQLProvider.TokenSqlExecutor.SaveResetTokenAsync(persoId, token);
         public async Task<bool> ValidateResetTokenAsync(Guid token) =>
-            await _tokenSqlExecutor.ValidateResetTokenAsync(token);
+            await _userSQLProvider.TokenSqlExecutor.ValidateResetTokenAsync(token);
 
     }
 }

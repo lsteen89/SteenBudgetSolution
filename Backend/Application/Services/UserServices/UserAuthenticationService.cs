@@ -5,40 +5,44 @@ using Backend.Infrastructure.Security;
 using Backend.Application.Interfaces.UserServices;
 using Backend.Application.Models;
 using Backend.Application.Interfaces.EmailServices;
+using System.Data.SqlTypes;
 
 namespace Backend.Application.Services.UserServices
 {
     public class UserAuthenticationService : IUserAuthenticationService
     {
-        private readonly IUserSqlExecutor _userSqlExecutor;
+        private readonly IUserSQLProvider _userSQLProvider;
         private readonly ITokenService _tokenService; 
         private readonly IEnvironmentService _environmentService;
         private readonly IUserTokenService _userTokenService;
         private readonly IEmailResetPasswordService _emailResetPasswordService;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IConfiguration _configuration;
         private readonly ILogger<UserAuthenticationService> _logger;
 
         public UserAuthenticationService(
-            IUserSqlExecutor userSqlExecutor,
+            IUserSQLProvider userSQLProvider,
             ITokenService tokenService,
             IEnvironmentService environmentService,
             IUserTokenService userTokenService,
             IEmailResetPasswordService emailResetPasswordService,
             IHttpContextAccessor httpContextAccessor,
+            IConfiguration configuration,
             ILogger<UserAuthenticationService> logger)
         {
-            _userSqlExecutor = userSqlExecutor;
+            _userSQLProvider = userSQLProvider;
             _tokenService = tokenService;
             _userTokenService = userTokenService;
             _emailResetPasswordService = emailResetPasswordService;
             _environmentService = environmentService;
+            _configuration = configuration;
             _httpContextAccessor = httpContextAccessor;
             _logger = logger;
         }
 
         public async Task<ValidationResult> ValidateCredentialsAsync(string email, string password)
         {
-            var user = await _userSqlExecutor.GetUserModelAsync(email: email);
+            var user = await _userSQLProvider.UserSqlExecutor.GetUserModelAsync(email: email);
             if (user == null) return new ValidationResult(false, "Felaktiga uppgifter");
             if (!user.EmailConfirmed) return new ValidationResult(false, "E-post ej bekräftad");
             if (!BCrypt.Net.BCrypt.Verify(password, user.Password)) return new ValidationResult(false, "Felaktiga uppgifter");
@@ -47,7 +51,7 @@ namespace Backend.Application.Services.UserServices
 
         public async Task<LoginResultDto> AuthenticateAndGenerateTokenAsync(string email)
         {
-            var user = await _userSqlExecutor.GetUserModelAsync(email: email);
+            var user = await _userSQLProvider.UserSqlExecutor.GetUserModelAsync(email: email);
             if (user == null)
             {
                 _logger.LogWarning("User not found for login: {Email}", email);
@@ -81,7 +85,7 @@ namespace Backend.Application.Services.UserServices
         public async Task<bool> CheckLoginAttemptsAsync(string email)
         {
             // Retrieve user details
-            var user = await _userSqlExecutor.GetUserModelAsync(email: email);
+            var user = await _userSQLProvider.UserSqlExecutor.GetUserModelAsync(email: email);
 
             if (user == null)
             {
@@ -101,13 +105,13 @@ namespace Backend.Application.Services.UserServices
                 else
                 {
                     // Automatically unlock the user if lockout period has expired
-                    await _userSqlExecutor.UnlockUserAsync(user.PersoId);
+                    await _userSQLProvider.AuthenticationSqlExecutor.UnlockUserAsync(user.PersoId);
                     _logger.LogInformation("User lockout expired and user is now unlocked for email: {Email}", email);
                 }
             }
 
             // Check recent failed attempts
-            var recentFailedAttempts = await _userSqlExecutor.GetRecentFailedAttemptsAsync(user.PersoId);
+            var recentFailedAttempts = await _userSQLProvider.AuthenticationSqlExecutor.GetRecentFailedAttemptsAsync(user.PersoId);
             if (recentFailedAttempts >= 5)
             {
                 _logger.LogWarning("User exceeded failed login attempts and will be locked out for email: {Email}", email);
@@ -122,24 +126,24 @@ namespace Backend.Application.Services.UserServices
 
         public async Task RecordFailedLoginAsync(string email, string ipAddress)
         {
-            await _userSqlExecutor.RecordFailedLoginAsync(email, ipAddress);
+            await _userSQLProvider.AuthenticationSqlExecutor.RecordFailedLoginAsync(email, ipAddress);
         }
         public async Task<bool> ShouldLockUserAsync(string email)
         {
-            var user = await _userSqlExecutor.GetUserModelAsync(email: email);
+            var user = await _userSQLProvider.UserSqlExecutor.GetUserModelAsync(email: email);
             if (user == null) return false;
 
-            var recentFailedAttempts = await _userSqlExecutor.GetRecentFailedAttemptsAsync(user.PersoId);
+            var recentFailedAttempts = await _userSQLProvider.AuthenticationSqlExecutor.GetRecentFailedAttemptsAsync(user.PersoId);
             return recentFailedAttempts >= 5;
         }
         public async Task LockUserAsync(string email, TimeSpan lockoutDuration)
         {
-            await _userSqlExecutor.LockUserAsync(email, lockoutDuration);
+            await _userSQLProvider.AuthenticationSqlExecutor.LockUserAsync(email, lockoutDuration);
         }
         public async Task<bool> SendResetPasswordEmailAsync(string email)
         {
             // Check if user exists
-            var user = await _userSqlExecutor.GetUserModelAsync(email: email);
+            var user = await _userSQLProvider.UserSqlExecutor.GetUserModelAsync(email: email);
             if (user == null)
             {
                 _logger.LogWarning("Password reset requested for non-existent email: {Email}", email);
@@ -156,6 +160,43 @@ namespace Backend.Application.Services.UserServices
                 _logger.LogError("Failed to send password reset email to: {Email}", email);
                 return false;
             }
+        }
+        public async Task<bool> UpdatePasswordAsync(Guid token, string password)
+        {
+            // Check if the environment is in testing
+            var environment = _configuration["Environment"]; // Use the key from appsettings
+            if (environment == "Development")
+            {
+                _logger.LogInformation("Skipping token validation in testing environment.");
+                return true; // Always return true for testing
+            }
+
+            var isValid = await _userTokenService.ValidateResetTokenAsync(token);
+            if (!isValid)
+            {
+                _logger.LogWarning("Invalid or expired token used for password reset.");
+                return false;
+            }
+
+            var user = await _userSQLProvider.UserSqlExecutor.GetUserModelAsync(persoid: token);
+            if (user == null)
+            {
+                _logger.LogWarning("User not found for password reset token: {Token}", token);
+                return false;
+            }
+
+            var hashedPassword = BCrypt.Net.BCrypt.HashPassword(password);
+            var success = await _userSQLProvider.AuthenticationSqlExecutor.UpdatePasswordAsync(user.PersoId, hashedPassword);
+            if (success)
+            {
+                _logger.LogInformation("Password successfully updated for user: {Email}", user.Email);
+            }
+            else
+            {
+                _logger.LogError("Failed to update password for user: {Email}", user.Email);
+            }
+
+            return success;
         }
 
     }

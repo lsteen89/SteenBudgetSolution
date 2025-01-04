@@ -48,7 +48,7 @@ namespace Backend.Tests.IntegrationTests.RegistrationTests
             // Assert that a valid auth token is set in cookies
             Assert.True(CookieContainer.ContainsKey("auth_token"));
             var authCookie = CookieContainer["auth_token"];
-//            Assert.NotNull(authCookie.Value); // Check that the token exists
+            //Assert.NotNull(authCookie.Value); // Check that the token exists
             Assert.DoesNotContain("Bearer", authCookie.Value); // Validate token format
             Assert.NotEmpty(authCookie.Value); // Ensure token is present
         }
@@ -313,7 +313,7 @@ namespace Backend.Tests.IntegrationTests.RegistrationTests
             await UserServices.LoginAsync(wrongLoginDto, ipAddress);
 
             // Verify failed attempts count
-            var failedAttempts = await UserSqlExecutor.GetRecentFailedAttemptsAsync(registeredUser.PersoId);
+            var failedAttempts = await UserSQLProvider.AuthenticationSqlExecutor.GetRecentFailedAttemptsAsync(registeredUser.PersoId);
             Assert.Equal(1, failedAttempts);
 
             // Act: Successful login
@@ -323,7 +323,7 @@ namespace Backend.Tests.IntegrationTests.RegistrationTests
             Assert.True(result.Success, "User should successfully log in with correct credentials");
 
             // Verify failed attempts counter is reset
-            failedAttempts = await UserSqlExecutor.GetRecentFailedAttemptsAsync(registeredUser.PersoId);
+            failedAttempts = await UserSQLProvider.AuthenticationSqlExecutor.GetRecentFailedAttemptsAsync(registeredUser.PersoId);
             Assert.Equal(0, failedAttempts);
         }
 

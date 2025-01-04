@@ -9,7 +9,7 @@ using System.Net.Mail;
 
 public class EmailVerificationService: IEmailVerificationService
 {
-    private readonly IUserSqlExecutor _userSqlExecutor;
+    private readonly IUserSQLProvider _userSQLProvider;
     private readonly IUserTokenService _userTokenService;
     private readonly IEmailService _emailService;
     private readonly ILogger<EmailVerificationService> _logger;
@@ -18,7 +18,7 @@ public class EmailVerificationService: IEmailVerificationService
     IEmailPreparationService emailPreparationService;
 
     public EmailVerificationService(
-        IUserSqlExecutor userSqlExecutor,
+        IUserSQLProvider userSQLProvider,
         IUserTokenService userTokenService,
         IEmailService emailService,
         IOptions<ResendEmailSettings> options,
@@ -26,7 +26,7 @@ public class EmailVerificationService: IEmailVerificationService
         IEmailPreparationService emailPreparationService,
         Func<DateTime> getCurrentTime = null)
     {
-        _userSqlExecutor = userSqlExecutor;
+        _userSQLProvider = userSQLProvider;
         _userTokenService = userTokenService;
         _emailService = emailService;
         _getCurrentTime = getCurrentTime ?? (() => DateTime.UtcNow);
@@ -48,6 +48,7 @@ public class EmailVerificationService: IEmailVerificationService
     }
     private async Task<(bool IsSuccess, int StatusCode, string Message)> HandleVerificationEmailAsync(string email, bool isResend)
     {
+
         var currentTime = _getCurrentTime();
         var cooldownPeriod = TimeSpan.FromMinutes(_settings.CooldownPeriodMinutes);
         var dailyLimit = _settings.DailyLimit;
@@ -86,7 +87,7 @@ public class EmailVerificationService: IEmailVerificationService
     }
     private async Task<UserModel?> CheckUserExistsAsync(string email)
     {
-        var user = await _userSqlExecutor.GetUserModelAsync(email: email);
+        var user = await _userSQLProvider.UserSqlExecutor.GetUserModelAsync(email: email);
         if (user == null) _logger.LogWarning("User not found for email: {Email}", email);
         return user;
     }
@@ -94,6 +95,10 @@ public class EmailVerificationService: IEmailVerificationService
     private async Task<UserVerificationTrackingModel> GetOrInitializeTrackingAsync(Guid persoId)
     {
         var tracking = await _userTokenService.GetUserVerificationTrackingAsync(persoId);
+        if (tracking == null)
+        {
+            throw new InvalidOperationException("Tracking object is unexpectedly null during the test.");
+        }
         if (tracking == null)
         {
             tracking = new UserVerificationTrackingModel
@@ -108,6 +113,10 @@ public class EmailVerificationService: IEmailVerificationService
 
     private (bool IsAllowed, int StatusCode, string Message) IsResendAllowed(UserVerificationTrackingModel tracking, DateTime currentTime, TimeSpan cooldownPeriod, int dailyLimit)
     {
+
+        if (tracking == null)
+            throw new ArgumentNullException(nameof(tracking), "Tracking cannot be null.");
+
         if (tracking.LastResendRequestDate == currentTime.Date && tracking.DailyResendCount >= dailyLimit)
             return (false, 429, "Daily resend limit exceeded.");
 

@@ -46,7 +46,7 @@ namespace Backend.Infrastructure.Email
         }
         public async Task<EmailMessageModel> PrepareResetPasswordMessage(EmailMessageModel emailMessageModel)
         {
-            var resetLink = $"https://yourwebsite.com/reset-password/{emailMessageModel.Token}";
+            var resetLink = $"https://ebudget.se/reset-password?token={emailMessageModel.Token}";
             return new EmailMessageModel
             {
                 Recipient = emailMessageModel.Recipient,
