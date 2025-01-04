@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import FormContainer from "@components/molecules/containers/FormContainer";
 import InputField from "@components/atoms/InputField/ContactFormInputField";
 import SubmitButton from "@components/atoms/buttons/SubmitButton";
-import swagImage from "@assets/images/LoginBird.png";
+import swagImage from "@assets/Images/LoginBird.png";
 import { resetPasswordWithToken } from "@api/Services/User/resetPasswordWithToken";
 import { toast, ToastContainer } from "react-toastify";
 import { showToast } from "@utils/toastUtils";
