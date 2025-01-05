@@ -60,5 +60,6 @@ namespace Backend.Infrastructure.Data.Sql.Interfaces
         Task SaveResetTokenAsync(Guid persoId, Guid token);
         Task<bool> ValidateResetTokenAsync(Guid token);
         Task<UserModel> GetUserFromResetTokenAsync(Guid token);
+        Task<IEnumerable<UserTokenModel>> GetResetTokensByPersoIdAsync(Guid persoId);
     }
 }

@@ -187,14 +187,13 @@ namespace Backend.Application.Services.UserServices
             }
 
             // Validate that the new password is not the same as the old one
-            var hashedPassword = BCrypt.Net.BCrypt.HashPassword(password);
-
             if (BCrypt.Net.BCrypt.Verify(password, user.Password))
             {
                 _logger.LogWarning("User attempted to reuse their current password: {Email}", user.Email);
                 return false; // Return validation failure
             }
 
+            var hashedPassword = BCrypt.Net.BCrypt.HashPassword(password);
             // Update the password
             var success = await _userSQLProvider.AuthenticationSqlExecutor.UpdatePasswordAsync(user.PersoId, hashedPassword);
 

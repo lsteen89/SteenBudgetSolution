@@ -169,6 +169,10 @@ namespace Backend.Infrastructure.Data.Sql.UserQueries
 
             return user;
         }
-
+        public async Task<IEnumerable<UserTokenModel>> GetResetTokensByPersoIdAsync(Guid persoId)
+        {
+            string sqlQuery = "SELECT PersoId, Token, Expiry FROM PasswordResetTokens WHERE PersoId = @PersoId";
+            return await QueryAsync<UserTokenModel>(sqlQuery, new { PersoId = persoId });
+        }
     }
 }

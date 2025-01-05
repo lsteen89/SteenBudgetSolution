@@ -126,7 +126,8 @@ public class UserServices : IUserServices
             {
                 Success = true,
                 Message = "Login successful.",
-                Token = loginResult.Token
+                Token = loginResult.Token,
+                UserName = user.Email
             };
         }
         catch (Exception ex)
