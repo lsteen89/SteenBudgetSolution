@@ -4,17 +4,22 @@ using Backend.Application.Interfaces.UserServices;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
+using Backend.Infrastructure.Interfaces;
 
 namespace Backend.Application.Services.UserServices
 {
     public class UserTokenService : IUserTokenService
     {
         private readonly IUserSQLProvider _userSQLProvider;
+        private readonly ITimeProvider _timeProvider;
         private readonly IConfiguration _configuration;
-        public UserTokenService(IUserSQLProvider userSQLProvider, IConfiguration configuration)
+        private readonly ILogger<UserTokenService> _logger;
+        public UserTokenService(IUserSQLProvider userSQLProvider, ITimeProvider timeProvider, IConfiguration configuration, ILogger<UserTokenService> logger)
         {
             _userSQLProvider = userSQLProvider;
+            _timeProvider = timeProvider;
             _configuration = configuration;
+            _logger = logger;
         }
         public async Task<bool> IsAuthorizedAsync(string token)
         {
@@ -30,12 +35,20 @@ namespace Backend.Application.Services.UserServices
                 {
                     ValidateIssuer = true,
                     ValidateAudience = true,
-                    ValidateLifetime = true, 
+                    ValidateLifetime = true,
                     ValidateIssuerSigningKey = true,
                     ValidIssuer = "eBudget",
                     ValidAudience = "eBudget",
                     IssuerSigningKey = new SymmetricSecurityKey(key),
-                    ClockSkew = TimeSpan.Zero 
+                    ClockSkew = TimeSpan.Zero,
+                    RequireExpirationTime = true,
+                };
+
+                // Override the current time with the mocked time from ITimeProvider
+                validationParameters.LifetimeValidator = (notBefore, expires, securityToken, validationParameters) =>
+                {
+                    var currentTime = _timeProvider.UtcNow;
+                    return notBefore <= currentTime && expires >= currentTime;
                 };
 
                 handler.ValidateToken(token, validationParameters, out SecurityToken validatedToken);
@@ -46,6 +59,7 @@ namespace Backend.Application.Services.UserServices
                 return false; // Token is invalid
             }
         }
+
 
         public async Task<UserTokenModel> CreateEmailTokenAsync(Guid persoid) =>
             await _userSQLProvider.TokenSqlExecutor.GenerateUserTokenAsync(persoid);

@@ -13,6 +13,7 @@ using Backend.Infrastructure.Interfaces;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
 using System.Text;
+using Backend.Domain.Entities;
 
 namespace Backend.Tests.IntegrationTests.RegistrationTests
 {
@@ -40,7 +41,7 @@ namespace Backend.Tests.IntegrationTests.RegistrationTests
 
             // Assert
             Assert.True(result.Success);
-            Assert.Equal("Login successful", result.Message);
+            Assert.Equal("Login successful.", result.Message);
 
             // Assert that the returned user email matches the input email
             Assert.Equal(userLoginDto.Email, result.UserName);
@@ -93,9 +94,6 @@ namespace Backend.Tests.IntegrationTests.RegistrationTests
         [Fact]
         public async Task LoginAsync_TokenExpires_ShouldDenyAccess()
         {
-            //This test works, but you have to set the cooldown period correctly when the token is generated. 
-            // By default its 15 minutes, so you have to wait 15 minutes before the token expires.
-
             // Arrange
             string ipAddress = "127.0.0.1";
             var userLoginDto = new UserLoginDto { Email = "test@example.com", Password = "Password123!" };
@@ -105,11 +103,11 @@ namespace Backend.Tests.IntegrationTests.RegistrationTests
             Assert.NotNull(registeredUser.PersoId);
             Assert.NotNull(registeredUser.Email);
 
-            MockUserTokenService
-                .Setup(uts => uts.IsAuthorizedAsync(It.IsAny<string>()))
-                .ReturnsAsync(false); // Simulate token expiration
+            // Simulate token creation time
+            var tokenCreationTime = DateTime.UtcNow;
+            MockTimeProvider.Setup(tp => tp.UtcNow).Returns(tokenCreationTime);
 
-            // Act
+            // Act: Perform the login
             var result = await UserServices.LoginAsync(userLoginDto, ipAddress);
             Assert.True(result.Success, "Login should succeed.");
 
@@ -117,7 +115,8 @@ namespace Backend.Tests.IntegrationTests.RegistrationTests
             var authCookie = CookieContainer["auth_token"];
             Assert.NotNull(authCookie.Value); // Ensure token exists
 
-            await Task.Delay(TimeSpan.FromMinutes(2)); // Wait for the token to expire
+            // Simulate time passing to trigger token expiration
+            MockTimeProvider.Setup(tp => tp.UtcNow).Returns(tokenCreationTime.AddMinutes(16)); // Simulate 16 minutes passing
 
             // Attempt a protected operation
             var isAuthorized = await UserTokenService.IsAuthorizedAsync(authCookie.Value);
@@ -125,9 +124,6 @@ namespace Backend.Tests.IntegrationTests.RegistrationTests
             // Assert
             Assert.False(isAuthorized, "Token should not be authorized after expiration.");
         }
-
-
-
         [Fact]
         public async Task LoginAsync_ConcurrentLogins_ShouldWork()
         {
@@ -326,6 +322,5 @@ namespace Backend.Tests.IntegrationTests.RegistrationTests
             failedAttempts = await UserSQLProvider.AuthenticationSqlExecutor.GetRecentFailedAttemptsAsync(registeredUser.PersoId);
             Assert.Equal(0, failedAttempts);
         }
-
     }
 }

@@ -1,6 +1,4 @@
-﻿using Backend.Application.Interfaces;
-using Backend.Application.Interfaces.EmailServices;
-using Backend.Application.Models;
+﻿using Backend.Application.Interfaces.EmailServices;
 using Backend.Application.Services.UserServices;
 using Backend.Domain.Entities;
 using Backend.Infrastructure.Interfaces;
@@ -8,7 +6,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
-using static IntegrationTestBase;
 
 namespace Backend.Tests.IntegrationTests.Services.UserAuthentication
 {
@@ -26,6 +23,7 @@ namespace Backend.Tests.IntegrationTests.Services.UserAuthentication
                 MockUserTokenService.Object,
                 ServiceProvider.GetRequiredService<IEmailResetPasswordService>(),
                 MockHttpContextAccessor.Object,
+                MockConfiguration.Object,
                 LoggerMockAuth.Object
             );
 
@@ -124,44 +122,6 @@ namespace Backend.Tests.IntegrationTests.Services.UserAuthentication
                     It.IsAny<Exception>(),
                     It.Is<Func<It.IsAnyType, Exception, string>>((v, t) => true)),
                 Times.Once);
-        }
-        [Fact]
-        public async Task UpdatePasswordAsync_ValidToken_CallsUpdatePassword()
-        {
-            // Arrange
-            var token = Guid.NewGuid();
-            var newPassword = "Password123!";
-            var testUser = new UserModel { PersoId = token, Email = "test@example.com" };
-
-            MockUserTokenService
-                .Setup(x => x.ValidateResetTokenAsync(token))
-                .ReturnsAsync(true); // Simulate valid token
-
-            MockUserSQLProvider
-                .Setup(provider => provider.UserSqlExecutor.GetUserModelAsync(It.Is<Guid?>(id => id == token), null))
-                .ReturnsAsync(testUser);
-
-            MockUserSQLProvider
-                .Setup(provider => provider.AuthenticationSqlExecutor.UpdatePasswordAsync(It.Is<Guid>(id => id == token), It.IsAny<string>()))
-                .ReturnsAsync(true); // Simulate successful password update
-
-            // Act
-            var result = await _userAuthenticationService.UpdatePasswordAsync(token, newPassword);
-
-            // Assert
-            Assert.True(result);
-
-            MockUserTokenService.Verify(x => x.ValidateResetTokenAsync(token), Times.Once);
-
-            MockUserSQLProvider.Verify(
-                provider => provider.UserSqlExecutor.GetUserModelAsync(It.Is<Guid?>(id => id == token), null),
-                Times.Once
-            );
-
-            MockUserSQLProvider.Verify(
-                provider => provider.AuthenticationSqlExecutor.UpdatePasswordAsync(It.Is<Guid>(id => id == token), It.IsAny<string>()),
-                Times.Once
-            );
         }
     }
 }

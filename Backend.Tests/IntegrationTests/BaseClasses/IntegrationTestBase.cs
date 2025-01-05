@@ -86,7 +86,9 @@ public abstract class IntegrationTestBase : IAsyncLifetime
             .ReturnsAsync(true); // Simulate success
         serviceCollection.AddScoped<IEmailResetPasswordService>(_ => mockEmailResetPasswordService.Object);
 
-        
+        MockTimeProvider = new Mock<ITimeProvider>();
+        MockTimeProvider.Setup(tp => tp.UtcNow).Returns(DateTime.UtcNow); // Default to current UTC time
+
 
         // Add other services
         ConfigureTestServices(serviceCollection);
@@ -110,6 +112,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     }
     protected IUserAuthenticationService UserAuthenticationService { get; private set; }
     protected Mock<IUserTokenService> MockUserTokenService { get; private set; }
+    protected Mock<ITimeProvider> MockTimeProvider { get; set; }
     protected virtual void ConfigureTestServices(IServiceCollection services)
     {
         var configuration = new ConfigurationBuilder()
@@ -142,12 +145,25 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         services.AddScoped<IEnvironmentService>(_ => MockEnvironmentService.Object); 
         services.AddScoped<UserServiceTest>();
         services.AddScoped<ITokenService, TokenService>();
+
+        services.AddSingleton<ITimeProvider>(_ => MockTimeProvider.Object);
+        services.AddScoped<IUserSqlExecutor, UserSqlExecutor>();
+        services.AddScoped<ITokenSqlExecutor, TokenSqlExecutor>();
+        services.AddScoped<IAuthenticationSqlExecutor, AuthenticationSqlExecutor>();
+        services.AddScoped<ILogger<AuthenticationSqlExecutor>, Logger<AuthenticationSqlExecutor>>();
+
         services.AddScoped<IUserSQLProvider, UserSQLProvider>();
         // Register logging
         services.AddLogging(builder =>
         {
             builder.AddConsole();
             builder.SetMinimumLevel(LogLevel.Information);
+        });
+
+        services.AddSingleton<ILogger<UserTokenService>>(provider =>
+        {
+            var loggerFactory = provider.GetRequiredService<ILoggerFactory>();
+            return loggerFactory.CreateLogger<UserTokenService>();
         });
 
         // Mock IHttpContextAccessor with HttpContext setup

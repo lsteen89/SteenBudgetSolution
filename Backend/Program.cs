@@ -14,6 +14,7 @@ using Backend.Infrastructure.Email;
 using Backend.Infrastructure.Helpers;
 using Backend.Infrastructure.Helpers.Converters;
 using Backend.Infrastructure.Interfaces;
+using Backend.Infrastructure.Providers;
 using Backend.Infrastructure.Security;
 using Backend.Tests.Mocks;
 using Dapper;
@@ -97,6 +98,7 @@ builder.Services.AddScoped<IEmailResetPasswordService, EmailResetPasswordService
 
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<LogHelper>();
+builder.Services.AddScoped<ITimeProvider, SystemTimeProvider>();
 
 builder.Services.AddScoped<IEnvironmentService, EnvironmentService>();
 builder.Services.AddTransient<RecaptchaHelper>();

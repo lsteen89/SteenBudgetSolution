@@ -9,12 +9,15 @@ namespace Backend.Infrastructure.Data.Sql.UserQueries
     {
         private readonly ILogger<AuthenticationSqlExecutor> _logger;
         private readonly IUserSqlExecutor _userSqlExecutor;
+
         public AuthenticationSqlExecutor(DbConnection connection, ILogger<AuthenticationSqlExecutor> logger, IUserSqlExecutor userSqlExecutor)
             : base(connection, logger)
         {
-            _userSqlExecutor = userSqlExecutor;
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _userSqlExecutor = userSqlExecutor ?? throw new ArgumentNullException(nameof(userSqlExecutor));
         }
-        public async Task<int> GetRecentFailedAttemptsAsync(Guid persoId)
+    
+    public async Task<int> GetRecentFailedAttemptsAsync(Guid persoId)
         {
             string sqlQuery = @"
             SELECT COUNT(*) 
@@ -109,8 +112,8 @@ namespace Backend.Infrastructure.Data.Sql.UserQueries
         public async Task<bool> UpdatePasswordAsync(Guid persoId, string hashedPassword)
         {
             const string query = @"
-                UPDATE Users
-                SET PasswordHash = @hashedPassword
+                UPDATE User
+                SET Password = @hashedPassword
                 WHERE PersoId = @persoId;
             ";
 

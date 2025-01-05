@@ -61,6 +61,44 @@ namespace Backend.Tests.IntegrationTests.RegistrationTests
             var verifiedUser = await UserSQLProvider.UserSqlExecutor.GetUserModelAsync(email: registeredUser.Email);
             Assert.False(verifiedUser.EmailConfirmed); // Confirm email was not verified
         }
+
+        [Fact]
+        public async Task SaveResetTokenAsync_ShouldReplaceOldTokenWithNewToken()
+        {
+            // Arrange - Setup user, generate and insert token
+            var registeredUser = await SetupUserAsync();
+            // Arrange
+
+            var oldToken = Guid.NewGuid();
+            await UserTokenService.SaveResetTokenAsync(registeredUser.PersoId, oldToken);
+
+            // Act
+            var newToken = Guid.NewGuid();
+            await UserTokenService.SaveResetTokenAsync(registeredUser.PersoId, newToken);
+
+            // Assert
+            var tokens = await UserSQLProvider.TokenSqlExecutor.GetResetTokensByPersoIdAsync(registeredUser.PersoId);
+            Assert.Single(tokens); // Ensure only one token exists
+            Assert.Equal(newToken, tokens.First().Token); // Verify it's the new token
+        }
+
+        [Fact]
+        public async Task DeletingUser_ShouldCascadeDeleteTokens()
+        {
+            // Arrange
+            var registeredUser = await SetupUserAsync();
+            var token1 = Guid.NewGuid();
+            var token2 = Guid.NewGuid();
+            await UserSQLProvider.TokenSqlExecutor.SaveResetTokenAsync(registeredUser.PersoId, token1);
+            await UserSQLProvider.TokenSqlExecutor.SaveResetTokenAsync(registeredUser.PersoId, token2);
+
+            // Act
+            await UserSQLProvider.UserSqlExecutor.DeleteUserByEmailAsync(registeredUser.Email);
+
+            // Assert
+            var tokens = await UserSQLProvider.TokenSqlExecutor.GetResetTokensByPersoIdAsync(registeredUser.PersoId);
+            Assert.Empty(tokens); // Ensure all tokens are deleted
+        }
         private async Task<UserTokenModel> GenerateAndInsertTokenAsync(Guid persoId)
         {
             var tokenModel = await UserTokenService.CreateEmailTokenAsync(persoId);
