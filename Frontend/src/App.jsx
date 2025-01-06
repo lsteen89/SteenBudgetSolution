@@ -15,15 +15,18 @@ import { mockVerifyEmail } from '@mocks/mockServices/verifyEmailMock.ts';
 import { verifyEmail as realVerifyEmail } from '@api/Services/User/verifyEmail';
 import RequestPasswordReset from '@pages/auth/RequestPasswordReset';
 import ResetPasswordPage from '@pages/auth/PerformPasswordReset';
+import useMediaQuery from './hooks/useMediaQuery';
+import MobileMenu from './components/organisms/Menu/MobileMenu';
 
 
 function App() {
-
+  const isNotMobile = useMediaQuery('(min-width: 768px)'); // Check if the screen is larger than mobile
   const isDebugMode = process.env.NODE_ENV === 'development';
   return (
     <BrowserRouter>
       <div className="App">
-        <MenuComponent />
+        {/* Render MenuComponent only if the screen is not a mobile phone */}
+        {isNotMobile ? <MenuComponent /> : <MobileMenu />}
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/registration" element={<Registration />} />

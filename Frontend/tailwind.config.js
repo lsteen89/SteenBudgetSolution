@@ -22,6 +22,7 @@ module.exports = {
         customBlue2: '#dbeafe', // Slightly darker blue
 		limeGreen: '#98FF98', 
 		darkLimeGreen: '#32CD32',
+		standardMenuColor: '#CCE5FF', 
       },
       keyframes: {
         fadeIn: {
