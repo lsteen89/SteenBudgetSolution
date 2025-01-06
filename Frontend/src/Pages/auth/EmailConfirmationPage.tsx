@@ -47,16 +47,24 @@ const EmailConfirmationPage: React.FC<EmailConfirmationPageProps> = ({
     const handleEmailVerification = async () => {
       try {
         if (!activeVerifyEmail) throw new Error('No verification function provided');
-        //await activeVerifyEmail(token);
+    
         await verifyEmail(token); // Use injected or default `verifyEmail`
         setWelcomeMessage('Välkommen till <span class="text-limeGreen">eBudget</span>');
         setStatusMessage('Tack för att du verifierade din e-postadress. Du kan nu logga in och börja använda tjänsten.');
-        setIsError(false); 
+        setIsError(false);
         setVerificationStatus('success');
       } catch (error: any) {
-        setWelcomeMessage('Det gick inte att verifiera!');
-        setStatusMessage('Verifieringen misslyckades. Försök igen eller kontakta support.');
-        setIsError(true); 
+        const errorMessage = error.message;
+    
+        if (errorMessage === 'Email is already verified.') {
+          setWelcomeMessage('E-postadress redan verifierad!');
+          setStatusMessage('Den här e-postadressen är redan verifierad. Du kan logga in med ditt konto.');
+        } else {
+          setWelcomeMessage('Det gick inte att verifiera!');
+          setStatusMessage('Verifieringen misslyckades. Försök igen eller kontakta support.');
+        }
+    
+        setIsError(true);
         setVerificationStatus('error');
       }
     };

@@ -46,15 +46,14 @@ const ResetPasswordPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setIsSubmitting(true);
-    e.preventDefault();
-  console.log("Form submission prevented");
   
-  if (isSubmitting) {
-    console.log("Already submitting...");
-    return;
-  }
-    // Validate password and confirmation directly
+    if (isSubmitting) {
+      return;
+    }
+  
+    setIsSubmitting(true);
+  
+    // Validate passwords
     const newPasswordError = validatePassword(password);
     const newConfirmPasswordError =
       password !== confirmPassword ? "Lösenorden matchar inte!" : null;
@@ -62,32 +61,35 @@ const ResetPasswordPage: React.FC = () => {
     setPasswordError(newPasswordError);
     setConfirmPasswordError(newConfirmPasswordError);
   
-    // If there are any errors, prevent submission
     if (newPasswordError || newConfirmPasswordError) {
       setIsSubmitting(false);
       return;
     }
   
     if (!isTokenValid) {
-      showToast("Ogiltig eller saknad token!", "error", { autoClose: 5000 });
+      setFormErrorMessage("Ogiltig eller saknad token!");
       setIsSubmitting(false);
       return;
     }
   
     try {
       const response = await resetPasswordWithToken(token as string, password);
+      setFormErrorMessage(null); // Clear any existing error messages
       showToast("Lösenordet har återställts!\nNu kan du logga in med ditt nya lösenord!", "success", { autoClose: 8000 });
     
       setTimeout(() => {
         navigate("/login");
       }, 8000); // Match success toast timing
     } catch (error: any) {
-      const errorMessage = error.message || "Något gick fel. Försök igen senare.";
-      showToast(errorMessage, "error", { autoClose: 5000 });
+      const errorMessage =
+        error.message || "Något gick fel. Försök igen senare.";
+      setFormErrorMessage(errorMessage); // Set the error message
     } finally {
       setIsSubmitting(false);
     }
   };
+  
+
 
   if (isTokenValid === null) {
     return null; // Show nothing while determining token validity
@@ -156,4 +158,3 @@ const ResetPasswordPage: React.FC = () => {
 };
 
 export default ResetPasswordPage;
-

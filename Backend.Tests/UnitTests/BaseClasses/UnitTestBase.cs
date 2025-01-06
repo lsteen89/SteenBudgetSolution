@@ -32,6 +32,8 @@ public abstract class UnitTestBase
     protected Mock<IEmailResetPasswordService> MockEmailResetPasswordService;
     protected Dictionary<string, (string Value, CookieOptions Options)> CookiesContainer;
 
+    protected UserAuthenticationService _userAuthenticationService;
+
     public UnitTestBase()
     {
         Setup();
@@ -66,9 +68,9 @@ public abstract class UnitTestBase
             .Returns(Mock.Of<IAuthenticationSqlExecutor>());
 
         // Mock Configuration
-        MockConfiguration
-            .Setup(config => config["JWT_SECRET_KEY"])
-            .Returns("YourTestJwtSecretKey12345678901234567856456");
+        var mockConfiguration = new Mock<IConfiguration>();
+        mockConfiguration.Setup(config => config["JWT_SECRET_KEY"]).Returns("YourTestJwtSecretKey12345678901234567856456");
+
 
         MockEnvironmentService
             .Setup(e => e.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"))
@@ -135,5 +137,22 @@ public abstract class UnitTestBase
         // Assertions to validate setup
         Assert.NotNull(EmailVerificationService);
         Assert.NotNull(ServiceProvider.GetRequiredService<IEmailService>());
+    }
+    protected void SetupUserAuthenticationServiceWithMocks()
+    {
+        // Resolve real implementations of shared dependencies
+        var emailResetPasswordService = ServiceProvider.GetRequiredService<IEmailResetPasswordService>();
+
+        // Initialize UserAuthenticationService with pre-configured mocks
+        _userAuthenticationService = new UserAuthenticationService(
+            MockUserSQLProvider.Object,             // Mocked IUserSQLProvider
+            Mock.Of<ITokenService>(),               // Mocked ITokenService
+            MockEnvironmentService.Object,          // Mocked IEnvironmentService
+            MockUserTokenService.Object,            // Mocked IUserTokenService
+            emailResetPasswordService,              // Real IEmailResetPasswordService
+            MockHttpContextAccessor.Object,         // Mocked IHttpContextAccessor
+            MockConfiguration.Object,               // Mocked IConfiguration
+            LoggerMockAuth.Object                   // Mocked ILogger
+        );
     }
 }

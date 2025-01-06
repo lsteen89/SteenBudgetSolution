@@ -5,6 +5,8 @@ using Backend.Application.Interfaces.EmailServices;
 using Backend.Infrastructure.Data.Sql.Interfaces;
 using Backend.Infrastructure.Data.Sql.UserQueries;
 using Backend.Application.Services.Validation;
+using Backend.Domain.Shared;
+using Backend.Application.Services.UserServices;
 public class UserServices : IUserServices
 {
     private readonly IUserManagementService _userManagementService;
@@ -161,23 +163,30 @@ public class UserServices : IUserServices
         }
     }
 
-    public async Task<bool> VerifyEmailTokenAsync(Guid token)
+    public async Task<OperationResult> VerifyEmailTokenAsync(Guid token)
     {
         var tokenData = await _userTokenService.GetTokenByGuidAsync(token);
         if (tokenData == null || tokenData.TokenExpiryDate < DateTime.UtcNow)
         {
             _logger.LogWarning("Invalid or expired token: {Token}", token);
-            return false;
+            return OperationResult.FailureResult(Messages.EmailVerification.VerificationFailed, 400);
         }
 
-        var updated = await _userManagementService.UpdateEmailConfirmationAsync(tokenData.PersoId);
-        if (!updated)
+        bool isAlreadyVerified = await _userManagementService.IsEmailAlreadyConfirmedAsync(tokenData.PersoId);
+        if (isAlreadyVerified)
         {
-            _logger.LogError("Failed to update email confirmation for: {PersoId}", tokenData.PersoId);
-            return false;
+            _logger.LogWarning("Email is already verified for PersoId: {PersoId}", tokenData.PersoId);
+            return OperationResult.FailureResult(Messages.EmailVerification.AlreadyVerified, 400);
         }
 
-        return true;
+        int updated = await _userManagementService.UpdateEmailConfirmationAsync(tokenData.PersoId);
+        if (updated <= 0)
+        {
+            _logger.LogError("Failed to update email confirmation for PersoId: {PersoId}", tokenData.PersoId);
+            return OperationResult.FailureResult(Messages.EmailVerification.VerificationFailed, 500);
+        }
+
+        return OperationResult.SuccessResult(Messages.EmailVerification.VerificationSuccessful);
     }
 
     public async Task<(bool IsSuccess, int StatusCode, string Message)> ResendVerificationEmailAsync(string email)

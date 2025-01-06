@@ -61,6 +61,10 @@ public abstract class IntegrationTestBase : IAsyncLifetime
             .Setup(c => c.Response)
             .Returns(mockHttpResponse.Object);
 
+        MockTokenService = new Mock<ITokenService>();
+        serviceCollection.AddSingleton(MockTokenService.Object);
+
+
         var httpContextAccessor = new Mock<IHttpContextAccessor>();
         httpContextAccessor.Setup(a => a.HttpContext).Returns(mockHttpContext.Object);
 

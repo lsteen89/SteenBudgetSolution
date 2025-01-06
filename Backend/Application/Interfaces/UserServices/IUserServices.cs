@@ -1,4 +1,5 @@
 ﻿using Backend.Application.DTO;
+using Backend.Domain.Shared;
 
 namespace Backend.Application.Interfaces.UserServices
 {
@@ -7,7 +8,7 @@ namespace Backend.Application.Interfaces.UserServices
         Task<bool> RegisterUserAsync(UserCreationDto userCreationDto);
         Task<bool> SendVerificationEmailWithTokenAsync(string email);
         Task<LoginResultDto> LoginAsync(UserLoginDto userLoginDto, string ipAddress);
-        Task<bool> VerifyEmailTokenAsync(Guid token);
+        Task<OperationResult> VerifyEmailTokenAsync(Guid token);
         Task<(bool IsSuccess, int StatusCode, string Message)> ResendVerificationEmailAsync(string email);
         Task<bool> DeleteUserByEmailAsync(string email);
         Task<bool> DeleteUserTokenByEmailAsync(Guid persoid);

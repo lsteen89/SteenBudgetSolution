@@ -7,6 +7,7 @@ namespace Backend.Application.Interfaces.UserServices
         Task<bool> CheckIfUserExistsAsync(string email);
         Task<bool> CreateUserAsync(UserModel user);
         Task<UserModel?> GetUserByEmailAsync(string email);
-        Task<bool> UpdateEmailConfirmationAsync(Guid persoid);
+        Task<int> UpdateEmailConfirmationAsync(Guid persoid);
+        Task<bool> IsEmailAlreadyConfirmedAsync(Guid persoid);
     }
 }

@@ -21,13 +21,6 @@ public class EmailController : ControllerBase
     [EnableRateLimiting("EmailSendingPolicy")]
     public async Task<IActionResult> ContactUs([FromBody] SendEmailDto sendEmailDto)
     {
-        // Check if model state is valid
-        if (!ModelState.IsValid)
-        {
-            _logger.LogWarning("Invalid model state for email: {Email}", sendEmailDto.SenderEmail);
-            return BadRequest(ModelState);
-        }
-
         // Verify reCAPTCHA token
         bool isTestEmail = Environment.GetEnvironmentVariable("ALLOW_TEST_EMAILS") == "true";
         bool recaptchaValid = (isTestEmail && sendEmailDto.SenderEmail == "l@l.se") || await _recaptchaService.ValidateTokenAsync(sendEmailDto.CaptchaToken);

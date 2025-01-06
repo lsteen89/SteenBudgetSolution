@@ -32,8 +32,8 @@ namespace Backend.Infrastructure.Data.Sql.Interfaces
         /// </summary>
         /// <param name="persoid">The unique identifier (PersoId) of the user.</param>
         /// <returns>True if the update was successful; otherwise, false.</returns>
-        Task<bool> UpdateEmailConfirmationStatusAsync(Guid persoid);
-
+        Task<int> UpdateEmailConfirmationAsync(Guid persoid);
+        Task<bool> IsEmailAlreadyConfirmedAsync(Guid persoid);
         /// <summary>
         /// Deletes a user record from the database based on their email address.
         /// </summary>

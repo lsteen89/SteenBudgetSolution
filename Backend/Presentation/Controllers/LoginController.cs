@@ -85,21 +85,21 @@ namespace Backend.Presentation.Controllers
                 return Ok(new { message = "Om den angivna e-postadressen är registrerad har ett återställningsmail skickats." });
             }
 
-            return StatusCode(500, new { message = "An error occurred while processing the request." });
+            return StatusCode(500, new { message = "Ett fel inträffade, vänligen försök igen eller kontakta support!" });
         }
 
         [HttpPost("reset-password-with-token")]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPassword request)
         {
-            var success = await _userAuthenticationService.UpdatePasswordAsync(request.Token, request.Password);
+            var result = await _userAuthenticationService.UpdatePasswordAsync(request.Token, request.Password);
 
-            if (success)
+            if (result.Success)
             {
-                return Ok(new { message = "Lösenordet har ändrats!" });
+                return Ok(new { message = result.Message });
             }
             else
             {
-                return BadRequest(new { message = "Felaktig återställingslänk, vänligen försök igen eller kontakta support" });
+                return StatusCode(result.StatusCode ?? 400, new { message = result.Message });
             }
         }
     }

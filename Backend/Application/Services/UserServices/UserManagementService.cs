@@ -24,8 +24,10 @@ namespace Backend.Application.Services.UserServices
         public async Task<UserModel?> GetUserByEmailAsync(string email) =>
             await _userSQLProvider.UserSqlExecutor.GetUserModelAsync(email: email);
 
-        public async Task<bool> UpdateEmailConfirmationAsync(Guid persoid) =>
-            await _userSQLProvider.UserSqlExecutor.UpdateEmailConfirmationStatusAsync(persoid);
+        public async Task<int> UpdateEmailConfirmationAsync(Guid persoid) => 
+            await _userSQLProvider.UserSqlExecutor.UpdateEmailConfirmationAsync(persoid);
+        public async Task<bool> IsEmailAlreadyConfirmedAsync(Guid persoid) =>
+            await _userSQLProvider.UserSqlExecutor.IsEmailAlreadyConfirmedAsync(persoid);
     }
 
 }

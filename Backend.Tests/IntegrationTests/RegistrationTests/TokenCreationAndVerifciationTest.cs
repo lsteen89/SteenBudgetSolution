@@ -1,4 +1,5 @@
 ﻿using Backend.Domain.Entities;
+using Backend.Domain.Shared;
 using Xunit;
 
 namespace Backend.Tests.IntegrationTests.RegistrationTests
@@ -15,15 +16,17 @@ namespace Backend.Tests.IntegrationTests.RegistrationTests
 
             // Act - Generate and verify token
             var tokenModel = await GenerateAndInsertTokenAsync(registeredUser.PersoId);
-
             var verificationResult = await UserServices.VerifyEmailTokenAsync(tokenModel.Token);
 
             // Assert
-            Assert.True(verificationResult);
+            Assert.True(verificationResult.Success); // Ensure operation was successful
+            Assert.Equal(Messages.EmailVerification.VerificationSuccessful, verificationResult.Message);
+
             var verifiedUser = await UserSQLProvider.UserSqlExecutor.GetUserModelAsync(email: registeredUser.Email);
             Assert.True(verifiedUser.EmailConfirmed); // Confirm email was verified
             Assert.Equal(registeredUser.Email, verifiedUser.Email); // Verify using helper's data
         }
+
 
         // Test for verifying user email token with invalid token
         [Fact]
@@ -32,16 +35,19 @@ namespace Backend.Tests.IntegrationTests.RegistrationTests
             // Arrange - Setup user
             var registeredUser = await SetupUserAsync();
 
-            // Act - Generate and verify token
+            // Act - Generate token but use an invalid one for verification
             var tokenModel = await GenerateAndInsertTokenAsync(registeredUser.PersoId);
             Guid invalidGuid = Guid.NewGuid(); // Generate invalid token
             var verificationResult = await UserServices.VerifyEmailTokenAsync(invalidGuid);
 
             // Assert
-            Assert.False(verificationResult);
+            Assert.False(verificationResult.Success); // Ensure operation failed
+            Assert.Equal(Messages.EmailVerification.VerificationFailed, verificationResult.Message);
+
             var verifiedUser = await UserSQLProvider.UserSqlExecutor.GetUserModelAsync(email: registeredUser.Email);
             Assert.False(verifiedUser.EmailConfirmed); // Confirm email was not verified
         }
+
 
         // Test for verifying user email token with expired token
         [Fact]
@@ -50,14 +56,16 @@ namespace Backend.Tests.IntegrationTests.RegistrationTests
             // Arrange - Setup user
             var registeredUser = await SetupUserAsync();
 
-            // Act - Generate and verify token
+            // Act - Generate token, then expire it
             var tokenModel = await GenerateAndInsertTokenAsync(registeredUser.PersoId);
-            tokenModel.TokenExpiryDate = DateTime.UtcNow.AddMinutes(-1); // Set expiry date to past
-            await UserServiceTest.ModifyTokenExpiryAndRetrieveAsync(tokenModel); // Update the expiry in DB
+            tokenModel.TokenExpiryDate = DateTime.UtcNow.AddMinutes(-1); // Set expiry date to the past
+            await UserServiceTest.ModifyTokenExpiryAndRetrieveAsync(tokenModel); // Update expiry in DB
             var verificationResult = await UserServices.VerifyEmailTokenAsync(tokenModel.Token);
 
             // Assert
-            Assert.False(verificationResult);
+            Assert.False(verificationResult.Success); // Ensure operation failed
+            Assert.Equal(Messages.EmailVerification.VerificationFailed, verificationResult.Message);
+
             var verifiedUser = await UserSQLProvider.UserSqlExecutor.GetUserModelAsync(email: registeredUser.Email);
             Assert.False(verifiedUser.EmailConfirmed); // Confirm email was not verified
         }

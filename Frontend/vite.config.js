@@ -3,6 +3,10 @@ import react from '@vitejs/plugin-react';
 import svgr from 'vite-plugin-svgr';
 import path from 'path';
 import removeConsole from 'vite-plugin-remove-console';
+import dotenv from 'dotenv';
+import { configDefaults } from 'vitest/config';
+
+dotenv.config();
 
 export default defineConfig({
   plugins: [
@@ -12,26 +16,29 @@ export default defineConfig({
         // Add any additional SVGR options here
       },
     }),
-	removeConsole({
-      // Keep critical logs like warnings and errors
-      exclude: ['error', 'warn'],
+    removeConsole({
+      exclude: ['error', 'warn'], // Keep critical logs
     }),
-
     react(),
   ],
   test: {
-    globals: true, // Enable global test functions like `describe` and `it`
-    environment: 'jsdom', // Use a browser-like environment for React testing
-    setupFiles: './src/tests/setupTests.ts', // Load test setup file
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/tests/setupTests.ts',
+    coverage: {
+      reporter: ['text', 'json', 'html'], // Code coverage reports
+      exclude: ['node_modules/', 'src/tests/', 'src/__mocks__/'],
+    },
+    exclude: [...configDefaults.exclude, '**/e2e/**'],
   },
-  root: '.', // Ensure the root is the directory containing index.html
+  root: '.',
   server: {
-    port: 3000, // Development server port
+    port: 3000,
   },
   build: {
-    outDir: 'dist', // Output directory for the build
+    outDir: 'dist',
     rollupOptions: {
-      input: 'index.html', // Ensure the entry point is set to index.html
+      input: 'index.html',
     },
   },
   resolve: {
@@ -41,9 +48,9 @@ export default defineConfig({
       '@components': path.resolve(__dirname, './src/components'),
       '@assets': path.resolve(__dirname, './src/assets'),
       '@hooks': path.resolve(__dirname, './src/hooks'),
-	  '@api': path.resolve(__dirname, './src/api'),
-	  '@types': path.resolve(__dirname, './src/types'),
-	  '@mocks': path.resolve(__dirname, './src/__mocks__'),
+      '@api': path.resolve(__dirname, './src/api'),
+      '@types': path.resolve(__dirname, './src/types'),
+      '@mocks': path.resolve(__dirname, './src/__mocks__'),
     },
   },
 });
