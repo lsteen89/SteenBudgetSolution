@@ -1,4 +1,5 @@
 import axios from '../../axiosConfig';
+import translate from "@utils/translate";
 
 /**
  * Response type for the verify email API call.
@@ -16,9 +17,20 @@ interface VerifyEmailResponse {
 export const verifyEmail = async (token: string): Promise<VerifyEmailResponse> => {
   try {
     const response = await axios.get<VerifyEmailResponse>(`/api/Registration/verify-email?token=${token}`);
-    return response.data; 
+    
+    // Translate backend response message directly to Swedish
+    const translatedMessage = translate(response.data.message);
+
+    return {
+      message: translatedMessage,
+    };
   } catch (error: any) {
-    const errorMessage = error.response?.data?.message || 'Invalid or expired token.';
-    throw new Error(errorMessage);
+    const backendMessage = error.response?.data?.message || "UNKNOWN_ERROR";
+
+    // Translate backend error message directly to Swedish
+    const translatedMessage = translate(backendMessage);
+
+    // Throw the translated message as the error
+    throw new Error(translatedMessage);
   }
 };

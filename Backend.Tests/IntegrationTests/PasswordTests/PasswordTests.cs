@@ -1,11 +1,13 @@
-﻿using Backend.Domain.Entities;
+﻿using Backend.Application.Services.UserServices;
+using Backend.Domain.Shared;
+using Backend.Infrastructure.Data.Sql.Interfaces;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Moq;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Xunit;
+using Microsoft.Extensions.Configuration;
+using Backend.Infrastructure.Interfaces;
 
 namespace Backend.Tests.IntegrationTests.PasswordTests
 {
@@ -19,21 +21,20 @@ namespace Backend.Tests.IntegrationTests.PasswordTests
             var token = Guid.NewGuid();
             var password = "Password123!";
 
-            // Save the old password as the current password in the database
             await UserSQLProvider.AuthenticationSqlExecutor.UpdatePasswordAsync(
                 user.PersoId, BCrypt.Net.BCrypt.HashPassword(password)
             );
 
-            // Generate and save a valid token for password reset
             await UserSQLProvider.TokenSqlExecutor.SaveResetTokenAsync(user.PersoId, token);
 
             // Act
-            var result = await UserAuthenticationService.UpdatePasswordAsync(token, password); // Reuse the current password
+            var result = await UserAuthenticationService.UpdatePasswordAsync(token, password);
 
             // Assert
-            Assert.False(result, "The system should not allow reusing the old password.");
+            Assert.False(result.Success, "The system should not allow reusing the old password.");
+            Assert.Equal(Messages.PasswordReset.SamePassword, result.Message);
+            Assert.Equal(400, result.StatusCode);
         }
-
 
         [Fact]
         public async Task UpdatePasswordAsync_ShouldUpdatePasswordSuccessfully()
@@ -44,35 +45,37 @@ namespace Backend.Tests.IntegrationTests.PasswordTests
             var newPassword = "NewPassword123!";
             var token = Guid.NewGuid();
 
-            // Save the old password as the current password
             await UserSQLProvider.AuthenticationSqlExecutor.UpdatePasswordAsync(
                 user.PersoId, BCrypt.Net.BCrypt.HashPassword(oldPassword)
             );
 
-            // Generate and save a valid reset token
             await UserSQLProvider.TokenSqlExecutor.SaveResetTokenAsync(user.PersoId, token);
 
             // Act
             var result = await UserAuthenticationService.UpdatePasswordAsync(token, newPassword);
 
             // Assert
-            Assert.True(result, "The password should be successfully updated.");
+            Assert.True(result.Success, "The password should be successfully updated.");
+            Assert.Equal(Messages.PasswordReset.PasswordUpdated, result.Message);
+            Assert.Null(result.StatusCode); // Assuming StatusCode is null on success
         }
+
         [Fact]
         public async Task UpdatePasswordAsync_ShouldFailWithInvalidToken()
         {
             // Arrange
             var user = await SetupUserAsync();
             var newPassword = "NewPassword123!";
-            var invalidToken = Guid.NewGuid(); // Generate a token not associated with any user
+            var invalidToken = Guid.NewGuid();
 
             // Act
             var result = await UserAuthenticationService.UpdatePasswordAsync(invalidToken, newPassword);
 
             // Assert
-            Assert.False(result, "Password update should fail with an invalid token.");
+            Assert.False(result.Success, "Password update should fail with an invalid token.");
+            Assert.Equal(Messages.PasswordReset.InvalidToken, result.Message);
+            Assert.Equal(400, result.StatusCode);
         }
-
 
     }
 

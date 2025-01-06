@@ -69,20 +69,34 @@ const LoginPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
   
-    // Use the validateForm function
+    // Validate the form before proceeding
     const isValid = await validateForm();
     if (!isValid) return;
   
     setErrors({}); // Clear any previous errors
-    const result = await login(formData);
+    try {
+      const result = await login(formData);
   
-    if (result.success) {
-      console.log("Login successful:", result.message);
-      navigate("/dashboard");
-    } else {
-      setErrors({ form: result.message }); // Show backend error message
+      if (result.success) {
+        console.log("Login successful:", result.message);
+        navigate("/dashboard");
+      } else {
+        setErrors({ form: result.message }); // Show backend error message
+        // Reset the ReCAPTCHA when there’s an error
+        if (captchaRef.current) {
+          captchaRef.current.reset();
+        }
+      }
+    } catch (error: any) {
+      console.error("Login failed:", error.message);
+      setErrors({ form: "Login misslyckades, försök igen!." }); // Generic error
+      // Reset the ReCAPTCHA in case of any error
+      if (captchaRef.current) {
+        captchaRef.current.reset();
+      }
     }
   };
+  
 
   const handleForgotPassword = () => navigate('/forgotpassword');
   const handleRegister = () => navigate('/registration');

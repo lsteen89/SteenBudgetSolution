@@ -6,6 +6,7 @@ using Backend.Application.Interfaces.UserServices;
 using Backend.Application.Models;
 using Backend.Application.Interfaces.EmailServices;
 using System.Data.SqlTypes;
+using Backend.Domain.Shared;
 
 namespace Backend.Application.Services.UserServices
 {
@@ -142,6 +143,7 @@ namespace Backend.Application.Services.UserServices
         }
         public async Task<bool> SendResetPasswordEmailAsync(string email)
         {
+
             // Check if user exists
             var user = await _userSQLProvider.UserSqlExecutor.GetUserModelAsync(email: email);
             if (user == null)
@@ -161,53 +163,48 @@ namespace Backend.Application.Services.UserServices
                 return false;
             }
         }
-        public async Task<bool> UpdatePasswordAsync(Guid token, string password)
+        public async Task<OperationResult> UpdatePasswordAsync(Guid token, string password)
         {
             // Check if the environment is in testing
             var environment = _configuration["Environment"]; // Use the key from appsettings
             if (environment == "Development")
             {
                 _logger.LogInformation("Skipping token validation in testing environment.");
-                return true; // Always return true for testing
+                return OperationResult.SuccessResult(Messages.PasswordReset.PasswordUpdated); // Always return true for testing
             }
-
             var isValid = await _userTokenService.ValidateResetTokenAsync(token);
             if (!isValid)
             {
-                _logger.LogWarning("Invalid or expired token used for password reset.");
-                return false;
+                _logger.LogWarning(Messages.PasswordReset.InvalidToken);
+                return OperationResult.FailureResult(Messages.PasswordReset.InvalidToken, statusCode: 400);
             }
 
             var user = await _userSQLProvider.TokenSqlExecutor.GetUserFromResetTokenAsync(token);
-
             if (user == null)
             {
-                _logger.LogWarning("User not found for password reset token: {Token}", token);
-                return false; // Explicitly handle missing user
+                _logger.LogWarning(Messages.PasswordReset.InvalidToken);
+                return OperationResult.FailureResult(Messages.PasswordReset.InvalidToken, statusCode: 400);
             }
 
-            // Validate that the new password is not the same as the old one
             if (BCrypt.Net.BCrypt.Verify(password, user.Password))
             {
-                _logger.LogWarning("User attempted to reuse their current password: {Email}", user.Email);
-                return false; // Return validation failure
+                _logger.LogWarning(Messages.PasswordReset.SamePassword);
+                return OperationResult.FailureResult(Messages.PasswordReset.SamePassword, statusCode: 400);
             }
 
             var hashedPassword = BCrypt.Net.BCrypt.HashPassword(password);
-            // Update the password
             var success = await _userSQLProvider.AuthenticationSqlExecutor.UpdatePasswordAsync(user.PersoId, hashedPassword);
 
             if (success)
             {
-                _logger.LogInformation("Password successfully updated for user: {Email}", user.Email);
+                _logger.LogInformation(Messages.PasswordReset.PasswordUpdated);
+                return OperationResult.SuccessResult(Messages.PasswordReset.PasswordUpdated);
             }
             else
             {
-                _logger.LogError("Failed to update password for user: {Email}", user.Email);
+                _logger.LogError(Messages.PasswordReset.UpdateFailed);
+                return OperationResult.FailureResult(Messages.PasswordReset.UpdateFailed, statusCode: 500);
             }
-
-            return success;
-
         }
 
     }

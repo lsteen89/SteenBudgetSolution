@@ -80,7 +80,6 @@ namespace Backend.Presentation.Controllers
                 return StatusCode(500, "An error occurred while processing your request.");
             }
         }
-
         [HttpGet("verify-email")]
         public async Task<IActionResult> VerifyEmail(Guid token)
         {
@@ -89,15 +88,17 @@ namespace Backend.Presentation.Controllers
                 _logger.LogWarning("Invalid token format: {token}", token);
                 return BadRequest(new { message = "Invalid token format" });
             }
-            bool emailConfirmed = await _userServices.VerifyEmailTokenAsync(token);
-            if (!emailConfirmed)
+
+            var result = await _userServices.VerifyEmailTokenAsync(parsedToken);
+
+            if (!result.Success)
             {
-                _logger.LogError("Verification failed for token {token}", token);
-                return BadRequest(new { message = "Invalid or expired token" });
+                return StatusCode(result.StatusCode ?? 400, new { message = result.Message });
             }
-            // Return success response
-            return Ok(new { message = "Email verified successfully" });
+
+            return Ok(new { message = result.Message });
         }
+
         [HttpPost("resend-verification")]
         public async Task<IActionResult> ResendVerificationEmail([FromBody] ResendVerificationRequest request)
         {

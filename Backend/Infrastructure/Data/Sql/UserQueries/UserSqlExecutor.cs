@@ -76,28 +76,31 @@ namespace Backend.Infrastructure.Data.Sql.UserQueries
             return user;
         }
 
-        public async Task<bool> UpdateEmailConfirmationStatusAsync(Guid persoid)
+        public async Task<bool> IsEmailAlreadyConfirmedAsync(Guid persoid)
         {
             try
             {
                 string checkQuery = "SELECT COALESCE(EmailConfirmed, 0) FROM User WHERE PersoId = @PersoId";
-                bool isAlreadyVerified = await QueryFirstOrDefaultAsync<bool>(checkQuery, new { PersoId = persoid });
-
-                if (isAlreadyVerified)
-                {
-                    _logger.LogWarning("User is already verified: {Persoid}", persoid);
-                    throw new InvalidOperationException("User has already been verified.");
-                }
-
-                string updateQuery = "UPDATE User SET EmailConfirmed = 1 WHERE PersoId = @PersoId";
-                var result = await ExecuteAsync(updateQuery, new { PersoId = persoid });
-
-                return result > 0;
+                return await QueryFirstOrDefaultAsync<bool>(checkQuery, new { PersoId = persoid });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to update email confirmation status for Persoid: {Persoid}", persoid);
-                throw; // Re-throwing to let the calling method handle if necessary
+                _logger.LogError(ex, "Failed to check email confirmation status for Persoid: {Persoid}", persoid);
+                throw;
+            }
+        }
+
+        public async Task<int> UpdateEmailConfirmationAsync(Guid persoid)
+        {
+            try
+            {
+                string updateQuery = "UPDATE User SET EmailConfirmed = 1 WHERE PersoId = @PersoId";
+                return await ExecuteAsync(updateQuery, new { PersoId = persoid });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to update email confirmation for Persoid: {Persoid}", persoid);
+                throw;
             }
         }
         public async Task<int> DeleteUserByEmailAsync(string email)
