@@ -20,23 +20,27 @@ import MobileMenu from './components/organisms/Menu/MobileMenu';
 
 
 function App() {
-  const isNotMobile = useMediaQuery('(min-width: 768px)'); // Check if the screen is larger than mobile
+  const isMobileOrTabletPortrait = useMediaQuery('(max-width: 810px)'); // Check if the screen width is 810px or smaller
   const isDebugMode = process.env.NODE_ENV === 'development';
+
   return (
     <BrowserRouter>
       <div className="App">
-        {/* Render MenuComponent only if the screen is not a mobile phone */}
-        {isNotMobile ? <MenuComponent /> : <MobileMenu />}
+        {/* Render MobileMenu for phones and iPads in portrait mode */}
+        {isMobileOrTabletPortrait ? <MobileMenu /> : <MenuComponent />}
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/registration" element={<Registration />} />
           <Route path="/check-email" element={<CheckEmailPage />} /> {/* After registration */}
-          <Route path="/email-confirmation" element={<EmailConfirmationPage
-              verifyEmail={isDebugMode ? mockVerifyEmail : realVerifyEmail}
-              debugToken={isDebugMode ? 'debug-token-123' : undefined}
+          <Route 
+            path="/email-confirmation" 
+            element={
+              <EmailConfirmationPage
+                verifyEmail={isDebugMode ? mockVerifyEmail : realVerifyEmail}
+                debugToken={isDebugMode ? 'debug-token-123' : undefined}
               />
             }
-          />;
+          />
           <Route path="/about-us" element={<AboutUs />} />
           <Route path="/forgotpassword" element={<RequestPasswordReset />} />
           <Route path="/contact" element={<Contact />} />
@@ -49,5 +53,6 @@ function App() {
     </BrowserRouter>
   );
 }
+
 
 export default App;

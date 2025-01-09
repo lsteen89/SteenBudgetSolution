@@ -6,11 +6,10 @@ import useDisableScroll from '@hooks/useDisableScroll';
 
 const MobileHomePage: React.FC = () => {
   const navigate = useNavigate(); // Initialize navigate function
-  useDisableScroll(true);
   return (
-    <div className="flex flex-col items-center justify-center h-screen bg-blue-100">
+    <div className="flex flex-col items-center justify-center  py-[10%]">
     {/* Hero Text */}
-    <div className="w-[95%] sm:w-[90%] text-center p-8 sm:p-10 bg-[#001F3F] rounded-lg shadow-lg mt-[-10vh]">
+    <div className="w-[95%] sm:w-[90%] text-center p-8 sm:p-10 bg-[#001F3F] rounded-lg shadow-lg">
     <p className="text-white text-xl sm:text-2xl tracking-wide leading-relaxed">
         Ta kontroll över din ekonomi med <br /><br />
         <span className="font-bold text-limeGreen underline">eBudget</span>
@@ -21,7 +20,7 @@ const MobileHomePage: React.FC = () => {
 
       {/* Image */}
       <div className="mt-6">
-        <img src={MainPageBird} alt="Main Page Bird" className="w-40 h-auto" />
+        <img src={MainPageBird} alt="Main Page Bird" className="w-60 h-auto" />
       </div>
 
       {/* CTA Button */}

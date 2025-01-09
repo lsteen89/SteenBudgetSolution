@@ -5,11 +5,15 @@ module.exports = {
   ],
   theme: {
     extend: {
-      screens: {
-        '1920': '1920px', // Custom breakpoint for 1920px width
-        '3xl': '3440px', // Ultra-wide screens
-        'hd': '1280px', // Custom breakpoint for 1280px width
-      },
+		screens: {
+		  md: '768px', // Tablets
+		  lg: '1024px', // Small desktops
+		  xl: { raw: '(min-width: 1280px) and (max-width: 1919px)' }, // Large screens, excluding 1920px
+		  '3xl': { raw: '(min-width: 1921px)' }, // Screens wider than 1920px
+		  'iphone-se': { raw: '(width: 375px) and (height: 667px)' }, // iPhone SE (2nd gen)
+		  'ipad': { raw: '(width: 810px) and (height: 1080px)' }, // iPad in portrait mode
+		  '1920': { raw: '(width: 1920px) and (height: 1080px)' }, // Full HD resolution
+		},
       fontFamily: {
         inter: [ 'Inter', 'Roboto', 'Montserrat', 'sans-serif'], // Fallback order
       },

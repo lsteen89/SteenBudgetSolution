@@ -4,7 +4,7 @@ import DesktopHomePage from './DesktopHomePage';
 import MobileHomePage from './MobileHomePage';
 
 const HomePage: React.FC = () => {
-  const isMobile = useMediaQuery('(max-width: 768px)'); // Detect mobile screens
+  const isMobile = useMediaQuery('(max-width: 810px)'); // Detect mobile screens
 
   return isMobile ? <MobileHomePage /> : <DesktopHomePage />;
 };

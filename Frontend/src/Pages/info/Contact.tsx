@@ -181,29 +181,20 @@ const ContactUs: React.FC = () => {
         style={{ zIndex: 9999 }}
       />      
         <div className="relative flex justify-center items-start min-h-screen">
-        {/* Bird Image */}
-        <img 
-          src={MailBird} 
-          alt="Mail Bird" 
-          className="absolute left-[3%] top-[45%] transform translate-y-[10%] w-auto max-w-[320px] z-10
-            1920:left-[250px] 1920:top-[35%] 1920:max-w-[400px]
-            3xl:left-[1000px] 3xl:top-[35%] 3xl:max-w-[400px]"
-        />
-        <div
-          className="flex flex-col items-center pt-40 px-5 w-full 1920:pt-50 3xl:pt-60"
-        >
-          <p className="font-bold text-lg text-gray-700 text-center leading-relaxed">
-            Vi välkomnar din feedback och eventuella frågor! <br />
-            Du kan kontakta oss genom att fylla i formuläret nedanför
-            <br /><br />
-          </p>
 
-          {/* Display form-level error message */}
-          {errors.form && (
-            <p className="text-red-500 text-sm text-center mb-4">{errors.form}</p>
-          )}
-
-          <FormContainer tag="form" onSubmit={handleSubmit}>
+          <div
+            className="flex flex-col items-center pt-20 px-5 w-full sm:pt-40 1920:pt-50 3xl:pt-60"
+          >
+          <FormContainer tag="form" className='z-10' onSubmit={handleSubmit}>
+            <p className="font-bold text-lg text-gray-700 text-center leading-relaxed ">
+              Vi välkomnar din feedback och eventuella frågor! <br />
+              Du kan kontakta oss genom att fylla i formuläret nedanför
+              <br /><br />
+            </p>
+            {/* Display form-level error message */}
+            {errors.form && (
+              <p className="text-red-500 text-sm text-center mb-4">{errors.form}</p>
+            )}
             {/* First Name and Last Name */}
             <div className="flex space-x-4">
               <div className="flex-1">
@@ -289,10 +280,10 @@ const ContactUs: React.FC = () => {
                 )}
               </div>
             </div>
-
             {/* Submit Button and ReCAPTCHA */}
-            <div className="flex space-x-4">
-              <div className="flex-1 flex justify-center">
+            <div className="flex flex-col sm:flex-row sm:space-x-4 items-center">
+              {/* Submit Button */}
+              <div className="flex-1 flex justify-center w-full sm:w-auto">
                 <SubmitButton
                   isSubmitting={isSubmitting}
                   icon={<SendIcon className="w-6 h-6" />}
@@ -302,17 +293,31 @@ const ContactUs: React.FC = () => {
                   style={{ width: '100%' }}
                 />
               </div>
-              <div className="flex-1 flex flex-col items-center">
-                <div style={{ transform: 'scale(0.9)', transformOrigin: 'center', width: '100%' }}>
-                  <ReCAPTCHA
-                    sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
-                    onChange={handleCaptchaChange}
-                    ref={captchaRef}
-                  />
-                </div>
+
+              {/* ReCAPTCHA */}
+              <div
+                className="mt-4 sm:mt-0 flex justify-center w-full sm:w-auto"
+                style={{
+                  transform: 'scale(0.9)',
+                  transformOrigin: 'center',
+                  height: '78px', // Typical height of the ReCAPTCHA widget when scaled
+                  overflow: 'hidden',
+                }}
+              >
+                <ReCAPTCHA
+                  sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+                  onChange={handleCaptchaChange}
+                  ref={captchaRef}
+                />
               </div>
             </div>
           </FormContainer>
+          {/* Bird Image */}
+          <img
+            src={MailBird}
+            alt="Mail Bird"
+            className="z-0 w-auto max-w-[320px] mt-10 sm:absolute sm:left-[3%] sm:top-[45%] sm:transform sm:translate-y-[10%] sm:max-w-[320px] 1920:left-[250px] 1920:top-[35%] 1920:max-w-[400px] 3xl:left-[1000px] 3xl:top-[35%] 3xl:max-w-[400px]"
+          />
         </div>
       </div>
     </>
