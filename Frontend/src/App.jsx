@@ -15,25 +15,32 @@ import { mockVerifyEmail } from '@mocks/mockServices/verifyEmailMock.ts';
 import { verifyEmail as realVerifyEmail } from '@api/Services/User/verifyEmail';
 import RequestPasswordReset from '@pages/auth/RequestPasswordReset';
 import ResetPasswordPage from '@pages/auth/PerformPasswordReset';
+import useMediaQuery from './hooks/useMediaQuery';
+import MobileMenu from './components/organisms/Menu/MobileMenu';
 
 
 function App() {
-
+  const isMobileOrTabletPortrait = useMediaQuery('(max-width: 810px)'); // Check if the screen width is 810px or smaller
   const isDebugMode = process.env.NODE_ENV === 'development';
+
   return (
     <BrowserRouter>
       <div className="App">
-        <MenuComponent />
+        {/* Render MobileMenu for phones and iPads in portrait mode */}
+        {isMobileOrTabletPortrait ? <MobileMenu /> : <MenuComponent />}
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/registration" element={<Registration />} />
           <Route path="/check-email" element={<CheckEmailPage />} /> {/* After registration */}
-          <Route path="/email-confirmation" element={<EmailConfirmationPage
-              verifyEmail={isDebugMode ? mockVerifyEmail : realVerifyEmail}
-              debugToken={isDebugMode ? 'debug-token-123' : undefined}
+          <Route 
+            path="/email-confirmation" 
+            element={
+              <EmailConfirmationPage
+                verifyEmail={isDebugMode ? mockVerifyEmail : realVerifyEmail}
+                debugToken={isDebugMode ? 'debug-token-123' : undefined}
               />
             }
-          />;
+          />
           <Route path="/about-us" element={<AboutUs />} />
           <Route path="/forgotpassword" element={<RequestPasswordReset />} />
           <Route path="/contact" element={<Contact />} />
@@ -46,5 +53,6 @@ function App() {
     </BrowserRouter>
   );
 }
+
 
 export default App;

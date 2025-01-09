@@ -103,9 +103,20 @@ const LoginPage: React.FC = () => {
 
   return (
     
-    <div className="relative flex justify-center items-start min-h-screen py-[150px]
-    3xl:py-[300px]">
-      <FormContainer tag="form" bgColor="gradient"onSubmit={handleSubmit}>
+    <div className="
+      relative 
+      flex 
+      justify-center 
+      items-start 
+      min-h-screen 
+      py-12
+      sm:items-center sm:py-6 
+      md:py-12 
+      lg:py-16 
+      xl:py-20 
+      2xl:py-24 
+      3xl:py-32">
+      <FormContainer tag="form" className='z-10' bgColor="gradient"onSubmit={handleSubmit}>
         {/* Title */}
         <p className="text-lg font-bold text-gray-800 mb-6 text-center">Välkommen tillbaka! Logga in för att fortsätta</p>
 
@@ -146,30 +157,40 @@ const LoginPage: React.FC = () => {
         </div>
         {errors.form && <p style={{ color: "red" }}>{errors.form}</p>}
         {/* Submit Button and ReCAPTCHA */}
-        <div className="flex space-x-4">
-          <div className="flex-1 flex justify-center">
+        <div className="flex flex-col sm:flex-row sm:space-x-4 items-center">
+          {/* Submit Button */}
+          <div className="flex-1 flex justify-center w-full sm:w-auto">
             <SubmitButton
-            isSubmitting={isSubmitting}
-            label="Logga in"
-            type="submit"
-            enhanceOnHover
-            style={{ width: '100%' }}
+              isSubmitting={isSubmitting}
+              label="Logga in"
+              type="submit"
+              enhanceOnHover
+              style={{ width: '100%' }}
             />
           </div>
-          <div className="flex-1 flex flex-col items-center">
-            <div style={{ transform: 'scale(0.9)', transformOrigin: 'center', width: '100%' }}>
-              <ReCAPTCHA
-                sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
-                onChange={handleCaptchaChange}
-                ref={captchaRef}
-              />
-            </div>
-            {errors.captchaToken && (
-              <p className="text-red-500 text-sm">{errors.captchaToken}</p>
-            )}
+
+          {/* ReCAPTCHA */}
+          <div
+            className="mt-4 sm:mt-0 flex justify-center w-full sm:w-auto"
+            style={{
+              transform: 'scale(0.9)',
+              transformOrigin: 'center',
+              height: '78px', // Typical height of the ReCAPTCHA widget when scaled
+              overflow: 'hidden',
+            }}
+          >
+            <ReCAPTCHA
+              sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+              onChange={handleCaptchaChange}
+              ref={captchaRef}
+            />
           </div>
         </div>
 
+        {/* Error Message */}
+        {errors.captchaToken && (
+          <p className="text-red-500 text-sm text-center mt-2">{errors.captchaToken}</p>
+        )}
         {/* Forgot Password and Register */}
         <div className="flex justify-between mt-4">
           <button
@@ -194,10 +215,21 @@ const LoginPage: React.FC = () => {
       <img
         src={LoginBird}
         alt="LoginBird"
-        className="absolute right-[3%] top-[45%] transform translate-y-[10%] w-auto max-w-[320px] z-10
+        className="
+          absolute 
+          transform translate-y-[10%] 
+          w-auto max-w-[320px] 
+          z-0
+          iphone-se:iphone-se:top-[18%] iphone-se:max-w-[150px] /* Target iPhone SE */
+          ipad:ipad:top-[70%] ipad:left-[35%] ipad:max-w-[250px] /* Target iPads */
+          md:right-[5%] md:top-[40%] md:max-w-[250px]
+          lg:right-[10%] lg:top-[35%] lg:max-w-[300px]
+          xl:right-[5%] xl:top-[30%] xl:max-w-[350px]
           1920:right-[250px] 1920:top-[35%] 1920:max-w-[400px]
-          3xl:right-[1000px] 3xl:top-[35%] 3xl:max-w-[400px]"
+          3xl:right-[1000px] 3xl:top-[35%] 3xl:max-w-[400px]
+          sm:right-[0%] bottom-[-5%] sm:max-w-[200px] sm:translate-y-[10%]"
       />
+
     </div>
   );
 };

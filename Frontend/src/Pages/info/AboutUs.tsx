@@ -13,10 +13,10 @@ const AboutUs: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col items-center gap-5 py-[225px] ">
+    <div className="flex flex-col items-center gap-5 py-[10px] sm:py-[225px]">
 
       {/* Cards Section */}
-      <div className="flex flex-row items-center gap-5">
+      <div className="hidden sm:flex flex-row items-center gap-5">
         <GlossyFlipCard
           frontText="Vad gör vi?"
           backText={
@@ -71,7 +71,7 @@ const AboutUs: React.FC = () => {
             </p>
           </div>
         </DeepBlueContainer>
-        <div className="flex flex-row items-center justify-center gap-5 mt-5">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-5 mt-5">
         {/* Button Section */}
           <div className="flex-shrink-0">
             <SubmitButton

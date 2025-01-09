@@ -65,26 +65,18 @@ const Faq: React.FC = () => {
 
   ];
 
-  return (        
-  <div className="relative flex justify-center items-start min-h-screen">
-    {/* Bird Image */}
-    <img 
-      src={faqBird} 
-      alt="faqBird" 
-      className="absolute right-[3%] top-[45%] transform translate-y-[10%] w-auto max-w-[320px] z-10
-        1920:right-[250px] 1920:top-[35%] 1920:max-w-[400px]
-        3xl:right-[1000px] 3xl:top-[35%] 3xl:max-w-[400px]"
-    />
-      <div className="relative flex justify-center items-center min-h-screen py-[200px] bg-gradient-to-br from-blue-50 to-blue-100">
-        {/* FAQ Box */}
+  return (
+    <div className="relative flex flex-col justify-center items-center min-h-screen">
+      {/* FAQ Box */}
+      <div className="relative flex flex-col justify-center items-center min-h-screen py-[100px] sm:py-[200px] bg-gradient-to-br from-blue-50 to-blue-100">
         <div className="max-w-4xl w-full bg-white p-10 rounded-lg shadow-lg border-t-8 border-limeGreen">
           {/* Title */}
           <h1 className="text-3xl font-extrabold text-center text-gray-800 mb-6">
             Vanliga frågor
           </h1>
-
+  
           {/* Accordion Section */}
-          <div className="space-y-4 ">
+          <div className="space-y-4">
             {questions.map((item, index) => (
               <div
                 key={index}
@@ -110,26 +102,35 @@ const Faq: React.FC = () => {
                   </div>
                 )}
               </div>
-              
             ))}
-                      <div className="mt-10 bg-blue-50 p-6 rounded-lg text-center">
+  
+            {/* Contact Section */}
+            <div className="mt-10 bg-blue-50 p-6 rounded-lg text-center">
               <p className="text-lg font-bold text-blue-600">
                 Har du fler frågor? Kontakta oss för att få svar!
-                <br /><br />
+                <br />
+                <br />
               </p>
               <SubmitButton
-              isSubmitting={false}
-              label="Kontakta oss"
-              size="large"
-              enhanceOnHover
-              onClick={handleRedirect}
+                isSubmitting={false}
+                label="Kontakta oss"
+                size="large"
+                enhanceOnHover
+                onClick={handleRedirect}
               />
             </div>
           </div>
         </div>
       </div>
+  
+      {/* Bird Image */}
+      <img
+        src={faqBird}
+        alt="faqBird"
+        className=" hidden sm:block mt-10 w-auto max-w-[320px] sm:absolute sm:right-[3%] sm:top-[45%] sm:transform sm:translate-y-[10%] sm:max-w-[320px] 1920:right-[250px] 1920:top-[35%] 1920:max-w-[400px] 3xl:right-[1000px] 3xl:top-[35%] 3xl:max-w-[400px]"
+      />
     </div>
-  );
+  );  
 };
 
 export default Faq;

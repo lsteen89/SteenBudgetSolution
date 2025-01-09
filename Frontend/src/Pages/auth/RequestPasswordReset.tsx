@@ -41,12 +41,14 @@ const ForgotPassword: React.FC = () => {
 };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen">
+    <div className="flex flex-col items-center min-h-screen pt-20 iphone-se:pt-10
+    lg:pt-[15%] /* Remove top padding for large screens */
+    ">
       {/* Bird Image */}
       <img 
         src={ForgotPasswordBird} 
         alt="ForgotPasswordBird" 
-        className="absolute right-[3%] top-[45%] transform translate-y-[10%] w-auto max-w-[320px] z-10
+        className="absolute right-[3%] top-[45%] transform translate-y-[10%] w-auto max-w-[320px] z-10 hidden lg:block /* Visible for large screens */
           1920:right-[250px] 1920:top-[35%] 1920:max-w-[400px]
           3xl:right-[1000px] 3xl:top-[35%] 3xl:max-w-[400px]"
       />    
@@ -76,6 +78,16 @@ const ForgotPassword: React.FC = () => {
 
       {/* Add ToastContainer here */}
       <ToastContainer />
+      {/* Bird Image for iPads and Mobile */}
+      <img
+        src={ForgotPasswordBird}
+        alt="ForgotPasswordBird"
+        className="
+        w-auto max-w-[250px] z-10
+        lg:hidden /* Hide for large screens */
+        block /* Visible for smaller screens */
+        mt-6 /* Adds margin to push below container */"
+      />
     </div>
   );  
 };
