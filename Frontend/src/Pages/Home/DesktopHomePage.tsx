@@ -3,6 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import MainPageBird from '@assets/Images/MainPageBird.png';
 import SubmitButton from '@components/atoms/buttons/SubmitButton';
 import useDisableScroll from '@hooks/useDisableScroll';
+import { BookOpenIcon, ChartBarIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
+import { Link } from 'react-router-dom'; // Add this line!
+import DeepBlueContainer from '@components/molecules/containers/DeepBlueContainer';
+
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
 
@@ -10,70 +14,70 @@ const HomePage: React.FC = () => {
   const handleRedirect = (): void => {
     navigate('/Registration');
   };
-  // Disable scrolling on this page
-  useDisableScroll(true);
 
   return (
-    <div className="relative flex justify-center items-center h-screen">
-      {/* Main Page Text Container */}
-      <div
-        className="
-          absolute top-[30vh] left-[40%] transform -translate-x-1/2
-          md:left-[30%] md:w-[20vw] md:h-[75vh]
-          lg:left-[30%] lg:w-[20vw] lg:h-[75vh]
-          md:h-[80vh]
-          1920:left-[30%] 1920:w-[18vw]
-          3xl:w-[10vw] 3xl:left-[40%] 3xl:h-[calc(100vh-20vh)]
-          flex flex-col justify-start items-center
-          min-h-[30vh] h-[calc(100vh-20vh)] w-[10vw]
-          p-10 pt-12
-          hd:p-5
-          bg-[url('../../assets/Images/MainPageRect.svg')] bg-cover bg-center
-          overflow-hidden shadow-md rounded-md
-          z-10
-        "
-      >
-        <p className="text-white text-left m-0 tracking-[0.2em] max-w-[90%] text-[clamp(1rem,2vw,1.5rem)] leading-[clamp(1.5,2.5vw,2)]">
+    <div className="relative align-items: flex-start flex items-center justify-center h-screen gap-[8vw] mt-[15vh]">
+
+
+        {/* Left Container */}
+        <DeepBlueContainer additionalClasses="h-[70vh] flex-grow flex-col flex items-center max-w-md space-y-10 mt-[10%] px-8 h-full pt-[2%]
+        lg:mt-[15%]
+        1920:mt-[5%]
+        3xl:mt-[10%]
+        ">
+        <p className="text-white text-center m-0 tracking-[0.2em] max-w-[90%] text-[clamp(1rem,2vw,1.5rem)] leading-[clamp(1.5,2.5vw,2)]">
           Ta kontroll över din ekonomi med <br />
           <span className="font-bold text-limeGreen underline">eBudget</span>
           <br />
           och skapa trygghet för framtiden genom smart budgetering!
         </p>
-      </div>
-
-      {/* Button Wrapper */}
-      <div
-        className="
-          absolute top-[40%] left-[60%] transform -translate-x-1/2 -translate-y-1/2
-          md:top-[35%]
-          flex justify-center items-center
-          z-20
-        "
-      >
-        <SubmitButton
-          isSubmitting={false}
-          label="Skaffa eBudget!"
-          size="large"
-          enhanceOnHover
-          onClick={handleRedirect}
-        />
-      </div>
-
-      {/* Image Wrapper */}
-      <div
-        className="
-          fixed top-[45%] left-[49%] transform -translate-x-1/2
-          md:left-[60%] md:h-[40vh]
-          xl:scale-75
-          z-0
-        "
-      >
-        <img 
-          src={MainPageBird} 
-          alt="Main Page Bird" 
-          className="max-w-full h-auto" 
-        />
-      </div>
+        <div className="pt-14 flex flex-col space-y-8 items-center">
+          <div className="relative group flex flex-col items-center">
+            <BookOpenIcon className="h-10 w-10 text-limeGreen transition-transform transform group-hover:scale-110 group-hover:shadow-lg" />
+            <p className="text-white mt-2 text-center">Enkel planering</p>
+            {/* Tooltip */}
+            <div className="absolute bottom-14 hidden group-hover:block bg-black text-white text-xs p-2 rounded shadow-lg">
+              Planera din budget enkelt och snabbt! Läs mer under<Link to="/" className="underline text-limeGreen"> Hjälp </Link>
+            </div>
+          </div>
+          <div className="relative group flex flex-col items-center">
+            <ChartBarIcon className="h-10 w-10 text-limeGreen transition-transform transform group-hover:scale-110 group-hover:shadow-lg" />
+            <p className="text-white mt-2 text-center">Enkel visualisering av sparandet</p>
+            {/* Tooltip */}
+            <div className="absolute bottom-14 hidden group-hover:block bg-black text-white text-xs p-2 rounded shadow-lg">
+              Få tydlig insikt i dina utgifter och sparande med enkel visualisering och diagram! Inga konstigheter!
+            </div>
+          </div>
+          <div className="relative group flex flex-col items-center">
+            <ShieldCheckIcon className="h-10 w-10 text-limeGreen transition-transform transform group-hover:scale-110 group-hover:shadow-lg" />
+            <p className="text-white mt-2 text-center">ALLTID säkerhet först</p>
+            {/* Tooltip */}
+            <div className="absolute bottom-14 hidden group-hover:block bg-black text-white text-xs p-2 rounded shadow-lg">
+              Dina data är skyddad med högsta säkerhet! Läs mer under <Link to="/" className="underline text-limeGreen"> Integritetspolicy </Link>
+            </div>
+          </div>
+        </div>
+        </DeepBlueContainer>
+        
+        {/* Right-Side Container */}
+        <div className="flex flex-col justify-center space-y-8 h-full         
+            lg:mt-[5%]
+            1920:mt-[5%]
+            3xl:mt-[0%]
+          ">
+          <SubmitButton
+            isSubmitting={false}
+            label="Skaffa eBudget!"
+            size="large"
+            enhanceOnHover
+            onClick={handleRedirect}
+          />
+          <img
+            src={MainPageBird}
+            alt="Main Page Bird"
+            className="max-w-full h-auto animate-float hover:animate-flap"
+          />
+        </div>
     </div>
   );
 };

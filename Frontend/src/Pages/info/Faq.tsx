@@ -68,8 +68,8 @@ const Faq: React.FC = () => {
   return (
     <div className="relative flex flex-col justify-center items-center min-h-screen">
       {/* FAQ Box */}
-      <div className="relative flex flex-col justify-center items-center min-h-screen py-[100px] sm:py-[200px] bg-gradient-to-br from-blue-50 to-blue-100">
-        <div className="max-w-4xl w-full bg-white p-10 rounded-lg shadow-lg border-t-8 border-limeGreen">
+      <div className="relative flex flex-col justify-center items-center min-h-screen py-[100px] sm:py-[200px]">
+        <div className="max-w-4xl w-full bg-white p-10 rounded-lg shadow-lg border-t-8 border-limeGreen z-10">
           {/* Title */}
           <h1 className="text-3xl font-extrabold text-center text-gray-800 mb-6">
             Vanliga frågor

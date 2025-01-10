@@ -26,3 +26,31 @@ body {
 .debug-outline * {
   outline: 1px solid red;
 }
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes flap {
+  0%, 100% {
+    transform: rotate(0);
+  }
+  50% {
+    transform: rotate(5deg);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.hover\:animate-flap:hover {
+  animation: flap 0.5s ease-in-out infinite;
+}
+.parallax {
+  transform: translateZ(-1px) scale(1.5);
+}

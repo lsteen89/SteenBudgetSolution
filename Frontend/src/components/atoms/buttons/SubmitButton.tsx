@@ -72,6 +72,7 @@ interface SubmitButtonProps {
   size?: 'small' | 'large' | 'default';
   enhanceOnHover?: boolean; // Optional flag for enhanced hover behavior
   icon?: React.ReactNode; // Optional icon prop
+  className?: string; // optional className prop
 }
 
 const sizeClasses = {
@@ -89,6 +90,7 @@ const SubmitButton: React.FC<SubmitButtonProps> = ({
   size = 'default',
   enhanceOnHover = false,
   icon,
+  className = '', // Default to an empty string
 }) => {
   return (
     <button
