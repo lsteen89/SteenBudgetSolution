@@ -8,8 +8,8 @@ import { UserLoginValidator } from '@utils/validation/userLoginValidation';
 import { UserLoginDto } from '../../types/userLoginForm';
 import ReCAPTCHA from 'react-google-recaptcha';
 import { login } from '@api/Services/User/auth';
-import PageContainer from '@components/Layout/PageContainer';
-import ContentWrapper from '@components/Layout/ContentWrapper';
+import PageContainer from '@components/layout/PageContainer';
+import ContentWrapper from '@components/layout/ContentWrapper';
 
 type ReCAPTCHAWithReset = ReCAPTCHA & {
   reset: () => void;

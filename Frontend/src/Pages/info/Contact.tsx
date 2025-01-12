@@ -9,8 +9,8 @@ import { validateField } from '@utils/validation/fieldValidator';
 import { sendEmail } from '@api/Services/Mail/sendEmail';
 import MailBird from '@assets/Images/ContactUsBird.png';
 import FormContainer from '@components/molecules/containers/FormContainer';
-import PageContainer from '@components/Layout/PageContainer';
-import ContentWrapper from '@components/Layout/ContentWrapper';
+import PageContainer from '@components/layout/PageContainer';
+import ContentWrapper from '@components/layout/ContentWrapper';
 
 
 /* Toast */

@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import DeepBlueContainer from '@components/molecules/containers/DeepBlueContainer';
 import AlternateSubmitButton from '@components/atoms/buttons/AlternateSubmitButton';
 import LostBird from '@assets/Images/LostBird.png';
-import PageContainer from '@components/Layout/PageContainer';
-import ContentWrapper from '@components/Layout/ContentWrapper';
+import PageContainer from '@components/layout/PageContainer';
+import ContentWrapper from '@components/layout/ContentWrapper';
 const NotFoundPage: React.FC = () => {
   const navigate = useNavigate();
 

@@ -8,8 +8,8 @@ import { resetPasswordWithToken } from "@api/Services/User/resetPasswordWithToke
 import { toast, ToastContainer } from "react-toastify";
 import { showToast } from "@utils/toastUtils";
 import { validatePassword } from "@utils/validation/PasswordValidation";
-import PageContainer from '@components/Layout/PageContainer';
-import ContentWrapper from '@components/Layout/ContentWrapper';
+import PageContainer from '@components/layout/PageContainer';
+import ContentWrapper from '@components/layout/ContentWrapper';
 
 
 const ResetPasswordPage: React.FC = () => {
