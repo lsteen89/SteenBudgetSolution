@@ -4,7 +4,7 @@ import MainPageBird from '@assets/Images/MainPageBird.png';
 import SubmitButton from '@components/atoms/buttons/SubmitButton';
 import useDisableScroll from '@hooks/useDisableScroll';
 import { BookOpenIcon, ChartBarIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
-import { Link } from 'react-router-dom'; // Add this line!
+import { Link } from 'react-router-dom'; 
 import DeepBlueContainer from '@components/molecules/containers/DeepBlueContainer';
 
 const HomePage: React.FC = () => {
@@ -17,13 +17,9 @@ const HomePage: React.FC = () => {
 
   return (
     <div className="relative align-items: flex-start flex items-center justify-center h-screen gap-[8vw] mt-[15vh]">
-
-
         {/* Left Container */}
         <DeepBlueContainer additionalClasses="h-[70vh] flex-grow flex-col flex items-center max-w-md space-y-10 mt-[10%] px-8 h-full pt-[2%]
         lg:mt-[15%]
-        1920:mt-[5%]
-        3xl:mt-[10%]
         ">
         <p className="text-white text-center m-0 tracking-[0.2em] max-w-[90%] text-[clamp(1rem,2vw,1.5rem)] leading-[clamp(1.5,2.5vw,2)]">
           Ta kontroll över din ekonomi med <br />
@@ -58,12 +54,10 @@ const HomePage: React.FC = () => {
           </div>
         </div>
         </DeepBlueContainer>
-        
+
         {/* Right-Side Container */}
         <div className="flex flex-col justify-center space-y-8 h-full         
             lg:mt-[5%]
-            1920:mt-[5%]
-            3xl:mt-[0%]
           ">
           <SubmitButton
             isSubmitting={false}
@@ -77,7 +71,9 @@ const HomePage: React.FC = () => {
             alt="Main Page Bird"
             className="max-w-full h-auto animate-float hover:animate-flap"
           />
+
         </div>
+        
     </div>
   );
 };

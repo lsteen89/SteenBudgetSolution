@@ -13,7 +13,7 @@ const MobileMenu: React.FC = () => {
   return (
     <div className="relative">
       {/* Top Bar with Icon and Hamburger */}
-      <div className="flex justify-between items-center bg-standardMenuColor px-4 py-2 shadow-md relative z-50">
+      <div className="flex justify-between items-center bg-standardMenuColor px-4 py-2 shadow-md relative z-50 w-full">
         {/* Left Icon */}
         <Link to="/" className="flex items-center">
           <img src={MobileBird} alt="Mobile Bird" className="w-16 h-16" />

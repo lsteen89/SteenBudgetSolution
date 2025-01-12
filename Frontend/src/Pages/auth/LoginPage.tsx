@@ -8,6 +8,9 @@ import { UserLoginValidator } from '@utils/validation/userLoginValidation';
 import { UserLoginDto } from '../../types/userLoginForm';
 import ReCAPTCHA from 'react-google-recaptcha';
 import { login } from '@api/Services/User/auth';
+import PageContainer from '@components/Layout/PageContainer';
+import ContentWrapper from '@components/Layout/ContentWrapper';
+
 type ReCAPTCHAWithReset = ReCAPTCHA & {
   reset: () => void;
 };
@@ -101,136 +104,122 @@ const LoginPage: React.FC = () => {
   const handleForgotPassword = () => navigate('/forgotpassword');
   const handleRegister = () => navigate('/registration');
 
-  return (
-    
-    <div className="
-      relative 
-      flex 
-      justify-center 
-      items-start 
-      min-h-screen 
-      py-12
-      sm:items-center sm:py-6 
-      md:py-12 
-      lg:py-16 
-      xl:py-20 
-      2xl:py-24 
-      3xl:py-32">
-      <FormContainer tag="form" className='z-10' bgColor="gradient"onSubmit={handleSubmit}>
-        {/* Title */}
-        <p className="text-lg font-bold text-gray-800 mb-6 text-center">Välkommen tillbaka! Logga in för att fortsätta</p>
+  return (   
+    <PageContainer>
+      <ContentWrapper>
+        <FormContainer
+        tag="form" 
+        className="z-10 w-full max-h-screen overflow-y-auto" 
+        bgColor="gradient"onSubmit={handleSubmit}
+        >
+          {/* Title */}
+          <p className="text-lg font-bold text-gray-800 mb-6 text-center">Välkommen tillbaka! Logga in för att fortsätta</p>
 
-        {/* Email */}
-        <div className="flex-1 mb-4">
-          <label className="block text-gray-700 text-sm mb-2" htmlFor="email">
-            E-postadress
-          </label>
-          <InputField
-            placeholder="Ange din e-post"
-            value={formData.email}
-            onChange={(e) => handleInputChange('email', e.target.value)}
-            onBlur={() => handleBlur('email')}
-            width="100%"
-          />
-          {errors.email && (
-            <p className="text-red-500 text-sm">{errors.email}</p>
-          )}
-        </div>
-
-        {/* Password */}
-        <div className="flex-1 mb-4">
-          <label className="block text-gray-700 text-sm mb-2" htmlFor="password">
-            Lösenord
-          </label>
-          <InputField
-            placeholder="Ange ditt lösenord"
-            type="password"
-            value={formData.password}
-            onChange={(e) => handleInputChange('password', e.target.value)}
-            onBlur={() => handleBlur('password')}
-            width="100%"
-          />
-          {errors.password && (
-            <p className="text-red-500 text-sm">{errors.password}</p>
-          )}
-
-        </div>
-        {errors.form && <p style={{ color: "red" }}>{errors.form}</p>}
-        {/* Submit Button and ReCAPTCHA */}
-        <div className="flex flex-col sm:flex-row sm:space-x-4 items-center">
-          {/* Submit Button */}
-          <div className="flex-1 flex justify-center w-full sm:w-auto">
-            <SubmitButton
-              isSubmitting={isSubmitting}
-              label="Logga in"
-              type="submit"
-              enhanceOnHover
-              style={{ width: '100%' }}
+          {/* Email */}
+          <div className="flex-1 mb-4">
+            <label className="block text-gray-700 text-sm mb-2 " htmlFor="email">
+              E-postadress
+            </label>
+            <InputField
+              placeholder="Ange din e-post"
+              value={formData.email}
+              onChange={(e) => handleInputChange('email', e.target.value)}
+              onBlur={() => handleBlur('email')}
+              width="100%"
             />
+            {errors.email && (
+              <p className="text-red-500 text-sm">{errors.email}</p>
+            )}
           </div>
 
-          {/* ReCAPTCHA */}
-          <div
-            className="mt-4 sm:mt-0 flex justify-center w-full sm:w-auto"
-            style={{
-              transform: 'scale(0.9)',
-              transformOrigin: 'center',
-              height: '78px', // Typical height of the ReCAPTCHA widget when scaled
-              overflow: 'hidden',
-            }}
-          >
-            <ReCAPTCHA
-              sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
-              onChange={handleCaptchaChange}
-              ref={captchaRef}
+          {/* Password */}
+          <div className="flex-1 mb-4">
+            <label className="block text-gray-700 text-sm mb-2" htmlFor="password">
+              Lösenord
+            </label>
+            <InputField
+              placeholder="Ange ditt lösenord"
+              type="password"
+              value={formData.password}
+              onChange={(e) => handleInputChange('password', e.target.value)}
+              onBlur={() => handleBlur('password')}
+              width="100%"
             />
+            {errors.password && (
+              <p className="text-red-500 text-sm">{errors.password}</p>
+            )}
+
           </div>
-        </div>
+          {errors.form && <p style={{ color: "red" }}>{errors.form}</p>}
+          {/* Submit Button and ReCAPTCHA */}
+          <div className="flex flex-col sm:flex-row sm:space-x-4 items-center">
+            {/* Submit Button */}
+            <div className="flex-1 flex justify-center w-full sm:w-auto">
+              <SubmitButton
+                isSubmitting={isSubmitting}
+                label="Logga in"
+                type="submit"
+                enhanceOnHover
+                style={{ width: '100%' }}
+              />
+            </div>
 
-        {/* Error Message */}
-        {errors.captchaToken && (
-          <p className="text-red-500 text-sm text-center mt-2">{errors.captchaToken}</p>
-        )}
-        {/* Forgot Password and Register */}
-        <div className="flex justify-between mt-4">
-          <button
-            type="button"
-            onClick={handleForgotPassword}
-            className="text-sm text-blue-500 hover:text-blue-700"
-          >
-            Glömt lösenord?
-          </button>
-          <button
-            type="button"
-            onClick={handleRegister}
-            className="text-sm text-blue-500 hover:text-blue-700"
-          >
-            Registrera
-          </button>
+            {/* ReCAPTCHA */}
+            <div
+              className="mt-4 sm:mt-0 flex justify-center w-full sm:w-auto"
+              style={{
+                transform: 'scale(0.9)',
+                transformOrigin: 'center',
+                height: '78px', // Typical height of the ReCAPTCHA widget when scaled
+                overflow: 'hidden',
+              }}
+            >
+              <ReCAPTCHA
+                sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+                onChange={handleCaptchaChange}
+                ref={captchaRef}
+              />
+            </div>
+          </div>
 
-        </div>
-      </FormContainer>
+          {/* Error Message */}
+          {errors.captchaToken && (
+            <p className="text-red-500 text-sm text-center mt-2">{errors.captchaToken}</p>
+          )}
+          {/* Forgot Password and Register */}
+          <div className="flex justify-between mt-4">
+            <button
+              type="button"
+              onClick={handleForgotPassword}
+              className="text-sm text-blue-500 hover:text-blue-700"
+            >
+              Glömt lösenord?
+            </button>
+            <button
+              type="button"
+              onClick={handleRegister}
+              className="text-sm text-blue-500 hover:text-blue-700"
+            >
+              Registrera
+            </button>
 
-      {/* Bird Image */}
-      <img
-        src={LoginBird}
-        alt="LoginBird"
-        className="
-          absolute 
-          transform translate-y-[10%] 
-          w-auto max-w-[320px] 
-          z-0
-          iphone-se:iphone-se:top-[18%] iphone-se:max-w-[150px] /* Target iPhone SE */
-          ipad:ipad:top-[70%] ipad:left-[35%] ipad:max-w-[250px] /* Target iPads */
-          md:right-[5%] md:top-[40%] md:max-w-[250px]
-          lg:right-[10%] lg:top-[35%] lg:max-w-[300px]
-          xl:right-[5%] xl:top-[30%] xl:max-w-[350px]
-          1920:right-[250px] 1920:top-[35%] 1920:max-w-[400px]
-          3xl:right-[1000px] 3xl:top-[35%] 3xl:max-w-[400px]
-          sm:right-[0%] bottom-[-5%] sm:max-w-[200px] sm:translate-y-[10%]"
-      />
+          </div>
+        </FormContainer>
 
-    </div>
+        {/* Bird Image */}
+        <img
+          src={LoginBird}
+          alt="LoginBird"
+          className=" hidden sm:block -z-40 
+              md:relative
+              lg:relative
+              xl:relative 
+              2xl:absolute 2xl:left-[10%] 2xl:top-1/2 2xl:transform 2xl:-translate-y-1/2
+              3xl:absolute 3xl:left-[25%] 3xl:top-1/2 3xl:transform 3xl:-translate-y-1/2
+          "     
+        />
+      </ContentWrapper>
+    </PageContainer>
   );
 };
 

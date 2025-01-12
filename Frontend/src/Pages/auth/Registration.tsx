@@ -193,159 +193,171 @@ const Registration: React.FC = () => {
       pauseOnHover={false}
       style={{ zIndex: 9999 }}
     />      
-  <div className="relative flex justify-center items-start min-h-screen">
-    {/* Bird Image */}
-    <img 
-      src={regbird} 
-      alt="regbird" 
-      className="absolute right-[3%] top-[45%] transform translate-y-[10%] w-auto max-w-[320px] z-10
-        1920:right-[250px] 1920:top-[35%] 1920:max-w-[400px]
-        3xl:right-[1000px] 3xl:top-[35%] 3xl:max-w-[400px]"
-    />    
-      <div className="flex flex-col items-center justify-center min-h-screen py-12 pt-60 3xl:pt-0">
-          <h2 className="text-2xl font-bold text-center text-gray-800">Registrera dig för eBudget</h2>
-            
-            <FormContainer tag="form" onSubmit={handleSubmit}>
-              {/* First Name */}
-              <div className="flex-1">
-                <InputField
-                  placeholder="Förnamn"
-                  value={formData.firstName}
-                  onChange={(e) => handleInputChange('firstName', e.target.value)}
-                  onBlur={() => handleBlur('firstName')}
-                  width='100%'
-                />
-                {errors.firstName && (
-                  <p className="text-red-500 text-sm">{errors.firstName}</p>
-                )}
-              </div>
+    <div className="relative flex justify-center items-start min-h-screen mt-[5%]">
+      <div className="flex flex-col items-center pt-10 px-5 w-full sm:pt-10 xl:pt-[10%] 2xl:pt-[5%] 3xl:pt-[3%]">
+        <FormContainer tag="form" onSubmit={handleSubmit} bgColor="gradient">
+          {/* First Name */}
+          <h2 className="text-2xl font-bold text-center text-gray-800">Skaffa <span className="font-bold text-darkLimeGreen underline">eBudget</span> användare!</h2>
+          <div className="flex-1">
+            <InputField
+              placeholder="Förnamn"
+              value={formData.firstName}
+              onChange={(e) => handleInputChange('firstName', e.target.value)}
+              onBlur={() => handleBlur('firstName')}
+              width='100%'
+            />
+            {errors.firstName && (
+              <p className="text-red-500 text-sm">{errors.firstName}</p>
+            )}
+          </div>
 
-              {/* Last Name */}
-              <div className="flex-1">
-                <InputField
-                  placeholder="Efternamn"
-                  value={formData.lastName}
-                  onChange={(e) => handleInputChange('lastName', e.target.value)}
-                  onBlur={() => handleBlur('lastName')}
-                  width='100%'
-                />
-                {errors.lastName && (
-                  <p className="text-red-500 text-sm">{errors.lastName}</p>
-                )}
-              </div>
+          {/* Last Name */}
+          <div className="flex-1">
+            <InputField
+              placeholder="Efternamn"
+              value={formData.lastName}
+              onChange={(e) => handleInputChange('lastName', e.target.value)}
+              onBlur={() => handleBlur('lastName')}
+              width='100%'
+            />
+            {errors.lastName && (
+              <p className="text-red-500 text-sm">{errors.lastName}</p>
+            )}
+          </div>
 
-              {/* Email */}
-              <div className="flex-1">
-              <InputField
-                  type="email"
-                  placeholder="E-post"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
-                  onBlur={() => handleBlur('email')}
-                  width='100%'                            
-                />
-                {errors.email && (
-                  <p className="text-red-500 text-sm">{errors.email}</p>
-                )}
-              </div>
+          {/* Email */}
+          <div className="flex-1">
+            <InputField
+              type="email"
+              placeholder="E-post"
+              value={formData.email}
+              onChange={(e) => handleInputChange('email', e.target.value)}
+              onBlur={() => handleBlur('email')}
+              width='100%'                            
+            />
+            {errors.email && (
+              <p className="text-red-500 text-sm">{errors.email}</p>
+            )}
+          </div>
 
-              {/* Repeat Email */}
-              <div className="flex-1">
-              <InputField
-                  type="email"
-                  placeholder="upprepa E-post"
-                  value={formData.repeatEmail}
-                  onChange={(e) => handleInputChange('repeatEmail', e.target.value)}
-                  onBlur={() => handleBlur('repeatEmail')}
-                  width='100%'              
-                />
-                {errors.repeatEmail && (
-                  <p className="text-red-500 text-sm">{errors.repeatEmail}</p>
-                )}
-              </div>
+          {/* Repeat Email */}
+          <div className="flex-1">
+            <InputField
+              type="email"
+              placeholder="upprepa E-post"
+              value={formData.repeatEmail}
+              onChange={(e) => handleInputChange('repeatEmail', e.target.value)}
+              onBlur={() => handleBlur('repeatEmail')}
+              width='100%'              
+            />
+            {errors.repeatEmail && (
+              <p className="text-red-500 text-sm">{errors.repeatEmail}</p>
+            )}
+          </div>
 
-              {/* Password */}
-              <div className="flex-1">
-              <InputField
-                  type="password"
-                  placeholder="Lösenord"
-                  value={formData.password}
-                  onChange={(e) => handleInputChange('password', e.target.value)}
-                  onBlur={() => handleBlur('password')}
-                  width='100%'
-                />
-                {errors.password && (
-                  <p className="text-red-500 text-sm">{errors.password}</p>
-                )}
-              </div>
+          {/* Password */}
+          <div className="flex-1">
+            <InputField
+              type="password"
+              placeholder="Lösenord"
+              value={formData.password}
+              onChange={(e) => handleInputChange('password', e.target.value)}
+              onBlur={() => handleBlur('password')}
+              width='100%'
+            />
+            {errors.password && (
+              <p className="text-red-500 text-sm">{errors.password}</p>
+            )}
+          </div>
 
-              {/* Repeat Password */}
-              <div className="flex-1">
-              <InputField
-                  type="password"
-                  placeholder="Upprepa Lösenord"
-                  value={formData.repeatPassword}
-                  onChange={(e) => handleInputChange('repeatPassword', e.target.value)}
-                  onBlur={() => handleBlur('repeatPassword')}
-                  width='100%'
-                />
-                {errors.repeatPassword && (
-                  <p className="text-red-500 text-sm">{errors.repeatPassword}</p>
-                )}
-              </div>
-              <div className="hidden">
-                <label htmlFor="honeypot" className="sr-only">
-                    Leave this field blank
-                </label>
-                <input
-                    id="honeypot"
-                    type="text"
-                    name="honeypot"
-                    value={formData.honeypot || ''}
-                    onChange={(e) =>
-                        setFormData((prevData) => ({
-                            ...prevData,
-                            honeypot: e.target.value,
-                        }))
-                    }
-                    aria-hidden="true"
-                    tabIndex={-1}
-                    className="hidden"
-                />
-              </div>              
-              {/* Submit Button and ReCAPTCHA */}
-              <div className="flex space-x-4">
-                <div className="flex-1 flex justify-center">
-                  <SubmitButton
-                    isSubmitting={isSubmitting}
-                    label="Skicka"
-                    type="submit"
-                    enhanceOnHover
-                    style={{ width: '100%' }}
-                  />
-                </div>
-                <div className="flex-1 flex flex-col items-center">
-                  <div style={{ transform: 'scale(0.9)', transformOrigin: 'center', width: '100%' }}>
-                    <ReCAPTCHA
-                      sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
-                      onChange={handleCaptchaChange}
-                      ref={captchaRef}
-                    />
-                  </div>
-                  {errors.captchaToken && (
-                    <p className="text-red-500 text-sm">{errors.captchaToken}</p>
-                  )}
-                </div>
-              </div>
-            {/* Display form-level error message */}
+          {/* Repeat Password */}
+          <div className="flex-1">
+            <InputField
+              type="password"
+              placeholder="Upprepa Lösenord"
+              value={formData.repeatPassword}
+              onChange={(e) => handleInputChange('repeatPassword', e.target.value)}
+              onBlur={() => handleBlur('repeatPassword')}
+              width='100%'
+            />
+            {errors.repeatPassword && (
+              <p className="text-red-500 text-sm">{errors.repeatPassword}</p>
+            )}
+          </div>
+          <div className="hidden">
+            <label htmlFor="honeypot" className="sr-only">
+                Leave this field blank
+            </label>
+            <input
+              id="honeypot"
+              type="text"
+              name="honeypot"
+              value={formData.honeypot || ''}
+              onChange={(e) =>
+                  setFormData((prevData) => ({
+                      ...prevData,
+                      honeypot: e.target.value,
+                  }))
+              }
+              aria-hidden="true"
+              tabIndex={-1}
+              className="hidden"
+            />
+          </div>              
+          {/* Submit Button and ReCAPTCHA */}
+          <div className="flex flex-col sm:flex-row sm:space-x-4 items-center">
+            <div className="mt-4 sm:mt-0 flex justify-center w-full sm:w-auto">
+              <SubmitButton
+                isSubmitting={isSubmitting}
+                label="Skicka"
+                type="submit"
+                enhanceOnHover
+                style={{ width: '100%' }}
+              />
+            </div>
+            {/* ReCAPTCHA */}
+            <div
+              className="mt-4 sm:mt-0 flex justify-center w-full sm:w-auto"
+              style={{
+                transform: 'scale(0.9)',
+                transformOrigin: 'center',
+                height: '78px', // Typical height of the ReCAPTCHA widget when scaled
+                overflow: 'hidden',
+              }}
+              >
+              <ReCAPTCHA
+                sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+                onChange={handleCaptchaChange}
+                ref={captchaRef}
+              />
+            </div>
+          </div>
+          {/* Display form-level error message */}
             {errors.form && (
               <p className="text-red-500 text-xl text-center mb-4">{errors.form}</p>
             )}
-            </FormContainer>
-        </div>
+          {errors.captchaToken && (
+            <p className="text-red-500 text-sm">{errors.captchaToken}</p>
+          )}
+        </FormContainer>
+        {/* Bird Image */}
+        <img 
+          src={regbird} 
+          alt="regbird" 
+          className="z-0 w-auto max-w-[320px]
+
+          xl:absolute xl:right-[10%] xl:top-1/2 xl:transform xl:-translate-y-1/2
+          2xl:absolute 2xl:right-[15%] 2xl:top-1/2 2xl:transform 2xl:-translate-y-1/2
+          3xl:absolute 3xl:right-[30%] 3xl:top-1/2 3xl:transform 3xl:-translate-y-1/2
+          "
+        />   
       </div>
+    </div>
     </>
   );
 };
 
 export default Registration;
+
+
+

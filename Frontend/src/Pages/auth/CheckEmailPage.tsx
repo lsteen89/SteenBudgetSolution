@@ -70,17 +70,19 @@ const WelcomePage: React.FC = () => {
                 w-auto max-w-[320px] z-10
                 hidden lg:block /* Visible for large screens */
                 absolute right-[3%] top-[50%] transform translate-y-[-50%]
+                2xl:right-[250px] 2xl:top-[50%] 2xl:max-w-[400px]
+                3xl:right-[1000px] 3xl:top-[50%] 3xl:max-w-[400px]
                 "
             />            
             <DeepBlueContainer 
-            maxWidth="max-w-lg" 
             additionalClasses="
                 relative shadow-[0_5px_15px_rgba(133,224,133,0.2)] 
                 hover:shadow-[0_10px_140px_rgba(133,224,133,0.4)] 
                 hover:scale-105 transition-all duration-300 ease-in-out pt-30 pb-6 z-10
+                max-w-lg
                 "
             >
-            <div className="text-center p-5 space-y-4">
+            <div className="text-center p-5 space-y-4 text-white">
                 <p className="text-center text-xl font-semibold mb-6">Välkommen till <span className="text-limeGreen">eBudget</span></p>
                 <div>
                     {/* Welcome Message */}

@@ -9,6 +9,9 @@ import { validateField } from '@utils/validation/fieldValidator';
 import { sendEmail } from '@api/Services/Mail/sendEmail';
 import MailBird from '@assets/Images/ContactUsBird.png';
 import FormContainer from '@components/molecules/containers/FormContainer';
+import PageContainer from '@components/Layout/PageContainer';
+import ContentWrapper from '@components/Layout/ContentWrapper';
+
 
 /* Toast */
 import { ToastContainer, toast, ToastContentProps } from 'react-toastify';
@@ -180,12 +183,9 @@ const ContactUs: React.FC = () => {
         pauseOnHover={false}
         style={{ zIndex: 9999 }}
       />      
-        <div className="relative flex justify-center items-start min-h-screen">
-
-          <div
-            className="flex flex-col items-center pt-20 px-5 w-full sm:pt-40 1920:pt-50 3xl:pt-60"
-          >
-          <FormContainer tag="form" className='z-10' onSubmit={handleSubmit}>
+      <PageContainer>
+        <ContentWrapper>
+          <FormContainer tag="form" className='z-10' onSubmit={handleSubmit} bgColor="gradient">
             <p className="font-bold text-lg text-gray-700 text-center leading-relaxed ">
               Vi välkomnar din feedback och eventuella frågor! <br />
               Du kan kontakta oss genom att fylla i formuläret nedanför
@@ -311,15 +311,24 @@ const ContactUs: React.FC = () => {
                 />
               </div>
             </div>
-          </FormContainer>
-          {/* Bird Image */}
-          <img
-            src={MailBird}
-            alt="Mail Bird"
-            className="z-0 w-auto max-w-[320px] mt-10 sm:absolute sm:left-[3%] sm:top-[45%] sm:transform sm:translate-y-[10%] sm:max-w-[320px] 1920:left-[250px] 1920:top-[35%] 1920:max-w-[400px] 3xl:left-[1000px] 3xl:top-[35%] 3xl:max-w-[400px]"
-          />
-        </div>
-      </div>
+
+        </FormContainer>
+          
+        {/* Bird Image */}
+        <img
+          src={MailBird}
+          alt="Mail Bird"
+          className="z-0 w-auto max-w-[320px] mt-10 
+          sm:relative 
+          md:relative
+          lg:relative
+          xl:absolute xl:left-[5%] xl:top-1/2 xl:transform xl:-translate-y-1/2
+          2xl:absolute 2xl:left-[15%] 2xl:top-1/2 2xl:transform 2xl:-translate-y-1/2
+          3xl:absolute 3xl:left-[30%] 3xl:top-1/2 3xl:transform 3xl:-translate-y-1/2
+          "
+        />
+      </ContentWrapper>
+    </PageContainer>
     </>
   );
 };

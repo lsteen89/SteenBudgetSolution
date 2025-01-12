@@ -20,7 +20,7 @@ import MobileMenu from './components/organisms/Menu/MobileMenu';
 
 
 function App() {
-  const isMobileOrTabletPortrait = useMediaQuery('(max-width: 810px)'); // Check if the screen width is 810px or smaller
+  const isMobileOrTabletPortrait = useMediaQuery('(max-width: 1366px)'); // Check if the screen width is 810px or smaller
   const isDebugMode = process.env.NODE_ENV === 'development';
 
   return (

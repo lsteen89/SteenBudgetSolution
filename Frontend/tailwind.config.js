@@ -6,13 +6,13 @@ module.exports = {
   theme: {
     extend: {
 		screens: {
-		  md: '768px', // Tablets
-		  lg: '1024px', // Small desktops
-		  xl: { raw: '(min-width: 1280px) and (max-width: 1919px)' }, // Large screens, excluding 1920px
+		  sm: '640px',   // small phones & portrait screens
+		  md: '768px',   // tablets
+		  lg: '1024px',  // small laptops
+		  xl: '1280px',  // desktops
+		  '2xl': '1536px', // larger desktops
 		  '3xl': { raw: '(min-width: 1921px)' }, // Screens wider than 1920px
-		  'iphone-se': { raw: '(width: 375px) and (height: 667px)' }, // iPhone SE (2nd gen)
-		  'ipad': { raw: '(width: 810px) and (height: 1080px)' }, // iPad in portrait mode
-		  '1920': { raw: '(width: 1920px) and (height: 1080px)' }, // Full HD resolution
+		  'ipadPro': { raw: '(width: 1024) and (height: 1366px)' },
 		},
       fontFamily: {
         inter: [ 'Inter', 'Roboto', 'Montserrat', 'sans-serif'], // Fallback order
@@ -39,6 +39,9 @@ module.exports = {
       },
       backgroundImage: {
         'form-gradient': 'linear-gradient(to bottom, #f3f4f6, #e5e7eb)', // Slight gradient background for forms
+      },
+      padding: {
+        safe: 'env(safe-area-inset-bottom)',
       },
     },
   },
