@@ -54,3 +54,27 @@ body {
 .parallax {
   transform: translateZ(-1px) scale(1.5);
 }
+@media (width: 1920px) and (height: 1080px) {
+  .1920\:bg-blue-500 {
+    background-color: #0000ff; /* blue */
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  animation: fadeIn 1s ease-out;
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-10px); }
+  60% { transform: translateY(-5px); }
+}
+
+.bounce {
+  animation: bounce 2s infinite;
+}

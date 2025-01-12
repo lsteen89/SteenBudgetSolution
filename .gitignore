@@ -370,4 +370,5 @@ BACKUP_steenbudget.conf
 references/
 Frontend/.env.test
 Frontend/dist/
+Frontend/src/assets/Images/Originals
 

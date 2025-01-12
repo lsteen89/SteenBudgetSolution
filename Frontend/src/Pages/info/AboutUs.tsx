@@ -13,10 +13,10 @@ const AboutUs: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col items-center gap-5 py-[10px] sm:py-[225px]">
+    <div className="flex flex-col items-center gap-5 py-[10px] sm:py-[225px] min-h-screen pb-safe">
 
       {/* Cards Section */}
-      <div className="hidden sm:flex flex-row items-center gap-5">
+      <div className="hidden sm:flex flex-row flex-wrap items-center gap-5 md:justify-center">
         <GlossyFlipCard
           frontText="Vad gör vi?"
           backText={
@@ -47,7 +47,7 @@ const AboutUs: React.FC = () => {
 
       {/* Main Page Text Container */}
       <div className="w-full max-w-4xl px-6 pt-8">
-        <DeepBlueContainer maxWidth="100%">
+        <DeepBlueContainer additionalClasses="p-5">
           <div className="text-center p-5 space-y-4">
             {/* Header */}
             <p className="text-3xl font-extrabold text-white">
@@ -66,7 +66,7 @@ const AboutUs: React.FC = () => {
               Börja idag och bli en del av vår växande gemenskap.
             </p>
             {/* Final CTA */}
-            <p className="text-lg font-bold">
+            <p className="text-lg font-bold text-white">
               Registrera dig nu och börja din resa med <span className="text-limeGreen">eBudget</span> idag!
             </p>
           </div>
@@ -92,6 +92,7 @@ const AboutUs: React.FC = () => {
             />
           </div>
         </div>
+
       </div>
     </div>
   );

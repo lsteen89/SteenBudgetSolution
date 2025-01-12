@@ -3,37 +3,73 @@ import { useNavigate } from 'react-router-dom'; // Import useNavigate
 import SubmitButton from '@components/atoms/buttons/SubmitButton';
 import MainPageBird from '@assets/Images/MainPageBird.png';
 import useDisableScroll from '@hooks/useDisableScroll';
+import { BookOpenIcon, ChartBarIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
+import { Link } from 'react-router-dom'; 
+import PageContainer from '@components/layout/PageContainer';
+import ContentWrapper from '@components/layout/ContentWrapper';
 
 const MobileHomePage: React.FC = () => {
   const navigate = useNavigate(); // Initialize navigate function
   return (
-    <div className="flex flex-col items-center justify-center  py-[10%]">
-    {/* Hero Text */}
-    <div className="w-[95%] sm:w-[90%] text-center p-8 sm:p-10 bg-[#001F3F] rounded-lg shadow-lg">
-    <p className="text-white text-xl sm:text-2xl tracking-wide leading-relaxed">
-        Ta kontroll över din ekonomi med <br /><br />
-        <span className="font-bold text-limeGreen underline">eBudget</span>
-        <br /><br />
-        Skapa trygghet för framtiden!
-    </p>
-    </div>
+    <PageContainer>
+      <ContentWrapper className='pt-[0%] '>
+        {/* Hero Text */}
+        <div className="w-[95%] sm:w-[90%] text-center p-8 sm:p-10 rounded-lg shadow-lg bg-gradient-to-r from-[#001F3F] to-[#004080]">
+          <div className="fade-in text-white text-xl sm:text-2xl tracking-wide leading-relaxed">
+            Ta kontroll över din ekonomi med <br />
+            <span className="font-bold text-limeGreen underline">eBudget</span>
+            <br />
+            Skapa trygghet för framtiden!
+          </div>
+          <div className="pt-14 flex flex-col space-y-8 items-center">
+            <div className="relative group flex flex-col items-center">
+              <BookOpenIcon className="h-10 w-10 text-limeGreen transition-transform transform group-hover:scale-110 group-hover:shadow-lg" />
+              <p className="text-white mt-2 text-center">Enkel planering</p>
+              {/* Tooltip */}
+              <div className="absolute bottom-14 hidden group-hover:block bg-black text-white text-xs p-2 rounded shadow-lg">
+                Planera din budget enkelt och snabbt! Läs mer under<Link to="/" className="underline text-limeGreen"> Hjälp </Link>
+              </div>
+            </div>
+            <div className="relative group flex flex-col items-center">
+              <ChartBarIcon className="h-10 w-10 text-limeGreen transition-transform transform group-hover:scale-110 group-hover:shadow-lg" />
+              <p className="text-white mt-2 text-center">Enkel visualisering av sparandet</p>
+                {/* Tooltip */}
+              <div className="absolute bottom-14 hidden group-hover:block bg-black text-white text-xs p-2 rounded shadow-lg">
+                Få tydlig insikt i dina utgifter och sparande med enkel visualisering och diagram! Inga konstigheter!
+              </div>
+           </div>
+            <div className="relative group flex flex-col items-center">
+              <ShieldCheckIcon className="h-10 w-10 text-limeGreen transition-transform transform group-hover:scale-110 group-hover:shadow-lg" />
+              <p className="text-white mt-2 text-center">ALLTID säkerhet först</p>
+                {/* Tooltip */}
+              <div className="absolute bottom-14 hidden group-hover:block bg-black text-white text-xs p-2 rounded shadow-lg">
+                Dina data är skyddad med högsta säkerhet! Läs mer under <Link to="/" className="underline text-limeGreen"> Integritetspolicy </Link>
+              </div>
+            </div>
+          </div>
+        </div>
 
       {/* Image */}
-      <div className="mt-6">
-        <img src={MainPageBird} alt="Main Page Bird" className="w-60 h-auto" />
+      <div className="left-[50%]">
+      <img src={MainPageBird} 
+        alt="Main Page Bird" 
+        className="w-60 h-auto border-limeGreen auto bounce 
+        " 
+      />
       </div>
-
       {/* CTA Button */}
-      <div className="mt-6">
-        <SubmitButton
-          isSubmitting={false}
-          label="Skaffa eBudget!"
-          size="large"
-          enhanceOnHover
-          onClick={() => navigate('/Registration')} // Use navigate correctly
-        />
+      <div className=" mt-6 animate-pulse">
+      <SubmitButton
+        isSubmitting={false}
+        label="Skaffa eBudget!"
+        size="large"
+        enhanceOnHover
+        className=""
+        onClick={() => navigate('/Registration')} 
+      />
       </div>
-    </div>
+      </ContentWrapper>
+    </PageContainer>
   );
 };
 

@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import faqBird from '@assets/Images/FaqBird.png';
 import { ChevronDownIcon, ChartBarIcon, LockClosedIcon, QuestionMarkCircleIcon, BellIcon, KeyIcon, UsersIcon, SparklesIcon, ArrowDownTrayIcon, AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
 import SubmitButton from '@components/atoms/buttons/SubmitButton'; 
-
+import PageContainer from '@components/layout/PageContainer';
+import ContentWrapper from '@components/layout/ContentWrapper';
 
 const Faq: React.FC = () => {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
@@ -66,15 +67,14 @@ const Faq: React.FC = () => {
   ];
 
   return (
-    <div className="relative flex flex-col justify-center items-center min-h-screen">
-      {/* FAQ Box */}
-      <div className="relative flex flex-col justify-center items-center min-h-screen py-[100px] sm:py-[200px]">
+    <PageContainer>
+      <ContentWrapper className='2xl:pt-[5%]'>
+        {/* FAQ Box */}
         <div className="max-w-4xl w-full bg-white p-10 rounded-lg shadow-lg border-t-8 border-limeGreen z-10">
           {/* Title */}
           <h1 className="text-3xl font-extrabold text-center text-gray-800 mb-6">
             Vanliga frågor
           </h1>
-  
           {/* Accordion Section */}
           <div className="space-y-4">
             {questions.map((item, index) => (
@@ -103,7 +103,7 @@ const Faq: React.FC = () => {
                 )}
               </div>
             ))}
-  
+
             {/* Contact Section */}
             <div className="mt-10 bg-blue-50 p-6 rounded-lg text-center">
               <p className="text-lg font-bold text-blue-600">
@@ -121,15 +121,21 @@ const Faq: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
-  
-      {/* Bird Image */}
-      <img
-        src={faqBird}
-        alt="faqBird"
-        className=" hidden sm:block mt-10 w-auto max-w-[320px] sm:absolute sm:right-[3%] sm:top-[45%] sm:transform sm:translate-y-[10%] sm:max-w-[320px] 1920:right-[250px] 1920:top-[35%] 1920:max-w-[400px] 3xl:right-[1000px] 3xl:top-[35%] 3xl:max-w-[400px]"
-      />
-    </div>
+        {/* Bird Image */}
+        <img
+          src={faqBird}
+          alt="faqBird"
+          className="z-0 w-auto max-w-[320px] mt-10 
+          sm:relative 
+          md:relative
+          lg:relative
+          xl:relative
+          2xl:absolute 2xl:right-[5%] 2xl:top-1/2 2xl:transform 2xl:-translate-y-1/2
+          3xl:absolute 3xl:right-[25%] 3xl:top-1/2 3xl:transform 3xl:-translate-y-1/2
+          " 
+        />
+      </ContentWrapper>
+    </PageContainer>
   );  
 };
 
