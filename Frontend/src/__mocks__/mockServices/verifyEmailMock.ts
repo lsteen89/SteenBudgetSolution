@@ -1,8 +1,11 @@
-export const mockVerifyEmail = async (token: string) => {
-    console.log(`Mock verification called with token: ${token}`);
-    if (token === 'debug-token-123') {
-      return Promise.resolve();
-    } else {
-      throw new Error('Invalid token provided for debug.');
-    }
-  };
+export const mockVerifyEmail = async (token: string): Promise<void> => {
+  console.log(`Mock verifying email with token: ${token}`);
+  
+  if (token === 'debug-token-123') {
+    // Simulate successful verification
+    return Promise.resolve();
+  } else {
+    // Simulate an error
+    throw new Error('Invalid token provided for debug.');
+  }
+};

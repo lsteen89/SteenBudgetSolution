@@ -12,7 +12,7 @@ const DeepBlueContainer: React.FC<DeepBlueContainerProps> = ({
   return (
     <div
       className={`
-        bg-[#001F3F] bg-[url('../../assets/Images/MainPageRect.png')] bg-cover bg-center 
+        bg-[#001F3F] bg-[url('../../assets/Components/Shapes/MainPageRect.png')] bg-cover bg-center 
         overflow-hidden shadow-md rounded-lg 
         ${additionalClasses}
       `}

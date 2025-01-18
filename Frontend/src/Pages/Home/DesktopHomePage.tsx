@@ -6,6 +6,7 @@ import useDisableScroll from '@hooks/useDisableScroll';
 import { BookOpenIcon, ChartBarIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 import { Link } from 'react-router-dom'; 
 import DeepBlueContainer from '@components/molecules/containers/DeepBlueContainer';
+import '@styles/animations.css';
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
@@ -54,7 +55,7 @@ const HomePage: React.FC = () => {
           </div>
         </div>
         </DeepBlueContainer>
-
+        
         {/* Right-Side Container */}
         <div className="flex flex-col justify-center space-y-8 h-full         
             lg:mt-[5%]
@@ -69,7 +70,7 @@ const HomePage: React.FC = () => {
           <img
             src={MainPageBird}
             alt="Main Page Bird"
-            className="max-w-full h-auto animate-float hover:animate-flap"
+            className="max-w-full h-auto img-float hover:animate-img-flap"
           />
 
         </div>

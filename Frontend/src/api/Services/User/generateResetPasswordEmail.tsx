@@ -29,7 +29,7 @@ export const generateResetPasswordEmail = async (
 
     try {
         const response = await axios.post<GenerateResetPasswordEmailResponse>(
-            '/api/Auth/generate-reset-password-email',
+            '/api/UserManagement/generate-reset-password-email',
             { email }
         );
         return {

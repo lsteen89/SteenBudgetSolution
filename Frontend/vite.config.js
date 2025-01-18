@@ -51,6 +51,9 @@ export default defineConfig({
       '@api': path.resolve(__dirname, './src/api'),
       '@types': path.resolve(__dirname, './src/types'),
       '@mocks': path.resolve(__dirname, './src/__mocks__'),
+	  '@context': path.resolve(__dirname, './src/context'),
+	  '@routes': path.resolve(__dirname, './src/routes'),
+	  '@styles': path.resolve(__dirname, './src/styles'),
     },
   },
 });

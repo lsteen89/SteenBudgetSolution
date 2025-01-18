@@ -26,7 +26,7 @@ export const resetPasswordWithToken = async (
 
   try {
     const response = await axios.post<ResetPasswordResponse>(
-      "/api/Auth/reset-password-with-token",
+      "/api/UserManagement/reset-password-with-token",
       { token, password: newPassword, confirmPassword: newPassword }
     );
 

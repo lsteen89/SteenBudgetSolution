@@ -1,0 +1,43 @@
+/* slidemenu.css */
+
+/* 
+   'slide-enter': immediate state when 'isOpen' goes false->true
+   We move from offscreen-left, but remain vertically centered at -50% 
+*/
+/* Initial hidden state for the menu */
+.slide-enter {
+  transform: translateX(-80%);
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+.slide-enter-active {
+  transform: translateX(0);
+  opacity: 1;
+  transition: transform 1000ms cubic-bezier(0.22, 1, 0.36, 1), opacity 800ms ease-in-out;
+}
+
+/* Initial state for closing */
+.slide-exit {
+  transform: translateX(0);    /* Fully in view */
+  opacity: 1;                  /* Fully visible */
+  will-change: transform, opacity;
+}
+
+/* Active closing state (exiting) */
+.slide-exit-active {
+  transform: translateX(-120%); /* Move back off-screen */
+  opacity: 0;                   /* Fade out */
+  transition:
+    transform 1000ms cubic-bezier(0.25, 1, 0.5, 1),
+    opacity 800ms ease-in-out;
+}
+
+
+
+@media (prefers-reduced-motion: reduce) {
+  .slide-enter-active,
+  .slide-exit-active {
+    transition: none;
+  }
+}

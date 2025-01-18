@@ -2,11 +2,9 @@
 using Backend.Application.Interfaces.RecaptchaService;
 using Backend.Application.Interfaces.UserServices;
 using Backend.Infrastructure.Helpers;
-using Microsoft.AspNetCore.Identity.Data;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using Backend.Application.DTO;
-using Backend.Infrastructure.Interfaces;
 
 namespace Backend.Presentation.Controllers
 {
@@ -19,15 +17,17 @@ namespace Backend.Presentation.Controllers
         private readonly IUserAuthenticationService _userAuthenticationService;
         private readonly ILogger<RegistrationController> _logger;
         private readonly IRecaptchaService _recaptchaService;
+        private readonly IUserManagementService _userManagementService;
         private readonly LogHelper _logHelper;
 
-        public AuthController(IUserServices userServices, IUserTokenService userTokenService, IUserAuthenticationService userAuthenticationService, ILogger<RegistrationController> logger, IRecaptchaService recaptchaService, LogHelper logHelper)
+        public AuthController(IUserServices userServices, IUserTokenService userTokenService, IUserAuthenticationService userAuthenticationService, ILogger<RegistrationController> logger, IRecaptchaService recaptchaService, IUserManagementService userManagementService, LogHelper logHelper)
         {
             _userServices = userServices;
             _userTokenService = userTokenService;
             _userAuthenticationService = userAuthenticationService;
             _logger = logger;
             _recaptchaService = recaptchaService;
+            _userManagementService = userManagementService;
             _logHelper = logHelper;
         }
 
@@ -74,34 +74,20 @@ namespace Backend.Presentation.Controllers
             return Ok(new { success = result.Success, message = result.Message });
 
         }
-        [HttpPost("generate-reset-password-email")]
-        [EnableRateLimiting("EmailSendingPolicy")]
-        public async Task<IActionResult> ResetPassword([FromBody] Backend.Application.DTO.ResetPasswordRequest request)
+        [Authorize]
+        [HttpGet("status")]
+        public IActionResult CheckAuthStatus()
         {
-            var emailSent = await _userAuthenticationService.SendResetPasswordEmailAsync(request.Email);
+            var response = _userManagementService.CheckAuthStatus(User);
 
-            if (emailSent)
+            if (response.Authenticated)
             {
-                return Ok(new { message = "Om den angivna e-postadressen är registrerad har ett återställningsmail skickats." });
+                return Ok(response);
             }
 
-            return StatusCode(500, new { message = "Ett fel inträffade, vänligen försök igen eller kontakta support!" });
+            return Unauthorized(response);
         }
 
-        [HttpPost("reset-password-with-token")]
-        public async Task<IActionResult> ResetPassword([FromBody] ResetPassword request)
-        {
-            var result = await _userAuthenticationService.UpdatePasswordAsync(request.Token, request.Password);
-
-            if (result.Success)
-            {
-                return Ok(new { message = result.Message });
-            }
-            else
-            {
-                return StatusCode(result.StatusCode ?? 400, new { message = result.Message });
-            }
-        }
     }
 
 }

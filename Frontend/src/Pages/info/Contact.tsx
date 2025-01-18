@@ -183,9 +183,23 @@ const ContactUs: React.FC = () => {
         pauseOnHover={false}
         style={{ zIndex: 9999 }}
       />      
-      <PageContainer>
-        <ContentWrapper>
-          <FormContainer tag="form" className='z-10' onSubmit={handleSubmit} bgColor="gradient">
+      <PageContainer centerChildren={true} >
+        <ContentWrapper className='
+          py-10
+          lg:pt-[10%]
+          xl:pt-[5%]
+          '
+          centerContent={true}
+        >
+          <FormContainer tag="form" 
+            className='
+            z-10
+            ' 
+            onSubmit={handleSubmit} 
+            bgColor="gradient"
+            
+          >
+
             <p className="font-bold text-lg text-gray-700 text-center leading-relaxed ">
               Vi välkomnar din feedback och eventuella frågor! <br />
               Du kan kontakta oss genom att fylla i formuläret nedanför
@@ -323,7 +337,7 @@ const ContactUs: React.FC = () => {
           md:relative
           lg:relative
           xl:absolute xl:left-[5%] xl:top-1/2 xl:transform xl:-translate-y-1/2
-          2xl:absolute 2xl:left-[15%] 2xl:top-1/2 2xl:transform 2xl:-translate-y-1/2
+          2xl:absolute 2xl:left-[5%] 2xl:top-1/2 2xl:transform 2xl:-translate-y-1/2
           3xl:absolute 3xl:left-[30%] 3xl:top-1/2 3xl:transform 3xl:-translate-y-1/2
           "
         />

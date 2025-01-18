@@ -1,6 +1,9 @@
+// Menu component that uses the CloudMenu_1440.svg file as a React component
+// This is the main menu that appears at the top of the page
+
 /// <reference types="vite-plugin-svgr/client" />
 import React from 'react';
-import CloudMenu from '@assets/Images/CloudMenu_1440.svg?react';
+import CloudMenu from '@assets/Components/Menu/CloudMenu_1440.svg?react';
 
 const MenuComponent: React.FC = () => {
   return (

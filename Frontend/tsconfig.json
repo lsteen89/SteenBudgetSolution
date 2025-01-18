@@ -27,7 +27,10 @@
       "@hooks/*": ["hooks/*"],
 	  "@api/*": ["api/*"],
 	  "@types/*": ["types/*"],
-	  "@mocks/*": ["__mocks__/*"],	  
+	  "@mocks/*": ["__mocks__/*"],
+	  "@context/*": ["context/*"],	  
+	  "@routes/*": ["routes/*"],		  
+	  "@styles/*": ["styles/*"],		
     }
   },
   "include": ["src/**/*"]

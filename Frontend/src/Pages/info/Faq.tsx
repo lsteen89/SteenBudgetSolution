@@ -67,10 +67,11 @@ const Faq: React.FC = () => {
   ];
 
   return (
-    <PageContainer>
-      <ContentWrapper className='2xl:pt-[5%]'>
+    <PageContainer centerChildren={true}> 
+       <div className="flex flex-col md:flex-row items-center justify-center w-full"></div>
+      <ContentWrapper className='xl:pt-[15%] 2xl:pt-[10%] 3xl:pt-[0%]'>
         {/* FAQ Box */}
-        <div className="max-w-4xl w-full bg-white p-10 rounded-lg shadow-lg border-t-8 border-limeGreen z-10">
+        <div className="max-w-4xl w-full bg-pastelGreen p-10 rounded-lg shadow-md border-t-8 border-limeGreen z-10">
           {/* Title */}
           <h1 className="text-3xl font-extrabold text-center text-gray-800 mb-6">
             Vanliga frågor
@@ -80,10 +81,12 @@ const Faq: React.FC = () => {
             {questions.map((item, index) => (
               <div
                 key={index}
-                className="border rounded-lg shadow-sm hover:shadow-md transition-shadow"
+                className={`border rounded-lg shadow-sm hover:shadow-md transition-shadow ${
+                  activeIndex === index ? 'border-l-4 border-limeGreen' : 'border-gray-200'
+                }`}
               >
                 <button
-                  className="flex justify-between items-center w-full text-left px-4 py-3 font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 focus:outline-none"
+                  className="flex justify-between items-center w-full text-left px-4 py-3 font-semibold text-gray-700 bg-gray-150 hover:bg-gray-200 focus:outline-none"
                   onClick={() => toggleAccordion(index)}
                 >
                   <div className="flex items-center gap-3">
@@ -105,12 +108,11 @@ const Faq: React.FC = () => {
             ))}
 
             {/* Contact Section */}
-            <div className="mt-10 bg-blue-50 p-6 rounded-lg text-center">
-              <p className="text-lg font-bold text-blue-600">
+            <div className="mt-10 bg-pastelGreen p-6 rounded-lg text-center shadow-md">
+              <p className="text-lg font-bold text-blue-800">
                 Har du fler frågor? Kontakta oss för att få svar!
-                <br />
-                <br />
               </p>
+              <br />
               <SubmitButton
                 isSubmitting={false}
                 label="Kontakta oss"
@@ -121,20 +123,25 @@ const Faq: React.FC = () => {
             </div>
           </div>
         </div>
+
+      </ContentWrapper>
         {/* Bird Image */}
         <img
           src={faqBird}
-          alt="faqBird"
-          className="z-0 w-auto max-w-[320px] mt-10 
-          sm:relative 
-          md:relative
-          lg:relative
-          xl:relative
-          2xl:absolute 2xl:right-[5%] 2xl:top-1/2 2xl:transform 2xl:-translate-y-1/2
-          3xl:absolute 3xl:right-[25%] 3xl:top-1/2 3xl:transform 3xl:-translate-y-1/2
+          alt="Illustration representing the FAQ section"
+          className="
+            z-0 
+            w-auto 
+            max-w-[180px] 
+            mt-10 
+            mx-auto 
+            lg:absolute lg:right-10 lg:top-3/4 lg:transform lg:-translate-y-1/2 lg:mt-0
+            3xl:absolute 3xl:right-[30%] 3xl:top-2/4 
+            lg:max-w-[200px] 
+            xl:max-w-[250px]
           " 
+          loading="lazy" // Optional: Enables lazy loading
         />
-      </ContentWrapper>
     </PageContainer>
   );  
 };
