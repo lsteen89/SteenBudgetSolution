@@ -16,7 +16,7 @@ const HomePageTextContainer: React.FC = () => {
     min-h-[30vh] h-[calc(100vh-20vh)] w-[10vw]
     p-10 pt-12
     hd:p-5
-    bg-[url('../../assets/Images/MainPageRect.svg')] bg-cover bg-center
+    bg-[url('../../assets/Components/Shapes/MainPageRect.svg')] bg-cover bg-center
     overflow-hidden shadow-md rounded-md
     z-10
   "

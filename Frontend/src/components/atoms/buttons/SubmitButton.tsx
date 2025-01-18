@@ -98,7 +98,7 @@ const SubmitButton: React.FC<SubmitButtonProps> = ({
       disabled={isSubmitting}
       onClick={onClick}
       style={style}
-      className={`inline-flex items-center justify-center font-bold bg-[#98FF98] 
+      className={`inline-flex items-center justify-center font-bold bg-limeGreen
       rounded-[20px] shadow-md transition-all ease-out duration-300 border-none
       ${sizeClasses[size]} 
       ${
@@ -106,7 +106,7 @@ const SubmitButton: React.FC<SubmitButtonProps> = ({
           ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
           : enhanceOnHover
           ? 'hover:bg-[#001F3F] hover:text-white hover:scale-110'
-          : 'hover:bg-[#85e085]'
+          : 'hover:bg-[limeGreen]'
       }`}
     >
       {isSubmitting ? (

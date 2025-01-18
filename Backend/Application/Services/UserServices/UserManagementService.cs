@@ -1,6 +1,8 @@
 ﻿using Backend.Domain.Entities;
 using Backend.Infrastructure.Data.Sql.Interfaces;
 using Backend.Application.Interfaces.UserServices;
+using Backend.Application.DTO;
+using System.Security.Claims;
 
 namespace Backend.Application.Services.UserServices
 {
@@ -14,7 +16,24 @@ namespace Backend.Application.Services.UserServices
             _userSQLProvider = userSQLProvider;
             _logger = logger;
         }
+        public AuthStatusDto CheckAuthStatus(ClaimsPrincipal user)
+        {
+            if (user == null || user.Identity?.IsAuthenticated != true)
+            {
+                return new AuthStatusDto { Authenticated = false };
+            }
 
+            // Extract claims
+            var email = user.FindFirst(ClaimTypes.Email)?.Value;
+            var role = user.FindFirst(ClaimTypes.Role)?.Value;
+
+            return new AuthStatusDto
+            {
+                Authenticated = !string.IsNullOrEmpty(email), // User is authenticated only if email exists
+                Email = email,
+                Role = role
+            };
+        }
         public async Task<bool> CheckIfUserExistsAsync(string email) =>
             await _userSQLProvider.UserSqlExecutor.IsUserExistInDatabaseAsync(email);
 
@@ -28,6 +47,7 @@ namespace Backend.Application.Services.UserServices
             await _userSQLProvider.UserSqlExecutor.UpdateEmailConfirmationAsync(persoid);
         public async Task<bool> IsEmailAlreadyConfirmedAsync(Guid persoid) =>
             await _userSQLProvider.UserSqlExecutor.IsEmailAlreadyConfirmedAsync(persoid);
+
     }
 
 }

@@ -13,8 +13,12 @@ const NotFoundPage: React.FC = () => {
   };
 
   return (
-    <PageContainer>
-      <ContentWrapper>
+    <PageContainer
+      centerChildren={true}
+    >
+      <ContentWrapper
+        centerContent={true}
+      >
         {/* Box */}
         <DeepBlueContainer
           additionalClasses="
@@ -36,12 +40,17 @@ const NotFoundPage: React.FC = () => {
         </DeepBlueContainer>
 
       </ContentWrapper>
-                      {/* Bird Image */}
-                      <img
+        {/* Bird Image */}
+        <img
           src={LostBird}
           alt="LostBird"
-          className="z-0 max-w-xs
-
+          className="z-0 w-auto max-w-[320px] mt-10 
+          sm:relative 
+          md:relative
+          lg:relative
+          xl:absolute xl:left-[5%] xl:top-1/2 xl:transform xl:-translate-y-1/2
+          2xl:absolute 2xl:left-[5%] 2xl:top-1/2 2xl:transform 2xl:-translate-y-1/2
+          3xl:absolute 3xl:left-[30%] 3xl:top-1/2 3xl:transform 3xl:-translate-y-1/2
           "
         />
     </PageContainer>

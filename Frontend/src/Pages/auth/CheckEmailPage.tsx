@@ -70,7 +70,7 @@ const WelcomePage: React.FC = () => {
                 w-auto max-w-[320px] z-10
                 hidden lg:block /* Visible for large screens */
                 absolute right-[3%] top-[50%] transform translate-y-[-50%]
-                2xl:right-[250px] 2xl:top-[50%] 2xl:max-w-[400px]
+                2xl:right-[5%] 2xl:top-[50%] 2xl:max-w-[400px]
                 3xl:right-[1000px] 3xl:top-[50%] 3xl:max-w-[400px]
                 "
             />            

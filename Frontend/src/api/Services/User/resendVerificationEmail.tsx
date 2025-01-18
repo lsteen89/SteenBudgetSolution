@@ -23,7 +23,7 @@ export const resendVerificationEmail = async (
 
     try {
         const response = await axios.post<ResendVerificationResponse>(
-            '/api/Registration/resend-verification',
+            '/api/UserManagement/resend-verification',
             { email }
         );
         return { status: response.status, message: response.data.message };

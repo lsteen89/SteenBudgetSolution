@@ -1,19 +1,29 @@
 {
-  "env": {
-    "browser": true,
-    "es2021": true
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "ecmaVersion": 2020,
+    "sourceType": "module",
+    "ecmaFeatures": {
+      "jsx": true
+    }
   },
+  "plugins": [
+    "react",
+    "jsx-a11y",
+    "@typescript-eslint"
+  ],
   "extends": [
     "eslint:recommended",
     "plugin:react/recommended",
-    "plugin:react-hooks/recommended",
-    "plugin:jsx-a11y/recommended"
+    "plugin:jsx-a11y/recommended",
+    "plugin:@typescript-eslint/recommended"
   ],
-  "parser": "@typescript-eslint/parser",
-  "plugins": ["react", "@typescript-eslint"],
   "settings": {
     "react": {
       "version": "detect"
     }
+  },
+  "rules": {
+    // your custom rules
   }
 }

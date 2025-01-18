@@ -105,8 +105,8 @@ const LoginPage: React.FC = () => {
   const handleRegister = () => navigate('/registration');
 
   return (   
-    <PageContainer>
-      <ContentWrapper>
+    <PageContainer centerChildren={true} > 
+      <ContentWrapper className='2xl:pt-[5%] 3xl:pt-[0%]' centerContent={true}>
         <FormContainer
         tag="form" 
         className="z-10 w-full max-h-screen overflow-y-auto" 
@@ -210,13 +210,18 @@ const LoginPage: React.FC = () => {
         <img
           src={LoginBird}
           alt="LoginBird"
-          className=" hidden sm:block -z-40 
-              md:relative
-              lg:relative
-              xl:relative 
-              2xl:absolute 2xl:left-[10%] 2xl:top-1/2 2xl:transform 2xl:-translate-y-1/2
-              3xl:absolute 3xl:left-[25%] 3xl:top-1/2 3xl:transform 3xl:-translate-y-1/2
-          "     
+          className="
+            z-0 
+            w-auto 
+            max-w-[180px] 
+            mt-10 
+            mx-auto 
+            lg:absolute lg:right-10 lg:top-3/4 lg:transform lg:-translate-y-1/2 lg:mt-0
+            3xl:absolute 3xl:right-[30%] 3xl:top-3/4 
+            lg:max-w-[200px] 
+            xl:max-w-[350px]
+          " 
+          loading="lazy" // Optional: Enables lazy loading
         />
       </ContentWrapper>
     </PageContainer>
@@ -224,3 +229,4 @@ const LoginPage: React.FC = () => {
 };
 
 export default LoginPage;
+

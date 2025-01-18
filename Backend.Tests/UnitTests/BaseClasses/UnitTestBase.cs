@@ -31,6 +31,8 @@ public abstract class UnitTestBase
     protected UserServices UserServicesInstance;
     protected Mock<IEmailResetPasswordService> MockEmailResetPasswordService;
     protected Dictionary<string, (string Value, CookieOptions Options)> CookiesContainer;
+    protected Mock<ILogger<UserManagementService>> LoggerMockUserManagementService;
+    protected UserManagementService UserManagementServiceInstance;
 
     protected UserAuthenticationService _userAuthenticationService;
 
@@ -91,6 +93,7 @@ public abstract class UnitTestBase
         // Register dependencies
         var mockLoggerForMockEmailService = Mock.Of<ILogger<MockEmailService>>();
         var mockEmailPreparationService = Mock.Of<IEmailPreparationService>(); // Can use a real/mock implementation
+        LoggerMockUserManagementService = new Mock<ILogger<UserManagementService>>(); // Mock logger for UserManagementService
 
         services.AddScoped<IUserSQLProvider>(_ => MockUserSQLProvider.Object);
         services.AddScoped<IEmailResetPasswordService>(_ => MockEmailResetPasswordService.Object);
@@ -100,6 +103,15 @@ public abstract class UnitTestBase
             mockLoggerForMockEmailService,
             mockEmailPreparationService
         ));
+
+        // Register UserManagementService
+        services.AddScoped<IUserManagementService>(_ =>
+        {
+            return new UserManagementService(
+                MockUserSQLProvider.Object,
+                LoggerMockUserManagementService.Object
+            );
+        });
 
         var mockOptions = Options.Create(new ResendEmailSettings { CooldownPeriodMinutes = 5, DailyLimit = 3 });
         services.AddSingleton(mockOptions);
@@ -133,6 +145,7 @@ public abstract class UnitTestBase
         // Resolve services for testing
         EmailVerificationService = ServiceProvider.GetRequiredService<IEmailVerificationService>() as EmailVerificationService;
         UserServicesInstance = ServiceProvider.GetRequiredService<IUserServices>() as UserServices;
+        UserManagementServiceInstance = ServiceProvider.GetRequiredService<IUserManagementService>() as UserManagementService;
 
         // Assertions to validate setup
         Assert.NotNull(EmailVerificationService);

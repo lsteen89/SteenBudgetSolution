@@ -1,0 +1,7 @@
+.debug-outline {
+    outline: 5px solid blue;
+  }
+  
+  .debug-outline * {
+    outline: 1px solid red;
+  }

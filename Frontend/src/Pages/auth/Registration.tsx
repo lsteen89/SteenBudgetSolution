@@ -194,7 +194,7 @@ const Registration: React.FC = () => {
       style={{ zIndex: 9999 }}
     />      
     <div className="relative flex justify-center items-start min-h-screen mt-[5%]">
-      <div className="flex flex-col items-center pt-10 px-5 w-full sm:pt-10 xl:pt-[10%] 2xl:pt-[5%] 3xl:pt-[3%]">
+      <div className="flex flex-col items-center pt-10 px-5 w-full sm:pt-10 xl:pt-[10%] 2xl:pt-[10%] 3xl:pt-[3%]">
         <FormContainer tag="form" onSubmit={handleSubmit} bgColor="gradient">
           {/* First Name */}
           <h2 className="text-2xl font-bold text-center text-gray-800">Skaffa <span className="font-bold text-darkLimeGreen underline">eBudget</span> användare!</h2>
@@ -347,7 +347,7 @@ const Registration: React.FC = () => {
           className="z-0 w-auto max-w-[320px]
 
           xl:absolute xl:right-[10%] xl:top-1/2 xl:transform xl:-translate-y-1/2
-          2xl:absolute 2xl:right-[15%] 2xl:top-1/2 2xl:transform 2xl:-translate-y-1/2
+          2xl:absolute 2xl:right-[10%] 2xl:top-1/2 2xl:transform 2xl:-translate-y-1/2
           3xl:absolute 3xl:right-[30%] 3xl:top-1/2 3xl:transform 3xl:-translate-y-1/2
           "
         />   

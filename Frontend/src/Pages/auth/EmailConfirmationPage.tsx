@@ -8,12 +8,12 @@ import useDisableScroll from '@hooks/useDisableScroll';
 import { verifyEmail as defaultVerifyEmail } from '@api/Services/User/verifyEmail';
 
 interface EmailConfirmationPageProps {
-  verifyEmail?: (token: string) => Promise<void>;
+  verifyEmail: (token: string) => Promise<void>; 
   debugToken?: string; // Optional for debug mode
 }
 
 const EmailConfirmationPage: React.FC<EmailConfirmationPageProps> = ({ 
-  verifyEmail = defaultVerifyEmail, 
+  verifyEmail,
   debugToken 
 }) => {
   const [statusMessage, setStatusMessage] = useState<string>('');
@@ -84,7 +84,7 @@ const EmailConfirmationPage: React.FC<EmailConfirmationPageProps> = ({
         src={isError ? FailEmailBird : SuccessEmailBird}
         alt={isError ? 'ErrorEmailBird' : 'SuccessEmailBird'}
         className="absolute right-[3%] top-[25%] transform translate-y-[10%] w-auto max-w-[320px] z-10 hidden lg:block /* Visible for large screens */
-        2xl:right-[250px]  2xl:max-w-[400px]
+        2xl:right-[5%]  2xl:max-w-[400px]
         3xl:right-[1000px]  3xl:max-w-[400px]"
       />
       <DeepBlueContainer 
@@ -92,7 +92,7 @@ const EmailConfirmationPage: React.FC<EmailConfirmationPageProps> = ({
           relative shadow-[0_5px_15px_rgba(133,224,133,0.2)] 
           hover:shadow-[0_10px_140px_rgba(133,224,133,0.4)] 
           hover:scale-105 transition-all duration-300 ease-in-out pt-30 pb-6
-          max-w-lg
+          max-w-lg pl-5 pr-5 py-10 z-10
         "
         >
         <p
