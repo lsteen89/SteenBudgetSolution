@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom'; // Simplify navigation
-import { FaBars } from 'react-icons/fa';
+import { useLocation } from "react-router-dom";
 import MobileBird from '@assets/Images/MobileBird.png';
 import { useAuth } from "@context/AuthProvider";
 import UserSideMenu from './UserSideMenu'; // Renamed for clarity
-import { useMediaQuery } from 'react-responsive';
+import { XMarkIcon } from '@heroicons/react/24/solid';
 
 const MobileMenu: React.FC = () => {
   // State for menus
@@ -15,7 +15,10 @@ const MobileMenu: React.FC = () => {
   const auth = useAuth();
   const navigate = useNavigate();
   const isDebugMode = process.env.NODE_ENV === 'development';
-
+  // Handle menu icon click
+  const handleIconClick = () => {
+    setUserSideMenuOpen((prev) => !prev); // Toggle side menu
+  };
   // Ref for side menu (removed if not needed)
   // const userMenuRef = useRef<HTMLDivElement>(null); // Removed since not used
 
@@ -27,11 +30,11 @@ const MobileMenu: React.FC = () => {
     }
   }, [isHamburgerMenuOpen]);
 
-  // Handle menu icon click
-  const handleIconClick = () => {
-    setUserSideMenuOpen((prev) => !prev); // Toggle side menu
-  };
 
+  // Close menu on route change
+  useEffect(() => {
+    setHamburgerMenuOpen(false); // Collapse menu
+  }, [location.pathname]); // Runs whenever the route changes
   return (
     <div className="relative">
       {/* Top Bar */}
@@ -45,13 +48,13 @@ const MobileMenu: React.FC = () => {
             aria-label="Toggle User Menu or Redirect"
           >
             <img src={MobileBird} alt="Mobile Bird" className="w-16 h-16 animate-img-pulse" />
-            <span className="text-darkLimeGreen text-md font-extrabold">Budget meny</span>
+            {/* <span className="text-darkLimeGreen text-md font-extrabold">Budgetmeny</span> */}
           </button>
           
         ) : (
           <Link to="/" className="flex items-center">
             <img src={MobileBird} alt="Mobile Bird" className="w-16 h-16 animate-img-pulse" />
-            <span className="text-darkLimeGreen text-sm mt-1">Start sida</span>
+            {/* <span className="text-darkLimeGreen text-sm mt-1">Startsida</span> */}
           </Link>
         )}
 
@@ -61,14 +64,29 @@ const MobileMenu: React.FC = () => {
           toggleMenu={() => setUserSideMenuOpen((prev) => !prev)} // Inline toggle logic
         />
 
-        {/* Hamburger Button */}
-        <button
-          onClick={() => setHamburgerMenuOpen((prev) => !prev)} // Inline toggle logic
-          className="text-gray-700 text-2xl focus:outline-none"
-          aria-label="Toggle Hamburger Menu"
-        >
-          <FaBars />
-        </button>
+{/* Hamburger Button */}
+<button
+  onClick={() => setHamburgerMenuOpen((prev) => !prev)} // Inline toggle logic
+  className="relative flex justify-center items-center w-10 h-10 focus:outline-none"
+  aria-label="Toggle Hamburger Menu"
+>
+  {/* Top Line */}
+  <span
+    className={`absolute h-0.5 w-full bg-gray-700 transform transition-transform duration-500 ease-in-out ${
+      isHamburgerMenuOpen ? "rotate-45" : "-translate-y-1.5"
+    }`}
+  ></span>
+  {/* Middle Line (Invisible Patty) */}
+  <span
+    className="absolute h-0.5 w-full bg-gray-700 opacity-0 "
+  ></span>
+  {/* Bottom Line */}
+  <span
+    className={`absolute h-0.5 w-full bg-gray-700 transform transition-transform duration-500 ease-in-out ${
+      isHamburgerMenuOpen ? "-rotate-45" : "translate-y-1.5"
+    }`}
+  ></span>
+</button>
       </div>
 
       {/* Overlay Menu Content */}
@@ -79,12 +97,12 @@ const MobileMenu: React.FC = () => {
         style={{ overflow: isHamburgerMenuOpen ? 'visible' : 'hidden' }}
       >
         <nav className="flex flex-col items-center justify-center h-full">
-          <button
-            onClick={() => setHamburgerMenuOpen(false)}
-            className="text-gray-700 text-xl self-end mr-8 mb-4"
-            aria-label="Close Hamburger Menu"
+              <button
+              onClick={() => setHamburgerMenuOpen(false)}
+              className="text-gray-700 text-xl self-end mr-8 mb-4"
+              aria-label="Close Hamburger Menu"
           >
-            ✕
+              <XMarkIcon className="h-6 w-6" />
           </button>
           <ul className="space-y-6 text-center">
             <li><Link to="/" className="text-gray-700 text-lg font-medium">Hem</Link></li>
