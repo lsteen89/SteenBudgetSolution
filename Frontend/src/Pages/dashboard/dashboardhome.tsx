@@ -20,7 +20,7 @@ const Dashboard: React.FC = () => {
 
   return (
   <PageContainer className="md:px-20 items-center">
-    <ContentWrapper centerContent className="lg:pt-24">
+    <ContentWrapper centerContent className="lg:pt-24 3xl:pt-48">
       <div
         className="
           grid
@@ -43,6 +43,8 @@ const Dashboard: React.FC = () => {
             md:row-start-1
             md:justify-self-center
             md:w-96 md:h-20
+            lg:w-80 lg:h-20
+            xl:w-96 xl:h-20
           "
           onClick={() => navigate('/budget')}
         />
@@ -61,6 +63,8 @@ const Dashboard: React.FC = () => {
             md:row-start-1
             md:justify-self-center
             md:w-96 md:h-20
+            lg:w-80 lg:h-20
+            xl:w-96 xl:h-20
           "
           onClick={() => navigate('/CreateBudget')}
         />

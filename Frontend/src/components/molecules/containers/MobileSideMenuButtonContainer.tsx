@@ -1,6 +1,6 @@
 import React from 'react';
 import IconButton from '../../atoms/buttons/IconButton';
-import HomeIcon from '@assets/icons/HomeIcon.svg?react';
+import HomeIcon from '@components/atoms/icons/HomeIcon';
 
 interface MobileSideMenuButtonContainerProps {
   toggleMenu: () => void;
@@ -9,14 +9,18 @@ interface MobileSideMenuButtonContainerProps {
 
 const MobileSideMenuButtonContainer: React.FC<MobileSideMenuButtonContainerProps> = ({ toggleMenu, isDesktop }) => {
   return (
-    <div className="flex justify-between items-center mb-6 px-4 w-full">
+    <div className="flex  justify-center items-center mb-6  w-full">
       {/* Dashboard Button */}
-      <IconButton
-        to="/dashboard"
-        ariaLabel="Go to Dashboard"
-        IconComponent={HomeIcon}
-        className="hover:opacity-80 transition-opacity w-24 h-24" // 96px x 96px
-      />
+      <div className="group flex hover:scale-110 transition-transform duration-300">
+        <IconButton
+          to="/dashboard"
+          ariaLabel="Go to Dashboard"
+          IconComponent={(props) => (
+            <HomeIcon {...props} className="w-32 h-32 text-black hover:scale-110 hover:text-darkLimeGreen transition-transform duration-300" />
+          )}
+
+        />
+      </div>
 
       {/* Spacer */}
       <div className="flex-grow"></div>

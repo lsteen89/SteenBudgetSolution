@@ -54,7 +54,7 @@ const UserSideMenu: React.FC<UserSideMenuProps> = ({ isOpen, toggleMenu }) => {
             fixed 
             h-3/4
             top-40
-            w-64 lg:w-56
+            w-64 lg:min-w-60
             bg-standardMenuColor 
             text-white 
             shadow-none 
@@ -64,8 +64,8 @@ const UserSideMenu: React.FC<UserSideMenuProps> = ({ isOpen, toggleMenu }) => {
             rounded-br-2xl
           "
         >
-          <PageContainer className="relative" noPadding>
-            <ContentWrapper className="flex flex-col h-full">
+          <PageContainer className="relative pt-5" noPadding>
+            <ContentWrapper className="flex flex-col" centerContent>
               
               {/* Button Container */}
               <MobileSideMenuButtonContainer toggleMenu={toggleMenu} isDesktop={isDesktop} />
