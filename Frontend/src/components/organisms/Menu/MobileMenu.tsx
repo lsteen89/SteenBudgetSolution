@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom'; // Simplify navigation
-import { FaBars } from 'react-icons/fa';
+import { useLocation } from "react-router-dom";
 import MobileBird from '@assets/Images/MobileBird.png';
 import { useAuth } from "@context/AuthProvider";
 import UserSideMenu from './UserSideMenu'; // Renamed for clarity
@@ -15,7 +15,10 @@ const MobileMenu: React.FC = () => {
   const auth = useAuth();
   const navigate = useNavigate();
   const isDebugMode = process.env.NODE_ENV === 'development';
-
+  // Handle menu icon click
+  const handleIconClick = () => {
+    setUserSideMenuOpen((prev) => !prev); // Toggle side menu
+  };
   // Ref for side menu (removed if not needed)
   // const userMenuRef = useRef<HTMLDivElement>(null); // Removed since not used
 
@@ -27,11 +30,11 @@ const MobileMenu: React.FC = () => {
     }
   }, [isHamburgerMenuOpen]);
 
-  // Handle menu icon click
-  const handleIconClick = () => {
-    setUserSideMenuOpen((prev) => !prev); // Toggle side menu
-  };
 
+  // Close menu on route change
+  useEffect(() => {
+    setHamburgerMenuOpen(false); // Collapse menu
+  }, [location.pathname]); // Runs whenever the route changes
   return (
     <div className="relative">
       {/* Top Bar */}
