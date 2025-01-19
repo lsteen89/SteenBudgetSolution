@@ -19,8 +19,8 @@ const HomePage: React.FC = () => {
   return (
     <div className="relative align-items: flex-start flex items-center justify-center h-screen gap-[8vw] mt-[15vh]">
         {/* Left Container */}
-        <DeepBlueContainer additionalClasses="h-[70vh] flex-grow flex-col flex items-center max-w-md space-y-10 mt-[10%] px-8 h-full pt-[2%]
-        lg:mt-[15%]
+        <DeepBlueContainer noRoundedCorners additionalClasses="h-[70vh] flex-grow flex-col flex items-center max-w-md space-y-10 mt-[10%] px-8 h-full pt-[2%]
+        lg:mt-[15%] rounded-tl-2xl rounded-tr-2xl
         ">
         <p className="text-white text-center m-0 tracking-[0.2em] max-w-[90%] text-[clamp(1rem,2vw,1.5rem)] leading-[clamp(1.5,2.5vw,2)]">
           Ta kontroll över din ekonomi med <br />
