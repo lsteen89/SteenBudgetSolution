@@ -311,9 +311,6 @@ app.UseAuthorization();   // Required for authorization policies
 // Use rate limiter middleware globally
 app.UseRateLimiter();
 
-// Map controllers and assign specific policies per controller route
-app.MapControllers(); // Automatically maps and applies rate limits set in controllers
-
 // Conditionally enable Swagger
 if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
 {
