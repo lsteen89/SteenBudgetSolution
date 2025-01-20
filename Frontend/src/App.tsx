@@ -77,11 +77,8 @@ const AppContent: React.FC<{
       {isDesktop ? <MenuComponent /> : <MobileMenu />}
 
       {/* UserSideMenu - Display only for authenticated users on protected routes */}
-      {auth?.authenticated && isProtectedRoute || (isProtectedRoute && isDebugMode) && (
-        <UserSideMenu
-          isOpen={isMenuOpen} // Menu open state
-          toggleMenu={toggleMenu} // Toggle logic
-        />
+      {(auth?.authenticated || isDebugMode) && isProtectedRoute && (
+        <UserSideMenu isOpen={isMenuOpen} toggleMenu={toggleMenu} />
       )}
 
       {/* Main Content */}
