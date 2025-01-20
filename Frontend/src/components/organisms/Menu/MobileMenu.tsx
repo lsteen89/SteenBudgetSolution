@@ -64,29 +64,29 @@ const MobileMenu: React.FC = () => {
           toggleMenu={() => setUserSideMenuOpen((prev) => !prev)} // Inline toggle logic
         />
 
-{/* Hamburger Button */}
-<button
-  onClick={() => setHamburgerMenuOpen((prev) => !prev)} // Inline toggle logic
-  className="relative flex justify-center items-center w-10 h-10 focus:outline-none"
-  aria-label="Toggle Hamburger Menu"
->
-  {/* Top Line */}
-  <span
-    className={`absolute h-0.5 w-full bg-gray-700 transform transition-transform duration-500 ease-in-out ${
-      isHamburgerMenuOpen ? "rotate-45" : "-translate-y-1.5"
-    }`}
-  ></span>
-  {/* Middle Line (Invisible Patty) */}
-  <span
-    className="absolute h-0.5 w-full bg-gray-700 opacity-0 "
-  ></span>
-  {/* Bottom Line */}
-  <span
-    className={`absolute h-0.5 w-full bg-gray-700 transform transition-transform duration-500 ease-in-out ${
-      isHamburgerMenuOpen ? "-rotate-45" : "translate-y-1.5"
-    }`}
-  ></span>
-</button>
+        {/* Hamburger Button */}
+        <button
+          onClick={() => setHamburgerMenuOpen((prev) => !prev)} // Inline toggle logic
+          className="relative flex justify-center items-center w-10 h-10 focus:outline-none"
+          aria-label="Toggle Hamburger Menu"
+        >
+          {/* Top Line */}
+          <span
+            className={`absolute h-0.5 w-full bg-gray-700 transform transition-transform duration-500 ease-in-out ${
+              isHamburgerMenuOpen ? "rotate-45" : "-translate-y-1.5"
+            }`}
+          ></span>
+          {/* Middle Line (Invisible Patty) */}
+          <span
+            className="absolute h-0.5 w-full bg-gray-700 opacity-0 "
+          ></span>
+          {/* Bottom Line */}
+          <span
+            className={`absolute h-0.5 w-full bg-gray-700 transform transition-transform duration-500 ease-in-out ${
+              isHamburgerMenuOpen ? "-rotate-45" : "translate-y-1.5"
+            }`}
+          ></span>
+        </button>
       </div>
 
       {/* Overlay Menu Content */}
@@ -97,13 +97,7 @@ const MobileMenu: React.FC = () => {
         style={{ overflow: isHamburgerMenuOpen ? 'visible' : 'hidden' }}
       >
         <nav className="flex flex-col items-center justify-center h-full">
-              <button
-              onClick={() => setHamburgerMenuOpen(false)}
-              className="text-gray-700 text-xl self-end mr-8 mb-4"
-              aria-label="Close Hamburger Menu"
-          >
-              <XMarkIcon className="h-6 w-6" />
-          </button>
+
           <ul className="space-y-6 text-center">
             <li><Link to="/" className="text-gray-700 text-lg font-medium">Hem</Link></li>
             <li><Link to="/about-us" className="text-gray-700 text-lg font-medium">Om eBudget</Link></li>
