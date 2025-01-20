@@ -22,6 +22,7 @@ import Dashboard from '@pages/dashboard/dashboardhome';
 import ProtectedRoute from "@routes/ProtectedRoute";
 import MobileMenu from './components/organisms/Menu/MobileMenu';
 import MenuComponent from './components/organisms/Menu/MenuComponent';
+import DynamicTitle from '@utils/DynamicTitle'; 
 
 const App: React.FC = () => {
   const [isMenuOpen, setMenuOpen] = useState<boolean>(false);
@@ -71,6 +72,7 @@ const AppContent: React.FC<{
 
   return (
     <div className="App">
+      <DynamicTitle />
       {/* Render MobileMenu for phones and iPads in portrait mode */}
       {isDesktop ? <MenuComponent /> : <MobileMenu />}
 
@@ -84,6 +86,7 @@ const AppContent: React.FC<{
 
       {/* Main Content */}
       <Routes>
+        
         {/* Public Routes */}
         <Route path="/" element={<HomePage />} />
         <Route path="/registration" element={<Registration />} />
