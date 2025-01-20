@@ -17,7 +17,7 @@ export default defineConfig({
       },
     }),
     removeConsole({
-      exclude: ['error', 'warn'], // Keep critical logs
+      //exclude: ['error', 'warn'], // Keep critical logs
     }),
     react(),
   ],
