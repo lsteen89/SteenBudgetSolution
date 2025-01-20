@@ -238,11 +238,18 @@ builder.Services.AddAuthentication(options =>
     {
         OnMessageReceived = context =>
         {
-            // Attempt to get the token from the auth_token cookie
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+            logger.LogInformation("OnMessageReceived fired. Cookie found? {HasCookie}", context.Request.Cookies.ContainsKey("auth_token"));
+
             var cookie = context.Request.Cookies["auth_token"];
             if (!string.IsNullOrEmpty(cookie))
             {
+                logger.LogInformation("auth_token cookie = {Cookie}", cookie);
                 context.Token = cookie;
+            }
+            else
+            {
+                logger.LogWarning("No auth_token cookie in the request!");
             }
             return Task.CompletedTask;
         }
@@ -297,10 +304,10 @@ else
 app.UseExceptionHandler("/error");  // Global exception handling
 app.UseStaticFiles();               // Serve static files
 app.UseRouting();                   // Enable routing
-app.UseAuthorization();   // Required for authorization policies
 
 // Enable Authentication and Authorization middleware
 app.UseAuthentication();  // Required for using the [Authorize] attribute in controllers
+app.UseAuthorization();   // Required for authorization policies
 // Use rate limiter middleware globally
 app.UseRateLimiter();
 
