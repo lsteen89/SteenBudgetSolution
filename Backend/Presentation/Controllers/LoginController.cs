@@ -78,13 +78,15 @@ namespace Backend.Presentation.Controllers
         [HttpGet("status")]
         public IActionResult CheckAuthStatus()
         {
+            _logger.LogInformation("Checking auth status for user. IsAuthenticated: {IsAuthenticated}", User?.Identity?.IsAuthenticated);
             var response = _userManagementService.CheckAuthStatus(User);
 
             if (response.Authenticated)
             {
+                _logger.LogInformation("User is authenticated. Email: {Email}, Role: {Role}", response.Email, response.Role);
                 return Ok(response);
             }
-
+            _logger.LogWarning("Unauthorized request. User is not authenticated or claims are missing.");
             return Unauthorized(response);
         }
 
