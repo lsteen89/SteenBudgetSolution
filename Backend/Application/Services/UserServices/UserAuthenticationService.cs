@@ -76,7 +76,7 @@ namespace Backend.Application.Services.UserServices
                 HttpOnly = true,
                 Secure = isSecure,
                 SameSite = SameSiteMode.Strict,
-                Expires = DateTime.UtcNow.AddMinutes(15)
+                Expires = DateTime.UtcNow.AddHours(1)
             });
 
             _logger.LogInformation("Cookie auth_token appended with token: {Token}", token);

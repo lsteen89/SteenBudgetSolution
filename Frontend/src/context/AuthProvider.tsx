@@ -4,7 +4,7 @@ import axios from "axios";
 interface AuthState {
   authenticated: boolean;
   email?: string;
-  role?: string;
+  role?: string | null;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -21,26 +21,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         console.log('AuthProvider: Sending request to /api/auth/status...');
         const response = await axios.get<AuthState>("/api/auth/status", { withCredentials: true });
-
+    
         console.log('AuthProvider: Received auth status response:', {
           status: response.status,
           data: response.data,
         });
-
-        setAuthState(response.data);
+    
+        // Add logs to inspect the response data
+        console.log('Setting authState with:', response.data);
+    
+        setAuthState(response.data); // Update state with the received data
       } catch (error) {
         if (axios.isAxiosError(error)) {
-          // Axios-specific error logging
-          console.error('AuthProvider: Error fetching auth status:', {
+          console.error('AuthProvider: Axios error:', {
             status: error.response?.status,
             data: error.response?.data,
           });
         } else {
-          // Non-Axios errors
           console.error('AuthProvider: Unexpected error:', error);
         }
-
+    
         // Set unauthenticated state on error
+        console.log('Setting authState to unauthenticated due to error.');
         setAuthState({ authenticated: false });
       }
     };

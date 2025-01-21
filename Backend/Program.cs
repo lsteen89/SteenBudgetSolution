@@ -288,12 +288,15 @@ builder.Services.AddAuthentication(options =>
         {
             var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
             logger.LogInformation("OnMessageReceived fired. Cookie found? {HasCookie}", context.Request.Cookies.ContainsKey("auth_token"));
+            var cookies = context.Request.Cookies;
 
+            logger.LogInformation("Available cookies: {Cookies}", cookies.Keys);
             var cookie = context.Request.Cookies["auth_token"];
             if (!string.IsNullOrEmpty(cookie))
             {
                 logger.LogInformation("auth_token cookie = {Cookie}", cookie);
                 context.Token = cookie;
+
             }
             else
             {
