@@ -21,6 +21,7 @@ using Dapper;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -210,12 +211,45 @@ builder.Services.AddRateLimiter(options =>
 #endregion
 
 #region Services and Middleware Registration
-// Register Swagger services
-builder.Services.AddSwaggerGen();
-// Add controller services to support routing to your controllers
+
+// Add controllers to support routing
 builder.Services.AddControllers();
 
-// Adding Authentication and Authorization
+// Add Swagger services
+builder.Services.AddSwaggerGen();
+
+// Add FluentValidation for DTO validation
+builder.Services.AddFluentValidationAutoValidation();
+builder.Services.AddValidatorsFromAssemblyContaining<UserValidator>();
+
+// Add CORS policies
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("DevelopmentCorsPolicy", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000") // Local frontend URL
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+
+    options.AddPolicy("ProductionCorsPolicy", policy =>
+    {
+        policy.WithOrigins("https://ebudget.se", "https://www.ebudget.se") // Production URLs
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+
+    options.AddPolicy("DefaultCorsPolicy", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
+// Add Authentication and Authorization
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -223,19 +257,33 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
-    var jwtKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY") ?? "development-fallback-key";
+    var jwtKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY");
+    var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+    var logger = loggerFactory.CreateLogger<Program>();
+
+    if (string.IsNullOrEmpty(jwtKey) || jwtKey == "development-fallback-key")
+    {
+        logger.LogWarning("JWT_SECRET_KEY is missing or using fallback. Update your environment configuration.");
+    }
+
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
-        ValidateIssuer = false,
-        ValidateAudience = false,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey ?? "development-fallback-key")),
+        ValidateIssuer = false,  // Set to true if you configure issuers
+        ValidateAudience = false, // Set to true if you configure audiences
         ValidateLifetime = true,
-        ClockSkew = TimeSpan.Zero  // Token expiration tolerance
+        ClockSkew = TimeSpan.Zero // No tolerance for expired tokens
     };
 
     options.Events = new JwtBearerEvents
     {
+        OnAuthenticationFailed = context =>
+        {
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+            logger.LogWarning("Authentication failed: {Error}", context.Exception.Message);
+            return Task.CompletedTask;
+        },
         OnMessageReceived = context =>
         {
             var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
@@ -256,62 +304,73 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
+builder.Services.AddAuthorization();
+
+// Add Health Checks
+builder.Services.AddHealthChecks();
+
+// Add HttpContextAccessor
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddAuthorization();  
 
-// Adding CORS policies
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("DevelopmentCorsPolicy",
-        builder =>
-        {
-            builder.WithOrigins("http://localhost:3000")  // Local frontend URL
-                   .AllowAnyHeader()
-                   .AllowAnyMethod()
-                   .AllowCredentials();
-        });
-
-    options.AddPolicy("ProductionCorsPolicy",
-        builder =>
-        {
-            builder.WithOrigins("https://www.ebudget.se", "https://ebudget.se")
-                   .AllowAnyHeader()
-                   .AllowAnyMethod()
-                   .AllowCredentials();
-        });
-});
+// Configure Logging
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 
-builder.Services.AddFluentValidationAutoValidation();
-builder.Services.AddValidatorsFromAssemblyContaining<UserValidator>();
 #endregion
 
 #region Application Pipeline Configuration
-// Build the app (after service registration)
+
+// Build the app after service registration
 var app = builder.Build();
 
+// Apply CORS based on the environment
 if (builder.Environment.IsDevelopment())
 {
-    app.UseCors("DevelopmentCorsPolicy");  // Apply CORS for development
+    app.UseCors("DevelopmentCorsPolicy");
+}
+else if (builder.Environment.IsProduction())
+{
+    app.UseCors("ProductionCorsPolicy");
 }
 else
 {
-    app.UseCors("ProductionCorsPolicy");   // Apply CORS for production
+    app.UseCors("DefaultCorsPolicy"); // Fallback for other environments
 }
 
-// Middleware for exception handling, routing, and static file support
-app.UseExceptionHandler("/error");  // Global exception handling
-app.UseStaticFiles();               // Serve static files
-app.UseRouting();                   // Enable routing
+// Global exception handling
+app.UseExceptionHandler(errorApp =>
+{
+    errorApp.Run(async context =>
+    {
+        var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+        var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
 
-// Enable Authentication and Authorization middleware
-app.UseAuthentication();  // Required for using the [Authorize] attribute in controllers
-app.UseAuthorization();   // Required for authorization policies
-// Use rate limiter middleware globally
+        logger.LogError(exception, "An unhandled exception occurred.");
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        await context.Response.WriteAsync("An unexpected error occurred.");
+    });
+});
+
+// Middleware for static files with caching headers
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        ctx.Context.Response.Headers.Append("Cache-Control", "public,max-age=3600");
+    }
+});
+
+// Enable routing
+app.UseRouting();
+
+// Enable Authentication and Authorization
+app.UseAuthentication();
+app.UseAuthorization();
+
+// Use Rate Limiting Middleware (if configured)
 app.UseRateLimiter();
 
-// Conditionally enable Swagger
+// Swagger configuration
 if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
 {
     app.UseSwagger();
@@ -320,26 +379,35 @@ if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "My API V1");
         c.RoutePrefix = "api-docs";
         c.DisplayRequestDuration();
+        c.DefaultModelsExpandDepth(-1); // Collapse models by default
     });
 }
-// HTTPS redirection and fallback
+
+// HTTPS redirection
 app.UseHttpsRedirection();
-app.MapFallbackToFile("index.html");  // Ensure React handles routes
+
 // Map controllers
-app.MapControllers();  // Ensure the controllers are mapped
+app.MapControllers();
+
+// Map health checks
+app.MapHealthChecks("/health");
+
+// Fallback to React's index.html for SPA routing
+app.MapFallbackToFile("index.html");
 
 #endregion
+
+#region Logging and Final Setup
+
 // Get the logger after app is built
 ILogger<Program> _logger = app.Services.GetRequiredService<ILogger<Program>>();
 
 // Log environment information
 var environment = builder.Environment.EnvironmentName;
-Console.WriteLine($"Environment: {environment}");
-Console.WriteLine($"BaseUrl: {configuration["AppSettings:BaseUrl"]}");
-// Final log before running the app
+_logger.LogInformation("Environment: {Environment}", environment);
 _logger.LogInformation("Application setup complete. Running app...");
 
+// Run the application
 app.Run();
 
-// Ensure logs are flushed before the app shuts down
-Log.CloseAndFlush();
+#endregion

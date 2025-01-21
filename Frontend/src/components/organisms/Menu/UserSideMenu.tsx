@@ -7,6 +7,7 @@ import PageContainer from '@components/layout/PageContainer';
 import ContentWrapper from '@components/layout/ContentWrapper';
 import useMediaQuery from '@hooks/useMediaQuery';
 import '@components/organisms/SlideMenu/slide-menu.css'; 
+import { useAuth } from "@context/AuthProvider";
 
 interface UserSideMenuProps {
     isOpen: boolean;
@@ -43,6 +44,9 @@ const UserSideMenu: React.FC<UserSideMenuProps> = ({ isOpen, toggleMenu }) => {
       document.removeEventListener('keydown', handleEsc);
     };
   }, [isOpen, toggleMenu]);
+
+  console.log('isDesktop:', isDesktop);
+  console.log('auth:', useAuth);
 
   return (
     <>

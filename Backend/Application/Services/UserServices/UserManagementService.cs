@@ -20,13 +20,20 @@ namespace Backend.Application.Services.UserServices
         {
             if (user == null || user.Identity?.IsAuthenticated != true)
             {
+                _logger.LogWarning("User is null or not authenticated.");
                 return new AuthStatusDto { Authenticated = false };
             }
 
             // Extract claims
             var email = user.FindFirst(ClaimTypes.Email)?.Value;
             var role = user.FindFirst(ClaimTypes.Role)?.Value;
+            
+            if (string.IsNullOrEmpty(email))
+            {
+                _logger.LogWarning("User authenticated but email claim is missing.");
+            }
 
+            _logger.LogInformation("Authenticated user. Email: {Email}, Role: {Role}", email, role);
             return new AuthStatusDto
             {
                 Authenticated = !string.IsNullOrEmpty(email), // User is authenticated only if email exists

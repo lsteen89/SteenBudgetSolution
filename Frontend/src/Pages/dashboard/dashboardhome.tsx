@@ -14,10 +14,17 @@ const Dashboard: React.FC = () => {
   const isDebugMode = process.env.NODE_ENV === "development";
   const navigate = useNavigate();
   const isMdUp = useMediaQuery('(min-width: 768px)');
+  const isDesktop = useMediaQuery('(min-width: 1367px)');
+  const protectedRoutes = ['/dashboard'];
+  const isProtectedRoute = protectedRoutes.includes(location.pathname);
 
   console.log("Authenticated:", auth?.authenticated);
   console.log("Debug Mode:", isDebugMode);
-
+  console.log('isDesktop:', isDesktop);
+  console.log('location.pathname:', location.pathname);
+  console.log('isProtectedRoute:', isProtectedRoute);
+  console.log('Environment Variables:', import.meta.env);
+  
   return (
   <PageContainer className="md:px-20 items-center">
     <ContentWrapper centerContent className="lg:pt-24 3xl:pt-48">
