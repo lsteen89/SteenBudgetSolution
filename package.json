@@ -1,0 +1,13 @@
+{
+  "devDependencies": {
+    "less": "^4.2.0",
+    "less-loader": "^12.2.0",
+    "vite-plugin-remove-console": "^2.2.0"
+  },
+  "dependencies": {
+    "@heroicons/react": "^2.2.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "vite-plugin-svgr": "^4.3.0"
+  }
+}
