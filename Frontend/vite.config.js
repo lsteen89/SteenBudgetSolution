@@ -16,9 +16,9 @@ export default defineConfig({
         // Add any additional SVGR options here
       },
     }),
-    removeConsole({
-      exclude: ['error', 'warn', 'log'], // Keep critical logs
-    }),
+    //removeConsole({
+    //  exclude: ['error', 'warn', 'log'], // Keep critical logs
+    //}),
     react(),
   ],
   test: {
