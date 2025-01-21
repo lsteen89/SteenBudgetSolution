@@ -81,13 +81,21 @@ namespace Backend.Presentation.Controllers
             _logger.LogInformation("Checking auth status for user. IsAuthenticated: {IsAuthenticated}", User?.Identity?.IsAuthenticated);
             var response = _userManagementService.CheckAuthStatus(User);
 
-            if (response.Authenticated)
+            var authStatus = new AuthStatusDto
             {
-                _logger.LogInformation("User is authenticated. Email: {Email}, Role: {Role}", response.Email, response.Role);
-                return Ok(response);
+                Authenticated = response.Authenticated,
+                Email = response.Email,
+                Role = response.Role
+            };
+
+            if (authStatus.Authenticated)
+            {
+                _logger.LogInformation("User is authenticated. Email: {Email}, Role: {Role}", authStatus.Email, authStatus.Role);
+                return Ok(authStatus);
             }
+
             _logger.LogWarning("Unauthorized request. User is not authenticated or claims are missing.");
-            return Unauthorized(response);
+            return Unauthorized(new AuthStatusDto { Authenticated = false });
         }
 
     }
