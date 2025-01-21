@@ -10,6 +10,10 @@ import ReCAPTCHA from 'react-google-recaptcha';
 import { login } from '@api/Services/User/auth';
 import PageContainer from '@components/layout/PageContainer';
 import ContentWrapper from '@components/layout/ContentWrapper';
+import { useAuth } from '@context/AuthProvider';
+import axiosInstance from "@api/axiosConfig"; // Ensure you have access to the Axios instance if needed
+import { isAxiosError } from "axios"; 
+import { AuthContextType } from '@context/AuthProvider';
 
 type ReCAPTCHAWithReset = ReCAPTCHA & {
   reset: () => void;
@@ -21,6 +25,7 @@ const LoginPage: React.FC = () => {
   const [errors, setErrors] = useState<{ [key in keyof UserLoginDto]?: string }>({});
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const navigate = useNavigate();
+  const { refreshAuthStatus } = useAuth() as AuthContextType; // Type assertion
 
   const handleCaptchaChange = (token: string | null) => {
     setFormData((prevData) => ({
@@ -82,6 +87,7 @@ const LoginPage: React.FC = () => {
   
       if (result.success) {
         console.log("Login successful:", result.message);
+        await refreshAuthStatus();
         navigate("/dashboard");
       } else {
         setErrors({ form: result.message }); // Show backend error message
