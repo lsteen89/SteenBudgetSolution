@@ -17,7 +17,11 @@ interface UserSideMenuProps {
 const UserSideMenu: React.FC<UserSideMenuProps> = ({ isOpen, toggleMenu }) => {
   const isDesktop = useMediaQuery('(min-width: 1367px)');
   const nodeRef = useRef<HTMLDivElement>(null); // Internal ref
-
+  console.log('Rendering UserSideMenu:', {
+    isDesktop,
+    isOpen,
+    toggleMenu,
+  });
   // Prevent body scrolling when mobile menu is open
   useEffect(() => {
     if (!isDesktop) {
@@ -45,8 +49,7 @@ const UserSideMenu: React.FC<UserSideMenuProps> = ({ isOpen, toggleMenu }) => {
     };
   }, [isOpen, toggleMenu]);
 
-  console.log('isDesktop:', isDesktop);
-  console.log('auth:', useAuth);
+
 
   return (
     <>

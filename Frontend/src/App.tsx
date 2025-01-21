@@ -23,6 +23,7 @@ import ProtectedRoute from "@routes/ProtectedRoute";
 import MobileMenu from './components/organisms/Menu/MobileMenu';
 import MenuComponent from './components/organisms/Menu/MenuComponent';
 import DynamicTitle from '@utils/DynamicTitle'; 
+import MediaQueryTest from '@components/Test/MediaQueryTest';
 
 const App: React.FC = () => {
   const [isMenuOpen, setMenuOpen] = useState<boolean>(false);
@@ -69,10 +70,16 @@ const AppContent: React.FC<{
 
   const protectedRoutes = ['/dashboard'];
   const isProtectedRoute = protectedRoutes.includes(location.pathname);
-
+  console.log({
+    authenticated: auth?.authenticated,
+    debugMode: isDebugMode,
+    protectedRoute: isProtectedRoute,
+    isDesktop,
+  });
   return (
     <div className="App">
       <DynamicTitle />
+      <MediaQueryTest />
       {/* Render MobileMenu for phones and iPads in portrait mode */}
       {isDesktop ? <MenuComponent /> : <MobileMenu />}
 
