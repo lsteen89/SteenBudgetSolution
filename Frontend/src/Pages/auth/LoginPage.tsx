@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import FormContainer from '@components/molecules/containers/FormContainer';
 import InputField from "@components/atoms/InputField/ContactFormInputField";
 import SubmitButton from '@components/atoms/buttons/SubmitButton';
@@ -10,10 +10,8 @@ import ReCAPTCHA from 'react-google-recaptcha';
 import { login } from '@api/Services/User/auth';
 import PageContainer from '@components/layout/PageContainer';
 import ContentWrapper from '@components/layout/ContentWrapper';
-import { useAuth } from '@context/AuthProvider';
+import { useAuth, AuthContextType } from "@context/AuthProvider"; 
 import axiosInstance from "@api/axiosConfig"; // Ensure you have access to the Axios instance if needed
-import { isAxiosError } from "axios"; 
-import { AuthContextType } from '@context/AuthProvider';
 
 type ReCAPTCHAWithReset = ReCAPTCHA & {
   reset: () => void;
@@ -21,11 +19,11 @@ type ReCAPTCHAWithReset = ReCAPTCHA & {
 
 const LoginPage: React.FC = () => {
   const captchaRef = useRef<ReCAPTCHAWithReset>(null);
-  const [formData, setFormData] = useState<UserLoginDto>({ email: '', password: '', captchaToken: '' } );
-  const [errors, setErrors] = useState<{ [key in keyof UserLoginDto]?: string }>({});
+  const [formData, setFormData] = useState<UserLoginDto>({ email: '', password: '', captchaToken: '' });
+  const [errors, setErrors] = useState<{ [key in keyof UserLoginDto]?: string } & { form?: string }>({});
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const navigate = useNavigate();
-  const { refreshAuthStatus } = useAuth() as AuthContextType; // Type assertion
+  const { refreshAuthStatus } = useAuth(); // No type assertion needed
 
   const handleCaptchaChange = (token: string | null) => {
     setFormData((prevData) => ({
@@ -33,6 +31,7 @@ const LoginPage: React.FC = () => {
       captchaToken: token || '', 
     }));
   };
+
   const handleInputChange = (field: keyof UserLoginDto, value: string) => {
     setFormData((prevData) => ({
       ...prevData,
@@ -44,7 +43,6 @@ const LoginPage: React.FC = () => {
       [field]: '', // Clear error for this field
     }));
   };
-
 
   const handleBlur = (field: keyof UserLoginDto) => {
     if (!formData[field]) {
@@ -61,7 +59,7 @@ const LoginPage: React.FC = () => {
       await UserLoginValidator.validate(formData, { abortEarly: false });
       return true;
     } catch (validationError: any) {
-      const validationErrors: { [key in keyof UserLoginDto]?: string } = {};
+      const validationErrors: { [key in keyof UserLoginDto]?: string } & { form?: string } = {};
       if (Array.isArray(validationError.inner)) {
         validationError.inner.forEach((err: any) => {
           validationErrors[err.path as keyof UserLoginDto] = err.message;
@@ -72,22 +70,25 @@ const LoginPage: React.FC = () => {
       return false;
     }
   };
-  
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-  
+
     // Validate the form before proceeding
     const isValid = await validateForm();
     if (!isValid) return;
-  
+
     setErrors({}); // Clear any previous errors
+    setIsSubmitting(true); // Indicate loading state
     try {
       const result = await login(formData);
-  
+
       if (result.success) {
         console.log("Login successful:", result.message);
+        
+        // Immediately fetch auth status to update the state
         await refreshAuthStatus();
+
         navigate("/dashboard");
       } else {
         setErrors({ form: result.message }); // Show backend error message
@@ -103,9 +104,10 @@ const LoginPage: React.FC = () => {
       if (captchaRef.current) {
         captchaRef.current.reset();
       }
+    } finally {
+      setIsSubmitting(false); // Reset loading state
     }
   };
-  
 
   const handleForgotPassword = () => navigate('/forgotpassword');
   const handleRegister = () => navigate('/registration');
@@ -114,9 +116,10 @@ const LoginPage: React.FC = () => {
     <PageContainer centerChildren={true} > 
       <ContentWrapper className='2xl:pt-[5%] 3xl:pt-[0%]' centerContent={true}>
         <FormContainer
-        tag="form" 
-        className="z-10 w-full max-h-screen overflow-y-auto" 
-        bgColor="gradient"onSubmit={handleSubmit}
+          tag="form" 
+          className="z-10 w-full max-h-screen overflow-y-auto" 
+          bgColor="gradient"
+          onSubmit={handleSubmit}
         >
           {/* Title */}
           <p className="text-lg font-bold text-gray-800 mb-6 text-center">Välkommen tillbaka! Logga in för att fortsätta</p>
@@ -154,9 +157,9 @@ const LoginPage: React.FC = () => {
             {errors.password && (
               <p className="text-red-500 text-sm">{errors.password}</p>
             )}
-
           </div>
           {errors.form && <p style={{ color: "red" }}>{errors.form}</p>}
+          
           {/* Submit Button and ReCAPTCHA */}
           <div className="flex flex-col sm:flex-row sm:space-x-4 items-center">
             {/* Submit Button */}
@@ -192,6 +195,7 @@ const LoginPage: React.FC = () => {
           {errors.captchaToken && (
             <p className="text-red-500 text-sm text-center mt-2">{errors.captchaToken}</p>
           )}
+
           {/* Forgot Password and Register */}
           <div className="flex justify-between mt-4">
             <button
@@ -208,7 +212,6 @@ const LoginPage: React.FC = () => {
             >
               Registrera
             </button>
-
           </div>
         </FormContainer>
 
@@ -235,4 +238,3 @@ const LoginPage: React.FC = () => {
 };
 
 export default LoginPage;
-

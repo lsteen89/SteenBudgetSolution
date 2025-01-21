@@ -1,20 +1,23 @@
-// AuthProvider.tsx
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import axiosInstance from "@api/axiosConfig"; // Your custom Axios instance
 import { isAxiosError } from "axios"; // Import the utility function directly from Axios
 
+// Define the shape of the authentication state
 interface AuthState {
   authenticated: boolean;
   email?: string;
   role?: string | null;
 }
 
+// Define the context type, extending AuthState with additional functions
 export interface AuthContextType extends AuthState {
   refreshAuthStatus: () => Promise<void>;
 }
 
+// Create the AuthContext with a default value of null
 export const AuthContext = createContext<AuthContextType | null>(null);
 
+// Custom hook to use the AuthContext
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -23,9 +26,11 @@ export const useAuth = (): AuthContextType => {
   return context;
 };
 
+// AuthProvider component to wrap the application and provide authentication state
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [authState, setAuthState] = useState<AuthState>({ authenticated: false });
 
+  // Function to fetch authentication status from the backend
   const fetchAuthStatus = useCallback(async () => {
     try {
       console.log('AuthProvider: Sending request to /api/auth/status...');
@@ -36,10 +41,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         data: response.data,
       });
 
-      // Add logs to inspect the response data
-      console.log('Setting authState with:', response.data);
-
-      setAuthState(response.data); // Update state with the received data
+      // Update the authentication state based on the response
+      setAuthState(response.data);
     } catch (error) {
       if (isAxiosError(error)) {
         console.error('AuthProvider: Axios error:', {
@@ -50,22 +53,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('AuthProvider: Unexpected error:', error);
       }
 
-      // Set unauthenticated state on error
-      console.log('Setting authState to unauthenticated due to error.');
+      // Reset authentication state on error
       setAuthState({ authenticated: false });
     }
   }, []);
 
   useEffect(() => {
-    // Fetch auth status on component mount
+    // Fetch authentication status when the component mounts
     fetchAuthStatus();
 
-    // Optional: Periodically revalidate auth status (e.g., every 5 minutes)
-    const interval = setInterval(fetchAuthStatus, 5 * 60 * 1000);
+    // Optionally, set up a polling mechanism to refresh auth status periodically
+    const interval = setInterval(fetchAuthStatus, 5 * 60 * 1000); // Every 5 minutes
 
-    // Cleanup interval on component unmount
+    // Clean up the interval on component unmount
     return () => clearInterval(interval);
   }, [fetchAuthStatus]);
 
-  return <AuthContext.Provider value={{ ...authState, refreshAuthStatus: fetchAuthStatus }}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ ...authState, refreshAuthStatus: fetchAuthStatus }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
