@@ -2,6 +2,7 @@
 using Backend.Application.Interfaces.RecaptchaService;
 using Backend.Application.Interfaces.UserServices;
 using Backend.Infrastructure.Helpers;
+using Backend.Infrastructure.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -13,6 +14,7 @@ namespace Backend.Presentation.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IUserServices _userServices;
+        private readonly IWebSocketManager _webSocketManager;
         private readonly IUserTokenService _userTokenService;
         private readonly IUserAuthenticationService _userAuthenticationService;
         private readonly ILogger<RegistrationController> _logger;
@@ -20,9 +22,10 @@ namespace Backend.Presentation.Controllers
         private readonly IUserManagementService _userManagementService;
         private readonly LogHelper _logHelper;
 
-        public AuthController(IUserServices userServices, IUserTokenService userTokenService, IUserAuthenticationService userAuthenticationService, ILogger<RegistrationController> logger, IRecaptchaService recaptchaService, IUserManagementService userManagementService, LogHelper logHelper)
+        public AuthController(IUserServices userServices, IWebSocketManager webSocketManager, IUserTokenService userTokenService, IUserAuthenticationService userAuthenticationService, ILogger<RegistrationController> logger, IRecaptchaService recaptchaService, IUserManagementService userManagementService, LogHelper logHelper)
         {
             _userServices = userServices;
+            _webSocketManager = webSocketManager;
             _userTokenService = userTokenService;
             _userAuthenticationService = userAuthenticationService;
             _logger = logger;
@@ -98,6 +101,20 @@ namespace Backend.Presentation.Controllers
             return Unauthorized(new AuthStatusDto { Authenticated = false });
         }
 
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout()
+        {
+            // Perform logout logic, such as clearing cookies or tokens
+
+            // Notify the user via WebSocket if necessary
+            var userId = User.FindFirst("sub")?.Value;
+            if (!string.IsNullOrEmpty(userId))
+            {
+                //await _webSocketManager.SendMessageAsync(userId, "LOGOUT");
+            }
+
+            return Ok(new { message = "Logged out successfully." });
+        }
     }
 
 }

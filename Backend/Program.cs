@@ -16,6 +16,7 @@ using Backend.Infrastructure.Helpers.Converters;
 using Backend.Infrastructure.Interfaces;
 using Backend.Infrastructure.Providers;
 using Backend.Infrastructure.Security;
+using Backend.Infrastructure.WebSockets;
 using Backend.Tests.Mocks;
 using Dapper;
 using FluentValidation;
@@ -23,7 +24,6 @@ using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Moq;
 using MySqlConnector;
@@ -33,7 +33,9 @@ using System.Reflection;
 using System.Text;
 using System.Threading.RateLimiting;
 
+
 var builder = WebApplication.CreateBuilder(args);
+
 #region Serilog Configuration
 // Configure Serilog early in the application lifecycle
 var logFilePath = builder.Environment.IsProduction()
@@ -140,6 +142,9 @@ else
     builder.Services.AddSingleton<IEmailPreparationService, EmailPreparationService>();
 }
 
+// Add WebSockets and their helpers
+builder.Services.AddSingleton<IWebSocketManager, AuthWebSocketManager>();
+builder.Services.AddHostedService(provider => (AuthWebSocketManager)provider.GetRequiredService<IWebSocketManager>());
 
 #endregion
 
@@ -326,6 +331,7 @@ builder.Logging.AddConsole();
 // Build the app after service registration
 var app = builder.Build();
 
+
 // Apply CORS based on the environment
 if (builder.Environment.IsDevelopment())
 {
@@ -399,6 +405,36 @@ app.MapHealthChecks("/health");
 app.MapFallbackToFile("index.html");
 
 #endregion
+#region WebSockets
+// Middleware for WebSocket support
+// Configure WebSocket endpoints
+app.UseWebSockets();
+app.UseEndpoints(endpoints =>
+{
+    endpoints.MapControllers();
+    endpoints.Map("/ws/auth", async context =>
+    {
+        if (context.WebSockets.IsWebSocketRequest)
+        {
+            var webSocket = await context.WebSockets.AcceptWebSocketAsync();
+            var webSocketManager = context.RequestServices.GetRequiredService<IWebSocketManager>();
+            await webSocketManager.HandleConnectionAsync(webSocket, context);
+        }
+        else
+        {
+            context.Response.StatusCode = 400;
+        }
+    });
+});
+#endregion
+#region Logging and Final Setup
+
+
+
+// Run the application
+
+
+#endregion
 
 #region Logging and Final Setup
 
@@ -414,3 +450,6 @@ _logger.LogInformation("Application setup complete. Running app...");
 app.Run();
 
 #endregion
+
+// Declare the partial Program class
+public partial class Program { }
