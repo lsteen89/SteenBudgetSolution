@@ -29,6 +29,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [authState, setAuthState] = useState<AuthState>({ authenticated: false });
   const wsRef = useRef<WebSocket | null>(null);
 
+  const closeWebSocket = useCallback(() => {
+    if (wsRef.current) {
+      console.log("AuthProvider: Closing WebSocket...");
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+  }, []);
+
   // 1. Fetch auth status (HTTP cookie-based)
   const fetchAuthStatus = useCallback(async () => {
     try {
@@ -57,21 +65,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  // 2. Additional method to handle manual logout
   const logout = useCallback(async () => {
     try {
       await axiosInstance.post("/api/auth/logout", {}, { withCredentials: true });
+      if (wsRef.current) {
+        wsRef.current.send("logout");
+      }
     } catch (error) {
       console.error("AuthProvider: Logout error:", error);
     }
     setAuthState({ authenticated: false });
     closeWebSocket();
-  }, []);
+  }, [closeWebSocket]);
 
   // 3. WebSocket opener
-  const openWebSocket = useCallback(() => {
-    console.log("AuthProvider: Opening WebSocket...");
-    const socket = new WebSocket("wss://ebudget.se/ws/auth");
+const openWebSocket = useCallback(() => {
+  const websocketUrl = import.meta.env.MODE === "development"
+    ? "ws://localhost:5000/ws/auth"
+    : "wss://ebudget.se/ws/auth";
+
+  const connect = (attempt = 1) => {
+    console.log(`AuthProvider: Attempting WebSocket connection (attempt ${attempt})...`);
+    const socket = new WebSocket(websocketUrl);
 
     socket.onopen = () => {
       console.log("AuthProvider: WebSocket connected.");
@@ -81,37 +96,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     socket.onmessage = (event) => {
       console.log("AuthProvider: Received WS message:", event.data);
       if (event.data === "ready") {
-        // This is the initial "ready" from server
         console.log("AuthProvider: WebSocket is ready!");
       } else if (event.data === "logout" || event.data === "session-expired") {
-        console.log("AuthProvider: Received logout/session-expired from server, updating state...");
+        console.log("AuthProvider: Received logout/session-expired from server.");
         setAuthState({ authenticated: false });
         closeWebSocket();
-      } else {
-        // Possibly handle other messages or echo responses
-        console.log("AuthProvider: WS message:", event.data);
       }
     };
 
     socket.onclose = () => {
       console.log("AuthProvider: WebSocket closed.");
       wsRef.current = null;
-      // If the user was authenticated, consider re-checking status or leaving them in a partial state
+      if (authState.authenticated && attempt < 3) {
+        setTimeout(() => connect(attempt + 1), 5000); // Retry after 5 seconds
+      }
     };
 
     socket.onerror = (err) => {
       console.error("AuthProvider: WebSocket error:", err);
     };
-  }, []);
+  };
 
-  // 4. WebSocket closer
-  const closeWebSocket = useCallback(() => {
-    if (wsRef.current) {
-      console.log("AuthProvider: Closing WebSocket...");
-      wsRef.current.close();
-      wsRef.current = null;
-    }
-  }, []);
+  connect();
+}, [authState.authenticated, closeWebSocket]);
 
   // 5. On mount, fetch status once
   useEffect(() => {

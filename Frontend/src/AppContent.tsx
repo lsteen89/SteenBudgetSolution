@@ -32,7 +32,7 @@ interface AppContentProps {
 
 const AppContent: React.FC<AppContentProps> = ({ isMenuOpen, toggleMenu, hamburgerButtonRef, isDesktop, isDebugMode }) => {
   const location = useLocation(); // Get current location
-  const auth = useAuth(); // Now, useAuth is safely within AuthProvider
+  const auth = useAuth();
 
   const protectedRoutes = ['/dashboard'];
   const isProtectedRoute = protectedRoutes.includes(location.pathname);
