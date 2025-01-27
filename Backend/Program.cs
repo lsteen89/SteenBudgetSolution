@@ -257,6 +257,10 @@ builder.Services.AddCors(options =>
 });
 
 // Add Authentication and Authorization
+
+// Clear the default claim type mappings
+JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
+
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -280,9 +284,11 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuer = false,  // Set to true if you configure issuers
         ValidateAudience = false, // Set to true if you configure audiences
         ValidateLifetime = true,
-        ClockSkew = TimeSpan.Zero // No tolerance for expired tokens
+        ClockSkew = TimeSpan.Zero, // No tolerance for expired tokens
+        NameClaimType = "sub",      // Map 'sub' to Name
+        RoleClaimType = "role"      // Will be implemented later
     };
-    JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
+    
 
     options.Events = new JwtBearerEvents
     {
