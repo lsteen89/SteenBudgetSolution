@@ -71,7 +71,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // 3. WebSocket opener
   const openWebSocket = useCallback(() => {
     console.log("AuthProvider: Opening WebSocket...");
-    const socket = new WebSocket("wss://localhost:5000/ws/auth");
+    const socket = new WebSocket("wss://ebudget.se/ws/auth");
 
     socket.onopen = () => {
       console.log("AuthProvider: WebSocket connected.");
