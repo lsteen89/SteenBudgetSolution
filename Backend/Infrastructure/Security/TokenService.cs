@@ -20,7 +20,7 @@ public class TokenService : ITokenService
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSecret));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-        // Basic claims
+        // Define claims
         var claims = new List<Claim>
     {
         new Claim(JwtRegisteredClaimNames.Sub, userId), // Subject (user ID)

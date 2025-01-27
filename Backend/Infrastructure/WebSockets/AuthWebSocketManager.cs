@@ -108,7 +108,7 @@ namespace Backend.Infrastructure.WebSockets
                     await webSocket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Not authenticated", CancellationToken.None);
                     return;
                 }
-
+                        userId = context.User.FindFirst("sub")?.Value;
                 userId = context.User.FindFirst("sub")?.Value;
                 if (string.IsNullOrEmpty(userId))
                 {
