@@ -24,10 +24,10 @@ namespace Backend.Application.Services.UserServices
                 return new AuthStatusDto { Authenticated = false };
             }
 
-            // Extract claims
-            var email = user.FindFirst(ClaimTypes.Email)?.Value;
-            var role = user.FindFirst(ClaimTypes.Role)?.Value;
-            
+            // Extract claims using original JWT claim names
+            var email = user.FindFirst("email")?.Value;
+            var role = user.FindFirst("role")?.Value; // Ensure 'role' is included in the JWT if used
+
             if (string.IsNullOrEmpty(email))
             {
                 _logger.LogWarning("User authenticated but email claim is missing.");

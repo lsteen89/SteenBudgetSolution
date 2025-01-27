@@ -266,6 +266,8 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
+    // Disable the default claim type mapping
+    options.MapInboundClaims = false;
     var jwtKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY");
     var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
     var logger = loggerFactory.CreateLogger<Program>();
