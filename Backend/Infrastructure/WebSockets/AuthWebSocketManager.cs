@@ -106,6 +106,10 @@ namespace Backend.Infrastructure.WebSockets
                     return;
                 }
 
+                // Log all claims for debugging
+                var claims = context.User.Claims.Select(c => $"{c.Type}: {c.Value}").ToList();
+                _logger.LogInformation("User claims: {Claims}", string.Join(", ", claims));
+
                 userId = context.User.FindFirst("sub")?.Value;
                 if (string.IsNullOrEmpty(userId))
                 {
@@ -114,6 +118,7 @@ namespace Backend.Infrastructure.WebSockets
                     return;
                 }
 
+                _logger.LogInformation("Authenticated WebSocket connection established for user: {UserId}", userId);
                 // 2. Acquire a lock for this user
                 userLock = _userLocks.GetOrAdd(userId, _ => new SemaphoreSlim(1, 1));
                 await userLock.WaitAsync();

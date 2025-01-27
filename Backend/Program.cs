@@ -30,6 +30,7 @@ using MySqlConnector;
 using Serilog;
 using System.Data.Common;
 using System.Reflection;
+using System.Security.Claims;
 using System.Text;
 using System.Threading.RateLimiting;
 
@@ -309,7 +310,8 @@ builder.Services.AddAuthentication(options =>
         OnTokenValidated = context =>
         {
             var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-            logger.LogInformation("Token validated for user {User}", context.Principal?.Identity?.Name ?? "Unknown");
+            var claims = context.Principal?.Claims.Select(c => $"{c.Type}: {c.Value}").ToList();
+            logger.LogInformation("Token validated. Claims: {Claims}", string.Join(", ", claims));
             return Task.CompletedTask;
         }
     };
