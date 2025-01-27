@@ -258,9 +258,7 @@ builder.Services.AddCors(options =>
 
 // Add Authentication and Authorization
 
-
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
-
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -268,7 +266,6 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
-    options.MapInboundClaims = false;
     var jwtKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY");
     var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
     var logger = loggerFactory.CreateLogger<Program>();
