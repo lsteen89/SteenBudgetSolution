@@ -97,6 +97,9 @@ namespace Backend.Infrastructure.WebSockets
             try
             {
                 _logger.LogInformation("HandleConnectionAsync started.");
+                // Log all claims for debugging
+                var claims = context.User.Claims.Select(c => $"{c.Type}: {c.Value}").ToList();
+                _logger.LogInformation("User claims: {Claims}", string.Join(", ", claims));
 
                 // 1. Check if the user is authenticated
                 if (!context.User.Identity.IsAuthenticated)
@@ -105,10 +108,6 @@ namespace Backend.Infrastructure.WebSockets
                     await webSocket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Not authenticated", CancellationToken.None);
                     return;
                 }
-
-                // Log all claims for debugging
-                var claims = context.User.Claims.Select(c => $"{c.Type}: {c.Value}").ToList();
-                _logger.LogInformation("User claims: {Claims}", string.Join(", ", claims));
 
                 userId = context.User.FindFirst("sub")?.Value;
                 if (string.IsNullOrEmpty(userId))

@@ -29,6 +29,7 @@ using Moq;
 using MySqlConnector;
 using Serilog;
 using System.Data.Common;
+using System.IdentityModel.Tokens.Jwt;
 using System.Reflection;
 using System.Security.Claims;
 using System.Text;
@@ -281,6 +282,7 @@ builder.Services.AddAuthentication(options =>
         ValidateLifetime = true,
         ClockSkew = TimeSpan.Zero // No tolerance for expired tokens
     };
+    JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
     options.Events = new JwtBearerEvents
     {
