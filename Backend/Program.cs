@@ -293,20 +293,23 @@ builder.Services.AddAuthentication(options =>
         {
             var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
             logger.LogInformation("OnMessageReceived fired. Cookie found? {HasCookie}", context.Request.Cookies.ContainsKey("auth_token"));
-            var cookies = context.Request.Cookies;
 
-            logger.LogInformation("Available cookies: {Cookies}", cookies.Keys);
-            var cookie = context.Request.Cookies["auth_token"];
-            if (!string.IsNullOrEmpty(cookie))
+            if (context.Request.Cookies.TryGetValue("auth_token", out var token))
             {
-                logger.LogInformation("auth_token cookie = {Cookie}", cookie);
-                context.Token = cookie;
-
+                logger.LogInformation("Token found in cookie: {Token}", token);
+                context.Token = token;
             }
             else
             {
                 logger.LogWarning("No auth_token cookie in the request!");
             }
+
+            return Task.CompletedTask;
+        },
+        OnTokenValidated = context =>
+        {
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+            logger.LogInformation("Token validated for user {User}", context.Principal?.Identity?.Name ?? "Unknown");
             return Task.CompletedTask;
         }
     };
