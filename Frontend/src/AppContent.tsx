@@ -50,8 +50,8 @@ const AppContent: React.FC<AppContentProps> = ({ isMenuOpen, toggleMenu, hamburg
       {/* Render MobileMenu for phones and iPads in portrait mode */}
       {isDesktop ? <MenuComponent /> : <MobileMenu />}
 
-      {/* UserSideMenu - Display only for authenticated users on protected routes */}
-      {(auth?.authenticated || isDebugMode) && isProtectedRoute && (
+      {/* UserSideMenu - Display only for authenticated users */}
+      {(auth?.authenticated || isDebugMode) && (
         <UserSideMenu isOpen={isMenuOpen} toggleMenu={toggleMenu} />
       )}
 
