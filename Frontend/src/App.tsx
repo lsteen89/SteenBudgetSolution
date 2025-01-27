@@ -1,8 +1,7 @@
-// App.tsx
 import React, { useRef, useState, useEffect } from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import { AuthProvider } from "@context/AuthProvider"; 
-import AppContent from './AppContent'; // Adjust the path as necessary
+import AppContent from './AppContent';
 import useMediaQuery from './hooks/useMediaQuery';
 
 const App: React.FC = () => {
