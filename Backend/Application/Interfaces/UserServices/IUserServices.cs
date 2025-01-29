@@ -7,7 +7,6 @@ namespace Backend.Application.Interfaces.UserServices
     {
         Task<bool> RegisterUserAsync(UserCreationDto userCreationDto);
         Task<bool> SendVerificationEmailWithTokenAsync(string email);
-        Task<LoginResultDto> LoginAsync(UserLoginDto userLoginDto, string ipAddress);
         Task<OperationResult> VerifyEmailTokenAsync(Guid token);
         Task<(bool IsSuccess, int StatusCode, string Message)> ResendVerificationEmailAsync(string email);
         Task<bool> DeleteUserByEmailAsync(string email);

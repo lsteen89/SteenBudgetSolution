@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 
+namespace Backend.Tests.UnitTests.Email;
 public class SendAndPrepareVerificationEmail
 {
     private readonly Mock<IEmailPreparationService> _emailPreparationServiceMock;

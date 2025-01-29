@@ -1,7 +1,11 @@
+using Backend.Application.Configuration;
+using Backend.Application.Interfaces.Cookies;
 using Backend.Application.Interfaces.EmailServices;
+using Backend.Application.Interfaces.JWT;
 using Backend.Application.Interfaces.RecaptchaService;
 using Backend.Application.Interfaces.UserServices;
 using Backend.Application.Services.EmailServices;
+using Backend.Application.Services.JWT;
 using Backend.Application.Services.UserServices;
 using Backend.Application.Services.Validation;
 using Backend.Application.Settings;
@@ -21,6 +25,7 @@ using Backend.Tests.Mocks;
 using Dapper;
 using FluentValidation;
 using FluentValidation.AspNetCore;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.RateLimiting;
@@ -31,13 +36,34 @@ using Serilog;
 using System.Data.Common;
 using System.IdentityModel.Tokens.Jwt;
 using System.Reflection;
-using System.Security.Claims;
 using System.Text;
 using System.Threading.RateLimiting;
-
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Caching.StackExchangeRedis;
+using Backend.Application.Services.AuthService;
+using Backend.Application.Interfaces.AuthService;
 
 var builder = WebApplication.CreateBuilder(args);
 
+#region Configuration and Services
+// Register In-Memory Distributed Cache
+builder.Services.AddDistributedMemoryCache();
+// Register Redis Distributed Cache
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = builder.Configuration.GetConnectionString("Redis"); // Ensure this is set in appsettings.json or environment variables
+    options.InstanceName = "YourAppInstanceName"; // Optional: prefix for keys
+});
+// JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear(); TODO: TEST THIS
+// Set up JWT settings
+var jwtSettings = new JwtSettings
+{
+    Issuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "eBudget",
+    Audience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "eBudget",
+    SecretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY") ?? "development-fallback-key",
+    ExpiryMinutes = int.TryParse(Environment.GetEnvironmentVariable("JWT_EXPIRY_MINUTES"), out var expiry) ? expiry : 60
+};
+#endregion
 #region Serilog Configuration
 // Configure Serilog early in the application lifecycle
 var logFilePath = builder.Environment.IsProduction()
@@ -92,7 +118,7 @@ builder.Services.AddScoped<IUserSQLProvider, UserSQLProvider>();
 builder.Services.AddScoped<IUserServices, UserServices>();
 builder.Services.AddScoped<IUserManagementService, UserManagementService>();
 builder.Services.AddScoped<IUserTokenService, UserTokenService>();
-
+builder.Services.AddScoped<IUserAuthenticationService, UserAuthenticationService>(); 
 builder.Services.AddScoped<IUserAuthenticationService, UserAuthenticationService>();
 
 // Section for email services
@@ -102,9 +128,15 @@ builder.Services.AddScoped<IUserEmailService, UserEmailService>();
 builder.Services.AddScoped<IEmailPreparationService, EmailPreparationService>();
 builder.Services.AddScoped<IEmailResetPasswordService, EmailResetPasswordService>();
 
+// Other various services
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<LogHelper>();
 builder.Services.AddScoped<ITimeProvider, SystemTimeProvider>();
+builder.Services.AddScoped<ICookieService, CookieService>();
+builder.Services.AddScoped<ITokenBlacklistService,  TokenBlacklistService>();
+builder.Services.AddSingleton(jwtSettings);
+builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
 
 builder.Services.AddScoped<IEnvironmentService, EnvironmentService>();
 builder.Services.AddTransient<RecaptchaHelper>();
@@ -258,36 +290,48 @@ builder.Services.AddCors(options =>
 
 // Add Authentication and Authorization
 
-JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 builder.Services.AddAuthentication(options =>
 {
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    // Set default schemes to Cookie Authentication
+    options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    options.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+})
+.AddCookie(options =>
+{
+    options.LoginPath = "/login";
+    options.LogoutPath = "/logout";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SameSite = SameSiteMode.Strict;
+    options.Cookie.Domain = "ebudget.se";
 })
 .AddJwtBearer(options =>
 {
     // Disable the default claim type mapping
     options.MapInboundClaims = false;
-    var jwtKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY");
-    var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
-    var logger = loggerFactory.CreateLogger<Program>();
 
-    if (string.IsNullOrEmpty(jwtKey) || jwtKey == "development-fallback-key")
+    if (string.IsNullOrEmpty(jwtSettings.SecretKey) || jwtSettings.SecretKey == "development-fallback-key")
     {
+        var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+        var logger = loggerFactory.CreateLogger<Program>();
         logger.LogWarning("JWT_SECRET_KEY is missing or using fallback. Update your environment configuration.");
     }
 
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey ?? "development-fallback-key")),
-        ValidateIssuer = false,  // Set to true if you configure issuers
-        ValidateAudience = false, // Set to true if you configure audiences
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.SecretKey)),
+        ValidateIssuer = true,  // Enable if you want to validate issuer
+        ValidIssuer = jwtSettings.Issuer,
+        ValidateAudience = true, // Enable if you want to validate audience
+        ValidAudience = jwtSettings.Audience,
         ValidateLifetime = true,
         ClockSkew = TimeSpan.Zero // No tolerance for expired tokens
-    };
-    
 
+    };
+
+    // Configure JWT bearer events
     options.Events = new JwtBearerEvents
     {
         OnAuthenticationFailed = context =>
@@ -322,6 +366,7 @@ builder.Services.AddAuthentication(options =>
         }
     };
 });
+
 
 builder.Services.AddAuthorization();
 

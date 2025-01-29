@@ -1,33 +1,27 @@
 ﻿using Backend.Application.DTO;
-using Backend.Infrastructure.Security;
-using Microsoft.Extensions.Configuration;
+using Backend.Application.Interfaces.UserServices;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
+using Moq;
 using System.IdentityModel.Tokens.Jwt;
 using Xunit;
-using Microsoft.AspNetCore.Http;
-using System.Net;
-using Moq;
-using Backend.Application.Interfaces.UserServices;
-using Backend.Application.Services.UserServices;
-using Microsoft.Extensions.DependencyInjection;
-using Backend.Infrastructure.Interfaces;
-using Microsoft.IdentityModel.Tokens;
-using System.Security.Claims;
-using System.Text;
-using Backend.Domain.Entities;
 
-namespace Backend.Tests.IntegrationTests.RegistrationTests
+namespace Backend.Tests.IntegrationTests.Services.AuthService
 {
-    public class UserServicesTests : IntegrationTestBase
+    public class AuthServiceIntegrationTestsLogin : IntegrationTestBase
     {
         private Dictionary<string, (string Value, CookieOptions Options)> cookieContainer;
-        public UserServicesTests()
+        public AuthServiceIntegrationTestsLogin()
         {
-            cookieContainer = new Dictionary<string, (string Value, CookieOptions Options)>(); 
+            cookieContainer = new Dictionary<string, (string Value, CookieOptions Options)>();
         }
         [Fact]
         public async Task LoginAsync_ValidCredentials_IntegrationTest()
         {
             // Arrange
+            WebSocketManagerMock
+                .Setup(manager => manager.SendMessageAsync(It.IsAny<string>(), It.IsAny<string>()))
+                .Returns(Task.CompletedTask);
             var userLoginDto = new UserLoginDto { Email = "test@example.com", Password = "Password123!" };
             string ipAddress = "";
             // Insert a user into the database using SetupUserAsync
@@ -37,7 +31,7 @@ namespace Backend.Tests.IntegrationTests.RegistrationTests
             await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
 
             // Act
-            var result = await UserServices.LoginAsync(userLoginDto, ipAddress);
+            var result = await AuthService.LoginAsync(userLoginDto, ipAddress);
 
             // Assert
             Assert.True(result.Success);
@@ -49,7 +43,7 @@ namespace Backend.Tests.IntegrationTests.RegistrationTests
             // Assert that a valid auth token is set in cookies
             Assert.True(CookieContainer.ContainsKey("auth_token"));
             var authCookie = CookieContainer["auth_token"];
-            //Assert.NotNull(authCookie.Value); // Check that the token exists
+            Assert.NotNull(authCookie.Value); // Check that the token exists
             Assert.DoesNotContain("Bearer", authCookie.Value); // Validate token format
             Assert.NotEmpty(authCookie.Value); // Ensure token is present
         }
@@ -57,40 +51,55 @@ namespace Backend.Tests.IntegrationTests.RegistrationTests
         [Fact]
         public async Task LoginAsync_ValidCredentials_TokenHasExpectedClaims()
         {
-            // Mock production environment
-            MockEnvironmentService
-                .Setup(e => e.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"))
-                .Returns("Production");
             // Arrange
-            string ipAddress = "";
-            var userLoginDto = new UserLoginDto { Email = "test@example.com", Password = "Password123!" };
+            string ipAddress = "127.0.0.1";
+            var userLoginDto = new UserLoginDto
+            {
+                Email = "test@example.com",
+                Password = "Password123!",
+                CaptchaToken = "mock-captcha-token"
+            };
             var registeredUser = await SetupUserAsync();
             await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
 
             // Act
-            var result = await UserServices.LoginAsync(userLoginDto, ipAddress);
+            var result = await AuthService.LoginAsync(userLoginDto, ipAddress);
 
             // Assert
             Assert.True(result.Success);
 
+            Assert.True(CookieContainer.ContainsKey("auth_token"));
             var authCookie = CookieContainer["auth_token"];
             Assert.NotNull(authCookie.Value); // Ensure token exists
             Assert.DoesNotContain("Bearer", authCookie.Value); // Validate token format
 
-            // Decode and validate JWT token (use a JWT library)
+            // Decode and validate JWT token
             var handler = new JwtSecurityTokenHandler();
             var token = handler.ReadJwtToken(authCookie.Value);
 
             Assert.Equal("eBudget", token.Issuer);
-            Assert.Equal("eBudget", token.Audiences.First());
-            Assert.Equal(registeredUser.Email, token.Claims.First(c => c.Type == "email").Value);
+            Assert.Contains("eBudget", token.Audiences);
+            Assert.Equal(registeredUser.Email, token.Claims.First(c => c.Type == JwtRegisteredClaimNames.Email).Value);
+            Assert.Equal(registeredUser.PersoId.ToString(), token.Claims.First(c => c.Type == JwtRegisteredClaimNames.Sub).Value);
+
+            // Optionally, verify token expiration
+            var expClaim = token.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Exp)?.Value;
+            Assert.NotNull(expClaim);
+            var expUnix = long.Parse(expClaim);
+            var expDate = DateTimeOffset.FromUnixTimeSeconds(expUnix).UtcDateTime;
+            Assert.True(expDate > DateTime.UtcNow, "Token should not be expired");
 
             // Assert cookie options
             var options = authCookie.Options;
             Assert.True(options.HttpOnly);
             Assert.True(options.Secure);
             Assert.Equal(SameSiteMode.Strict, options.SameSite);
+
+            // No need to verify the mock as it's removed
         }
+
+
+
         [Fact]
         public async Task LoginAsync_TokenExpires_ShouldDenyAccess()
         {
@@ -108,7 +117,7 @@ namespace Backend.Tests.IntegrationTests.RegistrationTests
             MockTimeProvider.Setup(tp => tp.UtcNow).Returns(tokenCreationTime);
 
             // Act: Perform the login
-            var result = await UserServices.LoginAsync(userLoginDto, ipAddress);
+            var result = await AuthService.LoginAsync(userLoginDto, ipAddress);
             Assert.True(result.Success, "Login should succeed.");
 
             Assert.True(CookieContainer.ContainsKey("auth_token"), "Auth token should exist in the cookie container.");
@@ -134,13 +143,13 @@ namespace Backend.Tests.IntegrationTests.RegistrationTests
             await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
 
             // Act - Perform multiple login attempts
-            var result1 = await UserServices.LoginAsync(userLoginDto, ipAddress);
-            var result2 = await UserServices.LoginAsync(userLoginDto, ipAddress);
+            var result1 = await AuthService.LoginAsync(userLoginDto, ipAddress);
+            var result2 = await AuthService.LoginAsync(userLoginDto, ipAddress);
 
             // Assert
             Assert.True(result1.Success);
             Assert.True(result2.Success);
-            Assert.NotEqual(result1.Token, result2.Token); // Tokens should be unique
+            Assert.NotEqual(result1.AccessToken, result2.AccessToken); // Tokens should be unique
         }
         [Fact]
         public async Task LoginAsync_ValidCredentials_ShouldSetSecureHeaders()
@@ -163,7 +172,7 @@ namespace Backend.Tests.IntegrationTests.RegistrationTests
             await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
 
             // Act
-            var result = await UserServices.LoginAsync(userLoginDto, ipAddress);
+            var result = await AuthService.LoginAsync(userLoginDto, ipAddress);
 
             // Assert
             Assert.True(CookieContainer.ContainsKey("auth_token"));
@@ -186,7 +195,7 @@ namespace Backend.Tests.IntegrationTests.RegistrationTests
             var registeredUser = await SetupUserAsync();
             await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
 
-            var result = await UserServices.LoginAsync(userLoginDto, ipAddress);
+            var result = await AuthService.LoginAsync(userLoginDto, ipAddress);
             Assert.True(result.Success);
 
             var authCookie = CookieContainer["auth_token"];
@@ -196,7 +205,7 @@ namespace Backend.Tests.IntegrationTests.RegistrationTests
             var tamperedToken = authCookie.Value.Substring(0, authCookie.Value.Length - 1) + "X";
 
             // Act - Attempt to use the tampered token
-            var isAuthorized = await UserTokenService.IsAuthorizedAsync(tamperedToken); 
+            var isAuthorized = await UserTokenService.IsAuthorizedAsync(tamperedToken);
 
             // Assert
             Assert.False(isAuthorized);
@@ -211,7 +220,7 @@ namespace Backend.Tests.IntegrationTests.RegistrationTests
             await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
 
             // Act
-            await UserServices.LoginAsync(userLoginDto, ipAddress);
+            await AuthService.LoginAsync(userLoginDto, ipAddress);
 
             // Assert
             Assert.True(CookieContainer.ContainsKey("auth_token"), "auth_token should exist in cookies");
@@ -255,7 +264,7 @@ namespace Backend.Tests.IntegrationTests.RegistrationTests
             // Simulate multiple failed login attempts
             for (int i = 0; i < 5; i++)
             {
-                var result = await UserServices.LoginAsync(userLoginDto, ipAddress);
+                var result = await AuthService.LoginAsync(userLoginDto, ipAddress);
                 Assert.False(result.Success, $"Attempt {i + 1}: Login should fail");
             }
 
@@ -286,7 +295,7 @@ namespace Backend.Tests.IntegrationTests.RegistrationTests
             await Task.Delay(TimeSpan.FromMinutes(2));
 
             // Act 2: Attempt login after lockout period
-            var result = await UserServices.LoginAsync(userLoginDto, ipAddress);
+            var result = await AuthService.LoginAsync(userLoginDto, ipAddress);
 
             // Assert
             Assert.True(result.Success, "User should be able to log in after the lockout period expires");
@@ -306,14 +315,14 @@ namespace Backend.Tests.IntegrationTests.RegistrationTests
             await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
 
             // Simulate a failed login attempt
-            await UserServices.LoginAsync(wrongLoginDto, ipAddress);
+            await AuthService.LoginAsync(wrongLoginDto, ipAddress);
 
             // Verify failed attempts count
             var failedAttempts = await UserSQLProvider.AuthenticationSqlExecutor.GetRecentFailedAttemptsAsync(registeredUser.PersoId);
             Assert.Equal(1, failedAttempts);
 
             // Act: Successful login
-            var result = await UserServices.LoginAsync(correctLoginDto, ipAddress);
+            var result = await AuthService.LoginAsync(correctLoginDto, ipAddress);
 
             // Assert
             Assert.True(result.Success, "User should successfully log in with correct credentials");

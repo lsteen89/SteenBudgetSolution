@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Backend.Infrastructure.WebSockets;
 using Xunit.Sdk;
 
-namespace Backend.Tests.IntegrationTests
+namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTest
 {
     [Collection("WebSocket Test Collection")]
     public class WebSocketTests

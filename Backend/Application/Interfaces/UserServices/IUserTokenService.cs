@@ -1,10 +1,11 @@
-﻿using Backend.Domain.Entities;
+﻿using Backend.Application.DTO;
+using Backend.Domain.Entities;
 
 namespace Backend.Application.Interfaces.UserServices
 {
     public interface IUserTokenService
     {
-        Task<bool> IsAuthorizedAsync(string token);
+        Task<bool> IsAuthorizedAsync(string token); //TODO move this to a different service
         Task<UserTokenModel> CreateEmailTokenAsync(Guid persoid);
         Task<bool> InsertUserTokenAsync(UserTokenModel tokenModel);
         Task<UserTokenModel?> GetTokenByGuidAsync(Guid token);

@@ -16,31 +16,7 @@ namespace Backend.Application.Services.UserServices
             _userSQLProvider = userSQLProvider;
             _logger = logger;
         }
-        public AuthStatusDto CheckAuthStatus(ClaimsPrincipal user)
-        {
-            if (user == null || user.Identity?.IsAuthenticated != true)
-            {
-                _logger.LogWarning("User is null or not authenticated.");
-                return new AuthStatusDto { Authenticated = false };
-            }
 
-            // Extract claims using original JWT claim names
-            var email = user.FindFirst("email")?.Value;
-            var role = user.FindFirst("role")?.Value; // Ensure 'role' is included in the JWT if used
-
-            if (string.IsNullOrEmpty(email))
-            {
-                _logger.LogWarning("User authenticated but email claim is missing.");
-            }
-
-            _logger.LogInformation("Authenticated user. Email: {Email}, Role: {Role}", email, role);
-            return new AuthStatusDto
-            {
-                Authenticated = !string.IsNullOrEmpty(email), // User is authenticated only if email exists
-                Email = email,
-                Role = role
-            };
-        }
         public async Task<bool> CheckIfUserExistsAsync(string email) =>
             await _userSQLProvider.UserSqlExecutor.IsUserExistInDatabaseAsync(email);
 
