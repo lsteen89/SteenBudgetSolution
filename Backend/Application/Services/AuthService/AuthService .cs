@@ -19,7 +19,7 @@ namespace Backend.Application.Services.AuthService
         private readonly IUserSQLProvider _userSQLProvider;
         private readonly IJwtService _jwtService;
         private readonly IRecaptchaService _recaptchaService;
-        private readonly ICookieService _cookieService;
+        //private readonly ICookieService _cookieService;
         private readonly IUserTokenService _userTokenService;
         private readonly IWebSocketManager _webSocketManager;
         private readonly LogHelper _logHelper;
@@ -31,7 +31,7 @@ namespace Backend.Application.Services.AuthService
             IUserSQLProvider userSQLProvider,
             IJwtService jwtService,
             IRecaptchaService recaptchaService,
-            ICookieService cookieService,
+            //ICookieService cookieService,
             IUserTokenService userTokenService,
             IWebSocketManager webSocketManager,
             LogHelper logHelper,
@@ -42,7 +42,7 @@ namespace Backend.Application.Services.AuthService
             _userSQLProvider = userSQLProvider;
             _jwtService = jwtService;
             _recaptchaService = recaptchaService;
-            _cookieService = cookieService;
+            //_cookieService = cookieService;
             _userTokenService = userTokenService;
             _webSocketManager = webSocketManager;
             _logHelper = logHelper;
@@ -88,15 +88,18 @@ namespace Backend.Application.Services.AuthService
                 return new LoginResultDto { Success = false, Message = "Token generation failed." };
             }
 
+            // Going away from cookies to JWT
+            /*
             // Step 5: Set the auth_token cookie
             var environment = _environmentService.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
                                ?? "Development";
             _logger.LogInformation("Resolved environment: {Environment}", environment);
             var isSecure = environment.ToLower() == "production";
 
-            _cookieService.SetAuthCookie(tokens.AccessToken, isSecure);
+            //_cookieService.SetAuthCookie(tokens.AccessToken, isSecure);
+            */
 
-            // Step 6: Reset failed attempts
+            // Step 5: Reset failed attempts
             var user = await _userSQLProvider.UserSqlExecutor.GetUserModelAsync(email: userLoginDto.Email);
             if (user != null)
             {
@@ -123,7 +126,7 @@ namespace Backend.Application.Services.AuthService
             _logger.LogInformation("Processing logout request.");
 
             // 1. Clear the auth_token cookie
-            _cookieService.DeleteAuthCookie();
+            //_cookieService.DeleteAuthCookie();
 
             _logger.LogInformation("auth_token cookie deleted.");
 
