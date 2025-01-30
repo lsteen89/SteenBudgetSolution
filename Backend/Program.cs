@@ -290,48 +290,37 @@ builder.Services.AddCors(options =>
 
 // Add Authentication and Authorization
 
+
+JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 builder.Services.AddAuthentication(options =>
 {
-    // Set default schemes to Cookie Authentication
-    options.DefaultAuthenticateScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-    options.DefaultSignInScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-})
-.AddCookie(options =>
-{
-    options.LoginPath = "/login";
-    options.LogoutPath = "/logout";
-    options.Cookie.HttpOnly = true;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-    options.Cookie.SameSite = SameSiteMode.Strict;
-    options.Cookie.Domain = "ebudget.se";
+options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 })
 .AddJwtBearer(options =>
 {
     // Disable the default claim type mapping
     options.MapInboundClaims = false;
+    var jwtKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY");
+    var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+    var logger = loggerFactory.CreateLogger<Program>();
 
-    if (string.IsNullOrEmpty(jwtSettings.SecretKey) || jwtSettings.SecretKey == "development-fallback-key")
+    if (string.IsNullOrEmpty(jwtKey) || jwtKey == "development-fallback-key")
     {
-        var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
-        var logger = loggerFactory.CreateLogger<Program>();
         logger.LogWarning("JWT_SECRET_KEY is missing or using fallback. Update your environment configuration.");
     }
 
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.SecretKey)),
-        ValidateIssuer = true,  // Enable if you want to validate issuer
-        ValidIssuer = jwtSettings.Issuer,
-        ValidateAudience = true, // Enable if you want to validate audience
-        ValidAudience = jwtSettings.Audience,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey ?? "development-fallback-key")),
+        ValidateIssuer = false,  // Set to true if you configure issuers
+        ValidateAudience = false, // Set to true if you configure audiences
         ValidateLifetime = true,
         ClockSkew = TimeSpan.Zero // No tolerance for expired tokens
-
     };
 
-    // Configure JWT bearer events
+
     options.Events = new JwtBearerEvents
     {
         OnAuthenticationFailed = context =>
