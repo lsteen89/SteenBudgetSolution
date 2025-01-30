@@ -289,6 +289,7 @@ builder.Services.AddCors(options =>
 });
 
 // *** Configure JWT Bearer Authentication Only ***
+JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
