@@ -1,6 +1,6 @@
 ﻿using System.Security.Claims;
 using Xunit;
-
+namespace Backend.Tests.UnitTests.Services.UserManagment;
 public class UserManagementServiceTests : UnitTestBase
 {
     [Fact]
@@ -16,7 +16,7 @@ public class UserManagementServiceTests : UnitTestBase
         var user = new ClaimsPrincipal(identity);
 
         // Act
-        var result = UserManagementServiceInstance.CheckAuthStatus(user);
+        var result = UserAuthenticationServiceInstance.CheckAuthStatus(user);
 
         // Assert
         Assert.True(result.Authenticated);
@@ -31,7 +31,7 @@ public class UserManagementServiceTests : UnitTestBase
         var user = new ClaimsPrincipal(new ClaimsIdentity());
 
         // Act
-        var result = UserManagementServiceInstance.CheckAuthStatus(user);
+        var result = UserAuthenticationServiceInstance.CheckAuthStatus(user);
 
         // Assert
         Assert.False(result.Authenticated);
@@ -45,7 +45,7 @@ public class UserManagementServiceTests : UnitTestBase
         ClaimsPrincipal user = null;
 
         // Act
-        var result = UserManagementServiceInstance.CheckAuthStatus(user);
+        var result = UserAuthenticationServiceInstance.CheckAuthStatus(user);
 
         // Assert
         Assert.False(result.Authenticated);
@@ -66,7 +66,7 @@ public class UserManagementServiceTests : UnitTestBase
         var user = new ClaimsPrincipal(identity);
 
         // Act
-        var result = UserManagementServiceInstance.CheckAuthStatus(user);
+        var result = UserAuthenticationServiceInstance.CheckAuthStatus(user);
 
         // Assert
         Assert.True(result.Authenticated);
@@ -85,7 +85,7 @@ public class UserManagementServiceTests : UnitTestBase
         var user = new ClaimsPrincipal(identity);
 
         // Act
-        var result = UserManagementServiceInstance.CheckAuthStatus(user);
+        var result = UserAuthenticationServiceInstance.CheckAuthStatus(user);
 
         // Assert
         Assert.False(result.Authenticated); // Email is required for authentication

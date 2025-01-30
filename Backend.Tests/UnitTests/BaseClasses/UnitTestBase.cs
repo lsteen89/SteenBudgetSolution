@@ -13,6 +13,10 @@ using Microsoft.Extensions.Configuration;
 using Backend.Infrastructure.Security;
 using Xunit;
 using Backend.Application.Services.UserServices;
+using Microsoft.AspNetCore.Authentication;
+using Backend.Application.Services.EmailServices;
+using Backend.Infrastructure.Data.Sql.Provider;
+using Backend.Infrastructure.Helpers;
 
 public abstract class UnitTestBase
 {
@@ -33,6 +37,7 @@ public abstract class UnitTestBase
     protected Dictionary<string, (string Value, CookieOptions Options)> CookiesContainer;
     protected Mock<ILogger<UserManagementService>> LoggerMockUserManagementService;
     protected UserManagementService UserManagementServiceInstance;
+    protected UserAuthenticationService UserAuthenticationServiceInstance;
 
     protected UserAuthenticationService _userAuthenticationService;
 
@@ -113,6 +118,21 @@ public abstract class UnitTestBase
             );
         });
 
+        // Register UserAuthenticationService
+        // Register UserAuthenticationService
+        services.AddScoped<IUserAuthenticationService>(_ => new UserAuthenticationService(
+            MockUserSQLProvider.Object,
+            Mock.Of<ITokenService>(),
+            MockEnvironmentService.Object,
+            MockUserTokenService.Object,
+            MockEmailResetPasswordService.Object,
+            MockHttpContextAccessor.Object,
+            MockConfiguration.Object,
+            LoggerMockAuth.Object
+        ));
+
+
+
         var mockOptions = Options.Create(new ResendEmailSettings { CooldownPeriodMinutes = 5, DailyLimit = 3 });
         services.AddSingleton(mockOptions);
 
@@ -146,6 +166,7 @@ public abstract class UnitTestBase
         EmailVerificationService = ServiceProvider.GetRequiredService<IEmailVerificationService>() as EmailVerificationService;
         UserServicesInstance = ServiceProvider.GetRequiredService<IUserServices>() as UserServices;
         UserManagementServiceInstance = ServiceProvider.GetRequiredService<IUserManagementService>() as UserManagementService;
+        UserAuthenticationServiceInstance = ServiceProvider.GetRequiredService<IUserAuthenticationService>() as UserAuthenticationService;
 
         // Assertions to validate setup
         Assert.NotNull(EmailVerificationService);

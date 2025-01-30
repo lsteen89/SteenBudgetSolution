@@ -1,39 +1,52 @@
-﻿using System;
-using Microsoft.Extensions.DependencyInjection;
-using Backend.Tests.Mocks;
-using Backend.Infrastructure.Data.Sql.Interfaces;
-using Backend.Application.Interfaces.UserServices;
+﻿using Backend.Application.Configuration; // Ensure this namespace is included
+using Backend.Application.DTO;
+using Backend.Application.Interfaces.AuthService;
+using Backend.Application.Interfaces.Cookies;
 using Backend.Application.Interfaces.EmailServices;
+using Backend.Application.Interfaces.JWT;
+using Backend.Application.Interfaces.RecaptchaService;
+using Backend.Application.Interfaces.UserServices;
+using Backend.Application.Services.AuthService;
+using Backend.Application.Services.JWT;
+using Backend.Application.Services.UserServices;
+using Backend.Domain.Entities;
+using Backend.Infrastructure.Data.Sql.Interfaces;
+using Backend.Infrastructure.Data.Sql.Provider;
 using Backend.Infrastructure.Data.Sql.UserQueries;
+using Backend.Infrastructure.Email;
+using Backend.Infrastructure.Helpers;
+using Backend.Infrastructure.Interfaces;
+using Backend.Infrastructure.Security;
+using Backend.Test.UserTests;
+using Backend.Tests.Mocks;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Moq;
 using MySqlConnector;
 using System.Data.Common;
+using System.Security.Claims;
 using Xunit;
-using Backend.Application.DTO;
-using Backend.Domain.Entities;
-using Backend.Application.Services.UserServices;
-using Backend.Infrastructure.Email;
-using Backend.Infrastructure.Security;
-using Backend.Infrastructure.Interfaces;
-using Backend.Infrastructure.Helpers;
-using Microsoft.AspNetCore.Http;
-using Backend.Test.UserTests;
-using Moq;
-using System.Net;
-using Backend.Infrastructure.Data.Sql.Provider;
 
 public abstract class IntegrationTestBase : IAsyncLifetime
 {
     protected readonly ServiceProvider ServiceProvider;
     protected readonly ILogger Logger;
     protected readonly IUserServices UserServices;
+    protected readonly IAuthService AuthService;
     protected readonly IUserSQLProvider UserSQLProvider;
     protected readonly IEmailService EmailService;
     protected readonly IUserTokenService UserTokenService;
+    protected readonly IJwtService jwtService;
+    protected readonly ITokenBlacklistService TokenBlacklistService;
     protected readonly UserServiceTest UserServiceTest;
     protected UserCreationDto _userCreationDto;
     protected readonly IEmailResetPasswordService EmailResetPasswordService;
+    protected readonly ICookieService cookieService;
+    protected readonly IWebSocketManager WebSocketManager;
+    protected readonly Mock<IWebSocketManager> WebSocketManagerMock;
+    protected readonly LogHelper logHelper;
     protected Mock<IEnvironmentService> MockEnvironmentService { get; private set; }
 
     protected IntegrationTestBase()
@@ -61,9 +74,10 @@ public abstract class IntegrationTestBase : IAsyncLifetime
             .Setup(c => c.Response)
             .Returns(mockHttpResponse.Object);
 
-        MockTokenService = new Mock<ITokenService>();
-        serviceCollection.AddSingleton(MockTokenService.Object);
-
+        // Initialize User as an empty ClaimsPrincipal
+        mockHttpContext
+            .Setup(c => c.User)
+            .Returns(new ClaimsPrincipal(new ClaimsIdentity()));
 
         var httpContextAccessor = new Mock<IHttpContextAccessor>();
         httpContextAccessor.Setup(a => a.HttpContext).Returns(mockHttpContext.Object);
@@ -78,10 +92,57 @@ public abstract class IntegrationTestBase : IAsyncLifetime
             .Returns("Production");
         serviceCollection.AddSingleton<IEnvironmentService>(MockEnvironmentService.Object);
 
-        serviceCollection.AddScoped<ITokenService, TokenService>();
+        // Define and register JwtSettings
+        var jwtSettings = new JwtSettings
+        {
+            Issuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "eBudget",
+            Audience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "eBudget",
+            SecretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY") ?? "development-fallback-key",
+            ExpiryMinutes = int.TryParse(Environment.GetEnvironmentVariable("JWT_EXPIRY_MINUTES"), out var expiry) ? expiry : 60
+        };
+
+        // Register JwtSettings as a singleton
+        serviceCollection.AddSingleton(jwtSettings);
+
+        // Register JwtService
+        serviceCollection.AddScoped<IJwtService, JwtService>();
+
         // Mock IUserTokenService
         MockUserTokenService = new Mock<IUserTokenService>();
         serviceCollection.AddSingleton(MockUserTokenService.Object);
+
+        // Mock IRecaptchaService
+        RecaptchaServiceService = new Mock<IRecaptchaService>();
+        RecaptchaServiceService
+            .Setup(r => r.ValidateTokenAsync(It.IsAny<string>()))
+            .ReturnsAsync(true); // Mock success
+        serviceCollection.AddSingleton(RecaptchaServiceService.Object);
+
+        // Mock ICookieService
+        var mockCookieService = new Mock<ICookieService>();
+
+        // Setup for SetAuthCookie
+        mockCookieService
+            .Setup(c => c.SetAuthCookie(It.IsAny<string>(), It.IsAny<bool>()))
+            .Callback<string, bool>((token, isSecure) =>
+            {
+                CookieContainer["auth_token"] = (token, new CookieOptions
+                {
+                    HttpOnly = true,
+                    Secure = isSecure,
+                    SameSite = SameSiteMode.Strict
+                });
+            });
+
+        // Setup for DeleteAuthCookie
+        mockCookieService
+            .Setup(c => c.DeleteAuthCookie())
+            .Callback(() =>
+            {
+                CookieContainer.Remove("auth_token");
+            });
+
+        serviceCollection.AddSingleton(mockCookieService.Object);
 
         // Mock IEmailResetPasswordService
         var mockEmailResetPasswordService = new Mock<IEmailResetPasswordService>();
@@ -90,9 +151,18 @@ public abstract class IntegrationTestBase : IAsyncLifetime
             .ReturnsAsync(true); // Simulate success
         serviceCollection.AddScoped<IEmailResetPasswordService>(_ => mockEmailResetPasswordService.Object);
 
+        // Mock IWebSocketManager
+        WebSocketManagerMock = new Mock<IWebSocketManager>();
+        // **Set up SendMessageAsync to return completed task by default**
+        WebSocketManagerMock
+            .Setup(x => x.SendMessageAsync(It.IsAny<string>(), It.IsAny<string>()))
+            .Returns(Task.CompletedTask);
+        serviceCollection.AddSingleton<IWebSocketManager>(WebSocketManagerMock.Object);
+
+        // Mock ITimeProvider
         MockTimeProvider = new Mock<ITimeProvider>();
         MockTimeProvider.Setup(tp => tp.UtcNow).Returns(DateTime.UtcNow); // Default to current UTC time
-
+        serviceCollection.AddSingleton<ITimeProvider>(MockTimeProvider.Object);
 
         // Add other services
         ConfigureTestServices(serviceCollection);
@@ -103,6 +173,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         // Retrieve shared dependencies
         Logger = ServiceProvider.GetRequiredService<ILogger<IntegrationTestBase>>();
         UserServices = ServiceProvider.GetRequiredService<IUserServices>();
+        AuthService = ServiceProvider.GetRequiredService<IAuthService>();
         UserSQLProvider = ServiceProvider.GetRequiredService<IUserSQLProvider>();
         EmailService = ServiceProvider.GetRequiredService<IEmailService>();
         EmailResetPasswordService = ServiceProvider.GetRequiredService<IEmailResetPasswordService>();
@@ -111,23 +182,29 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         UserServiceTest = ServiceProvider.GetRequiredService<UserServiceTest>();
         UserAuthenticationService = ServiceProvider.GetRequiredService<IUserAuthenticationService>();
 
+        jwtService = ServiceProvider.GetRequiredService<IJwtService>();
+        TokenBlacklistService = ServiceProvider.GetRequiredService<ITokenBlacklistService>();
+        cookieService = ServiceProvider.GetRequiredService<ICookieService>();
+        WebSocketManager = ServiceProvider.GetRequiredService<IWebSocketManager>();
+
         // Initialize the HttpContext reference
         HttpContext = ServiceProvider.GetRequiredService<IHttpContextAccessor>().HttpContext;
     }
+
     protected IUserAuthenticationService UserAuthenticationService { get; private set; }
     protected Mock<IUserTokenService> MockUserTokenService { get; private set; }
     protected Mock<ITimeProvider> MockTimeProvider { get; set; }
+
     protected virtual void ConfigureTestServices(IServiceCollection services)
     {
         var configuration = new ConfigurationBuilder()
             .SetBasePath(Directory.GetCurrentDirectory())
             .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
-            .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development"}.json", optional: true)
+            .AddJsonFile($"appsettings.{MockEnvironmentService.Object.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")}.json", optional: true)
             .AddEnvironmentVariables()
             .Build();
 
         services.AddSingleton<IConfiguration>(configuration);
-        services.AddSingleton<IEnvironmentService, EnvironmentService>();
 
         services.AddScoped<DbConnection>(provider =>
         {
@@ -139,6 +216,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
 
         // Register application services
         services.AddScoped<IUserServices, UserServices>();
+        services.AddScoped<IAuthService, AuthService>();
         services.AddSingleton<IEmailService, MockEmailService>();
         services.AddScoped<IUserManagementService, UserManagementService>();
         services.AddScoped<IUserTokenService, UserTokenService>();
@@ -146,17 +224,19 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         services.AddScoped<IEmailPreparationService, EmailPreparationService>();
         services.AddScoped<IEmailVerificationService, EmailVerificationService>();
         services.AddScoped<IUserAuthenticationService, UserAuthenticationService>();
-        services.AddScoped<IEnvironmentService>(_ => MockEnvironmentService.Object); 
         services.AddScoped<UserServiceTest>();
         services.AddScoped<ITokenService, TokenService>();
 
-        services.AddSingleton<ITimeProvider>(_ => MockTimeProvider.Object);
+        services.AddScoped<ITokenBlacklistService, TokenBlacklistService>();
+        services.AddScoped<LogHelper>();
+
         services.AddScoped<IUserSqlExecutor, UserSqlExecutor>();
         services.AddScoped<ITokenSqlExecutor, TokenSqlExecutor>();
         services.AddScoped<IAuthenticationSqlExecutor, AuthenticationSqlExecutor>();
         services.AddScoped<ILogger<AuthenticationSqlExecutor>, Logger<AuthenticationSqlExecutor>>();
 
         services.AddScoped<IUserSQLProvider, UserSQLProvider>();
+
         // Register logging
         services.AddLogging(builder =>
         {
@@ -170,50 +250,27 @@ public abstract class IntegrationTestBase : IAsyncLifetime
             return loggerFactory.CreateLogger<UserTokenService>();
         });
 
-        // Mock IHttpContextAccessor with HttpContext setup
-        var mockHttpContext = new Mock<HttpContext>();
-        var mockHttpResponse = new Mock<HttpResponse>();
-        var mockResponseCookies = new Mock<IResponseCookies>();
+        services.AddDistributedMemoryCache();
 
-        var cookieContainer = new Dictionary<string, (string Value, CookieOptions Options)>();
-
-        mockResponseCookies
-            .Setup(c => c.Append(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CookieOptions>()))
-            .Callback<string, string, CookieOptions>((key, value, options) =>
-            {
-                CookieContainer[key] = (value, options); // Capture cookies in the shared container
-            });
-
-        mockHttpResponse
-            .Setup(r => r.Cookies)
-            .Returns(mockResponseCookies.Object);
-
-        mockHttpContext
-            .Setup(c => c.Response)
-            .Returns(mockHttpResponse.Object);
-
-        var httpContextAccessor = new Mock<IHttpContextAccessor>();
-        httpContextAccessor.Setup(a => a.HttpContext).Returns(mockHttpContext.Object);
-
-        services.AddSingleton<IHttpContextAccessor>(httpContextAccessor.Object);
-
+        // Register ILogger<UserAuthenticationService> with TestLogger
         services.AddSingleton<ILogger<UserAuthenticationService>, TestLogger<UserAuthenticationService>>();
-
-        // Register MockEnvironmentService
-        MockEnvironmentService = new Mock<IEnvironmentService>();
+        services.AddSingleton<ILogger<AuthService>, TestLogger<AuthService>>();
 
     }
+
     protected void ValidateHttpContext()
     {
         Assert.NotNull(HttpContext);
         Assert.NotNull(HttpContext.Response);
     }
+
     // Protected property for accessing cookies in tests
     protected Dictionary<string, (string Value, CookieOptions Options)> CookieContainer { get; private set; }
-    protected Mock<ITokenService> MockTokenService { get; private set; }
 
     // Protected HttpContext reference
     protected HttpContext HttpContext { get; private set; }
+
+    public Mock<IRecaptchaService> RecaptchaServiceService { get; }
 
     public async Task InitializeAsync()
     {
@@ -252,10 +309,12 @@ public abstract class IntegrationTestBase : IAsyncLifetime
 
         return await RegisterUserAsync(_userCreationDto);
     }
+
     protected async Task<UserModel> SetupUserAsync(UserCreationDto userCreationDto)
     {
         return await RegisterUserAsync(userCreationDto);
     }
+
     public class TestLogger<T> : ILogger<T>
     {
         public List<string> Logs { get; } = new List<string>();
@@ -269,7 +328,4 @@ public abstract class IntegrationTestBase : IAsyncLifetime
             Logs.Add(formatter(state, exception));
         }
     }
-
 }
-
-

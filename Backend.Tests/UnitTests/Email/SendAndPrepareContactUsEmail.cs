@@ -8,8 +8,10 @@ using System;
 using Backend.Tests.Mocks;
 using Backend.Application.Interfaces.EmailServices;
 
-public class SendAndPrepareContactUsEmail
-{
+namespace Backend.Tests.UnitTests.Email;
+
+    public class SendAndPrepareContactUsEmail
+    {
     private readonly Mock<IEmailPreparationService> _emailPreparationServiceMock;
     private readonly Mock<ILogger<MockEmailService>> _loggerMock;
     private readonly MockEmailService _mockEmailService;

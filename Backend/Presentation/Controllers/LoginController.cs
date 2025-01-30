@@ -1,11 +1,14 @@
 ﻿using Backend.Application.DTO;
+using Backend.Application.Interfaces.AuthService;
 using Backend.Application.Interfaces.RecaptchaService;
 using Backend.Application.Interfaces.UserServices;
 using Backend.Infrastructure.Helpers;
 using Backend.Infrastructure.Interfaces;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using System.Security.Claims;
 
 namespace Backend.Presentation.Controllers
 {
@@ -13,7 +16,7 @@ namespace Backend.Presentation.Controllers
     [Route("api/[controller]")]
     public class AuthController : ControllerBase
     {
-        private readonly IUserServices _userServices;
+        private readonly IAuthService _authService;
         private readonly IWebSocketManager _webSocketManager;
         private readonly IUserTokenService _userTokenService;
         private readonly IUserAuthenticationService _userAuthenticationService;
@@ -22,9 +25,9 @@ namespace Backend.Presentation.Controllers
         private readonly IUserManagementService _userManagementService;
         private readonly LogHelper _logHelper;
 
-        public AuthController(IUserServices userServices, IWebSocketManager webSocketManager, IUserTokenService userTokenService, IUserAuthenticationService userAuthenticationService, ILogger<RegistrationController> logger, IRecaptchaService recaptchaService, IUserManagementService userManagementService, LogHelper logHelper)
+        public AuthController(IAuthService authService, IWebSocketManager webSocketManager, IUserTokenService userTokenService, IUserAuthenticationService userAuthenticationService, ILogger<RegistrationController> logger, IRecaptchaService recaptchaService, IUserManagementService userManagementService, LogHelper logHelper)
         {
-            _userServices = userServices;
+            _authService = authService;
             _webSocketManager = webSocketManager;
             _userTokenService = userTokenService;
             _userAuthenticationService = userAuthenticationService;
@@ -48,48 +51,31 @@ namespace Backend.Presentation.Controllers
                 return BadRequest(ModelState);
             }
 
-            // Step 2: Validate reCAPTCHA
-            bool isTestEmail = Environment.GetEnvironmentVariable("ALLOW_TEST_EMAILS") == "true";
-            bool recaptchaValid = (isTestEmail && userLoginDto.Email == "l@l.se") || await _recaptchaService.ValidateTokenAsync(userLoginDto.CaptchaToken);
-            if (!recaptchaValid)
-            {
-                _logger.LogWarning("Invalid reCAPTCHA for email: {Email}", userLoginDto.Email);
-                return BadRequest(new { message = "Ogiltig CAPTCHA!" });
-            }
+            // Delegate login logic to AuthService
+            var loginResult = await _authService.LoginAsync(userLoginDto, ipAddress);
 
-            // Step 3: Check login attempts
-            bool isLockedOut = await _userAuthenticationService.CheckLoginAttemptsAsync(userLoginDto.Email);
-            if (isLockedOut)
+            if (!loginResult.Success)
             {
-                _logger.LogWarning("User is locked out for email: {MaskedEmail}", _logHelper.MaskEmail(userLoginDto.Email));
-                return Unauthorized(new { message = "Användaren är låst! Kontakta support" });
-            }
-
-            // Step 4: Validate credentials
-            var result = await _userServices.LoginAsync(userLoginDto, ipAddress);
-            if (!result.Success)
-            {
-                _logger.LogWarning("Login failed for email:  {MaskedEmail}", _logHelper.MaskEmail(userLoginDto.Email));
-                return Unauthorized(new { success = result.Success, message = result.Message });
+                _logger.LogWarning("Login failed for email: {MaskedEmail}", _logHelper.MaskEmail(userLoginDto.Email));
+                return Unauthorized(new { success = loginResult.Success, message = loginResult.Message });
             }
 
             _logger.LogInformation("Login successful for email: {MaskedEmail}", _logHelper.MaskEmail(userLoginDto.Email));
-            return Ok(new { success = result.Success, message = result.Message });
+
+            return Ok(new
+            {
+                success = loginResult.Success,
+                message = loginResult.Message,
+                accessToken = loginResult.AccessToken,
+                refreshToken = loginResult.RefreshToken
+            });
 
         }
         [Authorize]
         [HttpGet("status")]
         public IActionResult CheckAuthStatus()
         {
-            _logger.LogInformation("Checking auth status for user. IsAuthenticated: {IsAuthenticated}", User?.Identity?.IsAuthenticated);
-            var response = _userManagementService.CheckAuthStatus(User);
-
-            var authStatus = new AuthStatusDto
-            {
-                Authenticated = response.Authenticated,
-                Email = response.Email,
-                Role = response.Role
-            };
+            var authStatus = _userAuthenticationService.CheckAuthStatus(User);
 
             if (authStatus.Authenticated)
             {
@@ -104,14 +90,16 @@ namespace Backend.Presentation.Controllers
         [HttpPost("logout")]
         public async Task<IActionResult> Logout()
         {
-            // Perform logout logic, such as clearing cookies or tokens
+            _logger.LogInformation("Processing logout request for user.");
 
-            // Notify the user via WebSocket if necessary
-            var userId = User.FindFirst("sub")?.Value;
-            if (!string.IsNullOrEmpty(userId))
+            // Ensure the user is authenticated before proceeding
+            if (!User.Identity?.IsAuthenticated ?? true)
             {
-                //await _webSocketManager.SendMessageAsync(userId, "LOGOUT");
+                return Unauthorized(new { message = "User is not authenticated." });
             }
+
+            // Call the AuthService to handle logout logic
+            await _authService.LogoutAsync(User);
 
             return Ok(new { message = "Logged out successfully." });
         }

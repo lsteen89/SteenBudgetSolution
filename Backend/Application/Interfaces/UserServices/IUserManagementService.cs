@@ -6,7 +6,6 @@ namespace Backend.Application.Interfaces.UserServices
 {
     public interface IUserManagementService
     {
-        AuthStatusDto CheckAuthStatus(ClaimsPrincipal user);
         Task<bool> CheckIfUserExistsAsync(string email);
         Task<bool> CreateUserAsync(UserModel user);
         Task<UserModel?> GetUserByEmailAsync(string email);

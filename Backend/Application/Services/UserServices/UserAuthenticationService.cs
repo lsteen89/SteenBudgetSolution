@@ -1,19 +1,19 @@
 ﻿using Backend.Application.DTO;
-using Backend.Infrastructure.Data.Sql.Interfaces;
-using Backend.Infrastructure.Interfaces;
-using Backend.Infrastructure.Security;
+using Backend.Application.Interfaces.EmailServices;
 using Backend.Application.Interfaces.UserServices;
 using Backend.Application.Models;
-using Backend.Application.Interfaces.EmailServices;
-using System.Data.SqlTypes;
 using Backend.Domain.Shared;
+using Backend.Infrastructure.Data.Sql.Interfaces;
+using Backend.Infrastructure.Data.Sql.Provider;
+using Backend.Infrastructure.Interfaces;
+using System.Security.Claims;
 
 namespace Backend.Application.Services.UserServices
 {
     public class UserAuthenticationService : IUserAuthenticationService
     {
         private readonly IUserSQLProvider _userSQLProvider;
-        private readonly ITokenService _tokenService; 
+        private readonly ITokenService _tokenService;
         private readonly IEnvironmentService _environmentService;
         private readonly IUserTokenService _userTokenService;
         private readonly IEmailResetPasswordService _emailResetPasswordService;
@@ -44,44 +44,14 @@ namespace Backend.Application.Services.UserServices
         public async Task<ValidationResult> ValidateCredentialsAsync(string email, string password)
         {
             var user = await _userSQLProvider.UserSqlExecutor.GetUserModelAsync(email: email);
-            if (user == null) return new ValidationResult(false, "Felaktiga uppgifter");
-            if (!user.EmailConfirmed) return new ValidationResult(false, "E-post ej bekräftad");
-            if (!BCrypt.Net.BCrypt.Verify(password, user.Password)) return new ValidationResult(false, "Felaktiga uppgifter");
-            return new ValidationResult(true);
-        }
-
-        public async Task<LoginResultDto> AuthenticateAndGenerateTokenAsync(string email)
-        {
-            var user = await _userSQLProvider.UserSqlExecutor.GetUserModelAsync(email: email);
             if (user == null)
-            {
-                _logger.LogWarning("User not found for login: {Email}", email);
-                return new LoginResultDto { Success = false, Message = "Invalid credentials" };
-            }
-            if (_httpContextAccessor.HttpContext == null)
-            {
-                throw new InvalidOperationException("HttpContext is not available.");
-            }
+                return new ValidationResult { IsValid = false, ErrorMessage = "Invalid credentials." };
+            if (!user.EmailConfirmed)
+                return new ValidationResult { IsValid = false, ErrorMessage = "Email not confirmed." };
+            if (!BCrypt.Net.BCrypt.Verify(password, user.Password))
+                return new ValidationResult { IsValid = false, ErrorMessage = "Invalid credentials." };
 
-            _logger.LogInformation("Environment service instance type: {Type}", _environmentService.GetType().FullName);
-
-            var token = _tokenService.GenerateJwtToken(user.PersoId.ToString(), email);
-            var environment = _environmentService.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
-                               ?? "Development";
-            _logger.LogInformation("Resolved environment: {Environment}", environment);
-            var isSecure = environment.ToLower() == "production";
-
-            _httpContextAccessor.HttpContext.Response.Cookies.Append("auth_token", token, new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = isSecure,
-                SameSite = SameSiteMode.Strict,
-                Expires = DateTime.UtcNow.AddHours(1)
-            });
-
-            _logger.LogInformation("Cookie auth_token appended with token: {Token}", token);
-            _logger.LogInformation("Auth token cookie set: {Token}", token);
-            return new LoginResultDto { Success = true, Message = "Login successful", UserName = user.Email, Token = token };
+            return new ValidationResult { IsValid = true, UserId = user.PersoId.ToString(), Email = user.Email };
         }
         public async Task<bool> CheckLoginAttemptsAsync(string email)
         {
@@ -152,7 +122,7 @@ namespace Backend.Application.Services.UserServices
                 return true; // Avoid user enumeration
             }
             var emailSent = await _emailResetPasswordService.ResetPasswordEmailSender(user);
-            if(emailSent)
+            if (emailSent)
             {
                 _logger.LogInformation("Password reset email sent to: {Email}", email);
                 return true;
@@ -206,6 +176,41 @@ namespace Backend.Application.Services.UserServices
                 return OperationResult.FailureResult(Messages.PasswordReset.UpdateFailed, statusCode: 500);
             }
         }
+        public async Task HandleFailedLoginAsync(UserLoginDto userLoginDto, string ipAddress)
+        {
+            _logger.LogWarning("Invalid credentials for: {Email}", userLoginDto.Email);
+            await RecordFailedLoginAsync(userLoginDto.Email, ipAddress);
 
+            if (await ShouldLockUserAsync(userLoginDto.Email))
+            {
+                await LockUserAsync(userLoginDto.Email, TimeSpan.FromMinutes(15));
+                _logger.LogWarning("User locked out for email: {Email}", userLoginDto.Email);
+            }
+        }
+        public AuthStatusDto CheckAuthStatus(ClaimsPrincipal user)
+        {
+            if (user == null || user.Identity?.IsAuthenticated != true)
+            {
+                _logger.LogWarning("User is null or not authenticated.");
+                return new AuthStatusDto { Authenticated = false };
+            }
+
+
+            var email = user.FindFirst(ClaimTypes.Email)?.Value;
+            var role = user.FindFirst(ClaimTypes.Role)?.Value;
+
+            if (string.IsNullOrEmpty(email))
+            {
+                _logger.LogWarning("User authenticated but email claim is missing.");
+            }
+
+            _logger.LogInformation("Authenticated user. Email: {Email}, Role: {Role}", email, role);
+            return new AuthStatusDto
+            {
+                Authenticated = !string.IsNullOrEmpty(email), // User is authenticated only if email exists
+                Email = email,
+                Role = role
+            };
+        }
     }
 }

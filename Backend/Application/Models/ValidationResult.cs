@@ -2,13 +2,10 @@
 {
     public class ValidationResult
     {
-        public bool IsValid { get; }
-        public string ErrorMessage { get; }
+        public bool IsValid { get; set; }
+        public string ErrorMessage { get; set; }
+        public string UserId { get; set; }
+        public string Email { get; set; }
 
-        public ValidationResult(bool isValid, string errorMessage = "")
-        {
-            IsValid = isValid;
-            ErrorMessage = errorMessage;
-        }
     }
 }

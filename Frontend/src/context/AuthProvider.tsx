@@ -68,9 +68,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = useCallback(async () => {
     try {
       await axiosInstance.post("/api/auth/logout", {}, { withCredentials: true });
-      if (wsRef.current) {
-        wsRef.current.send("logout");
-      }
+      console.log("AuthProvider: Logout successful.");
     } catch (error) {
       console.error("AuthProvider: Logout error:", error);
     }
@@ -101,6 +99,7 @@ const openWebSocket = useCallback(() => {
         console.log("AuthProvider: Received logout/session-expired from server.");
         setAuthState({ authenticated: false });
         closeWebSocket();
+        window.location.href = "/login"; // Redirect to login page
       }
     };
 

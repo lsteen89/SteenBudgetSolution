@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
 
+namespace Backend.Tests.UnitTests.Email;
 public class EmailVerificationServiceTests : UnitTestBase
 {
     private const string NonExistentEmail = "nonexistent@example.com";
