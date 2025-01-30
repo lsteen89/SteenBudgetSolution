@@ -106,13 +106,15 @@ const MobileMenu: React.FC = () => {
             <li>
               {auth?.authenticated ? (
                 <button
-                  onClick={() => navigate('/login')}
-                  className="text-gray-700 text-lg font-medium"
+                  onClick={auth.logout}
+                  className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition"
                 >
                   Logga ut
                 </button>
               ) : (
-                <Link to="/login" className="text-gray-700 text-lg font-medium">Logga in</Link>
+                <Link to="/login" className="text-gray-700 text-lg font-medium">
+                  Logga in
+                </Link>
               )}
             </li>
           </ul>

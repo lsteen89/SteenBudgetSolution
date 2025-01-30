@@ -59,8 +59,9 @@ const UserSideMenu: React.FC<UserSideMenuProps> = ({ isOpen, toggleMenu }) => {
           id="user-side-menu-desktop" // Unique ID for desktop
           className="
             fixed 
-            h-3/4
-            top-40
+            pt-5
+            h-2/3
+            top-48
             w-64 lg:min-w-60
             bg-standardMenuColor 
             text-white 
@@ -100,13 +101,13 @@ const UserSideMenu: React.FC<UserSideMenuProps> = ({ isOpen, toggleMenu }) => {
                 ref={nodeRef}
                 id="user-side-menu-mobile" // Unique ID for mobile
                 className="
-                  fixed top-1/4 left-0 
+                  fixed top-32 md:top-32 left-0 
                   w-[70%] md:w-[40%]
                   bg-standardMenuColor 
                   text-white 
                   shadow-lg 
                   z-50 
-                  h-1/2
+                  h-3/4
                   rounded-tr-2xl 
                   rounded-br-2xl
                   opacity-90

@@ -1,0 +1,196 @@
+/* menu.module.css */
+
+/* Menu Container */
+.menuContainer {
+  position: absolute;
+  top: 100%; /* Position below the header bar */
+  left: 0;
+  width: 100%;
+  height: 200px; /* Adjust as needed */
+  transform: translateY(-50%); /* Adjust vertical positioning */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Generic Button Container */
+.buttonContainer, .iconContainer {
+  position: absolute;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  z-index: 30; /* Increased z-index to appear above CloudMenu */
+}
+
+.cta {
+  position: relative;
+  margin: auto;
+  padding: 14px 26px;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  overflow: hidden;
+  border-radius: 58px;
+  cursor: pointer;
+ 
+}
+
+
+/*
+If you want to add a gradient background to the button, uncomment the following code
+*/
+/*
+.cta::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 60%;
+  background: linear-gradient(90deg, rgba(152,255,152,0.5), rgba(98,255,152,0.5));
+  border-radius: 58px;
+  transform: translateY(-50%) scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s ease, background 0.5s ease, filter 0.3s ease;
+  filter: blur(5px);
+  z-index: -1;
+  background-size: 200% 200%;
+  animation: gradientShift 4s ease infinite;
+  animation-play-state: paused;
+}
+*/
+.cta:hover::before {
+  transform: translateY(-50%) scaleX(1);
+  background: linear-gradient(90deg, rgba(152,255,152,0.7), rgba(98,255,152,0.7));
+  filter: blur(15px);
+  opacity: 1;
+  animation-play-state: running;
+}
+
+.cta:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    0px 8px 12px rgba(0, 0, 0, 0.2),
+    0px 8px 12px rgba(204, 229, 255, 1);
+  border-color: #98ff98; /* Adds a border on hover */
+  opacity: 0.9;
+}
+
+.cta:active {
+  transform: scale(0.96);
+  box-shadow:
+    0px 4px 6px rgba(0, 0, 0, 0.2),
+    0px 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+.cta span {
+  position: relative;
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 900;
+  letter-spacing: 0.25em;
+  color: #111;
+  transition: color 0.3s ease, transform 0.3s ease;
+}
+
+.cta:hover span {
+  color: #000000;
+  transform: translateY(-2px);
+}
+
+.cta svg {
+  position: relative;
+  margin-left: 10px;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke: #111;
+  stroke-width: 1;
+  transform: translateX(-5px) rotate(0deg);
+  transition: transform 0.3s ease 0.1s;
+}
+
+.cta:hover svg {
+  transform: translateX(0);
+}
+
+/* Particle Effect */
+.ripple {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: rgba(152, 255, 152, 0.7);
+  border-radius: 50%;
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(1);
+  animation: lightTrail 0.6s ease-out;
+}
+
+@keyframes lightTrail {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(2);
+  }
+}
+
+/* Gradient Shift Animation */
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Adjust CloudMenu size and centering */
+.cloudMenu {
+  width: 80%; /* Sets the width to 80% of its parent container */
+  height: auto; /* Maintains aspect ratio */
+  max-width: 1600px; /* Optional: Sets a maximum width */
+  margin: 0 auto; /* Centers the SVG horizontally */
+}
+
+@media (max-width: 767px) { /* Below md */
+  .cloudMenu {
+    width: 90%; /* Slightly wider on smaller screens */
+    max-width: 1200px; /* Reduce max-width to prevent overflow */
+  }
+}
+
+@media (min-width: 1280px) { /* xl */
+  .cloudMenu {
+    max-width: 1800px; /* Optional: Adjust as needed */
+  }
+}
+
+/* MobileBird Container */
+.mobileBirdContainer {
+  /* Positioning is handled inline via the `style` prop */
+}
+
+/* Custom Pulse Animation for MobileBird */
+@keyframes img-pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-img-pulse {
+  animation: img-pulse 2s infinite;
+}
