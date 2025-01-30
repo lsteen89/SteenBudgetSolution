@@ -289,6 +289,7 @@ builder.Services.AddCors(options =>
 });
 
 // *** Configure JWT Bearer Authentication Only ***
+
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 builder.Services.AddAuthentication(options =>
 {
@@ -299,27 +300,26 @@ builder.Services.AddAuthentication(options =>
 {
     // Disable the default claim type mapping
     options.MapInboundClaims = false;
+    var jwtKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY");
+    var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+    var logger = loggerFactory.CreateLogger<Program>();
 
-    if (string.IsNullOrEmpty(jwtSettings.SecretKey) || jwtSettings.SecretKey == "development-fallback-key")
+    if (string.IsNullOrEmpty(jwtKey) || jwtKey == "development-fallback-key")
     {
-        var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
-        var logger = loggerFactory.CreateLogger<Program>();
         logger.LogWarning("JWT_SECRET_KEY is missing or using fallback. Update your environment configuration.");
     }
 
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.SecretKey)),
-        ValidateIssuer = true,  // Enable if you want to validate issuer
-        ValidIssuer = jwtSettings.Issuer,
-        ValidateAudience = true, // Enable if you want to validate audience
-        ValidAudience = jwtSettings.Audience,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey ?? "development-fallback-key")),
+        ValidateIssuer = false,  // Set to true if you configure issuers
+        ValidateAudience = false, // Set to true if you configure audiences
         ValidateLifetime = true,
         ClockSkew = TimeSpan.Zero // No tolerance for expired tokens
     };
 
-    // Configure JWT bearer events
+
     options.Events = new JwtBearerEvents
     {
         OnAuthenticationFailed = context =>
@@ -331,10 +331,18 @@ builder.Services.AddAuthentication(options =>
         OnMessageReceived = context =>
         {
             var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-            logger.LogInformation("OnMessageReceived fired.");
+            logger.LogInformation("OnMessageReceived fired. Cookie found? {HasCookie}", context.Request.Cookies.ContainsKey("auth_token"));
 
-            // *** Remove JWT extraction from cookies ***
-            // Pure header-based JWT authentication
+            if (context.Request.Cookies.TryGetValue("auth_token", out var token))
+            {
+                logger.LogInformation("Token found in cookie: {Token}", token);
+                context.Token = token;
+            }
+            else
+            {
+                logger.LogWarning("No auth_token cookie in the request!");
+            }
+
             return Task.CompletedTask;
         },
         OnTokenValidated = context =>
@@ -346,6 +354,7 @@ builder.Services.AddAuthentication(options =>
         }
     };
 });
+
 
 builder.Services.AddAuthorization();
 
