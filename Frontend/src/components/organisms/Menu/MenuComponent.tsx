@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@context/AuthProvider';
-import CloudMenu from '@assets/components/Menu/CloudMenu_1440.svg?react';
+import CloudMenu from '@assets/Components/Menu/CloudMenu_1440.svg?react';
 import styles from './menu.module.css'; // Import CSS module
 import MobileBird from '@assets/Images/MobileBird.png';
 import useBreakpoint from '@hooks/useBreakpoint'; // Import the custom hook
