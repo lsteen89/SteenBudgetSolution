@@ -195,9 +195,9 @@ namespace Backend.Application.Services.UserServices
                 return new AuthStatusDto { Authenticated = false };
             }
 
-
-            var email = user.FindFirst(ClaimTypes.Email)?.Value;
-            var role = user.FindFirst(ClaimTypes.Role)?.Value;
+            // Retrieve claims by their exact names
+            var email = user.FindFirst("email")?.Value;
+            var role = user.FindFirst("role")?.Value;
 
             if (string.IsNullOrEmpty(email))
             {

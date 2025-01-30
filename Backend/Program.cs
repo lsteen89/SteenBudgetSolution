@@ -1,5 +1,4 @@
 using Backend.Application.Configuration;
-using Backend.Application.Interfaces.Cookies;
 using Backend.Application.Interfaces.EmailServices;
 using Backend.Application.Interfaces.JWT;
 using Backend.Application.Interfaces.RecaptchaService;
@@ -25,7 +24,6 @@ using Backend.Tests.Mocks;
 using Dapper;
 using FluentValidation;
 using FluentValidation.AspNetCore;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.RateLimiting;
@@ -54,7 +52,8 @@ builder.Services.AddStackExchangeRedisCache(options =>
     options.Configuration = builder.Configuration.GetConnectionString("Redis"); // Ensure this is set in appsettings.json or environment variables
     options.InstanceName = "YourAppInstanceName"; // Optional: prefix for keys
 });
-// JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear(); TODO: TEST THIS
+JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
+
 // Set up JWT settings
 var jwtSettings = new JwtSettings
 {
@@ -64,6 +63,7 @@ var jwtSettings = new JwtSettings
     ExpiryMinutes = int.TryParse(Environment.GetEnvironmentVariable("JWT_EXPIRY_MINUTES"), out var expiry) ? expiry : 60
 };
 #endregion
+
 #region Serilog Configuration
 // Configure Serilog early in the application lifecycle
 var logFilePath = builder.Environment.IsProduction()
@@ -113,12 +113,10 @@ builder.Services.AddScoped<IAuthenticationSqlExecutor, AuthenticationSqlExecutor
 // Add the UserSQLProvider to the services
 builder.Services.AddScoped<IUserSQLProvider, UserSQLProvider>();
 
-
 // Section for user services
 builder.Services.AddScoped<IUserServices, UserServices>();
 builder.Services.AddScoped<IUserManagementService, UserManagementService>();
 builder.Services.AddScoped<IUserTokenService, UserTokenService>();
-builder.Services.AddScoped<IUserAuthenticationService, UserAuthenticationService>(); 
 builder.Services.AddScoped<IUserAuthenticationService, UserAuthenticationService>();
 
 // Section for email services
@@ -132,8 +130,9 @@ builder.Services.AddScoped<IEmailResetPasswordService, EmailResetPasswordService
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<LogHelper>();
 builder.Services.AddScoped<ITimeProvider, SystemTimeProvider>();
-builder.Services.AddScoped<ICookieService, CookieService>();
-builder.Services.AddScoped<ITokenBlacklistService,  TokenBlacklistService>();
+// Remove CookieService if not using cookies
+// builder.Services.AddScoped<ICookieService, CookieService>();
+builder.Services.AddScoped<ITokenBlacklistService, TokenBlacklistService>();
 builder.Services.AddSingleton(jwtSettings);
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -154,6 +153,7 @@ builder.Services.AddScoped<DbConnection>(provider =>
     // Return a new MySqlConnection instance with the connection string
     return new MySqlConnection(connectionString);
 });
+
 // Configure EmailService based on environment
 if (builder.Environment.IsDevelopment())
 {
@@ -269,7 +269,7 @@ builder.Services.AddCors(options =>
         policy.WithOrigins("http://localhost:3000") // Local frontend URL
               .AllowAnyHeader()
               .AllowAnyMethod()
-              .AllowCredentials();
+              .AllowCredentials(); // Remove if not needed
     });
 
     options.AddPolicy("ProductionCorsPolicy", policy =>
@@ -277,7 +277,7 @@ builder.Services.AddCors(options =>
         policy.WithOrigins("https://ebudget.se", "https://www.ebudget.se") // Production URLs
               .AllowAnyHeader()
               .AllowAnyMethod()
-              .AllowCredentials();
+              .AllowCredentials(); // Remove if not needed
     });
 
     options.AddPolicy("DefaultCorsPolicy", policy =>
@@ -288,39 +288,37 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Add Authentication and Authorization
-
-
-JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
+// *** Configure JWT Bearer Authentication Only ***
 builder.Services.AddAuthentication(options =>
 {
-options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 })
 .AddJwtBearer(options =>
 {
     // Disable the default claim type mapping
     options.MapInboundClaims = false;
-    var jwtKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY");
-    var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
-    var logger = loggerFactory.CreateLogger<Program>();
 
-    if (string.IsNullOrEmpty(jwtKey) || jwtKey == "development-fallback-key")
+    if (string.IsNullOrEmpty(jwtSettings.SecretKey) || jwtSettings.SecretKey == "development-fallback-key")
     {
+        var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+        var logger = loggerFactory.CreateLogger<Program>();
         logger.LogWarning("JWT_SECRET_KEY is missing or using fallback. Update your environment configuration.");
     }
 
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey ?? "development-fallback-key")),
-        ValidateIssuer = false,  // Set to true if you configure issuers
-        ValidateAudience = false, // Set to true if you configure audiences
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.SecretKey)),
+        ValidateIssuer = true,  // Enable if you want to validate issuer
+        ValidIssuer = jwtSettings.Issuer,
+        ValidateAudience = true, // Enable if you want to validate audience
+        ValidAudience = jwtSettings.Audience,
         ValidateLifetime = true,
         ClockSkew = TimeSpan.Zero // No tolerance for expired tokens
     };
 
-
+    // Configure JWT bearer events
     options.Events = new JwtBearerEvents
     {
         OnAuthenticationFailed = context =>
@@ -332,18 +330,10 @@ options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
         OnMessageReceived = context =>
         {
             var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-            logger.LogInformation("OnMessageReceived fired. Cookie found? {HasCookie}", context.Request.Cookies.ContainsKey("auth_token"));
+            logger.LogInformation("OnMessageReceived fired.");
 
-            if (context.Request.Cookies.TryGetValue("auth_token", out var token))
-            {
-                logger.LogInformation("Token found in cookie: {Token}", token);
-                context.Token = token;
-            }
-            else
-            {
-                logger.LogWarning("No auth_token cookie in the request!");
-            }
-
+            // *** Remove JWT extraction from cookies ***
+            // Pure header-based JWT authentication
             return Task.CompletedTask;
         },
         OnTokenValidated = context =>
@@ -356,8 +346,23 @@ options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
     };
 });
 
-
 builder.Services.AddAuthorization();
+
+// Remove redundant logging configurations
+// *** Remove temporary logging setup ***
+/* 
+//Temp
+builder.Services.AddLogging(logging =>
+{
+    logging.ClearProviders();
+    logging.AddConsole();
+    logging.AddDebug();
+    logging.SetMinimumLevel(LogLevel.Debug);
+});
+*/
+
+// Remove duplicate logging configurations if any
+// Ensure logging is configured only once, preferably with Serilog as above
 
 // Add Health Checks
 builder.Services.AddHealthChecks();
@@ -365,9 +370,12 @@ builder.Services.AddHealthChecks();
 // Add HttpContextAccessor
 builder.Services.AddHttpContextAccessor();
 
+// *** Remove redundant logging configurations ***
+/* 
 // Configure Logging
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
+*/
 
 #endregion
 
@@ -375,7 +383,6 @@ builder.Logging.AddConsole();
 
 // Build the app after service registration
 var app = builder.Build();
-
 
 // Apply CORS based on the environment
 if (builder.Environment.IsDevelopment())
@@ -449,10 +456,7 @@ app.MapHealthChecks("/health");
 // Fallback to React's index.html for SPA routing
 app.MapFallbackToFile("index.html");
 
-#endregion
-#region WebSockets
-// Middleware for WebSocket support
-// Configure WebSocket endpoints
+// *** WebSockets Middleware Adjustment ***
 app.UseWebSockets();
 app.UseEndpoints(endpoints =>
 {
@@ -471,13 +475,6 @@ app.UseEndpoints(endpoints =>
         }
     });
 });
-#endregion
-#region Logging and Final Setup
-
-
-
-// Run the application
-
 
 #endregion
 

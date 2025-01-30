@@ -41,9 +41,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const fetchAuthStatus = useCallback(async () => {
     try {
       console.log("AuthProvider: Checking /api/auth/status");
-      const response = await axiosInstance.get<AuthState>("/api/auth/status", {
-        withCredentials: true,
-      });
+      const response = await axiosInstance.get<AuthState>("/api/auth/status");
       console.log("AuthProvider: Status response:", response.data);
       setAuthState(response.data);
 
