@@ -269,7 +269,7 @@ builder.Services.AddCors(options =>
         policy.WithOrigins("http://localhost:3000") // Local frontend URL
               .AllowAnyHeader()
               .AllowAnyMethod()
-              .AllowCredentials(); // Remove if not needed
+              .AllowCredentials(); 
     });
 
     options.AddPolicy("ProductionCorsPolicy", policy =>
@@ -277,7 +277,7 @@ builder.Services.AddCors(options =>
         policy.WithOrigins("https://ebudget.se", "https://www.ebudget.se") // Production URLs
               .AllowAnyHeader()
               .AllowAnyMethod()
-              .AllowCredentials(); // Remove if not needed
+              .AllowCredentials(); 
     });
 
     options.AddPolicy("DefaultCorsPolicy", policy =>
@@ -288,7 +288,7 @@ builder.Services.AddCors(options =>
     });
 });
 
-// *** Configure JWT Bearer Authentication Only ***
+// *** Configure JWT Bearer Authentication ***/
 
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 builder.Services.AddAuthentication(options =>
@@ -313,8 +313,8 @@ builder.Services.AddAuthentication(options =>
     {
         ValidateIssuerSigningKey = true,
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey ?? "development-fallback-key")),
-        ValidateIssuer = false,  // Set to true if you configure issuers
-        ValidateAudience = false, // Set to true if you configure audiences
+        ValidateIssuer = false, 
+        ValidateAudience = false,
         ValidateLifetime = true,
         ClockSkew = TimeSpan.Zero // No tolerance for expired tokens
     };
@@ -330,6 +330,8 @@ builder.Services.AddAuthentication(options =>
         },
         OnMessageReceived = context =>
         {
+            // OLD WAY //
+            /*
             var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
             logger.LogInformation("OnMessageReceived fired. Cookie found? {HasCookie}", context.Request.Cookies.ContainsKey("auth_token"));
 
@@ -337,6 +339,12 @@ builder.Services.AddAuthentication(options =>
             {
                 logger.LogInformation("Token found in cookie: {Token}", token);
                 context.Token = token;
+            }
+            */
+            var authorizationHeader = context.Request.Headers["Authorization"].FirstOrDefault();
+            if (!string.IsNullOrEmpty(authorizationHeader) && authorizationHeader.StartsWith("Bearer "))
+            {
+                context.Token = authorizationHeader.Substring("Bearer ".Length).Trim();
             }
             else
             {
@@ -358,34 +366,11 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
-// Remove redundant logging configurations
-// *** Remove temporary logging setup ***
-/* 
-//Temp
-builder.Services.AddLogging(logging =>
-{
-    logging.ClearProviders();
-    logging.AddConsole();
-    logging.AddDebug();
-    logging.SetMinimumLevel(LogLevel.Debug);
-});
-*/
-
-// Remove duplicate logging configurations if any
-// Ensure logging is configured only once, preferably with Serilog as above
-
 // Add Health Checks
 builder.Services.AddHealthChecks();
 
 // Add HttpContextAccessor
 builder.Services.AddHttpContextAccessor();
-
-// *** Remove redundant logging configurations ***
-/* 
-// Configure Logging
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
-*/
 
 #endregion
 
@@ -466,7 +451,7 @@ app.MapHealthChecks("/health");
 // Fallback to React's index.html for SPA routing
 app.MapFallbackToFile("index.html");
 
-// *** WebSockets Middleware Adjustment ***
+// *** WebSockets Middleware *** //
 app.UseWebSockets();
 app.UseEndpoints(endpoints =>
 {
@@ -503,5 +488,5 @@ app.Run();
 
 #endregion
 
-// Declare the partial Program class
+// Declare partial Program class
 public partial class Program { }
