@@ -33,20 +33,6 @@ namespace Backend.Application.Services.JWT
         public async Task<LoginResultDto> GenerateJWTTokenAsync(string persoid, string email)
         {
             var token = GenerateJwtToken(persoid, email);
-            var environment = _environmentService.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
-            _logger.LogInformation("Resolved environment: {Environment}", environment);
-            var isSecure = environment.ToLower() == "production";
-
-            _httpContextAccessor.HttpContext.Response.Cookies.Append("auth_token", token, new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = isSecure,
-                SameSite = SameSiteMode.Strict,
-                Expires = DateTime.UtcNow.AddHours(1)
-            });
-
-            _logger.LogInformation("Cookie auth_token appended with token: {Token}", token);
-            _logger.LogInformation("Auth token cookie set: {Token}", token);
 
             return new LoginResultDto { Success = true, Message = "Login successful", UserName = email, AccessToken = token };
         }

@@ -88,17 +88,6 @@ namespace Backend.Application.Services.AuthService
                 return new LoginResultDto { Success = false, Message = "Token generation failed." };
             }
 
-            // Going away from cookies to JWT
-            /*
-            // Step 5: Set the auth_token cookie
-            var environment = _environmentService.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
-                               ?? "Development";
-            _logger.LogInformation("Resolved environment: {Environment}", environment);
-            var isSecure = environment.ToLower() == "production";
-
-            //_cookieService.SetAuthCookie(tokens.AccessToken, isSecure);
-            */
-
             // Step 5: Reset failed attempts
             var user = await _userSQLProvider.UserSqlExecutor.GetUserModelAsync(email: userLoginDto.Email);
             if (user != null)
