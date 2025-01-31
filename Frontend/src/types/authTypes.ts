@@ -21,4 +21,5 @@ export interface AuthState {
 export interface AuthContextType extends AuthState {
   refreshAuthStatus: () => Promise<void>;
   logout: () => Promise<void>;
+  isLoading: boolean;
 }

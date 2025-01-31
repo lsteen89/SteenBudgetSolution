@@ -3,7 +3,7 @@ import FormContainer from '@components/molecules/containers/FormContainer';
 import InputField from "@components/atoms/InputField/ContactFormInputField";
 import SubmitButton from '@components/atoms/buttons/SubmitButton';
 import LoginBird from '@assets/Images/LoginBird.png';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { UserLoginValidator } from '@utils/validation/userLoginValidation';
 import { UserLoginDto } from '../../types/userLoginForm';
 import ReCAPTCHA from 'react-google-recaptcha';
@@ -13,7 +13,6 @@ import ContentWrapper from '@components/layout/ContentWrapper';
 import { useAuth } from "@context/AuthProvider"; 
 import axiosInstance from "@api/axiosConfig"; 
 import type { LoginResponse } from "../../types/authTypes";
-import { Navigate } from 'react-router-dom';
 
 type ReCAPTCHAWithReset = ReCAPTCHA & {
   reset: () => void;
@@ -25,11 +24,15 @@ const LoginPage: React.FC = () => {
   const [errors, setErrors] = useState<{ [key in keyof UserLoginDto]?: string } & { form?: string }>({});
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const navigate = useNavigate();
-  const { refreshAuthStatus } = useAuth(); // No type assertion needed
-  
-  const auth = useAuth();
-  if (auth.authenticated) {
-    return <Navigate to="/dashboard" />;
+  const { refreshAuthStatus, authenticated, isLoading } = useAuth(); // Destructure authenticated and isLoading
+
+  // Redirect if already authenticated
+  if (isLoading) {
+    return <div>Loading...</div>; // Or a spinner component
+  }
+
+  if (authenticated) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   const handleCaptchaChange = (token: string | null) => {
@@ -102,7 +105,7 @@ const LoginPage: React.FC = () => {
         // Immediately fetch auth status to update the state
         await refreshAuthStatus();
 
-        navigate("/dashboard");
+        navigate("/dashboard", { replace: true });
       } else {
         setErrors({ form: result.message }); // Show backend error message
         // Reset the ReCAPTCHA when there’s an error
@@ -171,7 +174,7 @@ const LoginPage: React.FC = () => {
               <p className="text-red-500 text-sm">{errors.password}</p>
             )}
           </div>
-          {errors.form && <p style={{ color: "red" }}>{errors.form}</p>}
+          {errors.form && <p className="text-red-500 text-sm">{errors.form}</p>}
           
           {/* Submit Button and ReCAPTCHA */}
           <div className="flex flex-col sm:flex-row sm:space-x-4 items-center">
