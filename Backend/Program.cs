@@ -47,12 +47,7 @@ var builder = WebApplication.CreateBuilder(args);
 #region Configuration and Services
 // Register In-Memory Distributed Cache
 builder.Services.AddDistributedMemoryCache();
-// Register Redis Distributed Cache
-builder.Services.AddStackExchangeRedisCache(options =>
-{
-    options.Configuration = builder.Configuration.GetSection("Redis")["ConnectionString"];
-    options.InstanceName = "YourAppInstanceName"; // Optional: prefix for keys
-});
+
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
 // Set up JWT settings
