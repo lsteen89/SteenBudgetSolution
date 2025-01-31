@@ -62,7 +62,7 @@ var jwtSettings = new JwtSettings
 // Configure Redis Cache
 builder.Services.AddStackExchangeRedisCache(options =>
 {
-    options.Configuration = builder.Configuration.GetSection("Redis")["localhost:6379"]; 
+    options.Configuration = builder.Configuration.GetSection("Redis")["ConnectionString"];
     options.InstanceName = "eBudget:"; // Optional prefix for keys
 });
 #endregion
