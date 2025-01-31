@@ -9,15 +9,17 @@ using Moq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Xunit;
+using System.IdentityModel.Tokens.Jwt;
+using Backend.Application.Interfaces.JWT;
 
 namespace Backend.Tests.IntegrationTests.Services.AuthService
 {
     public class AuthServiceIntegrationTestsLogout : IntegrationTestBase
     {
         [Fact]
-        public async Task LogoutAsync_ValidUser_ClearsCookieBlacklistsTokenAndNotifiesWebSocket()
+        public async Task LogoutAsync_ValidUser_BlacklistsTokenAndNotifiesWebSocket()
         {
-            // Arrange - Create and confirm user
+            // **Arrange** - Create and confirm user
             var userCreationDto = new UserCreationDto
             {
                 FirstName = "Test",
@@ -30,7 +32,7 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             var registeredUser = await SetupUserAsync(userCreationDto);
             await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
 
-            // Act - Login first to get valid token
+            // **Act** - Login to obtain JWT token
             var loginResult = await AuthService.LoginAsync(
                 new UserLoginDto
                 {
@@ -41,48 +43,56 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
                 "127.0.0.1"
             );
 
-            // Extract token from cookie container
-            var authToken = CookieContainer["auth_token"].Value;
+            var authToken = loginResult.AccessToken;
+            Assert.False(string.IsNullOrEmpty(authToken), "Access token should not be null or empty.");
 
-            // Build claims principal from token
+            // **Validate Token Before Logout**
             var principal = jwtService.ValidateToken(authToken);
-            foreach (var claim in principal.Claims)
-            {
-                Console.WriteLine($"Claim Type: {claim.Type}, Value: {claim.Value}");
-            }
+            Assert.NotNull(principal);
+            Assert.True(principal.Identity.IsAuthenticated, "Principal should be authenticated.");
 
+            // Extract Claims
+            var jtiClaim = principal.FindFirst(JwtRegisteredClaimNames.Jti);
+            Assert.NotNull(jtiClaim);
 
-            // **New Assertions: Verify 'sub' Claim Exists and Is Correct**
-            var subClaim = principal.FindFirst(ClaimTypes.NameIdentifier);
-            Assert.NotNull(subClaim); // Ensure 'sub' claim exists
-            Assert.Equal(registeredUser.PersoId.ToString(), subClaim.Value); // Ensure 'sub' claim is correct
+            var subClaim = principal.FindFirst(JwtRegisteredClaimNames.Sub)
+                           ?? principal.FindFirst(ClaimTypes.NameIdentifier); // Fallback
+            Assert.NotNull(subClaim);
+            Assert.Equal(registeredUser.PersoId.ToString(), subClaim.Value);
+
+            var expClaim = principal.FindFirst(JwtRegisteredClaimNames.Exp);
+            Assert.NotNull(expClaim);
+
+            var expUnix = long.Parse(expClaim.Value);
+            var expiration = DateTimeOffset.FromUnixTimeSeconds(expUnix).UtcDateTime;
+
+            // **Mock WebSocketManager to expect a LOGOUT message**
             WebSocketManagerMock
-    .Setup(x => x.SendMessageAsync(It.IsAny<string>(), It.IsAny<string>()))
-    .Returns(Task.CompletedTask);
+                .Setup(x => x.SendMessageAsync(registeredUser.PersoId.ToString(), "LOGOUT"))
+                .Returns(Task.CompletedTask)
+                .Verifiable();
 
-            var resolvedWebSocketManager = ServiceProvider.GetRequiredService<IWebSocketManager>();
-            Assert.Equal(WebSocketManagerMock.Object, resolvedWebSocketManager);
-            // Act - Logout
+            // **Act** - Call LogoutAsync
             await AuthService.LogoutAsync(principal);
 
-            // Assert
-            // 1. Cookie cleared
-            Assert.False(CookieContainer.ContainsKey("auth_token"), "auth_token cookie should be deleted.");
+            // **Assert** - Token should be blacklisted
+            var isBlacklisted = await TokenBlacklistService.IsTokenBlacklistedAsync(jtiClaim.Value);
+            Assert.True(isBlacklisted, "Token should be blacklisted after logout.");
 
-            // 2. Token blacklisted
-            var tokenId = principal.FindFirst("jti")?.Value;
-            Assert.True(await TokenBlacklistService.IsTokenBlacklistedAsync(tokenId), "Token should be blacklisted.");
-
-            // 3. WebSocket notification sent
+            // **Assert** - WebSocket should be notified
             WebSocketManagerMock.Verify(
-                x => x.SendMessageAsync(
-                    registeredUser.PersoId.ToString(),
-                    "LOGOUT"
-                ),
+                x => x.SendMessageAsync(registeredUser.PersoId.ToString(), "LOGOUT"),
                 Times.Once,
-                "A LOGOUT message should be sent via WebSocket."
+                "A 'LOGOUT' message should be sent via WebSocket."
             );
+
+            // **Assert** - Token should be invalid after logout
+            var postLogoutPrincipal = jwtService.ValidateToken(authToken);
+            Assert.True(postLogoutPrincipal == null, "Token should be invalid after logout.");
         }
+
+
+
 
         [Fact]
         public async Task LogoutAsync_MissingSubClaim_LogsWarning()
@@ -112,5 +122,6 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             Assert.Contains(logger.Logs, log => log.Contains("User ID not found in claims"));
 
         }
+
     }
 }

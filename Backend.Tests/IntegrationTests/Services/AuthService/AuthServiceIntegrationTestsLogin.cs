@@ -2,6 +2,7 @@
 using Backend.Application.Interfaces.UserServices;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.IdentityModel.Tokens;
 using Moq;
 using System.IdentityModel.Tokens.Jwt;
 using Xunit;
@@ -22,8 +23,10 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             WebSocketManagerMock
                 .Setup(manager => manager.SendMessageAsync(It.IsAny<string>(), It.IsAny<string>()))
                 .Returns(Task.CompletedTask);
+
             var userLoginDto = new UserLoginDto { Email = "test@example.com", Password = "Password123!" };
-            string ipAddress = "";
+            string ipAddress = "127.0.0.1"; // Ensure a valid IP
+
             // Insert a user into the database using SetupUserAsync
             var registeredUser = await SetupUserAsync();
 
@@ -37,16 +40,34 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             Assert.True(result.Success);
             Assert.Equal("Login successful.", result.Message);
 
-            // Assert that the returned user email matches the input email
+            // Ensure correct user details in response
             Assert.Equal(userLoginDto.Email, result.UserName);
 
-            // Assert that a valid auth token is set in cookies
-            Assert.True(CookieContainer.ContainsKey("auth_token"));
-            var authCookie = CookieContainer["auth_token"];
-            Assert.NotNull(authCookie.Value); // Check that the token exists
-            Assert.DoesNotContain("Bearer", authCookie.Value); // Validate token format
-            Assert.NotEmpty(authCookie.Value); // Ensure token is present
+            // **Assert that a valid JWT token is returned**
+            Assert.False(string.IsNullOrEmpty(result.AccessToken), "AccessToken should not be null or empty.");
+
+            // Decode and validate JWT token
+            var handler = new JwtSecurityTokenHandler();
+            var token = handler.ReadJwtToken(result.AccessToken);
+
+            Assert.Equal("eBudget", token.Issuer);
+            Assert.Contains("eBudget", token.Audiences);
+            Assert.Equal(registeredUser.Email, token.Claims.First(c => c.Type == JwtRegisteredClaimNames.Email).Value);
+            Assert.Equal(registeredUser.PersoId.ToString(), token.Claims.First(c => c.Type == JwtRegisteredClaimNames.Sub).Value);
+
+            // **Verify Token Expiration**
+            var expClaim = token.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Exp)?.Value;
+            Assert.NotNull(expClaim);
+            var expUnix = long.Parse(expClaim);
+            var expDate = DateTimeOffset.FromUnixTimeSeconds(expUnix).UtcDateTime;
+            Assert.True(expDate > DateTime.UtcNow, "Token should not be expired.");
+
+            // **Ensure JTI exists**
+            var jtiClaim = token.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Jti);
+            Assert.NotNull(jtiClaim);
+            Assert.False(string.IsNullOrEmpty(jtiClaim.Value), "JTI should not be null or empty.");
         }
+
 
         [Fact]
         public async Task LoginAsync_ValidCredentials_TokenHasExpectedClaims()
@@ -67,38 +88,24 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
 
             // Assert
             Assert.True(result.Success);
-
-            Assert.True(CookieContainer.ContainsKey("auth_token"));
-            var authCookie = CookieContainer["auth_token"];
-            Assert.NotNull(authCookie.Value); // Ensure token exists
-            Assert.DoesNotContain("Bearer", authCookie.Value); // Validate token format
+            Assert.False(string.IsNullOrEmpty(result.AccessToken), "AccessToken should not be null or empty.");
 
             // Decode and validate JWT token
             var handler = new JwtSecurityTokenHandler();
-            var token = handler.ReadJwtToken(authCookie.Value);
+            var token = handler.ReadJwtToken(result.AccessToken);
 
             Assert.Equal("eBudget", token.Issuer);
             Assert.Contains("eBudget", token.Audiences);
             Assert.Equal(registeredUser.Email, token.Claims.First(c => c.Type == JwtRegisteredClaimNames.Email).Value);
             Assert.Equal(registeredUser.PersoId.ToString(), token.Claims.First(c => c.Type == JwtRegisteredClaimNames.Sub).Value);
 
-            // Optionally, verify token expiration
+            // Verify token expiration
             var expClaim = token.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Exp)?.Value;
             Assert.NotNull(expClaim);
             var expUnix = long.Parse(expClaim);
             var expDate = DateTimeOffset.FromUnixTimeSeconds(expUnix).UtcDateTime;
-            Assert.True(expDate > DateTime.UtcNow, "Token should not be expired");
-
-            // Assert cookie options
-            var options = authCookie.Options;
-            Assert.True(options.HttpOnly);
-            Assert.True(options.Secure);
-            Assert.Equal(SameSiteMode.Strict, options.SameSite);
-
-            // No need to verify the mock as it's removed
+            Assert.True(expDate > DateTime.UtcNow, "Token should not be expired.");
         }
-
-
 
         [Fact]
         public async Task LoginAsync_TokenExpires_ShouldDenyAccess()
@@ -108,6 +115,7 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             var userLoginDto = new UserLoginDto { Email = "test@example.com", Password = "Password123!" };
             var registeredUser = await SetupUserAsync();
             await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
+
             Assert.NotNull(registeredUser);
             Assert.NotNull(registeredUser.PersoId);
             Assert.NotNull(registeredUser.Email);
@@ -119,20 +127,29 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             // Act: Perform the login
             var result = await AuthService.LoginAsync(userLoginDto, ipAddress);
             Assert.True(result.Success, "Login should succeed.");
+            Assert.False(string.IsNullOrEmpty(result.AccessToken), "JWT AccessToken should not be null or empty.");
 
-            Assert.True(CookieContainer.ContainsKey("auth_token"), "Auth token should exist in the cookie container.");
-            var authCookie = CookieContainer["auth_token"];
-            Assert.NotNull(authCookie.Value); // Ensure token exists
+            // Decode JWT token to extract expiration time
+            var handler = new JwtSecurityTokenHandler();
+            var token = handler.ReadJwtToken(result.AccessToken);
 
-            // Simulate time passing to trigger token expiration
-            MockTimeProvider.Setup(tp => tp.UtcNow).Returns(tokenCreationTime.AddMinutes(16)); // Simulate 16 minutes passing
+            var expClaim = token.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Exp)?.Value;
+            Assert.NotNull(expClaim);
 
-            // Attempt a protected operation
-            var isAuthorized = await UserTokenService.IsAuthorizedAsync(authCookie.Value);
+            var expUnix = long.Parse(expClaim);
+            var expirationTime = DateTimeOffset.FromUnixTimeSeconds(expUnix).UtcDateTime;
+            Assert.True(expirationTime > DateTime.UtcNow, "Token should initially be valid.");
 
-            // Assert
-            Assert.False(isAuthorized, "Token should not be authorized after expiration.");
+            // Simulate time passing to trigger token expiration (JWT expires after 15 minutes)
+            MockTimeProvider.Setup(tp => tp.UtcNow).Returns(expirationTime.AddMinutes(1)); // Simulate 1 min past expiration
+
+            // Attempt to validate the expired token
+            var principal = jwtService.ValidateToken(result.AccessToken);
+
+            // Assert: Token should be invalid after expiration
+            Assert.True(principal == null, "Expired token should be invalid and not return a principal.");
         }
+
         [Fact]
         public async Task LoginAsync_ConcurrentLogins_ShouldWork()
         {
@@ -152,7 +169,7 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             Assert.NotEqual(result1.AccessToken, result2.AccessToken); // Tokens should be unique
         }
         [Fact]
-        public async Task LoginAsync_ValidCredentials_ShouldSetSecureHeaders()
+        public async Task LoginAsync_ValidCredentials_ShouldReturnSecureToken()
         {
             // Mock production environment
             MockEnvironmentService
@@ -162,11 +179,9 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             // Validate the mock before running the test
             var mockValue = MockEnvironmentService.Object.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
             Assert.Equal("Production", mockValue);
-            var authService = ServiceProvider.GetRequiredService<IUserAuthenticationService>();
-
 
             // Arrange
-            string ipAddress = "";
+            string ipAddress = "127.0.0.1";
             var userLoginDto = new UserLoginDto { Email = "test@example.com", Password = "Password123!" };
             var registeredUser = await SetupUserAsync();
             await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
@@ -175,59 +190,109 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             var result = await AuthService.LoginAsync(userLoginDto, ipAddress);
 
             // Assert
-            Assert.True(CookieContainer.ContainsKey("auth_token"));
-            var authCookie = CookieContainer["auth_token"];
+            Assert.True(result.Success);
+            Assert.False(string.IsNullOrEmpty(result.AccessToken), "JWT AccessToken should not be null or empty.");
 
-            // Access CookieOptions for assertions
-            var options = authCookie.Options;
-            Assert.True(options.HttpOnly, "HttpOnly should be true");
-            Assert.True(options.Secure, "Secure should be True");
-            Assert.Equal(SameSiteMode.Strict, options.SameSite);
+            // Decode and validate JWT token
+            var handler = new JwtSecurityTokenHandler();
+            var token = handler.ReadJwtToken(result.AccessToken);
+
+            Assert.Equal("eBudget", token.Issuer);
+            Assert.Contains("eBudget", token.Audiences);
+            Assert.Equal(registeredUser.Email, token.Claims.First(c => c.Type == JwtRegisteredClaimNames.Email).Value);
+            Assert.Equal(registeredUser.PersoId.ToString(), token.Claims.First(c => c.Type == JwtRegisteredClaimNames.Sub).Value);
+
+            // Ensure JTI exists
+            var jtiClaim = token.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Jti);
+            Assert.NotNull(jtiClaim);
+            Assert.False(string.IsNullOrEmpty(jtiClaim.Value), "JTI should not be null or empty.");
+
+            // Ensure Expiration Claim Exists
+            var expClaim = token.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Exp)?.Value;
+            Assert.NotNull(expClaim);
+            var expUnix = long.Parse(expClaim);
+            var expDate = DateTimeOffset.FromUnixTimeSeconds(expUnix).UtcDateTime;
+            Assert.True(expDate > DateTime.UtcNow, "Token should not be expired.");
+
+            // **Security Checks: Ensure Best Practices**
+            Assert.Contains(token.Claims, c => c.Type == JwtRegisteredClaimNames.Iat); // Issued At
+            Assert.Contains(token.Claims, c => c.Type == JwtRegisteredClaimNames.Jti); // JWT Unique Identifier
+            Assert.Contains(token.Claims, c => c.Type == JwtRegisteredClaimNames.Sub); // Subject (User ID)
+
+            // **Verify Algorithm Used**
+            Assert.Equal(SecurityAlgorithms.HmacSha256, token.SignatureAlgorithm);
         }
+
 
 
         [Fact]
         public async Task LoginAsync_TamperedToken_ShouldDenyAccess()
         {
             // Arrange
-            string ipAddress = "";
+            string ipAddress = "127.0.0.1";
             var userLoginDto = new UserLoginDto { Email = "test@example.com", Password = "Password123!" };
             var registeredUser = await SetupUserAsync();
             await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
 
+            // Ensure user setup was successful
+            Assert.NotNull(registeredUser);
+            Assert.NotNull(registeredUser.PersoId);
+            Assert.NotNull(registeredUser.Email);
+
+            // Act: Perform the login and get the JWT token
             var result = await AuthService.LoginAsync(userLoginDto, ipAddress);
-            Assert.True(result.Success);
+            Assert.True(result.Success, "Login should succeed.");
+            Assert.False(string.IsNullOrEmpty(result.AccessToken), "JWT AccessToken should not be null or empty.");
 
-            var authCookie = CookieContainer["auth_token"];
-            Assert.NotNull(authCookie);
+            // Tamper with the token by modifying a single character
+            var tamperedToken = result.AccessToken.Substring(0, result.AccessToken.Length - 1) + "X";
 
-            // Tamper with the token
-            var tamperedToken = authCookie.Value.Substring(0, authCookie.Value.Length - 1) + "X";
+            // Act - Attempt to validate the tampered token
+            var principal = jwtService.ValidateToken(tamperedToken);
 
-            // Act - Attempt to use the tampered token
-            var isAuthorized = await UserTokenService.IsAuthorizedAsync(tamperedToken);
-
-            // Assert
-            Assert.False(isAuthorized);
+            // Assert: The tampered token should be rejected
+            Assert.Null(principal);
         }
+
+
         [Fact]
-        public async Task CookieContainer_ShouldCaptureAuthToken()
+        public async Task LoginAsync_ShouldReturnValidAccessToken()
         {
             // Arrange
-            string ipAddress = "";
+            string ipAddress = "127.0.0.1";
             var userLoginDto = new UserLoginDto { Email = "test@example.com", Password = "Password123!" };
             var registeredUser = await SetupUserAsync();
             await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
 
-            // Act
-            await AuthService.LoginAsync(userLoginDto, ipAddress);
+            // Ensure user setup was successful
+            Assert.NotNull(registeredUser);
+            Assert.NotNull(registeredUser.PersoId);
+            Assert.NotNull(registeredUser.Email);
+
+            // Act: Perform login
+            var result = await AuthService.LoginAsync(userLoginDto, ipAddress);
 
             // Assert
-            Assert.True(CookieContainer.ContainsKey("auth_token"), "auth_token should exist in cookies");
-            var authCookie = CookieContainer["auth_token"];
-            Assert.NotNull(authCookie.Value);
-            Assert.True(authCookie.Options.HttpOnly);
+            Assert.True(result.Success, "Login should succeed.");
+            Assert.False(string.IsNullOrEmpty(result.AccessToken), "JWT AccessToken should not be null or empty.");
+
+            // Decode and validate JWT token
+            var handler = new JwtSecurityTokenHandler();
+            var token = handler.ReadJwtToken(result.AccessToken);
+
+            Assert.Equal("eBudget", token.Issuer);
+            Assert.Contains("eBudget", token.Audiences);
+            Assert.Equal(registeredUser.Email, token.Claims.First(c => c.Type == JwtRegisteredClaimNames.Email).Value);
+            Assert.Equal(registeredUser.PersoId.ToString(), token.Claims.First(c => c.Type == JwtRegisteredClaimNames.Sub).Value);
+
+            // Ensure Expiration Claim Exists
+            var expClaim = token.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Exp)?.Value;
+            Assert.NotNull(expClaim);
+            var expUnix = long.Parse(expClaim);
+            var expDate = DateTimeOffset.FromUnixTimeSeconds(expUnix).UtcDateTime;
+            Assert.True(expDate > DateTime.UtcNow, "Token should not be expired.");
         }
+
         [Fact]
         public void HttpContext_ShouldBeInitialized()
         {

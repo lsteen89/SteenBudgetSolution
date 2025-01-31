@@ -15,19 +15,22 @@ namespace Backend.Application.Services.JWT
         private readonly ILogger<JwtService> _logger;
         private readonly IEnvironmentService _environmentService;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly ITimeProvider _timeProvider;
 
         public JwtService(
             ITokenBlacklistService tokenBlackListSerivce,
             ILogger<JwtService> logger,
             JwtSettings jwtSettings,
             IEnvironmentService environmentService,
-            IHttpContextAccessor httpContextAccessor)
+            IHttpContextAccessor httpContextAccessor,
+            ITimeProvider timeProvider)
         {
             _jwtSecret = jwtSettings.SecretKey; 
             _tokenBlacklistService = tokenBlackListSerivce;
             _logger = logger;
             _environmentService = environmentService;
             _httpContextAccessor = httpContextAccessor;
+            _timeProvider = timeProvider;
         }
 
         public async Task<LoginResultDto> GenerateJWTTokenAsync(string persoid, string email)
@@ -104,7 +107,13 @@ namespace Backend.Application.Services.JWT
                     ValidAudience = "eBudget",
                     ValidateLifetime = true,
                     ClockSkew = TimeSpan.Zero, // Strict expiration validation
-                    
+                    LifetimeValidator = (notBefore, expires, securityToken, validationParameters) =>
+                    {
+                        var currentTime = _timeProvider.UtcNow;
+                        _logger.LogInformation($"Validating token lifetime: Current time: {currentTime}, Token expires at: {expires}");
+
+                        return expires > currentTime;
+                    },
                     RequireExpirationTime = true,
                     RequireSignedTokens = true,
                     
