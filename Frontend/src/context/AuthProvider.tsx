@@ -27,6 +27,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
+  // Define protected routes
+  const protectedRoutes = ['/dashboard']; // Add other protected routes as needed
+
+  // Check if the current route is protected
+  const isProtectedRoute = protectedRoutes.includes(location.pathname);
+
   // Fetch auth status
   const fetchAuthStatus = useCallback(async () => {
     try {
@@ -110,15 +116,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     connect();
   }, [authState.authenticated, closeWebSocket]);
 
-  // On mount, initialize Axios with stored token and fetch status if not on login page
+  // On mount, initialize Axios with stored token and fetch status if on a protected route
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
     if (token) {
       axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     }
 
-    // Skip fetching auth status on login page to prevent redirect loops
-    if (location.pathname !== '/login') {
+    // Only fetch auth status if the current route is protected
+    if (isProtectedRoute) {
       fetchAuthStatus();
     } else {
       setAuthState(prev => ({ ...prev, isLoading: false }));
@@ -127,7 +133,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => {
       closeWebSocket();
     };
-  }, [fetchAuthStatus, closeWebSocket, location.pathname]);
+  }, [fetchAuthStatus, closeWebSocket, isProtectedRoute]);
 
   return (
     <AuthContext.Provider
