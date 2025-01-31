@@ -40,6 +40,7 @@ using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Backend.Application.Services.AuthService;
 using Backend.Application.Interfaces.AuthService;
+using Backend.Presentation.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -62,6 +63,13 @@ var jwtSettings = new JwtSettings
     SecretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY") ?? "development-fallback-key",
     ExpiryMinutes = int.TryParse(Environment.GetEnvironmentVariable("JWT_EXPIRY_MINUTES"), out var expiry) ? expiry : 60
 };
+
+// Configure Redis Cache
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = builder.Configuration.GetSection("Redis")["localhost:6379"]; 
+    options.InstanceName = "eBudget:"; // Optional prefix for keys
+});
 #endregion
 
 #region Serilog Configuration
@@ -130,8 +138,8 @@ builder.Services.AddScoped<IEmailResetPasswordService, EmailResetPasswordService
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<LogHelper>();
 builder.Services.AddScoped<ITimeProvider, SystemTimeProvider>();
-// Remove CookieService if not using cookies
-// builder.Services.AddScoped<ICookieService, CookieService>();
+
+
 builder.Services.AddScoped<ITokenBlacklistService, TokenBlacklistService>();
 builder.Services.AddSingleton(jwtSettings);
 builder.Services.AddScoped<IJwtService, JwtService>();
@@ -415,6 +423,8 @@ app.UseStaticFiles(new StaticFileOptions
         ctx.Context.Response.Headers.Append("Cache-Control", "public,max-age=3600");
     }
 });
+
+app.UseMiddleware<TokenBlacklistMiddleware>();
 
 // Enable routing
 app.UseRouting();
