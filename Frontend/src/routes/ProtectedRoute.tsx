@@ -11,7 +11,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     return <>{children}</>; // Bypass authentication in development
   }
 
-  if (auth?.authenticated) {
+  if (auth.authenticated) {
     return <>{children}</>;
   }
 

@@ -13,6 +13,7 @@ import ContentWrapper from '@components/layout/ContentWrapper';
 import { useAuth } from "@context/AuthProvider"; 
 import axiosInstance from "@api/axiosConfig"; 
 import type { LoginResponse } from "../../types/authTypes";
+import { Navigate } from 'react-router-dom';
 
 type ReCAPTCHAWithReset = ReCAPTCHA & {
   reset: () => void;
@@ -25,6 +26,11 @@ const LoginPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const navigate = useNavigate();
   const { refreshAuthStatus } = useAuth(); // No type assertion needed
+  
+  const auth = useAuth();
+  if (auth.authenticated) {
+    return <Navigate to="/dashboard" />;
+  }
 
   const handleCaptchaChange = (token: string | null) => {
     setFormData((prevData) => ({
