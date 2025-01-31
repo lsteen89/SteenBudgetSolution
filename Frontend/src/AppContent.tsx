@@ -18,7 +18,7 @@ import MobileMenu from './components/organisms/Menu/MobileMenu';
 import MenuComponent from './components/organisms/Menu/MenuComponent';
 import DynamicTitle from '@utils/DynamicTitle'; 
 import MediaQueryTest from '@components/Test/MediaQueryTest';
-import { useAuth, AuthContextType } from "@context/AuthProvider"; 
+import { useAuth } from "@context/AuthProvider"; 
 import { mockVerifyEmail } from '@mocks/mockServices/verifyEmailMock';
 import { realVerifyEmailWrapper } from '@api/Services/User/realVerifyEmailWrapper';
 

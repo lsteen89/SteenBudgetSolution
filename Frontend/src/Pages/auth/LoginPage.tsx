@@ -10,8 +10,9 @@ import ReCAPTCHA from 'react-google-recaptcha';
 import { login } from '@api/Services/User/auth';
 import PageContainer from '@components/layout/PageContainer';
 import ContentWrapper from '@components/layout/ContentWrapper';
-import { useAuth, AuthContextType } from "@context/AuthProvider"; 
-import axiosInstance from "@api/axiosConfig"; // Ensure you have access to the Axios instance if needed
+import { useAuth } from "@context/AuthProvider"; 
+import axiosInstance from "@api/axiosConfig"; 
+import { LoginResponse } from "../../types/auth";
 
 type ReCAPTCHAWithReset = ReCAPTCHA & {
   reset: () => void;
@@ -81,11 +82,17 @@ const LoginPage: React.FC = () => {
     setErrors({}); // Clear any previous errors
     setIsSubmitting(true); // Indicate loading state
     try {
-      const result = await login(formData);
+      const result: LoginResponse = await login(formData);
 
       if (result.success) {
         console.log("Login successful:", result.message);
-        
+        // Store tokens in localStorage
+        localStorage.setItem('accessToken', result.accessToken);
+        localStorage.setItem('refreshToken', result.refreshToken);
+
+        // Set the access token in axios default headers
+        axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${result.accessToken}`;
+
         // Immediately fetch auth status to update the state
         await refreshAuthStatus();
 

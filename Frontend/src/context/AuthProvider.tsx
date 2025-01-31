@@ -1,22 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import axiosInstance from "@api/axiosConfig";
 import { isAxiosError } from "axios";
+import { AuthState, AuthContextType } from "../types/auth"; 
 
-interface AuthState {
-  authenticated: boolean;
-  email?: string;
-  role?: string | null;
-}
-
-export interface AuthContextType extends AuthState {
-  refreshAuthStatus: () => Promise<void>;
-  logout: () => Promise<void>; // Optional
-}
-
-// Create the AuthContext with a default value of null
 export const AuthContext = createContext<AuthContextType | null>(null);
 
-// Custom hook to use the AuthContext
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -37,7 +25,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  // 1. Fetch auth status (HTTP cookie-based)
+  // Fetch auth status
   const fetchAuthStatus = useCallback(async () => {
     try {
       console.log("AuthProvider: Checking /api/auth/status");
@@ -61,71 +49,78 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setAuthState({ authenticated: false });
       closeWebSocket();
     }
-  }, []);
+  }, [closeWebSocket]);
 
   const logout = useCallback(async () => {
     try {
-      await axiosInstance.post("/api/auth/logout", {}, { withCredentials: true });
+      await axiosInstance.post("/api/auth/logout"); // Removed withCredentials since cookies are not used
       console.log("AuthProvider: Logout successful.");
     } catch (error) {
       console.error("AuthProvider: Logout error:", error);
     }
     setAuthState({ authenticated: false });
     closeWebSocket();
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    axiosInstance.defaults.headers.common['Authorization'] = '';
   }, [closeWebSocket]);
 
-  // 3. WebSocket opener
-const openWebSocket = useCallback(() => {
-  const websocketUrl = import.meta.env.MODE === "development"
-    ? "ws://localhost:5000/ws/auth"
-    : "wss://ebudget.se/ws/auth";
+  // WebSocket opener
+  const openWebSocket = useCallback(() => {
+    const websocketUrl = import.meta.env.MODE === "development"
+      ? "ws://localhost:5000/ws/auth"
+      : "wss://ebudget.se/ws/auth";
 
-  const connect = (attempt = 1) => {
-    console.log(`AuthProvider: Attempting WebSocket connection (attempt ${attempt})...`);
-    const socket = new WebSocket(websocketUrl);
+    const connect = (attempt = 1) => {
+      console.log(`AuthProvider: Attempting WebSocket connection (attempt ${attempt})...`);
+      const socket = new WebSocket(websocketUrl);
 
-    socket.onopen = () => {
-      console.log("AuthProvider: WebSocket connected.");
-      wsRef.current = socket;
+      socket.onopen = () => {
+        console.log("AuthProvider: WebSocket connected.");
+        wsRef.current = socket;
+      };
+
+      socket.onmessage = (event) => {
+        console.log(`AuthProvider: Received WS message: ${event.data}`);
+        if (event.data === "ready") {
+          console.log("AuthProvider: WebSocket is ready!");
+        } else if (event.data === "logout" || event.data === "session-expired") {
+          console.log("AuthProvider: Received logout/session-expired from server.");
+          setAuthState({ authenticated: false });
+          closeWebSocket();
+          window.location.href = "/login"; // Redirect to login page
+        }
+      };
+
+      socket.onclose = () => {
+        console.log("AuthProvider: WebSocket closed.");
+        wsRef.current = null;
+        if (authState.authenticated && attempt < 3) {
+          setTimeout(() => connect(attempt + 1), 5000); // Retry after 5 seconds
+        }
+      };
+
+      socket.onerror = (err) => {
+        console.error("AuthProvider: WebSocket error:", err);
+      };
     };
 
-    socket.onmessage = (event) => {
-      console.log("AuthProvider: Received WS message:", event.data);
-      if (event.data === "ready") {
-        console.log("AuthProvider: WebSocket is ready!");
-      } else if (event.data === "logout" || event.data === "session-expired") {
-        console.log("AuthProvider: Received logout/session-expired from server.");
-        setAuthState({ authenticated: false });
-        closeWebSocket();
-        window.location.href = "/login"; // Redirect to login page
-      }
-    };
+    connect();
+  }, [authState.authenticated, closeWebSocket]);
 
-    socket.onclose = () => {
-      console.log("AuthProvider: WebSocket closed.");
-      wsRef.current = null;
-      if (authState.authenticated && attempt < 3) {
-        setTimeout(() => connect(attempt + 1), 5000); // Retry after 5 seconds
-      }
-    };
-
-    socket.onerror = (err) => {
-      console.error("AuthProvider: WebSocket error:", err);
-    };
-  };
-
-  connect();
-}, [authState.authenticated, closeWebSocket]);
-
-  // 5. On mount, fetch status once
+  // On mount, initialize Axios with stored token and fetch status
   useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    }
     fetchAuthStatus();
     return () => {
       closeWebSocket();
     };
   }, [fetchAuthStatus, closeWebSocket]);
 
-  // 6. Polling to refresh auth status every 5 minutes. This is optional. Its obselote now, but ill keep it here for reference
+  // Optional: Polling to refresh auth status every 5 minutes
   /*
   useEffect(() => {
     const interval = setInterval(() => {
@@ -136,6 +131,7 @@ const openWebSocket = useCallback(() => {
     return () => clearInterval(interval);
   }, [authState.authenticated, fetchAuthStatus]);
   */
+
   return (
     <AuthContext.Provider
       value={{
