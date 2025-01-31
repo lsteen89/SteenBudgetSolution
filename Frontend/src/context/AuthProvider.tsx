@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import axiosInstance from "@api/axiosConfig";
 import { isAxiosError } from "axios";
 import type { AuthState, AuthContextType } from "../types/authTypes"; 
-import { useLocation } from "react-router-dom"; // Import useLocation
+import { useLocation } from "react-router-dom";
 
 export const AuthContext = createContext<AuthContextType | null>(null);
 
@@ -116,15 +116,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     connect();
   }, [authState.authenticated, closeWebSocket]);
 
-  // On mount, initialize Axios with stored token and fetch status if on a protected route
+  // On mount, initialize Axios with stored token and fetch status if token exists
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
     if (token) {
       axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    }
-
-    // Only fetch auth status if the current route is protected
-    if (isProtectedRoute) {
       fetchAuthStatus();
     } else {
       setAuthState(prev => ({ ...prev, isLoading: false }));
@@ -133,7 +129,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => {
       closeWebSocket();
     };
-  }, [fetchAuthStatus, closeWebSocket, isProtectedRoute]);
+  }, [fetchAuthStatus, closeWebSocket]);
 
   return (
     <AuthContext.Provider
@@ -143,6 +139,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role: authState.role,
         refreshAuthStatus: fetchAuthStatus,
         logout,
+        isLoading: authState.isLoading, // Expose isLoading
       }}
     >
       {authState.isLoading ? (
