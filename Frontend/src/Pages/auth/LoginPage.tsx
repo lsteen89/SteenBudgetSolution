@@ -7,12 +7,12 @@ import { useNavigate } from 'react-router-dom';
 import { UserLoginValidator } from '@utils/validation/userLoginValidation';
 import { UserLoginDto } from '../../types/userLoginForm';
 import ReCAPTCHA from 'react-google-recaptcha';
-import { login } from '@api/Services/User/auth';
+import { login } from '@api/Services/User/authService';
 import PageContainer from '@components/layout/PageContainer';
 import ContentWrapper from '@components/layout/ContentWrapper';
 import { useAuth } from "@context/AuthProvider"; 
 import axiosInstance from "@api/axiosConfig"; 
-import { LoginResponse } from "../../types/auth";
+import type { LoginResponse } from "../../types/authTypes";
 
 type ReCAPTCHAWithReset = ReCAPTCHA & {
   reset: () => void;

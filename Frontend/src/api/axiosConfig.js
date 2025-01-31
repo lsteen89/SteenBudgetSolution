@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { LoginResponse } from "../types/auth"; 
+
 
 // Create an Axios instance
 const axiosInstance = axios.create({

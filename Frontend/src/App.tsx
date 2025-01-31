@@ -21,8 +21,8 @@ const App: React.FC = () => {
   }, [isMenuOpen]);
 
   return (
-    <AuthProvider>
-      <BrowserRouter>
+    <BrowserRouter>
+      <AuthProvider>
         <AppContent
           isMenuOpen={isMenuOpen}
           toggleMenu={toggleMenu}
@@ -30,8 +30,8 @@ const App: React.FC = () => {
           isDesktop={isDesktop}
           isDebugMode={isDebugMode}
         />
-      </BrowserRouter>
-    </AuthProvider>
+      </AuthProvider>
+    </BrowserRouter>
   );
 };
 

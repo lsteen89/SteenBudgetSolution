@@ -1,7 +1,10 @@
+// src/context/AuthProvider.tsx
+
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import axiosInstance from "@api/axiosConfig";
 import { isAxiosError } from "axios";
-import { AuthState, AuthContextType } from "../types/auth"; 
+import type { AuthState, AuthContextType } from "../types/authTypes"; 
+import { useLocation } from "react-router-dom"; // Import useLocation
 
 export const AuthContext = createContext<AuthContextType | null>(null);
 
@@ -16,6 +19,7 @@ export const useAuth = (): AuthContextType => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [authState, setAuthState] = useState<AuthState>({ authenticated: false });
   const wsRef = useRef<WebSocket | null>(null);
+  const location = useLocation(); // Get current location
 
   const closeWebSocket = useCallback(() => {
     if (wsRef.current) {
@@ -108,17 +112,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     connect();
   }, [authState.authenticated, closeWebSocket]);
 
-  // On mount, initialize Axios with stored token and fetch status
+  // On mount, initialize Axios with stored token and fetch status if not on login page
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
     if (token) {
       axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     }
-    fetchAuthStatus();
+
+    // Skip fetching auth status on login page to prevent redirect loops
+    if (location.pathname !== '/login') {
+      fetchAuthStatus();
+    }
+
     return () => {
       closeWebSocket();
     };
-  }, [fetchAuthStatus, closeWebSocket]);
+  }, [fetchAuthStatus, closeWebSocket, location.pathname]);
 
   // Optional: Polling to refresh auth status every 5 minutes
   /*
