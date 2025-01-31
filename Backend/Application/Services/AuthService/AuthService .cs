@@ -19,7 +19,6 @@ namespace Backend.Application.Services.AuthService
         private readonly IUserSQLProvider _userSQLProvider;
         private readonly IJwtService _jwtService;
         private readonly IRecaptchaService _recaptchaService;
-        //private readonly ICookieService _cookieService;
         private readonly IUserTokenService _userTokenService;
         private readonly IWebSocketManager _webSocketManager;
         private readonly LogHelper _logHelper;
@@ -31,7 +30,6 @@ namespace Backend.Application.Services.AuthService
             IUserSQLProvider userSQLProvider,
             IJwtService jwtService,
             IRecaptchaService recaptchaService,
-            //ICookieService cookieService,
             IUserTokenService userTokenService,
             IWebSocketManager webSocketManager,
             LogHelper logHelper,
@@ -42,7 +40,6 @@ namespace Backend.Application.Services.AuthService
             _userSQLProvider = userSQLProvider;
             _jwtService = jwtService;
             _recaptchaService = recaptchaService;
-            //_cookieService = cookieService;
             _userTokenService = userTokenService;
             _webSocketManager = webSocketManager;
             _logHelper = logHelper;

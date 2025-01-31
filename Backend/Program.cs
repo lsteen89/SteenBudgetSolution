@@ -333,25 +333,24 @@ builder.Services.AddAuthentication(options =>
         },
         OnMessageReceived = context =>
         {
-            // OLD WAY //
-            /*
-            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-            logger.LogInformation("OnMessageReceived fired. Cookie found? {HasCookie}", context.Request.Cookies.ContainsKey("auth_token"));
-
-            if (context.Request.Cookies.TryGetValue("auth_token", out var token))
-            {
-                logger.LogInformation("Token found in cookie: {Token}", token);
-                context.Token = token;
-            }
-            */
             var authorizationHeader = context.Request.Headers["Authorization"].FirstOrDefault();
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+
             if (!string.IsNullOrEmpty(authorizationHeader) && authorizationHeader.StartsWith("Bearer "))
             {
-                context.Token = authorizationHeader.Substring("Bearer ".Length).Trim();
+                var token = authorizationHeader.Substring("Bearer ".Length).Trim();
+                context.Token = token;
+                logger.LogInformation("Token extracted from Authorization header: {Token}", token);
+            }
+            else if (context.Request.Query.TryGetValue("token", out var tokenValues))
+            {
+                var token = tokenValues.FirstOrDefault();
+                context.Token = token;
+                logger.LogInformation("Token extracted from query parameter: {Token}", token);
             }
             else
             {
-                logger.LogWarning("No auth_token cookie in the request!");
+                logger.LogWarning("No token found in the request!");
             }
 
             return Task.CompletedTask;
@@ -462,6 +461,7 @@ app.UseWebSockets();
 app.UseEndpoints(endpoints =>
 {
     endpoints.MapControllers();
+
     endpoints.Map("/ws/auth", async context =>
     {
         if (context.WebSockets.IsWebSocketRequest)
@@ -474,7 +474,7 @@ app.UseEndpoints(endpoints =>
         {
             context.Response.StatusCode = 400;
         }
-    });
+    }).RequireAuthorization(); // Ensure that the endpoint requires authorization
 });
 
 #endregion

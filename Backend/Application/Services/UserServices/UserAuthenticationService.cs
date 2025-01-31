@@ -187,6 +187,7 @@ namespace Backend.Application.Services.UserServices
                 _logger.LogWarning("User locked out for email: {Email}", userLoginDto.Email);
             }
         }
+        // TODO: Delete this method if not used
         public AuthStatusDto CheckAuthStatus(ClaimsPrincipal user)
         {
             if (user == null || user.Identity?.IsAuthenticated != true)

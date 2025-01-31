@@ -1,12 +1,8 @@
-﻿using System.Collections.Concurrent;
+﻿using Backend.Infrastructure.Interfaces;
+using System.Collections.Concurrent;
 using System.Net.WebSockets;
 using System.Text;
-using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
-using Backend.Infrastructure.Interfaces;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace Backend.Infrastructure.WebSockets
 {
@@ -109,15 +105,17 @@ namespace Backend.Infrastructure.WebSockets
                     return;
                 }
 
-                userId = context.User.FindFirst("sub")?.Value;
-                if (string.IsNullOrEmpty(userId))
+                // 2. Extract user ID from claims
+                var userIdClaim = context.User.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub);
+                if (userIdClaim == null)
                 {
-                    _logger.LogWarning("Missing 'sub' claim. Closing socket.");
+                    _logger.LogWarning("User ID claim not found. Closing socket.");
                     await webSocket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "User ID not found", CancellationToken.None);
                     return;
                 }
 
-                _logger.LogInformation("Authenticated WebSocket connection established for user: {UserId}", userId);
+                userId = userIdClaim.Value;
+                _logger.LogInformation($"User {userId} connected via WebSocket.");
                 // 2. Acquire a lock for this user
                 userLock = _userLocks.GetOrAdd(userId, _ => new SemaphoreSlim(1, 1));
                 await userLock.WaitAsync();

@@ -78,10 +78,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const websocketUrl = import.meta.env.MODE === "development"
       ? "ws://localhost:5000/ws/auth"
       : "wss://ebudget.se/ws/auth";
-
+    
+    
     const connect = (attempt = 1) => {
       console.log(`AuthProvider: Attempting WebSocket connection (attempt ${attempt})...`);
-      const socket = new WebSocket(websocketUrl);
+      const token = localStorage.getItem('accessToken');
+      if (!token) {
+        console.warn("AuthProvider: No access token found. Cannot establish WebSocket connection.");
+        return;
+      }
+      const socket = new WebSocket(`${websocketUrl}?token=${encodeURIComponent(token)}`);
 
       socket.onopen = () => {
         console.log("AuthProvider: WebSocket connected.");
