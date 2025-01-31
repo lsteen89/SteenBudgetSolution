@@ -419,14 +419,15 @@ app.UseStaticFiles(new StaticFileOptions
     }
 });
 
-app.UseMiddleware<TokenBlacklistMiddleware>();
-
 // Enable routing
 app.UseRouting();
 
 // Enable Authentication and Authorization
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Use Token Blacklist Middleware
+app.UseMiddleware<TokenBlacklistMiddleware>();
 
 // Use Rate Limiting Middleware (if configured)
 app.UseRateLimiter();
