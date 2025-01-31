@@ -50,7 +50,7 @@ builder.Services.AddDistributedMemoryCache();
 // Register Redis Distributed Cache
 builder.Services.AddStackExchangeRedisCache(options =>
 {
-    options.Configuration = builder.Configuration.GetConnectionString("Redis"); // Ensure this is set in appsettings.json or environment variables
+    options.Configuration = builder.Configuration.GetSection("Redis")["ConnectionString"];
     options.InstanceName = "YourAppInstanceName"; // Optional: prefix for keys
 });
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
