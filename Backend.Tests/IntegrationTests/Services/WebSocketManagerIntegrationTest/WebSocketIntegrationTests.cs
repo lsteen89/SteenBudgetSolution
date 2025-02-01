@@ -679,5 +679,34 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
                     $"Timed out waiting for message '{expectedMessage}' on client {clientName}.");
             }
         }
+        [Fact]
+        public async Task HealthCheck_Should_Send_Ping_For_Authenticated_Connection()
+        {
+            // Arrange: Setup authenticated WebSocket connection.
+            var wsUri = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth?user=testuser");
+            using var clientWebSocket = new ClientWebSocket();
+            clientWebSocket.Options.SetRequestHeader("Test-Auth", "true");
+            clientWebSocket.Options.SetRequestHeader("Test-User", "testuser");
+
+            Console.WriteLine($"Connecting to WebSocket at: {wsUri}");
+            await clientWebSocket.ConnectAsync(wsUri, CancellationToken.None);
+
+            var readinessMessage = await RetryReceiveMessage(clientWebSocket, 5, TimeSpan.FromMilliseconds(500));
+            Assert.Equal("ready", readinessMessage);
+            Console.WriteLine("Received readiness acknowledgment from server.");
+
+            // Act: Get the AuthWebSocketManager from DI and trigger HealthCheckAsync.
+            var wsManager = _fixture.Host.Services.GetRequiredService<AuthWebSocketManager>();
+            await wsManager.HealthCheckAsync();
+
+            // Assert: Verify the client receives the "ping" message.
+            var buffer = new byte[1024];
+            var result = await clientWebSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+            var receivedMessage = Encoding.UTF8.GetString(buffer, 0, result.Count);
+
+            receivedMessage.Should().Be("ping", "because the healthcheck should send a ping message to active connections");
+            Console.WriteLine("Healthcheck ping received successfully.");
+        }
+
     }
 }
