@@ -354,6 +354,34 @@ namespace Backend.Infrastructure.WebSockets
 
             await Task.WhenAll(tasks);
         }
+        // Health check method to send a "ping" message to all open connections
+        public async Task HealthCheckAsync()
+        {
+            foreach (var kvp in _userSockets)
+            {
+                var userId = kvp.Key;
+                var conn = kvp.Value;
+                if (conn.Socket.State != WebSocketState.Open)
+                    continue;
 
+                try
+                {
+                    // Send a lightweight "ping" message
+                    await SendMessageAsync(userId, "ping");
+                    _logger.LogInformation($"Healthcheck ping sent to user {userId}.");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"Healthcheck failed for user {userId}: {ex.Message}. Closing socket.");
+                    // close and remove the connection if healthcheck fails
+                    try
+                    {
+                        await conn.Socket.CloseAsync(WebSocketCloseStatus.EndpointUnavailable, "Healthcheck failed", CancellationToken.None);
+                    }
+                    catch { conn.Socket.Abort(); }
+                    _userSockets.TryRemove(userId, out _);
+                }
+            }
+        }
     }
 }

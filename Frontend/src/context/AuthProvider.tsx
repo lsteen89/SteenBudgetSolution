@@ -98,7 +98,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log(`AuthProvider: Received WS message: ${event.data}`);
         if (event.data === "ready") {
           console.log("AuthProvider: WebSocket is ready!");
-        } else if (event.data === "logout" || event.data === "session-expired") {
+        } 
+        else if (event.data === "ping") {
+          // Log ping messages from server
+          console.log("AuthProvider: Received ping from server."); 
+        }
+        else if (event.data === "logout" || event.data === "session-expired") {
           console.log("AuthProvider: Received logout/session-expired from server.");
           setAuthState({ authenticated: false, isLoading: false });
           closeWebSocket();

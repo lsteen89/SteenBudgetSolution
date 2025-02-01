@@ -7,5 +7,6 @@ namespace Backend.Infrastructure.Interfaces
         Task HandleConnectionAsync(WebSocket webSocket, HttpContext context);
         Task SendMessageAsync(string userId, string message);
         Task BroadcastAsync(string message);
+        Task HealthCheckAsync();
     }
 }
