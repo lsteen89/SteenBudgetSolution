@@ -54,8 +54,15 @@ axiosInstance.interceptors.response.use(
       }
       */
 
-      // If refresh logic is not implemented, redirect to login
-      window.location.href = '/login';
+      // No refresh token available or refresh request failed. Redirect to login
+      // todo: Implement refresh token logic
+      // Remove expired tokens before redirecting
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      delete axiosInstance.defaults.headers.common['Authorization'];
+
+      // Optional: Log token removal for debugging
+      console.warn('Token expired. Clearing tokens and redirecting to login.');
     }
 
     return Promise.reject(error);
