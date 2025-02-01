@@ -41,6 +41,7 @@ using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Backend.Application.Services.AuthService;
 using Backend.Application.Interfaces.AuthService;
 using Backend.Presentation.Middleware;
+using Backend.Infrastructure.BackgroundServices;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -182,7 +183,7 @@ else
 // Add WebSockets and their helpers
 builder.Services.AddSingleton<IWebSocketManager, AuthWebSocketManager>();
 builder.Services.AddHostedService(provider => (AuthWebSocketManager)provider.GetRequiredService<IWebSocketManager>());
-
+builder.Services.AddHostedService<WebSocketHealthCheckService>();
 #endregion
 
 #region Rate Limiter Configuration

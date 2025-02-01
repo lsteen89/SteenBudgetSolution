@@ -63,6 +63,7 @@ axiosInstance.interceptors.response.use(
 
       // Optional: Log token removal for debugging
       console.warn('Token expired. Clearing tokens and redirecting to login.');
+      window.location.href = '/login';
     }
 
     return Promise.reject(error);
