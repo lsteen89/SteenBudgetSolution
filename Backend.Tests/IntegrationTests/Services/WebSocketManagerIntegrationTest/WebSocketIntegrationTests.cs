@@ -342,7 +342,7 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
             // Assert
             // Verify that the server no longer has the WebSocket in its dictionary
             var userId = "client1"; // As per TestAuthHandler
-            var webSocketManager = _fixture.Host.Services.GetRequiredService<IWebSocketManager>() as AuthWebSocketManager;
+            var webSocketManager = _fixture.Host.Services.GetRequiredService<IWebSocketManager>() as WebSocketManager;
             //webSocketManager.UserSockets.Should().NotContainKey(userId, because: "the server should remove the WebSocket connection upon client disconnect");
 
             Console.WriteLine("WebSocket connection was correctly removed from the server upon client disconnect.");
@@ -696,7 +696,7 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
             Console.WriteLine("Received readiness acknowledgment from server.");
 
             // Act: Get the AuthWebSocketManager from DI and trigger HealthCheckAsync.
-            var wsManager = _fixture.Host.Services.GetRequiredService<AuthWebSocketManager>();
+            var wsManager = _fixture.Host.Services.GetRequiredService<WebSocketManager>();
             await wsManager.HealthCheckAsync();
 
             // Assert: Verify the client receives the "ping" message.

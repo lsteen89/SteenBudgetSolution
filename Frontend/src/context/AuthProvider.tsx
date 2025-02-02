@@ -3,6 +3,7 @@ import axiosInstance from "@api/axiosConfig";
 import { isAxiosError } from "axios";
 import type { AuthState, AuthContextType } from "../types/authTypes"; 
 import { useLocation } from "react-router-dom";
+import { jwtDecode } from "jwt-decode"; 
 
 export const AuthContext = createContext<AuthContextType | null>(null);
 
@@ -17,7 +18,7 @@ export const useAuth = (): AuthContextType => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [authState, setAuthState] = useState<AuthState & { isLoading: boolean }>({ authenticated: false, isLoading: true });
   const wsRef = useRef<WebSocket | null>(null);
-  const location = useLocation(); // Get current location
+  const location = useLocation(); 
 
   const closeWebSocket = useCallback(() => {
     if (wsRef.current) {
@@ -141,6 +142,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       closeWebSocket();
     };
   }, [fetchAuthStatus, closeWebSocket]);
+
+  // Check token expiration on route change (or periodically)
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      try {
+        const decoded: any = jwtDecode(token); // Now it works correctly
+        if (decoded.exp * 1000 < Date.now()) {
+          console.warn("AuthProvider: Access token expired, logging out.");
+          logout();
+        }
+      } catch (error) {
+        console.error("AuthProvider: Error decoding token:", error);
+        logout();
+      }
+    }
+  }, [location, logout]);
+
 
   return (
     <AuthContext.Provider

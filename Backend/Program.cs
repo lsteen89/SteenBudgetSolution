@@ -181,8 +181,8 @@ else
 }
 
 // Add WebSockets and their helpers
-builder.Services.AddSingleton<IWebSocketManager, AuthWebSocketManager>();
-builder.Services.AddHostedService(provider => (AuthWebSocketManager)provider.GetRequiredService<IWebSocketManager>());
+builder.Services.AddSingleton<IWebSocketManager, Backend.Infrastructure.WebSockets.WebSocketManager>();
+builder.Services.AddHostedService(provider => (Backend.Infrastructure.WebSockets.WebSocketManager)provider.GetRequiredService<IWebSocketManager>());
 builder.Services.AddHostedService<WebSocketHealthCheckService>();
 #endregion
 
