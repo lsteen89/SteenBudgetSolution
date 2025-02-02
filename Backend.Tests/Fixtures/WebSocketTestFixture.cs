@@ -46,9 +46,9 @@ namespace Backend.Tests.Fixtures
                         services.AddAuthentication("Test")
                                 .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>("Test", null);
 
-                        services.AddSingleton<AuthWebSocketManager>(); // Singleton service
-                        services.AddSingleton<IWebSocketManager>(sp => sp.GetRequiredService<AuthWebSocketManager>()); // Interface resolution
-                        services.AddHostedService(sp => sp.GetRequiredService<AuthWebSocketManager>()); // HostedService lifecycle
+                        services.AddSingleton<WebSocketManager>(); // Singleton service
+                        services.AddSingleton<IWebSocketManager>(sp => sp.GetRequiredService<WebSocketManager>()); // Interface resolution
+                        services.AddHostedService(sp => sp.GetRequiredService<WebSocketManager>()); // HostedService lifecycle
 
 
                         // Other dependencies

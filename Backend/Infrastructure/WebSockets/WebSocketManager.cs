@@ -7,14 +7,14 @@ using System.IdentityModel.Tokens.Jwt;
 namespace Backend.Infrastructure.WebSockets
 {
     public record WebSocketConnection(WebSocket Socket, CancellationTokenSource Cts);
-    public class AuthWebSocketManager : IWebSocketManager, IHostedService
+    public class WebSocketManager : IWebSocketManager, IHostedService
     {
         private readonly ConcurrentDictionary<string, SemaphoreSlim> _userLocks = new();
         private readonly ConcurrentDictionary<string, WebSocketConnection> _userSockets = new();
-        private readonly ILogger<AuthWebSocketManager> _logger;
+        private readonly ILogger<WebSocketManager> _logger;
         private const int MAX_MESSAGE_SIZE_BYTES = 4 * 1024; // 4 KB, adjust as needed. Max WebSocket message size
 
-        public AuthWebSocketManager(ILogger<AuthWebSocketManager> logger)
+        public WebSocketManager(ILogger<WebSocketManager> logger)
         {
             _logger = logger;
         }
