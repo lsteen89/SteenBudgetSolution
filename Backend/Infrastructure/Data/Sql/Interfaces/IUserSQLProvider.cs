@@ -3,7 +3,8 @@
     public interface IUserSQLProvider
     {
         IUserSqlExecutor UserSqlExecutor { get; }
-        ITokenSqlExecutor TokenSqlExecutor { get; }
+        IVerificationTokenSqlExecutor TokenSqlExecutor { get; }
         IAuthenticationSqlExecutor AuthenticationSqlExecutor { get; }
+        IRefreshTokenSqlExecutor RefreshTokenSqlExecutor { get; }
     }
 }

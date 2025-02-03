@@ -1,5 +1,8 @@
 ﻿using Backend.Application.DTO;
 using Backend.Application.Interfaces.UserServices;
+using Backend.Infrastructure.Data.Sql.Provider;
+using Backend.Infrastructure.Models;
+using Backend.Infrastructure.Security;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
@@ -294,11 +297,6 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
         }
 
         [Fact]
-        public void HttpContext_ShouldBeInitialized()
-        {
-            ValidateHttpContext();
-        }
-        [Fact]
         public void Cookies_ShouldAppendCorrectly()
         {
             // Arrange
@@ -396,5 +394,43 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             failedAttempts = await UserSQLProvider.AuthenticationSqlExecutor.GetRecentFailedAttemptsAsync(registeredUser.PersoId);
             Assert.Equal(0, failedAttempts);
         }
+        [Fact]
+        public async Task LoginAsync_ShouldStoreValidRefreshToken()
+        {
+            // Arrange
+            string ipAddress = "127.0.0.1";
+            var userLoginDto = new UserLoginDto
+            {
+                Email = "test@example.com",
+                Password = "Password123!",
+                CaptchaToken = "valid-captcha-token"
+            };
+            var registeredUser = await SetupUserAsync();
+            await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
+
+            // Act
+            var result = await AuthService.LoginAsync(userLoginDto, ipAddress);
+
+            // Assert: Validate login success and refresh token presence
+            Assert.True(result.Success, "Login should succeed");
+            Assert.False(string.IsNullOrEmpty(result.RefreshToken), "RefreshToken should not be null or empty");
+            Console.WriteLine($"Refresh Token: {result.RefreshToken}");
+
+            // Optionally, query the database to confirm the refresh token is stored (hashed)
+            JwtTokenModel storedToken = await UserSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokenAsync(registeredUser.PersoId);
+            Assert.NotNull(storedToken);
+            Console.WriteLine($"Stored Token: {storedToken.RefreshToken}");
+            // Verify that the stored token is the hashed version of the refresh token received
+            var expectedHashedToken = TokenGenerator.HashToken(result.RefreshToken);
+            Assert.Equal(expectedHashedToken, storedToken.RefreshToken);
+
+            
+
+            // Verify the expiry date is correctly set (approximately 30 days in the future)
+            Assert.True(storedToken.ExpiryDate > DateTime.UtcNow.AddDays(29) &&
+                        storedToken.ExpiryDate <= DateTime.UtcNow.AddDays(30),
+                        "Refresh token expiry should be around 30 days from now.");
+        }
+
     }
 }

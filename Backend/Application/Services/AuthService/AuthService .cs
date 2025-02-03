@@ -4,7 +4,7 @@ using Backend.Application.Interfaces.Cookies;
 using Backend.Application.Interfaces.JWT;
 using Backend.Application.Interfaces.RecaptchaService;
 using Backend.Application.Interfaces.UserServices;
-using Backend.Application.Services.JWT;
+using Backend.Infrastructure.Implementations;
 using Backend.Infrastructure.Data.Sql.Interfaces;
 using Backend.Infrastructure.Data.Sql.Provider;
 using Backend.Infrastructure.Helpers;
@@ -79,7 +79,7 @@ namespace Backend.Application.Services.AuthService
 
             // Step 4: Generate tokens (Access and Refresh tokens)
             var tokens = await _jwtService.GenerateJWTTokenAsync(validation.UserId, validation.Email);
-            if (tokens == null)
+            if (!tokens.Success)
             {
                 _logger.LogError("Token generation failed for user: {UserId}", validation.UserId);
                 return new LoginResultDto { Success = false, Message = "Token generation failed." };

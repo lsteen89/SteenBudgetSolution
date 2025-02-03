@@ -71,8 +71,6 @@ namespace Backend.Presentation.Controllers
             });
 
         }
-
-        //TODO Delete this endpoint
         [Authorize]
         [HttpGet("status")]
         public IActionResult CheckAuthStatus()

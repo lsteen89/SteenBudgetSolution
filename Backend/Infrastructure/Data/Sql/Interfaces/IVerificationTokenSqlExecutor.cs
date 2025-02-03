@@ -1,8 +1,11 @@
-﻿using Backend.Domain.Entities;
+﻿// Token in this context is usertoken for reset password and email verification
+// NOT to be confused with JWT token
+
+using Backend.Domain.Entities;
 
 namespace Backend.Infrastructure.Data.Sql.Interfaces
 {
-    public interface ITokenSqlExecutor
+    public interface IVerificationTokenSqlExecutor
     {
         /// <summary>
         /// Generates a new token for a user, returning a populated UserTokenModel.
