@@ -39,28 +39,39 @@ namespace Backend.Infrastructure.Implementations
             _timeProvider = timeProvider;
         }
 
-        public async Task<LoginResultDto> GenerateJWTTokenAsync(string persoid, string email)
+        public async Task<LoginResultDto> GenerateJWTTokenAsync(Guid persoid, string email, bool rotateToken = false, ClaimsPrincipal? user = null)
         {
             // Step 1: Generate the JWT token
             var token = GenerateJwtToken(persoid, email);
-            
-            // Step 2: Generate the refresh token
+            _logger.LogInformation($"Generated JWT token for user {email}");
+
+            // Step 2A: Generate the refresh token
             var refreshToken = TokenGenerator.GenerateRefreshToken();  
             var hashedRefreshToken = TokenGenerator.HashToken(refreshToken);
             // Calculate the expiry date for the refresh token
             DateTime refreshTokenExpiry = DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenExpiryDays);
 
+            if (rotateToken)
+            {
+                // Step 2B: Blacklist the current token
+                bool success = await BlacklistJwtTokenAsync(token);
+                if (!success)
+                {
+                    return new LoginResultDto { Success = false, Message = "Internal error" };
+                }
+            }
+
             // Step 3: Store the refresh token in the database
             var insertSuccesful = await _refreshTokenSqlExecutor.AddRefreshTokenAsync(persoid, hashedRefreshToken, refreshTokenExpiry);
-            if(!insertSuccesful)
+            if (!insertSuccesful)
             {
                 return new LoginResultDto { Success = false, Message = "Internal error" };
             }
-
+            
             return new LoginResultDto { Success = true, Message = "Login successful", UserName = email, AccessToken = token, RefreshToken = refreshToken };
         }
 
-        private string GenerateJwtToken(string userId, string email, Dictionary<string, string>? additionalClaims = null)
+        private string GenerateJwtToken(Guid persoid, string email, Dictionary<string, string>? additionalClaims = null)
         {
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.SecretKey));
             var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -68,7 +79,7 @@ namespace Backend.Infrastructure.Implementations
             // Define claims
             var claims = new List<Claim>
             {
-                new Claim(JwtRegisteredClaimNames.Sub, userId), // Subject (user ID)
+                new Claim(JwtRegisteredClaimNames.Sub, persoid.ToString()), // Subject (user ID)
                 new Claim(JwtRegisteredClaimNames.Email, email), // Email
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()), // Unique ID for each token
                 new Claim(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64) // Issued at
@@ -94,20 +105,43 @@ namespace Backend.Infrastructure.Implementations
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
-        public async Task BlacklistJwtTokenAsync(ClaimsPrincipal user)
+        public async Task<bool> BlacklistJwtTokenAsync(string token)
         {
-            var jti = user.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
-            var expUnix = user.FindFirst(JwtRegisteredClaimNames.Exp)?.Value;
-
-            if (!string.IsNullOrEmpty(jti) && long.TryParse(expUnix, out var expUnixLong))
+            if (string.IsNullOrEmpty(token))
             {
-                var expiration = DateTimeOffset.FromUnixTimeSeconds(expUnixLong).UtcDateTime;
-                await _tokenBlacklistService.BlacklistTokenAsync(jti, expiration);
-                _logger.LogInformation($"Token with jti {jti} has been blacklisted.");
+                _logger.LogWarning("BlacklistJwtTokenAsync: Token is null or empty.");
+                return false;
             }
-            else
+
+            var tokenHandler = new JwtSecurityTokenHandler();
+
+            try
             {
-                _logger.LogWarning("jti or exp claim not found or invalid. Token cannot be blacklisted.");
+                var jwtToken = tokenHandler.ReadJwtToken(token);
+
+                var jti = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Jti)?.Value;
+                var expClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Exp)?.Value;
+
+                if (string.IsNullOrEmpty(jti) || string.IsNullOrEmpty(expClaim) || !long.TryParse(expClaim, out var expUnixLong))
+                {
+                    _logger.LogWarning("BlacklistJwtTokenAsync: JTI or Exp claim is missing or invalid.");
+                    return false;
+                }
+
+                var expiration = DateTimeOffset.FromUnixTimeSeconds(expUnixLong).UtcDateTime;
+                bool blaclistSuccess = await _tokenBlacklistService.BlacklistTokenAsync(jti, expiration);
+                if(!blaclistSuccess)
+                {
+                    _logger.LogWarning($"Token {jti} not inserted correctly into database.");
+                    return false;
+                }
+                _logger.LogInformation($"Token with JTI {jti} has been blacklisted until {expiration}.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error while blacklisting JWT token.");
+                return false;
             }
         }
         public ClaimsPrincipal? ValidateToken(string token)

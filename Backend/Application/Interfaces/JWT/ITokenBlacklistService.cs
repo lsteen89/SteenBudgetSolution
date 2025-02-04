@@ -2,7 +2,7 @@
 {
     public interface ITokenBlacklistService
     {
-        Task BlacklistTokenAsync(string jti, DateTime expiration);
+        Task<bool> BlacklistTokenAsync(string jti, DateTime expiration);
         Task<bool> IsTokenBlacklistedAsync(string jti);
     }
 }

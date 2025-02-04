@@ -71,6 +71,34 @@ namespace Backend.Presentation.Controllers
             });
 
         }
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout()
+        {
+            _logger.LogInformation("Processing logout request for user.");
+
+            // Ensure the user is authenticated before proceeding
+            if (!User.Identity?.IsAuthenticated ?? true)
+            {
+                return Unauthorized(new { message = "User is not authenticated." });
+            }
+
+            // Extract the access token from the request headers
+            string? accessToken = Request.Headers["Authorization"].FirstOrDefault()?.Split(" ").Last();
+            _logger.LogInformation("Access token: {AccessToken}", accessToken);
+
+            // Ensure the access token is provided
+            if (string.IsNullOrEmpty(accessToken))
+            {
+                _logger.LogWarning("No access token provided for refresh request.");
+                return Unauthorized(new { success = false, message = "Access token is required." });
+            }
+            
+            // Call the AuthService to handle logout logic
+            await _authService.LogoutAsync(User, accessToken);
+
+            return Ok(new { message = "Logged out successfully." });
+        }
+
         [Authorize]
         [HttpGet("status")]
         public IActionResult CheckAuthStatus()
@@ -86,22 +114,37 @@ namespace Backend.Presentation.Controllers
             _logger.LogWarning("Unauthorized request. User is not authenticated or claims are missing.");
             return Unauthorized(new AuthStatusDto { Authenticated = false });
         }
-
-        [HttpPost("logout")]
-        public async Task<IActionResult> Logout()
+        [HttpPost("refresh")]
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequestDto request)
         {
-            _logger.LogInformation("Processing logout request for user.");
+            // Log the incoming request
+            _logger.LogInformation("Processing refresh token request for user: {UserId}", request.UserId);
+            
+            // Extract the access token from the request headers
+            string? accessToken = Request.Headers["Authorization"].FirstOrDefault()?.Split(" ").Last();
+            _logger.LogInformation("Access token: {AccessToken}", accessToken);
 
-            // Ensure the user is authenticated before proceeding
-            if (!User.Identity?.IsAuthenticated ?? true)
+            // Ensure the access token is provided
+            if (string.IsNullOrEmpty(accessToken))
             {
-                return Unauthorized(new { message = "User is not authenticated." });
+                _logger.LogWarning("No access token provided for refresh request.");
+                return Unauthorized(new { success = false, message = "Access token is required." });
             }
 
-            // Call the AuthService to handle logout logic
-            await _authService.LogoutAsync(User);
-
-            return Ok(new { message = "Logged out successfully." });
+            // Validate the incoming refresh token and associated user data
+            var tokens = await _authService.RefreshTokenAsync(request.UserId, request.RefreshToken, accessToken, User);
+            if (!tokens.Success)
+            {
+                _logger.LogWarning("Refresh token failed for user: {UserId}", request.UserId);
+                return Unauthorized(new { success = false, message = tokens.Message });
+            }
+            return Ok(new
+            {
+                success = tokens.Success,
+                message = tokens.Message,
+                accessToken = tokens.AccessToken,
+                refreshToken = tokens.RefreshToken
+            });
         }
     }
 

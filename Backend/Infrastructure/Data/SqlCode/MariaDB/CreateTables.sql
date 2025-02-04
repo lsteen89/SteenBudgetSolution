@@ -141,3 +141,10 @@ CREATE TABLE RefreshTokens (
     INDEX IDX_RefreshToken (RefreshToken),
     INDEX IDX_Persoid (Persoid)
 );
+
+CREATE TABLE BlacklistedTokens (
+    Id INT PRIMARY KEY AUTO_INCREMENT,
+    Jti VARCHAR(50) NOT NULL UNIQUE,
+    ExpiryDate DATETIME NOT NULL,
+    CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+);

@@ -1,14 +1,19 @@
-﻿using Backend.Application.DTO;
+﻿//This class is a orchestrator for the authentication process.
+//It handles the login, refresh token and logout processes.
+//
+//It also uses the TokenGenerator class to hash the refresh token and generate a new one.
+
+
+using Backend.Application.DTO;
 using Backend.Application.Interfaces.AuthService;
-using Backend.Application.Interfaces.Cookies;
 using Backend.Application.Interfaces.JWT;
 using Backend.Application.Interfaces.RecaptchaService;
 using Backend.Application.Interfaces.UserServices;
-using Backend.Infrastructure.Implementations;
 using Backend.Infrastructure.Data.Sql.Interfaces;
-using Backend.Infrastructure.Data.Sql.Provider;
 using Backend.Infrastructure.Helpers;
 using Backend.Infrastructure.Interfaces;
+using Backend.Infrastructure.Models;
+using Backend.Infrastructure.Security;
 using System.Security.Claims;
 
 namespace Backend.Application.Services.AuthService
@@ -78,10 +83,10 @@ namespace Backend.Application.Services.AuthService
             }
 
             // Step 4: Generate tokens (Access and Refresh tokens)
-            var tokens = await _jwtService.GenerateJWTTokenAsync(validation.UserId, validation.Email);
+            var tokens = await _jwtService.GenerateJWTTokenAsync(validation.Persoid, validation.Email, rotateToken: false);
             if (!tokens.Success)
             {
-                _logger.LogError("Token generation failed for user: {UserId}", validation.UserId);
+                _logger.LogError("Token generation failed for user: {UserId}", validation.Persoid);
                 return new LoginResultDto { Success = false, Message = "Token generation failed." };
             }
 
@@ -106,20 +111,64 @@ namespace Backend.Application.Services.AuthService
                 RefreshToken = tokens.RefreshToken
             };
         }
+        public async Task<LoginResultDto> RefreshTokenAsync(Guid persoid, string refreshToken, string accessToken, ClaimsPrincipal? user = null)
+        {
+            // Step 0: Validate the existing access token before proceeding
+            var validatedPrincipal = _jwtService.ValidateToken(accessToken);
+            if (validatedPrincipal == null)
+            {
+                return new LoginResultDto { Success = false, Message = "Invalid or expired access token. Please log in again." };
+            }
 
-        public async Task LogoutAsync(ClaimsPrincipal user)
+            // Step 1
+            // Retrieve the stored refresh token model for the user
+            JwtTokenModel storedToken = await _userSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokenAsync(persoid);
+            if (storedToken == null)
+            {
+                return new LoginResultDto { Success = false, Message = "Refresh token not found. Please login again." };
+            }
+
+            // Step 2
+            // Validate the stored token's expiry
+            if (storedToken.ExpiryDate < DateTime.UtcNow)
+            {
+                return new LoginResultDto { Success = false, Message = "Refresh token expired. Please login again." };
+            }
+
+            // Step 3
+            // Compare the hash of the provided token with the stored hash
+            var providedHashedToken = TokenGenerator.HashToken(refreshToken);
+            if (providedHashedToken != storedToken.RefreshToken)
+            {
+                return new LoginResultDto { Success = false, Message = "Invalid refresh token. Please login again." };
+            }
+
+            // Step 4
+            // Retrieve the user details & generate a new access token and rotate refresh token (if valid)
+            var dbUser = await _userSQLProvider.UserSqlExecutor.GetUserModelAsync(persoid: persoid);
+            if(dbUser.Email == null)
+            {
+                return new LoginResultDto { Success = false, Message = "User not found." };
+            }
+
+            var newTokens = await _jwtService.GenerateJWTTokenAsync(persoid, dbUser.Email, rotateToken: true, user);
+
+            return new LoginResultDto
+            {
+                Success = true,
+                Message = "Token refreshed successfully.",
+                AccessToken = newTokens.AccessToken,
+                RefreshToken = newTokens.RefreshToken
+            };
+        }
+        public async Task LogoutAsync(ClaimsPrincipal user, string accessToken)
         {
             _logger.LogInformation("Processing logout request.");
 
-            // 1. Clear the auth_token cookie
-            //_cookieService.DeleteAuthCookie();
+            // 1. Blacklist the token (if implementing token blacklisting)
+            await _jwtService.BlacklistJwtTokenAsync(accessToken);
 
-            _logger.LogInformation("auth_token cookie deleted.");
-
-            // 2. Blacklist the token (if implementing token blacklisting)
-            await _jwtService.BlacklistJwtTokenAsync(user);
-
-            // 3. Notify the user via WebSocket
+            // 2. Notify the user via WebSocket
             var userId = user.FindFirst("sub")?.Value ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (!string.IsNullOrEmpty(userId))
             {

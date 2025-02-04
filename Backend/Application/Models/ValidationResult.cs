@@ -4,7 +4,7 @@
     {
         public bool IsValid { get; set; }
         public string ErrorMessage { get; set; }
-        public string UserId { get; set; }
+        public Guid Persoid { get; set; }
         public string Email { get; set; }
 
     }

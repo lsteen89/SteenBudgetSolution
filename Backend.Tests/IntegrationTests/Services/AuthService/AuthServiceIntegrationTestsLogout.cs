@@ -73,7 +73,7 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
                 .Verifiable();
 
             // **Act** - Call LogoutAsync
-            await AuthService.LogoutAsync(principal);
+            await AuthService.LogoutAsync(principal, authToken);
 
             // **Assert** - Token should be blacklisted
             var isBlacklisted = await TokenBlacklistService.IsTokenBlacklistedAsync(jtiClaim.Value);
@@ -97,16 +97,43 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
         [Fact]
         public async Task LogoutAsync_MissingSubClaim_LogsWarning()
         {
+            // **Arrange** - Create and confirm user
+            var userCreationDto = new UserCreationDto
+            {
+                FirstName = "Test",
+                LastName = "User",
+                Email = "test@example.com",
+                Password = "Password123!",
+                CaptchaToken = "mock-captcha-token"
+            };
+
+            var registeredUser = await SetupUserAsync(userCreationDto);
+            await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
+
+            // **Act** - Login to obtain JWT token
+            var loginResult = await AuthService.LoginAsync(
+                new UserLoginDto
+                {
+                    Email = "test@example.com",
+                    Password = "Password123!",
+                    CaptchaToken = "mock-captcha-token"
+                },
+                "127.0.0.1"
+            );
+
+            var authToken = loginResult.AccessToken;
+            Assert.False(string.IsNullOrEmpty(authToken), "Access token should not be null or empty.");
+
             // Arrange - Create invalid principal
             var claims = new[]
             {
-        new Claim("jti", "dummy-token-id"),
-        new Claim(ClaimTypes.Email, "test@example.com")
-    };
+                new Claim("jti", "dummy-token-id"),
+                new Claim(ClaimTypes.Email, "test@example.com")
+            };
             var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, "Test"));
 
             // Act
-            await AuthService.LogoutAsync(principal);
+            await AuthService.LogoutAsync(principal, authToken);
 
             // Assert
             // Verify WebSocket wasn't called
