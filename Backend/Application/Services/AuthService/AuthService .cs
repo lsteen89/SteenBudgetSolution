@@ -161,11 +161,11 @@ namespace Backend.Application.Services.AuthService
                 RefreshToken = newTokens.RefreshToken
             };
         }
-        public async Task LogoutAsync(ClaimsPrincipal user, string accessToken)
+        public async Task LogoutAsync(ClaimsPrincipal user, string accessToken, string refreshToken)
         {
             _logger.LogInformation("Processing logout request.");
 
-            // 1. Blacklist the token (if implementing token blacklisting)
+            // 1. Blacklist the token
             await _jwtService.BlacklistJwtTokenAsync(accessToken);
 
             // 2. Notify the user via WebSocket

@@ -72,7 +72,7 @@ namespace Backend.Presentation.Controllers
 
         }
         [HttpPost("logout")]
-        public async Task<IActionResult> Logout()
+        public async Task<IActionResult> Logout([FromBody] LogoutRequest request)
         {
             _logger.LogInformation("Processing logout request for user.");
 
@@ -82,19 +82,20 @@ namespace Backend.Presentation.Controllers
                 return Unauthorized(new { message = "User is not authenticated." });
             }
 
-            // Extract the access token from the request headers
-            string? accessToken = Request.Headers["Authorization"].FirstOrDefault()?.Split(" ").Last();
-            _logger.LogInformation("Access token: {AccessToken}", accessToken);
+            if (!User.Identity?.IsAuthenticated ?? true)
+            {
+                return Unauthorized(new { message = "User is not authenticated." });
+            }
+            string? accessToken = Request.Headers["Authorization"]
+                                          .FirstOrDefault()?
+                                          .Split(" ")
+                                          .Last();
 
-            // Ensure the access token is provided
             if (string.IsNullOrEmpty(accessToken))
             {
-                _logger.LogWarning("No access token provided for refresh request.");
                 return Unauthorized(new { success = false, message = "Access token is required." });
             }
-            
-            // Call the AuthService to handle logout logic
-            await _authService.LogoutAsync(User, accessToken);
+            await _authService.LogoutAsync(User, accessToken, request.RefreshToken);
 
             return Ok(new { message = "Logged out successfully." });
         }
@@ -146,6 +147,10 @@ namespace Backend.Presentation.Controllers
                 accessToken = tokens.AccessToken,
                 refreshToken = tokens.RefreshToken
             });
+        }
+        public class LogoutRequest
+        {
+            public string RefreshToken { get; set; }
         }
     }
 
