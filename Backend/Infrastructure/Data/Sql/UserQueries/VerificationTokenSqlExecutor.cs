@@ -4,13 +4,11 @@ using Dapper;
 using Backend.Infrastructure.Data.Sql.Interfaces;
 namespace Backend.Infrastructure.Data.Sql.UserQueries
 {
-    public class TokenSqlExecutor : SqlBase, ITokenSqlExecutor
+    public class VerificationTokenSqlExecutor : SqlBase, IVerificationTokenSqlExecutor
     {
-        private readonly IUserSqlExecutor _userSqlExecutor;
-        public TokenSqlExecutor(DbConnection connection, ILogger<TokenSqlExecutor> logger, IUserSqlExecutor userSqlExecutor)
+        public VerificationTokenSqlExecutor(DbConnection connection, ILogger<VerificationTokenSqlExecutor> logger)
 :       base(connection, logger)
         {
-            _userSqlExecutor = userSqlExecutor; 
         }
         public async Task<UserTokenModel> GenerateUserTokenAsync(Guid persoId)
         {

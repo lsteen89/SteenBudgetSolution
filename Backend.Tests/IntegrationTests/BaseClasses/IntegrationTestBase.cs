@@ -7,7 +7,6 @@ using Backend.Application.Interfaces.JWT;
 using Backend.Application.Interfaces.RecaptchaService;
 using Backend.Application.Interfaces.UserServices;
 using Backend.Application.Services.AuthService;
-using Backend.Application.Services.JWT;
 using Backend.Application.Services.UserServices;
 using Backend.Domain.Entities;
 using Backend.Infrastructure.Data.Sql.Interfaces;
@@ -15,10 +14,13 @@ using Backend.Infrastructure.Data.Sql.Provider;
 using Backend.Infrastructure.Data.Sql.UserQueries;
 using Backend.Infrastructure.Email;
 using Backend.Infrastructure.Helpers;
+using Backend.Infrastructure.Helpers.Converters;
+using Backend.Infrastructure.Implementations;
 using Backend.Infrastructure.Interfaces;
 using Backend.Infrastructure.Security;
 using Backend.Test.UserTests;
 using Backend.Tests.Mocks;
+using Dapper;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -51,6 +53,10 @@ public abstract class IntegrationTestBase : IAsyncLifetime
 
     protected IntegrationTestBase()
     {
+
+        SqlMapper.AddTypeHandler(typeof(Guid), new GuidTypeHandler());
+
+
         CookieContainer = new Dictionary<string, (string Value, CookieOptions Options)>();
         var serviceCollection = new ServiceCollection();
 
@@ -98,7 +104,8 @@ public abstract class IntegrationTestBase : IAsyncLifetime
             Issuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "eBudget",
             Audience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "eBudget",
             SecretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY") ?? "development-fallback-key",
-            ExpiryMinutes = int.TryParse(Environment.GetEnvironmentVariable("JWT_EXPIRY_MINUTES"), out var expiry) ? expiry : 60
+            ExpiryMinutes = int.TryParse(Environment.GetEnvironmentVariable("JWT_EXPIRY_MINUTES"), out var expiry) ? expiry : 15,
+            RefreshTokenExpiryDays = int.TryParse(Environment.GetEnvironmentVariable("JWT_REFRESH_TOKEN_EXPIRY_DAYS"), out var rtExpiry) ? rtExpiry : 30
         };
 
         // Register JwtSettings as a singleton
@@ -225,16 +232,16 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         services.AddScoped<IEmailVerificationService, EmailVerificationService>();
         services.AddScoped<IUserAuthenticationService, UserAuthenticationService>();
         services.AddScoped<UserServiceTest>();
-        services.AddScoped<ITokenService, TokenService>();
 
         services.AddScoped<ITokenBlacklistService, TokenBlacklistService>();
         services.AddScoped<LogHelper>();
 
+        // Register SQL providers
         services.AddScoped<IUserSqlExecutor, UserSqlExecutor>();
-        services.AddScoped<ITokenSqlExecutor, TokenSqlExecutor>();
+        services.AddScoped<IVerificationTokenSqlExecutor, VerificationTokenSqlExecutor>();
         services.AddScoped<IAuthenticationSqlExecutor, AuthenticationSqlExecutor>();
         services.AddScoped<ILogger<AuthenticationSqlExecutor>, Logger<AuthenticationSqlExecutor>>();
-
+        services.AddScoped<IRefreshTokenSqlExecutor, RefreshTokenSqlExecutor>();
         services.AddScoped<IUserSQLProvider, UserSQLProvider>();
 
         // Register logging

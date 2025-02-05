@@ -1,25 +1,27 @@
 using Backend.Application.Configuration;
+using Backend.Application.Interfaces.AuthService;
 using Backend.Application.Interfaces.EmailServices;
 using Backend.Application.Interfaces.JWT;
 using Backend.Application.Interfaces.RecaptchaService;
 using Backend.Application.Interfaces.UserServices;
+using Backend.Application.Services.AuthService;
 using Backend.Application.Services.EmailServices;
-using Backend.Application.Services.JWT;
 using Backend.Application.Services.UserServices;
 using Backend.Application.Services.Validation;
 using Backend.Application.Settings;
 using Backend.Application.Validators;
 using Backend.Domain.Entities;
+using Backend.Infrastructure.BackgroundServices;
 using Backend.Infrastructure.Data.Sql.Interfaces;
 using Backend.Infrastructure.Data.Sql.Provider;
 using Backend.Infrastructure.Data.Sql.UserQueries;
 using Backend.Infrastructure.Email;
 using Backend.Infrastructure.Helpers;
 using Backend.Infrastructure.Helpers.Converters;
+using Backend.Infrastructure.Implementations;
 using Backend.Infrastructure.Interfaces;
 using Backend.Infrastructure.Providers;
-using Backend.Infrastructure.Security;
-using Backend.Infrastructure.WebSockets;
+using Backend.Presentation.Middleware;
 using Backend.Tests.Mocks;
 using Dapper;
 using FluentValidation;
@@ -36,12 +38,6 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Reflection;
 using System.Text;
 using System.Threading.RateLimiting;
-using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.Caching.StackExchangeRedis;
-using Backend.Application.Services.AuthService;
-using Backend.Application.Interfaces.AuthService;
-using Backend.Presentation.Middleware;
-using Backend.Infrastructure.BackgroundServices;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -57,7 +53,8 @@ var jwtSettings = new JwtSettings
     Issuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "eBudget",
     Audience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "eBudget",
     SecretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY") ?? "development-fallback-key",
-    ExpiryMinutes = int.TryParse(Environment.GetEnvironmentVariable("JWT_EXPIRY_MINUTES"), out var expiry) ? expiry : 60
+    ExpiryMinutes = int.TryParse(Environment.GetEnvironmentVariable("JWT_EXPIRY_MINUTES"), out var expiry) ? expiry : 3, // Default to 3 minutes for testing! Should be 15 minutes in production
+    RefreshTokenExpiryDays = int.TryParse(Environment.GetEnvironmentVariable("JWT_REFRESH_TOKEN_EXPIRY_DAYS"), out var rtExpiry) ? rtExpiry : 30
 };
 
 // Configure Redis Cache
@@ -101,7 +98,11 @@ Log.Information($"Application build date and time: {buildDateTime}");
 #endregion
 
 #region Dapper Type Handler
-SqlMapper.AddTypeHandler(new GuidTypeHandler());
+// Old way, keeping for reference
+//SqlMapper.AddTypeHandler(new GuidTypeHandler());
+
+// New way using generic method
+SqlMapper.AddTypeHandler(typeof(Guid), new GuidTypeHandler());
 #endregion
 
 // Continue configuring services and the rest of the application
@@ -112,8 +113,10 @@ var configuration = builder.Configuration;
 
 // Section for SQL related services
 builder.Services.AddScoped<IUserSqlExecutor, UserSqlExecutor>();
-builder.Services.AddScoped<ITokenSqlExecutor, TokenSqlExecutor>();
+builder.Services.AddScoped<IVerificationTokenSqlExecutor, VerificationTokenSqlExecutor>();
 builder.Services.AddScoped<IAuthenticationSqlExecutor, AuthenticationSqlExecutor>();
+builder.Services.AddScoped<IRefreshTokenSqlExecutor, RefreshTokenSqlExecutor> ();
+
 // Add the UserSQLProvider to the services
 builder.Services.AddScoped<IUserSQLProvider, UserSQLProvider>();
 
@@ -131,7 +134,6 @@ builder.Services.AddScoped<IEmailPreparationService, EmailPreparationService>();
 builder.Services.AddScoped<IEmailResetPasswordService, EmailResetPasswordService>();
 
 // Other various services
-builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<LogHelper>();
 builder.Services.AddScoped<ITimeProvider, SystemTimeProvider>();
 

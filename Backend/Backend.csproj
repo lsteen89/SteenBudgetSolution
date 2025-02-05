@@ -49,7 +49,6 @@
     <Folder Include="Domain\Interfaces\" />
     <Folder Include="Infrastructure\Services\" />
     <Folder Include="logs\" />
-	<Folder Include="Infrastructure\Security\" />
   </ItemGroup>
 
 </Project>

@@ -18,7 +18,6 @@ namespace Backend.Tests.IntegrationTests.Services.UserAuthentication
         {
             _userAuthenticationService = new UserAuthenticationService(
                 MockUserSQLProvider.Object, // Mocked provider,
-                Mock.Of<ITokenService>(),
                 MockEnvironmentService.Object,
                 MockUserTokenService.Object,
                 ServiceProvider.GetRequiredService<IEmailResetPasswordService>(),

@@ -130,3 +130,21 @@ CREATE TABLE IF NOT EXISTS PasswordResetTokens (
     Expiry DATETIME NOT NULL,
     FOREIGN KEY (PersoId) REFERENCES User(PersoId) ON DELETE CASCADE
 );
+
+CREATE TABLE RefreshTokens (
+    ID INT AUTO_INCREMENT PRIMARY KEY,
+    Persoid CHAR(36) NOT NULL, -- A user can have several tokens (e.g., multiple devices)
+    RefreshToken VARCHAR(255) NOT NULL, -- Hashed token stored as Base64
+    ExpiryDate DATETIME NOT NULL,
+    CreatedBy VARCHAR(50) NOT NULL,
+    CreatedTime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX IDX_RefreshToken (RefreshToken),
+    INDEX IDX_Persoid (Persoid)
+);
+
+CREATE TABLE BlacklistedTokens (
+    Id INT PRIMARY KEY AUTO_INCREMENT,
+    Jti VARCHAR(50) NOT NULL UNIQUE,
+    ExpiryDate DATETIME NOT NULL,
+    CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+);

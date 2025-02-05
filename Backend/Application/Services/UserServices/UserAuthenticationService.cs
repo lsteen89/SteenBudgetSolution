@@ -13,7 +13,6 @@ namespace Backend.Application.Services.UserServices
     public class UserAuthenticationService : IUserAuthenticationService
     {
         private readonly IUserSQLProvider _userSQLProvider;
-        private readonly ITokenService _tokenService;
         private readonly IEnvironmentService _environmentService;
         private readonly IUserTokenService _userTokenService;
         private readonly IEmailResetPasswordService _emailResetPasswordService;
@@ -23,7 +22,6 @@ namespace Backend.Application.Services.UserServices
 
         public UserAuthenticationService(
             IUserSQLProvider userSQLProvider,
-            ITokenService tokenService,
             IEnvironmentService environmentService,
             IUserTokenService userTokenService,
             IEmailResetPasswordService emailResetPasswordService,
@@ -32,7 +30,6 @@ namespace Backend.Application.Services.UserServices
             ILogger<UserAuthenticationService> logger)
         {
             _userSQLProvider = userSQLProvider;
-            _tokenService = tokenService;
             _userTokenService = userTokenService;
             _emailResetPasswordService = emailResetPasswordService;
             _environmentService = environmentService;
@@ -51,7 +48,7 @@ namespace Backend.Application.Services.UserServices
             if (!BCrypt.Net.BCrypt.Verify(password, user.Password))
                 return new ValidationResult { IsValid = false, ErrorMessage = "Invalid credentials." };
 
-            return new ValidationResult { IsValid = true, UserId = user.PersoId.ToString(), Email = user.Email };
+            return new ValidationResult { IsValid = true, Persoid = user.PersoId, Email = user.Email };
         }
         public async Task<bool> CheckLoginAttemptsAsync(string email)
         {
@@ -187,7 +184,6 @@ namespace Backend.Application.Services.UserServices
                 _logger.LogWarning("User locked out for email: {Email}", userLoginDto.Email);
             }
         }
-        // TODO: Delete this method if not used
         public AuthStatusDto CheckAuthStatus(ClaimsPrincipal user)
         {
             if (user == null || user.Identity?.IsAuthenticated != true)

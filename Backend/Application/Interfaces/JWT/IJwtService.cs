@@ -6,7 +6,7 @@ namespace Backend.Application.Interfaces.JWT
     public interface IJwtService
     {
         ClaimsPrincipal? ValidateToken(string token);
-        Task<LoginResultDto> GenerateJWTTokenAsync(string persoid, string email);
-        Task BlacklistJwtTokenAsync(ClaimsPrincipal user);
+        Task<LoginResultDto> GenerateJWTTokenAsync(Guid persoid, string email, bool rotateToken, ClaimsPrincipal? user = null);
+        Task<bool> BlacklistJwtTokenAsync(string token);
     }
 }

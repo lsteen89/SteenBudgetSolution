@@ -143,12 +143,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [fetchAuthStatus, closeWebSocket]);
 
-  // Check token expiration on route change (or periodically)
+  // Check token expiration on route change and logout if expired
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
     if (token) {
       try {
-        const decoded: any = jwtDecode(token); // Now it works correctly
+        const decoded: any = jwtDecode(token); 
         if (decoded.exp * 1000 < Date.now()) {
           console.warn("AuthProvider: Access token expired, logging out.");
           logout();

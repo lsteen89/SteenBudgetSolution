@@ -28,7 +28,6 @@ public abstract class UnitTestBase
     protected Mock<IConfiguration> MockConfiguration;
     protected Mock<ILogger<UserServices>> LoggerMock;
     protected Mock<IEnvironmentService> MockEnvironmentService;
-    protected TokenService TokenServiceInstance;
     protected Mock<IUserTokenService> MockUserTokenService;
     protected Mock<HttpContext> MockHttpContext;
     protected Mock<HttpResponse> MockHttpResponse;
@@ -69,7 +68,7 @@ public abstract class UnitTestBase
             .Returns(Mock.Of<IUserSqlExecutor>());
         MockUserSQLProvider
             .Setup(provider => provider.TokenSqlExecutor)
-            .Returns(Mock.Of<ITokenSqlExecutor>());
+            .Returns(Mock.Of<IVerificationTokenSqlExecutor>());
         MockUserSQLProvider
             .Setup(provider => provider.AuthenticationSqlExecutor)
             .Returns(Mock.Of<IAuthenticationSqlExecutor>());
@@ -122,7 +121,6 @@ public abstract class UnitTestBase
         // Register UserAuthenticationService
         services.AddScoped<IUserAuthenticationService>(_ => new UserAuthenticationService(
             MockUserSQLProvider.Object,
-            Mock.Of<ITokenService>(),
             MockEnvironmentService.Object,
             MockUserTokenService.Object,
             MockEmailResetPasswordService.Object,
@@ -180,7 +178,6 @@ public abstract class UnitTestBase
         // Initialize UserAuthenticationService with pre-configured mocks
         _userAuthenticationService = new UserAuthenticationService(
             MockUserSQLProvider.Object,             // Mocked IUserSQLProvider
-            Mock.Of<ITokenService>(),               // Mocked ITokenService
             MockEnvironmentService.Object,          // Mocked IEnvironmentService
             MockUserTokenService.Object,            // Mocked IUserTokenService
             emailResetPasswordService,              // Real IEmailResetPasswordService

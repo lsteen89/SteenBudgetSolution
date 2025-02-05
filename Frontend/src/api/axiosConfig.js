@@ -26,46 +26,57 @@ axiosInstance.interceptors.request.use(
   }
 );
 
-// Response interceptor to handle 401 errors (Optional: Implement token refresh if supported)
+// Response interceptor to handle 401 errors (and attempt token refresh)
 axiosInstance.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
+    // Check if the error is due to a 401 and if we haven't retried this request already
     if (error.response && error.response.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       const refreshToken = localStorage.getItem('refreshToken');
-      
-      // Implement refresh token logic here if your backend supports it
-      // For example:
-      /*
-      try {
-        const refreshResponse = await axiosInstance.post<LoginResponse>('/api/Auth/refresh', { refreshToken });
-        if (refreshResponse.data.success) {
-          const newAccessToken = refreshResponse.data.accessToken;
-          localStorage.setItem('accessToken', newAccessToken);
-          axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${newAccessToken}`;
-          originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
-          return axiosInstance(originalRequest);
+      const userId = localStorage.getItem('userId'); // Ensure you store the user ID on login
+
+      if (refreshToken && userId) {
+        try {
+          console.log("Attempting to refresh token for user:", userId);
+          // Call your refresh endpoint. Adjust the DTO shape as needed.
+          const refreshResponse = await axiosInstance.post("/api/auth/refresh", { 
+            userId, 
+            refreshToken 
+          });
+          
+          if (refreshResponse.data && refreshResponse.data.success) {
+            const newAccessToken = refreshResponse.data.accessToken;
+            const newRefreshToken = refreshResponse.data.refreshToken;
+            console.log("Token refresh succeeded. New Access Token:", newAccessToken);
+            
+            // Update tokens in local storage and default headers
+            localStorage.setItem("accessToken", newAccessToken);
+            localStorage.setItem("refreshToken", newRefreshToken);
+            axiosInstance.defaults.headers.common["Authorization"] = `Bearer ${newAccessToken}`;
+            originalRequest.headers["Authorization"] = `Bearer ${newAccessToken}`;
+
+            // Retry the original request with the new access token
+            return axiosInstance(originalRequest);
+          } else {
+            console.error("Token refresh failed with message:", refreshResponse.data.message);
+          }
+        } catch (refreshError) {
+          console.error("Token refresh error:", refreshError);
         }
-      } catch (refreshError) {
-        console.error("Token refresh failed:", refreshError);
-        window.location.href = '/login';
+      } else {
+        console.warn("No refresh token or userId found in localStorage.");
       }
-      */
-
-      // No refresh token available or refresh request failed. Redirect to login
-      // todo: Implement refresh token logic
-      // Remove expired tokens before redirecting
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      delete axiosInstance.defaults.headers.common['Authorization'];
-
-      // Optional: Log token removal for debugging
-      console.warn('Token expired. Clearing tokens and redirecting to login.');
+      
+      // If refresh fails, remove tokens and redirect to login
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
+      delete axiosInstance.defaults.headers.common["Authorization"];
+      console.warn("Token expired or refresh failed. Clearing tokens and redirecting to login.");
       window.location.href = '/login';
     }
-
     return Promise.reject(error);
   }
 );
