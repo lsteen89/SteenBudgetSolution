@@ -66,17 +66,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [closeWebSocket]);
 
   const logout = useCallback(async () => {
+    const token = localStorage.getItem("accessToken"); // Get the access token
+    if (token) {
+      axiosInstance.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+    }
+
     try {
-      await axiosInstance.post("/api/auth/logout"); // Removed withCredentials since cookies are not used
+      await axiosInstance.post("/api/auth/logout");
       console.log("AuthProvider: Logout successful.");
     } catch (error) {
       console.error("AuthProvider: Logout error:", error);
     }
+  
+    // Now remove the tokens & reset auth state
     setAuthState({ authenticated: false, isLoading: false });
     closeWebSocket();
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    axiosInstance.defaults.headers.common['Authorization'] = '';
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    axiosInstance.defaults.headers.common["Authorization"] = "";
   }, [closeWebSocket]);
 
   // WebSocket opener
