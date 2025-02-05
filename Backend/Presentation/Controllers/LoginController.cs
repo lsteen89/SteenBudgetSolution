@@ -114,9 +114,26 @@ namespace Backend.Presentation.Controllers
             _logger.LogWarning("Unauthorized request. User is not authenticated or claims are missing.");
             return Unauthorized(new AuthStatusDto { Authenticated = false });
         }
+        [AllowAnonymous]
         [HttpPost("refresh")]
         public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequestDto request)
         {
+            // Check if the model state is valid
+            if (!ModelState.IsValid)
+            {
+                // Extract and format validation errors
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage)
+                    .ToList();
+
+                _logger.LogWarning("Refresh token request validation failed for user {UserId}. Errors: {Errors}",
+                    request.UserId,
+                    string.Join(", ", errors));
+
+                return BadRequest(new { success = false, message = "Validation failed", errors });
+            }
+
             // Log the incoming request
             _logger.LogInformation("Processing refresh token request for user: {UserId}", request.UserId);
             
