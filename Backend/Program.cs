@@ -483,7 +483,12 @@ app.UseEndpoints(endpoints =>
 #endregion
 
 #region Logging and Final Setup
-
+// Log incoming requests
+app.Use(async (context, next) =>
+{
+    Console.WriteLine($"Incoming request: {context.Request.Method} {context.Request.Path}");
+    await next();
+});
 // Get the logger after app is built
 ILogger<Program> _logger = app.Services.GetRequiredService<ILogger<Program>>();
 
