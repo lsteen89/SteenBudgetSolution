@@ -67,13 +67,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = useCallback(async () => {
     const token = localStorage.getItem("accessToken"); // Get the access token
+
     const refreshToken = localStorage.getItem("refreshToken"); // Get the refresh token
+
 
     if (token) {
       axiosInstance.defaults.headers.common["Authorization"] = `Bearer ${token}`;
     }
 
     try {
+
       // Send refreshToken in the request body
       await axiosInstance.post("/api/auth/logout", { refreshToken });
       console.log("AuthProvider: Logout successful.");
