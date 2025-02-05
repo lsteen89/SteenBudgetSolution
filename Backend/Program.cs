@@ -53,7 +53,7 @@ var jwtSettings = new JwtSettings
     Issuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "eBudget",
     Audience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "eBudget",
     SecretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY") ?? "development-fallback-key",
-    ExpiryMinutes = int.TryParse(Environment.GetEnvironmentVariable("JWT_EXPIRY_MINUTES"), out var expiry) ? expiry : 15,
+    ExpiryMinutes = int.TryParse(Environment.GetEnvironmentVariable("JWT_EXPIRY_MINUTES"), out var expiry) ? expiry : 3, // Default to 3 minutes for testing! Should be 15 minutes in production
     RefreshTokenExpiryDays = int.TryParse(Environment.GetEnvironmentVariable("JWT_REFRESH_TOKEN_EXPIRY_DAYS"), out var rtExpiry) ? rtExpiry : 30
 };
 
