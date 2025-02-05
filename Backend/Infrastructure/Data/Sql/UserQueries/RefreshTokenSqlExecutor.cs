@@ -41,10 +41,10 @@ namespace Backend.Infrastructure.Data.Sql.UserQueries
                 return false;
             }
         }
-        public async Task<JwtTokenModel> GetRefreshTokenAsync(Guid persoid)
+        public async Task<JwtTokenModel> GetRefreshTokenAsync(string refreshToken)
         {
-            string sql = "SELECT Persoid, RefreshToken, ExpiryDate FROM RefreshTokens WHERE PersoId = @PersoId";
-            return await QueryFirstOrDefaultAsync<JwtTokenModel>(sql, new { PersoId = persoid });
+            string sql = "SELECT Persoid, RefreshToken, ExpiryDate FROM RefreshTokens WHERE RefreshToken = @RefreshToken";
+            return await QueryFirstOrDefaultAsync<JwtTokenModel>(sql, new { RefreshToken = refreshToken });
         }
         public async Task<bool> AddBlacklistedTokenAsync(string jti, DateTime expiration)
         {

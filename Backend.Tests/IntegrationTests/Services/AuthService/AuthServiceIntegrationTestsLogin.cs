@@ -417,7 +417,8 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             Console.WriteLine($"Refresh Token: {result.RefreshToken}");
 
             // Optionally, query the database to confirm the refresh token is stored (hashed)
-            JwtTokenModel storedToken = await UserSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokenAsync(registeredUser.PersoId);
+            var providedHashedToken = TokenGenerator.HashToken(result.RefreshToken);
+            JwtTokenModel storedToken = await UserSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokenAsync(providedHashedToken);
             Assert.NotNull(storedToken);
             Console.WriteLine($"Stored Token: {storedToken.RefreshToken}");
             // Verify that the stored token is the hashed version of the refresh token received

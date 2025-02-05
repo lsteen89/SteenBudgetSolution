@@ -10,7 +10,7 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
     public class AuthServiceIntegrationTestsRefreshToken : IntegrationTestBase
     {
         [Fact]
-        public async Task RefreshTokenAsync_ValidRequest_ReturnsNewTokens()
+         public async Task RefreshTokenAsync_ValidRequest_ReturnsNewTokens()
         {
             // Arrange
             string ipAddress = "127.0.0.1";
@@ -42,7 +42,7 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             // Extract the access token from the login result.
             var authToken = loginResult.AccessToken;
             // Act: Call the refresh method directly from the service.
-            var refreshResult = await AuthService.RefreshTokenAsync(registeredUser.PersoId, loginResult.RefreshToken, authToken, principal);
+            var refreshResult = await AuthService.RefreshTokenAsync(loginResult.RefreshToken, authToken);
 
             // Assert: Validate that new tokens are returned and are different from the original ones.
             Assert.True(refreshResult.Success, "Refresh token operation should succeed.");
@@ -74,7 +74,7 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             bool updateResult = await UserSQLProvider.RefreshTokenSqlExecutor.ExpireRefreshTokenAsync(registeredUser.PersoId);
             Assert.True(updateResult, "The refresh token should be expired.");
             // Act: Attempt to refresh tokens.
-            var refreshResult = await AuthService.RefreshTokenAsync(registeredUser.PersoId, loginResult.RefreshToken, loginResult.AccessToken);
+            var refreshResult = await AuthService.RefreshTokenAsync(loginResult.RefreshToken, loginResult.AccessToken);
 
             // Assert: Verify failure due to expired refresh token.
             Assert.False(refreshResult.Success, "Refresh token operation should fail for expired token.");
@@ -102,11 +102,11 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             string tamperedRefreshToken = loginResult.RefreshToken + "X";
 
             // Act: Call refresh using the tampered refresh token.
-            var refreshResult = await AuthService.RefreshTokenAsync(registeredUser.PersoId, tamperedRefreshToken, loginResult.AccessToken);
+            var refreshResult = await AuthService.RefreshTokenAsync(tamperedRefreshToken, loginResult.AccessToken);
 
             // Assert: Verify refresh fails due to invalid token.
             Assert.False(refreshResult.Success, "Refresh token operation should fail with an invalid token.");
-            Assert.Contains("invalid", refreshResult.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("not found", refreshResult.Message, StringComparison.OrdinalIgnoreCase);
         }
 
         [Fact]
@@ -130,7 +130,7 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             string tamperedAccessToken = loginResult.AccessToken.Substring(0, loginResult.AccessToken.Length - 1) + "X";
 
             // Act: Attempt to refresh tokens with a tampered access token.
-            var refreshResult = await AuthService.RefreshTokenAsync(registeredUser.PersoId, loginResult.RefreshToken, tamperedAccessToken);
+            var refreshResult = await AuthService.RefreshTokenAsync(loginResult.RefreshToken, tamperedAccessToken);
 
             // Assert: Verify that refresh fails due to invalid access token.
             Assert.False(refreshResult.Success, "Refresh token operation should fail with an invalid access token.");

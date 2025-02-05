@@ -118,24 +118,8 @@ namespace Backend.Presentation.Controllers
         [HttpPost("refresh")]
         public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequestDto request)
         {
-            // Check if the model state is valid
-            if (!ModelState.IsValid)
-            {
-                // Extract and format validation errors
-                var errors = ModelState.Values
-                    .SelectMany(v => v.Errors)
-                    .Select(e => e.ErrorMessage)
-                    .ToList();
-
-                _logger.LogWarning("Refresh token request validation failed for user {UserId}. Errors: {Errors}",
-                    request.UserId,
-                    string.Join(", ", errors));
-
-                return BadRequest(new { success = false, message = "Validation failed", errors });
-            }
-
             // Log the incoming request
-            _logger.LogInformation("Processing refresh token request for user: {UserId}", request.UserId);
+            _logger.LogInformation("Processing refresh token request for RefreshToken: {RefreshToken}", request.RefreshToken);
             
             // Extract the access token from the request headers
             string? accessToken = Request.Headers["Authorization"].FirstOrDefault()?.Split(" ").Last();
@@ -149,10 +133,10 @@ namespace Backend.Presentation.Controllers
             }
 
             // Validate the incoming refresh token and associated user data
-            var tokens = await _authService.RefreshTokenAsync(request.UserId, request.RefreshToken, accessToken, User);
+            var tokens = await _authService.RefreshTokenAsync(request.RefreshToken, accessToken);
             if (!tokens.Success)
             {
-                _logger.LogWarning("Refresh token failed for user: {UserId}", request.UserId);
+                _logger.LogWarning("Refresh token failed for user: {RefreshToken}", request.RefreshToken);
                 return Unauthorized(new { success = false, message = tokens.Message });
             }
             return Ok(new

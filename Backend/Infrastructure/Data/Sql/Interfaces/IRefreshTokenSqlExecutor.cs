@@ -5,7 +5,7 @@ namespace Backend.Infrastructure.Data.Sql.Interfaces
     public interface IRefreshTokenSqlExecutor
     {
         Task<bool> AddRefreshTokenAsync(Guid persoid, string hashedRefreshToken, DateTime refreshTokenExpiry);
-        Task<JwtTokenModel> GetRefreshTokenAsync(Guid persoid);
+        Task<JwtTokenModel> GetRefreshTokenAsync(string refreshToken);
         Task<bool> AddBlacklistedTokenAsync(string jti, DateTime expiration);
         Task<bool> IsTokenBlacklistedAsync(string jti);
         Task<bool> UpdateRefreshTokenExpiryAsync(Guid persoid, DateTime newExpiry);
