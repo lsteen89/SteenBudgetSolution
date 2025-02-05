@@ -202,5 +202,32 @@ namespace Backend.Infrastructure.Implementations
                 return null;
             }
         }
+        public ClaimsPrincipal? DecodeExpiredToken(string token)
+        {
+            var tokenHandler = new JwtSecurityTokenHandler();
+            try
+            {
+                var validationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.SecretKey)),
+                    ValidateIssuer = true,
+                    ValidIssuer = _jwtSettings.Issuer,
+                    ValidateAudience = true,
+                    ValidAudience = _jwtSettings.Audience,
+                    ValidateLifetime = false, // We do NOT validate lifetime here, we just want to decode the token
+                    ClockSkew = TimeSpan.Zero
+                };
+
+                // This will decode the token even if it's expired.
+                var principal = tokenHandler.ValidateToken(token, validationParameters, out var validatedToken);
+                return principal;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error decoding expired token.");
+                return null;
+            }
+        }
     }
 }

@@ -8,5 +8,6 @@ namespace Backend.Application.Interfaces.JWT
         ClaimsPrincipal? ValidateToken(string token);
         Task<LoginResultDto> GenerateJWTTokenAsync(Guid persoid, string email, bool rotateToken, ClaimsPrincipal? user = null);
         Task<bool> BlacklistJwtTokenAsync(string token);
+        ClaimsPrincipal? DecodeExpiredToken(string token);
     }
 }
