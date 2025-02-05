@@ -167,7 +167,6 @@ useEffect(() => {
       if (decoded.exp !== undefined && (decoded.exp * 1000 - Date.now()) < 60000) {
         console.log("Token about to expire. Initiating refresh...");
         axiosInstance.post("/api/auth/refresh", {
-          userId: localStorage.getItem("userId"),
           refreshToken: localStorage.getItem("refreshToken")
         })
         .then((res) => {

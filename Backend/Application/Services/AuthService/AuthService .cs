@@ -111,7 +111,7 @@ namespace Backend.Application.Services.AuthService
                 RefreshToken = tokens.RefreshToken
             };
         }
-        public async Task<LoginResultDto> RefreshTokenAsync(Guid persoid, string refreshToken, string accessToken, ClaimsPrincipal? user = null)
+        public async Task<LoginResultDto> RefreshTokenAsync(string refreshToken, string accessToken, ClaimsPrincipal? user = null)
         {
             // Step 0: Validate the existing access token before proceeding
             var validatedPrincipal = _jwtService.DecodeExpiredToken(accessToken);
@@ -122,7 +122,8 @@ namespace Backend.Application.Services.AuthService
 
             // Step 1
             // Retrieve the stored refresh token model for the user
-            JwtTokenModel storedToken = await _userSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokenAsync(persoid);
+            var providedHashedToken = TokenGenerator.HashToken(refreshToken);
+            JwtTokenModel storedToken = await _userSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokenAsync(providedHashedToken);
             if (storedToken == null)
             {
                 return new LoginResultDto { Success = false, Message = "Refresh token not found. Please login again." };
@@ -137,7 +138,6 @@ namespace Backend.Application.Services.AuthService
 
             // Step 3
             // Compare the hash of the provided token with the stored hash
-            var providedHashedToken = TokenGenerator.HashToken(refreshToken);
             if (providedHashedToken != storedToken.RefreshToken)
             {
                 return new LoginResultDto { Success = false, Message = "Invalid refresh token. Please login again." };
@@ -145,13 +145,13 @@ namespace Backend.Application.Services.AuthService
 
             // Step 4
             // Retrieve the user details & generate a new access token and rotate refresh token (if valid)
-            var dbUser = await _userSQLProvider.UserSqlExecutor.GetUserModelAsync(persoid: persoid);
+            var dbUser = await _userSQLProvider.UserSqlExecutor.GetUserModelAsync(persoid: storedToken.Persoid);
             if(dbUser.Email == null)
             {
                 return new LoginResultDto { Success = false, Message = "User not found." };
             }
 
-            var newTokens = await _jwtService.GenerateJWTTokenAsync(persoid, dbUser.Email, rotateToken: true, user);
+            var newTokens = await _jwtService.GenerateJWTTokenAsync(storedToken.Persoid, dbUser.Email, rotateToken: true, user);
 
             return new LoginResultDto
             {
