@@ -114,10 +114,10 @@ namespace Backend.Application.Services.AuthService
         public async Task<LoginResultDto> RefreshTokenAsync(Guid persoid, string refreshToken, string accessToken, ClaimsPrincipal? user = null)
         {
             // Step 0: Validate the existing access token before proceeding
-            var validatedPrincipal = _jwtService.ValidateToken(accessToken);
+            var validatedPrincipal = _jwtService.DecodeExpiredToken(accessToken);
             if (validatedPrincipal == null)
             {
-                return new LoginResultDto { Success = false, Message = "Invalid or expired access token. Please log in again." };
+                return new LoginResultDto { Success = false, Message = "Invalid access token. Please log in again." };
             }
 
             // Step 1

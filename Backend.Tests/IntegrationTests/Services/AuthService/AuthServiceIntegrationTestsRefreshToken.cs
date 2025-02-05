@@ -134,7 +134,7 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
 
             // Assert: Verify that refresh fails due to invalid access token.
             Assert.False(refreshResult.Success, "Refresh token operation should fail with an invalid access token.");
-            Assert.Contains("invalid or expired", refreshResult.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Invalid access token. Please log in again.", refreshResult.Message, StringComparison.OrdinalIgnoreCase);
         }
     }
 }
