@@ -73,7 +73,11 @@ namespace Backend.Infrastructure.Implementations
 
         private string GenerateJwtToken(Guid persoid, string email, Dictionary<string, string>? additionalClaims = null)
         {
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.SecretKey));
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.SecretKey))
+            {
+                KeyId = "access-token-key-v1"
+            };
+
             var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             // Define claims
@@ -150,27 +154,30 @@ namespace Backend.Infrastructure.Implementations
 
             try
             {
-                // Validate token parameters
+                // Construct the key with the same KeyId as in token generation
+                var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.SecretKey))
+                {
+                    KeyId = "access-token-key-v1"
+                };
+
                 var validationParameters = new TokenValidationParameters
                 {
                     ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.SecretKey)),
+                    IssuerSigningKey = key,
                     ValidateIssuer = true,
-                    ValidIssuer = "eBudget",
+                    ValidIssuer = _jwtSettings.Issuer, 
                     ValidateAudience = true,
-                    ValidAudience = "eBudget",
+                    ValidAudience = _jwtSettings.Audience, 
                     ValidateLifetime = true,
-                    ClockSkew = TimeSpan.Zero, // Strict expiration validation
+                    ClockSkew = TimeSpan.Zero, 
                     LifetimeValidator = (notBefore, expires, securityToken, validationParameters) =>
                     {
                         var currentTime = _timeProvider.UtcNow;
                         _logger.LogInformation($"Validating token lifetime: Current time: {currentTime}, Token expires at: {expires}");
-
                         return expires > currentTime;
                     },
                     RequireExpirationTime = true,
                     RequireSignedTokens = true,
-
                 };
 
                 // Validate and return principal
@@ -202,6 +209,7 @@ namespace Backend.Infrastructure.Implementations
                 return null;
             }
         }
+
         public ClaimsPrincipal? DecodeExpiredToken(string token)
         {
             var tokenHandler = new JwtSecurityTokenHandler();
