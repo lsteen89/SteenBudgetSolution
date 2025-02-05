@@ -32,49 +32,43 @@ axiosInstance.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // Check if the error is due to a 401 and if we haven't retried this request already
+    // If the response status is 401 and the request hasn't been retried yet
     if (error.response && error.response.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
-      const refreshToken = localStorage.getItem('refreshToken');
-      const userId = localStorage.getItem('userId'); // Ensure you store the user ID on login
-
+      const refreshToken = localStorage.getItem("refreshToken");
+      const userId = localStorage.getItem("userId");
+      
       if (refreshToken && userId) {
         try {
-          console.log("Attempting to refresh token for user:", userId);
-          // Call your refresh endpoint. Adjust the DTO shape as needed.
+          console.log("Access token expired. Attempting refresh for user:", userId);
           const refreshResponse = await axiosInstance.post("/api/auth/refresh", { 
             userId, 
             refreshToken 
           });
           
           if (refreshResponse.data && refreshResponse.data.success) {
-            const newAccessToken = refreshResponse.data.accessToken;
-            const newRefreshToken = refreshResponse.data.refreshToken;
-            console.log("Token refresh succeeded. New Access Token:", newAccessToken);
-            
-            // Update tokens in local storage and default headers
-            localStorage.setItem("accessToken", newAccessToken);
+            const { accessToken, refreshToken: newRefreshToken } = refreshResponse.data;
+            console.log("Token refresh succeeded. New Access Token:", accessToken);
+            // Update local storage and retry original request
+            localStorage.setItem("accessToken", accessToken);
             localStorage.setItem("refreshToken", newRefreshToken);
-            axiosInstance.defaults.headers.common["Authorization"] = `Bearer ${newAccessToken}`;
-            originalRequest.headers["Authorization"] = `Bearer ${newAccessToken}`;
-
-            // Retry the original request with the new access token
+            axiosInstance.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
+            originalRequest.headers["Authorization"] = `Bearer ${accessToken}`;
             return axiosInstance(originalRequest);
           } else {
-            console.error("Token refresh failed with message:", refreshResponse.data.message);
+            console.warn("Token refresh failed:", refreshResponse.data.message);
           }
         } catch (refreshError) {
           console.error("Token refresh error:", refreshError);
         }
       } else {
-        console.warn("No refresh token or userId found in localStorage.");
+        console.warn("No refresh token or user ID found.");
       }
-      
-      // If refresh fails, remove tokens and redirect to login
+      // Clear tokens and redirect if refresh fails
       localStorage.removeItem("accessToken");
       localStorage.removeItem("refreshToken");
       delete axiosInstance.defaults.headers.common["Authorization"];
-      console.warn("Token expired or refresh failed. Clearing tokens and redirecting to login.");
+      console.warn("Redirecting to login due to token refresh failure.");
       window.location.href = '/login';
     }
     return Promise.reject(error);

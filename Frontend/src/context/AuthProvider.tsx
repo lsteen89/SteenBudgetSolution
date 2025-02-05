@@ -5,6 +5,11 @@ import type { AuthState, AuthContextType } from "../types/authTypes";
 import { useLocation } from "react-router-dom";
 import { jwtDecode } from "jwt-decode"; 
 
+interface JwtPayload {
+  exp?: number;
+  [key: string]: any;
+}
+
 export const AuthContext = createContext<AuthContextType | null>(null);
 
 export const useAuth = (): AuthContextType => {
@@ -143,22 +148,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [fetchAuthStatus, closeWebSocket]);
 
-  // Check token expiration on route change and logout if expired
-  useEffect(() => {
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      try {
-        const decoded: any = jwtDecode(token); 
-        if (decoded.exp * 1000 < Date.now()) {
-          console.warn("AuthProvider: Access token expired, logging out.");
+/*
+ * This effect runs on every route change (dependency on 'location') to monitor the access token's validity.
+ * It retrieves the access token from localStorage and decodes it to extract the expiration claim.
+ * If the token's expiration (exp) exists and is within 60 seconds of expiring, 
+ * the effect initiates a refresh request by calling the /api/auth/refresh endpoint.
+ * On a successful refresh, it updates localStorage and Axios defaults with the new tokens.
+ * If token decoding fails or if the token is invalid, it logs an error and logs the user out.
+ */
+useEffect(() => {
+  const token = localStorage.getItem('accessToken');
+  if (token) {
+    try {
+      // Decode the JWT token to obtain its payload, including the expiration time.
+      const decoded = jwtDecode<JwtPayload>(token);
+      
+      // Check if the 'exp' claim exists and whether the token is about to expire (less than 60 seconds remaining)
+      if (decoded.exp !== undefined && (decoded.exp * 1000 - Date.now()) < 60000) {
+        console.log("Token about to expire. Initiating refresh...");
+        axiosInstance.post("/api/auth/refresh", {
+          userId: localStorage.getItem("userId"),
+          refreshToken: localStorage.getItem("refreshToken")
+        })
+        .then((res) => {
+          if (res.data.success) {
+            // Update localStorage and Axios defaults with new tokens.
+            localStorage.setItem("accessToken", res.data.accessToken);
+            localStorage.setItem("refreshToken", res.data.refreshToken);
+            axiosInstance.defaults.headers.common["Authorization"] = `Bearer ${res.data.accessToken}`;
+            console.log("Token refresh succeeded. New access token set.");
+          }
+        })
+        .catch((err) => {
+          console.error("Error refreshing token:", err);
           logout();
-        }
-      } catch (error) {
-        console.error("AuthProvider: Error decoding token:", error);
-        logout();
+        });
       }
+    } catch (error) {
+      console.error("Error decoding token:", error);
+      logout();
     }
-  }, [location, logout]);
+  }
+}, [location, logout]);
 
 
   return (
