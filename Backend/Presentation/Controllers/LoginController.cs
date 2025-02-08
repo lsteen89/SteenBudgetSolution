@@ -1,13 +1,17 @@
 ﻿using Backend.Application.DTO;
 using Backend.Application.Interfaces.AuthService;
+using Backend.Application.Interfaces.Cookies;
 using Backend.Application.Interfaces.RecaptchaService;
 using Backend.Application.Interfaces.UserServices;
-using Backend.Infrastructure.Helpers;
+using Backend.Common.Utilities;
 using Backend.Infrastructure.Interfaces;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Newtonsoft.Json.Linq;
+using Org.BouncyCastle.Asn1.Ocsp;
 using System.Security.Claims;
 
 namespace Backend.Presentation.Controllers
@@ -16,6 +20,7 @@ namespace Backend.Presentation.Controllers
     [Route("api/[controller]")]
     public class AuthController : ControllerBase
     {
+        private readonly ICookieService cookieService;
         private readonly IAuthService _authService;
         private readonly IWebSocketManager _webSocketManager;
         private readonly IUserTokenService _userTokenService;
@@ -23,10 +28,11 @@ namespace Backend.Presentation.Controllers
         private readonly ILogger<RegistrationController> _logger;
         private readonly IRecaptchaService _recaptchaService;
         private readonly IUserManagementService _userManagementService;
-        private readonly LogHelper _logHelper;
 
-        public AuthController(IAuthService authService, IWebSocketManager webSocketManager, IUserTokenService userTokenService, IUserAuthenticationService userAuthenticationService, ILogger<RegistrationController> logger, IRecaptchaService recaptchaService, IUserManagementService userManagementService, LogHelper logHelper)
+
+        public AuthController(ICookieService cookieService, IAuthService authService, IWebSocketManager webSocketManager, IUserTokenService userTokenService, IUserAuthenticationService userAuthenticationService, ILogger<RegistrationController> logger, IRecaptchaService recaptchaService, IUserManagementService userManagementService)
         {
+            this.cookieService = cookieService;
             _authService = authService;
             _webSocketManager = webSocketManager;
             _userTokenService = userTokenService;
@@ -34,68 +40,80 @@ namespace Backend.Presentation.Controllers
             _logger = logger;
             _recaptchaService = recaptchaService;
             _userManagementService = userManagementService;
-            _logHelper = logHelper;
         }
 
         [HttpPost("login")]
         [EnableRateLimiting("LoginPolicy")]
         public async Task<IActionResult> Login(UserLoginDto userLoginDto)
         {
-            var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
-            _logger.LogInformation("Processing login for user: email: {MaskedEmail}", _logHelper.MaskEmail(userLoginDto.Email));
+            // Extract metadata using the helper
+            var (ipAddress, userAgent, deviceId) = RequestMetadataHelper.ExtractMetadata(HttpContext);
 
-            // Step 1: Validate model state
-            if (!ModelState.IsValid)
-            {
-                _logger.LogWarning("Invalid credentials for email: {MaskedEmail}", _logHelper.MaskEmail(userLoginDto.Email));
-                return BadRequest(ModelState);
-            }
+            // Log the metadata for debugging
+            _logger.LogInformation("Login request: IP: {IpAddress}, User-Agent: {UserAgent}, Device-ID: {DeviceId}",
+                ipAddress, userAgent, deviceId);
 
             // Delegate login logic to AuthService
-            var loginResult = await _authService.LoginAsync(userLoginDto, ipAddress);
+            var loginResult = await _authService.LoginAsync(
+                userLoginDto,
+                ipAddress,
+                deviceId,
+                userAgent
+            );
 
             if (!loginResult.Success)
             {
-                _logger.LogWarning("Login failed for email: {MaskedEmail}", _logHelper.MaskEmail(userLoginDto.Email));
+                _logger.LogWarning("Login failed for email: {MaskedEmail}\nIP: {MaskedIP}", LogHelper.MaskEmail(userLoginDto.Email), LogHelper.MaskIp(ipAddress));
                 return Unauthorized(new { success = loginResult.Success, message = loginResult.Message });
             }
-
-            _logger.LogInformation("Login successful for email: {MaskedEmail}", _logHelper.MaskEmail(userLoginDto.Email));
+            cookieService.SetAuthCookies(Response, loginResult.AccessToken, loginResult.RefreshToken);
+            _logger.LogInformation("Login successful for email: {MaskedEmail}\nIP: {MaskedIP}", LogHelper.MaskEmail(userLoginDto.Email), LogHelper.MaskIp(ipAddress));
 
             return Ok(new
             {
-                success = loginResult.Success,
-                message = loginResult.Message,
-                accessToken = loginResult.AccessToken,
-                refreshToken = loginResult.RefreshToken
+                UserName = userLoginDto.Email,
+                Success = true,
+                Message = "Login successful.",
             });
 
         }
         [HttpPost("logout")]
-        public async Task<IActionResult> Logout([FromBody] LogoutRequest request)
+        public async Task<IActionResult> Logout([FromQuery] bool logoutAll = false)
         {
-            _logger.LogInformation("Processing logout request for user.");
+            // Extract metadata using the helper
+            var (ipAddress, userAgent, deviceId) = RequestMetadataHelper.ExtractMetadata(HttpContext);
 
-            // Ensure the user is authenticated before proceeding
+            // Log the metadata for debugging
+            _logger.LogInformation("Logout request: IP: {IpAddress}, User-Agent: {UserAgent}, Device-ID: {DeviceId}",
+                ipAddress, userAgent, deviceId);
+
             if (!User.Identity?.IsAuthenticated ?? true)
             {
                 return Unauthorized(new { message = "User is not authenticated." });
             }
 
-            if (!User.Identity?.IsAuthenticated ?? true)
-            {
-                return Unauthorized(new { message = "User is not authenticated." });
-            }
-            string? accessToken = Request.Headers["Authorization"]
-                                          .FirstOrDefault()?
-                                          .Split(" ")
-                                          .Last();
+            // Retrieve tokens from cookies instead of headers
+            string? accessToken = Request.Cookies["AccessToken"];
+            string? refreshToken = Request.Cookies["RefreshToken"];
 
             if (string.IsNullOrEmpty(accessToken))
             {
                 return Unauthorized(new { success = false, message = "Access token is required." });
             }
-            await _authService.LogoutAsync(User, accessToken, request.RefreshToken);
+
+            try
+            {
+                await _authService.LogoutAsync(User, accessToken, refreshToken, logoutAll);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during logout.");
+                return StatusCode(500, new { success = false, message = "An internal error occurred during logout." });
+            }
+
+            Response.Cookies.Delete("AccessToken");
+            Response.Cookies.Delete("RefreshToken");
+            _logger.LogInformation("User logged out successfully.");
 
             return Ok(new { message = "Logged out successfully." });
         }
@@ -117,27 +135,33 @@ namespace Backend.Presentation.Controllers
         }
         [AllowAnonymous]
         [HttpPost("refresh")]
-        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequestDto request)
+        public async Task<IActionResult> RefreshToken()
         {
-            // Log the incoming request
-            _logger.LogInformation("Processing refresh token request for RefreshToken: {RefreshToken}", request.RefreshToken);
-            
-            // Extract the access token from the request headers
-            string? accessToken = Request.Headers["Authorization"].FirstOrDefault()?.Split(" ").Last();
-            _logger.LogInformation("Access token: {AccessToken}", accessToken);
+            // Extract metadata using the helper
+            var (ipAddress, userAgent, deviceId) = RequestMetadataHelper.ExtractMetadata(HttpContext);
+            _logger.LogInformation("Login request: IP: {IpAddress}, User-Agent: {UserAgent}, Device-ID: {DeviceId}",
+                ipAddress, userAgent, deviceId);
 
-            // Ensure the access token is provided
-            if (string.IsNullOrEmpty(accessToken))
+            // Extract tokens from cookies using the utility method
+            var (accessToken, refreshToken) = RequestMetadataHelper.ExtractTokensFromCookies(HttpContext);
+
+            _logger.LogInformation("Access token: {AccessToken}", accessToken);
+            _logger.LogInformation("Processing refresh token request for RefreshToken: {RefreshToken}", refreshToken);
+
+            // Ensure tokens are provided
+            if (string.IsNullOrEmpty(refreshToken) || string.IsNullOrEmpty(accessToken))
             {
-                _logger.LogWarning("No access token provided for refresh request.");
-                return Unauthorized(new { success = false, message = "Access token is required." });
+                _logger.LogWarning("Missing tokens for refresh.");
+                return Unauthorized(new { success = false, message = "Missing tokens." });
             }
 
+            _logger.LogInformation("Processing refresh token request from cookies.");
+
             // Validate the incoming refresh token and associated user data
-            var tokens = await _authService.RefreshTokenAsync(request.RefreshToken, accessToken);
+            var tokens = await _authService.RefreshTokenAsync(refreshToken, accessToken, userAgent, deviceId);
             if (!tokens.Success)
             {
-                _logger.LogWarning("Refresh token failed for user: {RefreshToken}", request.RefreshToken);
+                _logger.LogWarning("Refresh token failed for user: {RefreshToken}", refreshToken);
                 return Unauthorized(new { success = false, message = tokens.Message });
             }
             return Ok(new
@@ -148,10 +172,5 @@ namespace Backend.Presentation.Controllers
                 refreshToken = tokens.RefreshToken
             });
         }
-        public class LogoutRequest
-        {
-            public string RefreshToken { get; set; }
-        }
     }
-
 }

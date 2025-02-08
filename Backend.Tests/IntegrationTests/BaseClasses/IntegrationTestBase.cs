@@ -8,12 +8,12 @@ using Backend.Application.Interfaces.RecaptchaService;
 using Backend.Application.Interfaces.UserServices;
 using Backend.Application.Services.AuthService;
 using Backend.Application.Services.UserServices;
+using Backend.Common.Utilities;
 using Backend.Domain.Entities;
 using Backend.Infrastructure.Data.Sql.Interfaces;
 using Backend.Infrastructure.Data.Sql.Provider;
 using Backend.Infrastructure.Data.Sql.UserQueries;
 using Backend.Infrastructure.Email;
-using Backend.Infrastructure.Helpers;
 using Backend.Infrastructure.Helpers.Converters;
 using Backend.Infrastructure.Implementations;
 using Backend.Infrastructure.Interfaces;
@@ -48,7 +48,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     protected readonly ICookieService cookieService;
     protected readonly IWebSocketManager WebSocketManager;
     protected readonly Mock<IWebSocketManager> WebSocketManagerMock;
-    protected readonly LogHelper logHelper;
+
     protected Mock<IEnvironmentService> MockEnvironmentService { get; private set; }
 
     protected IntegrationTestBase()
@@ -234,7 +234,6 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         services.AddScoped<UserServiceTest>();
 
         services.AddScoped<ITokenBlacklistService, TokenBlacklistService>();
-        services.AddScoped<LogHelper>();
 
         // Register SQL providers
         services.AddScoped<IUserSqlExecutor, UserSqlExecutor>();

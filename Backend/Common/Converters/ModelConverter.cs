@@ -3,7 +3,7 @@
 
 
 // Class to convert models
-namespace Backend.Infrastructure.Helpers.Converters
+namespace Backend.Common.Converters
 {
     public static class ModelConverter
     {

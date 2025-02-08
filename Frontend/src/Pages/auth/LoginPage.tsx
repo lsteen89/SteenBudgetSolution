@@ -95,13 +95,6 @@ const LoginPage: React.FC = () => {
 
       if (result.success) {
         console.log("Login successful:", result.message);
-        // Store tokens in localStorage
-        localStorage.setItem('accessToken', result.accessToken);
-        localStorage.setItem('refreshToken', result.refreshToken);
-
-        // Set the access token in axios default headers
-        axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${result.accessToken}`;
-
         // Immediately fetch auth status to update the state
         await refreshAuthStatus();
 

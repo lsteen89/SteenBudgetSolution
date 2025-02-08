@@ -1,8 +1,9 @@
 ﻿using Backend.Application.DTO;
 using Backend.Application.Interfaces.UserServices;
 using Backend.Infrastructure.Data.Sql.Provider;
-using Backend.Infrastructure.Models;
+using Backend.Infrastructure.Entities;
 using Backend.Infrastructure.Security;
+using Backend.Tests.Helpers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
@@ -28,7 +29,7 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
                 .Returns(Task.CompletedTask);
 
             var userLoginDto = new UserLoginDto { Email = "test@example.com", Password = "Password123!" };
-            string ipAddress = "127.0.0.1"; // Ensure a valid IP
+            var (ipAddress, deviceId, userAgent) = AuthTestHelper.GetDefaultMetadata();
 
             // Insert a user into the database using SetupUserAsync
             var registeredUser = await SetupUserAsync();
@@ -37,7 +38,7 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
 
             // Act
-            var result = await AuthService.LoginAsync(userLoginDto, ipAddress);
+            var result = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent);
 
             // Assert
             Assert.True(result.Success);
@@ -76,7 +77,7 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
         public async Task LoginAsync_ValidCredentials_TokenHasExpectedClaims()
         {
             // Arrange
-            string ipAddress = "127.0.0.1";
+            var (ipAddress, deviceId, userAgent) = AuthTestHelper.GetDefaultMetadata();
             var userLoginDto = new UserLoginDto
             {
                 Email = "test@example.com",
@@ -87,7 +88,7 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
 
             // Act
-            var result = await AuthService.LoginAsync(userLoginDto, ipAddress);
+            var result = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent);
 
             // Assert
             Assert.True(result.Success);
@@ -114,7 +115,7 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
         public async Task LoginAsync_TokenExpires_ShouldDenyAccess()
         {
             // Arrange
-            string ipAddress = "127.0.0.1";
+            var (ipAddress, deviceId, userAgent) = AuthTestHelper.GetDefaultMetadata();
             var userLoginDto = new UserLoginDto { Email = "test@example.com", Password = "Password123!" };
             var registeredUser = await SetupUserAsync();
             await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
@@ -128,7 +129,7 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             MockTimeProvider.Setup(tp => tp.UtcNow).Returns(tokenCreationTime);
 
             // Act: Perform the login
-            var result = await AuthService.LoginAsync(userLoginDto, ipAddress);
+            var result = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent);
             Assert.True(result.Success, "Login should succeed.");
             Assert.False(string.IsNullOrEmpty(result.AccessToken), "JWT AccessToken should not be null or empty.");
 
@@ -157,14 +158,14 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
         public async Task LoginAsync_ConcurrentLogins_ShouldWork()
         {
             // Arrange
-            string ipAddress = "";
+            var (ipAddress, deviceId, userAgent) = AuthTestHelper.GetDefaultMetadata();
             var userLoginDto = new UserLoginDto { Email = "test@example.com", Password = "Password123!" };
             var registeredUser = await SetupUserAsync();
             await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
 
             // Act - Perform multiple login attempts
-            var result1 = await AuthService.LoginAsync(userLoginDto, ipAddress);
-            var result2 = await AuthService.LoginAsync(userLoginDto, ipAddress);
+            var result1 = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent);
+            var result2 = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent);
 
             // Assert
             Assert.True(result1.Success);
@@ -184,13 +185,13 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             Assert.Equal("Production", mockValue);
 
             // Arrange
-            string ipAddress = "127.0.0.1";
+            var (ipAddress, deviceId, userAgent) = AuthTestHelper.GetDefaultMetadata();
             var userLoginDto = new UserLoginDto { Email = "test@example.com", Password = "Password123!" };
             var registeredUser = await SetupUserAsync();
             await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
 
             // Act
-            var result = await AuthService.LoginAsync(userLoginDto, ipAddress);
+            var result = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent);
 
             // Assert
             Assert.True(result.Success);
@@ -232,7 +233,7 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
         public async Task LoginAsync_TamperedToken_ShouldDenyAccess()
         {
             // Arrange
-            string ipAddress = "127.0.0.1";
+            var (ipAddress, deviceId, userAgent) = AuthTestHelper.GetDefaultMetadata();
             var userLoginDto = new UserLoginDto { Email = "test@example.com", Password = "Password123!" };
             var registeredUser = await SetupUserAsync();
             await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
@@ -243,7 +244,7 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             Assert.NotNull(registeredUser.Email);
 
             // Act: Perform the login and get the JWT token
-            var result = await AuthService.LoginAsync(userLoginDto, ipAddress);
+            var result = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent);
             Assert.True(result.Success, "Login should succeed.");
             Assert.False(string.IsNullOrEmpty(result.AccessToken), "JWT AccessToken should not be null or empty.");
 
@@ -262,7 +263,7 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
         public async Task LoginAsync_ShouldReturnValidAccessToken()
         {
             // Arrange
-            string ipAddress = "127.0.0.1";
+            var (ipAddress, deviceId, userAgent) = AuthTestHelper.GetDefaultMetadata();
             var userLoginDto = new UserLoginDto { Email = "test@example.com", Password = "Password123!" };
             var registeredUser = await SetupUserAsync();
             await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
@@ -273,7 +274,7 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             Assert.NotNull(registeredUser.Email);
 
             // Act: Perform login
-            var result = await AuthService.LoginAsync(userLoginDto, ipAddress);
+            var result = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent);
 
             // Assert
             Assert.True(result.Success, "Login should succeed.");
@@ -317,7 +318,7 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
         {
             // Arrange
             var email = "test@example.com";
-            var ipAddress = "127.0.0.1";
+            var (ipAddress, deviceId, userAgent) = AuthTestHelper.GetDefaultMetadata();
             var userLoginDto = new UserLoginDto { Email = email, Password = "WrongPassword" };
 
             // Ensure the user exists
@@ -327,7 +328,7 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             // Simulate multiple failed login attempts
             for (int i = 0; i < 5; i++)
             {
-                var result = await AuthService.LoginAsync(userLoginDto, ipAddress);
+                var result = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent);
                 Assert.False(result.Success, $"Attempt {i + 1}: Login should fail");
             }
 
@@ -342,7 +343,7 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
         {
             // Arrange
             var email = "test@example.com";
-            var ipAddress = "127.0.0.1";
+            var (ipAddress, deviceId, userAgent) = AuthTestHelper.GetDefaultMetadata();
             var userLoginDto = new UserLoginDto { Email = email, Password = "Password123!" };
 
             // Ensure the user exists and gets locked out
@@ -358,7 +359,7 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             await Task.Delay(TimeSpan.FromMinutes(2));
 
             // Act 2: Attempt login after lockout period
-            var result = await AuthService.LoginAsync(userLoginDto, ipAddress);
+            var result = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent);
 
             // Assert
             Assert.True(result.Success, "User should be able to log in after the lockout period expires");
@@ -368,7 +369,7 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
         {
             // Arrange
             var email = "test@example.com";
-            var ipAddress = "127.0.0.1";
+            var (ipAddress, deviceId, userAgent) = AuthTestHelper.GetDefaultMetadata();
             var wrongLoginDto = new UserLoginDto { Email = email, Password = "Password1234!" };
             var correctLoginDto = new UserLoginDto { Email = email, Password = "Password123!" };
 
@@ -378,14 +379,14 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
 
             // Simulate a failed login attempt
-            await AuthService.LoginAsync(wrongLoginDto, ipAddress);
+            await AuthService.LoginAsync(wrongLoginDto, ipAddress, deviceId, userAgent);
 
             // Verify failed attempts count
             var failedAttempts = await UserSQLProvider.AuthenticationSqlExecutor.GetRecentFailedAttemptsAsync(registeredUser.PersoId);
             Assert.Equal(1, failedAttempts);
 
             // Act: Successful login
-            var result = await AuthService.LoginAsync(correctLoginDto, ipAddress);
+            var result = await AuthService.LoginAsync(correctLoginDto, ipAddress, deviceId, userAgent);
 
             // Assert
             Assert.True(result.Success, "User should successfully log in with correct credentials");
@@ -398,7 +399,7 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
         public async Task LoginAsync_ShouldStoreValidRefreshToken()
         {
             // Arrange
-            string ipAddress = "127.0.0.1";
+            var (ipAddress, deviceId, userAgent) = AuthTestHelper.GetDefaultMetadata();
             var userLoginDto = new UserLoginDto
             {
                 Email = "test@example.com",
@@ -409,7 +410,7 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
 
             // Act
-            var result = await AuthService.LoginAsync(userLoginDto, ipAddress);
+            var result = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent);
 
             // Assert: Validate login success and refresh token presence
             Assert.True(result.Success, "Login should succeed");
@@ -418,7 +419,9 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
 
             // Optionally, query the database to confirm the refresh token is stored (hashed)
             var providedHashedToken = TokenGenerator.HashToken(result.RefreshToken);
-            JwtTokenModel storedToken = await UserSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokenAsync(providedHashedToken);
+            //RefreshJwtTokenEntity
+            var storedTokens = await UserSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokensAsync(refreshToken : providedHashedToken);
+            var storedToken = storedTokens.FirstOrDefault();
             Assert.NotNull(storedToken);
             Console.WriteLine($"Stored Token: {storedToken.RefreshToken}");
             // Verify that the stored token is the hashed version of the refresh token received
@@ -431,6 +434,37 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             Assert.True(storedToken.ExpiryDate > DateTime.UtcNow.AddDays(29) &&
                         storedToken.ExpiryDate <= DateTime.UtcNow.AddDays(30),
                         "Refresh token expiry should be around 30 days from now.");
+        }
+        [Fact]
+        public async Task LoginFromDifferentDevices_ShouldStoreMultipleRefreshTokens()
+        {
+            // Arrange: Set up metadata for two different devices.
+            var (ipAddress, deviceId1, userAgent1) = AuthTestHelper.GetDefaultMetadata();
+            var deviceId2 = "test-device-2";
+            var userAgent2 = "Mozilla/5.0 (compatible; TestBrowser/2.0)";
+
+            var userLoginDto = new UserLoginDto
+            {
+                Email = "test@example.com",
+                Password = "Password123!",
+                CaptchaToken = "valid-captcha-token"
+            };
+
+            // Set up and confirm the user.
+            var registeredUser = await SetupUserAsync();
+            await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
+
+            // Act: Log in from the first device.
+            var result1 = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId1, userAgent1);
+            Assert.True(result1.Success, "First login should succeed.");
+
+            // Act: Log in from the second device.
+            var result2 = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId2, userAgent2);
+            Assert.True(result2.Success, "Second login should succeed.");
+
+            // Assert: There should be two refresh token records in the database for the same user.
+            var refreshTokens = await UserSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokensAsync(registeredUser.PersoId);
+            Assert.Equal(2, refreshTokens.Count());
         }
 
     }

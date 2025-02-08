@@ -1,5 +1,6 @@
 using Backend.Application.Configuration;
 using Backend.Application.Interfaces.AuthService;
+using Backend.Application.Interfaces.Cookies;
 using Backend.Application.Interfaces.EmailServices;
 using Backend.Application.Interfaces.JWT;
 using Backend.Application.Interfaces.RecaptchaService;
@@ -16,8 +17,6 @@ using Backend.Infrastructure.Data.Sql.Interfaces;
 using Backend.Infrastructure.Data.Sql.Provider;
 using Backend.Infrastructure.Data.Sql.UserQueries;
 using Backend.Infrastructure.Email;
-using Backend.Infrastructure.Helpers;
-using Backend.Infrastructure.Helpers.Converters;
 using Backend.Infrastructure.Implementations;
 using Backend.Infrastructure.Interfaces;
 using Backend.Infrastructure.Providers;
@@ -38,6 +37,9 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Reflection;
 using System.Text;
 using System.Threading.RateLimiting;
+using Backend.Infrastructure.Services.CookieService;
+using Backend.Common.Utilities;
+using Backend.Common.Converters;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -134,9 +136,8 @@ builder.Services.AddScoped<IEmailPreparationService, EmailPreparationService>();
 builder.Services.AddScoped<IEmailResetPasswordService, EmailResetPasswordService>();
 
 // Other various services
-builder.Services.AddScoped<LogHelper>();
 builder.Services.AddScoped<ITimeProvider, SystemTimeProvider>();
-
+builder.Services.AddScoped<ICookieService, CookieService>();
 
 builder.Services.AddScoped<ITokenBlacklistService, TokenBlacklistService>();
 builder.Services.AddSingleton(jwtSettings);
@@ -336,26 +337,11 @@ builder.Services.AddAuthentication(options =>
         },
         OnMessageReceived = context =>
         {
-            var authorizationHeader = context.Request.Headers["Authorization"].FirstOrDefault();
-            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-
-            if (!string.IsNullOrEmpty(authorizationHeader) && authorizationHeader.StartsWith("Bearer "))
+            // Retrieve token from the "JWT" cookie
+            if (context.Request.Cookies.TryGetValue("JWT", out var token))
             {
-                var token = authorizationHeader.Substring("Bearer ".Length).Trim();
                 context.Token = token;
-                logger.LogInformation("Token extracted from Authorization header: {Token}", token);
             }
-            else if (context.Request.Query.TryGetValue("token", out var tokenValues))
-            {
-                var token = tokenValues.FirstOrDefault();
-                context.Token = token;
-                logger.LogInformation("Token extracted from query parameter: {Token}", token);
-            }
-            else
-            {
-                logger.LogWarning("No token found in the request!");
-            }
-
             return Task.CompletedTask;
         },
         OnTokenValidated = context =>
