@@ -1,4 +1,4 @@
-﻿namespace Backend.Infrastructure.Helpers.Validators
+﻿namespace Backend.Common.Validators
 {
     public class ValidationResult
     {

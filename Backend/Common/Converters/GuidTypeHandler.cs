@@ -2,7 +2,7 @@
 using System;
 using System.Data;
 
-namespace Backend.Infrastructure.Helpers.Converters
+namespace Backend.Common.Converters
 {
     public class GuidTypeHandler : SqlMapper.TypeHandler<Guid>
     {

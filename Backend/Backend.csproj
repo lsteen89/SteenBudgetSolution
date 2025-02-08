@@ -47,7 +47,8 @@
   <ItemGroup>
     <Folder Include="Auth\" />
     <Folder Include="Domain\Interfaces\" />
-    <Folder Include="Infrastructure\Services\" />
+    <Folder Include="Infrastructure\Helpers\" />
+    <Folder Include="Infrastructure\Models\" />
     <Folder Include="logs\" />
   </ItemGroup>
 

@@ -1,7 +1,7 @@
 ﻿using Newtonsoft.Json;
 using Microsoft.Extensions.Logging;
 
-namespace Backend.Infrastructure.Helpers
+namespace Backend.Common.Utilities
 {
     public class RecaptchaResponse
     {

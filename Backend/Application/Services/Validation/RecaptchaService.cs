@@ -1,5 +1,5 @@
 ﻿using Backend.Application.Interfaces.RecaptchaService;
-using Backend.Infrastructure.Helpers;
+using Backend.Common.Utilities;
 
 namespace Backend.Application.Services.Validation
 {

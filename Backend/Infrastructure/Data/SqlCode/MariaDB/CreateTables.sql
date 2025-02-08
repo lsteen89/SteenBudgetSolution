@@ -133,13 +133,16 @@ CREATE TABLE IF NOT EXISTS PasswordResetTokens (
 
 CREATE TABLE RefreshTokens (
     ID INT AUTO_INCREMENT PRIMARY KEY,
-    Persoid CHAR(36) NOT NULL, -- A user can have several tokens (e.g., multiple devices)
-    RefreshToken VARCHAR(255) NOT NULL, -- Hashed token stored as Base64
+    Persoid CHAR(36) NOT NULL,
+    RefreshToken VARCHAR(255) NOT NULL,
     ExpiryDate DATETIME NOT NULL,
+    DeviceId VARCHAR(255),
+    UserAgent VARCHAR(255),
     CreatedBy VARCHAR(50) NOT NULL,
     CreatedTime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX IDX_RefreshToken (RefreshToken),
-    INDEX IDX_Persoid (Persoid)
+    INDEX IDX_Persoid (Persoid),
+    UNIQUE (Persoid, DeviceId, UserAgent)
 );
 
 CREATE TABLE BlacklistedTokens (

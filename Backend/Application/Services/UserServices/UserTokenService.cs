@@ -1,13 +1,7 @@
-﻿using Backend.Domain.Entities;
+﻿using Backend.Application.Interfaces.UserServices;
+using Backend.Domain.Entities;
 using Backend.Infrastructure.Data.Sql.Interfaces;
-using Backend.Application.Interfaces.UserServices;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Text;
 using Backend.Infrastructure.Interfaces;
-using Backend.Application.DTO;
-using Backend.Infrastructure.Helpers;
-using Backend.Infrastructure.Security;
 
 namespace Backend.Application.Services.UserServices
 {
