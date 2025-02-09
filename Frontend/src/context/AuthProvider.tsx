@@ -19,6 +19,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     authenticated: false,
     isLoading: true,
   });
+
   const wsRef = useRef<WebSocket | null>(null);
   const location = useLocation(); 
 
@@ -30,19 +31,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  // Define protected routes
-  const protectedRoutes = ['/dashboard']; // Add other protected routes as needed
+  const protectedRoutes = ['/dashboard'];
   const isProtectedRoute = protectedRoutes.includes(location.pathname);
 
-  // Fetch auth status from the backend using cookies
   const fetchAuthStatus = useCallback(async () => {
     try {
       console.log("AuthProvider: Checking /api/auth/status");
       const response = await axiosInstance.get<AuthState>("/api/auth/status");
       console.log("AuthProvider: Status response:", response.data);
-      
+
       setAuthState({ ...response.data, isLoading: false });
-  
+
       if (response.data.authenticated && !wsRef.current) {
         openWebSocket();
       } else if (!response.data.authenticated) {
@@ -51,22 +50,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       if (isAxiosError(error)) {
         console.error("AuthProvider: Axios error:", error.response?.status, error.response?.data);
-  
         if (error.response?.status === 401) {
           console.log("AuthProvider: User is not authenticated, staying on login.");
           setAuthState({ authenticated: false, isLoading: false });
-          return; // Don't proceed to logout automatically.
+          return;
         }
       } else {
         console.error("AuthProvider: Unexpected error:", error);
       }
-  
       setAuthState({ authenticated: false, isLoading: false });
       closeWebSocket();
     }
   }, [closeWebSocket]);
 
-  // Logout calls the logout endpoint and resets auth state.
   const logout = useCallback(async () => {
     try {
       await axiosInstance.post("/api/auth/logout");
@@ -76,10 +72,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     setAuthState({ authenticated: false, isLoading: false });
     closeWebSocket();
-    // No localStorage tokens to remove and no headers to clear.
   }, [closeWebSocket]);
 
-  // WebSocket opener: remove localStorage token retrieval.
   const openWebSocket = useCallback(() => {
     const websocketUrl =
       import.meta.env.MODE === "development"
@@ -88,7 +82,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const connect = (attempt = 1) => {
       console.log(`AuthProvider: Attempting WebSocket connection (attempt ${attempt})...`);
-      
       const socket = new WebSocket(websocketUrl);
 
       socket.onopen = () => {
@@ -126,18 +119,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     connect();
   }, [authState.authenticated, closeWebSocket]);
 
-  // On mount, simply fetch auth status immediately. No token retrieval needed.
   useEffect(() => {
     fetchAuthStatus();
-
     return () => {
       closeWebSocket();
     };
   }, [fetchAuthStatus, closeWebSocket]);
-
-  // Remove the effect that decodes and refreshes tokens, since tokens are handled via cookies.
-  // If needed, you can periodically call /api/auth/refresh automatically on the server side,
-  // or rely on 401 interceptors to trigger refresh.
 
   return (
     <AuthContext.Provider
