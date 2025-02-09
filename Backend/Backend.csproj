@@ -49,7 +49,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Auth\" />
     <Folder Include="Domain\Interfaces\" />
 
     <Folder Include="logs\" />

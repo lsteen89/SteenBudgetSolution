@@ -33,7 +33,6 @@ namespace Backend.Infrastructure.Services.CookieService
             };
             response.Cookies.Append("RefreshToken", refreshToken, refreshCookieOptions);
         }
-        // TODO: Delete this, used only for testing purposes.
         public void DeleteAuthCookie()
         {
             if (_httpContextAccessor.HttpContext == null)
