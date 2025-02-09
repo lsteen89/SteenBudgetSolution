@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import axiosInstance from "@api/axiosConfig";
 import { isAxiosError } from "axios";
-import type { AuthState, AuthContextType } from "../types/authTypes"; 
+import type { AuthState, AuthContextType } from "../types/authTypes";
 import { useLocation } from "react-router-dom";
 
 export const AuthContext = createContext<AuthContextType | null>(null);
@@ -21,8 +21,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const wsRef = useRef<WebSocket | null>(null);
-  const location = useLocation(); 
+  const location = useLocation();
 
+  /**
+   * 1. Define your protected routes. If the user is on one of these
+   *    and /api/auth/status returns 401, we will redirect them to /login.
+   */
+  const protectedRoutes = ["/dashboard"];
+  const isProtectedRoute = protectedRoutes.includes(location.pathname);
+
+  /**
+   * Close the WebSocket, if any
+   */
   const closeWebSocket = useCallback(() => {
     if (wsRef.current) {
       console.log("AuthProvider: Closing WebSocket...");
@@ -31,49 +41,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  const protectedRoutes = ['/dashboard'];
-  const isProtectedRoute = protectedRoutes.includes(location.pathname);
-
-  const fetchAuthStatus = useCallback(async () => {
-    try {
-      console.log("AuthProvider: Checking /api/auth/status");
-      const response = await axiosInstance.get<AuthState>("/api/auth/status");
-      console.log("AuthProvider: Status response:", response.data);
-
-      setAuthState({ ...response.data, isLoading: false });
-
-      if (response.data.authenticated && !wsRef.current) {
-        openWebSocket();
-      } else if (!response.data.authenticated) {
-        closeWebSocket();
-      }
-    } catch (error) {
-      if (isAxiosError(error)) {
-        console.error("AuthProvider: Axios error:", error.response?.status, error.response?.data);
-        if (error.response?.status === 401) {
-          console.log("AuthProvider: User is not authenticated, staying on login.");
-          setAuthState({ authenticated: false, isLoading: false });
-          return;
-        }
-      } else {
-        console.error("AuthProvider: Unexpected error:", error);
-      }
-      setAuthState({ authenticated: false, isLoading: false });
-      closeWebSocket();
-    }
-  }, [closeWebSocket]);
-
-  const logout = useCallback(async () => {
-    try {
-      await axiosInstance.post("/api/auth/logout");
-      console.log("AuthProvider: Logout successful.");
-    } catch (error) {
-      console.error("AuthProvider: Logout error:", error);
-    }
-    setAuthState({ authenticated: false, isLoading: false });
-    closeWebSocket();
-  }, [closeWebSocket]);
-
+  /**
+   * Open a WebSocket if user is authenticated. If server sends "logout" or
+   * "session-expired," we do a forced redirect to /login.
+   */
   const openWebSocket = useCallback(() => {
     const websocketUrl =
       import.meta.env.MODE === "development"
@@ -99,13 +70,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.log("AuthProvider: Received logout/session-expired from server.");
           setAuthState({ authenticated: false, isLoading: false });
           closeWebSocket();
-          window.location.href = "/login";
+          window.location.href = "/login"; // Force user to re-login
         }
       };
 
       socket.onclose = () => {
         console.log("AuthProvider: WebSocket closed.");
         wsRef.current = null;
+
+        // Try reconnecting up to 3 times if user is still authenticated
         if (authState.authenticated && attempt < 3) {
           setTimeout(() => connect(attempt + 1), 5000);
         }
@@ -119,6 +92,64 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     connect();
   }, [authState.authenticated, closeWebSocket]);
 
+  /**
+   * 2. Call the /api/auth/status endpoint to check if user is authenticated.
+   *    If we get 401 and we're on a protected route, we redirect to /login.
+   */
+  const fetchAuthStatus = useCallback(async () => {
+    try {
+      console.log("AuthProvider: Checking /api/auth/status");
+      const response = await axiosInstance.get<AuthState>("/api/auth/status");
+      console.log("AuthProvider: Status response:", response.data);
+
+      setAuthState({ ...response.data, isLoading: false });
+
+      // If authenticated, ensure WebSocket is open
+      if (response.data.authenticated && !wsRef.current) {
+        openWebSocket();
+      } else if (!response.data.authenticated) {
+        closeWebSocket();
+      }
+    } catch (error) {
+      // 401 => user is not authenticated
+      if (isAxiosError(error) && error.response?.status === 401) {
+        console.log("AuthProvider: User is not authenticated.");
+
+        // If user is on a protected route, do a forced redirect
+        if (isProtectedRoute) {
+          console.log("AuthProvider: Protected route => redirecting to /login");
+          window.location.href = "/login";
+        }
+
+        setAuthState({ authenticated: false, isLoading: false });
+        closeWebSocket();
+        return;
+      }
+
+      // Other errors => just log + set user to not authenticated
+      console.error("AuthProvider: Unexpected error:", error);
+      setAuthState({ authenticated: false, isLoading: false });
+      closeWebSocket();
+    }
+  }, [closeWebSocket, openWebSocket, isProtectedRoute]);
+
+  /**
+   * 3. Logout explicitly calls /api/auth/logout, closes WebSocket, and sets state
+   */
+  const logout = useCallback(async () => {
+    try {
+      await axiosInstance.post("/api/auth/logout");
+      console.log("AuthProvider: Logout successful.");
+    } catch (error) {
+      console.error("AuthProvider: Logout error:", error);
+    }
+    setAuthState({ authenticated: false, isLoading: false });
+    closeWebSocket();
+  }, [closeWebSocket]);
+
+  /**
+   * 4. On mount (and whenever fetchAuthStatus changes), call /api/auth/status
+   */
   useEffect(() => {
     fetchAuthStatus();
     return () => {

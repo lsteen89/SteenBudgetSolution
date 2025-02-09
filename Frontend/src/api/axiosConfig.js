@@ -1,10 +1,11 @@
 import axios from "axios";
 
 const axiosInstance = axios.create({
-  baseURL: import.meta.env.MODE === "development"
-    ? "http://localhost:5000"
-    : import.meta.env.VITE_API_URL,
-  withCredentials: true, // Important for sending/receiving secure cookies
+  baseURL:
+    import.meta.env.MODE === "development"
+      ? "http://localhost:5000"
+      : import.meta.env.VITE_API_URL,
+  withCredentials: true,
 });
 
 axiosInstance.interceptors.response.use(
@@ -12,29 +13,28 @@ axiosInstance.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // Prevent retry loop on refresh endpoint
+    // Avoid infinite loop for refresh calls
     if (originalRequest.url === "/api/auth/refresh") {
       return Promise.reject(error);
     }
 
-    // If 401, try refresh once
+    // If we got 401, try refreshing once
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       try {
-        // Attempt refresh with cookies
+        // Attempt refresh
         const refreshResponse = await axiosInstance.post("/api/auth/refresh");
         if (refreshResponse.data?.success) {
-          // Retry original request once cookies are presumably updated
+          // Retry original request with the new cookies
           return axiosInstance(originalRequest);
         }
       } catch {
-        // Refresh failed, let the code below handle
+        // If refresh fails, we do nothing special here
       }
-
-      // If refresh fails, or no success => log user out or redirect
-      window.location.href = "/login";
     }
 
+    // Critically, we do NOT do a window.location.href = "/login" here.
+    // Just reject the promise, letting the AuthProvider handle it.
     return Promise.reject(error);
   }
 );
