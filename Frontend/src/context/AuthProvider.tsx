@@ -40,8 +40,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log("AuthProvider: Checking /api/auth/status");
       const response = await axiosInstance.get<AuthState>("/api/auth/status");
       console.log("AuthProvider: Status response:", response.data);
+      
       setAuthState({ ...response.data, isLoading: false });
-
+  
       if (response.data.authenticated && !wsRef.current) {
         openWebSocket();
       } else if (!response.data.authenticated) {
@@ -50,9 +51,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       if (isAxiosError(error)) {
         console.error("AuthProvider: Axios error:", error.response?.status, error.response?.data);
+  
+        if (error.response?.status === 401) {
+          console.log("AuthProvider: User is not authenticated, staying on login.");
+          setAuthState({ authenticated: false, isLoading: false });
+          return; // Don't proceed to logout automatically.
+        }
       } else {
         console.error("AuthProvider: Unexpected error:", error);
       }
+  
       setAuthState({ authenticated: false, isLoading: false });
       closeWebSocket();
     }

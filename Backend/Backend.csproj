@@ -14,9 +14,13 @@
 
 	<ItemGroup>
 	  <Compile Remove="Application\Services\TokenServices\**" />
+	  <Compile Remove="Infrastructure\Models\**" />
 	  <Content Remove="Application\Services\TokenServices\**" />
+	  <Content Remove="Infrastructure\Models\**" />
 	  <EmbeddedResource Remove="Application\Services\TokenServices\**" />
+	  <EmbeddedResource Remove="Infrastructure\Models\**" />
 	  <None Remove="Application\Services\TokenServices\**" />
+	  <None Remove="Infrastructure\Models\**" />
 	</ItemGroup>
   <ItemGroup>
     <PackageReference Include="AspNetCoreRateLimit" Version="5.0.0" />
@@ -47,8 +51,7 @@
   <ItemGroup>
     <Folder Include="Auth\" />
     <Folder Include="Domain\Interfaces\" />
-    <Folder Include="Infrastructure\Helpers\" />
-    <Folder Include="Infrastructure\Models\" />
+
     <Folder Include="logs\" />
   </ItemGroup>
 
