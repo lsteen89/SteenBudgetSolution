@@ -34,19 +34,6 @@ namespace Backend.Infrastructure.Services.CookieService
             response.Cookies.Append("RefreshToken", refreshToken, refreshCookieOptions);
         }
         // TODO: Delete this, used only for testing purposes.
-        public void SetAuthCookie(string token, bool isSecure)
-        {
-            if (_httpContextAccessor.HttpContext == null)
-                throw new InvalidOperationException("No active HTTP context.");
-
-            _httpContextAccessor.HttpContext.Response.Cookies.Append("auth_token", token, new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = isSecure,
-                SameSite = SameSiteMode.Strict,
-                Expires = DateTime.UtcNow.AddHours(1)
-            });
-        }
         public void DeleteAuthCookie()
         {
             if (_httpContextAccessor.HttpContext == null)

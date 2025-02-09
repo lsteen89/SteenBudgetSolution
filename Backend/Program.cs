@@ -338,7 +338,7 @@ builder.Services.AddAuthentication(options =>
         OnMessageReceived = context =>
         {
             // Retrieve token from the "JWT" cookie
-            if (context.Request.Cookies.TryGetValue("JWT", out var token))
+            if (context.Request.Cookies.TryGetValue("AccessToken", out var token))
             {
                 context.Token = token;
             }

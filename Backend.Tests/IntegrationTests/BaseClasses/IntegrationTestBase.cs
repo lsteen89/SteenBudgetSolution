@@ -128,19 +128,6 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         // Mock ICookieService
         var mockCookieService = new Mock<ICookieService>();
 
-        // Setup for SetAuthCookie
-        mockCookieService
-            .Setup(c => c.SetAuthCookie(It.IsAny<string>(), It.IsAny<bool>()))
-            .Callback<string, bool>((token, isSecure) =>
-            {
-                CookieContainer["auth_token"] = (token, new CookieOptions
-                {
-                    HttpOnly = true,
-                    Secure = isSecure,
-                    SameSite = SameSiteMode.Strict
-                });
-            });
-
         // Setup for DeleteAuthCookie
         mockCookieService
             .Setup(c => c.DeleteAuthCookie())
