@@ -34,7 +34,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const protectedRoutes = ['/dashboard']; // Add other protected routes as needed
   const isProtectedRoute = protectedRoutes.includes(location.pathname);
 
-  // Fetch auth status from the backend using cookies (no need to check localStorage)
+  // Fetch auth status from the backend using cookies
   const fetchAuthStatus = useCallback(async () => {
     try {
       console.log("AuthProvider: Checking /api/auth/status");

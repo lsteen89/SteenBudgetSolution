@@ -15,26 +15,21 @@ axiosInstance.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // If 401 and request hasn't been retried
+    // Avoid interceptor on the refresh endpoint to prevent looping.
+    if (originalRequest.url === '/api/auth/refresh') {
+      return Promise.reject(error);
+    }
+
     if (error.response && error.response.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       try {
-        console.log("Access token expired. Attempting refresh via cookies.");
-        // Call refresh endpoint without sending tokens in the body.
         const refreshResponse = await axiosInstance.post("/api/auth/refresh");
-        
         if (refreshResponse.data && refreshResponse.data.success) {
-          console.log("Token refresh succeeded.");
-          // The new tokens are set as HttpOnly cookies automatically.
           return axiosInstance(originalRequest);
-        } else {
-          console.warn("Token refresh failed:", refreshResponse.data.message);
         }
       } catch (refreshError) {
-        console.error("Token refresh error:", refreshError);
+        // Handle refresh error
       }
-      // Redirect to login on failure
-      console.warn("Redirecting to login due to token refresh failure.");
       window.location.href = '/login';
     }
     return Promise.reject(error);
