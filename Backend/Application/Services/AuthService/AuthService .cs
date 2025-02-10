@@ -120,7 +120,7 @@ namespace Backend.Application.Services.AuthService
         }
         public async Task<LoginResultDto> RefreshTokenAsync(string refreshToken, string userAgent, string deviceId, ClaimsPrincipal? user = null)
         {
-
+            _logger.LogInformation("Received plain refresh token: {PlainRefreshToken}", refreshToken);
             // Step 1: Combine the collected data in the JwtAuthenticationTokens model
             var jwtAuthenticationTokens = new JwtAuthenticationTokens
             {
@@ -132,14 +132,16 @@ namespace Backend.Application.Services.AuthService
             // Step 2
             // Retrieve the stored refresh token model for the user using a converted hash of the recieved token and convert the entity to the model
             var providedHashedToken = TokenGenerator.HashToken(jwtAuthenticationTokens.RefreshToken);
+            _logger.LogInformation("Computed refresh token hash: {ComputedHash}", providedHashedToken);
             var storedTokens = await _userSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokensAsync(refreshToken : providedHashedToken, deviceId : jwtAuthenticationTokens.DeviceId, userAgent : jwtAuthenticationTokens.UserAgent);
             var storedToken = storedTokens.FirstOrDefault(); // At this stage, we only expect one token
             if (storedToken == null || string.IsNullOrEmpty(storedToken.RefreshToken))
             {
+                _logger.LogWarning("No refresh token record found for the provided token.");
                 return new LoginResultDto { Success = false, Message = "Refresh token not found. Please login again." };
             }
             var mappedToken = RefreshTokenMapper.MapToDomainModel(storedToken);
-
+            _logger.LogInformation("Stored hashed refresh token: {StoredHash}", storedToken.RefreshToken);
             // Step 3
             // Validate the stored token's expiry and expire
             if (mappedToken.RefreshTokenExpiryDate < DateTime.UtcNow)
@@ -157,6 +159,7 @@ namespace Backend.Application.Services.AuthService
             // Compare the hash of the provided token with the stored hash
             if (providedHashedToken != mappedToken.RefreshToken)
             {
+                _logger.LogWarning("Refresh token hash mismatch.");
                 return new LoginResultDto { Success = false, Message = "Invalid refresh token. Please login again." };
             }
 
