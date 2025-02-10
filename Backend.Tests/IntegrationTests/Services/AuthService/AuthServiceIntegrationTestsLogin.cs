@@ -431,8 +431,8 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             
 
             // Verify the expiry date is correctly set (approximately 30 days in the future)
-            Assert.True(storedToken.ExpiryDate > DateTime.UtcNow.AddDays(29) &&
-                        storedToken.ExpiryDate <= DateTime.UtcNow.AddDays(30),
+            Assert.True(storedToken.RefreshTokenExpiryDate > DateTime.UtcNow.AddDays(29) &&
+                        storedToken.RefreshTokenExpiryDate <= DateTime.UtcNow.AddDays(30),
                         "Refresh token expiry should be around 30 days from now.");
         }
         [Fact]

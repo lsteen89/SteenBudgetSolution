@@ -118,19 +118,12 @@ namespace Backend.Application.Services.AuthService
                 RefreshToken = tokens.RefreshToken
             };
         }
-        public async Task<LoginResultDto> RefreshTokenAsync(string refreshToken, string accessToken, string userAgent, string deviceId, ClaimsPrincipal? user = null)
+        public async Task<LoginResultDto> RefreshTokenAsync(string refreshToken, string userAgent, string deviceId, ClaimsPrincipal? user = null)
         {
-            // Step 0: Validate the existing access token before proceeding
-            var validatedPrincipal = _jwtService.DecodeExpiredToken(accessToken);
-            if (validatedPrincipal == null)
-            {
-                return new LoginResultDto { Success = false, Message = "Invalid access token. Please log in again." };
-            }
 
             // Step 1: Combine the collected data in the JwtAuthenticationTokens model
             var jwtAuthenticationTokens = new JwtAuthenticationTokens
             {
-                AccessToken = accessToken,
                 RefreshToken = refreshToken,
                 UserAgent = userAgent,
                 DeviceId = deviceId
@@ -149,7 +142,7 @@ namespace Backend.Application.Services.AuthService
 
             // Step 3
             // Validate the stored token's expiry and expire
-            if (mappedToken.ExpiryDate < DateTime.UtcNow)
+            if (mappedToken.RefreshTokenExpiryDate < DateTime.UtcNow)
             {
                 return new LoginResultDto { Success = false, Message = "Refresh token expired. Please login again." };
             }
@@ -180,7 +173,9 @@ namespace Backend.Application.Services.AuthService
             {
                 Persoid = dbUser.PersoId,
                 RefreshToken = mappedToken.RefreshToken,
-                ExpiryDate =  DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenExpiryDays),
+                AccessTokenJti = mappedToken.AccessTokenJti,
+                RefreshTokenExpiryDate =  DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenExpiryDays),
+                AccessTokenExpiryDate = mappedToken.AccessTokenExpiryDate,
                 DeviceId = mappedToken.DeviceId,
                 UserAgent = mappedToken.UserAgent
             };

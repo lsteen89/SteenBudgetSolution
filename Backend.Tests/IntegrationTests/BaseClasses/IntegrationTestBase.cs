@@ -8,16 +8,13 @@ using Backend.Application.Interfaces.RecaptchaService;
 using Backend.Application.Interfaces.UserServices;
 using Backend.Application.Services.AuthService;
 using Backend.Application.Services.UserServices;
-using Backend.Common.Utilities;
 using Backend.Domain.Entities;
 using Backend.Infrastructure.Data.Sql.Interfaces;
 using Backend.Infrastructure.Data.Sql.Provider;
 using Backend.Infrastructure.Data.Sql.UserQueries;
 using Backend.Infrastructure.Email;
-using Backend.Infrastructure.Helpers.Converters;
 using Backend.Infrastructure.Implementations;
 using Backend.Infrastructure.Interfaces;
-using Backend.Infrastructure.Security;
 using Backend.Test.UserTests;
 using Backend.Tests.Mocks;
 using Dapper;
@@ -30,6 +27,7 @@ using MySqlConnector;
 using System.Data.Common;
 using System.Security.Claims;
 using Xunit;
+using Backend.Common.Converters;
 
 public abstract class IntegrationTestBase : IAsyncLifetime
 {
@@ -104,7 +102,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
             Issuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "eBudget",
             Audience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "eBudget",
             SecretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY") ?? "development-fallback-key",
-            ExpiryMinutes = int.TryParse(Environment.GetEnvironmentVariable("JWT_EXPIRY_MINUTES"), out var expiry) ? expiry : 15,
+            ExpiryMinutes = int.TryParse(Environment.GetEnvironmentVariable("JWT_EXPIRY_MINUTES"), out var expiry) ? expiry : 3,
             RefreshTokenExpiryDays = int.TryParse(Environment.GetEnvironmentVariable("JWT_REFRESH_TOKEN_EXPIRY_DAYS"), out var rtExpiry) ? rtExpiry : 30
         };
 

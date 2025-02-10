@@ -5,6 +5,7 @@ using System.Data.Common;
 using Backend.Infrastructure.Entities;
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.AspNetCore.Http.HttpResults;
+using System.Data;
 
 namespace Backend.Infrastructure.Data.Sql.UserQueries
 {
@@ -22,12 +23,12 @@ namespace Backend.Infrastructure.Data.Sql.UserQueries
             {
                 _logger.LogInformation("Adding refresh token for PersoId: {PersoId}", refreshJwtTokenEntity.Persoid);
                 string sql = @"INSERT INTO RefreshTokens 
-                                (PersoId, RefreshToken, ExpiryDate, DeviceId, UserAgent, CreatedBy, CreatedTime) 
+                                (PersoId, RefreshToken, AccessTokenJti, RefreshTokenExpiryDate, AccessTokenExpiryDate, DeviceId, UserAgent, CreatedBy, CreatedTime) 
                             VALUES 
-                                (@PersoId, @RefreshToken, @ExpiryDate, @DeviceId, @UserAgent, @CreatedBy, @CreatedTime)
+                                (@PersoId, @RefreshToken, @AccessTokenJti, @RefreshTokenExpiryDate, @AccessTokenExpiryDate, @DeviceId, @UserAgent, @CreatedBy, @CreatedTime)
                             ON DUPLICATE KEY UPDATE
                                 RefreshToken = VALUES(RefreshToken),
-                                ExpiryDate = VALUES(ExpiryDate),
+                                RefreshTokenExpiryDate = VALUES(RefreshTokenExpiryDate),
                                 CreatedBy = VALUES(CreatedBy),
                                 CreatedTime = VALUES(CreatedTime); ";
 
@@ -36,12 +37,14 @@ namespace Backend.Infrastructure.Data.Sql.UserQueries
                 // It updates the record if the primary key already exists
                 // Otherwise, it inserts a new record
                 // This scenario is for when a user logs in from the same device multiple times and still has a valid refresh token
-
+                
                 int rowsAffected = await ExecuteAsync(sql, new
                 {
                     PersoId = refreshJwtTokenEntity.Persoid,
                     RefreshToken = refreshJwtTokenEntity.RefreshToken,
-                    ExpiryDate = refreshJwtTokenEntity.ExpiryDate,
+                    AccessTokenJti = refreshJwtTokenEntity.AccessTokenJti,
+                    RefreshTokenExpiryDate = refreshJwtTokenEntity.RefreshTokenExpiryDate,
+                    AccessTokenExpiryDate = refreshJwtTokenEntity.AccessTokenExpiryDate,
                     DeviceId = refreshJwtTokenEntity.DeviceId,
                     UserAgent = refreshJwtTokenEntity.UserAgent,
                     CreatedBy = refreshJwtTokenEntity.CreatedBy,
@@ -67,7 +70,7 @@ namespace Backend.Infrastructure.Data.Sql.UserQueries
                 throw new ArgumentException("At least one parameter must be provided.");
             }
 
-            string sql = "SELECT Persoid, RefreshToken, ExpiryDate, DeviceId, UserAgent, CreatedBy, CreatedTime FROM RefreshTokens WHERE 1=1";
+            string sql = "SELECT Persoid, RefreshToken, AccessTokenJti, RefreshTokenExpiryDate, AccessTokenExpiryDate, DeviceId, UserAgent, CreatedBy, CreatedTime FROM RefreshTokens WHERE 1=1";
             var parameters = new DynamicParameters();
 
             if (!string.IsNullOrEmpty(refreshToken))
@@ -97,8 +100,6 @@ namespace Backend.Infrastructure.Data.Sql.UserQueries
             // Use QueryAsync to return all matching records
             return await QueryAsync<RefreshJwtTokenEntity>(sql, parameters);
         }
-
-
         public async Task<bool> AddBlacklistedTokenAsync(string jti, DateTime expiration)
         {
             try
@@ -129,7 +130,7 @@ namespace Backend.Infrastructure.Data.Sql.UserQueries
 
         public async Task<bool> UpdateRefreshTokenExpiryAsync(Guid persoid, DateTime newExpiry)
         {
-            string sql = "UPDATE RefreshTokens SET ExpiryDate = @NewExpiry WHERE PersoId = @PersoId";
+            string sql = "UPDATE RefreshTokens SET RefreshTokenExpiryDate = @NewExpiry WHERE PersoId = @PersoId";
             int rowsAffected = await _connection.ExecuteAsync(sql, new { NewExpiry = newExpiry, PersoId = persoid });
             return rowsAffected > 0;
         }
@@ -155,8 +156,25 @@ namespace Backend.Infrastructure.Data.Sql.UserQueries
             var rowsAffected = await ExecuteAsync(sql, new { PersoId = userId });
             return rowsAffected > 0;
         }
+        public async Task<BlacklistedTokenEntity?> GetBlacklistedTokenByJtiAsync(string? jti)
+        {
+            if (string.IsNullOrEmpty(jti))
+            {
+                throw new ArgumentException("JTI must be provided.", nameof(jti));
+            }
+
+            string sqlQuery = "SELECT Id, Jti, ExpiryDate, CreatedAt FROM BlacklistedTokens WHERE Jti = @Jti";
+            var parameters = new DynamicParameters();
+            parameters.Add("Jti", jti);
+
+            var token = await QueryFirstOrDefaultAsync<BlacklistedTokenEntity>(sqlQuery, parameters);
+            if (token == null)
+            {
+                _logger.LogWarning("No blacklisted token found for JTI: {Jti}", jti);
+            }
+            return token;
+        }
     }
-    
 }
 
 

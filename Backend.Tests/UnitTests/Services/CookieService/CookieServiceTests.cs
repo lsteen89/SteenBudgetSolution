@@ -1,7 +1,10 @@
 ﻿using Backend.Application.Configuration;
 using Microsoft.AspNetCore.Http;
 using Xunit;
-
+using Backend.Common.Utilities;
+using Microsoft.Extensions.Configuration;
+using Moq;
+using Microsoft.AspNetCore.Hosting;
 
 namespace Backend.Tests.UnitTests.Services.CookieService
 {
@@ -20,9 +23,11 @@ namespace Backend.Tests.UnitTests.Services.CookieService
             // Create a DefaultHttpContext and assign it to an HttpContextAccessor
             var defaultContext = new DefaultHttpContext();
             var httpContextAccessor = new HttpContextAccessor { HttpContext = defaultContext };
+            // Create a mock IWebHostEnvironment that returns "Development"
+            var mockEnv = new Mock<IWebHostEnvironment>();
+            mockEnv.Setup(env => env.EnvironmentName).Returns("Development");
 
-
-            var cookieService = new Backend.Infrastructure.Services.CookieService.CookieService(httpContextAccessor, jwtSettings);
+            var cookieService = new Backend.Infrastructure.Services.CookieService.CookieService(mockEnv.Object, httpContextAccessor, jwtSettings);
             string accessToken = "test-access-token";
             string refreshToken = "test-refresh-token";
 
@@ -44,8 +49,8 @@ namespace Backend.Tests.UnitTests.Services.CookieService
             Assert.True(refreshCookie.Options.HttpOnly, "RefreshToken should be HttpOnly.");
             Assert.True(accessCookie.Options.Secure, "AccessToken should be Secure.");
             Assert.True(refreshCookie.Options.Secure, "RefreshToken should be Secure.");
-            Assert.Equal(SameSiteMode.Strict, accessCookie.Options.SameSite);
-            Assert.Equal(SameSiteMode.Strict, refreshCookie.Options.SameSite);
+            Assert.Equal(SameSiteMode.Lax, accessCookie.Options.SameSite);
+            Assert.Equal(SameSiteMode.Lax, refreshCookie.Options.SameSite);
 
             // Verify that expiration is correctly set (greater than now).
             Assert.NotNull(accessCookie.Options.Expires);

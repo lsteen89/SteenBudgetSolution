@@ -1,5 +1,6 @@
 ﻿using Backend.Application.Models;
 using Backend.Infrastructure.Entities;
+using static Dapper.SqlMapper;
 
 // A mapper class that maps the RefreshTokenModel to the RefreshJwtTokenEntity and vice versa.
 // This is used to transition the RefreshTokenModel to the RefreshJwtTokenEntity, infrastructure layer to application layer and vice versa.
@@ -16,7 +17,9 @@ namespace Backend.Application.Mappers
             {
                 Persoid = entity.Persoid,
                 RefreshToken = entity.RefreshToken,
-                ExpiryDate = entity.ExpiryDate,
+                AccessTokenJti = entity.AccessTokenJti,
+                RefreshTokenExpiryDate = entity.RefreshTokenExpiryDate,
+                AccessTokenExpiryDate = entity.AccessTokenExpiryDate,
                 DeviceId = entity.DeviceId,
                 UserAgent = entity.UserAgent
             };
@@ -31,7 +34,9 @@ namespace Backend.Application.Mappers
             {
                 Persoid = model.Persoid,
                 RefreshToken = model.RefreshToken,
-                ExpiryDate = model.ExpiryDate,
+                AccessTokenJti = model.AccessTokenJti,
+                RefreshTokenExpiryDate = model.RefreshTokenExpiryDate,
+                AccessTokenExpiryDate = model.AccessTokenExpiryDate,
                 DeviceId = model.DeviceId,
                 UserAgent = model.UserAgent,
                 CreatedBy = "System",       

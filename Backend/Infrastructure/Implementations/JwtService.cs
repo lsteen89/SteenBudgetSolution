@@ -8,6 +8,7 @@ using Backend.Infrastructure.Data.Sql.Interfaces;
 using Backend.Infrastructure.Interfaces;
 using Backend.Infrastructure.Security;
 using Microsoft.IdentityModel.Tokens;
+using Newtonsoft.Json.Linq;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -49,33 +50,13 @@ namespace Backend.Infrastructure.Implementations
         // This method does not rotate the token by default and accepts a JwtTokenModel, which is a generic model for the token
         public async Task<LoginResultDto> GenerateJWTTokenAsync(JwtTokenModel jwtTokenModel, ClaimsPrincipal? user = null)
         {
-            // Step 1: Generate the JWT token
-            var token = GenerateJwtToken(jwtTokenModel);
-            _logger.LogInformation($"Generated JWT token for user {jwtTokenModel.Email}");
-
-            // Step 2: Generate a new refresh token
-            var refreshToken = TokenGenerator.GenerateRefreshToken();  
-            var hashedRefreshToken = TokenGenerator.HashToken(refreshToken);
-            DateTime refreshTokenExpiry = DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenExpiryDays);
-
-            // Step 3: Map to entity model and store the refresh token in the database
-            var newRefreshTokenModel = new JwtRefreshTokenModel
-            {
-                Persoid = jwtTokenModel.Persoid,
-                RefreshToken = hashedRefreshToken,
-                ExpiryDate = refreshTokenExpiry,
-                DeviceId = jwtTokenModel.DeviceId,
-                UserAgent = jwtTokenModel.UserAgent
-            };
-
-            var refreshTokenEntity = RefreshTokenMapper.MapToEntity(newRefreshTokenModel);
-            bool insertSuccessful = await _refreshTokenSqlExecutor.AddRefreshTokenAsync(refreshTokenEntity);
-            if (!insertSuccessful)
+            var (newAccessToken, newRefreshToken, newTokensSuccess) = await CreateAndStoreNewTokensAsync(jwtTokenModel);
+            if (!newTokensSuccess)
             {
                 return new LoginResultDto { Success = false, Message = "Internal error" };
             }
-            
-            return new LoginResultDto { Success = true, Message = "Login successful", UserName = jwtTokenModel.Email, AccessToken = token, RefreshToken = refreshToken };
+
+            return new LoginResultDto { Success = true, Message = "Login successful", UserName = jwtTokenModel.Email, AccessToken = newAccessToken, RefreshToken = newRefreshToken };
         }
 
         // Overload for the GenerateJWTTokenAsync method
@@ -90,7 +71,7 @@ namespace Backend.Infrastructure.Implementations
                 return new LoginResultDto { Success = false, Message = "User not found." };
             }
 
-            // step 2: Create a new JwtTokenModel for generating a new access token
+            // Step 2: Create a new JwtTokenModel for generating a new access token
             JwtTokenModel jwtTokenModel = Backend.Application.Helpers.Jwt.TokenHelper.CreateTokenModel(
                 dbUser.PersoId,
                 dbUser.Email,
@@ -98,51 +79,37 @@ namespace Backend.Infrastructure.Implementations
                 jwtRefreshTokenModel.UserAgent
             );
 
-
-            // Step 3: Generate the JWT token
-            var token = GenerateJwtToken(jwtTokenModel);
-            _logger.LogInformation($"Generated JWT token for user {jwtTokenModel.Email}");
-
-            // Step 4: Delete existing refreshtoken for user, delete it
+            // Step 3: Retrieve the old refresh token record's data, then delete it.
             bool deleteSuccess = await _userSQLProvider.RefreshTokenSqlExecutor.DeleteTokenAsync(jwtRefreshTokenModel.RefreshToken);
-            if(!deleteSuccess)
+            if (!deleteSuccess)
             {
-                _logger.LogWarning("Error deleting refresh token for user {Email}", jwtTokenModel.Email);
+                _logger.LogWarning("Error deleting refresh token for user {Email}", dbUser.Email);
                 return new LoginResultDto { Success = false, Message = "Internal error" };
             }
 
-            // Step 4: Blacklist the old access token
-            bool blackListsuccess = await BlacklistJwtTokenAsync(token);
-            if (!blackListsuccess)
+            // Step 4: Blacklist the old access token using the stored JTI from the refresh token record.
+            bool blacklistSuccess = await BlacklistTokenByJtiAsync(jwtRefreshTokenModel.AccessTokenJti, jwtRefreshTokenModel.AccessTokenExpiryDate);
+            if (!blacklistSuccess)
             {
-                _logger.LogWarning("Error blacklisting accesstoken for user {Email}", jwtTokenModel.Email);
+                _logger.LogWarning("Error blacklisting old access token for user {Email}", dbUser.Email);
                 return new LoginResultDto { Success = false, Message = "Internal error" };
             }
-            
-            // Step 5: Generate a new refresh token
-            var refreshToken = TokenGenerator.GenerateRefreshToken();
-            var hashedRefreshToken = TokenGenerator.HashToken(refreshToken);
-            DateTime refreshTokenExpiry = DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenExpiryDays);
 
-            // Step 6: Map to entity model and store the refresh token in the database
-            var newRefreshTokenModel = new JwtRefreshTokenModel
+            // Step 5: Generate new tokens and store them using our shared helper
+            var (newAccessToken, newRefreshToken, newTokensSuccess) = await CreateAndStoreNewTokensAsync(jwtTokenModel);
+            if (!newTokensSuccess)
             {
-                Persoid = jwtTokenModel.Persoid,
-                RefreshToken = hashedRefreshToken,
-                ExpiryDate = refreshTokenExpiry,
-                DeviceId = jwtTokenModel.DeviceId,
-                UserAgent = jwtTokenModel.UserAgent
+                return new LoginResultDto { Success = false, Message = "Internal error" };
+            }
+
+            return new LoginResultDto
+            {
+                Success = true,
+                Message = "Token refreshed successfully",
+                UserName = dbUser.Email,
+                AccessToken = newAccessToken,
+                RefreshToken = newRefreshToken
             };
-
-            var refreshTokenEntity = RefreshTokenMapper.MapToEntity(newRefreshTokenModel);
-            bool insertSuccessful = await _refreshTokenSqlExecutor.AddRefreshTokenAsync(refreshTokenEntity);
-            if (!insertSuccessful)
-            {
-                _logger.LogWarning("Error inserting refresh token for user {Email}", jwtTokenModel.Email);
-                return new LoginResultDto { Success = false, Message = "Internal error" };
-            }
-
-            return new LoginResultDto { Success = true, Message = "Token refreshed successfully", UserName = jwtTokenModel.Email, AccessToken = token, RefreshToken = refreshToken };
         }
 
         private string GenerateJwtToken(JwtTokenModel jwtTokenModel, Dictionary<string, string>? additionalClaims = null)
@@ -160,7 +127,7 @@ namespace Backend.Infrastructure.Implementations
                 new Claim(JwtRegisteredClaimNames.Sub, jwtTokenModel.Persoid.ToString()), // Subject (user ID)
                 new Claim(JwtRegisteredClaimNames.Email, jwtTokenModel.Email), // Email
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()), // Unique ID for each token
-                new Claim(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64) // Issued at
+                new Claim(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64), // Issued at
             };
 
             // Add additional claims if provided
@@ -219,6 +186,30 @@ namespace Backend.Infrastructure.Implementations
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error while blacklisting JWT token.");
+                return false;
+            }
+        }
+        public async Task<bool> BlacklistTokenByJtiAsync(string jti, DateTime accessTokenExpiryDate)
+        {
+            if (string.IsNullOrEmpty(jti))
+            {
+                _logger.LogWarning("BlacklistTokenByJtiAsync: JTI is null or empty.");
+                return false;
+            }
+            try
+            {
+                bool success = await _tokenBlacklistService.BlacklistTokenByJtiAsync(jti, accessTokenExpiryDate);
+                if (!success)
+                {
+                    _logger.LogWarning($"Token {jti} could not be inserted into the blacklist.");
+                    return false;
+                }
+                _logger.LogInformation($"Token with JTI {jti} has been blacklisted until {accessTokenExpiryDate}.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error while blacklisting token by JTI.");
                 return false;
             }
         }
@@ -310,6 +301,93 @@ namespace Backend.Infrastructure.Implementations
                 _logger.LogError(ex, "Error decoding expired token.");
                 return null;
             }
+        }
+        private string GetJtiFromToken(string token)
+        {
+            try
+            {
+                var tokenHandler = new JwtSecurityTokenHandler();
+                var jwtToken = tokenHandler.ReadJwtToken(token);
+                return jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Jti)?.Value;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error extracting JTI from token.");
+                return null;
+            }
+        }
+        private DateTime? GetAccessTokenExpiryDate(string token)
+        {
+            var tokenHandler = new JwtSecurityTokenHandler();
+            if (!tokenHandler.CanReadToken(token))
+            {
+                _logger.LogWarning("Cannot read the token.");
+                return null;
+            }
+
+            try
+            {
+                var jwtToken = tokenHandler.ReadJwtToken(token);
+                // The "exp" claim is a Unix timestamp (in seconds).
+                var expClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Exp)?.Value;
+                if (!string.IsNullOrEmpty(expClaim) && long.TryParse(expClaim, out var expUnix))
+                {
+                    return DateTimeOffset.FromUnixTimeSeconds(expUnix).UtcDateTime;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error extracting access token expiry date.");
+            }
+            return null;
+        }
+        private async Task<(string NewAccessToken, string PlainRefreshToken, bool Success)> CreateAndStoreNewTokensAsync(JwtTokenModel jwtTokenModel)
+        {
+            // Generate the new access token
+            var newAccessToken = GenerateJwtToken(jwtTokenModel);
+            _logger.LogInformation($"Generated new JWT token for user {jwtTokenModel.Email}");
+
+            // Extract the new token's JTI
+            string newJti = GetJtiFromToken(newAccessToken);
+            if (string.IsNullOrEmpty(newJti))
+            {
+                _logger.LogError("Failed to extract JTI from the new access token.");
+                return (null, null, false);
+            }
+            // Get the access token expiry date
+            var accessTokenExpiryDate = GetAccessTokenExpiryDate(newAccessToken);
+            if (!accessTokenExpiryDate.HasValue)
+            {
+                _logger.LogError("Failed to extract access token expiry date.");
+                return (null, null, false);
+            }
+
+            // Generate a new refresh token
+            var plainRefreshToken = TokenGenerator.GenerateRefreshToken();
+            var hashedRefreshToken = TokenGenerator.HashToken(plainRefreshToken);
+            DateTime refreshTokenExpiry = DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenExpiryDays);
+
+            // Map to entity model and store the new refresh token in the database
+            var newRefreshTokenModel = new JwtRefreshTokenModel
+            {
+                Persoid = jwtTokenModel.Persoid,
+                RefreshToken = hashedRefreshToken,
+                AccessTokenJti = newJti,
+                RefreshTokenExpiryDate = refreshTokenExpiry,
+                AccessTokenExpiryDate = accessTokenExpiryDate.Value,
+                DeviceId = jwtTokenModel.DeviceId,
+                UserAgent = jwtTokenModel.UserAgent
+            };
+
+            var refreshTokenEntity = RefreshTokenMapper.MapToEntity(newRefreshTokenModel);
+            bool insertSuccessful = await _refreshTokenSqlExecutor.AddRefreshTokenAsync(refreshTokenEntity);
+            if (!insertSuccessful)
+            {
+                _logger.LogWarning("Error inserting new refresh token for user {Email}", jwtTokenModel.Email);
+                return (null, null, false);
+            }
+
+            return (newAccessToken, plainRefreshToken, true);
         }
 
     }
