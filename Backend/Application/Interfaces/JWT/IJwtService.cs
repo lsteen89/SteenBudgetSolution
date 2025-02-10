@@ -11,6 +11,7 @@ namespace Backend.Application.Interfaces.JWT
         Task<LoginResultDto> GenerateJWTTokenAsync(JwtTokenModel jwtTokenModel, ClaimsPrincipal? user = null);
         Task<LoginResultDto> GenerateJWTTokenAsync(JwtRefreshTokenModel jwtRefreshTokenModel, ClaimsPrincipal? user = null);
         Task<bool> BlacklistJwtTokenAsync(string token);
+        Task<bool> BlacklistTokenByJtiAsync(string jti, DateTime accessTokenExpiryDate);
         ClaimsPrincipal? DecodeExpiredToken(string token);
     }
 }

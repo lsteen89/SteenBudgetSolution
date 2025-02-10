@@ -1,22 +1,17 @@
 ﻿using Backend.Application.Interfaces.EmailServices;
 using Backend.Application.Interfaces.UserServices;
+using Backend.Application.Services.UserServices;
 using Backend.Application.Settings;
 using Backend.Infrastructure.Data.Sql.Interfaces;
 using Backend.Infrastructure.Interfaces;
-using Backend.Tests.Mocks; 
+using Backend.Tests.Mocks;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
-using Microsoft.Extensions.Configuration;
-using Backend.Infrastructure.Security;
 using Xunit;
-using Backend.Application.Services.UserServices;
-using Microsoft.AspNetCore.Authentication;
-using Backend.Application.Services.EmailServices;
-using Backend.Infrastructure.Data.Sql.Provider;
-using Backend.Infrastructure.Helpers;
 
 public abstract class UnitTestBase
 {

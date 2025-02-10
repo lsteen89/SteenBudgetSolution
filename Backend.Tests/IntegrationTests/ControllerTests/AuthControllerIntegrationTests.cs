@@ -25,12 +25,7 @@ namespace Backend.Tests.IntegrationTests.ControllerTests
         {
             // Arrange: Create and confirm user
             var (ipAddress, deviceId, userAgent) = AuthTestHelper.GetDefaultMetadata();
-            var userLoginDto = new UserLoginDto
-            {
-                Email = "l@l.se",
-                Password = "Password123!",
-                CaptchaToken = "mock-captcha-token"
-            };
+            var userLoginDto = new UserLoginDto { Email = "l@l.se", Password = "Password123!" };
             var registeredUser = await SetupUserAsync();
             await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
 

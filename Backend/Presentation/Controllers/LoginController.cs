@@ -143,22 +143,21 @@ namespace Backend.Presentation.Controllers
                 ipAddress, userAgent, deviceId);
 
             // Extract tokens from cookies using the utility method
-            var (accessToken, refreshToken) = RequestMetadataHelper.ExtractTokensFromCookies(HttpContext);
+            var refreshToken = RequestMetadataHelper.ExtractTokensFromCookies(HttpContext);
 
-            _logger.LogInformation("Access token: {AccessToken}", accessToken);
             _logger.LogInformation("Processing refresh token request for RefreshToken: {RefreshToken}", refreshToken);
 
             // Ensure tokens are provided
-            if (string.IsNullOrEmpty(refreshToken) || string.IsNullOrEmpty(accessToken))
+            if (string.IsNullOrEmpty(refreshToken.RefreshToken))
             {
-                _logger.LogWarning("Missing tokens for refresh.");
+                _logger.LogWarning("Missing refreshtoken for refresh.");
                 return Unauthorized(new { success = false, message = "Missing tokens." });
             }
 
             _logger.LogInformation("Processing refresh token request from cookies.");
 
             // Validate the incoming refresh token and associated user data
-            var tokens = await _authService.RefreshTokenAsync(refreshToken, accessToken, userAgent, deviceId);
+            var tokens = await _authService.RefreshTokenAsync(refreshToken.RefreshToken, userAgent, deviceId);
             if (!tokens.Success)
             {
                 _logger.LogWarning("Refresh token failed for user: {RefreshToken}", refreshToken);

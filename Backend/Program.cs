@@ -88,7 +88,7 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 // Log the file path after Serilog is initialized
 Log.Information($"Log file path: {logFilePath}");
-
+Log.Information("JWT Expiry Minutes: {ExpiryMinutes}", jwtSettings.ExpiryMinutes);
 // Set Serilog as the logging provider
 builder.Host.UseSerilog();
 #endregion

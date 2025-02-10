@@ -117,9 +117,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         // If user is on a protected route, do a forced redirect
         if (isProtectedRoute) {
-          console.log("AuthProvider: Protected route => redirecting to /login");
+          console.log("AuthProvider: Protected route => logging out and redirecting to /login");
+          try {
+              await axiosInstance.post("/api/auth/logout");
+          } catch (logoutError) {
+              console.error("Error during logout call:", logoutError);
+          }
           window.location.href = "/login";
-        }
+      }
 
         setAuthState({ authenticated: false, isLoading: false });
         closeWebSocket();
@@ -145,6 +150,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     setAuthState({ authenticated: false, isLoading: false });
     closeWebSocket();
+    window.location.href = "/login"; // redirect to login
   }, [closeWebSocket]);
 
   /**
