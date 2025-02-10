@@ -128,14 +128,6 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         // Mock ICookieService
         var mockCookieService = new Mock<ICookieService>();
 
-        // Setup for DeleteAuthCookie
-        mockCookieService
-            .Setup(c => c.DeleteAuthCookie())
-            .Callback(() =>
-            {
-                CookieContainer.Remove("auth_token");
-            });
-
         serviceCollection.AddSingleton(mockCookieService.Object);
 
         // Mock IEmailResetPasswordService

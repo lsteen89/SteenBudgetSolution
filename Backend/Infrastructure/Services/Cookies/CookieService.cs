@@ -19,7 +19,8 @@ namespace Backend.Infrastructure.Services.CookieService
             {
                 HttpOnly = true,
                 Secure = true,
-                SameSite = SameSiteMode.Strict,
+                SameSite = SameSiteMode.Lax,
+                Domain = ".ebudget.se",
                 Expires = DateTime.UtcNow.AddMinutes(_jwtSettings.ExpiryMinutes)
             };
             response.Cookies.Append("AccessToken", accessToken, accessCookieOptions);
@@ -28,23 +29,11 @@ namespace Backend.Infrastructure.Services.CookieService
             {
                 HttpOnly = true,
                 Secure = true,
-                SameSite = SameSiteMode.Strict,
+                SameSite = SameSiteMode.Lax,
+                Domain = ".ebudget.se",
                 Expires = DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenExpiryDays)
             };
             response.Cookies.Append("RefreshToken", refreshToken, refreshCookieOptions);
-        }
-        public void DeleteAuthCookie()
-        {
-            if (_httpContextAccessor.HttpContext == null)
-                throw new InvalidOperationException("No active HTTP context.");
-
-            var response = _httpContextAccessor.HttpContext.Response;
-
-            response.Cookies.Delete("auth_token", new CookieOptions
-            {
-                Path = "/",
-                Domain = "ebudget.se"
-            });
         }
     }
 }
