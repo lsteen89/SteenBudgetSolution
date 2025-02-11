@@ -171,5 +171,11 @@ namespace Backend.Presentation.Controllers
                 message = tokens.Message
             });
         }
+        [Authorize] 
+        [HttpGet("health")]
+        public IActionResult HealthCheck()
+        {
+            return Ok(new { message = "All good!" });
+        }
     }
 }
