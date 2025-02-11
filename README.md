@@ -60,3 +60,7 @@ Why This Project:
 This project demonstrates my ability to design, deploy, and manage a complete full-stack application independently, with a strong focus on secure practices, efficient CI/CD workflows, and the use of modern development tools.
 
 Installation & Setup: See INSTALL.md for a full setup guide, including environment configuration, database initialization, and security recommendations.
+
+
+For more details on our JWT-based authentication, periodic token checks, and WebSocket logout,
+see [docs/Authentication.md](docs/Authentication.md).
