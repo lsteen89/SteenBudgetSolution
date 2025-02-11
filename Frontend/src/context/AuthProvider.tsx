@@ -10,6 +10,12 @@ import axiosInstance from "@api/axiosConfig";
 import { isAxiosError } from "axios";
 import type { AuthState, AuthContextType } from "../types/authTypes";
 
+console.log("AuthProvider component rendering...");
+useEffect(() => {
+  console.log("AuthProvider mounted.");
+  return () => console.log("AuthProvider unmounted.");
+}, []);
+
 type Props = {
   children: React.ReactNode;
 };
@@ -44,6 +50,7 @@ export const AuthProvider: React.FC<Props> = ({ children }) => {
 
   // Open WebSocket if authenticated
   const openWebSocket = useCallback(() => {
+    console.log("openWebSocket CALLED");
     const websocketUrl =
       import.meta.env.MODE === "development"
         ? "ws://localhost:5000/ws/auth"
