@@ -10,12 +10,6 @@ import axiosInstance from "@api/axiosConfig";
 import { isAxiosError } from "axios";
 import type { AuthState, AuthContextType } from "../types/authTypes";
 
-console.log("AuthProvider component rendering...");
-useEffect(() => {
-  console.log("AuthProvider mounted.");
-  return () => console.log("AuthProvider unmounted.");
-}, []);
-
 type Props = {
   children: React.ReactNode;
 };
@@ -35,7 +29,11 @@ export const AuthProvider: React.FC<Props> = ({ children }) => {
     authenticated: false,
     isLoading: true,
   });
-
+  console.log("AuthProvider component rendering...");
+  useEffect(() => {
+    console.log("AuthProvider mounted.");
+    return () => console.log("AuthProvider unmounted.");
+  }, []);
   /** -------------- WEBSOCKET LOGIC -------------- **/
   const wsRef = useRef<WebSocket | null>(null);
 
