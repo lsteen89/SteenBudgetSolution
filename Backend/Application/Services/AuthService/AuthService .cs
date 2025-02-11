@@ -197,7 +197,8 @@ namespace Backend.Application.Services.AuthService
                 Success = true,
                 Message = "Token refreshed successfully.",
                 AccessToken = newTokens.AccessToken,
-                RefreshToken = newTokens.RefreshToken
+                RefreshToken = newTokens.RefreshToken,
+                SessionId = newTokens.SessionId,
             };
         }
         public async Task LogoutAsync(ClaimsPrincipal user, string accessToken, string refreshToken, string sessionId, bool logoutAll)
