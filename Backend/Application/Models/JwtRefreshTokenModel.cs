@@ -3,6 +3,7 @@
     public class JwtRefreshTokenModel
     {
         public Guid Persoid { get; set; }
+        public string SessionId { get; set; }
         public string RefreshToken { get; set; }
         public string AccessTokenJti { get; set; }
         public DateTime RefreshTokenExpiryDate { get; set; }

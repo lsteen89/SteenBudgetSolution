@@ -23,24 +23,14 @@ namespace Backend.Infrastructure.Data.Sql.UserQueries
             {
                 _logger.LogInformation("Adding refresh token for PersoId: {PersoId}", refreshJwtTokenEntity.Persoid);
                 string sql = @"INSERT INTO RefreshTokens 
-                                (PersoId, RefreshToken, AccessTokenJti, RefreshTokenExpiryDate, AccessTokenExpiryDate, DeviceId, UserAgent, CreatedBy, CreatedTime) 
+                                (PersoId, SessionId, RefreshToken, AccessTokenJti, RefreshTokenExpiryDate, AccessTokenExpiryDate, DeviceId, UserAgent, CreatedBy, CreatedTime) 
                             VALUES 
-                                (@PersoId, @RefreshToken, @AccessTokenJti, @RefreshTokenExpiryDate, @AccessTokenExpiryDate, @DeviceId, @UserAgent, @CreatedBy, @CreatedTime)
-                            ON DUPLICATE KEY UPDATE
-                                RefreshToken = VALUES(RefreshToken),
-                                RefreshTokenExpiryDate = VALUES(RefreshTokenExpiryDate),
-                                CreatedBy = VALUES(CreatedBy),
-                                CreatedTime = VALUES(CreatedTime); ";
-
-                // Use ExecuteAsync to insert a new record or update an existing record
-                // The ON DUPLICATE KEY UPDATE clause is specific to MySQL and MariaDB
-                // It updates the record if the primary key already exists
-                // Otherwise, it inserts a new record
-                // This scenario is for when a user logs in from the same device multiple times and still has a valid refresh token
+                                (@PersoId, @SessionId, @RefreshToken, @AccessTokenJti, @RefreshTokenExpiryDate, @AccessTokenExpiryDate, @DeviceId, @UserAgent, @CreatedBy, @CreatedTime)";
                 
                 int rowsAffected = await ExecuteAsync(sql, new
                 {
                     PersoId = refreshJwtTokenEntity.Persoid,
+                    SessionId = refreshJwtTokenEntity.SessionId,
                     RefreshToken = refreshJwtTokenEntity.RefreshToken,
                     AccessTokenJti = refreshJwtTokenEntity.AccessTokenJti,
                     RefreshTokenExpiryDate = refreshJwtTokenEntity.RefreshTokenExpiryDate,
@@ -62,15 +52,15 @@ namespace Backend.Infrastructure.Data.Sql.UserQueries
         public async Task<IEnumerable<RefreshJwtTokenEntity>> GetRefreshTokensAsync(
             Guid? persoid = null,
             string refreshToken = null,
-            string deviceId = null,
-            string userAgent = null)
+            string sessionId = null
+            )
         {
             if (!persoid.HasValue && string.IsNullOrEmpty(refreshToken))
             {
                 throw new ArgumentException("At least one parameter must be provided.");
             }
 
-            string sql = "SELECT Persoid, RefreshToken, AccessTokenJti, RefreshTokenExpiryDate, AccessTokenExpiryDate, DeviceId, UserAgent, CreatedBy, CreatedTime FROM RefreshTokens WHERE 1=1";
+            string sql = "SELECT Persoid, CAST(SessionId AS CHAR(36)) AS SessionId, RefreshToken, AccessTokenJti, RefreshTokenExpiryDate, AccessTokenExpiryDate, DeviceId, UserAgent, CreatedBy, CreatedTime FROM RefreshTokens WHERE 1=1";
             var parameters = new DynamicParameters();
 
             if (!string.IsNullOrEmpty(refreshToken))
@@ -85,16 +75,10 @@ namespace Backend.Infrastructure.Data.Sql.UserQueries
                 parameters.Add("Persoid", persoid.Value);
             }
 
-            if (!string.IsNullOrEmpty(deviceId))
+            if (!string.IsNullOrEmpty(sessionId))
             {
-                sql += " AND DeviceId = @DeviceId";
-                parameters.Add("DeviceId", deviceId);
-            }
-
-            if (!string.IsNullOrEmpty(userAgent))
-            {
-                sql += " AND UserAgent = @UserAgent";
-                parameters.Add("UserAgent", userAgent);
+                sql += " AND SessionId = @SessionId";
+                parameters.Add("SessionId", sessionId);
             }
 
             // Use QueryAsync to return all matching records

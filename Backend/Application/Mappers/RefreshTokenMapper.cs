@@ -16,6 +16,7 @@ namespace Backend.Application.Mappers
             return new JwtRefreshTokenModel
             {
                 Persoid = entity.Persoid,
+                SessionId = entity.SessionId,
                 RefreshToken = entity.RefreshToken,
                 AccessTokenJti = entity.AccessTokenJti,
                 RefreshTokenExpiryDate = entity.RefreshTokenExpiryDate,
@@ -33,6 +34,7 @@ namespace Backend.Application.Mappers
             return new RefreshJwtTokenEntity
             {
                 Persoid = model.Persoid,
+                SessionId = model.SessionId,
                 RefreshToken = model.RefreshToken,
                 AccessTokenJti = model.AccessTokenJti,
                 RefreshTokenExpiryDate = model.RefreshTokenExpiryDate,

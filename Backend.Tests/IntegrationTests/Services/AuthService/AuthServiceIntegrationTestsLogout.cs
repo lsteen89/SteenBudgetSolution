@@ -80,9 +80,9 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             var providedHashedToken = TokenGenerator.HashToken(loginResult.RefreshToken);
             var storedTokens = await UserSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokensAsync(refreshToken: providedHashedToken);
             var storedToken = storedTokens.FirstOrDefault();
-
+            
             // **Act** - Call LogoutAsync
-            await AuthService.LogoutAsync(principal, authToken, storedToken.RefreshToken, logoutAll : false);
+            await AuthService.LogoutAsync(principal, authToken, storedToken.RefreshToken, storedToken.SessionId, logoutAll : false);
 
             // **Assert** - Token should be blacklisted
             var isBlacklisted = await TokenBlacklistService.IsTokenBlacklistedAsync(jtiClaim.Value);
@@ -145,7 +145,7 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             var storedToken = storedTokens.FirstOrDefault();
 
             // Act
-            await AuthService.LogoutAsync(principal, authToken, storedToken.RefreshToken, logoutAll: false);
+            await AuthService.LogoutAsync(principal, authToken, storedToken.RefreshToken, storedToken.SessionId, logoutAll: false);
 
             // Assert
             // Verify WebSocket wasn't called
@@ -208,14 +208,14 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             Assert.True(principal3.Identity.IsAuthenticated);
 
             // **Step 1: Single Logout (logoutAll = false) for session 1.**
-            await AuthService.LogoutAsync(principal1, result1.AccessToken, result1.RefreshToken, logoutAll: false);
+            await AuthService.LogoutAsync(principal1, result1.AccessToken, result1.RefreshToken, result1.SessionId, logoutAll: false);
 
             // After logging out session 1, expect 2 refresh tokens remain.
             var tokensAfterSingleLogout = await UserSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokensAsync(registeredUser.PersoId);
             Assert.Equal(2, tokensAfterSingleLogout.Count());
 
             // **Step 2: Global Logout (logoutAll = true) from one of the remaining sessions (e.g., session 2).**
-            await AuthService.LogoutAsync(principal2, result2.AccessToken, result2.RefreshToken, logoutAll: true);
+            await AuthService.LogoutAsync(principal2, result2.AccessToken, result2.RefreshToken, result2.SessionId, logoutAll: true);
 
             // After global logout, expect no refresh tokens remain.
             var tokensAfterGlobalLogout = await UserSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokensAsync(registeredUser.PersoId);
@@ -261,13 +261,13 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
 
             // Act: Log out only from session 1 (logoutAll = false)
             var principal1 = jwtService.ValidateToken(result1.AccessToken);
-            await AuthService.LogoutAsync(principal1, result1.AccessToken, result1.RefreshToken, logoutAll: false);
+            await AuthService.LogoutAsync(principal1, result1.AccessToken, result1.RefreshToken, result1.SessionId, logoutAll: false);
             var tokensAfterSingleLogout = await UserSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokensAsync(registeredUser.PersoId);
             Assert.Equal(2, tokensAfterSingleLogout.Count());  // Only session 1's token should be removed
 
             // Act: Log out globally from one remaining session (logoutAll = true)
             var principal2 = jwtService.ValidateToken(result2.AccessToken);
-            await AuthService.LogoutAsync(principal2, result2.AccessToken, result2.RefreshToken, logoutAll: true);
+            await AuthService.LogoutAsync(principal2, result2.AccessToken, result2.RefreshToken, result2.SessionId, logoutAll: true);
             var tokensAfterGlobalLogout = await UserSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokensAsync(registeredUser.PersoId);
             Assert.Empty(tokensAfterGlobalLogout);  // All tokens should be removed
 

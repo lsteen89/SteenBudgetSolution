@@ -2,8 +2,8 @@
 {
     public class RefreshJwtTokenEntity
     {
-        public int Id { get; set; } // Primary key, auto-increment
         public Guid Persoid { get; set; }
+        public string SessionId { get; set; } = string.Empty;
         public string RefreshToken { get; set; } = string.Empty;
         public string AccessTokenJti { get; set; } = string.Empty;
         public DateTime RefreshTokenExpiryDate { get; set; }

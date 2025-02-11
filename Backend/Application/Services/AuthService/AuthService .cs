@@ -4,23 +4,21 @@
 //It also uses the TokenGenerator class to hash the refresh token and generate a new one.
 
 
+using Backend.Application.Configuration;
 using Backend.Application.DTO;
 using Backend.Application.Interfaces.AuthService;
 using Backend.Application.Interfaces.JWT;
 using Backend.Application.Interfaces.RecaptchaService;
 using Backend.Application.Interfaces.UserServices;
+using Backend.Application.Mappers;
+using Backend.Application.Models;
 using Backend.Common.Utilities;
+using Backend.Domain.Entities;
 using Backend.Infrastructure.Data.Sql.Interfaces;
-using Backend.Infrastructure.Entities;
 using Backend.Infrastructure.Interfaces;
 using Backend.Infrastructure.Security;
 using System.Security.Claims;
-using Backend.Domain.Entities;
-using Microsoft.AspNetCore.Authentication;
-using Backend.Application.Models;
-using Backend.Application.Mappers;
-using static Dapper.SqlMapper;
-using Backend.Application.Configuration;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace Backend.Application.Services.AuthService
 {
@@ -115,33 +113,40 @@ namespace Backend.Application.Services.AuthService
                 Success = true,
                 Message = "Login successful.",
                 AccessToken = tokens.AccessToken,
-                RefreshToken = tokens.RefreshToken
+                RefreshToken = tokens.RefreshToken,
+                SessionId = tokens.SessionId
             };
         }
-        public async Task<LoginResultDto> RefreshTokenAsync(string refreshToken, string userAgent, string deviceId, ClaimsPrincipal? user = null)
+        public async Task<LoginResultDto> RefreshTokenAsync(string refreshToken, string sessionId, string userAgent, string deviceId, ClaimsPrincipal? user = null)
         {
             _logger.LogInformation("Received plain refresh token: {PlainRefreshToken}", refreshToken);
+            _logger.LogInformation("Received sessionId: {sessionId}", sessionId);
             // Step 1: Combine the collected data in the JwtAuthenticationTokens model
             var jwtAuthenticationTokens = new JwtAuthenticationTokens
             {
                 RefreshToken = refreshToken,
                 UserAgent = userAgent,
-                DeviceId = deviceId
+                DeviceId = deviceId,
+                SessionId = sessionId
             };
 
             // Step 2
             // Retrieve the stored refresh token model for the user using a converted hash of the recieved token and convert the entity to the model
             var providedHashedToken = TokenGenerator.HashToken(jwtAuthenticationTokens.RefreshToken);
             _logger.LogInformation("Computed refresh token hash: {ComputedHash}", providedHashedToken);
-            var storedTokens = await _userSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokensAsync(refreshToken : providedHashedToken, deviceId : jwtAuthenticationTokens.DeviceId, userAgent : jwtAuthenticationTokens.UserAgent);
+            
+            var storedTokens = await _userSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokensAsync(refreshToken : providedHashedToken, sessionId : sessionId);
             var storedToken = storedTokens.FirstOrDefault(); // At this stage, we only expect one token
+            
             if (storedToken == null || string.IsNullOrEmpty(storedToken.RefreshToken))
             {
                 _logger.LogWarning("No refresh token record found for the provided token.");
                 return new LoginResultDto { Success = false, Message = "Refresh token not found. Please login again." };
             }
+            
             var mappedToken = RefreshTokenMapper.MapToDomainModel(storedToken);
             _logger.LogInformation("Stored hashed refresh token: {StoredHash}", storedToken.RefreshToken);
+
             // Step 3
             // Validate the stored token's expiry and expire
             if (mappedToken.RefreshTokenExpiryDate < DateTime.UtcNow)
@@ -176,6 +181,7 @@ namespace Backend.Application.Services.AuthService
             {
                 Persoid = dbUser.PersoId,
                 RefreshToken = mappedToken.RefreshToken,
+                SessionId = mappedToken.SessionId,
                 AccessTokenJti = mappedToken.AccessTokenJti,
                 RefreshTokenExpiryDate =  DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenExpiryDays),
                 AccessTokenExpiryDate = mappedToken.AccessTokenExpiryDate,
@@ -194,53 +200,60 @@ namespace Backend.Application.Services.AuthService
                 RefreshToken = newTokens.RefreshToken
             };
         }
-        public async Task LogoutAsync(ClaimsPrincipal user, string accessToken, string refreshToken, bool logoutAll)
+        public async Task LogoutAsync(ClaimsPrincipal user, string accessToken, string refreshToken, string sessionId, bool logoutAll)
         {
             _logger.LogInformation("Processing logout request.");
 
-            var userId = user.FindFirst("sub")?.Value
-             ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userId = user.FindFirst(JwtRegisteredClaimNames.Sub)?.Value
+                      ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-            // 1. Blacklist the token
-            await _jwtService.BlacklistJwtTokenAsync(accessToken);
+            if (string.IsNullOrEmpty(userId))
+            {
+                _logger.LogWarning("User ID not found in claims.");
+            }
+
+            // 1. Blacklist the access token.
+            bool blacklistSuccess = await _jwtService.BlacklistJwtTokenAsync(accessToken);
+            if (!blacklistSuccess)
+            {
+                _logger.LogWarning("Error blacklisting access token for user {UserId}", userId);
+                // Optionally, you could throw or continue depending on your security requirements.
+            }
 
 
-            // Step 2: Handle refresh tokens
+            // 2. Handle refresh tokens.
             if (logoutAll)
             {
-                // Delete all refresh tokens for the user
-
+                // Delete all refresh tokens for the user.
                 if (!string.IsNullOrEmpty(userId))
                 {
                     await _userSQLProvider.RefreshTokenSqlExecutor.DeleteTokensByUserIdAsync(userId);
-                    _logger.LogInformation($"All refresh tokens deleted for user {userId}");
+                    _logger.LogInformation("All refresh tokens deleted for user {UserId}", userId);
                 }
                 else
                 {
-                    _logger.LogWarning("User ID not found in claims. Unable to delete refresh tokens for all devices.");
+                    _logger.LogWarning("User ID not found. Unable to delete all refresh tokens.");
                 }
             }
             else
             {
-                // Delete only the refresh token for the current session
-                // Hash the provided token to compare with the stored hash in the database
+                // Delete only the refresh token for the current session.
                 var providedHashedToken = TokenGenerator.HashToken(refreshToken);
                 if (!string.IsNullOrEmpty(refreshToken))
                 {
                     bool deleteSuccess = await _userSQLProvider.RefreshTokenSqlExecutor.DeleteTokenAsync(providedHashedToken);
                     if (deleteSuccess)
                     {
-                        _logger.LogInformation($"Refresh token deleted successfully. Token: {providedHashedToken}");
+                        _logger.LogInformation("Refresh token deleted successfully for session {SessionId}. Token: {TokenHash}", sessionId, providedHashedToken);
                     }
                     else
                     {
-                        _logger.LogWarning($"Error deleting refresh token. Token: {providedHashedToken}");
+                        _logger.LogWarning("Error deleting refresh token for session {SessionId}. Token: {TokenHash}", sessionId, providedHashedToken);
                     }
                 }
             }
 
             // 2. Notify the user via WebSocket
-
             if (!string.IsNullOrEmpty(userId))
             {
                 await _webSocketManager.SendMessageAsync(userId, "LOGOUT");
