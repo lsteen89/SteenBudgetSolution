@@ -162,7 +162,7 @@ namespace Backend.Presentation.Controllers
             }
 
             // Set the new tokens in the response cookies using the utility method
-            cookieService.SetAuthCookies(Response, tokens.AccessToken, tokens.RefreshToken, refreshCookies.SessionId);
+            cookieService.SetAuthCookies(Response, tokens.AccessToken, tokens.RefreshToken, tokens.SessionId);
             // Dont forget to logout on the client side if the refresh token is invalid
             // Also, we should delete old cookies if the refresh token is valid
             return Ok(new
