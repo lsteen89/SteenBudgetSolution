@@ -45,7 +45,7 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             var authToken = loginResult.AccessToken;
             // Act: Call the refresh method directly from the service.
 
-            var refreshResult = await AuthService.RefreshTokenAsync(loginResult.RefreshToken, userAgent, deviceId);
+            var refreshResult = await AuthService.RefreshTokenAsync(loginResult.RefreshToken, loginResult.SessionId, userAgent, deviceId);
             
             // Assert: Validate that new tokens are returned and are different from the original ones.
             Assert.True(refreshResult.Success, "Refresh token operation should succeed.");
@@ -77,7 +77,7 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             bool updateResult = await UserSQLProvider.RefreshTokenSqlExecutor.ExpireRefreshTokenAsync(registeredUser.PersoId);
             Assert.True(updateResult, "The refresh token should be expired.");
             // Act: Attempt to refresh tokens.
-            var refreshResult = await AuthService.RefreshTokenAsync(loginResult.RefreshToken, userAgent, deviceId);
+            var refreshResult = await AuthService.RefreshTokenAsync(loginResult.RefreshToken, loginResult.SessionId, userAgent, deviceId);
 
             // Assert: Verify failure due to expired refresh token.
             Assert.False(refreshResult.Success, "Refresh token operation should fail for expired token.");
@@ -105,7 +105,7 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             string tamperedRefreshToken = loginResult.RefreshToken + "X";
 
             // Act: Call refresh using the tampered refresh token.
-            var refreshResult = await AuthService.RefreshTokenAsync(tamperedRefreshToken, deviceId, userAgent);
+            var refreshResult = await AuthService.RefreshTokenAsync(tamperedRefreshToken, loginResult.SessionId, deviceId, userAgent);
 
             // Assert: Verify refresh fails due to invalid token.
             Assert.False(refreshResult.Success, "Refresh token operation should fail with an invalid token.");
@@ -113,7 +113,7 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
         }
 
         [Fact]
-        public async Task LoginTwice_OnlyOneRefreshTokenRecordExists_AndRefreshTokenIsUpdated()
+        public async Task LoginTwice_MultipleRefreshTokenRecordsExist_WithUniqueSessionIds()
         {
             // Arrange: Set up user metadata and login credentials.
             var (ipAddress, deviceId, userAgent) = AuthTestHelper.GetDefaultMetadata();
@@ -139,12 +139,15 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             // Query the database for refresh tokens belonging to this user.
             var refreshTokens = await UserSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokensAsync(registeredUser.PersoId);
 
-            // Assert: Only one refresh token record exists for the user.
-            Assert.Single(refreshTokens);
+            // Assert: Multiple refresh token records exist for the user.
+            Assert.True(refreshTokens.Count() >= 2, "There should be at least two refresh token records for multiple logins.");
 
-            // Optionally, verify that the refresh token value has been updated.
+            // Optionally, verify that the SessionIds are unique and that refresh tokens differ.
+            var tokenList = refreshTokens.ToList();
+            Assert.NotEqual(tokenList[0].SessionId, tokenList[1].SessionId);
             Assert.NotEqual(firstLoginResult.RefreshToken, secondLoginResult.RefreshToken);
         }
+
         [Fact]
         public async Task LoginFromTwoDevices_LogoutDeletesAllRefreshTokens()
         {
@@ -198,10 +201,10 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
                 .Verifiable();
 
             // Act: Log out from the first session.
-            await AuthService.LogoutAsync(principal1, firstLoginResult.AccessToken, firstLoginResult.RefreshToken, logoutAll: false);
+            await AuthService.LogoutAsync(principal1, firstLoginResult.AccessToken, firstLoginResult.RefreshToken, firstLoginResult.SessionId, logoutAll: false);
 
             // Act: Log out from the second session.
-            await AuthService.LogoutAsync(principal2, secondLoginResult.AccessToken, secondLoginResult.RefreshToken, logoutAll: false);
+            await AuthService.LogoutAsync(principal2, secondLoginResult.AccessToken, secondLoginResult.RefreshToken, secondLoginResult.SessionId, logoutAll: false);
 
             // Assert: After logout, no refresh token records should exist for the user.
             var refreshTokensAfterLogout = await UserSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokensAsync(registeredUser.PersoId);
@@ -238,7 +241,7 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             Assert.True(blacklistResult, "The access token should be blacklisted.");
 
             // Act: Attempt to refresh tokens with the invalidated refresh token and blacklisted access token.
-            var refreshResult = await AuthService.RefreshTokenAsync(loginResult.RefreshToken, userAgent, deviceId);
+            var refreshResult = await AuthService.RefreshTokenAsync(loginResult.RefreshToken, loginResult.SessionId, userAgent, deviceId);
 
             // Assert: Verify that the refresh operation fails.
             Assert.False(refreshResult.Success, "Refresh operation should fail for an invalidated refresh token.");
@@ -278,7 +281,7 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             Assert.False(string.IsNullOrEmpty(oldAccessTokenJti), "Old access token JTI should not be null or empty.");
 
             // Act: Call the refresh method to rotate tokens.
-            var refreshResult = await AuthService.RefreshTokenAsync(loginResult.RefreshToken, userAgent, deviceId);
+            var refreshResult = await AuthService.RefreshTokenAsync(loginResult.RefreshToken, loginResult.SessionId, userAgent, deviceId);
             Assert.True(refreshResult.Success, "Refresh token operation should succeed.");
             Assert.False(string.IsNullOrEmpty(refreshResult.AccessToken), "New access token should be returned.");
             Assert.False(string.IsNullOrEmpty(refreshResult.RefreshToken), "New refresh token should be returned.");

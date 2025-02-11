@@ -8,8 +8,7 @@ namespace Backend.Infrastructure.Data.Sql.Interfaces
         Task<IEnumerable<RefreshJwtTokenEntity>> GetRefreshTokensAsync(
                     Guid? persoid = null,
                     string refreshToken = null,
-                    string deviceId = null,
-                    string userAgent = null);
+                    string sessionId = null);
         Task<bool> AddBlacklistedTokenAsync(string jti, DateTime expiration);
         Task<bool> IsTokenBlacklistedAsync(string jti);
         Task<bool> UpdateRefreshTokenExpiryAsync(Guid persoid, DateTime newExpiry);

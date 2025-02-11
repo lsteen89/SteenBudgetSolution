@@ -66,7 +66,7 @@ namespace Backend.Presentation.Controllers
                 _logger.LogWarning("Login failed for email: {MaskedEmail}\nIP: {MaskedIP}", LogHelper.MaskEmail(userLoginDto.Email), LogHelper.MaskIp(ipAddress));
                 return Unauthorized(new { success = loginResult.Success, message = loginResult.Message });
             }
-            cookieService.SetAuthCookies(Response, loginResult.AccessToken, loginResult.RefreshToken);
+            cookieService.SetAuthCookies(Response, loginResult.AccessToken, loginResult.RefreshToken, loginResult.SessionId);
             _logger.LogInformation("Login successful for email: {MaskedEmail}\nIP: {MaskedIP}", LogHelper.MaskEmail(userLoginDto.Email), LogHelper.MaskIp(ipAddress));
 
             return Ok(new
@@ -87,23 +87,18 @@ namespace Backend.Presentation.Controllers
             _logger.LogInformation("Logout request: IP: {IpAddress}, User-Agent: {UserAgent}, Device-ID: {DeviceId}",
                 ipAddress, userAgent, deviceId);
 
-            if (!User.Identity?.IsAuthenticated ?? true)
-            {
-                return Unauthorized(new { message = "User is not authenticated." });
-            }
-
             // Retrieve tokens from cookies instead of headers
-            string? accessToken = Request.Cookies["AccessToken"];
-            string? refreshToken = Request.Cookies["RefreshToken"];
+            string? refreshToken = cookieService.GetCookieValue(HttpContext.Request, "RefreshToken");
+            string? accessToken = cookieService.GetCookieValue(HttpContext.Request, "AccessToken");
+            string? sessionId = cookieService.GetCookieValue(HttpContext.Request, "SessionId");
 
             if (string.IsNullOrEmpty(accessToken))
             {
                 return Unauthorized(new { success = false, message = "Access token is required." });
             }
-
             try
             {
-                await _authService.LogoutAsync(User, accessToken, refreshToken, logoutAll);
+                await _authService.LogoutAsync(User, accessToken, refreshToken, sessionId, logoutAll);
             }
             catch (Exception ex)
             {
@@ -111,8 +106,10 @@ namespace Backend.Presentation.Controllers
                 return StatusCode(500, new { success = false, message = "An internal error occurred during logout." });
             }
 
-            Response.Cookies.Delete("AccessToken");
-            Response.Cookies.Delete("RefreshToken");
+            // Delete all authentication cookies.
+            cookieService.DeleteCookie(Response, "AccessToken");
+            cookieService.DeleteCookie(Response, "RefreshToken");
+            cookieService.DeleteCookie(Response, "SessionId");
             _logger.LogInformation("User logged out successfully.");
 
             return Ok(new { message = "Logged out successfully." });
@@ -143,12 +140,12 @@ namespace Backend.Presentation.Controllers
                 ipAddress, userAgent, deviceId);
 
             // Extract tokens from cookies using the utility method
-            var refreshToken = RequestMetadataHelper.ExtractTokensFromCookies(HttpContext);
+            var refreshCookies = RequestMetadataHelper.ExtractTokensFromCookies(HttpContext);
 
-            _logger.LogInformation("Processing refresh token request for RefreshToken: {RefreshToken}", refreshToken);
+            _logger.LogInformation("Processing refresh token request for RefreshToken: {RefreshToken} SessionId: {SessionId}", refreshCookies.RefreshToken, refreshCookies.SessionId);
 
             // Ensure tokens are provided
-            if (string.IsNullOrEmpty(refreshToken.RefreshToken))
+            if (string.IsNullOrEmpty(refreshCookies.RefreshToken))
             {
                 _logger.LogWarning("Missing refreshtoken for refresh.");
                 return Unauthorized(new { success = false, message = "Missing tokens." });
@@ -157,18 +154,21 @@ namespace Backend.Presentation.Controllers
             _logger.LogInformation("Processing refresh token request from cookies.");
 
             // Validate the incoming refresh token and associated user data
-            var tokens = await _authService.RefreshTokenAsync(refreshToken.RefreshToken, userAgent, deviceId);
+            var tokens = await _authService.RefreshTokenAsync(refreshCookies.RefreshToken, refreshCookies.SessionId, userAgent, deviceId);
             if (!tokens.Success)
             {
-                _logger.LogWarning("Refresh token failed for user: {RefreshToken}", refreshToken);
+                _logger.LogWarning("Refresh token failed for user: RefreshToken: {RefreshToken} SessionId: {SessionId}", refreshCookies.RefreshToken, refreshCookies.SessionId);
                 return Unauthorized(new { success = false, message = tokens.Message });
             }
+
+            // Set the new tokens in the response cookies using the utility method
+            cookieService.SetAuthCookies(Response, tokens.AccessToken, tokens.RefreshToken, refreshCookies.SessionId);
+            // Dont forget to logout on the client side if the refresh token is invalid
+            // Also, we should delete old cookies if the refresh token is valid
             return Ok(new
             {
                 success = tokens.Success,
-                message = tokens.Message,
-                accessToken = tokens.AccessToken,
-                refreshToken = tokens.RefreshToken
+                message = tokens.Message
             });
         }
     }

@@ -50,13 +50,13 @@ namespace Backend.Infrastructure.Implementations
         // This method does not rotate the token by default and accepts a JwtTokenModel, which is a generic model for the token
         public async Task<LoginResultDto> GenerateJWTTokenAsync(JwtTokenModel jwtTokenModel, ClaimsPrincipal? user = null)
         {
-            var (newAccessToken, newRefreshToken, newTokensSuccess) = await CreateAndStoreNewTokensAsync(jwtTokenModel);
+            var (newAccessToken, newRefreshToken, sessionId, newTokensSuccess) = await CreateAndStoreNewTokensAsync(jwtTokenModel);
             if (!newTokensSuccess)
             {
                 return new LoginResultDto { Success = false, Message = "Internal error" };
             }
 
-            return new LoginResultDto { Success = true, Message = "Login successful", UserName = jwtTokenModel.Email, AccessToken = newAccessToken, RefreshToken = newRefreshToken };
+            return new LoginResultDto { Success = true, Message = "Login successful", UserName = jwtTokenModel.Email, AccessToken = newAccessToken, RefreshToken = newRefreshToken, SessionId = sessionId };
         }
 
         // Overload for the GenerateJWTTokenAsync method
@@ -96,7 +96,7 @@ namespace Backend.Infrastructure.Implementations
             }
 
             // Step 5: Generate new tokens and store them using our shared helper
-            var (newAccessToken, newRefreshToken, newTokensSuccess) = await CreateAndStoreNewTokensAsync(jwtTokenModel);
+            var (newAccessToken, newRefreshToken, newSessionId, newTokensSuccess) = await CreateAndStoreNewTokensAsync(jwtTokenModel);
             if (!newTokensSuccess)
             {
                 return new LoginResultDto { Success = false, Message = "Internal error" };
@@ -108,7 +108,8 @@ namespace Backend.Infrastructure.Implementations
                 Message = "Token refreshed successfully",
                 UserName = dbUser.Email,
                 AccessToken = newAccessToken,
-                RefreshToken = newRefreshToken
+                RefreshToken = newRefreshToken,
+                SessionId = newSessionId
             };
         }
 
@@ -341,7 +342,7 @@ namespace Backend.Infrastructure.Implementations
             }
             return null;
         }
-        private async Task<(string NewAccessToken, string PlainRefreshToken, bool Success)> CreateAndStoreNewTokensAsync(JwtTokenModel jwtTokenModel)
+        private async Task<(string NewAccessToken, string PlainRefreshToken, string sessionId, bool Success)> CreateAndStoreNewTokensAsync(JwtTokenModel jwtTokenModel)
         {
             // Generate the new access token
             var newAccessToken = GenerateJwtToken(jwtTokenModel);
@@ -352,15 +353,18 @@ namespace Backend.Infrastructure.Implementations
             if (string.IsNullOrEmpty(newJti))
             {
                 _logger.LogError("Failed to extract JTI from the new access token.");
-                return (null, null, false);
+                return (null, null, null, false);
             }
             // Get the access token expiry date
             var accessTokenExpiryDate = GetAccessTokenExpiryDate(newAccessToken);
             if (!accessTokenExpiryDate.HasValue)
             {
                 _logger.LogError("Failed to extract access token expiry date.");
-                return (null, null, false);
+                return (null, null, null, false);
             }
+
+            // Generate a new session ID for this login session
+            var sessionId = Guid.NewGuid().ToString();
 
             // Generate a new refresh token
             var plainRefreshToken = TokenGenerator.GenerateRefreshToken();
@@ -371,6 +375,7 @@ namespace Backend.Infrastructure.Implementations
             var newRefreshTokenModel = new JwtRefreshTokenModel
             {
                 Persoid = jwtTokenModel.Persoid,
+                SessionId = sessionId,
                 RefreshToken = hashedRefreshToken,
                 AccessTokenJti = newJti,
                 RefreshTokenExpiryDate = refreshTokenExpiry,
@@ -384,10 +389,10 @@ namespace Backend.Infrastructure.Implementations
             if (!insertSuccessful)
             {
                 _logger.LogWarning("Error inserting new refresh token for user {Email}", jwtTokenModel.Email);
-                return (null, null, false);
+                return (null, null, null, false);
             }
 
-            return (newAccessToken, plainRefreshToken, true);
+            return (newAccessToken, plainRefreshToken, sessionId, true);
         }
 
     }

@@ -134,6 +134,7 @@ CREATE TABLE IF NOT EXISTS PasswordResetTokens (
 CREATE TABLE RefreshTokens (
     ID INT AUTO_INCREMENT PRIMARY KEY,
     Persoid CHAR(36) NOT NULL,
+    SessionId CHAR(36) NOT NULL,
     RefreshToken VARCHAR(255) NOT NULL,
     AccessTokenJti VARCHAR(50) NOT NULL,
     RefreshTokenExpiryDate  DATETIME NOT NULL,
@@ -144,7 +145,7 @@ CREATE TABLE RefreshTokens (
     CreatedTime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX IDX_RefreshToken (RefreshToken),
     INDEX IDX_Persoid (Persoid),
-    UNIQUE (Persoid, DeviceId, UserAgent)
+    UNIQUE (Persoid, SessionId)
 );
 
 CREATE TABLE BlacklistedTokens (
