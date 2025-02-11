@@ -1,26 +1,32 @@
-import React from "react";
-import { Navigate, useLocation  } from "react-router-dom";
-import { useAuth } from "@context/AuthProvider";
+import React from 'react';
+import { Navigate } from 'react-router-dom';
+import { useAuth } from '@context/AuthProvider';
 
 interface ProtectedRouteProps {
-  children: JSX.Element;
+  children: JSX.Element | null;
 }
 
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const auth = useAuth();
-  const isDebugMode = process.env.NODE_ENV === 'development';
-  const location = useLocation();
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
+  const { authenticated, isLoading } = useAuth();
+  const isDebugMode = import.meta.env.MODE === 'development';
 
+  // Optional: while loading, show a spinner
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+
+  // If debug mode, bypass authentication checks
   if (isDebugMode) {
-    console.log("Debug mode active: bypassing authentication");
-    return <>{children}</>; // Bypass authentication in development
+    return children;
   }
 
-  if (auth?.authenticated) {
-    return <>{children}</>;
+  // If user is not authenticated, redirect to login
+  if (!authenticated) {
+    return <Navigate to="/login" replace />;
   }
 
-  return <Navigate to="/login" state={{ from: location }} replace />;
+  // Otherwise, show the protected content
+  return children;
 };
 
 export default ProtectedRoute;
