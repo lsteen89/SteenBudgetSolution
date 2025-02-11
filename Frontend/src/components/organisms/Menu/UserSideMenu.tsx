@@ -10,8 +10,9 @@ import '@components/organisms/SlideMenu/slide-menu.css';
 import { useAuth } from "@context/AuthProvider";
 
 interface UserSideMenuProps {
-    isOpen: boolean;
-    toggleMenu: () => void;
+  isOpen: boolean;
+  toggleMenu: () => void;
+  hamburgerRef?: React.RefObject<HTMLButtonElement>; 
 }
 
 const UserSideMenu: React.FC<UserSideMenuProps> = ({ isOpen, toggleMenu }) => {
