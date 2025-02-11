@@ -30,10 +30,10 @@ export const AuthProvider: React.FC<Props> = ({ children }) => {
     isLoading: true,
   });
 
-
+  /** -------------- WEBSOCKET LOGIC -------------- **/
   const wsRef = useRef<WebSocket | null>(null);
 
-  // 1. Close WebSocket
+  // Close WebSocket
   const closeWebSocket = useCallback(() => {
     if (wsRef.current) {
       console.log("AuthProvider: Closing WebSocket...");
@@ -42,7 +42,7 @@ export const AuthProvider: React.FC<Props> = ({ children }) => {
     }
   }, []);
 
-  // 2. Open WebSocket if authenticated
+  // Open WebSocket if authenticated
   const openWebSocket = useCallback(() => {
     const websocketUrl =
       import.meta.env.MODE === "development"
@@ -64,15 +64,13 @@ export const AuthProvider: React.FC<Props> = ({ children }) => {
           // Force local logout
           setAuthState({ authenticated: false, isLoading: false });
           closeWebSocket();
-          // Optionally navigate to /login or let ProtectedRoute handle it
         }
       };
 
       socket.onclose = () => {
         console.log("AuthProvider: WebSocket closed.");
         wsRef.current = null;
-
-        // Reconnect up to 3 times if still authenticated
+        // Retry if still authenticated, up to 3 times
         if (authState.authenticated && attempt < 3) {
           setTimeout(() => connect(attempt + 1), 5000);
         }
@@ -86,7 +84,7 @@ export const AuthProvider: React.FC<Props> = ({ children }) => {
     connect();
   }, [authState.authenticated, closeWebSocket]);
 
-  // 3. Check if user is authenticated (once on mount)
+  /** -------------- INITIAL AUTH STATUS CHECK -------------- **/
   const fetchAuthStatus = useCallback(async () => {
     try {
       console.log("AuthProvider: Checking /api/auth/status");
@@ -95,26 +93,24 @@ export const AuthProvider: React.FC<Props> = ({ children }) => {
 
       setAuthState({ ...response.data, isLoading: false });
 
-      // If newly authenticated, open WebSocket
       if (response.data.authenticated && !wsRef.current) {
         openWebSocket();
       } else if (!response.data.authenticated) {
         closeWebSocket();
       }
     } catch (error) {
-      // If 401 or other error => user not authenticated
+      // If 401 => user not authenticated
       if (isAxiosError(error) && error.response?.status === 401) {
         console.log("AuthProvider: user not authenticated");
       } else {
-        console.error("AuthProvider: unexpected error fetching status:", error);
+        console.error("AuthProvider: unexpected error:", error);
       }
-
       setAuthState({ authenticated: false, isLoading: false });
       closeWebSocket();
     }
   }, [closeWebSocket, openWebSocket]);
 
-  // 4. Logout method
+  /** -------------- LOGOUT METHOD -------------- **/
   const logout = useCallback(async () => {
     try {
       await axiosInstance.post("/api/auth/logout");
@@ -124,18 +120,42 @@ export const AuthProvider: React.FC<Props> = ({ children }) => {
     }
     setAuthState({ authenticated: false, isLoading: false });
     closeWebSocket();
-    // Optionally redirect to /login using React Router
   }, [closeWebSocket]);
 
-  // 5. On mount, check status
+  /** -------------- MOUNT & UNMOUNT -------------- **/
   useEffect(() => {
+    // 1) initial auth check
     fetchAuthStatus();
-    return () => {
-      closeWebSocket();
-    };
+
+    // 2) cleanup
+    return () => closeWebSocket();
   }, [fetchAuthStatus, closeWebSocket]);
 
-  // Provide context
+  /** -------------- PERIODIC HTTP HEALTH CHECK -------------- **/
+  useEffect(() => {
+    // If user is authenticated, set up a 30s interval to check token validity
+    let healthInterval: number | undefined;
+
+    if (authState.authenticated) {
+      healthInterval = window.setInterval(async () => {
+        try {
+          // Minimal endpoint to confirm token validity
+          await axiosInstance.get("/api/auth/status");
+          // If 401 => interceptor tries refresh. If refresh fails => user logs out
+        } catch (error) {
+          console.error("AuthProvider: health check error:", error);
+        }
+      }, 30_000); // 30 seconds
+    }
+
+    return () => {
+      if (healthInterval) {
+        clearInterval(healthInterval);
+      }
+    };
+  }, [authState.authenticated]);
+
+  /** -------------- PROVIDE CONTEXT -------------- **/
   return (
     <AuthContext.Provider
       value={{
