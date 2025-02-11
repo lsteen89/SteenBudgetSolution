@@ -1,38 +1,39 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+} from "react";
 import axiosInstance from "@api/axiosConfig";
 import { isAxiosError } from "axios";
 import type { AuthState, AuthContextType } from "../types/authTypes";
-import { useLocation } from "react-router-dom";
+
+type Props = {
+  children: React.ReactNode;
+};
 
 export const AuthContext = createContext<AuthContextType | null>(null);
 
-export const useAuth = (): AuthContextType => {
+export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
   if (!context) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
-};
+}
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<Props> = ({ children }) => {
   const [authState, setAuthState] = useState<AuthState & { isLoading: boolean }>({
     authenticated: false,
     isLoading: true,
   });
 
+
   const wsRef = useRef<WebSocket | null>(null);
-  const location = useLocation();
 
-  /**
-   * 1. Define your protected routes. If the user is on one of these
-   *    and /api/auth/status returns 401, we will redirect them to /login.
-   */
-  const protectedRoutes = ["/dashboard"];
-  const isProtectedRoute = protectedRoutes.includes(location.pathname);
-
-  /**
-   * Close the WebSocket, if any
-   */
+  // 1. Close WebSocket
   const closeWebSocket = useCallback(() => {
     if (wsRef.current) {
       console.log("AuthProvider: Closing WebSocket...");
@@ -41,10 +42,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  /**
-   * Open a WebSocket if user is authenticated. If server sends "logout" or
-   * "session-expired," we do a forced redirect to /login.
-   */
+  // 2. Open WebSocket if authenticated
   const openWebSocket = useCallback(() => {
     const websocketUrl =
       import.meta.env.MODE === "development"
@@ -52,7 +50,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         : "wss://ebudget.se/ws/auth";
 
     const connect = (attempt = 1) => {
-      console.log(`AuthProvider: Attempting WebSocket connection (attempt ${attempt})...`);
+      console.log(`AuthProvider: WS connect attempt ${attempt}...`);
       const socket = new WebSocket(websocketUrl);
 
       socket.onopen = () => {
@@ -61,16 +59,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
 
       socket.onmessage = (event) => {
-        console.log(`AuthProvider: Received WS message: ${event.data}`);
-        if (event.data === "ready") {
-          console.log("AuthProvider: WebSocket is ready!");
-        } else if (event.data === "ping") {
-          console.log("AuthProvider: Received ping from server.");
-        } else if (event.data === "logout" || event.data === "session-expired") {
-          console.log("AuthProvider: Received logout/session-expired from server.");
+        console.log("AuthProvider: WS message:", event.data);
+        if (event.data === "logout" || event.data === "session-expired") {
+          // Force local logout
           setAuthState({ authenticated: false, isLoading: false });
           closeWebSocket();
-          window.location.href = "/login"; // Force user to re-login
+          // Optionally navigate to /login or let ProtectedRoute handle it
         }
       };
 
@@ -78,7 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log("AuthProvider: WebSocket closed.");
         wsRef.current = null;
 
-        // Try reconnecting up to 3 times if user is still authenticated
+        // Reconnect up to 3 times if still authenticated
         if (authState.authenticated && attempt < 3) {
           setTimeout(() => connect(attempt + 1), 5000);
         }
@@ -92,10 +86,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     connect();
   }, [authState.authenticated, closeWebSocket]);
 
-  /**
-   * 2. Call the /api/auth/status endpoint to check if user is authenticated.
-   *    If we get 401 and we're on a protected route, we redirect to /login.
-   */
+  // 3. Check if user is authenticated (once on mount)
   const fetchAuthStatus = useCallback(async () => {
     try {
       console.log("AuthProvider: Checking /api/auth/status");
@@ -104,43 +95,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setAuthState({ ...response.data, isLoading: false });
 
-      // If authenticated, ensure WebSocket is open
+      // If newly authenticated, open WebSocket
       if (response.data.authenticated && !wsRef.current) {
         openWebSocket();
       } else if (!response.data.authenticated) {
         closeWebSocket();
       }
     } catch (error) {
-      // 401 => user is not authenticated
+      // If 401 or other error => user not authenticated
       if (isAxiosError(error) && error.response?.status === 401) {
-        console.log("AuthProvider: User is not authenticated.");
-
-        // If user is on a protected route, do a forced redirect
-        if (isProtectedRoute) {
-          console.log("AuthProvider: Protected route => logging out and redirecting to /login");
-          try {
-              await axiosInstance.post("/api/auth/logout");
-          } catch (logoutError) {
-              console.error("Error during logout call:", logoutError);
-          }
-          window.location.href = "/login";
+        console.log("AuthProvider: user not authenticated");
+      } else {
+        console.error("AuthProvider: unexpected error fetching status:", error);
       }
 
-        setAuthState({ authenticated: false, isLoading: false });
-        closeWebSocket();
-        return;
-      }
-
-      // Other errors => just log + set user to not authenticated
-      console.error("AuthProvider: Unexpected error:", error);
       setAuthState({ authenticated: false, isLoading: false });
       closeWebSocket();
     }
-  }, [closeWebSocket, openWebSocket, isProtectedRoute]);
+  }, [closeWebSocket, openWebSocket]);
 
-  /**
-   * 3. Logout explicitly calls /api/auth/logout, closes WebSocket, and sets state
-   */
+  // 4. Logout method
   const logout = useCallback(async () => {
     try {
       await axiosInstance.post("/api/auth/logout");
@@ -150,12 +124,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     setAuthState({ authenticated: false, isLoading: false });
     closeWebSocket();
-    window.location.href = "/login"; // redirect to login
+    // Optionally redirect to /login using React Router
   }, [closeWebSocket]);
 
-  /**
-   * 4. On mount (and whenever fetchAuthStatus changes), call /api/auth/status
-   */
+  // 5. On mount, check status
   useEffect(() => {
     fetchAuthStatus();
     return () => {
@@ -163,6 +135,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [fetchAuthStatus, closeWebSocket]);
 
+  // Provide context
   return (
     <AuthContext.Provider
       value={{
@@ -174,11 +147,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading: authState.isLoading,
       }}
     >
-      {authState.isLoading ? (
-        <div>Loading...</div>
-      ) : (
-        children
-      )}
+      {authState.isLoading ? <div>Loading...</div> : children}
     </AuthContext.Provider>
   );
 };
