@@ -58,66 +58,64 @@ export const AuthProvider: React.FC<Props> = ({ children }) => {
     }
   }, []);
 
-  // Open the WebSocket if authenticated
-  const openWebSocket = useCallback(() => {
-    // If there's already a socket, skip
-    if (wsRef.current) {
-      console.log("AuthProvider: WebSocket already open, skipping...");
-      return;
-    }
+ // Open the WebSocket if authenticated
+const openWebSocket = useCallback(() => {
+  // If there's already a socket, skip
+  if (wsRef.current) {
+    console.log("AuthProvider: WebSocket already open, skipping...");
+    return;
+  }
 
-    console.log("AuthProvider: openWebSocket CALLED");
+  console.log("AuthProvider: openWebSocket CALLED");
 
-    // Decide which URL to use
-    const websocketUrl =
-      import.meta.env.MODE === "development"
-        ? "ws://localhost:5000/ws/auth"
-        : "wss://ebudget.se/ws/auth";
+  const websocketUrl =
+    import.meta.env.MODE === "development"
+      ? "ws://localhost:5000/ws/auth"
+      : "wss://ebudget.se/ws/auth";
 
-    // We'll recursively call connect() on close for auto-retry
-    const connect = (attempt = 1) => {
-      console.log(`AuthProvider: WS connect attempt ${attempt}...`);
+  const connect = (attempt = 1) => {
+    console.log(`AuthProvider: WS connect attempt ${attempt}...`);
+    isManuallyClosingRef.current = false; // not a manual close anymore
 
-      // Since we're initiating a brand-new connection, it's no longer a manual close
-      isManuallyClosingRef.current = false;
+    const socket = new WebSocket(websocketUrl);
 
-      const socket = new WebSocket(websocketUrl);
+    // Immediately set wsRef to block future calls
+    wsRef.current = socket;
 
-      socket.onopen = () => {
-        console.log("AuthProvider: WebSocket connected.");
-        wsRef.current = socket;
-      };
-
-      socket.onmessage = (event) => {
-        console.log("AuthProvider: WS message:", event.data);
-
-        // If server instructs us to logout or says session expired,
-        // forcibly logout on the client side
-        if (event.data === "logout" || event.data === "session-expired") {
-          setAuthState({ authenticated: false, isLoading: false });
-          closeWebSocket();
-        }
-      };
-
-      socket.onclose = () => {
-        console.log("AuthProvider: WebSocket closed.");
-        wsRef.current = null;
-
-        // If it wasn't an intentional close, and the user is still authenticated,
-        // we can retry up to 3 times
-        if (!isManuallyClosingRef.current && authState.authenticated && attempt < 3) {
-          setTimeout(() => connect(attempt + 1), 5000);
-        }
-      };
-
-      socket.onerror = (err) => {
-        console.error("AuthProvider: WebSocket error:", err);
-      };
+    socket.onopen = () => {
+      console.log("AuthProvider: WebSocket connected.");
+      // We already set wsRef.current = socket above
     };
 
-    // Start the initial connection attempt
-    connect();
-  }, [authState.authenticated, closeWebSocket]);
+    socket.onmessage = (event) => {
+      console.log("AuthProvider: WS message:", event.data);
+
+      // If server instructs us to logout or says session expired...
+      if (event.data === "logout" || event.data === "session-expired") {
+        setAuthState({ authenticated: false, isLoading: false });
+        closeWebSocket();
+      }
+    };
+
+    socket.onclose = () => {
+      console.log("AuthProvider: WebSocket closed.");
+
+      // If we plan to reconnect, we leave wsRef as null.
+      wsRef.current = null;
+
+      // Unexpected close -> auto retry if authenticated
+      if (!isManuallyClosingRef.current && authState.authenticated && attempt < 3) {
+        setTimeout(() => connect(attempt + 1), 5000);
+      }
+    };
+
+    socket.onerror = (err) => {
+      console.error("AuthProvider: WebSocket error:", err);
+    };
+  };
+
+  connect();
+}, [authState.authenticated, closeWebSocket]);
 
   /** ----------------------------------------------------------------
    * INITIAL AUTH STATUS CHECK
