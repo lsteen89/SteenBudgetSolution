@@ -80,7 +80,7 @@ const openWebSocket = useCallback(() => {
     const socket = new WebSocket(websocketUrl);
 
     // Immediately set wsRef to block future calls
-    //wsRef.current = socket;
+    wsRef.current = socket;
 
     socket.onopen = () => {
       console.log("AuthProvider: WebSocket connected.");
