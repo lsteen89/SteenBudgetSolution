@@ -25,37 +25,62 @@ export function useAuth(): AuthContextType {
 }
 
 export const AuthProvider: React.FC<Props> = ({ children }) => {
+  // Combined auth + loading state
   const [authState, setAuthState] = useState<AuthState & { isLoading: boolean }>({
     authenticated: false,
     isLoading: true,
   });
+
   console.log("AuthProvider component rendering...");
+
   useEffect(() => {
     console.log("AuthProvider mounted.");
     return () => console.log("AuthProvider unmounted.");
   }, []);
-  /** -------------- WEBSOCKET LOGIC -------------- **/
+
+  /** ----------------------------------------------------------------
+   * WEBSOCKET LOGIC
+   * ----------------------------------------------------------------*/
   const wsRef = useRef<WebSocket | null>(null);
 
-  // Close WebSocket
+  // This ref tracks whether we are *intentionally* closing the socket
+  // (e.g., user logs out or we manually decide to close). If true,
+  // we skip any auto-reconnect logic.
+  const isManuallyClosingRef = useRef(false);
+
+  // Close the WebSocket (with a manual flag set)
   const closeWebSocket = useCallback(() => {
     if (wsRef.current) {
       console.log("AuthProvider: Closing WebSocket...");
+      isManuallyClosingRef.current = true; // Mark intentional close
       wsRef.current.close();
       wsRef.current = null;
     }
   }, []);
 
-  // Open WebSocket if authenticated
+  // Open the WebSocket if authenticated
   const openWebSocket = useCallback(() => {
-    console.log("openWebSocket CALLED");
+    // If there's already a socket, skip
+    if (wsRef.current) {
+      console.log("AuthProvider: WebSocket already open, skipping...");
+      return;
+    }
+
+    console.log("AuthProvider: openWebSocket CALLED");
+
+    // Decide which URL to use
     const websocketUrl =
       import.meta.env.MODE === "development"
         ? "ws://localhost:5000/ws/auth"
         : "wss://ebudget.se/ws/auth";
 
+    // We'll recursively call connect() on close for auto-retry
     const connect = (attempt = 1) => {
       console.log(`AuthProvider: WS connect attempt ${attempt}...`);
+
+      // Since we're initiating a brand-new connection, it's no longer a manual close
+      isManuallyClosingRef.current = false;
+
       const socket = new WebSocket(websocketUrl);
 
       socket.onopen = () => {
@@ -65,8 +90,10 @@ export const AuthProvider: React.FC<Props> = ({ children }) => {
 
       socket.onmessage = (event) => {
         console.log("AuthProvider: WS message:", event.data);
+
+        // If server instructs us to logout or says session expired,
+        // forcibly logout on the client side
         if (event.data === "logout" || event.data === "session-expired") {
-          // Force local logout
           setAuthState({ authenticated: false, isLoading: false });
           closeWebSocket();
         }
@@ -75,8 +102,10 @@ export const AuthProvider: React.FC<Props> = ({ children }) => {
       socket.onclose = () => {
         console.log("AuthProvider: WebSocket closed.");
         wsRef.current = null;
-        // Retry if still authenticated, up to 3 times
-        if (authState.authenticated && attempt < 3) {
+
+        // If it wasn't an intentional close, and the user is still authenticated,
+        // we can retry up to 3 times
+        if (!isManuallyClosingRef.current && authState.authenticated && attempt < 3) {
           setTimeout(() => connect(attempt + 1), 5000);
         }
       };
@@ -86,10 +115,13 @@ export const AuthProvider: React.FC<Props> = ({ children }) => {
       };
     };
 
+    // Start the initial connection attempt
     connect();
   }, [authState.authenticated, closeWebSocket]);
 
-  /** -------------- INITIAL AUTH STATUS CHECK -------------- **/
+  /** ----------------------------------------------------------------
+   * INITIAL AUTH STATUS CHECK
+   * ----------------------------------------------------------------*/
   const fetchAuthStatus = useCallback(async () => {
     try {
       console.log("AuthProvider: Checking /api/auth/status");
@@ -98,9 +130,11 @@ export const AuthProvider: React.FC<Props> = ({ children }) => {
 
       setAuthState({ ...response.data, isLoading: false });
 
+      // If authenticated, open WebSocket (if not already open)
       if (response.data.authenticated && !wsRef.current) {
         openWebSocket();
       } else if (!response.data.authenticated) {
+        // Not authenticated => close any open socket
         closeWebSocket();
       }
     } catch (error) {
@@ -115,7 +149,9 @@ export const AuthProvider: React.FC<Props> = ({ children }) => {
     }
   }, [closeWebSocket, openWebSocket]);
 
-  /** -------------- LOGOUT METHOD -------------- **/
+  /** ----------------------------------------------------------------
+   * LOGOUT METHOD
+   * ----------------------------------------------------------------*/
   const logout = useCallback(async () => {
     try {
       await axiosInstance.post("/api/auth/logout");
@@ -123,34 +159,40 @@ export const AuthProvider: React.FC<Props> = ({ children }) => {
     } catch (error) {
       console.error("AuthProvider: Logout error:", error);
     }
+
+    // Mark user as logged out
     setAuthState({ authenticated: false, isLoading: false });
+    // Close the WebSocket intentionally
     closeWebSocket();
   }, [closeWebSocket]);
 
-  /** -------------- MOUNT & UNMOUNT -------------- **/
+  /** ----------------------------------------------------------------
+   * ON MOUNT -> FETCH AUTH STATUS, ON UNMOUNT -> CLOSE WS
+   * ----------------------------------------------------------------*/
   useEffect(() => {
-    // 1) initial auth check
+    // Check auth on startup
     fetchAuthStatus();
 
-    // 2) cleanup
+    // Cleanup: close socket on unmount
     return () => closeWebSocket();
   }, [fetchAuthStatus, closeWebSocket]);
 
-  /** -------------- PERIODIC HTTP HEALTH CHECK -------------- **/
+  /** ----------------------------------------------------------------
+   * PERIODIC HTTP HEALTH CHECK
+   * ----------------------------------------------------------------*/
   useEffect(() => {
-    // If user is authenticated, set up a 30s interval to check token validity
     let healthInterval: number | undefined;
 
     if (authState.authenticated) {
+      // Check every 30s if token still valid
       healthInterval = window.setInterval(async () => {
         try {
-          // Minimal endpoint to confirm token validity
           await axiosInstance.get("/api/auth/status");
-          // If 401 => interceptor tries refresh. If refresh fails => user logs out
+          // If 401 => interceptor tries refresh; if refresh fails => auto logout
         } catch (error) {
           console.error("AuthProvider: health check error:", error);
         }
-      }, 30_000); // 30 seconds
+      }, 30_000);
     }
 
     return () => {
@@ -160,7 +202,9 @@ export const AuthProvider: React.FC<Props> = ({ children }) => {
     };
   }, [authState.authenticated]);
 
-  /** -------------- PROVIDE CONTEXT -------------- **/
+  /** ----------------------------------------------------------------
+   * RENDER
+   * ----------------------------------------------------------------*/
   return (
     <AuthContext.Provider
       value={{
