@@ -6,13 +6,13 @@ import AppRoutes from "./layout/AppRoutes";
 
 const App: React.FC = () => {
   return (
-    <BrowserRouter>
-      <AuthProvider>
+    <AuthProvider>
+      <BrowserRouter>
         <AppLayout>
           <AppRoutes />
         </AppLayout>
-      </AuthProvider>
-    </BrowserRouter>
+      </BrowserRouter>
+    </AuthProvider>
   );
 };
 
