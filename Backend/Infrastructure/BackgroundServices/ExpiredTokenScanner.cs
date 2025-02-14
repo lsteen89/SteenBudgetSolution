@@ -34,7 +34,7 @@ public class ExpiredTokenScanner : BackgroundService
 
                     // Retrieve all expired refresh tokens.
                     IEnumerable<RefreshJwtTokenEntity> expiredTokens = await UserSQLProvider.RefreshTokenSqlExecutor.GetExpiredTokensAsync();
-
+                    _logger.LogInformation("Found {Count} expired tokens.", expiredTokens.Count());
                     foreach (var token in expiredTokens)
                     {
                         // Extract the user identifier from the token entity.
@@ -44,11 +44,12 @@ public class ExpiredTokenScanner : BackgroundService
 
                         // Notify the frontend via WebSocket
                         await _webSocketManager.ForceLogoutAsync(userId, "session-expired");
-
+                        /*
                         bool deleteSuccess = await UserSQLProvider.RefreshTokenSqlExecutor.DeleteTokenAsync(token.RefreshToken);
-                        if (!deleteSuccess) {
+                        if (!deleteSuccess) 
                             _logger.LogError($"Failed to delete expired token {token.RefreshToken} for user {userId}.");
-                        }
+                        */
+                        
                     }
                 }
             }

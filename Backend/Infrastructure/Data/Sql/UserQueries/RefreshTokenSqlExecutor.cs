@@ -161,16 +161,30 @@ namespace Backend.Infrastructure.Data.Sql.UserQueries
         }
         public async Task<IEnumerable<RefreshJwtTokenEntity>> GetExpiredTokensAsync()
         {
-            string sql = @"
+            try
+            {
+                var now = DateTime.UtcNow;
+                _logger.LogInformation("Querying expired tokens. Current UTC time: {Now}", now);
+
+                string sql = @"
             SELECT Persoid, CAST(SessionId AS CHAR(36)) AS SessionId, RefreshToken, AccessTokenJti,
                    RefreshTokenExpiryDate, AccessTokenExpiryDate, DeviceId, UserAgent, CreatedBy, CreatedTime 
             FROM RefreshTokens 
             WHERE RefreshTokenExpiryDate < @Now";
 
-            var parameters = new DynamicParameters(); 
-            parameters.Add("Now", DateTime.UtcNow);
+                var parameters = new DynamicParameters();
+                parameters.Add("Now", now);
 
-            return await QueryAsync<RefreshJwtTokenEntity>(sql, parameters);
+                var tokens = await QueryAsync<RefreshJwtTokenEntity>(sql, parameters);
+                _logger.LogInformation("Found {Count} expired tokens.", tokens.Count());
+
+                return tokens;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error occurred while querying expired tokens.");
+                throw;
+            }
         }
     }
 }
