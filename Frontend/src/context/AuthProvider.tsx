@@ -186,6 +186,7 @@ const openWebSocket = useCallback(() => {
       healthInterval = window.setInterval(async () => {
         try {
           await axiosInstance.get("/api/auth/status");
+          console.log("AuthProvider: status check successful.");
           // If 401 => interceptor tries refresh; if refresh fails => auto logout
         } catch (error) {
           console.error("AuthProvider: health check error:", error);
