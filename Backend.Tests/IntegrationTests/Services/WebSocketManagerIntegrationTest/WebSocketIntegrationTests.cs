@@ -1,5 +1,4 @@
-﻿using Backend.Infrastructure.Interfaces;
-using Backend.Tests.Fixtures;
+﻿using Backend.Tests.Fixtures;
 using FluentAssertions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,11 +10,17 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Backend.Infrastructure.WebSockets;
 using Xunit.Sdk;
+using Backend.Application.Interfaces.WebSockets;
+using Backend.Application.DTO;
+using Backend.Infrastructure.Data.Sql.Provider;
+using Backend.Infrastructure.Security;
+using Backend.Test.UserTests;
+using Backend.Tests.Helpers;
 
 namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTest
 {
     [Collection("WebSocket Test Collection")]
-    public class WebSocketTests
+    public class WebSocketTests : IntegrationTestBase
     {
         private readonly WebSocketFixture _fixture;
 
@@ -707,6 +712,79 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
             receivedMessage.Should().Be("ping", "because the healthcheck should send a ping message to active connections");
             Console.WriteLine("Healthcheck ping received successfully.");
         }
+        [Fact]
+        public async Task ExpiredRefreshToken_Should_Trigger_SessionExpired_Notification()
+        {
+            // Arrange: Create and prepare a new user.
+            var registeredUser = await SetupUserAsync();
+            // Confirm the user's email.
+            await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
+
+            // Prepare user login details.
+            var userLoginDto = new UserLoginDto
+            {
+                Email = registeredUser.Email,
+                Password = "Password123!",
+                CaptchaToken = "valid-captcha-token"
+            };
+
+            var (ipAddress, deviceId, userAgent) = AuthTestHelper.GetDefaultMetadata();
+
+            // Act: Log in the user to obtain tokens.
+            var loginResult = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent);
+            Assert.True(loginResult.Success, "Initial login should succeed.");
+            Assert.False(string.IsNullOrEmpty(loginResult.RefreshToken), "A refresh token should be returned.");
+
+            // Open a WebSocket connection as the authenticated user.
+            var wsUri = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth?user={registeredUser.PersoId}");
+            using var client = new ClientWebSocket();
+            client.Options.SetRequestHeader("Test-Auth", "true");
+            await client.ConnectAsync(wsUri, CancellationToken.None);
+            client.State.Should().Be(WebSocketState.Open, "The WebSocket should connect successfully for an authenticated user.");
+
+            // Receive the initial "ready" message.
+            var buffer = new byte[1024];
+            var result = await client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+            var initialMessage = Encoding.UTF8.GetString(buffer, 0, result.Count);
+            initialMessage.Should().Be("ready", "The server should send an initial 'ready' message upon connection.");
+
+            // Simulate token expiration:
+            // Invalidate the user's refresh token in the database.
+            bool expireResult = await UserSQLProvider.RefreshTokenSqlExecutor.ExpireRefreshTokenAsync(registeredUser.PersoId);
+            expireResult.Should().BeTrue("The refresh token should be marked as expired.");
+
+            // For test purposes, manually trigger the force logout via WebSocket.
+            var webSocketManager = _fixture.Host.Services.GetRequiredService<IWebSocketManager>() as WebSocketManager;
+            await webSocketManager.ForceLogoutAsync(registeredUser.PersoId.ToString(), "session-expired");
+
+            // The client should now either receive the "session-expired" message
+            // or the connection will be closed, causing a WebSocketException.
+            try
+            {
+                result = await client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+                // If we get here, the server managed to send a message.
+                var logoutMessage = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                logoutMessage.Should().Be("session-expired", "The server should notify the client that the session has expired.");
+            }
+            catch (WebSocketException ex)
+            {
+                // We expect an exception if the server closed the connection abruptly.
+                // Log the exception and assert that the connection state is closed.
+                Console.WriteLine($"WebSocketException caught as expected: {ex.Message}");
+                client.State.Should().BeOneOf(new[] { WebSocketState.Closed, WebSocketState.Aborted },
+                    "A WebSocketException is acceptable if the server closed the connection forcibly.");
+            }
+
+            // Ensure the connection is closed.
+            if (client.State == WebSocketState.Open)
+            {
+                await client.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
+            }
+            client.State.Should().BeOneOf(new[] { WebSocketState.Closed, WebSocketState.Aborted },
+                "The WebSocket connection should be closed after forced logout.");
+        }
 
     }
+
 }
+

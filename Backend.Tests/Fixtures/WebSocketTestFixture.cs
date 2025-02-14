@@ -1,10 +1,10 @@
 ﻿using Backend.Application.Interfaces.EmailServices;
 using Backend.Application.Interfaces.UserServices;
+using Backend.Application.Interfaces.WebSockets;
 using Backend.Application.Services.EmailServices;
 using Backend.Application.Services.UserServices;
 using Backend.Infrastructure.Data.Sql.Interfaces;
 using Backend.Infrastructure.Data.Sql.Provider;
-using Backend.Infrastructure.Interfaces;
 using Backend.Infrastructure.WebSockets;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;

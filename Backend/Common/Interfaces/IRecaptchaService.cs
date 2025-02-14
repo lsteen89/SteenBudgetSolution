@@ -1,4 +1,4 @@
-﻿namespace Backend.Application.Interfaces.RecaptchaService
+﻿namespace Backend.Common.Interfaces
 {
     public interface IRecaptchaService
     {

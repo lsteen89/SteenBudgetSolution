@@ -1,8 +1,8 @@
-﻿using Backend.Infrastructure.Interfaces;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Net.WebSockets;
 using System.Text;
 using System.IdentityModel.Tokens.Jwt;
+using Backend.Application.Interfaces.WebSockets;
 
 namespace Backend.Infrastructure.WebSockets
 {
@@ -381,6 +381,50 @@ namespace Backend.Infrastructure.WebSockets
                     catch { conn.Socket.Abort(); }
                     _userSockets.TryRemove(userId, out _);
                 }
+            }
+        }
+        // Force logout method to send a message and close the socket
+        public async Task ForceLogoutAsync(string userId, string reason = "session-expired")
+        {
+            if (_userSockets.TryGetValue(userId, out var conn) &&
+                (conn.Socket.State == WebSocketState.Open || conn.Socket.State == WebSocketState.CloseReceived))
+            {
+                var messageBytes = Encoding.UTF8.GetBytes(reason);
+                try
+                {
+                    _logger.LogInformation($"Sending force logout message to user {userId}: {reason}");
+                    await conn.Socket.SendAsync(
+                        new ArraySegment<byte>(messageBytes),
+                        WebSocketMessageType.Text,
+                        true,
+                        CancellationToken.None);
+                }
+                catch (WebSocketException ex)
+                {
+                    _logger.LogError($"Error sending force logout message to user {userId}: {ex.Message}");
+                }
+
+                // Try to gracefully close the socket
+                try
+                {
+                    using var closeCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                    await conn.Socket.CloseAsync(WebSocketCloseStatus.NormalClosure, reason, closeCts.Token);
+                    _logger.LogInformation($"WebSocket for user {userId} closed gracefully after force logout.");
+                }
+                catch (TaskCanceledException ex)
+                {
+                    _logger.LogWarning($"Graceful close timed out for user {userId}: {ex.Message}. Aborting socket.");
+                    conn.Socket.Abort();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning($"Graceful close failed for user {userId}: {ex.Message}. Aborting socket.");
+                    conn.Socket.Abort();
+                }
+
+                // Remove the connection from the dictionary
+                _userSockets.TryRemove(userId, out _);
+                _logger.LogInformation($"Forced logout: WebSocket for user {userId} removed.");
             }
         }
     }

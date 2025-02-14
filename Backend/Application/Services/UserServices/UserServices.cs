@@ -1,12 +1,9 @@
 ﻿using Backend.Application.DTO;
-using Backend.Domain.Entities;
-using Backend.Application.Interfaces.UserServices;
 using Backend.Application.Interfaces.EmailServices;
-using Backend.Infrastructure.Data.Sql.Interfaces;
-using Backend.Infrastructure.Data.Sql.UserQueries;
-using Backend.Application.Services.Validation;
+using Backend.Application.Interfaces.UserServices;
+using Backend.Domain.Entities;
 using Backend.Domain.Shared;
-using Backend.Application.Services.UserServices;
+using Backend.Infrastructure.Data.Sql.Interfaces;
 public class UserServices : IUserServices
 {
     private readonly IUserManagementService _userManagementService;

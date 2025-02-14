@@ -1,6 +1,6 @@
-﻿using Backend.Infrastructure.Interfaces;
+﻿using Backend.Common.Interfaces;
 
-namespace Backend.Common.Utilities
+namespace Backend.Common.Services
 {
     public class EnvironmentService : IEnvironmentService
     {

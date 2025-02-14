@@ -1,4 +1,4 @@
-﻿using Backend.Infrastructure.Interfaces;
+﻿using Backend.Common.Interfaces;
 using System;
 
 namespace Backend.Infrastructure.Providers

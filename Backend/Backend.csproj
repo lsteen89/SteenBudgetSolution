@@ -49,7 +49,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="Application\Interfaces\RecaptchaService\" />
+    <Folder Include="Application\Services\Validation\" />
+    <Folder Include="Common\Validators\" />
     <Folder Include="Domain\Interfaces\" />
+    <Folder Include="Infrastructure\Interfaces\" />
 
     <Folder Include="logs\" />
   </ItemGroup>

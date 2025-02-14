@@ -1,18 +1,6 @@
-﻿using Backend.Application.Interfaces.EmailServices;
-using Backend.Application.Interfaces.UserServices;
-using Backend.Application.Services.UserServices;
-using Backend.Domain.Entities;
+﻿using Backend.Domain.Entities;
 using Backend.Domain.Shared;
-using Backend.Infrastructure.Data.Sql.Interfaces;
-using Backend.Infrastructure.Interfaces;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
 using Moq;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Xunit;
 
 namespace Backend.Tests.UnitTests.Password
