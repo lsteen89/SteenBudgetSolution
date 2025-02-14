@@ -3,14 +3,16 @@ using Backend.Application.Interfaces.AuthService;
 using Backend.Application.Interfaces.Cookies;
 using Backend.Application.Interfaces.EmailServices;
 using Backend.Application.Interfaces.JWT;
-using Backend.Application.Interfaces.RecaptchaService;
 using Backend.Application.Interfaces.UserServices;
+using Backend.Application.Interfaces.WebSockets;
 using Backend.Application.Services.AuthService;
 using Backend.Application.Services.EmailServices;
 using Backend.Application.Services.UserServices;
-using Backend.Application.Services.Validation;
 using Backend.Application.Settings;
 using Backend.Application.Validators;
+using Backend.Common.Converters;
+using Backend.Common.Interfaces;
+using Backend.Common.Services;
 using Backend.Domain.Entities;
 using Backend.Infrastructure.BackgroundServices;
 using Backend.Infrastructure.Data.Sql.Interfaces;
@@ -18,8 +20,8 @@ using Backend.Infrastructure.Data.Sql.Provider;
 using Backend.Infrastructure.Data.Sql.UserQueries;
 using Backend.Infrastructure.Email;
 using Backend.Infrastructure.Implementations;
-using Backend.Infrastructure.Interfaces;
 using Backend.Infrastructure.Providers;
+using Backend.Infrastructure.Services.CookieService;
 using Backend.Presentation.Middleware;
 using Backend.Tests.Mocks;
 using Dapper;
@@ -37,9 +39,6 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Reflection;
 using System.Text;
 using System.Threading.RateLimiting;
-using Backend.Infrastructure.Services.CookieService;
-using Backend.Common.Utilities;
-using Backend.Common.Converters;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -65,6 +64,9 @@ builder.Services.AddStackExchangeRedisCache(options =>
     options.Configuration = builder.Configuration.GetSection("Redis")["ConnectionString"];
     options.InstanceName = "eBudget:"; // Optional prefix for keys
 });
+
+// Background services
+builder.Services.AddHostedService<ExpiredTokenScanner>(); // Scan for expired refreshtokens
 #endregion
 
 #region Serilog Configuration
@@ -122,6 +124,9 @@ builder.Services.AddScoped<IRefreshTokenSqlExecutor, RefreshTokenSqlExecutor> ()
 // Add the UserSQLProvider to the services
 builder.Services.AddScoped<IUserSQLProvider, UserSQLProvider>();
 
+// Recaptcha service
+builder.Services.AddHttpClient<IRecaptchaService, RecaptchaService>();
+
 // Section for user services
 builder.Services.AddScoped<IUserServices, UserServices>();
 builder.Services.AddScoped<IUserManagementService, UserManagementService>();
@@ -136,7 +141,7 @@ builder.Services.AddScoped<IEmailPreparationService, EmailPreparationService>();
 builder.Services.AddScoped<IEmailResetPasswordService, EmailResetPasswordService>();
 
 // Other various services
-builder.Services.AddScoped<ITimeProvider, SystemTimeProvider>();
+builder.Services.AddScoped<ITimeProvider, Backend.Common.Services.TimeProvider>();
 builder.Services.AddScoped<ICookieService, CookieService>();
 
 builder.Services.AddScoped<ITokenBlacklistService, TokenBlacklistService>();
@@ -145,8 +150,6 @@ builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
 builder.Services.AddScoped<IEnvironmentService, EnvironmentService>();
-builder.Services.AddTransient<RecaptchaHelper>();
-builder.Services.AddScoped<IRecaptchaService, RecaptchaService>();
 builder.Services.Configure<ResendEmailSettings>(builder.Configuration.GetSection("ResendEmailSettings"));
 builder.Services.AddScoped<DbConnection>(provider =>
 {
@@ -187,6 +190,9 @@ else
 builder.Services.AddSingleton<IWebSocketManager, Backend.Infrastructure.WebSockets.WebSocketManager>();
 builder.Services.AddHostedService(provider => (Backend.Infrastructure.WebSockets.WebSocketManager)provider.GetRequiredService<IWebSocketManager>());
 builder.Services.AddHostedService<WebSocketHealthCheckService>();
+
+// Background services
+builder.Services.AddHostedService<ExpiredTokenScanner>();
 #endregion
 
 #region Rate Limiter Configuration

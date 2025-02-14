@@ -1,5 +1,5 @@
 ﻿
-using Backend.Infrastructure.Interfaces;
+using Backend.Application.Interfaces.WebSockets;
 using Backend.Infrastructure.WebSockets;
 
 namespace Backend.Infrastructure.BackgroundServices

@@ -1,8 +1,7 @@
 ﻿using Backend.Application.DTO;
-using Backend.Application.Interfaces.RecaptchaService;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-
+using Backend.Common.Interfaces;
 [ApiController]
 [Route("api/[controller]")]
 public class EmailController : ControllerBase

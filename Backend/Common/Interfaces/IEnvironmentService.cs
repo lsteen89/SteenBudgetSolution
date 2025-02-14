@@ -1,4 +1,4 @@
-﻿namespace Backend.Infrastructure.Interfaces
+﻿namespace Backend.Common.Interfaces
 {
     public interface IEnvironmentService
     {

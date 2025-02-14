@@ -2,7 +2,7 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 
-namespace Backend.Infrastructure.Interfaces
+namespace Backend.Application.Interfaces.WebSockets
 {
     public interface IWebSocketHandler
     {
