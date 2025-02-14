@@ -10,8 +10,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Infrastructure\**" />
+    <Compile Remove="IntegrationTests\Services\ResendEmailTest\**" />
     <Compile Remove="UnitTests\Services\ResendEmailTest\**" />
+    <EmbeddedResource Remove="Infrastructure\**" />
+    <EmbeddedResource Remove="IntegrationTests\Services\ResendEmailTest\**" />
     <EmbeddedResource Remove="UnitTests\Services\ResendEmailTest\**" />
+    <None Remove="Infrastructure\**" />
+    <None Remove="IntegrationTests\Services\ResendEmailTest\**" />
     <None Remove="UnitTests\Services\ResendEmailTest\**" />
   </ItemGroup>
 
@@ -40,8 +46,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Infrastructure\" />
-    <Folder Include="IntegrationTests\Services\ResendEmailTest\" />
     <Folder Include="UnitTests\UserService\" />
   </ItemGroup>
 </Project>

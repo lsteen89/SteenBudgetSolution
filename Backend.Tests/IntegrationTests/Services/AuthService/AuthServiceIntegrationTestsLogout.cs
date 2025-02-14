@@ -1,18 +1,12 @@
 ﻿using Backend.Application.DTO;
-using Backend.Application.Services.AuthService;
-using Backend.Domain.Entities;
-using Backend.Infrastructure.Interfaces;
-using Microsoft.AspNetCore.Http;
+using Backend.Infrastructure.Security;
+using Backend.Tests.Helpers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
-using System.Security.Claims;
-using System.Threading.Tasks;
-using Xunit;
 using System.IdentityModel.Tokens.Jwt;
-using Backend.Application.Interfaces.JWT;
-using Backend.Infrastructure.Security;
-using Backend.Tests.Helpers;
+using System.Security.Claims;
+using Xunit;
 
 namespace Backend.Tests.IntegrationTests.Services.AuthService
 {

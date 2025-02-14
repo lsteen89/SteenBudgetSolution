@@ -1,50 +1,39 @@
-﻿using Newtonsoft.Json;
-using Microsoft.Extensions.Logging;
-
-namespace Backend.Common.Utilities
+﻿using Backend.Common.Interfaces;
+using Newtonsoft.Json;
+using Backend.Common.Models;
+namespace Backend.Common.Services
 {
-    public class RecaptchaResponse
-    {
-        public bool Success { get; set; }
-        public DateTime Challenge_ts { get; set; }
-        public string Hostname { get; set; }
-        public IEnumerable<string> ErrorCodes { get; set; }
-    }
-
-    public class RecaptchaHelper
+    public class RecaptchaService : IRecaptchaService
     {
         private readonly IConfiguration _configuration;
-        private readonly ILogger<RecaptchaHelper> _logger;
+        private readonly ILogger<RecaptchaService> _logger;
+        private readonly HttpClient _httpClient;
 
-        public RecaptchaHelper(IConfiguration configuration, ILogger<RecaptchaHelper> logger)
+        public RecaptchaService(IConfiguration configuration, ILogger<RecaptchaService> logger, HttpClient httpClient)
         {
             _configuration = configuration;
             _logger = logger;
+            _httpClient = httpClient;
         }
 
-        public async Task<bool> VerifyRecaptchaAsync(string token)
+        public async Task<bool> ValidateTokenAsync(string token)
         {
             try
             {
                 var secretKey = Environment.GetEnvironmentVariable("RECAPTCHA_SECRET_KEY")
                     ?? throw new InvalidOperationException("reCAPTCHA secret key not found.");
 
-                // Log token and secret key to verify values before making the Google API request
                 _logger.LogInformation("Verifying reCAPTCHA with token: {Token}", token);
 
-                var client = new HttpClient();
                 var url = $"https://www.google.com/recaptcha/api/siteverify?secret={secretKey}&response={token}";
-
-                _logger.LogInformation("Sending reCAPTCHA verification request to {Url}", url);
-
-                var response = await client.PostAsync(url, null);
+                var response = await _httpClient.PostAsync(url, null);
                 var jsonString = await response.Content.ReadAsStringAsync();
 
                 _logger.LogInformation("Received response from reCAPTCHA API: {Response}", jsonString);
 
                 var recaptchaResponse = JsonConvert.DeserializeObject<RecaptchaResponse>(jsonString);
 
-                if (recaptchaResponse != null && recaptchaResponse.Success)
+                if (recaptchaResponse?.Success == true)
                 {
                     _logger.LogInformation("reCAPTCHA validation successful.");
                     return true;

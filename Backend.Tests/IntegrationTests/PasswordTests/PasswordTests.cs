@@ -1,13 +1,5 @@
-﻿using Backend.Application.Services.UserServices;
-using Backend.Domain.Shared;
-using Backend.Infrastructure.Data.Sql.Interfaces;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Moq;
+﻿using Backend.Domain.Shared;
 using Xunit;
-using Microsoft.Extensions.Configuration;
-using Backend.Infrastructure.Interfaces;
 
 namespace Backend.Tests.IntegrationTests.PasswordTests
 {

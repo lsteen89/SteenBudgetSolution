@@ -2,10 +2,10 @@
 using Backend.Application.Interfaces.EmailServices;
 using Backend.Application.Interfaces.UserServices;
 using Backend.Application.Models;
+using Backend.Common.Interfaces;
 using Backend.Domain.Shared;
 using Backend.Infrastructure.Data.Sql.Interfaces;
 using Backend.Infrastructure.Data.Sql.Provider;
-using Backend.Infrastructure.Interfaces;
 using System.Security.Claims;
 
 namespace Backend.Application.Services.UserServices

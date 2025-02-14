@@ -1,6 +1,6 @@
 ﻿using System.Net.WebSockets;
 
-namespace Backend.Infrastructure.Interfaces
+namespace Backend.Application.Interfaces.WebSockets
 {
     public interface IWebSocketManager
     {
@@ -8,5 +8,6 @@ namespace Backend.Infrastructure.Interfaces
         Task SendMessageAsync(string userId, string message);
         Task BroadcastAsync(string message);
         Task HealthCheckAsync();
+        Task ForceLogoutAsync(string userId, string reason = "session-expired");
     }
 }

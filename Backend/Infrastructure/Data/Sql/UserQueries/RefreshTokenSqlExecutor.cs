@@ -1,11 +1,12 @@
-﻿using Backend.Infrastructure.Data.Sql.Interfaces;
-using Backend.Infrastructure.Interfaces;
+﻿// Purpose: Implementation of IRefreshTokenSqlExecutor interface for handling refresh token related queries in the database.
+// Token in this context refers to a JWT token used for authentication.
+// The RefreshJwtTokenEntity class is used to represent a refresh token in the database.
+
+using Backend.Common.Interfaces;
+using Backend.Infrastructure.Data.Sql.Interfaces;
+using Backend.Infrastructure.Entities;
 using Dapper;
 using System.Data.Common;
-using Backend.Infrastructure.Entities;
-using Microsoft.AspNetCore.DataProtection.KeyManagement;
-using Microsoft.AspNetCore.Http.HttpResults;
-using System.Data;
 
 namespace Backend.Infrastructure.Data.Sql.UserQueries
 {
@@ -157,6 +158,19 @@ namespace Backend.Infrastructure.Data.Sql.UserQueries
                 _logger.LogWarning("No blacklisted token found for JTI: {Jti}", jti);
             }
             return token;
+        }
+        public async Task<IEnumerable<RefreshJwtTokenEntity>> GetExpiredTokensAsync()
+        {
+            string sql = @"
+            SELECT Persoid, CAST(SessionId AS CHAR(36)) AS SessionId, RefreshToken, AccessTokenJti,
+                   RefreshTokenExpiryDate, AccessTokenExpiryDate, DeviceId, UserAgent, CreatedBy, CreatedTime 
+            FROM RefreshTokens 
+            WHERE RefreshTokenExpiryDate < @Now";
+
+            var parameters = new DynamicParameters(); 
+            parameters.Add("Now", DateTime.UtcNow);
+
+            return await QueryAsync<RefreshJwtTokenEntity>(sql, parameters);
         }
     }
 }

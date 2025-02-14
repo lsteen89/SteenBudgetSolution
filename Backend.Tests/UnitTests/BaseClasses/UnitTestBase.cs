@@ -2,8 +2,8 @@
 using Backend.Application.Interfaces.UserServices;
 using Backend.Application.Services.UserServices;
 using Backend.Application.Settings;
+using Backend.Common.Interfaces;
 using Backend.Infrastructure.Data.Sql.Interfaces;
-using Backend.Infrastructure.Interfaces;
 using Backend.Tests.Mocks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
