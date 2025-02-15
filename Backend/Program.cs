@@ -81,9 +81,6 @@ builder.Services.AddStackExchangeRedisCache(options =>
     options.InstanceName = "eBudget:"; // Optional prefix for keys
 });
 
-// Background services
-builder.Services.AddHostedService<ExpiredTokenScanner>(); // Scan for expired refreshtokens
-
 #endregion
 
 #region Serilog Configuration
