@@ -26,7 +26,7 @@ public class ExpiredTokenScanner : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogDebug("ExpiredTokenScanner started.");
+        _logger.LogInformation("ExpiredTokenScanner started.");
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -68,6 +68,6 @@ public class ExpiredTokenScanner : BackgroundService
             await Task.Delay(_scanInterval, stoppingToken);
         }
 
-        _logger.LogDebug("ExpiredTokenScanner stopping.");
+        _logger.LogInformation("ExpiredTokenScanner stopping.");
     }
 }
