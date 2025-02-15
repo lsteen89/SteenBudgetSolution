@@ -22,14 +22,6 @@
 	  <None Remove="Application\Services\TokenServices\**" />
 	  <None Remove="Infrastructure\Models\**" />
 	</ItemGroup>
-
-	<ItemGroup>
-	  <Content Remove="ExpiredTokenScannerSettings.json" />
-	</ItemGroup>
-
-	<ItemGroup>
-	  <None Include="ExpiredTokenScannerSettings.json" />
-	</ItemGroup>
   <ItemGroup>
     <PackageReference Include="AspNetCoreRateLimit" Version="5.0.0" />
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
