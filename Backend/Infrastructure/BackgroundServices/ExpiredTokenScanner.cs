@@ -22,6 +22,7 @@ public class ExpiredTokenScanner : BackgroundService
         _webSocketManager = webSocketManager;
         _logger = logger;
         _scanInterval = TimeSpan.FromMinutes(options.Value.ScanIntervalMinutes);
+        _logger.LogInformation("ExpiredTokenScanner scan interval set to {Interval}", _scanInterval);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
