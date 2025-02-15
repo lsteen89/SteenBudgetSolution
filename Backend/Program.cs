@@ -81,6 +81,9 @@ builder.Services.AddStackExchangeRedisCache(options =>
     options.InstanceName = "eBudget:"; // Optional prefix for keys
 });
 
+// Background services
+builder.Services.AddHostedService<ExpiredTokenScanner>(); // Scan for expired refreshtokens
+
 #endregion
 
 #region Serilog Configuration
@@ -203,11 +206,10 @@ else
 // Add WebSockets and their helpers
 builder.Services.AddSingleton<IWebSocketManager, Backend.Infrastructure.WebSockets.WebSocketManager>();
 builder.Services.AddHostedService(provider => (Backend.Infrastructure.WebSockets.WebSocketManager)provider.GetRequiredService<IWebSocketManager>());
-
+builder.Services.AddHostedService<WebSocketHealthCheckService>();
 
 // Background services
 builder.Services.AddHostedService<ExpiredTokenScanner>();
-builder.Services.AddHostedService<WebSocketHealthCheckService>();
 #endregion
 
 #region Rate Limiter Configuration
