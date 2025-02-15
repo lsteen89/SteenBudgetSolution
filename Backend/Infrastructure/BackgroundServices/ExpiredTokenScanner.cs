@@ -1,22 +1,27 @@
-﻿using Backend.Application.Interfaces.WebSockets;
+﻿using Backend.Application.Configuration;
+using Backend.Application.Interfaces.WebSockets;
 using Backend.Infrastructure.Data.Sql.Interfaces;
 using Backend.Infrastructure.Entities;
+using Microsoft.Extensions.Options;
 
 public class ExpiredTokenScanner : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IWebSocketManager _webSocketManager;
     private readonly ILogger<ExpiredTokenScanner> _logger;
-    private readonly TimeSpan _scanInterval = TimeSpan.FromSeconds(10); // adjust as needed
+    private readonly TimeSpan _scanInterval;
 
     public ExpiredTokenScanner(
         IServiceScopeFactory scopeFactory,
         IWebSocketManager webSocketManager,
-        ILogger<ExpiredTokenScanner> logger)
+        ILogger<ExpiredTokenScanner> logger,
+        IOptions<ExpiredTokenScannerSettings> options)
+
     {
         _scopeFactory = scopeFactory;
         _webSocketManager = webSocketManager;
         _logger = logger;
+        _scanInterval = TimeSpan.FromMinutes(options.Value.ScanIntervalMinutes);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -44,11 +49,12 @@ public class ExpiredTokenScanner : BackgroundService
 
                         // Notify the frontend via WebSocket
                         await _webSocketManager.ForceLogoutAsync(userId, "session-expired");
-                        /*
+
+                        // Delete the expired token
                         bool deleteSuccess = await UserSQLProvider.RefreshTokenSqlExecutor.DeleteTokenAsync(token.RefreshToken);
                         if (!deleteSuccess) 
                             _logger.LogError($"Failed to delete expired token {token.RefreshToken} for user {userId}.");
-                        */
+                        
                         
                     }
                 }

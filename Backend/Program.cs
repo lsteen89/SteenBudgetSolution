@@ -30,6 +30,7 @@ using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Moq;
 using MySqlConnector;
@@ -41,6 +42,21 @@ using System.Text;
 using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
+
+#region configurationFiles
+// Add configuration files
+//Config files
+builder.Configuration.AddJsonFile("ExpiredTokenScannerSettings.json", optional: false, reloadOnChange: true);
+builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+
+
+// Configure the ExpiredTokenScannerSettings
+builder.Services.Configure<ExpiredTokenScannerSettings>(
+    builder.Configuration.GetSection("ExpiredTokenScannerSettings"));
+
+// Configure the JWT settings
+var jwtSettingsSection = builder.Configuration.GetSection("JwtSettings");
+#endregion
 
 #region Configuration and Services
 // Register In-Memory Distributed Cache
@@ -54,8 +70,8 @@ var jwtSettings = new JwtSettings
     Issuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "eBudget",
     Audience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "eBudget",
     SecretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY") ?? "development-fallback-key",
-    ExpiryMinutes = int.TryParse(Environment.GetEnvironmentVariable("JWT_EXPIRY_MINUTES"), out var expiry) ? expiry : 3, // Default to 3 minutes for testing! Should be 15 minutes in production
-    RefreshTokenExpiryDays = int.TryParse(Environment.GetEnvironmentVariable("JWT_REFRESH_TOKEN_EXPIRY_DAYS"), out var rtExpiry) ? rtExpiry : 30
+    ExpiryMinutes = jwtSettingsSection.GetValue<int>("ExpiryMinutes", 15),
+    RefreshTokenExpiryDays = jwtSettingsSection.GetValue<int>("RefreshTokenExpiryDays", 30)
 };
 
 // Configure Redis Cache
@@ -67,6 +83,7 @@ builder.Services.AddStackExchangeRedisCache(options =>
 
 // Background services
 builder.Services.AddHostedService<ExpiredTokenScanner>(); // Scan for expired refreshtokens
+
 #endregion
 
 #region Serilog Configuration
