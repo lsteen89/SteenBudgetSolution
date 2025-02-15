@@ -176,8 +176,6 @@ namespace Backend.Infrastructure.Data.Sql.UserQueries
                 parameters.Add("Now", now);
 
                 var tokens = await QueryAsync<RefreshJwtTokenEntity>(sql, parameters);
-                _logger.LogInformation("Found {Count} expired tokens.", tokens.Count());
-
                 return tokens;
             }
             catch (Exception ex)
