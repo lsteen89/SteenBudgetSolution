@@ -1,4 +1,3 @@
-using Backend.Application.Configuration;
 using Backend.Application.Interfaces.AuthService;
 using Backend.Application.Interfaces.Cookies;
 using Backend.Application.Interfaces.EmailServices;
@@ -48,11 +47,15 @@ var builder = WebApplication.CreateBuilder(args);
 //Config files
 builder.Configuration.AddJsonFile("ExpiredTokenScannerSettings.json", optional: false, reloadOnChange: true);
 builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
-
+builder.Configuration.AddJsonFile("WebSocketHealthCheckSettings.json", optional: false, reloadOnChange: true);
 
 // Configure the ExpiredTokenScannerSettings
 builder.Services.Configure<ExpiredTokenScannerSettings>(
     builder.Configuration.GetSection("ExpiredTokenScannerSettings"));
+
+// Configure the WebSocketHealthCheckSettings
+builder.Services.Configure<WebSocketHealthCheckSettings>(
+    builder.Configuration.GetSection("WebSocketHealthCheckSettings"));
 
 // Configure the JWT settings
 var jwtSettingsSection = builder.Configuration.GetSection("JwtSettings");
