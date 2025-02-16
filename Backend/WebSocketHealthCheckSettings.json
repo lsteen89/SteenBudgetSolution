@@ -2,6 +2,7 @@
   "WebSocketHealthCheckSettings": {
     "Enabled": true,
     "MinimumActiveConnections": 1,
-    "IntervalSeconds": 30
+    "IntervalSeconds": 30,
+    "HeartbeatIntervalMinutes": 5
   }
 }
