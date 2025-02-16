@@ -163,8 +163,6 @@ namespace Backend.Infrastructure.Data.Sql.UserQueries
         {
             try
             {
-                var now = DateTime.UtcNow;
-                _logger.LogInformation("Querying expired tokens. Current UTC time: {Now}", now);
 
                 string sql = @"
             SELECT Persoid, CAST(SessionId AS CHAR(36)) AS SessionId, RefreshToken, AccessTokenJti,
