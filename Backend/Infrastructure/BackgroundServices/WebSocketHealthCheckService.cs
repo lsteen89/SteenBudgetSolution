@@ -41,7 +41,7 @@ namespace Backend.Infrastructure.BackgroundServices
                 // Heartbeat: log every configured interval
                 if (DateTime.UtcNow - lastHeartbeat >= _heartbeatInterval)
                 {
-                    _logger.LogInformation("ExpiredTokenScanner heartbeat: I'm still alive, all is good!");
+                    _logger.LogInformation("WebSocketHealthCheckService heartbeat: I'm still alive, all is good!");
                     lastHeartbeat = DateTime.UtcNow;
                 }
                 await Task.Delay(_interval, stoppingToken);
