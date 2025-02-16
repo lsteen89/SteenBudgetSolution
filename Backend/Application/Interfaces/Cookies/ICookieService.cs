@@ -1,4 +1,4 @@
-﻿using Backend.Application.Configuration;
+﻿using Backend.Application.Settings;
 
 namespace Backend.Application.Interfaces.Cookies
 {
