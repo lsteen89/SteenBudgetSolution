@@ -3,6 +3,7 @@ using System.Net.WebSockets;
 using System.Text;
 using System.IdentityModel.Tokens.Jwt;
 using Backend.Application.Interfaces.WebSockets;
+using Org.BouncyCastle.Tls;
 
 namespace Backend.Infrastructure.WebSockets
 {
@@ -11,9 +12,10 @@ namespace Backend.Infrastructure.WebSockets
     {
         private readonly ConcurrentDictionary<string, SemaphoreSlim> _userLocks = new();
         private readonly ConcurrentDictionary<string, WebSocketConnection> _userSockets = new();
+        private readonly ConcurrentDictionary<string, WebSocket> _connections = new ConcurrentDictionary<string, WebSocket>();
         private readonly ILogger<WebSocketManager> _logger;
         private const int MAX_MESSAGE_SIZE_BYTES = 4 * 1024; // 4 KB, adjust as needed. Max WebSocket message size
-
+        public int ActiveConnectionCount => _connections.Count;
         public WebSocketManager(ILogger<WebSocketManager> logger)
         {
             _logger = logger;
@@ -163,6 +165,9 @@ namespace Backend.Infrastructure.WebSockets
                         return;
                     }
 
+                    // Add the connection to the dictionary
+                    _connections.TryAdd(userId, webSocket);
+
                     _logger.LogInformation($"WebSocket connection established for user {userId}.");
                     // Send readiness acknowledgment
                     await SendMessageAsync(userId, "ready");
@@ -219,6 +224,8 @@ namespace Backend.Infrastructure.WebSockets
                     finally
                     {
                         userLock.Release();
+                        // Remove the connection from the dictionary
+                        _connections.TryRemove(userId, out _);
                     }
                 }
                 _logger.LogDebug($"Cleanup done for user {userId}.");

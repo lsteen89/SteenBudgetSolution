@@ -1,0 +1,7 @@
+{
+  "WebSocketHealthCheckSettings": {
+    "Enabled": true,
+    "MinimumActiveConnections": 1,
+    "IntervalSeconds": 30
+  }
+}

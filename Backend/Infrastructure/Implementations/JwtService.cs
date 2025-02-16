@@ -1,8 +1,8 @@
-﻿using Backend.Application.Configuration;
-using Backend.Application.DTO;
+﻿using Backend.Application.DTO;
 using Backend.Application.Interfaces.JWT;
 using Backend.Application.Mappers;
 using Backend.Application.Models;
+using Backend.Application.Settings;
 using Backend.Common.Interfaces;
 using Backend.Domain.Entities;
 using Backend.Infrastructure.Data.Sql.Interfaces;
