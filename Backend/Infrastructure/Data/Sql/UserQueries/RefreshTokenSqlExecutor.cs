@@ -163,6 +163,7 @@ namespace Backend.Infrastructure.Data.Sql.UserQueries
         {
             try
             {
+                var now = DateTime.UtcNow;
 
                 string sql = @"
             SELECT Persoid, CAST(SessionId AS CHAR(36)) AS SessionId, RefreshToken, AccessTokenJti,
