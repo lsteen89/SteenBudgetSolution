@@ -21,6 +21,8 @@ namespace Backend.Infrastructure.BackgroundServices
             var settings = options.Value;
             _interval = TimeSpan.FromSeconds(settings.IntervalSeconds);
             _minActiveConnections = settings.MinimumActiveConnections;
+            _logger.LogInformation("WebSocketHealthCheckSettings: IntervalSeconds={IntervalSeconds}, MinimumActiveConnections={MinActiveConnections}",
+                settings.IntervalSeconds, settings.MinimumActiveConnections);
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
