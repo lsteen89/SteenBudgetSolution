@@ -5,5 +5,6 @@
         public bool Enabled { get; set; }
         public int MinimumActiveConnections { get; set; }
         public int IntervalSeconds { get; set; }
+        public int HeartbeatIntervalMinutes { get; set; }
     }
 }
