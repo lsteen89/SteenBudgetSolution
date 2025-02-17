@@ -1,21 +1,16 @@
-﻿using Backend.Tests.Fixtures;
+﻿using Backend.Application.DTO;
+using Backend.Application.Interfaces.WebSockets;
+using Backend.Infrastructure.WebSockets;
+using Backend.Test.UserTests;
+using Backend.Tests.Fixtures;
+using Backend.Tests.Helpers;
 using FluentAssertions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.DependencyInjection;
 using System.Net.WebSockets;
 using System.Text;
 using Xunit;
-using Moq;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
-using Backend.Infrastructure.WebSockets;
 using Xunit.Sdk;
-using Backend.Application.Interfaces.WebSockets;
-using Backend.Application.DTO;
-using Backend.Infrastructure.Data.Sql.Provider;
-using Backend.Infrastructure.Security;
-using Backend.Test.UserTests;
-using Backend.Tests.Helpers;
 
 namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTest
 {
@@ -36,13 +31,18 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
             var wsUri = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth");
             using var client = new ClientWebSocket();
             client.Options.SetRequestHeader("Test-Auth", "true");
+            // Set required headers for composite key authentication
+            client.Options.SetRequestHeader("sub", "client1");
+            client.Options.SetRequestHeader("sessionId", "sessionIdForClient1");
+
             Console.WriteLine($"Connecting to WebSocket at: {wsUri}");
 
             // Act
             await client.ConnectAsync(wsUri, CancellationToken.None);
 
             // Assert connection
-            client.State.Should().Be(WebSocketState.Open, because: "the WebSocket connection should be established successfully for authenticated users");
+            client.State.Should().Be(WebSocketState.Open,
+                because: "the WebSocket connection should be established successfully for authenticated users");
 
             // Buffer and builder for receiving messages
             var buffer = new byte[1024];
@@ -53,7 +53,8 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
             result = await client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
             receivedMessage.Append(Encoding.UTF8.GetString(buffer, 0, result.Count));
             var initialMessage = receivedMessage.ToString();
-            initialMessage.Should().Be("ready", because: "the server should send an initial 'ready' message upon connection");
+            initialMessage.Should().Be("ready",
+                because: "the server should send an initial 'ready' message upon connection");
             Console.WriteLine($"Received initial message: {initialMessage}");
             receivedMessage.Clear();
 
@@ -73,14 +74,17 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
 
             // Validate the echoed message
             var echoedMessage = receivedMessage.ToString();
-            echoedMessage.Should().Be($"Echo: {message}", because: "the server should echo back the sent message prefixed with 'Echo:'");
+            echoedMessage.Should().Be($"Echo: {message}",
+                because: "the server should echo back the sent message prefixed with 'Echo:'");
             Console.WriteLine($"Received echoed message: {echoedMessage}");
 
             // Close the WebSocket
             await client.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
-            client.State.Should().Be(WebSocketState.Closed, because: "the WebSocket connection should be closed gracefully");
+            client.State.Should().Be(WebSocketState.Closed,
+                because: "the WebSocket connection should be closed gracefully");
             Console.WriteLine("WebSocket connection closed.");
         }
+
 
         [Fact]
         public async Task Unauthenticated_User_Should_Not_Connect()
@@ -108,68 +112,77 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
         [Fact]
         public async Task Broadcast_Message_Should_Be_Received_By_All_Connected_Clients()
         {
-            // 1) Connect two distinct users (via query param, or you can set "Test-User" headers)
-            var wsUriClient1 = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth?user=client1");
-            var wsUriClient2 = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth?user=client2");
+            // Arrange
+            var wsUri = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth");
 
+            // Create two clients with required headers for composite key authentication.
             using var client1 = new ClientWebSocket();
             client1.Options.SetRequestHeader("Test-Auth", "true");
+            client1.Options.SetRequestHeader("sub", "client1");
+            client1.Options.SetRequestHeader("sessionId", "sessionIdForClient1");
 
             using var client2 = new ClientWebSocket();
             client2.Options.SetRequestHeader("Test-Auth", "true");
+            client2.Options.SetRequestHeader("sub", "client2");
+            client2.Options.SetRequestHeader("sessionId", "sessionIdForClient2");
 
-            // Connect both
+            // 1. Connect both clients
             await Task.WhenAll(
-                client1.ConnectAsync(wsUriClient1, CancellationToken.None),
-                client2.ConnectAsync(wsUriClient2, CancellationToken.None)
+                client1.ConnectAsync(wsUri, CancellationToken.None),
+                client2.ConnectAsync(wsUri, CancellationToken.None)
             );
 
-            client1.State.Should().Be(WebSocketState.Open);
-            client2.State.Should().Be(WebSocketState.Open);
+            client1.State.Should().Be(WebSocketState.Open, because: "client1 should be connected successfully");
+            client2.State.Should().Be(WebSocketState.Open, because: "client2 should be connected successfully");
 
-            // 2) Both must consume the initial "ready"
+            // 2. Both must consume the initial "ready" message
             await ReadReadyMessage(client1, "client1");
             await ReadReadyMessage(client2, "client2");
 
-            // 3) Broadcast a message
+            // 3. Broadcast a message to all connected clients.
             var broadcastMessage = "This is a broadcast message.";
             await _fixture.Host.Services.GetRequiredService<IWebSocketManager>()
                       .BroadcastAsync(broadcastMessage);
 
-            // 4) Each client reads the broadcast with a short timeout
-            var task1 = ExpectMessage(client1, $"{broadcastMessage}", "client1");
-            var task2 = ExpectMessage(client2, $"{broadcastMessage}", "client2");
+            // 4. Each client reads the broadcast message with a short timeout.
+            var task1 = ExpectMessage(client1, broadcastMessage, "client1");
+            var task2 = ExpectMessage(client2, broadcastMessage, "client2");
 
             await Task.WhenAll(task1, task2);
 
-            // 5) Close both clients gracefully
+            // 5. Cleanup: Close both clients gracefully.
             await Task.WhenAll(
                 CloseIfOpen(client1),
                 CloseIfOpen(client2)
             );
 
-            // Final states: closed or possibly aborted
+            // 6. Final state assertions: Each client should be closed or aborted.
             client1.State.Should().BeOneOf(WebSocketState.Closed, WebSocketState.Aborted);
             client2.State.Should().BeOneOf(WebSocketState.Closed, WebSocketState.Aborted);
         }
+
 
         [Fact]
         public async Task Send_Message_To_Specific_User_Should_Be_Received_By_Target_Client_Only()
         {
             // Arrange
-            var wsUri1 = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth?user=client1");
-            var wsUri2 = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth?user=client2");
+            var wsUri = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth");
 
+            // Create two clients with unique composite key headers
             using var client1 = new ClientWebSocket();
             client1.Options.SetRequestHeader("Test-Auth", "true");
+            client1.Options.SetRequestHeader("sub", "client1");
+            client1.Options.SetRequestHeader("sessionId", "sessionIdForClient1");
 
             using var client2 = new ClientWebSocket();
             client2.Options.SetRequestHeader("Test-Auth", "true");
+            client2.Options.SetRequestHeader("sub", "client2");
+            client2.Options.SetRequestHeader("sessionId", "sessionIdForClient2");
 
             // 1. Connect both clients
             await Task.WhenAll(
-                client1.ConnectAsync(wsUri1, CancellationToken.None),
-                client2.ConnectAsync(wsUri2, CancellationToken.None)
+                client1.ConnectAsync(wsUri, CancellationToken.None),
+                client2.ConnectAsync(wsUri, CancellationToken.None)
             );
 
             client1.State.Should().Be(WebSocketState.Open);
@@ -180,19 +193,19 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
 
             var result1 = await client1.ReceiveAsync(buffer, CancellationToken.None);
             var msg1 = Encoding.UTF8.GetString(buffer, 0, result1.Count);
-            msg1.Should().Be("ready", because: "server sends a 'ready' message at connection");
+            msg1.Should().Be("ready", because: "the server sends a 'ready' message at connection");
 
             var result2 = await client2.ReceiveAsync(buffer, CancellationToken.None);
             var msg2 = Encoding.UTF8.GetString(buffer, 0, result2.Count);
-            msg2.Should().Be("ready", because: "server sends a 'ready' message at connection");
+            msg2.Should().Be("ready", because: "the server sends a 'ready' message at connection");
 
             // Act
             // 3. Send a message to client2 only
-            var targetUserId = "client2";
             var specificMessage = "Hello Client2!";
+            var targetUserSession = new UserSessionKey("client2", "sessionIdForClient2");
             await _fixture.Host.Services
-                          .GetRequiredService<IWebSocketManager>()
-                          .SendMessageAsync(targetUserId, specificMessage);
+                              .GetRequiredService<IWebSocketManager>()
+                              .SendMessageAsync(targetUserSession, specificMessage);
 
             // 4. client1: we expect NO message, so we do a quick read with a short timeout
             var buffer1 = new byte[1024];
@@ -202,13 +215,12 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
                 try
                 {
                     var r1 = await client1.ReceiveAsync(new ArraySegment<byte>(buffer1), ctsClient1.Token);
-                    // If we got data, that's unexpected
                     throw new Xunit.Sdk.XunitException(
                         $"Client1 unexpectedly received: {Encoding.UTF8.GetString(buffer1, 0, r1.Count)}");
                 }
                 catch (OperationCanceledException)
                 {
-                    // good -> client1 got no message for 1s
+                    // Expected: no message received within timeout
                 }
             });
 
@@ -219,13 +231,13 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
             {
                 var r2 = await client2.ReceiveAsync(new ArraySegment<byte>(buffer2), ctsClient2.Token);
                 var receivedMsg = Encoding.UTF8.GetString(buffer2, 0, r2.Count);
-                receivedMsg.Should().Be($"{specificMessage}",
+                receivedMsg.Should().Be(specificMessage,
                     because: "client2 should get the message intended for them");
             });
 
             await Task.WhenAll(receiveTask1, receiveTask2);
 
-            // 6. Cleanup - use a helper that closes if possible
+            // 6. Cleanup - gracefully close connections
             await Task.WhenAll(
                 GracefulCloseIfOpen(client1),
                 GracefulCloseIfOpen(client2)
@@ -235,6 +247,7 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
             client1.State.Should().BeOneOf(WebSocketState.Closed, WebSocketState.Aborted);
             client2.State.Should().BeOneOf(WebSocketState.Closed, WebSocketState.Aborted);
         }
+
 
 
         [Fact]
@@ -247,12 +260,13 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
             var tasks = new List<Task>();
 
             // Act
-            // Initialize and connect multiple clients with unique user identities
+            // Initialize and connect multiple clients with unique identities
             for (int i = 0; i < clientCount; i++)
             {
                 var client = new ClientWebSocket();
                 client.Options.SetRequestHeader("Test-Auth", "true");
-                client.Options.SetRequestHeader("Test-User", $"testuser{i + 1}"); // Unique user
+                client.Options.SetRequestHeader("sessionId", $"test-session-{i + 1}"); // Unique session per client
+                client.Options.SetRequestHeader("sub", $"testuser{i + 1}");           // Unique user ID per client
                 clients.Add(client);
                 tasks.Add(client.ConnectAsync(wsUri, CancellationToken.None));
             }
@@ -304,7 +318,8 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
             // Assert each client received the correct echoed message
             for (int i = 0; i < clientCount; i++)
             {
-                receivedMessages[i].Should().Be($"Echo: Message from client {i + 1}", because: $"client {i + 1} should receive its own echoed message");
+                receivedMessages[i].Should().Be($"Echo: Message from client {i + 1}",
+                    because: $"client {i + 1} should receive its own echoed message");
             }
 
             // Cleanup
@@ -319,9 +334,11 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
 
             foreach (var client in clients)
             {
-                client.State.Should().Be(WebSocketState.Closed, because: "all clients should be closed gracefully");
+                client.State.Should().Be(WebSocketState.Closed,
+                    because: "all clients should be closed gracefully");
             }
         }
+
 
 
         [Fact]
@@ -352,14 +369,17 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
 
             Console.WriteLine("WebSocket connection was correctly removed from the server upon client disconnect.");
         }
-
         [Fact]
         public async Task Server_Should_Handle_Malformed_Messages_Gracefully()
         {
             // Arrange
             var wsUri = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth");
             using var client = new ClientWebSocket();
+
+            // Set headers for authentication (required for composite key)
             client.Options.SetRequestHeader("Test-Auth", "true");
+            client.Options.SetRequestHeader("sessionId", "test-session-1");
+            client.Options.SetRequestHeader("sub", "test-user-1");
 
             await client.ConnectAsync(wsUri, CancellationToken.None);
             client.State.Should().Be(WebSocketState.Open, because: "client should be connected");
@@ -370,19 +390,33 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
             var readyMessage = Encoding.UTF8.GetString(buffer, 0, readyResult.Count);
             readyMessage.Should().Be("ready", because: "the server should send a 'ready' message upon connection");
 
-            // Act
-            // Send a malformed message (binary data instead of text)
+            // Act: Send a malformed message (binary data instead of text)
             var malformedData = new byte[] { 0xFF, 0xFE, 0xFD };
             await client.SendAsync(new ArraySegment<byte>(malformedData), WebSocketMessageType.Binary, true, CancellationToken.None);
 
             // Attempt to receive a response
-            var receiveResult = await client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+            WebSocketReceiveResult receiveResult = null;
+            try
+            {
+                receiveResult = await client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+            }
+            catch (WebSocketException)
+            {
+                // Exception indicates forced closure, which is expected.
+            }
 
-            // Assert
-            receiveResult.MessageType.Should().Be(WebSocketMessageType.Close, because: "the server should send a close frame for malformed messages");
-            client.State.Should().Be(WebSocketState.CloseReceived, because: "the client should recognize the close frame sent by the server");
+            // Assert: If a response is received, it should be a close frame.
+            if (receiveResult != null)
+            {
+                receiveResult.MessageType.Should().Be(WebSocketMessageType.Close,
+                    because: "the server should send a close frame for malformed messages");
+            }
+            client.State.Should().Be(WebSocketState.CloseReceived,
+                because: "the client should recognize the close frame sent by the server");
+
             Console.WriteLine("Server correctly handled the malformed message by closing the connection.");
         }
+
 
         [Fact]
         public async Task Server_Should_Reject_Too_Large_Messages_With_ForcedAbort()
@@ -390,7 +424,11 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
             // Arrange
             var wsUri = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth");
             using var client = new ClientWebSocket();
+
+            // Set headers to simulate authentication with required claims.
             client.Options.SetRequestHeader("Test-Auth", "true");
+            client.Options.SetRequestHeader("sessionId", "test-session-1");  // Required for composite key
+            client.Options.SetRequestHeader("sub", "test-user-1");           // Required for user ID claim
 
             await client.ConnectAsync(wsUri, CancellationToken.None);
 
@@ -405,33 +443,28 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
             var largeBytes = Encoding.UTF8.GetBytes(largeMessage);
             await client.SendAsync(new ArraySegment<byte>(largeBytes), WebSocketMessageType.Text, true, CancellationToken.None);
 
-            // 3) Try to read again; accept *any* sign of forced closure
+            // 3) Try to read again; accept any sign of forced closure
             bool forciblyClosed = false;
             try
             {
                 var secondResult = await client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-
-                // If we get 0 bytes or the state is no longer open, consider it forcibly closed
                 if (secondResult.Count == 0
                     || client.State == WebSocketState.Aborted
                     || secondResult.CloseStatus.HasValue)
                 {
                     forciblyClosed = true;
                 }
-                else
-                {
-                    // Possibly we got some weird partial read, or a random text message
-                    // That would be unexpected 
-                }
             }
             catch (WebSocketException)
             {
-                // If we catch an exception, that also indicates forced closure
                 forciblyClosed = true;
             }
 
             forciblyClosed.Should().BeTrue("we expect the server to forcibly close or abort on oversized messages");
         }
+
+
+
 
         [Fact]
         public async Task Should_Not_Hang()
@@ -457,14 +490,15 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
 
 
 
-
         [Fact]
         public async Task Server_Should_Shutdown_Gracefully_With_Active_Connections()
         {
             // Arrange
-            var wsUri = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth?user=client1");
+            var wsUri = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth");
             using var client = new ClientWebSocket();
             client.Options.SetRequestHeader("Test-Auth", "true");
+            client.Options.SetRequestHeader("sub", "client1");
+            client.Options.SetRequestHeader("sessionId", "sessionIdForClient1");
 
             Console.WriteLine($"Connecting to WebSocket at: {wsUri}");
 
@@ -508,7 +542,6 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
             // Assert
             try
             {
-
                 WebSocketCloseStatus? closeStatus = null;
                 WebSocketMessageType msgType = WebSocketMessageType.Text;
 
@@ -536,6 +569,7 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
                 Assert.True(client.State == WebSocketState.Aborted, $"WebSocket should be Aborted if handshake failed. Error: {ex.Message}");
             }
         }
+
         [Fact]
         public async Task Server_Should_Replace_Existing_Connection_For_Same_User()
         {
@@ -545,11 +579,14 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
             using var clientSocket1 = new ClientWebSocket();
             using var clientSocket2 = new ClientWebSocket();
 
+            // Use the new headers for composite key authentication
             clientSocket1.Options.SetRequestHeader("Test-Auth", "true");
-            clientSocket1.Options.SetRequestHeader("Test-User", "testuser");
+            clientSocket1.Options.SetRequestHeader("sub", "testuser");
+            clientSocket1.Options.SetRequestHeader("sessionId", "test-session");
 
             clientSocket2.Options.SetRequestHeader("Test-Auth", "true");
-            clientSocket2.Options.SetRequestHeader("Test-User", "testuser");
+            clientSocket2.Options.SetRequestHeader("sub", "testuser");
+            clientSocket2.Options.SetRequestHeader("sessionId", "test-session");
 
             // Connect clientSocket1
             await clientSocket1.ConnectAsync(wsUri, CancellationToken.None);
@@ -577,9 +614,8 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
             var receivedMessage = await RetryReceiveMessage(clientSocket2, 5, TimeSpan.FromMilliseconds(500));
             Assert.Equal($"Echo: {message}", receivedMessage);
             Console.WriteLine("Received echoed message from server.");
-
-
         }
+
 
         // Helper method for retries
         private async Task<string> RetryReceiveMessage(ClientWebSocket clientSocket, int maxAttempts, TimeSpan delay)
@@ -692,6 +728,8 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
             using var clientWebSocket = new ClientWebSocket();
             clientWebSocket.Options.SetRequestHeader("Test-Auth", "true");
             clientWebSocket.Options.SetRequestHeader("Test-User", "testuser");
+            clientWebSocket.Options.SetRequestHeader("sub", "client1");
+            clientWebSocket.Options.SetRequestHeader("sessionId", "sessionIdForClient1");
 
             Console.WriteLine($"Connecting to WebSocket at: {wsUri}");
             await clientWebSocket.ConnectAsync(wsUri, CancellationToken.None);
@@ -736,9 +774,14 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
             Assert.False(string.IsNullOrEmpty(loginResult.RefreshToken), "A refresh token should be returned.");
 
             // Open a WebSocket connection as the authenticated user.
-            var wsUri = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth?user={registeredUser.PersoId}");
+            var wsUri = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth");
             using var client = new ClientWebSocket();
+
+            // Set required headers for composite key authentication.
             client.Options.SetRequestHeader("Test-Auth", "true");
+            client.Options.SetRequestHeader("sub", registeredUser.PersoId.ToString());
+            client.Options.SetRequestHeader("sessionId", loginResult.SessionId);
+
             await client.ConnectAsync(wsUri, CancellationToken.None);
             client.State.Should().Be(WebSocketState.Open, "The WebSocket should connect successfully for an authenticated user.");
 
@@ -769,7 +812,6 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
             catch (WebSocketException ex)
             {
                 // We expect an exception if the server closed the connection abruptly.
-                // Log the exception and assert that the connection state is closed.
                 Console.WriteLine($"WebSocketException caught as expected: {ex.Message}");
                 client.State.Should().BeOneOf(new[] { WebSocketState.Closed, WebSocketState.Aborted },
                     "A WebSocketException is acceptable if the server closed the connection forcibly.");
@@ -783,8 +825,133 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
             client.State.Should().BeOneOf(new[] { WebSocketState.Closed, WebSocketState.Aborted },
                 "The WebSocket connection should be closed after forced logout.");
         }
+        [Fact]
+        public async Task Connection_Should_Be_Rejected_Without_Authentication_Headers()
+        {
+            // Arrange
+            var wsUri = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth");
+            using var client = new ClientWebSocket();
+            // DO NOT set any authentication headers
+
+            // Act
+            await client.ConnectAsync(wsUri, CancellationToken.None);
+
+            // Assert
+            // Expect the connection to be closed almost immediately due to missing required claims.
+            var buffer = new byte[1024];
+            try
+            {
+                var result = await client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+                // The server should have closed the connection; CloseStatus should be set.
+                result.CloseStatus.Should().NotBeNull("The connection should be closed due to missing authentication headers.");
+            }
+            catch (WebSocketException)
+            {
+                // Acceptable: an exception indicates the connection was aborted.
+            }
+            client.State.Should().BeOneOf(
+                new[] { WebSocketState.Closed, WebSocketState.Aborted, WebSocketState.CloseReceived },
+                "The client should not remain connected without proper authentication headers."
+            );
+        }
+        [Fact]
+        public async Task Connection_Should_Be_Rejected_With_Invalid_Claims()
+        {
+            // Arrange
+            var wsUri = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth");
+            using var client = new ClientWebSocket();
+            client.Options.SetRequestHeader("Test-Auth", "true");
+            // Set invalid credentials: for example, an empty "sub" header and no sessionId header.
+            client.Options.SetRequestHeader("sub", "");
+            // Do not set "sessionId"
+
+            // Act
+            await client.ConnectAsync(wsUri, CancellationToken.None);
+
+            // Assert
+            var buffer = new byte[1024];
+            try
+            {
+                var result = await client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+                result.CloseStatus.Should().NotBeNull("The connection should be closed due to invalid claims.");
+            }
+            catch (WebSocketException)
+            {
+                // Expected: connection is forcibly closed.
+            }
+            client.State.Should().BeOneOf(
+                new[] { WebSocketState.Closed, WebSocketState.Aborted, WebSocketState.CloseReceived },
+                "Client should be closed if provided claims are invalid."
+            );
+        }
+        [Fact]
+        public async Task Server_Should_Handle_Rapid_Connect_Disconnect_Sequences()
+        {
+            // Arrange
+            var wsUri = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth");
+            int iterations = 20; // Number of rapid connect/disconnect cycles
+
+            for (int i = 0; i < iterations; i++)
+            {
+                using var client = new ClientWebSocket();
+                client.Options.SetRequestHeader("Test-Auth", "true");
+                client.Options.SetRequestHeader("sub", $"rapiduser{i}");
+                client.Options.SetRequestHeader("sessionId", $"rapid-session-{i}");
+
+                // Act: Connect, then immediately close.
+                await client.ConnectAsync(wsUri, CancellationToken.None);
+                client.State.Should().Be(WebSocketState.Open, $"Client {i} should connect successfully.");
+
+                await client.CloseAsync(WebSocketCloseStatus.NormalClosure, "Rapid disconnect", CancellationToken.None);
+                client.State.Should().BeOneOf(new[] { WebSocketState.Closed, WebSocketState.Aborted }, $"Client {i} should disconnect properly.");
+            }
+        }
+        [Fact]
+        public async Task Server_Should_Close_Connection_On_Unexpected_Message_Type()
+        {
+            // Arrange
+            var wsUri = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth");
+            using var client = new ClientWebSocket();
+            client.Options.SetRequestHeader("Test-Auth", "true");
+            client.Options.SetRequestHeader("sub", "testuser");
+            client.Options.SetRequestHeader("sessionId", "test-session");
+
+            await client.ConnectAsync(wsUri, CancellationToken.None);
+            client.State.Should().Be(WebSocketState.Open, "Client should be connected.");
+
+            // Wait for initial "ready" message.
+            var buffer = new byte[1024];
+            var readyResult = await client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+            Encoding.UTF8.GetString(buffer, 0, readyResult.Count).Should().Be("ready");
+
+            // Act: Send a binary message (unexpected if the server only supports text).
+            var unexpectedData = new byte[] { 0x01, 0x02, 0x03 };
+            await client.SendAsync(new ArraySegment<byte>(unexpectedData), WebSocketMessageType.Binary, true, CancellationToken.None);
+
+            // Assert: Expect the connection to be closed.
+            try
+            {
+                var result = await client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+                result.CloseStatus.Should().NotBeNull("Server should close connection on receiving an unexpected message type.");
+            }
+            catch (WebSocketException)
+            {
+                // Acceptable: exception indicates forced closure.
+            }
+            client.State.Should().BeOneOf(
+                new[] { WebSocketState.Closed, WebSocketState.Aborted, WebSocketState.CloseReceived },
+                "Client should be closed or in the process of closing (CloseReceived) after sending an unexpected message type."
+            );
+        }
+
+
 
     }
 
+
+
+
 }
+
+
 

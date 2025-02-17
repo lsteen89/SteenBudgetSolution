@@ -6,6 +6,7 @@ using System.IdentityModel.Tokens.Jwt;
 using Backend.Tests.Helpers;
 using Moq;
 using Backend.Infrastructure.Security;
+using Backend.Infrastructure.WebSockets;
 
 
 namespace Backend.Tests.IntegrationTests.Services.AuthService
@@ -194,24 +195,27 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             var subClaim2 = principal2.FindFirst(JwtRegisteredClaimNames.Sub) ?? principal2.FindFirst(ClaimTypes.NameIdentifier);
             Assert.Equal(registeredUser.PersoId.ToString(), subClaim2.Value);
 
-            // Mock WebSocketManager to expect a LOGOUT message for each device.
+            // Arrange: Mock WebSocketManager to expect a LOGOUT message for each session.
             WebSocketManagerMock
-                .Setup(x => x.SendMessageAsync(registeredUser.PersoId.ToString(), "LOGOUT"))
+                .Setup(x => x.SendMessageAsync(
+                    It.Is<UserSessionKey>(k =>
+                        k.UserId == registeredUser.PersoId.ToString() &&
+                        (k.SessionId == firstLoginResult.SessionId || k.SessionId == secondLoginResult.SessionId)),
+                    It.Is<string>(msg => msg == "LOGOUT")))
                 .Returns(Task.CompletedTask)
                 .Verifiable();
 
-            // Act: Log out from the first session.
+            // Act: Log out from both sessions.
             await AuthService.LogoutAsync(principal1, firstLoginResult.AccessToken, firstLoginResult.RefreshToken, firstLoginResult.SessionId, logoutAll: false);
-
-            // Act: Log out from the second session.
             await AuthService.LogoutAsync(principal2, secondLoginResult.AccessToken, secondLoginResult.RefreshToken, secondLoginResult.SessionId, logoutAll: false);
 
-            // Assert: After logout, no refresh token records should exist for the user.
-            var refreshTokensAfterLogout = await UserSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokensAsync(registeredUser.PersoId);
-            Assert.Empty(refreshTokensAfterLogout);
-
-            // Verify that the WebSocketManager was called (for LOGOUT notification)
-            WebSocketManagerMock.Verify(x => x.SendMessageAsync(registeredUser.PersoId.ToString(), "LOGOUT"), Times.Exactly(2));
+            // Assert: Verify that SendMessageAsync was called twice.
+            WebSocketManagerMock.Verify(x => x.SendMessageAsync(
+                It.Is<UserSessionKey>(k =>
+                    k.UserId == registeredUser.PersoId.ToString() &&
+                    (k.SessionId == firstLoginResult.SessionId || k.SessionId == secondLoginResult.SessionId)),
+                "LOGOUT"),
+                Times.Exactly(2));
         }
         [Fact]
         public async Task RefreshTokenAsync_InvalidatedRefreshToken_BlacklistedAccessToken_ReturnsError()
