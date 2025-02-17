@@ -9,11 +9,13 @@
   </PropertyGroup>
 
 	<ItemGroup>
+		<Content Remove="Application\Interfaces\RecaptchaService\**" />
 		<Content Remove="Common\Validators\**" />
 		<Content Remove="Infrastructure\Data\SqlCode\**\*.sql" />
 	</ItemGroup>
 
 	<ItemGroup>
+	  <Compile Remove="Application\Interfaces\RecaptchaService\**" />
 	  <Compile Remove="Application\Services\TokenServices\**" />
 	  <Compile Remove="Common\Validators\**" />
 	  <Compile Remove="Infrastructure\Interfaces\**" />
@@ -21,10 +23,12 @@
 	  <Content Remove="Application\Services\TokenServices\**" />
 	  <Content Remove="Infrastructure\Interfaces\**" />
 	  <Content Remove="Infrastructure\Models\**" />
+	  <EmbeddedResource Remove="Application\Interfaces\RecaptchaService\**" />
 	  <EmbeddedResource Remove="Application\Services\TokenServices\**" />
 	  <EmbeddedResource Remove="Common\Validators\**" />
 	  <EmbeddedResource Remove="Infrastructure\Interfaces\**" />
 	  <EmbeddedResource Remove="Infrastructure\Models\**" />
+	  <None Remove="Application\Interfaces\RecaptchaService\**" />
 	  <None Remove="Application\Services\TokenServices\**" />
 	  <None Remove="Common\Validators\**" />
 	  <None Remove="Infrastructure\Interfaces\**" />
@@ -57,7 +61,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Application\Interfaces\RecaptchaService\" />
     <Folder Include="Application\Services\Validation\" />
     <Folder Include="Domain\Interfaces\" />
 

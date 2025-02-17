@@ -18,6 +18,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
+using System.IdentityModel.Tokens.Jwt;
 using Xunit;
 
 namespace Backend.Tests.Fixtures
@@ -133,35 +134,33 @@ namespace Backend.Tests.Fixtures
 
         protected override Task<AuthenticateResult> HandleAuthenticateAsync()
         {
-            // 1. Check the "Test-Auth" header first
-            if (!Request.Headers.ContainsKey("Test-Auth") || !bool.TryParse(Request.Headers["Test-Auth"], out var isTestAuth) || !isTestAuth)
+            // Check if the header "Test-Auth" is "true"
+            if (!Request.Headers.TryGetValue("Test-Auth", out var testAuth) || testAuth != "true")
             {
-                return Task.FromResult(AuthenticateResult.Fail("Test-Auth header not present or false."));
+                return Task.FromResult(AuthenticateResult.Fail("Invalid Test-Auth header"));
             }
 
-            // 2. Attempt to read user from the query string "?user=xxx"
-            var userFromQuery = Request.Query["user"].ToString();
-
-            // 3. If not present, fallback to "Test-User" header
-            if (string.IsNullOrEmpty(userFromQuery) && Request.Headers.ContainsKey("Test-User"))
+            // Read required headers for claims
+            var claims = new List<Claim>();
+            if (Request.Headers.TryGetValue("sub", out var sub))
             {
-                userFromQuery = Request.Headers["Test-User"].ToString();
+                claims.Add(new Claim(JwtRegisteredClaimNames.Sub, sub));
+            }
+            if (Request.Headers.TryGetValue("sessionId", out var sessionId))
+            {
+                claims.Add(new Claim("sessionId", sessionId));
             }
 
-            // 4. If still null or empty, default to "testuser"
-            if (string.IsNullOrEmpty(userFromQuery))
+            if (!claims.Any())
             {
-                userFromQuery = "testuser";
+                return Task.FromResult(AuthenticateResult.Fail("Required claims not provided"));
             }
 
-            // 5. Build the user identity with that user ID
-            var claims = new[] { new Claim("sub", userFromQuery) };
-            var identity = new ClaimsIdentity(claims, "Test");
+            var identity = new ClaimsIdentity(claims, Scheme.Name);
             var principal = new ClaimsPrincipal(identity);
-            var ticket = new AuthenticationTicket(principal, "Test");
+            var ticket = new AuthenticationTicket(principal, Scheme.Name);
 
             return Task.FromResult(AuthenticateResult.Success(ticket));
         }
-
     }
 }

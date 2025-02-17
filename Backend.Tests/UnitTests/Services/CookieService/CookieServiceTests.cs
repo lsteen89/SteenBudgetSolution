@@ -1,11 +1,8 @@
-﻿using Backend.Application.Configuration;
+﻿using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Xunit;
-using Backend.Common.Utilities;
-using Microsoft.Extensions.Configuration;
 using Moq;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.VisualStudio.TestPlatform.ObjectModel.DataCollection;
+using Xunit;
+using Backend.Application.Settings;
 
 namespace Backend.Tests.UnitTests.Services.CookieService
 {
