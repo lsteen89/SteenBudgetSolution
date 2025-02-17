@@ -115,8 +115,7 @@ namespace Backend.Application.Services.AuthService
                 Message = "Login successful.",
                 AccessToken = tokens.AccessToken,
                 RefreshToken = tokens.RefreshToken,
-                SessionId = tokens.SessionId,
-                FirstLogin = user.FirstLogin
+                SessionId = tokens.SessionId
             };
         }
         public async Task<LoginResultDto> RefreshTokenAsync(string refreshToken, string sessionId, string userAgent, string deviceId, ClaimsPrincipal? user = null)

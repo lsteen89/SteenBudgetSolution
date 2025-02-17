@@ -69,7 +69,6 @@ namespace Backend.Presentation.Controllers
                 UserName = userLoginDto.Email,
                 Success = true,
                 Message = "Login successful.",
-                loginResult.FirstLogin
             });
 
         }
