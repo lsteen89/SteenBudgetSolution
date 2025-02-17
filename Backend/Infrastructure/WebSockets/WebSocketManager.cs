@@ -168,6 +168,7 @@ namespace Backend.Infrastructure.WebSockets
                     _connections.TryAdd(key.ToString(), webSocket);
 
                     _logger.LogInformation($"WebSocket connection established for user {userId} session {key.SessionId}.");
+                    LogActiveConnections();
                     await SendMessageAsync(key, "ready");
                 }
                 finally
@@ -214,6 +215,8 @@ namespace Backend.Infrastructure.WebSockets
                     }
                 }
                 _logger.LogDebug($"Cleanup complete for user {userId} session {key?.SessionId}.");
+                _logger.LogInformation($"WebSocket disonnect for user {userId} session {key.SessionId}.");
+                LogActiveConnections();
             }
         }
 
@@ -380,6 +383,17 @@ namespace Backend.Infrastructure.WebSockets
                     _userSockets.TryRemove(key, out _);
                 }
             }
+        }
+        private void LogActiveConnections()
+        {
+            // Log the total number of unique connections (by composite key).
+            _logger.LogInformation("Active unique WebSocket connections: {UniqueCount}", _userSockets.Count);
+
+            // Group connections by user and log counts per user.
+            var groupedConnections = _userSockets
+                .GroupBy(kvp => kvp.Key.UserId)
+                .ToDictionary(g => g.Key, g => g.Count());
+            _logger.LogInformation("Active connections grouped by user: {@GroupedConnections}", groupedConnections);
         }
     }
 }
