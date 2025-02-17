@@ -10,5 +10,6 @@ namespace Backend.Application.DTO
         public string Email { get; set; }
         [JsonPropertyName("role")]
         public string Role { get; set; }
+        public bool FirstTimeLogin { get; set; }
     }
 }
