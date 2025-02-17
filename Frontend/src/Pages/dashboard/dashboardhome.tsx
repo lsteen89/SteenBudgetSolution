@@ -18,12 +18,14 @@ const Dashboard: React.FC = () => {
   const protectedRoutes = ['/dashboard'];
   const isProtectedRoute = protectedRoutes.includes(location.pathname);
 
+
   console.log("Authenticated:", auth?.authenticated);
   console.log("Debug Mode:", isDebugMode);
   console.log('isDesktop:', isDesktop);
   console.log('location.pathname:', location.pathname);
   console.log('isProtectedRoute:', isProtectedRoute);
   console.log('Environment Variables:', import.meta.env);
+  console.log("Is first time user:", auth?.firstTimeLogin); 
   
   return (
   <PageContainer className="md:px-20 items-center">

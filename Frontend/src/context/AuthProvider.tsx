@@ -16,6 +16,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [authState, setAuthState] = useState<AuthState & { isLoading: boolean }>({
     authenticated: false,
     isLoading: true,
+    firstTimeLogin: false, 
   });
 
   console.log("AuthProvider component rendering...");
@@ -35,7 +36,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     onMessage: (event) => {
       console.log("AuthProvider: WS message:", event.data);
       if (event.data === "logout" || event.data === "session-expired") {
-        setAuthState({ authenticated: false, isLoading: false });
+        setAuthState({ authenticated: false, isLoading: false, firstTimeLogin: false });
       }
     },
     onError: (error) => console.error("AuthProvider: WebSocket error:", error),
@@ -47,14 +48,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log("AuthProvider: Checking /api/auth/status");
       const response = await axiosInstance.get<AuthState>("/api/auth/status");
       console.log("AuthProvider: Status response:", response.data);
-      setAuthState({ ...response.data, isLoading: false });
+      setAuthState({
+        ...response.data,
+        isLoading: false,
+      });
     } catch (error) {
       if (isAxiosError(error) && error.response?.status === 401) {
         console.log("AuthProvider: user not authenticated");
       } else {
         console.error("AuthProvider: unexpected error:", error);
       }
-      setAuthState({ authenticated: false, isLoading: false });
+      setAuthState({ authenticated: false, isLoading: false, firstTimeLogin: false });
     }
   }, []);
 
@@ -66,7 +70,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error("Logout error:", error);
     }
     // Ensure client state reflects logout:
-    setAuthState({ authenticated: false, isLoading: false });
+    setAuthState({ authenticated: false, isLoading: false, firstTimeLogin: false });
 
   }, []);
 
@@ -98,6 +102,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         authenticated: authState.authenticated,
         email: authState.email,
         role: authState.role,
+        firstTimeLogin: authState.firstTimeLogin,
         refreshAuthStatus: fetchAuthStatus,
         logout,
         isLoading: authState.isLoading,

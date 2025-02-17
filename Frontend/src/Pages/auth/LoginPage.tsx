@@ -11,7 +11,6 @@ import { login } from '@api/Services/User/authService';
 import PageContainer from '@components/layout/PageContainer';
 import ContentWrapper from '@components/layout/ContentWrapper';
 import { useAuth } from "@context/AuthProvider"; 
-import axiosInstance from "@api/axiosConfig"; 
 import type { LoginResponse } from "../../types/authTypes";
 
 type ReCAPTCHAWithReset = ReCAPTCHA & {
@@ -95,9 +94,11 @@ const LoginPage: React.FC = () => {
 
       if (result.success) {
         console.log("Login successful:", result.message);
+        
         // Immediately fetch auth status to update the state
         await refreshAuthStatus();
 
+        // Redirect to the dashboard
         navigate("/dashboard", { replace: true });
       } else {
         setErrors({ form: result.message }); // Show backend error message
