@@ -48,7 +48,7 @@ namespace Backend.Application.Services.UserServices
             if (!BCrypt.Net.BCrypt.Verify(password, user.Password))
                 return new ValidationResult { IsValid = false, ErrorMessage = "Invalid credentials." };
 
-            return new ValidationResult { IsValid = true, Persoid = user.PersoId, Email = user.Email };
+            return new ValidationResult { IsValid = true, Persoid = user.PersoId, Email = user.Email, FirstLogin =  user.FirstLogin };
         }
         public async Task<bool> CheckLoginAttemptsAsync(string email)
         {

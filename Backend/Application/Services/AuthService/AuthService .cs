@@ -88,7 +88,7 @@ namespace Backend.Application.Services.AuthService
             }
 
             // Step 4: Generate tokens (Access and Refresh tokens)
-            JwtTokenModel jwtTokenModel  = Backend.Application.Helpers.Jwt.TokenHelper.CreateTokenModel(validation.Persoid, validation.Email, deviceId, userAgent);
+            JwtTokenModel jwtTokenModel  = Backend.Application.Helpers.Jwt.TokenHelper.CreateTokenModel(validation.Persoid, validation.Email, validation.FirstLogin, deviceId, userAgent);
             var tokens = await _jwtService.GenerateJWTTokenAsync(jwtTokenModel);
             if (!tokens.Success)
             {
