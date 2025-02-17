@@ -85,7 +85,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } catch (error) {
           console.error("Health check error:", error);
         }
-      }, 30000);
+      }, 60000);
     }
     return () => {
       if (healthInterval) clearInterval(healthInterval);
