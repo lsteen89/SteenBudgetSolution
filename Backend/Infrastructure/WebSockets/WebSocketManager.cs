@@ -101,13 +101,28 @@ namespace Backend.Infrastructure.WebSockets
                     return;
                 }
 
-                // Extract required claims.
+                // Extract the user ID from the JWT claims.
                 var userIdClaim = context.User.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub);
-                var sessionIdClaim = context.User.Claims.FirstOrDefault(c => c.Type == "sessionId");
-                if (userIdClaim == null || sessionIdClaim == null)
+                if (userIdClaim == null)
                 {
-                    _logger.LogWarning(userIdClaim == null ? "User ID claim missing" : "Session ID claim missing");
-                    await webSocket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Required claims missing", CancellationToken.None);
+                    _logger.LogWarning("User ID claim missing.");
+                    await webSocket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "User ID missing", CancellationToken.None);
+                    return;
+                }
+
+                // Try to extract sessionId from claims.
+                var sessionIdClaim = context.User.Claims.FirstOrDefault(c => c.Type == "sessionId");
+
+                // If the sessionId claim is missing, attempt to get it from the cookies.
+                if (sessionIdClaim == null)
+                {
+                    sessionIdClaim = new System.Security.Claims.Claim("sessionId", context.Request.Cookies["SessionId"] ?? "");
+                }
+
+                if (string.IsNullOrEmpty(sessionIdClaim?.Value))
+                {
+                    _logger.LogWarning("Session ID claim or cookie missing.");
+                    await webSocket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Session ID missing", CancellationToken.None);
                     return;
                 }
 
