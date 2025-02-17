@@ -3,14 +3,6 @@ using Microsoft.AspNetCore.Http;
 using Moq;
 using Xunit;
 using Backend.Application.Settings;
-using Backend.Application.Interfaces.JWT;
-using Backend.Common.Interfaces;
-using Backend.Domain.Entities;
-using Backend.Infrastructure.Data.Sql.Interfaces;
-using Backend.Infrastructure.Implementations;
-using Microsoft.Extensions.Logging;
-using System.IdentityModel.Tokens.Jwt;
-using Backend.Infrastructure.Entities;
 
 namespace Backend.Tests.UnitTests.Services.CookieService
 {
@@ -76,75 +68,6 @@ namespace Backend.Tests.UnitTests.Services.CookieService
             Assert.True(refreshCookie.Options.Expires > DateTime.UtcNow, "RefreshToken cookie expiration should be in the future.");
             Assert.True(sessionCookie.Options.Expires > DateTime.UtcNow, "SessionId cookie expiration should be in the future.");
         }
-        [Fact]
-        public async Task GenerateJWTTokenAsync_ShouldEmbedFirstLoginClaim()
-        {
-            // Arrange
-            var jwtSettings = new JwtSettings
-            {
-                ExpiryMinutes = 5,
-                RefreshTokenExpiryDays = 30,
-                SecretKey = "supersecretkey_supersecretkey_supersecretkey", // must be long enough
-                Issuer = "TestIssuer",
-                Audience = "TestAudience"
-            };
-
-            // Create necessary mocks.
-            var userSQLProviderMock = new Mock<IUserSQLProvider>();
-            var tokenBlacklistServiceMock = new Mock<ITokenBlacklistService>();
-            var refreshTokenSqlExecutorMock = new Mock<IRefreshTokenSqlExecutor>();
-            var loggerMock = new Mock<ILogger<JwtService>>();
-            var environmentServiceMock = new Mock<IEnvironmentService>();
-            var httpContextAccessor = new HttpContextAccessor { HttpContext = new DefaultHttpContext() };
-            var timeProviderMock = new Mock<ITimeProvider>();
-            timeProviderMock.Setup(tp => tp.UtcNow).Returns(DateTime.UtcNow);
-
-            // Setup refresh token insertion to succeed.
-            refreshTokenSqlExecutorMock
-                .Setup(x => x.AddRefreshTokenAsync(It.IsAny<Backend.Infrastructure.Entities.RefreshJwtTokenEntity>()))
-                .ReturnsAsync(true);
-
-            // Instantiate JwtService with mocked dependencies.
-            var jwtService = new JwtService(
-                jwtSettings,
-                userSQLProviderMock.Object,
-                tokenBlacklistServiceMock.Object,
-                refreshTokenSqlExecutorMock.Object,
-                loggerMock.Object,
-                environmentServiceMock.Object,
-                httpContextAccessor,
-                timeProviderMock.Object
-            );
-
-            // Create a JwtTokenModel with FirstLogin = true.
-            var jwtTokenModel = new JwtTokenModel
-            {
-                Persoid = Guid.NewGuid(),
-                Email = "test@test.com",
-                FirstLogin = true,
-                DeviceId = "device-123",
-                UserAgent = "UnitTestAgent"
-            };
-
-            // Act: Call the method to generate tokens.
-            var loginResult = await jwtService.GenerateJWTTokenAsync(jwtTokenModel);
-
-            // Assert: Ensure token generation was successful.
-            Assert.True(loginResult.Success, "Token generation should be successful.");
-            Assert.False(string.IsNullOrEmpty(loginResult.AccessToken), "Access token should not be empty.");
-
-            // Decode the access token.
-            var tokenHandler = new JwtSecurityTokenHandler();
-            Assert.True(tokenHandler.CanReadToken(loginResult.AccessToken), "The generated JWT is not well-formed.");
-
-            var jwtToken = tokenHandler.ReadJwtToken(loginResult.AccessToken);
-            var firstLoginClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == "first_login");
-
-            // Validate the "first_login" claim.
-            Assert.NotNull(firstLoginClaim);
-            Assert.Equal("true", firstLoginClaim.Value.ToLower());
-        }
-
     }
 }
 

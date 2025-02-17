@@ -12,7 +12,6 @@ namespace Backend.Application.Models
         public string ErrorMessage { get; set; }
         public Guid Persoid { get; set; }
         public string Email { get; set; }
-        public bool FirstLogin { get; set; }
 
     }
 }

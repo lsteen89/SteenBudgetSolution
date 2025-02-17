@@ -110,11 +110,6 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             var expUnix = long.Parse(expClaim);
             var expDate = DateTimeOffset.FromUnixTimeSeconds(expUnix).UtcDateTime;
             Assert.True(expDate > DateTime.UtcNow, "Token should not be expired.");
-
-            // New: Verify the "first_login" claim exists and is set correctly.
-            var firstLoginClaim = token.Claims.FirstOrDefault(c => c.Type == "first_login");
-            Assert.NotNull(firstLoginClaim);
-            Assert.Equal("true", firstLoginClaim.Value.ToLower());
         }
 
         [Fact]

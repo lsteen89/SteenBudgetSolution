@@ -75,7 +75,6 @@ namespace Backend.Infrastructure.Implementations
             JwtTokenModel jwtTokenModel = Backend.Application.Helpers.Jwt.TokenHelper.CreateTokenModel(
                 dbUser.PersoId,
                 dbUser.Email,
-                firstLogin: false, // User is not logging in for the first time since we are refreshing the token
                 jwtRefreshTokenModel.DeviceId,
                 jwtRefreshTokenModel.UserAgent
             );
@@ -130,7 +129,6 @@ namespace Backend.Infrastructure.Implementations
                 new Claim(JwtRegisteredClaimNames.Email, jwtTokenModel.Email), // Email
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()), // Unique ID for each token
                 new Claim(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64), // Issued at
-                new Claim("first_login", jwtTokenModel.FirstLogin.ToString())
             };
 
             // Add additional claims if provided

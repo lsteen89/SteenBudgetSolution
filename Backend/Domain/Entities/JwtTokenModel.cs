@@ -8,7 +8,6 @@
         public DateTime CreatedAt { get; set; }
         public string DeviceId { get; set; } 
         public string UserAgent { get; set; }
-        public bool FirstLogin { get; set; }
     }
 }
 
