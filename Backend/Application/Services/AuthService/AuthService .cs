@@ -17,6 +17,7 @@ using Backend.Common.Utilities;
 using Backend.Domain.Entities;
 using Backend.Infrastructure.Data.Sql.Interfaces;
 using Backend.Infrastructure.Security;
+using Backend.Infrastructure.WebSockets;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 
@@ -255,10 +256,11 @@ namespace Backend.Application.Services.AuthService
             }
 
             // 2. Notify the user via WebSocket
-            if (!string.IsNullOrEmpty(userId))
+            if (!string.IsNullOrEmpty(userId) && !string.IsNullOrEmpty(sessionId))
             {
-                await _webSocketManager.SendMessageAsync(userId, "LOGOUT");
-                _logger.LogInformation($"Sent LOGOUT message to user {userId} via WebSocket.");
+                var targetUserSession = new UserSessionKey(userId, sessionId);
+                await _webSocketManager.SendMessageAsync(targetUserSession, "LOGOUT");
+                _logger.LogInformation($"Sent LOGOUT message to user {userId}: SessionId: {sessionId} via WebSocket.");
             }
             else
             {

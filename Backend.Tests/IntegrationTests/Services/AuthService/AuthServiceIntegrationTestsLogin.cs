@@ -3,6 +3,7 @@ using Backend.Application.Interfaces.UserServices;
 using Backend.Infrastructure.Data.Sql.Provider;
 using Backend.Infrastructure.Entities;
 using Backend.Infrastructure.Security;
+using Backend.Infrastructure.WebSockets;
 using Backend.Tests.Helpers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,7 +26,7 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
         {
             // Arrange
             WebSocketManagerMock
-                .Setup(manager => manager.SendMessageAsync(It.IsAny<string>(), It.IsAny<string>()))
+                .Setup(manager => manager.SendMessageAsync(It.IsAny<UserSessionKey>(), It.IsAny<string>()))
                 .Returns(Task.CompletedTask);
 
             var userLoginDto = new UserLoginDto { Email = "test@example.com", Password = "Password123!" };

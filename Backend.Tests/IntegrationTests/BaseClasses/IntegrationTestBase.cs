@@ -1,5 +1,4 @@
-﻿using Backend.Application.Configuration; // Ensure this namespace is included
-using Backend.Application.DTO;
+﻿using Backend.Application.DTO;
 using Backend.Application.Interfaces.AuthService;
 using Backend.Application.Interfaces.Cookies;
 using Backend.Application.Interfaces.EmailServices;
@@ -28,6 +27,8 @@ using System.Security.Claims;
 using Xunit;
 using Backend.Application.Interfaces.WebSockets;
 using Backend.Common.Interfaces;
+using Backend.Application.Settings;
+using Backend.Infrastructure.WebSockets;
 
 public abstract class IntegrationTestBase : IAsyncLifetime
 {
@@ -139,7 +140,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         WebSocketManagerMock = new Mock<IWebSocketManager>();
         // **Set up SendMessageAsync to return completed task by default**
         WebSocketManagerMock
-            .Setup(x => x.SendMessageAsync(It.IsAny<string>(), It.IsAny<string>()))
+            .Setup(x => x.SendMessageAsync(It.IsAny<UserSessionKey>(), It.IsAny<string>()))
             .Returns(Task.CompletedTask);
         serviceCollection.AddSingleton<IWebSocketManager>(WebSocketManagerMock.Object);
 
