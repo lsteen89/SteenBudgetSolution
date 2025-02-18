@@ -24,7 +24,7 @@ const Dashboard: React.FC = () => {
   console.log('isDesktop:', isDesktop);
   console.log('location.pathname:', location.pathname);
   console.log('isProtectedRoute:', isProtectedRoute);
-  console.log('Environment Variables:', import.meta.env);
+  //console.log('Environment Variables:', import.meta.env);
   console.log("Is first time user:", auth?.firstTimeLogin); 
   
   return (
