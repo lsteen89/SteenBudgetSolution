@@ -21,6 +21,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   console.log("AuthProvider component rendering...");
 
+  // For development, force auth and wizard state:
+  useEffect(() => {
+    if (import.meta.env.MODE === "development") {
+      setAuthState({
+        authenticated: true,
+        isLoading: false,
+        firstTimeLogin: true,
+      });
+    } else {
+      // Production logic here (e.g., fetch auth state from your API)
+      setAuthState({
+        authenticated: false,
+        isLoading: false,
+        firstTimeLogin: false,
+      });
+    }
+  }, []);
+
   // Determine WebSocket URL based on environment.
   const websocketUrl =
     import.meta.env.MODE === "development"
@@ -47,11 +65,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log("AuthProvider: Checking /api/auth/status");
       const response = await axiosInstance.get<AuthState>("/api/auth/status");
-      console.log("AuthProvider: Status response:", response.data);
-      setAuthState({
-        ...response.data,
-        isLoading: false,
-      });
+    // In development, force firstTimeLogin to true regardless of API response.
+    const authData = import.meta.env.MODE === "development"
+      ? { ...response.data, firstTimeLogin: true }
+      : response.data;
+    setAuthState({
+      ...authData,
+      isLoading: false,
+    });
     } catch (error) {
       if (isAxiosError(error) && error.response?.status === 401) {
         console.log("AuthProvider: user not authenticated");
@@ -75,7 +96,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   useEffect(() => {
-    fetchAuthStatus();
+    if (import.meta.env.MODE !== "development") {
+      fetchAuthStatus();
+    }
   }, [fetchAuthStatus]);
 
   // Periodic health check
