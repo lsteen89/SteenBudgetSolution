@@ -4,10 +4,9 @@ import ContentWrapper from "@components/layout/ContentWrapper";
 import { useAuth } from "@context/AuthProvider";
 import DashboardBirdBackground from "@assets/Images/Background/DashboardBirdBackground.png";
 import { useNavigate } from 'react-router-dom';
-import ResponsiveSubmitButton from '@components/atoms/buttons/ResponsiveSubmitButton';
-import SubmitButton from "@components/atoms/buttons/SubmitButton";
 import useMediaQuery from '@hooks/useMediaQuery'
 import DashboardContent from "@components/organisms/pages/DashboardContent";
+import SetupWizard from "@components/organisms/overlays/SetupWizard";
 
 const Dashboard: React.FC = () => {
 
@@ -33,6 +32,10 @@ const Dashboard: React.FC = () => {
       <ContentWrapper centerContent className="lg:pt-24 3xl:pt-48">
         <DashboardContent navigate={navigate} />
       </ContentWrapper>
+      
+      {/* Conditionally render SetupWizard if firstTimeLogin is true */}
+      {auth?.firstTimeLogin && <SetupWizard />}
+
       {/* Anchored Image */}
       <img
         src={DashboardBirdBackground}
