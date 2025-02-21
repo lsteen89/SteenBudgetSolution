@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-	"types": ["vite/client", "node"],
+	"types": ["vite/client", "node", "jest"],
     "target": "es6",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,

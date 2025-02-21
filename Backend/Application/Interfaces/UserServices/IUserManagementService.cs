@@ -11,5 +11,6 @@ namespace Backend.Application.Interfaces.UserServices
         Task<UserModel?> GetUserByEmailAsync(string email);
         Task<int> UpdateEmailConfirmationAsync(Guid persoid);
         Task<bool> IsEmailAlreadyConfirmedAsync(Guid persoid);
+        Task<bool> NeedsInitialSetupAsync(string email);
     }
 }

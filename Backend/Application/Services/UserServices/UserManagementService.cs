@@ -31,6 +31,9 @@ namespace Backend.Application.Services.UserServices
         public async Task<bool> IsEmailAlreadyConfirmedAsync(Guid persoid) =>
             await _userSQLProvider.UserSqlExecutor.IsEmailAlreadyConfirmedAsync(persoid);
 
+        // This method checks if the user needs to go through the initial setup process.
+        public async Task<bool> NeedsInitialSetupAsync(string email) =>
+            (await _userSQLProvider.UserSqlExecutor.GetUserModelAsync(email: email)).FirstLogin;
     }
 
 }

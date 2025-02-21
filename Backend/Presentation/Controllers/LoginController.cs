@@ -112,13 +112,17 @@ namespace Backend.Presentation.Controllers
 
         [Authorize]
         [HttpGet("status")]
-        public IActionResult CheckAuthStatus()
+        public async Task<IActionResult> CheckAuthStatus()
         {
             var authStatus = _userAuthenticationService.CheckAuthStatus(User);
 
             if (authStatus.Authenticated)
             {
                 _logger.LogInformation("User is authenticated. Email: {Email}, Role: {Role}", authStatus.Email, authStatus.Role);
+
+                // Check if the user is logging in for the first time
+                authStatus.FirstTimeLogin = await _userManagementService.NeedsInitialSetupAsync(authStatus.Email);
+
                 return Ok(authStatus);
             }
 

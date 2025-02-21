@@ -1,8 +1,6 @@
 export interface LoginSuccessResponse {
   success: true;
   message: string;
-  accessToken: string;
-  refreshToken: string;
 }
 
 export interface LoginFailureResponse {
@@ -13,9 +11,10 @@ export interface LoginFailureResponse {
 export type LoginResponse = LoginSuccessResponse | LoginFailureResponse;
 
 export interface AuthState {
-  authenticated: boolean;
-  email?: string;
-  role?: string | null;
+  authenticated: boolean; // Whether the user is authenticated.
+  email?: string; // For displaying the user's email.
+  role?: string | null; // null for now now, but will be a string in the future.
+  firstTimeLogin: boolean; // Whether the user is logging in for the first time.
 }
 
 export interface AuthContextType extends AuthState {
