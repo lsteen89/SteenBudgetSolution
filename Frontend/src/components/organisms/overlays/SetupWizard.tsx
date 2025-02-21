@@ -28,12 +28,13 @@ const SetupWizard: React.FC = () => {
   const closeWizard = (): void => alert("Setup Wizard Closed"); // Replace with actual close function
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+    <div className="fixed inset-0 z-[2000] overflow-y-auto w-full h-full">
+    <div className="flex items-center justify-center bg-black bg-opacity-50 min-h-screen py-10">
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 20 }}
-        className="bg-standardMenuColor bg-opacity-40 backdrop-blur-lg p-6 rounded-2xl shadow-xl w-11/12 md:w-1/2 relative overflow-hidden"
+        className="bg-standardMenuColor bg-opacity-40 backdrop-blur-lg p-6 rounded-2xl shadow-xl w-11/12 relative"
       >
         {/* Exit Button */}
         <button
@@ -98,7 +99,11 @@ const SetupWizard: React.FC = () => {
             transition={{ duration: 0.3 }}
             className="mb-6 text-center text-gray-700 
             h-[60vh] 
-            overflow-y-auto"
+            md:h-[70vh]
+            lg:h-auto
+            overflow-y-auto
+            
+           "
           >
                 <WizardStepContainer>
             {step === 0 ? (
@@ -136,6 +141,7 @@ const SetupWizard: React.FC = () => {
           </button>
         </div>
       </motion.div>
+    </div>
     </div>
   );
 };

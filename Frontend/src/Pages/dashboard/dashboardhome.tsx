@@ -28,8 +28,8 @@ const Dashboard: React.FC = () => {
   console.log("Is first time user:", auth?.firstTimeLogin); 
   
   return (
-    <PageContainer className="md:px-20 items-center">
-      <ContentWrapper centerContent className="lg:pt-24 3xl:pt-48">
+<PageContainer className="md:px-20 items-center min-h-screen overflow-y-auto h-full">
+      <ContentWrapper centerContent className="lg:pt-24 3xl:pt-48 ">
         <DashboardContent navigate={navigate} />
       </ContentWrapper>
       
