@@ -31,6 +31,7 @@ module.exports = {
 		limeGreen: '#98FF98', 
 		darkLimeGreen: '#32CD32',
 		standardMenuColor: '#CCE5FF', 
+		darkBlueMenuColor: '#001F3F',
 		pastelGreen: '#ebf8ff',
       },
       keyframes: {
