@@ -19,13 +19,25 @@ const steps = [
   { icon: CheckCircle, label: "Confirmation" },
 ];
 
-const SetupWizard: React.FC = () => {
+interface SetupWizardProps {
+  onClose: () => void; 
+}
+
+
+
+const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
+
+  const handleWizardClose = () => {
+    // do any cleanup if needed...
+    onClose(); // call the parent's callback
+  };
+
+
   const [step, setStep] = useState<number>(0);
   const totalSteps = steps.length; // 4
 
   const nextStep = (): void => setStep((prev) => Math.min(prev + 1, totalSteps));
   const prevStep = (): void => setStep((prev) => Math.max(prev - 1, 0));
-  const closeWizard = (): void => alert("Setup Wizard Closed"); // Replace with actual close function
 
   return (
     <div className="fixed inset-0 z-[2000] overflow-y-auto w-full h-full">
@@ -39,7 +51,7 @@ const SetupWizard: React.FC = () => {
         {/* Exit Button */}
         <button
           type="button"
-          onClick={closeWizard}
+          onClick={handleWizardClose}
           title="Close Wizard"
           className="absolute top-3 right-3 text-red-600 hover:text-red-800"
         >
