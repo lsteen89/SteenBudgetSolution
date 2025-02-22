@@ -7,6 +7,9 @@ import { useNavigate } from 'react-router-dom';
 import useMediaQuery from '@hooks/useMediaQuery'
 import DashboardContent from "@components/organisms/pages/DashboardContent";
 import SetupWizard from "@components/organisms/overlays/SetupWizard";
+import { AnimatePresence, motion } from "framer-motion";
+import { useTransition, animated } from "@react-spring/web";
+
 
 const Dashboard: React.FC = () => {
 
@@ -17,6 +20,25 @@ const Dashboard: React.FC = () => {
   const isDesktop = useMediaQuery('(min-width: 1367px)');
   const protectedRoutes = ['/dashboard'];
   const isProtectedRoute = protectedRoutes.includes(location.pathname);
+  const isFirstTimeLogin = auth?.firstTimeLogin;
+  const [shouldShowWizard, setShouldShowWizard] = React.useState(false);
+  React.useEffect(() => {
+    if (isFirstTimeLogin) {
+      setTimeout(() => setShouldShowWizard(true), 50);
+    }
+  }, [isFirstTimeLogin]);
+
+  // If firstTimeLogin is true, start with wizard open. 
+  // Otherwise, it's closed.
+  const [isWizardOpen, setIsWizardOpen] = React.useState(true); // or based on auth?.firstTimeLogin
+
+  // React Spring transition for the SetupWizard
+  const transitions = useTransition(shouldShowWizard, {
+    from: { opacity: 1, transform: "translateY(-20px)" },
+    enter: { opacity: 1, transform: "translateY(0px)" },
+    leave: { opacity: 1, transform: "translateY(-20px)" },
+    config: { duration: 1200 },
+  });
 
 
   console.log("Authenticated:", auth?.authenticated);
@@ -30,11 +52,29 @@ const Dashboard: React.FC = () => {
   return (
 <PageContainer className="md:px-20 items-center min-h-screen overflow-y-auto h-full">
       <ContentWrapper centerContent className="lg:pt-24 3xl:pt-48 ">
-        <DashboardContent navigate={navigate} />
+      <DashboardContent
+          navigate={navigate}
+          isFirstTimeLogin={auth?.firstTimeLogin}  // pass boolean
+          isWizardOpen={isWizardOpen}             // pass current wizard state
+          setIsWizardOpen={setIsWizardOpen}       // pass state setter
+        />
       </ContentWrapper>
       
-      {/* Conditionally render SetupWizard if firstTimeLogin is true */}
-      {auth?.firstTimeLogin && <SetupWizard />}
+      {/* AnimatePresence for smooth mount/unmount */}
+      <AnimatePresence>
+        {isWizardOpen && (
+          <motion.div
+            key="setupWizard"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1 }}
+            className="z-[9999]"
+          >
+            <SetupWizard onClose={() => setIsWizardOpen(false)} />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Anchored Image */}
       <img
