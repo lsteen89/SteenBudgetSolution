@@ -8,8 +8,6 @@ import useMediaQuery from '@hooks/useMediaQuery'
 import DashboardContent from "@components/organisms/pages/DashboardContent";
 import SetupWizard from "@components/organisms/overlays/SetupWizard";
 import { AnimatePresence, motion } from "framer-motion";
-import { useTransition, animated } from "@react-spring/web";
-
 
 const Dashboard: React.FC = () => {
 
@@ -31,15 +29,6 @@ const Dashboard: React.FC = () => {
   // If firstTimeLogin is true, start with wizard open. 
   // Otherwise, it's closed.
   const [isWizardOpen, setIsWizardOpen] = React.useState(true); // or based on auth?.firstTimeLogin
-
-  // React Spring transition for the SetupWizard
-  const transitions = useTransition(shouldShowWizard, {
-    from: { opacity: 1, transform: "translateY(-20px)" },
-    enter: { opacity: 1, transform: "translateY(0px)" },
-    leave: { opacity: 1, transform: "translateY(-20px)" },
-    config: { duration: 1200 },
-  });
-
 
   console.log("Authenticated:", auth?.authenticated);
   console.log("Debug Mode:", isDebugMode);
