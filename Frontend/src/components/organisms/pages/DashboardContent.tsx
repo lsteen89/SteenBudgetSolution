@@ -4,9 +4,17 @@ import { NavigateFunction } from "react-router-dom";
 
 interface DashboardContentProps {
   navigate: NavigateFunction;
+  isFirstTimeLogin: boolean | undefined;
+  isWizardOpen: boolean;
+  setIsWizardOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-const DashboardContent: React.FC<DashboardContentProps> = ({ navigate }) => {
+const DashboardContent: React.FC<DashboardContentProps> = ({
+  navigate,
+  isFirstTimeLogin,
+  isWizardOpen,
+  setIsWizardOpen
+}) => {
   return (
     <>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -38,6 +46,22 @@ const DashboardContent: React.FC<DashboardContentProps> = ({ navigate }) => {
           onClick={() => navigate("/GetPremium")}
         />
       </div>
+
+      {/* Show "Fortsätt din resa" button if user is first-time and wizard is closed */}
+      {isFirstTimeLogin && !isWizardOpen && (
+        <div className="mt-4 pt-10">
+          <ResponsiveSubmitButton
+            isSubmitting={false}
+            label="Fortsätt din resa"
+            enhanceOnHover
+            fontSize="text-2xl"
+            padding="py-3 px-6"
+            className="w-64 h-16 md:w-96"
+            onClick={() => setIsWizardOpen(true)}
+          />
+        </div>
+      )}
+
       <div className="bg-blue-100 sm:bg-blue-200 md:bg-pink-300 lg:bg-red-400 xl:bg-yellow-500 2xl:bg-blue-600">
         Responsive Component
       </div>
