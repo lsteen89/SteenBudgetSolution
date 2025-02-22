@@ -10,6 +10,7 @@ import SetupWizard from "@components/organisms/overlays/SetupWizard";
 import { AnimatePresence, motion } from "framer-motion";
 import { useTransition, animated } from "@react-spring/web";
 
+
 const Dashboard: React.FC = () => {
 
   const auth = useAuth();
@@ -38,6 +39,7 @@ const Dashboard: React.FC = () => {
     leave: { opacity: 1, transform: "translateY(-20px)" },
     config: { duration: 1200 },
   });
+
 
   console.log("Authenticated:", auth?.authenticated);
   console.log("Debug Mode:", isDebugMode);
