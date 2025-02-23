@@ -61,12 +61,20 @@ namespace Backend.Presentation.Controllers
                 _logger.LogWarning("Login failed for email: {MaskedEmail}\nIP: {MaskedIP}", LogHelper.MaskEmail(userLoginDto.Email), LogHelper.MaskIp(ipAddress));
                 return Unauthorized(new { success = loginResult.Success, message = loginResult.Message });
             }
+
+            // Fetch user details separately
+            var user = await _userManagementService.GetUserDtoByEmailAsync(userLoginDto.Email);
+            if (user == null)
+            {
+                return Unauthorized(new { success = false, message = "User not found." });
+            }
+
             cookieService.SetAuthCookies(Response, loginResult.AccessToken, loginResult.RefreshToken, loginResult.SessionId);
             _logger.LogInformation("Login successful for email: {MaskedEmail}\nIP: {MaskedIP}", LogHelper.MaskEmail(userLoginDto.Email), LogHelper.MaskIp(ipAddress));
 
             return Ok(new
             {
-                UserName = userLoginDto.Email,
+                User = user,
                 Success = true,
                 Message = "Login successful.",
             });

@@ -97,15 +97,8 @@ namespace Backend.Application.Services.AuthService
             }
 
             // Step 5: Reset failed attempts
-            var user = await _userSQLProvider.UserSqlExecutor.GetUserModelAsync(email: userLoginDto.Email);
-            if (user != null)
-            {
-                await ResetFailedLoginAttempts(user.PersoId, userLoginDto.Email);
-            }
-            else
-            {
-                _logger.LogWarning("User not found during reset of failed attempts for email: {Email}", userLoginDto.Email);
-            }
+            await ResetFailedLoginAttempts(validation.Persoid, userLoginDto.Email);
+
             _logger.LogInformation("Login successful for email: {MaskedEmail}", LogHelper.MaskEmail(userLoginDto.Email));
 
             return new LoginResultDto

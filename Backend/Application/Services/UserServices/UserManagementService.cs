@@ -34,6 +34,25 @@ namespace Backend.Application.Services.UserServices
         // This method checks if the user needs to go through the initial setup process.
         public async Task<bool> NeedsInitialSetupAsync(string email) =>
             (await _userSQLProvider.UserSqlExecutor.GetUserModelAsync(email: email)).FirstLogin;
+
+        public async Task<UserDto> GetUserDtoByEmailAsync(string email)
+        {
+            var user = await _userSQLProvider.UserSqlExecutor.GetUserModelAsync(email: email);
+            if (user == null)
+            {
+                _logger.LogWarning("User not found for email: {Email}", email);
+                return null;
+            }
+
+            return new UserDto
+            {
+                Id = user.Id,
+                PersoId = user.PersoId,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                Email = user.Email,
+            };
+        }
     }
 
 }
