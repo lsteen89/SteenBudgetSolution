@@ -49,6 +49,7 @@ export default defineConfig({
       '@assets': path.resolve(__dirname, './src/assets'),
       '@hooks': path.resolve(__dirname, './src/hooks'),
       '@api': path.resolve(__dirname, './src/api'),
+      '@types': path.resolve(__dirname, './src/types'),
       '@mocks': path.resolve(__dirname, './src/__mocks__'),
 	  '@context': path.resolve(__dirname, './src/context'),
 	  '@routes': path.resolve(__dirname, './src/routes'),

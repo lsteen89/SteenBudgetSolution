@@ -23,7 +23,7 @@ const LoginPage: React.FC = () => {
   const [errors, setErrors] = useState<{ [key in keyof UserLoginDto]?: string } & { form?: string }>({});
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const navigate = useNavigate();
-  const { refreshAuthStatus, authenticated, isLoading, setLoggedInUser } = useAuth(); // Destructure authenticated and isLoading
+  const { refreshAuthStatus, authenticated, isLoading } = useAuth(); // Destructure authenticated and isLoading
 
   // Redirect if already authenticated
   if (isLoading) {
@@ -95,10 +95,6 @@ const LoginPage: React.FC = () => {
       if (result.success) {
         console.log("Login successful:", result.message);
         
-        if (setLoggedInUser && "user" in result) {
-          setLoggedInUser(result.user);
-        }
-        console.log("UserLogin:", result.user);
         // Immediately fetch auth status to update the state
         await refreshAuthStatus();
 
