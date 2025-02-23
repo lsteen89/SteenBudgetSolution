@@ -1,12 +1,10 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import axiosInstance from "@api/axiosConfig";
 import { isAxiosError } from "axios";
 import { useWebSocket } from "@hooks/useWebSocket";
 import type { AuthState, AuthContextType } from "../types/authTypes";
-import { UserDto } from "../types/UserDto";
 
 const AuthContext = createContext<AuthContextType | null>(null);
-
 
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
@@ -19,46 +17,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     authenticated: false,
     isLoading: true,
     firstTimeLogin: false, 
-    user: undefined,
   });
-  const devOverrideRan = useRef(false);
-  
-  const setLoggedInUser = (user: UserDto) => {
-    setAuthState((prev) => ({
-      ...prev,
-      authenticated: true,
-      isLoading: false,
-      // if needed, you can also compute firstTimeLogin from user
-      user: user,
-    }));
-  };
 
   console.log("AuthProvider component rendering...");
 
   // For development, force auth and wizard state:
   useEffect(() => {
-    if (
-      import.meta.env.MODE === "development" &&
-      authState.user === undefined
-    ) {
-      setAuthState((prev) => ({
-        ...prev,
+    if (import.meta.env.MODE === "development") {
+      setAuthState({
         authenticated: true,
         isLoading: false,
         firstTimeLogin: true,
-        user: prev.user, // preserve if it was set
-      }));
-    } else if (!authState.user) {
-      // Production: start from a clean state if no user
-      setAuthState((prev) => ({
-        ...prev,
+      });
+    } else {
+      // Production logic here (e.g., fetch auth state from your API)
+      setAuthState({
         authenticated: false,
         isLoading: false,
         firstTimeLogin: false,
-        user: undefined,
-      }));
+      });
     }
-  }, [authState.user]);
+  }, []);
 
   // Determine WebSocket URL based on environment.
   const websocketUrl =
@@ -90,13 +69,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const authData = import.meta.env.MODE === "development"
       ? { ...response.data, firstTimeLogin: true }
       : response.data;
-      setAuthState((prev) => ({
-        ...prev,
-        authenticated: response.data.authenticated,
-        firstTimeLogin: response.data.firstTimeLogin,
-        user: response.data.user !== undefined ? response.data.user : prev.user, // Keep the user if not returned
-        isLoading: false,
-      }));
+    setAuthState({
+      ...authData,
+      isLoading: false,
+    });
     } catch (error) {
       if (isAxiosError(error) && error.response?.status === 401) {
         console.log("AuthProvider: user not authenticated");
@@ -115,7 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error("Logout error:", error);
     }
     // Ensure client state reflects logout:
-    setAuthState({ authenticated: false, isLoading: false, firstTimeLogin: false, user: undefined });
+    setAuthState({ authenticated: false, isLoading: false, firstTimeLogin: false });
 
   }, []);
 
@@ -153,7 +129,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         refreshAuthStatus: fetchAuthStatus,
         logout,
         isLoading: authState.isLoading,
-        setLoggedInUser,
       }}
     >
       {authState.isLoading ? <div>Loading...</div> : children}

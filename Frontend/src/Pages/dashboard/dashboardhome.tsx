@@ -12,7 +12,6 @@ import { AnimatePresence, motion } from "framer-motion";
 const Dashboard: React.FC = () => {
 
   const auth = useAuth();
-  const { user } = useAuth();
   const isDebugMode = process.env.NODE_ENV === "development";
   const navigate = useNavigate();
   const isMdUp = useMediaQuery('(min-width: 768px)');
@@ -38,7 +37,6 @@ const Dashboard: React.FC = () => {
   console.log('isProtectedRoute:', isProtectedRoute);
   //console.log('Environment Variables:', import.meta.env);
   console.log("Is first time user:", auth?.firstTimeLogin); 
-  console.log("User:", user?.firstName, user?.lastName);
   
   return (
 <PageContainer className="md:px-20 items-center min-h-screen overflow-y-auto h-full">
