@@ -37,7 +37,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // For development, force auth and wizard state:
   useEffect(() => {
-    if (import.meta.env.MODE === "development" && !authState.user) {
+    if (
+      import.meta.env.MODE === "development" &&
+      authState.user === undefined
+    ) {
+      setAuthState((prev) => ({
+        ...prev,
+        authenticated: true,
+        isLoading: false,
+        firstTimeLogin: true,
+        user: prev.user, // preserve if it was set
+      }));
+    } else if (!authState.user) {
+      // Production: start from a clean state if no user
       setAuthState((prev) => ({
         ...prev,
         authenticated: false,
