@@ -51,9 +51,6 @@ namespace Backend.Application.Services.UserServices
                 FirstName = user.FirstName,
                 LastName = user.LastName,
                 Email = user.Email,
-                EmailConfirmed = user.EmailConfirmed,
-                Roles = user.Roles,
-                FirstLogin = user.FirstLogin
             };
         }
     }
