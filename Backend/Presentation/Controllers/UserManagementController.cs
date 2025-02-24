@@ -1,46 +1,56 @@
-﻿using Backend.Application.DTO;
-using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.RateLimiting;
+using Backend.Application.Services;
+using Backend.Application.DTO;
 using Backend.Application.Interfaces.UserServices;
+using Backend.Common.Converters;
+using System.Security.Claims;
+
 namespace Backend.Presentation.Controllers
 {
-    [Route("api/[controller]")]
     [ApiController]
+    [Route("api/users")]
+    [Authorize]
     public class UserManagementController : ControllerBase
     {
-        private readonly IUserAuthenticationService _userAuthenticationService;
-        public UserManagementController(IUserAuthenticationService userAuthenticationService)
-        {
-            _userAuthenticationService = userAuthenticationService;
-        }
-        [HttpPost("generate-reset-password-email")]
-        [EnableRateLimiting("EmailSendingPolicy")]
-        public async Task<IActionResult> ResetPassword([FromBody] Backend.Application.DTO.ResetPasswordRequest request)
-        {
-            var emailSent = await _userAuthenticationService.SendResetPasswordEmailAsync(request.Email);
+        private readonly IUserManagementService _userService;
+        private readonly ILogger<UserManagementController> _logger;
 
-            if (emailSent)
-            {
-                return Ok(new { message = "Om den angivna e-postadressen är registrerad har ett återställningsmail skickats." });
-            }
-
-            return StatusCode(500, new { message = "Ett fel inträffade, vänligen försök igen eller kontakta support!" });
+        public UserManagementController(IUserManagementService userService, ILogger<UserManagementController> logger)
+        {
+            _userService = userService;
+            _logger = logger;
         }
 
-        [HttpPost("reset-password-with-token")]
-        public async Task<IActionResult> ResetPassword([FromBody] ResetPassword request)
+        [HttpGet("me")]
+        public async Task<ActionResult<UserDto>> GetCurrentUser()
         {
-            var result = await _userAuthenticationService.UpdatePasswordAsync(request.Token, request.Password);
+            _logger.LogDebug("GetCurrentUser:");
+            var claims = User.Claims.Select(c => $"{c.Type}: {c.Value}").ToList();
+            _logger.LogDebug("User claims: {Claims}", string.Join(", ", claims));
 
-            if (result.Success)
+            // Get the email claim directly
+            var userEmailClaim = User.Claims.FirstOrDefault(c => c.Type == "email");
+
+            if (userEmailClaim == null || string.IsNullOrEmpty(userEmailClaim.Value))
             {
-                return Ok(new { message = result.Message });
+                return Unauthorized(); // Or return a 401
             }
-            else
+
+            var userEmail = userEmailClaim.Value;
+
+            // 1. Call the UserManagementService to get the user.
+            var userModel = await _userService.GetUserByEmailAsync(userEmail);
+
+            if (userModel == null)
             {
-                return StatusCode(result.StatusCode ?? 400, new { message = result.Message });
+                return NotFound();
             }
+
+            // 3. Map UserModel to UserDto.
+            var userDto = ModelConverter.ToUserDto(userModel);
+
+            return Ok(userDto);
         }
     }
 }

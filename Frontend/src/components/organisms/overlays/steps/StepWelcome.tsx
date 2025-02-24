@@ -1,14 +1,24 @@
 import React from "react";
 import { Banknote, PiggyBank, CreditCard, Flag, XCircle, ShieldCheck } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@context/AuthProvider";
 
 const StepWelcome: React.FC = () => {
+  const { user } = useAuth();
   return (
     <>
-      <p className="text-customBlue2">
-        Kul att du är här! Vi hjälper dig att få full kontroll över din ekonomi.
-        För att komma igång behöver vi bara några uppgifter från dig.
-      </p>
+      {user && ( // Kontrollera om användarobjektet finns
+          <p className="text-customBlue2">
+              Kul att du är här, {user.firstName}! Vi hjälper dig att få full kontroll över din ekonomi.
+              För att komma igång behöver vi bara några uppgifter från dig.
+          </p>
+      )}
+      {!user && ( // Visa ett alternativt meddelande om användarobjektet inte finns
+          <p className="text-customBlue2">
+              Kul att du är här! Vi hjälper dig att få full kontroll över din ekonomi.
+              För att komma igång behöver vi bara några uppgifter från dig.
+          </p>
+      )}
 
       <div className="bg-pastelGreen p-4 rounded-lg">
         <h3 className="text-gray-900 font-medium mb-2">Vad vi går igenom:</h3>
