@@ -3,6 +3,7 @@ import axiosInstance from "@api/axiosConfig";
 import { isAxiosError } from "axios";
 import { useWebSocket } from "@hooks/useWebSocket";
 import type { AuthState, AuthContextType } from "../types/authTypes";
+import type { UserDto } from "../types/UserDto";
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
@@ -17,6 +18,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     authenticated: false,
     isLoading: true,
     firstTimeLogin: false, 
+    user: undefined,
   });
 
   console.log("AuthProvider component rendering...");
@@ -61,6 +63,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     onClose: () => console.log("AuthProvider: WebSocket closed."),
   });
 
+  // Fetch auth status from the API
   const fetchAuthStatus = useCallback(async () => {
     try {
       console.log("AuthProvider: Checking /api/auth/status");
@@ -83,6 +86,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
+  // Logout function
   const logout = useCallback(async () => {
     try {
       await axiosInstance.post("/api/auth/logout");
@@ -119,6 +123,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [authState.authenticated]);
 
+  const fetchUserData = useCallback(async () => {
+    try {
+        const response = await axiosInstance.get<UserDto>("/api/users/me");
+        console.log("fetchUserData response:", response.data); // Log response data
+        setAuthState((prev) => {
+            console.log("fetchUserData prev.user:", prev.user); // Log prev.user
+            return {
+                ...prev,
+                user: response.data,
+            };
+        });
+    } catch (error) {
+        console.error("Error fetching user data:", error);
+        setAuthState((prev) => ({ ...prev, user: undefined }));
+    }
+}, []);
+
+
   return (
     <AuthContext.Provider
       value={{
@@ -129,6 +151,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         refreshAuthStatus: fetchAuthStatus,
         logout,
         isLoading: authState.isLoading,
+        fetchUserData: fetchUserData,
+        user: authState.user,
       }}
     >
       {authState.isLoading ? <div>Loading...</div> : children}
