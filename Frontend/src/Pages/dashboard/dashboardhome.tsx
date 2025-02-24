@@ -20,6 +20,7 @@ const Dashboard: React.FC = () => {
   const isProtectedRoute = protectedRoutes.includes(location.pathname);
   const isFirstTimeLogin = auth?.firstTimeLogin;
   const [shouldShowWizard, setShouldShowWizard] = React.useState(false);
+  
   React.useEffect(() => {
     if (isFirstTimeLogin) {
       setTimeout(() => setShouldShowWizard(true), 50);
@@ -37,7 +38,11 @@ const Dashboard: React.FC = () => {
   console.log('isProtectedRoute:', isProtectedRoute);
   //console.log('Environment Variables:', import.meta.env);
   console.log("Is first time user:", auth?.firstTimeLogin); 
-  
+  console.log("User Data:", auth?.user?.firstName, auth?.user?.lastName, auth?.user?.email);  
+
+  if (auth.isLoading) { // Use auth.isLoading
+    return <div>Loading...</div>; // Display loading message
+  }
   return (
 <PageContainer className="md:px-20 items-center min-h-screen overflow-y-auto h-full">
       <ContentWrapper centerContent className="lg:pt-24 3xl:pt-48 ">

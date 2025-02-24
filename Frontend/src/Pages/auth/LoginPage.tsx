@@ -23,8 +23,9 @@ const LoginPage: React.FC = () => {
   const [errors, setErrors] = useState<{ [key in keyof UserLoginDto]?: string } & { form?: string }>({});
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const navigate = useNavigate();
-  const { refreshAuthStatus, authenticated, isLoading } = useAuth(); // Destructure authenticated and isLoading
-
+  const { refreshAuthStatus,  authenticated, isLoading, fetchUserData } = useAuth(); // Destructure authenticated and isLoading
+  // Fetch user data if authenticated
+  
   // Redirect if already authenticated
   if (isLoading) {
     return <div>Loading...</div>; // Or a spinner component
@@ -97,6 +98,9 @@ const LoginPage: React.FC = () => {
         
         // Immediately fetch auth status to update the state
         await refreshAuthStatus();
+        // Fetch user data
+        await fetchUserData();
+        console.log("User data fetched successfully.", fetchUserData);
 
         // Redirect to the dashboard
         navigate("/dashboard", { replace: true });
@@ -248,3 +252,5 @@ const LoginPage: React.FC = () => {
 };
 
 export default LoginPage;
+
+
