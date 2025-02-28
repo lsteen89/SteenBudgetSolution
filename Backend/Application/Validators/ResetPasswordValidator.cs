@@ -1,5 +1,5 @@
 ﻿using FluentValidation;
-using Backend.Application.DTO;
+using Backend.Application.DTO.Auth;
 
 namespace Backend.Application.Validators
 {

@@ -3,8 +3,6 @@ using Backend.Application.Interfaces.UserServices;
 using Backend.Application.Interfaces.WebSockets;
 using Backend.Application.Services.EmailServices;
 using Backend.Application.Services.UserServices;
-using Backend.Infrastructure.Data.Sql.Interfaces;
-using Backend.Infrastructure.Data.Sql.Provider;
 using Backend.Infrastructure.WebSockets;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
@@ -20,6 +18,8 @@ using System.Security.Claims;
 using System.Text.Encodings.Web;
 using System.IdentityModel.Tokens.Jwt;
 using Xunit;
+using Backend.Infrastructure.Data.Sql.Providers.UserProvider;
+using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
 
 namespace Backend.Tests.Fixtures
 {

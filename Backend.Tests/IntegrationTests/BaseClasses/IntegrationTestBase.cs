@@ -1,5 +1,4 @@
-﻿using Backend.Application.DTO;
-using Backend.Application.Interfaces.AuthService;
+﻿using Backend.Application.Interfaces.AuthService;
 using Backend.Application.Interfaces.Cookies;
 using Backend.Application.Interfaces.EmailServices;
 using Backend.Application.Interfaces.JWT;
@@ -7,10 +6,6 @@ using Backend.Application.Interfaces.UserServices;
 using Backend.Application.Services.AuthService;
 using Backend.Application.Services.UserServices;
 using Backend.Common.Converters;
-using Backend.Domain.Entities;
-using Backend.Infrastructure.Data.Sql.Interfaces;
-using Backend.Infrastructure.Data.Sql.Provider;
-using Backend.Infrastructure.Data.Sql.UserQueries;
 using Backend.Infrastructure.Email;
 using Backend.Infrastructure.Implementations;
 using Backend.Test.UserTests;
@@ -29,6 +24,12 @@ using Backend.Application.Interfaces.WebSockets;
 using Backend.Common.Interfaces;
 using Backend.Application.Settings;
 using Backend.Infrastructure.WebSockets;
+using Backend.Infrastructure.Data.Sql.Providers.UserProvider;
+using Backend.Infrastructure.Data.Sql.Interfaces.UserQueries;
+using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
+using Backend.Infrastructure.Data.Sql.Queries.UserQueries;
+using Backend.Application.DTO.User;
+using Backend.Domain.Entities.User;
 
 public abstract class IntegrationTestBase : IAsyncLifetime
 {

@@ -1,5 +1,5 @@
 ﻿using Backend.Application.DTO;
-using Backend.Domain.Entities;
+using Backend.Domain.Entities.User;
 using System.Security.Claims;
 
 namespace Backend.Application.Interfaces.UserServices

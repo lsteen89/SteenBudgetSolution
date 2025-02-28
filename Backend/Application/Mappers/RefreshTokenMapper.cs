@@ -1,4 +1,4 @@
-﻿using Backend.Application.Models;
+﻿using Backend.Application.Models.Token;
 using Backend.Infrastructure.Entities;
 using static Dapper.SqlMapper;
 

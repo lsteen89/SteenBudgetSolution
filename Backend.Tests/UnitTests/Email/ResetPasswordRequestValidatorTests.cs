@@ -1,6 +1,6 @@
 ﻿using Backend.Application.Validators;
 using Xunit;
-using Backend.Application.DTO;
+using Backend.Application.DTO.Auth;
 
 namespace Backend.Tests.UnitTests.Email
 {

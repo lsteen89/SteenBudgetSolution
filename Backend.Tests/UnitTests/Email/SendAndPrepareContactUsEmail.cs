@@ -3,14 +3,14 @@ using Xunit;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Backend.Application.Services;
-using Backend.Domain.Entities;
 using System;
 using Backend.Tests.Mocks;
 using Backend.Application.Interfaces.EmailServices;
+using Backend.Domain.Entities.Email;
 
 namespace Backend.Tests.UnitTests.Email;
 
-    public class SendAndPrepareContactUsEmail
+public class SendAndPrepareContactUsEmail
     {
     private readonly Mock<IEmailPreparationService> _emailPreparationServiceMock;
     private readonly Mock<ILogger<MockEmailService>> _loggerMock;

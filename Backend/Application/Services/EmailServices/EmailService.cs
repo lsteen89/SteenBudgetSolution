@@ -1,8 +1,8 @@
 ﻿using System.Net.Mail;
 using Backend.Infrastructure.Email;
-using Backend.Domain.Entities;
 using Backend.Application.DTO;
 using Backend.Application.Interfaces.EmailServices;
+using Backend.Domain.Entities.Email;
 
 /// <summary>
 /// Manages the flow of email preparation and sending based on email type.

@@ -1,4 +1,4 @@
-﻿using Backend.Domain.Entities;
+﻿using Backend.Domain.Entities.Email;
 using MimeKit;
 
 namespace Backend.Application.Interfaces.EmailServices

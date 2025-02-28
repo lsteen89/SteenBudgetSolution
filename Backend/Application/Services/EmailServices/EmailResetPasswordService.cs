@@ -1,7 +1,8 @@
 ﻿using Backend.Application.Interfaces;
 using Backend.Application.Interfaces.EmailServices;
-using Backend.Domain.Entities;
-using Backend.Infrastructure.Data.Sql.Interfaces;
+using Backend.Domain.Entities.Email;
+using Backend.Domain.Entities.User;
+using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
 
 namespace Backend.Application.Services.EmailServices
 {

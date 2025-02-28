@@ -1,6 +1,6 @@
-﻿using Backend.Application.DTO;
-using Backend.Application.Models;
-using Backend.Domain.Entities;
+﻿using Backend.Application.DTO.Auth;
+using Backend.Application.Models.Token;
+using Backend.Domain.Entities.Auth;
 using System.Security.Claims;
 
 namespace Backend.Application.Interfaces.JWT
