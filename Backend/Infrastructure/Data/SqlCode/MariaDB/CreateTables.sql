@@ -154,3 +154,22 @@ CREATE TABLE BlacklistedTokens (
     ExpiryDate DATETIME NOT NULL,
     CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE WizardSession (
+  WizardSessionId CHAR(36) NOT NULL,
+  Email VARCHAR(256) NOT NULL,
+  CurrentStep INT NOT NULL DEFAULT 0,
+  CreatedAt DATETIME NOT NULL DEFAULT UTC_TIMESTAMP(),
+  UpdatedAt DATETIME NOT NULL DEFAULT UTC_TIMESTAMP(),
+  PRIMARY KEY (WizardSessionId)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE WizardStep (
+  WizardSessionId CHAR(36) NOT NULL,
+  StepNumber INT NOT NULL,
+  StepData TEXT NOT NULL,
+  UpdatedAt DATETIME NOT NULL DEFAULT UTC_TIMESTAMP(),
+  PRIMARY KEY (WizardSessionId, StepNumber),
+  CONSTRAINT FK_WizardStep_WizardSession FOREIGN KEY (WizardSessionId)
+    REFERENCES WizardSession(WizardSessionId)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
