@@ -1,11 +1,11 @@
-﻿using Backend.Application.DTO;
+﻿using Backend.Application.DTO.Auth;
+using Backend.Application.DTO.User;
 using Backend.Application.Interfaces.EmailServices;
 using Backend.Application.Interfaces.UserServices;
-using Backend.Application.Models;
+using Backend.Application.Models.Auth;
 using Backend.Common.Interfaces;
 using Backend.Domain.Shared;
-using Backend.Infrastructure.Data.Sql.Interfaces;
-using Backend.Infrastructure.Data.Sql.Provider;
+using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
 using System.Security.Claims;
 
 namespace Backend.Application.Services.UserServices

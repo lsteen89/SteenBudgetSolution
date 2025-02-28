@@ -1,5 +1,5 @@
 ﻿using Backend.Application.Interfaces.EmailServices;
-using Backend.Domain.Entities;
+using Backend.Domain.Entities.Email;
 using MimeKit;
 using Org.BouncyCastle.Cms;
 using System.Net.Mail;

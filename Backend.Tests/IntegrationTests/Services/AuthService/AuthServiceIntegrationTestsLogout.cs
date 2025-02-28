@@ -8,6 +8,7 @@ using Moq;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Xunit;
+using Backend.Application.DTO.User;
 
 namespace Backend.Tests.IntegrationTests.Services.AuthService
 {

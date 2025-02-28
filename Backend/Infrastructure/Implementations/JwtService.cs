@@ -1,11 +1,12 @@
-﻿using Backend.Application.DTO;
+﻿using Backend.Application.DTO.Auth;
 using Backend.Application.Interfaces.JWT;
 using Backend.Application.Mappers;
-using Backend.Application.Models;
+using Backend.Application.Models.Token;
 using Backend.Application.Settings;
 using Backend.Common.Interfaces;
-using Backend.Domain.Entities;
-using Backend.Infrastructure.Data.Sql.Interfaces;
+using Backend.Domain.Entities.Auth;
+using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
+using Backend.Infrastructure.Data.Sql.Interfaces.UserQueries;
 using Backend.Infrastructure.Security;
 using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json.Linq;

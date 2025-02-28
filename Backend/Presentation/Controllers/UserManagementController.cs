@@ -1,10 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Backend.Application.Services;
-using Backend.Application.DTO;
 using Backend.Application.Interfaces.UserServices;
 using Backend.Common.Converters;
 using System.Security.Claims;
+using Backend.Application.DTO.User;
 
 namespace Backend.Presentation.Controllers
 {

@@ -2,8 +2,8 @@
 
 using Backend.Application.Interfaces.JWT;
 using Microsoft.Extensions.Caching.Distributed;
-using Backend.Infrastructure.Data.Sql.Interfaces;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
 
 public class TokenBlacklistService : ITokenBlacklistService
 {

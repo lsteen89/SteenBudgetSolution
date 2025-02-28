@@ -11,7 +11,7 @@ using System.Net.WebSockets;
 using System.Text;
 using Xunit;
 using Xunit.Sdk;
-
+using Backend.Application.DTO.User;
 namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTest
 {
     [Collection("WebSocket Test Collection")]

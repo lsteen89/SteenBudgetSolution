@@ -1,4 +1,5 @@
-﻿using Backend.Application.DTO;
+﻿using Backend.Application.DTO.Auth;
+using Backend.Application.DTO.User;
 using System.Security.Claims;
 
 namespace Backend.Application.Interfaces.AuthService

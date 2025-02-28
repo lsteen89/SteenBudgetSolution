@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using System.Net.Http.Json;
 using Xunit;
 using Backend.Tests.Helpers;
+using Backend.Application.DTO.User;
 
 namespace Backend.Tests.IntegrationTests.ControllerTests
 {

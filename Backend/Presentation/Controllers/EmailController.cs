@@ -1,7 +1,7 @@
-﻿using Backend.Application.DTO;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Backend.Common.Interfaces;
+using Backend.Application.DTO.Email;
 [ApiController]
 [Route("api/[controller]")]
 public class EmailController : ControllerBase

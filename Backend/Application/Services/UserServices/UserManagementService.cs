@@ -1,8 +1,8 @@
-﻿using Backend.Domain.Entities;
-using Backend.Infrastructure.Data.Sql.Interfaces;
-using Backend.Application.Interfaces.UserServices;
+﻿using Backend.Application.Interfaces.UserServices;
 using Backend.Application.DTO;
 using System.Security.Claims;
+using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
+using Backend.Domain.Entities.User;
 
 namespace Backend.Application.Services.UserServices
 {

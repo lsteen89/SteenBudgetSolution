@@ -12,7 +12,7 @@ import {
 
 // Wizard-related API calls
 import { startWizard, saveWizardStep, getWizardData } from "@api/Services/wizard/wizardService";
-
+import { StartWizardResponse } from "@api/Services/wizard/wizardService";
 // Container for wizard step content (styling)
 import WizardStepContainer from "@components/molecules/containers/WizardStepContainer";
 
@@ -22,6 +22,9 @@ import StepBudgetInfo, { StepBudgetInfoRef } from "./steps/StepBudgetInfo";
 import StepPersonalInfo from "./steps/StepPersonalInfo";
 import StepPreferences from "./steps/StepPreferences";
 import StepConfirmation from "./steps/StepConfirmation";
+
+//toast
+import { toast } from "react-toastify";
 
 // Step configuration for icons & labels
 const steps = [
@@ -101,15 +104,19 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
   useEffect(() => {
     const initWizard = async () => {
       try {
-        // If no existing session, server will create a new session ID
-        const sessionId = await startWizard();
-        setWizardSessionId(sessionId);
-
+        const { wizardSessionId, message }: StartWizardResponse = await startWizard();
+        if (!wizardSessionId) {
+          toast.error(message);
+          return;
+        }
+        setWizardSessionId(wizardSessionId);
+        console.log("Wizard session started:", wizardSessionId);
         // Attempt to fetch existing data for that session
-        const existingData = await getWizardData(sessionId);
+        const existingData = await getWizardData(wizardSessionId);
         setWizardData(existingData || {});
       } catch (error) {
         console.error("Error starting wizard:", error);
+        toast.error("Error starting wizard session.");
       }
     };
     initWizard();

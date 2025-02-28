@@ -1,5 +1,6 @@
-﻿using Backend.Application.DTO;
-using Backend.Domain.Entities;
+﻿using Backend.Application.DTO.User;
+using Backend.Domain.Entities.Auth;
+using Backend.Domain.Entities.User;
 
 
 

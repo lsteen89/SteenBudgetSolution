@@ -1,11 +1,11 @@
-﻿using Backend.Domain.Entities;
+﻿using Backend.Domain.Entities.Auth;
 using Backend.Test.UserTests.BaseClass;
 using Dapper;
 using System.Data.Common;
 
 namespace Backend.Test.UserTests
 {
-        public class UserServiceTest : TestDatabaseHelper
+    public class UserServiceTest : TestDatabaseHelper
         {
             public UserServiceTest(DbConnection connection, ILogger<UserServiceTest> logger)
                 : base(connection, logger)

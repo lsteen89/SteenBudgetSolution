@@ -1,6 +1,7 @@
 ﻿using Backend.Application.Interfaces.EmailServices;
 using Backend.Application.Settings;
-using Backend.Domain.Entities;
+using Backend.Domain.Entities.Auth;
+using Backend.Domain.Entities.User;
 using Backend.Tests.Mocks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;

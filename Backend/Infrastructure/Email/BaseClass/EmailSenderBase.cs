@@ -3,8 +3,8 @@ using MailKit.Net.Smtp;
 using Backend.Infrastructure.Email;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Backend.Domain.Entities;
 using Backend.Application.Interfaces.EmailServices;
+using Backend.Domain.Entities.Email;
 
 /// <summary>
 /// Base class for managing common email functionality across different controllers.
