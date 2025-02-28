@@ -1,4 +1,4 @@
-﻿using Backend.Domain.Entities;
+﻿using Backend.Domain.Entities.Auth;
 using Backend.Domain.Shared;
 using Xunit;
 

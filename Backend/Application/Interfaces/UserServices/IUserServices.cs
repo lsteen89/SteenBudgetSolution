@@ -1,4 +1,4 @@
-﻿using Backend.Application.DTO;
+﻿using Backend.Application.DTO.User;
 using Backend.Domain.Shared;
 
 namespace Backend.Application.Interfaces.UserServices

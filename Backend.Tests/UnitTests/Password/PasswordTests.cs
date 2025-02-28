@@ -1,4 +1,4 @@
-﻿using Backend.Domain.Entities;
+﻿using Backend.Domain.Entities.User;
 using Backend.Domain.Shared;
 using Moq;
 using Xunit;

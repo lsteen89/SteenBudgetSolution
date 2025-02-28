@@ -4,18 +4,19 @@
 //It also uses the TokenGenerator class to hash the refresh token and generate a new one.
 
 
-using Backend.Application.DTO;
+using Backend.Application.DTO.Auth;
+using Backend.Application.DTO.User;
 using Backend.Application.Interfaces.AuthService;
 using Backend.Application.Interfaces.JWT;
 using Backend.Application.Interfaces.UserServices;
 using Backend.Application.Interfaces.WebSockets;
 using Backend.Application.Mappers;
-using Backend.Application.Models;
+using Backend.Application.Models.Token;
 using Backend.Application.Settings;
 using Backend.Common.Interfaces;
 using Backend.Common.Utilities;
-using Backend.Domain.Entities;
-using Backend.Infrastructure.Data.Sql.Interfaces;
+using Backend.Domain.Entities.Auth;
+using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
 using Backend.Infrastructure.Security;
 using Backend.Infrastructure.WebSockets;
 using System.IdentityModel.Tokens.Jwt;

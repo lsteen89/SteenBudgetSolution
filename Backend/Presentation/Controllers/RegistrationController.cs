@@ -1,4 +1,5 @@
-﻿using Backend.Application.DTO;
+﻿using Backend.Application.DTO.Email;
+using Backend.Application.DTO.User;
 using Backend.Application.Interfaces.UserServices;
 using Backend.Common.Interfaces;
 using Microsoft.AspNetCore.Mvc;

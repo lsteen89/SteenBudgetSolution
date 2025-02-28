@@ -1,5 +1,5 @@
 ﻿using Backend.Application.Interfaces.JWT;
-using Backend.Domain.Entities;
+using Backend.Domain.Entities.Auth;
 
 namespace Backend.Application.Helpers.Jwt
 {

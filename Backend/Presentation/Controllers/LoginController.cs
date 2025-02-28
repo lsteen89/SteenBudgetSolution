@@ -1,5 +1,4 @@
-﻿using Backend.Application.DTO;
-using Backend.Application.Interfaces.AuthService;
+﻿using Backend.Application.Interfaces.AuthService;
 using Backend.Application.Interfaces.Cookies;
 using Backend.Application.Interfaces.UserServices;
 using Backend.Application.Interfaces.WebSockets;
@@ -8,6 +7,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Backend.Common.Interfaces;
+using Backend.Application.DTO.User;
+using Backend.Application.DTO.Auth;
 
 namespace Backend.Presentation.Controllers
 {

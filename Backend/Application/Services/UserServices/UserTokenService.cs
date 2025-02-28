@@ -1,7 +1,7 @@
 ﻿using Backend.Application.Interfaces.UserServices;
 using Backend.Common.Interfaces;
-using Backend.Domain.Entities;
-using Backend.Infrastructure.Data.Sql.Interfaces;
+using Backend.Domain.Entities.Auth;
+using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
 
 namespace Backend.Application.Services.UserServices
 {

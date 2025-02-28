@@ -1,4 +1,4 @@
-﻿using Backend.Domain.Entities;
+﻿using Backend.Domain.Entities.User;
 using System.Net;
 using System.Net.Sockets;
 using System.Reflection;

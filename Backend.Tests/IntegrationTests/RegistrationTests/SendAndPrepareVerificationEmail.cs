@@ -1,5 +1,5 @@
 ﻿using Backend.Application.Interfaces.EmailServices;
-using Backend.Domain.Entities;
+using Backend.Domain.Entities.Email;
 using Backend.Tests.Mocks;
 using Microsoft.Extensions.Logging;
 using Moq;

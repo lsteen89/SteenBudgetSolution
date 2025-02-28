@@ -7,7 +7,7 @@ using Backend.Tests.Helpers;
 using Moq;
 using Backend.Infrastructure.Security;
 using Backend.Infrastructure.WebSockets;
-
+using Backend.Application.DTO.User;
 
 namespace Backend.Tests.IntegrationTests.Services.AuthService
 {

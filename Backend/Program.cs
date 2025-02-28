@@ -12,11 +12,12 @@ using Backend.Application.Validators;
 using Backend.Common.Converters;
 using Backend.Common.Interfaces;
 using Backend.Common.Services;
-using Backend.Domain.Entities;
+using Backend.Domain.Entities.Email;
 using Backend.Infrastructure.BackgroundServices;
-using Backend.Infrastructure.Data.Sql.Interfaces;
-using Backend.Infrastructure.Data.Sql.Provider;
-using Backend.Infrastructure.Data.Sql.UserQueries;
+using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
+using Backend.Infrastructure.Data.Sql.Interfaces.UserQueries;
+using Backend.Infrastructure.Data.Sql.Providers.UserProvider;
+using Backend.Infrastructure.Data.Sql.Queries.UserQueries;
 using Backend.Infrastructure.Email;
 using Backend.Infrastructure.Implementations;
 using Backend.Infrastructure.Providers;
@@ -30,6 +31,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.DependencyInjection;
+using Backend.Application.Interfaces.WizardService;
+using Backend.Application.Services.WizardService;
 using Microsoft.IdentityModel.Tokens;
 using Moq;
 using MySqlConnector;
@@ -39,6 +42,9 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Reflection;
 using System.Text;
 using System.Threading.RateLimiting;
+using Backend.Infrastructure.Data.Sql.Providers.WizardProvider;
+using Backend.Infrastructure.Data.Sql.Interfaces.WizardQueries;
+using Backend.Infrastructure.Data.Sql.Queries.WizardQuery;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -133,13 +139,17 @@ var configuration = builder.Configuration;
 #region Injected Services
 
 // Section for SQL related services
+// Users
 builder.Services.AddScoped<IUserSqlExecutor, UserSqlExecutor>();
 builder.Services.AddScoped<IVerificationTokenSqlExecutor, VerificationTokenSqlExecutor>();
 builder.Services.AddScoped<IAuthenticationSqlExecutor, AuthenticationSqlExecutor>();
 builder.Services.AddScoped<IRefreshTokenSqlExecutor, RefreshTokenSqlExecutor> ();
+// Wizard
+builder.Services.AddScoped<IWizardSqlExecutor, WizardSqlExecutor>();
 
-// Add the UserSQLProvider to the services
+// Add the UserSQLProviders to the services
 builder.Services.AddScoped<IUserSQLProvider, UserSQLProvider>();
+builder.Services.AddScoped<IWizardSqlProvider, WizardSqlProvider>();
 
 // Recaptcha service
 builder.Services.AddHttpClient<IRecaptchaService, RecaptchaService>();
@@ -206,6 +216,9 @@ else
 // Add WebSockets and their helpers
 builder.Services.AddSingleton<IWebSocketManager, Backend.Infrastructure.WebSockets.WebSocketManager>();
 builder.Services.AddHostedService(provider => (Backend.Infrastructure.WebSockets.WebSocketManager)provider.GetRequiredService<IWebSocketManager>());
+
+//WizardService
+builder.Services.AddScoped<IWizardService, WizardService>();
 
 // Background services
 builder.Services.AddHostedService<ExpiredTokenScanner>();
