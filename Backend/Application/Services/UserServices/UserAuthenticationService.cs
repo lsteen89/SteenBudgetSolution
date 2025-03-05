@@ -7,6 +7,7 @@ using Backend.Common.Interfaces;
 using Backend.Domain.Shared;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
 using System.Security.Claims;
+using Backend.Common.Utilities;
 
 namespace Backend.Application.Services.UserServices
 {
@@ -193,7 +194,7 @@ namespace Backend.Application.Services.UserServices
             }
 
             // Retrieve claims by their exact names
-            var email = user.FindFirst("email")?.Value;
+            string? email = user.GetEmail();
             var role = user.FindFirst("role")?.Value;
 
             if (string.IsNullOrEmpty(email))

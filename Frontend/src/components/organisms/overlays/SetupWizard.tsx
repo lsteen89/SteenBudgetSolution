@@ -88,6 +88,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
   // 6. Partial save function
   const handleSaveStepData = async (stepNumber: number, data: any) => {
     try {
+      console.log("Saving step data:", stepNumber, data);
       await saveWizardStep(wizardSessionId, stepNumber, data);
       // Merge partial data into local wizardData
       setWizardData((prev: any) => ({

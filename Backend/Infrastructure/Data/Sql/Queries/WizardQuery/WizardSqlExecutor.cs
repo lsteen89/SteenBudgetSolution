@@ -59,6 +59,37 @@ namespace Backend.Infrastructure.Data.Sql.Queries.WizardQuery
             Guid? sessionId = await ExecuteScalarAsync<Guid?>(sqlQuery, new { Email = email });
             return sessionId;
         }
+        public async Task<bool> UpsertStepDataAsync(string wizardSessionId, int stepNumber, string jsonData)
+        {
+            try
+            {
+                string sql = @"
+            INSERT INTO WizardStep (WizardSessionId, StepNumber, StepData, UpdatedAt)
+            VALUES (@WizardSessionId, @StepNumber, @StepData, UTC_TIMESTAMP())
+            ON DUPLICATE KEY UPDATE 
+                StepData = @StepData,
+                UpdatedAt = UTC_TIMESTAMP();";
 
+                int rowsAffected = await ExecuteAsync(sql, new
+                {
+                    WizardSessionId = wizardSessionId,
+                    StepNumber = stepNumber,
+                    StepData = jsonData
+                });
+
+                if (rowsAffected <= 0)
+                {
+                    _logger.LogError("Failed to upsert wizard step data for session {WizardSessionId}, step {StepNumber}", wizardSessionId, stepNumber);
+                    return false;
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Exception while upserting wizard step data for session {WizardSessionId}, step {StepNumber}", wizardSessionId, stepNumber);
+                return false;
+            }
+        }
     }
 }

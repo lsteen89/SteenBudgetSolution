@@ -80,9 +80,11 @@ const StepBudgetInfo = forwardRef<StepBudgetInfoRef, StepBudgetInfoProps>(
     const [netSalary, setNetSalary] = useState<number | null>(
       initialData?.netSalary ?? null
     );
+    /*
     const [isHousehold, setIsHousehold] = useState<boolean>(
       initialData?.isHousehold ?? false
     );
+    */
     const [showSideIncome, setShowSideIncome] = useState<boolean>(
       initialData?.showSideIncome ?? false
     );
@@ -311,38 +313,35 @@ const StepBudgetInfo = forwardRef<StepBudgetInfoRef, StepBudgetInfoProps>(
       let isValid = true;
       const newErrors: { [key: string]: string } = {};
 
-      // If not household, must have netSalary
-      if (!isHousehold) {
-        if (netSalary === null || netSalary === 0) {
-          isValid = false;
-          newErrors.netSalary = "Ange din primära inkomst.";
-        }
-        if (salaryFrequency === "") {
-          isValid = false;
-          newErrors.salaryFrequency = "Välj lönefrekvens.";
-        }
-      } else {
-        // If household, must have at least 1 member
-        if (householdMembers.length === 0) {
-          isValid = false;
-          newErrors.householdMembers = "Lägg till minst en hushållsmedlem.";
-        } else {
-          householdMembers.forEach((member, index) => {
-            if (member.name.trim() === "") {
-              isValid = false;
-              newErrors[`memberName-${index}`] = "Ange namn.";
-            }
-            if (member.income === "") {
-              isValid = false;
-              newErrors[`memberIncome-${index}`] = "Ange inkomst.";
-            }
-            if (member.frequency === "") {
-              isValid = false;
-              newErrors[`memberFrequency-${index}`] = "Välj frekvens.";
-            }
-          });
-        }
+      // User must have netSalary
+
+      if (netSalary === null || netSalary === 0) {
+        isValid = false;
+        newErrors.netSalary = "Ange din primära inkomst.";
       }
+      if (salaryFrequency === "") {
+        isValid = false;
+        newErrors.salaryFrequency = "Välj lönefrekvens.";
+      }
+
+      // Validate household members if any are added.
+      if (householdMembers.length > 0) {
+        householdMembers.forEach((member, index) => {
+          if (member.name.trim() === "") {
+            isValid = false;
+            newErrors[`memberName-${index}`] = "Ange namn.";
+          }
+          if (member.income === "") {
+            isValid = false;
+            newErrors[`memberIncome-${index}`] = "Ange nettoinkomst.";
+          }
+          if (member.frequency === "") {
+            isValid = false;
+            newErrors[`memberFrequency-${index}`] = "Välj frekvens.";
+          }
+        });
+      }
+      
 
       // If side income is toggled on, check side hustles
       if (showSideIncome) {
@@ -362,7 +361,7 @@ const StepBudgetInfo = forwardRef<StepBudgetInfoRef, StepBudgetInfoProps>(
         });
       }
 
-      // Only update errors if they changed
+      // Update errors if they changed.
       if (!areObjectsEqual(newErrors, prevErrorsRef.current)) {
         setErrors(newErrors);
         prevErrorsRef.current = newErrors;
@@ -371,9 +370,7 @@ const StepBudgetInfo = forwardRef<StepBudgetInfoRef, StepBudgetInfoProps>(
     }, [
       netSalary,
       salaryFrequency,
-      isHousehold,
       householdMembers,
-      showSideIncome,
       sideHustles,
     ]);
 
@@ -387,9 +384,7 @@ const StepBudgetInfo = forwardRef<StepBudgetInfoRef, StepBudgetInfoProps>(
     }, [
       netSalary,
       salaryFrequency,
-      isHousehold,
       householdMembers,
-      showSideIncome,
       sideHustles,
       validateFields,
       setStepValid,
@@ -404,8 +399,6 @@ const StepBudgetInfo = forwardRef<StepBudgetInfoRef, StepBudgetInfoProps>(
         // Return everything needed for partial save
         return {
           netSalary,
-          isHousehold,
-          showSideIncome,
           salaryFrequency,
           yearlySalary,
           householdMembers,
@@ -420,192 +413,114 @@ const StepBudgetInfo = forwardRef<StepBudgetInfoRef, StepBudgetInfoProps>(
         <h3 className="text-2xl font-semibold mb-4 text-darkLimeGreen">
           Din ekonomi börjar här! 🚀
         </h3>
+        <p className="text-customBlue1">Ange din huvudinkomst.</p>
         <p className="text-customBlue1">
-          Vi börjar med att titta på dina inkomster. Nedan följer uppgifter vi behöver
-          för att göra en sammanställning.
+          Har du delad ekonomi?  
+          Lägg till en person med knappen <strong>"Lägg till person"</strong>.
         </p>
-        <br />
         <p className="text-customBlue1">
-          Sätter du upp en budget för enbart dig själv eller för flera personer?
+          Har du andra inkomster vid sidan av?  
+          Lägg till dem med knappen <strong>"Andra typer av inkomster"</strong>.
         </p>
 
-        {/* Household/Individual Toggle */}
-        <div className="mt-4 flex justify-center">
-          <label className="inline-flex items-center mr-4">
-            <input
-              type="radio"
-              className="form-radio text-darkLimeGreen"
-              checked={!isHousehold}
-              onChange={() => {
-                setIsHousehold(false);
-                setHouseholdMembers([]);
-                // Clean up household-related errors and touched state
-                setErrors((prev) => {
-                  const newErrors: { [key: string]: string } = {};
-                  Object.keys(prev).forEach((key) => {
-                    if (
-                      !key.startsWith("memberName-") &&
-                      !key.startsWith("memberIncome-") &&
-                      !key.startsWith("memberFrequency-")
-                    ) {
-                      newErrors[key] = prev[key];
-                    }
-                  });
-                  return newErrors;
-                });
-                setTouched((prev) => {
-                  const newTouched: { [key: string]: boolean } = {};
-                  Object.keys(prev).forEach((key) => {
-                    if (
-                      !key.startsWith("name-") &&
-                      !key.startsWith("income-") &&
-                      !key.startsWith("frequency-")
-                    ) {
-                      newTouched[key] = prev[key];
-                    }
-                  });
-                  return newTouched;
-                });
-              }}
-            />
-            <span className="ml-2">En person</span>
-          </label>
-          <label className="inline-flex items-center">
-            <input
-              type="radio"
-              className="form-radio text-darkLimeGreen"
-              checked={isHousehold}
-              onChange={() => {
-                setIsHousehold(true);
-                setNetSalary(null);
-                setSalaryFrequency("monthly");
-                // Clean up individual salary errors and touched state
-                setErrors((prev) => {
-                  const newErrors: { [key: string]: string } = {};
-                  Object.keys(prev).forEach((key) => {
-                    if (key !== "netSalary" && key !== "salaryFrequency") {
-                      newErrors[key] = prev[key];
-                    }
-                  });
-                  return newErrors;
-                });
-                setTouched((prev) => {
-                  const newTouched: { [key: string]: boolean } = {};
-                  Object.keys(prev).forEach((key) => {
-                    if (key !== "netSalary" && key !== "salaryFrequency") {
-                      newTouched[key] = prev[key];
-                    }
-                  });
-                  return newTouched;
-                });
-              }}
-            />
-            <span className="ml-2">Flera personer</span>
-          </label>
-        </div>
-
+    
         {/* Animated Icon */}
         <div className="flex justify-center mt-4">
           <Lottie animationData={coinsAnimation} className="w-24 h-24" loop />
         </div>
+    
+        {/* Primary Income Section */}
+        <OptionContainer>
+          <SalaryField
+            netSalary={netSalary}
+            yearlySalary={yearlySalary}
+            salaryFrequency={salaryFrequency}
+            handleSalaryChange={handleSalaryChange}
+            setSalaryFrequency={setSalaryFrequency}
+            errors={errors}
+            touched={touched}
+            setTouched={setTouched}
+            validateFields={validateFields}
+          />
+        </OptionContainer>
+    
+        {/* Optional Household Members Section */}
+        <OptionContainer>
+          {householdMembers.length > 0 && (
+            <>
+              <h4 className="text-lg font-semibold mb-2">Hushållsmedlemmar (valfritt)</h4>
+              {householdMembers.map((member, index) => (
+                <div key={index} className="mb-4 border-b border-gray-300 pb-4">
+                  <HouseholdMemberField
+                    label="Namn:"
+                    type="text"
+                    id={`memberName-${index}`}
+                    value={member.name}
+                    onChange={(e) => handleMemberChange(index, "name", e.target.value)}
+                    placeholder="Ange namn"
+                    onBlur={() =>
+                      setTouched((prev) => ({ ...prev, [`name-${index}`]: true }))
+                    }
+                  />
+                  {errors[`memberName-${index}`] && touched[`name-${index}`] && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors[`memberName-${index}`]}
+                    </p>
+                  )}
 
-        {/* Individual Salary Section */}
-        {!isHousehold && (
-          <OptionContainer>
-            <SalaryField
-              netSalary={netSalary}
-              yearlySalary={yearlySalary}
-              salaryFrequency={salaryFrequency}
-              handleSalaryChange={handleSalaryChange}
-              setSalaryFrequency={setSalaryFrequency}
-              errors={errors}
-              touched={touched}
-              setTouched={setTouched}
-              validateFields={validateFields}
-            />
-          </OptionContainer>
-        )}
+                  <HouseholdMemberField
+                    label="Nettoinkomst:"
+                    type="number"
+                    id={`memberIncome-${index}`}
+                    value={member.income}
+                    onChange={(e) => handleMemberChange(index, "income", e.target.value)}
+                    placeholder="Ange nettoinkomst"
+                    yearlyIncome={member.yearlyIncome}
+                    frequency={member.frequency}
+                    onBlur={() =>
+                      setTouched((prev) => ({ ...prev, [`income-${index}`]: true }))
+                    }
+                  />
+                  {errors[`memberIncome-${index}`] && touched[`income-${index}`] && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors[`memberIncome-${index}`]}
+                    </p>
+                  )}
 
-        {/* Household Members Section */}
-        {isHousehold && (
-          <OptionContainer>
-            <h4 className="text-lg font-semibold mb-2">Hushållsmedlemmar</h4>
-            {householdMembers.map((member, index) => (
-              <div key={index} className="mb-4 border-b border-gray-300 pb-4">
-                <HouseholdMemberField
-                  label="Namn:"
-                  type="text"
-                  id={`memberName-${index}`}
-                  value={member.name}
-                  onChange={(e) => handleMemberChange(index, "name", e.target.value)}
-                  placeholder="Ange namn"
-                  onBlur={() =>
-                    setTouched((prev) => ({ ...prev, [`name-${index}`]: true }))
-                  }
-                />
-                {errors[`memberName-${index}`] && touched[`name-${index}`] && (
-                  <p className="text-red-500 text-sm mt-1">
-                    {errors[`memberName-${index}`]}
-                  </p>
-                )}
-
-                <HouseholdMemberField
-                  label="Inkomst (SEK):"
-                  type="number"
-                  id={`memberIncome-${index}`}
-                  value={member.income === "" ? "" : member.income}
-                  onChange={(e) =>
-                    handleMemberChange(index, "income", e.target.value)
-                  }
-                  placeholder="Ange inkomst"
-                  yearlyIncome={member.yearlyIncome}
-                  frequency={member.frequency}
-                  onBlur={() =>
-                    setTouched((prev) => ({ ...prev, [`income-${index}`]: true }))
-                  }
-                />
-                {errors[`memberIncome-${index}`] && touched[`income-${index}`] && (
-                  <p className="text-red-500 text-sm mt-1">
-                    {errors[`memberIncome-${index}`]}
-                  </p>
-                )}
-
-                <HouseholdMemberField
-                  label="Lönefrekvens:"
-                  type="select"
-                  id={`memberFrequency-${index}`}
-                  value={member.frequency}
-                  onChange={(e) =>
-                    handleMemberChange(index, "frequency", e.target.value)
-                  }
-                  options={[
-                    { value: "monthly", label: "Per månad" },
-                    { value: "weekly", label: "Per vecka" },
-                    { value: "quarterly", label: "Per kvartal" },
-                    { value: "annually", label: "Årligen" },
-                  ]}
-                  frequency={member.frequency}
-                  onBlur={() =>
-                    setTouched((prev) => ({
-                      ...prev,
-                      [`frequency-${index}`]: true,
-                    }))
-                  }
-                />
-                {errors[`memberFrequency-${index}`] &&
-                  touched[`frequency-${index}`] && (
+                  <HouseholdMemberField
+                    label="Lönefrekvens:"
+                    type="select"
+                    id={`memberFrequency-${index}`}
+                    value={member.frequency}
+                    onChange={(e) =>
+                      handleMemberChange(index, "frequency", e.target.value)
+                    }
+                    options={[
+                      { value: "monthly", label: "Per månad" },
+                      { value: "weekly", label: "Per vecka" },
+                      { value: "quarterly", label: "Per kvartal" },
+                      { value: "annually", label: "Årligen" },
+                    ]}
+                    onBlur={() =>
+                      setTouched((prev) => ({
+                        ...prev,
+                        [`frequency-${index}`]: true,
+                      }))
+                    }
+                  />
+                  {errors[`memberFrequency-${index}`] && touched[`frequency-${index}`] && (
                     <p className="text-red-500 text-sm mt-1">
                       {errors[`memberFrequency-${index}`]}
                     </p>
                   )}
 
-                <RemovalButton onClick={() => handleRemoveMember(index)} />
-              </div>
-            ))}
-
-            <AcceptButton onClick={handleAddMember}>Lägg till medlem</AcceptButton>
-          </OptionContainer>
-        )}
+                  <RemovalButton onClick={() => handleRemoveMember(index)} />
+                </div>
+              ))}
+            </>
+          )}
+          <AcceptButton onClick={handleAddMember}>Lägg till person</AcceptButton>
+        </OptionContainer>
 
         {/* Toggle for Side Hustle Income */}
         <div className="flex items-center justify-center gap-2 mt-4">
@@ -662,7 +577,7 @@ const StepBudgetInfo = forwardRef<StepBudgetInfoRef, StepBudgetInfoProps>(
                   onChange={(e) =>
                     handleSideHustleChange(index, "income", e.target.value)
                   }
-                  placeholder="Ange inkomst"
+                  placeholder="Ange nettoinkomst"
                   onBlur={() =>
                     setTouched((prev) => ({
                       ...prev,
