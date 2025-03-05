@@ -161,7 +161,8 @@ CREATE TABLE WizardSession (
   CurrentStep INT NOT NULL DEFAULT 0,
   CreatedAt DATETIME NOT NULL DEFAULT UTC_TIMESTAMP(),
   UpdatedAt DATETIME NOT NULL DEFAULT UTC_TIMESTAMP(),
-  PRIMARY KEY (WizardSessionId)
+  PRIMARY KEY (WizardSessionId),
+  UNIQUE KEY UK_Email (Email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE WizardStep (
@@ -172,4 +173,5 @@ CREATE TABLE WizardStep (
   PRIMARY KEY (WizardSessionId, StepNumber),
   CONSTRAINT FK_WizardStep_WizardSession FOREIGN KEY (WizardSessionId)
     REFERENCES WizardSession(WizardSessionId)
+    ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

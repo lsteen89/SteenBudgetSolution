@@ -1,0 +1,8 @@
+﻿namespace Backend.Application.DTO.Wizard
+{
+    public class WizardStepDto
+    {
+        public string WizardSessionId { get; set; }
+        public object StepData { get; set; }
+    }
+}

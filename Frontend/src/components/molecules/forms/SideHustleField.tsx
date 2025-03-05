@@ -45,29 +45,15 @@ const SideHustleField: React.FC<SideHustleFieldProps> = ({
   }, []);
 
   const helpText = getHelpText(label);
-  const detailedHelpText = getDetailedHelpText(label);
 
   function getHelpText(label: string) {
     switch (label) {
       case 'Inkomstens namn:':
-        return 'Ange ett beskrivande namn för din inkomst.';
+        return 'Ange ett beskrivande namn för din inkomst. Exempel kan vara olika bidrag, försäljning av saker eller tjänster, eller andra inkomstkällor.';
       case 'Inkomst (SEK):':
         return 'Ange inkomstens storlek.';
       case 'Inkomstfrekvens:':
-        return 'Välj hur ofta du får inkomsten.';
-      default:
-        return '';
-    }
-  }
-
-  function getDetailedHelpText(label: string) {
-    switch (label) {
-      case 'Inkomstens namn:':
-        return 'Inkomstens namn bör vara tydligt och beskrivande, så att du enkelt kan identifiera inkomstkällan.';
-      case 'Inkomst (SEK):':
-        return 'Ange ett numeriskt värde för inkomstens storlek.';
-      case 'Inkomstfrekvens:':
-        return 'Välj mellan månadsvis, veckovis, kvartalsvis eller årlig inkomstfrekvens.';
+        return 'Välj hur ofta du får inkomsten. Vissa inkomster är sporadiska, medan andra kommer regelbundet, försök att uppskatta hur ofta du får inkomsten.';
       default:
         return '';
     }
@@ -75,18 +61,26 @@ const SideHustleField: React.FC<SideHustleFieldProps> = ({
 
   return (
     <div className="relative" ref={helpRef}>
-      <label htmlFor={id} className="block text-sm font-medium flex items-center gap-1">
-        {label}
-        <button
-          type="button"
-          onClick={() => setShowHelp(!showHelp)}
-          className="text-darkLimeGreen hover:text-green-700 focus:outline-none"
-          title={`Vad är ${label.toLowerCase()}?`}
-          aria-label={`Toggle help for ${label}`}
-        >
-          <Info size={16} />
-        </button>
-      </label>
+<label
+  htmlFor={id}
+  className="block text-sm font-medium flex items-center gap-1"
+  onClick={(e) => e.stopPropagation()}
+>
+  <span>{label}</span>
+  <button
+    type="button"
+    onMouseDown={(e) => e.stopPropagation()}
+    onClick={(e) => {
+      e.stopPropagation();
+      setShowHelp((prev) => !prev);
+    }}
+    className="text-darkLimeGreen hover:text-green-700 focus:outline-none"
+    title={`Vad är ${label.toLowerCase()}?`}
+    aria-label={`Toggle help for ${label}`}
+  >
+    <Info size={16} />
+  </button>
+</label>
 
       <AnimatePresence>
         {showHelp && (
@@ -97,42 +91,20 @@ const SideHustleField: React.FC<SideHustleFieldProps> = ({
             className="absolute z-10 mt-2 p-4 bg-customBlue2 text-gray-900 rounded-lg shadow-lg border border-gray-400 w-72"
           >
             <p className="text-sm">{helpText}</p>
-            <button
+                        {/* Close Button */}
+                        <button
               type="button"
-              onClick={() => setShowDetailedHelp(true)}
-              className="underline text-darkLimeGreen mt-2 block"
-              title="Läs mer om detta ämne"
-              aria-label="Läs mer om detta ämne"
+              onClick={() => setShowHelp(false)}
+              className="absolute top-2 right-2 text-red-700 hover:text-green-700 focus:outline-none"
+              title="Stäng hjälprutan"
+              aria-label="Stäng hjälprutan"
             >
-              Läs mer
+              X
             </button>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {showDetailedHelp && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="absolute z-20 mt-2 p-4 bg-white border border-gray-300 rounded-lg shadow-lg w-80"
-          >
-            <div className="flex justify-between items-center">
-              <p className="text-gray-900 text-sm">{detailedHelpText}</p>
-              <button 
-                type="button"
-                onClick={() => setShowDetailedHelp(false)}
-                className="text-gray-600 hover:text-gray-900"
-                title="Stäng detaljerad hjälp"
-                aria-label="Stäng detaljerad hjälp"
-              >
-                <X size={18} />
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {type === 'text' && (
         <TextInput id={id} value={value as string} onChange={onChange} placeholder={placeholder} onBlur={onBlur}/>

@@ -1,14 +1,18 @@
+using Backend.Application.DTO.Wizard.Steps;
 using Backend.Application.Interfaces.AuthService;
 using Backend.Application.Interfaces.Cookies;
 using Backend.Application.Interfaces.EmailServices;
 using Backend.Application.Interfaces.JWT;
 using Backend.Application.Interfaces.UserServices;
 using Backend.Application.Interfaces.WebSockets;
+using Backend.Application.Interfaces.WizardService;
 using Backend.Application.Services.AuthService;
 using Backend.Application.Services.EmailServices;
 using Backend.Application.Services.UserServices;
+using Backend.Application.Services.WizardService;
 using Backend.Application.Settings;
 using Backend.Application.Validators;
+using Backend.Application.Validators.WizardValidation;
 using Backend.Common.Converters;
 using Backend.Common.Interfaces;
 using Backend.Common.Services;
@@ -16,11 +20,13 @@ using Backend.Domain.Entities.Email;
 using Backend.Infrastructure.BackgroundServices;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
 using Backend.Infrastructure.Data.Sql.Interfaces.UserQueries;
+using Backend.Infrastructure.Data.Sql.Interfaces.WizardQueries;
 using Backend.Infrastructure.Data.Sql.Providers.UserProvider;
+using Backend.Infrastructure.Data.Sql.Providers.WizardProvider;
 using Backend.Infrastructure.Data.Sql.Queries.UserQueries;
+using Backend.Infrastructure.Data.Sql.Queries.WizardQuery;
 using Backend.Infrastructure.Email;
 using Backend.Infrastructure.Implementations;
-using Backend.Infrastructure.Providers;
 using Backend.Infrastructure.Services.CookieService;
 using Backend.Presentation.Middleware;
 using Backend.Tests.Mocks;
@@ -30,9 +36,6 @@ using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.Extensions.DependencyInjection;
-using Backend.Application.Interfaces.WizardService;
-using Backend.Application.Services.WizardService;
 using Microsoft.IdentityModel.Tokens;
 using Moq;
 using MySqlConnector;
@@ -42,9 +45,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Reflection;
 using System.Text;
 using System.Threading.RateLimiting;
-using Backend.Infrastructure.Data.Sql.Providers.WizardProvider;
-using Backend.Infrastructure.Data.Sql.Interfaces.WizardQueries;
-using Backend.Infrastructure.Data.Sql.Queries.WizardQuery;
+using Backend.Application.Validators.WizardValidation;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -219,6 +220,8 @@ builder.Services.AddHostedService(provider => (Backend.Infrastructure.WebSockets
 
 //WizardService
 builder.Services.AddScoped<IWizardService, WizardService>();
+//Wizard Validation
+builder.Services.AddValidatorsFromAssemblyContaining<StepBudgetInfoValidator>();
 
 // Background services
 builder.Services.AddHostedService<ExpiredTokenScanner>();
