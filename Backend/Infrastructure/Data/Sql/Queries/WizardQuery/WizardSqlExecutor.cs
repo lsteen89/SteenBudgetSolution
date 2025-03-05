@@ -2,6 +2,8 @@
 using Backend.Infrastructure.Data;
 using Backend.Infrastructure.Data.Sql.Interfaces.WizardQueries;
 using System.Data.Common;
+using Newtonsoft.Json;
+using System.Data;
 
 namespace Backend.Infrastructure.Data.Sql.Queries.WizardQuery
 {
@@ -89,6 +91,24 @@ namespace Backend.Infrastructure.Data.Sql.Queries.WizardQuery
             {
                 _logger.LogError(ex, "Exception while upserting wizard step data for session {WizardSessionId}, step {StepNumber}", wizardSessionId, stepNumber);
                 return false;
+            }
+        }
+        public async Task<string?> GetWizardDataAsync(string wizardSessionId)
+        {
+            const string query = @"
+            SELECT StepData 
+            FROM WizardStep  
+            WHERE WizardSessionId = @WizardSessionId
+            ORDER BY StepNumber ASC";
+
+            try
+            {
+                return await QueryFirstOrDefaultAsync<string>(query, new { WizardSessionId = wizardSessionId });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Database error when retrieving wizard data for session {WizardSessionId}", wizardSessionId);
+                throw;
             }
         }
     }

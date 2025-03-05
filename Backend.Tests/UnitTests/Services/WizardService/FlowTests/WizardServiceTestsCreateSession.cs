@@ -7,7 +7,7 @@ using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
 using Backend.Infrastructure.Data.Sql.Interfaces.WizardQueries;
 using FluentValidation;
 using FluentValidation.Results;
-using Backend.Application.DTO.Wizard.Steps; // Adjust as necessary
+using Backend.Application.DTO.Wizard.Steps;
 
 namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
 {

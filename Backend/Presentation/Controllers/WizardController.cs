@@ -76,6 +76,21 @@ namespace Backend.Presentation.Controllers
 
             return Ok(new { message = "Step saved successfully." });
         }
+        [HttpGet]
+        public async Task<IActionResult> GetWizardData([FromQuery] string wizardSessionId)
+        {
+            if (string.IsNullOrWhiteSpace(wizardSessionId))
+            {
+                return BadRequest("Wizard session ID is required.");
+            }
 
+            string? wizardDataJson = await _wizardService.GetWizardDataAsync(wizardSessionId);
+            if (string.IsNullOrEmpty(wizardDataJson))
+            {
+                return NotFound("No wizard data found for the given session.");
+            }
+
+            return Content(wizardDataJson, "application/json");
+        }
     }
 }

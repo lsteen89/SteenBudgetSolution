@@ -114,6 +114,21 @@ namespace Backend.Application.Services.WizardService
 
         public async Task<Guid> UserHasWizardSessionAsync(string email)
             => (await _wizardProvider.WizardSqlExecutor.GetWizardSessionIdAsync(email)) ?? Guid.Empty;
-    
+
+        public async Task<string?> GetWizardDataAsync(string wizardSessionId)
+        {
+            _logger.LogInformation("Retrieving wizard data for session {WizardSessionId}", wizardSessionId);
+
+            string? stepDataJson = await _wizardProvider.WizardSqlExecutor.GetWizardDataAsync(wizardSessionId);
+
+            if (string.IsNullOrEmpty(stepDataJson))
+            {
+                _logger.LogWarning("No wizard data found for session {WizardSessionId}", wizardSessionId);
+                return null;
+            }
+
+            _logger.LogInformation("Wizard data retrieved successfully for session {WizardSessionId}", wizardSessionId);
+            return stepDataJson; // Return JSON string
+        }
     }
 }

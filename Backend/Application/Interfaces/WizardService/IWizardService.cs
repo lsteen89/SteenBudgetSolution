@@ -7,5 +7,6 @@ namespace Backend.Application.Interfaces.WizardService
         Task<(bool IsSuccess, Guid WizardSessionId, string Message)> CreateWizardSessionAsync(string email);
         Task<bool> SaveStepDataAsync(string wizardSessionId, int stepNumber, object stepData);
         Task<Guid> UserHasWizardSessionAsync(string email);
+        Task<string?> GetWizardDataAsync(string wizardSessionId);
     }
 }
