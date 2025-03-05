@@ -5,26 +5,37 @@ using Microsoft.Extensions.Logging;
 using System;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
 using Backend.Infrastructure.Data.Sql.Interfaces.WizardQueries;
+using FluentValidation;
+using FluentValidation.Results;
+using Backend.Application.DTO.Wizard.Steps; // Adjust as necessary
 
-namespace Backend.Tests.UnitTests.Services.WizardService
+namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
 {
-    public class WizardServiceTests
+    public class WizardServiceTestsCreateSession
     {
         private readonly Mock<IWizardSqlProvider> _wizardProviderMock;
         private readonly Mock<IWizardSqlExecutor> _wizardSqlExecutorMock;
         private readonly WizardServiceClass _wizardService;
 
-        public WizardServiceTests()
+        public WizardServiceTestsCreateSession()
         {
             _wizardProviderMock = new Mock<IWizardSqlProvider>();
             _wizardSqlExecutorMock = new Mock<IWizardSqlExecutor>();
 
-            // Setup the WizardSqlExecutor property in the provider
-            _wizardProviderMock.Setup(x => x.WizardSqlExecutor).Returns(_wizardSqlExecutorMock.Object);
+            // Setup the WizardSqlExecutor property on the provider
+            _wizardProviderMock.Setup(x => x.WizardSqlExecutor)
+                               .Returns(_wizardSqlExecutorMock.Object);
 
-            // Instantiate your service with the mocked provider and a dummy logger
+            // Create a mock validator for StepBudgetInfoDto that always returns valid.
+            var validatorMock = new Mock<IValidator<StepBudgetInfoDto>>();
+            validatorMock.Setup(x => x.Validate(It.IsAny<StepBudgetInfoDto>()))
+                         .Returns(new ValidationResult()); // Always valid
+
+            // Create a dummy logger for WizardService
             var logger = Mock.Of<ILogger<WizardServiceClass>>();
-            _wizardService = new WizardServiceClass(_wizardProviderMock.Object, logger);
+
+            // Instantiate your service with the mocked provider, the mock validator, and the logger.
+            _wizardService = new WizardServiceClass(_wizardProviderMock.Object, validatorMock.Object, logger);
         }
 
         [Fact]

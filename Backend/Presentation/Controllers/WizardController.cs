@@ -1,10 +1,9 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Backend.Application.DTO.Wizard;
 using Backend.Application.Interfaces.WizardService;
-using Backend.Application.DTO.User;
-using Backend.Application.DTO.Wizard;
-using System.Security.Claims;
+using Backend.Common.Utilities;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using FluentValidation;
 
 namespace Backend.Presentation.Controllers
 {
@@ -26,7 +25,7 @@ namespace Backend.Presentation.Controllers
         {
             _logger.LogInformation("Starting wizard session.");
 
-            string? email = User.FindFirst("email")?.Value;
+            string? email = User.GetEmail();
             if (string.IsNullOrEmpty(email))
             {
                 _logger.LogWarning("User email not found.");
@@ -50,6 +49,32 @@ namespace Backend.Presentation.Controllers
 
             _logger.LogInformation("Wizard session created for email {Email}", email);
             return Ok(new { wizardSessionId = result.WizardSessionId });
+        }
+        [HttpPut("steps/{stepNumber}")]
+        public async Task<IActionResult> SaveStepData(int stepNumber, [FromBody] WizardStepDto dto)
+        {
+            if (string.IsNullOrEmpty(dto.WizardSessionId))
+                return BadRequest("Missing wizardSessionId");
+
+            try
+            {
+                // Call service which will deserialize, validate, and upsert the data.
+                bool saveSuccessful = await _wizardService.SaveStepDataAsync(dto.WizardSessionId, stepNumber, dto.StepData);
+                if (!saveSuccessful)
+                    return StatusCode(500, "Failed to save step data.");
+            }
+            catch (ValidationException vex)
+            {
+                // Return validation errors to the client
+                return BadRequest(new { message = "Validation failed", errors = vex.Errors });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error saving wizard step data for session {WizardSessionId}", dto.WizardSessionId);
+                return StatusCode(500, "An unexpected error occurred.");
+            }
+
+            return Ok(new { message = "Step saved successfully." });
         }
 
     }
