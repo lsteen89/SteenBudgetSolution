@@ -48,9 +48,9 @@ const SideHustleField: React.FC<SideHustleFieldProps> = ({
 
   function getHelpText(label: string) {
     switch (label) {
-      case 'Inkomstens namn:':
+      case 'Sidoinkomstens namn:':
         return 'Ange ett beskrivande namn för din inkomst. Exempel kan vara olika bidrag, försäljning av saker eller tjänster, eller andra inkomstkällor.';
-      case 'Inkomst (SEK):':
+      case 'Sidoinkomst netto(SEK):':
         return 'Ange inkomstens storlek.';
       case 'Inkomstfrekvens:':
         return 'Välj hur ofta du får inkomsten. Vissa inkomster är sporadiska, medan andra kommer regelbundet, försök att uppskatta hur ofta du får inkomsten.';

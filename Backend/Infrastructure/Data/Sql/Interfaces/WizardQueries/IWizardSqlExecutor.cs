@@ -5,6 +5,6 @@
         Task<Guid> CreateWizardAsync(string email);
         Task<Guid?> GetWizardSessionIdAsync(string email);
         Task<bool> UpsertStepDataAsync(string wizardSessionId, int stepNumber, string jsonData);
-        Task<string?> GetWizardDataAsync(string wizardSessionId);
+        Task<Dictionary<int, object>?> GetWizardStepDataAsync(string wizardSessionId);
     }
 }

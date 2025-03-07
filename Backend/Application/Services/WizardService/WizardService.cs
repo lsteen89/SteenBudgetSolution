@@ -6,6 +6,7 @@ using Backend.Application.DTO.Wizard.Steps;
 using Newtonsoft.Json;
 using FluentValidation;
 using FluentValidation.Results;
+using Newtonsoft.Json.Serialization;
 
 namespace Backend.Application.Services.WizardService
 {
@@ -51,15 +52,14 @@ namespace Backend.Application.Services.WizardService
                         _logger.LogError(ex, "Deserialization failed for step {StepNumber}", stepNumber);
                         throw new Exception("Invalid data format for step 1.");
                     }
+
                     // Post-deserialization processing:
-                    if (!budgetDto.HouseholdMembers.Any())
-                    {
-                        budgetDto.HouseholdMembers.Clear();
-                    }
-                    if (!budgetDto.SideHustles.Any())
-                    {
-                        budgetDto.SideHustles.Clear();
-                    }
+                    // (Filter or clear empty collections as needed)
+                    budgetDto.HouseholdMembers = budgetDto.HouseholdMembers?.Where(m => !string.IsNullOrWhiteSpace(m.Name) || !string.IsNullOrWhiteSpace(m.Income?.ToString())).ToList()
+                                                      ?? new List<HouseholdMemberDto>();
+                    budgetDto.SideHustles = budgetDto.SideHustles?.Where(s => !string.IsNullOrWhiteSpace(s.Name) || !string.IsNullOrWhiteSpace(s.Income?.ToString())).ToList()
+                                                      ?? new List<SideHustleDto>();
+
                     // Validate the DTO
                     ValidationResult result = _stepValidator.Validate(budgetDto);
                     if (!result.IsValid)
@@ -69,8 +69,11 @@ namespace Backend.Application.Services.WizardService
                         throw new Exception("Validation failed: " + errorMsg);
                     }
 
-                    // Re-serialize the validated DTO to JSON
-                    jsonData = JsonConvert.SerializeObject(budgetDto);
+                    // Re-serialize the validated DTO to JSON using camelCase settings.
+                    jsonData = JsonConvert.SerializeObject(budgetDto, new JsonSerializerSettings
+                    {
+                        ContractResolver = new CamelCasePropertyNamesContractResolver()
+                    });
                     break;
 
                 /* PlaceHolder for additional steps
@@ -115,20 +118,19 @@ namespace Backend.Application.Services.WizardService
         public async Task<Guid> UserHasWizardSessionAsync(string email)
             => (await _wizardProvider.WizardSqlExecutor.GetWizardSessionIdAsync(email)) ?? Guid.Empty;
 
-        public async Task<string?> GetWizardDataAsync(string wizardSessionId)
+        public async Task<Dictionary<int, object>?> GetWizardDataAsync(string wizardSessionId)
         {
             _logger.LogInformation("Retrieving wizard data for session {WizardSessionId}", wizardSessionId);
 
-            string? stepDataJson = await _wizardProvider.WizardSqlExecutor.GetWizardDataAsync(wizardSessionId);
+            var stepDataJson = await _wizardProvider.WizardSqlExecutor.GetWizardStepDataAsync(wizardSessionId);
 
-            if (string.IsNullOrEmpty(stepDataJson))
+            if (stepDataJson == null)
             {
                 _logger.LogWarning("No wizard data found for session {WizardSessionId}", wizardSessionId);
                 return null;
             }
-
             _logger.LogInformation("Wizard data retrieved successfully for session {WizardSessionId}", wizardSessionId);
-            return stepDataJson; // Return JSON string
+            return stepDataJson;
         }
     }
 }

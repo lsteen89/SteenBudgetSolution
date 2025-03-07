@@ -4,6 +4,7 @@ using Backend.Common.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using FluentValidation;
+using Newtonsoft.Json;
 
 namespace Backend.Presentation.Controllers
 {
@@ -84,13 +85,14 @@ namespace Backend.Presentation.Controllers
                 return BadRequest("Wizard session ID is required.");
             }
 
-            string? wizardDataJson = await _wizardService.GetWizardDataAsync(wizardSessionId);
-            if (string.IsNullOrEmpty(wizardDataJson))
+            var wizardData = await _wizardService.GetWizardDataAsync(wizardSessionId);
+            if (wizardData == null)
             {
                 return NotFound("No wizard data found for the given session.");
             }
+            _logger.LogInformation("Wizard data before sending: {wizardData}", JsonConvert.SerializeObject(wizardData));
+            return Ok(wizardData);
 
-            return Content(wizardDataJson, "application/json");
         }
     }
 }

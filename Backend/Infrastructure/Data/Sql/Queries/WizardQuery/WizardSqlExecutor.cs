@@ -93,17 +93,37 @@ namespace Backend.Infrastructure.Data.Sql.Queries.WizardQuery
                 return false;
             }
         }
-        public async Task<string?> GetWizardDataAsync(string wizardSessionId)
+        public async Task<Dictionary<int, object>?> GetWizardStepDataAsync(string wizardSessionId)
         {
             const string query = @"
-            SELECT StepData 
+            SELECT StepNumber, StepData 
             FROM WizardStep  
             WHERE WizardSessionId = @WizardSessionId
             ORDER BY StepNumber ASC";
 
             try
             {
-                return await QueryFirstOrDefaultAsync<string>(query, new { WizardSessionId = wizardSessionId });
+                var stepDataRows = await QueryAsync<WizardStepRow>(query, new { WizardSessionId = wizardSessionId });
+
+                if (stepDataRows == null || !stepDataRows.Any())
+                {
+                    _logger.LogWarning("No wizard data found for session {WizardSessionId}", wizardSessionId);
+                    return null;
+                }
+
+                var result = new Dictionary<int, object>();
+
+                foreach (var row in stepDataRows)
+                {
+                    // Deserialize using JObject to preserve structure
+                    var stepDataObject = JsonConvert.DeserializeObject<Newtonsoft.Json.Linq.JObject>(row.StepData);
+                    _logger.LogInformation("Deserialized stepDataObject: {data}", stepDataObject.ToString());
+                    result[row.StepNumber] = stepDataObject;
+                    _logger.LogInformation("Row data: {StepData}", row.StepData);
+                }
+
+                _logger.LogInformation("Wizard data retrieved successfully for session {WizardSessionId}", wizardSessionId);
+                return result;
             }
             catch (Exception ex)
             {
@@ -111,5 +131,12 @@ namespace Backend.Infrastructure.Data.Sql.Queries.WizardQuery
                 throw;
             }
         }
+
+        private class WizardStepRow
+        {
+            public int StepNumber { get; set; }
+            public string StepData { get; set; }
+        }
+
     }
 }
