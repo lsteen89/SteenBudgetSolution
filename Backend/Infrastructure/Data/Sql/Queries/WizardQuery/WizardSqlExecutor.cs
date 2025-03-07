@@ -2,6 +2,8 @@
 using Backend.Infrastructure.Data;
 using Backend.Infrastructure.Data.Sql.Interfaces.WizardQueries;
 using System.Data.Common;
+using Newtonsoft.Json;
+using System.Data;
 
 namespace Backend.Infrastructure.Data.Sql.Queries.WizardQuery
 {
@@ -91,5 +93,50 @@ namespace Backend.Infrastructure.Data.Sql.Queries.WizardQuery
                 return false;
             }
         }
+        public async Task<Dictionary<int, object>?> GetWizardStepDataAsync(string wizardSessionId)
+        {
+            const string query = @"
+            SELECT StepNumber, StepData 
+            FROM WizardStep  
+            WHERE WizardSessionId = @WizardSessionId
+            ORDER BY StepNumber ASC";
+
+            try
+            {
+                var stepDataRows = await QueryAsync<WizardStepRow>(query, new { WizardSessionId = wizardSessionId });
+
+                if (stepDataRows == null || !stepDataRows.Any())
+                {
+                    _logger.LogWarning("No wizard data found for session {WizardSessionId}", wizardSessionId);
+                    return null;
+                }
+
+                var result = new Dictionary<int, object>();
+
+                foreach (var row in stepDataRows)
+                {
+                    // Deserialize using JObject to preserve structure
+                    var stepDataObject = JsonConvert.DeserializeObject<Newtonsoft.Json.Linq.JObject>(row.StepData);
+                    _logger.LogInformation("Deserialized stepDataObject: {data}", stepDataObject.ToString());
+                    result[row.StepNumber] = stepDataObject;
+                    _logger.LogInformation("Row data: {StepData}", row.StepData);
+                }
+
+                _logger.LogInformation("Wizard data retrieved successfully for session {WizardSessionId}", wizardSessionId);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Database error when retrieving wizard data for session {WizardSessionId}", wizardSessionId);
+                throw;
+            }
+        }
+
+        private class WizardStepRow
+        {
+            public int StepNumber { get; set; }
+            public string StepData { get; set; }
+        }
+
     }
 }

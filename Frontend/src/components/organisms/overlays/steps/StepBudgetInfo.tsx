@@ -96,6 +96,7 @@ const StepBudgetInfo = forwardRef<StepBudgetInfoRef, StepBudgetInfoProps>(
     const [yearlySalary, setYearlySalary] = useState<number>(0);
 
     // Household members from initialData or default
+   /* 
     const [householdMembers, setHouseholdMembers] = useState<HouseholdMember[]>(
       initialData?.householdMembers ?? [
         { name: "", income: "", frequency: "monthly", yearlyIncome: 0 },
@@ -103,11 +104,18 @@ const StepBudgetInfo = forwardRef<StepBudgetInfoRef, StepBudgetInfoProps>(
     );
     // Side hustles from initialData or default
     const [sideHustles, setSideHustles] = useState<SideHustle[]>(
+      initialData?.sideHustles ?? []
+    );
+    */
+    const [householdMembers, setHouseholdMembers] = useState<HouseholdMember[]>(
+      initialData?.householdMembers ?? []
+    );
+
+    const [sideHustles, setSideHustles] = useState<SideHustle[]>(
       initialData?.sideHustles ?? [
         { name: "", income: "", frequency: "monthly" },
       ]
     );
-
     // Validation state
     const [errors, setErrors] = useState<{ [key: string]: string }>({});
     const [touched, setTouched] = useState<{ [key: string]: boolean }>({});
@@ -396,13 +404,21 @@ const StepBudgetInfo = forwardRef<StepBudgetInfoRef, StepBudgetInfoProps>(
         return validateFields();
       },
       getStepData: () => {
-        // Return everything needed for partial save
+        // 1) Filter out empty or invalid side hustles
+        const cleanedSideHustles = sideHustles.filter((side) => {
+          return side.name.trim() !== "" || side.income.trim() !== "";
+        });
+        // 2) Filter out empty or invalid household members
+        const cleanedHouseholdMembers = householdMembers.filter((member) => {
+          return member.name.trim() !== "" || member.income.trim() !== "";
+        });
+        // 3) Return the entire data structure, but with cleaned sideHustles
         return {
           netSalary,
           salaryFrequency,
           yearlySalary,
-          householdMembers,
-          sideHustles,
+          householdMembers: cleanedHouseholdMembers,
+          sideHustles: cleanedSideHustles,
         };
       },
     }));
@@ -410,18 +426,25 @@ const StepBudgetInfo = forwardRef<StepBudgetInfoRef, StepBudgetInfoProps>(
     // -------------------- Render --------------------
     return (
       <GlassPane>
-        <h3 className="text-2xl font-semibold mb-4 text-darkLimeGreen">
-          Din ekonomi börjar här! 🚀
-        </h3>
-        <p className="text-customBlue1">Ange din huvudinkomst.</p>
-        <p className="text-customBlue1">
-          Har du delad ekonomi?  
+      <h3 className="text-3xl font-bold mb-6 text-darkLimeGreen text-center">
+        Din ekonomi börjar här! 🚀
+      </h3>
+  
+      <div className="space-y-4 text-lg">
+        <p className="text-customBlue1 font-medium">
+          📌 <span className="font-semibold">Ange din huvudinkomst.</span>
+        </p>
+  
+        <p className="text-customBlue1 font-medium">
+          👥 <span className="font-semibold">Har du delad ekonomi?</span>  
           Lägg till en person med knappen <strong>"Lägg till person"</strong>.
         </p>
-        <p className="text-customBlue1">
-          Har du andra inkomster vid sidan av?  
+  
+        <p className="text-customBlue1 font-medium">
+          💰 <span className="font-semibold">Har du andra inkomster vid sidan av?</span>  
           Lägg till dem med knappen <strong>"Andra typer av inkomster"</strong>.
         </p>
+      </div>
 
     
         {/* Animated Icon */}
@@ -551,14 +574,14 @@ const StepBudgetInfo = forwardRef<StepBudgetInfoRef, StepBudgetInfoProps>(
             {sideHustles.map((side, index) => (
               <div key={index} className="mb-4 border-b border-gray-300 pb-4">
                 <SideHustleField
-                  label="Inkomstens namn:"
+                  label="Sidoinkomstens namn:"
                   type="text"
                   id={`sideHustleName-${index}`}
                   value={side.name}
                   onChange={(e) =>
                     handleSideHustleChange(index, "name", e.target.value)
                   }
-                  placeholder="Ange namn för inkomst"
+                  placeholder="Ange namn för sidoinkomsten"
                   onBlur={() =>
                     setTouched((prev) => ({ ...prev, [`name-${index}`]: true }))
                   }
@@ -570,7 +593,7 @@ const StepBudgetInfo = forwardRef<StepBudgetInfoRef, StepBudgetInfoProps>(
                 )}
 
                 <SideHustleField
-                  label="Inkomst (SEK):"
+                  label="Sidoinkomst netto(SEK):"
                   type="number"
                   id={`sideHustleIncome-${index}`}
                   value={side.income}
@@ -625,7 +648,7 @@ const StepBudgetInfo = forwardRef<StepBudgetInfoRef, StepBudgetInfoProps>(
               </div>
             ))}
             <AcceptButton onClick={handleAddSideHustle}>
-              Lägg till inkomst
+              Lägg till sidoinkomst
             </AcceptButton>
           </OptionContainer>
         )}

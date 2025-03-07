@@ -45,7 +45,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Reflection;
 using System.Text;
 using System.Threading.RateLimiting;
-using Backend.Application.Validators.WizardValidation;
+using Newtonsoft.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -90,6 +90,13 @@ builder.Services.AddStackExchangeRedisCache(options =>
     options.Configuration = builder.Configuration.GetSection("Redis")["ConnectionString"];
     options.InstanceName = "eBudget:"; // Optional prefix for keys
 });
+
+// Add JsonOptions to use camelCase for JSON properties
+builder.Services.AddControllers()
+    .AddNewtonsoftJson(options =>
+    {
+        options.SerializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
+    });
 
 #endregion
 
