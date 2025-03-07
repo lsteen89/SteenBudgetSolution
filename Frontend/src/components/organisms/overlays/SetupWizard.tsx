@@ -263,7 +263,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
                 className="px-4 py-2 flex items-center gap-1 bg-limeGreen text-gray-700 rounded-lg hover:bg-customBlue2 transition"
               >
                 <ChevronLeft size={18} />
-                Back
+                Tillbaka
               </button>
             )}
             <button
@@ -276,7 +276,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
                   : "bg-gray-400 cursor-not-allowed"
               } text-gray-700 rounded-lg transition ml-auto`}
             >
-              {step === 0 ? "Start" : "Next"}
+              {step === 0 ? "Start" : "Nästa"}
               <ChevronRight size={18} />
             </button>
           </div>

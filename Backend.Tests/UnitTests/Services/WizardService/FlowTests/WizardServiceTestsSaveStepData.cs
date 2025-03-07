@@ -244,7 +244,5 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
                 It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()
             ), Times.Never);
         }
-
-
     }
 }

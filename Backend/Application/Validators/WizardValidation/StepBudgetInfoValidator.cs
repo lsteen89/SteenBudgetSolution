@@ -48,13 +48,13 @@ namespace Backend.Application.Validators.WizardValidation
                 {
                     s.RuleFor(side => side.Name)
                         .NotEmpty()
-                        .WithMessage("Ange namn för inkomsten.");
+                        .WithMessage("Ange namn för sidoinkomst.");
                     s.RuleFor(side => side.Income)
                         .NotEmpty()
-                        .WithMessage("Ange inkomstens storlek.");
+                        .WithMessage("Ange sidoinkomstens storlek.");
                     s.RuleFor(side => side.Frequency)
                         .NotEmpty()
-                        .WithMessage("Välj inkomstens frekvens.");
+                        .WithMessage("Välj sidoinkomstens frekvens.");
                 });
             });
         }

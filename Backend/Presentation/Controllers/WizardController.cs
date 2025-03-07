@@ -4,6 +4,7 @@ using Backend.Common.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using FluentValidation;
+using Newtonsoft.Json;
 
 namespace Backend.Presentation.Controllers
 {
@@ -76,6 +77,22 @@ namespace Backend.Presentation.Controllers
 
             return Ok(new { message = "Step saved successfully." });
         }
+        [HttpGet]
+        public async Task<IActionResult> GetWizardData([FromQuery] string wizardSessionId)
+        {
+            if (string.IsNullOrWhiteSpace(wizardSessionId))
+            {
+                return BadRequest("Wizard session ID is required.");
+            }
 
+            var wizardData = await _wizardService.GetWizardDataAsync(wizardSessionId);
+            if (wizardData == null)
+            {
+                return NotFound("No wizard data found for the given session.");
+            }
+            _logger.LogInformation("Wizard data before sending: {wizardData}", JsonConvert.SerializeObject(wizardData));
+            return Ok(wizardData);
+
+        }
     }
 }
