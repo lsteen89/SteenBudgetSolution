@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, ReactNode } from "react";
+import ReactDOM from "react-dom";
+import { flushSync } from 'react-dom';
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft,
@@ -23,9 +25,11 @@ import StepPersonalInfo from "./steps/StepPersonalInfo";
 import StepPreferences from "./steps/StepPreferences";
 import StepConfirmation from "./steps/StepConfirmation";
 
-//toast
-import { toast } from "react-toastify";
+// css
+import styles from "./SetupWizard.module.css";
 
+// Toast notification
+import { useToast } from  "@context/ToastContext";
 // Step configuration for icons & labels
 const steps = [
   { icon: Wallet, label: "Inkomster" },
@@ -38,36 +42,103 @@ interface SetupWizardProps {
   onClose: () => void;
 }
 
+interface FormValues {
+  showSideIncome: boolean;
+  showHouseholdMembers: boolean;
+}
+
 const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
+
   // 1. Handling wizard closure
   const handleWizardClose = () => {
     onClose(); // parent's callback
   };
 
-  // 2. State for wizard data & session
+  // 2. Styles and toast 
+  const [showShakeAnimation, setShowShakeAnimation] = useState(false);
+  const { showToast } = useToast();
+
+  // 3. State for wizard data, session
   const [wizardData, setWizardData] = useState<any>({});
   const [wizardSessionId, setWizardSessionId] = useState<string>("");
+  // State for failed attempts to start wizard
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [connectionError, setConnectionError] = useState(false);
 
-  // 3. Step & validation
+  // loading state
+  const [loading, setLoading] = useState(true);
+
+  // 4. Step & validation
   const [step, setStep] = useState<number>(0);
   const totalSteps = steps.length;
   const [isStepValid, setIsStepValid] = useState(true);
+  const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({});
+  const isDebugMode = process.env.NODE_ENV === 'development';
 
-  // 4. Refs to child steps
+  // 5. Refs to child steps
   const stepBudgetInfoRef = useRef<StepBudgetInfoRef>(null);
+
+  // State for showing side income and household members
+  const setShowSideIncome = (value: boolean) => {
+    setValues(prev => {
+      return { ...prev, showSideIncome: value };
+    });
+  };
+  const setShowHouseholdMembers = (value: boolean) => {
+    setValues(prev => {
+      return { ...prev, showHouseholdMembers: value };
+    });
+  };
+
   // If you need other steps to manage their own state & validation,
   // create refs for them as well (e.g. stepPersonalInfoRef, etc.)
 
-  // 5. Next / Previous Step Logic
+  const [values, setValues] = useState<FormValues>({ showSideIncome: false, showHouseholdMembers: false });
+  // 6. Next / Previous Step Logic
   const nextStep = async () => {
     // Example check for Step 1: StepBudgetInfo
     if (step === 1) {
+      // Mark all fields as touched so that validation errors are displayed
+      stepBudgetInfoRef.current?.markAllTouched();
       // 1) Validate the child
       const isValid = stepBudgetInfoRef.current?.validateFields();
+
+      // Retrieve errors from the child using getErrors helper
+      const allErrors = stepBudgetInfoRef.current?.getErrors() || {};
+      const sideHustleErrorKeys = Object.keys(allErrors).filter(
+        (key) => key.startsWith("sideHustle") || key.startsWith("frequency")
+      );
+
+      if (sideHustleErrorKeys.length > 0) {
+        flushSync(() => {
+          setShowSideIncome(true);
+        });
+      }
+
+      // do same for household members
+      const householdMemberErrorKeys = Object.keys(allErrors).filter(
+        (key) => key.startsWith("memberName") || key.startsWith("memberIncome") || key.startsWith("memberFrequency")
+      );
+      if (householdMemberErrorKeys.length > 0) {
+        flushSync(() => {
+          setShowHouseholdMembers(true);
+        });
+      }
+
       if (!isValid) {
         setIsStepValid(false);
-        return;
-      }
+
+        // Show shake effect & toast
+        setShowShakeAnimation(true);
+        setTimeout(() => setShowShakeAnimation(false), 500);
+        showToast(
+          <>
+            🚨 Du måste fylla i alla <strong>obligatoriska fält</strong> innan du kan fortsätta.
+          </>,
+          "error"
+        );
+          return;
+        }
 
       // 2) If valid, gather the child's data
       const data = stepBudgetInfoRef.current?.getStepData();
@@ -85,7 +156,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     setStep((prev) => Math.max(prev - 1, 0));
   };
 
-  // 6. Partial save function
+  // 7. Partial save function
   const handleSaveStepData = async (stepNumber: number, data: any) => {
     try {
       console.log("Saving step data:", stepNumber, data);
@@ -101,29 +172,95 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     }
   };
 
-  // 7. On mount, start (or resume) the wizard
-  useEffect(() => {
-    const initWizard = async () => {
-      try {
-        const { wizardSessionId, message }: StartWizardResponse = await startWizard();
-        if (!wizardSessionId) {
-          toast.error(message);
-          return;
-        }
-        setWizardSessionId(wizardSessionId);
-        console.log("Wizard session started:", wizardSessionId);
-        // Attempt to fetch existing data for that session
-        const existingData = await getWizardData(wizardSessionId);
-        setWizardData(existingData || {});
-      } catch (error) {
-        console.error("Error starting wizard:", error);
-        toast.error("Error starting wizard session.");
+  // 8. On mount, start (or resume) the wizard
+  const initWizard = async () => {
+    setLoading(true);
+    try {
+      const { wizardSessionId, message }: StartWizardResponse = await startWizard();
+      console.log("startWizard response:", { wizardSessionId, message });
+      if (!wizardSessionId) {
+        setConnectionError(true);
+        setFailedAttempts(prev => {
+          const newAttempts = prev + 1;
+          console.log("No session ID. New failedAttempts:", newAttempts);
+          if (newAttempts >= 3) {
+
+            setTimeout(() => {
+              showToast(
+                <>
+                  🚨 Anslutningsproblem <br /> vänligen kontakta support.
+                </>,
+                "error"
+              );
+            }, 0);
+          } else {
+            setTimeout(() => {
+              showToast(
+                <>
+                  🚨 Ingen anslutning <br /> <strong>Ingen data kan sparas eller hämtas</strong>
+                </>,
+                "error"
+              );
+            }, 0);
+          }
+          return newAttempts;
+        });
+        return;
       }
-    };
+      // Successful connection:
+      setFailedAttempts(0);
+      setConnectionError(false);
+      setWizardSessionId(wizardSessionId);
+      console.log("Wizard session started:", wizardSessionId);
+      const existingData = await getWizardData(wizardSessionId);
+      setWizardData(existingData || {});
+      // If reconnecting after previous failures, give positive feedback:
+      if (failedAttempts > 0) {
+        showToast(
+          <>✅ Återanslutning lyckades.</>,
+          "success"
+        );
+      }
+    } catch (error) {
+      setConnectionError(true);
+      console.error("Error in initWizard:", error);
+      setFailedAttempts(prev => {
+        const newAttempts = prev + 1;
+        console.log("Error branch. New failedAttempts:", newAttempts);
+        if (newAttempts >= 3) {
+          setConnectionError(true);
+          setTimeout(() => {
+            showToast(
+              <>
+                🚨 Anslutningsproblem <br /> vänligen kontakta support eller försök igen
+              </>,
+              "error"
+            );
+          }, 0);
+        } else {
+          setTimeout(() => {
+            showToast(
+              <>
+                🚨 Ingen anslutning <br /> <strong>Ingen data kan sparas eller hämtas</strong>
+              </>,
+              "error"
+            );
+          }, 0);
+        }
+        return newAttempts;
+      });
+    } finally {
+      console.log("Setting loading to false");
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     initWizard();
   }, []);
 
-  // 8. If on step 0 (Welcome), always allow "Next"
+
+  // 9. If on step 0 (Welcome), always allow "Next"
   //    Otherwise, default to "not valid" until validated
   useEffect(() => {
     if (step === 0) {
@@ -132,7 +269,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
       setIsStepValid(false);
     }
   }, [step]);
-
+console.log("Debug Mode:", isDebugMode);
   // ---------------------------- RENDER ----------------------------
   return (
     <div className="fixed inset-0 z-[2000] overflow-y-auto w-full h-full">
@@ -228,9 +365,15 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
               "
             >
               <WizardStepContainer>
+                
                 {step === 0 ? (
                   // Step 0: Welcome
-                  <StepWelcome />
+                  <StepWelcome
+                    connectionError={connectionError}
+                    failedAttempts={failedAttempts}
+                    loading={loading}
+                    onRetry={initWizard}
+                  />
                 ) : (
                   <>
                     {step === 1 && (
@@ -243,6 +386,10 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
                         initialData={wizardData[1]}
                         onNext={() => {}} // not used
                         onPrev={() => {}} // not used
+                        showSideIncome={values.showSideIncome} 
+                        setShowSideIncome={setShowSideIncome}
+                        showHouseholdMembers={values.showHouseholdMembers}
+                        setShowHouseholdMembers={setShowHouseholdMembers}
                       />
                     )}
                     {step === 2 && <StepPersonalInfo />}
@@ -250,6 +397,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
                     {step === 4 && <StepConfirmation />}
                   </>
                 )}
+                
               </WizardStepContainer>
             </motion.div>
           </AnimatePresence>
@@ -266,16 +414,16 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
                 Tillbaka
               </button>
             )}
-            <button
-              type="button"
-              onClick={nextStep}
-              disabled={!isStepValid}
-              className={`px-4 py-2 flex items-center gap-1 ${
-                isStepValid
-                  ? "bg-limeGreen hover:bg-customBlue2"
-                  : "bg-gray-400 cursor-not-allowed"
-              } text-gray-700 rounded-lg transition ml-auto`}
-            >
+            {/* Next Button with Toast Integration */}
+              <button
+                type="button"
+                onClick={() => {nextStep();}}
+                disabled={!isDebugMode && (connectionError || loading)}
+                className={`px-4 py-2 flex items-center gap-1 text-gray-700 rounded-lg transition ml-auto 
+                  bg-limeGreen 
+                  ${connectionError || loading ? "opacity-50 cursor-not-allowed" : "hover:bg-darkLimeGreen hover:text-white"} 
+                  ${showShakeAnimation ? styles["animate-shake"] : ""}`}
+              >
               {step === 0 ? "Start" : "Nästa"}
               <ChevronRight size={18} />
             </button>
