@@ -1,17 +1,19 @@
 import React, {
   useState,
   useEffect,
-  useCallback,
   useRef,
   forwardRef,
   useImperativeHandle,
+  ReactNode,
+  useCallback,
 } from "react";
 import { Link } from "react-router-dom";
+import { flushSync } from 'react-dom';
 import Lottie from "lottie-react";
 import { ShieldCheck } from "lucide-react";
-import coinsAnimation from "@assets/lottie/coins.json";
+import { motion } from "framer-motion";
 
-// Components
+// Components, Hooks and assets
 import GlassPane from "./GlassPane";
 import OptionContainer from "@components/molecules/containers/OptionContainer";
 import SalaryField from "@components/molecules/forms/SalaryField";
@@ -20,21 +22,22 @@ import SideHustleField from "@components/molecules/forms/SideHustleField";
 import RemovalButton from "@components/atoms/buttons/RemovalButton";
 import AcceptButton from "@components/atoms/buttons/AcceptButton";
 import HelpSection from "@components/molecules/helptexts/HelpSection";
+import coinsAnimation from "@assets/lottie/coins.json";
+import useFormValidation from "@hooks/wizard/useFormValidation";
+import useYearlyIncome from "@hooks/wizard/useYearlyIncome";
+import { useToast } from  "@context/ToastContext";
 
-/**
- * Imperative handle interface for the parent:
- * The parent can call .validateFields() and .getStepData() on this ref.
- */
+/**  Imperative handle for the parent */
 export interface StepBudgetInfoRef {
   validateFields: () => boolean;
   getStepData: () => any;
+  markAllTouched: () => void;
+  getErrors: () => { [key: string]: string };
+  openSideIncome: () => void;
+  openHouseholdMembers: () => void;
 }
 
-/**
- * Props matching your original code, plus we keep them
- * even if we don't directly use wizardSessionId, onSaveStepData,
- * onNext, onPrev inside this component.
- */
+/**  Props */
 interface StepBudgetInfoProps {
   setStepValid: (isValid: boolean) => void;
   wizardSessionId: string;
@@ -43,9 +46,24 @@ interface StepBudgetInfoProps {
   initialData: any;
   onNext: () => void;
   onPrev: () => void;
+  showSideIncome: boolean;
+  setShowSideIncome: (value: boolean) => void;
+  showHouseholdMembers: boolean;
+  setShowHouseholdMembers: (value: boolean) => void;
 }
 
-// Data interfaces
+/**  Form Values Interface */
+interface FormValues {
+  netSalary: number | null;
+  showSideIncome: boolean;
+  showHouseholdMembers: boolean;
+  salaryFrequency: string;
+  householdMembers: HouseholdMember[];
+  sideHustles: SideHustle[];
+  yearlySalary?: number | null;
+}
+
+/**  Data Interfaces */
 interface HouseholdMember {
   name: string;
   income: string;
@@ -58,371 +76,339 @@ interface SideHustle {
   frequency: string;
   yearlyIncome?: number;
 }
+interface SalaryFieldProps {
+  netSalary: number | null;
+  yearlySalary?: number | null;
+  salaryFrequency: string;
+  handleSalaryChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleSalaryFrequencyChange: (freq: string) => void; // <-- new callback
+  errors?: { [key: string]: string };
+  touched?: { [key: string]: boolean };
+}
 
-// Helper function
-const areObjectsEqual = (obj1: any, obj2: any): boolean =>
-  JSON.stringify(obj1) === JSON.stringify(obj2);
 
-const StepBudgetInfo = forwardRef<StepBudgetInfoRef, StepBudgetInfoProps>(
+
+/**  Local helper for calculating yearly income */
+function calculateYearlyIncome(income: number, frequency: string): number {
+  let total = income;
+  switch (frequency) {
+    case "weekly":
+      total *= 52;
+      break;
+    case "quarterly":
+      total *= 4;
+      break;
+    case "annually":
+      // no change
+      break;
+    case "monthly":
+    default:
+      total *= 12;
+      break;
+  }
+  return total;
+}
+
+const StepBudgetInfo = forwardRef<StepBudgetInfoRef, StepBudgetInfoProps >(
   (
     {
       setStepValid,
-      wizardSessionId,   // provided by parent but not used directly here
-      onSaveStepData,    // provided by parent but not used directly here
-      stepNumber,        // provided by parent but not used directly here
+      wizardSessionId,
+      onSaveStepData,
+      stepNumber,
       initialData,
-      onNext,            // parent manages navigation, so we won't call onNext
-      onPrev,            // parent manages navigation, so we won't call onPrev
+      onNext,
+      onPrev,
+      showSideIncome,
+      setShowSideIncome,
+      showHouseholdMembers,
+      setShowHouseholdMembers,
     },
     ref
   ) => {
-    // -------------------- Local State --------------------
-    const [netSalary, setNetSalary] = useState<number | null>(
-      initialData?.netSalary ?? null
-    );
-    /*
-    const [isHousehold, setIsHousehold] = useState<boolean>(
-      initialData?.isHousehold ?? false
-    );
-    */
-    const [showSideIncome, setShowSideIncome] = useState<boolean>(
-      initialData?.showSideIncome ?? false
-    );
+    /** 1) Define initial form values for the hook */
+    const initialValues: FormValues = {
+      netSalary: initialData?.netSalary ?? null,
+      showSideIncome: initialData?.showSideIncome ?? false,
+      showHouseholdMembers: initialData?.showHouseholdMembers ?? false,
+      salaryFrequency: initialData?.salaryFrequency ?? "monthly",
+      householdMembers: initialData?.householdMembers ?? [],
+      sideHustles: initialData?.sideHustles ?? [],
+    };
 
-    // By default "monthly"; if initialData has something else, you can set it
-    const [salaryFrequency, setSalaryFrequency] = useState<string>(
-      initialData?.salaryFrequency ?? "monthly"
-    );
-    const [yearlySalary, setYearlySalary] = useState<number>(0);
+    /** 2) Validation function referencing ONLY `values` */
+    const validateFn = (values: FormValues) => {
+      const newErrors: { [key: string]: string } = {};
 
-    // Household members from initialData or default
-   /* 
-    const [householdMembers, setHouseholdMembers] = useState<HouseholdMember[]>(
-      initialData?.householdMembers ?? [
-        { name: "", income: "", frequency: "monthly", yearlyIncome: 0 },
-      ]
-    );
-    // Side hustles from initialData or default
-    const [sideHustles, setSideHustles] = useState<SideHustle[]>(
-      initialData?.sideHustles ?? []
-    );
-    */
-    const [householdMembers, setHouseholdMembers] = useState<HouseholdMember[]>(
-      initialData?.householdMembers ?? []
-    );
+      // netSalary
+      if (values.netSalary === null) {
+        newErrors.netSalary = "Ange din primära inkomst.";
+      } else if (values.netSalary === 0) {
+        newErrors.netSalary = "Inkomsten kan inte vara 0.";
+      } else if (values.netSalary < 0) {
+        newErrors.netSalary = "Inkomsten kan inte vara negativ.";
+      }
 
-    const [sideHustles, setSideHustles] = useState<SideHustle[]>(
-      initialData?.sideHustles ?? [
-        { name: "", income: "", frequency: "monthly" },
-      ]
+      // salaryFrequency
+      if (!values.salaryFrequency) {
+        newErrors.salaryFrequency = "Välj lönefrekvens.";
+      }
+
+      // householdMembers
+      if (values.householdMembers.length > 0) {
+        values.householdMembers.forEach((member, index) => {
+          if (!member.name.trim()) {
+            newErrors[`memberName-${index}`] = "Ange namn på personen.";
+          }
+          if (member.income === "") {
+            newErrors[`memberIncome-${index}`] = "Ange nettoinkomst.";
+          } else if (member.income === "0") {
+            newErrors[`memberIncome-${index}`] = "Inkomsten kan inte vara 0.";
+          } else if (parseFloat(member.income) < 0) {
+            newErrors[`memberIncome-${index}`] = "Inkomsten kan inte vara negativ.";
+          }
+          if (!member.frequency) {
+            newErrors[`memberFrequency-${index}`] = "Välj frekvens.";
+          }
+        });
+      }
+
+      // sideHustles
+      if (values.sideHustles.length > 0) {
+        values.sideHustles.forEach((side, index) => {
+          if (!side.name.trim()) {
+            newErrors[`sideHustleName-${index}`] = "Ange namn för inkomst.";
+          }
+          const incomeStr = side.income ? side.income.toString() : "";
+          if (!incomeStr.trim()) {
+            newErrors[`sideHustleIncome-${index}`] = "Ange inkomstens storlek.";
+          }
+          else if (incomeStr === "0") {
+            newErrors[`sideHustleIncome-${index}`] = "Inkomsten kan inte vara 0.";
+          } else if (parseFloat(incomeStr) < 0) {
+            newErrors[`sideHustleIncome-${index}`] = "Inkomsten kan inte vara negativ.";
+          }
+          if (!side.frequency) {
+            newErrors[`sideHustleFrequency-${index}`] = "Välj inkomstens frekvens.";
+          }
+        });
+      }
+      console.log("validateFn", values, newErrors); // Debugging
+      return newErrors;
+    };
+
+    /** 3) Custom form validation hook */
+    const {
+      values,
+      setValues,
+      errors,
+      touched,
+      validateFields,
+      validateField,
+      markAllTouched,
+      markFieldTouched,
+      removeFieldState,
+    } = useFormValidation(initialValues, validateFn);
+
+    const shouldShowHouseholdMembers = showHouseholdMembers ||
+    Object.keys(errors).some(key =>
+      (key.startsWith("memberName") || key.startsWith("memberIncome")) &&
+      errors[key] !== undefined && errors[key] !== null && errors[key] !== ""
     );
-    // Validation state
-    const [errors, setErrors] = useState<{ [key: string]: string }>({});
-    const [touched, setTouched] = useState<{ [key: string]: boolean }>({});
-    const prevErrorsRef = useRef<{ [key: string]: string }>({});
+  
+    const shouldShowSideIncome = showSideIncome ||
+    Object.keys(errors).some(key =>
+      (key.startsWith("sideHustleName") || key.startsWith("sideHustleIncome")) &&
+      errors[key] !== undefined && errors[key] !== null && errors[key] !== ""
+    );
+  
+    /** 4) We can compute the main yearly salary with a separate hook */
+    const yearlySalary = useYearlyIncome({
+      amount: values.netSalary,
+      frequency: values.salaryFrequency,
+    });
+
+    /** 5) refs to track changes in validity if needed */
     const prevValidityRef = useRef<boolean | null>(null);
+    
+    /** )6 Various Helpers */
+    // Toast Notification
+    const { showToast } = useToast();
+    // Helpers for showing side income and household members
+    const openSideIncome = () => {
+        flushSync(() => {
+          setShowSideIncome(true);
+        });
+    };
+    const openHouseholdMembers = () => {
+      flushSync(() => {
+        setShowHouseholdMembers(true);(true);
+      });
+    };
 
-    // A helper to check if side hustles have any input
-    const sideHustleHasValue = sideHustles.some(
-      (side) => side.name.trim() !== "" || side.income !== ""
+    /** 7) Whenever your form changes, check validity, update parent's isStepValid */
+    useEffect(() => {
+      const valid = Object.keys(validateFn(values)).length === 0; // assume no errors means valid
+      if (valid !== prevValidityRef.current) {
+        setStepValid(valid);
+        prevValidityRef.current = valid;
+      }
+    }, [values, validateFn, setStepValid]);
+
+
+    
+    /** 8) For sideHustles, we see if any input is non-empty */
+    const sideHustleHasValue = values.sideHustles.some((side: SideHustle) =>
+      side.name.trim() !== "" || side.income !== ""
     );
 
-    // -------------------- Salary Calculation --------------------
-    useEffect(() => {
-      calculateYearlySalary();
-    }, [netSalary, salaryFrequency]);
-
-    const calculateYearlySalary = () => {
-      if (netSalary === null) {
-        setYearlySalary(0);
-        return;
-      }
-      let salary = netSalary;
-      switch (salaryFrequency) {
-        case "weekly":
-          salary *= 52;
-          break;
-        case "quarterly":
-          salary *= 4;
-          break;
-        case "annually":
-          // do nothing
-          break;
-        case "monthly":
-        default:
-          salary *= 12;
-          break;
-      }
-      setYearlySalary(salary);
+    /** 9) Field Handlers */
+    // Salary
+    const handleSalaryChange = (value: string) => {
+      const parsed = value === "" ? null : parseFloat(value);
+      setValues((prev: FormValues) => ({ ...prev, netSalary: parsed }));
+      markFieldTouched("netSalary");
+    };
+    const handleSalaryBlur = () => {
+      markFieldTouched("netSalary");
+      validateField("netSalary");
+    };
+    // Salary Frequency
+    const handleSalaryFrequencyChange = (freq: string) => {
+      setValues((prev: FormValues) => ({ ...prev, salaryFrequency: freq }));
+      markFieldTouched("salaryFrequency");
+    };
+    const handleSalaryFrequencyBlur = () => {
+      markFieldTouched("salaryFrequency");
+      // Optionally call validateFields()
     };
 
-    // -------------------- Field Handlers --------------------
-    const handleSalaryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const inputValue = e.target.value;
-      const parsedValue = inputValue === "" ? null : parseFloat(inputValue);
-      setNetSalary(parsedValue);
-      setTouched((prev) => ({ ...prev, netSalary: true }));
-    };
-
+    // Household Member
     const handleMemberChange = (
       index: number,
       field: keyof HouseholdMember,
       value: string
     ) => {
-      setHouseholdMembers((prev) => {
-        const updated = [...prev];
-        updated[index] = {
-          ...updated[index],
+      setValues((prev: FormValues) => {
+        const updatedMembers = [...prev.householdMembers];
+        updatedMembers[index] = {
+          ...updatedMembers[index],
           [field]: value,
         };
 
-        // Recalc yearly if user changes 'income' or 'frequency'
+        // Recalculate yearly income if needed
         if (field === "income" || field === "frequency") {
-          const numericIncome = parseFloat(updated[index].income) || 0;
-          let calculatedIncome = numericIncome;
-          switch (updated[index].frequency) {
-            case "weekly":
-              calculatedIncome *= 52;
-              break;
-            case "quarterly":
-              calculatedIncome *= 4;
-              break;
-            case "annually":
-              // do nothing
-              break;
-            case "monthly":
-            default:
-              calculatedIncome *= 12;
-              break;
-          }
-          updated[index].yearlyIncome = calculatedIncome;
+          const numericIncome = parseFloat(updatedMembers[index].income) || 0;
+          updatedMembers[index].yearlyIncome = calculateYearlyIncome(
+            numericIncome,
+            updatedMembers[index].frequency
+          );
         }
-        return updated;
+
+        return { ...prev, householdMembers: updatedMembers };
       });
-      setTouched((prev) => ({ ...prev, [`${field}-${index}`]: true }));
+      markFieldTouched(`member-${index}-${field}`);
     };
 
     const handleAddMember = () => {
-      setHouseholdMembers((prev) => [
+      // Update form state for householdMembers
+      setValues((prev: FormValues) => ({
         ...prev,
-        { name: "", income: "", frequency: "monthly", yearlyIncome: 0 },
-      ]);
-    };
+        householdMembers: [
+          ...prev.householdMembers,
+          {
+            name: "",
+            income: "",
+            frequency: "monthly",
+            yearlyIncome: 0,
+          },
+        ],
+      }));
+      showToast(
+        <>
+          Person tillagd! <br />
+          Fyll i uppgifter eller ta bort för att gå vidare.
+        </>,
+        "success"
+      );
+    }
 
     const handleRemoveMember = (index: number) => {
-      setHouseholdMembers((prev) => prev.filter((_, i) => i !== index));
-      // Also remove errors/touched for that index
-      setErrors((prevErrors) => {
-        const newErrors = { ...prevErrors };
-        Object.keys(newErrors).forEach((key) => {
-          if (
-            key.startsWith(`memberName-${index}`) ||
-            key.startsWith(`memberIncome-${index}`) ||
-            key.startsWith(`memberFrequency-${index}`)
-          ) {
-            delete newErrors[key];
-          }
-        });
-        return newErrors;
+      setValues((prev: FormValues) => {
+        const updated = [...prev.householdMembers];
+        updated.splice(index, 1);
+        return { ...prev, householdMembers: updated };
       });
-      setTouched((prevTouched) => {
-        const newTouched = { ...prevTouched };
-        Object.keys(newTouched).forEach((key) => {
-          if (
-            key.startsWith(`name-${index}`) ||
-            key.startsWith(`income-${index}`) ||
-            key.startsWith(`frequency-${index}`)
-          ) {
-            delete newTouched[key];
-          }
-        });
-        return newTouched;
-      });
+      // Remove touched and error state for the removed member's fields
+      removeFieldState(`memberName-${index}`);
+      removeFieldState(`memberIncome-${index}`);
+      removeFieldState(`memberFrequency-${index}`);
+      
+      showToast("Person borttagen!", "error");
     };
 
-    // Side Hustle changes
+    // Side Hustles
     const handleSideHustleChange = (
       index: number,
       field: keyof SideHustle,
       value: string
     ) => {
-      setSideHustles((prev) => {
-        const updated = [...prev];
-        updated[index] = {
-          ...updated[index],
-          [field]: value,
-        };
+      setValues((prev: FormValues) => {
+        const updated = [...prev.sideHustles];
+        updated[index] = { ...updated[index], [field]: value };
 
-        // recalc yearly
         if (field === "income" || field === "frequency") {
           const numericIncome = parseFloat(updated[index].income) || 0;
-          let calculatedIncome = numericIncome;
-          switch (updated[index].frequency) {
-            case "weekly":
-              calculatedIncome *= 52;
-              break;
-            case "quarterly":
-              calculatedIncome *= 4;
-              break;
-            case "annually":
-              // do nothing
-              break;
-            case "monthly":
-            default:
-              calculatedIncome *= 12;
-              break;
-          }
-          updated[index].yearlyIncome = calculatedIncome;
+          updated[index].yearlyIncome = calculateYearlyIncome(
+            numericIncome,
+            updated[index].frequency
+          );
         }
-        return updated;
+        return { ...prev, sideHustles: updated };
       });
-      setTouched((prev) => ({ ...prev, [`${field}-${index}`]: true }));
+      markFieldTouched(`sideHustle-${index}-${field}`);
+
     };
 
     const handleAddSideHustle = () => {
-      setSideHustles((prev) => [
+      setValues((prev: FormValues) => ({
         ...prev,
-        { name: "", income: "", frequency: "monthly" },
-      ]);
+        sideHustles: [
+          ...prev.sideHustles,
+          { name: "", income: "", frequency: "monthly" },
+        ],
+      }));
+      showToast(
+        <>
+          Sidoinkomst tillagd! <br />
+          Fyll i uppgifter eller ta bort för att gå vidare.
+        </>,
+        "success"
+      );
     };
 
     const handleRemoveSideHustle = (index: number) => {
-      setSideHustles((prev) => prev.filter((_, i) => i !== index));
-      setErrors((prevErrors) => {
-        const newErrors = { ...prevErrors };
-        Object.keys(newErrors).forEach((key) => {
-          if (
-            key.startsWith(`sideHustleName-${index}`) ||
-            key.startsWith(`sideHustleIncome-${index}`) ||
-            key.startsWith(`sideHustleFrequency-${index}`)
-          ) {
-            delete newErrors[key];
-          }
-        });
-        return newErrors;
+      setValues((prev: FormValues) => {
+        const updated = [...prev.sideHustles];
+        updated.splice(index, 1);
+        return { ...prev, sideHustles: updated };
       });
-      setTouched((prevTouched) => {
-        const newTouched = { ...prevTouched };
-        Object.keys(newTouched).forEach((key) => {
-          if (
-            key.startsWith(`name-${index}`) ||
-            key.startsWith(`income-${index}`) ||
-            key.startsWith(`frequency-${index}`)
-          ) {
-            delete newTouched[key];
-          }
-        });
-        return newTouched;
-      });
+      removeFieldState(`sideHustleName-${index}`);
+      removeFieldState(`sideHustleIncome-${index}`);
+      removeFieldState(`frequency-${index}`);
+      showToast("Sidoinkomst borttagen!", "error");
     };
-
-    // -------------------- Validation --------------------
-    const validateFields = useCallback((): boolean => {
-      let isValid = true;
-      const newErrors: { [key: string]: string } = {};
-
-      // User must have netSalary
-
-      if (netSalary === null || netSalary === 0) {
-        isValid = false;
-        newErrors.netSalary = "Ange din primära inkomst.";
-      }
-      if (salaryFrequency === "") {
-        isValid = false;
-        newErrors.salaryFrequency = "Välj lönefrekvens.";
-      }
-
-      // Validate household members if any are added.
-      if (householdMembers.length > 0) {
-        householdMembers.forEach((member, index) => {
-          if (member.name.trim() === "") {
-            isValid = false;
-            newErrors[`memberName-${index}`] = "Ange namn.";
-          }
-          if (member.income === "") {
-            isValid = false;
-            newErrors[`memberIncome-${index}`] = "Ange nettoinkomst.";
-          }
-          if (member.frequency === "") {
-            isValid = false;
-            newErrors[`memberFrequency-${index}`] = "Välj frekvens.";
-          }
-        });
-      }
-      
-
-      // If side income is toggled on, check side hustles
-      if (showSideIncome) {
-        sideHustles.forEach((side, index) => {
-          if (side.name.trim() === "") {
-            isValid = false;
-            newErrors[`sideHustleName-${index}`] = "Ange namn för inkomst.";
-          }
-          if (side.income.trim() === "") {
-            isValid = false;
-            newErrors[`sideHustleIncome-${index}`] = "Ange inkomstens storlek.";
-          }
-          if (side.frequency === "") {
-            isValid = false;
-            newErrors[`sideHustleFrequency-${index}`] = "Välj inkomstens frekvens.";
-          }
-        });
-      }
-
-      // Update errors if they changed.
-      if (!areObjectsEqual(newErrors, prevErrorsRef.current)) {
-        setErrors(newErrors);
-        prevErrorsRef.current = newErrors;
-      }
-      return isValid;
-    }, [
-      netSalary,
-      salaryFrequency,
-      householdMembers,
-      sideHustles,
-    ]);
-
-    // Each time dependencies change, re-validate & update parent's isStepValid
-    useEffect(() => {
-      const valid = validateFields();
-      if (prevValidityRef.current !== valid) {
-        setStepValid(valid);
-        prevValidityRef.current = valid;
-      }
-    }, [
-      netSalary,
-      salaryFrequency,
-      householdMembers,
-      sideHustles,
-      validateFields,
-      setStepValid,
-    ]);
-
-    // -------------------- Imperative Handle --------------------
+    
+    /** 10) Imperative Handle for the parent */
     useImperativeHandle(ref, () => ({
-      validateFields: () => {
-        return validateFields();
-      },
-      getStepData: () => {
-        // 1) Filter out empty or invalid side hustles
-        const cleanedSideHustles = sideHustles.filter((side) => {
-          return side.name.trim() !== "" || side.income.trim() !== "";
-        });
-        // 2) Filter out empty or invalid household members
-        const cleanedHouseholdMembers = householdMembers.filter((member) => {
-          return member.name.trim() !== "" || member.income.trim() !== "";
-        });
-        // 3) Return the entire data structure, but with cleaned sideHustles
-        return {
-          netSalary,
-          salaryFrequency,
-          yearlySalary,
-          householdMembers: cleanedHouseholdMembers,
-          sideHustles: cleanedSideHustles,
-        };
-      },
+      validateFields,
+      markAllTouched,
+      getStepData: () => values,
+      getErrors: () => errors,
+      openSideIncome: () => setShowSideIncome(true),
+      openHouseholdMembers: () => setShowHouseholdMembers(true),
     }));
-
+    console.log("errors:", errors); // Debugging
     // -------------------- Render --------------------
     return (
       <GlassPane>
@@ -454,205 +440,308 @@ const StepBudgetInfo = forwardRef<StepBudgetInfoRef, StepBudgetInfoProps>(
     
         {/* Primary Income Section */}
         <OptionContainer>
-          <SalaryField
-            netSalary={netSalary}
-            yearlySalary={yearlySalary}
-            salaryFrequency={salaryFrequency}
-            handleSalaryChange={handleSalaryChange}
-            setSalaryFrequency={setSalaryFrequency}
-            errors={errors}
-            touched={touched}
-            setTouched={setTouched}
-            validateFields={validateFields}
-          />
+        <SalaryField
+          netSalary={values.netSalary}
+          yearlySalary={yearlySalary}
+          salaryFrequency={values.salaryFrequency}
+          onSalaryChange={handleSalaryChange}
+          onSalaryBlur={handleSalaryBlur}
+          onFrequencyChange={handleSalaryFrequencyChange}
+          onFrequencyBlur={handleSalaryFrequencyBlur}
+
+          errorNetSalary={errors.netSalary}
+          errorSalaryFrequency={errors.salaryFrequency}
+          touchedNetSalary={touched.netSalary}
+          touchedSalaryFrequency={touched.salaryFrequency}
+        />
+          
+          {yearlySalary !== null && yearlySalary > 0 && (
+          <p className="text-customBlue1 text-sm mt-2 bg-white/20 p-2 rounded-lg shadow-md inline-block">
+            🏦 <strong>Månadsinkomst: </strong> 
+            <span className="text-black font-semibold">
+              {(yearlySalary / 12).toLocaleString()} SEK
+            </span>
+          </p>
+        )}
+
         </OptionContainer>
-    
+
         {/* Optional Household Members Section */}
         <OptionContainer>
-          {householdMembers.length > 0 && (
+          <div className="flex items-center justify-center gap-2 mt-4">
+
+          <h4 className="text-lg font-semibold mb-2">Hushållsmedlemmar (valfritt)</h4>
+            <HelpSection
+              label=""
+              helpText="Alla personer i ditt hushåll vars ekonomi påverkar din budget."
+              detailedHelpText="Hushållsmedlemmar inkluderar alla personer vars ekonomi påverkar den gemensamma budgeten, t.ex. partner, barn eller andra samboende. Du kan ange deras inkomster och utgifter separat för att få en mer komplett budgetöversikt."
+            > </HelpSection>
+          </div>
+          <button
+            onClick={() => setShowHouseholdMembers(!showHouseholdMembers)}
+            className="mt-2 bg-darkLimeGreen hover:bg-darkBlueMenuColor text-white font-bold py-3 px-6 rounded-xl shadow-md transform hover:scale-105 transition-all"
+            >
+            {showHouseholdMembers
+              ? "Dölj hushållsmedlemmar ❌"
+              : "Visa hushållsmedlemmar"}
+          </button>
+          {shouldShowHouseholdMembers && values.householdMembers.length == 0 && (
+          <>  
+            <p className="text-customBlue1 text-sm mt-2 bg-white/20 p-2 rounded-lg shadow-md inline-block">
+              🏠 Inga hushållsmedlemmar angivna.
+            </p>
+          </>  
+          )}
+          {shouldShowHouseholdMembers && (
+          <>
+          {/* Add button for new household member */}
+          <AcceptButton onClick={handleAddMember}>
+            ➕ Lägg till person
+          </AcceptButton>
+            </>
+          )  
+          }
+
+
+          {/* Household Member Section */}
+          {shouldShowHouseholdMembers  && (
             <>
-              <h4 className="text-lg font-semibold mb-2">Hushållsmedlemmar (valfritt)</h4>
-              {householdMembers.map((member, index) => (
+
+              {values.householdMembers.map((member: HouseholdMember, index: number) => (
                 <div key={index} className="mb-4 border-b border-gray-300 pb-4">
+                  {/* HouseholdMemberField for Name */}
                   <HouseholdMemberField
                     label="Namn:"
                     type="text"
                     id={`memberName-${index}`}
                     value={member.name}
-                    onChange={(e) => handleMemberChange(index, "name", e.target.value)}
                     placeholder="Ange namn"
-                    onBlur={() =>
-                      setTouched((prev) => ({ ...prev, [`name-${index}`]: true }))
+                    error={errors[`memberName-${index}`]}
+                    touched={touched[`memberName-${index}`]}
+                    onBlur={() => {
+                      markFieldTouched(`memberName-${index}`);
+                      validateField(`memberName-${index}`);
+                    }}
+                    onChange={(e) =>
+                      handleMemberChange(index, "name", e.target.value)
                     }
                   />
-                  {errors[`memberName-${index}`] && touched[`name-${index}`] && (
+                  {/* Display the error message if touched & error */}
+                  {errors[`memberName-${index}`] && touched[`memberName-${index}`] && (
                     <p className="text-red-500 text-sm mt-1">
                       {errors[`memberName-${index}`]}
                     </p>
                   )}
 
+                  {/* Income Field */}
                   <HouseholdMemberField
                     label="Nettoinkomst:"
                     type="number"
                     id={`memberIncome-${index}`}
                     value={member.income}
-                    onChange={(e) => handleMemberChange(index, "income", e.target.value)}
                     placeholder="Ange nettoinkomst"
-                    yearlyIncome={member.yearlyIncome}
-                    frequency={member.frequency}
-                    onBlur={() =>
-                      setTouched((prev) => ({ ...prev, [`income-${index}`]: true }))
+                    error={errors[`memberIncome-${index}`]}
+                    touched={touched[`memberIncome-${index}`]}
+                    onBlur={() => {
+                      markFieldTouched(`memberIncome-${index}`);
+                      validateField(`memberIncome-${index}`);
+                    }}
+                    onChange={(e) =>
+                      handleMemberChange(index, "income", e.target.value)
                     }
+                    frequency={member.frequency} // If your field component needs freq
                   />
-                  {errors[`memberIncome-${index}`] && touched[`income-${index}`] && (
+                  {errors[`memberIncome-${index}`] && touched[`memberIncome-${index}`] && (
                     <p className="text-red-500 text-sm mt-1">
                       {errors[`memberIncome-${index}`]}
                     </p>
                   )}
 
+                  {/* Display yearly income if > 0 */}
+                  {member.income && parseFloat(member.income) > 0 && (
+                    <p className="text-customBlue1 text-sm mt-2 bg-white/20 p-2 rounded-lg shadow-md inline-block">
+                      🏦 <strong>Månadsinkomst: </strong>
+                      <span className="text-black font-semibold">
+                        {(isNaN(member.yearlyIncome) ? 0 : member.yearlyIncome/12).toLocaleString()} SEK
+                      </span>
+                    </p>
+                  )}
+
+                  {/* Frequency */}
                   <HouseholdMemberField
                     label="Lönefrekvens:"
                     type="select"
                     id={`memberFrequency-${index}`}
                     value={member.frequency}
-                    onChange={(e) =>
-                      handleMemberChange(index, "frequency", e.target.value)
-                    }
                     options={[
                       { value: "monthly", label: "Per månad" },
                       { value: "weekly", label: "Per vecka" },
                       { value: "quarterly", label: "Per kvartal" },
                       { value: "annually", label: "Årligen" },
                     ]}
-                    onBlur={() =>
-                      setTouched((prev) => ({
-                        ...prev,
-                        [`frequency-${index}`]: true,
-                      }))
+                    onBlur={() => markFieldTouched(`memberFrequency-${index}`)}
+                    onChange={(e) =>
+                      handleMemberChange(index, "frequency", e.target.value)
                     }
                   />
-                  {errors[`memberFrequency-${index}`] && touched[`frequency-${index}`] && (
+                  {errors[`memberFrequency-${index}`] && touched[`memberFrequency-${index}`] && (
                     <p className="text-red-500 text-sm mt-1">
                       {errors[`memberFrequency-${index}`]}
                     </p>
                   )}
 
+                  {/* Removal Button */}
                   <RemovalButton onClick={() => handleRemoveMember(index)} />
                 </div>
               ))}
             </>
           )}
-          <AcceptButton onClick={handleAddMember}>Lägg till person</AcceptButton>
+          {/* Household Member Summary (If Collapsed) */}
+          {!showHouseholdMembers && values.householdMembers.length > 0 && (
+            <div className="mt-2 p-3 bg-white/10 rounded-lg text-customBlue1 shadow-md">
+              <p className="text-lg font-semibold">
+                🏠 {values.householdMembers.length} hushållsmedlem(mar) totalt – samlad inkomst: {values.householdMembers.reduce(
+                    (sum: number, member: HouseholdMember) => sum + Number(member.income),
+                    0
+                )} SEK/mån. 💸
+              </p>
+              <p className="text-sm text-gray-300">Klicka på knappen ovan för att redigera.</p>
+            </div>
+          )}
+
         </OptionContainer>
 
+        {/* Side Hustle Section */}
+        <OptionContainer>  
         {/* Toggle for Side Hustle Income */}
-        <div className="flex items-center justify-center gap-2 mt-4">
-          <button
-            onClick={() => setShowSideIncome(!showSideIncome)}
-            disabled={showSideIncome && sideHustleHasValue}
-            className={`mt-4 text-white font-bold py-2 px-6 rounded-lg shadow-lg transition-all ${
-              showSideIncome && sideHustleHasValue
-                ? "bg-gray-400 cursor-not-allowed"
-                : "bg-darkLimeGreen hover:bg-green-700"
-            }`}
-          >
-            {showSideIncome
-              ? "Dölj andra former av inkomster ❌"
-              : "Andra former av inkomster "}
-          </button>
-
+        <div className="flex items-center justify-center mt-4 gap-2">
+          <h4 className="text-lg font-semibold mb-2">Övriga inkomster (valfritt) </h4>
           <HelpSection
-            label=""
-            helpText="All typ av inkomst vid sidan av din huvudsakliga inkomstkälla."
-            detailedHelpText="Andra former av inkomster är all typ av inkomst vid sidan av din huvudsakliga inkomstkälla. Exempel: Frilansarbete, extrajobb, eget företag, uthyrning, passiv inkomst eller olika former av bidrag såsom barnbidrag, bostadsbidrag och studiestöd."
-          > </HelpSection>
+                label=""
+                helpText="All typ av inkomst vid sidan av din huvudsakliga inkomstkälla."
+                detailedHelpText="Andra former av inkomster är all typ av inkomst vid sidan av din huvudsakliga inkomstkälla. Exempel: Frilansarbete, extrajobb, eget företag, uthyrning, passiv inkomst eller olika former av bidrag såsom barnbidrag, bostadsbidrag och studiestöd."
+              > </HelpSection>
         </div>
 
+        <button
+        onClick={() => setShowSideIncome(!showSideIncome)}
+          className={`mt-2 bg-darkLimeGreen hover:bg-darkBlueMenuColor text-white font-bold py-3 px-6 rounded-xl shadow-md transform hover:scale-105  transition-all
+          }`}
+        >
+          {showSideIncome
+            ? "Dölj andra former av inkomster ❌"
+            : "Visa andra former av inkomster "}
+        </button>
+        {/* Side Hustle Summary (If Collapsed) */}
+        {!shouldShowSideIncome  && values.sideHustles.length > 0 && (
+          <div className="mt-2 p-3 bg-white/10 rounded-lg text-customBlue1 shadow-md">
+            <p className="text-lg font-semibold">
+              💼 {values.sideHustles.length} sidoinkomst(er) totalt – {values.sideHustles.reduce(
+                  (sum: number, s: SideHustle) => sum + Number(s.income),
+                  0
+              )} SEK/mån. 💸
+            </p>
+            <p className="text-sm text-gray-300">Klicka på knappen ovan för att redigera.</p>
+          </div>
+        )}
+
         {/* Side Hustle Section */}
-        {showSideIncome && (
+        {shouldShowSideIncome && (
           <OptionContainer>
-            {sideHustles.map((side, index) => (
-              <div key={index} className="mb-4 border-b border-gray-300 pb-4">
-                <SideHustleField
-                  label="Sidoinkomstens namn:"
-                  type="text"
-                  id={`sideHustleName-${index}`}
-                  value={side.name}
-                  onChange={(e) =>
-                    handleSideHustleChange(index, "name", e.target.value)
-                  }
-                  placeholder="Ange namn för sidoinkomsten"
-                  onBlur={() =>
-                    setTouched((prev) => ({ ...prev, [`name-${index}`]: true }))
-                  }
-                />
-                {errors[`sideHustleName-${index}`] && touched[`name-${index}`] && (
+            {/* Show existing side hustles or an empty input for a new one */}
+            {values.sideHustles.length === 0 && (
+            <motion.p
+              initial={{ opacity: 0, y: -5 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="mb-2 text-lg font-semibold text-customBlue1 text-center bg-white/10 px-4 py-2 rounded-lg shadow-md"
+            >
+              🧐 Finns det en extra inkomst vi missar?
+              Lägg till den här så vi får en full bild av din ekonomi! 💸
+            </motion.p>
+          )}
+          {values.sideHustles.map((side: SideHustle, index: number) => (
+            <div key={index} className="mb-4 border-b border-gray-300 pb-4">
+              <SideHustleField
+                label="Sidoinkomstens namn:"
+                type="text"
+                id={`sideHustleName-${index}`}
+                value={side.name}
+                error={errors[`sideHustleName-${index}`]}
+                touched={touched[`sideHustleName-${index}`]}
+                placeholder="Ange sidoinkomstens namn"
+                onBlur={() => {
+                  markFieldTouched(`sideHustleName-${index}`);
+                  validateField(`sideHustleName-${index}`);
+
+                }}
+                onChange={(e) =>
+                  handleSideHustleChange(index, "name", e.target.value)
+                }
+              />
+              {errors[`sideHustleName-${index}`] && touched[`sideHustleName-${index}`] && (
+                <p className="text-red-500 text-sm mt-1">
+                  {errors[`sideHustleName-${index}`]}
+                </p>
+              )}
+
+              <SideHustleField
+                label="Sidoinkomst netto(SEK):"
+                type="number"
+                id={`sideHustleIncome-${index}`}
+                value={side.income}
+                error={errors[`sideHustleIncome-${index}`]}
+                onChange={(e) =>
+                  handleSideHustleChange(index, "income", e.target.value)
+                }
+                placeholder="Ange nettoinkomst"
+                touched={touched[`sideHustleIncome-${index}`]}
+                onBlur={() => {
+                  markFieldTouched(`sideHustleIncome-${index}`);
+                  validateField(`sideHustleIncome-${index}`);
+
+                }}
+                yearlyIncome={side.yearlyIncome}
+              />
+              {errors[`sideHustleIncome-${index}`] &&
+                touched[`sideHustleIncome-${index}`] && (
                   <p className="text-red-500 text-sm mt-1">
-                    {errors[`sideHustleName-${index}`]}
+                    {errors[`sideHustleIncome-${index}`]}
                   </p>
                 )}
 
-                <SideHustleField
-                  label="Sidoinkomst netto(SEK):"
-                  type="number"
-                  id={`sideHustleIncome-${index}`}
-                  value={side.income}
-                  onChange={(e) =>
-                    handleSideHustleChange(index, "income", e.target.value)
-                  }
-                  placeholder="Ange nettoinkomst"
-                  onBlur={() =>
-                    setTouched((prev) => ({
-                      ...prev,
-                      [`income-${index}`]: true,
-                    }))
-                  }
-                  yearlyIncome={side.yearlyIncome}
-                />
-                {errors[`sideHustleIncome-${index}`] &&
-                  touched[`income-${index}`] && (
-                    <p className="text-red-500 text-sm mt-1">
-                      {errors[`sideHustleIncome-${index}`]}
-                    </p>
-                  )}
+              <SideHustleField
+                label="Inkomstfrekvens:"
+                type="select"
+                id={`sideHustleFrequency-${index}`}
+                value={side.frequency}
+                onChange={(e) =>
+                  handleSideHustleChange(index, "frequency", e.target.value)
+                }
+                options={[
+                  { value: "monthly", label: "Per månad" },
+                  { value: "weekly", label: "Per vecka" },
+                  { value: "quarterly", label: "Per kvartal" },
+                  { value: "annually", label: "Årligen" },
+                ]}
+                onBlur={() => markFieldTouched(`frequency-${index}`)}
+              />
+              {errors[`sideHustleFrequency-${index}`] &&
+                touched[`frequency-${index}`] && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {errors[`sideHustleFrequency-${index}`]}
+                  </p>
+                )}
 
-                <SideHustleField
-                  label="Inkomstfrekvens:"
-                  type="select"
-                  id={`sideHustleFrequency-${index}`}
-                  value={side.frequency}
-                  onChange={(e) =>
-                    handleSideHustleChange(index, "frequency", e.target.value)
-                  }
-                  options={[
-                    { value: "monthly", label: "Per månad" },
-                    { value: "weekly", label: "Per vecka" },
-                    { value: "quarterly", label: "Per kvartal" },
-                    { value: "annually", label: "Årligen" },
-                  ]}
-                  onBlur={() =>
-                    setTouched((prev) => ({
-                      ...prev,
-                      [`frequency-${index}`]: true,
-                    }))
-                  }
-                />
-                {errors[`sideHustleFrequency-${index}`] &&
-                  touched[`frequency-${index}`] && (
-                    <p className="text-red-500 text-sm mt-1">
-                      {errors[`sideHustleFrequency-${index}`]}
-                    </p>
-                  )}
-
-                <RemovalButton onClick={() => handleRemoveSideHustle(index)} />
+              <RemovalButton onClick={() => handleRemoveSideHustle(index)} />
               </div>
             ))}
-            <AcceptButton onClick={handleAddSideHustle}>
-              Lägg till sidoinkomst
-            </AcceptButton>
-          </OptionContainer>
-        )}
-
+              <AcceptButton onClick={handleAddSideHustle}>
+              ➕ Lägg till sidoinkomst
+              </AcceptButton>
+            </OptionContainer>
+          )}
+         </OptionContainer>
         {/* Data Transparency Section */}
         <div className="mt-6 border-t border-gray-500 pt-4 text-sm text-customBlue1 flex flex-col items-center">
           <ShieldCheck className="w-10 h-10 text-darkLimeGreen mb-2" />

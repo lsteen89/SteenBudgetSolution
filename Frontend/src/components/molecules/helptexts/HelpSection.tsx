@@ -1,22 +1,32 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Info, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import useMediaQuery from '@hooks/useMediaQuery';
 
 interface HelpSectionProps {
   label: string;
-  helpText: string;
-  detailedHelpText: string;
+  helpText: React.ReactNode;
+  detailedHelpText?: React.ReactNode;
   children: React.ReactNode;
 }
 
-const HelpSection: React.FC<HelpSectionProps> = ({ label, helpText, detailedHelpText, children }) => {
+const HelpSection: React.FC<HelpSectionProps> = ({
+  label,
+  helpText,
+  detailedHelpText,
+  children,
+}) => {
   const [showHelp, setShowHelp] = useState(false);
   const [showDetailedHelp, setShowDetailedHelp] = useState(false);
-  const helpRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const modalContentRef = useRef<HTMLDivElement>(null);
+
+  const isMdUp = useMediaQuery('(min-width: 768px)');
+  const isLgUp = useMediaQuery('(min-width: 1024px)');
 
   const handleToggleHelp = () => {
     setShowHelp((prev) => !prev);
-    setShowDetailedHelp(false); // Close detailed help when toggling
+    setShowDetailedHelp(false);
   };
 
   const handleToggleDetailedHelp = () => {
@@ -24,20 +34,24 @@ const HelpSection: React.FC<HelpSectionProps> = ({ label, helpText, detailedHelp
   };
 
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (helpRef.current && !helpRef.current.contains(event.target as Node)) {
+    const handleClickOutside = (event: MouseEvent) => {
+      // Only when on md up, check if click was outside modal content.
+      if (
+        isMdUp &&
+        modalContentRef.current &&
+        !modalContentRef.current.contains(event.target as Node)
+      ) {
         setShowHelp(false);
         setShowDetailedHelp(false);
       }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () =>
+      document.removeEventListener('mousedown', handleClickOutside);
+  }, [isMdUp]);
 
   return (
-    <div className="relative" ref={helpRef}>
+    <div className="relative" ref={containerRef}>
       <label className="block text-sm font-medium flex items-center gap-2 pb-2">
         {label}
         <button
@@ -57,41 +71,68 @@ const HelpSection: React.FC<HelpSectionProps> = ({ label, helpText, detailedHelp
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="absolute z-10 mt-2 p-4 bg-customBlue2 text-gray-900 rounded-lg shadow-lg border border-gray-400 w-72"
+            className={`fixed z-10 inset-0 flex items-center justify-center ${
+              isLgUp
+                ? 'lg:absolute lg:inset-auto lg:bg-transparent lg:backdrop-blur-0 lg:mt-2'
+                : 'bg-black bg-opacity-30 backdrop-blur-sm'
+            }`}
           >
-            <p className="text-sm">{helpText}</p>
-            <button
-              type="button"
-              onClick={handleToggleDetailedHelp}
-              className="underline text-darkLimeGreen mt-2 block"
-              title="Läs mer om detta ämne"
-              aria-label="Läs mer om detta ämne"
+            <div
+              ref={modalContentRef}
+              className="relative p-4 bg-customBlue2 text-gray-900 rounded-lg shadow-lg border border-gray-400 w-11/12 max-w-sm lg:w-72"
             >
-              Läs mer
-            </button>
+              <button
+                type="button"
+                onClick={handleToggleHelp}
+                className="absolute top-2 right-2 text-red-700 hover:text-green-700 focus:outline-none"
+                title="Stäng hjälp"
+                aria-label="Stäng hjälp"
+              >
+                <X size={16} />
+              </button>
+              <p className="text-sm">{helpText}</p>
+              {detailedHelpText && (
+                <button
+                  type="button"
+                  onClick={handleToggleDetailedHelp}
+                  className="underline text-darkLimeGreen mt-2 block"
+                  title="Läs mer om detta ämne"
+                  aria-label="Läs mer om detta ämne"
+                >
+                  Läs mer
+                </button>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
 
       <AnimatePresence>
-        {showDetailedHelp && (
+        {showDetailedHelp && detailedHelpText && (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="absolute z-20 mt-2 p-4 bg-white border border-gray-300 rounded-lg shadow-lg w-80"
+            className={`fixed z-20 inset-0 flex items-center justify-center ${
+              isLgUp
+                ? 'lg:absolute lg:inset-auto lg:bg-transparent lg:backdrop-blur-0 lg:mt-2'
+                : 'bg-black bg-opacity-30 backdrop-blur-sm'
+            }`}
           >
-            <div className="flex justify-between items-center">
-              <p className="text-gray-900 text-sm">{detailedHelpText}</p>
-              <button 
+            <div
+              ref={modalContentRef}
+              className="relative p-4 bg-customBlue2 text-gray-900 rounded-lg shadow-lg border border-gray-400 w-11/12 max-w-sm lg:w-80"
+            >
+              <button
                 type="button"
                 onClick={() => setShowDetailedHelp(false)}
-                className="text-gray-600 hover:text-gray-900"
+                className="absolute top-2 right-2 text-red-700 hover:text-green-700 focus:outline-none"
                 title="Stäng detaljerad hjälp"
                 aria-label="Stäng detaljerad hjälp"
               >
                 <X size={18} />
               </button>
+              <p className="text-gray-900 text-sm">{detailedHelpText}</p>
             </div>
           </motion.div>
         )}
@@ -103,3 +144,4 @@ const HelpSection: React.FC<HelpSectionProps> = ({ label, helpText, detailedHelp
 };
 
 export default HelpSection;
+

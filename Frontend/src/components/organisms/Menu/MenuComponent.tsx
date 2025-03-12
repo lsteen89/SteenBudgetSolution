@@ -5,8 +5,7 @@ import CloudMenu from '@assets/Components/Menu/CloudMenu_1440.svg?react';
 import styles from './menu.module.css'; // Import CSS module
 import MobileBird from '@assets/Images/MobileBird.png';
 import useBreakpoint from '@hooks/useBreakpoint'; // Import the custom hook
-import { MenuItem, Breakpoint } from '@components/organisms/Menu/types'; // Adjust the import path as needed
-
+import { MenuItem, Breakpoint } from '@components/organisms/Menu/types'; 
 const MenuComponent: React.FC = () => {
   const auth = useAuth();
   const breakpoint: Breakpoint = useBreakpoint(); // Get current breakpoint
@@ -29,9 +28,9 @@ const MenuComponent: React.FC = () => {
     {
       id: 6,
       type: 'icon',
-      path: "/mobile-bird", // Define the path for the icon (adjust as needed)
+      path: "/mobile-bird", 
       positions: {
-        lg: { left: 47, top: 60 },     // Positioned between eBudget (45.5%) and Om oss (47.5%)
+        lg: { left: 47, top: 60 },    // Positioned between eBudget (14%) and Om oss (48%)
         xl: { left: 30.5, top: 40 },     // Positioned between eBudget (14%) and Om oss (48%)
         "2xl": { left: 30.5, top: 40 },   // Positioned between eBudget (41.5%) and Om oss (48.5%)
         "3xl": { left: 37.5, top: 40 }, // Positioned between eBudget (42%) and Om oss (49%)

@@ -7,10 +7,11 @@ interface TextInputProps {
   error?: string;
   name?: string;
   id?: string;
+  touched?: boolean;
   onBlur?: () => void;
 }
 
-const TextInput: React.FC<TextInputProps> = ({ value, onChange, placeholder = "", error, name, id, onBlur  }) => {
+const TextInput: React.FC<TextInputProps> = ({ value, onChange, placeholder = "", error, touched, name, id, onBlur  }) => {
   return (
     <>
       <input
@@ -19,11 +20,10 @@ const TextInput: React.FC<TextInputProps> = ({ value, onChange, placeholder = ""
         id={id}
         value={value}
         onChange={onChange}
-        className={`shadow-md focus:ring-darkLimeGreen focus:border-darkLimeGreen block w-full sm:text-sm border-gray-300 rounded-lg p-3 bg-white/60 backdrop-blur-md ${error ? "border-red-500" : ""}`}
+        className={`shadow-md focus:ring-darkLimeGreen focus:border-darkLimeGreen block w-full sm:text-sm rounded-lg p-3 bg-white/60 border backdrop-blur-md ${error && touched ? "border-red-500" : "border-gray-300"}`}
         placeholder={placeholder}
         onBlur={onBlur} 
       />
-      {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
     </>
   );
 };

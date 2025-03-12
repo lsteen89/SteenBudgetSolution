@@ -22,13 +22,13 @@ document.addEventListener('DOMContentLoaded', () => {
 // Debugging - log the calculated vh value
 const debugVh = () => {
   const vh = window.innerHeight * 0.01;
-  console.log(`Viewport height: ${vh}px`);
+  //console.log(`Viewport height: ${vh}px`);
 };
 window.addEventListener('resize', debugVh);
 window.addEventListener('orientationchange', debugVh);
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-
+  <React.StrictMode>
     <App />
-
+  </React.StrictMode>
 );
