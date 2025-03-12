@@ -44,7 +44,7 @@ const Dashboard: React.FC = () => {
     return <div>Loading...</div>; // Display loading message
   }
   return (
-<PageContainer className="md:px-20 items-center min-h-screen overflow-y-auto h-full">
+    <PageContainer className="md:px-20 items-center min-h-screen overflow-y-auto h-full">
       <ContentWrapper centerContent className="lg:pt-24 3xl:pt-48 ">
       <DashboardContent
           navigate={navigate}

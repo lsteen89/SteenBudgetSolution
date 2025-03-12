@@ -12,6 +12,8 @@ interface SideHustleFieldProps {
   placeholder?: string;
   options?: { value: string; label: string }[];
   id: string;
+  touched?: boolean;
+  error?: string;
   onBlur?: () => void;
   yearlyIncome?: number;
 }
@@ -24,6 +26,8 @@ const SideHustleField: React.FC<SideHustleFieldProps> = ({
   placeholder,
   options,
   id,
+  touched,
+  error,
   onBlur,
   yearlyIncome,
 }) => {
@@ -61,26 +65,26 @@ const SideHustleField: React.FC<SideHustleFieldProps> = ({
 
   return (
     <div className="relative" ref={helpRef}>
-<label
-  htmlFor={id}
-  className="block text-sm font-medium flex items-center gap-1"
-  onClick={(e) => e.stopPropagation()}
->
-  <span>{label}</span>
-  <button
-    type="button"
-    onMouseDown={(e) => e.stopPropagation()}
-    onClick={(e) => {
-      e.stopPropagation();
-      setShowHelp((prev) => !prev);
-    }}
-    className="text-darkLimeGreen hover:text-green-700 focus:outline-none"
-    title={`Vad är ${label.toLowerCase()}?`}
-    aria-label={`Toggle help for ${label}`}
-  >
-    <Info size={16} />
-  </button>
-</label>
+      <label
+        htmlFor={id}
+        className="block text-sm font-medium flex items-center gap-1"
+        onClick={(e) => e.stopPropagation()}
+        >
+        <span>{label}</span>
+        <button
+          type="button"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowHelp((prev) => !prev);
+          }}
+          className="text-darkLimeGreen hover:text-green-700 focus:outline-none"
+          title={`Vad är ${label.toLowerCase()}?`}
+          aria-label={`Toggle help for ${label}`}
+        >
+          <Info size={16} />
+        </button>
+      </label>
 
       <AnimatePresence>
         {showHelp && (
@@ -107,7 +111,7 @@ const SideHustleField: React.FC<SideHustleFieldProps> = ({
 
 
       {type === 'text' && (
-        <TextInput id={id} value={value as string} onChange={onChange} placeholder={placeholder} onBlur={onBlur}/>
+        <TextInput id={id} value={value as string} onChange={onChange} placeholder={placeholder} touched={touched} error={error} onBlur={onBlur}/>
       )}
         {type === 'number' && (
         <>
@@ -116,12 +120,14 @@ const SideHustleField: React.FC<SideHustleFieldProps> = ({
             value={value as string}
             onChange={onChange}
             placeholder={placeholder}
+            touched={touched}
+            error={error}
             onBlur={onBlur}
             />
             {yearlyIncome !== undefined && (
             <p className="text-sm mt-1">
-                Årlig inkomst:{" "}
-                <strong>{Number.isNaN(yearlyIncome) ? 0 : yearlyIncome}  SEK</strong>
+                🏦 månadsinkomst:{" "}
+                <strong>{Number.isNaN(yearlyIncome) ? 0 : yearlyIncome/12}  SEK</strong>
             </p>
             )}
         </>

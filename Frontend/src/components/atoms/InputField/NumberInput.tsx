@@ -9,6 +9,7 @@ interface NumberInputProps {
   id?: string;
   step?: string | number;
   onBlur?: () => void; 
+  touched?: boolean;
 }
 
 const NumberInput: React.FC<NumberInputProps> = ({
@@ -19,10 +20,10 @@ const NumberInput: React.FC<NumberInputProps> = ({
   name,
   id,
   step = "any",
+  touched,
   onBlur,
 }) => {
   const handleBlur = (e: FocusEvent<HTMLInputElement>) => {
-    console.log("NumberInput: onBlur triggered"); //add log here
     if (onBlur) {
       onBlur(); // Call the onBlur prop function if it exists
     }
@@ -37,11 +38,11 @@ const NumberInput: React.FC<NumberInputProps> = ({
         id={id}
         value={value}
         onChange={onChange}
-        className={`shadow-md focus:ring-darkLimeGreen focus:border-darkLimeGreen block w-full sm:text-sm border-gray-300 rounded-lg p-3 bg-white/60 backdrop-blur-md ${error ? "border-red-500" : ""}`}
+        className={`shadow-md focus:ring-darkLimeGreen focus:border-darkLimeGreen border block w-full sm:text-sm rounded-lg p-3 bg-white/60 backdrop-blur-md  ${error && touched ? "border-red-500" : "border-gray-300"}`}
         placeholder={placeholder}
-        onBlur={handleBlur} // Add the onBlur handler
+        onBlur={handleBlur} 
       />
-      {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
+
     </>
   );
 };

@@ -15,6 +15,8 @@ interface HouseholdMemberFieldProps {
   id: string;
   yearlyIncome?: number; 
   frequency?: string; 
+  error?: string;
+  touched?: boolean;
   onBlur?: () => void; 
 }
 
@@ -28,6 +30,8 @@ const HouseholdMemberField: React.FC<HouseholdMemberFieldProps> = ({
   id,
   yearlyIncome,
   frequency,
+  error,
+  touched,
   onBlur,
 }) => {
   const [showHelp, setShowHelp] = useState(false);
@@ -65,7 +69,6 @@ const HouseholdMemberField: React.FC<HouseholdMemberFieldProps> = ({
     }
   }
   const helpText = getHelpText(label);
-
   return (
     <div className="relative">
       <label htmlFor={id} className="block text-sm font-medium flex items-center gap-1 pt-5">
@@ -127,11 +130,11 @@ const HouseholdMemberField: React.FC<HouseholdMemberFieldProps> = ({
 
 
       {type === 'text' && (
-        <TextInput id={id} value={value as string} onChange={onChange} placeholder={placeholder} onBlur={onBlur} />
+        <TextInput id={id} value={value as string} onChange={onChange} placeholder={placeholder} error={error && id.startsWith("memberName") ? error : undefined} onBlur={onBlur} touched={touched} />
       )}
       {type === 'number' && (
         <>
-          <NumberInput id={id} value={value as string} onChange={onChange} placeholder={placeholder} onBlur={onBlur} />
+          <NumberInput id={id} value={value as string} onChange={onChange} placeholder={placeholder} error={error && id.startsWith("memberIncome") ? error : undefined} onBlur={onBlur} touched={touched}/>
           {yearlyIncome !== undefined && (
             <p className="text-sm mt-1">
               Årlig inkomst: <strong>{(isNaN(yearlyIncome) ? 0 : yearlyIncome).toLocaleString()} SEK</strong>
