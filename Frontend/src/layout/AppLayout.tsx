@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
-import MenuComponent from "@components/organisms/Menu/MenuComponent";
-import MobileMenu from "@components/organisms/Menu/MobileMenu";
-import UserSideMenu from "@components/organisms/Menu/UserSideMenu";
+import MenuComponent from "@components/organisms/Menu/mainMenu/desktop/MenuComponent";
+import MobileMenu from "@components/organisms/Menu/mainMenu/mobile/MobileMenu";
+import UserSideMenu from "@components/organisms/Menu/sideMenu/UserSideMenu";
 import useMediaQuery from "@hooks/useMediaQuery";
 import { useAuth } from "@context/AuthProvider";
 import DynamicTitle from "@utils/DynamicTitle";
@@ -62,7 +62,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           <UserSideMenu
             isOpen={isMenuOpen}
             toggleMenu={toggleMenu}
-            hamburgerRef={hamburgerButtonRef}
+            //hamburgerRef={hamburgerButtonRef}
           />
         )}
 
