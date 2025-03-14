@@ -176,50 +176,44 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
   const initWizard = async () => {
     setLoading(true);
     try {
-      const { wizardSessionId, message }: StartWizardResponse = await startWizard();
-      console.log("startWizard response:", { wizardSessionId, message });
+      const { wizardSessionId } = await startWizard();
+      console.log("startWizard response:", { wizardSessionId });
+      
       if (!wizardSessionId) {
+        // No session => connection error handling
         setConnectionError(true);
         setFailedAttempts(prev => {
           const newAttempts = prev + 1;
           console.log("No session ID. New failedAttempts:", newAttempts);
-          if (newAttempts >= 3) {
-
-            setTimeout(() => {
-              showToast(
-                <>
-                  🚨 Anslutningsproblem <br /> vänligen kontakta support.
-                </>,
-                "error"
-              );
-            }, 0);
-          } else {
-            setTimeout(() => {
-              showToast(
-                <>
-                  🚨 Ingen anslutning <br /> <strong>Ingen data kan sparas eller hämtas</strong>
-                </>,
-                "error"
-              );
-            }, 0);
-          }
+          setTimeout(() => {
+            showToast(
+              newAttempts >= 3
+                ? <>🚨 Anslutningsproblem <br /> vänligen kontakta support.</>
+                : <>🚨 Ingen anslutning <br /><strong>Ingen data kan sparas eller hämtas</strong></>,
+              "error"
+            );
+          }, 0);
           return newAttempts;
         });
         return;
       }
-      // Successful connection:
+  
+      // Capture if there were previous failures (for reconnect feedback)
+      const hadPreviousFailures = failedAttempts > 0;
+  
+      // Successful connection
       setFailedAttempts(0);
       setConnectionError(false);
       setWizardSessionId(wizardSessionId);
       console.log("Wizard session started:", wizardSessionId);
+      
+      // Call getWizardData regardless; missing data is acceptable
       const existingData = await getWizardData(wizardSessionId);
       setWizardData(existingData || {});
-      // If reconnecting after previous failures, give positive feedback:
-      if (failedAttempts > 0) {
-        showToast(
-          <>✅ Återanslutning lyckades.</>,
-          "success"
-        );
+  
+      // Show success toast if reconnecting
+      if (hadPreviousFailures) {
+        showToast(<>✅ Återanslutning lyckades.</>, "success");
       }
     } catch (error) {
       setConnectionError(true);
@@ -227,26 +221,14 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
       setFailedAttempts(prev => {
         const newAttempts = prev + 1;
         console.log("Error branch. New failedAttempts:", newAttempts);
-        if (newAttempts >= 3) {
-          setConnectionError(true);
-          setTimeout(() => {
-            showToast(
-              <>
-                🚨 Anslutningsproblem <br /> vänligen kontakta support eller försök igen
-              </>,
-              "error"
-            );
-          }, 0);
-        } else {
-          setTimeout(() => {
-            showToast(
-              <>
-                🚨 Ingen anslutning <br /> <strong>Ingen data kan sparas eller hämtas</strong>
-              </>,
-              "error"
-            );
-          }, 0);
-        }
+        setTimeout(() => {
+          showToast(
+            newAttempts >= 3
+              ? <>🚨 Anslutningsproblem <br /> vänligen kontakta support eller försök igen</>
+              : <>🚨 Ingen anslutning <br /><strong>Ingen data kan sparas eller hämtas</strong></>,
+            "error"
+          );
+        }, 0);
         return newAttempts;
       });
     } finally {
@@ -254,10 +236,11 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
       setLoading(false);
     }
   };
-
+  
   useEffect(() => {
     initWizard();
   }, []);
+  
 
 
   // 9. If on step 0 (Welcome), always allow "Next"
