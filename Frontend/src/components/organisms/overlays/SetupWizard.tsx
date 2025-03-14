@@ -176,48 +176,46 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
   const initWizard = async () => {
     setLoading(true);
   
-    // 1. Check for too many failures
     if (failedAttempts >= 3) {
       showToast("🚨 Kontakt support – för många misslyckade försök.", "error");
       setLoading(false);
       return;
     }
-    
-    // 2. Critical Step: Start Wizard
+  
     try {
-      const { wizardSessionId, message }: StartWizardResponse = await startWizard();
-      console.log("startWizard response:", { wizardSessionId: message });
-      
+      const { wizardSessionId, message } = await startWizard();
+      console.log("startWizard response:", { wizardSessionId, message });
+  
       if (!wizardSessionId) {
         setFailedAttempts(prev => prev + 1);
         showToast("🚨 Kontakt support – ingen session hämtad.", "error");
         setLoading(false);
-		    setConnectionError(true);
+        setConnectionError(true);
         return;
       }
   
-      // If wizard starts successfully:
+      // Reset on success
+      setFailedAttempts(0);
+      setConnectionError(false);
       setWizardSessionId(wizardSessionId);
-      const existingData = await getWizardData(wizardSessionId);
+  
+      // Non-critical: retrieve existing data; ignore errors like 404 by returning null.
+      const existingData = await getWizardData(wizardSessionId).catch(() => null);
       setWizardData(existingData || {});
-      console.log("Wizard Session ID:", wizardSessionId);
-
+  
       if (failedAttempts > 0) {
         showToast("Anslutning lyckades!", "success");
       }
-      // Reset on success
-      setFailedAttempts(0);
-	  setConnectionError(false);
     } catch (error) {
       console.error("Error in initWizard:", error);
       setFailedAttempts(prev => prev + 1);
       showToast("🚨 Ett fel uppstod – försök igen eller kontakta support.", "error");
       setLoading(false);
-	  setConnectionError(true);
-      return; // Stop if critical step fails
+      setConnectionError(true);
+      return;
+    } finally {
+      setLoading(false);
     }
-  
-
   };
   
   useEffect(() => {
