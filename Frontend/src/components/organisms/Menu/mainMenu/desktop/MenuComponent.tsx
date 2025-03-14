@@ -5,7 +5,7 @@ import CloudMenu from '@assets/Components/Menu/CloudMenu_1440.svg?react';
 import styles from './menu.module.css'; // Import CSS module
 import MobileBird from '@assets/Images/MobileBird.png';
 import useBreakpoint from '@hooks/useBreakpoint'; // Import the custom hook
-import { MenuItem, Breakpoint } from '@components/organisms/Menu/types'; 
+import { MenuItem, Breakpoint } from '@components/organisms/Menu/mainMenu/desktop/types'; // Import types
 const MenuComponent: React.FC = () => {
   const auth = useAuth();
   const breakpoint: Breakpoint = useBreakpoint(); // Get current breakpoint
