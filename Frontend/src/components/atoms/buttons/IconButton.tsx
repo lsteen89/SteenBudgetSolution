@@ -1,4 +1,3 @@
-// IconButton.tsx
 import React from 'react';
 import { Link } from 'react-router-dom';
 
@@ -31,6 +30,7 @@ const IconButton: React.FC<IconButtonProps> = ({
     return (
       <Link
         to={to}
+        onClick={onClick} 
         aria-label={ariaLabel}
         className={`inline-flex items-center justify-center ${className}`}
       >

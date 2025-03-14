@@ -1,20 +1,39 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { HomeIcon, CogIcon, ChartBarIcon, CurrencyDollarIcon, ChartPieIcon , ShieldCheckIcon } from '@heroicons/react/24/outline';
+import { CogIcon, StarIcon, HomeModernIcon, ChartBarIcon, CurrencyDollarIcon, ChartPieIcon , ShieldCheckIcon } from '@heroicons/react/24/outline';
+import IconButton from '@components/atoms/buttons/IconButton';
+import HomeIcon from '@components/atoms/icons/HomeIcon';
 interface NavigationMenuProps {
   onLinkClick?: () => void;
 }
 
 const NavigationMenu: React.FC<NavigationMenuProps> = ({ onLinkClick }) => {
   return (
-<nav className="flex-1 px-10 lg:px-5 flex-grow">
+  <nav className="flex-1 flex-grow ">
+  {/* Dashboard (Home) Button with Filled Icon */}
+  <div className="flex flex-col items-center pb-8 border-t border-gray-300 pt-4">
+    <div className="group flex hover:scale-110 transition-transform duration-300">
+      <IconButton
+        to="/dashboard"
+        ariaLabel="Go to Dashboard"
+        onClick={onLinkClick}
+        IconComponent={(props) => (
+          <HomeIcon
+            {...props}
+            className="w-full h-full text-black hover:scale-110 hover:text-darkLimeGreen transition-transform duration-300"
+          />
+        )}
+      />
+    </div>
+  </div>
   <ul>
+
     {/* Manage Budget */}
     <li className="mb-4">
       <NavLink
         to="/manage-budget"
         className={({ isActive }) =>
-          `group flex items-center text-lg font-semibold transition-transform duration-300 ${
+          `group flex items-center text-lg font-semibold transition-transform duration-300 border-t border-gray-300 pt-4 ${
             isActive
               ? 'text-blue-500 scale-105'
               : 'text-black hover:text-darkLimeGreen hover:scale-110'
@@ -22,8 +41,8 @@ const NavigationMenu: React.FC<NavigationMenuProps> = ({ onLinkClick }) => {
         }
         onClick={onLinkClick}
       >
-        <HomeIcon className="h-6 w-6 mr-3 transition-none" />
-        <span className="group-hover:scale-110 group-hover:text-darkLimeGreen transition-transform duration-300">
+        <StarIcon  className="h-6 w-6 mr-3 transition-none " />
+        <span className="group-hover:scale-110  group-hover:text-darkLimeGreen transition-transform duration-300">
           Målsättning
         </span>
       </NavLink>
