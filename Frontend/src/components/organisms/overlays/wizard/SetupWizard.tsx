@@ -30,6 +30,7 @@ import { useToast } from  "@context/ToastContext";
 import { handleStepValidation  } from "@components/organisms/overlays/wizard/validation/handleStepValidation";
 // hooks
 import useSaveWizardStep from "@hooks/wizard/useSaveWizardStep";
+import useWizardInit from "@hooks/wizard/useWizardInit";
 
 // Step configuration for icons & labels
 const steps = [
@@ -60,15 +61,20 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
   const { showToast } = useToast();
 
   // 3. State for wizard data, session
-  const [wizardData, setWizardData] = useState<any>({});
-  const [wizardSessionId, setWizardSessionId] = useState<string>("");
-  const { handleSaveStepData, isSaving, saveError } = useSaveWizardStep(wizardSessionId, setWizardData);
-  // State for failed attempts to start wizard
-  const [failedAttempts, setFailedAttempts] = useState(0);
-  const [connectionError, setConnectionError] = useState(false);
+  const {
+    loading: initLoading,
+    wizardSessionId,
+    wizardData,
+    failedAttempts,
+    connectionError,
+    initWizard,
+  } = useWizardInit();
+
+  const { handleSaveStepData, isSaving, saveError } = useSaveWizardStep(wizardSessionId || '', (data) => {});
+
 
   // loading state
-  const [loading, setLoading] = useState(true);
+  const [transitionLoading, setTransitionLoading] = useState(false);
 
   // 4. Step & validation
   const [step, setStep] = useState<number>(0);
@@ -107,11 +113,11 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
   
   // 6. Next / Previous Step Logic
   const nextStep = async () => {
-    setLoading(true);
+    setTransitionLoading(true);
     // Validate step
     const isStepValid = await handleStepValidation(step, stepRefs, setValues);
     if (!isStepValid) {
-      setLoading(false);
+      setTransitionLoading(false);
       return;
     }
 
@@ -122,7 +128,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
       if (data) {
         const saveSuccess = await handleSaveStepData(step, data);
         if (!saveSuccess) {
-          setLoading(false);
+          setTransitionLoading(false);
           showToast("🚨 Ett fel uppstod – försök igen eller kontakta support.", "error");
           return;
         }
@@ -130,7 +136,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     }
     // Move to next step
     setStep((prev) => Math.min(prev + 1, totalSteps));
-    setLoading(false);
+    setTransitionLoading(false);
   };
 
   // 7. Previous Step Logic
@@ -138,62 +144,6 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     setStep((prev) => Math.max(prev - 1, 0));
   };
 
-  // 8. On mount, start (or resume) the wizard
-  const initWizard = async () => {
-    setLoading(true);
-  
-    if (failedAttempts >= 3) {
-      // Show error message and disable further attempts
-      if(failedAttempts === 3) {
-      showToast("🚨 Kontakt support – för många misslyckade försök.", "error");
-      }
-      setLoading(false);
-      return;
-    }
-  
-    try {
-      const { wizardSessionId, message } = await startWizard();
-      console.log("startWizard response:", { wizardSessionId, message });
-  
-      if (!wizardSessionId) {
-        setFailedAttempts(prev => prev + 1);
-        showToast("🚨 Kontakt support – ingen session hämtad.", "error");
-        setLoading(false);
-        setConnectionError(true);
-        return;
-      }
-  
-      // Reset on success
-      setFailedAttempts(0);
-      setConnectionError(false);
-      setWizardSessionId(wizardSessionId);
-  
-      // Non-critical: retrieve existing data; ignore errors like 404 by returning null.
-      const existingData = await getWizardData(wizardSessionId).catch(() => null);
-      setWizardData(existingData || {});
-  
-      if (failedAttempts > 0) {
-        showToast("Anslutning lyckades!", "success");
-      }
-    } catch (error) {
-      console.error("Error in initWizard:", error);
-      setFailedAttempts(prev => prev + 1);
-      showToast("🚨 Ett fel uppstod – försök igen eller kontakta support.", "error");
-      setLoading(false);
-      setConnectionError(true);
-      return;
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  useEffect(() => {
-    initWizard();
-  }, []);
-  
-
-
-  // 9. If on step 0 (Welcome), always allow "Next"
   //    Otherwise, default to "not valid" until validated
   useEffect(() => {
     if (step === 0) {
@@ -304,27 +254,31 @@ console.log("Debug Mode:", isDebugMode);
                   <StepWelcome
                     connectionError={connectionError}
                     failedAttempts={failedAttempts}
-                    loading={loading}
+                    loading={transitionLoading || initLoading}
                     onRetry={initWizard}
                   />
                 ) : (
                   <>
                     {step === 1 && (
-                      <StepBudgetInfo
-                        ref={stepBudgetInfoRef}
-                        setStepValid={setIsStepValid}
-                        wizardSessionId={wizardSessionId}
-                        onSaveStepData={handleSaveStepData}
-                        stepNumber={1}
-                        initialData={wizardData[1]}
-                        onNext={() => {}} // not used
-                        onPrev={() => {}} // not used
-                        showSideIncome={values.showSideIncome} 
-                        setShowSideIncome={setShowSideIncome}
-                        showHouseholdMembers={values.showHouseholdMembers}
-                        setShowHouseholdMembers={setShowHouseholdMembers}
-                        loading={loading}
-                      />
+                      wizardSessionId ? (
+                        <StepBudgetInfo
+                          ref={stepBudgetInfoRef}
+                          setStepValid={setIsStepValid}
+                          wizardSessionId={wizardSessionId}
+                          onSaveStepData={handleSaveStepData}
+                          stepNumber={1}
+                          initialData={wizardData[1]}
+                          onNext={() => {}}
+                          onPrev={() => {}}
+                          showSideIncome={values.showSideIncome}
+                          setShowSideIncome={setShowSideIncome}
+                          showHouseholdMembers={values.showHouseholdMembers}
+                          setShowHouseholdMembers={setShowHouseholdMembers}
+                          loading={transitionLoading || initLoading}
+                        />
+                      ) : (
+                        <p>Error: No wizard session available.</p>
+                      )
                     )}
                     {step === 2 && <StepPreferences />}
                     {step === 3 && <StepPreferences />}
@@ -352,10 +306,10 @@ console.log("Debug Mode:", isDebugMode);
               <button
                 type="button"
                 onClick={() => {nextStep();}}
-                disabled={!isDebugMode && (connectionError || loading)}
+                disabled={!isDebugMode && (connectionError || initLoading || transitionLoading)}
                 className={`px-4 py-2 flex items-center gap-1 text-gray-700 rounded-lg transition ml-auto 
                   bg-limeGreen 
-                  ${connectionError || loading ? "opacity-50 cursor-not-allowed" : "hover:bg-darkLimeGreen hover:text-white"} 
+                  ${connectionError || initLoading || transitionLoading ? "opacity-50 cursor-not-allowed" : "hover:bg-darkLimeGreen hover:text-white"} 
                   ${showShakeAnimation ? styles["animate-shake"] : ""}`}
               >
               {step === 0 ? "Start" : "Nästa"}
