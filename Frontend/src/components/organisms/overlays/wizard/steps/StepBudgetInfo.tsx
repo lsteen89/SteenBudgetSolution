@@ -14,7 +14,7 @@ import { ShieldCheck } from "lucide-react";
 import { motion } from "framer-motion";
 
 // Components, Hooks and assets
-import GlassPane from "./GlassPane";
+import GlassPane from "../../../../layout/GlassPane";
 import OptionContainer from "@components/molecules/containers/OptionContainer";
 import SalaryField from "@components/molecules/forms/SalaryField";
 import HouseholdMemberField from "@components/molecules/forms/HouseholdMemberField";
@@ -26,6 +26,7 @@ import coinsAnimation from "@assets/lottie/coins.json";
 import useFormValidation from "@hooks/wizard/useFormValidation";
 import useYearlyIncome from "@hooks/wizard/useYearlyIncome";
 import { useToast } from  "@context/ToastContext";
+import LoadingScreen from "@components/molecules/feedback/LoadingScreen";
 
 /**  Imperative handle for the parent */
 export interface StepBudgetInfoRef {
@@ -41,7 +42,7 @@ export interface StepBudgetInfoRef {
 interface StepBudgetInfoProps {
   setStepValid: (isValid: boolean) => void;
   wizardSessionId: string;
-  onSaveStepData: (stepNumber: number, data: any) => Promise<void>;
+  onSaveStepData: (stepNumber: number, data: any) => Promise<boolean>;
   stepNumber: number;
   initialData: any;
   onNext: () => void;
@@ -50,6 +51,7 @@ interface StepBudgetInfoProps {
   setShowSideIncome: (value: boolean) => void;
   showHouseholdMembers: boolean;
   setShowHouseholdMembers: (value: boolean) => void;
+  loading: boolean;
 }
 
 /**  Form Values Interface */
@@ -123,6 +125,7 @@ const StepBudgetInfo = forwardRef<StepBudgetInfoRef, StepBudgetInfoProps >(
       setShowSideIncome,
       showHouseholdMembers,
       setShowHouseholdMembers,
+      loading,
     },
     ref
   ) => {
@@ -409,9 +412,17 @@ const StepBudgetInfo = forwardRef<StepBudgetInfoRef, StepBudgetInfoProps >(
       openHouseholdMembers: () => setShowHouseholdMembers(true),
     }));
     console.log("errors:", errors); // Debugging
+    if (loading) {
+      return (
+        <GlassPane>
+          <LoadingScreen />
+        </GlassPane>
+      );
+    }
     // -------------------- Render --------------------
     return (
       <GlassPane>
+        
       <h3 className="text-3xl font-bold mb-6 text-darkLimeGreen text-center">
         Din ekonomi börjar här! 🚀
       </h3>

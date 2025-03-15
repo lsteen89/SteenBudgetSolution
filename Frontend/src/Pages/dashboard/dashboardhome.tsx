@@ -6,7 +6,7 @@ import DashboardBirdBackground from "@assets/Images/Background/DashboardBirdBack
 import { useNavigate } from 'react-router-dom';
 import useMediaQuery from '@hooks/useMediaQuery'
 import DashboardContent from "@components/organisms/pages/DashboardContent";
-import SetupWizard from "@components/organisms/overlays/SetupWizard";
+import SetupWizard from "@components/organisms/overlays/wizard/SetupWizard";
 import { AnimatePresence, motion } from "framer-motion";
 
 const Dashboard: React.FC = () => {
