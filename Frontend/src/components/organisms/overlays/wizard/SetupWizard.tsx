@@ -31,6 +31,9 @@ import { handleStepValidation  } from "@components/organisms/overlays/wizard/val
 // hooks
 import useSaveWizardStep from "@hooks/wizard/useSaveWizardStep";
 import useWizardInit from "@hooks/wizard/useWizardInit";
+//local display state
+import useBudgetInfoDisplayFlags from "@hooks/wizard/flagHooks/useBudgetInfoDisplayFlags";
+
 
 // Step configuration for icons & labels
 const steps = [
@@ -95,27 +98,17 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     //4: stepConfirmationRef,
   };
 
+  // State for local state
+  const { flags, setShowSideIncome, setShowHouseholdMembers } = useBudgetInfoDisplayFlags();
 
 
-  // State for showing side income and household members
-  const setShowSideIncome = (value: boolean) => {
-    setValues(prev => {
-      return { ...prev, showSideIncome: value };
-    });
-  };
-  const setShowHouseholdMembers = (value: boolean) => {
-    setValues(prev => {
-      return { ...prev, showHouseholdMembers: value };
-    });
-  };
-
-  const [values, setValues] = useState<FormValues>({ showSideIncome: false, showHouseholdMembers: false });
   
   // 6. Next / Previous Step Logic
   const nextStep = async () => {
     setTransitionLoading(true);
     // Validate step
-    const isStepValid = await handleStepValidation(step, stepRefs, setValues);
+    const isStepValid = await handleStepValidation(step, stepRefs, setShowSideIncome, setShowHouseholdMembers);
+    // If step is not valid, show shake animation
     if (!isStepValid) {
       setTransitionLoading(false);
       return;
@@ -270,9 +263,9 @@ console.log("Debug Mode:", isDebugMode);
                           initialData={wizardData[1]}
                           onNext={() => {}}
                           onPrev={() => {}}
-                          showSideIncome={values.showSideIncome}
+                          showSideIncome={flags.showSideIncome}
                           setShowSideIncome={setShowSideIncome}
-                          showHouseholdMembers={values.showHouseholdMembers}
+                          showHouseholdMembers={flags.showHouseholdMembers}
                           setShowHouseholdMembers={setShowHouseholdMembers}
                           loading={transitionLoading || initLoading}
                         />
