@@ -2,9 +2,9 @@ import React from "react";
 import { Banknote, PiggyBank, CreditCard, Flag, XCircle, ShieldCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@context/AuthProvider";
-import GlassPane from "./GlassPane";
+import GlassPane from "../../../../layout/GlassPane";
 import { useEffect } from "react";
-import LogoIcon from '@components/atoms/logo/LogoIcon';
+import LoadingScreen from "@components/molecules/feedback/LoadingScreen";
 
 interface StepWelcomeProps {
   connectionError: boolean;
@@ -21,10 +21,7 @@ const StepWelcome: React.FC<StepWelcomeProps> = ({ connectionError, failedAttemp
   if (loading) {
     return (
       <GlassPane>
-        <div className="flex flex-col items-center justify-center">
-          <LogoIcon className="animate-spin" />
-          <p className="text-white mt-4">Laddar...</p>
-        </div>
+        <LoadingScreen />
       </GlassPane>
     );
   }

@@ -9,32 +9,33 @@ import {
   Wallet,
   User,
   CheckCircle,
-  Settings,
+  CreditCard,
 } from "lucide-react";
 
 // Wizard-related API calls
 import { startWizard, saveWizardStep, getWizardData } from "@api/Services/wizard/wizardService";
-import { StartWizardResponse } from "@api/Services/wizard/wizardService";
 // Container for wizard step content (styling)
 import WizardStepContainer from "@components/molecules/containers/WizardStepContainer";
-
 // Individual step components
-import StepWelcome from "./steps/StepWelcome";
-import StepBudgetInfo, { StepBudgetInfoRef } from "./steps/StepBudgetInfo";
-import StepPersonalInfo from "./steps/StepPersonalInfo";
-import StepPreferences from "./steps/StepPreferences";
-import StepConfirmation from "./steps/StepConfirmation";
-
+import StepWelcome from "@components/organisms/overlays/wizard/steps/StepWelcome";
+import StepBudgetInfo, { StepBudgetInfoRef } from "@components/organisms/overlays/wizard/steps/StepBudgetInfo";
+import StepExpenditure, { StepExpenditureRef } from "@components/organisms/overlays/wizard/steps/StepExpenditure";
+import StepPreferences from "@components/organisms/overlays/wizard/steps/StepPreferences";
+import StepConfirmation from "@components/organisms/overlays/wizard/steps/StepConfirmation";
 // css
 import styles from "./SetupWizard.module.css";
-
 // Toast notification
 import { useToast } from  "@context/ToastContext";
+// Step validation
+import { handleStepValidation  } from "@components/organisms/overlays/wizard/validation/handleStepValidation";
+// hooks
+import useSaveWizardStep from "@hooks/wizard/useSaveWizardStep";
+
 // Step configuration for icons & labels
 const steps = [
   { icon: Wallet, label: "Inkomster" },
+  { icon: CreditCard, label: "Utgifter" },
   { icon: User, label: "Sparande" },
-  { icon: Settings, label: "Utgifter" },
   { icon: CheckCircle, label: "Bekräfta" },
 ];
 
@@ -61,6 +62,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
   // 3. State for wizard data, session
   const [wizardData, setWizardData] = useState<any>({});
   const [wizardSessionId, setWizardSessionId] = useState<string>("");
+  const { handleSaveStepData, isSaving, saveError } = useSaveWizardStep(wizardSessionId, setWizardData);
   // State for failed attempts to start wizard
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [connectionError, setConnectionError] = useState(false);
@@ -77,6 +79,17 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
 
   // 5. Refs to child steps
   const stepBudgetInfoRef = useRef<StepBudgetInfoRef>(null);
+  //const stepExpenditureRef = useRef<StepExpenditureRef>(null);
+  
+  // Refs for all steps 
+  const stepRefs: { [key: number]: React.RefObject<any> } = {
+    1: stepBudgetInfoRef,
+    //2: stepPreferencesRef,
+    //3: stepExpenditureRef,
+    //4: stepConfirmationRef,
+  };
+
+
 
   // State for showing side income and household members
   const setShowSideIncome = (value: boolean) => {
@@ -90,86 +103,39 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     });
   };
 
-  // If you need other steps to manage their own state & validation,
-  // create refs for them as well (e.g. stepPersonalInfoRef, etc.)
-
   const [values, setValues] = useState<FormValues>({ showSideIncome: false, showHouseholdMembers: false });
+  
   // 6. Next / Previous Step Logic
   const nextStep = async () => {
-    // Example check for Step 1: StepBudgetInfo
-    if (step === 1) {
-      // Mark all fields as touched so that validation errors are displayed
-      stepBudgetInfoRef.current?.markAllTouched();
-      // 1) Validate the child
-      const isValid = stepBudgetInfoRef.current?.validateFields();
+    setLoading(true);
+    // Validate step
+    const isStepValid = await handleStepValidation(step, stepRefs, setValues);
+    if (!isStepValid) {
+      setLoading(false);
+      return;
+    }
 
-      // Retrieve errors from the child using getErrors helper
-      const allErrors = stepBudgetInfoRef.current?.getErrors() || {};
-      const sideHustleErrorKeys = Object.keys(allErrors).filter(
-        (key) => key.startsWith("sideHustle") || key.startsWith("frequency")
-      );
-
-      if (sideHustleErrorKeys.length > 0) {
-        flushSync(() => {
-          setShowSideIncome(true);
-        });
-      }
-
-      // do same for household members
-      const householdMemberErrorKeys = Object.keys(allErrors).filter(
-        (key) => key.startsWith("memberName") || key.startsWith("memberIncome") || key.startsWith("memberFrequency")
-      );
-      if (householdMemberErrorKeys.length > 0) {
-        flushSync(() => {
-          setShowHouseholdMembers(true);
-        });
-      }
-
-      if (!isValid) {
-        setIsStepValid(false);
-
-        // Show shake effect & toast
-        setShowShakeAnimation(true);
-        setTimeout(() => setShowShakeAnimation(false), 500);
-        showToast(
-          <>
-            🚨 Du måste fylla i alla <strong>obligatoriska fält</strong> innan du kan fortsätta.
-          </>,
-          "error"
-        );
+    // Save data
+    const stepRef = stepRefs[step];
+    if (stepRef?.current) {
+      const data = stepRef.current.getStepData();
+      if (data) {
+        const saveSuccess = await handleSaveStepData(step, data);
+        if (!saveSuccess) {
+          setLoading(false);
+          showToast("🚨 Ett fel uppstod – försök igen eller kontakta support.", "error");
           return;
         }
-
-      // 2) If valid, gather the child's data
-      const data = stepBudgetInfoRef.current?.getStepData();
-      if (data) {
-        // 3) Save partial data to backend
-        await handleSaveStepData(step, data);
       }
     }
-
-    // If not on Step 1, or after Step 1 is validated/saved, go to next
+    // Move to next step
     setStep((prev) => Math.min(prev + 1, totalSteps));
+    setLoading(false);
   };
 
+  // 7. Previous Step Logic
   const prevStep = () => {
     setStep((prev) => Math.max(prev - 1, 0));
-  };
-
-  // 7. Partial save function
-  const handleSaveStepData = async (stepNumber: number, data: any) => {
-    try {
-      console.log("Saving step data:", stepNumber, data);
-      await saveWizardStep(wizardSessionId, stepNumber, data);
-      // Merge partial data into local wizardData
-      setWizardData((prev: any) => ({
-        ...prev,
-        [stepNumber]: data,
-      }));
-      setIsStepValid(true); // Mark step as valid after successful save
-    } catch (error) {
-      console.error("Error saving wizard step:", error);
-    }
   };
 
   // 8. On mount, start (or resume) the wizard
@@ -177,7 +143,10 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     setLoading(true);
   
     if (failedAttempts >= 3) {
+      // Show error message and disable further attempts
+      if(failedAttempts === 3) {
       showToast("🚨 Kontakt support – för många misslyckade försök.", "error");
+      }
       setLoading(false);
       return;
     }
@@ -269,9 +238,9 @@ console.log("Debug Mode:", isDebugMode);
                 <span className="font-semibold text-blue-600"> inkomster</span>
               </>
             ) : step === 2 ? (
-              "Steg 2: Sparande"
+              "Steg 2: Utgifter"
             ) : step === 3 ? (
-              "Steg 3: Utgifter"
+              "Steg 3: Sparande"
             ) : step === 4 ? (
               "Steg 4: Bekräfta"
             ) : (
@@ -354,9 +323,10 @@ console.log("Debug Mode:", isDebugMode);
                         setShowSideIncome={setShowSideIncome}
                         showHouseholdMembers={values.showHouseholdMembers}
                         setShowHouseholdMembers={setShowHouseholdMembers}
+                        loading={loading}
                       />
                     )}
-                    {step === 2 && <StepPersonalInfo />}
+                    {step === 2 && <StepPreferences />}
                     {step === 3 && <StepPreferences />}
                     {step === 4 && <StepConfirmation />}
                   </>
