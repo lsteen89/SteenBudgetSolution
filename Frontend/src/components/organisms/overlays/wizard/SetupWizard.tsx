@@ -15,7 +15,7 @@ import WizardStepContainer from "@components/molecules/containers/WizardStepCont
 // Individual step components
 import StepWelcome from "@components/organisms/overlays/wizard/steps/StepWelcome";
 import StepBudgetIncome, { StepBudgetIncomeRef } from "@components/organisms/overlays/wizard/steps/StepBudgetIncome1/StepBudgetIncome";
-import StepExpenditure, { StepExpenditureRef } from "@components/organisms/overlays/wizard/steps/StepExpenditure";
+import StepExpenditure, { StepExpenditureRef } from "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/StepBudgetExpenditure";
 import StepPreferences from "@components/organisms/overlays/wizard/steps/StepPreferences";
 import StepConfirmation from "@components/organisms/overlays/wizard/steps/StepConfirmation";
 // css
