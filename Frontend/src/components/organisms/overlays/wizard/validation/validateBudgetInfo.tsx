@@ -1,6 +1,6 @@
 import { flushSync } from "react-dom";
 
-export const validateStepBudgetInfo = (
+export const validateStepBudgetIncome = (
   stepRef: any,
   setShowSideIncome: (value: boolean) => void,
   setShowHouseholdMembers: (value: boolean) => void,
