@@ -16,9 +16,9 @@ import { motion } from "framer-motion";
 // Components, Hooks and assets
 import GlassPane from "../../../../../layout/GlassPane";
 import OptionContainer from "@components/molecules/containers/OptionContainer";
-import SalaryField from "@components/organisms/overlays/wizard/steps/StepBudgetIncome1/SalaryField";
-import HouseholdMemberField from "@components/organisms/overlays/wizard/steps/StepBudgetIncome1/HouseholdMemberField";
-import SideHustleField from "@components/organisms/overlays/wizard/steps/StepBudgetIncome1/SideHustleField";
+import SalaryField from "@components/organisms/overlays/wizard/steps/StepBudgetIncome1/Components/SalaryField";
+import HouseholdMemberField from "@components/organisms/overlays/wizard/steps/StepBudgetIncome1/Components/HouseholdMemberField";
+import SideHustleField from "@components/organisms/overlays/wizard/steps/StepBudgetIncome1/Components/SideHustleField";
 import RemovalButton from "@components/atoms/buttons/RemovalButton";
 import AcceptButton from "@components/atoms/buttons/AcceptButton";
 import HelpSection from "@components/molecules/helptexts/HelpSection";
