@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useRef, ReactNode } from "react";
-import ReactDOM from "react-dom";
-import { flushSync } from 'react-dom';
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft,
@@ -12,8 +10,6 @@ import {
   CreditCard,
 } from "lucide-react";
 
-// Wizard-related API calls
-import { startWizard, saveWizardStep, getWizardData } from "@api/Services/wizard/wizardService";
 // Container for wizard step content (styling)
 import WizardStepContainer from "@components/molecules/containers/WizardStepContainer";
 // Individual step components
@@ -33,16 +29,11 @@ import useSaveWizardStep from "@hooks/wizard/useSaveWizardStep";
 import useWizardInit from "@hooks/wizard/useWizardInit";
 //local display state
 import useBudgetInfoDisplayFlags from "@hooks/wizard/flagHooks/useBudgetInfoDisplayFlags";
+// Header import
+import WizardHeading from "@components/organisms/overlays/wizard/layout/WizardHeading";
+import WizardProgress from "@components/organisms/overlays/wizard/layout/WizardProgress";
 
-
-// Step configuration for icons & labels
-const steps = [
-  { icon: Wallet, label: "Inkomster" },
-  { icon: CreditCard, label: "Utgifter" },
-  { icon: User, label: "Sparande" },
-  { icon: CheckCircle, label: "Bekräfta" },
-];
-
+// ---------------------------- TYPES ----------------------------
 interface SetupWizardProps {
   onClose: () => void;
 }
@@ -52,7 +43,13 @@ interface FormValues {
   showHouseholdMembers: boolean;
 }
 
+// ---------------------------- COMPONENT ----------------------------
 const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
+
+  // Handler for clicking an icon to navigate to a step
+  const handleStepClick = (targetStep: number) => {
+    setStep(targetStep);
+  };
 
   // 1. Handling wizard closure
   const handleWizardClose = () => {
@@ -71,17 +68,30 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     failedAttempts,
     connectionError,
     initWizard,
+    initialStep,
   } = useWizardInit();
 
   const { handleSaveStepData, isSaving, saveError } = useSaveWizardStep(wizardSessionId || '', (data) => {});
-
 
   // loading state
   const [transitionLoading, setTransitionLoading] = useState(false);
 
   // 4. Step & validation
-  const [step, setStep] = useState<number>(0);
-  const totalSteps = steps.length;
+  // Initialize wizard step from server data (if available)
+  const [step, setStep] = useState(0);
+  useEffect(() => {
+    if (initialStep > 0) {
+      setStep(initialStep);
+    }
+  }, [initialStep]);
+  // Total steps and step data
+  const totalSteps = 4;
+  const steps = [
+    { icon: Wallet, label: "Inkomster" },
+    { icon: CreditCard, label: "Utgifter" },
+    { icon: User, label: "Sparande" },
+    { icon: CheckCircle, label: "Bekräfta" },
+  ];
   const [isStepValid, setIsStepValid] = useState(true);
   const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({});
   const isDebugMode = process.env.NODE_ENV === 'development';
@@ -101,8 +111,6 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
   // State for local state
   const { flags, setShowSideIncome, setShowHouseholdMembers } = useBudgetInfoDisplayFlags();
 
-
-  
   // 6. Next / Previous Step Logic
   const nextStep = async () => {
     setTransitionLoading(true);
@@ -120,7 +128,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
       const data = stepRef.current.getStepData();
       if (data) {
         const saveSuccess = await handleSaveStepData(step, data);
-        if (!saveSuccess) {
+        if (!saveSuccess && !isDebugMode) {
           setTransitionLoading(false);
           showToast("🚨 Ett fel uppstod – försök igen eller kontakta support.", "error");
           return;
@@ -136,7 +144,6 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
   const prevStep = () => {
     setStep((prev) => Math.max(prev - 1, 0));
   };
-
   //    Otherwise, default to "not valid" until validated
   useEffect(() => {
     if (step === 0) {
@@ -145,6 +152,8 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
       setIsStepValid(false);
     }
   }, [step]);
+
+
 console.log("Debug Mode:", isDebugMode);
   // ---------------------------- RENDER ----------------------------
   return (
@@ -166,66 +175,13 @@ console.log("Debug Mode:", isDebugMode);
             <X size={24} />
           </button>
 
-          {/* Heading logic */}
-          <h2 className="text-2xl font-bold text-gray-800 mb-4 text-center">
-            {step === 0 ? (
-              <>
-                Välkommen till{" "}
-                <span className="font-extrabold text-darkLimeGreen underline text-3xl drop-shadow-md">
-                  eBudget
-                </span>
-              </>
-            ) : step === 1 ? (
-              <>
-                Steg 1: Vad har du för{" "}
-                <span className="font-semibold text-blue-600"> inkomster</span>
-              </>
-            ) : step === 2 ? (
-              "Steg 2: Utgifter"
-            ) : step === 3 ? (
-              "Steg 3: Sparande"
-            ) : step === 4 ? (
-              "Steg 4: Bekräfta"
-            ) : (
-              "Setup Wizard"
-            )}
-          </h2>
-
-          {/* Progress Indicator */}
-          <div className="relative flex items-center justify-between mb-6">
-            {/* Background line */}
-            <div className="absolute top-1/2 left-0 w-full h-1 bg-gray-300 z-0 transform -translate-y-1/2">
-              <motion.div
-                className="h-full bg-darkLimeGreen"
-                initial={{ width: "0%" }}
-                animate={{ width: step > 0 ? `${(step / totalSteps) * 100}%` : "0%" }}
-                transition={{ duration: 0.3 }}
-              />
-            </div>
-            {steps.map((item, index) => (
-              <div
-                key={index}
-                className="relative z-10 flex flex-col items-center w-1/4"
-              >
-                <div
-                  className={`flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 ${
-                    step > index
-                      ? "bg-darkLimeGreen text-white"
-                      : step === index
-                      ? "bg-gray-300 text-gray-700"
-                      : "bg-gray-300 text-gray-700"
-                  }`}
-                >
-                  <item.icon size={20} />
-                </div>
-                <span className="mt-2 text-sm font-medium text-gray-800">
-                  {item.label}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          {/* STEP CONTENT */}
+          <WizardHeading step={step} />
+            <WizardProgress
+            step={step}
+            totalSteps={totalSteps}
+            steps={steps}
+            onStepClick={handleStepClick}
+          />
           <AnimatePresence mode="wait">
             <motion.div
               key={step}
@@ -233,12 +189,7 @@ console.log("Debug Mode:", isDebugMode);
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -50 }}
               transition={{ duration: 0.3 }}
-              className="mb-6 text-center text-gray-700 
-                h-[60vh] 
-                md:h-[70vh]
-                lg:h-auto
-                overflow-y-auto
-              "
+              className="mb-6 text-center text-gray-700 h-[60vh] md:h-[70vh] lg:h-auto overflow-y-auto"
             >
               <WizardStepContainer>
                 
@@ -253,11 +204,11 @@ console.log("Debug Mode:", isDebugMode);
                 ) : (
                   <>
                     {step === 1 && (
-                      wizardSessionId ? (
+                      (wizardSessionId || isDebugMode) ? (
                         <StepBudgetInfo
                           ref={stepBudgetInfoRef}
                           setStepValid={setIsStepValid}
-                          wizardSessionId={wizardSessionId}
+                          wizardSessionId={wizardSessionId || ''}
                           onSaveStepData={handleSaveStepData}
                           stepNumber={1}
                           initialData={wizardData[1]}
@@ -270,7 +221,7 @@ console.log("Debug Mode:", isDebugMode);
                           loading={transitionLoading || initLoading}
                         />
                       ) : (
-                        <p>Error: No wizard session available.</p>
+                        <p>Tekniskt fel!</p>
                       )
                     )}
                     {step === 2 && <StepPreferences />}
