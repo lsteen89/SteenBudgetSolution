@@ -14,7 +14,7 @@ import {
 import WizardStepContainer from "@components/molecules/containers/WizardStepContainer";
 // Individual step components
 import StepWelcome from "@components/organisms/overlays/wizard/steps/StepWelcome";
-import StepBudgetInfo, { StepBudgetInfoRef } from "@components/organisms/overlays/wizard/steps/StepBudgetInfo";
+import StepBudgetIncome, { StepBudgetIncomeRef } from "@components/organisms/overlays/wizard/steps/StepBudgetIncome1/StepBudgetIncome";
 import StepExpenditure, { StepExpenditureRef } from "@components/organisms/overlays/wizard/steps/StepExpenditure";
 import StepPreferences from "@components/organisms/overlays/wizard/steps/StepPreferences";
 import StepConfirmation from "@components/organisms/overlays/wizard/steps/StepConfirmation";
@@ -97,12 +97,12 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
   const isDebugMode = process.env.NODE_ENV === 'development';
 
   // 5. Refs to child steps
-  const stepBudgetInfoRef = useRef<StepBudgetInfoRef>(null);
+  const StepBudgetIncomeRef = useRef<StepBudgetIncomeRef>(null);
   //const stepExpenditureRef = useRef<StepExpenditureRef>(null);
   
   // Refs for all steps 
   const stepRefs: { [key: number]: React.RefObject<any> } = {
-    1: stepBudgetInfoRef,
+    1: StepBudgetIncomeRef,
     //2: stepPreferencesRef,
     //3: stepExpenditureRef,
     //4: stepConfirmationRef,
@@ -205,8 +205,8 @@ console.log("Debug Mode:", isDebugMode);
                   <>
                     {step === 1 && (
                       (wizardSessionId || isDebugMode) ? (
-                        <StepBudgetInfo
-                          ref={stepBudgetInfoRef}
+                        <StepBudgetIncome
+                          ref={StepBudgetIncomeRef}
                           setStepValid={setIsStepValid}
                           wizardSessionId={wizardSessionId || ''}
                           onSaveStepData={handleSaveStepData}

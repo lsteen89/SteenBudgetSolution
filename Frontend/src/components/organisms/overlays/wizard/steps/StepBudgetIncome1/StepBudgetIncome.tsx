@@ -14,11 +14,11 @@ import { ShieldCheck } from "lucide-react";
 import { motion } from "framer-motion";
 
 // Components, Hooks and assets
-import GlassPane from "../../../../layout/GlassPane";
+import GlassPane from "../../../../../layout/GlassPane";
 import OptionContainer from "@components/molecules/containers/OptionContainer";
-import SalaryField from "@components/molecules/forms/SalaryField";
-import HouseholdMemberField from "@components/molecules/forms/HouseholdMemberField";
-import SideHustleField from "@components/molecules/forms/SideHustleField";
+import SalaryField from "@components/organisms/overlays/wizard/steps/StepBudgetIncome1/SalaryField";
+import HouseholdMemberField from "@components/organisms/overlays/wizard/steps/StepBudgetIncome1/HouseholdMemberField";
+import SideHustleField from "@components/organisms/overlays/wizard/steps/StepBudgetIncome1/SideHustleField";
 import RemovalButton from "@components/atoms/buttons/RemovalButton";
 import AcceptButton from "@components/atoms/buttons/AcceptButton";
 import HelpSection from "@components/molecules/helptexts/HelpSection";
@@ -29,7 +29,7 @@ import { useToast } from  "@context/ToastContext";
 import LoadingScreen from "@components/molecules/feedback/LoadingScreen";
 
 /**  Imperative handle for the parent */
-export interface StepBudgetInfoRef {
+export interface StepBudgetIncomeRef {
   validateFields: () => boolean;
   getStepData: () => any;
   markAllTouched: () => void;
@@ -39,7 +39,7 @@ export interface StepBudgetInfoRef {
 }
 
 /**  Props */
-interface StepBudgetInfoProps {
+interface StepBudgetIncomeProps {
   setStepValid: (isValid: boolean) => void;
   wizardSessionId: string;
   onSaveStepData: (stepNumber: number, data: any) => Promise<boolean>;
@@ -111,7 +111,7 @@ function calculateYearlyIncome(income: number, frequency: string): number {
   return total;
 }
 
-const StepBudgetInfo = forwardRef<StepBudgetInfoRef, StepBudgetInfoProps >(
+const StepBudgetIncome = forwardRef<StepBudgetIncomeRef, StepBudgetIncomeProps  >(
   (
     {
       setStepValid,
@@ -773,4 +773,4 @@ const StepBudgetInfo = forwardRef<StepBudgetInfoRef, StepBudgetInfoProps >(
   }
 );
 
-export default StepBudgetInfo;
+export default StepBudgetIncome;

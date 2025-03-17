@@ -1,4 +1,4 @@
-import { validateStepBudgetInfo } from "@components/organisms/overlays/wizard/validation/validateBudgetInfo";
+import { validateStepBudgetIncome } from "@components/organisms/overlays/wizard/validation/validateBudgetInfo";
 import { validateStepExpenditure } from "@components/organisms/overlays/wizard/validation/validateStepExpenditure";
 
 export const handleStepValidation = async (
@@ -13,7 +13,7 @@ export const handleStepValidation = async (
   let isValid = false;
   switch (step) {
     case 1:
-      isValid = validateStepBudgetInfo(stepRef, setShowSideIncome, setShowHouseholdMembers);
+      isValid = validateStepBudgetIncome(stepRef, setShowSideIncome, setShowHouseholdMembers);
       break;
     case 2:
       isValid = validateStepExpenditure(stepRef);
