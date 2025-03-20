@@ -11,9 +11,19 @@ interface WizardProgressProps {
   totalSteps: number;
   steps: WizardStep[];
   onStepClick: (step: number) => void;
+  adjustProgress?: boolean; // Adjust progress bar width. Default value 12 is optimized for 4 steps in setup wizard
 }
 
-const WizardProgress: React.FC<WizardProgressProps> = ({ step, totalSteps, steps, onStepClick }) => {
+const WizardProgress: React.FC<WizardProgressProps> = ({
+  step,
+  totalSteps,
+  steps,
+  onStepClick,
+  adjustProgress = false, // Default to false
+}) => {
+
+  const adjustmentValue = adjustProgress ? -5 : -12; 
+
   return (
     <div className="relative flex items-center justify-between mb-6">
       {/* Background line */}
@@ -21,7 +31,9 @@ const WizardProgress: React.FC<WizardProgressProps> = ({ step, totalSteps, steps
         <motion.div
           className="h-full bg-darkLimeGreen"
           initial={{ width: "0%" }}
-          animate={{ width: step > 0 ? `${(step / totalSteps) * 100 - 12}%` : "0%" }}
+          animate={{
+            width: step > 0 ? `${(step / totalSteps) * 100 + adjustmentValue}%` : "0%",
+          }}
           transition={{ duration: 0.3 }}
         />
       </div>

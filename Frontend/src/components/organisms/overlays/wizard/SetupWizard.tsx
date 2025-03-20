@@ -15,11 +15,11 @@ import WizardStepContainer from "@components/molecules/containers/WizardStepCont
 // Individual step components
 import StepWelcome from "@components/organisms/overlays/wizard/steps/StepWelcome";
 import StepBudgetIncome, { StepBudgetIncomeRef } from "@components/organisms/overlays/wizard/steps/StepBudgetIncome1/StepBudgetIncome";
-import StepExpenditure, { StepExpenditureRef } from "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/StepBudgetExpenditure";
+import StepExpenditure, { StepBudgetExpenditureRef } from "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/StepBudgetExpenditure";
 import StepPreferences from "@components/organisms/overlays/wizard/steps/StepPreferences";
 import StepConfirmation from "@components/organisms/overlays/wizard/steps/StepConfirmation";
-// css
-import styles from "./SetupWizard.module.css";
+// Navigation buttons
+import WizardNavigationButtons from "@components/organisms/overlays/wizard/SharedComponents/WizardNavigationButtons";
 // Toast notification
 import { useToast } from  "@context/ToastContext";
 // Step validation
@@ -27,12 +27,13 @@ import { handleStepValidation  } from "@components/organisms/overlays/wizard/val
 // hooks
 import useSaveWizardStep from "@hooks/wizard/useSaveWizardStep";
 import useWizardInit from "@hooks/wizard/useWizardInit";
+import useMediaQuery from "@hooks/useMediaQuery";
 //local display state
 import useBudgetInfoDisplayFlags from "@hooks/wizard/flagHooks/useBudgetInfoDisplayFlags";
 // Header import
 import WizardHeading from "@components/organisms/overlays/wizard/layout/WizardHeading";
 import WizardProgress from "@components/organisms/overlays/wizard/layout/WizardProgress";
-
+import AnimatedContent from "@components/atoms/wrappers/AnimatedContent";
 // ---------------------------- TYPES ----------------------------
 interface SetupWizardProps {
   onClose: () => void;
@@ -59,7 +60,11 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
   // 2. Styles and toast 
   const [showShakeAnimation, setShowShakeAnimation] = useState(false);
   const { showToast } = useToast();
-
+  // Helper function to trigger shake animation
+  const triggerShakeAnimation = (duration = 1000) => {
+    setShowShakeAnimation(true);
+    setTimeout(() => setShowShakeAnimation(false), duration);
+  };
   // 3. State for wizard data, session
   const {
     loading: initLoading,
@@ -85,6 +90,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     }
   }, [initialStep]);
   // Total steps and step data
+  const expenidtureInitialStep = 0;
   const totalSteps = 4;
   const steps = [
     { icon: Wallet, label: "Inkomster" },
@@ -98,12 +104,12 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
 
   // 5. Refs to child steps
   const StepBudgetIncomeRef = useRef<StepBudgetIncomeRef>(null);
-  //const stepExpenditureRef = useRef<StepExpenditureRef>(null);
+  const StepBudgetExpenditureRef = useRef<StepBudgetExpenditureRef>(null);
   
   // Refs for all steps 
   const stepRefs: { [key: number]: React.RefObject<any> } = {
     1: StepBudgetIncomeRef,
-    //2: stepPreferencesRef,
+    2: StepBudgetExpenditureRef,
     //3: stepExpenditureRef,
     //4: stepConfirmationRef,
   };
@@ -118,6 +124,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     const isStepValid = await handleStepValidation(step, stepRefs, setShowSideIncome, setShowHouseholdMembers);
     // If step is not valid, show shake animation
     if (!isStepValid) {
+      triggerShakeAnimation();
       setTransitionLoading(false);
       return;
     }
@@ -153,11 +160,14 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     }
   }, [step]);
 
+  // media query for small screens
+  const isMobile = useMediaQuery('(max-width: 1367px)');
+
 
 console.log("Debug Mode:", isDebugMode);
   // ---------------------------- RENDER ----------------------------
   return (
-    <div className="fixed inset-0 z-[2000] overflow-y-auto w-full h-full">
+    <div className="fixed inset-0 z-[2000] overflow-y-auto w-full h-full ">
       <div className="flex items-center justify-center bg-black bg-opacity-50 min-h-screen py-10">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -174,24 +184,23 @@ console.log("Debug Mode:", isDebugMode);
           >
             <X size={24} />
           </button>
-
-          <WizardHeading step={step} />
+          <WizardHeading step={step} type="wizard" />
             <WizardProgress
             step={step}
             totalSteps={totalSteps}
             steps={steps}
             onStepClick={handleStepClick}
           />
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={step}
-              initial={{ opacity: 0, x: 50 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -50 }}
-              transition={{ duration: 0.3 }}
-              className="mb-6 text-center text-gray-700 h-[60vh] md:h-[70vh] lg:h-auto overflow-y-auto"
-            >
-              <WizardStepContainer>
+          <AnimatedContent animationKey={step} className="mb-6 text-center text-gray-700 h-[60vh] md:h-[70vh] lg:h-auto overflow-y-auto">
+              <WizardStepContainer
+                className={
+                  step === 2
+                    ? isMobile
+                      ? "max-w-lg"  // normal width on mobile
+                      : "max-w-5xl" // bigger width on larger screens
+                    : ""
+                }
+              >
                 
                 {step === 0 ? (
                   // Step 0: Welcome
@@ -224,42 +233,39 @@ console.log("Debug Mode:", isDebugMode);
                         <p>Tekniskt fel!</p>
                       )
                     )}
-                    {step === 2 && <StepPreferences />}
+                    {step === 2 && <StepExpenditure 
+                      ref={StepBudgetExpenditureRef}
+                      setStepValid={setIsStepValid}
+                      wizardSessionId={wizardSessionId || ''}
+                      onSaveStepData={handleSaveStepData}
+                      stepNumber={2}
+                      initialData={wizardData[2]}
+                      onNext={() => {}}
+                      onPrev={() => {}}
+                      loading={transitionLoading || initLoading}
+                      expenidtureInitialStep={expenidtureInitialStep}
+                    
+                    />}
                     {step === 3 && <StepPreferences />}
                     {step === 4 && <StepConfirmation />}
                   </>
                 )}
                 
               </WizardStepContainer>
-            </motion.div>
-          </AnimatePresence>
+
+            </AnimatedContent>
 
           {/* NAVIGATION BUTTONS (BOTTOM) */}
-          <div className="flex justify-between">
-            {step > 0 && (
-              <button
-                type="button"
-                onClick={prevStep}
-                className="px-4 py-2 flex items-center gap-1 bg-limeGreen text-gray-700 rounded-lg hover:bg-customBlue2 transition"
-              >
-                <ChevronLeft size={18} />
-                Tillbaka
-              </button>
-            )}
-            {/* Next Button with Toast Integration */}
-              <button
-                type="button"
-                onClick={() => {nextStep();}}
-                disabled={!isDebugMode && (connectionError || initLoading || transitionLoading)}
-                className={`px-4 py-2 flex items-center gap-1 text-gray-700 rounded-lg transition ml-auto 
-                  bg-limeGreen 
-                  ${connectionError || initLoading || transitionLoading ? "opacity-50 cursor-not-allowed" : "hover:bg-darkLimeGreen hover:text-white"} 
-                  ${showShakeAnimation ? styles["animate-shake"] : ""}`}
-              >
-              {step === 0 ? "Start" : "Nästa"}
-              <ChevronRight size={18} />
-            </button>
-          </div>
+          <WizardNavigationButtons
+          step={step}
+          prevStep={prevStep}
+          nextStep={nextStep}
+          connectionError={connectionError}
+          initLoading={initLoading}
+          transitionLoading={transitionLoading}
+          isDebugMode={isDebugMode}
+          showShakeAnimation={showShakeAnimation}
+        />
         </motion.div>
       </div>
     </div>
