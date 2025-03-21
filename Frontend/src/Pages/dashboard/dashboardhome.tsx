@@ -8,6 +8,7 @@ import useMediaQuery from '@hooks/useMediaQuery'
 import DashboardContent from "@components/organisms/pages/DashboardContent";
 import SetupWizard from "@components/organisms/overlays/wizard/SetupWizard";
 import { AnimatePresence, motion } from "framer-motion";
+import LoadingScreen from "@components/molecules/feedback/LoadingScreen";
 
 const Dashboard: React.FC = () => {
 
@@ -39,7 +40,7 @@ const Dashboard: React.FC = () => {
   console.log("User Data:", auth?.user?.firstName, auth?.user?.lastName, auth?.user?.email);  
 
   if (auth.isLoading) { // Use auth.isLoading
-    return <div>Loading...</div>; // Display loading message
+    return <LoadingScreen/>; // Display loading message
   }
   return (
     <PageContainer className="md:px-20 items-center min-h-screen overflow-y-auto h-full">
