@@ -46,7 +46,7 @@ const StepCarousel: React.FC<StepCarouselProps> = ({
             targetOpacity = 1;
           } else if (Math.abs(diff) === 1) {
             targetScale = 0.5;
-            targetOpacity = 0.8;
+            targetOpacity = 0.2;
           }
 
           return (
