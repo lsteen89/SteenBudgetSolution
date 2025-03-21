@@ -6,9 +6,6 @@ import type { AuthState, AuthContextType } from "../types/authTypes";
 import type { UserDto } from "../types/UserDto";
 
 const AuthContext = createContext<AuthContextType | null>(null);
-// Delay timer
-const [wsEnabled, setWsEnabled] = useState(false);
-
 
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
@@ -23,7 +20,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     firstTimeLogin: false, 
     user: undefined,
   });
-
+// Delay timer
+const [wsEnabled, setWsEnabled] = useState(false);
   useEffect(() => {
     if (authState.authenticated) {
       // Delay enabling WebSocket connection to allow auth state to stabilize
