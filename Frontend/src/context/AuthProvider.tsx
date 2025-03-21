@@ -23,46 +23,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   console.log("AuthProvider component rendering...");
 
-  // For development, force auth and wizard state:
-  useEffect(() => {
-    if (import.meta.env.MODE === "development") {
-      setAuthState({
-        authenticated: true,
-        isLoading: false,
-        firstTimeLogin: true,
-      });
-    } else {
-      // Production logic here (e.g., fetch auth state from your API)
-      setAuthState({
-        authenticated: false,
-        isLoading: false,
-        firstTimeLogin: false,
-      });
-    }
-  }, []);
-
-  // Determine WebSocket URL based on environment.
-  const websocketUrl =
-    import.meta.env.MODE === "development"
-      ? "ws://localhost:5000/ws/auth"
-      : "wss://ebudget.se/ws/auth";
-
-  // Initialize the WebSocket hook only when authenticated.
-  useWebSocket(websocketUrl, {
-    enabled: authState.authenticated,
-    maxAttempts: 3,
-    reconnectInterval: 5000,
-    onOpen: () => console.log("AuthProvider: WebSocket connected."),
-    onMessage: (event) => {
-      console.log("AuthProvider: WS message:", event.data);
-      if (event.data === "logout" || event.data === "session-expired") {
-        setAuthState({ authenticated: false, isLoading: false, firstTimeLogin: false });
-      }
-    },
-    onError: (error) => console.error("AuthProvider: WebSocket error:", error),
-    onClose: () => console.log("AuthProvider: WebSocket closed."),
-  });
-
   // Fetch auth status from the API
   const fetchAuthStatus = useCallback(async () => {
     try {
@@ -85,6 +45,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setAuthState({ authenticated: false, isLoading: false, firstTimeLogin: false });
     }
   }, []);
+  
+  // For development, force auth and wizard state:
+  useEffect(() => {
+    if (import.meta.env.MODE === "development") {
+      // Dev: immediately authenticated
+      setAuthState({
+        authenticated: true,
+        isLoading: false,
+        firstTimeLogin: true,
+      });
+    } else {
+      // Production: set isLoading=true (not false),
+      // so we don't toggle from false->true quickly.
+      setAuthState({
+        authenticated: false, // or just keep it false 
+        isLoading: true,      // but the key is "loading=true"
+        firstTimeLogin: false,
+      });
+      // Then fetch real auth state:
+      fetchAuthStatus();
+    }
+  }, [fetchAuthStatus]);
+
+  // Determine WebSocket URL based on environment.
+  const websocketUrl =
+    import.meta.env.MODE === "development"
+      ? "ws://localhost:5000/ws/auth"
+      : "wss://ebudget.se/ws/auth";
+
+  // Initialize the WebSocket hook only when authenticated.
+  useWebSocket(websocketUrl, {
+    enabled: authState.authenticated,
+    maxAttempts: 3,
+    reconnectInterval: 5000,
+    onOpen: () => console.log("AuthProvider: WebSocket connected."),
+    onMessage: (event) => {
+      console.log("AuthProvider: WS message:", event.data);
+      if (event.data === "logout" || event.data === "session-expired") {
+        setAuthState({ authenticated: false, isLoading: false, firstTimeLogin: false });
+      }
+    },
+    onError: (error) => console.error("AuthProvider: WebSocket error:", error),
+    onClose: () => console.log("AuthProvider: WebSocket closed."),
+  });
 
   // Logout function
   const logout = useCallback(async () => {
