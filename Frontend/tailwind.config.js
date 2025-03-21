@@ -4,6 +4,7 @@ module.exports = {
     "./src/**/*.{js,jsx,ts,tsx,html}", 
 	"./src/styles/animations.css",
   ],
+  safelist: ['max-w-lg', 'max-w-5xl'],
   theme: {
     extend: {
 		screens: {

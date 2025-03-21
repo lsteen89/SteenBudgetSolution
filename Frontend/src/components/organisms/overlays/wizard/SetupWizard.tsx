@@ -192,68 +192,69 @@ console.log("Debug Mode:", isDebugMode);
             onStepClick={handleStepClick}
           />
           <AnimatedContent animationKey={step} className="mb-6 text-center text-gray-700 h-[60vh] md:h-[70vh] lg:h-auto overflow-y-auto">
-              <WizardStepContainer
-                className={
-                  step === 2
-                    ? isMobile
-                      ? "max-w-lg"  // normal width on mobile
-                      : "max-w-5xl" // bigger width on larger screens
-                    : ""
-                }
-              >
+          <WizardStepContainer
+            disableDefaultWidth={step === 2} // disable default for step 2
+            className={
+              step === 2
+                ? isMobile
+                  ? "max-w-lg"  // normal width on mobile
+                  : "max-w-4xl" // bigger width on larger screens
+                : ""
+            }
+            >
                 
-                {step === 0 ? (
-                  // Step 0: Welcome
-                  <StepWelcome
-                    connectionError={connectionError}
-                    failedAttempts={failedAttempts}
+              {step === 0 ? (
+                // Step 0: Welcome
+                <StepWelcome
+                  connectionError={connectionError}
+                  failedAttempts={failedAttempts}
+                  loading={transitionLoading || initLoading}
+                  onRetry={initWizard}
+                />
+              ) : (
+                <>
+                  {step === 1 && (
+                    (wizardSessionId || isDebugMode) ? (
+                      <StepBudgetIncome
+                        ref={StepBudgetIncomeRef}
+                        setStepValid={setIsStepValid}
+                        wizardSessionId={wizardSessionId || ''}
+                        onSaveStepData={handleSaveStepData}
+                        stepNumber={1}
+                        initialData={wizardData[1]}
+                        onNext={() => {}}
+                        onPrev={() => {}}
+                        showSideIncome={flags.showSideIncome}
+                        setShowSideIncome={setShowSideIncome}
+                        showHouseholdMembers={flags.showHouseholdMembers}
+                        setShowHouseholdMembers={setShowHouseholdMembers}
+                        loading={transitionLoading || initLoading}
+                      />
+                    ) : (
+                      <p>Tekniskt fel!</p>
+                    )
+                  )}
+                  {step === 2 && <StepExpenditure 
+                    ref={StepBudgetExpenditureRef}
+                    setStepValid={setIsStepValid}
+                    wizardSessionId={wizardSessionId || ''}
+                    onSaveStepData={handleSaveStepData}
+                    stepNumber={2}
+                    initialData={wizardData[2]}
+                    onNext={() => {}}
+                    onPrev={() => {}}
                     loading={transitionLoading || initLoading}
-                    onRetry={initWizard}
-                  />
-                ) : (
-                  <>
-                    {step === 1 && (
-                      (wizardSessionId || isDebugMode) ? (
-                        <StepBudgetIncome
-                          ref={StepBudgetIncomeRef}
-                          setStepValid={setIsStepValid}
-                          wizardSessionId={wizardSessionId || ''}
-                          onSaveStepData={handleSaveStepData}
-                          stepNumber={1}
-                          initialData={wizardData[1]}
-                          onNext={() => {}}
-                          onPrev={() => {}}
-                          showSideIncome={flags.showSideIncome}
-                          setShowSideIncome={setShowSideIncome}
-                          showHouseholdMembers={flags.showHouseholdMembers}
-                          setShowHouseholdMembers={setShowHouseholdMembers}
-                          loading={transitionLoading || initLoading}
-                        />
-                      ) : (
-                        <p>Tekniskt fel!</p>
-                      )
-                    )}
-                    {step === 2 && <StepExpenditure 
-                      ref={StepBudgetExpenditureRef}
-                      setStepValid={setIsStepValid}
-                      wizardSessionId={wizardSessionId || ''}
-                      onSaveStepData={handleSaveStepData}
-                      stepNumber={2}
-                      initialData={wizardData[2]}
-                      onNext={() => {}}
-                      onPrev={() => {}}
-                      loading={transitionLoading || initLoading}
-                      expenidtureInitialStep={expenidtureInitialStep}
-                    
-                    />}
-                    {step === 3 && <StepPreferences />}
-                    {step === 4 && <StepConfirmation />}
-                  </>
-                )}
-                
-              </WizardStepContainer>
+                    expenidtureInitialStep={expenidtureInitialStep}
+                  
+                  />}
+                  {step === 3 && <StepPreferences />}
+                  {step === 4 && <StepConfirmation />}
+                </>
+              )}
+              
+            </WizardStepContainer>
 
-            </AnimatedContent>
+          </AnimatedContent>
 
           {/* NAVIGATION BUTTONS (BOTTOM) */}
           <WizardNavigationButtons

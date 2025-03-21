@@ -34,26 +34,34 @@ export function useWebSocket(
 
   const connect = useCallback(() => {
     if (!enabled) return;
+    // Prevent multiple concurrent connections:
+    if (wsRef.current) {
+      console.log("WebSocket already connected, skipping...");
+      return;
+    }
     isManuallyClosedRef.current = false;
+
     const socket = new WebSocket(url);
     wsRef.current = socket;
 
     socket.onopen = () => {
       attemptRef.current = 1;
-      onOpen && onOpen(socket);
+      onOpen?.(socket);
     };
 
     socket.onmessage = (event) => {
-      onMessage && onMessage(event);
+      onMessage?.(event);
     };
 
     socket.onerror = (error) => {
-      onError && onError(error);
+      onError?.(error);
     };
 
     socket.onclose = () => {
-      onClose && onClose();
+      onClose?.();
       wsRef.current = null;
+
+      // Auto-reconnect logic:
       if (!isManuallyClosedRef.current && enabled && attemptRef.current < maxAttempts) {
         setTimeout(() => {
           attemptRef.current++;
@@ -63,9 +71,14 @@ export function useWebSocket(
     };
   }, [url, enabled, maxAttempts, reconnectInterval, onOpen, onMessage, onError, onClose]);
 
+  // Effect to manage connection on mount or when "enabled" changes
   useEffect(() => {
-    if (enabled) connect();
-    return () => closeWebSocket();
+    if (enabled) {
+      connect();
+    }
+    return () => {
+      closeWebSocket();
+    };
   }, [enabled, connect, closeWebSocket]);
 
   return { closeWebSocket };
