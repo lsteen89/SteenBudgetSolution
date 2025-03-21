@@ -18,18 +18,16 @@ const Dashboard: React.FC = () => {
   const isDesktop = useMediaQuery('(min-width: 1367px)');
   const protectedRoutes = ['/dashboard'];
   const isProtectedRoute = protectedRoutes.includes(location.pathname);
-  const isFirstTimeLogin = auth?.firstTimeLogin;
-  const [shouldShowWizard, setShouldShowWizard] = React.useState(false);
   
   React.useEffect(() => {
-    if (isFirstTimeLogin) {
-      setTimeout(() => setShouldShowWizard(true), 50);
+    if (auth?.firstTimeLogin) {
+      setIsWizardOpen(true);
     }
-  }, [isFirstTimeLogin]);
+  }, [auth?.firstTimeLogin]);
 
   // If firstTimeLogin is true, start with wizard open. 
   // Otherwise, it's closed.
-  const [isWizardOpen, setIsWizardOpen] = React.useState(true); // or based on auth?.firstTimeLogin
+  const [isWizardOpen, setIsWizardOpen] = React.useState(false); 
 
   console.log("Authenticated:", auth?.authenticated);
   console.log("Debug Mode:", isDebugMode);
