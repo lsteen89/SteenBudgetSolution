@@ -4,6 +4,7 @@ import { isAxiosError } from "axios";
 import { useWebSocket } from "@hooks/useWebSocket";
 import type { AuthState, AuthContextType } from "../types/authTypes";
 import type { UserDto } from "../types/UserDto";
+import LoadingScreen from "@components/molecules/feedback/LoadingScreen";
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
@@ -173,7 +174,7 @@ const [wsEnabled, setWsEnabled] = useState(false);
         user: authState.user,
       }}
     >
-      {authState.isLoading ? <div>Loading...</div> : children}
+      {authState.isLoading ? <LoadingScreen/> : children}
     </AuthContext.Provider>
   );
 };
