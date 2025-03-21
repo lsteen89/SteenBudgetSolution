@@ -22,24 +22,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   console.log("AuthProvider component rendering...");
+  // Fetch auth status from the API
+  const fetchAuthStatus = useCallback(async () => {
+    try {
+      console.log("AuthProvider: Checking /api/auth/status");
+      const response = await axiosInstance.get<AuthState>("/api/auth/status");
+    // In development, force firstTimeLogin to true regardless of API response.
+    const authData = import.meta.env.MODE === "development"
+      ? { ...response.data, firstTimeLogin: true }
+      : response.data;
+    setAuthState({
+      ...authData,
+      isLoading: false,
+    });
+    } catch (error) {
+      if (isAxiosError(error) && error.response?.status === 401) {
+        console.log("AuthProvider: user not authenticated");
+      } else {
+        console.error("AuthProvider: unexpected error:", error);
+      }
+      setAuthState({ authenticated: false, isLoading: false, firstTimeLogin: false });
+    }
+  }, []);
 
   // For development, force auth and wizard state:
   useEffect(() => {
     if (import.meta.env.MODE === "development") {
+      // Dev: immediately logged in for convenience
       setAuthState({
         authenticated: true,
         isLoading: false,
         firstTimeLogin: true,
+        user: undefined,
       });
     } else {
-      // Production logic here (e.g., fetch auth state from your API)
+      // Production: show loading until we fetch
       setAuthState({
         authenticated: false,
-        isLoading: false,
+        isLoading: true,
         firstTimeLogin: false,
+        user: undefined,
       });
+      // Then do the actual check
+      fetchAuthStatus();
     }
-  }, []);
+  }, [fetchAuthStatus]);
 
   // Determine WebSocket URL based on environment.
   const websocketUrl =
@@ -63,28 +90,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     onClose: () => console.log("AuthProvider: WebSocket closed."),
   });
 
-  // Fetch auth status from the API
-  const fetchAuthStatus = useCallback(async () => {
-    try {
-      console.log("AuthProvider: Checking /api/auth/status");
-      const response = await axiosInstance.get<AuthState>("/api/auth/status");
-    // In development, force firstTimeLogin to true regardless of API response.
-    const authData = import.meta.env.MODE === "development"
-      ? { ...response.data, firstTimeLogin: true }
-      : response.data;
-    setAuthState({
-      ...authData,
-      isLoading: false,
-    });
-    } catch (error) {
-      if (isAxiosError(error) && error.response?.status === 401) {
-        console.log("AuthProvider: user not authenticated");
-      } else {
-        console.error("AuthProvider: unexpected error:", error);
-      }
-      setAuthState({ authenticated: false, isLoading: false, firstTimeLogin: false });
-    }
-  }, []);
 
   // Logout function
   const logout = useCallback(async () => {
