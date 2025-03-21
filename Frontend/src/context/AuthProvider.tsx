@@ -6,6 +6,9 @@ import type { AuthState, AuthContextType } from "../types/authTypes";
 import type { UserDto } from "../types/UserDto";
 
 const AuthContext = createContext<AuthContextType | null>(null);
+// Delay timer
+const [wsEnabled, setWsEnabled] = useState(false);
+
 
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
@@ -20,6 +23,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     firstTimeLogin: false, 
     user: undefined,
   });
+
+  useEffect(() => {
+    if (authState.authenticated) {
+      // Delay enabling WebSocket connection to allow auth state to stabilize
+      const timer = setTimeout(() => {
+        setWsEnabled(true);
+      }, 500); // 500ms delay
+      return () => clearTimeout(timer);
+    } else {
+      setWsEnabled(false);
+    }
+  }, [authState.authenticated]);
 
   console.log("AuthProvider component rendering...");
   // Fetch auth status from the API
@@ -76,7 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Initialize the WebSocket hook only when authenticated.
   useWebSocket(websocketUrl, {
-    enabled: authState.authenticated,
+    enabled: wsEnabled,
     maxAttempts: 3,
     reconnectInterval: 5000,
     onOpen: () => console.log("AuthProvider: WebSocket connected."),
