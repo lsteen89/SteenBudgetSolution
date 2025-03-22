@@ -9,6 +9,7 @@ import DashboardContent from "@components/organisms/pages/DashboardContent";
 import SetupWizard from "@components/organisms/overlays/wizard/SetupWizard";
 import { AnimatePresence, motion } from "framer-motion";
 import LoadingScreen from "@components/molecules/feedback/LoadingScreen";
+import CenteredContainer from "@components/atoms/container/CenteredContainer";
 
 const Dashboard: React.FC = () => {
 
@@ -40,7 +41,11 @@ const Dashboard: React.FC = () => {
   console.log("User Data:", auth?.user?.firstName, auth?.user?.lastName, auth?.user?.email);  
 
   if (auth.isLoading) { // Use auth.isLoading
-    return <LoadingScreen/>; // Display loading message
+    return (
+      <CenteredContainer>
+        <LoadingScreen />
+      </CenteredContainer>
+    );
   }
   return (
     <PageContainer className="md:px-20 items-center min-h-screen overflow-y-auto h-full">

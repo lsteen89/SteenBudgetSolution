@@ -13,6 +13,7 @@ import ContentWrapper from '@components/layout/ContentWrapper';
 import { useAuth } from "@context/AuthProvider"; 
 import type { LoginResponse } from "../../types/authTypes";
 import LoadingScreen from '@components/molecules/feedback/LoadingScreen';
+import CenteredContainer from '@components/atoms/container/CenteredContainer';
 
 type ReCAPTCHAWithReset = ReCAPTCHA & {
   reset: () => void;
@@ -29,7 +30,11 @@ const LoginPage: React.FC = () => {
   
   // Redirect if already authenticated
   if (isLoading) {
-    return <LoadingScreen/>;
+    return (
+      <CenteredContainer>
+        <LoadingScreen />
+      </CenteredContainer>
+    );
   }
 
   if (authenticated) {
