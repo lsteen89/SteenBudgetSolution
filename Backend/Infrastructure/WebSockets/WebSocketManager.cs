@@ -3,19 +3,29 @@ using System.Net.WebSockets;
 using System.Text;
 using System.IdentityModel.Tokens.Jwt;
 using Backend.Application.Interfaces.WebSockets;
-using Org.BouncyCastle.Tls;
+using Backend.Application.Settings;
+using Microsoft.Extensions.Options;
+
 
 namespace Backend.Infrastructure.WebSockets
 {
     // Composite key to uniquely identify a user's session.
     public record UserSessionKey(string UserId, string SessionId);
 
-    public record WebSocketConnection(WebSocket Socket, CancellationTokenSource Cts);
+    public record WebSocketConnection(WebSocket Socket, CancellationTokenSource Cts)
+    {
+        // DateTime for keeping track of last message recieved from FE
+        public DateTime LastPongTime { get; set; } = DateTime.UtcNow;
+        public int MissedPongCount { get; set; } = 0;
+    }
 
     public class WebSocketManager : IWebSocketManager, IHostedService
     {
         // Locks for synchronizing access per user.
         private readonly ConcurrentDictionary<string, SemaphoreSlim> _userLocks = new();
+
+        // Timeout for pong responses from the client.
+        private readonly TimeSpan PongTimeout = TimeSpan.FromSeconds(5);
 
         // Stores connections keyed by composite (UserId, SessionId).
         private readonly ConcurrentDictionary<UserSessionKey, WebSocketConnection> _userSockets = new();
@@ -26,10 +36,18 @@ namespace Backend.Infrastructure.WebSockets
         private readonly ILogger<WebSocketManager> _logger;
         private const int MAX_MESSAGE_SIZE_BYTES = 4 * 1024; // 4 KB max message size.
         public int ActiveConnectionCount => _connections.Count;
+        
+        private readonly WebSocketHealthCheckSettings _settings;
+        private int _missedPongThreshold;
+        private bool _logoutOnStaleConnection;
 
-        public WebSocketManager(ILogger<WebSocketManager> logger)
+
+        public WebSocketManager(ILogger<WebSocketManager> logger, IOptions<WebSocketHealthCheckSettings> options)
         {
             _logger = logger;
+            _settings = options.Value;
+            _missedPongThreshold = _settings.MissedPongThreshold;
+            _logoutOnStaleConnection = _settings.LogoutOnStaleConnection;
         }
 
         // IHostedService Start/Stop implementations.
@@ -270,7 +288,36 @@ namespace Backend.Infrastructure.WebSockets
                         {
                             var message = Encoding.UTF8.GetString(ms.ToArray());
                             ms.SetLength(0);
+
+                            // Log the raw incoming message
                             _logger.LogInformation($"Received from user {key.UserId} session {key.SessionId}: {message}");
+
+                            // 1) Check for custom commands:
+                            if (message.Equals("logout", StringComparison.OrdinalIgnoreCase))
+                            {
+                                await SendMessageAsync(key, "LOGOUT");
+                                _logger.LogInformation("Sent LOGOUT response.");
+                                continue;
+                            }
+                            else if (message.Equals("ping", StringComparison.OrdinalIgnoreCase))
+                            {
+                                _logger.LogInformation($"Ping received from user {key.UserId} session {key.SessionId}. Sending pong.");
+                                await SendMessageAsync(key, "pong");
+                                continue;
+                            }
+                            else if (message.Equals("pong", StringComparison.OrdinalIgnoreCase))
+                            {
+                                // Optionally update some "LastPongTime" for health checks
+                                _logger.LogInformation($"Pong received from user {key.UserId} session {key.SessionId}.");
+                                if (_userSockets.TryGetValue(key, out var currentConn))
+                                {
+                                    currentConn.LastPongTime = DateTime.UtcNow;
+                                }
+                                continue;
+                            }
+
+                            // 2) Otherwise, handle normal messages
+                            // Example: simple echo or domain-specific logic
                             await SendMessageAsync(key, $"Echo: {message}");
                         }
                     }
@@ -324,9 +371,61 @@ namespace Backend.Infrastructure.WebSockets
             {
                 var key = kvp.Key;
                 var conn = kvp.Value;
+
+                // Skip connections that are not open
                 if (conn.Socket.State != WebSocketState.Open)
                     continue;
 
+                // Check if the time since last pong exceeds the pong timeout
+                if (DateTime.UtcNow - conn.LastPongTime > PongTimeout)
+                {
+                    conn.MissedPongCount++;
+
+                    _logger.LogWarning($"User {key.UserId} session {key.SessionId} missed pong count: {conn.MissedPongCount}");
+
+                    // If the missed count exceeds the threshold, close the connection
+                    if (conn.MissedPongCount >= _missedPongThreshold)
+                    {
+                        _logger.LogWarning($"User {key.UserId} session {key.SessionId} has missed pong {conn.MissedPongCount} times (threshold: {_missedPongThreshold}), closing.");
+
+                        try
+                        {
+                            _logger.LogInformation($"[CLOSE] About to call CloseAsync for user {key.UserId} session {key.SessionId}.");
+                            using var closeCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                            await conn.Socket.CloseAsync(
+                                WebSocketCloseStatus.EndpointUnavailable,
+                                "No pong received",
+                                closeCts.Token
+                            );
+                            _logger.LogInformation($"[CLOSE] Called CloseAsync. Socket state: {conn.Socket.State}");
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            _logger.LogWarning("CloseAsync timed out, aborting socket.");
+                            conn.Socket.Abort();
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning($"Error closing stale socket: {ex.Message}. Aborting.");
+                            conn.Socket.Abort();
+                        }
+                        _userSockets.TryRemove(key, out _);
+
+                        if (_logoutOnStaleConnection)
+                        {
+                            _logger.LogInformation($"Logging out user {key.UserId} due to stale WebSocket connection.");
+                            await ForceLogoutAsync(key.UserId);
+                        }
+                        continue;
+                    }
+                }
+                else
+                {
+                    // If a pong has been received in time, reset the missed count
+                    conn.MissedPongCount = 0;
+                }
+
+                // If still open and within PongTimeout, send ping
                 try
                 {
                     await SendMessageAsync(key, "ping");
@@ -334,7 +433,7 @@ namespace Backend.Infrastructure.WebSockets
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError($"Health check failed for user {key.UserId} session {key.SessionId}: {ex.Message}. Closing.");
+                    _logger.LogError($"Ping failed for user {key.UserId} session {key.SessionId}: {ex.Message}. Closing.");
                     try
                     {
                         await conn.Socket.CloseAsync(WebSocketCloseStatus.EndpointUnavailable, "Health check failed", CancellationToken.None);
@@ -344,6 +443,7 @@ namespace Backend.Infrastructure.WebSockets
                 }
             }
         }
+
 
         // Force logout for all sessions of a given user.
         public async Task ForceLogoutAsync(string userId, string reason = "session-expired")
