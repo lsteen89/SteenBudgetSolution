@@ -203,7 +203,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
             {
                 await _wizardService.SaveStepDataAsync("test-session-guid", 1, json);
             });
-            Assert.Contains("Ange namn för inkomsten.", exception.Message);
+            Assert.Contains("Ange namn för sidoinkomst.", exception.Message);
 
             _wizardSqlExecutorMock.Verify(x => x.UpsertStepDataAsync(
                 It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()
