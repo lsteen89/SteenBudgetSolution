@@ -5,6 +5,7 @@ import { useWebSocket } from "@hooks/useWebSocket";
 import type { AuthState, AuthContextType } from "../types/authTypes";
 import type { UserDto } from "../types/UserDto";
 import LoadingScreen from "@components/molecules/feedback/LoadingScreen";
+import CenteredContainer from "@components/atoms/container/CenteredContainer";
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
@@ -174,7 +175,7 @@ const [wsEnabled, setWsEnabled] = useState(false);
         user: authState.user,
       }}
     >
-      {authState.isLoading ? <LoadingScreen/> : children}
+      {authState.isLoading ? <CenteredContainer><LoadingScreen/></CenteredContainer> : children}
     </AuthContext.Provider>
   );
 };

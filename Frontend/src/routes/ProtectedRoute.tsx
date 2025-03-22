@@ -2,6 +2,7 @@ import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@context/AuthProvider';
 import LoadingScreen from '@components/molecules/feedback/LoadingScreen';
+import CenteredContainer from '@components/atoms/container/CenteredContainer';
 
 interface ProtectedRouteProps {
   children: JSX.Element | null;
@@ -13,7 +14,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   // Optional: while loading, show a spinner
   if (isLoading) {
-    return <LoadingScreen />;
+    return (
+      <CenteredContainer>
+        <LoadingScreen />
+      </CenteredContainer>
+    );
   }
 
   // If debug mode, bypass authentication checks
