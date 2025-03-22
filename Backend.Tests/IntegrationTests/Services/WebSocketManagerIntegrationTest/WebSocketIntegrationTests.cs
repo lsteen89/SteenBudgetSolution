@@ -721,9 +721,9 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
             }
         }
         [Fact]
-        public async Task HealthCheck_Should_Send_Ping_For_Authenticated_Connection()
+        public async Task HealthCheck_Should_Send_Ping_And_Client_Responds_With_Pong()
         {
-            // Arrange: Setup authenticated WebSocket connection.
+            // 1) Arrange: Setup authenticated WebSocket connection
             var wsUri = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth?user=testuser");
             using var clientWebSocket = new ClientWebSocket();
             clientWebSocket.Options.SetRequestHeader("Test-Auth", "true");
@@ -734,22 +734,93 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
             Console.WriteLine($"Connecting to WebSocket at: {wsUri}");
             await clientWebSocket.ConnectAsync(wsUri, CancellationToken.None);
 
+            // Wait for "ready" from the server
             var readinessMessage = await RetryReceiveMessage(clientWebSocket, 5, TimeSpan.FromMilliseconds(500));
-            Assert.Equal("ready", readinessMessage);
+            readinessMessage.Should().Be("ready");
             Console.WriteLine("Received readiness acknowledgment from server.");
 
-            // Act: Get the AuthWebSocketManager from DI and trigger HealthCheckAsync.
+            // 2) Act - Trigger HealthCheckAsync so the server sends "ping"
             var wsManager = _fixture.Host.Services.GetRequiredService<WebSocketManager>();
             await wsManager.HealthCheckAsync();
 
-            // Assert: Verify the client receives the "ping" message.
-            var buffer = new byte[1024];
-            var result = await clientWebSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-            var receivedMessage = Encoding.UTF8.GetString(buffer, 0, result.Count);
-
-            receivedMessage.Should().Be("ping", "because the healthcheck should send a ping message to active connections");
+            // 3) Assert - Verify the client receives the "ping" message
+            var pingMessage = await ReceiveSingleMessage(clientWebSocket);
+            pingMessage.Should().Be("ping", "health check should send a ping message to active connections");
             Console.WriteLine("Healthcheck ping received successfully.");
+
+            // 4) Respond with "pong"
+            var pongBytes = Encoding.UTF8.GetBytes("pong");
+            await clientWebSocket.SendAsync(new ArraySegment<byte>(pongBytes), WebSocketMessageType.Text, true, CancellationToken.None);
+            Console.WriteLine("Client responded with pong.");
+
+            // 5) Optional: Trigger another health check to ensure the server doesn't close us
+            await wsManager.HealthCheckAsync();
+
+            // If you want to verify that we remain connected and see another ping:
+            var secondPing = await ReceiveSingleMessage(clientWebSocket, TimeSpan.FromSeconds(2));
+            secondPing.Should().Be("ping", "because the connection should remain open and healthy");
+            Console.WriteLine("Second healthcheck ping received successfully.");
         }
+        [Fact]
+        public async Task HealthCheck_Should_CloseConnection_WhenNoPongReply_ForcedAbortExpected()
+        {
+            // 1) ARRANGE
+            var wsUri = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth?user=testNoPong");
+            using var clientWebSocket = new ClientWebSocket();
+            clientWebSocket.Options.SetRequestHeader("Test-Auth", "true");
+            clientWebSocket.Options.SetRequestHeader("Test-User", "testNoPong");
+            clientWebSocket.Options.SetRequestHeader("sub", "client2");
+            clientWebSocket.Options.SetRequestHeader("sessionId", "sessionNoPong");
+
+            Console.WriteLine($"Connecting to WebSocket at: {wsUri}");
+            await clientWebSocket.ConnectAsync(wsUri, CancellationToken.None);
+
+            // Wait for 'ready'
+            var readinessMessage = await RetryReceiveMessage(clientWebSocket, 5, TimeSpan.FromMilliseconds(500));
+            readinessMessage.Should().Be("ready");
+            Console.WriteLine("Received readiness acknowledgment from server.");
+
+            // 2) ACT: Trigger health check => server sends 'ping'
+            var wsManager = _fixture.Host.Services.GetRequiredService<WebSocketManager>();
+            await wsManager.HealthCheckAsync();
+
+            // We expect 'ping' but won't reply with 'pong'
+            var pingMessage = await RetryReceiveMessage(clientWebSocket, 5, TimeSpan.FromSeconds(2));
+            pingMessage.Should().Be("ping");
+
+            // Deliberately NOT sending a 'pong' here.
+
+            // Wait 5s, trigger another health check so server sees no pong
+            await Task.Delay(TimeSpan.FromSeconds(5));
+            await wsManager.HealthCheckAsync();
+
+            // 3) ASSERT: We expect the server to forcibly close the socket
+            //            which means the client sees a WebSocketException
+            //            (rather than a clean 'Close' frame).
+            var buffer = new byte[1024];
+            try
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+                var result = await clientWebSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cts.Token);
+
+                // If we get here, it means we didn't get an exception, so the server didn't forcibly close
+                throw new InvalidOperationException("Server did not forcibly close despite no pong response.");
+            }
+            catch (WebSocketException ex)
+            {
+                // This exception indicates a forced close (Abort) happened
+                // "The remote party closed the WebSocket connection without completing the close handshake."
+                Console.WriteLine($"WebSocket forcibly closed as expected: {ex.Message}");
+
+                // Optionally, you can assert the message or check ex.WebSocketErrorCode 
+                // to confirm it matches your scenario.
+                ex.Message.Should().Contain("The remote party closed the WebSocket connection",
+                    "because a forced close is expected when there's no pong");
+            }
+        }
+
+
+
         [Fact]
         public async Task ExpiredRefreshToken_Should_Trigger_SessionExpired_Notification()
         {
@@ -945,6 +1016,14 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
         }
 
 
+        // Utility method to receive one message from the WebSocket
+        private async Task<string> ReceiveSingleMessage(ClientWebSocket clientWebSocket, TimeSpan? timeout = null)
+        {
+            var buffer = new byte[1024];
+            using var cts = new CancellationTokenSource(timeout ?? TimeSpan.FromSeconds(5));
+            var result = await clientWebSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cts.Token);
+            return Encoding.UTF8.GetString(buffer, 0, result.Count);
+        }
 
     }
 

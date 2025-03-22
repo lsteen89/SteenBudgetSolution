@@ -3,6 +3,8 @@
     "Enabled": true,
     "MinimumActiveConnections": 1,
     "IntervalSeconds": 30,
-    "HeartbeatIntervalMinutes": 5
+    "HeartbeatIntervalMinutes": 5,
+    "MissedPongThreshold": 3,
+    "LogoutOnStaleConnection": true
   }
 }
