@@ -57,6 +57,7 @@ const [wsEnabled, setWsEnabled] = useState(false);
         console.error("AuthProvider: unexpected error:", error);
       }
       setAuthState({ authenticated: false, isLoading: false, firstTimeLogin: false });
+      logout();
     }
   }, []);
 
