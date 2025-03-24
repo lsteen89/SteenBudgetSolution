@@ -25,8 +25,8 @@ namespace Backend.Tests.IntegrationTests.ControllerTests
         public async Task LoginEndpoint_SetsAuthCookies()
         {
             // Arrange: Create and confirm user
-            var (ipAddress, deviceId, userAgent) = AuthTestHelper.GetDefaultMetadata();
-            var userLoginDto = new UserLoginDto { Email = "l@l.se", Password = "Password123!" };
+            var (ipAddress, deviceId, userAgent) = AuthTestHelper.GetDefaultMetadata(); 
+            var userLoginDto = new UserLoginDto { Email = "l@l.se", Password = "Password123!" }; // Use valid credentials
             var registeredUser = await SetupUserAsync();
             await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
 

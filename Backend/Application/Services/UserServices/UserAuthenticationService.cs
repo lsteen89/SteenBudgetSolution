@@ -8,6 +8,8 @@ using Backend.Domain.Shared;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
 using System.Security.Claims;
 using Backend.Common.Utilities;
+using System.IdentityModel.Tokens.Jwt;
+using Backend.Application.Interfaces.JWT;
 
 namespace Backend.Application.Services.UserServices
 {
@@ -17,6 +19,7 @@ namespace Backend.Application.Services.UserServices
         private readonly IEnvironmentService _environmentService;
         private readonly IUserTokenService _userTokenService;
         private readonly IEmailResetPasswordService _emailResetPasswordService;
+        private readonly ITokenBlacklistService _tokenBlacklistService;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IConfiguration _configuration;
         private readonly ILogger<UserAuthenticationService> _logger;
@@ -26,6 +29,7 @@ namespace Backend.Application.Services.UserServices
             IEnvironmentService environmentService,
             IUserTokenService userTokenService,
             IEmailResetPasswordService emailResetPasswordService,
+            ITokenBlacklistService tokenBlacklistService,
             IHttpContextAccessor httpContextAccessor,
             IConfiguration configuration,
             ILogger<UserAuthenticationService> logger)
@@ -33,6 +37,7 @@ namespace Backend.Application.Services.UserServices
             _userSQLProvider = userSQLProvider;
             _userTokenService = userTokenService;
             _emailResetPasswordService = emailResetPasswordService;
+            _tokenBlacklistService = tokenBlacklistService;
             _environmentService = environmentService;
             _configuration = configuration;
             _httpContextAccessor = httpContextAccessor;
@@ -185,7 +190,7 @@ namespace Backend.Application.Services.UserServices
                 _logger.LogWarning("User locked out for email: {Email}", userLoginDto.Email);
             }
         }
-        public AuthStatusDto CheckAuthStatus(ClaimsPrincipal user)
+        public async Task<AuthStatusDto> CheckAuthStatusAsync(ClaimsPrincipal user)
         {
             if (user == null || user.Identity?.IsAuthenticated != true)
             {
@@ -196,10 +201,26 @@ namespace Backend.Application.Services.UserServices
             // Retrieve claims by their exact names
             string? email = user.GetEmail();
             var role = user.FindFirst("role")?.Value;
+            string? jti = user.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
+            _logger.LogInformation("DEBUG REMOVE LATER: JTI: {Jti}", jti); // Log for debugging
+
+            if (string.IsNullOrEmpty(jti))
+            {
+                _logger.LogWarning("User authenticated but JTI claim is missing.");
+                return new AuthStatusDto { Authenticated = false };
+            }
 
             if (string.IsNullOrEmpty(email))
             {
                 _logger.LogWarning("User authenticated but email claim is missing.");
+            }
+
+            // Check the token against the active refresh tokens table.
+            bool tokenExists = await _tokenBlacklistService.DoesAccessTokenJtiExistAsync(jti);
+            if (!tokenExists)
+            {
+                _logger.LogWarning("Token {Jti} is not active (likely expired or revoked).", jti);
+                return new AuthStatusDto { Authenticated = false };
             }
 
             _logger.LogInformation("Authenticated user. Email: {Email}, Role: {Role}", email, role);
@@ -210,5 +231,6 @@ namespace Backend.Application.Services.UserServices
                 Role = role
             };
         }
+
     }
 }

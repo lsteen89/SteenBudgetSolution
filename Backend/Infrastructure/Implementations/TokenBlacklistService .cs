@@ -1,15 +1,16 @@
 ﻿// This class handles blacklisting of tokens by adding them to a cache and a database. It also checks if a token is blacklisted.
+// However, due to convience, this class has atleast one method that falls out of the blacklisting scope. This method is used to check if an access token JTI exists.
 
 using Backend.Application.Interfaces.JWT;
-using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.AspNetCore.Mvc.Filters;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
+using Microsoft.Extensions.Caching.Distributed;
 
 public class TokenBlacklistService : ITokenBlacklistService
 {
     private readonly IUserSQLProvider _userSQLProvider;
     private readonly IDistributedCache _cache;
     private readonly ILogger<TokenBlacklistService> _logger;
+    private readonly TimeSpan _cacheDuration = TimeSpan.FromMinutes(1);
 
     public TokenBlacklistService(IUserSQLProvider userSQLProvider, IDistributedCache cache, ILogger<TokenBlacklistService> logger)
     {
@@ -99,14 +100,49 @@ public class TokenBlacklistService : ITokenBlacklistService
         if (string.IsNullOrEmpty(jti))
             throw new ArgumentException("Token JTI cannot be null or empty.", nameof(jti));
 
-        // Check if the JTI exists in the cache
-        var result = await _cache.GetStringAsync(jti);
-        if(string.IsNullOrEmpty(result))
-            return false;
-        // Check if the JTI exists in the database
-        var isBlacklistedDB = await _userSQLProvider.RefreshTokenSqlExecutor.IsTokenBlacklistedAsync(jti);
-        if (!isBlacklistedDB)
-            return false;
-        return true;
+        // Try to get the cached value (e.g., "true" or "false")
+        var cacheResult = await _cache.GetStringAsync(jti);
+        if (!string.IsNullOrEmpty(cacheResult))
+        {
+            // Parse the cached string to a boolean
+            if (bool.TryParse(cacheResult, out bool isBlacklisted))
+                return isBlacklisted;
+        }
+
+        // If not in cache, check the database
+        bool isBlacklistedDB = await _userSQLProvider.RefreshTokenSqlExecutor.IsTokenBlacklistedAsync(jti);
+
+        // Cache the result as a string ("true" or "false") for _cacheDuration
+        await _cache.SetStringAsync(jti, isBlacklistedDB.ToString(), new DistributedCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = _cacheDuration
+        });
+
+        return isBlacklistedDB;
+    }
+    // Note: This method falls out of the blacklisting scope, but it is used to check if an access token JTI exists.
+    public async Task<bool> DoesAccessTokenJtiExistAsync(string accessTokenJti)
+    {
+        if (string.IsNullOrEmpty(accessTokenJti))
+            throw new ArgumentException("Access token JTI cannot be null or empty.", nameof(accessTokenJti));
+
+        // Try to get the cached value (as a string "true"/"false")
+        var cacheResult = await _cache.GetStringAsync(accessTokenJti);
+        if (!string.IsNullOrEmpty(cacheResult))
+        {
+            if (bool.TryParse(cacheResult, out bool Tokenexists))
+                return Tokenexists;
+        }
+
+        // If not in cache, query the database using a lightweight SQL query.
+        bool AccessTokenJtiExists = await _userSQLProvider.RefreshTokenSqlExecutor.DoesAccessTokenJtiExistAsync(accessTokenJti);
+
+        // Cache the result as a string for _cacheDuration
+        await _cache.SetStringAsync(accessTokenJti, AccessTokenJtiExists.ToString(), new DistributedCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = _cacheDuration
+        });
+
+        return AccessTokenJtiExists;
     }
 }

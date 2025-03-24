@@ -125,7 +125,7 @@ const [wsEnabled, setWsEnabled] = useState(false);
     }
   }, [fetchAuthStatus]);
 
-  // Periodic health check
+  // Periodic status check of user authentication
   useEffect(() => {
     let healthInterval: number | undefined;
     if (authState.authenticated) {
@@ -134,7 +134,7 @@ const [wsEnabled, setWsEnabled] = useState(false);
           const res = await axiosInstance.get("/api/auth/status");
           console.log("Status check successful:", res.data);
         } catch (error) {
-          console.error("Health check error:", error);
+          console.error("status check error:", error);
         }
       }, 60000);
     }

@@ -6,16 +6,20 @@ using Backend.Common.Interfaces;
 using Backend.Infrastructure.Data.Sql.Interfaces.UserQueries;
 using Backend.Infrastructure.Entities;
 using Dapper;
+using Microsoft.Extensions.Caching.Distributed;
 using System.Data.Common;
+using System.Text.Json;
 
 namespace Backend.Infrastructure.Data.Sql.Queries.UserQueries
 {
     public class RefreshTokenSqlExecutor : SqlBase, IRefreshTokenSqlExecutor
     {
         private readonly ITimeProvider _timeProvider;
-        public RefreshTokenSqlExecutor(DbConnection connection, ILogger<RefreshTokenSqlExecutor> logger, ITimeProvider timeProvider)
+        private readonly IDistributedCache _cache;
+        public RefreshTokenSqlExecutor(DbConnection connection, ILogger<RefreshTokenSqlExecutor> logger, ITimeProvider timeProvider, IDistributedCache cache)
             : base(connection, logger)
         {
+            _cache = cache;
             _timeProvider = timeProvider;
         }
         public async Task<bool> AddRefreshTokenAsync(RefreshJwtTokenEntity refreshJwtTokenEntity)
@@ -84,6 +88,19 @@ namespace Backend.Infrastructure.Data.Sql.Queries.UserQueries
 
             // Use QueryAsync to return all matching records
             return await QueryAsync<RefreshJwtTokenEntity>(sql, parameters);
+        }
+        public async Task<bool> DoesAccessTokenJtiExistAsync(string accessTokenJti)
+        {
+            if (string.IsNullOrEmpty(accessTokenJti))
+                throw new ArgumentException("Access token JTI cannot be null or empty.", nameof(accessTokenJti));
+
+            string sql = "SELECT COUNT(1) FROM RefreshTokens WHERE AccessTokenJti = @AccessTokenJti";
+            var parameters = new DynamicParameters();
+            parameters.Add("AccessTokenJti", accessTokenJti);
+
+
+            int count = await ExecuteScalarAsync<int>(sql, parameters);
+            return count > 0;
         }
         public async Task<bool> AddBlacklistedTokenAsync(string jti, DateTime expiration)
         {
@@ -164,17 +181,40 @@ namespace Backend.Infrastructure.Data.Sql.Queries.UserQueries
             try
             {
                 var now = DateTime.UtcNow;
+                // Create a cache key that changes appropriately (e.g., every 30 seconds)
+                var roundedNow = new DateTime(now.Ticks - (now.Ticks % (TimeSpan.TicksPerSecond * 30)), now.Kind);
+                string cacheKey = $"ExpiredTokens_{roundedNow:yyyyMMddHHmmss}";
 
+                // Try to get cached tokens
+                var cachedTokensJson = await _cache.GetStringAsync(cacheKey);
+                if (!string.IsNullOrEmpty(cachedTokensJson))
+                {
+                    var cachedTokens = JsonSerializer.Deserialize<IEnumerable<RefreshJwtTokenEntity>>(cachedTokensJson);
+                    if (cachedTokens != null)
+                    {
+                        return cachedTokens;
+                    }
+                }
+
+                // Query the database for expired tokens
                 string sql = @"
-            SELECT Persoid, CAST(SessionId AS CHAR(36)) AS SessionId, RefreshToken, AccessTokenJti,
-                   RefreshTokenExpiryDate, AccessTokenExpiryDate, DeviceId, UserAgent, CreatedBy, CreatedTime 
-            FROM RefreshTokens 
-            WHERE RefreshTokenExpiryDate < @Now";
-
+                    SELECT Persoid, CAST(SessionId AS CHAR(36)) AS SessionId, RefreshToken, AccessTokenJti,
+                        RefreshTokenExpiryDate, AccessTokenExpiryDate, DeviceId, UserAgent, CreatedBy, CreatedTime 
+                    FROM RefreshTokens 
+                    WHERE RefreshTokenExpiryDate < @Now";
                 var parameters = new DynamicParameters();
                 parameters.Add("Now", now);
 
                 var tokens = await QueryAsync<RefreshJwtTokenEntity>(sql, parameters);
+
+                // Cache the result for a short duration (e.g., 20 seconds)
+                var cacheOptions = new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(20)
+                };
+                var tokensJson = JsonSerializer.Serialize(tokens);
+                await _cache.SetStringAsync(cacheKey, tokensJson, cacheOptions);
+
                 return tokens;
             }
             catch (Exception ex)
@@ -183,6 +223,7 @@ namespace Backend.Infrastructure.Data.Sql.Queries.UserQueries
                 throw;
             }
         }
+
     }
 }
 
