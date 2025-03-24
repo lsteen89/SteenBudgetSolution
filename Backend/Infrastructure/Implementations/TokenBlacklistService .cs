@@ -1,6 +1,5 @@
 ﻿// This class handles blacklisting of tokens by adding them to a cache and a database. It also checks if a token is blacklisted.
-// However, due to convience, this class has atleast one method that falls out of the blacklisting scope. This method is used to check if an access token JTI exists.
-
+// However, due to convenience, this class has at least one method that falls out of the blacklisting scope. This method is used to check if an access token JTI exists.
 using Backend.Application.Interfaces.JWT;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
 using Microsoft.Extensions.Caching.Distributed;
