@@ -413,8 +413,7 @@ namespace Backend.Infrastructure.WebSockets
 
                         if (_logoutOnStaleConnection)
                         {
-                            _logger.LogInformation($"Logging out user {key.UserId} due to stale WebSocket connection.");
-                            await ForceLogoutAsync(key.UserId);
+                            _logger.LogInformation($"Stale WebSocket connection detected for user {key.UserId}. Cleaning up stale connection.");
                         }
                         continue;
                     }

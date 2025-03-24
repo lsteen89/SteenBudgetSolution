@@ -13,6 +13,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
+using Backend.Application.Interfaces.JWT;
 
 public abstract class UnitTestBase
 {
@@ -25,6 +26,7 @@ public abstract class UnitTestBase
     protected Mock<ILogger<UserServices>> LoggerMock;
     protected Mock<IEnvironmentService> MockEnvironmentService;
     protected Mock<IUserTokenService> MockUserTokenService;
+    protected Mock<ITokenBlacklistService> MockTokenBlacklistService;
     protected Mock<HttpContext> MockHttpContext;
     protected Mock<HttpResponse> MockHttpResponse;
     protected UserServices UserServicesInstance;
@@ -52,6 +54,7 @@ public abstract class UnitTestBase
         LoggerMock = new Mock<ILogger<UserServices>>();
         LoggerMockAuth = new Mock<ILogger<UserAuthenticationService>>();
         MockUserTokenService = new Mock<IUserTokenService>();
+        MockTokenBlacklistService = new Mock<ITokenBlacklistService>();
         MockEmailResetPasswordService = new Mock<IEmailResetPasswordService>();
         MockEnvironmentService = new Mock<IEnvironmentService>();
         MockHttpContext = new Mock<HttpContext>();
@@ -120,6 +123,7 @@ public abstract class UnitTestBase
             MockEnvironmentService.Object,
             MockUserTokenService.Object,
             MockEmailResetPasswordService.Object,
+            MockTokenBlacklistService.Object,
             MockHttpContextAccessor.Object,
             MockConfiguration.Object,
             LoggerMockAuth.Object
@@ -177,6 +181,7 @@ public abstract class UnitTestBase
             MockEnvironmentService.Object,          // Mocked IEnvironmentService
             MockUserTokenService.Object,            // Mocked IUserTokenService
             emailResetPasswordService,              // Real IEmailResetPasswordService
+            MockTokenBlacklistService.Object,       // Mocked ITokenBlacklistService
             MockHttpContextAccessor.Object,         // Mocked IHttpContextAccessor
             MockConfiguration.Object,               // Mocked IConfiguration
             LoggerMockAuth.Object                   // Mocked ILogger

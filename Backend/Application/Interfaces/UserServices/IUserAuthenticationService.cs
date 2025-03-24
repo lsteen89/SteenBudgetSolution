@@ -16,6 +16,6 @@ namespace Backend.Application.Interfaces.UserServices
         Task<bool> SendResetPasswordEmailAsync(string email);
         Task<OperationResult> UpdatePasswordAsync(Guid token, string password);
         Task HandleFailedLoginAsync(UserLoginDto userLoginDto, string ipAddress);
-        AuthStatusDto CheckAuthStatus(ClaimsPrincipal user);
+        Task<AuthStatusDto> CheckAuthStatusAsync(ClaimsPrincipal user);
     }
 }

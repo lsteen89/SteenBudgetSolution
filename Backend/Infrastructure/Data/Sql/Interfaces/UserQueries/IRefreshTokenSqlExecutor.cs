@@ -17,5 +17,6 @@ namespace Backend.Infrastructure.Data.Sql.Interfaces.UserQueries
         Task<bool> DeleteTokensByUserIdAsync(string userId);
         Task<BlacklistedTokenEntity?> GetBlacklistedTokenByJtiAsync(string? jti);
         Task<IEnumerable<RefreshJwtTokenEntity>> GetExpiredTokensAsync();
+        Task<bool> DoesAccessTokenJtiExistAsync(string accessTokenJti);
     }
 }

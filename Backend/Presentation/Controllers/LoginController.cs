@@ -110,12 +110,12 @@ namespace Backend.Presentation.Controllers
 
             return Ok(new { message = "Logged out successfully." });
         }
-
+        // Check if the user is authenticated
         [Authorize]
         [HttpGet("status")]
         public async Task<IActionResult> CheckAuthStatus()
         {
-            var authStatus = _userAuthenticationService.CheckAuthStatus(User);
+            var authStatus = await _userAuthenticationService.CheckAuthStatusAsync(User);
 
             if (authStatus.Authenticated)
             {
@@ -130,6 +130,7 @@ namespace Backend.Presentation.Controllers
             _logger.LogWarning("Unauthorized request. User is not authenticated or claims are missing.");
             return Unauthorized(new AuthStatusDto { Authenticated = false });
         }
+        // Refresh token endpoint
         [AllowAnonymous]
         [HttpPost("refresh")]
         public async Task<IActionResult> RefreshToken()

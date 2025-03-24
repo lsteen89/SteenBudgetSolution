@@ -5,13 +5,13 @@ public class UserManagementServiceTests : UnitTestBase
 {
 
     [Fact]
-    public void CheckAuthStatus_ReturnsUnauthenticated_WhenUserIsNotAuthenticated()
+    public async Task CheckAuthStatus_ReturnsUnauthenticated_WhenUserIsNotAuthenticated()
     {
         // Arrange
         var user = new ClaimsPrincipal(new ClaimsIdentity());
 
         // Act
-        var result = UserAuthenticationServiceInstance.CheckAuthStatus(user);
+        var result = await UserAuthenticationServiceInstance.CheckAuthStatusAsync(user);
 
         // Assert
         Assert.False(result.Authenticated);
@@ -19,13 +19,13 @@ public class UserManagementServiceTests : UnitTestBase
         Assert.Null(result.Role);
     }
     [Fact]
-    public void CheckAuthStatus_ReturnsUnauthenticated_WhenUserIsNull()
+    public async void CheckAuthStatus_ReturnsUnauthenticated_WhenUserIsNull()
     {
         // Arrange
         ClaimsPrincipal user = null;
 
         // Act
-        var result = UserAuthenticationServiceInstance.CheckAuthStatus(user);
+        var result = await UserAuthenticationServiceInstance.CheckAuthStatusAsync(user);
 
         // Assert
         Assert.False(result.Authenticated);
