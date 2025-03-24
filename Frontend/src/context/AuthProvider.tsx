@@ -144,7 +144,7 @@ const [wsEnabled, setWsEnabled] = useState(false);
           await logout();
           console.log("AuthProvider: logout complete");
         }
-      }, 60000);
+      }, 60000999);
     }
     return () => {
       if (healthInterval) clearInterval(healthInterval);
