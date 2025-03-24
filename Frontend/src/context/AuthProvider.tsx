@@ -56,9 +56,6 @@ const [wsEnabled, setWsEnabled] = useState(false);
       } else {
         console.error("AuthProvider: unexpected error:", error);
       }
-      console.log("AuthProvider: calling logout");
-      await logout();
-      console.log("AuthProvider: logout complete");
     }
   }, []);
 
@@ -142,6 +139,9 @@ const [wsEnabled, setWsEnabled] = useState(false);
           console.log("Status check successful:", res.data);
         } catch (error) {
           console.error("status check error:", error);
+          console.log("AuthProvider: calling logout");
+          await logout();
+          console.log("AuthProvider: logout complete");
         }
       }, 60000);
     }
