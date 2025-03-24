@@ -32,6 +32,16 @@ export function useWebSocket(
     }
   }, []);
 
+  // sendMessage function to allow sending messages over the WebSocket
+  const sendMessage = useCallback((message: string) => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(message);
+      console.log("Sent message:", message);
+    } else {
+      console.warn("WebSocket is not open. Cannot send message:", message);
+    }
+  }, []);
+
   const connect = useCallback(() => {
     if (!enabled) return;
     // Prevent multiple concurrent connections:
@@ -81,5 +91,5 @@ export function useWebSocket(
     };
   }, [enabled, connect, closeWebSocket]);
 
-  return { closeWebSocket };
+  return { closeWebSocket, sendMessage };
 }
