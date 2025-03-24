@@ -1,6 +1,6 @@
 {
   "ExpiredTokenScannerSettings": {
-    "ScanIntervalMinutes": 5,
+    "ScanIntervalMinutes": 1,
     "LogWhenNoTokensFound": false,
     "HeartbeatIntervalMinutes": 5
   }
