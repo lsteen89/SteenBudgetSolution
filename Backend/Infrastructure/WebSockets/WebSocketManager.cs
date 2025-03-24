@@ -352,7 +352,7 @@ namespace Backend.Infrastructure.WebSockets
                 var bytes = Encoding.UTF8.GetBytes(message);
                 try
                 {
-                    _logger.LogInformation($"Sending to user {key.UserId} session {key.SessionId}: {message}");
+                    _logger.LogDebug($"Sending to user {key.UserId} session {key.SessionId}: {message}");
                     await conn.Socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
                 }
                 catch (WebSocketException ex)
