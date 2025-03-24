@@ -91,13 +91,14 @@ namespace Backend.Infrastructure.Data.Sql.Queries.UserQueries
         }
         public async Task<bool> DoesAccessTokenJtiExistAsync(string accessTokenJti)
         {
+            var now = DateTime.UtcNow;
             if (string.IsNullOrEmpty(accessTokenJti))
                 throw new ArgumentException("Access token JTI cannot be null or empty.", nameof(accessTokenJti));
 
-            string sql = "SELECT COUNT(1) FROM RefreshTokens WHERE AccessTokenJti = @AccessTokenJti";
+            string sql = "SELECT COUNT(1) FROM RefreshTokens WHERE AccessTokenJti = @AccessTokenJti AND RefreshTokenExpiryDate > @Now";
             var parameters = new DynamicParameters();
             parameters.Add("AccessTokenJti", accessTokenJti);
-
+            parameters.Add("Now", now);
 
             int count = await ExecuteScalarAsync<int>(sql, parameters);
             return count > 0;
