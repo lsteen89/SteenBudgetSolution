@@ -17,6 +17,10 @@ namespace Backend.Infrastructure.WebSockets
         // DateTime for keeping track of last message recieved from FE
         public DateTime LastPongTime { get; set; } = DateTime.UtcNow;
         public int MissedPongCount { get; set; } = 0;
+
+        // Flags for tracking ping/pong status
+        public bool PendingPing { get; set; } = false;
+        public DateTime? PingSentTime { get; set; } = null;
     }
 
     public class WebSocketManager : IWebSocketManager, IHostedService
@@ -299,10 +303,15 @@ namespace Backend.Infrastructure.WebSockets
                                 _logger.LogInformation("Sent LOGOUT response.");
                                 continue;
                             }
-                            else if (message.Equals("ping", StringComparison.OrdinalIgnoreCase))
+                            else if (message.Equals("pong", StringComparison.OrdinalIgnoreCase))
                             {
-                                _logger.LogInformation($"Ping received from user {key.UserId} session {key.SessionId}. Sending pong.");
-                                await SendMessageAsync(key, "pong");
+                                _logger.LogInformation($"Pong received from user {key.UserId} session {key.SessionId}.");
+                                if (_userSockets.TryGetValue(key, out var currentConn))
+                                {
+                                    currentConn.LastPongTime = DateTime.UtcNow;
+                                    currentConn.PendingPing = false;  // Clear pending status
+                                    currentConn.MissedPongCount = 0;    // Reset missed count
+                                }
                                 continue;
                             }
                             else if (message.Equals("pong", StringComparison.OrdinalIgnoreCase))
@@ -376,69 +385,68 @@ namespace Backend.Infrastructure.WebSockets
                 if (conn.Socket.State != WebSocketState.Open)
                     continue;
 
-                // Check if the time since last pong exceeds the pong timeout
-                if (DateTime.UtcNow - conn.LastPongTime > PongTimeout)
+                // If a ping is pending, check if it has timed out
+                if (conn.PendingPing && conn.PingSentTime.HasValue)
                 {
-                    conn.MissedPongCount++;
-
-                    _logger.LogWarning($"User {key.UserId} session {key.SessionId} missed pong count: {conn.MissedPongCount}");
-
-                    // If the missed count exceeds the threshold, close the connection
-                    if (conn.MissedPongCount >= _missedPongThreshold)
+                    if (DateTime.UtcNow - conn.PingSentTime.Value > PongTimeout)
                     {
-                        _logger.LogWarning($"User {key.UserId} session {key.SessionId} has missed pong {conn.MissedPongCount} times (threshold: {_missedPongThreshold}), closing.");
+                        conn.MissedPongCount++;
+                        _logger.LogWarning($"User {key.UserId} session {key.SessionId} missed pong count: {conn.MissedPongCount}");
 
-                        try
+                        // If the missed count exceeds the threshold, close the connection
+                        if (conn.MissedPongCount >= _missedPongThreshold)
                         {
-                            _logger.LogInformation($"[CLOSE] About to call CloseAsync for user {key.UserId} session {key.SessionId}.");
-                            using var closeCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                            await conn.Socket.CloseAsync(
-                                WebSocketCloseStatus.EndpointUnavailable,
-                                "No pong received",
-                                closeCts.Token
-                            );
-                            _logger.LogInformation($"[CLOSE] Called CloseAsync. Socket state: {conn.Socket.State}");
+                            _logger.LogWarning($"User {key.UserId} session {key.SessionId} has missed pong {conn.MissedPongCount} times (threshold: {_missedPongThreshold}), closing.");
+                            try
+                            {
+                                _logger.LogInformation($"[CLOSE] About to call CloseAsync for user {key.UserId} session {key.SessionId}.");
+                                using var closeCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                                await conn.Socket.CloseAsync(WebSocketCloseStatus.EndpointUnavailable, "No pong received", closeCts.Token);
+                                _logger.LogInformation($"[CLOSE] Called CloseAsync. Socket state: {conn.Socket.State}");
+                            }
+                            catch (OperationCanceledException)
+                            {
+                                _logger.LogWarning("CloseAsync timed out, aborting socket.");
+                                conn.Socket.Abort();
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogWarning($"Error closing stale socket: {ex.Message}. Aborting.");
+                                conn.Socket.Abort();
+                            }
+                            _userSockets.TryRemove(key, out _);
+                            continue;
                         }
-                        catch (OperationCanceledException)
-                        {
-                            _logger.LogWarning("CloseAsync timed out, aborting socket.");
-                            conn.Socket.Abort();
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogWarning($"Error closing stale socket: {ex.Message}. Aborting.");
-                            conn.Socket.Abort();
-                        }
-                        _userSockets.TryRemove(key, out _);
-
-                        if (_logoutOnStaleConnection)
-                        {
-                            _logger.LogInformation($"Stale WebSocket connection detected for user {key.UserId}. Cleaning up stale connection.");
-                        }
-                        continue;
                     }
                 }
                 else
                 {
-                    // If a pong has been received in time, reset the missed count
+                    // If no ping is pending, reset the missed count (optional)
                     conn.MissedPongCount = 0;
                 }
 
-                // If still open and within PongTimeout, send ping
-                try
+                // If the socket is open and no ping is currently pending, send a ping
+                if (!conn.PendingPing)
                 {
-                    await SendMessageAsync(key, "ping");
-                    _logger.LogInformation($"Ping sent to user {key.UserId} session {key.SessionId}.");
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError($"Ping failed for user {key.UserId} session {key.SessionId}: {ex.Message}. Closing.");
+                    // Mark the connection as pending and record the time
+                    conn.PendingPing = true;
+                    conn.PingSentTime = DateTime.UtcNow;
+
                     try
                     {
-                        await conn.Socket.CloseAsync(WebSocketCloseStatus.EndpointUnavailable, "Health check failed", CancellationToken.None);
+                        await SendMessageAsync(key, "ping");
+                        _logger.LogInformation($"Ping sent to user {key.UserId} session {key.SessionId}.");
                     }
-                    catch { conn.Socket.Abort(); }
-                    _userSockets.TryRemove(key, out _);
+                    catch (Exception ex)
+                    {
+                        _logger.LogError($"Ping failed for user {key.UserId} session {key.SessionId}: {ex.Message}. Closing.");
+                        try
+                        {
+                            await conn.Socket.CloseAsync(WebSocketCloseStatus.EndpointUnavailable, "Health check failed", CancellationToken.None);
+                        }
+                        catch { conn.Socket.Abort(); }
+                        _userSockets.TryRemove(key, out _);
+                    }
                 }
             }
         }
