@@ -372,3 +372,5 @@ Frontend/.env.test
 Frontend/dist/
 Frontend/src/assets/Images/Originals
 
+#Documentation files that sensitive
+docs/Security/AuthenticationBackend.md

@@ -90,13 +90,18 @@ const [wsEnabled, setWsEnabled] = useState(false);
       : "wss://ebudget.se/ws/auth";
 
   // Initialize the WebSocket hook only when authenticated.
-  useWebSocket(websocketUrl, {
+  const { sendMessage, closeWebSocket } = useWebSocket(websocketUrl, {
     enabled: wsEnabled,
     maxAttempts: 3,
     reconnectInterval: 5000,
     onOpen: () => console.log("AuthProvider: WebSocket connected."),
     onMessage: (event) => {
       console.log("AuthProvider: WS message:", event.data);
+      if (event.data === "ping") {
+        sendMessage("pong");  // Using the sendMessage function from the hook
+        console.log("Sent pong response.");
+        return;
+      }
       if (event.data === "logout" || event.data === "session-expired") {
         setAuthState({ authenticated: false, isLoading: false, firstTimeLogin: false });
       }
@@ -159,6 +164,7 @@ const [wsEnabled, setWsEnabled] = useState(false);
         setAuthState((prev) => ({ ...prev, user: undefined }));
     }
 }, []);
+
 
 
   return (
