@@ -294,7 +294,7 @@ namespace Backend.Infrastructure.WebSockets
                             ms.SetLength(0);
 
                             // Log the raw incoming message
-                            _logger.LogInformation($"Received from user {key.UserId} session {key.SessionId}: {message}");
+                            _logger.LogDebug($"Received from user {key.UserId} session {key.SessionId}: {message}");
 
                             // 1) Check for custom commands:
                             if (message.Equals("logout", StringComparison.OrdinalIgnoreCase))
@@ -305,7 +305,7 @@ namespace Backend.Infrastructure.WebSockets
                             }
                             else if (message.Equals("pong", StringComparison.OrdinalIgnoreCase))
                             {
-                                _logger.LogInformation($"Pong received from user {key.UserId} session {key.SessionId}.");
+                                _logger.LogDebug($"Pong received from user {key.UserId} session {key.SessionId}.");
                                 if (_userSockets.TryGetValue(key, out var currentConn))
                                 {
                                     currentConn.LastPongTime = DateTime.UtcNow;
@@ -317,7 +317,7 @@ namespace Backend.Infrastructure.WebSockets
                             else if (message.Equals("pong", StringComparison.OrdinalIgnoreCase))
                             {
                                 // Optionally update some "LastPongTime" for health checks
-                                _logger.LogInformation($"Pong received from user {key.UserId} session {key.SessionId}.");
+                                _logger.LogDebug($"Pong received from user {key.UserId} session {key.SessionId}.");
                                 if (_userSockets.TryGetValue(key, out var currentConn))
                                 {
                                     currentConn.LastPongTime = DateTime.UtcNow;
@@ -435,7 +435,7 @@ namespace Backend.Infrastructure.WebSockets
                     try
                     {
                         await SendMessageAsync(key, "ping");
-                        _logger.LogInformation($"Ping sent to user {key.UserId} session {key.SessionId}.");
+                        _logger.LogDebug($"Ping sent to user {key.UserId} session {key.SessionId}.");
                     }
                     catch (Exception ex)
                     {
