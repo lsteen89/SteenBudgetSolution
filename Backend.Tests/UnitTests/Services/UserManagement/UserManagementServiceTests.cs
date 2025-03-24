@@ -5,7 +5,7 @@ public class UserManagementServiceTests : UnitTestBase
 {
 
     [Fact]
-    public async void  CheckAuthStatus_ReturnsUnauthenticated_WhenUserIsNotAuthenticated()
+    public async Task CheckAuthStatus_ReturnsUnauthenticated_WhenUserIsNotAuthenticated()
     {
         // Arrange
         var user = new ClaimsPrincipal(new ClaimsIdentity());
