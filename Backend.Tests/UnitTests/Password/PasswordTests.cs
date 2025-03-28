@@ -30,12 +30,12 @@ namespace Backend.Tests.UnitTests.Password
 
             // Configure mocks to return the user
             MockUserSQLProvider
-                .Setup(provider => provider.TokenSqlExecutor.GetUserFromResetTokenAsync(token))
+                .Setup(provider => provider.TokenSqlExecutor.GetUserFromResetTokenAsync(token, null, null))
                 .ReturnsAsync(user);
 
             // Simulate a database failure during password update
             MockUserSQLProvider
-                .Setup(provider => provider.AuthenticationSqlExecutor.UpdatePasswordAsync(user.PersoId, It.IsAny<string>()))
+                .Setup(provider => provider.AuthenticationSqlExecutor.UpdatePasswordAsync(user.PersoId, It.IsAny<string>(), null, null))
                 .ReturnsAsync(false); // Simulate failure
 
             // Act

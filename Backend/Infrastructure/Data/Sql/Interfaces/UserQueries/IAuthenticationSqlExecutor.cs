@@ -1,13 +1,15 @@
-﻿namespace Backend.Infrastructure.Data.Sql.Interfaces.UserQueries
+﻿using System.Data.Common;
+
+namespace Backend.Infrastructure.Data.Sql.Interfaces.UserQueries
 {
     public interface IAuthenticationSqlExecutor
     {
-        Task<int> GetRecentFailedAttemptsAsync(Guid persoId);
-        Task LockUserAsync(string email, TimeSpan lockoutDuration);
-        Task UnlockUserAsync(Guid persoId);
-        Task RecordFailedLoginAsync(string email, string ipAddress);
-        Task<bool> ShouldLockUserAsync(string email);
-        Task ResetFailedLoginAttemptsAsync(Guid persoId);
-        Task<bool> UpdatePasswordAsync(Guid persoId, string hashedPassword);
+        Task<int> GetRecentFailedAttemptsAsync(Guid persoId, DbConnection? conn = null, DbTransaction? tx = null);
+        Task LockUserAsync(string email, TimeSpan lockoutDuration, DbConnection? conn = null, DbTransaction? tx = null);
+        Task UnlockUserAsync(Guid persoId, DbConnection? conn = null, DbTransaction? tx = null);
+        Task RecordFailedLoginAsync(string email, string ipAddress, DbConnection? conn = null, DbTransaction? tx = null);
+        Task<bool> ShouldLockUserAsync(string email, DbConnection? conn = null, DbTransaction? tx = null);
+        Task ResetFailedLoginAttemptsAsync(Guid persoId, DbConnection? conn = null, DbTransaction? tx = null);
+        Task<bool> UpdatePasswordAsync(Guid persoId, string hashedPassword, DbConnection? conn = null, DbTransaction? tx = null);
     }
 }

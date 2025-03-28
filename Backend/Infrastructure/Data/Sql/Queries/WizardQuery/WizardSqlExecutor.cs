@@ -1,20 +1,18 @@
-﻿using Backend.Infrastructure.Data.Sql.Interfaces.UserQueries;
-using Backend.Infrastructure.Data;
-using Backend.Infrastructure.Data.Sql.Interfaces.WizardQueries;
-using System.Data.Common;
+﻿using Backend.Infrastructure.Data.Sql.Interfaces.WizardQueries;
 using Newtonsoft.Json;
-using System.Data;
+using Backend.Infrastructure.Data.Sql.Interfaces.Factories;
+using System.Data.Common;
 
 namespace Backend.Infrastructure.Data.Sql.Queries.WizardQuery
 {
     public class WizardSqlExecutor : SqlBase, IWizardSqlExecutor
     {
-        public WizardSqlExecutor(DbConnection connection, ILogger<WizardSqlExecutor> logger)
-        : base(connection, logger)
+        public WizardSqlExecutor(IConnectionFactory connectionFactory, ILogger<WizardSqlExecutor> logger)
+        : base(connectionFactory, logger)
         {
 
         }
-        public async Task<Guid> CreateWizardAsync(string email)
+        public async Task<Guid> CreateWizardAsync(string email, DbConnection? conn = null, DbTransaction? tx = null)
         {
             try
             {
@@ -22,16 +20,33 @@ namespace Backend.Infrastructure.Data.Sql.Queries.WizardQuery
                 _logger.LogInformation("Creating new wizard session {WizardSessionId} for user {Email}", wizardSessionId, email);
 
                 string sqlQuery = @"
-                INSERT INTO WizardSession (WizardSessionId, Email, CurrentStep, CreatedAt)
-                VALUES (@WizardSessionId, @Email, @CurrentStep, @CreatedAt)";
+            INSERT INTO WizardSession (WizardSessionId, Email, CurrentStep, CreatedAt)
+            VALUES (@WizardSessionId, @Email, @CurrentStep, @CreatedAt)";
 
-                int rowsAffected = await ExecuteAsync(sqlQuery, new
+                int rowsAffected;
+                if (conn != null)
                 {
-                    WizardSessionId = wizardSessionId,
-                    Email = email,
-                    CurrentStep = 0,
-                    CreatedAt = DateTime.UtcNow
-                });
+                    // Use provided connection (and transaction, if any)
+                    rowsAffected = await ExecuteAsync(conn, sqlQuery, new
+                    {
+                        WizardSessionId = wizardSessionId,
+                        Email = email,
+                        CurrentStep = 0,
+                        CreatedAt = DateTime.UtcNow
+                    }, tx);
+                }
+                else
+                {
+                    // Open a new connection
+                    using var localConn = await GetOpenConnectionAsync();
+                    rowsAffected = await ExecuteAsync(localConn, sqlQuery, new
+                    {
+                        WizardSessionId = wizardSessionId,
+                        Email = email,
+                        CurrentStep = 0,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
 
                 if (rowsAffected > 0)
                 {
@@ -50,18 +65,34 @@ namespace Backend.Infrastructure.Data.Sql.Queries.WizardQuery
                 return Guid.Empty;
             }
         }
-
-        public async Task<Guid?> GetWizardSessionIdAsync(string email)
+        public async Task<Guid?> GetWizardSessionIdAsync(string email, DbConnection? conn = null, DbTransaction? tx = null)
         {
             string sqlQuery = @"
-            SELECT WizardSessionId
-            FROM WizardSession
-            WHERE Email = @Email";
+        SELECT WizardSessionId
+        FROM WizardSession
+        WHERE Email = @Email";
 
-            Guid? sessionId = await ExecuteScalarAsync<Guid?>(sqlQuery, new { Email = email });
+            Guid? sessionId;
+            if (conn != null)
+            {
+                // Use the provided connection and transaction (if any)
+                sessionId = await ExecuteScalarAsync<Guid?>(conn, sqlQuery, new { Email = email }, tx);
+            }
+            else
+            {
+                // No connection provided—open a new connection.
+                using var localConn = await GetOpenConnectionAsync();
+                sessionId = await ExecuteScalarAsync<Guid?>(localConn, sqlQuery, new { Email = email });
+            }
+
             return sessionId;
         }
-        public async Task<bool> UpsertStepDataAsync(string wizardSessionId, int stepNumber, string jsonData)
+        public async Task<bool> UpsertStepDataAsync(
+            string wizardSessionId,
+            int stepNumber,
+            string jsonData,
+            DbConnection? conn = null,
+            DbTransaction? tx = null)
         {
             try
             {
@@ -72,12 +103,29 @@ namespace Backend.Infrastructure.Data.Sql.Queries.WizardQuery
                 StepData = @StepData,
                 UpdatedAt = UTC_TIMESTAMP();";
 
-                int rowsAffected = await ExecuteAsync(sql, new
+                int rowsAffected;
+
+                if (conn != null)
                 {
-                    WizardSessionId = wizardSessionId,
-                    StepNumber = stepNumber,
-                    StepData = jsonData
-                });
+                    // Use the provided connection and transaction (if any)
+                    rowsAffected = await ExecuteAsync(conn, sql, new
+                    {
+                        WizardSessionId = wizardSessionId,
+                        StepNumber = stepNumber,
+                        StepData = jsonData
+                    }, tx);
+                }
+                else
+                {
+                    // No connection provided—open a new connection.
+                    using var localConn = await GetOpenConnectionAsync();
+                    rowsAffected = await ExecuteAsync(localConn, sql, new
+                    {
+                        WizardSessionId = wizardSessionId,
+                        StepNumber = stepNumber,
+                        StepData = jsonData
+                    });
+                }
 
                 if (rowsAffected <= 0)
                 {
@@ -93,17 +141,32 @@ namespace Backend.Infrastructure.Data.Sql.Queries.WizardQuery
                 return false;
             }
         }
-        public async Task<Dictionary<int, object>?> GetWizardStepDataAsync(string wizardSessionId)
+        public async Task<Dictionary<int, object>?> GetWizardStepDataAsync(
+            string wizardSessionId,
+            DbConnection? conn = null,
+            DbTransaction? tx = null)
         {
             const string query = @"
-            SELECT StepNumber, StepData 
-            FROM WizardStep  
-            WHERE WizardSessionId = @WizardSessionId
-            ORDER BY StepNumber ASC";
+        SELECT StepNumber, StepData 
+        FROM WizardStep  
+        WHERE WizardSessionId = @WizardSessionId
+        ORDER BY StepNumber ASC";
 
             try
             {
-                var stepDataRows = await QueryAsync<WizardStepRow>(query, new { WizardSessionId = wizardSessionId });
+                IEnumerable<WizardStepRow> stepDataRows;
+
+                if (conn != null)
+                {
+                    // Use the provided connection and transaction.
+                    stepDataRows = await QueryAsync<WizardStepRow>(conn, query, new { WizardSessionId = wizardSessionId }, tx);
+                }
+                else
+                {
+                    // No connection provided—open a new one.
+                    using var localConn = await GetOpenConnectionAsync();
+                    stepDataRows = await QueryAsync<WizardStepRow>(localConn, query, new { WizardSessionId = wizardSessionId });
+                }
 
                 if (stepDataRows == null || !stepDataRows.Any())
                 {
@@ -115,7 +178,7 @@ namespace Backend.Infrastructure.Data.Sql.Queries.WizardQuery
 
                 foreach (var row in stepDataRows)
                 {
-                    // Deserialize using JObject to preserve structure
+                    // Deserialize using JObject to preserve structure.
                     var stepDataObject = JsonConvert.DeserializeObject<Newtonsoft.Json.Linq.JObject>(row.StepData);
                     _logger.LogInformation("Deserialized stepDataObject: {data}", stepDataObject.ToString());
                     result[row.StepNumber] = stepDataObject;
@@ -131,7 +194,6 @@ namespace Backend.Infrastructure.Data.Sql.Queries.WizardQuery
                 throw;
             }
         }
-
         private class WizardStepRow
         {
             public int StepNumber { get; set; }

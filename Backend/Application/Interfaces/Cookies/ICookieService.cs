@@ -1,6 +1,4 @@
-﻿using Backend.Application.Settings;
-
-namespace Backend.Application.Interfaces.Cookies
+﻿namespace Backend.Application.Interfaces.Cookies
 {
     public interface ICookieService
     {

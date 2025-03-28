@@ -1,7 +1,7 @@
 ﻿
 using Backend.Application.Interfaces.WebSockets;
-using Backend.Application.Settings;
 using Backend.Infrastructure.WebSockets;
+using Backend.Settings;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 
@@ -14,6 +14,7 @@ namespace Backend.Infrastructure.BackgroundServices
         private readonly TimeSpan _interval;
         private readonly TimeSpan _heartbeatInterval;
         private readonly int _minActiveConnections;
+        private readonly TimeSpan _pongTimeout;
         private readonly WebSocketHealthCheckSettings _settings;
 
         public WebSocketHealthCheckService(IWebSocketManager wsManager, IOptions<WebSocketHealthCheckSettings> options, ILogger<WebSocketHealthCheckService> logger)
@@ -24,6 +25,8 @@ namespace Backend.Infrastructure.BackgroundServices
             _interval = TimeSpan.FromSeconds(_settings.IntervalSeconds);
             _minActiveConnections = _settings.MinimumActiveConnections;
             _heartbeatInterval = TimeSpan.FromMinutes(_settings.HeartbeatIntervalMinutes);
+            _pongTimeout = _settings.PongTimeout;
+
             _logger.LogInformation("WebSocketHealthCheckSettings: IntervalSeconds={IntervalSeconds}, MinimumActiveConnections={MinActiveConnections}, HeartbeatIntervalMinutes={HeartbeatIntervalMinutes}",
                 _settings.IntervalSeconds, _settings.MinimumActiveConnections, _settings.HeartbeatIntervalMinutes);
         }

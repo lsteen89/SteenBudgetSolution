@@ -54,7 +54,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
 
             // Set up the repository call to return the dictionary.
             _wizardSqlExecutorMock
-                .Setup(x => x.GetWizardStepDataAsync(It.IsAny<string>()))
+                .Setup(x => x.GetWizardStepDataAsync(It.IsAny<string>(), null, null))
                 .ReturnsAsync(dictionary);
 
             // Act: call the service method.
@@ -78,7 +78,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
             // Arrange: simulate an empty dictionary (no rows)
             Dictionary<int, object>? emptyDictionary = null;
             _wizardSqlExecutorMock
-                .Setup(x => x.GetWizardStepDataAsync(It.IsAny<string>()))
+                .Setup(x => x.GetWizardStepDataAsync(It.IsAny<string>(), null, null))
                 .ReturnsAsync(emptyDictionary);
 
             // Act
@@ -107,7 +107,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
             };
 
             _wizardSqlExecutorMock
-                .Setup(x => x.GetWizardStepDataAsync(It.IsAny<string>()))
+                .Setup(x => x.GetWizardStepDataAsync(It.IsAny<string>(), null, null))
                 .ReturnsAsync(dictionary);
 
             // Act

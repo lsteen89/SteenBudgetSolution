@@ -1,11 +1,11 @@
 ﻿using Backend.Application.Interfaces.EmailServices;
 using Backend.Application.Interfaces.UserServices;
-using Backend.Application.Settings;
 using Backend.Domain.Entities.Auth;
 using Backend.Domain.Entities.Email;
 using Backend.Domain.Entities.User;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
 using Backend.Infrastructure.Email;
+using Backend.Settings;
 using Microsoft.Extensions.Options;
 using System.Net.Mail;
 

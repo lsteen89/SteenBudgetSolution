@@ -1,5 +1,5 @@
 ﻿using Backend.Application.Interfaces.EmailServices;
-using Backend.Application.Settings;
+using Backend.Settings;
 using Backend.Domain.Entities.Auth;
 using Backend.Domain.Entities.User;
 using Backend.Tests.Mocks;
@@ -34,7 +34,7 @@ public class EmailVerificationServiceTests : UnitTestBase
     {
 
         // Arrange
-        MockUserSQLProvider.Setup(x => x.UserSqlExecutor.GetUserModelAsync(null, NonExistentEmail))
+        MockUserSQLProvider.Setup(x => x.UserSqlExecutor.GetUserModelAsync(null, NonExistentEmail, null, null))
             .ReturnsAsync((UserModel)null);
 
         // Act
@@ -53,7 +53,7 @@ public class EmailVerificationServiceTests : UnitTestBase
         _tracking.DailyResendCount = 3; // Assume limit is 3
         _tracking.LastResendRequestDate = DateTime.UtcNow.Date; // Ensure same day for the check
         MockUserSQLProvider
-            .Setup(x => x.UserSqlExecutor.GetUserModelAsync(null, TestEmail))
+            .Setup(x => x.UserSqlExecutor.GetUserModelAsync(null, TestEmail, null, null))
             .ReturnsAsync(_testUser);
 
         MockUserTokenService
@@ -92,7 +92,7 @@ public class EmailVerificationServiceTests : UnitTestBase
             LastResendRequestTime = currentTime.AddMinutes(-2),
             LastResendRequestDate = currentTime.Date
         };
-        MockUserSQLProvider.Setup(x => x.UserSqlExecutor.GetUserModelAsync(null, TestEmail))
+        MockUserSQLProvider.Setup(x => x.UserSqlExecutor.GetUserModelAsync(null, TestEmail, null, null))
             .ReturnsAsync(_testUser);
         MockUserTokenService
             .Setup(x => x.GetUserVerificationTrackingAsync(It.IsAny<Guid>()))
@@ -132,16 +132,16 @@ public class EmailVerificationServiceTests : UnitTestBase
     {
         // Arrange
         var expiredToken = new UserTokenModel { TokenExpiryDate = DateTime.UtcNow.AddMinutes(-10) };
-        MockUserSQLProvider.Setup(x => x.UserSqlExecutor.GetUserModelAsync(null, TestEmail))
+        MockUserSQLProvider.Setup(x => x.UserSqlExecutor.GetUserModelAsync(null, TestEmail, null, null))
             .ReturnsAsync(_testUser);
 
-        MockUserSQLProvider.Setup(x => x.TokenSqlExecutor.GetUserVerificationTrackingAsync(_testUser.PersoId))
+        MockUserSQLProvider.Setup(x => x.TokenSqlExecutor.GetUserVerificationTrackingAsync(_testUser.PersoId, null, null))
             .ReturnsAsync(_tracking);
 
-        MockUserSQLProvider.Setup(x => x.TokenSqlExecutor.GetUserVerificationTokenByPersoIdAsync(_testUser.PersoId))
+        MockUserSQLProvider.Setup(x => x.TokenSqlExecutor.GetUserVerificationTokenByPersoIdAsync(_testUser.PersoId, null, null))
             .ReturnsAsync(expiredToken);
 
-        MockUserSQLProvider.Setup(x => x.TokenSqlExecutor.DeleteUserTokenByPersoidAsync(_testUser.PersoId))
+        MockUserSQLProvider.Setup(x => x.TokenSqlExecutor.DeleteUserTokenByPersoidAsync(_testUser.PersoId, null, null))
             .ReturnsAsync(1); // Simulate successful deletion
 
         MockUserTokenService.Setup(service => service.CreateEmailTokenAsync(It.IsAny<Guid>()))
@@ -166,10 +166,10 @@ public class EmailVerificationServiceTests : UnitTestBase
     {
         // Arrange
         var expiredToken = new UserTokenModel { TokenExpiryDate = DateTime.UtcNow.AddMinutes(-10) };
-        MockUserSQLProvider.Setup(x => x.UserSqlExecutor.GetUserModelAsync(null, TestEmail)).ReturnsAsync(_testUser);
-        MockUserSQLProvider.Setup(x => x.TokenSqlExecutor.GetUserVerificationTrackingAsync(_testUser.PersoId)).ReturnsAsync(_tracking);
-        MockUserSQLProvider.Setup(x => x.TokenSqlExecutor.GetUserVerificationTokenByPersoIdAsync(_testUser.PersoId)).ReturnsAsync(expiredToken);
-        MockUserSQLProvider.Setup(x => x.TokenSqlExecutor.DeleteUserTokenByPersoidAsync(_testUser.PersoId)).ReturnsAsync(0);
+        MockUserSQLProvider.Setup(x => x.UserSqlExecutor.GetUserModelAsync(null, TestEmail, null, null)).ReturnsAsync(_testUser);
+        MockUserSQLProvider.Setup(x => x.TokenSqlExecutor.GetUserVerificationTrackingAsync(_testUser.PersoId, null, null)).ReturnsAsync(_tracking);
+        MockUserSQLProvider.Setup(x => x.TokenSqlExecutor.GetUserVerificationTokenByPersoIdAsync(_testUser.PersoId, null, null)).ReturnsAsync(expiredToken);
+        MockUserSQLProvider.Setup(x => x.TokenSqlExecutor.DeleteUserTokenByPersoidAsync(_testUser.PersoId, null, null)).ReturnsAsync(0);
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
@@ -180,10 +180,10 @@ public class EmailVerificationServiceTests : UnitTestBase
     public async Task ResendVerificationEmailAsync_SuccessfulResend_ReturnsSuccess()
     {
         // Arrange
-        MockUserSQLProvider.Setup(x => x.UserSqlExecutor.GetUserModelAsync(null, TestEmail))
+        MockUserSQLProvider.Setup(x => x.UserSqlExecutor.GetUserModelAsync(null, TestEmail, null, null))
             .ReturnsAsync(new UserModel { Email = TestEmail, PersoId = Guid.NewGuid() });
 
-        MockUserSQLProvider.Setup(x => x.TokenSqlExecutor.GetUserVerificationTrackingAsync(It.IsAny<Guid>()))
+        MockUserSQLProvider.Setup(x => x.TokenSqlExecutor.GetUserVerificationTrackingAsync(It.IsAny<Guid>(), null, null))
             .ReturnsAsync(new UserVerificationTrackingModel());
 
         MockUserTokenService.Setup(service => service.CreateEmailTokenAsync(It.IsAny<Guid>()))

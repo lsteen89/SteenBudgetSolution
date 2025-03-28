@@ -70,7 +70,7 @@ Set the following environment variables to ensure proper functionality:
 Required
 
     JWT_SECRET_KEY: Secret key for JWT authentication.
-    DB_CONNECTION_STRING: Connection string for the MariaDB database.
+    DatabaseSettings__ConnectionString: Connection string for the MariaDB database.
 
 Production Only
 

@@ -7,6 +7,7 @@ using Moq;
 using System.IdentityModel.Tokens.Jwt;
 using Xunit;
 using Backend.Application.DTO.User;
+using Backend.Application.DTO.Auth;
 
 namespace Backend.Tests.IntegrationTests.Services.AuthService
 {

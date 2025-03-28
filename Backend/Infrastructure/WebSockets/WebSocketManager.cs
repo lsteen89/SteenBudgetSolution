@@ -3,8 +3,8 @@ using System.Net.WebSockets;
 using System.Text;
 using System.IdentityModel.Tokens.Jwt;
 using Backend.Application.Interfaces.WebSockets;
-using Backend.Application.Settings;
 using Microsoft.Extensions.Options;
+using Backend.Settings;
 
 
 namespace Backend.Infrastructure.WebSockets
@@ -28,9 +28,6 @@ namespace Backend.Infrastructure.WebSockets
         // Locks for synchronizing access per user.
         private readonly ConcurrentDictionary<string, SemaphoreSlim> _userLocks = new();
 
-        // Timeout for pong responses from the client.
-        private readonly TimeSpan PongTimeout = TimeSpan.FromSeconds(5);
-
         // Stores connections keyed by composite (UserId, SessionId).
         private readonly ConcurrentDictionary<UserSessionKey, WebSocketConnection> _userSockets = new();
 
@@ -44,7 +41,7 @@ namespace Backend.Infrastructure.WebSockets
         private readonly WebSocketHealthCheckSettings _settings;
         private int _missedPongThreshold;
         private bool _logoutOnStaleConnection;
-
+        private TimeSpan _pongTimeout;
 
         public WebSocketManager(ILogger<WebSocketManager> logger, IOptions<WebSocketHealthCheckSettings> options)
         {
@@ -52,6 +49,7 @@ namespace Backend.Infrastructure.WebSockets
             _settings = options.Value;
             _missedPongThreshold = _settings.MissedPongThreshold;
             _logoutOnStaleConnection = _settings.LogoutOnStaleConnection;
+            _pongTimeout = _settings.PongTimeout;
         }
 
         // IHostedService Start/Stop implementations.
@@ -388,7 +386,7 @@ namespace Backend.Infrastructure.WebSockets
                 // If a ping is pending, check if it has timed out
                 if (conn.PendingPing && conn.PingSentTime.HasValue)
                 {
-                    if (DateTime.UtcNow - conn.PingSentTime.Value > PongTimeout)
+                    if (DateTime.UtcNow - conn.PingSentTime.Value > _pongTimeout)
                     {
                         conn.MissedPongCount++;
                         _logger.LogWarning($"User {key.UserId} session {key.SessionId} missed pong count: {conn.MissedPongCount}");

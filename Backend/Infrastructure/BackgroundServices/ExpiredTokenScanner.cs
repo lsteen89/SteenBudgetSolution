@@ -1,7 +1,7 @@
 ﻿using Backend.Application.Interfaces.WebSockets;
-using Backend.Application.Settings;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
 using Backend.Infrastructure.Entities;
+using Backend.Settings;
 using Microsoft.Extensions.Options;
 
 public class ExpiredTokenScanner : BackgroundService

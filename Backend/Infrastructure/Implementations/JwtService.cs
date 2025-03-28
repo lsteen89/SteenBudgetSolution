@@ -2,14 +2,16 @@
 using Backend.Application.Interfaces.JWT;
 using Backend.Application.Mappers;
 using Backend.Application.Models.Token;
-using Backend.Application.Settings;
 using Backend.Common.Interfaces;
 using Backend.Domain.Entities.Auth;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
 using Backend.Infrastructure.Data.Sql.Interfaces.UserQueries;
 using Backend.Infrastructure.Security;
+using Backend.Settings;
 using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json.Linq;
+using System.Data;
+using System.Data.Common;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -49,24 +51,43 @@ namespace Backend.Infrastructure.Implementations
 
         // GenerateJWTTokenAsync method, without rotating the token
         // This method does not rotate the token by default and accepts a JwtTokenModel, which is a generic model for the token
-        public async Task<LoginResultDto> GenerateJWTTokenAsync(JwtTokenModel jwtTokenModel, ClaimsPrincipal? user = null)
+        public async Task<LoginResultDto> GenerateJWTTokenAsync(
+            JwtTokenModel jwtTokenModel,
+            DbTransaction? tx,
+            ClaimsPrincipal? user = null)
         {
-            var (newAccessToken, newRefreshToken, sessionId, newTokensSuccess) = await CreateAndStoreNewTokensAsync(jwtTokenModel);
-            if (!newTokensSuccess)
+            // Enforce that a valid transaction is provided.
+            if (tx == null || tx.Connection == null)
+            {
+                _logger.LogWarning("GenerateJWTTokenAsync requires a valid transaction and connection.");
+                throw new ArgumentNullException(nameof(tx), "A valid transaction must be provided.");
+            }
+
+            // Now use the transaction to perform all DB operations.
+            var tokenResult = await CreateAndStoreNewTokensAsync(jwtTokenModel, conn: tx.Connection, tx: tx);
+            if (!tokenResult.Success)
             {
                 return new LoginResultDto { Success = false, Message = "Internal error" };
             }
 
-            return new LoginResultDto { Success = true, Message = "Login successful", UserName = jwtTokenModel.Email, AccessToken = newAccessToken, RefreshToken = newRefreshToken, SessionId = sessionId };
+            return new LoginResultDto
+            {
+                Success = true,
+                Message = "Login successful",
+                UserName = jwtTokenModel.Email,
+                AccessToken = tokenResult.NewAccessToken,
+                RefreshToken = tokenResult.PlainRefreshToken,
+                SessionId = tokenResult.sessionId
+            };
         }
 
         // Overload for the GenerateJWTTokenAsync method
         // This method rotates the token and accepts a JwtRefreshTokenModel
         // Also renews the access token 
-        public async Task<LoginResultDto> GenerateJWTTokenAsync(JwtRefreshTokenModel jwtRefreshTokenModel, ClaimsPrincipal? user = null)
+        public async Task<LoginResultDto> GenerateJWTTokenAsync(JwtRefreshTokenModel jwtRefreshTokenModel, DbTransaction tx, ClaimsPrincipal? user = null)
         {
             // Step 1: Retrieve user details
-            var dbUser = await _userSQLProvider.UserSqlExecutor.GetUserModelAsync(persoid: jwtRefreshTokenModel.Persoid);
+            var dbUser = await _userSQLProvider.UserSqlExecutor.GetUserModelAsync(persoid: jwtRefreshTokenModel.Persoid, conn: tx.Connection, tx: tx);
             if (dbUser?.Email == null)
             {
                 return new LoginResultDto { Success = false, Message = "User not found." };
@@ -81,7 +102,7 @@ namespace Backend.Infrastructure.Implementations
             );
 
             // Step 3: Retrieve the old refresh token record's data, then delete it.
-            bool deleteSuccess = await _userSQLProvider.RefreshTokenSqlExecutor.DeleteTokenAsync(jwtRefreshTokenModel.RefreshToken);
+            bool deleteSuccess = await _userSQLProvider.RefreshTokenSqlExecutor.DeleteTokenAsync(jwtRefreshTokenModel.RefreshToken, conn: tx.Connection, tx: tx);
             if (!deleteSuccess)
             {
                 _logger.LogWarning("Error deleting refresh token for user {Email}", dbUser.Email);
@@ -89,7 +110,7 @@ namespace Backend.Infrastructure.Implementations
             }
 
             // Step 4: Blacklist the old access token using the stored JTI from the refresh token record.
-            bool blacklistSuccess = await BlacklistTokenByJtiAsync(jwtRefreshTokenModel.AccessTokenJti, jwtRefreshTokenModel.AccessTokenExpiryDate);
+            bool blacklistSuccess = await BlacklistTokenByJtiAsync(jwtRefreshTokenModel.AccessTokenJti, jwtRefreshTokenModel.AccessTokenExpiryDate, tx: tx);
             if (!blacklistSuccess)
             {
                 _logger.LogWarning("Error blacklisting old access token for user {Email}", dbUser.Email);
@@ -97,7 +118,7 @@ namespace Backend.Infrastructure.Implementations
             }
 
             // Step 5: Generate new tokens and store them using our shared helper
-            var (newAccessToken, newRefreshToken, newSessionId, newTokensSuccess) = await CreateAndStoreNewTokensAsync(jwtTokenModel);
+            var (newAccessToken, newRefreshToken, newSessionId, newTokensSuccess) = await CreateAndStoreNewTokensAsync(jwtTokenModel, conn: tx.Connection, tx: tx);
             if (!newTokensSuccess)
             {
                 return new LoginResultDto { Success = false, Message = "Internal error" };
@@ -191,22 +212,30 @@ namespace Backend.Infrastructure.Implementations
                 return false;
             }
         }
-        public async Task<bool> BlacklistTokenByJtiAsync(string jti, DateTime accessTokenExpiryDate)
+        public async Task<bool> BlacklistTokenByJtiAsync(string jti, DateTime accessTokenExpiryDate, DbTransaction tx)
         {
             if (string.IsNullOrEmpty(jti))
             {
                 _logger.LogWarning("BlacklistTokenByJtiAsync: JTI is null or empty.");
                 return false;
             }
+
+            // Ensure the transaction has an associated open connection.
+            if (tx.Connection == null || tx.Connection.State != ConnectionState.Open)
+            {
+                _logger.LogWarning("BlacklistTokenByJtiAsync: Transaction's connection is not open.");
+                return false;
+            }
+
             try
             {
-                bool success = await _tokenBlacklistService.BlacklistTokenByJtiAsync(jti, accessTokenExpiryDate);
+                bool success = await _tokenBlacklistService.BlacklistTokenByJtiAsync(jti, accessTokenExpiryDate, tx);
                 if (!success)
                 {
-                    _logger.LogWarning($"Token {jti} could not be inserted into the blacklist.");
+                    _logger.LogWarning("Token {Jti} could not be inserted into the blacklist.", jti);
                     return false;
                 }
-                _logger.LogInformation($"Token with JTI {jti} has been blacklisted until {accessTokenExpiryDate}.");
+                _logger.LogInformation("Token with JTI {Jti} has been blacklisted until {ExpiryDate}.", jti, accessTokenExpiryDate);
                 return true;
             }
             catch (Exception ex)
@@ -215,6 +244,7 @@ namespace Backend.Infrastructure.Implementations
                 return false;
             }
         }
+
         public ClaimsPrincipal? ValidateToken(string token)
         {
             var tokenHandler = new JwtSecurityTokenHandler();
@@ -343,7 +373,7 @@ namespace Backend.Infrastructure.Implementations
             }
             return null;
         }
-        private async Task<(string NewAccessToken, string PlainRefreshToken, string sessionId, bool Success)> CreateAndStoreNewTokensAsync(JwtTokenModel jwtTokenModel)
+        private async Task<(string NewAccessToken, string PlainRefreshToken, string sessionId, bool Success)> CreateAndStoreNewTokensAsync(JwtTokenModel jwtTokenModel, DbConnection? conn = null, DbTransaction? tx = null)
         {
             // Generate the new access token
             var newAccessToken = GenerateJwtToken(jwtTokenModel);
@@ -386,7 +416,7 @@ namespace Backend.Infrastructure.Implementations
             };
 
             var refreshTokenEntity = RefreshTokenMapper.MapToEntity(newRefreshTokenModel);
-            bool insertSuccessful = await _refreshTokenSqlExecutor.AddRefreshTokenAsync(refreshTokenEntity);
+            bool insertSuccessful = await _refreshTokenSqlExecutor.AddRefreshTokenAsync(refreshTokenEntity, conn: tx.Connection, tx: tx);
             if (!insertSuccessful)
             {
                 _logger.LogWarning("Error inserting new refresh token for user {Email}", jwtTokenModel.Email);

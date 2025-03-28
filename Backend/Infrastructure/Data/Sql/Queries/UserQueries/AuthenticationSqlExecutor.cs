@@ -1,7 +1,8 @@
-﻿using Backend.Domain.Entities;
-using System.Data.Common;
-using Dapper;
+﻿using Backend.Domain.Entities.User;
+using Backend.Infrastructure.Data.Sql.Interfaces.Factories;
 using Backend.Infrastructure.Data.Sql.Interfaces.UserQueries;
+using Dapper;
+using System.Data.Common;
 
 namespace Backend.Infrastructure.Data.Sql.Queries.UserQueries
 {
@@ -10,57 +11,62 @@ namespace Backend.Infrastructure.Data.Sql.Queries.UserQueries
         private readonly ILogger<AuthenticationSqlExecutor> _logger;
         private readonly IUserSqlExecutor _userSqlExecutor;
 
-        public AuthenticationSqlExecutor(DbConnection connection, ILogger<AuthenticationSqlExecutor> logger, IUserSqlExecutor userSqlExecutor)
-            : base(connection, logger)
+        public AuthenticationSqlExecutor(IConnectionFactory connectionFactory, ILogger<AuthenticationSqlExecutor> logger, IUserSqlExecutor userSqlExecutor)
+            : base(connectionFactory, logger)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _userSqlExecutor = userSqlExecutor ?? throw new ArgumentNullException(nameof(userSqlExecutor));
         }
-
-        public async Task<int> GetRecentFailedAttemptsAsync(Guid persoId)
-        {
-            string sqlQuery = @"
-            SELECT COUNT(*) 
-            FROM FailedLoginAttempts 
-            WHERE PersoId = @PersoId AND AttemptTime > @CutoffTime";
-
-            return await ExecuteScalarAsync<int>(sqlQuery, new
-            {
-                PersoId = persoId,
-                CutoffTime = DateTime.UtcNow.AddMinutes(-15) // 15 minutes ago
-            });
-        }
-
-        public async Task LockUserAsync(string email, TimeSpan lockoutDuration)
+        public async Task LockUserAsync(string email, TimeSpan lockoutDuration, DbConnection? conn = null, DbTransaction? tx = null)
         {
             var lockoutUntil = DateTime.UtcNow.Add(lockoutDuration);
-
             string sqlQuery = @"
                 UPDATE User 
                 SET LockoutUntil = @LockoutUntil 
                 WHERE Email = @Email";
 
-            await ExecuteAsync(sqlQuery, new
+            if (conn != null)
             {
-                LockoutUntil = lockoutUntil,
-                Email = email
-            });
+                // Use the provided connection and transaction (if any)
+                await ExecuteAsync(conn, sqlQuery, new { LockoutUntil = lockoutUntil, Email = email }, tx);
+            }
+            else
+            {
+                // No connection provided—open a new connection.
+                using var localConn = await GetOpenConnectionAsync();
+                await ExecuteAsync(localConn, sqlQuery, new { LockoutUntil = lockoutUntil, Email = email });
+            }
 
             _logger.LogInformation("User locked out until {LockoutUntil} for email: {Email}", lockoutUntil, email);
         }
-        public async Task UnlockUserAsync(Guid persoId)
+        public async Task UnlockUserAsync(Guid persoId, DbConnection? conn = null, DbTransaction? tx = null)
         {
             string sqlQuery = @"
-            UPDATE User 
-            SET LockoutUntil = NULL 
-            WHERE PersoId = @PersoId";
+                UPDATE User 
+                SET LockoutUntil = NULL 
+                WHERE PersoId = @PersoId";
 
-            await ExecuteAsync(sqlQuery, new { PersoId = persoId });
+            if (conn != null)
+            {
+                await ExecuteAsync(conn, sqlQuery, new { PersoId = persoId }, tx);
+            }
+            else
+            {
+                using var localConn = await GetOpenConnectionAsync();
+                await ExecuteAsync(localConn, sqlQuery, new { PersoId = persoId });
+            }
+
             _logger.LogInformation("User unlocked with PersoId: {PersoId}", persoId);
         }
-        public async Task RecordFailedLoginAsync(string email, string ipAdress)
+
+        public async Task RecordFailedLoginAsync(
+            string email,
+            string ipAdress,
+            DbConnection? conn = null,
+            DbTransaction? tx = null)
         {
-            var user = await _userSqlExecutor.GetUserModelAsync(email: email);
+            // Get the user model using the same connection/transaction if provided.
+            var user = await _userSqlExecutor.GetUserModelAsync(email: email, conn: conn, tx: tx);
             if (user == null)
             {
                 _logger.LogWarning("Failed login attempt for non-existent user with email: {Email}", email);
@@ -68,48 +74,110 @@ namespace Backend.Infrastructure.Data.Sql.Queries.UserQueries
             }
 
             string sqlQuery = @"
-                INSERT INTO FailedLoginAttempts (PersoId, IpAddress, AttemptTime)
-                VALUES (@PersoId, @IpAddress, @AttemptTime)";
+        INSERT INTO FailedLoginAttempts (PersoId, IpAddress, AttemptTime)
+        VALUES (@PersoId, @IpAddress, @AttemptTime)";
 
-            await ExecuteAsync(sqlQuery, new
+            if (conn != null)
             {
-                user.PersoId,
-                IpAddress = ipAdress,
-                AttemptTime = DateTime.UtcNow
-            });
+                // Use the provided connection and transaction.
+                await ExecuteAsync(conn, sqlQuery, new
+                {
+                    user.PersoId,
+                    IpAddress = ipAdress,
+                    AttemptTime = DateTime.UtcNow
+                }, tx);
+            }
+            else
+            {
+                // No connection provided—open a new one.
+                using var localConn = await GetOpenConnectionAsync();
+                await ExecuteAsync(localConn, sqlQuery, new
+                {
+                    user.PersoId,
+                    IpAddress = ipAdress,
+                    AttemptTime = DateTime.UtcNow
+                });
+            }
 
             _logger.LogInformation("Failed login attempt recorded for PersoId: {PersoId}", user.PersoId);
         }
-        public async Task<bool> ShouldLockUserAsync(string email)
+        public async Task<bool> ShouldLockUserAsync(string email, DbConnection? conn = null, DbTransaction? tx = null)
         {
-            var user = await _userSqlExecutor.GetUserModelAsync(email: email);
-            if (user == null)
+            UserModel? user;
+
+            if (conn != null)
             {
-                return false; // No user, no lockout
+                // Use the provided connection and transaction if available.
+                user = await _userSqlExecutor.GetUserModelAsync(email: email, conn: conn, tx: tx);
+            }
+            else
+            {
+                // No connection provided—open a new connection.
+                using var localConn = await GetOpenConnectionAsync();
+                user = await _userSqlExecutor.GetUserModelAsync(email: email, conn: localConn);
             }
 
-            var recentFailedAttempts = await GetRecentFailedAttemptsAsync(user.PersoId);
-            return recentFailedAttempts >= 5; // Lock the user if failed attempts exceed the threshold
+            if (user == null)
+            {
+                return false; // No user, so no lockout.
+            }
+
+            int recentFailedAttempts;
+
+            if (conn != null)
+            {
+                recentFailedAttempts = await GetRecentFailedAttemptsAsync(user.PersoId, conn, tx);
+            }
+            else
+            {
+                using var localConn = await GetOpenConnectionAsync();
+                recentFailedAttempts = await GetRecentFailedAttemptsAsync(user.PersoId, localConn);
+            }
+
+            return recentFailedAttempts >= 5; // Lock the user if failed attempts exceed the threshold.
         }
-        public async Task<int> GetRecentFailedAttemptsAsync(int persoId)
+
+        public async Task<int> GetRecentFailedAttemptsAsync(Guid persoId, DbConnection? conn = null, DbTransaction? tx = null)
         {
             string sqlQuery = @"
             SELECT COUNT(*) 
             FROM FailedLoginAttempts 
             WHERE PersoId = @PersoId AND AttemptTime > @CutoffTime";
 
-            return await ExecuteScalarAsync<int>(sqlQuery, new
+
+            var parameters = new
             {
                 PersoId = persoId,
-                CutoffTime = DateTime.UtcNow.AddMinutes(-10) // Check within the last 10 minutes
-            });
+                CutoffTime = DateTime.UtcNow.AddMinutes(-15)
+            };
+
+            if (conn == null)
+            {
+                // No connection provided—open one locally.
+                using var localConn = await GetOpenConnectionAsync();
+                return await localConn.ExecuteScalarAsync<int>(sqlQuery, parameters, tx);
+            }
+            else
+            {
+                // Use the provided connection and transaction.
+                return await conn.ExecuteScalarAsync<int>(sqlQuery, parameters, tx);
+            }
         }
-        public async Task ResetFailedLoginAttemptsAsync(Guid persoId)
+        public async Task ResetFailedLoginAttemptsAsync(Guid persoId, DbConnection? conn = null, DbTransaction? tx = null)
         {
             string sqlQuery = "DELETE FROM FailedLoginAttempts WHERE PersoId = @PersoId";
-            await ExecuteAsync(sqlQuery, new { PersoId = persoId });
+
+            if (conn != null)
+            {
+                await ExecuteAsync(conn, sqlQuery, new { PersoId = persoId }, tx);
+            }
+            else
+            {
+                using var localConn = await GetOpenConnectionAsync();
+                await ExecuteAsync(localConn, sqlQuery, new { PersoId = persoId });
+            }
         }
-        public async Task<bool> UpdatePasswordAsync(Guid persoId, string hashedPassword)
+        public async Task<bool> UpdatePasswordAsync(Guid persoId, string hashedPassword, DbConnection? conn = null, DbTransaction? tx = null)
         {
             const string query = @"
                 UPDATE User
@@ -117,8 +185,22 @@ namespace Backend.Infrastructure.Data.Sql.Queries.UserQueries
                 WHERE PersoId = @persoId;
             ";
 
-            var rowsAffected = await ExecuteAsync(query, new { persoId, hashedPassword });
+            int rowsAffected;
+
+            if (conn != null)
+            {
+                // Use the provided connection and transaction (if any)
+                rowsAffected = await ExecuteAsync(conn, query, new { persoId, hashedPassword }, tx);
+            }
+            else
+            {
+                // No connection provided—open a new connection.
+                using var localConn = await GetOpenConnectionAsync();
+                rowsAffected = await ExecuteAsync(localConn, query, new { persoId, hashedPassword });
+            }
+
             return rowsAffected > 0;
         }
+
     }
 }

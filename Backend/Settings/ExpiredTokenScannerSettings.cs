@@ -1,4 +1,4 @@
-﻿namespace Backend.Application.Settings
+﻿namespace Backend.Settings
 {
     public class ExpiredTokenScannerSettings
     {

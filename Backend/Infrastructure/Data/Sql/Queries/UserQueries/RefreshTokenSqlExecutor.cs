@@ -3,6 +3,7 @@
 // The RefreshJwtTokenEntity class is used to represent a refresh token in the database.
 
 using Backend.Common.Interfaces;
+using Backend.Infrastructure.Data.Sql.Interfaces.Factories;
 using Backend.Infrastructure.Data.Sql.Interfaces.UserQueries;
 using Backend.Infrastructure.Entities;
 using Dapper;
@@ -16,35 +17,71 @@ namespace Backend.Infrastructure.Data.Sql.Queries.UserQueries
     {
         private readonly ITimeProvider _timeProvider;
         private readonly IDistributedCache _cache;
-        public RefreshTokenSqlExecutor(DbConnection connection, ILogger<RefreshTokenSqlExecutor> logger, ITimeProvider timeProvider, IDistributedCache cache)
-            : base(connection, logger)
+        public RefreshTokenSqlExecutor(IConnectionFactory connectionFactory, ILogger<RefreshTokenSqlExecutor> logger, ITimeProvider timeProvider, IDistributedCache cache)
+            : base(connectionFactory, logger)
         {
             _cache = cache;
             _timeProvider = timeProvider;
         }
-        public async Task<bool> AddRefreshTokenAsync(RefreshJwtTokenEntity refreshJwtTokenEntity)
+        public async Task<bool> AddRefreshTokenAsync(RefreshJwtTokenEntity refreshJwtTokenEntity, DbConnection? conn = null, DbTransaction? tx = null)
         {
             try
             {
                 _logger.LogInformation("Adding refresh token for PersoId: {PersoId}", refreshJwtTokenEntity.Persoid);
                 string sql = @"INSERT INTO RefreshTokens 
-                                (PersoId, SessionId, RefreshToken, AccessTokenJti, RefreshTokenExpiryDate, AccessTokenExpiryDate, DeviceId, UserAgent, CreatedBy, CreatedTime) 
-                            VALUES 
-                                (@PersoId, @SessionId, @RefreshToken, @AccessTokenJti, @RefreshTokenExpiryDate, @AccessTokenExpiryDate, @DeviceId, @UserAgent, @CreatedBy, @CreatedTime)";
+                       (PersoId, SessionId, RefreshToken, AccessTokenJti, RefreshTokenExpiryDate, AccessTokenExpiryDate, DeviceId, UserAgent, CreatedBy, CreatedTime) 
+                       VALUES 
+                       (@PersoId, @SessionId, @RefreshToken, @AccessTokenJti, @RefreshTokenExpiryDate, @AccessTokenExpiryDate, @DeviceId, @UserAgent, @CreatedBy, @CreatedTime)";
 
-                int rowsAffected = await ExecuteAsync(sql, new
+                int rowsAffected;
+
+                if (conn != null)
                 {
-                    PersoId = refreshJwtTokenEntity.Persoid,
-                    refreshJwtTokenEntity.SessionId,
-                    refreshJwtTokenEntity.RefreshToken,
-                    refreshJwtTokenEntity.AccessTokenJti,
-                    refreshJwtTokenEntity.RefreshTokenExpiryDate,
-                    refreshJwtTokenEntity.AccessTokenExpiryDate,
-                    refreshJwtTokenEntity.DeviceId,
-                    refreshJwtTokenEntity.UserAgent,
-                    refreshJwtTokenEntity.CreatedBy,
-                    refreshJwtTokenEntity.CreatedTime,
-                });
+                    // Use provided connection and transaction.
+                    rowsAffected = await ExecuteAsync(conn, sql, new
+                    {
+                        PersoId = refreshJwtTokenEntity.Persoid,
+                        refreshJwtTokenEntity.SessionId,
+                        refreshJwtTokenEntity.RefreshToken,
+                        refreshJwtTokenEntity.AccessTokenJti,
+                        refreshJwtTokenEntity.RefreshTokenExpiryDate,
+                        refreshJwtTokenEntity.AccessTokenExpiryDate,
+                        refreshJwtTokenEntity.DeviceId,
+                        refreshJwtTokenEntity.UserAgent,
+                        refreshJwtTokenEntity.CreatedBy,
+                        refreshJwtTokenEntity.CreatedTime,
+                    }, tx);
+                }
+                else
+                {
+                    // No connection provided—open a new connection and wrap in a transaction.
+                    using var localConn = await GetOpenConnectionAsync();
+                    using var localTx = localConn.BeginTransaction();
+                    try
+                    {
+                        rowsAffected = await ExecuteAsync(localConn, sql, new
+                        {
+                            PersoId = refreshJwtTokenEntity.Persoid,
+                            refreshJwtTokenEntity.SessionId,
+                            refreshJwtTokenEntity.RefreshToken,
+                            refreshJwtTokenEntity.AccessTokenJti,
+                            refreshJwtTokenEntity.RefreshTokenExpiryDate,
+                            refreshJwtTokenEntity.AccessTokenExpiryDate,
+                            refreshJwtTokenEntity.DeviceId,
+                            refreshJwtTokenEntity.UserAgent,
+                            refreshJwtTokenEntity.CreatedBy,
+                            refreshJwtTokenEntity.CreatedTime,
+                        }, localTx);
+
+                        localTx.Commit();
+                    }
+                    catch
+                    {
+                        localTx.Rollback();
+                        throw;
+                    }
+                }
+
                 _logger.LogInformation("Refresh token added successfully for PersoId: {PersoId}", refreshJwtTokenEntity.Persoid);
                 return rowsAffected > 0;
             }
@@ -54,18 +91,23 @@ namespace Backend.Infrastructure.Data.Sql.Queries.UserQueries
                 return false;
             }
         }
+
         public async Task<IEnumerable<RefreshJwtTokenEntity>> GetRefreshTokensAsync(
             Guid? persoid = null,
             string refreshToken = null,
-            string sessionId = null
-            )
+            string sessionId = null,
+            DbConnection? conn = null,
+            DbTransaction? tx = null)
         {
             if (!persoid.HasValue && string.IsNullOrEmpty(refreshToken))
             {
                 throw new ArgumentException("At least one parameter must be provided.");
             }
 
-            string sql = "SELECT Persoid, CAST(SessionId AS CHAR(36)) AS SessionId, RefreshToken, AccessTokenJti, RefreshTokenExpiryDate, AccessTokenExpiryDate, DeviceId, UserAgent, CreatedBy, CreatedTime FROM RefreshTokens WHERE 1=1";
+            string sql = @"SELECT Persoid, CAST(SessionId AS CHAR(36)) AS SessionId, RefreshToken, AccessTokenJti, 
+                          RefreshTokenExpiryDate, AccessTokenExpiryDate, DeviceId, UserAgent, CreatedBy, CreatedTime 
+                   FROM RefreshTokens 
+                   WHERE 1=1";
             var parameters = new DynamicParameters();
 
             if (!string.IsNullOrEmpty(refreshToken))
@@ -86,10 +128,22 @@ namespace Backend.Infrastructure.Data.Sql.Queries.UserQueries
                 parameters.Add("SessionId", sessionId);
             }
 
-            // Use QueryAsync to return all matching records
-            return await QueryAsync<RefreshJwtTokenEntity>(sql, parameters);
+            // Add row-level locking if within a transaction.
+            if (tx != null)
+            {
+                sql += " FOR UPDATE";
+                // Use the connection associated with the provided transaction.
+                return await QueryAsync<RefreshJwtTokenEntity>(conn, sql, parameters, tx);
+            }
+            else
+            {
+                // No transaction provided—open a new connection.
+                using var newConn = await GetOpenConnectionAsync();
+                return await QueryAsync<RefreshJwtTokenEntity>(newConn, sql, parameters);
+            }
         }
-        public async Task<bool> DoesAccessTokenJtiExistAsync(string accessTokenJti)
+
+        public async Task<bool> DoesAccessTokenJtiExistAsync(string accessTokenJti, DbConnection? conn = null, DbTransaction? tx = null)
         {
             var now = DateTime.UtcNow;
             if (string.IsNullOrEmpty(accessTokenJti))
@@ -100,20 +154,39 @@ namespace Backend.Infrastructure.Data.Sql.Queries.UserQueries
             parameters.Add("AccessTokenJti", accessTokenJti);
             parameters.Add("Now", now);
 
-            int count = await ExecuteScalarAsync<int>(sql, parameters);
-            return count > 0;
+            if (tx != null)
+            {
+                // Use the connection associated with the provided transaction.
+                var count = await ExecuteScalarAsync<int>(conn, sql, parameters, tx);
+                return count > 0;
+            }
+            else
+            {
+                using var newConn = await GetOpenConnectionAsync();
+                int count = await ExecuteScalarAsync<int>(newConn, sql, parameters);
+                return count > 0;
+            }
         }
-        public async Task<bool> AddBlacklistedTokenAsync(string jti, DateTime expiration)
+        public async Task<bool> AddBlacklistedTokenAsync(string jti, DateTime expiration, DbConnection? conn = null, DbTransaction? tx = null)
         {
             try
             {
                 _logger.LogInformation("Adding blacklisted token for Jti: {Jti}", jti);
-                string sql = "INSERT INTO BlacklistedTokens (Jti, ExpiryDate) VALUES (@Jti, @ExpiryDate) ";
-                int rowsAffected = await ExecuteAsync(sql, new
+                string sql = "INSERT INTO BlacklistedTokens (Jti, ExpiryDate) VALUES (@Jti, @ExpiryDate)";
+                int rowsAffected;
+
+                if (conn != null)
                 {
-                    Jti = jti,
-                    ExpiryDate = expiration,
-                });
+                    // Use provided connection and transaction.
+                    rowsAffected = await ExecuteAsync(conn, sql, new { Jti = jti, ExpiryDate = expiration }, tx);
+                }
+                else
+                {
+                    // No connection provided—open a new one.
+                    using var localConn = await GetOpenConnectionAsync();
+                    rowsAffected = await ExecuteAsync(localConn, sql, new { Jti = jti, ExpiryDate = expiration });
+                }
+
                 _logger.LogInformation("Blacklisted token added successfully for Jti: {Jti}", jti);
                 return rowsAffected > 0;
             }
@@ -124,42 +197,100 @@ namespace Backend.Infrastructure.Data.Sql.Queries.UserQueries
             }
         }
 
-        public async Task<bool> IsTokenBlacklistedAsync(string jti)
+        public async Task<bool> IsTokenBlacklistedAsync(string jti, DbConnection? conn = null, DbTransaction? tx = null)
         {
             string sql = "SELECT COUNT(1) FROM BlacklistedTokens WHERE Jti = @Jti";
-            int count = await ExecuteScalarAsync<int>(sql, new { Jti = jti });
+            int count;
+
+            if (conn != null)
+            {
+                // Use the provided connection and transaction (if any)
+                count = await ExecuteScalarAsync<int>(conn, sql, new { Jti = jti }, tx);
+            }
+            else
+            {
+                // No connection provided—open a new one.
+                using var localConn = await GetOpenConnectionAsync();
+                count = await ExecuteScalarAsync<int>(localConn, sql, new { Jti = jti });
+            }
+
             return count > 0;
         }
-
-        public async Task<bool> UpdateRefreshTokenExpiryAsync(Guid persoid, DateTime newExpiry)
+        private async Task<bool> UpdateRefreshTokenExpiryAsync(Guid persoId, DateTime newExpiry, DbConnection? conn = null, DbTransaction? tx = null)
         {
             string sql = "UPDATE RefreshTokens SET RefreshTokenExpiryDate = @NewExpiry WHERE PersoId = @PersoId";
-            int rowsAffected = await _connection.ExecuteAsync(sql, new { NewExpiry = newExpiry, PersoId = persoid });
+            int rowsAffected;
+
+            if (tx != null)
+            {
+                if (conn == null)
+                {
+                    throw new ArgumentNullException(nameof(conn), "A connection must be provided when a transaction is provided.");
+                }
+                // Use the provided connection and transaction
+                rowsAffected = await ExecuteAsync(conn, sql, new { NewExpiry = newExpiry, PersoId = persoId }, tx);
+            }
+            else
+            {
+                // No transaction provided—open a new connection locally
+                using var localConn = await GetOpenConnectionAsync();
+                rowsAffected = await ExecuteAsync(localConn, sql, new { NewExpiry = newExpiry, PersoId = persoId });
+            }
+
             return rowsAffected > 0;
         }
 
         // This method is used to expire a refresh token
-        public async Task<bool> ExpireRefreshTokenAsync(Guid persoid)
+        public async Task<bool> ExpireRefreshTokenAsync(Guid persoId, DbConnection? conn = null, DbTransaction? tx = null)
         {
-            // Use ITimeProvider to calculate a new expiry (e.g., one minute in the past)
             DateTime newExpiry = _timeProvider.UtcNow.AddMinutes(-1);
-            _logger.LogInformation("Expiring refresh token for Persoid {PersoId} with new expiry {NewExpiry}", persoid, newExpiry);
-            return await UpdateRefreshTokenExpiryAsync(persoid, newExpiry);
+            _logger.LogInformation("Expiring refresh token for PersoId {PersoId} with new expiry {NewExpiry}", persoId, newExpiry);
+
+            // Forward the connection and transaction (if any) to the private method.
+            return await UpdateRefreshTokenExpiryAsync(persoId, newExpiry, conn, tx);
         }
 
-        public async Task<bool> DeleteTokenAsync(string refreshToken)
+        public async Task<bool> DeleteTokenAsync(string refreshToken, DbConnection? conn = null, DbTransaction? tx = null)
         {
             const string sql = "DELETE FROM RefreshTokens WHERE RefreshToken = @RefreshToken";
-            var rowsAffected = await ExecuteAsync(sql, new { RefreshToken = refreshToken });
+            int rowsAffected;
+
+            if (tx != null)
+            {
+                // If a transaction is provided, ensure a connection is also provided.
+                if (conn == null)
+                    throw new ArgumentNullException(nameof(conn), "A connection must be provided when a transaction is provided.");
+                rowsAffected = await ExecuteAsync(conn, sql, new { RefreshToken = refreshToken }, tx);
+            }
+            else
+            {
+                // No transaction provided—open a new connection.
+                using var localConn = await GetOpenConnectionAsync();
+                rowsAffected = await ExecuteAsync(localConn, sql, new { RefreshToken = refreshToken });
+            }
+
             return rowsAffected > 0;
         }
-        public async Task<bool> DeleteTokensByUserIdAsync(string userId)
+        public async Task<bool> DeleteTokensByUserIdAsync(string userId, DbConnection? conn = null, DbTransaction? tx = null)
         {
             const string sql = "DELETE FROM RefreshTokens WHERE PersoId = @PersoId";
-            var rowsAffected = await ExecuteAsync(sql, new { PersoId = userId });
+            int rowsAffected;
+
+            if (tx != null)
+            {
+                if (conn == null)
+                    throw new ArgumentNullException(nameof(conn), "A connection must be provided when a transaction is provided.");
+                rowsAffected = await ExecuteAsync(conn, sql, new { PersoId = userId }, tx);
+            }
+            else
+            {
+                using var localConn = await GetOpenConnectionAsync();
+                rowsAffected = await ExecuteAsync(localConn, sql, new { PersoId = userId });
+            }
+
             return rowsAffected > 0;
         }
-        public async Task<BlacklistedTokenEntity?> GetBlacklistedTokenByJtiAsync(string? jti)
+        public async Task<BlacklistedTokenEntity?> GetBlacklistedTokenByJtiAsync(string? jti, DbConnection? conn = null, DbTransaction? tx = null)
         {
             if (string.IsNullOrEmpty(jti))
             {
@@ -170,14 +301,29 @@ namespace Backend.Infrastructure.Data.Sql.Queries.UserQueries
             var parameters = new DynamicParameters();
             parameters.Add("Jti", jti);
 
-            var token = await QueryFirstOrDefaultAsync<BlacklistedTokenEntity>(sqlQuery, parameters);
+            BlacklistedTokenEntity? token;
+
+            if (conn != null)
+            {
+                // Use the provided connection and transaction.
+                token = await QueryFirstOrDefaultAsync<BlacklistedTokenEntity>(conn, sqlQuery, parameters, tx);
+            }
+            else
+            {
+                // No connection provided—open a new connection.
+                using var localConn = await GetOpenConnectionAsync();
+                token = await QueryFirstOrDefaultAsync<BlacklistedTokenEntity>(localConn, sqlQuery, parameters);
+            }
+
             if (token == null)
             {
                 _logger.LogWarning("No blacklisted token found for JTI: {Jti}", jti);
             }
+
             return token;
         }
-        public async Task<IEnumerable<RefreshJwtTokenEntity>> GetExpiredTokensAsync()
+
+        public async Task<IEnumerable<RefreshJwtTokenEntity>> GetExpiredTokensAsync(DbConnection? conn = null, DbTransaction? tx = null)
         {
             try
             {
@@ -199,19 +345,30 @@ namespace Backend.Infrastructure.Data.Sql.Queries.UserQueries
 
                 // Query the database for expired tokens
                 string sql = @"
-                    SELECT Persoid, CAST(SessionId AS CHAR(36)) AS SessionId, RefreshToken, AccessTokenJti,
-                        RefreshTokenExpiryDate, AccessTokenExpiryDate, DeviceId, UserAgent, CreatedBy, CreatedTime 
-                    FROM RefreshTokens 
-                    WHERE RefreshTokenExpiryDate < @Now";
+                SELECT Persoid, CAST(SessionId AS CHAR(36)) AS SessionId, RefreshToken, AccessTokenJti,
+                       RefreshTokenExpiryDate, AccessTokenExpiryDate, DeviceId, UserAgent, CreatedBy, CreatedTime 
+                FROM RefreshTokens 
+                WHERE RefreshTokenExpiryDate < @Now";
                 var parameters = new DynamicParameters();
                 parameters.Add("Now", now);
 
-                var tokens = await QueryAsync<RefreshJwtTokenEntity>(sql, parameters);
+                IEnumerable<RefreshJwtTokenEntity> tokens;
+                if (conn != null)
+                {
+                    // Use the provided connection and transaction.
+                    tokens = await QueryAsync<RefreshJwtTokenEntity>(conn, sql, parameters, tx);
+                }
+                else
+                {
+                    // No connection provided—open a new one.
+                    using var localConn = await GetOpenConnectionAsync();
+                    tokens = await QueryAsync<RefreshJwtTokenEntity>(localConn, sql, parameters);
+                }
 
-                // Cache the result for a short duration (e.g., 20 seconds)
+                // Cache the result for a short duration (e.g., 35 seconds)
                 var cacheOptions = new DistributedCacheEntryOptions
                 {
-                    AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(20)
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(35)
                 };
                 var tokensJson = JsonSerializer.Serialize(tokens);
                 await _cache.SetStringAsync(cacheKey, tokensJson, cacheOptions);
@@ -224,6 +381,7 @@ namespace Backend.Infrastructure.Data.Sql.Queries.UserQueries
                 throw;
             }
         }
+
 
     }
 }

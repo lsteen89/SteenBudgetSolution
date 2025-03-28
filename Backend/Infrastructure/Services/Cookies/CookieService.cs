@@ -1,5 +1,5 @@
 ﻿using Backend.Application.Interfaces.Cookies;
-using Backend.Application.Settings;
+using Backend.Settings;
 using Microsoft.Extensions.Hosting;
 namespace Backend.Infrastructure.Services.CookieService
 {

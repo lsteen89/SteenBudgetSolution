@@ -61,7 +61,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
 
             // Setup the repository's upsert method to simulate success.
             _wizardSqlExecutorMock
-                .Setup(x => x.UpsertStepDataAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()))
+                .Setup(x => x.UpsertStepDataAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>(), null, null))
                 .ReturnsAsync(true);
 
             // Act
@@ -73,6 +73,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
                 "test-session-guid",
                 1,
                 It.Is<string>(json => json.Contains("50000") && json.Contains("monthly"))
+                , null, null
             ), Times.Once);
         }
 
@@ -100,7 +101,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
 
             // Verify that the repository's upsert method was never called.
             _wizardSqlExecutorMock.Verify(x => x.UpsertStepDataAsync(
-                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()
+                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>(), null, null
             ), Times.Never);
         }
         [Fact]
@@ -128,7 +129,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
             string json = JsonConvert.SerializeObject(validDto);
 
             _wizardSqlExecutorMock
-                 .Setup(x => x.UpsertStepDataAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()))
+                 .Setup(x => x.UpsertStepDataAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>(), null, null))
                  .ReturnsAsync(true);
 
             // Act
@@ -139,7 +140,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
             _wizardSqlExecutorMock.Verify(x => x.UpsertStepDataAsync(
                 "test-session-guid",
                 1,
-                It.Is<string>(s => s.Contains("John Doe") && s.Contains("monthly"))
+                It.Is<string>(s => s.Contains("John Doe") && s.Contains("monthly")), null, null
             ), Times.Once);
         }
 
@@ -160,7 +161,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
 
             // Setup the repository's upsert method to simulate success.
             _wizardSqlExecutorMock
-                .Setup(x => x.UpsertStepDataAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()))
+                .Setup(x => x.UpsertStepDataAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>(), null, null))
                 .ReturnsAsync(true);
 
             // Act
@@ -171,7 +172,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
             _wizardSqlExecutorMock.Verify(x => x.UpsertStepDataAsync(
                 "test-session-guid",
                 1,
-                It.Is<string>(s => s.Contains("monthly"))
+                It.Is<string>(s => s.Contains("monthly")), null, null
             ), Times.Once);
         }
 
@@ -206,7 +207,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
             Assert.Contains("Ange namn för sidoinkomst.", exception.Message);
 
             _wizardSqlExecutorMock.Verify(x => x.UpsertStepDataAsync(
-                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()
+                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>(), null, null
             ), Times.Never);
         }
         [Fact]
@@ -241,7 +242,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
             Assert.Contains("Ange namn", exception.Message);
 
             _wizardSqlExecutorMock.Verify(x => x.UpsertStepDataAsync(
-                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()
+                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>(), null, null
             ), Times.Never);
         }
     }
