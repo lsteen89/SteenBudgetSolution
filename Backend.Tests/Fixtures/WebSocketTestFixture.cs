@@ -20,6 +20,7 @@ using System.IdentityModel.Tokens.Jwt;
 using Xunit;
 using Backend.Infrastructure.Data.Sql.Providers.UserProvider;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
+using Backend.Settings;
 
 namespace Backend.Tests.Fixtures
 {
@@ -42,6 +43,14 @@ namespace Backend.Tests.Fixtures
 
                     webBuilder.ConfigureServices(services =>
                     {
+                        services.Configure<WebSocketHealthCheckSettings>(options =>
+                        {
+                            options.MissedPongThreshold = 1;
+                            options.LogoutOnStaleConnection = false;
+                            options.PongTimeout = TimeSpan.FromSeconds(10);
+
+                        });
+
                         // Core services
                         services.AddControllers();
                         services.AddAuthentication("Test")

@@ -3,6 +3,7 @@
 using Backend.Application.Interfaces.JWT;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
 using Microsoft.Extensions.Caching.Distributed;
+using System.Data.Common;
 
 public class TokenBlacklistService : ITokenBlacklistService
 {
@@ -52,7 +53,7 @@ public class TokenBlacklistService : ITokenBlacklistService
             return false;
         }
     }
-    public async Task<bool> BlacklistTokenByJtiAsync(string jti, DateTime accessTokenExpiryDate)
+    public async Task<bool> BlacklistTokenByJtiAsync(string jti, DateTime accessTokenExpiryDate, DbTransaction tx)
     {
         if (string.IsNullOrEmpty(jti))
         {
@@ -76,7 +77,7 @@ public class TokenBlacklistService : ITokenBlacklistService
             });
 
             // Insert the blacklisted token into the database.
-            bool success = await _userSQLProvider.RefreshTokenSqlExecutor.AddBlacklistedTokenAsync(jti, accessTokenExpiryDate);
+            bool success = await _userSQLProvider.RefreshTokenSqlExecutor.AddBlacklistedTokenAsync(jti, accessTokenExpiryDate, conn: tx.Connection, tx: tx);
             if (success)
             {
                 _logger.LogInformation($"Token with JTI {jti} has been blacklisted until {accessTokenExpiryDate}.");

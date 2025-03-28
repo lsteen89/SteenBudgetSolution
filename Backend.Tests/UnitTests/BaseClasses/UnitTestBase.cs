@@ -1,7 +1,7 @@
 ﻿using Backend.Application.Interfaces.EmailServices;
 using Backend.Application.Interfaces.UserServices;
 using Backend.Application.Services.UserServices;
-using Backend.Application.Settings;
+using Backend.Settings;
 using Backend.Common.Interfaces;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
 using Backend.Infrastructure.Data.Sql.Interfaces.UserQueries;

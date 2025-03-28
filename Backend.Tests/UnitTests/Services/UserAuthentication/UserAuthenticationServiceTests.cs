@@ -41,7 +41,7 @@ namespace Backend.Tests.IntegrationTests.Services.UserAuthentication
             // Arrange
             var email = "nonexistent@example.com";
             MockUserSQLProvider
-                .Setup(x => x.UserSqlExecutor.GetUserModelAsync(null, email))
+                .Setup(x => x.UserSqlExecutor.GetUserModelAsync(null, email, null, null))
                 .ReturnsAsync((UserModel)null);
 
             // Act
@@ -57,7 +57,7 @@ namespace Backend.Tests.IntegrationTests.Services.UserAuthentication
         {
             // Arrange
             MockUserSQLProvider
-                .Setup(x => x.UserSqlExecutor.GetUserModelAsync(null, _testUser.Email))
+                .Setup(x => x.UserSqlExecutor.GetUserModelAsync(null, _testUser.Email, null, null))
                 .ReturnsAsync(_testUser);
 
             // Simulate email sending failure
@@ -94,7 +94,7 @@ namespace Backend.Tests.IntegrationTests.Services.UserAuthentication
         {
             // Arrange
             MockUserSQLProvider
-                .Setup(x => x.UserSqlExecutor.GetUserModelAsync(null, _testUser.Email))
+                .Setup(x => x.UserSqlExecutor.GetUserModelAsync(null, _testUser.Email, null, null))
                 .ReturnsAsync(_testUser);
 
             MockEmailResetPasswordService
