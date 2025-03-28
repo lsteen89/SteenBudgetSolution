@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Http;
 using Moq;
 using Xunit;
-using Backend.Application.Settings;
+using Backend.Settings;
 
 namespace Backend.Tests.UnitTests.Services.CookieService
 {

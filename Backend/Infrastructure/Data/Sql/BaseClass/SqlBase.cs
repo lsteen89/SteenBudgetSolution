@@ -1,108 +1,113 @@
 ﻿using System.Data;
 using System.Data.Common;
-using Microsoft.Extensions.Logging;
 using Dapper;
+using Backend.Infrastructure.Data.Sql.Interfaces.Factories;
 
 namespace Backend.Infrastructure.Data
 {
     public abstract class SqlBase
     {
-        protected readonly DbConnection _connection;
+        private readonly IConnectionFactory _connectionFactory;
         protected readonly ILogger _logger;
 
-        protected SqlBase(DbConnection connection, ILogger logger)
+        protected SqlBase(IConnectionFactory connectionFactory, ILogger logger)
         {
-            _connection = connection;
+            _connectionFactory = connectionFactory;
             _logger = logger;
         }
 
-        protected async Task OpenConnectionAsync()
+        // Helper to create and open a new connection.
+        // You can call this IF you're doing a stand-alone operation
+        // that doesn't belong to a larger transaction scope.
+        protected async Task<DbConnection> GetOpenConnectionAsync()
         {
-            if (_connection.State == ConnectionState.Closed)
+            var connection = _connectionFactory.CreateConnection();
+            if (connection.State == ConnectionState.Closed)
             {
-                await _connection.OpenAsync();
+                await connection.OpenAsync();
             }
+            return connection;
         }
 
-        protected async Task CloseConnectionAsync()
+        // ----------------------------------
+        // ExecuteAsync: Requires the caller to supply DbConnection and DbTransaction
+        // ----------------------------------
+        public async Task<int> ExecuteAsync(DbConnection conn, string sql, object param, DbTransaction tx = null)
         {
-            if (_connection.State == ConnectionState.Open)
-            {
-                await _connection.CloseAsync();
-            }
+            return await conn.ExecuteAsync(sql, param, tx);
         }
 
-        protected async Task<int> ExecuteAsync(string sql, object? parameters = null, DbTransaction? transaction = null)
+        // ----------------------------------
+        // Scalar: (OPTIONAL) If you want to allow a quick one-off scalar query with its own connection
+        // you can keep a version that opens a new connection. If you'd rather have the caller handle
+        // the connection, remove or rename this method.
+        // ----------------------------------
+        public async Task<T> ExecuteScalarAsync<T>(DbConnection conn, string sql, object parameters = null, DbTransaction tx = null)
         {
+            return await conn.ExecuteScalarAsync<T>(sql, parameters, tx);
+        }
+
+        // ----------------------------------
+        // Transaction Helpers
+        // ----------------------------------
+        // Approach A: Pass (conn, tx) to your lambda
+        // This method opens a connection and transaction, then passes them to the caller.
+        public async Task ExecuteInTransactionAsync(Func<DbConnection, DbTransaction, Task> operation)
+        {
+            using var conn = await GetOpenConnectionAsync();
+            using var tx = await conn.BeginTransactionAsync();
             try
             {
-                return await _connection.ExecuteAsync(sql, parameters, transaction);
+                await operation(conn, tx);
+                await tx.CommitAsync();
             }
-            catch (Exception ex)
+            catch
             {
-                _logger.LogError(ex, "Error executing SQL: {Sql}", sql);
+                await tx.RollbackAsync();
                 throw;
             }
         }
 
-        protected async Task<T> ExecuteScalarAsync<T>(string sql, object? parameters = null)
+        // Overload that returns a value
+        public async Task<T> ExecuteInTransactionAsync<T>(Func<DbConnection, DbTransaction, Task<T>> operation)
         {
+            using var conn = await GetOpenConnectionAsync();
+            using var tx = await conn.BeginTransactionAsync();
             try
             {
-                return await _connection.ExecuteScalarAsync<T>(sql, parameters);
+                T result = await operation(conn, tx);
+                await tx.CommitAsync();
+                return result;
             }
-            catch (Exception ex)
+            catch
             {
-                _logger.LogError(ex, "Error executing scalar SQL: {Sql}", sql);
+                await tx.RollbackAsync();
                 throw;
             }
         }
 
-        protected async Task ExecuteInTransactionAsync(Func<DbTransaction, Task> operation)
+        // ----------------------------------
+        // Query Helpers: also pass in DbConnection (and optional transaction).
+        // ----------------------------------
+        public async Task<T?> QueryFirstOrDefaultAsync<T>(
+            DbConnection conn,
+            string sql,
+            object? parameters = null,
+            DbTransaction? transaction = null
+        )
         {
-            await OpenConnectionAsync();
-            using var transaction = await _connection.BeginTransactionAsync();
-            try
-            {
-                await operation(transaction);
-                await transaction.CommitAsync();
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                _logger.LogError(ex, "Transaction failed and was rolled back.");
-                throw;
-            }
-            finally
-            {
-                await CloseConnectionAsync();
-            }
-        }
-        public async Task<T?> QueryFirstOrDefaultAsync<T>(string sql, object? parameters = null, DbTransaction? transaction = null)
-        {
-            try
-            {
-                return await _connection.QueryFirstOrDefaultAsync<T>(sql, parameters, transaction);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error executing SQL query: {Sql}", sql);
-                throw;
-            }
-        }
-        public async Task<List<T>> QueryAsync<T>(string sql, object? parameters = null, DbTransaction? transaction = null)
-        {
-            try
-            {
-                var result = await _connection.QueryAsync<T>(sql, parameters, transaction);
-                return result.ToList(); 
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error executing SQL query: {Sql}", sql);
-                throw;
-            }
+            return await conn.QueryFirstOrDefaultAsync<T>(sql, parameters, transaction);
         }
 
+        public async Task<List<T>> QueryAsync<T>(
+            DbConnection conn,
+            string sql,
+            object? parameters = null,
+            DbTransaction? transaction = null
+        )
+        {
+            var result = await conn.QueryAsync<T>(sql, parameters, transaction);
+            return result.ToList();
+        }
     }
 }

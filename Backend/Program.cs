@@ -10,7 +10,6 @@ using Backend.Application.Services.AuthService;
 using Backend.Application.Services.EmailServices;
 using Backend.Application.Services.UserServices;
 using Backend.Application.Services.WizardService;
-using Backend.Application.Settings;
 using Backend.Application.Validators;
 using Backend.Application.Validators.WizardValidation;
 using Backend.Common.Converters;
@@ -46,6 +45,10 @@ using System.Reflection;
 using System.Text;
 using System.Threading.RateLimiting;
 using Newtonsoft.Json.Serialization;
+using Backend.Infrastructure.Data.Sql.Factories;
+using Backend.Infrastructure.Data.Sql.Interfaces.Factories;
+using Backend.Settings;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -66,11 +69,20 @@ builder.Services.Configure<WebSocketHealthCheckSettings>(
 
 // Configure the JWT settings
 var jwtSettingsSection = builder.Configuration.GetSection("JwtSettings");
+
+// DB settings
+builder.Services.Configure<DatabaseSettings>(builder.Configuration.GetSection("DatabaseSettings"));
+
 #endregion
 
 #region Configuration and Services
 // Register In-Memory Distributed Cache
 builder.Services.AddDistributedMemoryCache();
+
+// Add environment variables to configuration
+builder.Configuration.AddEnvironmentVariables();
+// bind DatabaseSettings to DatabaseSettings class:
+builder.Services.Configure<DatabaseSettings>(builder.Configuration.GetSection("DatabaseSettings"));
 
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
@@ -147,6 +159,17 @@ var configuration = builder.Configuration;
 #region Injected Services
 
 // Section for SQL related services
+// Connection factory
+builder.Services.AddScoped<IConnectionFactory>(provider =>
+{
+    var settings = provider.GetRequiredService<IOptions<DatabaseSettings>>().Value;
+    if (string.IsNullOrEmpty(settings.ConnectionString))
+    {
+        throw new InvalidOperationException("Database connection string not found in configuration.");
+    }
+    return new MySqlConnectionFactory(settings.ConnectionString);
+});
+
 // Users
 builder.Services.AddScoped<IUserSqlExecutor, UserSqlExecutor>();
 builder.Services.AddScoped<IVerificationTokenSqlExecutor, VerificationTokenSqlExecutor>();
@@ -186,18 +209,6 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 
 builder.Services.AddScoped<IEnvironmentService, EnvironmentService>();
 builder.Services.Configure<ResendEmailSettings>(builder.Configuration.GetSection("ResendEmailSettings"));
-builder.Services.AddScoped<DbConnection>(provider =>
-{
-    var connectionString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
-
-    if (string.IsNullOrEmpty(connectionString))
-    {
-        throw new InvalidOperationException("Database connection string not found in environment variables.");
-    }
-
-    // Return a new MySqlConnection instance with the connection string
-    return new MySqlConnection(connectionString);
-});
 
 // Configure EmailService based on environment
 if (builder.Environment.IsDevelopment())

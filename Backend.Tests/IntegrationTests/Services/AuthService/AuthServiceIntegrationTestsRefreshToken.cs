@@ -8,6 +8,7 @@ using Moq;
 using Backend.Infrastructure.Security;
 using Backend.Infrastructure.WebSockets;
 using Backend.Application.DTO.User;
+using Backend.Application.DTO.Auth;
 
 namespace Backend.Tests.IntegrationTests.Services.AuthService
 {
@@ -298,6 +299,46 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             // Verify that the blacklisted token's expiry is in the future.
             Assert.True(blacklistedToken.ExpiryDate > DateTime.UtcNow, "Blacklisted token expiry should be in the future.");
         }
+        [Fact]
+        public async Task RefreshToken_ConcurrentRequests_OnlyOneSucceeds()
+        {
+            // Arrange: Setup user and perform an initial login to obtain tokens.
+            var (ipAddress, deviceId, userAgent) = AuthTestHelper.GetDefaultMetadata();
+            var userLoginDto = new UserLoginDto
+            {
+                Email = "test@example.com",
+                Password = "Password123!",
+                CaptchaToken = "valid-captcha-token"
+            };
+
+            // Setup user and confirm their email.
+            var registeredUser = await SetupUserAsync();
+            await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
+
+            // Perform an initial login to obtain tokens.
+            var loginResult = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent);
+            Assert.True(loginResult.Success, "Initial login should succeed.");
+            Assert.False(string.IsNullOrEmpty(loginResult.RefreshToken), "Refresh token should not be null or empty.");
+
+            // Act: Trigger multiple concurrent refresh token requests using the same token.
+            int concurrentRequests = 10;
+            var tasks = new List<Task<LoginResultDto>>();
+            for (int i = 0; i < concurrentRequests; i++)
+            {
+                tasks.Add(AuthService.RefreshTokenAsync(loginResult.RefreshToken, loginResult.SessionId, userAgent, deviceId));
+            }
+
+            // Wait for all refresh requests to complete.
+            var results = await Task.WhenAll(tasks);
+
+            // Assert: Only one request should succeed; the others should fail.
+            var successCount = results.Count(r => r.Success);
+            var failureCount = results.Count(r => !r.Success);
+
+            Assert.Equal(1, successCount);
+            Assert.Equal(concurrentRequests - 1, failureCount);
+        }
+
 
     }
 }

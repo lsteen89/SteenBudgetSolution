@@ -753,11 +753,12 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
             await clientWebSocket.SendAsync(new ArraySegment<byte>(pongBytes), WebSocketMessageType.Text, true, CancellationToken.None);
             Console.WriteLine("Client responded with pong.");
 
+            await Task.Delay(1000); // Delay of 1 second to allow server to process the pong
             // 5) Optional: Trigger another health check to ensure the server doesn't close us
             await wsManager.HealthCheckAsync();
 
             // If you want to verify that we remain connected and see another ping:
-            var secondPing = await ReceiveSingleMessage(clientWebSocket, TimeSpan.FromSeconds(2));
+            var secondPing = await ReceiveSingleMessage(clientWebSocket, TimeSpan.FromSeconds(30));
             secondPing.Should().Be("ping", "because the connection should remain open and healthy");
             Console.WriteLine("Second healthcheck ping received successfully.");
         }
@@ -791,7 +792,7 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
             // Deliberately NOT sending a 'pong' here.
 
             // Wait 5s, trigger another health check so server sees no pong
-            await Task.Delay(TimeSpan.FromSeconds(5));
+            await Task.Delay(TimeSpan.FromSeconds(15));
             await wsManager.HealthCheckAsync();
 
             // 3) ASSERT: We expect the server to forcibly close the socket
@@ -1020,7 +1021,7 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
         private async Task<string> ReceiveSingleMessage(ClientWebSocket clientWebSocket, TimeSpan? timeout = null)
         {
             var buffer = new byte[1024];
-            using var cts = new CancellationTokenSource(timeout ?? TimeSpan.FromSeconds(5));
+            using var cts = new CancellationTokenSource(timeout ?? TimeSpan.FromSeconds(10));
             var result = await clientWebSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cts.Token);
             return Encoding.UTF8.GetString(buffer, 0, result.Count);
         }

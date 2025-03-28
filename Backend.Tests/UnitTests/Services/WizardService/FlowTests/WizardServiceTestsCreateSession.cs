@@ -45,7 +45,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
             string testEmail = "test@example.com";
             Guid validGuid = Guid.NewGuid();
             _wizardSqlExecutorMock
-                .Setup(x => x.CreateWizardAsync(testEmail))
+                .Setup(x => x.CreateWizardAsync(testEmail, null, null))
                 .ReturnsAsync(validGuid);
 
             // Act
@@ -63,7 +63,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
             // Arrange
             string testEmail = "test@example.com";
             _wizardSqlExecutorMock
-                .Setup(x => x.CreateWizardAsync(testEmail))
+                .Setup(x => x.CreateWizardAsync(testEmail, null, null))
                 .ReturnsAsync(Guid.Empty);
 
             // Act
@@ -82,7 +82,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
             string testEmail = "test@example.com";
             Guid sessionGuid = Guid.NewGuid();
             _wizardSqlExecutorMock
-                .Setup(x => x.GetWizardSessionIdAsync(testEmail))
+                .Setup(x => x.GetWizardSessionIdAsync(testEmail, null, null))
                 .ReturnsAsync(sessionGuid);
 
             // Act
@@ -98,7 +98,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
             // Arrange
             string testEmail = "test@example.com";
             _wizardSqlExecutorMock
-                .Setup(x => x.GetWizardSessionIdAsync(testEmail))
+                .Setup(x => x.GetWizardSessionIdAsync(testEmail, null, null))
                 .ReturnsAsync((Guid?)null);
 
             // Act

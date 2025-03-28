@@ -1,13 +1,24 @@
-﻿using Backend.Application.Interfaces.AuthService;
+﻿using Backend.Application.DTO.User;
+using Backend.Application.Interfaces.AuthService;
 using Backend.Application.Interfaces.Cookies;
 using Backend.Application.Interfaces.EmailServices;
 using Backend.Application.Interfaces.JWT;
 using Backend.Application.Interfaces.UserServices;
+using Backend.Application.Interfaces.WebSockets;
 using Backend.Application.Services.AuthService;
 using Backend.Application.Services.UserServices;
 using Backend.Common.Converters;
+using Backend.Common.Interfaces;
+using Backend.Domain.Entities.User;
+using Backend.Infrastructure.Data.Sql.Factories;
+using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
+using Backend.Infrastructure.Data.Sql.Interfaces.UserQueries;
+using Backend.Infrastructure.Data.Sql.Providers.UserProvider;
+using Backend.Infrastructure.Data.Sql.Queries.UserQueries;
 using Backend.Infrastructure.Email;
 using Backend.Infrastructure.Implementations;
+using Backend.Infrastructure.WebSockets;
+using Backend.Settings;
 using Backend.Test.UserTests;
 using Backend.Tests.Mocks;
 using Dapper;
@@ -15,21 +26,12 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
-using MySqlConnector;
 using System.Data.Common;
 using System.Security.Claims;
 using Xunit;
-using Backend.Application.Interfaces.WebSockets;
-using Backend.Common.Interfaces;
-using Backend.Application.Settings;
-using Backend.Infrastructure.WebSockets;
-using Backend.Infrastructure.Data.Sql.Providers.UserProvider;
-using Backend.Infrastructure.Data.Sql.Interfaces.UserQueries;
-using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
-using Backend.Infrastructure.Data.Sql.Queries.UserQueries;
-using Backend.Application.DTO.User;
-using Backend.Domain.Entities.User;
+using Backend.Infrastructure.Data.Sql.Interfaces.Factories;
 
 public abstract class IntegrationTestBase : IAsyncLifetime
 {
@@ -55,6 +57,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     {
 
         SqlMapper.AddTypeHandler(typeof(Guid), new GuidTypeHandler());
+
 
 
         CookieContainer = new Dictionary<string, (string Value, CookieOptions Options)>();
@@ -191,14 +194,26 @@ public abstract class IntegrationTestBase : IAsyncLifetime
             .Build();
 
         services.AddSingleton<IConfiguration>(configuration);
+        services.Configure<DatabaseSettings>(configuration.GetSection("DatabaseSettings"));
 
+
+        services.AddScoped<IConnectionFactory>(provider =>
+        {
+            var options = provider.GetRequiredService<IOptions<DatabaseSettings>>().Value;
+            if (string.IsNullOrEmpty(options.ConnectionString))
+            {
+                throw new InvalidOperationException("Database connection string is required in DatabaseSettings.");
+            }
+            return new MySqlConnectionFactory(options.ConnectionString);
+        });
         services.AddScoped<DbConnection>(provider =>
         {
-            var connectionString = configuration.GetConnectionString("TestDatabase")
-                                   ?? Environment.GetEnvironmentVariable("DB_CONNECTION_STRING")
-                                   ?? throw new InvalidOperationException("Database connection string is required.");
-            return new MySqlConnection(connectionString);
+            var factory = provider.GetRequiredService<IConnectionFactory>();
+            var connection = factory.CreateConnection();
+            connection.Open();
+            return connection;
         });
+
 
         // Register application services
         services.AddScoped<IUserServices, UserServices>();
@@ -213,8 +228,6 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         services.AddScoped<UserServiceTest>();
 
         services.AddScoped<ITokenBlacklistService, TokenBlacklistService>();
-
-        // Register SQL providers
         services.AddScoped<IUserSqlExecutor, UserSqlExecutor>();
         services.AddScoped<IVerificationTokenSqlExecutor, VerificationTokenSqlExecutor>();
         services.AddScoped<IAuthenticationSqlExecutor, AuthenticationSqlExecutor>();
