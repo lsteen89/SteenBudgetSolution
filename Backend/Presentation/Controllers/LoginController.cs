@@ -102,6 +102,8 @@ namespace Backend.Presentation.Controllers
                 return StatusCode(500, new { success = false, message = "An internal error occurred during logout." });
             }
 
+            _logger.LogInformation("sessionId: {sessionId} ", sessionId );
+
             // Delete all authentication cookies.
             cookieService.DeleteCookie(Response, "AccessToken");
             cookieService.DeleteCookie(Response, "RefreshToken");
