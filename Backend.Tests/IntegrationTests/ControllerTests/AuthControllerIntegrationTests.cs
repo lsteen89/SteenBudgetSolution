@@ -39,6 +39,7 @@ namespace Backend.Tests.IntegrationTests.ControllerTests
             Assert.True(response.Headers.TryGetValues("Set-Cookie", out cookies));
             Assert.Contains(cookies, c => c.Contains("AccessToken"));
             Assert.Contains(cookies, c => c.Contains("RefreshToken"));
+            Assert.Contains(cookies, c => c.Contains("SessionId"));
         }
     }
 }
