@@ -1,66 +1,89 @@
-SteenBudgetSolution is a full-stack personal finance management application designed to help users track income, expenses, and manage budgets. Built with a focus on scalability and secure deployment, the project leverages modern technologies for both backend and frontend.
-Key Features:
+# SteenBudgetSolution
 
-    Secure User Authentication: JWT-based for secure user access.
-    ReCAPTCHA Integration: Protects against bot registrations using Google reCAPTCHA.
-    CRUD Operations: Manage financial data with full Create, Read, Update, and Delete functionality.
-    Email Notifications: Integrated SMTP for user verification and notifications.
-    Responsive Design: Tailwind CSS for a modern, mobile-first responsive UI.
-    TypeScript Integration: Adds type safety and enhanced developer experience to the frontend.
+[![Deploy to Azure App Service](https://github.com/lsteen89/SteenBudgetSolution/actions/workflows/deploy.yml/badge.svg)](https://github.com/lsteen89/SteenBudgetSolution/actions/workflows/deploy.yml) <!-- Corrected badge if needed -->
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Tech Stack:
+SteenBudgetSolution is a comprehensive, full-stack personal finance management application designed to empower users to track income, expenses, and manage budgets effectively.
 
-    Backend:
-        C# with .NET 8
-        MariaDB (SQL-based)
-        Dapper for optimized database access
-        Deployed on a self-hosted Raspberry Pi with a fully configured web server
-    Frontend:
-        React with TypeScript for a robust, scalable client-side application
-        Axios for API communication
-        Tailwind CSS for modern, responsive UI development
-        Vite as the build tool for fast and efficient frontend bundling
-    Infrastructure:
-        Custom domain hosted behind a firewall
-        Graylog for centralized logging and monitoring, ensuring insights into application and server health
-        Fail2Ban, UFW, and secure SSH for additional protection
-    CI/CD:
-        GitHub Actions for Continuous Integration and Deployment
-        Secrets management with GitHub Secrets for handling sensitive environment variables (JWT, SMTP credentials, etc.)
+This project showcases the ability to design, build, deploy, and manage a complete application end-to-end, with a strong emphasis on **secure development practices**, **modern technologies**, **robust infrastructure**, and **efficient CI/CD workflows**, all self-hosted on a Raspberry Pi.
 
-Deployment & Infrastructure
+## Key Features
 
-The entire solution is deployed on a self-hosted Raspberry Pi, which serves as the primary web server. The infrastructure includes:
+*   🔐 **Secure User Authentication:** Robust JWT-based authentication featuring auto-refresh, periodic status checks, and WebSocket integration for immediate session termination. See the detailed **[Authentication Flow Guide](docs/Security/Authentication.md)**.
+*   🤖 **ReCAPTCHA Integration:** Protects user registration from bots using Google reCAPTCHA v3.
+*   💰 **Full CRUD Operations:** Manage budgets, income, and expense transactions with complete Create, Read, Update, and Delete functionality.
+*   📧 **Email Notifications:** Integrated SMTP client (using MailKit) for user email verification and essential notifications.
+*   📱 **Responsive Design:** Modern, mobile-first UI built with Tailwind CSS ensures a great experience on any device.
+*   🚀 **Real-time Communication:** Employs WebSockets for immediate server-driven events (like session termination) and uses a ping/pong mechanism to maintain connection health. More details in the **[WebSocket Implementation Guide](docs/WebSocket/WebSocketHandler.md)**.
+*   🛡️ **Hardened Security:** Multi-layered security approach including infrastructure hardening and application-level protections.
+*   📊 **Centralized Logging:** Robust logging infrastructure using Graylog for enhanced monitoring and troubleshooting.
 
-    MariaDB Database for storing user and financial data.
-    SMTP Configuration for sending verification and notification emails to users.
-    Graylog Logging for centralized log management, using Docker containers for MongoDB and Elasticsearch as required dependencies. Graylog enhances the monitoring and logging capabilities for the solution.
-    Dockerized Services: MongoDB and Elasticsearch are set up in Docker containers, simplifying deployment and management for Graylog.
-    Firewall Protection to safeguard the domain and ensure secure communication between the client and server.
-    GitHub Actions for automated testing, building, and deploying code updates from the repository, ensuring smooth, error-free releases.
+## Tech Stack
 
-If users want to enable Graylog logging, they can uncomment the Graylog configuration in Program.cs and follow the installation guide to set up Docker-based MongoDB, Elasticsearch, and Graylog.
+**Backend:**
 
-Domain and Email Configuration:
+*   **Framework:** .NET 8 (C#) with ASP.NET Core Web API
+*   **Database:** MariaDB (SQL-based relational database)
+*   **Data Access:** Dapper (Micro-ORM, chosen for performance and direct SQL control)
+*   **Architecture:** Clean Architecture principles for separation of concerns and testability.
+*   **Real-time:** ASP.NET Core WebSockets ([custom implementation](docs/WebSocket/WebSocketHandler.md))
+*   **Email:** MailKit
 
-    SSL Certificates: It’s recommended to secure your deployment with SSL certificates to enable HTTPS. This can be achieved with free tools like Let's Encrypt to provide encrypted connections for all users.
-    DNS Setup: Configure DNS records for your domain to make the application accessible publicly. See INSTALL.md for a detailed guide on DNS settings.
-    SPF and DKIM: Improve email deliverability and security by setting up SPF and DKIM records to authenticate outgoing emails from your domain.
+**Frontend:**
 
-Firewall and Access Controls: Use UFW and SSH key-based authentication to secure server access.
+*   **Framework:** React (TypeScript) for a robust and type-safe UI.
+*   **Build Tool:** Vite for fast development server and optimized builds.
+*   **Styling:** Tailwind CSS (Utility-first CSS framework).
+*   **API Communication:** Axios (with interceptor for token refresh - see [Authentication Flow](docs/Security/Authentication.md))
 
-Security:
+**Infrastructure & DevOps:**
 
-    Security tools like Fail2Ban, UFW, and enforced SSH key-based authentication further harden the deployment. Sensitive data is managed using environment variables securely loaded on the Raspberry Pi. Graylog integration provides additional monitoring, helping to quickly identify and respond to any unusual activity or application errors.
-    Scalability:
+*   **Host:** Self-hosted on Raspberry Pi (Linux OS)
+*   **Web Server:** Nginx
+*   **Database Server:** MariaDB Server
+*   **Containerization:** Docker (used for Graylog dependencies: MongoDB & Elasticsearch)
+*   **Logging:** Graylog (Centralized log management)
+*   **Security Tools:** UFW (Firewall), Fail2Ban (Intrusion Prevention), Secure SSH (Key-based authentication)
+*   **CI/CD:** GitHub Actions (Automated build, test, and deployment pipeline)
+*   **Secrets Management:** GitHub Actions Secrets & Environment Variables on host.
+*   **Domain & Network:** Custom Domain, DNS Management, Cloudflare, SSL Certificates (via Let's Encrypt)
 
-While deployed on a Raspberry Pi, SteenBudgetSolution is built to scale. With minor adjustments, it can be migrated to cloud hosting if user demand grows.
-Why This Project:
+## Core Concepts & Highlights
 
-This project demonstrates my ability to design, deploy, and manage a complete full-stack application independently, with a strong focus on secure practices, efficient CI/CD workflows, and the use of modern development tools.
+### 🛡️ Security First
 
-Installation & Setup: See INSTALL.md for a full setup guide, including environment configuration, database initialization, and security recommendations.
+Security is a core consideration throughout the stack:
 
+*   **Authentication:** Robust multi-layered JWT implementation described in the **[Authentication Flow Guide](docs/Security/Authentication.md)**.
+*   **Infrastructure:** Hardened server environment using UFW, Fail2Ban, and key-based SSH. Network protected by the UFW firewall and Cloudflare.
+*   **Data Protection:** Secure handling of credentials using environment variables and GitHub Secrets. ReCAPTCHA prevents automated abuse.
+*   **Email Security:** Recommended setup includes SPF and DKIM records for email authentication (details in `INSTALL.md`).
+*   **Dependencies:** Regular monitoring/updating of dependencies.
 
-For more details on our JWT-based authentication, periodic token checks, and WebSocket logout,
-see [docs/Authentication.md](docs/Authentication.md).
+### 🚀 DevOps & Self-Hosted Infrastructure
+
+This project demonstrates practical DevOps skills managing a complete deployment environment on a Raspberry Pi:
+
+*   **Full Setup:** Configuration of the Linux OS, Nginx web server, MariaDB database server, DNS records, and SSL certificates. For specific RPi configuration details, see the **[InstallMD](INSTALL.md)** 
+*   **CI/CD Automation:** GitHub Actions pipeline handles testing, building, and deploying the application automatically on pushes to the main branch.
+*   **Container Management:** Docker utilized effectively to manage dependencies for Graylog.
+
+### 📊 Centralized Logging with Graylog
+
+*   Graylog provides powerful, centralized logging capabilities, aggregating logs from the .NET application and potentially the server itself.
+*   Facilitates monitoring application health, diagnosing issues quickly, and analyzing usage patterns.
+*   Requires Dockerized MongoDB and Elasticsearch (Setup detailed in `INSTALL.md`).
+
+## Getting Started
+
+For detailed instructions on setting up the development environment, configuring the infrastructure (including database, Graylog, security tools), and running the application, please refer to the comprehensive **main installation guide**:
+
+➡️ **[`INSTALL.md`](INSTALL.md)** ⬅️
+
+## Why This Project?
+
+This project serves as a practical demonstration of my ability to architect, develop, deploy, and manage a sophisticated full-stack application independently. It highlights proficiency in modern C#/.NET and React development, coupled with strong, hands-on experience in DevOps, infrastructure management, and security best practices within a real-world (self-hosted) environment.
+
+## License
+
+[MIT License](LICENSE)
