@@ -84,6 +84,135 @@ For detailed instructions on setting up the development environment, configuring
 
 This project serves as a practical demonstration of my ability to architect, develop, deploy, and manage a sophisticated full-stack application independently. It highlights proficiency in modern C#/.NET and React development, coupled with strong, hands-on experience in DevOps, infrastructure management, and security best practices within a real-world (self-hosted) environment.
 
+## High level flowchart
+```mermaid
+%% SteenBudgetSolution System Flowchart
+
+graph TD
+
+    %% == Define ALL Nodes First ==
+
+    %% User Interaction Nodes
+    UserBrowser[User's Browser]
+    CF[Cloudflare DNS/WAF/SSL]
+    %% Changed ID again slightly
+    RPiEntryPoint(Raspberry Pi Host Entry)
+
+    %% RPi Host Nodes (Infrastructure/Security)
+    UFW(UFW Firewall)
+    Fail2Ban(Fail2Ban)
+    Protects_SSH[Protects OS/SSH]
+    Nginx[Nginx Reverse Proxy]
+    BackendAPI("Backend API DotNet 8")
+    MariaDB[(MariaDB Database)]
+    JWT(JWT Logic)
+    WSHandler(WebSocket Handler)
+    MailKit(MailKit)
+    SMTPServer(SMTP Server)
+    GraylogStream(Graylog Input)
+    Graylog(Graylog Server)
+    Mongo(MongoDB)
+    Elastic(Elasticsearch)
+
+    %% Development Nodes
+    Developer
+    GitHub(GitHub Repo)
+    CI_CD(GitHub Actions CI/CD)
+    Artifacts{Backend/Frontend Artifacts}
+
+    %% Interaction Nodes
+    API_Calls{API Calls}
+
+    %% == Define ALL Links Second ==
+
+    %% User Flow
+    UserBrowser -- HTTPS Request --> CF
+    CF -- Forwards Traffic --> RPiEntryPoint
+    %% Link Entry Point to Firewall inside RPi Host
+    RPiEntryPoint --> UFW
+    UFW -- Allows Ports --> Nginx
+    Fail2Ban -- Monitors Logs --> Protects_SSH
+    Nginx -- Serves Static Files --> UserBrowser
+    Nginx -- /api/* Proxy Pass --> BackendAPI
+    Nginx -- WebSocket Proxy Pass --> BackendAPI
+
+    %% Backend Flow
+    BackendAPI -- Uses Dapper --> MariaDB
+    BackendAPI -- Handles Auth --> JWT
+    BackendAPI -- Handles WebSocket --> WSHandler
+    BackendAPI -- Sends Email --> MailKit
+    MailKit --> SMTPServer
+    BackendAPI -- Sends Logs --> GraylogStream
+
+    %% Logging Flow
+    GraylogStream --> Graylog
+    Graylog -- Uses --> Mongo
+    Graylog -- Uses --> Elastic
+
+    %% Development Flow
+    Developer -- Pushes Code --> GitHub
+    GitHub -- Triggers --> CI_CD
+    CI_CD -- Tests & Builds --> Artifacts
+    %% Pointing deploy to the entry/representative node
+    Artifacts -- Deploys To --> RPiEntryPoint
+
+    %% Explicit Interactions
+    UserBrowser -- Runs Frontend App --> API_Calls
+    API_Calls -- via Axios --> Nginx
+    UserBrowser -- WebSocket Conn --> Nginx
+
+    %% == Define Subgraphs LAST ==
+
+    subgraph "User Interaction (HTTPS)"
+        UserBrowser
+        CF
+        RPiEntryPoint
+    end
+
+    %% Removed display title from subgraph definition below:
+    subgraph RPiHost
+        %% Group all nodes physically on the Pi
+        UFW
+        Fail2Ban
+        Protects_SSH
+        Nginx
+        BackendAPI
+        MariaDB
+        JWT
+        WSHandler
+        MailKit
+        SMTPServer
+        GraylogStream
+        Graylog
+        Mongo
+        Elastic
+    end
+
+    subgraph "Development & Deployment"
+        Developer
+        GitHub
+        CI_CD
+        Artifacts
+    end
+
+    %% == Define Styling ==
+    classDef default fill:#f9f,stroke:#333,stroke-width:2px;
+    classDef host fill:#ccf,stroke:#333,stroke-width:2px;
+    classDef security fill:#fcc,stroke:#333,stroke-width:2px;
+    classDef db fill:#cfc,stroke:#333,stroke-width:2px;
+    classDef CICD fill:#ddf,stroke:#333,stroke-width:2px;
+
+    %% REMOVED THIS INVALID LINE: class RPiHost host;
+    class MariaDB,Mongo,Elastic db;
+    class UFW,Fail2Ban,CF,JWT,Protects_SSH security;
+    class CI_CD,GitHub,Developer CICD;
+
+    %% If you want to style nodes *within* the RPiHost subgraph
+    %% using the 'host' style, you'd have to list them individually:
+    %% class Nginx,BackendAPI,MariaDB,JWT,WSHandler,MailKit,SMTPServer,GraylogStream,Graylog,Mongo,Elastic host;
+    %% Or perhaps apply it only to a few key ones if desired.
+    %% Note: UFW, Fail2Ban etc are already styled by 'security'.
+```
 ## License
 
 [MIT License](LICENSE)
