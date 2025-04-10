@@ -1,7 +1,7 @@
 # SteenBudgetSolution
 
-[![Deploy to Azure App Service](https://github.com/lsteen89/SteenBudgetSolution/actions/workflows/deploy.yml/badge.svg)](https://github.com/lsteen89/SteenBudgetSolution/actions/workflows/deploy.yml) <!-- Corrected badge if needed -->
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Deploy to Azure App Service](https://github.com/lsteen89/SteenBudgetSolution/actions/workflows/deploy.yml/badge.svg)](https://github.com/lsteen89/SteenBudgetSolution/actions/workflows/deploy.yml) 
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 SteenBudgetSolution is a comprehensive, full-stack personal finance management application designed to empower users to track income, expenses, and manage budgets effectively.
 
@@ -215,4 +215,20 @@ graph TD
 ```
 ## License
 
-[MIT License](LICENSE)
+This project is licensed under the **GNU Affero General Public License v3 (AGPLv3)**.
+
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+
+A copy of the full license text can be found in the [LICENSE](LICENSE) file.
+
+### Summary of AGPLv3
+
+In simple terms, the AGPLv3 license means:
+
+*   **Freedom to Use:** You are free to run the software for any purpose.
+*   **Freedom to Study & Modify:** You can view the source code, study how it works, and change it to suit your needs.
+*   **Freedom to Share:** You can share copies of the original software.
+*   **Freedom to Share Modifications (Copyleft):** If you modify the software and distribute those modifications, you **must** also license your modifications under AGPLv3 and provide the source code.
+*   **Network Service Clause:** Crucially, if you modify the software and make its functionality available to users over a network (like a web service), you **must** provide the source code of your modified version to those users under the AGPLv3 license. This ensures that services built on this code remain open.
+
+This license is chosen to ensure the software remains free and open for everyone to use, modify, and share, while preventing it from being used to create closed-source, proprietary services that don't give back to the community.
