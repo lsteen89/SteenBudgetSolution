@@ -5,7 +5,7 @@
 using Backend.Common.Interfaces;
 using Backend.Infrastructure.Data.Sql.Interfaces.Factories;
 using Backend.Infrastructure.Data.Sql.Interfaces.UserQueries;
-using Backend.Infrastructure.Entities;
+using Backend.Infrastructure.Entities.Tokens;
 using Dapper;
 using Microsoft.Extensions.Caching.Distributed;
 using System.Data.Common;

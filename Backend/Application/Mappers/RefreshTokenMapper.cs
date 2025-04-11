@@ -1,5 +1,5 @@
 ﻿using Backend.Application.Models.Token;
-using Backend.Infrastructure.Entities;
+using Backend.Infrastructure.Entities.Tokens;
 using static Dapper.SqlMapper;
 
 // A mapper class that maps the RefreshTokenModel to the RefreshJwtTokenEntity and vice versa.

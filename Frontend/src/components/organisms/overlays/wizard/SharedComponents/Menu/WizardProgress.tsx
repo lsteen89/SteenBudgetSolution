@@ -39,6 +39,7 @@ const WizardProgress: React.FC<WizardProgressProps> = ({
       </div>
       {steps.map((item, index) => (
         <button
+          type="button"
           key={index}
           onClick={() => onStepClick(index+1)}
           className="relative z-10 flex flex-col items-center w-1/4 focus:outline-none"

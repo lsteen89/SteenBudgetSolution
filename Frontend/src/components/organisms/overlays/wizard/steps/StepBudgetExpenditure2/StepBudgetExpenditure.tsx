@@ -1,102 +1,75 @@
-import React, { forwardRef, useImperativeHandle, useState, useEffect, useRef } from 'react';
+import React, { forwardRef, useImperativeHandle, useRef } from "react";
+import { FieldErrors } from "react-hook-form";
 
-// Components
 import GlassPane from "@components/layout/GlassPane";
-import DataTransparencySection from "@components/organisms/overlays/wizard/SharedComponents/DataTransparencySection";
-import StepBudgetExpenditureContainer from "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/StepBudgetExpenditureContainer";
-import AnimatedWrapper from '@components/atoms/wrappers/AnimatedContent';
+import DataTransparencySection from "@components/organisms/overlays/wizard/SharedComponents/Pages/DataTransparencySection";
+import StepBudgetExpenditureContainer, {
+  StepBudgetExpenditureContainerRef,
+} from "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/StepBudgetExpenditureContainer";
 
-
-/**  Imperative handle for the parent */
 export interface StepBudgetExpenditureRef {
-  validateFields: () => boolean;
+  validateFields: () => Promise<boolean>;
   getStepData: () => any;
   markAllTouched: () => void;
-  getErrors: () => { [key: string]: string };
+  getErrors: () => FieldErrors<any>;
 }
 
-/**  Props */
-interface StepBudgetExpenditureProps  {
+interface StepBudgetExpenditureProps {
   setStepValid: (isValid: boolean) => void;
   wizardSessionId: string;
-  onSaveStepData: (stepNumber: number, data: any) => Promise<boolean>;
+  onSaveStepData: (stepNumber: number, subStep: number, data: any) => Promise<boolean>;
   stepNumber: number;
+  initialSubStep: number; // the sub-step index we start on
   initialData: any;
   onNext: () => void;
   onPrev: () => void;
   loading: boolean;
-  expenidtureInitialStep: number;
 }
 
-/**  Form Values Interface */
-interface FormValues {
-  dummyExpenditure?: number | null;
-}
+const StepBudgetExpenditure = forwardRef<
+  StepBudgetExpenditureRef,
+  StepBudgetExpenditureProps
+>((props, ref) => {
+  // We'll store a ref to the container so we can call its imperative methods
+  const containerRef = useRef<StepBudgetExpenditureContainerRef>(null);
 
-const StepBudgetExpenditure = forwardRef<StepBudgetExpenditureRef, StepBudgetExpenditureProps  >(
-  (
-    {
-      setStepValid,
-      wizardSessionId,
-      onSaveStepData,
-      stepNumber,
-      initialData,
-      onNext,
-      onPrev,
-      loading,
-      expenidtureInitialStep,
+  // Expose container’s methods up the chain
+  useImperativeHandle(ref, () => ({
+    validateFields: async () => {
+      return (await containerRef.current?.validateFields()) ?? false;
     },
-    ref
-  ) => {
-    // Define initial form values; since fields aren’t ready, we use a dummy value
-    const initialValues: FormValues = {
-      dummyExpenditure: initialData?.dummyExpenditure ?? null,
-    };
-    // Expose imperative methods if needed
-    useImperativeHandle(ref, () => ({
-      validateFields: () => {
-        // Validate entire step logic
-        return true;
-      },
-      getStepData: () => {
-        // Aggregate data from subpages
-        return {};
-      },
-      markAllTouched: () => {},
-      getErrors: () => {
-        return {};
-      },
-    }));
-  // 1. Refs to child steps
-  const StepBudgetIncomeRef = useRef<StepBudgetExpenditureRef>(null);
-  // Initialize wizard step from server data (if available)
-  const [step, setStep] = useState(0);
-  useEffect(() => {
-    if (expenidtureInitialStep > 0) {
-      setStep(expenidtureInitialStep);
-    }
-  }, [expenidtureInitialStep]);
-
-  const [isStepValid, setIsStepValid] = useState(true);
-  const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({});
-  const isDebugMode = process.env.NODE_ENV === 'development';
+    getStepData: () => {
+      return containerRef.current?.getStepData() ?? {};
+    },
+    markAllTouched: () => {
+      containerRef.current?.markAllTouched();
+    },
+    getErrors: () => {
+      return containerRef.current?.getErrors() ?? {};
+    },
+  }));
+  const containerKey = "step-budget-expenditure-container";
   return (
-    <GlassPane>
-
-      {/* Main container */}
-      <StepBudgetExpenditureContainer 
-        ref={StepBudgetIncomeRef}
-        initialData={initialData} 
-        expenidtureInitialStep={expenidtureInitialStep}
-      />
-      {/* Data Transparency Section */}
-      <DataTransparencySection />
-      {/* NAVIGATION BUTTONS (BOTTOM) */}
-
-    </GlassPane>
-    );
-  }
-);
+    <div key={containerKey}>
+      <GlassPane>
+        <StepBudgetExpenditureContainer
+          ref={containerRef}
+          initialData={props.initialData}
+          wizardSessionId={props.wizardSessionId}
+          onSaveStepData={(stepNumber, subStepNumber, data) =>
+            props.onSaveStepData(stepNumber, subStepNumber, data)
+          }
+          stepNumber={props.stepNumber}
+          initialSubStep={props.initialSubStep}
+          onNext={props.onNext}
+          onPrev={props.onPrev}
+          loading={props.loading}
+        />
+        <DataTransparencySection />
+        {/* If you have extra navigation buttons for the user, place them here */}
+      </GlassPane>
+    </div>
+  );
+});
 
 export default StepBudgetExpenditure;
-

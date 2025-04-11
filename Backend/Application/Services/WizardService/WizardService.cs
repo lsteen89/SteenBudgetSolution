@@ -7,6 +7,8 @@ using Newtonsoft.Json;
 using FluentValidation;
 using FluentValidation.Results;
 using Newtonsoft.Json.Serialization;
+using Backend.Application.Models.Wizard;
+using Newtonsoft.Json.Linq;
 
 namespace Backend.Application.Services.WizardService
 {
@@ -33,10 +35,10 @@ namespace Backend.Application.Services.WizardService
             return (true, wizardSessionId, "Wizard session created successfully.");
         }
 
-        public async Task<bool> SaveStepDataAsync(string wizardSessionId, int stepNumber, object stepData)
+        public async Task<bool> SaveStepDataAsync(string wizardSessionId, int stepNumber, int substepNumber, object stepData)
         {
             string jsonData = string.Empty;
-            _logger.LogInformation("Saving step {StepNumber} data for session {WizardSessionId}", stepNumber, wizardSessionId);
+            _logger.LogInformation("Saving step {StepNumber} with substep {substepNumber} data for session {WizardSessionId}", stepNumber, substepNumber, wizardSessionId);
 
             switch (stepNumber)
             {
@@ -105,7 +107,7 @@ namespace Backend.Application.Services.WizardService
             }
 
             // Upsert the (validated) JSON data in the DB
-            var upsertSuccess = await _wizardProvider.WizardSqlExecutor.UpsertStepDataAsync(wizardSessionId, stepNumber, jsonData);
+            var upsertSuccess = await _wizardProvider.WizardSqlExecutor.UpsertStepDataAsync(wizardSessionId, stepNumber, substepNumber, jsonData);
             if (!upsertSuccess)
             {
                 _logger.LogError("Failed to save step data for session {WizardSessionId}, step {StepNumber}", wizardSessionId, stepNumber);
@@ -115,22 +117,68 @@ namespace Backend.Application.Services.WizardService
             return true;
         }
 
-        public async Task<Guid> UserHasWizardSessionAsync(string email)
-            => (await _wizardProvider.WizardSqlExecutor.GetWizardSessionIdAsync(email)) ?? Guid.Empty;
-
         public async Task<Dictionary<int, object>?> GetWizardDataAsync(string wizardSessionId)
         {
             _logger.LogInformation("Retrieving wizard data for session {WizardSessionId}", wizardSessionId);
 
-            var stepDataJson = await _wizardProvider.WizardSqlExecutor.GetWizardStepDataAsync(wizardSessionId);
+            var rawEntities = await _wizardProvider.WizardSqlExecutor.GetRawWizardStepDataAsync(wizardSessionId);
 
-            if (stepDataJson == null)
+            if (rawEntities == null || !rawEntities.Any())
             {
-                _logger.LogWarning("No wizard data found for session {WizardSessionId}", wizardSessionId);
+                _logger.LogWarning("No raw wizard data found for session {WizardSessionId}", wizardSessionId);
                 return null;
             }
-            _logger.LogInformation("Wizard data retrieved successfully for session {WizardSessionId}", wizardSessionId);
-            return stepDataJson;
+            
+            var applicationModels = rawEntities.Select(entity => new WizardStepRow
+            {
+                StepNumber = entity.StepNumber,
+                SubStep = entity.SubStep,
+                StepData = entity.StepData
+            });
+
+            var mergedData = MergeSubstepData(applicationModels);
+
+            _logger.LogInformation("Wizard data retrieved and merged successfully for session {WizardSessionId}", wizardSessionId);
+            return mergedData;
+        }
+
+        public async Task<Guid> UserHasWizardSessionAsync(string email) => 
+            (await _wizardProvider.WizardSqlExecutor.GetWizardSessionIdAsync(email)) ?? Guid.Empty;
+
+        public async Task<int> GetWizardSubStep(string wizardSessionId) =>
+            await _wizardProvider.WizardSqlExecutor.GetWizardSubStepAsync(wizardSessionId);
+
+        // Merges substep data into a single object for each step
+        private Dictionary<int, object> MergeSubstepData(IEnumerable<WizardStepRow> stepDataRows)
+        {
+            var result = new Dictionary<int, object>();
+            var stepGroupedData = new Dictionary<int, Dictionary<int, JObject>>();
+
+            foreach (var row in stepDataRows)
+            {
+
+                var stepNumber = row.StepNumber;
+                var stepDataObject = JsonConvert.DeserializeObject<JObject>(row.StepData);
+                var subStepNumber = row.SubStep;
+
+                if (!stepGroupedData.ContainsKey(stepNumber))
+                {
+                    stepGroupedData[stepNumber] = new Dictionary<int, JObject>();
+                }
+                stepGroupedData[stepNumber][subStepNumber] = stepDataObject;
+            }
+
+            foreach (var stepNumber in stepGroupedData.Keys)
+            {
+                var mergedStepData = new JObject();
+                foreach (var subStepNumberData in stepGroupedData[stepNumber].OrderBy(kvp => kvp.Key))
+                {
+                    mergedStepData.Merge(subStepNumberData.Value, new JsonMergeSettings { MergeArrayHandling = MergeArrayHandling.Concat });
+                }
+                result[stepNumber] = mergedStepData;
+            }
+
+            return result;
         }
     }
 }

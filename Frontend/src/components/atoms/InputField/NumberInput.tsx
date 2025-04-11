@@ -8,7 +8,7 @@ interface NumberInputProps {
   name?: string;
   id?: string;
   step?: string | number;
-  onBlur?: () => void; 
+  onBlur?: (e: FocusEvent<HTMLInputElement>) => void;
   touched?: boolean;
 }
 
@@ -23,9 +23,10 @@ const NumberInput: React.FC<NumberInputProps> = ({
   touched,
   onBlur,
 }) => {
+  // 2) Forward the event to the onBlur prop if it exists
   const handleBlur = (e: FocusEvent<HTMLInputElement>) => {
     if (onBlur) {
-      onBlur(); // Call the onBlur prop function if it exists
+      onBlur(e); 
     }
   };
 

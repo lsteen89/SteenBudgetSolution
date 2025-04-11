@@ -5,13 +5,12 @@ const useSaveWizardStep = (wizardSessionId: string, setWizardData: (data: any) =
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const handleSaveStepData = async (stepNumber: number, data: any) => {
+  const handleSaveStepData = async (stepNumber: number, subStep: number, data: any) => {
     setIsSaving(true);
     setSaveError(null);
 
     try {
-      console.log("Saving step data:", stepNumber, data);
-      await saveWizardStep(wizardSessionId, stepNumber, data);
+      await saveWizardStep(wizardSessionId, stepNumber, subStep, data);
 
       // Merge partial data into local wizardData
       setWizardData((prev: any) => ({

@@ -54,13 +54,13 @@ namespace Backend.Presentation.Controllers
         [HttpPut("steps/{stepNumber}")]
         public async Task<IActionResult> SaveStepData(int stepNumber, [FromBody] WizardStepDto dto)
         {
-            if (string.IsNullOrEmpty(dto.WizardSessionId))
+                if (string.IsNullOrEmpty(dto.WizardSessionId))
                 return BadRequest("Missing wizardSessionId");
 
             try
             {
                 // Call service which will deserialize, validate, and upsert the data.
-                bool saveSuccessful = await _wizardService.SaveStepDataAsync(dto.WizardSessionId, stepNumber, dto.StepData);
+                bool saveSuccessful = await _wizardService.SaveStepDataAsync(dto.WizardSessionId, stepNumber, dto.subStepNumber, dto.StepData);
                 if (!saveSuccessful)
                     return StatusCode(500, "Failed to save step data.");
             }
@@ -90,9 +90,17 @@ namespace Backend.Presentation.Controllers
             {
                 return NotFound("No wizard data found for the given session.");
             }
-            _logger.LogInformation("Wizard data before sending: {wizardData}", JsonConvert.SerializeObject(wizardData));
-            return Ok(wizardData);
+            int subStep = await _wizardService.GetWizardSubStep(wizardSessionId);
 
+            _logger.LogDebug("Wizard data before sending: {wizardData}", JsonConvert.SerializeObject(wizardData));
+
+            var response = new WizardSavedDataDTO
+            {
+                WizardData = wizardData,
+                SubStep = subStep
+            };
+
+            return Ok(response);
         }
     }
 }

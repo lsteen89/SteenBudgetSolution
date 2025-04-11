@@ -7,7 +7,7 @@ interface HelpSectionProps {
   label: string;
   helpText: React.ReactNode;
   detailedHelpText?: React.ReactNode;
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }
 
 const HelpSection: React.FC<HelpSectionProps> = ({

@@ -24,11 +24,12 @@ namespace Backend.Presentation.Controllers
         private readonly ILogger<RegistrationController> _logger;
         private readonly IRecaptchaService _recaptchaService;
         private readonly IUserManagementService _userManagementService;
+        private readonly IWebHostEnvironment _env;
 
-
-        public AuthController(ICookieService cookieService, IAuthService authService, IWebSocketManager webSocketManager, IUserTokenService userTokenService, IUserAuthenticationService userAuthenticationService, ILogger<RegistrationController> logger, IRecaptchaService recaptchaService, IUserManagementService userManagementService)
+        public AuthController(ICookieService cookieService, IWebHostEnvironment env, IAuthService authService, IWebSocketManager webSocketManager, IUserTokenService userTokenService, IUserAuthenticationService userAuthenticationService, ILogger<RegistrationController> logger, IRecaptchaService recaptchaService, IUserManagementService userManagementService)
         {
             this.cookieService = cookieService;
+            _env = env;
             _authService = authService;
             _webSocketManager = webSocketManager;
             _userTokenService = userTokenService;
@@ -117,6 +118,13 @@ namespace Backend.Presentation.Controllers
         [HttpGet("status")]
         public async Task<IActionResult> CheckAuthStatus()
         {
+            // If not in production, skip auth checks and return OK
+            if (!_env.IsProduction())
+            {
+                _logger.LogInformation("Non-production environment: skipping auth checks.");
+                return Ok(new AuthStatusDto { Authenticated = true });
+            }
+
             var authStatus = await _userAuthenticationService.CheckAuthStatusAsync(User);
 
             if (authStatus.Authenticated)

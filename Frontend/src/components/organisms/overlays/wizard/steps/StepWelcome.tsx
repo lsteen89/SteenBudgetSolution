@@ -16,7 +16,7 @@ interface StepWelcomeProps {
 const StepWelcome: React.FC<StepWelcomeProps> = ({ connectionError, failedAttempts, loading, onRetry }) => {
   const { user } = useAuth();
   useEffect(() => {
-    console.log("StepWelcome props:", { connectionError, failedAttempts, loading });
+    //console.log("StepWelcome props:", { connectionError, failedAttempts, loading });
   }, [connectionError, failedAttempts, loading]);
   if (loading) {
     return (
