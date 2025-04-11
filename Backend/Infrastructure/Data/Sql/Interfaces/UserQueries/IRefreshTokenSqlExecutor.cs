@@ -1,4 +1,4 @@
-﻿using Backend.Infrastructure.Entities;
+﻿using Backend.Infrastructure.Entities.Tokens;
 using System.Data.Common;
 
 namespace Backend.Infrastructure.Data.Sql.Interfaces.UserQueries

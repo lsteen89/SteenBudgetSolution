@@ -5,8 +5,9 @@ namespace Backend.Application.Interfaces.WizardService
     public interface IWizardService
     {
         Task<(bool IsSuccess, Guid WizardSessionId, string Message)> CreateWizardSessionAsync(string email);
-        Task<bool> SaveStepDataAsync(string wizardSessionId, int stepNumber, object stepData);
+        Task<bool> SaveStepDataAsync(string wizardSessionId, int stepNumber, int substepNumber, object stepData);
         Task<Guid> UserHasWizardSessionAsync(string email);
         Task<Dictionary<int, object>?> GetWizardDataAsync(string wizardSessionId);
+        Task<int> GetWizardSubStep(string wizardSessionId);
     }
 }

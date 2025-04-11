@@ -30,7 +30,8 @@
 	  "@mocks/*": ["__mocks__/*"],
 	  "@context/*": ["context/*"],	  
 	  "@routes/*": ["routes/*"],		  
-	  "@styles/*": ["styles/*"],		
+	  "@styles/*": ["styles/*"],	
+	  "@schemas/*": ["schemas/*"],	  
     }
   },
   "include": ["src/**/*"]

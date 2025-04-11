@@ -4,5 +4,7 @@
     {
         public string WizardSessionId { get; set; }
         public object StepData { get; set; }
+        public int subStepNumber { get; set; }
+
     }
 }

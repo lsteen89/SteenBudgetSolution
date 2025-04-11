@@ -1,6 +1,6 @@
 ﻿using Backend.Application.Interfaces.WebSockets;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
-using Backend.Infrastructure.Entities;
+using Backend.Infrastructure.Entities.Tokens;
 using Backend.Settings;
 using Microsoft.Extensions.Options;
 

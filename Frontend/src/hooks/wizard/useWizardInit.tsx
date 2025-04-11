@@ -9,6 +9,7 @@ const useWizardInit = () => {
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [connectionError, setConnectionError] = useState(false);
   const [wizardSessionId, setWizardSessionId] = useState<string | null>(null);
+  const [initialSubStep, setInitialWizardSubStep] = useState<number | null>(null);
   const [wizardData, setWizardData] = useState<any>({});
   const [initialStep, setInitialStep] = useState(0);
   const { showToast } = useToast();
@@ -24,7 +25,6 @@ const useWizardInit = () => {
     }
     try {
       const { wizardSessionId, message } = await startWizard();
-      console.log("startWizard response:", { wizardSessionId, message });
       if (!wizardSessionId) {
         setFailedAttempts(prev => prev + 1);
         showToast("🚨 Kontakt support – ingen session hämtad.", "error");
@@ -37,27 +37,35 @@ const useWizardInit = () => {
       setConnectionError(false);
       setWizardSessionId(wizardSessionId);
       // Fetch existing data (if any)
-      const existingData = await getWizardData(wizardSessionId).catch(() => null);
-      if (existingData) {
+
+      const existingResponse = await getWizardData(wizardSessionId).catch(() => null);
+      if (existingResponse) {
+        const { wizardData: fetchedWizardData, subStep } = existingResponse;
+
+        // Set the wizard sub step state
+        setInitialWizardSubStep(subStep);
         // If it's an array, use it as before
-        if (Array.isArray(existingData) && existingData.length > 0) {
-            setInitialStep(existingData[0]);
-        }        
-        // If it's an object, extract the keys and determine the highest completed step
-        else if (existingData && typeof existingData === "object") {
-            const completedSteps = Object.keys(existingData)
-            .map(k => parseInt(k, 10))
-            .filter(k => !isNaN(k));
-            if (completedSteps.length > 0) {
-            const highestStep = Math.max(...completedSteps);
-            setInitialStep(highestStep);
-            }
+        if (fetchedWizardData) {
+          // If it's an array, use it as before
+          if (Array.isArray(fetchedWizardData) && fetchedWizardData.length > 0) {
+            setInitialStep(fetchedWizardData[0]);
+          }    
+                
+          // If it's an object, extract the keys and determine the highest completed step
+          else if (fetchedWizardData  && typeof fetchedWizardData  === "object") {
+              const completedSteps = Object.keys(fetchedWizardData )
+              .map(k => parseInt(k, 10))
+              .filter(k => !isNaN(k));
+              if (completedSteps.length > 0) {
+              const highestStep = Math.max(...completedSteps);
+              setInitialStep(highestStep);
+              }
+          }
+
+
         }
-
-
-     }
-      setWizardData(existingData || {});
-      console.log("Existing wizard data:", existingData);
+        setWizardData(fetchedWizardData  || {});
+      }
       if (failedAttempts > 0) {
         showToast("Anslutning lyckades!", "success");
       }
@@ -75,8 +83,7 @@ const useWizardInit = () => {
   useEffect(() => {
     initWizard();
   }, []); // Empty dependency array ensures it runs on every mount
-
-  return { loading, failedAttempts, connectionError, wizardSessionId, wizardData, initWizard, initialStep  };
+  return { loading, failedAttempts, connectionError, wizardSessionId, wizardData, initWizard, initialStep, initialSubStep  };
 };
 
 export default useWizardInit;

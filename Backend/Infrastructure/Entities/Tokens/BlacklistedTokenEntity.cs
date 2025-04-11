@@ -1,4 +1,4 @@
-﻿namespace Backend.Infrastructure.Entities
+﻿namespace Backend.Infrastructure.Entities.Tokens
 {
     public class BlacklistedTokenEntity
     {
