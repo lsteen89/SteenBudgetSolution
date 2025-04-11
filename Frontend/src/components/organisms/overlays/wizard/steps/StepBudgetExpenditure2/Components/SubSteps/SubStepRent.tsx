@@ -1,19 +1,56 @@
 import React from "react";
-
-interface SubStepRentProps {
-  initialData?: any;
+import { useFormContext, Controller } from "react-hook-form";
+import SelectDropdown from "@components/atoms/dropdown/SelectDropdown";
+import HomeTypeOption from "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/text/HomeTypeOption";
+import { motion } from "framer-motion";
+interface RentForm {
+  rent: {
+    homeType: string;
+    monthlyRent: number | null;
+    rentExtraFees: number | null; // specific to rent
+    monthlyFee: number | null;
+    brfExtraFees: number | null;  // specific to brf
+    mortgagePayment: number | null;
+    houseotherCosts: number | null; // specific to house
+    otherCosts: number | null; // specific to free
+  };
 }
 
-const SubStepRent: React.FC<SubStepRentProps> = ({ initialData }) => {
+const SubStepRent: React.FC = () => {
+  const {
+    control,
+    formState: { errors },
+  } = useFormContext<RentForm>();
+
   return (
-    <div className="text-center">
-      <h3 className="text-xl font-semibold mb-2">Rent Information (Dummy)</h3>
-      <p>This is a placeholder for the rent sub-step.</p>
-      {initialData && (
-        <pre className="bg-gray-100 p-2 mt-2 rounded">
-          {JSON.stringify(initialData, null, 2)}
-        </pre>
-      )}
+    <div className="relative w-5/6 mx-auto mt-4">
+      <h3 className="text-2xl font-bold text-darkLimeGreen mb-4 text-center">Vilken typ av boende har du?</h3>
+
+      
+      {/* HomeType Select using Controller only */}
+      <Controller
+        control={control}
+        name="rent.homeType"
+        defaultValue=""
+        render={({ field }) => (
+          <SelectDropdown
+            value={field.value}
+            onChange={(e) => field.onChange(e)}
+            onBlur={field.onBlur}
+            selectRef={field.ref}
+            options={[
+              { value: "", label: "välj något...", disabled: true, hidden: true },
+              { value: "rent", label: "Hyresrätt" },
+              { value: "brf", label: "Bostadsrätt" },
+              { value: "house", label: "Hus" },
+              { value: "free", label: "Jag bor gratis!" },
+            ]}
+            error={errors.rent?.homeType?.message}
+          />
+        )}
+      />
+
+      <HomeTypeOption />
     </div>
   );
 };

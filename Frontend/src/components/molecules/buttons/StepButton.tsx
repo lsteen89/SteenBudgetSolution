@@ -9,6 +9,7 @@ interface StepButtonProps {
 const StepButton: React.FC<StepButtonProps> = ({ isLeft, onClick, className = "" }) => {
   return (
     <button
+    type="button"
       className={`text-darkLimeGreen py-2 rounded-full hover:bg-darkLimeGreen hover:text-white transition ${className}`}
       onClick={onClick}
       aria-label={isLeft ? "Previous step" : "Next step"}

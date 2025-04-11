@@ -168,9 +168,10 @@ CREATE TABLE WizardSession (
 CREATE TABLE WizardStep (
   WizardSessionId CHAR(36) NOT NULL,
   StepNumber INT NOT NULL,
+  SubStep INT NOT NULL,
   StepData TEXT NOT NULL,
   UpdatedAt DATETIME NOT NULL DEFAULT UTC_TIMESTAMP(),
-  PRIMARY KEY (WizardSessionId, StepNumber),
+  PRIMARY KEY (WizardSessionId, StepNumber, SubStep),
   CONSTRAINT FK_WizardStep_WizardSession FOREIGN KEY (WizardSessionId)
     REFERENCES WizardSession(WizardSessionId)
     ON DELETE CASCADE

@@ -27,7 +27,7 @@ import useFormValidation from "@hooks/wizard/useFormValidation";
 import useYearlyIncome from "@hooks/wizard/useYearlyIncome";
 import { useToast } from  "@context/ToastContext";
 import LoadingScreen from "@components/molecules/feedback/LoadingScreen";
-import DataTransparencySection from "@components/organisms/overlays/wizard/SharedComponents/DataTransparencySection";
+import DataTransparencySection from "@components/organisms/overlays/wizard/SharedComponents/Pages/DataTransparencySection";
 
 /**  Imperative handle for the parent */
 export interface StepBudgetIncomeRef {
@@ -43,7 +43,7 @@ export interface StepBudgetIncomeRef {
 interface StepBudgetIncomeProps {
   setStepValid: (isValid: boolean) => void;
   wizardSessionId: string;
-  onSaveStepData: (stepNumber: number, data: any) => Promise<boolean>;
+  onSaveStepData: (stepNumber: number, subStep: number, data: any) => Promise<boolean>;
   stepNumber: number;
   initialData: any;
   onNext: () => void;

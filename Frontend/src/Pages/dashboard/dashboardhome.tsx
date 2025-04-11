@@ -31,14 +31,14 @@ const Dashboard: React.FC = () => {
   // Otherwise, it's closed.
   const [isWizardOpen, setIsWizardOpen] = React.useState(false); 
 
-  console.log("Authenticated:", auth?.authenticated);
-  console.log("Debug Mode:", isDebugMode);
-  console.log('isDesktop:', isDesktop);
-  console.log('location.pathname:', location.pathname);
-  console.log('isProtectedRoute:', isProtectedRoute);
+  //console.log("Authenticated:", auth?.authenticated);
+  //console.log("Debug Mode:", isDebugMode);
+  //console.log('isDesktop:', isDesktop);
+  //console.log('location.pathname:', location.pathname);
+  //console.log('isProtectedRoute:', isProtectedRoute);
   //console.log('Environment Variables:', import.meta.env);
-  console.log("Is first time user:", auth?.firstTimeLogin); 
-  console.log("User Data:", auth?.user?.firstName, auth?.user?.lastName, auth?.user?.email);  
+  //console.log("Is first time user:", auth?.firstTimeLogin); 
+  //console.log("User Data:", auth?.user?.firstName, auth?.user?.lastName, auth?.user?.email);  
 
   if (auth.isLoading) { // Use auth.isLoading
     return (

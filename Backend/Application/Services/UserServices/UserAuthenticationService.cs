@@ -202,7 +202,6 @@ namespace Backend.Application.Services.UserServices
             string? email = user.GetEmail();
             var role = user.FindFirst("role")?.Value;
             string? jti = user.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
-            _logger.LogDebug("DEBUG REMOVE LATER: JTI: {Jti}", jti); // Log for debugging
 
             if (string.IsNullOrEmpty(jti))
             {
