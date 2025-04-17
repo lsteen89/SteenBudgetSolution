@@ -3,7 +3,7 @@ import { useFormContext } from "react-hook-form";
 import OptionContainer from "@components/molecules/containers/OptionContainer";
 import ConfirmModal from "@components/atoms/modals/ConfirmModal";
 import HelpSection from "@components/molecules/helptexts/HelpSection";
-import FormattedNumberInput from "@components/atoms/wrappers/FormattedNumberInput";
+import FormattedNumberInput from "@components/atoms/InputField/FormattedNumberInput";
 import { useEffect, useState } from "react";
 
 interface RentForm {
@@ -90,49 +90,53 @@ const HomeTypeOption: React.FC = () => {
           Enkelt och smidigt! Fyll i din månadshyra. Under övrigt så anger du fasta utgifter, såsom el, vatten och annat kopplat till boendekostnader per månad.
         </p>
         {/* Monthly Rent */}
-        <div className="relative mt-4">
-          <div className="flex items-center gap-1 justify-center">
-            <label className="block text-sm font-medium">Hyra per månad</label>
-            <HelpSection label="" helpText={rentHelpText} />
+        <div className="bg-white bg-opacity-10 p-4 rounded-xl shadow-inner">
+          <div className="relative mt-4">
+            
+              <div className="flex items-center gap-1 justify-center">
+                <label className="block text-sm font-medium">Hyra per månad</label>
+                <HelpSection label="" helpText={rentHelpText} />
+              </div>
+              <div className="flex items-center gap-1 mt-2">
+                <FormattedNumberInput
+                  value={watch("rent.monthlyRent") || 0}
+                  onValueChange={(val) => setValue("rent.monthlyRent", val ?? 0)}
+                  placeholder="Ange hyra"
+                  error={errors.rent?.monthlyRent?.message}
+                  name={monthlyRentRegister.name}
+                  onBlur={monthlyRentRegister.onBlur}
+                  id="monthlyRent"
+                />
+              </div>
+              {errors.rent?.monthlyRent?.message && (
+                <p className="text-red-600 text-lg mt-1">
+                  {errors.rent.monthlyRent.message}
+                </p>
+              )}
+            
           </div>
-          <div className="flex items-center gap-1 mt-2">
-            <FormattedNumberInput
-              value={watch("rent.monthlyRent") || 0}
-              onValueChange={(val) => setValue("rent.monthlyRent", val ?? 0)}
-              placeholder="Ange hyra"
-              error={errors.rent?.monthlyRent?.message}
-              name={monthlyRentRegister.name}
-              onBlur={monthlyRentRegister.onBlur}
-              id="monthlyRent"
-            />
+
+          {/* Extra Fees */}
+          <div className="flex items-center gap-1 justify-center mt-4">
+            <label className="block text-sm font-medium">
+              Övriga avgifter (frivilligt)
+            </label>
+            <HelpSection label="" helpText={rentOtherfeesHelpText} />
           </div>
-          {errors.rent?.monthlyRent?.message && (
+          <FormattedNumberInput
+            value={watch("rent.rentExtraFees") || 0}
+            onValueChange={(val) => setValue("rent.rentExtraFees", val ?? 0)}
+            placeholder="Ange avgifter"
+            error={errors.rent?.rentExtraFees?.message}
+            name={rentExtraFeesRegister.name}
+            id="rentExtraFees"
+          />
+          {errors.rent?.rentExtraFees?.message && (
             <p className="text-red-600 text-lg mt-1">
-              {errors.rent.monthlyRent.message}
+              {errors.rent.rentExtraFees.message}
             </p>
           )}
         </div>
-
-        {/* Extra Fees */}
-        <div className="flex items-center gap-1 justify-center mt-4">
-          <label className="block text-sm font-medium">
-            Övriga avgifter (frivilligt)
-          </label>
-          <HelpSection label="" helpText={rentOtherfeesHelpText} />
-        </div>
-        <FormattedNumberInput
-          value={watch("rent.rentExtraFees") || 0}
-          onValueChange={(val) => setValue("rent.rentExtraFees", val ?? 0)}
-          placeholder="Ange avgifter"
-          error={errors.rent?.rentExtraFees?.message}
-          name={rentExtraFeesRegister.name}
-          id="rentExtraFees"
-        />
-        {errors.rent?.rentExtraFees?.message && (
-          <p className="text-red-600 text-lg mt-1">
-            {errors.rent.rentExtraFees.message}
-          </p>
-        )}
       </OptionContainer>
     );
   } else if (effectiveHomeType === "brf") {
@@ -142,45 +146,47 @@ const HomeTypeOption: React.FC = () => {
           Härligt med något eget! Här anger du din månadsavgift till föreningen. Under övrigt så anger du fasta utgifter, såsom el, vatten och annat kopplat till boendekostnader per månad.
         </p>
         <br />
-        <div className="relative mt-4">
-          <div className="flex items-center gap-1 justify-center">
-            <label className="block text-sm font-medium">Avgift per månad</label>
-            <HelpSection label="" helpText={brfHelpText} />
+        <div className="bg-white bg-opacity-10 p-4 rounded-xl shadow-inner">
+          <div className="relative mt-4">
+            <div className="flex items-center gap-1 justify-center">
+              <label className="block text-sm font-medium">Avgift per månad</label>
+              <HelpSection label="" helpText={brfHelpText} />
+            </div>
+            <FormattedNumberInput
+              value={watch("rent.monthlyFee") || 0}
+              onValueChange={(val) => setValue("rent.monthlyFee", val ?? 0)}
+              placeholder="Ange avgift"
+              error={errors.rent?.monthlyFee?.message}
+              name={monthlyFee.name}
+              onBlur={monthlyFee.onBlur}
+            />
+            {errors.rent?.monthlyFee?.message && (
+              <p className="text-red-600 text-lg mt-1">
+                {errors.rent.monthlyFee.message}
+              </p>
+            )}
+
+            <div className="flex items-center gap-1 justify-center mt-4">
+              <label className="block text-sm font-medium">
+                Övriga avgifter (frivilligt)
+              </label>
+              <HelpSection label="" helpText={brfOtherFeesHelpText} />
+            </div>
+            <FormattedNumberInput
+              value={watch("rent.brfExtraFees") || 0}
+              onValueChange={(val) => setValue("rent.brfExtraFees", val ?? 0)}
+              placeholder="Ange avgifter"
+              error={errors.rent?.brfExtraFees?.message}
+              name={brfExtraFees.name}
+              id="brfExtraFees"
+            />
           </div>
-          <FormattedNumberInput
-            value={watch("rent.monthlyFee") || 0}
-            onValueChange={(val) => setValue("rent.monthlyFee", val ?? 0)}
-            placeholder="Ange avgift"
-            error={errors.rent?.monthlyFee?.message}
-            name={monthlyFee.name}
-            onBlur={monthlyFee.onBlur}
-          />
-          {errors.rent?.monthlyFee?.message && (
+          {errors.rent?.brfExtraFees?.message && (
             <p className="text-red-600 text-lg mt-1">
-              {errors.rent.monthlyFee.message}
+              {errors.rent.brfExtraFees.message}
             </p>
           )}
-
-          <div className="flex items-center gap-1 justify-center mt-4">
-            <label className="block text-sm font-medium">
-              Övriga avgifter (frivilligt)
-            </label>
-            <HelpSection label="" helpText={brfOtherFeesHelpText} />
-          </div>
-          <FormattedNumberInput
-            value={watch("rent.brfExtraFees") || 0}
-            onValueChange={(val) => setValue("rent.brfExtraFees", val ?? 0)}
-            placeholder="Ange avgifter"
-            error={errors.rent?.brfExtraFees?.message}
-            name={brfExtraFees.name}
-            id="brfExtraFees"
-          />
         </div>
-        {errors.rent?.brfExtraFees?.message && (
-          <p className="text-red-600 text-lg mt-1">
-            {errors.rent.brfExtraFees.message}
-          </p>
-        )}
       </OptionContainer>
     );
   } else if (effectiveHomeType === "house") {
@@ -189,45 +195,47 @@ const HomeTypeOption: React.FC = () => {
         <p className="text-center text-customBlue1 text-lg">
           Frihet och ansvar! Här anger du din bolånebetalning. Under övrigt så anger du fasta utgifter, såsom el, vatten och annat kopplat till boendekostnader per månad.
         </p>
-        <div className="relative mt-4">
-          <div className="flex items-center gap-1 justify-center">
-            <label className="block text-sm font-medium">
-              Driftkostnad per månad
-            </label>
-            <HelpSection label="" helpText={houseHelpText} />
-          </div>
-          <FormattedNumberInput
-            value={watch("rent.mortgagePayment") || 0}
-            onValueChange={(val) => setValue("rent.mortgagePayment", val ?? 0)}
-            onBlur={mortgagePayment.onBlur}
-            name={mortgagePayment.name}
-            placeholder="Ange bolånebetalning"
-            error={errors.rent?.mortgagePayment?.message}
-          />
-          {errors.rent?.mortgagePayment && (
-            <p className="text-red-600 text-lg mt-1">
-              {errors.rent.mortgagePayment.message}
-            </p>
-          )}
+        <div className="bg-white bg-opacity-10 p-4 rounded-xl shadow-inner">
+          <div className="relative mt-4">
+            <div className="flex items-center gap-1 justify-center">
+              <label className="block text-sm font-medium">
+                Driftkostnad per månad
+              </label>
+              <HelpSection label="" helpText={houseHelpText} />
+            </div>
+            <FormattedNumberInput
+              value={watch("rent.mortgagePayment") || 0}
+              onValueChange={(val) => setValue("rent.mortgagePayment", val ?? 0)}
+              onBlur={mortgagePayment.onBlur}
+              name={mortgagePayment.name}
+              placeholder="Ange bolånebetalning"
+              error={errors.rent?.mortgagePayment?.message}
+            />
+            {errors.rent?.mortgagePayment && (
+              <p className="text-red-600 text-lg mt-1">
+                {errors.rent.mortgagePayment.message}
+              </p>
+            )}
 
-          <div className="flex items-center gap-1 justify-center mt-4">
-            <label className="block text-sm font-medium">
-              Övriga avgifter (frivilligt)
-            </label>
-            <HelpSection label="" helpText={houseOtherFeesHelpText} />
+            <div className="flex items-center gap-1 justify-center mt-4">
+              <label className="block text-sm font-medium">
+                Övriga avgifter (frivilligt)
+              </label>
+              <HelpSection label="" helpText={houseOtherFeesHelpText} />
+            </div>
+            <FormattedNumberInput
+              value={watch("rent.houseotherCosts") || 0}
+              onValueChange={(val) => setValue("rent.houseotherCosts", val ?? 0)}
+              name={houseotherCosts.name}
+              placeholder="Ange kostnader"
+              error={errors.rent?.houseotherCosts?.message}
+            />
+            {errors.rent?.houseotherCosts && (
+              <p className="text-red-600 text-lg mt-1">
+                {errors.rent.houseotherCosts.message}
+              </p>
+            )}
           </div>
-          <FormattedNumberInput
-            value={watch("rent.houseotherCosts") || 0}
-            onValueChange={(val) => setValue("rent.houseotherCosts", val ?? 0)}
-            name={houseotherCosts.name}
-            placeholder="Ange kostnader"
-            error={errors.rent?.houseotherCosts?.message}
-          />
-          {errors.rent?.houseotherCosts && (
-            <p className="text-red-600 text-lg mt-1">
-              {errors.rent.houseotherCosts.message}
-            </p>
-          )}
         </div>
       </OptionContainer>
     );
@@ -237,25 +245,27 @@ const HomeTypeOption: React.FC = () => {
         <p className="text-center text-customBlue1 text-lg">
           Om du ändå har några kostnader kopplade till boendet (t.ex. el, vatten), fyll gärna i dem här.
         </p>
-        <div className="mt-4">
-          <div className="flex items-center gap-1 justify-center">
-            <label className="block text-sm font-medium">
-              Övriga kostnader
-            </label>
-            <HelpSection label="" helpText={otherCostsHelpText} />
+        <div className="bg-white bg-opacity-10 p-4 rounded-xl shadow-inner">
+          <div className="mt-4">
+            <div className="flex items-center gap-1 justify-center">
+              <label className="block text-sm font-medium">
+                Övriga kostnader
+              </label>
+              <HelpSection label="" helpText={otherCostsHelpText} />
+            </div>
+            <FormattedNumberInput
+              value={watch("rent.otherCosts") || 0}
+              onValueChange={(val) => setValue("rent.otherCosts", val ?? 0)}
+              name={otherCosts.name}
+              placeholder="Ange kostnader"
+              error={errors.rent?.otherCosts?.message}
+            />
+            {errors.rent?.otherCosts && (
+              <p className="text-red-600 text-lg mt-1">
+                {errors.rent.otherCosts.message}
+              </p>
+            )}
           </div>
-          <FormattedNumberInput
-            value={watch("rent.otherCosts") || 0}
-            onValueChange={(val) => setValue("rent.otherCosts", val ?? 0)}
-            name={otherCosts.name}
-            placeholder="Ange kostnader"
-            error={errors.rent?.otherCosts?.message}
-          />
-          {errors.rent?.otherCosts && (
-            <p className="text-red-600 text-lg mt-1">
-              {errors.rent.otherCosts.message}
-            </p>
-          )}
         </div>
       </OptionContainer>
     );

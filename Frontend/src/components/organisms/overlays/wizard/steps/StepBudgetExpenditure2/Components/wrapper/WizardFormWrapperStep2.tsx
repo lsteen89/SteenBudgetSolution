@@ -35,13 +35,13 @@ const WizardFormWrapperStep2 = forwardRef<
         mortgagePayment: initialData?.rent?.mortgagePayment ?? 0,
         otherCosts: initialData?.rent?.otherCosts ?? 0,
       },
+      food: {
+        foodStoreExpenses: initialData?.food?.foodStoreExpenses ?? 0,
+        takeoutExpenses: initialData?.food?.takeoutExpenses ?? 0,
+      },
       utilities: {
         electricity: 0,
         water: 0,
-      },
-      food: {
-        groceryBudget: 0,
-        diningOut: 0,
       },
     },
     mode: "onBlur",
@@ -62,14 +62,15 @@ const WizardFormWrapperStep2 = forwardRef<
           mortgagePayment: data?.rent?.mortgagePayment ?? 0,
           otherCosts: data?.rent?.otherCosts ?? 0,
         },
+        food: {
+          foodStoreExpenses: data?.food?.foodStoreExpenses ?? 0,
+          takeoutExpenses:   data?.food?.takeoutExpenses   ?? 0,
+        },
         utilities: {
           electricity: 0,
           water: 0,
         },
-        food: {
-          groceryBudget: 0,
-          diningOut: 0,
-        },
+
       });
     },
     [methods] // Only depends on the stable 'methods' object

@@ -11,12 +11,13 @@ export interface ExpenditureFormValues extends FieldValues {
     houseotherCosts: number | null;
     otherCosts: number | null;
   };
+  food: {
+    foodStoreExpenses: number | null;
+    takeoutExpenses: number | null;
+  };
   utilities: {
     electricity: number | null;
     water: number | null;
   };
-  food: {
-    groceryBudget: number | null;
-    diningOut: number | null;
-  };
+
 }

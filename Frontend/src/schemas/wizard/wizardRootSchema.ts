@@ -6,7 +6,8 @@ import { foodSchema } from "./foodSchema";
 
 export const wizardRootSchema = yup.object().shape({
   rent: rentSchema,
-  utilities: utilitiesSchema,
   food: foodSchema,
+  utilities: utilitiesSchema,
+
   // Add other sub-schemas here, e.g., expenditures: expendituresSchema
 });
