@@ -92,3 +92,31 @@
 .backSide p span {
   color: inherit; /* Allow inline styles or inherited styles to take precedence */
 }
+/* --- Mobile hint animation --- */
+@keyframes bounceHint {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.mobileHintAnimation {
+  animation: bounceHint 1s ease-in-out infinite;
+}
+
+/* Optional: subtle fade to emphasize the hint text */
+.fadeInSubtle {
+  opacity: 0;
+  animation-name: fadeIn;
+  animation-duration: 1s;
+  animation-fill-mode: forwards;
+  animation-timing-function: ease-in;
+}
+
+@keyframes fadeIn {
+  to {
+    opacity: 1;
+  }
+}

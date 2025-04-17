@@ -14,8 +14,8 @@ import WizardFormWrapperStep2, {
   WizardFormWrapperStep2Ref,
 } from "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/wrapper/WizardFormWrapperStep2";
 // Sub-steps
-import ExpenditureOverviewMainText from "./SubSteps/ExpenditureOverviewMainText";
-import SubStepRent from "./SubSteps/SubStepRent";
+import ExpenditureOverviewMainText from "./Pages/SubSteps/ExpenditureOverviewMainText";
+import SubStepRent from "./Pages/SubSteps/2_SubStepRent/SubStepRent";
 // Other pages
 import LoadingScreen from "@components/molecules/feedback/LoadingScreen";
 // Layout + Navigation
@@ -40,6 +40,7 @@ import {
   CreditCard,
   ShieldCheck,
 } from "lucide-react";
+import SubStepFood from "./Pages/SubSteps/3_SubStepFood/SubStepFood";
 
 //
 // INTERFACES
@@ -108,8 +109,8 @@ const StepBudgetExpenditureContainer = forwardRef<
   const steps = [
     { icon: Info, label: "Översikt" },
     { icon: Home, label: "Boende" },
-    { icon: FileText, label: "Fasta utgifter" },
     { icon: Utensils, label: "Matkostnader" },
+    { icon: FileText, label: "Fasta utgifter" },
     { icon: Car, label: "Transport" },
     { icon: Shirt, label: "Kläder" },
     { icon: CreditCard, label: "Prenumerationer" },
@@ -140,7 +141,7 @@ const StepBudgetExpenditureContainer = forwardRef<
     setCurrentStep,
     triggerShakeAnimation,
   });
-  console.log("StepBudgetExpenditureContainer: saveStepData", saveStepData);
+
 
   if (parentLoading) {
     return <LoadingScreen />;
@@ -208,7 +209,8 @@ const StepBudgetExpenditureContainer = forwardRef<
         return <ExpenditureOverviewMainText />;
       case 2:
         return <SubStepRent />;
-
+      case 3:
+        return <SubStepFood />;
       default:
         return <div>All sub-steps complete!</div>;
     }

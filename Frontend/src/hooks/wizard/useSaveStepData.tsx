@@ -18,7 +18,7 @@ interface UseSaveStepDataProps<T extends ExpenditureFormValues> {
 /** 
  * Slices the form data so each sub-step sends only the relevant section.
  * You can add more sub-steps if needed: 
- *   2 => rent, 3 => utilities, 4 => food 
+ *   2 => rent, 3 => food, 4 => utilities 
  */
 function getPartialData<T extends ExpenditureFormValues>(
   subStep: number, 
@@ -28,9 +28,9 @@ function getPartialData<T extends ExpenditureFormValues>(
     case 2:
       return { rent: allData.rent } as Partial<T>;
     case 3:
-      return { utilities: allData.utilities } as Partial<T>;
-    case 4:
       return { food: allData.food } as Partial<T>;
+    case 4:
+      return { utilities: allData.utilities } as Partial<T>;
     default:
       // sub-step 1 is overview => no data to save
       return {};
@@ -49,6 +49,8 @@ export function useSaveStepData<T extends ExpenditureFormValues>({
   setCurrentStep,
   triggerShakeAnimation,
 }: UseSaveStepDataProps<T>) {
+
+ 
   
   const saveStepData = useCallback(
     async (
@@ -61,8 +63,8 @@ export function useSaveStepData<T extends ExpenditureFormValues>({
       if (!skipValidation) {
         isValid = await methods.trigger();
       }
-
-      if (!isValid) {
+      const isDebugMode = process.env.NODE_ENV === 'development';
+      if (!isValid  && !isDebugMode) {
         if (!isMobile) {
           // Scroll to first error if desktop
           const firstErrorField = Object.keys(methods.formState.errors)[0];
@@ -92,10 +94,10 @@ export function useSaveStepData<T extends ExpenditureFormValues>({
         setCurrentStep(stepGoing);
         return true;
       }
-
+      console.log("saveStepData: partialData", partialData);
       // 4) Call parent's onSaveStepData with partial data
       const saveSuccess = await onSaveStepData(stepNumber, stepLeaving, partialData);
-      if (!saveSuccess) return false;
+      if (!saveSuccess && !isDebugMode) return false;
 
       // 5) Navigate to stepGoing
       setCurrentStep(stepGoing);
