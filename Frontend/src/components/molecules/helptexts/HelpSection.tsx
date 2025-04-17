@@ -8,6 +8,7 @@ interface HelpSectionProps {
   helpText: React.ReactNode;
   detailedHelpText?: React.ReactNode;
   children?: React.ReactNode;
+  className?: string; 
 }
 
 const HelpSection: React.FC<HelpSectionProps> = ({
@@ -15,6 +16,7 @@ const HelpSection: React.FC<HelpSectionProps> = ({
   helpText,
   detailedHelpText,
   children,
+  className,  
 }) => {
   const [showHelp, setShowHelp] = useState(false);
   const [showDetailedHelp, setShowDetailedHelp] = useState(false);
@@ -51,7 +53,7 @@ const HelpSection: React.FC<HelpSectionProps> = ({
   }, [isMdUp]);
 
   return (
-    <div className="relative" ref={containerRef}>
+    <div className={`relative ${className ? className : ''}`} ref={containerRef}>
       <label className="block text-sm font-medium flex items-center gap-2 pb-2">
         {label}
         <button

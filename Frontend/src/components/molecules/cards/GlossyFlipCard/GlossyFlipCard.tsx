@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-import styles from './GlossyFlipCard.module.css'; // Import as a CSS module
+import React, { useState } from "react";
+import styles from "./GlossyFlipCard.module.css";
 
 interface GlossyFlipCardProps {
-  frontText: string;
-  backText: React.ReactNode; // Accepts JSX for advanced styling
+  frontText: React.ReactNode;
+  backText: React.ReactNode;
   frontTextClass?: string;
   backTextClass?: string;
+  disableBounce?: boolean;
 }
 
 const GlossyFlipCard: React.FC<GlossyFlipCardProps> = ({
@@ -13,15 +14,49 @@ const GlossyFlipCard: React.FC<GlossyFlipCardProps> = ({
   backText,
   frontTextClass = "text-xl font-bold text-gray-800",
   backTextClass = "text-sm text-gray-600",
+  disableBounce = true,
 }) => {
   const [isFlipped, setIsFlipped] = useState(false);
 
+  const toggleFlip = () => setIsFlipped((prev) => !prev);
+
   return (
     <div
-      className={`${styles.cardWrapper} ${isFlipped ? styles.isFlipped : ''}`}
+      className={`
+        ${styles.cardWrapper} cursor-pointer relative
+        ${
+          isFlipped
+            ? styles.isFlipped
+            : disableBounce
+              ? ""
+              : styles.mobileHintAnimation
+        }
+      `}
       onMouseEnter={() => setIsFlipped(true)}
       onMouseLeave={() => setIsFlipped(false)}
+      onClick={toggleFlip}
+      role="button"
+      aria-label="Flip card to see more information"
     >
+      {/* Hint overlay */}
+      {!isFlipped && (
+        <>
+          {/* Mobile hint */}
+          <div
+            className={`absolute bottom-2 right-2 px-2 py-1 bg-white/80 text-xs text-gray-700 rounded shadow-sm lg:hidden ${styles.fadeInSubtle}`}
+          >
+            Klicka för att flippa ↻
+          </div>
+
+          {/* Desktop hint */}
+          <div
+            className={`absolute bottom-2 right-2 px-2 py-1 bg-white/80 text-xs text-gray-700 rounded shadow-sm hidden lg:block ${styles.fadeInSubtle}`}
+          >
+            Hovra för att flippa ↻
+          </div>
+        </>
+      )}
+
       <div className={styles.card}>
         <div className={styles.frontSide}>
           <p className={`${frontTextClass} ${styles.text}`}>{frontText}</p>

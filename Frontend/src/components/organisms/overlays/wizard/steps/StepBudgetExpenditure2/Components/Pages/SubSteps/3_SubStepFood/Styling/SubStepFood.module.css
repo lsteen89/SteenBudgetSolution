@@ -1,0 +1,17 @@
+/* SubStepFood.module.css */
+@keyframes pulseOnce {
+    0% {
+      box-shadow: 0 0 0px 0px rgba(50, 205, 50, 0);
+    }
+    50% {
+      box-shadow: 0 0 24px 5px rgba(50, 205, 50, 0.8); /* lime glow */
+    }
+    100% {
+      box-shadow: 0 0 0px 0px rgba(50, 205, 50, 0);
+    }
+  }
+  
+  .animate-pulse-once {
+    animation: pulseOnce 1s ease-in-out 1;
+  }
+  
