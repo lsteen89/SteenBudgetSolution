@@ -4,7 +4,7 @@ import { useFormContext } from "react-hook-form";
 import GoodButton from "@components/atoms/buttons/GoodButton";
 import FormattedNumberInput from "@components/atoms/InputField/FormattedNumberInput";
 import HelpSection from "@components/molecules/helptexts/HelpSection";
-import NumberDropdownInput from "@components/atoms/dropdown/NumberDropdown";
+import NumberDropdownInput from "@components/atoms/InputField/NumberDropdown";
 import CustomNumberDropdown from "@components/atoms/dropdown/CustomNumberDropdown";
 import SmartDropdown from "@components/atoms/dropdown/SmartDropdown";
 // icons
