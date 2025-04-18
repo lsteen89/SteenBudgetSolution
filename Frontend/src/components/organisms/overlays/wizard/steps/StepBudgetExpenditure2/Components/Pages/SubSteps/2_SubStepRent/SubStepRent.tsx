@@ -18,14 +18,13 @@ interface RentForm {
 
 const SubStepRent: React.FC = () => {
   const {
-    getValues,
     control,
     formState: { errors },
   } = useFormContext<RentForm>();
   console.log("SubStepRent rendered");
   console.log("SubStepRent errors", errors);
   console.log("SubStepRent control", control);
-  console.log("SubStepRent control value", control.getValues("rent.homeType"));
+  
 
   return (
     <div className="relative w-5/6 mx-auto mt-4">
