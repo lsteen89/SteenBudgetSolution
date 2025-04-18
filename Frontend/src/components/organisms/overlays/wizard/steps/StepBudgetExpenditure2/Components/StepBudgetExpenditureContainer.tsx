@@ -151,6 +151,8 @@ const StepBudgetExpenditureContainer = forwardRef<
   // 6) Next/Prev Step Handlers
   const saveAndGoNext = async () => {
     // Skip validation for sub-step #1 if it has no fields
+    console.log("saveAndGoNext - currentSubStep:", currentSubStep); // ADD THIS
+    console.log("saveAndGoNext - totalSteps:", totalSteps); // ADD THIS
     if (currentSubStep === 1) {
       setCurrentStep((prev) => prev + 1);
       return;
@@ -210,6 +212,7 @@ const StepBudgetExpenditureContainer = forwardRef<
       case 2:
         return <SubStepRent />;
       case 3:
+        console.log("renderSubStep - Rendering SubStepFood"); // ADD THIS
         return <SubStepFood />;
       default:
         return <div>All sub-steps complete!</div>;
