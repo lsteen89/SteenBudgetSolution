@@ -1,4 +1,4 @@
-import React, { useEffect, forwardRef, useImperativeHandle, useCallback } from "react";
+import React, { useEffect, forwardRef, useImperativeHandle, useCallback, useState } from "react";
 import { useForm, FormProvider, UseFormReturn } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { wizardRootSchema } from "@schemas/wizard/wizardRootSchema";
@@ -17,6 +17,7 @@ interface WizardFormWrapperStep2Props {
   initialData?: Partial<ExpenditureFormValues>;
   children: React.ReactNode;
 }
+
 
 const WizardFormWrapperStep2 = forwardRef<
   WizardFormWrapperStep2Ref,
@@ -47,7 +48,7 @@ const WizardFormWrapperStep2 = forwardRef<
     mode: "onBlur",
     reValidateMode: "onChange",
   });
-
+  const [isInitialized, setIsInitialized] = useState(false);
   // Create a stable resetForm function
   const resetForm = useCallback(
     (data: Partial<ExpenditureFormValues> | undefined) => {
@@ -79,8 +80,77 @@ const WizardFormWrapperStep2 = forwardRef<
 
   useEffect(() => {
     console.log("WizardFormWrapperStep2 - Initial Data:", initialData);
-    resetForm(initialData);
-  }, [initialData, resetForm]);
+    const currentValues = methods.getValues();
+
+    // Function to check if two food objects are different
+    interface FoodData {
+      foodStoreExpenses?: number | null;
+      takeoutExpenses?: number | null;
+    }
+
+    const areFoodDataDifferent = (data1: FoodData | undefined, data2: FoodData | undefined): boolean => {
+      return (
+      data1?.foodStoreExpenses !== (data2?.foodStoreExpenses ?? 0) ||
+      data1?.takeoutExpenses !== (data2?.takeoutExpenses ?? 0)
+      );
+    };
+
+    // Function to check if two rent objects are different (add more fields as needed)
+    interface RentData {
+      homeType?: string;
+      monthlyRent?: number;
+      rentExtraFees?: number | null;
+      monthlyFee?: number;
+      brfExtraFees?: number | null;
+      houseotherCosts?: number | null;
+      mortgagePayment?: number;
+      otherCosts?: number | null;
+    }
+
+    const areRentDataDifferent = (data1: RentData | undefined, data2: RentData | undefined): boolean => {
+      return (
+      data1?.homeType !== (data2?.homeType ?? "") ||
+      data1?.monthlyRent !== (data2?.monthlyRent ?? 0) ||
+      data1?.rentExtraFees !== (data2?.rentExtraFees ?? 0) ||
+      data1?.monthlyFee !== (data2?.monthlyFee ?? 0) ||
+      data1?.brfExtraFees !== (data2?.brfExtraFees ?? 0) ||
+      data1?.houseotherCosts !== (data2?.houseotherCosts ?? 0) ||
+      data1?.mortgagePayment !== (data2?.mortgagePayment ?? 0) ||
+      data1?.otherCosts !== (data2?.otherCosts ?? 0)
+      );
+    };
+
+    interface UtilitiesData {
+      electricity?: number | null;
+      water?: number | null;
+    }
+
+    const areUtilitiesDataDifferent = (
+      data1: UtilitiesData | undefined,
+      data2: UtilitiesData | undefined
+    ): boolean => {
+      return (
+      (data1?.electricity ?? undefined) !== (data2?.electricity ?? 0) ||
+      (data1?.water ?? undefined) !== (data2?.water ?? 0)
+      );
+    };
+
+    if (initialData) {
+      if (
+        areRentDataDifferent(initialData.rent, currentValues.rent) ||
+        areFoodDataDifferent(initialData.food, currentValues.food) ||
+        areUtilitiesDataDifferent(initialData.utilities, currentValues.utilities)
+      ) {
+        resetForm(initialData);
+      }
+      if (!isInitialized) {
+        setIsInitialized(true);
+      }
+    } else if (!isInitialized) {
+      resetForm(undefined); // Handle initial empty state
+      setIsInitialized(true);
+    }
+  }, [initialData, resetForm, methods, isInitialized]);
 
   // Reset form when initialData changes
   useEffect(() => {
