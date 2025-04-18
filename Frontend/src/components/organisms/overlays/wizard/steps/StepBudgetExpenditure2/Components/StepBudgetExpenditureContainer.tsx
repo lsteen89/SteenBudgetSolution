@@ -215,7 +215,7 @@ const StepBudgetExpenditureContainer = forwardRef<
         return <div>All sub-steps complete!</div>;
     }
   };
-
+  console.log("StepBudgetExpenditureContainer - initialData being passed:", initialData);
   // 9) Return
   return (
     <WizardFormWrapperStep2
