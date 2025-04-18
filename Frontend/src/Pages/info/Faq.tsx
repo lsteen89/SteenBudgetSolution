@@ -5,6 +5,7 @@ import { ChevronDownIcon, ChartBarIcon, LockClosedIcon, QuestionMarkCircleIcon, 
 import SubmitButton from '@components/atoms/buttons/SubmitButton'; 
 import PageContainer from '@components/layout/PageContainer';
 import ContentWrapper from '@components/layout/ContentWrapper';
+import HelpSection from '@components/molecules/helptexts/HelpSection';
 
 const Faq: React.FC = () => {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
@@ -17,6 +18,7 @@ const Faq: React.FC = () => {
   const handleRedirect = () => {
     navigate('/contact');
   };
+  const foodCalcHelpText ="test";
   const questions = [
     {
       question: 'Hur fungerar budgetering i eBudget?',
@@ -111,6 +113,7 @@ const Faq: React.FC = () => {
             <div className="mt-10 bg-pastelGreen p-6 rounded-lg text-center shadow-md">
               <p className="text-lg font-bold text-blue-800">
                 Har du fler frågor? Kontakta oss för att få svar!
+                <HelpSection label="" helpText={foodCalcHelpText} />
               </p>
               <br />
               <SubmitButton
