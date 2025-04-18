@@ -226,6 +226,7 @@ const StepBudgetExpenditureContainer = forwardRef<
           handleFormWrapperRef(instance);
         }}
         initialData={initialData}
+        CurrentSubStep={currentSubStep}
       >
       <form className="step-budget-expenditure-container flex flex-col h-full">
         {/* Heading + Step Navigation */}
