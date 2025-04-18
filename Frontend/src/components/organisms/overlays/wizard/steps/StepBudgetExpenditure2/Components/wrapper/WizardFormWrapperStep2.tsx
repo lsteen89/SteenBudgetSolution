@@ -81,7 +81,7 @@ const WizardFormWrapperStep2 = forwardRef<
   useEffect(() => {
     console.log("WizardFormWrapperStep2 - Initial Data:", initialData);
     const currentValues = methods.getValues();
-
+    console.log("WizardFormWrapperStep2 - useEffect - currentValues:", currentValues); // ADD THIS
     // Function to check if two food objects are different
     interface FoodData {
       foodStoreExpenses?: number | null;
@@ -153,9 +153,9 @@ const WizardFormWrapperStep2 = forwardRef<
   }, [initialData, resetForm, methods, isInitialized]);
 
   // Reset form when initialData changes
-  useEffect(() => {
-    resetForm(initialData);
-  }, [initialData, resetForm]); // Now depends on the stable resetForm
+  //useEffect(() => {
+  //  resetForm(initialData);
+  //}, [initialData, resetForm]); // Now depends on the stable resetForm
 
 // Expose imperative methods via ref
 useImperativeHandle(ref, () => ({
