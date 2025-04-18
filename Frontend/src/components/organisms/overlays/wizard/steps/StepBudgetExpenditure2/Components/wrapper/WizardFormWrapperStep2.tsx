@@ -1,7 +1,9 @@
 import React, { useEffect, forwardRef, useImperativeHandle, useCallback, useState } from "react";
 import { useForm, FormProvider, UseFormReturn } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
-import { wizardRootSchema } from "@schemas/wizard/wizardRootSchema";
+// schemas
+import { getSchemaForStep } from "@schemas/wizard/schemaUtils";
+
 import { ExpenditureFormValues } from "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/interface/ExpenditureFormValues";
 import { FieldErrors } from "react-hook-form";
 
@@ -16,15 +18,20 @@ export interface WizardFormWrapperStep2Ref {
 interface WizardFormWrapperStep2Props {
   initialData?: Partial<ExpenditureFormValues>;
   children: React.ReactNode;
+  currentSubStep: number;
 }
 
 
 const WizardFormWrapperStep2 = forwardRef<
   WizardFormWrapperStep2Ref,
   WizardFormWrapperStep2Props
->(({ initialData, children }, ref) => {
+>(({ initialData, children, currentSubStep }, ref) => {
+
+  const selectedSchema = getSchemaForStep(currentSubStep);
+
+
   const methods = useForm<ExpenditureFormValues>({
-    resolver: yupResolver(wizardRootSchema),
+    resolver: yupResolver(selectedSchema),
     defaultValues: {
       rent: {
         homeType: initialData?.rent?.homeType ?? "",
@@ -153,9 +160,9 @@ const WizardFormWrapperStep2 = forwardRef<
   }, [initialData, resetForm, methods, isInitialized]);
 
   // Reset form when initialData changes
-  //useEffect(() => {
-  //  resetForm(initialData);
-  //}, [initialData, resetForm]); // Now depends on the stable resetForm
+  useEffect(() => {
+    resetForm(initialData);
+  }, [initialData, resetForm]); // Now depends on the stable resetForm
 
 // Expose imperative methods via ref
 useImperativeHandle(ref, () => ({
