@@ -62,21 +62,19 @@ const SubStepFood: React.FC = () => {
   // 1. Button click -> update value (only if it changed)
   // Food Store Expenses
   const handleUpdateStoreExpenses = () => {
-
     const newValue = (foodStoreExpensesVal ?? 0) + 100;
-
-    // Only set if different
+    console.log("SubStepFood - handleUpdateStoreExpenses - Old Value:", foodStoreExpensesVal, "New Value:", newValue);
     if (newValue !== foodStoreExpensesVal) {
+      console.log("SubStepFood - handleUpdateStoreExpenses - Calling setValue for food.foodStoreExpenses:", newValue);
       setValue("food.foodStoreExpenses", newValue);
     }
   };
   // Takeout Expenses
   const handleUpdateRestaurantExpenses = () => {
-
     const newValue = (takeoutExpensesVal ?? 0) + 100;
-
-    // Only set if different
-    if (newValue !== takeoutExpensesVal ) {
+    console.log("SubStepFood - handleUpdateRestaurantExpenses - Old Value:", takeoutExpensesVal, "New Value:", newValue);
+    if (newValue !== takeoutExpensesVal) {
+      console.log("SubStepFood - handleUpdateRestaurantExpenses - Calling setValue for food.takeoutExpenses:", newValue);
       setValue("food.takeoutExpenses", newValue);
     }
   };
@@ -94,6 +92,7 @@ const SubStepFood: React.FC = () => {
     ) {
       isAnimatingFoodStore.current = true;
       setHighlightInputFoodStore(true);
+      console.log("SubStepFood - useEffect (foodStoreExpensesVal changed) - New Value:", foodStoreExpensesVal);
     }
   }, [foodStoreExpensesVal, prevFoodStoreExpenses]);
 
@@ -109,6 +108,7 @@ const SubStepFood: React.FC = () => {
     ) {
       isAnimatingTakeAway.current = true;
       setHighlightInputTakeAway(true);
+      console.log("SubStepFood - useEffect (takeoutExpensesVal changed) - New Value:", takeoutExpensesVal);
     }
   }, [takeoutExpensesVal, prevTakeoutExpenses]);
 
@@ -120,8 +120,10 @@ const { foodStoreExpenses = 0, takeoutExpenses = 0 } = watch("food") || {};
 const calculatedTotalValue = (foodStoreExpenses ?? 0) + (takeoutExpenses ?? 0);
 const formattedTotalValue = calculatedTotalValue.toLocaleString("sv-SE");
 
-console.log("Food Store Expenses:", foodStoreExpensesVal);
-console.log("Takeout Expenses:", takeoutExpensesVal);
+console.log("SubStepFood - Render - Watched Food Store Expenses:", foodStoreExpensesVal);
+console.log("SubStepFood - Render - Watched Takeout Expenses:", takeoutExpensesVal);
+console.log("SubStepFood - Render - Calculated Total Value:", calculatedTotalValue);
+console.log("SubStepFood - Render - Formatted Total Value:", formattedTotalValue);
 
   return (
     <OptionContainer>
