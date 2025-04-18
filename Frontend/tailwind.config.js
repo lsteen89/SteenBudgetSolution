@@ -7,6 +7,9 @@ module.exports = {
   safelist: ['max-w-lg', 'max-w-5xl'],
   theme: {
     extend: {
+		zIndex: {
+			modal: '99999',          // sits above everything
+		},
 		screens: {
 		  sm: '640px',   // small phones & portrait screens
 		  md: '768px',   // tablets
@@ -18,6 +21,7 @@ module.exports = {
 		},
 		backgroundImage: {
 			'dashboard-bird': "url('/src/assets/Components/Background/DashboardBirdBackground.png')",
+			'form-gradient': 'linear-gradient(to bottom, #f3f4f6, #e5e7eb)',
 		},
       fontFamily: {
         inter: [ 'Inter', 'Roboto', 'Montserrat', 'sans-serif'], // Fallback order
@@ -59,9 +63,6 @@ module.exports = {
 		'img-float': 'img-float-key 3s ease-in-out infinite',
         'img-flap': 'img-flap-key 0.5s ease-in-out infinite',
 		'img-pulse': 'img-pulse 1.5s ease-in-out infinite',
-      },
-      backgroundImage: {
-        'form-gradient': 'linear-gradient(to bottom, #f3f4f6, #e5e7eb)', // Slight gradient background for forms
       },
       padding: {
         safe: 'env(safe-area-inset-bottom)',
