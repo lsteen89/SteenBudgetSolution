@@ -180,7 +180,7 @@ const HelpSection: React.FC<HelpSectionProps> = ({
                 {showDetailed && detailedHelpText && (
                     <FloatingPortal>
                         <Popup>
-                            <p>{helpText}</p>
+                            <p>{detailedHelpText}</p>
                         </Popup>
                     </FloatingPortal>
                 )}
