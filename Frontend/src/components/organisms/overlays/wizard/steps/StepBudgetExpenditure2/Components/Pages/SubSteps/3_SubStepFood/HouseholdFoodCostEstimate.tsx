@@ -56,6 +56,7 @@ const HouseholdFoodCostEstimate: React.FC<HouseholdFoodCostEstimateProps> = ({
   const handleLunchEstimateAndApply = () => {
     const result = calculateFoodStoreCost(adults, children);
     setcalculatedValueFoodStore(result);
+    console.log("HouseholdFoodCostEstimate - handleLunchEstimateAndApply - Calling setValue for food.foodStoreExpenses:", result);
     setValue("food.foodStoreExpenses", result, {
       shouldDirty: true,
       shouldTouch: true,
@@ -69,7 +70,7 @@ const HouseholdFoodCostEstimate: React.FC<HouseholdFoodCostEstimateProps> = ({
   // Set the field for preview of the food store expenses
   useEffect(() => {
     const result = calculateFoodStoreCost(adults, children);
-  
+    console.log("HouseholdFoodCostEstimate - useEffect (foodStore) - Adults:", adults, "Children:", children, "Calculated Result:", result);
     if (result > 0) {
       setcalculatedValueFoodStore(result);
       setErrorFoodStore(null); // reset error if any
@@ -103,6 +104,7 @@ const HouseholdFoodCostEstimate: React.FC<HouseholdFoodCostEstimateProps> = ({
     );
   
     setTakeoutCalculatedValue(result);
+    console.log("HouseholdFoodCostEstimate - handleRestaurantEstimateAndApply - Calling setValue for food.takeoutExpenses:", result);
     setValue("food.takeoutExpenses", result, {
       shouldDirty: true,
       shouldTouch: true,
@@ -122,7 +124,7 @@ const HouseholdFoodCostEstimate: React.FC<HouseholdFoodCostEstimateProps> = ({
       takeoutMealsRestaurantCount,
       takeoutCostRestaurant
     );
-  
+    console.log("HouseholdFoodCostEstimate - useEffect (takeout) - lunchCount:", takeoutMealsLunchCount, "lunchCost:", takeoutCostLunch, "restaurantCount:", takeoutMealsRestaurantCount, "restaurantCost:", takeoutCostRestaurant, "Calculated Result:", result);
     if (result > 0) {
       setTakeoutCalculatedValue(result);
       setErrorRestaurant(null);
