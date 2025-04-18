@@ -62,6 +62,7 @@ export function useSaveStepData<T extends ExpenditureFormValues>({
       let isValid = true;
       if (!skipValidation) {
         isValid = await methods.trigger();
+        console.log("saveStepData: isValid", isValid, "Errors:", methods.formState.errors); 
       }
       const isDebugMode = process.env.NODE_ENV === 'development';
       if (!isValid  && !isDebugMode) {
@@ -77,6 +78,14 @@ export function useSaveStepData<T extends ExpenditureFormValues>({
                 .querySelector(`[name="rent.${nestedKey}"]`)
                 ?.scrollIntoView({ behavior: "smooth", block: "center" });
             }
+          } else if (firstErrorField === "food") {
+            // Try scrolling to either of the food input fields
+            document
+              .querySelector(`[name="food.foodStoreExpenses"]`)
+              ?.scrollIntoView({ behavior: "smooth", block: "center" });
+            document
+              .querySelector(`[name="food.takeoutExpenses"]`)
+              ?.scrollIntoView({ behavior: "smooth", block: "center" });
           }
           triggerShakeAnimation(1000);
         }
