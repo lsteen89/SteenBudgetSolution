@@ -270,26 +270,6 @@ const HomeTypeOption: React.FC = () => {
       </OptionContainer>
     );
   }
-
-  console.log("monthlyRent", watch("rent.monthlyRent"));
-  console.log("rentExtraFees", watch("rent.rentExtraFees"));
-  console.log("monthlyFee", watch("rent.monthlyFee"));
-  console.log("brfExtraFees", watch("rent.brfExtraFees"));
-  console.log("mortgagePayment", watch("rent.mortgagePayment"));
-  console.log("houseotherCosts", watch("rent.houseotherCosts"));
-  console.log("otherCosts", watch("rent.otherCosts"));
-  console.log("homeType", watch("rent.homeType"));
-  console.log("previousHomeType", previousHomeType);
-  console.log("pendingHomeType", pendingHomeType);
-
-  console.log("confirmModalOpen", confirmModalOpen);
-  console.log("setConfirmModalOpen", setConfirmModalOpen);
-  console.log("setPendingHomeType", setPendingHomeType);
-  console.log("setValue", setValue);
-  console.log("errors", errors);
-  console.log("register", register);
-  console.log("watch", watch);
-  console.log("renderedHomeTypeSection", renderedHomeTypeSection);
   
   return (
     <>

@@ -83,7 +83,7 @@ const useWizardInit = () => {
   useEffect(() => {
     initWizard();
   }, []); // Empty dependency array ensures it runs on every mount
-  return { loading, failedAttempts, connectionError, wizardSessionId, wizardData, initWizard, initialStep, initialSubStep  };
+  return { loading, failedAttempts, connectionError, wizardSessionId, wizardData, initWizard, initialStep, setWizardData, initialSubStep  };
 };
 
 export default useWizardInit;

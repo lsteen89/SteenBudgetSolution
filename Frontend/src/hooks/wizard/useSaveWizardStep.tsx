@@ -5,17 +5,24 @@ const useSaveWizardStep = (wizardSessionId: string, setWizardData: (data: any) =
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const handleSaveStepData = async (stepNumber: number, subStep: number, data: any) => {
+  const handleSaveStepData = async (stepNumber: number, subStep: number, data: any, goingBackwards: boolean) => {
     setIsSaving(true);
     setSaveError(null);
 
     try {
-      await saveWizardStep(wizardSessionId, stepNumber, subStep, data);
-
+      console.log("useSaveWizardStep: Saving step data:", { stepNumber, subStep, data, goingBackwards });
+      if(!goingBackwards)
+      {
+        await saveWizardStep(wizardSessionId, stepNumber, subStep, data);
+      }
+      // If going backwards, we skip the API call but still update local state
       // Merge partial data into local wizardData
       setWizardData((prev: any) => ({
         ...prev,
-        [stepNumber]: data,
+        [stepNumber]: {
+          ...prev?.[stepNumber], // Keep existing data for this step
+          ...data, // Merge in the new partial data
+        },
       }));
 
       return true; // Indicate success

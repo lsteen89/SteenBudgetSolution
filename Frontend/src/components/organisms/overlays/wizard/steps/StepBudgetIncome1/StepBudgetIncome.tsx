@@ -43,7 +43,7 @@ export interface StepBudgetIncomeRef {
 interface StepBudgetIncomeProps {
   setStepValid: (isValid: boolean) => void;
   wizardSessionId: string;
-  onSaveStepData: (stepNumber: number, subStep: number, data: any) => Promise<boolean>;
+  onSaveStepData: (stepNumber: number, subStep: number, data: any, goingBackwards: boolean) => Promise<boolean>;
   stepNumber: number;
   initialData: any;
   onNext: () => void;
@@ -197,7 +197,6 @@ const StepBudgetIncome = forwardRef<StepBudgetIncomeRef, StepBudgetIncomeProps  
           }
         });
       }
-      console.log("validateFn", values, newErrors); // Debugging
       return newErrors;
     };
 
@@ -412,7 +411,7 @@ const StepBudgetIncome = forwardRef<StepBudgetIncomeRef, StepBudgetIncomeProps  
       openSideIncome: () => setShowSideIncome(true),
       openHouseholdMembers: () => setShowHouseholdMembers(true),
     }));
-    console.log("errors:", errors); // Debugging
+
     if (loading) {
       return (
         <GlassPane>
@@ -420,6 +419,7 @@ const StepBudgetIncome = forwardRef<StepBudgetIncomeRef, StepBudgetIncomeProps  
         </GlassPane>
       );
     }
+
     // -------------------- Render --------------------
     return (
       <GlassPane>
