@@ -120,11 +120,6 @@ const { foodStoreExpenses = 0, takeoutExpenses = 0 } = watch("food") || {};
 const calculatedTotalValue = (foodStoreExpenses ?? 0) + (takeoutExpenses ?? 0);
 const formattedTotalValue = calculatedTotalValue.toLocaleString("sv-SE");
 
-console.log("SubStepFood - Render - Watched Food Store Expenses:", foodStoreExpensesVal);
-console.log("SubStepFood - Render - Watched Takeout Expenses:", takeoutExpensesVal);
-console.log("SubStepFood - Render - Calculated Total Value:", calculatedTotalValue);
-console.log("SubStepFood - Render - Formatted Total Value:", formattedTotalValue);
-
   return (
     <OptionContainer>
       <div className="hidden md:flex justify-center mt-4">

@@ -14,9 +14,8 @@ import {
   FieldErrors,
 } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
-import * as yup from "yup";
 
-import { getSchemaForStep } from "@schemas/wizard/schemaUtils";
+import { wizardRootSchema } from "@schemas/wizard/wizardRootSchema"; 
 import { ExpenditureFormValues } from
   "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/interface/ExpenditureFormValues";
 
@@ -41,10 +40,7 @@ const WizardFormWrapperStep2 = forwardRef<
   /* ------------------------------------------------------------------ */
   /*                           1. SCHEMA & RESOLVER                     */
   /* ------------------------------------------------------------------ */
-  const selectedSchema =
-    getSchemaForStep(currentSubStep) as yup.ObjectSchema<ExpenditureFormValues>;
-
-    const resolver = yupResolver(selectedSchema) as unknown as Resolver<ExpenditureFormValues>;
+  const resolver = yupResolver(wizardRootSchema) as unknown as Resolver<ExpenditureFormValues>;
 
   /* ------------------------------------------------------------------ */
   /*                           2. RHF METHODS                           */

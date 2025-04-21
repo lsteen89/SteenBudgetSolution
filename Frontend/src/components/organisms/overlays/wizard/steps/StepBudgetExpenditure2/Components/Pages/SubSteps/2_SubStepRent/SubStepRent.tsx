@@ -21,10 +21,6 @@ const SubStepRent: React.FC = () => {
     control,
     formState: { errors },
   } = useFormContext<RentForm>();
-  console.log("SubStepRent rendered");
-  console.log("SubStepRent errors", errors);
-  console.log("SubStepRent control", control);
-  
 
   return (
     <div className="relative w-5/6 mx-auto mt-4">
