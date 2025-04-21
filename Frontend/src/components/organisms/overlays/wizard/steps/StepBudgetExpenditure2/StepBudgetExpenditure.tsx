@@ -12,12 +12,13 @@ export interface StepBudgetExpenditureRef {
   getStepData: () => any;
   markAllTouched: () => void;
   getErrors: () => FieldErrors<any>;
+  getCurrentSubStep: () => number;
 }
 
 interface StepBudgetExpenditureProps {
   setStepValid: (isValid: boolean) => void;
   wizardSessionId: string;
-  onSaveStepData: (stepNumber: number, subStep: number, data: any) => Promise<boolean>;
+  onSaveStepData: (stepNumber: number, subStep: number, data: any, goingBackwards: boolean) => Promise<boolean>;
   stepNumber: number;
   initialSubStep: number; // the sub-step index we start on
   initialData: any;
@@ -47,8 +48,14 @@ const StepBudgetExpenditure = forwardRef<
     getErrors: () => {
       return containerRef.current?.getErrors() ?? {};
     },
+    getCurrentSubStep: () => {
+      return containerRef.current?.getCurrentSubStep() ?? 0;
+    },
   }));
   const containerKey = "step-budget-expenditure-container";
+  const getCurrentSubStep = () => {
+    return containerRef.current?.getCurrentSubStep() ?? 0;
+  }
   return (
     <div key={containerKey}>
       <GlassPane>
@@ -56,8 +63,8 @@ const StepBudgetExpenditure = forwardRef<
           ref={containerRef}
           initialData={props.initialData}
           wizardSessionId={props.wizardSessionId}
-          onSaveStepData={(stepNumber, subStepNumber, data) =>
-            props.onSaveStepData(stepNumber, subStepNumber, data)
+          onSaveStepData={(stepNumber, subStepNumber, data, goingBackwards) =>
+            props.onSaveStepData(stepNumber, subStepNumber, data, goingBackwards)
           }
           stepNumber={props.stepNumber}
           initialSubStep={props.initialSubStep}

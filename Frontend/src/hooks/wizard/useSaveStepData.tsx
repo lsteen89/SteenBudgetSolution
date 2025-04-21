@@ -9,7 +9,8 @@ interface UseSaveStepDataProps<T extends ExpenditureFormValues> {
   onSaveStepData: (
     stepNumber: number,
     subStepNumber: number,
-    data: Partial<T>
+    data: Partial<T>,
+    goingBackwards: boolean
   ) => Promise<boolean>;
   setCurrentStep: React.Dispatch<React.SetStateAction<number>>;
   triggerShakeAnimation: (duration?: number) => void;
@@ -54,18 +55,21 @@ export function useSaveStepData<T extends ExpenditureFormValues>({
   
   const saveStepData = useCallback(
     async (
-      stepLeaving: number,
-      stepGoing: number,
-      skipValidation: boolean = false
+      stepLeaving: number, // This is the substep we are leaving (e.g. 2, 3, 4)
+      stepGoing: number, // This is the substep we are going to (e.g. 3, 4, 5)
+      skipValidation: boolean, // Skip validation if true (used for forward navigation sometimes)
+      goingBackwards: boolean, // If true, we are going backwards (skip API save and validation)
+
     ): Promise<boolean> => {
       // 1) Validate if needed
       let isValid = true;
-      if (!skipValidation) {
+      if (!skipValidation && !goingBackwards) {
+        // If going backwards, skip validation and API save
         isValid = await methods.trigger();
-        console.log("saveStepData: isValid", isValid, "Errors:", methods.formState.errors); 
       }
       const isDebugMode = process.env.NODE_ENV === 'development';
-      if (!isValid  && !isDebugMode) {
+
+      if (!isValid && !skipValidation && !goingBackwards && isDebugMode) {
         if (!isMobile) {
           // Scroll to first error if desktop
           const firstErrorField = Object.keys(methods.formState.errors)[0];
@@ -94,7 +98,6 @@ export function useSaveStepData<T extends ExpenditureFormValues>({
 
       // 2) Get all form data as T (which extends ExpenditureFormValues)
       const allData = methods.getValues();
-
       // 3) Slice out only the relevant part
       const partialData = getPartialData<T>(stepLeaving, allData);
 
@@ -103,9 +106,11 @@ export function useSaveStepData<T extends ExpenditureFormValues>({
         setCurrentStep(stepGoing);
         return true;
       }
-      console.log("saveStepData: partialData", partialData);
-      // 4) Call parent's onSaveStepData with partial data
-      const saveSuccess = await onSaveStepData(stepNumber, stepLeaving, partialData);
+
+      // 4) Call parent's onSaveStepData with partial data (useSaveWizardStep.tsx)
+
+      const saveSuccess = await onSaveStepData(stepNumber, stepLeaving, partialData, goingBackwards);
+
       if (!saveSuccess && !isDebugMode) return false;
 
       // 5) Navigate to stepGoing
