@@ -49,10 +49,7 @@ const ContactUs: React.FC = () => {
     CaptchaToken: '',
   });
 
-  const currentEnvironment = import.meta.env.MODE; // Logs 'development', 'production', etc.
   const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
-  console.log('Current Environment:', currentEnvironment);
-  console.log('All Environment Variables:', import.meta.env);
   if (!siteKey) {
     console.error('ReCAPTCHA sitekey is missing. Check your environment variables.');
   }
@@ -191,7 +188,8 @@ const ContactUs: React.FC = () => {
           '
           centerContent={true}
         >
-          <FormContainer tag="form" 
+          
+          <FormContainer tag="form"
             className='
             z-10
             ' 
@@ -200,15 +198,16 @@ const ContactUs: React.FC = () => {
             
           >
 
+            <h1 className="text-3xl font-bold text-gray-800 text-center mb-4">Kontakta oss</h1>
             <p className="font-bold text-lg text-gray-700 text-center leading-relaxed ">
               Vi välkomnar din feedback och eventuella frågor! <br />
               Du kan kontakta oss genom att fylla i formuläret nedanför
               <br /><br />
             </p>
             {/* Display form-level error message */}
-            {errors.form && (
-              <p className="text-red-500 text-sm text-center mb-4">{errors.form}</p>
-            )}
+            <p className="text-red-500 text-sm text-center mb-4 h-5">
+              {errors.form || ''}
+            </p>
             {/* First Name and Last Name */}
             <div className="flex space-x-4">
               <div className="flex-1">
@@ -220,9 +219,9 @@ const ContactUs: React.FC = () => {
                   width="100%"
                   height="50px"
                 />
-                {errors.FirstName && (
-                  <p className="text-red-500 text-sm">{errors.FirstName}</p>
-                )}
+                <p className="text-red-500 text-sm h-5 mt-1">
+                  {errors.FirstName || ''}
+                </p>
               </div>
               <div className="flex-1">
                 <ContactFormInputField
@@ -233,9 +232,9 @@ const ContactUs: React.FC = () => {
                   width="100%"
                   height="50px"
                 />
-                {errors.LastName && (
-                  <p className="text-red-500 text-sm">{errors.LastName}</p>
-                )}
+                <p className="text-red-500 text-sm h-5 mt-1">
+                  {errors.LastName || ''}
+                </p>
               </div>
             </div>
 
@@ -251,9 +250,9 @@ const ContactUs: React.FC = () => {
                   width="100%"
                   height="50px"
                 />
-                {errors.SenderEmail && (
-                  <p className="text-red-500 text-sm">{errors.SenderEmail}</p>
-                )}
+                <p className="text-red-500 text-sm h-5 mt-1">
+                  {errors.SenderEmail || ''}
+                </p>
               </div>
             </div>
 
@@ -268,9 +267,9 @@ const ContactUs: React.FC = () => {
                   width="100%"
                   height="50px"
                 />
-                {errors.Subject && (
-                  <p className="text-red-500 text-sm">{errors.Subject}</p>
-                )}
+                <p className="text-red-500 text-sm h-5 mt-1">
+                  {errors.Subject || ''}
+                </p>
               </div>
             </div>
 
@@ -286,12 +285,9 @@ const ContactUs: React.FC = () => {
                   height="200px"
                   multiline={true}
                 />
-                {errors.Body && (
-                  <p className="text-red-500 text-sm">{errors.Body}</p>
-                )}
-                {errors.CaptchaToken && (
-                  <p className="text-red-500 text-sm">{errors.CaptchaToken}</p>
-                )}
+                <p className="text-red-500 text-sm h-5 mt-1">
+                  {errors.Body || ''}
+                </p>
               </div>
             </div>
             {/* Submit Button and ReCAPTCHA */}
@@ -309,20 +305,15 @@ const ContactUs: React.FC = () => {
               </div>
 
               {/* ReCAPTCHA */}
-              <div
-                className="mt-4 sm:mt-0 flex justify-center w-full sm:w-auto"
-                style={{
-                  transform: 'scale(0.9)',
-                  transformOrigin: 'center',
-                  height: '78px', // Typical height of the ReCAPTCHA widget when scaled
-                  overflow: 'hidden',
-                }}
-              >
+              <div className="mt-4 sm:mt-0 flex justify-center w-full sm:w-auto transform scale-90 origin-center h-[78px] overflow-hidden">
                 <ReCAPTCHA
                   sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
                   onChange={handleCaptchaChange}
                   ref={captchaRef}
                 />
+              <p className="text-red-500 text-sm text-center h-5 mt-2">
+                {errors.CaptchaToken || ''}
+              </p>
               </div>
             </div>
 
@@ -341,6 +332,8 @@ const ContactUs: React.FC = () => {
           3xl:absolute 3xl:left-[30%] 3xl:top-1/2 3xl:transform 3xl:-translate-y-1/2
           "
         />
+
+      {/* End grid wrapper */}
       </ContentWrapper>
     </PageContainer>
     </>

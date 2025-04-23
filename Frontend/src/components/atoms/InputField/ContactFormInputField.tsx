@@ -24,18 +24,20 @@ const ContactFormInputField: React.FC<ContactFormInputFieldProps> = ({
       {multiline ? (
         <textarea
           placeholder={placeholder}
+          aria-label={placeholder}
           value={value}
           onChange={onChange}
-          onBlur={onBlur} // Passed to textarea
+          onBlur={onBlur}
           className="w-full h-full bg-white shadow-[0_8px_24px_rgba(0,0,0,0.2)] rounded-xl px-4 text-gray-800 text-lg font-bold tracking-wide focus:outline-none border border-gray-300 focus:border-blue-500 resize-none"
         />
       ) : (
         <input
-          type={type} // Pass type for input
+          type={type}
           placeholder={placeholder}
+          aria-label={placeholder}
           value={value}
           onChange={onChange}
-          onBlur={onBlur} // Passed to input
+          onBlur={onBlur}
           className="w-full h-full bg-white shadow-[0_8px_24px_rgba(0,0,0,0.2)] rounded-xl px-4 text-gray-800 text-lg font-bold tracking-wide focus:outline-none border border-gray-300 focus:border-blue-500"
         />
       )}
