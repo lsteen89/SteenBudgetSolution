@@ -480,22 +480,34 @@ const StepBudgetIncome = forwardRef<StepBudgetIncomeRef, StepBudgetIncomeProps  
 
         {/* Optional Household Members Section */}
         <OptionContainer>
-          <div className="flex items-center justify-center gap-2 mt-4">
+          <div className="flex items-center justify-center mt-4 gap-2">
 
-          <h4 className="text-lg font-semibold mb-2">Hushållsmedlemmar (valfritt)</h4>
+          <h4 className="text-lg font-semibold mb-2">
+            Hushålls&shy;medlemmar&nbsp;(valfritt)
+          </h4>       
+          <div className="hidden md:block">
             <HelpSection
-              label=""
-              helpText="Alla personer i ditt hushåll vars ekonomi påverkar din budget."
-              detailedHelpText="Hushållsmedlemmar inkluderar alla personer vars ekonomi påverkar den gemensamma budgeten, t.ex. partner, barn eller andra samboende. Du kan ange deras inkomster och utgifter separat för att få en mer komplett budgetöversikt."
-            > </HelpSection>
+                  label=""
+                  helpText="Alla personer i ditt hushåll vars ekonomi påverkar din budget."
+                  detailedHelpText="Hushållsmedlemmar inkluderar alla personer vars ekonomi påverkar den gemensamma budgeten, t.ex. partner, barn eller andra samboende. Du kan ange deras inkomster och utgifter separat för att få en mer komplett budgetöversikt."
+                > </HelpSection>
+          </div>
+
+          </div>
+          <div className="block md:hidden">
+            <HelpSection
+                  label=""
+                  helpText="Alla personer i ditt hushåll vars ekonomi påverkar din budget."
+                  detailedHelpText="Hushållsmedlemmar inkluderar alla personer vars ekonomi påverkar den gemensamma budgeten, t.ex. partner, barn eller andra samboende. Du kan ange deras inkomster och utgifter separat för att få en mer komplett budgetöversikt."
+                > </HelpSection>
           </div>
           <button
             onClick={() => setShowHouseholdMembers(!showHouseholdMembers)}
             className="mt-2 bg-darkLimeGreen hover:bg-darkBlueMenuColor text-white font-bold py-3 px-6 rounded-xl shadow-md transform hover:scale-105 transition-all"
             >
             {showHouseholdMembers
-              ? "Dölj hushållsmedlemmar ❌"
-              : "Visa hushållsmedlemmar"}
+              ? `Dölj hushålls\u00admedlemmar ❌`
+              : `Visa hushålls\u00admedlemmar`}
           </button>
           {shouldShowHouseholdMembers && values.householdMembers.length == 0 && (
           <>  

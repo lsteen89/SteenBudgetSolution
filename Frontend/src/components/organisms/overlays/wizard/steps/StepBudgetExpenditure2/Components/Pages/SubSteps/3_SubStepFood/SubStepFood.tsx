@@ -122,7 +122,7 @@ const formattedTotalValue = calculatedTotalValue.toLocaleString("sv-SE");
 
   return (
     <OptionContainer>
-      <div className="hidden md:flex justify-center mt-4">
+      <div className="flex justify-center md:mt-4">
         <div className="">
           <GlossyFlipCard
             frontText={<FlipCardText variant="front" />}
@@ -130,14 +130,11 @@ const formattedTotalValue = calculatedTotalValue.toLocaleString("sv-SE");
             frontTextClass="text-lg text-white"
             backTextClass="text-sm text-limeGreen"
             disableBounce={true}
+            containerClassName="w-[170px] h-[400px] md:w-[350px] md:h-[270px]" 
           />
         </div>
       </div>
-      {/* Plain text for screens smaller than MD (using the same front text) */}
-      <div className="md:hidden bg-white bg-opacity-10 p-4 rounded-xl shadow-inner mt-4">
-        <p>{flipCardFrontText}</p>
-        <p className="text-sm text-limeGreen mt-2">{flipCardBackText}</p>
-      </div>
+
 
       {/* 3. Example update button for matkostnad */}
       <div className="mt-4">

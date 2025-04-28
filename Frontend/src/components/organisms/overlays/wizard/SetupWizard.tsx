@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft,
@@ -18,8 +18,6 @@ import StepBudgetIncome, { StepBudgetIncomeRef } from "@components/organisms/ove
 import StepExpenditure, { StepBudgetExpenditureRef } from "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/StepBudgetExpenditure";
 import StepPreferences from "@components/organisms/overlays/wizard/steps/StepPreferences";
 import StepConfirmation from "@components/organisms/overlays/wizard/steps/StepConfirmation";
-// Navigation buttons
-import WizardNavigationButtons from "@components/organisms/overlays/wizard/SharedComponents/WizardNavigationButtons";
 // Toast notification
 import { useToast } from "@context/ToastContext";
 // hooks
@@ -33,6 +31,9 @@ import useBudgetInfoDisplayFlags from "@hooks/wizard/flagHooks/useBudgetInfoDisp
 import WizardHeading from "@components/organisms/overlays/wizard/SharedComponents/Menu/WizardHeading";
 import WizardProgress from "@components/organisms/overlays/wizard/SharedComponents/Menu/WizardProgress";
 import AnimatedContent from "@components/atoms/wrappers/AnimatedContent";
+// Footer import
+import WizardNavPair from "@components/organisms/overlays/wizard/SharedComponents/Buttons/WizardNavPair";
+import WizardNavigationFooter from "@components/organisms/overlays/wizard/SharedComponents/Wrappers/WizardNavigationFooter";
 // Modal import
 import ConfirmModal from "@components/atoms/modals/ConfirmModal";
 // ---------------------------- TYPES ----------------------------
@@ -51,6 +52,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
   // Handler for clicking an icon to navigate to a step
   const handleStepClick = (targetStep: number) => {
     setStep(targetStep);
+    //TODO IN PRODUCTION: Add validation logic HERE
   };
 
   // 1. Wizard closure
@@ -61,7 +63,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     setConfirmModalOpen(true); // Open the confirmation modal
   }, [setConfirmModalOpen]);
 
-  //1.2A. Handle closing of the wizard without saving
+  //1.1A. Handle closing of the wizard without saving
   const handleConfirmCloseWizard = useCallback(() => {
     setConfirmModalOpen(false); // Close the modal
     onClose(); // Call the parent's onClose callback to close the wizard
@@ -143,9 +145,12 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
 
   // State for local state
   const { flags, setShowSideIncome, setShowHouseholdMembers } = useBudgetInfoDisplayFlags();
+  const [subTick, setSubTick] = useState(0);
 
+  // 6. Handle step navigation
   // Call the useWizardNavigation hook
-  const { navigateStep: hookNavigateStep, nextStep: hookNextStep, prevStep: hookPrevStep } = useWizardNavigation({
+  const { nextStep: hookNextStep, prevStep: hookPrevStep } =
+  useWizardNavigation({
     step,
     setStep,
     totalSteps,
@@ -156,7 +161,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     setWizardData,
     triggerShakeAnimation,
     isDebugMode,
-    setShowSideIncome, 
+    setShowSideIncome,
     setShowHouseholdMembers,
   });
 
@@ -168,6 +173,42 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
       setIsStepValid(false);
     }
   }, [step]);
+
+  const [activeStepRef, setActiveStepRef] = useState<any | null>(null);
+
+  useEffect(() => {
+    const refObject = stepRefs[step];
+    if (refObject && refObject.current !== activeStepRef) {
+      setActiveStepRef(refObject.current);
+    }
+  }, [step, stepRefs[step]]);
+
+    /* -----------------------------------------------------------
+    7. Ask the active child step (if any) for its sub-nav API
+    ------------------------------------------------------------*/
+    const subNav = useMemo(() => {
+      const api = stepRefs[step]?.current;
+    
+      if (api && typeof api.goPrevSub === "function") {
+        return {
+          prevSub: api.goPrevSub,
+          nextSub: api.goNextSub,
+          hasPrevSub: api.hasPrevSub(),
+          hasNextSub: api.hasNextSub(),
+        };
+      }
+      return {
+        prevSub: () => {},
+        nextSub: () => {},
+        hasPrevSub: false,
+        hasNextSub: false,
+      };
+    }, [step, stepRefs[step], subTick]);   //  ← include subTick
+    const activeStepAPI = stepRefs[step]?.current;
+
+    const saving = activeStepAPI && "isSaving" in activeStepAPI
+      ? activeStepAPI.isSaving()
+      : false;
 
   // media query for small screens
   const isMobile = useMediaQuery('(max-width: 1367px)');
@@ -252,6 +293,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
                     onPrev={() => hookPrevStep()} // Use the hook's prevStep
                     loading={transitionLoading || initLoading}
                     initialSubStep={initialSubStepForStep(2)} // Use derived state
+                    onSubStepChange={() => setSubTick(t => t + 1)} // Force re-render on sub-step change
                   />}
                   {step === 3 && <StepPreferences />}
                   {step === 4 && <StepConfirmation />}
@@ -263,16 +305,47 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
           </AnimatedContent>
 
           {/* NAVIGATION BUTTONS (BOTTOM) */}
-          <WizardNavigationButtons
-            step={step}
-            prevStep={hookPrevStep} // Pass the hook's prevStep
-            nextStep={hookNextStep} // Pass the hook's nextStep
-            connectionError={connectionError}
-            initLoading={initLoading}
-            transitionLoading={transitionLoading}
-            isDebugMode={isDebugMode}
-            showShakeAnimation={showShakeAnimation}
-          />
+          {isMobile ? (
+            <footer className="fixed bottom-0 inset-x-0 p-4 bg-white/30 rounded-xl backdrop-blur-lg shadow-lg">
+              <WizardNavigationFooter
+                /* major */
+                prevMajor={hookPrevStep}
+                nextMajor={hookNextStep}
+                hasPrevMajor={step > 0}
+                hasNextMajor={step < totalSteps}
+                /* sub  */
+                prevSub={subNav.prevSub}
+                nextSub={subNav.nextSub}
+                hasPrevSub={subNav.hasPrevSub}
+                hasNextSub={subNav.hasNextSub}
+                /* shared flags */
+                connectionError={connectionError}
+                initLoading={initLoading}
+                transitionLoading={transitionLoading}
+                isDebugMode={isDebugMode}
+                showShakeAnimation={showShakeAnimation}
+                isSaving={saving}
+              />
+            </footer>
+            ) : (
+            /* desktop */
+            <div className="my-6 w-full flex items-center justify-between">
+              <WizardNavPair
+                step={step}
+                prevStep={hookPrevStep}
+                nextStep={hookNextStep}
+                hasPrev={step > 0}
+                hasNext={step < totalSteps}
+                connectionError={connectionError}
+                initLoading={initLoading}
+                transitionLoading={transitionLoading}
+                isDebugMode={isDebugMode}
+                showShakeAnimation={showShakeAnimation}
+                isSaving={saving}
+                isMajor
+              />
+            </div>
+          )}
         </motion.div>
       </div>
       {/* Confirm Modal */}

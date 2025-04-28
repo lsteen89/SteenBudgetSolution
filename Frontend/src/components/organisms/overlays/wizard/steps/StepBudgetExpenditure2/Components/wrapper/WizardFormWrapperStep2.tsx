@@ -5,6 +5,7 @@ import React, {
   useImperativeHandle,
   useCallback,
   useState,
+  useRef,
 } from "react";
 import {
   useForm,
@@ -69,6 +70,7 @@ const WizardFormWrapperStep2 = forwardRef<
     },
     mode: "onBlur",
     reValidateMode: "onChange",
+    shouldUnregister: false,
   });
 
   /* ------------------------------------------------------------------ */
@@ -103,25 +105,31 @@ const WizardFormWrapperStep2 = forwardRef<
   );
 
   /* ------------------------------------------------------------------ */
-  /*                           4. SYNC INITIAL DATA                     */
+  /* 4 ▸ SYNC INITIAL DATA – reset only when the *prop* actually changes */
   /* ------------------------------------------------------------------ */
+  const prevInitRef = useRef<Partial<ExpenditureFormValues> | undefined>();
+
   useEffect(() => {
+    /* first mount ---------------------------------------------------- */
     if (!isInitialized) {
       resetForm(initialData);
+      prevInitRef.current = initialData;
       setIsInitialized(true);
       return;
     }
 
-    const current = methods.getValues();
+    /* subsequent updates – run *only* when the reference OR
+      a deep compare against the previous prop says it has changed ---- */
+    const sameRef   = prevInitRef.current === initialData;
+    const sameValue = JSON.stringify(prevInitRef.current) ===
+                      JSON.stringify(initialData);
 
-    const changed = JSON.stringify(current) !== JSON.stringify({
-      rent:       initialData?.rent       ?? {},
-      food:       initialData?.food       ?? {},
-      utilities:  initialData?.utilities  ?? {},
-    });
+    if (!sameRef && !sameValue) {
+      resetForm(initialData);
+      prevInitRef.current = initialData;
+    }
+  }, [initialData, isInitialized, resetForm]);
 
-    if (changed) resetForm(initialData);
-  }, [initialData, isInitialized, methods, resetForm]);
 
   /* ------------------------------------------------------------------ */
   /*                          5. IMPERATIVE API                         */

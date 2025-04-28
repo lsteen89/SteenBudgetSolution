@@ -12,11 +12,36 @@ const useFormValidation = (
   const [errors, setErrors] = useState<ValidationResult>({});
   const [touched, setTouched] = useState<{ [key: string]: boolean }>({});
 
-  const validateFields = useCallback((): boolean => {
-    const validationErrors = validateFn(values);
-    setErrors(validationErrors);
-    return Object.keys(validationErrors).length === 0;
-  }, [values, validateFn]);
+  const validateFields = useCallback(
+    (scroll = true): boolean => {
+      const validationErrors = validateFn(values);
+      setErrors(validationErrors);
+  
+      if (scroll && Object.keys(validationErrors).length) {
+        const firstKey = Object.keys(validationErrors)[0];
+  
+        /* delay until the DOM is painted (sections expanded) */
+        requestAnimationFrame(() => {
+          const el = document.getElementById(firstKey);
+          if (!el) return;
+  
+          /* ---------- OPTION A – easiest (most browsers) ------------- */
+          /* Lands the field in the middle of the scrollable container   */
+          el.scrollIntoView({
+            behavior: "smooth",
+            block: "center",      // <— vertical centring
+            inline: "nearest",
+          });
+  
+          el.focus({ preventScroll: true });   // keep focus from re-scrolling
+        });
+      }
+      return Object.keys(validationErrors).length === 0;
+    },
+    [values, validateFn]
+  );
+  
+  
 
   const validateField = useCallback((field: string): string | undefined => {
     const fieldError = validateFn(values)[field];
@@ -72,6 +97,7 @@ const useFormValidation = (
       return newTouched;
     });
   }, []);
+
 
   return {
     values,

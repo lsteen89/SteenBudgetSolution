@@ -13,7 +13,6 @@ interface UseSaveStepDataProps<T extends ExpenditureFormValues> {
     goingBackwards: boolean
   ) => Promise<boolean>;
   setCurrentStep: React.Dispatch<React.SetStateAction<number>>;
-  triggerShakeAnimation: (duration?: number) => void;
 }
 
 /** 
@@ -48,7 +47,6 @@ export function useSaveStepData<T extends ExpenditureFormValues>({
   isMobile,
   onSaveStepData,
   setCurrentStep,
-  triggerShakeAnimation,
 }: UseSaveStepDataProps<T>) {
 
  
@@ -69,10 +67,11 @@ export function useSaveStepData<T extends ExpenditureFormValues>({
       }
       const isDebugMode = process.env.NODE_ENV === 'development';
 
-      if (!isValid && !skipValidation && !goingBackwards && isDebugMode) {
-        if (!isMobile) {
+      if (!isValid && !skipValidation && !goingBackwards) { // Remove in prod
+
           // Scroll to first error if desktop
           const firstErrorField = Object.keys(methods.formState.errors)[0];
+          console.log("firstErrorField", firstErrorField);
           if (firstErrorField === "rent") {
             const rentErrors = (methods.formState.errors as Record<string, any>)["rent"];
             if (rentErrors) {
@@ -91,8 +90,8 @@ export function useSaveStepData<T extends ExpenditureFormValues>({
               .querySelector(`[name="food.takeoutExpenses"]`)
               ?.scrollIntoView({ behavior: "smooth", block: "center" });
           }
-          triggerShakeAnimation(1000);
-        }
+
+        
         return false;
       }
 
@@ -110,14 +109,14 @@ export function useSaveStepData<T extends ExpenditureFormValues>({
       // 4) Call parent's onSaveStepData with partial data (useSaveWizardStep.tsx)
 
       const saveSuccess = await onSaveStepData(stepNumber, stepLeaving, partialData, goingBackwards);
-
-      if (!saveSuccess && !isDebugMode) return false;
+      console.log("saveSuccess", saveSuccess);
+      if (!saveSuccess) return false; // REMOVE IN PROD
 
       // 5) Navigate to stepGoing
       setCurrentStep(stepGoing);
       return true;
     },
-    [methods, stepNumber, isMobile, onSaveStepData, setCurrentStep, triggerShakeAnimation]
+    [methods, stepNumber, isMobile, onSaveStepData, setCurrentStep]
   );
 
   return { saveStepData };
