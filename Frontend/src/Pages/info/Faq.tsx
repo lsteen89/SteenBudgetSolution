@@ -5,7 +5,6 @@ import { ChevronDownIcon, ChartBarIcon, LockClosedIcon, QuestionMarkCircleIcon, 
 import SubmitButton from '@components/atoms/buttons/SubmitButton'; 
 import PageContainer from '@components/layout/PageContainer';
 import ContentWrapper from '@components/layout/ContentWrapper';
-import HelpSection from '@components/molecules/helptexts/HelpSection';
 
 const Faq: React.FC = () => {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
@@ -18,7 +17,7 @@ const Faq: React.FC = () => {
   const handleRedirect = () => {
     navigate('/contact');
   };
-  const foodCalcHelpText ="test";
+
   const questions = [
     {
       question: 'Hur fungerar budgetering i eBudget?',
@@ -71,9 +70,9 @@ const Faq: React.FC = () => {
   return (
     <PageContainer centerChildren={true}> 
        <div className="flex flex-col md:flex-row items-center justify-center w-full"></div>
-      <ContentWrapper className='xl:pt-[15%] 2xl:pt-[10%] 3xl:pt-[0%]'>
+      <ContentWrapper className='xl:pt-[15%] 2xl:pt-[10%] 3xl:pt-[5%]'>
         {/* FAQ Box */}
-        <div className="max-w-4xl w-full bg-pastelGreen p-10 rounded-lg shadow-md border-t-8 border-limeGreen z-10">
+        <div className="max-w-4xl w-full bg-customBlue1 p-10 rounded-lg shadow-md border-t-8 border-limeGreen z-10">
           {/* Title */}
           <h1 className="text-3xl font-extrabold text-center text-gray-800 mb-6">
             Vanliga frågor
@@ -110,10 +109,9 @@ const Faq: React.FC = () => {
             ))}
 
             {/* Contact Section */}
-            <div className="mt-10 bg-pastelGreen p-6 rounded-lg text-center shadow-md">
+            <div className="mt-10 bg-customBlue1 p-6 rounded-lg text-center shadow-md">
               <p className="text-lg font-bold text-blue-800">
                 Har du fler frågor? Kontakta oss för att få svar!
-                <HelpSection label="" helpText={foodCalcHelpText} />
               </p>
               <br />
               <SubmitButton

@@ -24,7 +24,7 @@ const SubStepRent: React.FC = () => {
 
   return (
     <div className="relative w-5/6 mx-auto mt-4">
-      <h3 className="text-2xl font-bold text-darkLimeGreen mb-4 text-center">Vilken typ av boende har du?</h3>
+      <h3 className="text-2xl font-bold text-darkLimeGreen mb-4 text-center">Vilket typ av boende har du?</h3>
 
       
       {/* HomeType Select using Controller only */}

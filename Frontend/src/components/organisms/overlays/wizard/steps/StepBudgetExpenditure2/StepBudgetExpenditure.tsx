@@ -8,11 +8,16 @@ import StepBudgetExpenditureContainer, {
 } from "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/StepBudgetExpenditureContainer";
 
 export interface StepBudgetExpenditureRef {
-  validateFields: () => Promise<boolean>;
-  getStepData: () => any;
-  markAllTouched: () => void;
-  getErrors: () => FieldErrors<any>;
-  getCurrentSubStep: () => number;
+  validateFields(): Promise<boolean>;
+  getStepData(): any;
+  markAllTouched(): void;
+  getErrors(): FieldErrors<any>;
+  getCurrentSubStep(): number;
+  goPrevSub(): void;
+  goNextSub(): void;
+  hasPrevSub(): boolean;
+  hasNextSub(): boolean;
+  isSaving(): boolean;
 }
 
 interface StepBudgetExpenditureProps {
@@ -25,6 +30,7 @@ interface StepBudgetExpenditureProps {
   onNext: () => void;
   onPrev: () => void;
   loading: boolean;
+  onSubStepChange?: (newSub: number) => void; // Optional callback for sub-step changes
 }
 
 const StepBudgetExpenditure = forwardRef<
@@ -51,6 +57,11 @@ const StepBudgetExpenditure = forwardRef<
     getCurrentSubStep: () => {
       return containerRef.current?.getCurrentSubStep() ?? 0;
     },
+    goPrevSub: () => containerRef.current?.goPrevSub?.(),
+    goNextSub: () => containerRef.current?.goNextSub?.(),
+    hasPrevSub: () => containerRef.current?.hasPrevSub?.() ?? false,
+    hasNextSub: () => containerRef.current?.hasNextSub?.() ?? false,
+    isSaving: () => containerRef.current?.isSaving?.() ?? false,
   }));
   const containerKey = "step-budget-expenditure-container";
   const getCurrentSubStep = () => {
@@ -71,6 +82,7 @@ const StepBudgetExpenditure = forwardRef<
           onNext={props.onNext}
           onPrev={props.onPrev}
           loading={props.loading}
+          onSubStepChange={props.onSubStepChange}
         />
         <DataTransparencySection />
         {/* If you have extra navigation buttons for the user, place them here */}
