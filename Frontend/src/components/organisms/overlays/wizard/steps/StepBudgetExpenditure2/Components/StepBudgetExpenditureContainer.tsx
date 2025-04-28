@@ -18,16 +18,17 @@ import ExpenditureOverviewMainText from "./Pages/SubSteps/ExpenditureOverviewMai
 import SubStepRent from "./Pages/SubSteps/2_SubStepRent/SubStepRent";
 // Other pages
 import LoadingScreen from "@components/molecules/feedback/LoadingScreen";
+import { Loader2 } from "lucide-react";
 // Layout + Navigation
-import WizardNavigationButtons from "@components/organisms/overlays/wizard/SharedComponents/WizardNavigationButtons";
 import AnimatedContent from "@components/atoms/wrappers/AnimatedContent";
 import StepButton from "@components/molecules/buttons/StepButton";
 import WizardProgress from "@components/organisms/overlays/wizard/SharedComponents/Menu/WizardProgress";
 import StepCarousel from "@components/molecules/progress/StepCarousel";
+import WizardNavPair from "@components/organisms/overlays/wizard/SharedComponents/Buttons/WizardNavPair";
 // Hooks
 import useMediaQuery from "@hooks/useMediaQuery"; // For deciding mobile vs desktop
 import { useSaveStepData } from "@hooks/wizard/useSaveStepData"; // Hook to save step data
-
+import GhostIconButton from "@components/atoms/buttons/GhostIconButton";
 
 // Icons
 import {
@@ -41,17 +42,25 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import SubStepFood from "./Pages/SubSteps/3_SubStepFood/SubStepFood";
+import { useToast } from "@context/ToastContext";
 // (Line removed)
 
 //
 // INTERFACES
 //
 export interface StepBudgetExpenditureContainerRef {
-  validateFields: () => Promise<boolean>;
-  getStepData: () => any;
-  markAllTouched: () => void;
-  getErrors: () => FieldErrors<ExpenditureFormValues>;
-  getCurrentSubStep: () => number;
+  validateFields(): Promise<boolean>;
+  getStepData(): any;
+  markAllTouched(): void;
+  getErrors(): FieldErrors<ExpenditureFormValues>;
+  /** current (1-based) sub-step inside this major step */
+  getCurrentSubStep(): number;
+  /** step-local navigation helpers */
+  goPrevSub(): void;
+  goNextSub(): void;
+  hasPrevSub(): boolean;
+  hasNextSub(): boolean;
+  isSaving(): boolean;
 }
 
 interface StepBudgetExpenditureContainerProps {
@@ -64,6 +73,7 @@ interface StepBudgetExpenditureContainerProps {
   onPrev: () => void;             // Called if user goes back a major step
   loading: boolean;               // Used to show spinner
   initialSubStep: number;          // 1-based sub-step index to start on
+  onSubStepChange?: (newSub: number) => void; // Optional callback for sub-step changes (used in setupwizard for mobile buttons)
 }
 
 const StepBudgetExpenditureContainer = forwardRef<
@@ -85,25 +95,25 @@ const StepBudgetExpenditureContainer = forwardRef<
 
   const formWrapperRef = useRef<WizardFormWrapperStep2Ref>(null);
 
-  useImperativeHandle(ref, () => ({
-    validateFields: async () =>
-      formMethods ? formMethods.trigger() : false,
-    getStepData: () => (formMethods ? formMethods.getValues() : {}),
-    markAllTouched: () => formMethods && formMethods.trigger(),
-    getErrors: () => (formMethods ? formMethods.formState.errors : {}),
-    getCurrentSubStep: () => currentSubStep,
-  }));
+  const isDebugMode = process.env.NODE_ENV === 'development';
+  
+  // This state is used to show a loading spinner when saving data
+  // and to disable the buttons, thus preventing double-clicks or similar
+  const [isSaving, setIsSaving] = useState(false);
+
   
   const [currentSubStep, setCurrentStep] = useState(initialSubStep || 1); // 1-based index
   const [formMethods, setFormMethods] = useState<
     UseFormReturn<ExpenditureFormValues> | null
   >(null);
-  // Shake animation
+
   const [showShakeAnimation, setShowShakeAnimation] = useState(false);
   const triggerShakeAnimation = (duration = 1000) => {
     setShowShakeAnimation(true);
     setTimeout(() => setShowShakeAnimation(false), duration);
   };
+
+  const { showToast } = useToast();
 
   // 4) Step List
   const steps = [
@@ -139,91 +149,110 @@ const StepBudgetExpenditureContainer = forwardRef<
     isMobile,
     onSaveStepData,
     setCurrentStep,
-    triggerShakeAnimation,
   });
 
+  /* ───────────────────────────────
+    6. Next / Prev button handlers
+    ──────────────────────────────*/
 
-  if (parentLoading) {
-    return <LoadingScreen />;
-  }
-
-
-  // 6) Next/Prev Step Handlers
-  const saveAndGoNext = async () => {
-    // Skip validation for sub-step #1 if it has no fields
-    if (currentSubStep === 1) {
-      setCurrentStep((prev) => prev + 1);
+  /** Unified jump helper – used by every navigation method */
+  const goToSubStep = async (destination: number) => {
+    /* 1 — Dev-mode fast-jump (never call API) */
+    // REMOVE THIS LINE FOR PRODUCTION
+    /*
+    if (isDebugMode) { // REMOVE THIS LINE FOR PRODUCTION
+      setCurrentStep(destination);
       return;
     }
-    // If last sub-step and mobile, go back to first step (carousel)
-    if(isMobile && currentSubStep === totalSteps) {
-      setCurrentStep(1);
-      return;
-    }
+    */
+    /* 2 — Figure out direction + whether we may skip validation */
+    const goingBackwards     = destination < currentSubStep;
+    const skipValidationFlag = currentSubStep === 1 || goingBackwards;
 
-    // Otherwise, normal partial save + move forward
-    const stepLeaving = currentSubStep;
-    const stepGoing = currentSubStep + 1;
-    const goingBackwardsFlag = false; // We are going forward
-    const skipValidationFlag = false; // We want to validate the current step before going back
-    const success = await saveStepData(stepLeaving, stepGoing, skipValidationFlag, goingBackwardsFlag); // Forward
-    if (!success) return;
-  };
+    /* 3 — Overlay + lock UI */
+    setIsSaving(true);
+    console.log("Rent data:", formMethods?.getValues("rent"));
+    console.log("error", formMethods?.formState.errors);
 
-  const saveAndGoPrev = async () => {
-    let stepGoing = 0;
+      try {
+        const ok = await saveStepData(
+          currentSubStep,
+          destination,
+          skipValidationFlag,
+          goingBackwards
+        );
+        if (!ok) {
+          // 🚨 API save failed → show toast, but *still* navigate forward
+          showToast(
+            "🚨 Kunde inte spara dina ändringar. Fortsätter ändå…",
+            "error"
+          );
+          triggerShakeAnimation(1000);
+          return;
+        }
     
-    if (currentSubStep > 1) {
-      stepGoing = currentSubStep - 1;
-    } else if (isMobile) {
-      stepGoing = totalSteps; // Go to last step (carousel), user currently on first step
-    }
-    const goingBackwardsFlag = true; // We are going backwards
-    const skipValidationFlag = false; // We want to validate the current step before going back
-    const success = await saveStepData(currentSubStep, stepGoing, skipValidationFlag, goingBackwardsFlag); // Backwards
-    if (!success) return;
-  };
+        // 4 — In either case, go to the destination sub-step
+        setCurrentStep(destination);
+      } finally {
+        // 5 — Always remove the overlay
+        setIsSaving(false);
+      }
+    };
 
-
-  // 7) Step Click for progress bar
-  // Mobile carousel
-  const handleCarouselClick = async (zeroBasedIndex: number) => {
-    const stepGoing = zeroBasedIndex + 1;
-    const skipValidationFlag = false; // We want to validate the current step before going back
-    // If going forward, save data and go to destination step
-    if(stepGoing > currentSubStep) 
-    { 
-      const goingBackwardsFlag = false; // We are going forward
-      const success = await saveStepData(currentSubStep, stepGoing, skipValidationFlag, goingBackwardsFlag); // Forward
-      if (!success) return;
-    }
-    // If going backwards, just go to destination step
-    else if (stepGoing < currentSubStep) {
-      const goingBackwardsFlag = true; // We are going backwards
-      const success = await saveStepData(currentSubStep, stepGoing, skipValidationFlag, goingBackwardsFlag); // backwards
-      if (!success) return;
-    }    
-  };
-
-  // Desktop progress bar
-  const handleProgressClick = async (destinationStep: number) => {
-    const skipValidationFlag = false; // We want to skip validation
-    // If user is on first step or going back, save update state, go to destination step and dont call API
-    if (currentSubStep === 1 || destinationStep <= currentSubStep) {
-      const goingBackwardsFlag = true; // We are going backwards
-      const success = await saveStepData(currentSubStep, destinationStep, skipValidationFlag, goingBackwardsFlag); // Backwards
-      if (!success) return;
-      setCurrentStep(destinationStep);
+  /* “Next” button */
+  const saveAndGoNext = () => {
+    /* A. FIRST sub-step – always just show the next page */
+    if (currentSubStep === 1) {
+      setCurrentStep(prev => prev + 1);
       return;
     }
-    else{
-      // If going forward, save data and go to destination step
-      const goingBackwardsFlag = false; // We are going forward
-      const success = await saveStepData(currentSubStep, destinationStep, skipValidationFlag, goingBackwardsFlag); // Forward ()
-      if (!success) return;
+
+    /* B. LAST sub-step – what happens depends on viewport */
+    if (currentSubStep === totalSteps) {
+      if (isMobile) {
+        goToSubStep(1);         // carousel: wrap around
+      } else {
+        onNext();               // desktop: jump to next major step
+      }
+      return;
     }
 
+    /* C. Normal “next” inside the range */
+    goToSubStep(currentSubStep + 1);
   };
+
+  /* “Prev” button */
+  const saveAndGoPrev = () => {
+    /* A. FIRST sub-step – wrap or delegate to parent */
+    if (currentSubStep === 1) {
+      if (isMobile) {
+        goToSubStep(totalSteps);   // carousel: wrap to last
+      } else {
+        onPrev();                  // desktop: previous major step
+      }
+      return;
+    }
+
+    /* B. Normal back */
+    goToSubStep(currentSubStep - 1);
+  };
+
+  /* ───────────────────────────────
+    7. Click handlers for progress / carousel
+    ──────────────────────────────*/
+
+  const handleCarouselClick = (zeroBased: number) => {
+    goToSubStep(zeroBased + 1);    // 0-based → 1-based
+  };
+
+  const handleProgressClick = (destination: number) => {
+    goToSubStep(destination);      // already 1-based
+  };
+
+  // Ping the current sub-step to the parent component
+  useEffect(() => {
+    props.onSubStepChange?.(currentSubStep);   // fires after every move
+  }, [currentSubStep]);
 
   // 8) Render Sub-Steps
   const renderSubStep = () => {
@@ -238,18 +267,43 @@ const StepBudgetExpenditureContainer = forwardRef<
         return <div>All sub-steps complete!</div>;
     }
   };
+  useImperativeHandle(ref, () => ({
+    validateFields: async () =>
+      formMethods ? formMethods.trigger() : false,
+    getStepData: () => (formMethods ? formMethods.getValues() : {}),
+    markAllTouched: () => formMethods && formMethods.trigger(),
+    getErrors: () => (formMethods ? formMethods.formState.errors : {}),
+    getCurrentSubStep: () => currentSubStep,
+    goPrevSub: saveAndGoPrev,
+    goNextSub: saveAndGoNext,
+    hasPrevSub: () => currentSubStep > 1,
+    hasNextSub: () => currentSubStep < totalSteps,
+    isSaving: () => isSaving,
+  }));
   // 9) Return
   return (
     <WizardFormWrapperStep2
+        key="expenditure-major-step-2"
         ref={(instance) => {
           handleFormWrapperRef(instance);
         }}
         initialData={initialData}
         currentSubStep={currentSubStep}
       >
+        
+      {parentLoading ? (
+        <LoadingScreen />
+        // TODO: Load screen also on child components (e.g. SubStepRent)
+      ) : (
       <form className="step-budget-expenditure-container flex flex-col h-full">
         {/* Heading + Step Navigation */}
         <div className="mb-6 flex items-center justify-between">
+          {isSaving && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center
+                            bg-white/60 backdrop-blur-sm">
+              <Loader2 size={32} className="animate-spin text-darkLimeGreen" />
+            </div>
+          )}
           {/* Mobile: left StepButton for previous */}
           {isMobile && <StepButton isLeft onClick={saveAndGoPrev} />}
 
@@ -285,20 +339,25 @@ const StepBudgetExpenditureContainer = forwardRef<
 
         {/* Bottom Navigation for larger screens */}
         {!isMobile && (
-          <div className="mt-4">
-            <WizardNavigationButtons
-              step={currentSubStep}
-              prevStep={saveAndGoPrev}
-              nextStep={saveAndGoNext}
-              connectionError={false}
-              initLoading={false}
-              transitionLoading={false}
-              isDebugMode={false}
-              showShakeAnimation={showShakeAnimation}
-            />
+          <div className="my-6 w-full flex items-center justify-between">
+            <WizardNavPair
+                step={currentSubStep}
+                prevStep={saveAndGoPrev}
+                nextStep={saveAndGoNext}
+                hasPrev={currentSubStep > 1}
+                hasNext={currentSubStep < totalSteps}
+                connectionError={false}
+                initLoading={false}
+                transitionLoading={false}
+                isDebugMode={false}
+                showShakeAnimation={showShakeAnimation}
+                isMajor={false} // Use sub-step navigation (</>)
+                isSaving={isSaving}
+            />           
           </div>
         )}
       </form>
+      )}
     </WizardFormWrapperStep2>
   );
 });

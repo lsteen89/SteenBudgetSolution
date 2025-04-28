@@ -7,6 +7,7 @@ interface GlossyFlipCardProps {
   frontTextClass?: string;
   backTextClass?: string;
   disableBounce?: boolean;
+  containerClassName?: string;
 }
 
 const GlossyFlipCard: React.FC<GlossyFlipCardProps> = ({
@@ -15,28 +16,26 @@ const GlossyFlipCard: React.FC<GlossyFlipCardProps> = ({
   frontTextClass = "text-xl font-bold text-gray-800",
   backTextClass = "text-sm text-gray-600",
   disableBounce = true,
+  containerClassName = "",
 }) => {
   const [isFlipped, setIsFlipped] = useState(false);
 
   const toggleFlip = () => setIsFlipped((prev) => !prev);
 
+
   return (
     <div
       className={`
         ${styles.cardWrapper} cursor-pointer relative
-        ${
-          isFlipped
-            ? styles.isFlipped
-            : disableBounce
-              ? ""
-              : styles.mobileHintAnimation
-        }
+        ${isFlipped ? styles.isFlipped : disableBounce ? "" : styles.mobileHintAnimation}
+        ${containerClassName} 
       `}
       onMouseEnter={() => setIsFlipped(true)}
       onMouseLeave={() => setIsFlipped(false)}
       onClick={toggleFlip}
       role="button"
       aria-label="Flip card to see more information"
+
     >
       {/* Hint overlay */}
       {!isFlipped && (

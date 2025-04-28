@@ -30,6 +30,9 @@
   background: rgba(93, 245, 95, 0.45); /* Lighter lime green for better transparency */
   -webkit-backdrop-filter: blur(15px) saturate(180%); /* Stronger blur and color boost for Safari */
   backdrop-filter: blur(15px) saturate(180%); /* Frosted glass effect with added saturation */
+  border: 1px solid rgba(255, 255, 255, 0.2); /* Subtle border for depth */
+  box-sizing: border-box; /* Ensures padding and border are included in the element's total width and height */
+  padding: 20px; /* Adds spacing around the text */
 
   color: white;
   text-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); /* Stronger text shadow for better readability */

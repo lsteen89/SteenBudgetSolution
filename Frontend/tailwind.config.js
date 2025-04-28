@@ -33,11 +33,13 @@ module.exports = {
         body: '#333333', // Global default text color
         customBlue1: '#eff6ff', // Light blue
         customBlue2: '#dbeafe', // Slightly darker blue
+		customBlue3: '#e5f3ff',   // 
 		limeGreen: '#98FF98', 
 		darkLimeGreen: '#32CD32',
 		standardMenuColor: '#CCE5FF', 
 		darkBlueMenuColor: '#001F3F',
-		pastelGreen: '#ebf8ff',
+		pastelGreen: '#ebf8ff', // Very subtle
+		pastelGreen1: '#d1fae5', // Very subtle
       },
       keyframes: {
         fadeIn: {

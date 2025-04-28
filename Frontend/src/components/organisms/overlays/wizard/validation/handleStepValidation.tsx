@@ -9,7 +9,6 @@ export const handleStepValidation = async (
 ) => {
   const stepRef = stepRefs[step];
   if (!stepRef) return true;
-
   let isValid = false;
   switch (step) {
     case 1:
