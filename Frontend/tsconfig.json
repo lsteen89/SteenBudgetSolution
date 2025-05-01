@@ -20,18 +20,20 @@
     "typeRoots": ["node_modules/@types", "src/declarations"],
     "baseUrl": "./src",
     "paths": {
+	  "@/*":        ["*"],
       "@utils/*": ["utils/*"],
       "@pages/*": ["Pages/*"],
       "@components/*": ["components/*"],
       "@assets/*": ["assets/*"],
       "@hooks/*": ["hooks/*"],
 	  "@api/*": ["api/*"],
-	  "@types/*": ["types/*"],
+	  "@myTypes/*": ["types/*"],
 	  "@mocks/*": ["__mocks__/*"],
 	  "@context/*": ["context/*"],	  
 	  "@routes/*": ["routes/*"],		  
 	  "@styles/*": ["styles/*"],	
 	  "@schemas/*": ["schemas/*"],	  
+	  "@stores/*": ["stores/*"],	  	  
     }
   },
   "include": ["src/**/*"]

@@ -1,8 +1,8 @@
 import axiosInstance from "@api/axiosConfig";
+import { cp } from "fs";
 
 export interface StartWizardResponse {
   wizardSessionId: string; // Empty string if session creation failed
-  message: string;
 }
 
 export interface WizardDataResponseDto {
@@ -30,10 +30,12 @@ export async function saveWizardStep(
   });
 }
 
-export async function getWizardData(wizardSessionId: string): Promise<WizardDataResponseDto> {
-  // GET /api/wizard?wizardSessionId=XYZ
-  const { data } = await axiosInstance.get(`/api/Wizard`, {
-    params: { wizardSessionId },
-  });
+export async function getWizardData(
+  wizardSessionId: string
+): Promise<WizardDataResponseDto> {
+  const { data } = await axiosInstance.post<WizardDataResponseDto>(
+    "/api/Wizard/data",
+    { wizardSessionId }
+  );
   return data;
 }

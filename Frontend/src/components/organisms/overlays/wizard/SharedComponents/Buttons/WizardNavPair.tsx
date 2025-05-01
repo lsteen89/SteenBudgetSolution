@@ -41,8 +41,13 @@ const WizardNavPair: React.FC<WizardNavPairProps > = ({
 }) => {
   
   /* locks all buttons during async work */
-  const isLocked = isSaving ||
-  (!isDebugMode && (connectionError || initLoading || transitionLoading));
+const isLocked =
+  isSaving ||                             // always locked when saving
+  (!isDebugMode && (                     // when *not* in debug…
+    initLoading ||                       // …if still initializing
+    transitionLoading ||                 // …or mid-transition
+    (connectionError && step === 0)      // …or on step 0 with a connection error
+  ));
 
   /* decide per-button */
   const disablePrev = isLocked || !hasPrev;
@@ -57,7 +62,7 @@ const WizardNavPair: React.FC<WizardNavPairProps > = ({
   const hoverClass =
   !showShakeAnimation && "hover:bg-customBlue2 hover:scale-105 transition-transform duration-150";
 
-
+  //Lämnade här! När vi kollar connectionerror är det viktigt att vi också bara kollar i första steget, annars kommer inte användare komma vidare i guiden.
   const IconPrev = isMajor ? Rewind : ChevronLeft;
   const IconNext = isMajor ? FastForward : ChevronRight;
 

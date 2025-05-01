@@ -43,6 +43,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+	  '@': path.resolve(__dirname, 'src'),
       '@utils': path.resolve(__dirname, './src/utils'),
       '@pages': path.resolve(__dirname, './src/Pages'),
       '@components': path.resolve(__dirname, './src/components'),
@@ -55,6 +56,7 @@ export default defineConfig({
 	  '@routes': path.resolve(__dirname, './src/routes'),
 	  '@styles': path.resolve(__dirname, './src/styles'),
 	  '@schemas': path.resolve(__dirname, './src/schemas'),
+	  '@stores': path.resolve(__dirname, './src/stores'),	  
     },
   },
 });

@@ -1,18 +1,20 @@
 import { useState, useEffect } from "react";
 import { startWizard, getWizardData } from "@api/Services/wizard/wizardService";
 import { useToast } from  "@context/ToastContext";
-
+import { useWizardSessionStore } from '@/stores/Wizard/wizardSessionStore';
 
 
 const useWizardInit = () => {
   const [loading, setLoading] = useState(false);
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [connectionError, setConnectionError] = useState(false);
-  const [wizardSessionId, setWizardSessionId] = useState<string | null>(null);
   const [initialSubStep, setInitialWizardSubStep] = useState<number | null>(null);
   const [wizardData, setWizardData] = useState<any>({});
   const [initialStep, setInitialStep] = useState(0);
   const { showToast } = useToast();
+
+  const wizardSessionId = useWizardSessionStore(s => s.wizardSessionId);
+  const setSessionId    = useWizardSessionStore(s => s.setWizardSessionId);
 
   const initWizard = async () => {
     setLoading(true);
@@ -24,8 +26,8 @@ const useWizardInit = () => {
       return;
     }
     try {
-      const { wizardSessionId, message } = await startWizard();
-      if (!wizardSessionId) {
+      const { wizardSessionId: fetchedWizardSessionId } = await startWizard();
+      if (!fetchedWizardSessionId) {
         setFailedAttempts(prev => prev + 1);
         showToast("🚨 Kontakt support – ingen session hämtad.", "error");
         setLoading(false);
@@ -35,10 +37,9 @@ const useWizardInit = () => {
       // Reset on success
       setFailedAttempts(0);
       setConnectionError(false);
-      setWizardSessionId(wizardSessionId);
-      // Fetch existing data (if any)
+      setSessionId(fetchedWizardSessionId);
 
-      const existingResponse = await getWizardData(wizardSessionId).catch(() => null);
+      const existingResponse = await getWizardData(fetchedWizardSessionId).catch(() => null);
       if (existingResponse) {
         const { wizardData: fetchedWizardData, subStep } = existingResponse;
 
