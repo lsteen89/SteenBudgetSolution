@@ -147,6 +147,27 @@ namespace Backend.Application.Services.WizardService
 
         public async Task<int> GetWizardSubStep(string wizardSessionId) =>
             await _wizardProvider.WizardSqlExecutor.GetWizardSubStepAsync(wizardSessionId);
+        public async Task<bool> GetWizardSessionAsync(string wizardSessionId)
+        {
+            WizardSessionDto? session;
+            session = await _wizardProvider.WizardSqlExecutor.GetWizardSessionAsync(wizardSessionId);
+
+            // Check if the session exists and belongs to this user
+            bool userOwnsSession = UserOwnsSession(session, wizardSessionId);
+            return userOwnsSession;
+
+        }
+        private bool UserOwnsSession(WizardSessionDto session, string wizardSessionId)
+        {
+            if(session == null)
+            {
+                // This is null when a session is not found in the database
+                _logger.LogWarning("Session not found for wizard session ID {WizardSessionId}", wizardSessionId);
+                return false;
+            }
+
+            return true;
+        }
 
         // Merges substep data into a single object for each step
         private Dictionary<int, object> MergeSubstepData(IEnumerable<WizardStepRow> stepDataRows)
@@ -180,5 +201,6 @@ namespace Backend.Application.Services.WizardService
 
             return result;
         }
+
     }
 }

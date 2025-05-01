@@ -23,6 +23,7 @@ export interface WizardNavigationFooterProps {
   isSaving: boolean;
 
   /* shared flags */
+  step: number;
   connectionError: boolean;
   initLoading: boolean;
   transitionLoading: boolean;
@@ -36,13 +37,19 @@ const WizardNavigationFooter: React.FC<WizardNavigationFooterProps> = ({
   // availability flags
   hasPrevMajor, hasNextMajor, hasPrevSub, hasNextSub,
   // shared flags
-  connectionError, initLoading, transitionLoading, isDebugMode, showShakeAnimation, isSaving,
+  step, connectionError, initLoading, transitionLoading, isDebugMode, showShakeAnimation, isSaving,
 }) => {
   // We hide sub-nav buttons if there are no sub-steps available.
   const showSubNav = hasPrevSub || hasNextSub;
+  
   /* Lock the whole bar when requests / transitions are running */
-  const isLocked = isSaving ||
-  (!isDebugMode && (connectionError || initLoading || transitionLoading));
+  const isLocked =
+  isSaving ||                             // always locked when saving
+  (!isDebugMode && (                     // when *not* in debug…
+    initLoading ||                       // …if still initializing
+    transitionLoading ||                 // …or mid-transition
+    (connectionError && step === 0)      // …or on step 0 with a connection error
+  ));  
 
   /* One boolean per button */
   const disablePrevMajor = isLocked || !hasPrevMajor;
@@ -60,7 +67,7 @@ const WizardNavigationFooter: React.FC<WizardNavigationFooterProps> = ({
       <NavigationButton
         variant="prevMajor"
         onClick={prevMajor}
-        disabled={disablePrevMajor}
+        disabled={disablePrevMajor || isDisabled}
         className={clsx(btnCls(disablePrevMajor), "w-12 h-12 md:w-14 md:h-14")}
       />
 
@@ -70,7 +77,7 @@ const WizardNavigationFooter: React.FC<WizardNavigationFooterProps> = ({
           <NavigationButton
             variant="prevSub"
             onClick={prevSub}
-            disabled={disablePrevSub}
+            disabled={disablePrevSub || isDisabled}
             className={clsx(btnCls(disablePrevSub), "w-12 h-12 md:w-14 md:h-14")}
           />
 
@@ -78,7 +85,7 @@ const WizardNavigationFooter: React.FC<WizardNavigationFooterProps> = ({
           <NavigationButton
             variant="nextSub"
             onClick={nextSub}
-            disabled={disableNextSub}
+            disabled={disableNextSub || isDisabled}
             className={clsx(btnCls(disableNextSub), "w-12 h-12 md:w-14 md:h-14")}
           />
         </div>
@@ -88,7 +95,7 @@ const WizardNavigationFooter: React.FC<WizardNavigationFooterProps> = ({
       <NavigationButton
         variant="nextMajor"
         onClick={nextMajor}
-        disabled={disableNextMajor}
+        disabled={disableNextMajor  || isDisabled}
         className={clsx(btnCls(disableNextMajor), "w-12 h-12 md:w-14 md:h-14")}
       />
     </div>

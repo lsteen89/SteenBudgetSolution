@@ -36,6 +36,8 @@ import WizardNavPair from "@components/organisms/overlays/wizard/SharedComponent
 import WizardNavigationFooter from "@components/organisms/overlays/wizard/SharedComponents/Wrappers/WizardNavigationFooter";
 // Modal import
 import ConfirmModal from "@components/atoms/modals/ConfirmModal";
+// Stores
+import { useWizardSaveQueue } from '@/stores/Wizard/wizardSaveQueue';
 // ---------------------------- TYPES ----------------------------
 interface SetupWizardProps {
   onClose: () => void;
@@ -52,7 +54,6 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
   // Handler for clicking an icon to navigate to a step
   const handleStepClick = (targetStep: number) => {
     setStep(targetStep);
-    //TODO IN PRODUCTION: Add validation logic HERE
   };
 
   // 1. Wizard closure
@@ -325,6 +326,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
                 isDebugMode={isDebugMode}
                 showShakeAnimation={showShakeAnimation}
                 isSaving={saving}
+                step={step}
               />
             </footer>
             ) : (

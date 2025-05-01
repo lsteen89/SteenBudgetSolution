@@ -6,6 +6,7 @@ import DataTransparencySection from "@components/organisms/overlays/wizard/Share
 import StepBudgetExpenditureContainer, {
   StepBudgetExpenditureContainerRef,
 } from "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/StepBudgetExpenditureContainer";
+import type { ExpenditureFormValues } from '@myTypes/Wizard/ExpenditureFormValues';
 
 export interface StepBudgetExpenditureRef {
   validateFields(): Promise<boolean>;
@@ -23,14 +24,19 @@ export interface StepBudgetExpenditureRef {
 interface StepBudgetExpenditureProps {
   setStepValid: (isValid: boolean) => void;
   wizardSessionId: string;
-  onSaveStepData: (stepNumber: number, subStep: number, data: any, goingBackwards: boolean) => Promise<boolean>;
+  onSaveStepData: (
+    stepNumber: number,
+    subStep: number,
+    data: any,
+    goingBackwards: boolean
+  ) => Promise<boolean>;
   stepNumber: number;
-  initialSubStep: number; // the sub-step index we start on
-  initialData: any;
+  initialSubStep: number;
+  initialData: Partial<ExpenditureFormValues>;   
   onNext: () => void;
   onPrev: () => void;
   loading: boolean;
-  onSubStepChange?: (newSub: number) => void; // Optional callback for sub-step changes
+  onSubStepChange?: (newSub: number) => void;
 }
 
 const StepBudgetExpenditure = forwardRef<

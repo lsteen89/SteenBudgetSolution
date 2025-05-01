@@ -1,10 +1,12 @@
-import { useCallback } from "react";
-import { FieldValues, UseFormReturn } from "react-hook-form";
-import { ExpenditureFormValues } from "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/interface/ExpenditureFormValues"; 
+import { useCallback } from 'react';
+import { UseFormReturn } from 'react-hook-form';
+import { useToast } from '@context/ToastContext';
+import { ExpenditureFormValues } from '@myTypes/Wizard/ExpenditureFormValues';
+import { useWizardSaveQueue } from '@/stores/Wizard/wizardSaveQueue';
 
 interface UseSaveStepDataProps<T extends ExpenditureFormValues> {
-  stepNumber: number;   // e.g. 2 if this is the 'Expenditure' major step
-  methods: UseFormReturn<T>;
+  stepNumber: number;
+  methods?: UseFormReturn<T>;  
   isMobile: boolean;
   onSaveStepData: (
     stepNumber: number,
@@ -13,6 +15,7 @@ interface UseSaveStepDataProps<T extends ExpenditureFormValues> {
     goingBackwards: boolean
   ) => Promise<boolean>;
   setCurrentStep: React.Dispatch<React.SetStateAction<number>>;
+  onError?: () => void;        // ← Callback for shake
 }
 
 /** 
@@ -37,86 +40,104 @@ function getPartialData<T extends ExpenditureFormValues>(
   }
 }
 
-/**
- * Custom hook that saves partial form data for the sub-step we are leaving,
- * then navigates to the next sub-step.
- */
 export function useSaveStepData<T extends ExpenditureFormValues>({
   stepNumber,
   methods,
   isMobile,
   onSaveStepData,
   setCurrentStep,
+  onError,
 }: UseSaveStepDataProps<T>) {
-
- 
-  
+  const { showToast } = useToast();
+  const saveQueue     = useWizardSaveQueue();
+  /* ------------------------------------------------------------------
+     ⬇️  main callback
+  ------------------------------------------------------------------ */
   const saveStepData = useCallback(
     async (
-      stepLeaving: number, // This is the substep we are leaving (e.g. 2, 3, 4)
-      stepGoing: number, // This is the substep we are going to (e.g. 3, 4, 5)
-      skipValidation: boolean, // Skip validation if true (used for forward navigation sometimes)
-      goingBackwards: boolean, // If true, we are going backwards (skip API save and validation)
-
+      stepLeaving: number,
+      stepGoing: number,
+      skipValidation: boolean,
+      goingBackwards: boolean
     ): Promise<boolean> => {
-      // 1) Validate if needed
+      /* 0 ─── guard: methods not ready yet (1st render) */
+      if (!methods) {
+        setCurrentStep(stepGoing);
+        return true;                 // optimistic navigation
+      }
+
+      /* 1 ─── validation */
       let isValid = true;
       if (!skipValidation && !goingBackwards) {
-        // If going backwards, skip validation and API save
         isValid = await methods.trigger();
       }
-      const isDebugMode = process.env.NODE_ENV === 'development';
-
-      if (!isValid && !skipValidation && !goingBackwards) { // Remove in prod
-
-          // Scroll to first error if desktop
-          const firstErrorField = Object.keys(methods.formState.errors)[0];
-          console.log("firstErrorField", firstErrorField);
-          if (firstErrorField === "rent") {
-            const rentErrors = (methods.formState.errors as Record<string, any>)["rent"];
-            if (rentErrors) {
-              // e.g. rent.monthlyRent
-              const nestedKey = Object.keys(rentErrors)[0]; 
-              document
-                .querySelector(`[name="rent.${nestedKey}"]`)
-                ?.scrollIntoView({ behavior: "smooth", block: "center" });
-            }
-          } else if (firstErrorField === "food") {
-            // Try scrolling to either of the food input fields
+      if (!isValid && !skipValidation && !goingBackwards) {
+        /* scroll-to-error block unchanged */
+        const firstErr = Object.keys(methods.formState.errors)[0];
+        if (firstErr === 'rent') {
+          const nested = Object.keys((methods.formState.errors as any).rent)[0];
+          document
+            .querySelector(`[name="rent.${nested}"]`)
+            ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else if (firstErr === 'food') {
+          ['foodStoreExpenses', 'takeoutExpenses'].forEach((n) =>
             document
-              .querySelector(`[name="food.foodStoreExpenses"]`)
-              ?.scrollIntoView({ behavior: "smooth", block: "center" });
-            document
-              .querySelector(`[name="food.takeoutExpenses"]`)
-              ?.scrollIntoView({ behavior: "smooth", block: "center" });
-          }
-
-        
+              .querySelector(`[name="food.${n}"]`)
+              ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          );
+        }
+        onError?.();
         return false;
       }
 
-      // 2) Get all form data as T (which extends ExpenditureFormValues)
-      const allData = methods.getValues();
-      // 3) Slice out only the relevant part
-      const partialData = getPartialData<T>(stepLeaving, allData);
+      /* 2 - Flush any previously queued chunks if moving forward (We ONLY save on forward) */
+      if (!goingBackwards) {
+        try {
+          await saveQueue.flush();
+        } catch {
+          // if flush fails (still offline), we’ll enqueue again later
+        }
+      }
 
-      // If sub-step 1 => empty => skip saving
-      if (Object.keys(partialData).length === 0) {
+      /* 3 ─── slice */
+      const all  = methods.getValues();
+      const part = getPartialData<T>(stepLeaving, all);
+
+      /* 4 ─── no-data => skip save, just navigate */
+      if (Object.keys(part).length === 0) {
         setCurrentStep(stepGoing);
         return true;
       }
 
-      // 4) Call parent's onSaveStepData with partial data (useSaveWizardStep.tsx)
-
-      const saveSuccess = await onSaveStepData(stepNumber, stepLeaving, partialData, goingBackwards);
-      console.log("saveSuccess", saveSuccess);
-      if (!saveSuccess) return false; // REMOVE IN PROD
-
-      // 5) Navigate to stepGoing
+      /* 5 ─── call API + error handling */
+      try {
+        const ok = await onSaveStepData(
+          stepNumber,
+          stepLeaving,
+          part,
+          goingBackwards
+        );
+        if (!ok) {
+          throw new Error('API save returned false');
+        }
+      } catch (err) {
+        showToast('🚨 Kunde inte spara dina ändringar', 'error');
+        onError?.();                 // trigger shake animation
+        // **enqueue for retry**
+        saveQueue.enqueue({  
+          stepNumber,
+          subStepNumber: stepLeaving,
+          data: part,
+          goingBackwards,
+        });
+        // fallthrough so we still navigate
+      }
+      
+      /* 6 ─── navigate */
       setCurrentStep(stepGoing);
       return true;
     },
-    [methods, stepNumber, isMobile, onSaveStepData, setCurrentStep]
+    [methods, stepNumber, onSaveStepData, setCurrentStep, showToast, onError]
   );
 
   return { saveStepData };

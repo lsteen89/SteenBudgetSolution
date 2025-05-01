@@ -25,5 +25,11 @@
             var sessionId = context.Request.Cookies["SessionId"];
             return (accessToken, refreshToken, sessionId);
         }
+        public static string ExtractWizardSessionIdFromBody(HttpContext context)
+        {
+            string WizardSessionId = context.Request.Cookies["AccessToken"];
+
+            return WizardSessionId;
+        }
     }
 }

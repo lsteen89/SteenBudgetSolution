@@ -9,5 +9,6 @@ namespace Backend.Application.Interfaces.WizardService
         Task<Guid> UserHasWizardSessionAsync(string email);
         Task<Dictionary<int, object>?> GetWizardDataAsync(string wizardSessionId);
         Task<int> GetWizardSubStep(string wizardSessionId);
+        Task<bool> GetWizardSessionAsync(string wizardSessionId);
     }
 }
