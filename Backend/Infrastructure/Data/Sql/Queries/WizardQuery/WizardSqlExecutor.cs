@@ -4,6 +4,8 @@ using Backend.Infrastructure.Data.Sql.Interfaces.Factories;
 using System.Data.Common;
 using Dapper;
 using Backend.Infrastructure.Entities.Wizard;
+using Backend.Application.DTO.Wizard;
+using Backend.Infrastructure.Entities.Tokens;
 
 namespace Backend.Infrastructure.Data.Sql.Queries.WizardQuery
 {
@@ -22,8 +24,8 @@ namespace Backend.Infrastructure.Data.Sql.Queries.WizardQuery
                 _logger.LogInformation("Creating new wizard session {WizardSessionId} for user {Email}", wizardSessionId, email);
 
                 string sqlQuery = @"
-            INSERT INTO WizardSession (WizardSessionId, Email, CurrentStep, CreatedAt)
-            VALUES (@WizardSessionId, @Email, @CurrentStep, @CreatedAt)";
+                INSERT INTO WizardSession (WizardSessionId, Email, CurrentStep, CreatedAt)
+                VALUES (@WizardSessionId, @Email, @CurrentStep, @CreatedAt)";
 
                 int rowsAffected;
                 if (conn != null)
@@ -70,9 +72,9 @@ namespace Backend.Infrastructure.Data.Sql.Queries.WizardQuery
         public async Task<Guid?> GetWizardSessionIdAsync(string email, DbConnection? conn = null, DbTransaction? tx = null)
         {
             string sqlQuery = @"
-        SELECT WizardSessionId
-        FROM WizardSession
-        WHERE Email = @Email";
+            SELECT WizardSessionId
+            FROM WizardSession
+            WHERE Email = @Email";
 
             Guid? sessionId;
             if (conn != null)
@@ -200,6 +202,36 @@ namespace Backend.Infrastructure.Data.Sql.Queries.WizardQuery
                 throw;
             }
         }
+        public async Task<WizardSessionDto> GetWizardSessionAsync(string wizardSessionId, DbConnection? conn = null, DbTransaction? tx = null)
+        {
+            const string query = @"
+            SELECT 
+                WizardsessionId, 
+                Email
+            FROM WizardSession
+            WHERE WizardSessionId = @WizardSessionId";
+            var parameters = new DynamicParameters();
+            parameters.Add("WizardSessionId", wizardSessionId);
 
+            WizardSessionDto? session;
+
+            try
+            {
+                if (conn != null)
+                {
+                    return await QueryFirstOrDefaultAsync<WizardSessionDto>(conn, query, parameters, tx);
+                }
+                else
+                {
+                    using var localConn = await GetOpenConnectionAsync();
+                    return await QueryFirstOrDefaultAsync<WizardSessionDto>(localConn, query, parameters, tx);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Database error when checking wizard session {WizardSessionId}", wizardSessionId);
+                throw;
+            }
+        }
     }
 }

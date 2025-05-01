@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using FluentValidation;
 using Newtonsoft.Json;
+using System.Security.Claims;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace Backend.Presentation.Controllers
 {
@@ -21,6 +23,11 @@ namespace Backend.Presentation.Controllers
             _wizardService = wizardService;
             _logger = logger;
         }
+
+        // Helper to get the user ID from your JWT “sub” claim
+        private Guid CurrentUserId =>
+            Guid.Parse(User.FindFirstValue(JwtRegisteredClaimNames.Sub));
+        
         [HttpPost("start")]
         public async Task<IActionResult> StartWizard()
         {
@@ -54,8 +61,13 @@ namespace Backend.Presentation.Controllers
         [HttpPut("steps/{stepNumber}")]
         public async Task<IActionResult> SaveStepData(int stepNumber, [FromBody] WizardStepDto dto)
         {
-                if (string.IsNullOrEmpty(dto.WizardSessionId))
-                return BadRequest("Missing wizardSessionId");
+            if (string.IsNullOrEmpty(dto.WizardSessionId))
+            return BadRequest("Missing wizardSessionId");
+
+            // Verify session exists and belongs to this user
+            bool userOwnsSession = await _wizardService.GetWizardSessionAsync(dto.WizardSessionId);
+            if (!userOwnsSession)
+                return Forbid(); // 3) Reject any foreign session
 
             try
             {
@@ -77,20 +89,29 @@ namespace Backend.Presentation.Controllers
 
             return Ok(new { message = "Step saved successfully." });
         }
-        [HttpGet]
-        public async Task<IActionResult> GetWizardData([FromQuery] string wizardSessionId)
+        [HttpPost("data")]
+        public async Task<IActionResult> GetWizardData(
+            [FromBody] WizardSessionRequestDTO dto
+        )
         {
-            if (string.IsNullOrWhiteSpace(wizardSessionId))
+            
+            if (string.IsNullOrWhiteSpace(dto.wizardSessionId))
             {
                 return BadRequest("Wizard session ID is required.");
             }
 
-            var wizardData = await _wizardService.GetWizardDataAsync(wizardSessionId);
+            // Verify session exists and belongs to this user
+            bool userOwnsSession = await _wizardService.GetWizardSessionAsync(dto.wizardSessionId);
+            if (!userOwnsSession)
+                return Forbid(); // 3) Reject any foreign session
+
+
+            var wizardData = await _wizardService.GetWizardDataAsync(dto.wizardSessionId);
             if (wizardData == null)
             {
                 return NotFound("No wizard data found for the given session.");
             }
-            int subStep = await _wizardService.GetWizardSubStep(wizardSessionId);
+            int subStep = await _wizardService.GetWizardSubStep(dto.wizardSessionId);
 
             _logger.LogDebug("Wizard data before sending: {wizardData}", JsonConvert.SerializeObject(wizardData));
 
