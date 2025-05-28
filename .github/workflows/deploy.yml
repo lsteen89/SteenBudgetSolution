@@ -8,80 +8,122 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    env:                                        
-        WEBSOCKET_SECRET: ${{ secrets.WEBSOCKET_SECRET }}
+    environment: production-pi # Name of your GitHub Environment
+
+    # These 'env' are for the GitHub Actions runner environment,
+    # primarily to make them easily available for the frontend build step if needed directly in the runner
+    # or for clarity if passed into the SSH script.
+    env:
+      # Sourced from your GitHub Environment's secrets & variables
+      VITE_APP_RECAPTCHA_SITE_KEY_FOR_BUILD: ${{ secrets.VITE_APP_RECAPTCHA_SITE_KEY }}
+      VITE_APP_API_URL_FOR_BUILD: ${{ vars.VITE_APP_API_URL }}
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4 # Updated to a more recent version
 
       - name: Set up SSH
-        uses: webfactory/ssh-agent@v0.5.3
+        uses: webfactory/ssh-agent@v0.9.0
         with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }} # Sourced from Environment Secret
 
-      - name: Deploy to Raspberry Pi
-        run: |
-          # Export the frontend and backend secrets
-          export VITE_APP_RECAPTCHA_SITE_KEY=${{ secrets.VITE_APP_RECAPTCHA_SITE_KEY }}
-          export VITE_APP_API_URL=${{ vars.VITE_APP_API_URL }}
-          export WEBSOCKET_SECRET=$WEBSOCKET_SECRET
+      - name: Deploy to Raspberry Pi and Build Frontend
+        # This 'env' block makes GitHub secrets/vars available as shell variables INSIDE this 'run' script block
+        # These are then used within the SSH heredoc.
+        env:
+          # Secrets for backend runtime (to be written to file on Pi)
+          SECRET_WEBSOCKET: ${{ secrets.WEBSOCKET_SECRET }}
+          SECRET_JWT_KEY: ${{ secrets.JWT_SECRET_KEY }}
+          SECRET_DB_CONN_STRING: ${{ secrets.DATABASESETTINGS__CONNECTIONSTRING }}
+          SECRET_SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SECRET_RECAPTCHA_KEY: ${{ secrets.RECAPTCHA_SECRET_KEY }}
+          SECRET_SMTP_INFO_PASSWORD: ${{ secrets.SMTP_PASSWORD_INFO }}
           
-          # Pass the environment variable into the ssh session
-          ssh -o StrictHostKeyChecking=no -p 2222 pi@155.4.68.41 << EOF
-            export WEBSOCKET_SECRET=$WEBSOCKET_SECRET
-            export PATH=$PATH:/usr/share/dotnet:/usr/bin
+          # Configuration Variables for backend runtime (to be written to file on Pi)
+          VAR_ASPNETCORE_ENV: ${{ vars.APP_ASPNETCORE_ENVIRONMENT }}
+          VAR_DOTNET_TELEMETRY: ${{ vars.APP_DOTNET_PRINT_TELEMETRY }}
+          VAR_ALLOW_TEST_EMAILS: ${{ vars.APP_ALLOW_TEST_EMAILS }}
+        run: |
+          # Target Pi details 
+          PI_USER_HOST="pi@155.4.68.41" 
+          PI_PORT="2222"
+          # Path to the environment file on the Pi 
+          PI_ENV_FILE_PATH="/etc/environment.d/steenbudget.conf" # Your specified path
+
+          ssh -o StrictHostKeyChecking=no -p $PI_PORT $PI_USER_HOST << EOF
+            set -e # Exit immediately if a command exits with a non-zero status.
+
+            echo ">>> Creating/Updating environment file on Raspberry Pi: $PI_ENV_FILE_PATH"
+            # Using sudo tee to write/overwrite the file as root. First line uses >, subsequent use -a to append.
+            # Secrets for backend runtime
+            echo "WEBSOCKET_SECRET='$SECRET_WEBSOCKET'" | sudo tee "$PI_ENV_FILE_PATH" > /dev/null
+            echo "JWT_SECRET_KEY='$SECRET_JWT_KEY'" | sudo tee -a "$PI_ENV_FILE_PATH" > /dev/null
+            echo "DatabaseSettings__ConnectionString='$SECRET_DB_CONN_STRING'" | sudo tee -a "$PI_ENV_FILE_PATH" > /dev/null
+            echo "SMTP_PASSWORD='$SECRET_SMTP_PASSWORD'" | sudo tee -a "$PI_ENV_FILE_PATH" > /dev/null
+            echo "RECAPTCHA_SECRET_KEY='$SECRET_RECAPTCHA_KEY'" | sudo tee -a "$PI_ENV_FILE_PATH" > /dev/null
+            echo "SMTP_PASSWORD_INFO='$SECRET_SMTP_INFO_PASSWORD'" | sudo tee -a "$PI_ENV_FILE_PATH" > /dev/null
             
-            set -e
+            # Configuration Variables for backend runtime
+            echo "ASPNETCORE_ENVIRONMENT='$VAR_ASPNETCORE_ENV'" | sudo tee -a "$PI_ENV_FILE_PATH" > /dev/null
+            echo "DOTNET_PRINT_TELEMETRY_MESSAGE='$VAR_DOTNET_TELEMETRY'" | sudo tee -a "$PI_ENV_FILE_PATH" > /dev/null
+            echo "ALLOW_TEST_EMAILS='$VAR_ALLOW_TEST_EMAILS'" | sudo tee -a "$PI_ENV_FILE_PATH" > /dev/null
+
+            echo ">>> Setting permissions for environment file: $PI_ENV_FILE_PATH"
+            sudo chown root:root "$PI_ENV_FILE_PATH"
+            sudo chmod 600 "$PI_ENV_FILE_PATH" # Only root can read/write
+
+            echo ">>> Navigating to /home/pi/SteenBudgetSolution"
             cd /home/pi/SteenBudgetSolution
 
-            # Discard any local changes
-            echo "Resetting local changes..."
-            git reset --hard
-            git clean -fd
-            
-            echo "Current Git Status:"
+            echo ">>> Resetting local changes..."
+            # Fetch the latest state of the master branch from the remote repository
+            git fetch origin master
+            # Force the local master branch to match the remote master branch exactly
+            git reset --hard origin/master 
+            # Remove any untracked files and directories
+            git clean -fdx # -x also removes ignored files, use -fd if you want to keep ignored files
+
+            echo ">>> Current Git Status (should be clean and up-to-date with origin/master):"
             git status
-            git pull origin master
-            echo "After Git Pull:"
-            git log -1
+            echo ">>> Latest commit:"
+            git log -1 --pretty=format:"%h - %s (%an, %ar)"
             
-            # Ensure necessary directories exist
+            # Ensure necessary directories exist (idempotent)
             sudo mkdir -p /var/www/backend
             sudo mkdir -p /var/www/html
-            
+
             # Fix permissions for backend directory
-            sudo chmod -R 777 /var/www/backend
+            sudo chmod -R 777 /var/www/backend 
 
-            # Publish and deploy backend
+            echo ">>> Publishing backend..."
             cd Backend
-            dotnet publish /home/pi/SteenBudgetSolution/Backend/Backend.csproj -c Release -o /var/www/backend
+            dotnet publish ./Backend.csproj -c Release -o /var/www/backend --self-contained false --no-restore 
 
-            # Restart the backend service
-            sudo systemctl restart steenbudget.service
-            
-            # Capture the build date and time of the application
-            echo "Build completed on:"
-            date "+%Y-%m-%d %H:%M:%S"
-            
-            # Build and deploy frontend
+            echo ">>> Building and deploying frontend..."
             cd ../Frontend
+            # Clean install for frontend dependencies
             rm -rf node_modules dist
-            npm install
+            npm install 
             
-            # Fix permissions for node_modules
-            sudo chmod -R 755 node_modules
+           
+            # VITE variables are passed directly to the npm run build command
+            # These come from the job-level 'env' block, which sources them from GitHub Environment secrets/vars
+            VITE_APP_RECAPTCHA_SITE_KEY="$VITE_APP_RECAPTCHA_SITE_KEY_FOR_BUILD" \
+            VITE_APP_API_URL="$VITE_APP_API_URL_FOR_BUILD" \
+            npm run build
             
-            VITE_APP_RECAPTCHA_SITE_KEY=$VITE_RECAPTCHA_SITE_KEY VITE_APP_API_URL=$VITE_API_URL npm run build
-            
-            # Deploy the contents of the dist folder to the server's web directory
+            echo ">>> Deploying frontend to /var/www/html/"
             sudo rm -rf /var/www/html/*
             sudo cp -r dist/* /var/www/html/
-            sudo chmod -R 755 /var/www/html
+            sudo chmod -R 755 /var/www/html # Standard web server read permissions
 
-            # Restart the web server
+            echo ">>> Reloading systemd and restarting services..."
+            sudo systemctl daemon-reload # Crucial because EnvironmentFile content changed
+            sudo systemctl restart steenbudget.service
             sudo systemctl restart nginx
             
-            echo "Contents of /var/www/html:"
-            ls -l /var/www/html
+            echo ">>> Deployment complete."
+            # For debugging, review this in GitHub Actions logs. 
+             echo ">>> Contents of $PI_ENV_FILE_PATH (Last few lines for brevity):"
+             sudo tail -n 10 "$PI_ENV_FILE_PATH"
           EOF
