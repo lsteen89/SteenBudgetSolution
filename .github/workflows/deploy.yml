@@ -101,6 +101,10 @@ jobs:
 
             echo ">>> Publishing backend..."
             cd Backend
+            
+            echo ">>> Restoring NuGet packages for backend..."
+            dotnet restore ./Backend.csproj 
+            
             dotnet publish ./Backend.csproj -c Release -o /var/www/backend --self-contained false --no-restore 
 
             echo ">>> Building and deploying frontend..."
