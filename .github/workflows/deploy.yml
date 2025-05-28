@@ -53,6 +53,10 @@ jobs:
           ssh -o StrictHostKeyChecking=no -p $PI_PORT $PI_USER_HOST << EOF
             set -e # Exit immediately if a command exits with a non-zero status.
 
+            echo ">>> Setting PATH for dotnet..."
+            export PATH="\$PATH:/usr/share/dotnet:/usr/bin:/home/pi/.dotnet/tools" 
+            echo ">>> PATH is now: \$PATH"
+            
             echo ">>> Creating/Updating environment file on Raspberry Pi: $PI_ENV_FILE_PATH"
             # Using sudo tee to write/overwrite the file as root. First line uses >, subsequent use -a to append.
             # Secrets for backend runtime
