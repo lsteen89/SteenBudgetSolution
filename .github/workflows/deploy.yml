@@ -124,6 +124,6 @@ jobs:
             
             echo ">>> Deployment complete."
             # For debugging, review this in GitHub Actions logs. 
-             echo ">>> Contents of $PI_ENV_FILE_PATH (Last few lines for brevity):"
+
              sudo tail -n 10 "$PI_ENV_FILE_PATH"
           EOF
