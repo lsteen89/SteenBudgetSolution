@@ -1,16 +1,33 @@
 ﻿namespace Backend.Infrastructure.Entities.Tokens
 {
-    public class RefreshJwtTokenEntity
+    public sealed class RefreshJwtTokenEntity
     {
-        public Guid Persoid { get; set; }
-        public string SessionId { get; set; } = string.Empty;
-        public string RefreshToken { get; set; } = string.Empty;
-        public string AccessTokenJti { get; set; } = string.Empty;
-        public DateTime RefreshTokenExpiryDate { get; set; }
-        public DateTime AccessTokenExpiryDate { get; set; }
-        public string DeviceId { get; set; } = string.Empty;
-        public string UserAgent { get; set; } = string.Empty;
-        public string CreatedBy { get; set; } = "System";
-        public DateTime CreatedTime { get; set; } = DateTime.UtcNow;
+        /* PK */
+        public Guid TokenId { get; init; } = Guid.NewGuid(); // UUID v4
+
+        /* Identity */
+        public Guid Persoid { get; init; }
+        public Guid SessionId { get; init; }
+
+        /* Security & lifetime */
+        public string HashedToken { get; init; } = string.Empty; // SHA-256
+        public string AccessTokenJti { get; init; }
+        public DateTime ExpiresRollingUtc { get; init; }                 // sliding window
+        public DateTime ExpiresAbsoluteUtc { get; init; }                 // hard cap
+        public DateTime? RevokedUtc { get; set; }                  // NULL = active
+        public TokenStatus Status { get; set; } = TokenStatus.Active;
+
+        /* Telemetry (optional) */
+        public string? DeviceId { get; init; }
+        public string? UserAgent { get; init; }
+
+        /* Audit */
+        public DateTime CreatedUtc { get; init; } = DateTime.UtcNow;
+    }
+    public enum TokenStatus
+    {
+        Inactive = 0,
+        Active = 1,
+        Revoked = 2
     }
 }

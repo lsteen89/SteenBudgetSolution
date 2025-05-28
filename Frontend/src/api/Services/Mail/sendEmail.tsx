@@ -1,6 +1,6 @@
-import axios from '../../axiosConfig'; // Use your custom axios instance
+import { api } from '@/api/axios'; // Import the custom axios instance
 import { AxiosResponse } from 'axios'; // Import Axios types for stricter type checking
-import { EmailSubmissionDto } from '../../../types/emailForm'; // Import TypeScript interface for email data
+import { EmailSubmissionDto } from '../../../types/User/Email/emailForm'; // Import TypeScript interface for email data
 
 
 
@@ -22,7 +22,7 @@ export const sendEmail = async (
     console.log('Request Method:', 'POST');
     console.log('Request URL:', 'http://localhost:5000/api/Email/ContactUs');
     // Use the custom axios instance to send a POST request
-    const response: AxiosResponse<{ message: string }> = await axios.post(
+    const response: AxiosResponse<{ message: string }> = await api.post(
       '/api/Email/ContactUs',
       emailData,
       {

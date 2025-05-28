@@ -4,6 +4,7 @@
 //It also uses the TokenGenerator class to hash the refresh token and generate a new one.
 
 
+using Backend.Application.Common.Security;
 using Backend.Application.DTO.Auth;
 using Backend.Application.DTO.User;
 using Backend.Application.Interfaces.AuthService;
@@ -14,17 +15,17 @@ using Backend.Application.Mappers;
 using Backend.Application.Models.Token;
 using Backend.Common.Interfaces;
 using Backend.Common.Utilities;
-using Backend.Domain.Entities.Auth;
 using Backend.Infrastructure.Data;
-using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
-using Backend.Infrastructure.Data.Sql.Interfaces.UserQueries;
-using Backend.Infrastructure.Security;
-using Backend.Infrastructure.WebSockets;
-using Backend.Settings;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
 using Backend.Infrastructure.Data.Sql.Interfaces.Factories;
+using Backend.Infrastructure.Data.Sql.Interfaces.Helpers;
+using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
+using Backend.Infrastructure.Entities.Tokens;
+using Backend.Infrastructure.Security;
+using Backend.Settings;
+using System.Data.Common;
 using Backend.Application.Helpers.Jwt;
+using Backend.Infrastructure.WebSockets;
+using MySqlConnector;
 
 namespace Backend.Application.Services.AuthService
 {
@@ -37,6 +38,9 @@ namespace Backend.Application.Services.AuthService
         private readonly IRecaptchaService _recaptchaService;
         private readonly IUserTokenService _userTokenService;
         private readonly IWebSocketManager _webSocketManager;
+        private readonly ITimeProvider _timeProvider;
+        private readonly ITransactionRunner _tx;
+        private readonly TimeSpan _refreshWindow;
         private readonly IEnvironmentService _environmentService;
         private readonly ILogger<AuthService> _logger;
 
@@ -49,6 +53,8 @@ namespace Backend.Application.Services.AuthService
             IRecaptchaService recaptchaService,
             IUserTokenService userTokenService,
             IWebSocketManager webSocketManager,
+            ITimeProvider timeProvider,
+            ITransactionRunner txRunner,
             IEnvironmentService environmentService,
             ILogger<AuthService> logger
         )
@@ -61,245 +67,254 @@ namespace Backend.Application.Services.AuthService
             _recaptchaService = recaptchaService;
             _userTokenService = userTokenService;
             _webSocketManager = webSocketManager;
+            _timeProvider = timeProvider;
+            _tx = txRunner;
             _environmentService = environmentService;
             _logger = logger;
+            _refreshWindow = TimeSpan.FromDays(_jwtSettings.RefreshTokenExpiryDays);
         }
 
-        public async Task<LoginResultDto> LoginAsync(UserLoginDto userLoginDto, string ipAddress, string deviceId, string userAgent)
+        #region Login/Logout
+        public async Task<LoginOutcome> LoginAsync(
+                UserLoginDto dto, string ip, string deviceId, string ua
+                //CancellationToken ct = default TODO - implement this
+            )
         {
-            _logger.LogInformation("Processing login for user: email: {MaskedEmail}", LogHelper.MaskEmail(userLoginDto.Email));
+            /* 1 ─ CAPTCHA */
+            // Allow test emails to bypass CAPTCHA validation with a specific environment variable.
+            bool isTest = Environment.GetEnvironmentVariable("ALLOW_TEST_EMAILS") == "true"
+                          && dto.Email == "l@l.se";
+            bool captchaOk = isTest || await _recaptchaService.ValidateTokenAsync(dto.CaptchaToken);
+            if (!captchaOk)
+                return new LoginOutcome.Fail("Invalid CAPTCHA.");
 
-            // Step 1: Validate reCAPTCHA
-            bool isTestEmail = Environment.GetEnvironmentVariable("ALLOW_TEST_EMAILS") == "true";
-            bool recaptchaValid = isTestEmail && userLoginDto.Email == "l@l.se" || await _recaptchaService.ValidateTokenAsync(userLoginDto.CaptchaToken);
-            if (!recaptchaValid)
+            /* 2 ─ lock-out */
+            if (await _userAuthenticationService.CheckLoginAttemptsAsync(dto.Email))
+                return new LoginOutcome.Fail("User is locked out. Contact support.");
+
+            /* 3 ─ credentials */
+            var cred = await _userAuthenticationService.ValidateCredentialsAsync(dto.Email, dto.Password);
+            if (!cred.IsValid)
             {
-                _logger.LogWarning("Invalid reCAPTCHA for email: {Email}", userLoginDto.Email);
-                return new LoginResultDto { Success = false, Message = "Invalid CAPTCHA!" };
+                await _userAuthenticationService.HandleFailedLoginAsync(dto, ip);
+                return new LoginOutcome.Fail(cred.ErrorMessage);
             }
 
-            // Step 2: Check login attempts
-            bool isLockedOut = await _userAuthenticationService.CheckLoginAttemptsAsync(userLoginDto.Email);
-            if (isLockedOut)
-            {
-                _logger.LogWarning("User is locked out for email: {MaskedEmail}", LogHelper.MaskEmail(userLoginDto.Email));
-                return new LoginResultDto { Success = false, Message = "User is locked out! Contact support." };
-            }
+            /* 4 ─ user + roles (placeholder) */
+            var user = await _userSQLProvider.UserSqlExecutor.GetUserModelAsync(email: dto.Email);
+            var roles = new List<string> { "User" };
 
-            // Step 3: Validate credentials
-            var validation = await _userAuthenticationService.ValidateCredentialsAsync(userLoginDto.Email, userLoginDto.Password);
-            if (!validation.IsValid)
-            {
-                await _userAuthenticationService.HandleFailedLoginAsync(userLoginDto, ipAddress);
-                _logger.LogWarning("Login failed for email: {MaskedEmail}", LogHelper.MaskEmail(userLoginDto.Email));
-                return new LoginResultDto { Success = false, Message = validation.ErrorMessage };
-            }
+            /* 5 ─ access-token */
+            var access = await _jwtService.CreateAccessTokenAsync(
+                             user.PersoId, user.Email, roles, deviceId, ua);
 
-            // Step 4: Generate tokens (Access and Refresh tokens)
-            var tokenResult = await ExecuteInTransactionAsync(async (conn, tx) =>
-            {
-                JwtTokenModel jwtTokenModel = TokenHelper.CreateTokenModel(validation.Persoid, validation.Email, deviceId, userAgent);
-                var result = await _jwtService.GenerateJWTTokenAsync(jwtTokenModel,tx: tx);
-                if (!result.Success)
-                {
-                    throw new Exception("Token generation failed");
-                }
-                return result;
-            });
+            /* 6 ─ refresh-token */
+            var ctx = new UserCtx(user.PersoId, access.SessionId, deviceId, ua, user.Email, roles);
+            var (refreshTok, _, _) = await IssueAsync(ctx, access.TokenJti);
 
-            // Step 5: Reset failed attempts
-            var user = await _userSQLProvider.UserSqlExecutor.GetUserModelAsync(email: userLoginDto.Email);
-            if (user != null)
-            {
-                await ResetFailedLoginAttempts(user.PersoId, userLoginDto.Email);
-            }
-            else
-            {
-                _logger.LogWarning("User not found during reset of failed attempts for email: {Email}", userLoginDto.Email);
-            }
-            _logger.LogInformation("Login successful for email: {MaskedEmail}", LogHelper.MaskEmail(userLoginDto.Email));
+            /* 7 ─ reset failures */
+            await ResetFailedLoginAttempts(user.PersoId, dto.Email);
 
-            return new LoginResultDto
-            {
-                UserName = userLoginDto.Email,
-                Success = true,
-                Message = "Login successful.",
-                AccessToken = tokenResult.AccessToken,
-                RefreshToken = tokenResult.RefreshToken,
-                SessionId = tokenResult.SessionId
-            };
+            return new LoginOutcome.Success(access, refreshTok, user.PersoId);
         }
-        public async Task<LoginResultDto> RefreshTokenAsync(string refreshToken, string sessionId, string userAgent, string deviceId, ClaimsPrincipal? user = null)
-        {
-            const int maxRetries = 3;
-            for (int retry = 0; retry < maxRetries; retry++)
-            {
-                try
-                {
-                    return await ExecuteInTransactionAsync(async (conn, tx) =>
-                    {
-                        _logger.LogInformation("Received plain refresh token: {PlainRefreshToken}", refreshToken);
-                        _logger.LogInformation("Received sessionId: {sessionId}", sessionId);
-                        // Step 1: Combine the collected data in the JwtAuthenticationTokens model
-                        var jwtAuthenticationTokens = new JwtAuthenticationTokens
-                        {
-                            RefreshToken = refreshToken,
-                            UserAgent = userAgent,
-                            DeviceId = deviceId,
-                            SessionId = sessionId
-                    };
-
-                    // Step 2
-                    // Retrieve the stored refresh token model for the user using a converted hash of the recieved token and convert the entity to the model
-                    var providedHashedToken = TokenGenerator.HashToken(jwtAuthenticationTokens.RefreshToken);
-                    _logger.LogInformation("Computed refresh token hash: {ComputedHash}", providedHashedToken);
-            
-                    var storedTokens = await _userSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokensAsync(refreshToken : providedHashedToken, sessionId : sessionId, conn: conn, tx: tx);
-                        var storedToken = storedTokens.FirstOrDefault(); // At this stage, we only expect one token
-            
-                    if (storedToken == null || string.IsNullOrEmpty(storedToken.RefreshToken))
-                    {
-                        _logger.LogWarning("No refresh token record found for the provided token.");
-                        return new LoginResultDto { Success = false, Message = "Refresh token not found. Please login again." };
-                    }
-            
-                    var mappedToken = RefreshTokenMapper.MapToDomainModel(storedToken);
-                    _logger.LogInformation("Stored hashed refresh token: {StoredHash}", storedToken.RefreshToken);
-
-                    // Step 3
-                    // Validate the stored token's expiry and expire
-                    if (mappedToken.RefreshTokenExpiryDate < DateTime.UtcNow)
-                    {
-                        return new LoginResultDto { Success = false, Message = "Refresh token expired. Please login again." };
-                    }
-                    // Expire the current refresh token to prevent reuse
-                    bool expireResult = await _userSQLProvider.RefreshTokenSqlExecutor.ExpireRefreshTokenAsync(storedToken.Persoid, conn: conn, tx: tx);
-                        if (!expireResult)
-                    {
-                        return new LoginResultDto { Success = false, Message = "Failed to expire old refresh token." };
-                    }
-
-                    // Step 4
-                    // Compare the hash of the provided token with the stored hash
-                    if (providedHashedToken != mappedToken.RefreshToken)
-                    {
-                        _logger.LogWarning("Refresh token hash mismatch.");
-                        return new LoginResultDto { Success = false, Message = "Invalid refresh token. Please login again." };
-                    }
-
-                    // Step 5
-                    // Retrieve the user details & generate a new access token and rotate refresh token (if valid)
-                    var dbUser = await _userSQLProvider.UserSqlExecutor.GetUserModelAsync(persoid: storedToken.Persoid, conn: conn, tx : tx);
-                    if(dbUser.Email == null)
-                    {
-                        return new LoginResultDto { Success = false, Message = "User not found." };
-                    }
-
-                    // Create a JwtRefreshTokenModel (for refresh rotation)
-                    var JwtRefreshTokenModel = new JwtRefreshTokenModel
-                    {
-                        Persoid = dbUser.PersoId,
-                        RefreshToken = mappedToken.RefreshToken,
-                        SessionId = mappedToken.SessionId,
-                        AccessTokenJti = mappedToken.AccessTokenJti,
-                        RefreshTokenExpiryDate =  DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenExpiryDays),
-                        AccessTokenExpiryDate = mappedToken.AccessTokenExpiryDate,
-                        DeviceId = mappedToken.DeviceId,
-                        UserAgent = mappedToken.UserAgent
-                    };
-
-                    // Step 6: Call the refresh overload to generate new tokens
-                    var newTokens = await _jwtService.GenerateJWTTokenAsync(JwtRefreshTokenModel, tx: tx);
-
-                        return new LoginResultDto
-                    {
-                        Success = true,
-                        Message = "Token refreshed successfully.",
-                        AccessToken = newTokens.AccessToken,
-                        RefreshToken = newTokens.RefreshToken,
-                        SessionId = newTokens.SessionId,
-                    };
-                    });
-                }
-                catch (MySqlConnector.MySqlException ex) when (ex.Message.Contains("Deadlock"))
-                {
-                    _logger.LogWarning("Deadlock detected during token refresh, retrying... Attempt {Attempt}", retry + 1);
-                    if (retry == maxRetries - 1)
-                    {
-                        _logger.LogError("Max retry attempts reached due to deadlock.");
-                        return new LoginResultDto { Success = false, Message = "Concurrent refresh token operation failed due to a deadlock. Please try again." };
-                    }
-                    await Task.Delay(100 * (retry + 1)); // Exponential backoff
-                }
-            }
-            // Should never reach here.
-            return new LoginResultDto { Success = false, Message = "Unexpected error." };
-        }
-        public async Task LogoutAsync(ClaimsPrincipal user, string accessToken, string refreshToken, string sessionId, bool logoutAll)
+        public async Task LogoutAsync(string accessToken, string refreshToken, Guid sessionId, bool logoutAllUsers)
         {
             _logger.LogInformation("Processing logout request.");
 
-            var userId = user.FindFirst(JwtRegisteredClaimNames.Sub)?.Value
-                      ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            _logger.LogDebug("Logout request details: AccessToken: {AccessToken}, RefreshToken: {RefreshToken}, SessionId: {SessionId}, LogoutAllUsers: {LogoutAllUsers}", accessToken, refreshToken, sessionId, logoutAllUsers);
 
-            if (string.IsNullOrEmpty(userId))
+            var persoid = TokenHelper.GetUserIdFromToken(accessToken);
+            _logger.LogDebug("Logout: found persoid: {Persoid} in token", persoid);
+            // 2. Use a transaction for DB operations.
+            // The result of this _tx.ExecuteAsync call will be a bool.
+            // We'll capture it, but the LogoutAsync method itself might not use it directly.
+            bool allDbOpsSuccess = await _tx.ExecuteAsync<bool>(async (conn, tx) =>
             {
-                _logger.LogWarning("User ID not found in claims.");
-            }
+                bool overallDbSuccess = true; // Assume success initially
 
-            // 1. Blacklist the access token.
-            bool blacklistSuccess = await _jwtService.BlacklistJwtTokenAsync(accessToken);
-            if (!blacklistSuccess)
-            {
-                _logger.LogWarning("Error blacklisting access token for user {UserId}", userId);
-                // Optionally, you could throw or continue depending on your security requirements.
-            }
-
-
-            // 2. Handle refresh tokens.
-            if (logoutAll)
-            {
-                // Delete all refresh tokens for the user.
-                if (!string.IsNullOrEmpty(userId))
+                // Blacklist the access token. (DB)
+                bool blacklistSuccess = await _jwtService.BlacklistJwtTokenAsync(accessToken, conn, tx);
+                if (!blacklistSuccess)
                 {
-                    await _userSQLProvider.RefreshTokenSqlExecutor.DeleteTokensByUserIdAsync(userId);
-                    _logger.LogInformation("All refresh tokens deleted for user {UserId}", userId);
+                    _logger.LogWarning("Error blacklisting access token for user {UserId}", persoid);
+                    overallDbSuccess = false; // Mark as failed if blacklisting fails
+                }
+
+                // Handle refresh tokens. (DB)
+                if (logoutAllUsers)
+                {
+                    var deleteSuccess = await _userSQLProvider.RefreshTokenSqlExecutor.DeleteTokensByUserIdAsync(persoid, conn, tx);
+                    if (!deleteSuccess)
+                    {
+                        _logger.LogWarning("Error deleting all refresh tokens for user {UserId}", persoid);
+                        overallDbSuccess = false; // Mark as failed if deletion fails
+                    }
                 }
                 else
                 {
-                    _logger.LogWarning("User ID not found. Unable to delete all refresh tokens.");
+                    var providedHashedToken = TokenGenerator.HashToken(refreshToken);
+                    if (!string.IsNullOrEmpty(refreshToken))
+                    {
+                        bool deleteSuccess = await _userSQLProvider.RefreshTokenSqlExecutor.DeleteTokenAsync(providedHashedToken, conn, tx);
+                        if (!deleteSuccess)
+                        {
+                            _logger.LogWarning("Error deleting refresh token for session {SessionId}. Token: {TokenHash}", sessionId, providedHashedToken);
+                            overallDbSuccess = false; // Mark as failed if deletion fails
+                        }
+                    }
                 }
-            }
-            else
+                return overallDbSuccess;
+            }); // Transaction ends here
+
+            _logger.LogDebug("Database operations in LogoutAsync completed successfully: {Success}", allDbOpsSuccess);
+
+            // Send WebSocket message
+            var targetUserSession = new UserSessionKey(persoid, sessionId);
+            await _webSocketManager.SendMessageAsync(targetUserSession, "LOGOUT");
+            _logger.LogInformation($"Sent LOGOUT message to user {persoid}: SessionId: {sessionId} via WebSocket.");
+        }
+        #endregion
+
+        #region RefreshToken
+        public async Task<AuthStatusResult> CheckAndRefreshAsync(
+            string? accessToken,
+            string refreshCookie,
+            Guid sessionId,
+            string userAgent,
+            string deviceId,
+            DbConnection conn,
+            DbTransaction tx)
+        {
+            var now = _timeProvider.UtcNow;
+
+            /* ── 1. quick rejects ───────────────────────────────────────────── */
+            if (string.IsNullOrWhiteSpace(refreshCookie) || sessionId == Guid.Empty)
+                return AuthStatusResult.Fail();
+
+            /* ── 2. load current RT row (FOR UPDATE) ────────────────────────── */
+            var storedToken = await GetRefreshTokenDB(
+                    refreshCookie, sessionId, onlyActive: true, conn, tx);
+
+            if (storedToken is null || storedToken.SessionId != sessionId)
+                return AuthStatusResult.Fail();
+
+            if (now > storedToken.ExpiresAbsoluteUtc)
+                return AuthStatusResult.Fail();
+
+            /* ── 3. user & roles ────────────────────────────────────────────── */
+            var user = await _userSQLProvider.UserSqlExecutor
+                                .GetUserModelAsync(persoid: storedToken.Persoid);
+            var roles = new List<string?> { "User" };                // TODO real roles
+
+            /* ── 4. rotation – ──────────────────────────────────────────────── */
+            string newRefresh;
+            DateTime newRolling;
+            AccessTokenResult newAccess;
+
+            try
             {
-                // Delete only the refresh token for the current session.
-                var providedHashedToken = TokenGenerator.HashToken(refreshToken);
-                if (!string.IsNullOrEmpty(refreshToken))
-                {
-                    bool deleteSuccess = await _userSQLProvider.RefreshTokenSqlExecutor.DeleteTokenAsync(providedHashedToken);
-                    if (deleteSuccess)
-                    {
-                        _logger.LogInformation("Refresh token deleted successfully for session {SessionId}. Token: {TokenHash}", sessionId, providedHashedToken);
-                    }
-                    else
-                    {
-                        _logger.LogWarning("Error deleting refresh token for session {SessionId}. Token: {TokenHash}", sessionId, providedHashedToken);
-                    }
-                }
+                /* 4-a) Create new accesstoken for upsert */
+                newAccess = await _jwtService.CreateAccessTokenAsync(
+                    storedToken.Persoid, user.Email, roles, deviceId, userAgent, sessionId: sessionId);
+
+                /* 4-a) UPSERT *new* RT */
+                (newRefresh, var newTokenId, newRolling) = await UpsertRefreshTokenAsync(
+                    new UserCtx(storedToken.Persoid, sessionId, deviceId,
+                                userAgent, user.Email, roles),
+                    jti: newAccess.TokenJti,
+                    rollingWindow: _refreshWindow,
+                    absDays: _jwtSettings.RefreshTokenExpiryDaysAbsolute,
+                    jwt: _jwtService,
+                    clock: _timeProvider,
+                    conn, tx);
+
+                /* 4-c) Blacklist the *old* AT */                           
+                if (!await _jwtService.BlacklistJwtTokenAsync(accessToken!, conn, tx))
+                    throw new InvalidOperationException("black-list failed");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Unexpected error during refresh for {User}/{Session}", storedToken.Persoid, sessionId);
+                return AuthStatusResult.Fail();
             }
 
-            // 2. Notify the user via WebSocket
-            if (!string.IsNullOrEmpty(userId) && !string.IsNullOrEmpty(sessionId))
-            {
-                var targetUserSession = new UserSessionKey(userId, sessionId);
-                await _webSocketManager.SendMessageAsync(targetUserSession, "LOGOUT");
-                _logger.LogInformation($"Sent LOGOUT message to user {userId}: SessionId: {sessionId} via WebSocket.");
-            }
-            else
-            {
-                _logger.LogWarning("User ID not found in claims. Unable to send LOGOUT message via WebSocket.");
-            }
+            /* ── 5. winner returns brand-new tokens ─────────────────────────── */
+            return AuthStatusResult.Success(newAccess.Token, newAccess.SessionId, user.PersoId, newRolling, newRefresh);
         }
+
+
+        /*
+         *  Refresh token methods.
+         *  Entry point for issuing a new refresh token. 
+         *  This is called by the login, it helps with creating a transaction. 
+         *  
+         
+         *  NOTE  
+         *  This is already done in the refreshflow, since its a bigger transaction.
+         */
+
+        public Task<(string token, Guid tokenId, DateTime exp)> IssueAsync(UserCtx ctx, string jti) =>
+            ExecuteInTransactionAsync((c, tx) =>
+                UpsertRefreshTokenAsync(ctx, jti,
+                              _refreshWindow, _jwtSettings.RefreshTokenExpiryDaysAbsolute,
+                              _jwtService, _timeProvider, c, tx));
+        // PRIVATE – Must be called in a transaction
+        private static async Task<(string token, Guid tokenId, DateTime rollingExp)> UpsertRefreshTokenAsync(
+                UserCtx ctx,
+                string jti,
+                TimeSpan rollingWindow,
+                int absDays,
+                IJwtService jwt,
+                ITimeProvider clock,
+                DbConnection conn,
+                DbTransaction tx
+            )
+        {
+            string token = await jwt.CreateRefreshToken();
+            DateTime now = clock.UtcNow;
+            DateTime rolling = now + rollingWindow;
+            DateTime abs = now.AddDays(absDays);
+
+            var row = new RefreshJwtTokenEntity
+            {
+                TokenId = Guid.NewGuid(),
+                HashedToken = TokenGenerator.HashToken(token),
+                AccessTokenJti = jti,
+                Persoid = ctx.Persoid,
+                SessionId = ctx.SessionId,
+                DeviceId = ctx.DeviceId,
+                UserAgent = ctx.UserAgent,
+                ExpiresRollingUtc = rolling,
+                ExpiresAbsoluteUtc = abs,
+                Status = TokenStatus.Active
+            };
+
+            bool inserted = await jwt.UpsertRefreshTokenAsync(row, conn, tx);
+            if (!inserted)               
+                throw new InvalidOperationException("Could not upsert!");
+            return (token, row.TokenId, rolling);
+        }
+
+        private async Task<JwtRefreshTokenModel?> GetRefreshTokenDB(string refreshToken, Guid sessionId, bool onlyActive, DbConnection conn, DbTransaction tx)
+        {
+            if (string.IsNullOrEmpty(refreshToken))
+            {
+                throw new ArgumentException("Refresh token cannot be null or empty");
+            }
+            var providedHashedToken = TokenGenerator.HashToken(refreshToken);
+            var storedTokens = await _userSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokensAsync(conn, tx, hashedToken: providedHashedToken, sessionId: sessionId, onlyActive: onlyActive);
+            var storedToken = storedTokens.FirstOrDefault(); // At this stage, we only expect one token
+            if (storedToken == null)
+            {
+                _logger.LogWarning("No refresh token record found for sessionid: {SessionId} during lookup for refreshtoken: {Refreshtoken}.", sessionId, providedHashedToken);
+                return null;
+            }
+            // Convert it before returning
+            var mappedToken = RefreshTokenMapper.ToDomain(storedToken);
+
+            return mappedToken;
+        }
+        #endregion
         private async Task ResetFailedLoginAttempts(Guid persoId, string email)
         {
             try
@@ -309,7 +324,7 @@ namespace Backend.Application.Services.AuthService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error resetting failed login attempts for user: {Email}", email);
+                _logger.LogError(ex, "Error resetting failed login attempts for user: {MaskedEmail}", LogHelper.MaskEmail(email));
             }
         }
     }

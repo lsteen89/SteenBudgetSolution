@@ -1,11 +1,16 @@
 ﻿using Backend.Domain.Entities.Auth;
 using Backend.Domain.Shared;
+using Backend.Tests.Fixtures;
 using Xunit;
 
 namespace Backend.Tests.IntegrationTests.RegistrationTests
 {
     public class TokenCreationAndVerificationTests : IntegrationTestBase
     {
+        public TokenCreationAndVerificationTests(DatabaseFixture fixture)
+    : base(fixture)
+        {
+        }
 
         // Test for verifying user email token
         [Fact]

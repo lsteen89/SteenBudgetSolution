@@ -1,4 +1,4 @@
-import axios from '../../axiosConfig';
+import { api } from '@/api/axios';
 import translate from "@utils/translate";
 
 /**
@@ -16,7 +16,7 @@ interface VerifyEmailResponse {
  */
 export const verifyEmail = async (token: string): Promise<VerifyEmailResponse> => {
   try {
-    const response = await axios.get<VerifyEmailResponse>(`/api/Registration/verify-email?token=${token}`);
+    const response = await api.get<VerifyEmailResponse>(`/api/Registration/verify-email?token=${token}`);
     
     // Translate backend response message directly to Swedish
     const translatedMessage = translate(response.data.message);

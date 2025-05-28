@@ -1,4 +1,4 @@
-import axios from "../../axiosConfig";
+import { api } from '@/api/axios';
 import { validatePassword } from "@utils/validation/PasswordValidation";
 import translate from "@utils/translate";
 
@@ -25,7 +25,7 @@ export const resetPasswordWithToken = async (
   }
 
   try {
-    const response = await axios.post<ResetPasswordResponse>(
+    const response = await api.post<ResetPasswordResponse>(
       "/api/UserManagement/reset-password-with-token",
       { token, password: newPassword, confirmPassword: newPassword }
     );

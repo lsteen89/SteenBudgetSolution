@@ -3,7 +3,7 @@ import MenuComponent from "@components/organisms/Menu/mainMenu/desktop/MenuCompo
 import MobileMenu from "@components/organisms/Menu/mainMenu/mobile/MobileMenu";
 import UserSideMenu from "@components/organisms/Menu/sideMenu/UserSideMenu";
 import useMediaQuery from "@hooks/useMediaQuery";
-import { useAuth } from "@context/AuthProvider";
+import { useAuth } from '@hooks/auth/useAuth'; 
 import DynamicTitle from "@utils/DynamicTitle";
 import MediaQueryTest from "@components/Test/MediaQueryTest";
 import ToastNotification from "@components/atoms/customToast/ToastNotificationWizard";

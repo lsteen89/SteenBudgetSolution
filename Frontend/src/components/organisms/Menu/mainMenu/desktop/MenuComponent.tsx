@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '@context/AuthProvider';
+import { useAuth } from '@hooks/auth/useAuth'; // Import the useAuth hook
 import CloudMenu from '@assets/Components/Menu/CloudMenu_1440.svg?react';
 import styles from './menu.module.css'; // Import CSS module
 import MobileBird from '@assets/Images/MobileBird.png';

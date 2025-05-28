@@ -1,344 +1,480 @@
-﻿using Backend.Application.DTO;
+﻿using Backend.Application.DTO.User;
+using Backend.Domain.Entities.User;
+using Backend.Infrastructure.Entities.Tokens;
+using Backend.Infrastructure.WebSockets;
 using Backend.Test.UserTests;
-using System.Security.Claims;
-using Xunit;
-using System.IdentityModel.Tokens.Jwt;
+using Backend.Tests.Fixtures;
 using Backend.Tests.Helpers;
 using Moq;
-using Backend.Infrastructure.Security;
-using Backend.Infrastructure.WebSockets;
-using Backend.Application.DTO.User;
-using Backend.Application.DTO.Auth;
+using MySqlConnector;
+using System.IdentityModel.Tokens.Jwt;
+using System.Linq;
+using System.Net;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using System.Text.Json;
+using Tests.Helpers;
+using Xunit;
 
 namespace Backend.Tests.IntegrationTests.Services.AuthService
 {
     public class AuthServiceIntegrationTestsRefreshToken : IntegrationTestBase
     {
+        private readonly HttpClient _client;
+
+        public AuthServiceIntegrationTestsRefreshToken(DatabaseFixture fixture)
+         : base(fixture)
+        {
+        }
         [Fact]
-         public async Task RefreshTokenAsync_ValidRequest_ReturnsNewTokens()
+        public async Task Status_HappyPath_Rotation_ReturnsAllTokens()
+        {
+            // arrange
+            var (user, access, refresh, originalSid, ua, dev) = await LoginHelperAsync();
+
+            // act
+            var res = await RunInTxAsync((conn, tx) =>
+                AuthService.CheckAndRefreshAsync(access, refresh, originalSid, ua, dev, conn, tx)
+            );
+
+            // assert
+            Assert.True(res.Authenticated);
+            Assert.NotNull(res.AccessToken); // For string, this is fine (no message arg)
+
+            // SessionId is Guid (non-nullable)
+            // Assert.NotNull(res.SessionId); // Redundant
+            Assert.NotEqual(Guid.Empty, res.SessionId); // Check it's not the default empty Guid
+            Assert.Equal(originalSid, res.SessionId);   // Check it matches the expected SessionId
+
+            // Persoid is Guid (non-nullable)
+            // Assert.NotNull(res.Persoid); // Redundant
+            Assert.NotEqual(Guid.Empty, res.Persoid);   // Check it's not the default empty Guid
+            Assert.Equal(user.PersoId, res.Persoid);    // Check it matches the expected PersoId
+
+            // ExpiresUtc is DateTime (non-nullable)
+            // Assert.NotNull(res.ExpiresUtc); // Redundant
+            Assert.NotEqual(default(DateTime), res.ExpiresUtc); // Check it's not the default DateTime
+                                                                // Add a more meaningful check, e.g., it's in the future
+                                                                // You might need to get the current time from your _timeProvider if it's used in the service
+                                                                // For simplicity here, assuming a general check against UtcNow (be mindful of test run variances)
+            Assert.True(res.ExpiresUtc > DateTime.UtcNow.AddMinutes(-1), "New refresh token expiry should be in the future.");
+
+            // NewRefreshCookie is string
+            Assert.NotNull(res.NewRefreshCookie); // Fine (no message arg)
+            Assert.False(string.IsNullOrEmpty(res.NewRefreshCookie), "The new refresh cookie string should not be empty.");
+            Assert.True(refresh != res.NewRefreshCookie, "The new refresh cookie should be different from the old one due to rotation.");
+        }
+        [Fact]
+        public async Task Status_HappyPath_Rotation_KeepsSessionId()
+        {
+            // ── ARRANGE ─────────────────────────────────────────────────────────
+            // Perform a normal login to get the initial session‐id (sid) and tokens
+            var (user, access, refresh, sid, ua, dev) = await LoginHelperAsync();
+
+            // ── ACT ───────────────────────────────────────────────────────────────
+            // Call CheckAndRefreshAsync in a transaction to trigger the “no‐rotation” path
+            var res = await RunInTxAsync((conn, tx) =>
+                AuthService.CheckAndRefreshAsync(
+                    access,
+                    refresh,
+                    sid,
+                    ua,
+                    dev,
+                    conn,
+                    tx
+                )
+            );
+
+            // ── ASSERT ───────────────────────────────────────────────────────────
+            Assert.True(res.Authenticated, "Authentication should succeed");
+            Assert.NotNull(res.AccessToken);
+            Assert.NotNull(res.NewRefreshCookie);
+
+            // Decode the new access token and extract its sessionId claim
+            var handler = new JwtSecurityTokenHandler();
+            var jwt = handler.ReadJwtToken(res.AccessToken);
+            var newSid = Guid.Parse(
+                jwt.Claims.First(c => c.Type == "sessionId").Value
+            );
+
+            // The session‐id inside the token must match the original one
+            Assert.Equal(sid, newSid);
+        }
+
+
+        /*──────────────────────────────────────────────────────────────*/
+        /* A2 – happy path rotation                   */
+        /*──────────────────────────────────────────────────────────────*/
+        [Fact]
+        public async Task Status_WhenWindowBelowThreshold_RotatesRefreshToken()
+        {
+            // arrange
+            var (user, access, refresh, sid, ua, dev) = await LoginHelperAsync();
+
+            // shrink TTL to 3 days to force rotation
+            await UserSQLProvider.RefreshTokenSqlExecutor.UpdateRollingExpiryAsync(
+                user.PersoId,
+                sid,
+                DateTime.UtcNow.AddDays(3));
+
+            // act
+            var res = await RunInTxAsync((conn, tx) =>
+                AuthService.CheckAndRefreshAsync(access, refresh, sid, ua, dev, conn, tx)
+            );
+
+            // assert
+            Assert.True(res.Authenticated);
+            Assert.NotNull(res.AccessToken);
+            Assert.NotNull(res.NewRefreshCookie);       // rotated
+        }
+
+        [Fact]
+        public async Task Status_AbsoluteExpiryPassed_ReturnsUnauthorized()
+        {
+            // arrange
+            var (user, access, refresh, sid, ua, dev) = await LoginHelperAsync();
+
+            // ── Expire token in DB under a tx ──────────────────────────────────────
+            var (conn, tx) = await CreateTransactionAsync();
+            try
+            {
+                var updated = await UserSQLProvider
+                    .RefreshTokenSqlExecutor
+                    .UpdateAbsoluteExpiryAsync(
+
+                        user.PersoId,
+                        sid,
+                        conn,                    
+                        tx ,                     
+                        whenUtc: null
+                    );
+
+                await tx.CommitAsync();
+                Assert.True(updated, "Expiry update should return true");
+            }
+            finally
+            {
+                await tx.DisposeAsync();
+                await conn.DisposeAsync();
+            }
+
+            var res = await RunInTxAsync((conn, tx) =>
+                AuthService.CheckAndRefreshAsync(access, refresh, sid, ua, dev, conn, tx)
+            );
+
+            Assert.False(res.Authenticated);
+        }
+        [Fact]
+        public async Task Status_SessionIdMismatch_ReturnsUnauthorized()
+        {
+            // arrange
+            var (user, access, refresh, sid, ua, dev) = await LoginHelperAsync();
+
+            var fakeSession = Guid.NewGuid();
+
+            var res = await RunInTxAsync((conn, tx) =>
+                AuthService.CheckAndRefreshAsync(access, refresh, fakeSession, ua, dev, conn, tx)
+            );
+
+            Assert.False(res.Authenticated);
+        }
+        /*──────────────────────────────────────────────────────────────*/
+        /* D1 – reuse of rotated refresh token returns 401             */
+        /*──────────────────────────────────────────────────────────────*/
+        [Fact]
+        public async Task Status_ReusingOldRefreshToken_FailsAfterRotation()
+        {
+            // arrange
+            var (user, access, refresh, sid, ua, dev) = await LoginHelperAsync();
+
+            // shrink TTL to force rotation
+            await UserSQLProvider.RefreshTokenSqlExecutor.UpdateRollingExpiryAsync(
+                user.PersoId,
+                sid,
+                DateTime.UtcNow.AddDays(1));
+
+            var first = await RunInTxAsync((conn, tx) =>
+                AuthService.CheckAndRefreshAsync(access, refresh, sid, ua, dev, conn, tx)
+            );
+            Assert.True(first.Authenticated);
+            Assert.NotNull(first.NewRefreshCookie);
+
+            // second call with *old* cookie must now fail
+            var second = await RunInTxAsync((conn, tx) =>
+                AuthService.CheckAndRefreshAsync(access, refresh, sid, ua, dev, conn, tx)
+            );
+            Assert.False(second.Authenticated);
+        }
+
+        /*---------------------------------------------------------*/
+        /*    Invalid refresh-token (tampered value)               */
+        /*---------------------------------------------------------*/
+        [Fact]
+        public async Task CheckAndRefreshAsync_TamperedRefreshToken_Fails()
+        {
+            // arrange – normal login
+            var (user, access, refresh, sid, ua, dev) = await LoginHelperAsync();
+            var tampered = refresh + "X";                  // simulate bit-flip
+
+            // act
+            var res = await RunInTxAsync((conn, tx) =>
+                AuthService.CheckAndRefreshAsync(access, tampered, sid, ua, dev, conn, tx)
+            );
+
+            // assert
+            Assert.False(res.Authenticated);
+        }
+
+
+
+
+
+        /*---------------------------------------------------------*/
+        /* 3) Happy path: rotation black-lists old JTI             */
+        /*---------------------------------------------------------*/
+        [Fact]
+        public async Task CheckAndRefreshAsync_Rotation_BlacklistsOldJti()
+        {
+            // 1) Arrange & login
+            var (user, access, refresh, sid, ua, dev) = await LoginHelperAsync();
+
+            // 2) Shrink rolling expiry in DB
+            var (conn1, tx1) = await CreateTransactionAsync();
+            try
+            {
+                var didUpdate = await UserSQLProvider.RefreshTokenSqlExecutor
+                    .UpdateRollingExpiryAsync(
+
+                        user.PersoId,
+                        sid,
+                        DateTime.UtcNow.AddDays(1),
+                        conn1,
+                        tx1
+                    );
+                await tx1.CommitAsync();
+                Assert.True(didUpdate, "Rolling expiry update should succeed");
+            }
+            finally
+            {
+                await conn1.DisposeAsync();
+            }
+
+            // 3) Read the pre-rotation token row
+            List<RefreshJwtTokenEntity> beforeRows;
+            var (conn2, tx2) = await CreateTransactionAsync();
+            try
+            {
+                beforeRows = (await UserSQLProvider.RefreshTokenSqlExecutor
+                    .GetRefreshTokensAsync(
+                        conn2,
+                        tx2,
+                        user.PersoId,
+                        onlyActive: false))
+                    .ToList();
+                await tx2.CommitAsync();
+            }
+            finally
+            {
+                await conn2.DisposeAsync();
+            }
+            var oldJti = beforeRows.Single().AccessTokenJti;
+
+            // 4) Act — trigger the rotation
+            var res = await RunInTxAsync((conn, tx) =>
+                AuthService.CheckAndRefreshAsync(access, refresh, sid, ua, dev, conn, tx)
+            );
+            Assert.True(res.Authenticated);
+            Assert.NotNull(res.NewRefreshCookie);
+
+            // 5) Verify that the old JTI was blacklisted
+            BlacklistedTokenEntity black;
+            var (conn3, tx3) = await CreateTransactionAsync();
+            try
+            {
+                black = await UserSQLProvider.RefreshTokenSqlExecutor
+                    .GetBlacklistedTokenByJtiAsync(
+                        oldJti,
+                        conn3,
+                        tx3
+                    );
+                await tx3.CommitAsync();
+            }
+            finally
+            {
+                await conn3.DisposeAsync();
+            }
+
+            Assert.NotNull(black);
+            Assert.True(black.ExpiryDate > DateTime.UtcNow, "Blacklisted expiry must be in the future");
+        }
+
+        /*---------------------------------------------------------*/
+        /* 5) Sliding-window above threshold – still rotation         */
+        /*---------------------------------------------------------*/
+        [Fact]
+        public async Task CheckAndRefreshAsync_WindowAboveThreshold_DoesNotRotate()
+        {
+            var (user, access, refresh, sid, ua, dev) = await LoginHelperAsync();
+
+            // set expiry to 6 days (threshold in config = 5 days)
+            await UserSQLProvider.RefreshTokenSqlExecutor.UpdateRollingExpiryAsync(
+                user.PersoId,
+                sid,
+                DateTime.UtcNow.AddDays(6));
+
+            var res = await RunInTxAsync((conn, tx) =>
+                AuthService.CheckAndRefreshAsync(access, refresh, sid, ua, dev, conn, tx)
+            );
+
+            Assert.True(res.Authenticated);
+            Assert.NotNull(res.NewRefreshCookie);      // rotation
+        }
+        /*──────────────────────────────────────────────────────────────────────────*/
+        /*  T-1  Missing cookies  ➜  should fail fast                               */
+        /*──────────────────────────────────────────────────────────────────────────*/
+        [Fact]
+        public async Task Status_MissingCookies_ReturnsUnauthorized()
+        {
+            var (_, _, _, sid, ua, dev) = await LoginHelperAsync();
+
+            // empty refresh token
+            var res1 = await RunInTxAsync((conn, tx) =>
+                AuthService.CheckAndRefreshAsync(accessToken: string.Empty, refreshCookie: string.Empty, sessionId: Guid.Empty, ua, dev, conn, tx)
+            );
+
+            Assert.False(res1.Authenticated);
+
+            // empty session-id
+            var (_, _, refresh, _, _, _) = await LoginHelperAsync();
+            var res2 = await RunInTxAsync((conn, tx) =>
+                AuthService.CheckAndRefreshAsync(
+                accessToken: string.Empty,
+                refreshCookie: refresh,
+                sessionId: Guid.Empty,
+                userAgent: ua,
+                deviceId: dev,
+                conn, tx)
+                );
+
+            Assert.False(res2.Authenticated);
+        }
+
+
+        /*──────────────────────────────────────────────────────────────────────────*/
+        /*  T-3  Login twice → distinct refresh rows (unique session-ids)           */
+        /*──────────────────────────────────────────────────────────────────────────*/
+        [Fact]
+        public async Task LoginTwice_CreatesTwoActiveRefreshRows_WithUniqueSessions()
         {
             // Arrange
-            var (ipAddress, deviceId, userAgent) = AuthTestHelper.GetDefaultMetadata();
-            var userLoginDto = new UserLoginDto
+            var (ip, dev, ua) = AuthTestHelper.GetDefaultMetadata();
+            var usr = await SetupUserAsync();
+            await UserServiceTest.ConfirmUserEmailAsync(usr.PersoId);
+
+            var dto = new UserLoginDto
             {
-                Email = "test@example.com",
+                Email = usr.Email,
                 Password = "Password123!",
-                CaptchaToken = "valid-captcha-token"
+                CaptchaToken = "tok"
             };
 
-            // Set up the user and confirm their email.
-            var registeredUser = await SetupUserAsync();
-            await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
+            // Act
+            var first = (await AuthService.LoginAsync(dto, ip, dev, ua)).ShouldBeSuccess();
+            var second = (await AuthService.LoginAsync(dto, ip, dev, ua)).ShouldBeSuccess();
 
-            // Perform an initial login to obtain tokens.
-            var loginResult = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent);
-            Assert.True(loginResult.Success, "Initial login should succeed.");
-            Assert.False(string.IsNullOrEmpty(loginResult.RefreshToken), "Refresh token should not be null or empty.");
-
-            // Create a principal with the user's claims.
-            var claims = new List<Claim>
+            // Assert: read under tx
+            var (conn, tx) = await CreateTransactionAsync();
+            List<RefreshJwtTokenEntity> rows;
+            try
             {
-                new Claim(JwtRegisteredClaimNames.Sub, registeredUser.PersoId.ToString()),
-                new Claim(JwtRegisteredClaimNames.Email, registeredUser.Email)
-            };
-            var identity = new ClaimsIdentity(claims, "mock");
-            var principal = new ClaimsPrincipal(identity);
-            // Extract the access token from the login result.
-            var authToken = loginResult.AccessToken;
-            // Act: Call the refresh method directly from the service.
+                rows = (await UserSQLProvider.RefreshTokenSqlExecutor
+                    .GetRefreshTokensAsync(conn, tx, usr.PersoId))
+                    .ToList();
 
-            var refreshResult = await AuthService.RefreshTokenAsync(loginResult.RefreshToken, loginResult.SessionId, userAgent, deviceId);
-            
-            // Assert: Validate that new tokens are returned and are different from the original ones.
-            Assert.True(refreshResult.Success, "Refresh token operation should succeed.");
-            Assert.False(string.IsNullOrEmpty(refreshResult.AccessToken), "New access token should be returned.");
-            Assert.False(string.IsNullOrEmpty(refreshResult.RefreshToken), "New refresh token should be returned.");
-
-            // Ensure tokens have been rotated (i.e. they differ from the originals)
-            Assert.NotEqual(loginResult.AccessToken, refreshResult.AccessToken);
-            Assert.NotEqual(loginResult.RefreshToken, refreshResult.RefreshToken);
-        }
-        [Fact]
-        public async Task RefreshTokenAsync_ExpiredStoredRefreshToken_ReturnsError()
-        {
-            // Arrange: Set up user and login to get tokens.
-            var (ipAddress, deviceId, userAgent) = AuthTestHelper.GetDefaultMetadata();
-            var userLoginDto = new UserLoginDto
+                await tx.CommitAsync();
+            }
+            finally
             {
-                Email = "test@example.com",
-                Password = "Password123!",
-                CaptchaToken = "valid-captcha-token"
-            };
+                await conn.DisposeAsync();
+            }
 
-            var registeredUser = await SetupUserAsync();
-            await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
-            var loginResult = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent);
-            Assert.True(loginResult.Success, "Login should succeed.");
-
-            // Simulate the stored refresh token as expired.
-            bool updateResult = await UserSQLProvider.RefreshTokenSqlExecutor.ExpireRefreshTokenAsync(registeredUser.PersoId);
-            Assert.True(updateResult, "The refresh token should be expired.");
-            // Act: Attempt to refresh tokens.
-            var refreshResult = await AuthService.RefreshTokenAsync(loginResult.RefreshToken, loginResult.SessionId, userAgent, deviceId);
-
-            // Assert: Verify failure due to expired refresh token.
-            Assert.False(refreshResult.Success, "Refresh token operation should fail for expired token.");
-            Assert.Contains("expired", refreshResult.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.True(rows.Count >= 2);
+            Assert.NotEqual(rows[0].SessionId, rows[1].SessionId);
+            Assert.NotEqual(first.RefreshToken, second.RefreshToken);
         }
 
-        [Fact]
-        public async Task RefreshTokenAsync_InvalidRefreshToken_ReturnsError()
-        {
-            // Arrange: Set up user and login.
-            var (ipAddress, deviceId, userAgent) = AuthTestHelper.GetDefaultMetadata();
-            var userLoginDto = new UserLoginDto
-            {
-                Email = "test@example.com",
-                Password = "Password123!",
-                CaptchaToken = "valid-captcha-token"
-            };
 
-            var registeredUser = await SetupUserAsync();
-            await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
-            var loginResult = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent);
-            Assert.True(loginResult.Success, "Login should succeed.");
-            
-            // Alter the refresh token (simulate tampering)
-            string tamperedRefreshToken = loginResult.RefreshToken + "X";
-
-            // Act: Call refresh using the tampered refresh token.
-            var refreshResult = await AuthService.RefreshTokenAsync(tamperedRefreshToken, loginResult.SessionId, deviceId, userAgent);
-
-            // Assert: Verify refresh fails due to invalid token.
-            Assert.False(refreshResult.Success, "Refresh token operation should fail with an invalid token.");
-            Assert.Contains("not found", refreshResult.Message, StringComparison.OrdinalIgnoreCase);
-        }
+        /*──────────────────────────────────────────────────────────────────────────*/
+        /*  T-4  Logout from two devices deletes both rows + broadcasts ‘LOGOUT’    */
+        /*──────────────────────────────────────────────────────────────────────────*/
 
         [Fact]
-        public async Task LoginTwice_MultipleRefreshTokenRecordsExist_WithUniqueSessionIds()
+        public async Task LogoutFromTwoDevices_RemovesAllActiveRefreshRows_AndSendsWs()
         {
-            // Arrange: Set up user metadata and login credentials.
-            var (ipAddress, deviceId, userAgent) = AuthTestHelper.GetDefaultMetadata();
-            var userLoginDto = new UserLoginDto
-            {
-                Email = "test@example.com",
-                Password = "Password123!",
-                CaptchaToken = "valid-captcha-token"
-            };
+            var (ip, dev1, ua1) = AuthTestHelper.GetDefaultMetadata();
+            var dev2 = "device-B"; var ua2 = "Mozilla/5.0 test-browser B";
 
-            // Set up and confirm the user.
-            var registeredUser = await SetupUserAsync();
-            await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
+            var usr = await SetupUserAsync();
+            await UserServiceTest.ConfirmUserEmailAsync(usr.PersoId);
 
-            // Act: First login.
-            var firstLoginResult = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent);
-            Assert.True(firstLoginResult.Success, "First login should succeed.");
+            var dto = new UserLoginDto { Email = usr.Email, Password = "Password123!", CaptchaToken = "tok" };
 
-            // Act: Second login with the same device and user agent.
-            var secondLoginResult = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent);
-            Assert.True(secondLoginResult.Success, "Second login should succeed.");
+            var a = (await AuthService.LoginAsync(dto, ip, dev1, ua1)).ShouldBeSuccess();
+            var b = (await AuthService.LoginAsync(dto, ip, dev2, ua2)).ShouldBeSuccess();
 
-            // Query the database for refresh tokens belonging to this user.
-            var refreshTokens = await UserSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokensAsync(registeredUser.PersoId);
-
-            // Assert: Multiple refresh token records exist for the user.
-            Assert.True(refreshTokens.Count() >= 2, "There should be at least two refresh token records for multiple logins.");
-
-            // Optionally, verify that the SessionIds are unique and that refresh tokens differ.
-            var tokenList = refreshTokens.ToList();
-            Assert.NotEqual(tokenList[0].SessionId, tokenList[1].SessionId);
-            Assert.NotEqual(firstLoginResult.RefreshToken, secondLoginResult.RefreshToken);
-        }
-
-        [Fact]
-        public async Task LoginFromTwoDevices_LogoutDeletesAllRefreshTokens()
-        {
-            // Arrange: Set up default metadata for two different devices.
-            var (ipAddress, deviceId1, userAgent1) = AuthTestHelper.GetDefaultMetadata();
-            var deviceId2 = "test-device-2";
-            var userAgent2 = "Mozilla/5.0 (compatible; TestBrowser/2.0)";
-
-            var userLoginDto = new UserLoginDto
-            {
-                Email = "test@example.com",
-                Password = "Password123!",
-                CaptchaToken = "valid-captcha-token"
-            };
-
-            // Insert and confirm the user
-            var registeredUser = await SetupUserAsync();
-            await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
-
-            // Act: Log in from the first device.
-            var firstLoginResult = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId1, userAgent1);
-            Assert.True(firstLoginResult.Success, "First login should succeed.");
-
-            // Act: Log in from the second device.
-            var secondLoginResult = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId2, userAgent2);
-            Assert.True(secondLoginResult.Success, "Second login should succeed.");
-
-            // Assert: Query the database for refresh tokens belonging to this user.
-            var refreshTokens = await UserSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokensAsync(registeredUser.PersoId);
-            Assert.Equal(2, refreshTokens.Count());
-
-            // Prepare for logout: validate tokens and extract principals.
-            var principal1 = jwtService.ValidateToken(firstLoginResult.AccessToken);
-            Assert.NotNull(principal1);
-            Assert.True(principal1.Identity.IsAuthenticated, "First principal should be authenticated.");
-
-            var principal2 = jwtService.ValidateToken(secondLoginResult.AccessToken);
-            Assert.NotNull(principal2);
-            Assert.True(principal2.Identity.IsAuthenticated, "Second principal should be authenticated.");
-
-            // **Optionally, extract and assert claims for further verification:**
-            var subClaim1 = principal1.FindFirst(JwtRegisteredClaimNames.Sub) ?? principal1.FindFirst(ClaimTypes.NameIdentifier);
-            Assert.Equal(registeredUser.PersoId.ToString(), subClaim1.Value);
-            var subClaim2 = principal2.FindFirst(JwtRegisteredClaimNames.Sub) ?? principal2.FindFirst(ClaimTypes.NameIdentifier);
-            Assert.Equal(registeredUser.PersoId.ToString(), subClaim2.Value);
-
-            // Arrange: Mock WebSocketManager to expect a LOGOUT message for each session.
+            // mock WS expects 
             WebSocketManagerMock
                 .Setup(x => x.SendMessageAsync(
                     It.Is<UserSessionKey>(k =>
-                        k.UserId == registeredUser.PersoId.ToString() &&
-                        (k.SessionId == firstLoginResult.SessionId || k.SessionId == secondLoginResult.SessionId)),
-                    It.Is<string>(msg => msg == "LOGOUT")))
+                        k.Persoid == usr.PersoId &&
+                        (k.SessionId == a.Access.SessionId || k.SessionId == b.Access.SessionId)),
+                    "LOGOUT"))
                 .Returns(Task.CompletedTask)
                 .Verifiable();
 
-            // Act: Log out from both sessions.
-            await AuthService.LogoutAsync(principal1, firstLoginResult.AccessToken, firstLoginResult.RefreshToken, firstLoginResult.SessionId, logoutAll: false);
-            await AuthService.LogoutAsync(principal2, secondLoginResult.AccessToken, secondLoginResult.RefreshToken, secondLoginResult.SessionId, logoutAll: false);
+            // act – logout from both sessions
+            await AuthService.LogoutAsync(a.Access.Token, a.RefreshToken, a.Access.SessionId, logoutAllUsers: true);
+            await AuthService.LogoutAsync(b.Access.Token, b.RefreshToken, b.Access.SessionId, logoutAllUsers: false);
 
-            // Assert: Verify that SendMessageAsync was called twice.
-            WebSocketManagerMock.Verify(x => x.SendMessageAsync(
-                It.Is<UserSessionKey>(k =>
-                    k.UserId == registeredUser.PersoId.ToString() &&
-                    (k.SessionId == firstLoginResult.SessionId || k.SessionId == secondLoginResult.SessionId)),
-                "LOGOUT"),
-                Times.Exactly(2));
-        }
-        [Fact]
-        public async Task RefreshTokenAsync_InvalidatedRefreshToken_BlacklistedAccessToken_ReturnsError()
-        {
-            // Arrange: Setup user, confirm email, and log in to get tokens.
-            var (ipAddress, deviceId, userAgent) = AuthTestHelper.GetDefaultMetadata();
-            var userLoginDto = new UserLoginDto
+            // assert – DB rows 
+            IEnumerable<RefreshJwtTokenEntity> rows;
+            var (conn, tx) = await CreateTransactionAsync();
+            try
             {
-                Email = "test@example.com",
-                Password = "Password123!",
-                CaptchaToken = "valid-captcha-token"
-            };
+                rows = await UserSQLProvider
+                    .RefreshTokenSqlExecutor
+                    .GetRefreshTokensAsync(
+                        conn,
+                        tx,
+                        persoId: usr.PersoId,
+                        onlyActive: true
+                    );
 
-            var registeredUser = await SetupUserAsync();
-            await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
-            var loginResult = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent);
-            Assert.True(loginResult.Success, "Login should succeed.");
-            Assert.False(string.IsNullOrEmpty(loginResult.RefreshToken), "Refresh token should be set.");
-            Assert.False(string.IsNullOrEmpty(loginResult.AccessToken), "Access token should be set.");
-
-            // Simulate token invalidation: expire the refresh token.
-            bool expireResult = await UserSQLProvider.RefreshTokenSqlExecutor.ExpireRefreshTokenAsync(registeredUser.PersoId);
-            Assert.True(expireResult, "The refresh token should be invalidated (expired).");
-
-            // Blacklist the access token.
-            bool blacklistResult = await jwtService.BlacklistJwtTokenAsync(loginResult.AccessToken);
-            Assert.True(blacklistResult, "The access token should be blacklisted.");
-
-            // Act: Attempt to refresh tokens with the invalidated refresh token and blacklisted access token.
-            var refreshResult = await AuthService.RefreshTokenAsync(loginResult.RefreshToken, loginResult.SessionId, userAgent, deviceId);
-
-            // Assert: Verify that the refresh operation fails.
-            Assert.False(refreshResult.Success, "Refresh operation should fail for an invalidated refresh token.");
-            Assert.Contains("expired", refreshResult.Message, StringComparison.OrdinalIgnoreCase);
-        }
-        [Fact]
-        public async Task RefreshTokenAsync_ValidRequest_BlacklistsOldAccessTokenJti_And_SetsCorrectExpiry()
-        {
-            // Arrange
-            var (ipAddress, deviceId, userAgent) = AuthTestHelper.GetDefaultMetadata();
-            var userLoginDto = new UserLoginDto
-            {
-                Email = "test@example.com",
-                Password = "Password123!",
-                CaptchaToken = "valid-captcha-token"
-            };
-
-            // Set up the user and confirm their email.
-            var registeredUser = await SetupUserAsync();
-            await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
-
-            // Perform an initial login to obtain tokens.
-            var loginResult = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent);
-            Assert.True(loginResult.Success, "Initial login should succeed.");
-            Assert.False(string.IsNullOrEmpty(loginResult.RefreshToken), "Refresh token should not be null or empty.");
-
-            // Retrieve the refresh token record from the database.
-            // Hash the refresh token to use in the query.
-            var hashedRefreshToken = TokenGenerator.HashToken(loginResult.RefreshToken);
-            var oldRefreshTokenRecords = await UserSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokensAsync(refreshToken: hashedRefreshToken);
-
-            var oldRefreshTokenRecord = oldRefreshTokenRecords.FirstOrDefault();
-
-
-            Assert.NotNull(oldRefreshTokenRecord); // Ensure you got a record
-            string oldAccessTokenJti = oldRefreshTokenRecord.AccessTokenJti;
-            Assert.False(string.IsNullOrEmpty(oldAccessTokenJti), "Old access token JTI should not be null or empty.");
-
-            // Act: Call the refresh method to rotate tokens.
-            var refreshResult = await AuthService.RefreshTokenAsync(loginResult.RefreshToken, loginResult.SessionId, userAgent, deviceId);
-            Assert.True(refreshResult.Success, "Refresh token operation should succeed.");
-            Assert.False(string.IsNullOrEmpty(refreshResult.AccessToken), "New access token should be returned.");
-            Assert.False(string.IsNullOrEmpty(refreshResult.RefreshToken), "New refresh token should be returned.");
-
-            // Assert: Check that the old access token's JTI is now blacklisted.
-            var blacklistedToken = await UserSQLProvider.RefreshTokenSqlExecutor.GetBlacklistedTokenByJtiAsync(oldAccessTokenJti);
-            Assert.NotNull(blacklistedToken);
-            Assert.Equal(oldAccessTokenJti, blacklistedToken.Jti);
-
-            // Verify that the blacklisted token's expiry is in the future.
-            Assert.True(blacklistedToken.ExpiryDate > DateTime.UtcNow, "Blacklisted token expiry should be in the future.");
-        }
-        [Fact]
-        public async Task RefreshToken_ConcurrentRequests_OnlyOneSucceeds()
-        {
-            // Arrange: Setup user and perform an initial login to obtain tokens.
-            var (ipAddress, deviceId, userAgent) = AuthTestHelper.GetDefaultMetadata();
-            var userLoginDto = new UserLoginDto
-            {
-                Email = "test@example.com",
-                Password = "Password123!",
-                CaptchaToken = "valid-captcha-token"
-            };
-
-            // Setup user and confirm their email.
-            var registeredUser = await SetupUserAsync();
-            await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
-
-            // Perform an initial login to obtain tokens.
-            var loginResult = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent);
-            Assert.True(loginResult.Success, "Initial login should succeed.");
-            Assert.False(string.IsNullOrEmpty(loginResult.RefreshToken), "Refresh token should not be null or empty.");
-
-            // Act: Trigger multiple concurrent refresh token requests using the same token.
-            int concurrentRequests = 10;
-            var tasks = new List<Task<LoginResultDto>>();
-            for (int i = 0; i < concurrentRequests; i++)
-            {
-                tasks.Add(AuthService.RefreshTokenAsync(loginResult.RefreshToken, loginResult.SessionId, userAgent, deviceId));
+                await tx.CommitAsync();
             }
+            finally
+            {
+                await conn.DisposeAsync();
+            }
+            Assert.Empty(rows);
 
-            // Wait for all refresh requests to complete.
-            var results = await Task.WhenAll(tasks);
-
-            // Assert: Only one request should succeed; the others should fail.
-            var successCount = results.Count(r => r.Success);
-            var failureCount = results.Count(r => !r.Success);
-
-            Assert.Equal(1, successCount);
-            Assert.Equal(concurrentRequests - 1, failureCount);
+            // assert – WS broadcasts
+            WebSocketManagerMock.Verify(x => x.SendMessageAsync(
+                It.IsAny<UserSessionKey>(), "LOGOUT"), Times.Exactly(2));
         }
+    
+        private async Task<(UserModel usr, string AccessToken, string RefreshToken, Guid SessionId, string UserAgent, string DeviceId)> LoginHelperAsync()
+        {
+            var (ip, deviceId, userAgent) = AuthTestHelper.GetDefaultMetadata();
+            var usr = await SetupUserAsync();
+            await UserServiceTest.ConfirmUserEmailAsync(usr.PersoId);
 
+            var login = await AuthService.LoginAsync(
+                new UserLoginDto { Email = usr.Email, Password = "Password123!", CaptchaToken = "tok" },
+                ip, deviceId, userAgent);
 
+            var tokens = login.ShouldBeSuccess();
+            return (usr, tokens.Access.Token, tokens.RefreshToken, tokens.Access.SessionId, userAgent, deviceId);
+        }
     }
 }

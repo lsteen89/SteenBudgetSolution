@@ -32,9 +32,22 @@ using System.Data.Common;
 using System.Security.Claims;
 using Xunit;
 using Backend.Infrastructure.Data.Sql.Interfaces.Factories;
+using Backend.Infrastructure.Data.Sql.Interfaces.Helpers;
+using Backend.Infrastructure.Data.Sql.Helpers;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using Backend.Tests.Helpers;
+using Backend.Tests.Fixtures;
+using Backend.Infrastructure.Data;
+using MySqlConnector;
+using System.Net.Http.Json;
+using System.Text.Json;
+using Microsoft.Extensions.Caching.Distributed;
 
-public abstract class IntegrationTestBase : IAsyncLifetime
+public abstract class IntegrationTestBase : IAsyncLifetime, IClassFixture<DatabaseFixture>
 {
+    protected readonly string ConnectionString;
+    protected readonly SqlBase SqlBase;
     protected readonly ServiceProvider ServiceProvider;
     protected readonly ILogger Logger;
     protected readonly IUserServices UserServices;
@@ -53,9 +66,11 @@ public abstract class IntegrationTestBase : IAsyncLifetime
 
     protected Mock<IEnvironmentService> MockEnvironmentService { get; private set; }
 
-    protected IntegrationTestBase()
+    protected IntegrationTestBase(DatabaseFixture fixture)
     {
-
+        ServiceProvider = fixture.ServiceProvider;  
+        ConnectionString = fixture.ConnectionString;
+        SqlBase = ServiceProvider.GetRequiredService<SqlBase>(); 
         SqlMapper.AddTypeHandler(typeof(Guid), new GuidTypeHandler());
 
 
@@ -65,6 +80,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
 
         // Mock IHttpContextAccessor with HttpContext setup
         var mockHttpContext = new Mock<HttpContext>();
+
         var mockHttpResponse = new Mock<HttpResponse>();
         var mockResponseCookies = new Mock<IResponseCookies>();
 
@@ -107,12 +123,26 @@ public abstract class IntegrationTestBase : IAsyncLifetime
             Issuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "eBudget",
             Audience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "eBudget",
             SecretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY") ?? "development-fallback-key",
-            ExpiryMinutes = int.TryParse(Environment.GetEnvironmentVariable("JWT_EXPIRY_MINUTES"), out var expiry) ? expiry : 3,
-            RefreshTokenExpiryDays = int.TryParse(Environment.GetEnvironmentVariable("JWT_REFRESH_TOKEN_EXPIRY_DAYS"), out var rtExpiry) ? rtExpiry : 30
+            ExpiryMinutes = int.TryParse(Environment.GetEnvironmentVariable("JWT_EXPIRY_MINUTES"), out var expiry) ? expiry : 5,
+            RefreshTokenExpiryDays = int.TryParse(Environment.GetEnvironmentVariable("JWT_REFRESH_TOKEN_EXPIRY_DAYS"), out var rtExpiry) ? rtExpiry : 30,
+            RefreshTokenExpiryDaysAbsolute = int.TryParse(Environment.GetEnvironmentVariable("JWT_REFRESH_TOKEN_EXPIRY_DAYS_Absolute"), out var rtExpiryAbsolute) ? rtExpiryAbsolute : 90
         };
 
-        // Register JwtSettings as a singleton
+        var jwtParams = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(
+                                         Encoding.UTF8.GetBytes(jwtSettings.SecretKey)),
+            ValidateIssuer = false,
+            ValidateAudience = false,
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero
+        };
         serviceCollection.AddSingleton(jwtSettings);
+        serviceCollection.AddSingleton<IOptions<JwtSettings>>(
+            Options.Create(jwtSettings));
+        // Make them injectable for JwtService *and* WebSocket handler
+        serviceCollection.AddSingleton(jwtParams);
 
         // Register JwtService
         serviceCollection.AddScoped<IJwtService, JwtService>();
@@ -186,6 +216,15 @@ public abstract class IntegrationTestBase : IAsyncLifetime
 
     protected virtual void ConfigureTestServices(IServiceCollection services)
     {
+
+        services.AddScoped<DbConnection>(sp =>
+        {
+            var factory = sp.GetRequiredService<IConnectionFactory>();
+            var conn = factory.CreateConnection();   // MySqlConnection under the hood
+            conn.Open();                                // open immediately
+            return conn;
+            });
+
         var configuration = new ConfigurationBuilder()
             .SetBasePath(Directory.GetCurrentDirectory())
             .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
@@ -197,22 +236,10 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         services.Configure<DatabaseSettings>(configuration.GetSection("DatabaseSettings"));
 
 
-        services.AddScoped<IConnectionFactory>(provider =>
-        {
-            var options = provider.GetRequiredService<IOptions<DatabaseSettings>>().Value;
-            if (string.IsNullOrEmpty(options.ConnectionString))
-            {
-                throw new InvalidOperationException("Database connection string is required in DatabaseSettings.");
-            }
-            return new MySqlConnectionFactory(options.ConnectionString);
-        });
-        services.AddScoped<DbConnection>(provider =>
-        {
-            var factory = provider.GetRequiredService<IConnectionFactory>();
-            var connection = factory.CreateConnection();
-            connection.Open();
-            return connection;
-        });
+        services.AddSingleton<IConnectionFactory>(provider =>
+            new MySqlConnectionFactory(
+                provider.GetRequiredService<IOptions<DatabaseSettings>>().Value.ConnectionString));
+
 
 
         // Register application services
@@ -226,7 +253,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         services.AddScoped<IEmailVerificationService, EmailVerificationService>();
         services.AddScoped<IUserAuthenticationService, UserAuthenticationService>();
         services.AddScoped<UserServiceTest>();
-
+        services.AddScoped<ITransactionRunner, TransactionRunner>();
         services.AddScoped<ITokenBlacklistService, TokenBlacklistService>();
         services.AddScoped<IUserSqlExecutor, UserSqlExecutor>();
         services.AddScoped<IVerificationTokenSqlExecutor, VerificationTokenSqlExecutor>();
@@ -248,11 +275,15 @@ public abstract class IntegrationTestBase : IAsyncLifetime
             return loggerFactory.CreateLogger<UserTokenService>();
         });
 
+        // Remove Redis cache
+
+
         services.AddDistributedMemoryCache();
 
         // Register ILogger<UserAuthenticationService> with TestLogger
         services.AddSingleton<ILogger<UserAuthenticationService>, TestLogger<UserAuthenticationService>>();
         services.AddSingleton<ILogger<AuthService>, TestLogger<AuthService>>();
+
 
     }
 
@@ -312,7 +343,11 @@ public abstract class IntegrationTestBase : IAsyncLifetime
     {
         return await RegisterUserAsync(userCreationDto);
     }
-
+    protected async Task<(DbConnection Connection, DbTransaction Transaction)> CreateTransactionAsync()
+    {
+        var helper = new TestDatabaseHelper(ConnectionString);
+        return await helper.CreateAndBeginTransactionAsync();
+    }
     public class TestLogger<T> : ILogger<T>
     {
         public List<string> Logs { get; } = new List<string>();
@@ -325,5 +360,44 @@ public abstract class IntegrationTestBase : IAsyncLifetime
         {
             Logs.Add(formatter(state, exception));
         }
+    }
+    protected async Task<TResult> RunInTxAsync<TResult>(Func<DbConnection, DbTransaction, Task<TResult>> work)
+    {
+        await using var conn = new MySqlConnection(ConnectionString);   // <- match MariaDB
+        await conn.OpenAsync();
+        await using var tx = await conn.BeginTransactionAsync();
+        var result = await work(conn, tx);
+        await tx.CommitAsync();                 // nothing fancy – commit and dispose
+        return result;
+    }
+    protected async Task<(string Cookie, string AccessToken, string SessionId, DateTime ExpiresUtc)>
+        LoginAndGetAuthAsync(HttpClient client)
+    {
+        var (ip, deviceId, userAgent) = AuthTestHelper.GetDefaultMetadata();
+        var user = await SetupUserAsync();
+        await UserServiceTest.ConfirmUserEmailAsync(user.PersoId);
+
+        var dto = new UserLoginDto
+        {
+            Email = user.Email,
+            Password = "Password123!",
+            CaptchaToken = "mock-captcha-token"
+        };
+        var resp = await client.PostAsJsonAsync("/api/Auth/login", dto);
+        resp.EnsureSuccessStatusCode();
+
+        // extract the raw Set-Cookie header
+        var setCookie = resp.Headers
+            .GetValues("Set-Cookie")
+            .First(h => h.StartsWith("RefreshToken=", StringComparison.OrdinalIgnoreCase));
+
+        // parse the JSON body
+        var json = await resp.Content.ReadFromJsonAsync<JsonDocument>();
+        var root = json.RootElement;
+        var at = root.GetProperty("accessToken").GetString();
+        var sid = root.GetProperty("sessionId").GetString();
+        var exp = DateTime.Parse(root.GetProperty("expiresUtc").GetString());
+
+        return (setCookie, at, sid, exp);
     }
 }

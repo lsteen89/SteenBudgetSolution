@@ -190,6 +190,9 @@ namespace Backend.Application.Services.UserServices
                 _logger.LogWarning("User locked out for email: {Email}", userLoginDto.Email);
             }
         }
+        // NOTE: BELOW CODE IS ONLY USED FOR TESTING PURPOSES
+        // IT WILL BE REMOVED IN PRODUCTION
+        // TODO: Remove this method in production
         public async Task<AuthStatusDto> CheckAuthStatusAsync(ClaimsPrincipal user)
         {
             if (user == null || user.Identity?.IsAuthenticated != true)

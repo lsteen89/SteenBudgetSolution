@@ -1,7 +1,7 @@
 import React from "react";
 import PageContainer from "@components/layout/PageContainer";
 import ContentWrapper from "@components/layout/ContentWrapper";
-import { useAuth } from "@context/AuthProvider";
+import { useAuth } from '@/hooks/auth/useAuth';
 import DashboardBirdBackground from "@assets/Images/Background/DashboardBirdBackground.png";
 import { useNavigate } from 'react-router-dom';
 import useMediaQuery from '@hooks/useMediaQuery'
@@ -14,6 +14,7 @@ import CenteredContainer from "@components/atoms/container/CenteredContainer";
 const Dashboard: React.FC = () => {
 
   const auth = useAuth();
+  const { firstLogin, authenticated, isLoading } = useAuth();
   const isDebugMode = process.env.NODE_ENV === "development";
   const navigate = useNavigate();
   const isMdUp = useMediaQuery('(min-width: 768px)');
@@ -22,10 +23,10 @@ const Dashboard: React.FC = () => {
   const isProtectedRoute = protectedRoutes.includes(location.pathname);
   
   React.useEffect(() => {
-    if (auth?.firstTimeLogin) {
+    if (firstLogin) {
       setIsWizardOpen(true);
     }
-  }, [auth?.firstTimeLogin]);
+  }, [firstLogin]); // Only run when firstLogin changes
 
   // If firstTimeLogin is true, start with wizard open. 
   // Otherwise, it's closed.
@@ -52,7 +53,7 @@ const Dashboard: React.FC = () => {
       <ContentWrapper centerContent className="lg:pt-24 3xl:pt-48 ">
       <DashboardContent
           navigate={navigate}
-          isFirstTimeLogin={auth?.firstTimeLogin}  // pass boolean
+          isFirstTimeLogin={firstLogin}  // pass boolean
           isWizardOpen={isWizardOpen}             // pass current wizard state
           setIsWizardOpen={setIsWizardOpen}       // pass state setter
         />

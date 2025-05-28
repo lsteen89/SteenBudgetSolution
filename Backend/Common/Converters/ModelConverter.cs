@@ -1,4 +1,5 @@
 ﻿using Backend.Application.DTO.User;
+using Backend.Application.Interfaces.UserServices;
 using Backend.Domain.Entities.Auth;
 using Backend.Domain.Entities.User;
 
@@ -33,7 +34,11 @@ namespace Backend.Common.Converters
             {
                 FirstName = userModel.FirstName,
                 LastName = userModel.LastName,
-                Email = userModel.Email
+                Email = userModel.Email,
+                Roles = userModel.Roles, // IMPLEMENT THIS
+                FirstLogin = userModel.FirstLogin,
+                Persoid = userModel.PersoId
+                //LastLogin = userModel.LastLoginUtc     //IMPLEMENT THIS
             };
         }
     }
