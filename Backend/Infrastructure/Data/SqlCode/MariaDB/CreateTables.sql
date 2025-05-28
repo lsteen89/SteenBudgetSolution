@@ -131,22 +131,77 @@ CREATE TABLE IF NOT EXISTS PasswordResetTokens (
     FOREIGN KEY (PersoId) REFERENCES User(PersoId) ON DELETE CASCADE
 );
 
+/* -----------------------------------------------------------
+   REFRESH-TOKENS TABLE (MariaDB 10.2 +)
+   • One row per (user + session) refresh-token
+   • At most ONE “active” row per (Persoid, SessionId)
+   ----------------------------------------------------------- */
+
+DROP TABLE IF EXISTS RefreshTokens;
+
 CREATE TABLE RefreshTokens (
-    ID INT AUTO_INCREMENT PRIMARY KEY,
-    Persoid CHAR(36) NOT NULL,
-    SessionId CHAR(36) NOT NULL,
-    RefreshToken VARCHAR(255) NOT NULL,
-    AccessTokenJti VARCHAR(50) NOT NULL,
-    RefreshTokenExpiryDate  DATETIME NOT NULL,
-    AccessTokenExpiryDate DATETIME NOT NULL,
-    DeviceId VARCHAR(255),
-    UserAgent VARCHAR(255),
-    CreatedBy VARCHAR(50) NOT NULL,
-    CreatedTime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX IDX_RefreshToken (RefreshToken),
-    INDEX IDX_Persoid (Persoid),
-    UNIQUE (Persoid, SessionId)
-);
+    TokenId             CHAR(36)     NOT NULL PRIMARY KEY,
+    Persoid             CHAR(36)     NOT NULL,
+    SessionId           CHAR(36)     NOT NULL,
+    HashedToken         VARCHAR(255) NOT NULL,
+    AccessTokenJti      VARCHAR(50)  NOT NULL,
+
+    ExpiresRollingUtc   DATETIME     NOT NULL,
+    ExpiresAbsoluteUtc  DATETIME     NOT NULL,
+    RevokedUtc          DATETIME      NULL,          -- null ⇒ still usable
+    Status              INT          NOT NULL,       -- 0 = Inactive, 1 = Active, 2 = Revoked
+
+    DeviceId            VARCHAR(255),
+    UserAgent           VARCHAR(255),
+    CreatedUtc          DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    /* ---------- indexes ---------- */
+    UNIQUE KEY UK_Hashed          (HashedToken),
+    INDEX      IX_User            (Persoid),
+    INDEX      IX_RollingExp      (ExpiresRollingUtc),
+    INDEX      IX_AbsExp          (ExpiresAbsoluteUtc),
+
+    /* at most ONE active row per (user, session) */
+    UNIQUE KEY ux_user_session (Persoid, SessionId)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+
+-- 1) Create archive table and trigger for inserting old rows
+CREATE TABLE RefreshTokens_Archive (
+    TokenId             CHAR(36)     NOT NULL,
+    Persoid             CHAR(36)     NOT NULL,
+    SessionId           CHAR(36)     NOT NULL,
+    HashedToken         VARCHAR(255) NOT NULL,
+    AccessTokenJti      VARCHAR(50)  NOT NULL,
+    ExpiresRollingUtc   DATETIME     NOT NULL,
+    ExpiresAbsoluteUtc  DATETIME     NOT NULL,
+    RevokedUtc          DATETIME      NULL,
+    Status              INT          NOT NULL,
+    DeviceId            VARCHAR(255),
+    UserAgent           VARCHAR(255),
+    CreatedUtc          DATETIME     NOT NULL,
+    ArchivedAt          DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_unicode_ci;
+
+-- 2) Archive trigger
+DELIMITER $$
+CREATE TRIGGER trg_RefreshTokens_Archive
+BEFORE UPDATE ON RefreshTokens
+FOR EACH ROW
+BEGIN
+  INSERT INTO RefreshTokens_Archive
+    (TokenId, Persoid, SessionId, HashedToken, AccessTokenJti,
+     ExpiresRollingUtc, ExpiresAbsoluteUtc, RevokedUtc, Status,
+     DeviceId, UserAgent, CreatedUtc, ArchivedAt)
+  VALUES
+    (OLD.TokenId, OLD.Persoid, OLD.SessionId, OLD.HashedToken, OLD.AccessTokenJti,
+     OLD.ExpiresRollingUtc, OLD.ExpiresAbsoluteUtc, OLD.RevokedUtc, OLD.Status,
+     OLD.DeviceId, OLD.UserAgent, OLD.CreatedUtc, NOW());
+END$$
+DELIMITER ;
 
 CREATE TABLE BlacklistedTokens (
     Id INT PRIMARY KEY AUTO_INCREMENT,

@@ -1,4 +1,4 @@
-import axios from '../../axiosConfig';
+import { api } from '@/api/axios';
 import { isValidEmail } from '@utils/validation/emailValidation';
 
 interface ResendVerificationResponse {
@@ -22,7 +22,7 @@ export const resendVerificationEmail = async (
 
 
     try {
-        const response = await axios.post<ResendVerificationResponse>(
+        const response = await api.post<ResendVerificationResponse>(
             '/api/UserManagement/resend-verification',
             { email }
         );

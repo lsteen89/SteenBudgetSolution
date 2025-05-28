@@ -2,9 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom'; // Simplify navigation
 import { useLocation } from "react-router-dom";
 import MobileBird from '@assets/Images/MobileBird.png';
-import { useAuth } from "@context/AuthProvider";
-import UserSideMenu from '../../sideMenu/UserSideMenu'; // Renamed for clarity
-import { XMarkIcon } from '@heroicons/react/24/solid';
+import { useAuth } from "@hooks/auth/useAuth"; // Custom hook for authentication
+import UserSideMenu from '../../sideMenu/UserSideMenu'; 
 
 const MobileMenu: React.FC = () => {
   // State for menus

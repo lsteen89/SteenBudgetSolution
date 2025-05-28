@@ -1,13 +1,13 @@
 ﻿using Backend.Application.Interfaces.WebSockets;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
-using Backend.Infrastructure.Entities.Tokens;
 using Backend.Settings;
 using Microsoft.Extensions.Options;
+using Backend.Infrastructure.Data.Sql.Interfaces.Factories;
+
 
 public class ExpiredTokenScanner : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly IWebSocketManager _webSocketManager;
     private readonly ILogger<ExpiredTokenScanner> _logger;
     private readonly TimeSpan _scanInterval;
     private readonly TimeSpan _heartbeatInterval;
@@ -15,18 +15,18 @@ public class ExpiredTokenScanner : BackgroundService
 
     public ExpiredTokenScanner(
         IServiceScopeFactory scopeFactory,
-        IWebSocketManager webSocketManager,
-        ILogger<ExpiredTokenScanner> logger,
-        IOptions<ExpiredTokenScannerSettings> options)
-
+        IOptions<ExpiredTokenScannerSettings> options,
+        ILogger<ExpiredTokenScanner> logger)
     {
         _scopeFactory = scopeFactory;
-        _webSocketManager = webSocketManager;
         _logger = logger;
         _settings = options.Value;
-        _scanInterval = TimeSpan.FromMinutes(options.Value.ScanIntervalMinutes);
+        _scanInterval = TimeSpan.FromMinutes(_settings.ScanIntervalMinutes);
         _heartbeatInterval = TimeSpan.FromMinutes(_settings.HeartbeatIntervalMinutes);
-        _logger.LogInformation("ExpiredTokenScanner scan interval set to {Interval}, heartbeat interval set to {HeartbeatInterval}.", _scanInterval, _heartbeatInterval);
+
+        _logger.LogInformation(
+          "ExpiredTokenScanner scan interval set to {Interval}, heartbeat interval set to {HeartbeatInterval}.",
+           _scanInterval, _heartbeatInterval);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -38,54 +38,45 @@ public class ExpiredTokenScanner : BackgroundService
         {
             try
             {
-                // Create a new scope for this iteration
-                using (var scope = _scopeFactory.CreateScope())
+                using var scope = _scopeFactory.CreateScope();
+                // resolve everything from this scope:
+                var userSql = scope.ServiceProvider.GetRequiredService<IUserSQLProvider>();
+                var wsMgr = scope.ServiceProvider.GetRequiredService<IWebSocketManager>();
+
+                // pull all expired tokens
+                var expiredTokens = await userSql
+                    .RefreshTokenSqlExecutor
+                    .GetExpiredTokensAsync();
+
+                if (expiredTokens.Any() || _settings.LogWhenNoTokensFound)
+                    _logger.LogInformation("Found {Count} expired tokens.", expiredTokens.Count());
+
+                foreach (var token in expiredTokens)
                 {
-                    var UserSQLProvider = scope.ServiceProvider.GetRequiredService<IUserSQLProvider>();
+                    _logger.LogInformation(
+                      "Force logout for {User}: expired at {When}.",
+                      token.Persoid, token.ExpiresRollingUtc);
 
-                    // Retrieve all expired refresh tokens.
-                    IEnumerable<RefreshJwtTokenEntity> expiredTokens = await UserSQLProvider.RefreshTokenSqlExecutor.GetExpiredTokensAsync();
-
-                    // Log the number of expired tokens found if any
-                    if (expiredTokens.Any() || _settings.LogWhenNoTokensFound)
-                    {
-                        _logger.LogInformation("Found {Count} expired tokens.", expiredTokens.Count());
-                    }
-
-                    foreach (var token in expiredTokens)
-                    {
-                        // Extract the user identifier from the token entity.
-                        string userId = token.Persoid.ToString();
-
-                        _logger.LogInformation($"Force logout for user {userId}: refresh token expired at {token.RefreshTokenExpiryDate}.");
-
-                        // Notify the frontend via WebSocket
-                        await _webSocketManager.ForceLogoutAsync(userId, "session-expired");
-
-                        // Delete the expired token
-                        bool deleteSuccess = await UserSQLProvider.RefreshTokenSqlExecutor.DeleteTokenAsync(token.RefreshToken);
-                        if (!deleteSuccess) 
-                            _logger.LogError($"Failed to delete expired token {token.RefreshToken} for user {userId}.");
-                        
-                        
-                    }
+                    await wsMgr.ForceLogoutAsync(token.Persoid.ToString(), "session-expired");
+                    if (!await userSql.RefreshTokenSqlExecutor.DeleteTokenAsync(token.HashedToken))
+                        _logger.LogError("Failed to delete expired token {Token}.", token.HashedToken);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error occurred while scanning for expired tokens.");
+                _logger.LogError(ex, "Error scanning for expired tokens.");
             }
 
-            // Heartbeat: log every configured interval
             if (DateTime.UtcNow - lastHeartbeat >= _heartbeatInterval)
             {
-                _logger.LogInformation("ExpiredTokenScanner heartbeat: I'm still alive, all is good!");
+                _logger.LogInformation("ExpiredTokenScanner heartbeat: still alive.");
                 lastHeartbeat = DateTime.UtcNow;
             }
-            // Wait for the next scan interval (cancellation aware)
+
             await Task.Delay(_scanInterval, stoppingToken);
         }
 
         _logger.LogInformation("ExpiredTokenScanner stopping.");
     }
 }
+

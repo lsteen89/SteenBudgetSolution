@@ -1,4 +1,4 @@
-import { UserCreationDto } from './userCreation';
+import { UserCreationDto } from './Creation/userCreation';
 
 // Composite type for registration form
 export type UserFormData = UserCreationDto & {

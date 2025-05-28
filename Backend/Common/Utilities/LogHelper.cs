@@ -1,30 +1,38 @@
 ﻿using Backend.Domain.Entities.User;
 using System.Net;
 using System.Net.Sockets;
-using System.Reflection;
+using Backend.Settings;
 using System.Text;
 
 namespace Backend.Common.Utilities
 {
     public static class LogHelper
     {
-        public static string CreateUserLogHelper(UserModel user)
+    public static string CreateUserLogHelper(UserModel user)
+    {
+        var sb = new StringBuilder();
+        foreach (var prop in user.GetType().GetProperties())
         {
-            StringBuilder createUserErrorLog = new StringBuilder();
-            foreach (PropertyInfo property in user.GetType().GetProperties())
+            if (prop.Name == nameof(user.Password))
+                continue;
+
+            var raw = prop.GetValue(user)?.ToString() ?? "NULL";
+            string val = prop.Name switch
             {
-                if (property.Name == "Password")
-                {
-                    continue;
-                }
-                var value = property.GetValue(user, null) ?? "NULL";
-                createUserErrorLog.AppendLine($"{property.Name}: {value}");
-            }
-            return createUserErrorLog.ToString();
+                nameof(user.Email)     when LoggingSettings.MaskSensitiveData 
+                                           => MaskEmail(raw),
+
+            };
+            sb.AppendLine($"{prop.Name}: {val}");
         }
+        return sb.ToString();
+    }
 
         public static string MaskEmail(string email)
         {
+            if (!LoggingSettings.MaskSensitiveData)
+                return email;
+
             var parts = email.Split('@');
             if (parts.Length != 2) return email;
             var localPart = parts[0].Length > 3 ? parts[0].Substring(0, 3) + "****" : parts[0];
@@ -35,6 +43,9 @@ namespace Backend.Common.Utilities
         {
             if (string.IsNullOrWhiteSpace(ipAddress))
                 return "Unknown";
+
+            if (!LoggingSettings.MaskSensitiveData)
+                return ipAddress;
 
             if (IPAddress.TryParse(ipAddress, out var ip))
             {

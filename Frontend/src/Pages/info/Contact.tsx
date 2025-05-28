@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import ReCAPTCHA from 'react-google-recaptcha';
-import { EmailSubmissionDto } from '../../types/emailForm';
+import { EmailSubmissionDto } from '../../types/User/Email/emailForm';
 import { validateContactForm } from '@utils/validation/contactValidation';
 import ContactFormInputField from "@components/atoms/InputField/ContactFormInputField";
 import SubmitButton from '@components/atoms/buttons/SubmitButton'; 

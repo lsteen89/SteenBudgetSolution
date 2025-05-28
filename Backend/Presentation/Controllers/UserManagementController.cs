@@ -5,6 +5,8 @@ using Backend.Application.Interfaces.UserServices;
 using Backend.Common.Converters;
 using System.Security.Claims;
 using Backend.Application.DTO.User;
+using System.Xml.Serialization;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace Backend.Presentation.Controllers
 {
@@ -23,34 +25,20 @@ namespace Backend.Presentation.Controllers
         }
 
         [HttpGet("me")]
-        public async Task<ActionResult<UserDto>> GetCurrentUser()
+        public async Task<ActionResult<UserDto>> GetCurrentUser(CancellationToken ct)
         {
-            _logger.LogDebug("GetCurrentUser:");
-            var claims = User.Claims.Select(c => $"{c.Type}: {c.Value}").ToList();
-            _logger.LogDebug("User claims: {Claims}", string.Join(", ", claims));
+            _logger.LogDebug("GetCurrentUser");
 
-            // Get the email claim directly
-            var userEmailClaim = User.Claims.FirstOrDefault(c => c.Type == "email");
+            var email = User.FindFirstValue(ClaimTypes.Email)     
+                       ?? User.FindFirstValue(JwtRegisteredClaimNames.Email);
 
-            if (userEmailClaim == null || string.IsNullOrEmpty(userEmailClaim.Value))
-            {
-                return Unauthorized(); // Or return a 401
-            }
+            if (string.IsNullOrWhiteSpace(email))
+                return Unauthorized();
 
-            var userEmail = userEmailClaim.Value;
+            var user = await _userService.GetUserByEmailAsync(email);
+            if (user is null) return NotFound();
 
-            // 1. Call the UserManagementService to get the user.
-            var userModel = await _userService.GetUserByEmailAsync(userEmail);
-
-            if (userModel == null)
-            {
-                return NotFound();
-            }
-
-            // 3. Map UserModel to UserDto.
-            var userDto = ModelConverter.ToUserDto(userModel);
-
-            return Ok(userDto);
+            return Ok(ModelConverter.ToUserDto(user));
         }
     }
 }

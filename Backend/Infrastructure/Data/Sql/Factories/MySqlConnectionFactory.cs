@@ -9,13 +9,8 @@ namespace Backend.Infrastructure.Data.Sql.Factories
         private readonly string _connectionString;
 
         public MySqlConnectionFactory(string connectionString)
-        {
-            _connectionString = connectionString;
-        }
+            => _connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
 
-        public DbConnection CreateConnection()
-        {
-            return new MySqlConnection(_connectionString);
-        }
+        public DbConnection CreateConnection() => new MySqlConnection(_connectionString);
     }
 }

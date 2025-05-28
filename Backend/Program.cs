@@ -49,6 +49,12 @@ using Backend.Infrastructure.Data.Sql.Factories;
 using Backend.Infrastructure.Data.Sql.Interfaces.Factories;
 using Backend.Settings;
 using Microsoft.Extensions.Options;
+using System.Configuration;
+using System.Security.Claims;
+using Backend.Infrastructure.Data.Sql.Helpers;
+using Backend.Infrastructure.Data.Sql.Interfaces.Helpers;
+using Microsoft.AspNetCore.Authorization;
+using Backend.Infrastructure.WebSockets;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -73,6 +79,9 @@ var jwtSettingsSection = builder.Configuration.GetSection("JwtSettings");
 // DB settings
 builder.Services.Configure<DatabaseSettings>(builder.Configuration.GetSection("DatabaseSettings"));
 
+builder.Services.Configure<ResendEmailSettings>(builder.Configuration.GetSection("ResendEmailSettings"));
+
+
 #endregion
 
 #region Configuration and Services
@@ -81,8 +90,10 @@ builder.Services.AddDistributedMemoryCache();
 
 // Add environment variables to configuration
 builder.Configuration.AddEnvironmentVariables();
-// bind DatabaseSettings to DatabaseSettings class:
-builder.Services.Configure<DatabaseSettings>(builder.Configuration.GetSection("DatabaseSettings"));
+
+// WEBSOCKET_SECRET configuration
+var secret = builder.Configuration["WEBSOCKET_SECRET"]!;
+builder.Services.Configure<WebSocketSettings>(o => o.Secret = secret);
 
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
@@ -93,16 +104,32 @@ var jwtSettings = new JwtSettings
     Audience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "eBudget",
     SecretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY") ?? "development-fallback-key",
     ExpiryMinutes = jwtSettingsSection.GetValue<int>("ExpiryMinutes", 15),
-    RefreshTokenExpiryDays = jwtSettingsSection.GetValue<int>("RefreshTokenExpiryDays", 30)
+    RefreshTokenExpiryDays = jwtSettingsSection.GetValue<int>("RefreshTokenExpiryDays", 30),
+    RefreshTokenExpiryDaysAbsolute = jwtSettingsSection.GetValue<int>("RefreshTokenExpiryDaysAbsolute", 90)
 };
 
-// Configure Redis Cache
-builder.Services.AddStackExchangeRedisCache(options =>
-{
-    options.Configuration = builder.Configuration.GetSection("Redis")["ConnectionString"];
-    options.InstanceName = "eBudget:"; // Optional prefix for keys
-});
 
+if (builder.Environment.IsProduction())
+{
+    // Configure Redis Cache
+    builder.Services.AddStackExchangeRedisCache(options =>
+    {
+        options.Configuration = builder.Configuration.GetSection("Redis")["ConnectionString"];
+        options.InstanceName = "eBudget:"; // Optional prefix for keys
+    });
+
+    builder.Services.AddScoped<ITokenBlacklistService, TokenBlacklistService>();
+}
+else // Development, Testing, CI
+{
+    builder.Services.AddDistributedMemoryCache();       // in-proc
+
+    // NoopBlacklistService is a mock that simulates a blacklisted state
+    // It implements ITokenBlacklistService and always returns true for IsTokenBlacklistedAsync
+
+    //builder.Services.AddSingleton<ITokenBlacklistService, NoopBlacklistService>();
+    builder.Services.AddScoped<ITokenBlacklistService, TokenBlacklistService>();
+}
 // Add JsonOptions to use camelCase for JSON properties
 builder.Services.AddControllers()
     .AddNewtonsoftJson(options =>
@@ -134,6 +161,7 @@ Log.Logger = new LoggerConfiguration()
 // Log the file path after Serilog is initialized
 Log.Information($"Log file path: {logFilePath}");
 Log.Information("JWT Expiry Minutes: {ExpiryMinutes}", jwtSettings.ExpiryMinutes);
+
 // Set Serilog as the logging provider
 builder.Host.UseSerilog();
 #endregion
@@ -181,6 +209,8 @@ builder.Services.AddScoped<IWizardSqlExecutor, WizardSqlExecutor>();
 // Add the UserSQLProviders to the services
 builder.Services.AddScoped<IUserSQLProvider, UserSQLProvider>();
 builder.Services.AddScoped<IWizardSqlProvider, WizardSqlProvider>();
+// Transaction runner
+builder.Services.AddScoped<ITransactionRunner, TransactionRunner>();
 
 // Recaptcha service
 builder.Services.AddHttpClient<IRecaptchaService, RecaptchaService>();
@@ -202,13 +232,11 @@ builder.Services.AddScoped<IEmailResetPasswordService, EmailResetPasswordService
 builder.Services.AddScoped<ITimeProvider, Backend.Common.Services.TimeProvider>();
 builder.Services.AddScoped<ICookieService, CookieService>();
 
-builder.Services.AddScoped<ITokenBlacklistService, TokenBlacklistService>();
 builder.Services.AddSingleton(jwtSettings);
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
 builder.Services.AddScoped<IEnvironmentService, EnvironmentService>();
-builder.Services.Configure<ResendEmailSettings>(builder.Configuration.GetSection("ResendEmailSettings"));
 
 // Configure EmailService based on environment
 if (builder.Environment.IsDevelopment())
@@ -234,7 +262,7 @@ else
 
 // Add WebSockets and their helpers
 builder.Services.AddSingleton<IWebSocketManager, Backend.Infrastructure.WebSockets.WebSocketManager>();
-builder.Services.AddHostedService(provider => (Backend.Infrastructure.WebSockets.WebSocketManager)provider.GetRequiredService<IWebSocketManager>());
+//builder.Services.AddHostedService(provider => (Backend.Infrastructure.WebSockets.WebSocketManager)provider.GetRequiredService<IWebSocketManager>());
 
 //WizardService
 builder.Services.AddScoped<IWizardService, WizardService>();
@@ -353,67 +381,61 @@ builder.Services.AddCors(options =>
     });
 });
 
-// *** Configure JWT Bearer Authentication ***/
+// *** Configure JWT Bearer Authentication ***
 
+// JwtBearer pipeline
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
-builder.Services.AddAuthentication(options =>
+
+var jwtParams = new TokenValidationParameters
 {
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    ValidateIssuerSigningKey = true,
+    IssuerSigningKey = new SymmetricSecurityKey(
+                                  Encoding.UTF8.GetBytes(
+                                      Environment.GetEnvironmentVariable("JWT_SECRET_KEY")
+                                      ?? "development-fallback-key")),
+    ValidateIssuer = false,
+    ValidateAudience = false,
+    ValidateLifetime = true,
+    ClockSkew = TimeSpan.Zero
+};
+
+builder.Services.AddAuthentication(o =>
+{
+    o.DefaultAuthenticateScheme = "AccessScheme";
+    o.DefaultChallengeScheme = "AccessScheme";
 })
-.AddJwtBearer(options =>
+//  Access + lifetime 
+.AddJwtBearer("AccessScheme", o =>
 {
-    // Disable the default claim type mapping
-    options.MapInboundClaims = false;
-    var jwtKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY");
-    var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
-    var logger = loggerFactory.CreateLogger<Program>();
+    o.TokenValidationParameters = jwtParams;
 
-    if (string.IsNullOrEmpty(jwtKey) || jwtKey == "development-fallback-key")
+    /* blacklist check */
+    o.Events = new JwtBearerEvents
     {
-        logger.LogWarning("JWT_SECRET_KEY is missing or using fallback. Update your environment configuration.");
-    }
-
-    options.TokenValidationParameters = new TokenValidationParameters
-    {
-        ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey ?? "development-fallback-key")),
-        ValidateIssuer = false, 
-        ValidateAudience = false,
-        ValidateLifetime = true,
-        ClockSkew = TimeSpan.Zero // No tolerance for expired tokens
-    };
-
-
-    options.Events = new JwtBearerEvents
-    {
-        OnAuthenticationFailed = context =>
+        OnTokenValidated = async ctx =>
         {
-            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-            logger.LogWarning("Authentication failed: {Error}", context.Exception.Message);
-            return Task.CompletedTask;
-        },
-        OnMessageReceived = context =>
-        {
-            // Retrieve token from the "JWT" cookie
-            if (context.Request.Cookies.TryGetValue("AccessToken", out var token))
+            var repo = ctx.HttpContext.RequestServices.GetRequiredService<ITokenBlacklistService>();
+            var logger = ctx.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+
+            var jti = ctx.Principal?.FindFirstValue(JwtRegisteredClaimNames.Jti);
+            if (jti != null && await repo.IsTokenBlacklistedAsync(jti))
             {
-                context.Token = token;
+                logger.LogWarning("Rejected  JTI {jti} black-listed", jti);
+                ctx.Fail("revoked");
             }
-            return Task.CompletedTask;
-        },
-        OnTokenValidated = context =>
-        {
-            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-            var claims = context.Principal?.Claims.Select(c => $"{c.Type}: {c.Value}").ToList();
-            logger.LogInformation("Token validated. Claims: {Claims}", string.Join(", ", claims));
-            return Task.CompletedTask;
         }
     };
+})
+//  Refresh lifetime 
+.AddJwtBearer("RefreshScheme", o =>
+{
+    var p = jwtParams.Clone(); p.ValidateLifetime = false;
+    o.TokenValidationParameters = p;
 });
 
-
 builder.Services.AddAuthorization();
+// jwtParams needed elsewhere (e.g. token generator)
+builder.Services.AddSingleton(jwtParams);
 
 // Add Health Checks
 builder.Services.AddHealthChecks();
@@ -427,7 +449,7 @@ builder.Services.AddHttpContextAccessor();
 
 // Build the app after service registration
 var app = builder.Build();
-
+app.UseRouting();
 // Apply CORS based on the environment
 if (builder.Environment.IsDevelopment())
 {
@@ -464,9 +486,6 @@ app.UseStaticFiles(new StaticFileOptions
         ctx.Context.Response.Headers.Append("Cache-Control", "public,max-age=3600");
     }
 });
-
-// Enable routing
-app.UseRouting();
 
 // Enable Authentication and Authorization
 app.UseAuthentication();
@@ -505,24 +524,7 @@ app.MapFallbackToFile("index.html");
 
 // *** WebSockets Middleware *** //
 app.UseWebSockets();
-app.UseEndpoints(endpoints =>
-{
-    endpoints.MapControllers();
-
-    endpoints.Map("/ws/auth", async context =>
-    {
-        if (context.WebSockets.IsWebSocketRequest)
-        {
-            var webSocket = await context.WebSockets.AcceptWebSocketAsync();
-            var webSocketManager = context.RequestServices.GetRequiredService<IWebSocketManager>();
-            await webSocketManager.HandleConnectionAsync(webSocket, context);
-        }
-        else
-        {
-            context.Response.StatusCode = 400;
-        }
-    }).RequireAuthorization(); // Ensure that the endpoint requires authorization
-});
+app.Map("/ws/auth", WebSocketEndpoints.Auth);
 
 #endregion
 

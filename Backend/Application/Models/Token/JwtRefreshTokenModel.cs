@@ -1,14 +1,26 @@
-﻿namespace Backend.Application.Models.Token
+﻿using Backend.Infrastructure.Entities.Tokens;
+using System;
+
+namespace Backend.Application.Models.Token
 {
-    public class JwtRefreshTokenModel
-    {
-        public Guid Persoid { get; set; }
-        public string SessionId { get; set; }
-        public string RefreshToken { get; set; }
-        public string AccessTokenJti { get; set; }
-        public DateTime RefreshTokenExpiryDate { get; set; }
-        public DateTime AccessTokenExpiryDate { get; set; }
-        public string DeviceId { get; set; }
-        public string UserAgent { get; set; }
-    }
+    /// <summary>
+    ///  In-memory representation of a refresh-token row.
+    ///  • Sliding window  = <see cref="ExpiresRollingUtc"/>  
+    ///  • Absolute expiry = <see cref="ExpiresAbsoluteUtc"/>
+    /// </summary>
+    public sealed record JwtRefreshTokenModel
+    (
+        Guid TokenId,            // surrogate PK (UUID)
+        Guid Persoid,            // user
+        Guid SessionId,          // device / browser
+        string HashedToken,        // SHA-256 hex (raw value never stored)
+        string AccessTokenJti,      // JTI of the access token that this refresh token is associated with
+        DateTime ExpiresRollingUtc,  // refreshed on every rotation
+        DateTime ExpiresAbsoluteUtc, // hard cap – never extended
+        DateTime? RevokedUtc,        // set when user/device logs out
+        TokenStatus Status,                // 0 = Inactive, 1 = Active, 2 = Revoked
+        string? DeviceId,           // optional telemetry
+        string? UserAgent,          // optional telemetry
+        DateTime CreatedUtc          // audit baseline
+    );
 }

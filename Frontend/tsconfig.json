@@ -36,5 +36,5 @@
 	  "@stores/*": ["stores/*"],	  	  
     }
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*",]
 }

@@ -9,11 +9,23 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Xunit;
 using Backend.Application.DTO.User;
+using Tests.Helpers;
+using Newtonsoft.Json.Linq;
+using Backend.Application.Interfaces.JWT;
+using Serilog;
+using Backend.Domain.Entities.User;
+using Backend.Tests.Fixtures;
+using Backend.Infrastructure.Entities.Tokens;
 
 namespace Backend.Tests.IntegrationTests.Services.AuthService
 {
     public class AuthServiceIntegrationTestsLogout : IntegrationTestBase
     {
+        public AuthServiceIntegrationTestsLogout(DatabaseFixture fixture)
+    : base(fixture)
+        {
+        }
+
         [Fact]
         public async Task LogoutAsync_ValidUser_BlacklistsTokenAndNotifiesWebSocket()
         {
@@ -31,74 +43,65 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             var registeredUser = await SetupUserAsync(userCreationDto);
             await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
 
-            // Act - Login to obtain JWT token
-            var loginResult = await AuthService.LoginAsync(
-                new UserLoginDto
-                {
-                    Email = "test@example.com",
-                    Password = "Password123!",
-                    CaptchaToken = "mock-captcha-token"
-                },
-                ipAddress, deviceId, userAgent
-            );
+            var loginResult = (await AuthService.LoginAsync(new UserLoginDto
+            {
+                Email = "test@example.com",
+                Password = "Password123!",
+                CaptchaToken = "mock-captcha-token"
+            },
+                ipAddress, deviceId, userAgent))
+                            .ShouldBeSuccess();
 
-            var authToken = loginResult.AccessToken;
-            Assert.False(string.IsNullOrEmpty(authToken), "Access token should not be null or empty.");
+            var sessionId = loginResult.Access.SessionId;
+            var accessToken = loginResult.Access.Token;
+            var refreshToken = loginResult.RefreshToken;
 
-            // Validate token before logout
-            var principal = jwtService.ValidateToken(authToken);
-            Assert.NotNull(principal);
-            Assert.True(principal.Identity.IsAuthenticated, "Principal should be authenticated.");
-
-            // Extract claims
-            var jtiClaim = principal.FindFirst(JwtRegisteredClaimNames.Jti);
-            Assert.NotNull(jtiClaim);
-
-            var subClaim = principal.FindFirst(JwtRegisteredClaimNames.Sub)
-                           ?? principal.FindFirst(ClaimTypes.NameIdentifier);
-            Assert.NotNull(subClaim);
+            // Extract the JTI and sub from the freshly issued access token
+            var handler = new JwtSecurityTokenHandler();
+            var jwt = handler.ReadJwtToken(accessToken);
+            var jtiClaim = jwt.Claims.First(c => c.Type == JwtRegisteredClaimNames.Jti);
+            var subClaim = jwt.Claims.First(c => c.Type == JwtRegisteredClaimNames.Sub);
             Assert.Equal(registeredUser.PersoId.ToString(), subClaim.Value);
 
-            var expClaim = principal.FindFirst(JwtRegisteredClaimNames.Exp);
-            Assert.NotNull(expClaim);
+            // Build the expected session key
+            var expectedKey = new UserSessionKey(
+                registeredUser.PersoId,
+                sessionId
+            );
 
-            var expUnix = long.Parse(expClaim.Value);
-            var expiration = DateTimeOffset.FromUnixTimeSeconds(expUnix).UtcDateTime;
-
-            // Create the composite key for this session
-            var targetUserSession = new UserSessionKey(registeredUser.PersoId.ToString(), loginResult.SessionId);
-
-            // Mock WebSocketManager to expect a LOGOUT message with the composite key
+            // Expect a LOGOUT message on that key
             WebSocketManagerMock
-                .Setup(x => x.SendMessageAsync(targetUserSession, "LOGOUT"))
+                .Setup(ws => ws.SendMessageAsync(expectedKey, "LOGOUT"))
                 .Returns(Task.CompletedTask)
                 .Verifiable();
 
-            // Retrieve refresh token from storage
-            var providedHashedToken = TokenGenerator.HashToken(loginResult.RefreshToken);
-            var storedTokens = await UserSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokensAsync(refreshToken: providedHashedToken);
-            var storedToken = storedTokens.FirstOrDefault();
+            // Act - call the new LogoutAsync signature:
+            await AuthService.LogoutAsync(
+                accessToken,
+                refreshToken,
+                sessionId,
+                logoutAllUsers: false
+            );
 
-            // Act - Call LogoutAsync
-            await AuthService.LogoutAsync(principal, authToken, storedToken.RefreshToken, storedToken.SessionId, logoutAll: false);
-
-            // Assert - Token should be blacklisted
-            var isBlacklisted = await TokenBlacklistService.IsTokenBlacklistedAsync(jtiClaim.Value);
+            // Assert – token JTI was blacklisted
+            var isBlacklisted = await TokenBlacklistService
+                                    .IsTokenBlacklistedAsync(jtiClaim.Value);
             Assert.True(isBlacklisted, "Token should be blacklisted after logout.");
 
-            // Assert - WebSocket should be notified using the composite key
+            // Assert – WebSocket was notified
             WebSocketManagerMock.Verify(
-                x => x.SendMessageAsync(
-                    It.Is<UserSessionKey>(k => k.UserId == registeredUser.PersoId.ToString() &&
-                                               k.SessionId == loginResult.SessionId),
+                ws => ws.SendMessageAsync(
+                    It.Is<UserSessionKey>(k =>
+                        k.Persoid == registeredUser.PersoId &&
+                        k.SessionId == sessionId),
                     "LOGOUT"),
                 Times.Once,
                 "A 'LOGOUT' message should be sent via WebSocket."
             );
 
-            // Assert - Token should be invalid after logout
-            var postLogoutPrincipal = jwtService.ValidateToken(authToken);
-            Assert.True(postLogoutPrincipal == null, "Token should be invalid after logout.");
+            // Assert – old token no longer valid
+            var postLogoutPrincipal = jwtService.ValidateToken(accessToken);
+            Assert.Null(postLogoutPrincipal);
         }
 
         [Fact]
@@ -119,52 +122,87 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             var (ipAddress, deviceId, userAgent) = AuthTestHelper.GetDefaultMetadata();
 
             // Act - Login to obtain JWT token
-            var loginResult = await AuthService.LoginAsync(
+            var loginResult = (await AuthService.LoginAsync(
                 new UserLoginDto
                 {
                     Email = "test@example.com",
                     Password = "Password123!",
                     CaptchaToken = "mock-captcha-token"
                 },
-                ipAddress, deviceId, userAgent
-            );
+                ipAddress, deviceId, userAgent))
+                            .ShouldBeSuccess();          // ⬅️ asserts & returns LoginOutcome.Success
 
-            var authToken = loginResult.AccessToken;
+            var sessionId = loginResult.Access.SessionId;
+            var accessToken = loginResult.Access.Token;
+            var refreshToken = loginResult.RefreshToken;
+
+            var authToken = accessToken;
             Assert.False(string.IsNullOrEmpty(authToken), "Access token should not be null or empty.");
 
-            // Arrange - Create invalid principal missing the 'sub' claim.
-            var claims = new[]
-            {
-        new Claim("jti", "dummy-token-id"),
-        new Claim(ClaimTypes.Email, "test@example.com")
-    };
-            var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, "Test"));
 
-            // Fetch refresh token
+            // 1) Prepare the hash
             var providedHashedToken = TokenGenerator.HashToken(loginResult.RefreshToken);
-            var storedTokens = await UserSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokensAsync(refreshToken: providedHashedToken);
-            var storedToken = storedTokens.FirstOrDefault();
 
-            // Act - Call LogoutAsync
-            await AuthService.LogoutAsync(principal, authToken, storedToken.RefreshToken, storedToken.SessionId, logoutAll: false);
+            // 2) Fetch inside a tx and pull out the single token
+            List<RefreshJwtTokenEntity> fetched;
+            var (conn, tx) = await CreateTransactionAsync();
+            try
+            {
+                fetched = (await UserSQLProvider
+                    .RefreshTokenSqlExecutor
+                    .GetRefreshTokensAsync(conn, tx, hashedToken: providedHashedToken))
+                    .ToList();
 
-            // Assert - Verify WebSocketManager.SendMessageAsync was NOT called (using composite key)
-            WebSocketManagerMock.Verify(
-                x => x.SendMessageAsync(It.IsAny<UserSessionKey>(), It.IsAny<string>()),
-                Times.Never
+                await tx.CommitAsync();
+            }
+            finally
+            {
+                await tx.DisposeAsync();
+                await conn.DisposeAsync();
+            }
+
+            var storedToken = fetched.FirstOrDefault();
+            Assert.NotNull(storedToken);   // sanity check
+
+            // 3) Now you can call LogoutAsync, passing along storedToken.SessionId etc.
+            await AuthService.LogoutAsync(
+                accessToken,
+                storedToken.HashedToken,
+                storedToken.SessionId,
+                logoutAllUsers: false
             );
 
-            // Assert - Verify warning log contains the expected message
-            var logger = ServiceProvider.GetRequiredService<ILogger<Backend.Application.Services.AuthService.AuthService>>()
-                         as TestLogger<Backend.Application.Services.AuthService.AuthService>;
-            Assert.NotNull(logger); // Ensure the logger cast succeeded.
-            Assert.Contains(logger.Logs, log => log.Contains("User ID not found in claims"));
+            var expectedKey = new UserSessionKey(
+                registeredUser.PersoId,   // Persoid (Guid)
+                sessionId                 // SessionId (Guid)
+            );
+            // Expect a LOGOUT message on that key
+            WebSocketManagerMock
+           
+               .Setup(ws => ws.SendMessageAsync(expectedKey, "LOGOUT"))
+                .Returns(Task.CompletedTask)
+                .Verifiable();
+
+
+            // Assert – WebSocket was notified
+             WebSocketManagerMock.Verify(
+
+                        ws => ws.SendMessageAsync(
+                        It.Is<UserSessionKey>(k =>
+                        k.Persoid == registeredUser.PersoId &&
+                        k.SessionId == sessionId),
+                        "LOGOUT"),
+            Times.Once);
+
+            // Assert – old token no longer valid
+            var postLogoutPrincipal = jwtService.ValidateToken(accessToken);
+            Assert.Null(postLogoutPrincipal);
         }
 
         [Fact]
         public async Task LoginFromThreeDevices_LogoutBehavior_Test()
         {
-            // Arrange: Setup metadata for three different devices.
+            // Arrange ──────────────────────────────────────────────────────
             var (ipAddress, deviceId1, userAgent1) = AuthTestHelper.GetDefaultMetadata();
             var deviceId2 = "test-device-2";
             var userAgent2 = "Mozilla/5.0 (compatible; TestBrowser/2.0)";
@@ -178,54 +216,41 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
                 CaptchaToken = "valid-captcha-token"
             };
 
-            // Create and confirm the user.
             var registeredUser = await SetupUserAsync();
             await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
 
-            // Act: Log in from three different devices.
-            var result1 = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId1, userAgent1);
-            var result2 = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId2, userAgent2);
-            var result3 = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId3, userAgent3);
+            // Act – three logins ───────────────────────────────────────────
+            var login1 = (await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId1, userAgent1))
+                            .ShouldBeSuccess();
+            var login2 = (await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId2, userAgent2))
+                            .ShouldBeSuccess();
+            var login3 = (await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId3, userAgent3))
+                            .ShouldBeSuccess();
 
-            Assert.True(result1.Success, "First login should succeed.");
-            Assert.True(result2.Success, "Second login should succeed.");
-            Assert.True(result3.Success, "Third login should succeed.");
+            var tokensBefore = await TxGetTokensAsync(registeredUser.PersoId);
+            Assert.Equal(3, tokensBefore.Count);
 
-            // Assert: There should be three refresh token records.
-            var tokensBeforeLogout = await UserSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokensAsync(registeredUser.PersoId);
-            Assert.Equal(3, tokensBeforeLogout.Count());
+            // Validate tokens are all valid...
 
-            // Validate tokens to obtain ClaimsPrincipals for each session.
-            var principal1 = jwtService.ValidateToken(result1.AccessToken);
-            var principal2 = jwtService.ValidateToken(result2.AccessToken);
-            var principal3 = jwtService.ValidateToken(result3.AccessToken);
+            // Step 1 — single‐session logout
+            await AuthService.LogoutAsync(login1.Access.Token, login1.RefreshToken, login1.Access.SessionId, logoutAllUsers: false);
 
-            Assert.NotNull(principal1);
-            Assert.True(principal1.Identity.IsAuthenticated);
-            Assert.NotNull(principal2);
-            Assert.True(principal2.Identity.IsAuthenticated);
-            Assert.NotNull(principal3);
-            Assert.True(principal3.Identity.IsAuthenticated);
+            var afterSingle = await TxGetTokensAsync(registeredUser.PersoId);
+            Assert.Equal(2, afterSingle.Count);
 
-            // Step 1: Single Logout (logoutAll = false) for session 1.
-            await AuthService.LogoutAsync(principal1, result1.AccessToken, result1.RefreshToken, result1.SessionId, logoutAll: false);
+            // Step 2 — global logout from session 2
+            await AuthService.LogoutAsync(login2.Access.Token, login2.RefreshToken, login2.Access.SessionId, logoutAllUsers: true);
 
-            // After logging out session 1, expect 2 refresh tokens remain.
-            var tokensAfterSingleLogout = await UserSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokensAsync(registeredUser.PersoId);
-            Assert.Equal(2, tokensAfterSingleLogout.Count());
+            var afterGlobal = await TxGetTokensAsync(registeredUser.PersoId);
+            Assert.Empty(afterGlobal);
 
-            // Step 2: Global Logout (logoutAll = true) from one of the remaining sessions (e.g., session 2).
-            await AuthService.LogoutAsync(principal2, result2.AccessToken, result2.RefreshToken, result2.SessionId, logoutAll: true);
-
-            // After global logout, expect no refresh tokens remain.
-            var tokensAfterGlobalLogout = await UserSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokensAsync(registeredUser.PersoId);
-            Assert.Empty(tokensAfterGlobalLogout);
-
-            // Verify: WebSocketManager should be called with composite keys for session1 and session2.
+            // Verify WS pushes...
             WebSocketManagerMock.Verify(
-                x => x.SendMessageAsync(
-                    It.Is<UserSessionKey>(k => k.UserId == registeredUser.PersoId.ToString() &&
-                                               (k.SessionId == result1.SessionId || k.SessionId == result2.SessionId)),
+                ws => ws.SendMessageAsync(
+                    It.Is<UserSessionKey>(k =>
+                        k.Persoid == registeredUser.PersoId &&
+                        (k.SessionId == login1.Access.SessionId ||
+                         k.SessionId == login2.Access.SessionId)),
                     "LOGOUT"),
                 Times.Exactly(2));
         }
@@ -233,50 +258,82 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
         [Fact]
         public async Task Logout_SingleAndGlobalLogout_ShouldManageRefreshTokensProperly()
         {
-            // Arrange: Setup metadata for three devices.
-            var (ipAddress, deviceId1, userAgent1) = AuthTestHelper.GetDefaultMetadata();
+            // ── Arrange ──────────────────────────────────────────────────────────
+            var (ipAddress, deviceId1, ua1) = AuthTestHelper.GetDefaultMetadata();
             var deviceId2 = "test-device-2";
-            var userAgent2 = "Mozilla/5.0 (compatible; TestBrowser/2.0)";
+            var ua2 = "Mozilla/5.0 (compatible; TestBrowser/2.0)";
             var deviceId3 = "test-device-3";
-            var userAgent3 = "Mozilla/5.0 (compatible; TestBrowser/3.0)";
+            var ua3 = "Mozilla/5.0 (compatible; TestBrowser/3.0)";
 
-            var userLoginDto = new UserLoginDto
+            var userDto = new UserLoginDto
             {
                 Email = "test@example.com",
                 Password = "Password123!",
-                CaptchaToken = "valid-captcha-token"
+                CaptchaToken = "mock-captcha-token"
             };
 
-            // Set up and confirm the user.
-            var registeredUser = await SetupUserAsync();
-            await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
+            // create & confirm user
+            var registered = await SetupUserAsync();
+            await UserServiceTest.ConfirmUserEmailAsync(registered.PersoId);
 
-            // Act: Log in from three different devices.
-            var result1 = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId1, userAgent1);
-            var result2 = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId2, userAgent2);
-            var result3 = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId3, userAgent3);
-            Assert.True(result1.Success);
-            Assert.True(result2.Success);
-            Assert.True(result3.Success);
+            // ── Act: login from three devices ────────────────────────────────────
+            var login1 = (await AuthService.LoginAsync(userDto, ipAddress, deviceId1, ua1))
+                         .ShouldBeSuccess();
+            var login2 = (await AuthService.LoginAsync(userDto, ipAddress, deviceId2, ua2))
+                         .ShouldBeSuccess();
+            var login3 = (await AuthService.LoginAsync(userDto, ipAddress, deviceId3, ua3))
+                         .ShouldBeSuccess();
 
-            // Assert: Verify three refresh token records exist.
-            var tokensBeforeLogout = await UserSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokensAsync(registeredUser.PersoId);
-            Assert.Equal(3, tokensBeforeLogout.Count());
+            // 1) Assert initial count = 3
+            var before = await TxGetTokensAsync(registered.PersoId);
+            Assert.Equal(3, before.Count);
 
-            // Act: Log out only from session 1 (logoutAll = false)
-            var principal1 = jwtService.ValidateToken(result1.AccessToken);
-            await AuthService.LogoutAsync(principal1, result1.AccessToken, result1.RefreshToken, result1.SessionId, logoutAll: false);
-            var tokensAfterSingleLogout = await UserSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokensAsync(registeredUser.PersoId);
-            Assert.Equal(2, tokensAfterSingleLogout.Count());  // Only session 1's token should be removed
+            // 2) Single‐session logout
+            await AuthService.LogoutAsync(
+                login1.Access.Token, login1.RefreshToken, login1.Access.SessionId, false);
 
-            // Act: Log out globally from one remaining session (logoutAll = true)
-            var principal2 = jwtService.ValidateToken(result2.AccessToken);
-            await AuthService.LogoutAsync(principal2, result2.AccessToken, result2.RefreshToken, result2.SessionId, logoutAll: true);
-            var tokensAfterGlobalLogout = await UserSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokensAsync(registeredUser.PersoId);
-            Assert.Empty(tokensAfterGlobalLogout);  // All tokens should be removed
+            var afterSingle = await TxGetTokensAsync(registered.PersoId);
+            Assert.Equal(2, afterSingle.Count);
 
+            // 3) Global logout from session-2
+            await AuthService.LogoutAsync(
+                login2.Access.Token, login2.RefreshToken, login2.Access.SessionId, true);
+
+            var afterGlobal = await TxGetTokensAsync(registered.PersoId);
+            Assert.Empty(afterGlobal);
+
+            // 4) Token-blacklist sanity
+            Assert.Null(jwtService.ValidateToken(login1.Access.Token));
         }
+        private async Task<(UserModel usr, string AccessToken, string RefreshToken, Guid SessionId, string UserAgent, string DeviceId)> LoginHelperAsync()
+        {
+            var (ip, deviceId, userAgent) = AuthTestHelper.GetDefaultMetadata();
+            var usr = await SetupUserAsync();
+            await UserServiceTest.ConfirmUserEmailAsync(usr.PersoId);
 
+            var login = await AuthService.LoginAsync(
+                new UserLoginDto { Email = usr.Email, Password = "Password123!", CaptchaToken = "tok" },
+                ip, deviceId, userAgent);
 
+            var tokens = login.ShouldBeSuccess();
+            return (usr, tokens.Access.Token, tokens.RefreshToken, tokens.Access.SessionId, userAgent, deviceId);
+        }
+        async Task<List<RefreshJwtTokenEntity>> TxGetTokensAsync(Guid userId)
+        {
+            var (conn, tx) = await CreateTransactionAsync();
+            try
+            {
+                var tokens = (await UserSQLProvider
+                    .RefreshTokenSqlExecutor
+                    .GetRefreshTokensAsync(conn, tx, userId))
+                    .ToList();
+                await tx.CommitAsync();
+                return tokens;
+            }
+            finally
+            {
+                await conn.DisposeAsync();
+            }
+        }
     }
 }

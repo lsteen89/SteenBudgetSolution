@@ -1,19 +1,23 @@
-﻿using System.Collections.Concurrent;
-using System.Net.WebSockets;
-using System.Text;
-using System.IdentityModel.Tokens.Jwt;
+﻿using Backend.Application.Interfaces.JWT;
 using Backend.Application.Interfaces.WebSockets;
-using Microsoft.Extensions.Options;
+using Backend.Common.Interfaces;
 using Backend.Settings;
+using Microsoft.Extensions.Options;
+using StackExchange.Redis;
+using System.Collections.Concurrent;
+using System.Net.WebSockets;
+using System.Security.Claims;
+using System.Text;
 
 
 namespace Backend.Infrastructure.WebSockets
 {
     // Composite key to uniquely identify a user's session.
-    public record UserSessionKey(string UserId, string SessionId);
+    public record UserSessionKey(Guid Persoid, Guid SessionId); 
 
     public record WebSocketConnection(WebSocket Socket, CancellationTokenSource Cts)
     {
+        public ClaimsPrincipal? Principal { get; set; }
         // DateTime for keeping track of last message recieved from FE
         public DateTime LastPongTime { get; set; } = DateTime.UtcNow;
         public int MissedPongCount { get; set; } = 0;
@@ -25,10 +29,12 @@ namespace Backend.Infrastructure.WebSockets
 
     public class WebSocketManager : IWebSocketManager, IHostedService
     {
+        public Task HandleConnectionAsync(WebSocket ws, Guid pid, Guid sid) =>
+            HandleConnectionAsync(ws, new DefaultHttpContext(), pid, sid); 
         // Locks for synchronizing access per user.
         private readonly ConcurrentDictionary<string, SemaphoreSlim> _userLocks = new();
 
-        // Stores connections keyed by composite (UserId, SessionId).
+        // Stores connections keyed by composite (Persoid, SessionId).
         private readonly ConcurrentDictionary<UserSessionKey, WebSocketConnection> _userSockets = new();
 
         // Optional: Map composite key to WebSocket for quick lookup.
@@ -42,14 +48,18 @@ namespace Backend.Infrastructure.WebSockets
         private int _missedPongThreshold;
         private bool _logoutOnStaleConnection;
         private TimeSpan _pongTimeout;
+        private readonly IServiceScopeFactory _scopeFactory;
+        private readonly IWebHostEnvironment _env;
 
-        public WebSocketManager(ILogger<WebSocketManager> logger, IOptions<WebSocketHealthCheckSettings> options)
+        public WebSocketManager(ILogger<WebSocketManager> logger, IOptions<WebSocketHealthCheckSettings> options,IServiceScopeFactory scopeFactory, IWebHostEnvironment env) 
         {
             _logger = logger;
             _settings = options.Value;
             _missedPongThreshold = _settings.MissedPongThreshold;
             _logoutOnStaleConnection = _settings.LogoutOnStaleConnection;
             _pongTimeout = _settings.PongTimeout;
+            _scopeFactory = scopeFactory;
+            _env = env;
         }
 
         // IHostedService Start/Stop implementations.
@@ -102,92 +112,68 @@ namespace Backend.Infrastructure.WebSockets
         }
 
         // Main entry point for new WebSocket connections.
-        public async Task HandleConnectionAsync(WebSocket webSocket, HttpContext context)
+        private async Task HandleConnectionAsync(
+                WebSocket webSocket,
+                HttpContext context,
+                Guid persoid,         
+                Guid sessionId)
         {
-            string userId = null;
             SemaphoreSlim userLock = null;
-            UserSessionKey key = null;
+            UserSessionKey? key = null;
 
             try
             {
-                _logger.LogInformation("HandleConnectionAsync started.");
-                var claims = context.User.Claims.Select(c => $"{c.Type}: {c.Value}").ToList();
-                _logger.LogInformation("User claims: {Claims}", string.Join(", ", claims));
+                _logger.LogInformation("HandleConnectionAsync starting handshake…");
 
-                if (!context.User.Identity.IsAuthenticated)
-                {
-                    _logger.LogWarning("Unauthenticated user. Closing WebSocket.");
-                    await webSocket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Not authenticated", CancellationToken.None);
-                    return;
-                }
+                /* ── 4) success → continue with connection registration ─────────────── */
+                key = new UserSessionKey(persoid, sessionId);
+                _logger.LogInformation("WS OK: user {UserId}, session {SessionId}",
+                                       persoid, sessionId);
 
-                // Extract the user ID from the JWT claims.
-                var userIdClaim = context.User.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub);
-                if (userIdClaim == null)
-                {
-                    _logger.LogWarning("User ID claim missing.");
-                    await webSocket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "User ID missing", CancellationToken.None);
-                    return;
-                }
+                /* ── 5) acquire per-user lock and register / replace connection ─────── */
+                userLock = _userLocks.GetOrAdd(persoid.ToString(),
+                                               _ => new SemaphoreSlim(1, 1));
 
-                // Try to extract sessionId from claims.
-                var sessionIdClaim = context.User.Claims.FirstOrDefault(c => c.Type == "sessionId");
-
-                // If the sessionId claim is missing, attempt to get it from the cookies.
-                if (sessionIdClaim == null)
-                {
-                    sessionIdClaim = new System.Security.Claims.Claim("sessionId", context.Request.Cookies["SessionId"] ?? "");
-                }
-
-                if (string.IsNullOrEmpty(sessionIdClaim?.Value))
-                {
-                    _logger.LogWarning("Session ID claim or cookie missing.");
-                    await webSocket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Session ID missing", CancellationToken.None);
-                    return;
-                }
-
-                userId = userIdClaim.Value;
-                key = new UserSessionKey(userId, sessionIdClaim.Value);
-                _logger.LogInformation($"User {userId} (session: {key.SessionId}) connected.");
-
-                // Acquire a lock for this user.
-                userLock = _userLocks.GetOrAdd(userId, _ => new SemaphoreSlim(1, 1));
+                //await userLock.WaitAsync(context.RequestAborted);
                 await userLock.WaitAsync();
 
                 try
                 {
-                    // If the connection for this session exists, replace it.
                     if (_userSockets.TryGetValue(key, out var oldConn))
                     {
-                        _logger.LogWarning($"Existing connection for user {userId} session {key.SessionId} found, replacing it.");
+                        _logger.LogWarning("Replacing existing connection for {Key}", key);
                         _userSockets.TryRemove(key, out _);
                         oldConn.Cts.Cancel();
                         if (oldConn.Socket.State == WebSocketState.Open)
                         {
                             try
                             {
-                                await oldConn.Socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Replaced by new connection", CancellationToken.None);
+                                await oldConn.Socket.CloseAsync(
+                                    WebSocketCloseStatus.NormalClosure,
+                                    "Replaced by new connection",
+                                    CancellationToken.None);
                             }
-                            catch (Exception ex)
+                            catch
                             {
-                                _logger.LogWarning($"Error closing old socket: {ex.Message}. Aborting.");
                                 oldConn.Socket.Abort();
                             }
                         }
                     }
 
-                    // Add the new connection.
                     var cts = new CancellationTokenSource();
                     var newConn = new WebSocketConnection(webSocket, cts);
                     if (!_userSockets.TryAdd(key, newConn))
                     {
-                        _logger.LogWarning($"Failed to add connection for user {userId} session {key.SessionId}.");
-                        await webSocket.CloseAsync(WebSocketCloseStatus.InternalServerError, "Connection add failure", CancellationToken.None);
+                        _logger.LogWarning("Failed to add connection for {Key}", key);
+                        await webSocket.CloseAsync(
+                            WebSocketCloseStatus.InternalServerError,
+                            "Connection add failure",
+                            CancellationToken.None);
                         return;
                     }
                     _connections.TryAdd(key.ToString(), webSocket);
 
-                    _logger.LogInformation($"WebSocket connection established for user {userId} session {key.SessionId}.");
+                    _logger.LogInformation("WebSocket connection established for {Key}", key);
                     LogActiveConnections();
                     await SendMessageAsync(key, "ready");
                 }
@@ -196,17 +182,21 @@ namespace Backend.Infrastructure.WebSockets
                     userLock.Release();
                 }
 
-                // Start the read loop.
+                // 7) Enter your read-loop…
                 await ReadLoopAsync(key, webSocket);
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error in HandleConnectionAsync for user {userId}: {ex.Message}");
+                _logger.LogError($"Error in HandleConnectionAsync for user {key.Persoid}: {ex.Message}");
             }
             finally
             {
-                _logger.LogDebug($"Cleaning up connection for user {userId} session {key?.SessionId}.");
-                if (key != null)
+                if (key == null)
+                {
+                    _logger.LogDebug("Cleaning up connection that failed before authentication completed.");
+                    
+                }
+                else if (key != null)
                 {
                     await userLock.WaitAsync();
                     try
@@ -214,7 +204,7 @@ namespace Backend.Infrastructure.WebSockets
                         if (_userSockets.TryGetValue(key, out var currentConn) && currentConn.Socket == webSocket)
                         {
                             _userSockets.TryRemove(key, out _);
-                            _logger.LogInformation($"Removed connection for user {userId} session {key.SessionId} during cleanup.");
+                            _logger.LogInformation($"Removed connection for user {key.Persoid} session {key.SessionId} during cleanup.");
                             if (webSocket.State == WebSocketState.Open || webSocket.State == WebSocketState.CloseReceived)
                             {
                                 try
@@ -234,23 +224,31 @@ namespace Backend.Infrastructure.WebSockets
                         _connections.TryRemove(key.ToString(), out _);
                     }
                 }
-                _logger.LogDebug($"Cleanup complete for user {userId} session {key?.SessionId}.");
-                _logger.LogInformation($"WebSocket disonnect for user {userId} session {key.SessionId}.");
+                _logger.LogDebug($"Cleanup complete for user {key?.Persoid} session {key?.SessionId}.");
+                _logger.LogInformation($"WebSocket disonnect for user {key?.Persoid} session {key.SessionId}.");
                 LogActiveConnections();
             }
         }
 
         // Continuously reads messages from the socket.
+
         private async Task ReadLoopAsync(UserSessionKey key, WebSocket socket)
         {
             if (!_userSockets.TryGetValue(key, out var conn))
+            {
+                _logger.LogWarning($"[WS SVR] Attempted to start ReadLoop for non-existent connection: User: {key.Persoid}, Session: {key.SessionId}");
                 return;
+            }
 
             var cts = conn.Cts;
             var token = cts.Token;
+            // Consider making buffer size configurable or dynamically sized if messages can vary wildly
+            // and 1024 is not always optimal, though it's a common starting point.
             var buffer = new byte[1024];
 
             using var ms = new MemoryStream();
+            _logger.LogDebug($"[WS SVR] Starting ReadLoop for User: {key.Persoid}, Session: {key.SessionId}");
+
             try
             {
                 while (socket.State == WebSocketState.Open && !token.IsCancellationRequested)
@@ -262,18 +260,19 @@ namespace Backend.Infrastructure.WebSockets
                     }
                     catch (OperationCanceledException)
                     {
-                        _logger.LogInformation($"Read loop canceled for user {key.UserId} session {key.SessionId}.");
+                        _logger.LogInformation($"[WS SVR] Read loop canceled for User: {key.Persoid}, Session: {key.SessionId}.");
                         break;
                     }
                     catch (WebSocketException ex)
                     {
-                        _logger.LogError($"WebSocket error for user {key.UserId} session {key.SessionId}: {ex.Message}");
+                        // Log the full exception for better diagnostics
+                        _logger.LogError(ex, $"[WS SVR] WebSocket error during read for User: {key.Persoid}, Session: {key.SessionId}. ErrorCode: {ex.WebSocketErrorCode}");
                         break;
                     }
 
                     if (result.CloseStatus.HasValue)
                     {
-                        _logger.LogInformation($"Socket closed for user {key.UserId} session {key.SessionId} with status {result.CloseStatus}.");
+                        _logger.LogInformation($"[WS SVR] Socket close frame received for User: {key.Persoid}, Session: {key.SessionId}. Status: {result.CloseStatus}, Description: \"{result.CloseStatusDescription}\"");
                         break;
                     }
 
@@ -282,63 +281,115 @@ namespace Backend.Infrastructure.WebSockets
                         ms.Write(buffer, 0, result.Count);
                         if (ms.Length > MAX_MESSAGE_SIZE_BYTES)
                         {
-                            _logger.LogWarning($"Message too large from user {key.UserId} session {key.SessionId}. Closing.");
+                            _logger.LogWarning($"[WS SVR] Message too large from User: {key.Persoid}, Session: {key.SessionId} (Size: {ms.Length} bytes > MAX: {MAX_MESSAGE_SIZE_BYTES}). Closing connection.");
                             await socket.CloseAsync(WebSocketCloseStatus.MessageTooBig, "Message too big", token);
                             break;
                         }
+
                         if (result.EndOfMessage)
                         {
-                            var message = Encoding.UTF8.GetString(ms.ToArray());
-                            ms.SetLength(0);
+                            var receivedMessage = Encoding.UTF8.GetString(ms.ToArray());
+                            ms.SetLength(0); // Reset MemoryStream for the next message
 
-                            // Log the raw incoming message
-                            _logger.LogDebug($"Received from user {key.UserId} session {key.SessionId}: {message}");
+                            _logger.LogDebug($"[WS SVR ← RECEIVED FROM User: {key.Persoid}, Session: {key.SessionId}] Body: \"{receivedMessage}\"");
 
-                            // 1) Check for custom commands:
-                            if (message.Equals("logout", StringComparison.OrdinalIgnoreCase))
+                            // --- Handle known client messages ---
+                            if (receivedMessage.Equals("logout", StringComparison.OrdinalIgnoreCase))
                             {
-                                await SendMessageAsync(key, "LOGOUT");
-                                _logger.LogInformation("Sent LOGOUT response.");
+                                const string responseMessage = "LOGOUT";
+                                _logger.LogDebug($"[WS SVR → SENDING TO User: {key.Persoid}, Session: {key.SessionId}] Body: \"{responseMessage}\"");
+                                await SendMessageAsync(key, responseMessage);
+                                // The client is expected to close the connection upon receiving "LOGOUT".
+                                // You might also initiate server-side cleanup or await client closure here.
+                                // The 'continue' assumes the client will close, or another part of your system handles session termination.
                                 continue;
                             }
-                            else if (message.Equals("pong", StringComparison.OrdinalIgnoreCase))
+                            // This pattern is something we should implement for all messages 
+                            // Make readloop orchestrate the handling of messages
+                            // And call the appropriate handler method based on the message type.
+                            else if (receivedMessage.Equals("pong", StringComparison.OrdinalIgnoreCase))
                             {
-                                _logger.LogDebug($"Pong received from user {key.UserId} session {key.SessionId}.");
-                                if (_userSockets.TryGetValue(key, out var currentConn))
+                                HandlePong(key, conn);
+
+                                // Update other connection-specific flags directly on 'conn'
+                                // These are correctly placed here as they are direct consequences of receiving a valid pong.
+                                conn.PendingPing = false;
+                                conn.MissedPongCount = 0;
+
+                                _logger.LogDebug($"[WS SVR] Pong processing complete for User: {key.Persoid}, Session: {key.SessionId}. PendingPing cleared, MissedPongs reset.");
+                                continue;
+                            }
+                            else if (receivedMessage.StartsWith("AUTH-REFRESH ", StringComparison.OrdinalIgnoreCase))
+                            {
+                                var jwtRaw = receivedMessage["AUTH-REFRESH ".Length..];
+                                ClaimsPrincipal? principal = null;
+
+                                using (var scope = _scopeFactory.CreateScope())
                                 {
-                                    currentConn.LastPongTime = DateTime.UtcNow;
-                                    currentConn.PendingPing = false;  // Clear pending status
-                                    currentConn.MissedPongCount = 0;    // Reset missed count
+                                    var jwtSvc = scope.ServiceProvider.GetRequiredService<IJwtService>();
+                                    principal = jwtSvc.ValidateToken(jwtRaw);
+                                }
+
+                                if (principal != null)
+                                {
+                                    conn.Principal = principal; // Update stored claims principal
+                                    _logger.LogInformation($"[WS SVR] AUTH-REFRESH successful for User: {key.Persoid}, Session: {key.SessionId}.");
+                                    const string responseMessage = "reauth-ok";
+                                    _logger.LogDebug($"[WS SVR → SENDING TO User: {key.Persoid}, Session: {key.SessionId}] Body: \"{responseMessage}\"");
+                                    await SendMessageAsync(key, responseMessage);
+                                }
+                                else
+                                {
+                                    _logger.LogWarning($"[WS SVR] AUTH-REFRESH failed for User: {key.Persoid}, Session: {key.SessionId}. Invalid token provided.");
+                                    const string responseMessage = "reauth-fail";
+                                    _logger.LogDebug($"[WS SVR → SENDING TO User: {key.Persoid}, Session: {key.SessionId}] Body: \"{responseMessage}\"");
+                                    await SendMessageAsync(key, responseMessage);
                                 }
                                 continue;
                             }
-                            else if (message.Equals("pong", StringComparison.OrdinalIgnoreCase))
+                            else // --- This is the path for messages not matching "logout", "pong", or "AUTH-REFRESH" ---
                             {
-                                // Optionally update some "LastPongTime" for health checks
-                                _logger.LogDebug($"Pong received from user {key.UserId} session {key.SessionId}.");
-                                if (_userSockets.TryGetValue(key, out var currentConn))
-                                {
-                                    currentConn.LastPongTime = DateTime.UtcNow;
-                                }
-                                continue;
+                                // TODO: Today current code implicitly echoes these messages. Might refactor in future.
+                                var echoResponseMessage = $"Echo: {receivedMessage}";
+                                _logger.LogDebug($"[WS SVR ? UNHANDLED (echoing) FROM User: {key.Persoid}, Session: {key.SessionId}] Body: \"{receivedMessage}\"");
+                                _logger.LogDebug($"[WS SVR → SENDING TO User: {key.Persoid}, Session: {key.SessionId}] Body: \"{echoResponseMessage}\"");
+                                await SendMessageAsync(key, echoResponseMessage);
                             }
-
-                            // 2) Otherwise, handle normal messages
-                            // Example: simple echo or domain-specific logic
-                            await SendMessageAsync(key, $"Echo: {message}");
                         }
                     }
-                    else
+                    else if (result.MessageType == WebSocketMessageType.Binary)
                     {
-                        _logger.LogWarning($"Non-text message received from user {key.UserId} session {key.SessionId}. Closing.");
-                        await socket.CloseAsync(WebSocketCloseStatus.InvalidMessageType, "Only text supported", token);
+                        _logger.LogWarning($"[WS SVR ? UNHANDLED NON-TEXT FROM User: {key.Persoid}, Session: {key.SessionId}] Type: Binary, Size: {result.Count} bytes. Closing connection as binary is not supported.");
+                        await socket.CloseAsync(WebSocketCloseStatus.InvalidMessageType, "Binary messages are not supported.", token);
                         break;
+                    }
+                    // Implicitly, other WebSocketMessageTypes (like Close handled above) are not processed here.
+                }
+            }
+            catch (Exception ex) // Catch-all for any other unexpected errors within the ReadLoop's main try block
+            {
+                _logger.LogError(ex, $"[WS SVR] CRITICAL UNHANDLED EXCEPTION in ReadLoopAsync for User: {key.Persoid}, Session: {key.SessionId}.");
+                // Attempt a graceful close if the socket appears to be in a state where that's possible
+                if (socket.State == WebSocketState.Open || socket.State == WebSocketState.CloseReceived)
+                {
+                    try
+                    {
+                        await socket.CloseAsync(WebSocketCloseStatus.InternalServerError, "Critical server error in read loop.", CancellationToken.None); // Use a non-loop token for final close
+                    }
+                    catch (Exception closeEx)
+                    {
+                        _logger.LogError(closeEx, $"[WS SVR] Exception during CRITICAL error cleanup close for User: {key.Persoid}, Session: {key.SessionId}.");
                     }
                 }
             }
             finally
             {
-                _logger.LogDebug($"Exiting read loop for user {key.UserId} session {key.SessionId}. Socket state: {socket.State}");
+                ms.Dispose();
+                _logger.LogInformation($"[WS SVR] Exiting ReadLoop for User: {key.Persoid}, Session: {key.SessionId}. Final socket state: {socket.State}");
+                // TODO: 
+                // Note: The actual removal of 'key' from '_userSockets' and disposal of 'conn.Cts'
+                // should typically happen in the method that calls ReadLoopAsync (e.g., HandleConnectionAsync)
+                // after ReadLoopAsync completes or throws an exception, to ensure proper cleanup.
             }
         }
 
@@ -350,17 +401,17 @@ namespace Backend.Infrastructure.WebSockets
                 var bytes = Encoding.UTF8.GetBytes(message);
                 try
                 {
-                    _logger.LogDebug($"Sending to user {key.UserId} session {key.SessionId}: {message}");
+                    _logger.LogDebug($"Sending to user {key.Persoid} session {key.SessionId}: {message}");
                     await conn.Socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
                 }
                 catch (WebSocketException ex)
                 {
-                    _logger.LogError($"Send failed for user {key.UserId} session {key.SessionId}: {ex.Message}");
+                    _logger.LogError($"Send failed for user {key.Persoid} session {key.SessionId}: {ex.Message}");
                 }
             }
             else
             {
-                _logger.LogWarning($"Socket not available for user {key.UserId} session {key.SessionId}.");
+                _logger.LogWarning($"Socket not available for user {key.Persoid} session {key.SessionId}.");
             }
         }
 
@@ -389,15 +440,15 @@ namespace Backend.Infrastructure.WebSockets
                     if (DateTime.UtcNow - conn.PingSentTime.Value > _pongTimeout)
                     {
                         conn.MissedPongCount++;
-                        _logger.LogWarning($"User {key.UserId} session {key.SessionId} missed pong count: {conn.MissedPongCount}");
+                        _logger.LogWarning($"User {key.Persoid} session {key.SessionId} missed pong count: {conn.MissedPongCount}");
 
                         // If the missed count exceeds the threshold, close the connection
                         if (conn.MissedPongCount >= _missedPongThreshold)
                         {
-                            _logger.LogWarning($"User {key.UserId} session {key.SessionId} has missed pong {conn.MissedPongCount} times (threshold: {_missedPongThreshold}), closing.");
+                            _logger.LogWarning($"User {key.Persoid} session {key.SessionId} has missed pong {conn.MissedPongCount} times (threshold: {_missedPongThreshold}), closing.");
                             try
                             {
-                                _logger.LogInformation($"[CLOSE] About to call CloseAsync for user {key.UserId} session {key.SessionId}.");
+                                _logger.LogInformation($"[CLOSE] About to call CloseAsync for user {key.Persoid} session {key.SessionId}.");
                                 using var closeCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
                                 await conn.Socket.CloseAsync(WebSocketCloseStatus.EndpointUnavailable, "No pong received", closeCts.Token);
                                 _logger.LogInformation($"[CLOSE] Called CloseAsync. Socket state: {conn.Socket.State}");
@@ -433,11 +484,11 @@ namespace Backend.Infrastructure.WebSockets
                     try
                     {
                         await SendMessageAsync(key, "ping");
-                        _logger.LogDebug($"Ping sent to user {key.UserId} session {key.SessionId}.");
+                        _logger.LogDebug($"Ping sent to user {key.Persoid} session {key.SessionId}.");
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError($"Ping failed for user {key.UserId} session {key.SessionId}: {ex.Message}. Closing.");
+                        _logger.LogError($"Ping failed for user {key.Persoid} session {key.SessionId}: {ex.Message}. Closing.");
                         try
                         {
                             await conn.Socket.CloseAsync(WebSocketCloseStatus.EndpointUnavailable, "Health check failed", CancellationToken.None);
@@ -451,9 +502,9 @@ namespace Backend.Infrastructure.WebSockets
 
 
         // Force logout for all sessions of a given user.
-        public async Task ForceLogoutAsync(string userId, string reason = "session-expired")
+        public async Task ForceLogoutAsync(string Persoid, string reason = "session-expired")
         {
-            var keysToRemove = _userSockets.Keys.Where(k => k.UserId == userId).ToList();
+            var keysToRemove = _userSockets.Keys.Where(k => k.Persoid.ToString() == Persoid).ToList();
             foreach (var key in keysToRemove)
             {
                 if (_userSockets.TryGetValue(key, out var conn) &&
@@ -462,33 +513,34 @@ namespace Backend.Infrastructure.WebSockets
                     var bytes = Encoding.UTF8.GetBytes(reason);
                     try
                     {
-                        _logger.LogInformation($"Force logout: sending to user {key.UserId} session {key.SessionId}: {reason}");
+                        _logger.LogInformation($"Force logout: sending to user {key.Persoid} session {key.SessionId}: {reason}");
                         await conn.Socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
                     }
                     catch (WebSocketException ex)
                     {
-                        _logger.LogError($"Force logout send error for user {key.UserId} session {key.SessionId}: {ex.Message}");
+                        _logger.LogError($"Force logout send error for user {key.Persoid} session {key.SessionId}: {ex.Message}");
                     }
                     try
                     {
                         using var closeCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
                         await conn.Socket.CloseAsync(WebSocketCloseStatus.NormalClosure, reason, closeCts.Token);
-                        _logger.LogInformation($"User {key.UserId} session {key.SessionId} logged out gracefully.");
+                        _logger.LogInformation($"User {key.Persoid} session {key.SessionId} logged out gracefully.");
                     }
                     catch (TaskCanceledException ex)
                     {
-                        _logger.LogWarning($"Graceful logout timed out for user {key.UserId} session {key.SessionId}: {ex.Message}. Aborting.");
+                        _logger.LogWarning($"Graceful logout timed out for user {key.Persoid} session {key.SessionId}: {ex.Message}. Aborting.");
                         conn.Socket.Abort();
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning($"Error during graceful logout for user {key.UserId} session {key.SessionId}: {ex.Message}. Aborting.");
+                        _logger.LogWarning($"Error during graceful logout for user {key.Persoid} session {key.SessionId}: {ex.Message}. Aborting.");
                         conn.Socket.Abort();
                     }
                     _userSockets.TryRemove(key, out _);
                 }
             }
         }
+        #region Helpers
         private void LogActiveConnections()
         {
             // Log the total number of unique connections (by composite key).
@@ -496,9 +548,36 @@ namespace Backend.Infrastructure.WebSockets
 
             // Group connections by user and log counts per user.
             var groupedConnections = _userSockets
-                .GroupBy(kvp => kvp.Key.UserId)
+                .GroupBy(kvp => kvp.Key.Persoid)
                 .ToDictionary(g => g.Key, g => g.Count());
             _logger.LogInformation("Active connections grouped by user: {@GroupedConnections}", groupedConnections);
         }
+        private void HandlePong(UserSessionKey key, WebSocketConnection conn)
+        {
+            DateTime pongReceivedTime;
+
+            // Create a new scope to resolve the scoped ITimeProvider
+            using (var scope = _scopeFactory.CreateScope())
+            {
+                var timeProvider = scope.ServiceProvider.GetRequiredService<ITimeProvider>();
+                pongReceivedTime = timeProvider.UtcNow;
+            }
+            // The 'scope' and the 'timeProvider' instance obtained from it are disposed of here.
+
+            conn.LastPongTime = pongReceivedTime;
+
+            if (conn.PingSentTime.HasValue)
+            {
+                DateTime pingSentAt = conn.PingSentTime.Value;
+                TimeSpan latency = pongReceivedTime - pingSentAt;
+
+                _logger.LogDebug($"[WS SVR] Pong received from User: {key.Persoid}, Session: {key.SessionId}. Latency: {latency.TotalMilliseconds:F0}ms");
+            }
+            else
+            {
+                _logger.LogWarning($"[WS SVR] Pong received from User: {key.Persoid}, Session: {key.SessionId}, but no corresponding PingSentTime was recorded on the connection.");
+            }
+        }
+        #endregion
     }
 }

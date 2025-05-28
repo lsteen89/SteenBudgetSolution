@@ -1,4 +1,4 @@
-import { EmailSubmissionDto } from '../../types/emailForm';
+import { EmailSubmissionDto } from '../../types/User/Email/emailForm';
 
 export const validateContactForm = (formData: Partial<EmailSubmissionDto>): Record<string, string> => {
   const errors: Record<string, string> = {};

@@ -1,5 +1,5 @@
-import axios from '../../axiosConfig';
-import { UserCreationDto } from '../../../types/userCreation';
+import { api } from '@/api/axios';
+import { UserCreationDto } from '../../../types/User/Creation/userCreation';
 
 /**
  * Registers a new user
@@ -9,7 +9,7 @@ import { UserCreationDto } from '../../../types/userCreation';
  */
 export const registerUser = async (user: UserCreationDto): Promise<void> => {
     try {
-        await axios.post('/api/Registration/register', user, {
+        await api.post('/api/Registration/register', user, {
             headers: { 'Content-Type': 'application/json' },
         });
     } catch (error: any) {

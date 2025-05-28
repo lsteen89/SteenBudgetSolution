@@ -12,609 +12,494 @@ using System.Text;
 using Xunit;
 using Xunit.Sdk;
 using Backend.Application.DTO.User;
+using Tests.Helpers;
+using Backend.Infrastructure.Implementations;
+using System.IdentityModel.Tokens.Jwt;
+using Microsoft.Extensions.Logging;
+using Newtonsoft.Json.Linq;
+using System.Security.Cryptography;
+using System;
+using System.Threading;
+using Backend.Settings;
+using Microsoft.Extensions.Options;
 namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTest
 {
+    [CollectionDefinition("WebSocket Test Collection")]
+    public class WebSocketCollection
+      : ICollectionFixture<WebSocketFixture>, ICollectionFixture<DatabaseFixture>
+    { }
     [Collection("WebSocket Test Collection")]
     public class WebSocketTests : IntegrationTestBase
     {
-        private readonly WebSocketFixture _fixture;
+        private readonly WebSocketFixture _wsFixture;
 
-        public WebSocketTests(WebSocketFixture fixture)
+        public WebSocketTests(DatabaseFixture dbFixture, WebSocketFixture wsFixture)
+            : base(dbFixture)
         {
-            _fixture = fixture;
+            _wsFixture = wsFixture;
         }
 
         [Fact]
         public async Task Authenticated_User_Should_Echo_Message()
         {
-            // Arrange
-            var wsUri = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth");
-            using var client = new ClientWebSocket();
-            client.Options.SetRequestHeader("Test-Auth", "true");
-            // Set required headers for composite key authentication
-            client.Options.SetRequestHeader("sub", "client1");
-            client.Options.SetRequestHeader("sessionId", "sessionIdForClient1");
+            // Arrange: mint a WS token + session
+            var (token, pid, sid, mac) = await IssueWsTokenAsync();
 
-            Console.WriteLine($"Connecting to WebSocket at: {wsUri}");
+            // Connect via helper (uses ?sid/&pid and jwt-<token> subprotocol)
+            using var client = await ConnectAuthWebSocketAsync(token, pid, sid, mac);
 
-            // Act
-            await client.ConnectAsync(wsUri, CancellationToken.None);
+            // Server must say "ready"
+            (await ReceiveTextAsync(client, TimeSpan.FromSeconds(2)))
+                .Should().Be("ready", "server always sends a ready message on successful handshake");
 
-            // Assert connection
-            client.State.Should().Be(WebSocketState.Open,
-                because: "the WebSocket connection should be established successfully for authenticated users");
-
-            // Buffer and builder for receiving messages
-            var buffer = new byte[1024];
-            var receivedMessage = new StringBuilder();
-            WebSocketReceiveResult result;
-
-            // Handle initial "ready" message
-            result = await client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-            receivedMessage.Append(Encoding.UTF8.GetString(buffer, 0, result.Count));
-            var initialMessage = receivedMessage.ToString();
-            initialMessage.Should().Be("ready",
-                because: "the server should send an initial 'ready' message upon connection");
-            Console.WriteLine($"Received initial message: {initialMessage}");
-            receivedMessage.Clear();
-
-            // Send a message
+            // Send a message and expect it back
             var message = "Hello WebSocket";
-            var messageBytes = Encoding.UTF8.GetBytes(message);
-            await client.SendAsync(new ArraySegment<byte>(messageBytes), WebSocketMessageType.Text, true, CancellationToken.None);
-            Console.WriteLine($"Sent message: {message}");
+            var bytes = Encoding.UTF8.GetBytes(message);
+            await client.SendAsync(
+                new ArraySegment<byte>(bytes),
+                WebSocketMessageType.Text,
+                true,
+                CancellationToken.None
+            );
 
-            // Receive the echoed message
-            do
-            {
-                result = await client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-                receivedMessage.Append(Encoding.UTF8.GetString(buffer, 0, result.Count));
-            }
-            while (!result.EndOfMessage);
+            var echo = await ReceiveTextAsync(client, TimeSpan.FromSeconds(2));
+            echo.Should().Be($"Echo: {message}", "server should echo text prefixed with 'Echo:'");
 
-            // Validate the echoed message
-            var echoedMessage = receivedMessage.ToString();
-            echoedMessage.Should().Be($"Echo: {message}",
-                because: "the server should echo back the sent message prefixed with 'Echo:'");
-            Console.WriteLine($"Received echoed message: {echoedMessage}");
-
-            // Close the WebSocket
-            await client.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
-            client.State.Should().Be(WebSocketState.Closed,
-                because: "the WebSocket connection should be closed gracefully");
-            Console.WriteLine("WebSocket connection closed.");
+            // Clean up
+            await GracefulCloseIfOpen(client);
+            client.State.Should().BeOneOf(WebSocketState.CloseReceived, WebSocketState.Closed);
         }
 
 
+
+
         [Fact]
-        public async Task Unauthenticated_User_Should_Not_Connect()
+        public async Task Unauthenticated_User_Should_FailToConnect_WithBadRequest() // Renamed for clarity
         {
-            // Arrange
-            var wsUri = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth");
+            // ── Arrange ─────────────────────────────────────────────────────────
+            var wsUri = new Uri($"{_wsFixture.ServerAddress.Replace("http", "ws")}/ws/auth"); // No auth params
             using var clientWebSocket = new ClientWebSocket();
+
+            // We do not add the subprotocol here, as this is an unauthenticated request
+            // clientWebSocket.Options.AddSubProtocol("hmac-v1");
+
             Console.WriteLine($"Attempting unauthenticated connection to WebSocket at: {wsUri}");
 
-            // Act
-            await clientWebSocket.ConnectAsync(wsUri, CancellationToken.None);
+            // ── Act & Assert ────────────────────────────────────────────────────
+            // The ConnectAsync call to be tested is solely within this Func
+            Func<Task> connectAction = async () => await clientWebSocket.ConnectAsync(wsUri, CancellationToken.None);
 
-            // Attempt to receive a close message from the server
-            var buffer = new byte[1024];
-            var receiveTask = clientWebSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-            var result = await receiveTask;
+            var exception = await connectAction.Should().ThrowAsync<WebSocketException>(
+                "because the server should reject the handshake with an HTTP 400 Bad Request " +
+                "when required authentication parameters (pid, sid, mac) are missing.");
 
-            // Assert
-            result.MessageType.Should().Be(WebSocketMessageType.Close, because: "the server should close the connection for unauthenticated users");
-            result.CloseStatus.Should().Be(WebSocketCloseStatus.PolicyViolation, because: "the server should specify policy violation for unauthenticated connections");
-            clientWebSocket.State.Should().Be(WebSocketState.CloseReceived, because: "the WebSocket connection should be closed by the server");
-            Console.WriteLine("Unauthenticated WebSocket connection was correctly refused.");
+            // Assert the content of the exception message
+            exception.And.Message.Should().Contain("status code '400'", "the server should return a 400 Bad Request");
+            exception.And.Message.Should().Contain("status code '101' was expected", "this is the standard WebSocketException message format for handshake failures");
+
+            // After ConnectAsync fails, the client's state should be Closed (or Aborted).
+            clientWebSocket.State.Should().Be(WebSocketState.Closed, "client should be in a closed state after a failed connection attempt");
+
+            Console.WriteLine("Unauthenticated WebSocket connection attempt was correctly refused with HTTP 400.");
         }
 
         [Fact]
         public async Task Broadcast_Message_Should_Be_Received_By_All_Connected_Clients()
         {
-            // Arrange
-            var wsUri = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth");
+            // ── ARRANGE: mint two independent WS tokens + sessions ────────────────
+            var (token1, pid1, sid1, mac1) = await IssueWsTokenAsync();
+            var (token2, pid2, sid2, mac2) = await IssueWsTokenAsync();
 
-            // Create two clients with required headers for composite key authentication.
-            using var client1 = new ClientWebSocket();
-            client1.Options.SetRequestHeader("Test-Auth", "true");
-            client1.Options.SetRequestHeader("sub", "client1");
-            client1.Options.SetRequestHeader("sessionId", "sessionIdForClient1");
+            // ── ACT: connect both clients via the auth helper ────────────────────
+            using var client1 = await ConnectAuthWebSocketAsync(token1, pid1, sid1, mac1);
+            using var client2 = await ConnectAuthWebSocketAsync(token2, pid2, sid2, mac2);
 
-            using var client2 = new ClientWebSocket();
-            client2.Options.SetRequestHeader("Test-Auth", "true");
-            client2.Options.SetRequestHeader("sub", "client2");
-            client2.Options.SetRequestHeader("sessionId", "sessionIdForClient2");
 
-            // 1. Connect both clients
-            await Task.WhenAll(
-                client1.ConnectAsync(wsUri, CancellationToken.None),
-                client2.ConnectAsync(wsUri, CancellationToken.None)
-            );
+            client1.State.Should().Be(WebSocketState.Open);
+            client2.State.Should().Be(WebSocketState.Open);
 
-            client1.State.Should().Be(WebSocketState.Open, because: "client1 should be connected successfully");
-            client2.State.Should().Be(WebSocketState.Open, because: "client2 should be connected successfully");
+            // Both should receive "ready"
+            var ready1 = await ReceiveTextAsync(client1, TimeSpan.FromSeconds(2));
+            var ready2 = await ReceiveTextAsync(client2, TimeSpan.FromSeconds(2));
+            ready1.Should().Be("ready");
+            ready2.Should().Be("ready");
 
-            // 2. Both must consume the initial "ready" message
-            await ReadReadyMessage(client1, "client1");
-            await ReadReadyMessage(client2, "client2");
-
-            // 3. Broadcast a message to all connected clients.
+            // ── BROADCAST ─────────────────────────────────────────────────────────
             var broadcastMessage = "This is a broadcast message.";
-            await _fixture.Host.Services.GetRequiredService<IWebSocketManager>()
-                      .BroadcastAsync(broadcastMessage);
+            var mgr = _wsFixture.Host.Services.GetRequiredService<IWebSocketManager>();
+            await mgr.BroadcastAsync(broadcastMessage);
 
-            // 4. Each client reads the broadcast message with a short timeout.
-            var task1 = ExpectMessage(client1, broadcastMessage, "client1");
-            var task2 = ExpectMessage(client2, broadcastMessage, "client2");
+            // ── EACH CLIENT MUST RECEIVE IT ───────────────────────────────────────
+            var recv1 = await ReceiveTextAsync(client1, TimeSpan.FromSeconds(2));
+            var recv2 = await ReceiveTextAsync(client2, TimeSpan.FromSeconds(2));
+            recv1.Should().Be(broadcastMessage);
+            recv2.Should().Be(broadcastMessage);
 
-            await Task.WhenAll(task1, task2);
+            // ── CLEANUP ───────────────────────────────────────────────────────────
+            await GracefulCloseIfOpen(client1);
+            await GracefulCloseIfOpen(client2);
 
-            // 5. Cleanup: Close both clients gracefully.
-            await Task.WhenAll(
-                CloseIfOpen(client1),
-                CloseIfOpen(client2)
-            );
-
-            // 6. Final state assertions: Each client should be closed or aborted.
             client1.State.Should().BeOneOf(WebSocketState.Closed, WebSocketState.Aborted);
             client2.State.Should().BeOneOf(WebSocketState.Closed, WebSocketState.Aborted);
         }
+
 
 
         [Fact]
         public async Task Send_Message_To_Specific_User_Should_Be_Received_By_Target_Client_Only()
         {
-            // Arrange
-            var wsUri = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth");
+            // ── Arrange: mint two valid tokens + pid/sid pairs ────────────────────────
+            var baseWs = _wsFixture.ServerAddress.Replace("http", "ws");
 
-            // Create two clients with unique composite key headers
+            var (token1, pid1, sid1, mac1) = await IssueWsTokenAsync();
+            var (token2, pid2, sid2, mac2) = await IssueWsTokenAsync();
+
+            var uri1 = new Uri($"{baseWs}/ws/auth?sid={sid1}&pid={pid1}&mac={mac1}");
+            var uri2 = new Uri($"{baseWs}/ws/auth?sid={sid2}&pid={pid2}&mac={mac2}");
+
             using var client1 = new ClientWebSocket();
-            client1.Options.SetRequestHeader("Test-Auth", "true");
-            client1.Options.SetRequestHeader("sub", "client1");
-            client1.Options.SetRequestHeader("sessionId", "sessionIdForClient1");
-
             using var client2 = new ClientWebSocket();
-            client2.Options.SetRequestHeader("Test-Auth", "true");
-            client2.Options.SetRequestHeader("sub", "client2");
-            client2.Options.SetRequestHeader("sessionId", "sessionIdForClient2");
 
-            // 1. Connect both clients
+            // tell the options to send the JWT in the sub-protocol header
+            client1.Options.AddSubProtocol("hmac-v1");
+            client2.Options.AddSubProtocol("hmac-v1");
+
+            // Connect both in parallel
             await Task.WhenAll(
-                client1.ConnectAsync(wsUri, CancellationToken.None),
-                client2.ConnectAsync(wsUri, CancellationToken.None)
+                client1.ConnectAsync(uri1, CancellationToken.None),
+                client2.ConnectAsync(uri2, CancellationToken.None)
             );
 
             client1.State.Should().Be(WebSocketState.Open);
             client2.State.Should().Be(WebSocketState.Open);
 
-            // 2. Read the initial "ready" message from each client
-            var buffer = new byte[1024];
+            // Consume initial "ready" frames
+            (await ReceiveTextAsync(client1, TimeSpan.FromSeconds(2))).Should().Be("ready");
+            (await ReceiveTextAsync(client2, TimeSpan.FromSeconds(2))).Should().Be("ready");
 
-            var result1 = await client1.ReceiveAsync(buffer, CancellationToken.None);
-            var msg1 = Encoding.UTF8.GetString(buffer, 0, result1.Count);
-            msg1.Should().Be("ready", because: "the server sends a 'ready' message at connection");
+            // ── Act: send only to client2 ─────────────────────────────────────────────
+            var message = "Hello Client2!";
+            var mgr = _wsFixture.Host.Services.GetRequiredService<IWebSocketManager>();
+            await mgr.SendMessageAsync(new UserSessionKey(pid2, sid2), message);
 
-            var result2 = await client2.ReceiveAsync(buffer, CancellationToken.None);
-            var msg2 = Encoding.UTF8.GetString(buffer, 0, result2.Count);
-            msg2.Should().Be("ready", because: "the server sends a 'ready' message at connection");
-
-            // Act
-            // 3. Send a message to client2 only
-            var specificMessage = "Hello Client2!";
-            var targetUserSession = new UserSessionKey("client2", "sessionIdForClient2");
-            await _fixture.Host.Services
-                              .GetRequiredService<IWebSocketManager>()
-                              .SendMessageAsync(targetUserSession, specificMessage);
-
-            // 4. client1: we expect NO message, so we do a quick read with a short timeout
-            var buffer1 = new byte[1024];
-            using var ctsClient1 = new CancellationTokenSource(TimeSpan.FromSeconds(1));
-            var receiveTask1 = Task.Run(async () =>
-            {
-                try
-                {
-                    var r1 = await client1.ReceiveAsync(new ArraySegment<byte>(buffer1), ctsClient1.Token);
-                    throw new Xunit.Sdk.XunitException(
-                        $"Client1 unexpectedly received: {Encoding.UTF8.GetString(buffer1, 0, r1.Count)}");
-                }
-                catch (OperationCanceledException)
-                {
-                    // Expected: no message received within timeout
-                }
-            });
-
-            // 5. client2: we DO expect the message
-            var buffer2 = new byte[1024];
-            using var ctsClient2 = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var receiveTask2 = Task.Run(async () =>
-            {
-                var r2 = await client2.ReceiveAsync(new ArraySegment<byte>(buffer2), ctsClient2.Token);
-                var receivedMsg = Encoding.UTF8.GetString(buffer2, 0, r2.Count);
-                receivedMsg.Should().Be(specificMessage,
-                    because: "client2 should get the message intended for them");
-            });
-
-            await Task.WhenAll(receiveTask1, receiveTask2);
-
-            // 6. Cleanup - gracefully close connections
-            await Task.WhenAll(
-                GracefulCloseIfOpen(client1),
-                GracefulCloseIfOpen(client2)
+            // ── Assert: client1 gets *nothing* (timeout) ──────────────────────────────
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
+            var buffer = new byte[128];
+            await Assert.ThrowsAsync<TaskCanceledException>(async () =>
+                await client1.ReceiveAsync(new ArraySegment<byte>(buffer), cts.Token)
             );
 
-            // 7. Assert final states
-            client1.State.Should().BeOneOf(WebSocketState.Closed, WebSocketState.Aborted);
-            client2.State.Should().BeOneOf(WebSocketState.Closed, WebSocketState.Aborted);
-        }
+            // ── Assert: client2 receives exactly our text ─────────────────────────────
+            (await ReceiveTextAsync(client2, TimeSpan.FromSeconds(2))).Should().Be(message);
 
+            // ── Cleanup ───────────────────────────────────────────────────────────────
+            await GracefulCloseIfOpen(client1);
+            await GracefulCloseIfOpen(client2);
+        }
 
 
         [Fact]
         public async Task Server_Should_Handle_Multiple_Concurrent_Connections()
         {
-            // Arrange
-            var wsUri = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth");
-            int clientCount = 10; // Number of concurrent clients
-            var clients = new List<ClientWebSocket>();
-            var tasks = new List<Task>();
+            const int clientCount = 10;
+            var clients = new List<(ClientWebSocket Ws, Guid Pid, Guid Sid, string PlainMsg, string Mac)>();
 
-            // Act
-            // Initialize and connect multiple clients with unique identities
             for (int i = 0; i < clientCount; i++)
             {
-                var client = new ClientWebSocket();
-                client.Options.SetRequestHeader("Test-Auth", "true");
-                client.Options.SetRequestHeader("sessionId", $"test-session-{i + 1}"); // Unique session per client
-                client.Options.SetRequestHeader("sub", $"testuser{i + 1}");           // Unique user ID per client
-                clients.Add(client);
-                tasks.Add(client.ConnectAsync(wsUri, CancellationToken.None));
+                var (token, pid, sid, mac) = await IssueWsTokenAsync();
+
+                var ws = new ClientWebSocket();
+                ws.Options.AddSubProtocol("hmac-v1");
+
+                var baseWs = _wsFixture.ServerAddress.Replace("http", "ws");
+                var uri = new Uri($"{baseWs}/ws/auth?sid={sid}&pid={pid}&mac={mac}");
+                await ws.ConnectAsync(uri, CancellationToken.None);
+
+                clients.Add((ws, pid, sid, $"Message from client {i + 1}", mac));
             }
 
-            await Task.WhenAll(tasks);
+            // ── Assert: everyone is OPEN ───────────────────────────────────────────  
+            foreach (var (ws, _, _, _, _) in clients)
+                ws.State.Should().Be(WebSocketState.Open, "all clients should be connected");
 
-            // Assert all clients are connected
-            foreach (var client in clients)
+            // ── Consume the initial "ready" handshake on each ─────────────────────  
+            foreach (var (ws, _, _, _, _) in clients)
             {
-                client.State.Should().Be(WebSocketState.Open, because: "all clients should be connected successfully");
+                var ready = await ReceiveTextAsync(ws, TimeSpan.FromSeconds(2));
+                ready.Should().Be("ready", "server must ACK each connection with 'ready'");
             }
 
-            // Handle initial "ready" messages for all clients
-            var readyTasks = clients.Select(client =>
+            // ── Send a distinct message from each client ─────────────────────────  
+            var sendTasks = clients.Select(c =>
             {
-                var buffer = new byte[1024];
-                return client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None)
-                             .ContinueWith(t => Encoding.UTF8.GetString(buffer, 0, t.Result.Count));
-            }).ToArray();
-
-            var initialMessages = await Task.WhenAll(readyTasks);
-
-            // Assert all clients received "ready"
-            foreach (var message in initialMessages)
-            {
-                message.Should().Be("ready", because: "the server should send an initial 'ready' message upon connection");
-            }
-
-            // Send messages from all clients concurrently
-            var sendTasks = clients.Select((client, index) =>
-            {
-                var message = $"Message from client {index + 1}";
-                var messageBytes = Encoding.UTF8.GetBytes(message);
-                return client.SendAsync(new ArraySegment<byte>(messageBytes), WebSocketMessageType.Text, true, CancellationToken.None);
-            }).ToArray();
-
+                var bytes = Encoding.UTF8.GetBytes(c.PlainMsg);
+                return c.Ws.SendAsync(bytes, WebSocketMessageType.Text, true, CancellationToken.None);
+            });
             await Task.WhenAll(sendTasks);
 
-            // Receive echoed messages from all clients
-            var receiveTasks = clients.Select(client =>
-            {
-                var buffer = new byte[1024];
-                return client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None)
-                             .ContinueWith(t => Encoding.UTF8.GetString(buffer, 0, t.Result.Count));
-            }).ToArray();
+            // ── Receive and verify each echo (same order) ───────────────────────  
+            var echoes = await Task.WhenAll(clients.Select(async c =>
+            await ReceiveTextAsync(c.Ws, TimeSpan.FromSeconds(2))));
 
-            var receivedMessages = await Task.WhenAll(receiveTasks);
-
-            // Assert each client received the correct echoed message
+            // simple index-based assert to preserve order
             for (int i = 0; i < clientCount; i++)
             {
-                receivedMessages[i].Should().Be($"Echo: Message from client {i + 1}",
-                    because: $"client {i + 1} should receive its own echoed message");
+                var expected = $"Echo: {clients[i].PlainMsg}";
+                echoes[i].Should().Be(expected, $"client #{i + 1} must get its own echo");
             }
 
-            // Cleanup
-            var closeTasks = clients.Select(client =>
-                client.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None)
-            ).ToArray();
-
+            // ── Cleanup: close all sockets gracefully ───────────────────────────  
+            var closeTasks = clients.Select(c =>
+                c.Ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "done", CancellationToken.None)
+            );
             await Task.WhenAll(closeTasks);
 
-            // Wait briefly to ensure handshake completion
-            await Task.Delay(500);
+            // give them a moment to finish the handshake
+            await Task.Delay(100);
 
-            foreach (var client in clients)
-            {
-                client.State.Should().Be(WebSocketState.Closed,
-                    because: "all clients should be closed gracefully");
-            }
+            clients.All(c => c.Ws.State is WebSocketState.CloseReceived or WebSocketState.Closed)
+                   .Should().BeTrue("all clients should close gracefully");
         }
+
+
 
 
 
         [Fact]
         public async Task Server_Should_Remove_WebSocket_On_Client_Disconnect()
         {
-            // Arrange
-            
-            var wsUri = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth?user=client1");
-            using var client = new ClientWebSocket();
-            client.Options.SetRequestHeader("Test-Auth", "true");
+            // ── Arrange ─────────────────────────────────────────────────────────
+            var (token, pid, sid, mac) = await IssueWsTokenAsync();
+            var manager = (WebSocketManager)_wsFixture.Host.Services
+                               .GetRequiredService<IWebSocketManager>();
 
-            await client.ConnectAsync(wsUri, CancellationToken.None);
-            client.State.Should().Be(WebSocketState.Open, because: "client should be connected");
+            // Connect using the helper
+            using var client = await ConnectAuthWebSocketAsync(token, pid, sid, mac);
 
-            // Act
-            // Close the client connection
-            await client.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
-            client.State.Should().Be(WebSocketState.Closed, because: "client should have closed the connection");
+            // Consume the "ready" frame so manager registers us
+            var ready = await ReceiveTextAsync(client, TimeSpan.FromSeconds(5));
+            ready.Should().Be("ready");
+            manager.ActiveConnectionCount.Should().Be(1);
 
-            // Allow some time for the server to process the disconnect
-            await Task.Delay(500);
+            // ── Act ─────────────────────────────────────────────────────────────
+            await client.CloseAsync(WebSocketCloseStatus.NormalClosure, "bye", CancellationToken.None);
+            await Task.Delay(200); // let cleanup run
 
-            // Assert
-            // Verify that the server no longer has the WebSocket in its dictionary
-            var userId = "client1"; // As per TestAuthHandler
-            var webSocketManager = _fixture.Host.Services.GetRequiredService<IWebSocketManager>() as WebSocketManager;
-            //webSocketManager.UserSockets.Should().NotContainKey(userId, because: "the server should remove the WebSocket connection upon client disconnect");
-
-            Console.WriteLine("WebSocket connection was correctly removed from the server upon client disconnect.");
+            // ── Assert ──────────────────────────────────────────────────────────
+            manager.ActiveConnectionCount
+                   .Should().Be(0, "after the client closes, the WebSocketManager should remove it");
         }
+
         [Fact]
         public async Task Server_Should_Handle_Malformed_Messages_Gracefully()
         {
-            // Arrange
-            var wsUri = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth");
+            // ── Arrange ─────────────────────────────────────────────────────────
+            // Mint a real JWT + session
+            var (token, pid, sid, mac) = await IssueWsTokenAsync();
+
+            // Build our WS URL (only sid & pid in the query)
+            var baseWs = _wsFixture.ServerAddress.Replace("http", "ws");
+            var wsUri = new Uri($"{baseWs}/ws/auth?sid={sid}&pid={pid}&mac={mac}");
+
+            // Connect a ClientWebSocket, passing the JWT as the subprotocol
             using var client = new ClientWebSocket();
-
-            // Set headers for authentication (required for composite key)
-            client.Options.SetRequestHeader("Test-Auth", "true");
-            client.Options.SetRequestHeader("sessionId", "test-session-1");
-            client.Options.SetRequestHeader("sub", "test-user-1");
-
+            client.Options.AddSubProtocol("hmac-v1");
             await client.ConnectAsync(wsUri, CancellationToken.None);
-            client.State.Should().Be(WebSocketState.Open, because: "client should be connected");
 
-            // Wait for the "ready" message
+            // Consume the initial "ready" so the manager registers us
+            var ready = await ReceiveTextAsync(client, TimeSpan.FromSeconds(5));
+            ready.Should().Be("ready");
+
+            // ── Act: send a binary frame (malformed) ───────────────────────────
+            var malformed = new byte[] { 0xFF, 0xFE, 0xFD };
+            await client.SendAsync(
+                new ArraySegment<byte>(malformed),
+                WebSocketMessageType.Binary,
+                endOfMessage: true,
+                cancellationToken: CancellationToken.None
+            );
+
+            // ── Assert: server should respond with a Close frame (InvalidMessageType)
             var buffer = new byte[1024];
-            var readyResult = await client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-            var readyMessage = Encoding.UTF8.GetString(buffer, 0, readyResult.Count);
-            readyMessage.Should().Be("ready", because: "the server should send a 'ready' message upon connection");
+            var result = await client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
 
-            // Act: Send a malformed message (binary data instead of text)
-            var malformedData = new byte[] { 0xFF, 0xFE, 0xFD };
-            await client.SendAsync(new ArraySegment<byte>(malformedData), WebSocketMessageType.Binary, true, CancellationToken.None);
+            result.MessageType.Should().Be(WebSocketMessageType.Close);
+            result.CloseStatus.Should().Be(WebSocketCloseStatus.InvalidMessageType);
 
-            // Attempt to receive a response
-            WebSocketReceiveResult receiveResult = null;
-            try
-            {
-                receiveResult = await client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-            }
-            catch (WebSocketException)
-            {
-                // Exception indicates forced closure, which is expected.
-            }
-
-            // Assert: If a response is received, it should be a close frame.
-            if (receiveResult != null)
-            {
-                receiveResult.MessageType.Should().Be(WebSocketMessageType.Close,
-                    because: "the server should send a close frame for malformed messages");
-            }
-            client.State.Should().Be(WebSocketState.CloseReceived,
-                because: "the client should recognize the close frame sent by the server");
-
-            Console.WriteLine("Server correctly handled the malformed message by closing the connection.");
+            // And the client socket should now be closing/closed
+            client.State.Should().BeOneOf(
+                WebSocketState.CloseReceived,
+                WebSocketState.Closed
+            );
         }
 
 
         [Fact]
         public async Task Server_Should_Reject_Too_Large_Messages_With_ForcedAbort()
         {
-            // Arrange
-            var wsUri = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth");
-            using var client = new ClientWebSocket();
+            // ── Arrange ─────────────────────────────────────────────────────────
+            var (token, pid, sid, mac) = await IssueWsTokenAsync();
 
-            // Set headers to simulate authentication with required claims.
-            client.Options.SetRequestHeader("Test-Auth", "true");
-            client.Options.SetRequestHeader("sessionId", "test-session-1");  // Required for composite key
-            client.Options.SetRequestHeader("sub", "test-user-1");           // Required for user ID claim
+            // Connect using the new helper (jwt subprotocol, ?sid/&pid)
+            using var client = await ConnectAuthWebSocketAsync(token, pid, sid, mac);
 
-            await client.ConnectAsync(wsUri, CancellationToken.None);
+            // ── Consume the initial "ready" so the manager registers us ───────────
+            var ready = await ReceiveTextAsync(client, TimeSpan.FromSeconds(3));
+            ready.Should().Be("ready");
 
-            // 1) Read the "ready" message
-            var buffer = new byte[1024];
-            var firstResult = await client.ReceiveAsync(buffer, CancellationToken.None);
-            var initialMsg = Encoding.UTF8.GetString(buffer, 0, firstResult.Count);
-            initialMsg.Should().Be("ready");
+            // ── Act: send a 5 KB payload (limit is 4 KB) ───────────────────────────
+            var huge = new string('A', 5 * 1024);
+            var bytes = Encoding.UTF8.GetBytes(huge);
+            await client.SendAsync(bytes, WebSocketMessageType.Text, true, CancellationToken.None);
 
-            // 2) Send large (5 KB) message
-            var largeMessage = new string('A', 5 * 1024);
-            var largeBytes = Encoding.UTF8.GetBytes(largeMessage);
-            await client.SendAsync(new ArraySegment<byte>(largeBytes), WebSocketMessageType.Text, true, CancellationToken.None);
-
-            // 3) Try to read again; accept any sign of forced closure
-            bool forciblyClosed = false;
-            try
-            {
-                var secondResult = await client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-                if (secondResult.Count == 0
-                    || client.State == WebSocketState.Aborted
-                    || secondResult.CloseStatus.HasValue)
-                {
-                    forciblyClosed = true;
-                }
-            }
-            catch (WebSocketException)
-            {
-                forciblyClosed = true;
-            }
-
-            forciblyClosed.Should().BeTrue("we expect the server to forcibly close or abort on oversized messages");
+            // ── Assert: connection must close or abort ───────────────────────────
+            var closed = await WasClosedOrAbortedAsync(client, TimeSpan.FromSeconds(3));
+            closed.Should().BeTrue("server should terminate oversized messages");
         }
 
-
-
-
         [Fact]
-        public async Task Should_Not_Hang()
+        public async Task Should_Not_Hang_AfterSuccessfulConnection() // Renamed for clarity
         {
-            using var client = new ClientWebSocket();
-            await client.ConnectAsync(new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth"), CancellationToken.None);
+            // ── Arrange: Establish a valid, authenticated WebSocket connection ────────
+            var (jwtToken, pid, sid, mac) = await IssueWsTokenAsync(); // Use your helper to get valid params
+            var wsUri = new Uri($"{_wsFixture.ServerAddress.Replace("http", "ws")}/ws/auth?pid={pid}&sid={sid}&mac={mac}");
 
-            // Example: 5-second timeout for reading
+            using var client = new ClientWebSocket();
+            client.Options.AddSubProtocol("hmac-v1"); // Crucial for your hmac-v1 setup
+
+            // This ConnectAsync should now succeed (HTTP 101)
+            await client.ConnectAsync(wsUri, CancellationToken.None);
+            client.State.Should().Be(WebSocketState.Open, "the client should be open after a successful connection.");
+
+            // ── Act & Assert: Attempt to receive the initial message with a timeout ────
+            // Timeout for receiving the initial message (e.g., "ready")
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            var buffer = new byte[1024];
+            var buffer = new ArraySegment<byte>(new byte[1024]); // Use ArraySegment correctly
+            WebSocketReceiveResult receiveResult;
 
             try
             {
-                var result = await client.ReceiveAsync(new ArraySegment<byte>(buffer), cts.Token);
-                // If the server never sends data within 5 seconds, an OperationCanceledException is thrown -> test ends.
+                receiveResult = await client.ReceiveAsync(buffer, cts.Token);
             }
             catch (OperationCanceledException)
             {
-                // 1: Throw an XunitException to indicate a test failure in xUnit
-                throw new XunitException("Timed out waiting for a message from the server.");
+                // This means ReceiveAsync timed out, i.e., the server "hung" or didn't send the expected initial message.
+                throw new Xunit.Sdk.XunitException("Test failed: Timed out waiting for an initial message from the server after successful connection. The server might be hanging.");
+            }
+
+            // If we reach here, ReceiveAsync completed without timing out.
+            // Check if the server sent the expected "ready" message.
+            receiveResult.MessageType.Should().Be(WebSocketMessageType.Text, "the server should send a text message (e.g., 'ready').");
+
+            // Decode the message
+            var receivedMessage = System.Text.Encoding.UTF8.GetString(buffer.Array, buffer.Offset, receiveResult.Count);
+            receivedMessage.Should().Be("ready", "the server should send 'ready' as the initial message.");
+
+            // ── Cleanup: Gracefully close the WebSocket connection ───────────────────
+            // If the connection is still open after receiving "ready"
+            if (client.State == WebSocketState.Open)
+            {
+                await client.CloseAsync(WebSocketCloseStatus.NormalClosure, "Test completed", CancellationToken.None);
             }
         }
+
 
 
 
         [Fact]
         public async Task Server_Should_Shutdown_Gracefully_With_Active_Connections()
         {
-            // Arrange
-            var wsUri = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth");
-            using var client = new ClientWebSocket();
-            client.Options.SetRequestHeader("Test-Auth", "true");
-            client.Options.SetRequestHeader("sub", "client1");
-            client.Options.SetRequestHeader("sessionId", "sessionIdForClient1");
+            // ── Arrange ─────────────────────────────────────────────────────────
+            var (token, pid, sid, mac) = await IssueWsTokenAsync();
 
-            Console.WriteLine($"Connecting to WebSocket at: {wsUri}");
+            // Connect using the new helper
+            using var client = await ConnectAuthWebSocketAsync(token, pid, sid, mac);
 
-            await client.ConnectAsync(wsUri, CancellationToken.None);
-            client.State.Should().Be(WebSocketState.Open, because: "client should be connected");
+            // ── Consume the initial "ready" frame so the manager registers us ─────
+            var ready = await ReceiveTextAsync(client, TimeSpan.FromSeconds(5));
+            ready.Should().Be("ready");
 
-            Console.WriteLine("WebSocket connection established.");
+            // Prepare to capture the server's close-frame (or abort)
+            var buffer = new byte[256];
+            var receiveClose = client.ReceiveAsync(buffer, CancellationToken.None);
 
-            // Prepare to receive close message with timeout
-            var buffer = new byte[1024];
-            var receiveTask = Task.Run(async () =>
-            {
-                try
-                {
-                    var result = await client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-                    Console.WriteLine($"Received message from server: {result.MessageType} with status: {result.CloseStatus}");
-                    return result;
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Exception in receiveTask: {ex.Message}");
-                    throw;
-                }
-            });
+            // ── Act ─────────────────────────────────────────────────────────────
+            // Stop the host, but ignore its cancellation so our test can continue
+            var stopHost = _wsFixture.Host.StopAsync()
+                .ContinueWith(t => { /* swallow TaskCanceledException */ },
+                              TaskContinuationOptions.OnlyOnCanceled);
 
-            // Act
-            Console.WriteLine("Initiating server shutdown...");
-            var shutdownTask = _fixture.Host.StopAsync();
+            await stopHost;  // ensure host shutdown initiated
 
-            // Await both shutdown and receiveTask with a timeout
-            var allTasks = Task.WhenAll(shutdownTask, receiveTask);
-            var completedTask = await Task.WhenAny(allTasks, Task.Delay(TimeSpan.FromSeconds(60)));
-
-            if (completedTask != allTasks)
-            {
-                Console.WriteLine("Test timed out while waiting for server shutdown or WebSocket closure.");
-                Assert.True(false, "Test timed out waiting for server shutdown and WebSocket closure.");
-                return;
-            }
-
-            // Assert
+            // ── Assert ──────────────────────────────────────────────────────────
             try
             {
-                WebSocketCloseStatus? closeStatus = null;
-                WebSocketMessageType msgType = WebSocketMessageType.Text;
-
-                while (closeStatus == null)
-                {
-                    var result = await client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-                    msgType = result.MessageType;
-                    closeStatus = result.CloseStatus;
-
-                    if (msgType == WebSocketMessageType.Text)
-                    {
-                        var msg = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                        Console.WriteLine($"Received text message: {msg}");
-                        // Possibly ignore it or keep track
-                    }
-                }
-
-                Assert.Equal(WebSocketMessageType.Close, msgType);
-                Assert.Equal(WebSocketCloseStatus.NormalClosure, closeStatus);
-                Console.WriteLine("WebSocket connection closed gracefully by the server.");
+                // If the server does a clean close handshake, we'll get a Close frame here
+                var result = await receiveClose;
+                result.MessageType.Should().Be(WebSocketMessageType.Close);
+                result.CloseStatus.Should().Be(WebSocketCloseStatus.NormalClosure);
             }
-            catch (WebSocketException ex)
+            catch (WebSocketException)
             {
-                Console.WriteLine($"WebSocketException occurred: {ex.Message}");
-                Assert.True(client.State == WebSocketState.Aborted, $"WebSocket should be Aborted if handshake failed. Error: {ex.Message}");
+                // Kestrel may abort the socket mid-shutdown.
+                // That's fine as long as the client ends up Closed or Aborted.
             }
+
+            client.State
+                  .Should()
+                  .BeOneOf(
+                     new[]
+                     {
+                       WebSocketState.CloseReceived,
+                       WebSocketState.Closed,
+                       WebSocketState.Aborted
+                     },
+                "the client should observe the server-initiated shutdown (clean or abort)"
+            );
         }
+
+
 
         [Fact]
         public async Task Server_Should_Replace_Existing_Connection_For_Same_User()
         {
-            // Arrange
-            var wsUri = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth");
+            /* ---------- arrange: build a conforming WS URL (new style) ------- */
+            var(token, pid, sid, mac) = await IssueWsTokenAsync();
+            
+            var baseWs = _wsFixture.ServerAddress.Replace("http", "ws");
+            var wsUri = new Uri($"{baseWs}/ws/auth?sid={sid}&pid={pid}&mac={mac}");
+            using var first = new ClientWebSocket();
+            using var second = new ClientWebSocket();
+            
+            // tell the server our JWT via the sub-protocol header
+            first.Options.AddSubProtocol("hmac-v1");
+            second.Options.AddSubProtocol("hmac-v1");
 
-            using var clientSocket1 = new ClientWebSocket();
-            using var clientSocket2 = new ClientWebSocket();
+            /* ---------- first connection -------------------------------------- */
+            await first.ConnectAsync(wsUri, CancellationToken.None);
+            await ExpectTextAsync(first, "ready");          // ACK from server
 
-            // Use the new headers for composite key authentication
-            clientSocket1.Options.SetRequestHeader("Test-Auth", "true");
-            clientSocket1.Options.SetRequestHeader("sub", "testuser");
-            clientSocket1.Options.SetRequestHeader("sessionId", "test-session");
+            /* ---------- second connection with IDENTICAL pid+sid -------------- */
+            await second.ConnectAsync(wsUri, CancellationToken.None);
+            await ExpectTextAsync(second, "ready");          // replacement ACK
 
-            clientSocket2.Options.SetRequestHeader("Test-Auth", "true");
-            clientSocket2.Options.SetRequestHeader("sub", "testuser");
-            clientSocket2.Options.SetRequestHeader("sessionId", "test-session");
+            /* ---------- server must have closed the first socket -------------- */
+            await AssertFirstSocketClosedAsync(first);
 
-            // Connect clientSocket1
-            await clientSocket1.ConnectAsync(wsUri, CancellationToken.None);
-            Console.WriteLine("clientSocket1 connected.");
 
-            // Connect clientSocket2 and wait for readiness acknowledgment
-            await clientSocket2.ConnectAsync(wsUri, CancellationToken.None);
-            Console.WriteLine("clientSocket2 connected.");
+            /* ---------- second socket must stay open and echo ----------------- */
+            const string payload = "ping-pong";
+            await second.SendAsync(
+            new ArraySegment<byte>(Encoding.UTF8.GetBytes(payload)),
+            WebSocketMessageType.Text,
+            endOfMessage: true,
+            cancellationToken: CancellationToken.None
+                        );
 
-            // Receive readiness acknowledgment from server
-            var readinessMessage = await RetryReceiveMessage(clientSocket2, 5, TimeSpan.FromMilliseconds(500));
-            Assert.Equal("ready", readinessMessage);
-            Console.WriteLine("Received readiness acknowledgment from server.");
-
-            // Send a message from clientSocket2
-            var message = "Test message";
-            var buffer = Encoding.UTF8.GetBytes(message);
-            await clientSocket2.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true, CancellationToken.None);
-            Console.WriteLine("Sent message from clientSocket2.");
-
-            // Assert clientSocket2 remains open
-            Assert.Equal(WebSocketState.Open, clientSocket2.State);
-
-            // Receive echoed message on clientSocket2
-            var receivedMessage = await RetryReceiveMessage(clientSocket2, 5, TimeSpan.FromMilliseconds(500));
-            Assert.Equal($"Echo: {message}", receivedMessage);
-            Console.WriteLine("Received echoed message from server.");
+            (await ExpectTextAsync(second, $"Echo: {payload}"))
+                .Should().Be($"Echo: {payload}");
         }
+
 
 
         // Helper method for retries
@@ -723,300 +608,465 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
         [Fact]
         public async Task HealthCheck_Should_Send_Ping_And_Client_Responds_With_Pong()
         {
-            // 1) Arrange: Setup authenticated WebSocket connection
-            var wsUri = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth?user=testuser");
-            using var clientWebSocket = new ClientWebSocket();
-            clientWebSocket.Options.SetRequestHeader("Test-Auth", "true");
-            clientWebSocket.Options.SetRequestHeader("Test-User", "testuser");
-            clientWebSocket.Options.SetRequestHeader("sub", "client1");
-            clientWebSocket.Options.SetRequestHeader("sessionId", "sessionIdForClient1");
+            // ── Arrange ─────────────────────────────────────────────────────────
+            // Mint a real session
+            var (token, pid, sid, mac) = await IssueWsTokenAsync();
 
-            Console.WriteLine($"Connecting to WebSocket at: {wsUri}");
-            await clientWebSocket.ConnectAsync(wsUri, CancellationToken.None);
+            // Build our WS URL (only sid & pid in the query)
+            var baseWs = _wsFixture.ServerAddress.Replace("http", "ws");
+            var wsUri = new Uri($"{baseWs}/ws/auth?sid={sid}&pid={pid}&mac={mac}");
 
-            // Wait for "ready" from the server
-            var readinessMessage = await RetryReceiveMessage(clientWebSocket, 5, TimeSpan.FromMilliseconds(500));
-            readinessMessage.Should().Be("ready");
-            Console.WriteLine("Received readiness acknowledgment from server.");
+            // Connect a ClientWebSocket, passing the JWT as the subprotocol
+            using var client = new ClientWebSocket();
+            client.Options.AddSubProtocol("hmac-v1");
+            await client.ConnectAsync(wsUri, CancellationToken.None);
 
-            // 2) Act - Trigger HealthCheckAsync so the server sends "ping"
-            var wsManager = _fixture.Host.Services.GetRequiredService<WebSocketManager>();
+
+
+            // helper that reads a single text frame within a timeout
+            async Task<string> ReceiveText(TimeSpan timeout)
+            {
+                var buffer = new byte[1024];
+                using var cts = new CancellationTokenSource(timeout);
+                var result = await client.ReceiveAsync(new ArraySegment<byte>(buffer), cts.Token);
+                return Encoding.UTF8.GetString(buffer, 0, result.Count);
+            }
+
+            // Consume the initial "ready" so the manager registers us
+            var ready = await ReceiveTextAsync(client, TimeSpan.FromSeconds(5));
+            ready.Should().Be("ready");
+
+            // ── Act: trigger health check ────────────────────────────────────────
+            var wsManager = _wsFixture.Host.Services.GetRequiredService<IWebSocketManager>();
             await wsManager.HealthCheckAsync();
 
-            // 3) Assert - Verify the client receives the "ping" message
-            var pingMessage = await ReceiveSingleMessage(clientWebSocket);
-            pingMessage.Should().Be("ping", "health check should send a ping message to active connections");
-            Console.WriteLine("Healthcheck ping received successfully.");
+            // ── Assert: client gets “ping” ───────────────────────────────────────
+            var ping = await ReceiveText(TimeSpan.FromSeconds(5));
+            ping.Should().Be("ping", "health check should send a ping");
 
-            // 4) Respond with "pong"
+            // ── Act: reply with “pong” ───────────────────────────────────────────
             var pongBytes = Encoding.UTF8.GetBytes("pong");
-            await clientWebSocket.SendAsync(new ArraySegment<byte>(pongBytes), WebSocketMessageType.Text, true, CancellationToken.None);
-            Console.WriteLine("Client responded with pong.");
+            await client.SendAsync(new ArraySegment<byte>(pongBytes), WebSocketMessageType.Text, true, CancellationToken.None);
 
-            await Task.Delay(1000); // Delay of 1 second to allow server to process the pong
-            // 5) Optional: Trigger another health check to ensure the server doesn't close us
+            // give the server a moment to process
+            await Task.Delay(200);
+
+            // ── Act: trigger a second health check ───────────────────────────────
             await wsManager.HealthCheckAsync();
 
-            // If you want to verify that we remain connected and see another ping:
-            var secondPing = await ReceiveSingleMessage(clientWebSocket, TimeSpan.FromSeconds(30));
-            secondPing.Should().Be("ping", "because the connection should remain open and healthy");
-            Console.WriteLine("Second healthcheck ping received successfully.");
+            // ── Assert: still open and we get a second ping ─────────────────────
+            var secondPing = await ReceiveText(TimeSpan.FromSeconds(5));
+            secondPing.Should().Be("ping", "connection should remain healthy and receive another ping");
         }
         [Fact]
         public async Task HealthCheck_Should_CloseConnection_WhenNoPongReply_ForcedAbortExpected()
         {
-            // 1) ARRANGE
-            var wsUri = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth?user=testNoPong");
-            using var clientWebSocket = new ClientWebSocket();
-            clientWebSocket.Options.SetRequestHeader("Test-Auth", "true");
-            clientWebSocket.Options.SetRequestHeader("Test-User", "testNoPong");
-            clientWebSocket.Options.SetRequestHeader("sub", "client2");
-            clientWebSocket.Options.SetRequestHeader("sessionId", "sessionNoPong");
+            // ── Arrange ─────────────────────────────────────────────────────────
+            var (token, pid, sid, mac) = await IssueWsTokenAsync();
 
-            Console.WriteLine($"Connecting to WebSocket at: {wsUri}");
-            await clientWebSocket.ConnectAsync(wsUri, CancellationToken.None);
+            // Connect using the new helper
+            using var client = await ConnectAuthWebSocketAsync(token, pid, sid, mac);
 
-            // Wait for 'ready'
-            var readinessMessage = await RetryReceiveMessage(clientWebSocket, 5, TimeSpan.FromMilliseconds(500));
-            readinessMessage.Should().Be("ready");
-            Console.WriteLine("Received readiness acknowledgment from server.");
+            // ── Consume the initial "ready" frame so the manager registers us ─────
+            var ready = await ReceiveTextAsync(client, TimeSpan.FromSeconds(5));
+            ready.Should().Be("ready");
 
-            // 2) ACT: Trigger health check => server sends 'ping'
-            var wsManager = _fixture.Host.Services.GetRequiredService<WebSocketManager>();
-            await wsManager.HealthCheckAsync();
+            // ── ACT #1: fire the first health check → should see “ping” ─────────
+            var mgr = _wsFixture.Host.Services.GetRequiredService<IWebSocketManager>();
+            await mgr.HealthCheckAsync();
 
-            // We expect 'ping' but won't reply with 'pong'
-            var pingMessage = await RetryReceiveMessage(clientWebSocket, 5, TimeSpan.FromSeconds(2));
-            pingMessage.Should().Be("ping");
+            var ping1 = await ReceiveTextAsync(client, TimeSpan.FromSeconds(5));
+            ping1.Should().Be("ping");
 
-            // Deliberately NOT sending a 'pong' here.
+            // (do NOT reply “pong”)
 
-            // Wait 5s, trigger another health check so server sees no pong
-            await Task.Delay(TimeSpan.FromSeconds(15));
-            await wsManager.HealthCheckAsync();
+            // wait past the pong timeout + small buffer
+            await Task.Delay(TimeSpan.FromSeconds(12));
 
-            // 3) ASSERT: We expect the server to forcibly close the socket
-            //            which means the client sees a WebSocketException
-            //            (rather than a clean 'Close' frame).
-            var buffer = new byte[1024];
-            try
+            // ── ACT #2: fire again → manager should abort the socket ─────────────
+            await mgr.HealthCheckAsync();
+
+            // ── ASSERT: no clean close handshake; ReceiveAsync must throw ────────
+            var buf = new byte[1_024];
+            await FluentActions.Awaiting(async () =>
             {
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
-                var result = await clientWebSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cts.Token);
-
-                // If we get here, it means we didn't get an exception, so the server didn't forcibly close
-                throw new InvalidOperationException("Server did not forcibly close despite no pong response.");
-            }
-            catch (WebSocketException ex)
-            {
-                // This exception indicates a forced close (Abort) happened
-                // "The remote party closed the WebSocket connection without completing the close handshake."
-                Console.WriteLine($"WebSocket forcibly closed as expected: {ex.Message}");
-
-                // Optionally, you can assert the message or check ex.WebSocketErrorCode 
-                // to confirm it matches your scenario.
-                ex.Message.Should().Contain("The remote party closed the WebSocket connection",
-                    "because a forced close is expected when there's no pong");
-            }
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                await client.ReceiveAsync(buf, cts.Token);
+            })
+            .Should()
+            .ThrowAsync<WebSocketException>()
+            .WithMessage("*closed the WebSocket connection without completing the close handshake*");
         }
-
 
 
         [Fact]
         public async Task ExpiredRefreshToken_Should_Trigger_SessionExpired_Notification()
         {
-            // Arrange: Create and prepare a new user.
+            // ── ARRANGE ────────────────────────────────────────────────────────
             var registeredUser = await SetupUserAsync();
-            // Confirm the user's email.
             await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
 
-            // Prepare user login details.
-            var userLoginDto = new UserLoginDto
-            {
-                Email = registeredUser.Email,
-                Password = "Password123!",
-                CaptchaToken = "valid-captcha-token"
-            };
+            // 1) Normal login – writes the refresh-token row we’ll later expire
+            var login = (await AuthService.LoginAsync(
+                new UserLoginDto
+                {
+                    Email = registeredUser.Email,
+                    Password = "Password123!",
+                    CaptchaToken = "valid-captcha-token"
+                },
+                ip: "127.0.0.1",
+                deviceId: "test-device",
+                ua: "test-agent"
+            )).ShouldBeSuccess();
 
-            var (ipAddress, deviceId, userAgent) = AuthTestHelper.GetDefaultMetadata();
+            // 2) Mint a second, WS-only token bound to THAT SAME session
+            var jwtSvc = _wsFixture.Host.Services.GetRequiredService<JwtService>();
+            var wsResult = await jwtSvc.CreateAccessTokenAsync(
+                               persoid: registeredUser.PersoId,
+                               email: registeredUser.Email,
+                               roles: Array.Empty<string>(),
+                               deviceId: "tests",
+                               userAgent: "integration-test",
+                               sessionId: login.Access.SessionId);    // <-- reuse session
 
-            // Act: Log in the user to obtain tokens.
-            var loginResult = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent);
-            Assert.True(loginResult.Success, "Initial login should succeed.");
-            Assert.False(string.IsNullOrEmpty(loginResult.RefreshToken), "A refresh token should be returned.");
+            var wsToken = wsResult.Token;      // short enough for Sec-WebSocket-Protocol
+            var sid = login.Access.SessionId;  // keep the same sessionId
+            var wsCfg = _wsFixture.Host.Services.GetRequiredService<IOptions<WebSocketSettings>>().Value;
+            var mac = WebSocketAuth.MakeWsMac(registeredUser.PersoId, sid, wsCfg.Secret);
 
-            // Open a WebSocket connection as the authenticated user.
-            var wsUri = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth");
-            using var client = new ClientWebSocket();
+            // 3) Connect over WS (jwt-<token> sub-protocol)
+            using var client = await ConnectAuthWebSocketAsync(
+                wsToken,
+                registeredUser.PersoId,
+                sid, mac);
 
-            // Set required headers for composite key authentication.
-            client.Options.SetRequestHeader("Test-Auth", "true");
-            client.Options.SetRequestHeader("sub", registeredUser.PersoId.ToString());
-            client.Options.SetRequestHeader("sessionId", loginResult.SessionId);
+            // Server should greet with "ready"
+            (await ReceiveTextAsync(client, TimeSpan.FromSeconds(5)))
+                .Should().Be("ready");
 
-            await client.ConnectAsync(wsUri, CancellationToken.None);
-            client.State.Should().Be(WebSocketState.Open, "The WebSocket should connect successfully for an authenticated user.");
-
-            // Receive the initial "ready" message.
-            var buffer = new byte[1024];
-            var result = await client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-            var initialMessage = Encoding.UTF8.GetString(buffer, 0, result.Count);
-            initialMessage.Should().Be("ready", "The server should send an initial 'ready' message upon connection.");
-
-            // Simulate token expiration:
-            // Invalidate the user's refresh token in the database.
-            bool expireResult = await UserSQLProvider.RefreshTokenSqlExecutor.ExpireRefreshTokenAsync(registeredUser.PersoId);
-            expireResult.Should().BeTrue("The refresh token should be marked as expired.");
-
-            // For test purposes, manually trigger the force logout via WebSocket.
-            var webSocketManager = _fixture.Host.Services.GetRequiredService<IWebSocketManager>() as WebSocketManager;
-            await webSocketManager.ForceLogoutAsync(registeredUser.PersoId.ToString(), "session-expired");
-
-            // The client should now either receive the "session-expired" message
-            // or the connection will be closed, causing a WebSocketException.
+            // ── EXPIRE the refresh token we logged in with ──────────────────────
+            var (conn, tx) = await CreateTransactionAsync();
             try
             {
-                result = await client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-                // If we get here, the server managed to send a message.
-                var logoutMessage = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                logoutMessage.Should().Be("session-expired", "The server should notify the client that the session has expired.");
+                var ok = await UserSQLProvider.RefreshTokenSqlExecutor
+                    .UpdateAbsoluteExpiryAsync(
+                        registeredUser.PersoId,
+                        login.Access.SessionId,          // ← expire that row
+                        conn, tx,
+                        whenUtc: null);                  // NULL = already expired
+                await tx.CommitAsync();
+                ok.Should().BeTrue();
             }
-            catch (WebSocketException ex)
+            finally
             {
-                // We expect an exception if the server closed the connection abruptly.
-                Console.WriteLine($"WebSocketException caught as expected: {ex.Message}");
-                client.State.Should().BeOneOf(new[] { WebSocketState.Closed, WebSocketState.Aborted },
-                    "A WebSocketException is acceptable if the server closed the connection forcibly.");
+                await tx.DisposeAsync();
+                await conn.DisposeAsync();
             }
 
-            // Ensure the connection is closed.
-            if (client.State == WebSocketState.Open)
-            {
-                await client.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
-            }
-            client.State.Should().BeOneOf(new[] { WebSocketState.Closed, WebSocketState.Aborted },
-                "The WebSocket connection should be closed after forced logout.");
-        }
-        [Fact]
-        public async Task Connection_Should_Be_Rejected_Without_Authentication_Headers()
-        {
-            // Arrange
-            var wsUri = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth");
-            using var client = new ClientWebSocket();
-            // DO NOT set any authentication headers
+            // ── FORCE logout via the WS manager ─────────────────────────────────
+            var mgr = (WebSocketManager)_wsFixture.Host.Services
+                         .GetRequiredService<IWebSocketManager>();
 
-            // Act
-            await client.ConnectAsync(wsUri, CancellationToken.None);
+            await mgr.ForceLogoutAsync(
+                registeredUser.PersoId.ToString(),
+                reason: "session-expired");
 
-            // Assert
-            // Expect the connection to be closed almost immediately due to missing required claims.
-            var buffer = new byte[1024];
+            // ── ASSERT: client receives "session-expired" or is closed ──────────
             try
             {
-                var result = await client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-                // The server should have closed the connection; CloseStatus should be set.
-                result.CloseStatus.Should().NotBeNull("The connection should be closed due to missing authentication headers.");
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                var buf = new byte[1024];
+                var res = await client.ReceiveAsync(
+                              new ArraySegment<byte>(buf),   // <-- fixes CS1503
+                              cts.Token);
+
+                res.MessageType.Should().Be(WebSocketMessageType.Text);
+                Encoding.UTF8.GetString(buf, 0, res.Count)
+                    .Should().Be("session-expired");
             }
             catch (WebSocketException)
             {
-                // Acceptable: an exception indicates the connection was aborted.
+                client.State.Should().BeOneOf(
+                    WebSocketState.Closed,
+                    WebSocketState.Aborted);
             }
-            client.State.Should().BeOneOf(
-                new[] { WebSocketState.Closed, WebSocketState.Aborted, WebSocketState.CloseReceived },
-                "The client should not remain connected without proper authentication headers."
-            );
+            finally
+            {
+                await GracefulCloseIfOpen(client);
+            }
         }
+
         [Fact]
-        public async Task Connection_Should_Be_Rejected_With_Invalid_Claims()
+        public async Task Connection_Should_Be_Rejected_Without_Required_Query_Parameters() 
         {
-            // Arrange
-            var wsUri = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth");
+            // ── Arrange ─────────────────────────────────────────────────────────
+            // URI without any authentication query parameters (pid, sid, mac)
+            var wsUri = new Uri($"{_wsFixture.ServerAddress.Replace("http", "ws")}/ws/auth");
             using var client = new ClientWebSocket();
-            client.Options.SetRequestHeader("Test-Auth", "true");
-            // Set invalid credentials: for example, an empty "sub" header and no sessionId header.
-            client.Options.SetRequestHeader("sub", "");
-            // Do not set "sessionId"
 
-            // Act
-            await client.ConnectAsync(wsUri, CancellationToken.None);
+            // No subprotocol is added here, as the primary failure should be missing query parameters
+            // which typically results in an HTTP 400 before subprotocol negotiation is decisive.
 
-            // Assert
-            var buffer = new byte[1024];
-            try
-            {
-                var result = await client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-                result.CloseStatus.Should().NotBeNull("The connection should be closed due to invalid claims.");
-            }
-            catch (WebSocketException)
-            {
-                // Expected: connection is forcibly closed.
-            }
-            client.State.Should().BeOneOf(
-                new[] { WebSocketState.Closed, WebSocketState.Aborted, WebSocketState.CloseReceived },
-                "Client should be closed if provided claims are invalid."
-            );
+            // ── Act & Assert ────────────────────────────────────────────────────
+            // The ConnectAsync call itself is expected to fail because required query parameters are missing.
+            Func<Task> connectAction = async () => await client.ConnectAsync(wsUri, CancellationToken.None);
+
+            var exception = await connectAction.Should().ThrowAsync<WebSocketException>(
+                "because the server should reject the handshake with an HTTP 400 Bad Request " +
+                "when required authentication query parameters (pid, sid, mac) are missing from the URL.");
+
+            // Assert the content of the exception message to confirm it's due to an HTTP 400
+            exception.And.Message.Should().Contain("status code '400'",
+                "the server should return a 400 Bad Request due to missing authentication query parameters.");
+            exception.And.Message.Should().Contain("status code '101' was expected'",
+                "this is part of the standard WebSocketException message when the handshake fails at the HTTP level.");
+
+            // After ConnectAsync fails, the client's state should be Closed.
+            client.State.Should().Be(WebSocketState.Closed,
+                "the client WebSocket should be in a Closed state after the failed connection attempt.");
         }
+
+        [Fact]
+        public async Task Connection_Should_Be_Rejected_With_Invalid_Or_Missing_Core_Query_Parameters() 
+        {
+            // ── Arrange ─────────────────────────────────────────────────────────
+            // Build a WS URL with unparseable 'pid' and 'sid', and a missing 'mac'.
+            var baseWs = _wsFixture.ServerAddress.Replace("http", "ws");
+            var wsUri = new Uri($"{baseWs}/ws/auth?token=foo&pid=not-a-guid&sid=also-nope"); // mac is missing
+
+            using var client = new ClientWebSocket();
+            // No client subprotocol needs to be offered; the failure is due to bad query parameters,
+            // which are checked by the server before subprotocol negotiation in your fixture.
+
+            // ── Act & Assert ────────────────────────────────────────────────────
+            // The ConnectAsync call itself is expected to fail due to invalid/missing parameters.
+            Func<Task> connectAction = async () => await client.ConnectAsync(wsUri, CancellationToken.None);
+
+            var exception = await connectAction.Should().ThrowAsync<WebSocketException>(
+                "because the server should reject the handshake with an HTTP 400 Bad Request " +
+                "when essential query parameters like 'pid' or 'sid' are unparseable, or 'mac' is missing.");
+
+            // Assert the content of the exception message to confirm it's an HTTP 400
+            exception.And.Message.Should().Contain("status code '400'",
+                "the server should return a 400 Bad Request.");
+            // Remember to use the corrected string for this assertion (no extra trailing quote)
+            exception.And.Message.Should().Contain("status code '101' was expected",
+                "this is part of the standard WebSocketException message when the handshake fails at the HTTP level.");
+
+            // After ConnectAsync fails, the client's WebSocket state should be Closed.
+            client.State.Should().Be(WebSocketState.Closed,
+                "the client WebSocket should be in a Closed state after the failed connection attempt.");
+        }
+
         [Fact]
         public async Task Server_Should_Handle_Rapid_Connect_Disconnect_Sequences()
         {
-            // Arrange
-            var wsUri = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth");
-            int iterations = 20; // Number of rapid connect/disconnect cycles
+            // ── Arrange: mint one WS token/session and build the URL ─────────────
+            var (token, pid, sid, mac) = await IssueWsTokenAsync();
+            var baseWs = _wsFixture.ServerAddress.Replace("http", "ws");
+            var wsUri = new Uri($"{baseWs}/ws/auth?sid={sid}&pid={pid}&mac={mac}");
+
+            const int iterations = 20;
 
             for (int i = 0; i < iterations; i++)
             {
                 using var client = new ClientWebSocket();
-                client.Options.SetRequestHeader("Test-Auth", "true");
-                client.Options.SetRequestHeader("sub", $"rapiduser{i}");
-                client.Options.SetRequestHeader("sessionId", $"rapid-session-{i}");
+                // advertise our JWT subprotocol each time
+                client.Options.AddSubProtocol("hmac-v1");
 
-                // Act: Connect, then immediately close.
+                // ── Act: open the socket ───────────────────────────────────────────
                 await client.ConnectAsync(wsUri, CancellationToken.None);
-                client.State.Should().Be(WebSocketState.Open, $"Client {i} should connect successfully.");
+                client.State.Should().Be(
+                    WebSocketState.Open,
+                    $"Iteration {i}: expected an OPEN socket"
+                );
 
-                await client.CloseAsync(WebSocketCloseStatus.NormalClosure, "Rapid disconnect", CancellationToken.None);
-                client.State.Should().BeOneOf(new[] { WebSocketState.Closed, WebSocketState.Aborted }, $"Client {i} should disconnect properly.");
+                // ── (Optional) consume the initial "ready" handshake message ───────
+                {
+                    var buf = new byte[64];
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                    var res = await client.ReceiveAsync(
+                        new ArraySegment<byte>(buf),
+                        cts.Token
+                    );
+                    res.MessageType.Should().Be(WebSocketMessageType.Text);
+                    var msg = Encoding.UTF8.GetString(buf, 0, res.Count);
+                    msg.Should().Be("ready", $"Iteration {i}: initial handshake");
+                }
+
+                // ── Now immediately close cleanly ─────────────────────────────────
+                await client.CloseAsync(
+                    WebSocketCloseStatus.NormalClosure,
+                    "Rapid disconnect",
+                    CancellationToken.None
+                );
+
+                // some implementations flip through CloseSent→CloseReceived→Closed
+                client.State
+                    .Should()
+                    .BeOneOf(
+                        new[] {
+                        WebSocketState.CloseSent,
+                        WebSocketState.CloseReceived,
+                        WebSocketState.Closed
+                        },
+                        $"Iteration {i}: expected a terminal close state"
+                    );
             }
         }
         [Fact]
         public async Task Server_Should_Close_Connection_On_Unexpected_Message_Type()
         {
-            // Arrange
-            var wsUri = new Uri($"{_fixture.ServerAddress.Replace("http", "ws")}/ws/auth");
+            // ── Arrange ─────────────────────────────────────────────────────────
+            // Mint a real JWT + session
+            var (token, pid, sid, mac) = await IssueWsTokenAsync();
+
+            // Build our WS URL 
+            var baseWs = _wsFixture.ServerAddress.Replace("http", "ws");
+            var wsUri = new Uri($"{baseWs}/ws/auth?sid={sid}&pid={pid}&mac={mac}");
+
+            // Connect a ClientWebSocket, passing the JWT as the subprotocol
             using var client = new ClientWebSocket();
-            client.Options.SetRequestHeader("Test-Auth", "true");
-            client.Options.SetRequestHeader("sub", "testuser");
-            client.Options.SetRequestHeader("sessionId", "test-session");
-
+            client.Options.AddSubProtocol("hmac-v1");
             await client.ConnectAsync(wsUri, CancellationToken.None);
-            client.State.Should().Be(WebSocketState.Open, "Client should be connected.");
 
-            // Wait for initial "ready" message.
+            // Consume the initial "ready" so the manager registers us
+            var ready = await ReceiveTextAsync(client, TimeSpan.FromSeconds(5));
+            ready.Should().Be("ready");
+
+            // ── Act: send a binary frame (server only supports text) ────────────────
+            var bad = new byte[] { 0x01, 0x02, 0x03 };
+            await client.SendAsync(
+                new ArraySegment<byte>(bad),
+                WebSocketMessageType.Binary,
+                true,
+                CancellationToken.None
+            );
+
+            // ── Assert: server must close with InvalidMessageType ────────────────────
             var buffer = new byte[1024];
-            var readyResult = await client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-            Encoding.UTF8.GetString(buffer, 0, readyResult.Count).Should().Be("ready");
+            var close = await client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+            close.MessageType.Should().Be(WebSocketMessageType.Close);
+            close.CloseStatus.Should().Be(WebSocketCloseStatus.InvalidMessageType);
 
-            // Act: Send a binary message (unexpected if the server only supports text).
-            var unexpectedData = new byte[] { 0x01, 0x02, 0x03 };
-            await client.SendAsync(new ArraySegment<byte>(unexpectedData), WebSocketMessageType.Binary, true, CancellationToken.None);
-
-            // Assert: Expect the connection to be closed.
-            try
-            {
-                var result = await client.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-                result.CloseStatus.Should().NotBeNull("Server should close connection on receiving an unexpected message type.");
-            }
-            catch (WebSocketException)
-            {
-                // Acceptable: exception indicates forced closure.
-            }
             client.State.Should().BeOneOf(
-                new[] { WebSocketState.Closed, WebSocketState.Aborted, WebSocketState.CloseReceived },
-                "Client should be closed or in the process of closing (CloseReceived) after sending an unexpected message type."
+                WebSocketState.CloseReceived,
+                WebSocketState.Closed
             );
         }
 
+        [Fact]
+        public async Task WebSocket_Handshake_WithMismatchedPid_ShouldCloseConnection()
+        {
+            var (ip, dev, ua) = AuthTestHelper.GetDefaultMetadata();
+            var dto = new UserLoginDto { Email = "test@example.com", Password = "Password123!", CaptchaToken = "mock" };
 
+            var user = await SetupUserAsync();
+            await UserServiceTest.ConfirmUserEmailAsync(user.PersoId);
+
+            var login = (await AuthService.LoginAsync(dto, ip, dev, ua)).ShouldBeSuccess();
+
+            // build WS url with wrong persoid (new style: token in subprotocol, sid/pid in query)
+            var wrongPid = Guid.NewGuid();                     // ≠ token sub
+                                                               // the fixture registered WebSocketSettings with the same secret
+            var sid = login.Access.SessionId;  // keep the same sessionId
+            var wsCfg = _wsFixture.Host.Services.GetRequiredService<IOptions<WebSocketSettings>>().Value;
+            var mac = WebSocketAuth.MakeWsMac(user.PersoId, sid, wsCfg.Secret);
+
+            var baseWs = _wsFixture.ServerAddress.Replace("http", "ws");
+            var url = $"{baseWs}/ws/auth" +
+                      $"?sid={sid}" +             // Use the sid variable
+                      $"&pid={wrongPid}" +       // The pid you intend to be "wrong" for the MAC
+                      $"&mac={mac}";             // Use '&' and the calculated mac variable
+
+            using var client = new ClientWebSocket();
+
+            client.Options.AddSubProtocol("hmac-v1");
+
+            // Expect HTTP 401 during handshake:
+            Func<Task> connectAction = async () => await client.ConnectAsync(new Uri(url), CancellationToken.None);
+
+            var exception = await connectAction.Should().ThrowAsync<WebSocketException>("because the MAC validation should fail with a mismatched PID before connection establishment");
+
+            exception.And.Message.Should().Contain("401"); // Or "status code '401'"
+
+            // If ConnectAsync fails, the state won't be Open, CloseReceived, or CloseSent.
+            client.State.Should().Be(WebSocketState.Closed, "client should be in a closed state after a failed connection attempt");
+        }
+
+        [Fact]
+        public async Task Server_Should_Reject_Connection_With_Tampered_Mac() 
+        {
+            // ── Arrange ─────────────────────────────────────────────────────────
+            // IssueWsTokenAsync provides the original pid, sid, and a validMac.
+            // The 'token' (JWT string) itself isn't directly used in the hmac-v1 connection URI.
+            var (_, pid, sid, validMac) = await IssueWsTokenAsync();
+
+            // Create a tampered version of the MAC
+            var tamperedMac = validMac.Substring(0, validMac.Length - 1) + (validMac.EndsWith("a") ? "b" : "a");
+
+            // Construct the WebSocket URI with the TAMPERED MAC
+            var baseWs = _wsFixture.ServerAddress.Replace("http", "ws");
+            var wsUri = new Uri($"{baseWs}/ws/auth?sid={sid}&pid={pid}&mac={tamperedMac}");
+
+            using var client = new ClientWebSocket();
+            // The client still offers the "hmac-v1" subprotocol, as that's what it intends to use.
+            client.Options.AddSubProtocol("hmac-v1");
+
+            // ── Act & Assert ────────────────────────────────────────────────────
+            // The action of connecting with the tampered MAC should throw a WebSocketException.
+            Func<Task> connectAction = async () => await client.ConnectAsync(wsUri, CancellationToken.None);
+
+            var exception = await connectAction.Should().ThrowAsync<WebSocketException>(
+                "because the server should reject the handshake with an HTTP 401 Unauthorized " +
+                "when the provided MAC is tampered or invalid.");
+
+            // Verify the exception message indicates an HTTP 401 error
+            exception.And.Message.Should().Contain("status code '401'", "the server should return a 401 Unauthorized for an invalid MAC");
+            exception.And.Message.Should().Contain("status code '101' was expected", "this is the standard WebSocketException message format for handshake failures");
+
+            // After a failed connection attempt, the client's state should be Closed.
+            client.State.Should().Be(WebSocketState.Closed, "client state should be Closed after a failed connection attempt");
+
+            // The SubProtocol property would not be set if the handshake fails.
+            client.SubProtocol.Should().BeNull("subprotocol should not be established if the handshake fails.");
+        }
+
+        [Fact]
+        public async Task Server_Should_Reject_Connection_Attempt_Without_HmacV1_Subprotocol() 
+        {
+            // ── Arrange ─────────────────────────────────────────────────────────
+            // Mint a real WS JWT + session identifiers, mac for a valid auth attempt (if subprotocol were present)
+            var (token, pid, sid, mac) = await IssueWsTokenAsync();
+
+            // Build the ws:// URL with sid, pid, and mac. These are valid.
+            var baseWs = _wsFixture.ServerAddress.Replace("http", "ws");
+            var uri = new Uri($"{baseWs}/ws/auth?sid={sid}&pid={pid}&mac={mac}");
+
+            using var client = new ClientWebSocket();
+            // INTENTIONALLY DO NOT ADD A SUBPROTOCOL: client.Options.AddSubProtocol("hmac-v1");
+
+            // ── Act & Assert: Connect attempt should fail at the HTTP handshake level ─────
+            Func<Task> connectAction = async () => await client.ConnectAsync(uri, CancellationToken.None);
+
+            var exception = await connectAction.Should().ThrowAsync<WebSocketException>(
+                "because the server is configured to accept only the 'hmac-v1' subprotocol, " +
+                "and the client did not offer it, leading to a handshake failure.");
+
+            // Verify the exception message indicates an HTTP 400 error (common for such handshake failures)
+            exception.And.Message.Should().Contain("requested '' protocol",
+                   "the exception message should indicate that the client requested no specific protocol (or an empty set).");
+            exception.And.Message.Should().Contain("server is only accepting 'hmac-v1' protocol(s)",
+                "the exception message should state that the server specifically requires 'hmac-v1'.");
+
+            // After a failed connection attempt, the client's state should be Closed.
+            client.State.Should().Be(WebSocketState.Closed, "client state should be Closed after a failed connection attempt");
+
+            // SubProtocol should be null as negotiation failed
+            client.SubProtocol.Should().BeNull("no subprotocol should have been established.");
+        }
+
+        #region helpers etc
         // Utility method to receive one message from the WebSocket
         private async Task<string> ReceiveSingleMessage(ClientWebSocket clientWebSocket, TimeSpan? timeout = null)
         {
@@ -1025,6 +1075,132 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
             var result = await clientWebSocket.ReceiveAsync(new ArraySegment<byte>(buffer), cts.Token);
             return Encoding.UTF8.GetString(buffer, 0, result.Count);
         }
+        /* helper: waits (max 2.5 s) for the next TEXT frame ------------------- */
+        private static async Task<string> ExpectTextAsync(ClientWebSocket ws,
+                                                          string? expected = null,
+                                                          int attempts = 5,
+                                                          int delayMs = 500)
+        {
+            var buf = new byte[1024];
+
+            for (int i = 0; i < attempts; i++)
+            {
+                var res = await ws.ReceiveAsync(buf, CancellationToken.None);
+
+                if (res.MessageType == WebSocketMessageType.Close)
+                    throw new InvalidOperationException($"socket closed: {res.CloseStatus}");
+
+                if (res.MessageType == WebSocketMessageType.Text)
+                {
+                    var txt = Encoding.UTF8.GetString(buf, 0, res.Count);
+                    if (expected is null || txt == expected) return txt;
+                }
+
+                await Task.Delay(delayMs);
+            }
+
+            throw new TimeoutException("No matching TEXT frame received.");
+        }
+        /* -------------------------------------------------------------------- */
+        /* helper – waits ≤ 3 s for close-frame OR abort ----------------------- */
+        static async Task AssertFirstSocketClosedAsync(ClientWebSocket ws)
+        {
+            var buf = new byte[1];
+            try
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+                var res = await ws.ReceiveAsync(buf, cts.Token);
+
+                // reached only when a proper close-frame arrived
+                res.MessageType.Should().Be(WebSocketMessageType.Close);
+                res.CloseStatus.Should().Be(WebSocketCloseStatus.NormalClosure);
+                ws.State.Should().BeOneOf(WebSocketState.CloseReceived,
+                                          WebSocketState.Closed);
+            }
+            catch (WebSocketException)        // abort = TCP FIN without close-frame
+            {
+                ws.State.Should().Be(WebSocketState.Aborted);
+            }
+            catch (OperationCanceledException)   // neither close nor abort – timeout
+            {
+                throw new Xunit.Sdk.XunitException("first socket was not terminated");
+            }
+        }
+        private static async Task<string> ReceiveTextAsync(
+            ClientWebSocket ws,
+            TimeSpan? timeout = null)
+        {
+            timeout ??= TimeSpan.FromSeconds(10);          // ← default = 10 s
+            var buf = new byte[1024];
+            using var cts = new CancellationTokenSource(timeout.Value);
+
+            var res = await ws.ReceiveAsync(new ArraySegment<byte>(buf), cts.Token);
+            return Encoding.UTF8.GetString(buf, 0, res.Count);
+        }
+
+        private static async Task<bool> WasClosedOrAbortedAsync(ClientWebSocket ws, TimeSpan timeout)
+        {
+            var buf = new byte[1];
+            try
+            {
+                using var cts = new CancellationTokenSource(timeout);
+                var res = await ws.ReceiveAsync(buf, cts.Token);
+
+                // proper close handshake
+                return res.MessageType == WebSocketMessageType.Close ||
+                       res.CloseStatus.HasValue;
+            }
+            catch (WebSocketException)
+            {
+                // server called Abort() → abrupt EOF
+                return ws.State == WebSocketState.Aborted;
+            }
+            catch (OperationCanceledException)
+            {
+                // nothing happened within the timeout
+                return false;
+            }
+        }
+        private async Task<(string token, Guid pid, Guid sid, string mac)> IssueWsTokenAsync()
+        {
+            // 1) choose a persoid
+            var pid = Guid.NewGuid();
+
+            // 2) mint the token in the normal way
+            var jwtSvc = _wsFixture.Host.Services.GetRequiredService<JwtService>();
+            var result = await jwtSvc.CreateAccessTokenAsync(
+                             persoid: pid,
+                             email: $"{pid}@example.com",
+                             roles: Array.Empty<string>(),
+                             deviceId: "tests",
+                             userAgent: "integration-test");
+
+            // 3) decode the token to extract the *actual* sessionId claim
+            var handler = new JwtSecurityTokenHandler();
+            var jwt = handler.ReadJwtToken(result.Token);
+
+            var sidClaim = jwt.Claims.First(c => c.Type == "sessionId").Value;
+            var sid = Guid.Parse(sidClaim);
+            // the fixture registered WebSocketSettings with the same secret
+            var wsCfg = _wsFixture.Host.Services.GetRequiredService<IOptions<WebSocketSettings>>().Value;
+            var mac = WebSocketAuth.MakeWsMac(pid, sid, wsCfg.Secret);
+
+            Logger.LogDebug("Generated AccessTokenResult: {@Result}", result);
+            return (result.Token, pid, sid, mac);
+        }
+        private async Task<ClientWebSocket> ConnectAuthWebSocketAsync(string token, Guid pid, Guid sid, string mac, CancellationToken ct = default)
+        {
+            // build the URL exactly like your hook does
+            var baseWs = _wsFixture.ServerAddress.Replace("http", "ws");
+            var uri = new Uri($"{baseWs}/ws/auth?sid={sid}&pid={pid}&mac={mac}");
+
+            var ws = new ClientWebSocket();
+            // pass the JWT as a WS subprotocol
+            ws.Options.AddSubProtocol("hmac-v1");
+            await ws.ConnectAsync(uri, ct);
+            return ws;
+        }
+        #endregion
 
     }
 

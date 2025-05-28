@@ -1,38 +1,13 @@
-import React from 'react';
-import { Navigate } from 'react-router-dom';
-import { useAuth } from '@context/AuthProvider';
+import { Navigate, Outlet } from 'react-router-dom';
+import { useAuthStore } from '@/stores/Auth/authStore';
 import LoadingScreen from '@components/molecules/feedback/LoadingScreen';
-import CenteredContainer from '@components/atoms/container/CenteredContainer';
 
-interface ProtectedRouteProps {
-  children: JSX.Element | null;
-}
+const ProtectedRoute = () => {
+  const { ready, accessToken } = useAuthStore();
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const { authenticated, isLoading } = useAuth();
-  const isDebugMode = import.meta.env.MODE === 'development';
+  if (!ready) return <LoadingScreen />;          // wait for AuthProvider
 
-  // Optional: while loading, show a spinner
-  if (isLoading) {
-    return (
-      <CenteredContainer>
-        <LoadingScreen />
-      </CenteredContainer>
-    );
-  }
-
-  // If debug mode, bypass authentication checks
-  if (isDebugMode) {
-    return children;
-  }
-
-  // If user is not authenticated, redirect to login
-  if (!authenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  // Otherwise, show the protected content
-  return children;
+  return accessToken ? <Outlet /> : <Navigate to="/login" replace />;
 };
 
 export default ProtectedRoute;

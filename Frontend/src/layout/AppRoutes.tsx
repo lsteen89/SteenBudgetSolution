@@ -49,15 +49,10 @@ const AppRoutes: React.FC = () => {
       <Route path="/reset-password" element={<ResetPasswordPage />} />
 
       {/* Protected Routes */}
-      <Route
-        path="/dashboard"
-        element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        }
-      />
-
+      <Route element={<ProtectedRoute />}>          {/* guard */}
+        <Route path="/dashboard" element={<Dashboard />} />
+        {/* add more private pages here the same way */}
+      </Route>
       {/* Catch-all */}
       <Route path="*" element={<NotFoundPage />} />
     </Routes>

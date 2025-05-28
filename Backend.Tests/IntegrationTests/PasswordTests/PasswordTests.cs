@@ -1,10 +1,15 @@
 ﻿using Backend.Domain.Shared;
+using Backend.Tests.Fixtures;
 using Xunit;
 
 namespace Backend.Tests.IntegrationTests.PasswordTests
 {
     public class PasswordTests : IntegrationTestBase
     {
+        public PasswordTests(DatabaseFixture fixture)
+    : base(fixture)
+        {
+        }
         [Fact]
         public async Task UpdatePasswordAsync_ShouldNotAllowReusingOldPassword()
         {
