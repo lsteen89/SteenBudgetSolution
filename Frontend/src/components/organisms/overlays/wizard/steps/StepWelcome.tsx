@@ -1,7 +1,7 @@
 import React from "react";
 import { Banknote, PiggyBank, CreditCard, Flag, XCircle, ShieldCheck } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useAuth } from "@context/AuthProvider";
+import { useAuth } from '@/hooks/auth/useAuth';
 import GlassPane from "../../../../layout/GlassPane";
 import { useEffect } from "react";
 import LoadingScreen from "@components/molecules/feedback/LoadingScreen";

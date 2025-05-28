@@ -5,7 +5,7 @@ namespace Backend.Application.Interfaces.WebSockets
 {
     public interface IWebSocketManager
     {
-        Task HandleConnectionAsync(WebSocket webSocket, HttpContext context);
+        Task HandleConnectionAsync(WebSocket ws, Guid pid, Guid sid);
         Task SendMessageAsync(UserSessionKey key, string message);
         Task BroadcastAsync(string message);
         Task HealthCheckAsync();

@@ -9,44 +9,57 @@ namespace Backend.Infrastructure.BackgroundServices
 {
     public class WebSocketHealthCheckService : BackgroundService
     {
-        private readonly IWebSocketManager _wsManager;
+        private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<WebSocketHealthCheckService> _logger;
         private readonly TimeSpan _interval;
         private readonly TimeSpan _heartbeatInterval;
         private readonly int _minActiveConnections;
-        private readonly TimeSpan _pongTimeout;
-        private readonly WebSocketHealthCheckSettings _settings;
 
-        public WebSocketHealthCheckService(IWebSocketManager wsManager, IOptions<WebSocketHealthCheckSettings> options, ILogger<WebSocketHealthCheckService> logger)
+        public WebSocketHealthCheckService(
+            IOptions<WebSocketHealthCheckSettings> options,
+            ILogger<WebSocketHealthCheckService> logger,
+            IServiceScopeFactory scopeFactory)
         {
-            _wsManager = wsManager;
             _logger = logger;
-            _settings = options.Value; // Capture settings once.
-            _interval = TimeSpan.FromSeconds(_settings.IntervalSeconds);
-            _minActiveConnections = _settings.MinimumActiveConnections;
-            _heartbeatInterval = TimeSpan.FromMinutes(_settings.HeartbeatIntervalMinutes);
-            _pongTimeout = _settings.PongTimeout;
+            _scopeFactory = scopeFactory;
 
-            _logger.LogInformation("WebSocketHealthCheckSettings: IntervalSeconds={IntervalSeconds}, MinimumActiveConnections={MinActiveConnections}, HeartbeatIntervalMinutes={HeartbeatIntervalMinutes}",
-                _settings.IntervalSeconds, _settings.MinimumActiveConnections, _settings.HeartbeatIntervalMinutes);
+            var settings = options.Value;
+            _interval = TimeSpan.FromSeconds(settings.IntervalSeconds);
+            _heartbeatInterval = TimeSpan.FromMinutes(settings.HeartbeatIntervalMinutes);
+            _minActiveConnections = settings.MinimumActiveConnections;
+
+            _logger.LogInformation(
+                "WebSocketHealthCheckSettings: IntervalSeconds={IntervalSeconds}, MinimumActiveConnections={MinActiveConnections}, HeartbeatIntervalMinutes={HeartbeatIntervalMinutes}",
+                settings.IntervalSeconds,
+                settings.MinimumActiveConnections,
+                settings.HeartbeatIntervalMinutes);
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             var lastHeartbeat = DateTime.UtcNow;
+
             while (!stoppingToken.IsCancellationRequested)
             {
-                if (_wsManager.ActiveConnectionCount >= _minActiveConnections)
+                // 1) open a scope and resolve IWebSocketManager
+                using var scope = _scopeFactory.CreateScope();
+                var wsMgr = scope.ServiceProvider.GetRequiredService<IWebSocketManager>();
+
+                // 2) only run health-check if we have enough connections
+                if (wsMgr.ActiveConnectionCount >= _minActiveConnections)
                 {
                     _logger.LogInformation("Running WebSocket healthcheck...");
-                    await _wsManager.HealthCheckAsync();
+                    await wsMgr.HealthCheckAsync();
                 }
-                // Heartbeat: log every configured interval
+
+                // 3) periodic heartbeat log
                 if (DateTime.UtcNow - lastHeartbeat >= _heartbeatInterval)
                 {
                     _logger.LogInformation("WebSocketHealthCheckService heartbeat: I'm still alive, all is good!");
                     lastHeartbeat = DateTime.UtcNow;
                 }
+
+                // 4) wait interval
                 await Task.Delay(_interval, stoppingToken);
             }
         }

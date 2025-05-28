@@ -18,18 +18,11 @@
             return (ipAddress, userAgent, deviceId);
         }
 
-        public static (string AccessToken, string RefreshToken, string SessionId) ExtractTokensFromCookies(HttpContext context)
+        public static (string RefreshToken, string SessionId) ExtractTokensFromCookies(HttpContext context)
         {
-            var accessToken = context.Request.Cookies["AccessToken"];
             var refreshToken = context.Request.Cookies["RefreshToken"];
             var sessionId = context.Request.Cookies["SessionId"];
-            return (accessToken, refreshToken, sessionId);
-        }
-        public static string ExtractWizardSessionIdFromBody(HttpContext context)
-        {
-            string WizardSessionId = context.Request.Cookies["AccessToken"];
-
-            return WizardSessionId;
+            return (refreshToken, sessionId);
         }
     }
 }

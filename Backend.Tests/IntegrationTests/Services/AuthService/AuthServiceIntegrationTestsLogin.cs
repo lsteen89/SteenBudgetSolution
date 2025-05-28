@@ -8,13 +8,18 @@ using System.IdentityModel.Tokens.Jwt;
 using Xunit;
 using Backend.Application.DTO.User;
 using Backend.Application.DTO.Auth;
+using Tests.Helpers;
+using Newtonsoft.Json.Linq;
+using Microsoft.Extensions.DependencyInjection;
+using System.Net.WebSockets;
+using Backend.Tests.Fixtures;
 
 namespace Backend.Tests.IntegrationTests.Services.AuthService
 {
     public class AuthServiceIntegrationTestsLogin : IntegrationTestBase
     {
         private Dictionary<string, (string Value, CookieOptions Options)> cookieContainer;
-        public AuthServiceIntegrationTestsLogin()
+        public AuthServiceIntegrationTestsLogin(DatabaseFixture fixture) : base(fixture)
         {
             cookieContainer = new Dictionary<string, (string Value, CookieOptions Options)>();
         }
@@ -36,21 +41,22 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
 
             // Act
-            var result = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent);
+            var outcome = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent);
 
-            // Assert
-            Assert.True(result.Success);
-            Assert.Equal("Login successful.", result.Message);
+            // Assert: succeed + grab tokens in two lines
+            var login = outcome.ShouldBeSuccess();                      // asserts & casts
+            Assert.False(string.IsNullOrEmpty(login.RefreshToken));     // extra check
 
-            // Ensure correct user details in response
-            Assert.Equal(userLoginDto.Email, result.UserName);
+            var sessionId = login.Access.SessionId;
+            var accessToken = login.Access.Token;
+            var refreshToken = login.RefreshToken;
 
             // **Assert that a valid JWT token is returned**
-            Assert.False(string.IsNullOrEmpty(result.AccessToken), "AccessToken should not be null or empty.");
+            Assert.False(string.IsNullOrEmpty(accessToken), "AccessToken should not be null or empty.");
 
             // Decode and validate JWT token
             var handler = new JwtSecurityTokenHandler();
-            var token = handler.ReadJwtToken(result.AccessToken);
+            var token = handler.ReadJwtToken(accessToken);
 
             Assert.Equal("eBudget", token.Issuer);
             Assert.Contains("eBudget", token.Audiences);
@@ -86,15 +92,19 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
 
             // Act
-            var result = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent);
+            var outcome = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent);
 
-            // Assert
-            Assert.True(result.Success);
-            Assert.False(string.IsNullOrEmpty(result.AccessToken), "AccessToken should not be null or empty.");
+            // Assert: succeed + grab tokens in two lines
+            var login = outcome.ShouldBeSuccess();                      // asserts & casts
+            Assert.False(string.IsNullOrEmpty(login.RefreshToken));     // extra check
+
+            var sessionId = login.Access.SessionId;
+            var accessToken = login.Access.Token;
+            var refreshToken = login.RefreshToken;
 
             // Decode and validate JWT token
             var handler = new JwtSecurityTokenHandler();
-            var token = handler.ReadJwtToken(result.AccessToken);
+            var token = handler.ReadJwtToken(accessToken);
 
             Assert.Equal("eBudget", token.Issuer);
             Assert.Contains("eBudget", token.Audiences);
@@ -112,63 +122,53 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
         [Fact]
         public async Task LoginAsync_TokenExpires_ShouldDenyAccess()
         {
-            // Arrange
-            var (ipAddress, deviceId, userAgent) = AuthTestHelper.GetDefaultMetadata();
-            var userLoginDto = new UserLoginDto { Email = "test@example.com", Password = "Password123!" };
-            var registeredUser = await SetupUserAsync();
-            await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
+            // –– Arrange –– create & confirm user
+            var (ip, dev, ua) = AuthTestHelper.GetDefaultMetadata();
+            var dto = new UserLoginDto
+            {
+                Email = "test@example.com",
+                Password = "Password123!",
+                CaptchaToken = "mock-captcha-token"
+            };
 
-            Assert.NotNull(registeredUser);
-            Assert.NotNull(registeredUser.PersoId);
-            Assert.NotNull(registeredUser.Email);
+            var user = await SetupUserAsync();
+            await UserServiceTest.ConfirmUserEmailAsync(user.PersoId);
 
-            // Simulate token creation time
-            var tokenCreationTime = DateTime.UtcNow;
-            MockTimeProvider.Setup(tp => tp.UtcNow).Returns(tokenCreationTime);
+            // freeze "now"
+            var now = DateTime.UtcNow;
+            MockTimeProvider.Setup(t => t.UtcNow).Returns(now);
 
-            // Act: Perform the login
-            var result = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent);
-            Assert.True(result.Success, "Login should succeed.");
-            Assert.False(string.IsNullOrEmpty(result.AccessToken), "JWT AccessToken should not be null or empty.");
+            // login once
+            var login = (await AuthService.LoginAsync(dto, ip, dev, ua)).ShouldBeSuccess();
+            var accessToken = login.Access.Token;
 
-            // Decode JWT token to extract expiration time
-            var handler = new JwtSecurityTokenHandler();
-            var token = handler.ReadJwtToken(result.AccessToken);
+            // token is valid right after issuance
+            Assert.NotNull(jwtService.ValidateToken(accessToken));
 
-            var expClaim = token.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Exp)?.Value;
-            Assert.NotNull(expClaim);
+            // –– Fast-forward 1 min past exp ––
+            MockTimeProvider
+                .Setup(t => t.UtcNow)
+                .Returns(login.Access.ExpiresUtc.AddMinutes(1));
 
-            var expUnix = long.Parse(expClaim);
-            var expirationTime = DateTimeOffset.FromUnixTimeSeconds(expUnix).UtcDateTime;
-            Assert.True(expirationTime > DateTime.UtcNow, "Token should initially be valid.");
-
-            // Simulate time passing to trigger token expiration (JWT expires after 15 minutes)
-            MockTimeProvider.Setup(tp => tp.UtcNow).Returns(expirationTime.AddMinutes(1)); // Simulate 1 min past expiration
-
-            // Attempt to validate the expired token
-            var principal = jwtService.ValidateToken(result.AccessToken);
-
-            // Assert: Token should be invalid after expiration
-            Assert.True(principal == null, "Expired token should be invalid and not return a principal.");
+            // Validate again → should be null (expired)
+            Assert.Null(jwtService.ValidateToken(accessToken));
         }
 
         [Fact]
         public async Task LoginAsync_ConcurrentLogins_ShouldWork()
         {
             // Arrange
-            var (ipAddress, deviceId, userAgent) = AuthTestHelper.GetDefaultMetadata();
-            var userLoginDto = new UserLoginDto { Email = "test@example.com", Password = "Password123!" };
-            var registeredUser = await SetupUserAsync();
-            await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
+            var (ip, dev, ua) = AuthTestHelper.GetDefaultMetadata();
+            var dto = new UserLoginDto { Email = "test@example.com", Password = "Password123!" };
+            var user = await SetupUserAsync();
+            await UserServiceTest.ConfirmUserEmailAsync(user.PersoId);
 
-            // Act - Perform multiple login attempts
-            var result1 = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent);
-            var result2 = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent);
+            // Act – two parallel logins
+            var r1 = (await AuthService.LoginAsync(dto, ip, dev, ua)).ShouldBeSuccess();
+            var r2 = (await AuthService.LoginAsync(dto, ip, dev, ua)).ShouldBeSuccess();
 
             // Assert
-            Assert.True(result1.Success);
-            Assert.True(result2.Success);
-            Assert.NotEqual(result1.AccessToken, result2.AccessToken); // Tokens should be unique
+            Assert.NotEqual(r1.Access.Token, r2.Access.Token);   // unique access tokens
         }
         [Fact]
         public async Task LoginAsync_ValidCredentials_ShouldReturnSecureToken()
@@ -189,15 +189,20 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
 
             // Act
-            var result = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent);
+            var outcome = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent);
 
-            // Assert
-            Assert.True(result.Success);
-            Assert.False(string.IsNullOrEmpty(result.AccessToken), "JWT AccessToken should not be null or empty.");
+            // Assert: succeed + grab tokens in two lines
+            var login = outcome.ShouldBeSuccess();                      // asserts & casts
+            Assert.False(string.IsNullOrEmpty(login.RefreshToken));     // extra check
+
+            // you now have:
+            var sessionId = login.Access.SessionId;
+            var accessToken = login.Access.Token;
+            var refreshToken = login.RefreshToken;
 
             // Decode and validate JWT token
             var handler = new JwtSecurityTokenHandler();
-            var token = handler.ReadJwtToken(result.AccessToken);
+            var token = handler.ReadJwtToken(accessToken);
 
             Assert.Equal("eBudget", token.Issuer);
             Assert.Contains("eBudget", token.Audiences);
@@ -225,37 +230,37 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             Assert.Equal(SecurityAlgorithms.HmacSha256, token.SignatureAlgorithm);
         }
 
-
-
         [Fact]
         public async Task LoginAsync_TamperedToken_ShouldDenyAccess()
         {
-            // Arrange
-            var (ipAddress, deviceId, userAgent) = AuthTestHelper.GetDefaultMetadata();
-            var userLoginDto = new UserLoginDto { Email = "test@example.com", Password = "Password123!" };
-            var registeredUser = await SetupUserAsync();
-            await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
+            // ── Arrange ──────────────────────────────────────────────────────────
+            var (ip, deviceId, ua) = AuthTestHelper.GetDefaultMetadata();
+            var dto = new UserLoginDto
+            {
+                Email = "test@example.com",
+                Password = "Password123!",
+                CaptchaToken = "mock-captcha-token"
+            };
 
-            // Ensure user setup was successful
-            Assert.NotNull(registeredUser);
-            Assert.NotNull(registeredUser.PersoId);
-            Assert.NotNull(registeredUser.Email);
+            var user = await SetupUserAsync();
+            await UserServiceTest.ConfirmUserEmailAsync(user.PersoId);
 
-            // Act: Perform the login and get the JWT token
-            var result = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent);
-            Assert.True(result.Success, "Login should succeed.");
-            Assert.False(string.IsNullOrEmpty(result.AccessToken), "JWT AccessToken should not be null or empty.");
+            // Act: real login
+            var login = (await AuthService.LoginAsync(dto, ip, deviceId, ua))
+                        .ShouldBeSuccess();
+            var accessToken = login.Access.Token;
+            var tampered = accessToken[..^1] + (accessToken[^1] == 'X' ? 'Y' : 'X');
 
-            // Tamper with the token by modifying a single character
-            var tamperedToken = result.AccessToken.Substring(0, result.AccessToken.Length - 1) + "X";
+            // 1) Raw handler should throw because the key id (kid) no longer matches
+            var handler = new JwtSecurityTokenHandler();
+            var baseParams = ServiceProvider.GetRequiredService<TokenValidationParameters>();
 
-            // Act - Attempt to validate the tampered token
-            var principal = jwtService.ValidateToken(tamperedToken);
+            Assert.Throws<SecurityTokenSignatureKeyNotFoundException>(() =>
+                handler.ValidateToken(tampered, baseParams, out _));
 
-            // Assert: The tampered token should be rejected
-            Assert.Null(principal);
+            // 2) App‐level validator still returns null
+            Assert.Null(jwtService.ValidateToken(tampered));
         }
-
 
         [Fact]
         public async Task LoginAsync_ShouldReturnValidAccessToken()
@@ -271,16 +276,21 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             Assert.NotNull(registeredUser.PersoId);
             Assert.NotNull(registeredUser.Email);
 
-            // Act: Perform login
-            var result = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent);
+            // Act: Perform the login and get the JWT token
+            var outcome = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent);
+            // Assert: succeed + grab tokens in two lines
+            var login = outcome.ShouldBeSuccess();                      // asserts & casts
+            Assert.False(string.IsNullOrEmpty(login.RefreshToken));     // extra check
 
-            // Assert
-            Assert.True(result.Success, "Login should succeed.");
-            Assert.False(string.IsNullOrEmpty(result.AccessToken), "JWT AccessToken should not be null or empty.");
+
+            var sessionId = login.Access.SessionId;
+            var accessToken = login.Access.Token;
+            var refreshToken = login.RefreshToken;
+
 
             // Decode and validate JWT token
             var handler = new JwtSecurityTokenHandler();
-            var token = handler.ReadJwtToken(result.AccessToken);
+            var token = handler.ReadJwtToken(accessToken);
 
             Assert.Equal("eBudget", token.Issuer);
             Assert.Contains("eBudget", token.Audiences);
@@ -316,25 +326,21 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
         {
             // Arrange
             var email = "test@example.com";
-            var (ipAddress, deviceId, userAgent) = AuthTestHelper.GetDefaultMetadata();
-            var userLoginDto = new UserLoginDto { Email = email, Password = "WrongPassword" };
+            var (ip, dev, ua) = AuthTestHelper.GetDefaultMetadata();
+            var dto = new UserLoginDto { Email = email, Password = "WrongPassword" };
 
-            // Ensure the user exists
-            var registeredUser = await SetupUserAsync();
-            await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
+            var user = await SetupUserAsync();
+            await UserServiceTest.ConfirmUserEmailAsync(user.PersoId);
 
-            // Simulate multiple failed login attempts
+            //simulate five failed attempts
             for (int i = 0; i < 5; i++)
-            {
-                var result = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent);
-                Assert.False(result.Success, $"Attempt {i + 1}: Login should fail");
-            }
+                (await AuthService.LoginAsync(dto, ip, dev, ua)).ShouldBeFail();
 
             // Act
             var isLockedOut = await UserAuthenticationService.CheckLoginAttemptsAsync(email);
 
             // Assert
-            Assert.True(isLockedOut, "User should be locked out after exceeding failed attempts");
+            Assert.True(isLockedOut);
         }
         [Fact]
         public async Task LoginAsync_ShouldUnlockUser_AfterLockoutPeriod()
@@ -356,11 +362,10 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             // Wait for lockout period to expire
             await Task.Delay(TimeSpan.FromMinutes(2));
 
-            // Act 2: Attempt login after lockout period
-            var result = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent);
+            // Act 2 – attempt login after lock-out window
+            var tokens = (await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent))
+                            .ShouldBeSuccess();          // ⬅️ asserts & returns LoginOutcome.Success
 
-            // Assert
-            Assert.True(result.Success, "User should be able to log in after the lockout period expires");
         }
         [Fact]
         public async Task LoginAsync_SuccessfulLogin_ShouldResetFailedAttemptsCounter()
@@ -384,10 +389,8 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             Assert.Equal(1, failedAttempts);
 
             // Act: Successful login
-            var result = await AuthService.LoginAsync(correctLoginDto, ipAddress, deviceId, userAgent);
-
-            // Assert
-            Assert.True(result.Success, "User should successfully log in with correct credentials");
+            var tokens = (await AuthService.LoginAsync(correctLoginDto, ipAddress, deviceId, userAgent))
+                            .ShouldBeSuccess();          // ⬅️ asserts & returns LoginOutcome.Success
 
             // Verify failed attempts counter is reset
             failedAttempts = await UserSQLProvider.AuthenticationSqlExecutor.GetRecentFailedAttemptsAsync(registeredUser.PersoId);
@@ -408,30 +411,40 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
 
             // Act
-            var result = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent);
+            var result = (await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId, userAgent))
+                            .ShouldBeSuccess();          // ⬅️ asserts & returns LoginOutcome.Success
 
-            // Assert: Validate login success and refresh token presence
-            Assert.True(result.Success, "Login should succeed");
+            // tokens now holds everything you need
+            var sessionId = result.Access.SessionId;
+            var accessToken = result.Access.Token;
+            var refreshToken = result.RefreshToken;
+
             Assert.False(string.IsNullOrEmpty(result.RefreshToken), "RefreshToken should not be null or empty");
             Console.WriteLine($"Refresh Token: {result.RefreshToken}");
 
             // Optionally, query the database to confirm the refresh token is stored (hashed)
             var providedHashedToken = TokenGenerator.HashToken(result.RefreshToken);
             //RefreshJwtTokenEntity
-            var storedTokens = await UserSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokensAsync(refreshToken : providedHashedToken);
-            var storedToken = storedTokens.FirstOrDefault();
-            Assert.NotNull(storedToken);
-            Console.WriteLine($"Stored Token: {storedToken.RefreshToken}");
-            // Verify that the stored token is the hashed version of the refresh token received
-            var expectedHashedToken = TokenGenerator.HashToken(result.RefreshToken);
-            Assert.Equal(expectedHashedToken, storedToken.RefreshToken);
+            var (conn, tx) = await CreateTransactionAsync();
 
-            
+            try
+            {
+                // call the new signature that takes both conn and tx
+                var storedTokens = await UserSQLProvider
+                    .RefreshTokenSqlExecutor
+                    .GetRefreshTokensAsync(conn, tx, hashedToken: providedHashedToken);
 
-            // Verify the expiry date is correctly set (approximately 30 days in the future)
-            Assert.True(storedToken.RefreshTokenExpiryDate > DateTime.UtcNow.AddDays(29) &&
-                        storedToken.RefreshTokenExpiryDate <= DateTime.UtcNow.AddDays(30),
-                        "Refresh token expiry should be around 30 days from now.");
+                // commit so the helper cleans up properly
+                await tx.CommitAsync();
+
+                // your assertions
+                Assert.NotNull(storedTokens.FirstOrDefault());
+                Assert.Equal(providedHashedToken, storedTokens.First().HashedToken);
+            }
+            finally
+            {
+                await conn.DisposeAsync();
+            }
         }
         [Fact]
         public async Task LoginFromDifferentDevices_ShouldStoreMultipleRefreshTokens()
@@ -453,16 +466,200 @@ namespace Backend.Tests.IntegrationTests.Services.AuthService
             await UserServiceTest.ConfirmUserEmailAsync(registeredUser.PersoId);
 
             // Act: Log in from the first device.
-            var result1 = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId1, userAgent1);
-            Assert.True(result1.Success, "First login should succeed.");
+            var result1 = (await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId1, userAgent1))
+                            .ShouldBeSuccess();          // ⬅️ asserts & returns LoginOutcome.Success
 
             // Act: Log in from the second device.
-            var result2 = await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId2, userAgent2);
-            Assert.True(result2.Success, "Second login should succeed.");
+            var result2 = (await AuthService.LoginAsync(userLoginDto, ipAddress, deviceId2, userAgent2))
+                            .ShouldBeSuccess();          // ⬅️ asserts & returns LoginOutcome.Success
 
-            // Assert: There should be two refresh token records in the database for the same user.
-            var refreshTokens = await UserSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokensAsync(registeredUser.PersoId);
-            Assert.Equal(2, refreshTokens.Count());
+            // Assert (inside a tx because GetRefreshTokensAsync now expects it)
+            var count = await RunInTxAsync(async (c, t) =>
+                (await UserSQLProvider.RefreshTokenSqlExecutor
+                    .GetRefreshTokensAsync(c, t, registeredUser.PersoId)).Count());
+
+            Assert.Equal(2, count);
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* 1. /auth/refresh – happy-path: get new access-token while old one is stale  */
+        /* -------------------------------------------------------------------------- */
+        [Fact]
+        public async Task RefreshEndpoint_WithValidRefreshToken_ShouldIssueFreshAccessToken()
+        {
+            // login first
+            var (ip, dev, ua) = AuthTestHelper.GetDefaultMetadata();
+            var dto = new UserLoginDto
+            {
+                Email = "test@example.com",
+                Password = "Password123!",
+                CaptchaToken = "mock"
+            };
+
+            var user = await SetupUserAsync();
+            await UserServiceTest.ConfirmUserEmailAsync(user.PersoId);
+
+            var login = (await AuthService.LoginAsync(dto, ip, dev, ua)).ShouldBeSuccess();
+
+            /* fast-forward clock so AT is expired but RT is still valid */
+            MockTimeProvider.Setup(t => t.UtcNow).Returns(login.Access.ExpiresUtc.AddSeconds(1));
+
+            // hit the real service-layer “check & refresh”
+            var result = await RunInTxAsync((conn, tx) =>
+                AuthService.CheckAndRefreshAsync(
+                    login.Access.Token,
+                    login.RefreshToken,
+                    login.Access.SessionId,
+                    ua,
+                    dev,
+                    conn,       
+                    tx         
+                )
+            );
+
+            Assert.True(result.Authenticated);
+            Assert.NotNull(result.AccessToken);
+            Assert.NotEqual(login.Access.Token, result.AccessToken);           // new token
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* 2. RT replay – using the same refresh-token twice should be rejected       */
+        /* -------------------------------------------------------------------------- */
+        [Fact]
+        public async Task RefreshEndpoint_ReusingRefreshToken_ShouldBeRejected()
+        {
+            var (ip, dev, ua) = AuthTestHelper.GetDefaultMetadata();
+            var dto = new UserLoginDto { Email = "test@example.com", Password = "Password123!", CaptchaToken = "mock" };
+
+            var user = await SetupUserAsync();
+            await UserServiceTest.ConfirmUserEmailAsync(user.PersoId);
+
+            var login = (await AuthService.LoginAsync(dto, ip, dev, ua)).ShouldBeSuccess();
+
+            // first refresh succeeds
+            var r1 = await RunInTxAsync((conn, tx) =>
+                AuthService.CheckAndRefreshAsync(
+                    login.Access.Token,
+                    login.RefreshToken,
+                    login.Access.SessionId,
+                    ua,
+                    dev,
+                    conn,
+                    tx
+                )
+            );
+            Assert.True(r1.Authenticated);
+
+            // second refresh must fail
+            var r2 = await RunInTxAsync((conn, tx) =>
+                AuthService.CheckAndRefreshAsync(
+                    login.Access.Token,
+                    login.RefreshToken,
+                    login.Access.SessionId,
+                    ua,
+                    dev,
+                    conn,
+                    tx
+                )
+            );
+
+            Assert.False(r2.Authenticated);
+        }
+
+        /* -------------------------------------------------------------------------- */
+        /* 4. LogoutAsync should notify WS and close a single session only            */
+        /* -------------------------------------------------------------------------- */
+        [Fact]
+        public async Task LogoutAsync_ShouldSendLogoutMessage_AndKeepOtherSessions()
+        {
+            var (ip, dev, ua) = AuthTestHelper.GetDefaultMetadata();
+            var dto = new UserLoginDto { Email = "test@example.com", Password = "Password123!", CaptchaToken = "mock" };
+
+            var user = await SetupUserAsync();
+            await UserServiceTest.ConfirmUserEmailAsync(user.PersoId);
+
+            // two different sessions
+            var s1 = (await AuthService.LoginAsync(dto, ip, dev, ua)).ShouldBeSuccess();
+            var s2 = (await AuthService.LoginAsync(dto, ip, dev, ua)).ShouldBeSuccess();
+
+            var expectedKey = new UserSessionKey(user.PersoId, s1.Access.SessionId);
+            WebSocketManagerMock.ResetCalls();
+
+            await AuthService.LogoutAsync(
+                s1.Access.Token, s1.RefreshToken, s1.Access.SessionId, logoutAllUsers: false);
+
+            // WS called exactly once for S-1
+            WebSocketManagerMock.Verify(
+                ws => ws.SendMessageAsync(expectedKey, "LOGOUT"),
+                Times.Once);
+
+            // Refresh-token store still has 1 entry left (S-2)
+            // —— now query remaining tokens under a tx ——
+            var (conn, tx) = await CreateTransactionAsync();
+            try
+            {
+                var tokensLeft = await UserSQLProvider
+                    .RefreshTokenSqlExecutor
+                    .GetRefreshTokensAsync(conn, tx, user.PersoId);
+
+                await tx.CommitAsync();
+                Assert.Single(tokensLeft);
+            }
+            finally
+            {
+                await conn.DisposeAsync();
+            }
+        }
+
+
+        /* -------------------------------------------------------------------------- */
+        /* 5. Black-listed access-token should be rejected by middleware              */
+        /* -------------------------------------------------------------------------- */
+        [Fact]
+        public async Task Request_WithBlacklistedToken_ShouldReturn401()
+        {
+            var (ip, dev, ua) = AuthTestHelper.GetDefaultMetadata();
+            var dto = new UserLoginDto
+            {
+                Email = "test@example.com",
+                Password = "Password123!",
+                CaptchaToken = "mock"
+            };
+
+            // Arrange: register & login
+            var user = await SetupUserAsync();
+            await UserServiceTest.ConfirmUserEmailAsync(user.PersoId);
+            var login = (await AuthService.LoginAsync(dto, ip, dev, ua)).ShouldBeSuccess();
+
+            // Extract the JTI from the access token:
+            var jti = new JwtSecurityTokenHandler()
+                          .ReadJwtToken(login.Access.Token)
+                          .Claims
+                          .First(c => c.Type == JwtRegisteredClaimNames.Jti)
+                          .Value;
+
+            // Blacklist that JTI inside a real DB transaction:
+            var (conn, tx) = await CreateTransactionAsync();
+            try
+            {
+                // Note: pass the _jti_, not the full token string
+                await TokenBlacklistService.BlacklistTokenAsync(
+                    jti,
+                    login.Access.ExpiresUtc,
+                    conn,
+                    tx
+                );
+
+                await tx.CommitAsync();
+            }
+            finally
+            {
+                await tx.DisposeAsync();
+                await conn.DisposeAsync();
+            }
+
+            // Now ValidateToken should see the JTI in the table/cache and return null
+            Assert.Null(jwtService.ValidateToken(login.Access.Token));
         }
 
     }

@@ -6,6 +6,6 @@
     "HeartbeatIntervalMinutes": 5,
     "MissedPongThreshold": 3,
     "LogoutOnStaleConnection": false,
-    "PongTimeout": "00:00:10" // 10 seconds
+    "PongTimeout": "00:00:30" // 30 seconds
   }
 }

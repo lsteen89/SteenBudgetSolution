@@ -1,262 +1,106 @@
-import React, { useRef, useState } from 'react';
-import FormContainer from '@components/molecules/containers/FormContainer';
-import InputField from "@components/atoms/InputField/ContactFormInputField";
-import SubmitButton from '@components/atoms/buttons/SubmitButton';
-import LoginBird from '@assets/Images/LoginBird.png';
-import { useNavigate, Navigate } from 'react-router-dom';
-import { UserLoginValidator } from '@utils/validation/userLoginValidation';
-import { UserLoginDto } from '../../types/userLoginForm';
-import ReCAPTCHA from 'react-google-recaptcha';
-import { login } from '@api/Services/User/authService';
-import PageContainer from '@components/layout/PageContainer';
-import ContentWrapper from '@components/layout/ContentWrapper';
-import { useAuth } from "@context/AuthProvider"; 
-import type { LoginResponse } from "../../types/authTypes";
-import LoadingScreen from '@components/molecules/feedback/LoadingScreen';
-import CenteredContainer from '@components/atoms/container/CenteredContainer';
+// src/pages/LoginPage.tsx
+import React, { useRef, useState }     from 'react'
+import { Navigate, useNavigate }       from 'react-router-dom'
+import ReCAPTCHA                       from 'react-google-recaptcha'
+import { object, string }              from 'yup'
 
-type ReCAPTCHAWithReset = ReCAPTCHA & {
-  reset: () => void;
-};
+import { useAuth }                     from '@/hooks/auth/useAuth'
+import type { UserLoginDto }           from '@myTypes/User/Auth/userLoginForm'
 
-const LoginPage: React.FC = () => {
-  const captchaRef = useRef<ReCAPTCHAWithReset>(null);
-  const [formData, setFormData] = useState<UserLoginDto>({ email: '', password: '', captchaToken: '' });
-  const [errors, setErrors] = useState<{ [key in keyof UserLoginDto]?: string } & { form?: string }>({});
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const navigate = useNavigate();
-  const { refreshAuthStatus,  authenticated, isLoading, fetchUserData } = useAuth(); // Destructure authenticated and isLoading
-  // Fetch user data if authenticated
-  
-  // Redirect if already authenticated
-  if (isLoading) {
-    return (
-      <CenteredContainer>
-        <LoadingScreen />
-      </CenteredContainer>
-    );
+import PageContainer    from '@components/layout/PageContainer'
+import ContentWrapper   from '@components/layout/ContentWrapper'
+import CenteredContainer from '@components/atoms/container/CenteredContainer'
+import LoadingScreen     from '@components/molecules/feedback/LoadingScreen'
+import FormContainer     from '@components/molecules/containers/FormContainer'
+import InputField        from '@components/atoms/InputField/ContactFormInputField'
+import SubmitButton      from '@components/atoms/buttons/SubmitButton'
+import LoginBird         from '@assets/Images/LoginBird.png'
+
+/* —— yup schema —— */
+const schema = object({
+  email       : string().email('Ogiltig e-post').required('E-post krävs'),
+  password    : string().min(6,'Minst 6 tecken').required('Lösenord krävs'),
+  captchaToken: string().required('Captcha krävs'),
+})
+
+type ReCAPTCHAWithReset = ReCAPTCHA & { reset:()=>void }
+
+export default function LoginPage() {
+  const [form, setForm]   = useState<UserLoginDto>({ email:'', password:'', captchaToken:'' })
+  const [err,  setErr]    = useState<Record<string,string>>({})
+  const [sub,  setSub]    = useState(false)
+  const capRef            = useRef<ReCAPTCHAWithReset>(null)
+
+  const nav               = useNavigate()
+  const { login, isLoading, accessToken } = useAuth()
+
+  /* redirects */
+  if (isLoading)  return <CenteredContainer><LoadingScreen/></CenteredContainer>
+  if (accessToken) return <Navigate to="/dashboard" replace />
+
+  /* helpers */
+  const setField = (k:keyof UserLoginDto,v:string)=>
+    setForm(f=>({...f,[k]:v}))
+
+  const validate = async () => {
+    try { await schema.validate(form,{abortEarly:false}); setErr({}); return true }
+    catch (e:any) {
+      const map:Record<string,string>={}
+      e.inner?.forEach((m:any)=>{ map[m.path]=m.message })
+      setErr(map); return false
+    }
   }
 
-  if (authenticated) {
-    return <Navigate to="/dashboard" replace />;
+  const onSubmit = async (e:React.FormEvent) => {
+    e.preventDefault()
+    if (!(await validate())) return
+
+    setSub(true)
+    const res = await login(form)
+    setSub(false)
+
+    if (res.success) return nav('/dashboard',{replace:true})
+    setErr({ form: res.message })
+    capRef.current?.reset()
   }
 
-  const handleCaptchaChange = (token: string | null) => {
-    setFormData((prevData) => ({
-      ...prevData,
-      captchaToken: token || '', 
-    }));
-  };
+  /* render */
+  return (
+    <PageContainer centerChildren>
+      <ContentWrapper className='2xl:pt-[5%]' centerContent>
+        <FormContainer tag="form" onSubmit={onSubmit} bgColor='gradient'
+                       className='z-10 w-full max-h-screen overflow-y-auto'>
 
-  const handleInputChange = (field: keyof UserLoginDto, value: string) => {
-    setFormData((prevData) => ({
-      ...prevData,
-      [field]: value,
-    }));
-    // Optionally clear the error for this field
-    setErrors((prevErrors) => ({
-      ...prevErrors,
-      [field]: '', // Clear error for this field
-    }));
-  };
+          <p className='text-lg font-bold text-gray-800 mb-6 text-center'>
+            Välkommen tillbaka! Logga in för att fortsätta
+          </p>
 
-  const handleBlur = (field: keyof UserLoginDto) => {
-    if (!formData[field]) {
-      setErrors((prevErrors) => ({
-        ...prevErrors,
-        [field]: `${field === 'email' ? 'E-post' : 'Lösenord'} måste anges!`,
-      }));
-    }
-  };
+          {/* email */}
+          <label className='block mb-2 text-sm'>E-postadress</label>
+          <InputField value={form.email} placeholder='Ange e-post'
+                      onChange={e=>setField('email',e.target.value)} width='100%'/>
+          {err.email && <p className='text-sm text-red-500'>{err.email}</p>}
 
-  const validateForm = async (): Promise<boolean> => {
-    setErrors({}); // Clear previous errors
-    try {
-      await UserLoginValidator.validate(formData, { abortEarly: false });
-      return true;
-    } catch (validationError: any) {
-      const validationErrors: { [key in keyof UserLoginDto]?: string } & { form?: string } = {};
-      if (Array.isArray(validationError.inner)) {
-        validationError.inner.forEach((err: any) => {
-          validationErrors[err.path as keyof UserLoginDto] = err.message;
-        });
-      }
-      console.error("Validation errors:", validationErrors);
-      setErrors(validationErrors);
-      return false;
-    }
-  };
+          {/* password */}
+          <label className='block mt-4 mb-2 text-sm'>Lösenord</label>
+          <InputField type='password' value={form.password} placeholder='Ange lösenord'
+                      onChange={e=>setField('password',e.target.value)} width='100%'/>
+          {err.password && <p className='text-sm text-red-500'>{err.password}</p>}
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+          {err.form && <p className='mt-2 text-sm text-red-500'>{err.form}</p>}
 
-    // Validate the form before proceeding
-    const isValid = await validateForm();
-    if (!isValid) return;
-
-    setErrors({}); // Clear any previous errors
-    setIsSubmitting(true); // Indicate loading state
-    try {
-      const result: LoginResponse = await login(formData);
-
-      if (result.success) {
-        console.log("Login successful:", result.message);
-        
-        // Immediately fetch auth status to update the state
-        await refreshAuthStatus();
-        // Fetch user data
-        await fetchUserData();
-        console.log("User data fetched successfully.", fetchUserData);
-
-        // Redirect to the dashboard
-        navigate("/dashboard", { replace: true });
-      } else {
-        setErrors({ form: result.message }); // Show backend error message
-        // Reset the ReCAPTCHA when there’s an error
-        if (captchaRef.current) {
-          captchaRef.current.reset();
-        }
-      }
-    } catch (error: any) {
-      console.error("Login failed:", error.message);
-      setErrors({ form: "Login misslyckades, försök igen!." }); // Generic error
-      // Reset the ReCAPTCHA in case of any error
-      if (captchaRef.current) {
-        captchaRef.current.reset();
-      }
-    } finally {
-      setIsSubmitting(false); // Reset loading state
-    }
-  };
-
-  const handleForgotPassword = () => navigate('/forgotpassword');
-  const handleRegister = () => navigate('/registration');
-
-  return (   
-    <PageContainer centerChildren={true} > 
-      <ContentWrapper className='2xl:pt-[5%] 3xl:pt-[0%]' centerContent={true}>
-        <FormContainer
-          tag="form" 
-          className="z-10 w-full max-h-screen overflow-y-auto" 
-          bgColor="gradient"
-          onSubmit={handleSubmit}
-        >
-          {/* Title */}
-          <p className="text-lg font-bold text-gray-800 mb-6 text-center">Välkommen tillbaka! Logga in för att fortsätta</p>
-
-          {/* Email */}
-          <div className="flex-1 mb-4">
-            <label className="block text-gray-700 text-sm mb-2 " htmlFor="email">
-              E-postadress
-            </label>
-            <InputField
-              placeholder="Ange din e-post"
-              value={formData.email}
-              onChange={(e) => handleInputChange('email', e.target.value)}
-              onBlur={() => handleBlur('email')}
-              width="100%"
-            />
-            {errors.email && (
-              <p className="text-red-500 text-sm">{errors.email}</p>
-            )}
-          </div>
-
-          {/* Password */}
-          <div className="flex-1 mb-4">
-            <label className="block text-gray-700 text-sm mb-2" htmlFor="password">
-              Lösenord
-            </label>
-            <InputField
-              placeholder="Ange ditt lösenord"
-              type="password"
-              value={formData.password}
-              onChange={(e) => handleInputChange('password', e.target.value)}
-              onBlur={() => handleBlur('password')}
-              width="100%"
-            />
-            {errors.password && (
-              <p className="text-red-500 text-sm">{errors.password}</p>
-            )}
-          </div>
-          {errors.form && <p className="text-red-500 text-sm">{errors.form}</p>}
-          
-          {/* Submit Button and ReCAPTCHA */}
-          <div className="flex flex-col sm:flex-row sm:space-x-4 items-center">
-            {/* Submit Button */}
-            <div className="flex-1 flex justify-center w-full sm:w-auto">
-              <SubmitButton
-                isSubmitting={isSubmitting}
-                label="Logga in"
-                type="submit"
-                enhanceOnHover
-                style={{ width: '100%' }}
-              />
-            </div>
-
-            {/* ReCAPTCHA */}
-            <div
-              className="mt-4 sm:mt-0 flex justify-center w-full sm:w-auto"
-              style={{
-                transform: 'scale(0.9)',
-                transformOrigin: 'center',
-                height: '78px', // Typical height of the ReCAPTCHA widget when scaled
-                overflow: 'hidden',
-              }}
-            >
-              <ReCAPTCHA
-                sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
-                onChange={handleCaptchaChange}
-                ref={captchaRef}
-              />
-            </div>
-          </div>
-
-          {/* Error Message */}
-          {errors.captchaToken && (
-            <p className="text-red-500 text-sm text-center mt-2">{errors.captchaToken}</p>
-          )}
-
-          {/* Forgot Password and Register */}
-          <div className="flex justify-between mt-4">
-            <button
-              type="button"
-              onClick={handleForgotPassword}
-              className="text-sm text-blue-500 hover:text-blue-700"
-            >
-              Glömt lösenord?
-            </button>
-            <button
-              type="button"
-              onClick={handleRegister}
-              className="text-sm text-blue-500 hover:text-blue-700"
-            >
-              Registrera
-            </button>
+          {/* actions */}
+          <div className='mt-6 flex flex-col sm:flex-row sm:items-center sm:space-x-4'>
+            <SubmitButton type='submit' label='Logga in' isSubmitting={sub} enhanceOnHover style={{width:'100%'}}/>
+            <ReCAPTCHA sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+                        onChange={tok=>setField('captchaToken',tok||'')}
+                        ref={capRef}/>
           </div>
         </FormContainer>
 
-        {/* Bird Image */}
-        <img
-          src={LoginBird}
-          alt="LoginBird"
-          className="
-            z-0 
-            w-auto 
-            max-w-[180px] 
-            mt-10 
-            mx-auto 
-            lg:absolute lg:right-10 lg:top-3/4 lg:transform lg:-translate-y-1/2 lg:mt-0
-            3xl:absolute 3xl:right-[30%] 3xl:top-3/4 
-            lg:max-w-[200px] 
-            xl:max-w-[350px]
-          " 
-          loading="lazy" // Optional: Enables lazy loading
-        />
+        <img src={LoginBird} loading='lazy' alt=''
+             className='z-0 mt-10 mx-auto max-w-[180px] lg:absolute lg:right-10 lg:top-3/4 lg:-translate-y-1/2 xl:max-w-[350px]'/>
       </ContentWrapper>
     </PageContainer>
-  );
-};
-
-export default LoginPage;
-
-
+  )
+}

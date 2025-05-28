@@ -3,12 +3,15 @@
 // The RefreshJwtTokenEntity class is used to represent a refresh token in the database.
 
 using Backend.Common.Interfaces;
+using Backend.Domain.Entities.Auth;
 using Backend.Infrastructure.Data.Sql.Interfaces.Factories;
 using Backend.Infrastructure.Data.Sql.Interfaces.UserQueries;
 using Backend.Infrastructure.Entities.Tokens;
 using Dapper;
 using Microsoft.Extensions.Caching.Distributed;
+using System;
 using System.Data.Common;
+using System.Text;
 using System.Text.Json;
 
 namespace Backend.Infrastructure.Data.Sql.Queries.UserQueries
@@ -23,126 +26,121 @@ namespace Backend.Infrastructure.Data.Sql.Queries.UserQueries
             _cache = cache;
             _timeProvider = timeProvider;
         }
-        public async Task<bool> AddRefreshTokenAsync(RefreshJwtTokenEntity refreshJwtTokenEntity, DbConnection? conn = null, DbTransaction? tx = null)
+        #region Retrieval/insertion
+        // Purpose: Adds a new refresh token to the database.
+        public async Task<bool> UpsertRefreshTokenAsync(
+            RefreshJwtTokenEntity token,
+            DbConnection conn,
+            DbTransaction tx)
         {
-            try
+            const string sql = @"
+            INSERT INTO RefreshTokens
+              (TokenId, Persoid, SessionId, HashedToken, AccessTokenJti,
+               ExpiresRollingUtc, ExpiresAbsoluteUtc, RevokedUtc, Status,
+               DeviceId, UserAgent, CreatedUtc)
+            VALUES
+              (@TokenId, @Persoid, @SessionId, @HashedToken, @AccessTokenJti,
+               @ExpiresRollingUtc, @ExpiresAbsoluteUtc, @RevokedUtc, @Status,
+               @DeviceId, @UserAgent, @CreatedUtc)
+            ON DUPLICATE KEY UPDATE
+              HashedToken        = VALUES(HashedToken),
+              AccessTokenJti     = VALUES(AccessTokenJti),
+              ExpiresRollingUtc  = VALUES(ExpiresRollingUtc),
+              ExpiresAbsoluteUtc = VALUES(ExpiresAbsoluteUtc),
+              RevokedUtc         = VALUES(RevokedUtc),
+              DeviceId           = VALUES(DeviceId),
+              UserAgent          = VALUES(UserAgent),
+              Status             = 1,
+              CreatedUtc         = VALUES(CreatedUtc);";
+
+            _logger.LogInformation("Upserting refresh token for PersoId {PersoId}", token.Persoid);
+            _logger.LogInformation("SessionId after upsert: {SessionId}", token.SessionId);
+            var rows = await ExecuteAsync(conn, sql, new
             {
-                _logger.LogInformation("Adding refresh token for PersoId: {PersoId}", refreshJwtTokenEntity.Persoid);
-                string sql = @"INSERT INTO RefreshTokens 
-                       (PersoId, SessionId, RefreshToken, AccessTokenJti, RefreshTokenExpiryDate, AccessTokenExpiryDate, DeviceId, UserAgent, CreatedBy, CreatedTime) 
-                       VALUES 
-                       (@PersoId, @SessionId, @RefreshToken, @AccessTokenJti, @RefreshTokenExpiryDate, @AccessTokenExpiryDate, @DeviceId, @UserAgent, @CreatedBy, @CreatedTime)";
-
-                int rowsAffected;
-
-                if (conn != null)
-                {
-                    // Use provided connection and transaction.
-                    rowsAffected = await ExecuteAsync(conn, sql, new
-                    {
-                        PersoId = refreshJwtTokenEntity.Persoid,
-                        refreshJwtTokenEntity.SessionId,
-                        refreshJwtTokenEntity.RefreshToken,
-                        refreshJwtTokenEntity.AccessTokenJti,
-                        refreshJwtTokenEntity.RefreshTokenExpiryDate,
-                        refreshJwtTokenEntity.AccessTokenExpiryDate,
-                        refreshJwtTokenEntity.DeviceId,
-                        refreshJwtTokenEntity.UserAgent,
-                        refreshJwtTokenEntity.CreatedBy,
-                        refreshJwtTokenEntity.CreatedTime,
-                    }, tx);
-                }
-                else
-                {
-                    // No connection provided—open a new connection and wrap in a transaction.
-                    using var localConn = await GetOpenConnectionAsync();
-                    using var localTx = localConn.BeginTransaction();
-                    try
-                    {
-                        rowsAffected = await ExecuteAsync(localConn, sql, new
-                        {
-                            PersoId = refreshJwtTokenEntity.Persoid,
-                            refreshJwtTokenEntity.SessionId,
-                            refreshJwtTokenEntity.RefreshToken,
-                            refreshJwtTokenEntity.AccessTokenJti,
-                            refreshJwtTokenEntity.RefreshTokenExpiryDate,
-                            refreshJwtTokenEntity.AccessTokenExpiryDate,
-                            refreshJwtTokenEntity.DeviceId,
-                            refreshJwtTokenEntity.UserAgent,
-                            refreshJwtTokenEntity.CreatedBy,
-                            refreshJwtTokenEntity.CreatedTime,
-                        }, localTx);
-
-                        localTx.Commit();
-                    }
-                    catch
-                    {
-                        localTx.Rollback();
-                        throw;
-                    }
-                }
-
-                _logger.LogInformation("Refresh token added successfully for PersoId: {PersoId}", refreshJwtTokenEntity.Persoid);
-                return rowsAffected > 0;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error occurred while adding refresh token for PersoId: {PersoId}", refreshJwtTokenEntity.Persoid);
-                return false;
-            }
+                token.TokenId,
+                Persoid = token.Persoid,
+                token.SessionId,
+                HashedToken = token.HashedToken,
+                AccessTokenJti = token.AccessTokenJti,
+                ExpiresRollingUtc = token.ExpiresRollingUtc,
+                ExpiresAbsoluteUtc = token.ExpiresAbsoluteUtc,
+                RevokedUtc = token.RevokedUtc,
+                Status = token.Status,
+                token.DeviceId,
+                token.UserAgent,
+                CreatedUtc = token.CreatedUtc
+            }, tx);
+            _logger.LogInformation("Upsert completed for PersoId {PersoId}", token.Persoid);
+            return rows > 0;
         }
 
         public async Task<IEnumerable<RefreshJwtTokenEntity>> GetRefreshTokensAsync(
-            Guid? persoid = null,
-            string refreshToken = null,
-            string sessionId = null,
-            DbConnection? conn = null,
-            DbTransaction? tx = null)
+            DbConnection conn,
+            DbTransaction tx,               // Note: Must be supplied for FOR UPDATE
+            Guid? persoId = null,           // user
+            string? hashedToken = null,     // SHA-256 from client (made nullable for clarity)
+            Guid? sessionId = null,         // device/browser
+            bool onlyActive = true          // filter out revoked / expired
+            )
         {
-            if (!persoid.HasValue && string.IsNullOrEmpty(refreshToken))
+            // Important: For FOR UPDATE to work, this method MUST be called within a transaction.
+
+            if (persoId is null && hashedToken is null && sessionId is null)
+                throw new ArgumentException("At least one filter must be provided.");
+
+            var nowUtc = _timeProvider.UtcNow;
+
+            string sql = """
+            SELECT  TokenId,
+                    PersoId,
+                    SessionId,
+                    HashedToken,
+                    AccessTokenJti,
+                    ExpiresRollingUtc,
+                    ExpiresAbsoluteUtc,
+                    Status,
+                    RevokedUtc,
+                    DeviceId,
+                    UserAgent,
+                    CreatedUtc
+            FROM    RefreshTokens
+            WHERE   1 = 1
+            """;
+
+            var p = new DynamicParameters();
+
+            if (hashedToken is not null)
             {
-                throw new ArgumentException("At least one parameter must be provided.");
+                sql += " AND HashedToken = @Hashed";
+                p.Add("Hashed", hashedToken);
             }
 
-            string sql = @"SELECT Persoid, CAST(SessionId AS CHAR(36)) AS SessionId, RefreshToken, AccessTokenJti, 
-                          RefreshTokenExpiryDate, AccessTokenExpiryDate, DeviceId, UserAgent, CreatedBy, CreatedTime 
-                   FROM RefreshTokens 
-                   WHERE 1=1";
-            var parameters = new DynamicParameters();
-
-            if (!string.IsNullOrEmpty(refreshToken))
+            if (persoId is not null)
             {
-                sql += " AND RefreshToken = @RefreshToken";
-                parameters.Add("RefreshToken", refreshToken);
+                sql += " AND PersoId = @PersoId";
+                p.Add("PersoId", persoId);
             }
 
-            if (persoid.HasValue)
-            {
-                sql += " AND Persoid = @Persoid";
-                parameters.Add("Persoid", persoid.Value);
-            }
-
-            if (!string.IsNullOrEmpty(sessionId))
+            // Clarify nullable check for Guid
+            if (sessionId.HasValue) // Use .HasValue for nullable Guids
             {
                 sql += " AND SessionId = @SessionId";
-                parameters.Add("SessionId", sessionId);
+                p.Add("SessionId", sessionId.Value); // Use .Value to get the Guid
             }
 
-            // Add row-level locking if within a transaction.
-            if (tx != null)
+            if (onlyActive)
             {
-                sql += " FOR UPDATE";
-                // Use the connection associated with the provided transaction.
-                return await QueryAsync<RefreshJwtTokenEntity>(conn, sql, parameters, tx);
+                sql += " AND RevokedUtc IS NULL";
+                sql += " AND ExpiresAbsoluteUtc >= @Now";
+                sql += " AND ExpiresRollingUtc >= @Now"; // Added rolling expiry check for active status
+                p.Add("Now", nowUtc);
             }
-            else
-            {
-                // No transaction provided—open a new connection.
-                using var newConn = await GetOpenConnectionAsync();
-                return await QueryAsync<RefreshJwtTokenEntity>(newConn, sql, parameters);
-            }
+
+            return await QueryAsync<RefreshJwtTokenEntity>(conn, sql, p, tx);
         }
+        #endregion
 
+        #region BlackList
         public async Task<bool> DoesAccessTokenJtiExistAsync(string accessTokenJti, DbConnection? conn = null, DbTransaction? tx = null)
         {
             var now = DateTime.UtcNow;
@@ -167,26 +165,17 @@ namespace Backend.Infrastructure.Data.Sql.Queries.UserQueries
                 return count > 0;
             }
         }
-        public async Task<bool> AddBlacklistedTokenAsync(string jti, DateTime expiration, DbConnection? conn = null, DbTransaction? tx = null)
+        public async Task<bool> AddBlacklistedTokenAsync(string jti, DateTime expiration, DbConnection conn, DbTransaction tx)
         {
             try
             {
                 _logger.LogInformation("Adding blacklisted token for Jti: {Jti}", jti);
-                string sql = "INSERT INTO BlacklistedTokens (Jti, ExpiryDate) VALUES (@Jti, @ExpiryDate)";
-                int rowsAffected;
-
-                if (conn != null)
-                {
-                    // Use provided connection and transaction.
-                    rowsAffected = await ExecuteAsync(conn, sql, new { Jti = jti, ExpiryDate = expiration }, tx);
-                }
-                else
-                {
-                    // No connection provided—open a new one.
-                    using var localConn = await GetOpenConnectionAsync();
-                    rowsAffected = await ExecuteAsync(localConn, sql, new { Jti = jti, ExpiryDate = expiration });
-                }
-
+                string sql = @"
+                INSERT INTO BlacklistedTokens (Jti, ExpiryDate)
+                VALUES (@Jti, @ExpiryDate)
+                ON DUPLICATE KEY UPDATE
+                ExpiryDate = GREATEST(ExpiryDate, VALUES(ExpiryDate));";
+                int rowsAffected = await ExecuteAsync(conn, sql, new { Jti = jti, ExpiryDate = expiration }, tx);
                 _logger.LogInformation("Blacklisted token added successfully for Jti: {Jti}", jti);
                 return rowsAffected > 0;
             }
@@ -215,80 +204,6 @@ namespace Backend.Infrastructure.Data.Sql.Queries.UserQueries
             }
 
             return count > 0;
-        }
-        private async Task<bool> UpdateRefreshTokenExpiryAsync(Guid persoId, DateTime newExpiry, DbConnection? conn = null, DbTransaction? tx = null)
-        {
-            string sql = "UPDATE RefreshTokens SET RefreshTokenExpiryDate = @NewExpiry WHERE PersoId = @PersoId";
-            int rowsAffected;
-
-            if (tx != null)
-            {
-                if (conn == null)
-                {
-                    throw new ArgumentNullException(nameof(conn), "A connection must be provided when a transaction is provided.");
-                }
-                // Use the provided connection and transaction
-                rowsAffected = await ExecuteAsync(conn, sql, new { NewExpiry = newExpiry, PersoId = persoId }, tx);
-            }
-            else
-            {
-                // No transaction provided—open a new connection locally
-                using var localConn = await GetOpenConnectionAsync();
-                rowsAffected = await ExecuteAsync(localConn, sql, new { NewExpiry = newExpiry, PersoId = persoId });
-            }
-
-            return rowsAffected > 0;
-        }
-
-        // This method is used to expire a refresh token
-        public async Task<bool> ExpireRefreshTokenAsync(Guid persoId, DbConnection? conn = null, DbTransaction? tx = null)
-        {
-            DateTime newExpiry = _timeProvider.UtcNow.AddMinutes(-1);
-            _logger.LogInformation("Expiring refresh token for PersoId {PersoId} with new expiry {NewExpiry}", persoId, newExpiry);
-
-            // Forward the connection and transaction (if any) to the private method.
-            return await UpdateRefreshTokenExpiryAsync(persoId, newExpiry, conn, tx);
-        }
-
-        public async Task<bool> DeleteTokenAsync(string refreshToken, DbConnection? conn = null, DbTransaction? tx = null)
-        {
-            const string sql = "DELETE FROM RefreshTokens WHERE RefreshToken = @RefreshToken";
-            int rowsAffected;
-
-            if (tx != null)
-            {
-                // If a transaction is provided, ensure a connection is also provided.
-                if (conn == null)
-                    throw new ArgumentNullException(nameof(conn), "A connection must be provided when a transaction is provided.");
-                rowsAffected = await ExecuteAsync(conn, sql, new { RefreshToken = refreshToken }, tx);
-            }
-            else
-            {
-                // No transaction provided—open a new connection.
-                using var localConn = await GetOpenConnectionAsync();
-                rowsAffected = await ExecuteAsync(localConn, sql, new { RefreshToken = refreshToken });
-            }
-
-            return rowsAffected > 0;
-        }
-        public async Task<bool> DeleteTokensByUserIdAsync(string userId, DbConnection? conn = null, DbTransaction? tx = null)
-        {
-            const string sql = "DELETE FROM RefreshTokens WHERE PersoId = @PersoId";
-            int rowsAffected;
-
-            if (tx != null)
-            {
-                if (conn == null)
-                    throw new ArgumentNullException(nameof(conn), "A connection must be provided when a transaction is provided.");
-                rowsAffected = await ExecuteAsync(conn, sql, new { PersoId = userId }, tx);
-            }
-            else
-            {
-                using var localConn = await GetOpenConnectionAsync();
-                rowsAffected = await ExecuteAsync(localConn, sql, new { PersoId = userId });
-            }
-
-            return rowsAffected > 0;
         }
         public async Task<BlacklistedTokenEntity?> GetBlacklistedTokenByJtiAsync(string? jti, DbConnection? conn = null, DbTransaction? tx = null)
         {
@@ -322,67 +237,340 @@ namespace Backend.Infrastructure.Data.Sql.Queries.UserQueries
 
             return token;
         }
+        #endregion
 
-        public async Task<IEnumerable<RefreshJwtTokenEntity>> GetExpiredTokensAsync(DbConnection? conn = null, DbTransaction? tx = null)
+        #region Expire/revoke tokens
+        // NOTE:
+        // THESE THREE METHODS ARE FOR UPDATING THE STATUS OF TOKENS
+        // THEY ARE ONLY USED IN TESTS AND NOT IN PRODUCTION CODE
+        // THEY WILL BE REFACTORED OUT IN THE FUTURE
+        // TODO: Refactor these methods to be more generic and reusable
+        /*─────────────────────────────────────────────────────────────────*/
+        /*  1)  Extend rolling-window expiry                              */
+        /*─────────────────────────────────────────────────────────────────*/
+        public async Task<bool> UpdateRollingExpiryAsync(
+            Guid persoid,
+            Guid sessionId,
+            DateTime newExpiryUtc,
+            DbConnection? conn = null,
+            DbTransaction? tx = null)
+        {
+            const string sql = @"
+            UPDATE RefreshTokens
+               SET ExpiresRollingUtc = @NewExpiryUtc
+             WHERE Persoid           = @Persoid
+               AND SessionId         = @SessionId
+               AND Status            = @ActiveStatus";
+
+            return await ExecAsync(
+                sql,
+                new
+                {
+                    Persoid = persoid,
+                    SessionId = sessionId,
+                    NewExpiryUtc = newExpiryUtc,
+                    ActiveStatus = (int)TokenStatus.Active
+                },
+                conn,
+                tx);
+        }
+
+        /*───────────────────────────────────────────────────────────────*/
+        /* 2) Hard-set ABSOLUTE expiry (or revoke instantly by default)  */
+        /* We also archive the revoked token for auditing purposes.      */
+        /*───────────────────────────────────────────────────────────────*/
+        public async Task<bool> UpdateAbsoluteExpiryAsync(
+            Guid persoid,
+            Guid sessionId,
+            DbConnection conn,
+            DbTransaction tx,
+            DateTime? whenUtc = null)
+        {
+            DateTime expiry = whenUtc ?? _timeProvider.UtcNow.AddMinutes(-1);
+            #region expire
+            // 1. UPDATE + FOR UPDATE locks the row we’re about to move
+            const string markSql = @"
+            UPDATE RefreshTokens
+               SET ExpiresAbsoluteUtc = @NewExpiryUtc,
+                   Status             = @RevokedStatus,   -- 2 = Revoked
+                   RevokedUtc         = @NowUtc
+             WHERE Persoid            = @Persoid
+               AND SessionId          = @SessionId
+               AND Status             = @ActiveStatus
+             LIMIT 1";                
+
+            var p = new
+            {
+                Persoid = persoid,
+                SessionId = sessionId,
+                NewExpiryUtc = expiry,
+                NowUtc = _timeProvider.UtcNow,
+                RevokedStatus = (int)TokenStatus.Revoked,
+                ActiveStatus = (int)TokenStatus.Active
+            };
+
+            int updated = await conn.ExecuteAsync(markSql, p, tx);
+            if (updated == 0) return false;        // nothing to revoke
+            #endregion
+            #region archive
+            /* 2. Copy the (now-revoked) row into the archive */
+            const string copySql = @"
+            INSERT INTO RefreshTokens_Archive
+               (TokenId,
+                Persoid,
+                SessionId,
+                HashedToken,
+                AccessTokenJti,
+                ExpiresRollingUtc,
+                ExpiresAbsoluteUtc,
+                RevokedUtc,
+                Status,
+                DeviceId,
+                UserAgent,
+                CreatedUtc
+               )
+            SELECT
+                TokenId,
+                Persoid,
+                SessionId,
+                HashedToken,
+                AccessTokenJti,
+                ExpiresRollingUtc,
+                ExpiresAbsoluteUtc,
+                RevokedUtc,
+                Status,
+                DeviceId,
+                UserAgent,
+                CreatedUtc
+              FROM RefreshTokens
+             WHERE Persoid   = @Persoid
+               AND SessionId = @SessionId
+               AND Status    = @RevokedStatus
+             LIMIT 1;
+            ";
+            await conn.ExecuteAsync(copySql, new
+            {
+                Persoid = p.Persoid,
+                SessionId = p.SessionId,
+                RevokedStatus = p.RevokedStatus,
+                DeletedUtc = p.NowUtc
+            }, tx);
+
+            /* 3. Purge it from the hot table */
+            const string deleteSql = @"
+            DELETE FROM RefreshTokens
+             WHERE Persoid   = @Persoid
+               AND SessionId = @SessionId
+               AND Status    = @RevokedStatus
+             LIMIT 1";
+            await conn.ExecuteAsync(deleteSql, new { p.Persoid, p.SessionId, p.RevokedStatus }, tx);
+            #endregion
+            return true;                           // we rotated successfully
+        }
+
+        /*─────────────────────────────────────────────────────────────────*/
+        /*  3)  Revoke token completely (Status = Revoked, timestamp set) */
+        /*─────────────────────────────────────────────────────────────────*/
+        public async Task<bool> RevokeRefreshTokenAsync(
+            Guid persoid,
+            Guid sessionId,
+            DbConnection? conn = null,
+            DbTransaction? tx = null)
+        {
+            const string sql = @"
+            UPDATE RefreshTokens
+               SET Status     = @RevokedStatus,
+                   RevokedUtc = @NowUtc
+             WHERE Persoid    = @Persoid
+               AND SessionId  = @SessionId
+               AND Status     = @ActiveStatus";
+
+            var paramBag = new
+            {
+                Persoid = persoid,
+                SessionId = sessionId,
+                NowUtc = _timeProvider.UtcNow,
+                RevokedStatus = (int)TokenStatus.Revoked,
+                ActiveStatus = (int)TokenStatus.Active
+            };
+
+            return await ExecAsync(sql, paramBag, conn, tx);
+        }
+
+
+        private async Task<bool> ExecAsync(
+            string sql,
+            object paramBag,
+            DbConnection? conn = null,
+            DbTransaction? tx = null)
+        {
+            if (conn != null)
+            {
+                int rows = await ExecuteAsync(conn, sql, paramBag, tx);
+                return rows > 0;
+            }
+
+            await using var local = await GetOpenConnectionAsync();
+            int affected = await ExecuteAsync(local, sql, paramBag);
+            return affected > 0;
+        }
+
+        #endregion
+
+        #region Delete/retrieve/update tokens
+        public async Task<bool> DeleteTokenAsync(string refreshToken, DbConnection? conn = null, DbTransaction? tx = null)
+        {
+            const string sql = "DELETE FROM RefreshTokens WHERE HashedToken = @RefreshToken";
+            int rowsAffected;
+
+            if (tx != null)
+            {
+                // If a transaction is provided, ensure a connection is also provided.
+                if (conn == null)
+                    throw new ArgumentNullException(nameof(conn), "A connection must be provided when a transaction is provided.");
+                rowsAffected = await ExecuteAsync(conn, sql, new { RefreshToken = refreshToken }, tx);
+            }
+            else
+            {
+                // No transaction provided—open a new connection.
+                using var localConn = await GetOpenConnectionAsync();
+                rowsAffected = await ExecuteAsync(localConn, sql, new { RefreshToken = refreshToken });
+            }
+            if(rowsAffected == 0)
+            {
+                _logger.LogWarning("No token found for deletion with the provided refresh token.");
+            }
+            else
+            {
+                _logger.LogInformation("Token deleted successfully for refresh token: {RefreshToken}", refreshToken);
+            }
+
+            return rowsAffected > 0;
+        }
+        public async Task<bool> DeleteTokensByUserIdAsync(Guid persoid, DbConnection? conn = null, DbTransaction? tx = null)
+        {
+            const string sql = "DELETE FROM RefreshTokens WHERE PersoId = @persoid";
+            int rowsAffected;
+
+            if (tx != null)
+            {
+                if (conn == null)
+                    throw new ArgumentNullException(nameof(conn), "A connection must be provided when a transaction is provided.");
+                rowsAffected = await ExecuteAsync(conn, sql, new { Persoid = persoid }, tx);
+            }
+            else
+            {
+                using var localConn = await GetOpenConnectionAsync();
+                rowsAffected = await ExecuteAsync(localConn, sql, new { Persoid = persoid });
+            }
+
+            return rowsAffected > 0;
+        }
+        public async Task<IEnumerable<RefreshJwtTokenEntity>> GetExpiredTokensAsync(
+            DbConnection? conn = null, DbTransaction? tx = null, int batchSize = 1000)
         {
             try
             {
                 var now = DateTime.UtcNow;
-                // Create a cache key that changes appropriately (e.g., every 30 seconds)
-                var roundedNow = new DateTime(now.Ticks - (now.Ticks % (TimeSpan.TicksPerSecond * 30)), now.Kind);
-                string cacheKey = $"ExpiredTokens_{roundedNow:yyyyMMddHHmmss}";
-
-                // Try to get cached tokens
-                var cachedTokensJson = await _cache.GetStringAsync(cacheKey);
-                if (!string.IsNullOrEmpty(cachedTokensJson))
-                {
-                    var cachedTokens = JsonSerializer.Deserialize<IEnumerable<RefreshJwtTokenEntity>>(cachedTokensJson);
-                    if (cachedTokens != null)
-                    {
-                        return cachedTokens;
-                    }
-                }
 
                 // Query the database for expired tokens
-                string sql = @"
-                SELECT Persoid, CAST(SessionId AS CHAR(36)) AS SessionId, RefreshToken, AccessTokenJti,
-                       RefreshTokenExpiryDate, AccessTokenExpiryDate, DeviceId, UserAgent, CreatedBy, CreatedTime 
-                FROM RefreshTokens 
-                WHERE RefreshTokenExpiryDate < @Now";
-                var parameters = new DynamicParameters();
-                parameters.Add("Now", now);
+                string sql = """
+                SELECT  PersoId,
+                        SessionId,
+                        HashedToken,
+                        AccessTokenJti,
+                        ExpiresRollingUtc,
+                        ExpiresAbsoluteUtc,
+                        DeviceId,
+                        UserAgent
+                FROM    RefreshTokens
+                WHERE   ExpiresRollingUtc < @Now
+                    OR   ExpiresAbsoluteUtc < @Now
+                ORDER BY ExpiresRollingUtc ASC          -- earliest expiries first
+                LIMIT @BatchSize;
+                """;
 
-                IEnumerable<RefreshJwtTokenEntity> tokens;
-                if (conn != null)
+                var p = new DynamicParameters();
+                p.Add("Now", now);
+                p.Add("BatchSize", batchSize);
+
+                if (conn is null)
                 {
-                    // Use the provided connection and transaction.
-                    tokens = await QueryAsync<RefreshJwtTokenEntity>(conn, sql, parameters, tx);
+                    await using var local = await GetOpenConnectionAsync();
+                    return await QueryAsync<RefreshJwtTokenEntity>(local, sql, p);
                 }
-                else
-                {
-                    // No connection provided—open a new one.
-                    using var localConn = await GetOpenConnectionAsync();
-                    tokens = await QueryAsync<RefreshJwtTokenEntity>(localConn, sql, parameters);
-                }
 
-                // Cache the result for a short duration (e.g., 35 seconds)
-                var cacheOptions = new DistributedCacheEntryOptions
-                {
-                    AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(35)
-                };
-                var tokensJson = JsonSerializer.Serialize(tokens);
-                await _cache.SetStringAsync(cacheKey, tokensJson, cacheOptions);
-
-                return tokens;
+                return await QueryAsync<RefreshJwtTokenEntity>(conn, sql, p, tx);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error occurred while querying expired tokens.");
+                _logger.LogError(ex, "Error querying expired tokens.");
                 throw;
             }
         }
+        #endregion
+        #region Archive
+        public async Task<IReadOnlyList<RefreshJwtTokenArchiveEntity>> GetArchivedTokensAsync(
+            Guid persoId,
+            Guid sessionId,
+            DbConnection? conn = null,
+            DbTransaction? tx = null)
+        {
+            const string sql = @"
+            SELECT
+                TokenId,
+                Persoid,
+                SessionId,
+                HashedToken,
+                AccessTokenJti,
+                ExpiresRollingUtc,
+                ExpiresAbsoluteUtc,
+                RevokedUtc,
+                Status,
+                DeviceId,
+                UserAgent,
+                CreatedUtc
+            FROM RefreshTokens_Archive
+            WHERE Persoid   = @Persoid
+              AND SessionId = @SessionId";
 
+            if (conn is null)
+            {
+                await using var c = await GetOpenConnectionAsync();
+                return (await c.QueryAsync<RefreshJwtTokenArchiveEntity>(sql, new { Persoid = persoId, SessionId = sessionId }))
+                       .ToList();
+            }
+            return (await conn.QueryAsync<RefreshJwtTokenArchiveEntity>(sql, new { Persoid = persoId, SessionId = sessionId }, tx))
+                   .ToList();
+        }
 
+        public async Task<int> CountRefreshTokensAsync(
+            Guid persoId,
+            Guid? sessionId = null,
+            bool onlyActive = true,
+            DbConnection? conn = null,
+            DbTransaction? tx = null)
+        {
+            var where = new StringBuilder("WHERE Persoid = @Persoid");
+            if (sessionId.HasValue)
+                where.Append(" AND SessionId = @SessionId");
+            if (onlyActive)
+                where.Append(" AND Status = @ActiveStatus");
+
+            var sql = $@"SELECT COUNT(*) FROM RefreshTokens {where}";
+            var parameters = new DynamicParameters();
+            parameters.Add("Persoid", persoId);
+            if (sessionId.HasValue) parameters.Add("SessionId", sessionId.Value);
+            if (onlyActive) parameters.Add("ActiveStatus", (int)TokenStatus.Active);
+
+            if (conn is null)
+            {
+                await using var c = await GetOpenConnectionAsync();
+                return await c.ExecuteScalarAsync<int>(sql, parameters);
+            }
+            return await conn.ExecuteScalarAsync<int>(sql, parameters, tx);
+        }
+        #endregion
     }
 }
 

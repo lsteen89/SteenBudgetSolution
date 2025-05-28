@@ -1,4 +1,4 @@
-import { UserFormData } from '../../types/registrationForm'; // Importing the UserFormData type from the registrationForm type file
+import { UserFormData } from '@myTypes/User/Creation/registrationForm'; // Importing the UserFormData type from the registrationForm type file
 // TODO: Refactor this validator to use Yup
 // Validation function for the registration form
 export const validateRegistrationForm = (

@@ -1,4 +1,4 @@
-import axios from '../../axiosConfig';
+import { api } from '@/api/axios';
 import { isValidEmail } from '@utils/validation/emailValidation';
 
 interface GenerateResetPasswordEmailResponse {
@@ -28,7 +28,7 @@ export const generateResetPasswordEmail = async (
     }
 
     try {
-        const response = await axios.post<GenerateResetPasswordEmailResponse>(
+        const response = await api.post<GenerateResetPasswordEmailResponse>(
             '/api/UserManagement/generate-reset-password-email',
             { email }
         );
