@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom'; // Simplify navigation
-import { useLocation } from "react-router-dom";
 import MobileBird from '@assets/Images/MobileBird.png';
 import { useAuth } from "@hooks/auth/useAuth"; // Custom hook for authentication
 import UserSideMenu from '../../sideMenu/UserSideMenu'; 
@@ -12,7 +11,6 @@ const MobileMenu: React.FC = () => {
 
   // Authentication and navigation
   const auth = useAuth();
-  const navigate = useNavigate();
   const isDebugMode = process.env.NODE_ENV === 'development';
   // Handle menu icon click
   const handleIconClick = () => {

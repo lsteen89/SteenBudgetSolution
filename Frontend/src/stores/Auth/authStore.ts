@@ -10,7 +10,7 @@ interface AuthSlice {
   user           : UserDto | null     // User data, null if not authenticated
   isLoading      : boolean            // Indicates if the store is currently loading data
   wsEnabled      : boolean            // Indicates if WebSocket is enabled
-  ready     : boolean                 // Indicates if the Websocket is ready for use
+  ready           : boolean           // Indicates if the Websocket is ready for use
   setReady  : (v: boolean) => void    // Sets the readiness state for WebSocket
 
   /* actions */
@@ -50,7 +50,6 @@ export const useAuthStore = create<AuthSlice>()(
       persoid       : null, 
       wsMac         : null,
       user          : null,
-      firstTimeLogin: false,
       isLoading     : false,
       wsEnabled     : false,
       ready   : false,

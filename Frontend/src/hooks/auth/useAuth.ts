@@ -35,7 +35,6 @@ export function useAuth() {
     user        : store.user,
     authenticated: !!store.accessToken,
     isLoading     : store.isLoading,
-    firstLogin    : store.firstTimeLogin,
     login, logout,
   };
 }

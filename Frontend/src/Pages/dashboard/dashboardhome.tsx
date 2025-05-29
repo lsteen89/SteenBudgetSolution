@@ -14,32 +14,19 @@ import CenteredContainer from "@components/atoms/container/CenteredContainer";
 const Dashboard: React.FC = () => {
 
   const auth = useAuth();
-  const { firstLogin, authenticated, isLoading } = useAuth();
   const isDebugMode = process.env.NODE_ENV === "development";
   const navigate = useNavigate();
-  const isMdUp = useMediaQuery('(min-width: 768px)');
-  const isDesktop = useMediaQuery('(min-width: 1367px)');
-  const protectedRoutes = ['/dashboard'];
-  const isProtectedRoute = protectedRoutes.includes(location.pathname);
+  const firstLogin = (isDebugMode && !auth.user)
+                    ? true // In debug mode, if there's no user (e.g., due to bypass), simulate first login
+                    : (auth.user?.firstLogin ?? false); // Otherwise, use the actual value or default to false
   
-  React.useEffect(() => {
-    if (firstLogin) {
-      setIsWizardOpen(true);
-    }
-  }, [firstLogin]); // Only run when firstLogin changes
-
+  console.log('[Dashboard] First login:', firstLogin); // Debug log for first login state
+  console.log('[Dashboard] User:', auth.user); // Debug log for user state
   // If firstTimeLogin is true, start with wizard open. 
   // Otherwise, it's closed.
   const [isWizardOpen, setIsWizardOpen] = React.useState(false); 
 
-  //console.log("Authenticated:", auth?.authenticated);
-  //console.log("Debug Mode:", isDebugMode);
-  //console.log('isDesktop:', isDesktop);
-  //console.log('location.pathname:', location.pathname);
-  //console.log('isProtectedRoute:', isProtectedRoute);
-  //console.log('Environment Variables:', import.meta.env);
-  //console.log("Is first time user:", auth?.firstTimeLogin); 
-  //console.log("User Data:", auth?.user?.firstName, auth?.user?.lastName, auth?.user?.email);  
+  
 
   if (auth.isLoading) { // Use auth.isLoading
     return (
