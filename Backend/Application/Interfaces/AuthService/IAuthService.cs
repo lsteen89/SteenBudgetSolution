@@ -13,7 +13,7 @@ namespace Backend.Application.Interfaces.AuthService
         Task LogoutAsync(string accessToken, string refreshToken, Guid sessionId, bool logoutAllUsers);
 
         // RefreshToken and check access token
-        Task<AuthStatusResult> CheckAndRefreshAsync(string accessToken, string refreshCookie, Guid sessionId, string userAgent, string deviceId, DbConnection cn, DbTransaction tx);
+        Task<AuthStatusResult> CheckAndRefreshAsync(string? accessToken, string refreshCookie, Guid sessionId, string userAgent, string deviceId, DbConnection cn, DbTransaction tx);
         Task<(string token, Guid tokenId, DateTime exp)> IssueAsync(UserCtx ctx, string jti);
     }
 }
