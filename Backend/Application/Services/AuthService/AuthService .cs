@@ -188,15 +188,21 @@ namespace Backend.Application.Services.AuthService
             var now = _timeProvider.UtcNow;
 
             /* ── 1. quick rejects ───────────────────────────────────────────── */
-            if (string.IsNullOrWhiteSpace(refreshCookie) || sessionId == Guid.Empty)
+            if (string.IsNullOrWhiteSpace(refreshCookie))
                 return AuthStatusResult.Fail();
 
             /* ── 2. load current RT row (FOR UPDATE) ────────────────────────── */
             var storedToken = await GetRefreshTokenDB(
                     refreshCookie, sessionId, onlyActive: true, conn, tx);
 
-            if (storedToken is null || storedToken.SessionId != sessionId)
+            if (storedToken is null)
                 return AuthStatusResult.Fail();
+
+            if (sessionId != Guid.Empty && storedToken.SessionId != sessionId)
+                return AuthStatusResult.Fail();
+
+            if (sessionId == Guid.Empty)
+                sessionId = storedToken.SessionId;
 
             if (now > storedToken.ExpiresAbsoluteUtc)
                 return AuthStatusResult.Fail();
@@ -228,9 +234,12 @@ namespace Backend.Application.Services.AuthService
                     clock: _timeProvider,
                     conn, tx);
 
-                /* 4-c) Blacklist the *old* AT */                           
-                if (!await _jwtService.BlacklistJwtTokenAsync(accessToken!, conn, tx))
-                    throw new InvalidOperationException("black-list failed");
+                /* 4-c) Blacklist the *old* AT */
+                if (!string.IsNullOrWhiteSpace(accessToken))
+                {
+                    if (!await _jwtService.BlacklistJwtTokenAsync(accessToken, conn, tx))
+                        throw new InvalidOperationException("black-list failed");
+                }
             }
             catch (Exception ex)
             {
@@ -302,7 +311,15 @@ namespace Backend.Application.Services.AuthService
                 throw new ArgumentException("Refresh token cannot be null or empty");
             }
             var providedHashedToken = TokenGenerator.HashToken(refreshToken);
-            var storedTokens = await _userSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokensAsync(conn, tx, hashedToken: providedHashedToken, sessionId: sessionId, onlyActive: onlyActive);
+            IEnumerable<RefreshJwtTokenEntity> storedTokens;
+            if (sessionId == Guid.Empty)
+            {
+                storedTokens = await _userSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokensAsync(conn, tx, hashedToken: providedHashedToken, onlyActive: onlyActive);
+            }
+            else
+            {
+                storedTokens = await _userSQLProvider.RefreshTokenSqlExecutor.GetRefreshTokensAsync(conn, tx, hashedToken: providedHashedToken, sessionId: sessionId, onlyActive: onlyActive);
+            }
             var storedToken = storedTokens.FirstOrDefault(); // At this stage, we only expect one token
             if (storedToken == null)
             {
