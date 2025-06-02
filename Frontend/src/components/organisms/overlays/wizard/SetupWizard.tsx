@@ -14,10 +14,16 @@ import {
 import WizardStepContainer from "@components/molecules/containers/WizardStepContainer";
 // Individual step components
 import StepWelcome from "@components/organisms/overlays/wizard/steps/StepWelcome";
-import StepBudgetIncome, { StepBudgetIncomeRef } from "@components/organisms/overlays/wizard/steps/StepBudgetIncome1/StepBudgetIncome";
-import StepExpenditure, { StepBudgetExpenditureRef } from "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/StepBudgetExpenditure";
+// Importing step components
+// INITIAL STEPS
 import StepPreferences from "@components/organisms/overlays/wizard/steps/StepPreferences";
 import StepConfirmation from "@components/organisms/overlays/wizard/steps/StepConfirmation";
+// Step 1: Income 
+import WizardFormWrapperStep1, { WizardFormWrapperStep1Ref } from '@components/organisms/overlays/wizard/steps/StepBudgetIncome1/wrapper/WizardFormWrapperStep1'; 
+import StepBudgetIncome from "@components/organisms/overlays/wizard/steps/StepBudgetIncome1/StepBudgetIncome";
+// Step 2: Expenditure
+import StepExpenditure, { StepBudgetExpenditureRef } from "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/StepBudgetExpenditure";
+
 // Toast notification
 import { useToast } from "@context/ToastContext";
 // hooks
@@ -133,12 +139,12 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
   const isDebugMode = process.env.NODE_ENV === 'development';
 
   // 5. Refs to child steps
-  const StepBudgetIncomeRef = useRef<StepBudgetIncomeRef>(null);
+  const step1WrapperRef = useRef<WizardFormWrapperStep1Ref>(null);
   const StepBudgetExpenditureRef = useRef<StepBudgetExpenditureRef>(null);
 
   // Refs for all steps
   const stepRefs: { [key: number]: React.RefObject<any> } = {
-    1: StepBudgetIncomeRef,
+    1: step1WrapperRef,
     2: StepBudgetExpenditureRef,
     //3: stepExpenditureRef,
     //4: stepConfirmationRef,
@@ -204,7 +210,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
         hasPrevSub: false,
         hasNextSub: false,
       };
-    }, [step, stepRefs[step], subTick]);   //  ← include subTick
+    }, [step, stepRefs[step], subTick]);  
     const activeStepAPI = stepRefs[step]?.current;
 
     const saving = activeStepAPI && "isSaving" in activeStepAPI
@@ -264,21 +270,18 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
                 <>
                   {step === 1 && (
                     (wizardSessionId || isDebugMode) ? (
-                      <StepBudgetIncome
-                        ref={StepBudgetIncomeRef}
-                        setStepValid={setIsStepValid}
-                        wizardSessionId={wizardSessionId || ''}
-                        onSaveStepData={handleSaveStepData}
-                        stepNumber={1}
-                        initialData={initialDataForStep(1)}
-                        onNext={() => hookNextStep()} // Use the hook's nextStep
-                        onPrev={() => hookPrevStep()} // Use the hook's prevStep
-                        showSideIncome={flags.showSideIncome}
-                        setShowSideIncome={setShowSideIncome}
-                        showHouseholdMembers={flags.showHouseholdMembers}
-                        setShowHouseholdMembers={setShowHouseholdMembers}
-                        loading={transitionLoading || initLoading}
-                      />
+                      <WizardFormWrapperStep1
+                        ref={step1WrapperRef}
+
+
+                      >
+                        <StepBudgetIncome
+                          onNext={() => hookNextStep()} // Use the hook's nextStep
+                          onPrev={() => hookPrevStep()} // Use the hook's prevStep 
+                          loading={transitionLoading || initLoading}
+                          stepNumber={1} 
+                        />
+                      </WizardFormWrapperStep1>
                     ) : (
                       <p>Tekniskt fel!</p>
                     )
