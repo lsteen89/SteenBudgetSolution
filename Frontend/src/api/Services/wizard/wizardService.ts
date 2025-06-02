@@ -1,8 +1,5 @@
 import { api } from '@/api/axios';
-
-export interface StartWizardResponse {
-  wizardSessionId: string; // Empty string if session creation failed
-}
+import { StartWizardResponse } from '@myTypes/Wizard/StartWizardResponse';
 
 export interface WizardDataResponseDto {
   wizardData: Record<number, any> | null;

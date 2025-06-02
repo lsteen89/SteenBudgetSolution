@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { UseFormReturn } from 'react-hook-form';
+import { UseFormReturn, Path, FieldValues  } from 'react-hook-form';
 import { useToast } from '@context/ToastContext';
 import { ExpenditureFormValues } from '@myTypes/Wizard/ExpenditureFormValues';
 import { useWizardSaveQueue } from '@/stores/Wizard/wizardSaveQueue';
@@ -50,6 +50,7 @@ export function useSaveStepData<T extends ExpenditureFormValues>({
 }: UseSaveStepDataProps<T>) {
   const { showToast } = useToast();
   const saveQueue     = useWizardSaveQueue();
+  
   /* ------------------------------------------------------------------
      ⬇️  main callback
   ------------------------------------------------------------------ */
@@ -69,25 +70,70 @@ export function useSaveStepData<T extends ExpenditureFormValues>({
       /* 1 ─── validation */
       let isValid = true;
       if (!skipValidation && !goingBackwards) {
-        isValid = await methods.trigger();
-      }
-      if (!isValid && !skipValidation && !goingBackwards) {
-        /* scroll-to-error block unchanged */
-        const firstErr = Object.keys(methods.formState.errors)[0];
-        if (firstErr === 'rent') {
-          const nested = Object.keys((methods.formState.errors as any).rent)[0];
-          document
-            .querySelector(`[name="rent.${nested}"]`)
-            ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        } else if (firstErr === 'food') {
-          ['foodStoreExpenses', 'takeoutExpenses'].forEach((n) =>
-            document
-              .querySelector(`[name="food.${n}"]`)
-              ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-          );
+      // Determine the top-level field keys relevant to the step we are leaving.
+      // We use methods.getValues() to provide the full form data structure that getPartialData might expect.
+        const relevantDataSlice = getPartialData<T>(stepLeaving, methods.getValues());
+        // And this is the key change for fieldsToValidate:
+        const fieldsToValidate = Object.keys(relevantDataSlice) as Path<T>[];
+        // Alternatively, you can write it as: const fieldsToValidate = Object.keys(relevantDataSlice) as (keyof T)[];
+
+        if (fieldsToValidate.length > 0) {
+          console.log(`Validating fields for step ${stepLeaving}:`, fieldsToValidate.map(f => String(f))); // Ensure logging as string if needed
+          // Now, fieldsToValidate is (keyof T)[], which is assignable to Path<T>[]
+          isValid = await methods.trigger(fieldsToValidate); // This should resolve the TypeScript error
+        } else {
+          // No specific fields to validate for this step...
+          console.log(`No specific fields to validate for step ${stepLeaving}. Proceeding.`);
+          isValid = true;
         }
-        onError?.();
-        return false;
+
+        if (!isValid) {
+          // Validation for the current step's specific fields has failed.
+          // The methods.formState.errors object will now contain errors for these fields.
+          // The existing scroll-to-error logic might need adjustment if it's too generic
+          // or doesn't correctly pick up errors from the specifically validated fields.
+
+          // Attempt to scroll to the first error within the fields that were just validated.
+          let scrolledToError = false;
+          for (const fieldKey of fieldsToValidate) { // e.g., "rent", "food"
+            const errorForFieldKey = (methods.formState.errors as any)[fieldKey];
+            if (errorForFieldKey) {
+              // Scroll logic based on fieldKey:
+              if (fieldKey === 'rent') {
+                const nestedRentErrorKey = Object.keys(errorForFieldKey)[0];
+                if (nestedRentErrorKey) {
+                  document
+                    .querySelector(`[name="rent.${nestedRentErrorKey}"]`)
+                    ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  scrolledToError = true;
+                  break;
+                }
+              } else if (fieldKey === 'food') {
+                // Simplified example for food; you might need more specific handling
+                // if errors can be deeply nested within 'food'.
+                const foodErrorKeys = Object.keys(errorForFieldKey);
+                if (foodErrorKeys.length > 0) {
+                  // Try to find a common scroll target or first error field within food
+                  const firstNestedFoodErrorKey = foodErrorKeys[0]; // e.g. 'foodStoreExpenses'
+                  // This selector might need to be more dynamic based on your food structure
+                  document
+                    .querySelector(`[name="food.${firstNestedFoodErrorKey}"]`) 
+                    ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  scrolledToError = true;
+                  break;
+                }
+              }
+              // Add more cases if you have other top-level keys from getPartialData
+            }
+          }
+          
+          onError?.(); // Trigger shake animation
+          console.log(`Validation failed for fields [${fieldsToValidate.join(', ')}] in step ${stepLeaving}. Errors:`, methods.formState.errors);
+          // Consider making the toast message more specific if possible,
+          // or rely on field-level errors and the scroll-to-error behavior.
+          showToast('🚨 Något i formuläret är fel ifyllt för detta steg.', 'error');
+          return false;
+        }
       }
 
       /* 2 - Flush any previously queued chunks if moving forward (We ONLY save on forward) */
@@ -121,7 +167,9 @@ export function useSaveStepData<T extends ExpenditureFormValues>({
           throw new Error('API save returned false');
         }
       } catch (err) {
-        showToast('🚨 Kunde inte spara dina ändringar', 'error');
+        // TODO: This should be shown later, not here
+        console.error('Error saving step data:', err);
+        //showToast('🚨 Kunde inte spara dina ändringar', 'error');
         onError?.();                 // trigger shake animation
         // **enqueue for retry**
         saveQueue.enqueue({  

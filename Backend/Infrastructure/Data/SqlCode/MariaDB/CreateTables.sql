@@ -212,12 +212,12 @@ CREATE TABLE BlacklistedTokens (
 
 CREATE TABLE WizardSession (
   WizardSessionId CHAR(36) NOT NULL,
-  Email VARCHAR(256) NOT NULL,
+  Persoid char(36) NOT NULL,
   CurrentStep INT NOT NULL DEFAULT 0,
   CreatedAt DATETIME NOT NULL DEFAULT UTC_TIMESTAMP(),
   UpdatedAt DATETIME NOT NULL DEFAULT UTC_TIMESTAMP(),
   PRIMARY KEY (WizardSessionId),
-  UNIQUE KEY UK_Email (Email)
+  UNIQUE KEY UK_Persoid (Persoid)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE WizardStep (

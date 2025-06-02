@@ -409,18 +409,27 @@ builder.Services.AddAuthentication(o =>
 {
     o.TokenValidationParameters = jwtParams;
 
-    /* blacklist check */
+    // --- START: Explicitly configure the handler for this scheme ---
+    var customJwtHandler = new JwtSecurityTokenHandler();
+    customJwtHandler.InboundClaimTypeMap.Clear(); // Clear map FOR THIS INSTANCE
+
+
+    o.MapInboundClaims = false; 
+
+    // --- END: Explicit configuration ---
+
+
     o.Events = new JwtBearerEvents
     {
         OnTokenValidated = async ctx =>
         {
             var repo = ctx.HttpContext.RequestServices.GetRequiredService<ITokenBlacklistService>();
-            var logger = ctx.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+            var logger = ctx.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>(); // Or ILogger<Startup>
 
             var jti = ctx.Principal?.FindFirstValue(JwtRegisteredClaimNames.Jti);
             if (jti != null && await repo.IsTokenBlacklistedAsync(jti))
             {
-                logger.LogWarning("Rejected  JTI {jti} black-listed", jti);
+                logger.LogWarning("Rejected JTI {jti} black-listed", jti);
                 ctx.Fail("revoked");
             }
         }
@@ -429,8 +438,10 @@ builder.Services.AddAuthentication(o =>
 //  Refresh lifetime 
 .AddJwtBearer("RefreshScheme", o =>
 {
-    var p = jwtParams.Clone(); p.ValidateLifetime = false;
+    var p = jwtParams.Clone();
+    p.ValidateLifetime = false;
     o.TokenValidationParameters = p;
+    o.MapInboundClaims = false;
 });
 
 builder.Services.AddAuthorization();

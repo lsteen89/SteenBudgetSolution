@@ -17,12 +17,5 @@
             }
             return (ipAddress, userAgent, deviceId);
         }
-
-        public static (string RefreshToken, string SessionId) ExtractTokensFromCookies(HttpContext context)
-        {
-            var refreshToken = context.Request.Cookies["RefreshToken"];
-            var sessionId = context.Request.Cookies["SessionId"];
-            return (refreshToken, sessionId);
-        }
     }
 }

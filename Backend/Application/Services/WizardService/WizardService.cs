@@ -25,9 +25,9 @@ namespace Backend.Application.Services.WizardService
             _logger = logger;
             
         }
-        public async Task<(bool IsSuccess, Guid WizardSessionId, string Message)> CreateWizardSessionAsync(string email)
+        public async Task<(bool IsSuccess, Guid WizardSessionId, string Message)> CreateWizardSessionAsync(Guid persoid)
         {
-            Guid wizardSessionId = await _wizardProvider.WizardSqlExecutor.CreateWizardAsync(email);
+            Guid wizardSessionId = await _wizardProvider.WizardSqlExecutor.CreateWizardAsync(persoid);
             if (wizardSessionId == Guid.Empty)
             {
                 return (false, wizardSessionId, "Failed to create wizard session.");
@@ -142,8 +142,8 @@ namespace Backend.Application.Services.WizardService
             return mergedData;
         }
 
-        public async Task<Guid> UserHasWizardSessionAsync(string email) => 
-            (await _wizardProvider.WizardSqlExecutor.GetWizardSessionIdAsync(email)) ?? Guid.Empty;
+        public async Task<Guid> UserHasWizardSessionAsync(Guid? persoid) => 
+            (await _wizardProvider.WizardSqlExecutor.GetWizardSessionIdAsync(persoid)) ?? Guid.Empty;
 
         public async Task<int> GetWizardSubStep(string wizardSessionId) =>
             await _wizardProvider.WizardSqlExecutor.GetWizardSubStepAsync(wizardSessionId);

@@ -1,43 +1,29 @@
-import NumberInput from "@components/atoms/InputField/NumberInput";
+import FormattedNumberInput from "@components/atoms/InputField/FormattedNumberInput";
 import SelectDropdown from "@components/atoms/dropdown/SelectDropdown";
-import HelpSection from "@components/molecules/helptexts/HelpSection";
+import HelpSection from '@components/molecules/helptexts/HelpSectionDark';
+import { useFormContext, Controller, FieldPath } from 'react-hook-form'; // Added FieldPath
+import { IncomeFormValues } from '@myTypes/Wizard/IncomeFormValues'; // Assuming this is your main form type
 
 interface SalaryFieldProps {
-  netSalary: number | null;
-  yearlySalary: number | null;
-  salaryFrequency: string;
-  
-  // Callbacks for changes & blurs
-  onSalaryChange: (value: string) => void;
-  onSalaryBlur: () => void;
-  onFrequencyChange: (value: string) => void;
-  onFrequencyBlur: () => void;
-
-  // Error/touched display
-  errorNetSalary?: string; 
-  errorSalaryFrequency?: string;
-  touchedNetSalary?: boolean;
-  touchedSalaryFrequency?: boolean;
+  netSalaryFieldName: FieldPath<IncomeFormValues>; // Use FieldPath for type safety
+  salaryFrequencyFieldName: FieldPath<IncomeFormValues>;
+  yearlySalaryCalculated: number | null; // This remains for display
 }
 
 const SalaryField: React.FC<SalaryFieldProps> = ({
-  netSalary,
-  yearlySalary,
-  salaryFrequency,
-  onSalaryChange,
-  onSalaryBlur,
-  onFrequencyChange,
-  onFrequencyBlur,
-  errorNetSalary,
-  errorSalaryFrequency,
-  touchedNetSalary,
-  touchedSalaryFrequency,
+  netSalaryFieldName,
+  salaryFrequencyFieldName,
+  yearlySalaryCalculated, // This is for display
 }) => {
+  const { control, formState: { errors } } = useFormContext<IncomeFormValues>();
 
-  // Toggle help text
   const frequencyHelpText = "Välj hur ofta du får din inkomst utbetald.";
   const detailedHelpText =
     "Detta representerar din huvudsakliga inkomstkälla. Exempel inkluderar lön, A-kassa, sjukpenning, pension eller försörjningsstöd.";
+
+  // Get specific errors for the fields this component manages
+  const netSalaryError = errors[netSalaryFieldName]?.message as string | undefined;
+  const salaryFrequencyError = errors[salaryFrequencyFieldName]?.message as string | undefined;
 
   return (
     <div className="relative">
@@ -45,16 +31,14 @@ const SalaryField: React.FC<SalaryFieldProps> = ({
       <div
         className="block text-sm font-medium flex items-center gap-1"
         onClick={(e) => e.stopPropagation()}
-        >
+      >
         <span>Huvudinkomst (SEK)</span>
-        {/* tooltip */}
         <HelpSection
           label=""
-          helpText= {
+          helpText={
             <>
               {detailedHelpText} <br />
-              Räkna ut din nettolön med hjälp av Skatteverkets verktyg
-              {" "}
+              Räkna ut din nettolön med hjälp av Skatteverkets verktyg{" "}
               <a
                 href="https://www7.skatteverket.se/portal/inkomst-efter-skatt-se-tabell"
                 target="_blank"
@@ -62,61 +46,74 @@ const SalaryField: React.FC<SalaryFieldProps> = ({
                 className="text-darkLimeGreen underline"
               >
                 här
-              </a>{" "}
+              </a>
             </>
           }
-        > </HelpSection> 
+        />
       </div>
-      {/* Net Salary Input */}
-      <NumberInput
-        name="netSalary"
-        id="netSalary"
-        value={netSalary === null ? "" : netSalary}
-        onChange={(e) => onSalaryChange(e.target.value)}
-        placeholder="Ange din nettoinkomst"
-        touched={touchedNetSalary}
-        error={touchedNetSalary && errorNetSalary ? errorNetSalary : undefined}
-        onBlur={() => onSalaryBlur()}
-      />
 
-      {/* error message */}
-      {touchedNetSalary && errorNetSalary && (
-        <p className="text-red-500 text-sm mt-1">{errorNetSalary}</p>
+      {/* Net Salary Input using RHF Controller */}
+      <Controller
+        name={netSalaryFieldName}
+        control={control}
+        defaultValue={null} // Important for controlled components that expect a specific empty state
+        render={({ field, fieldState }) => (
+          <FormattedNumberInput
+            ref={field.ref}
+            name={field.name}
+            id={field.name} 
+            value={field.value as number | null}
+            onValueChange={field.onChange}
+            onBlur={field.onBlur}
+            placeholder="Ange din nettoinkomst"
+            error={fieldState.error?.message}
+
+          />
+        )}
+      />
+      {/* RHF Controller handles error display based on schema if NumberInput doesn't show it,
+          or you can display it explicitly as before using netSalaryError */}
+      {netSalaryError && !errors[netSalaryFieldName]?.ref && ( // Avoid duplicate display if input shows it
+        <p className="text-red-500 text-sm mt-1">{netSalaryError}</p>
       )}
+
 
       {/* Frequency label & help icon */}
       <div className="relative mt-4">
         <div onClick={(e) => e.stopPropagation()} className="flex items-center gap-1">
           <span className="block text-sm font-medium">Lönefrekvens:</span>
-          {/* tooltip */}
-          <HelpSection
-            label=""
-            helpText= {
-              <>
-                {frequencyHelpText} 
-              </>
-            }
-          > </HelpSection> 
+          <HelpSection label="" helpText={<>{frequencyHelpText}</>} />
         </div>
       </div>
 
-      {/* Frequency Dropdown */}
-      <SelectDropdown
-        value={salaryFrequency}
-        onChange={(e) => onFrequencyChange(e.target.value)}
-        onBlur={() => onFrequencyBlur()}
-        options={[
-          { value: "monthly", label: "Per månad" },
-          { value: "weekly", label: "Per vecka" },
-          { value: "quarterly", label: "Per kvartal" },
-          { value: "annually", label: "Årligen" },
-        ]}
-        error={
-          touchedSalaryFrequency && errorSalaryFrequency
-            ? errorSalaryFrequency
-            : undefined
-        }
+      {/* Frequency Dropdown using RHF Controller */}
+      <Controller
+        name={salaryFrequencyFieldName}
+        control={control}
+        defaultValue={"monthly"} // Or fetch from store via RHF defaultValues in the form
+        render={({ field, fieldState }) => (
+          <SelectDropdown
+            value={field.value || "monthly"}
+            onChange={(e) => field.onChange(e.target.value)}
+            onBlur={field.onBlur} 
+            options={[
+              { value: "monthly", label: "Per månad" },
+              { value: "weekly", label: "Per vecka" },
+              { value: "quarterly", label: "Per kvartal" },
+              { value: "annually", label: "Årligen" },
+            ]}
+            error={fieldState.error?.message}
+          />
+        )}
       />
+       {salaryFrequencyError && !errors[salaryFrequencyFieldName]?.ref && (
+        <p className="text-red-500 text-sm mt-1">{salaryFrequencyError}</p>
+      )}
+
+      {/* Display of yearlySalaryCalculated (passed as prop) remains the same logic as before,
+          it's not part of RHF control here, just display.
+          The parent component (StepBudgetIncome) will calculate this based on watched RHF values.
+      */}
     </div>
   );
 };
