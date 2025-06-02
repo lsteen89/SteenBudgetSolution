@@ -2,7 +2,7 @@ import React from "react";
 import { Banknote, PiggyBank, CreditCard, Flag, XCircle, ShieldCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from '@/hooks/auth/useAuth';
-import GlassPane from "../../../../layout/GlassPane";
+import GlassPane from "@components/layout/GlassPane";
 import { useEffect } from "react";
 import LoadingScreen from "@components/molecules/feedback/LoadingScreen";
 
@@ -20,9 +20,12 @@ const StepWelcome: React.FC<StepWelcomeProps> = ({ connectionError, failedAttemp
   }, [connectionError, failedAttempts, loading]);
   if (loading) {
     return (
-      <GlassPane>
-        <LoadingScreen />
-      </GlassPane>
+    <GlassPane>
+      {/* Give the pane some breathing-room so the loader is centred nicely */}
+      <div className="min-h-48 flex items-center justify-center">
+        <LoadingScreen full={false}  textColor="white" />
+      </div>
+    </GlassPane>
     );
   }
   return (

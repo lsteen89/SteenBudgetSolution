@@ -45,11 +45,11 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
             string testEmail = "test@example.com";
             Guid validGuid = Guid.NewGuid();
             _wizardSqlExecutorMock
-                .Setup(x => x.CreateWizardAsync(testEmail, null, null))
+                .Setup(x => x.CreateWizardAsync(validGuid, null, null))
                 .ReturnsAsync(validGuid);
 
             // Act
-            var result = await _wizardService.CreateWizardSessionAsync(testEmail);
+            var result = await _wizardService.CreateWizardSessionAsync(validGuid);
 
             // Assert
             Assert.True(result.IsSuccess);
@@ -62,12 +62,13 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
         {
             // Arrange
             string testEmail = "test@example.com";
+            Guid validGuid = Guid.NewGuid();
             _wizardSqlExecutorMock
-                .Setup(x => x.CreateWizardAsync(testEmail, null, null))
+                .Setup(x => x.CreateWizardAsync(validGuid, null, null))
                 .ReturnsAsync(Guid.Empty);
 
             // Act
-            var result = await _wizardService.CreateWizardSessionAsync(testEmail);
+            var result = await _wizardService.CreateWizardSessionAsync(validGuid);
 
             // Assert
             Assert.False(result.IsSuccess);
@@ -80,13 +81,14 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
         {
             // Arrange
             string testEmail = "test@example.com";
+            Guid persoid = Guid.NewGuid();
             Guid sessionGuid = Guid.NewGuid();
             _wizardSqlExecutorMock
-                .Setup(x => x.GetWizardSessionIdAsync(testEmail, null, null))
+                .Setup(x => x.GetWizardSessionIdAsync(persoid, null, null))
                 .ReturnsAsync(sessionGuid);
 
             // Act
-            var result = await _wizardService.UserHasWizardSessionAsync(testEmail);
+            var result = await _wizardService.UserHasWizardSessionAsync(persoid);
 
             // Assert
             Assert.Equal(sessionGuid, result);
@@ -97,12 +99,13 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
         {
             // Arrange
             string testEmail = "test@example.com";
+            Guid persoid = Guid.NewGuid();
             _wizardSqlExecutorMock
-                .Setup(x => x.GetWizardSessionIdAsync(testEmail, null, null))
+                .Setup(x => x.GetWizardSessionIdAsync(persoid, null, null))
                 .ReturnsAsync((Guid?)null);
 
             // Act
-            var result = await _wizardService.UserHasWizardSessionAsync(testEmail);
+            var result = await _wizardService.UserHasWizardSessionAsync(persoid);
 
             // Assert
             Assert.Equal(Guid.Empty, result);

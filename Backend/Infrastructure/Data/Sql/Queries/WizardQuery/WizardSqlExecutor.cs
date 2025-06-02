@@ -16,16 +16,16 @@ namespace Backend.Infrastructure.Data.Sql.Queries.WizardQuery
         {
 
         }
-        public async Task<Guid> CreateWizardAsync(string email, DbConnection? conn = null, DbTransaction? tx = null)
+        public async Task<Guid> CreateWizardAsync(Guid? persoid, DbConnection? conn = null, DbTransaction? tx = null)
         {
             try
             {
                 Guid wizardSessionId = Guid.NewGuid();
-                _logger.LogInformation("Creating new wizard session {WizardSessionId} for user {Email}", wizardSessionId, email);
+                _logger.LogInformation("Creating new wizard session {WizardSessionId} for user {Persoid}", wizardSessionId, persoid);
 
                 string sqlQuery = @"
-                INSERT INTO WizardSession (WizardSessionId, Email, CurrentStep, CreatedAt)
-                VALUES (@WizardSessionId, @Email, @CurrentStep, @CreatedAt)";
+                INSERT INTO WizardSession (WizardSessionId, Persoid, CurrentStep, CreatedAt)
+                VALUES (@WizardSessionId, @Persoid, @CurrentStep, @CreatedAt)";
 
                 int rowsAffected;
                 if (conn != null)
@@ -34,7 +34,7 @@ namespace Backend.Infrastructure.Data.Sql.Queries.WizardQuery
                     rowsAffected = await ExecuteAsync(conn, sqlQuery, new
                     {
                         WizardSessionId = wizardSessionId,
-                        Email = email,
+                        Persoid = persoid,
                         CurrentStep = 0,
                         CreatedAt = DateTime.UtcNow
                     }, tx);
@@ -46,7 +46,7 @@ namespace Backend.Infrastructure.Data.Sql.Queries.WizardQuery
                     rowsAffected = await ExecuteAsync(localConn, sqlQuery, new
                     {
                         WizardSessionId = wizardSessionId,
-                        Email = email,
+                        Persoid = persoid,
                         CurrentStep = 0,
                         CreatedAt = DateTime.UtcNow
                     });
@@ -59,34 +59,34 @@ namespace Backend.Infrastructure.Data.Sql.Queries.WizardQuery
                 }
                 else
                 {
-                    _logger.LogError("Failed to create wizard session for user {Email}", email);
+                    _logger.LogError("Failed to create wizard session for user {Persoid}", persoid);
                     return Guid.Empty;
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Exception occurred while creating wizard session for user {Email}", email);
+                _logger.LogError(ex, "Exception occurred while creating wizard session for user {Persoid}", persoid);
                 return Guid.Empty;
             }
         }
-        public async Task<Guid?> GetWizardSessionIdAsync(string email, DbConnection? conn = null, DbTransaction? tx = null)
+        public async Task<Guid?> GetWizardSessionIdAsync(Guid? persoid, DbConnection? conn = null, DbTransaction? tx = null)
         {
             string sqlQuery = @"
             SELECT WizardSessionId
             FROM WizardSession
-            WHERE Email = @Email";
+            WHERE Persoid = @Persoid";
 
             Guid? sessionId;
             if (conn != null)
             {
                 // Use the provided connection and transaction (if any)
-                sessionId = await ExecuteScalarAsync<Guid?>(conn, sqlQuery, new { Email = email }, tx);
+                sessionId = await ExecuteScalarAsync<Guid?>(conn, sqlQuery, new { Persoid = persoid }, tx);
             }
             else
             {
                 // No connection provided—open a new connection.
                 using var localConn = await GetOpenConnectionAsync();
-                sessionId = await ExecuteScalarAsync<Guid?>(localConn, sqlQuery, new { Email = email });
+                sessionId = await ExecuteScalarAsync<Guid?>(localConn, sqlQuery, new { Persoid = persoid });
             }
 
             return sessionId;
@@ -207,7 +207,7 @@ namespace Backend.Infrastructure.Data.Sql.Queries.WizardQuery
             const string query = @"
             SELECT 
                 WizardsessionId, 
-                Email
+                Persoid
             FROM WizardSession
             WHERE WizardSessionId = @WizardSessionId";
             var parameters = new DynamicParameters();

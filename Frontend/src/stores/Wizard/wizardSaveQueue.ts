@@ -15,6 +15,7 @@ interface WizardSaveQueue {
   enqueue: (item: QueueItem) => void;
   dequeue: (index: number) => void;
   flush: () => Promise<void>;
+  clearQueue: () => void; 
 }
 
 export const useWizardSaveQueue = create<WizardSaveQueue>()(
@@ -62,11 +63,12 @@ export const useWizardSaveQueue = create<WizardSaveQueue>()(
           // re-read the updated queue before next iteration
           q = get().queue;
         }
-      }
+      },
+      clearQueue: () => set({ queue: [] }), 
     }),
     {
       name: 'wizard-save-queue',     // localStorage key
-            storage: createJSONStorage(() => sessionStorage),
+            storage: createJSONStorage(() => localStorage), // use localStorage
       partialize: (state) => ({ queue: state.queue })
       
     }

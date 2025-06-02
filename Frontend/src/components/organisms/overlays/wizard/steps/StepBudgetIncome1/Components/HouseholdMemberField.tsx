@@ -1,155 +1,147 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Info, X } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import TextInput from '@components/atoms/InputField/TextInput';
-import NumberInput from '@components/atoms/InputField/NumberInput';
-import SelectDropdown from '@components/atoms/dropdown/SelectDropdown';
+import React from 'react'; 
+import { useFormContext, Controller, FieldPath, get as getRHFValue } from 'react-hook-form';
 
-interface HouseholdMemberFieldProps {
+import TextInput from '@components/atoms/InputField/TextInput';
+import FormattedNumberInput from '@components/atoms/InputField/FormattedNumberInput';
+import SelectDropdown from '@components/atoms/dropdown/SelectDropdown';
+import HelpSectionDark from '@components/molecules/helptexts/HelpSectionDark';
+import { IncomeFormValues } from '@myTypes/Wizard/IncomeFormValues';
+
+interface RefactoredHouseholdMemberFieldProps {
   label: string;
+  fieldName: FieldPath<IncomeFormValues>;
   type: 'text' | 'number' | 'select';
-  value: string | number;
-  onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   placeholder?: string;
   options?: { value: string; label: string }[];
-  id: string;
-  yearlyIncome?: number; 
-  frequency?: string; 
-  error?: string;
-  touched?: boolean;
-  onBlur?: () => void; 
+  displayYearlyIncome?: number | null;
 }
 
-const HouseholdMemberField: React.FC<HouseholdMemberFieldProps> = ({
+
+function getBaseHelpText(currentLabel: string): string {
+  switch (currentLabel) {
+    case 'Namn:':
+      return 'Ange namnet på hushållsmedlemmen.';
+    case 'Nettoinkomst:':
+      return 'Ange hushållsmedlemmens nettoinkomst. Exempel inkluderar lön, A-kassa, sjukpenning, pension eller försörjningsstöd.';
+    case 'Lönefrekvens:':
+      return 'Välj hur ofta hushållsmedlemmen får inkomsten.';
+    default:
+      return '';
+  }
+}
+
+const HouseholdMemberField: React.FC<RefactoredHouseholdMemberFieldProps> = ({
   label,
+  fieldName,
   type,
-  value,
-  onChange,
   placeholder,
   options,
-  id,
-  yearlyIncome,
-  frequency,
-  error,
-  touched,
-  onBlur,
+  displayYearlyIncome,
 }) => {
-  const [showHelp, setShowHelp] = useState(false);
-  const helpRef = useRef<HTMLDivElement>(null);
-  const toggleButtonRef = useRef<HTMLButtonElement>(null);
+  const {
+    control,
+    formState: { errors },
+  } = useFormContext<IncomeFormValues>();
 
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      const target = event.target as Node;
-      // If the click is outside both the tooltip and the toggle button, close the tooltip.
-      if (
-        helpRef.current &&
-        !helpRef.current.contains(target) &&
-        toggleButtonRef.current &&
-        !toggleButtonRef.current.contains(target)
-      ) {
-        setShowHelp(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () =>
-      document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  // Old help state, refs, and useEffect for handleClickOutside are removed.
 
-  function getHelpText(label: string) {
-    switch (label) {
-      case 'Namn:':
-        return 'Ange namnet på hushållsmedlemmen.';
-      case 'Nettoinkomst:':
-        return 'Ange hushållsmedlemmens nettoinkomst. Exempel inkluderar lön, A-kassa, sjukpenning, pension eller försörjningsstöd.';
-      case 'Lönefrekvens:':
-        return 'Välj hur ofta hushållsmedlemmen får inkomsten.';
-      default:
-        return '';
+  const baseHelpText = getBaseHelpText(label);
+  let helpSectionContentNode: React.ReactNode = null;
+
+  if (baseHelpText) {
+    if (label === 'Nettoinkomst:') {
+      helpSectionContentNode = (
+        <p> {/* Parent component (HouseholdMemberField) controls this outer <p> */}
+          {baseHelpText}
+          <br />
+          Räkna ut nettolön via Skatteverket{' '}
+          <a
+            href="https://www7.skatteverket.se/portal/inkomst-efter-skatt-se-tabell"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-darkLimeGreen underline hover:text-green-500" // Added hover for consistency
+          >
+            här
+          </a>.
+        </p>
+      );
+    } else {
+      helpSectionContentNode = <p>{baseHelpText}</p>; // Wrap simple text in <p> for consistency
     }
   }
-  const helpText = getHelpText(label);
+
+  const fieldError = getRHFValue(errors, fieldName)?.message as string | undefined;
+
   return (
-    <div className="relative">
-      <label htmlFor={id} className="block text-sm font-medium flex items-center gap-1 pt-5">
+    <div className="relative mb-4">
+      <label htmlFor={fieldName} className="block text-sm font-medium flex items-center gap-1 pt-2">
         {label}
-        <button
-          ref={toggleButtonRef}
-          type="button"
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowHelp((prev) => !prev);
-          }}
-          className="text-darkLimeGreen hover:text-green-700 focus:outline-none"
-          title={`Vad är ${label.toLowerCase()}?`}
-          aria-label={`Toggle help for ${label}`}
-        >
-          <Info size={16} />
-        </button>
+        {/* Use the new HelpSectionDark component */}
+        {helpSectionContentNode && ( // Only show if there's help content
+          <HelpSectionDark
+            label={label} // The field's label, e.g., "Nettoinkomst:"
+            helpText={helpSectionContentNode} // The prepared React.ReactNode
+            idSuffix={fieldName} // Use fieldName for unique ID generation
+            // You can also pass optional props like triggerButtonClassName if needed here
+          />
+        )}
       </label>
 
-      <AnimatePresence>
-        {showHelp && (
-          <motion.div
-            ref={helpRef}
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="absolute z-10 mt-2 p-4 bg-customBlue2 text-gray-900 rounded-lg shadow-lg border border-gray-400 w-72"
-          >
-            <button
-              type="button"
-              onClick={() => setShowHelp(false)}
-              className="absolute top-2 right-2 text-red-700 hover:text-green-700 focus:outline-none"
-              title="Stäng hjälprutan"
-              aria-label="Stäng hjälprutan"
-            >
-              X
-            </button>
-            <p className="text-sm">
-              {helpText}
-              {label === 'Nettoinkomst:' && (
-                <span>
-                  <br />
-                  Räkna ut nettolön via skatteverket{' '}
-                  <a
-                    href="https://www7.skatteverket.se/portal/inkomst-efter-skatt-se-tabell"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-darkLimeGreen underline"
-                  >
-                    här
-                  </a>.
-                </span>
+      {/* Old AnimatePresence and motion.div for help popup are removed. */}
+
+      <Controller
+        name={fieldName}
+        control={control}
+        render={({ field, fieldState }) => {
+          const specificFieldError = fieldState.error?.message;
+          return (
+            <>
+              {type === 'text' && (
+                <TextInput
+                  id={fieldName}
+                  {...field}
+                  value={field.value || ''}
+                  placeholder={placeholder}
+                  error={specificFieldError}
+                />
               )}
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              {type === 'number' && (
+                <FormattedNumberInput
 
+                  ref={field.ref} 
+                  name={field.name}
+                  id={fieldName}
+                  value={field.value as number | null}
 
-      {type === 'text' && (
-        <TextInput id={id} value={value as string} onChange={onChange} placeholder={placeholder} error={error && id.startsWith("memberName") ? error : undefined} onBlur={onBlur} touched={touched} />
-      )}
-      {type === 'number' && (
-        <>
-          <NumberInput id={id} value={value as string} onChange={onChange} placeholder={placeholder} error={error && id.startsWith("memberIncome") ? error : undefined} onBlur={onBlur} touched={touched}/>
-          {yearlyIncome !== undefined && (
-            <p className="text-sm mt-1">
-              Årlig inkomst: <strong>{(isNaN(yearlyIncome) ? 0 : yearlyIncome).toLocaleString()} SEK</strong>
-            </p>
-          )}
-        </>
-      )}
-      {type === 'select' && (
-        <SelectDropdown
-          label=""
-          value={value as string}
-          onChange={onChange}
-          options={options || []}
-          onBlur={onBlur}
-        />
+                  onValueChange={field.onChange} 
+
+                  onBlur={field.onBlur}
+                  placeholder={placeholder}
+                  error={fieldState.error?.message}
+                />
+              )}
+              {type === 'select' && (
+                <SelectDropdown
+                  {...field}
+                  id={fieldName} // Ensure SelectDropdown uses this id if it needs one
+                  value={field.value || ''}
+                  options={options || []}
+                  error={specificFieldError}
+                />
+              )}
+              {specificFieldError && (!field.ref || (field.ref && !(field.ref as any).dataset?.showsError)) && (
+                <p className="text-red-500 text-sm mt-1">{specificFieldError}</p>
+              )}
+            </>
+          );
+        }}
+      />
+
+      {type === 'number' && displayYearlyIncome !== undefined && displayYearlyIncome !== null && displayYearlyIncome > 0 && (
+        <p className="text-xs mt-1 text-gray-500 dark:text-gray-400">
+          Månad: {(displayYearlyIncome / 12).toLocaleString('sv-SE', { style: 'currency', currency: 'SEK', minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+          (Årlig: {displayYearlyIncome.toLocaleString('sv-SE', { style: 'currency', currency: 'SEK', minimumFractionDigits: 0, maximumFractionDigits: 0 })})
+        </p>
       )}
     </div>
   );

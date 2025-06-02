@@ -23,41 +23,58 @@ namespace Backend.Presentation.Controllers
             _wizardService = wizardService;
             _logger = logger;
         }
-
-        // Helper to get the user ID from your JWT “sub” claim
-        private Guid CurrentUserId =>
-            Guid.Parse(User.FindFirstValue(JwtRegisteredClaimNames.Sub));
-        
         [HttpPost("start")]
         public async Task<IActionResult> StartWizard()
         {
-            _logger.LogInformation("Starting wizard session.");
+            var (ip, ua, deviceId) = RequestMetadataHelper.ExtractMetadata(HttpContext);
+            _logger.LogInformation("StartWizard request: IP: {MaskedIP}, User-Agent: {UserAgent}, Device-ID: {DeviceId}",
+                LogHelper.MaskIp(ip), ua, deviceId);
 
-            string? email = User.GetEmail();
-            if (string.IsNullOrEmpty(email))
+            Guid? persoidNullable = User.GetPersoid();
+
+            if (!persoidNullable.HasValue || persoidNullable.Value == Guid.Empty)
             {
-                _logger.LogWarning("User email not found.");
-                return Unauthorized("User email not found.");
+                _logger.LogWarning("User Persoid (User ID) not found in token or is invalid.");
+                return Unauthorized("User identifier not found in token.");
             }
 
-            // Check if the user already has a session
-            Guid existingSessionId = await _wizardService.UserHasWizardSessionAsync(email);
-            if (existingSessionId != Guid.Empty)
+            Guid persoid = persoidNullable.Value; // Now persoid is a non-nullable Guid
+
+            // Check if the user (identified by their persoid) already has a session.
+            // Assuming _wizardService.UserHasWizardSessionAsync(Guid userId) returns Task<Guid?>
+            Guid? existingSessionId = await _wizardService.UserHasWizardSessionAsync(persoid);
+
+            if (existingSessionId.HasValue && existingSessionId.Value != Guid.Empty)
             {
-                _logger.LogInformation("User already has a wizard session.");
-                return Ok(new { wizardSessionId = existingSessionId });
+                _logger.LogInformation("User {Persoid} already has a wizard session: {SessionId}", persoid, existingSessionId.Value);
+                return Ok(new { wizardSessionId = existingSessionId.Value });
             }
 
-            var result = await _wizardService.CreateWizardSessionAsync(email);
-            if (!result.IsSuccess)
+            // They don't have a session, so create a new one.
+
+            var creationResult = await _wizardService.CreateWizardSessionAsync(persoid);
+
+            if (!creationResult.IsSuccess) // Check IsSuccess from the tuple
             {
-                _logger.LogError("Failed to create wizard session for email {Email}: {Message}", email, result.Message);
-                return BadRequest(new { message = result.Message });
+                // Use the message from the result for more specific error logging and response
+                _logger.LogError("Failed to create wizard session for User ID {Persoid}: {ErrorMessage}", persoid, creationResult.Message);
+                return BadRequest(new { message = creationResult.Message }); // Return the specific message
             }
 
-            _logger.LogInformation("Wizard session created for email {Email}", email);
-            return Ok(new { wizardSessionId = result.WizardSessionId });
+            // If IsSuccess is true, creationResult.WizardSessionId should contain the new ID
+            // (even if the service method sets it to Guid.Empty on failure, IsSuccess is the primary check)
+            if (creationResult.WizardSessionId == Guid.Empty)
+            {
+                // This case might indicate an internal logic issue in the service if IsSuccess was true
+                // but WizardSessionId is still Guid.Empty. Or, it's a state the service can return.
+                _logger.LogError("Wizard session creation reported success but returned an empty Session ID for User ID {Persoid}.", persoid);
+                return BadRequest(new { message = "Failed to create wizard session due to an internal error." });
+            }
+
+            _logger.LogInformation("Wizard session {SessionId} created for User ID {Persoid}", creationResult.WizardSessionId, persoid);
+            return Ok(new { wizardSessionId = creationResult.WizardSessionId });
         }
+
         [HttpPut("steps/{stepNumber}")]
         public async Task<IActionResult> SaveStepData(int stepNumber, [FromBody] WizardStepDto dto)
         {
@@ -67,7 +84,7 @@ namespace Backend.Presentation.Controllers
             // Verify session exists and belongs to this user
             bool userOwnsSession = await _wizardService.GetWizardSessionAsync(dto.WizardSessionId);
             if (!userOwnsSession)
-                return Forbid(); // 3) Reject any foreign session
+                return Forbid(); // ) Reject any foreign session
 
             try
             {
@@ -103,7 +120,7 @@ namespace Backend.Presentation.Controllers
             // Verify session exists and belongs to this user
             bool userOwnsSession = await _wizardService.GetWizardSessionAsync(dto.wizardSessionId);
             if (!userOwnsSession)
-                return Forbid(); // 3) Reject any foreign session
+                return Forbid(); // Reject any foreign session
 
 
             var wizardData = await _wizardService.GetWizardDataAsync(dto.wizardSessionId);

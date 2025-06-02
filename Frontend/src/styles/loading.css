@@ -1,0 +1,18 @@
+@keyframes swoosh {
+  0%, 85%, 100% {
+    opacity: 0.6;
+    color: currentColor;
+    transform: scale(1.2); /* Base scale */
+  }
+  15% {
+    opacity: 1;           /* Full opacity */
+    color: #32CD32;       /* Pop color set to darkLimeGreen */
+    transform: scale(1.5); /* Letters slightly enlarge */
+  }
+}
+
+.loading-swoosh {
+  animation: swoosh 1.6s infinite ease-in-out;
+  display: inline-block; 
+  /* The color is inherited from the parent <p> tag */
+}

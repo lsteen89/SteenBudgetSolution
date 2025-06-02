@@ -147,6 +147,8 @@ const StepBudgetExpenditureContainer = forwardRef<
   };
 
   const next = () => {
+    console.log('current sub-step:', currentSub);
+    console.log('total steps:', totalSteps);
     if (currentSub === 1)     return setCurrentSub(2);
     if (currentSub === totalSteps)
       return isMobile ? goToSub(1) : onNext();
@@ -204,15 +206,22 @@ const StepBudgetExpenditureContainer = forwardRef<
   return (
     <WizardFormWrapperStep2 ref={handleFormWrapperRef}>
       {parentLoading ? (
-        <LoadingScreen />
+        <div className="absolute inset-0 z-50 flex items-center justify-center
+              bg-white/60 backdrop-blur-sm">
+          <LoadingScreen full={true}  textColor="black" />
+        </div>
       ) : (
         <form className="step-budget-expenditure-container flex flex-col h-full">
           {/* Header navigation */}
           <div className="mb-6 flex items-center justify-between">
             {isSaving && (
               <div className="absolute inset-0 z-50 flex items-center justify-center
-                              bg-white/60 backdrop-blur-sm">
-                <Loader2 size={32} className="animate-spin text-darkLimeGreen" />
+                            bg-white/60 backdrop-blur-sm">
+                <LoadingScreen 
+                  full={false}          
+                  actionType="save"    
+                  textColor="black"     
+                />
               </div>
             )}
             {isMobile && <StepButton isLeft onClick={prev} />}

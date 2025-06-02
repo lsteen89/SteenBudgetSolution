@@ -1,776 +1,479 @@
 import React, {
-  useState,
   useEffect,
-  useRef,
-  forwardRef,
-  useImperativeHandle,
-  ReactNode,
-  useCallback,
+  useMemo, // Make sure useMemo is imported
 } from "react";
-import { Link } from "react-router-dom";
-import { flushSync } from 'react-dom';
 import Lottie from "lottie-react";
-import { ShieldCheck } from "lucide-react";
-import { motion } from "framer-motion";
+import { useFormContext, useFieldArray, get, FieldPath } from 'react-hook-form';
 
 // Components, Hooks and assets
-import GlassPane from "../../../../../layout/GlassPane";
+import GlassPane from "@components/layout/GlassPane";
 import OptionContainer from "@components/molecules/containers/OptionContainer";
 import SalaryField from "@components/organisms/overlays/wizard/steps/StepBudgetIncome1/Components/SalaryField";
 import HouseholdMemberField from "@components/organisms/overlays/wizard/steps/StepBudgetIncome1/Components/HouseholdMemberField";
 import SideHustleField from "@components/organisms/overlays/wizard/steps/StepBudgetIncome1/Components/SideHustleField";
 import RemovalButton from "@components/atoms/buttons/RemovalButton";
 import AcceptButton from "@components/atoms/buttons/AcceptButton";
-import HelpSection from "@components/molecules/helptexts/HelpSection";
 import coinsAnimation from "@assets/lottie/coins.json";
-import useFormValidation from "@hooks/wizard/useFormValidation";
 import useYearlyIncome from "@hooks/wizard/useYearlyIncome";
-import { useToast } from  "@context/ToastContext";
+import { useToast } from "@context/ToastContext";
 import LoadingScreen from "@components/molecules/feedback/LoadingScreen";
 import DataTransparencySection from "@components/organisms/overlays/wizard/SharedComponents/Pages/DataTransparencySection";
+import HelpSectionDark from "@components/molecules/helptexts/HelpSectionDark";
+import { IncomeFormValues } from '@myTypes/Wizard/IncomeFormValues';
+// Removed: import { s } from "framer-motion/dist/types.d-6pKw1mTI";
 
-/**  Imperative handle for the parent */
-export interface StepBudgetIncomeRef {
-  validateFields: () => boolean;
-  getStepData: () => any;
-  markAllTouched: () => void;
-  getErrors: () => { [key: string]: string };
-  openSideIncome: () => void;
-  openHouseholdMembers: () => void;
-}
-
-/**  Props */
 interface StepBudgetIncomeProps {
-  setStepValid: (isValid: boolean) => void;
-  wizardSessionId: string;
-  onSaveStepData: (stepNumber: number, subStep: number, data: any, goingBackwards: boolean) => Promise<boolean>;
-  stepNumber: number;
-  initialData: any;
   onNext: () => void;
   onPrev: () => void;
-  showSideIncome: boolean;
-  setShowSideIncome: (value: boolean) => void;
-  showHouseholdMembers: boolean;
-  setShowHouseholdMembers: (value: boolean) => void;
   loading: boolean;
+  stepNumber?: number;
 }
 
-/**  Form Values Interface */
-interface FormValues {
-  netSalary: number | null;
-  showSideIncome: boolean;
-  showHouseholdMembers: boolean;
-  salaryFrequency: string;
-  householdMembers: HouseholdMember[];
-  sideHustles: SideHustle[];
-  yearlySalary?: number | null;
-}
-
-/**  Data Interfaces */
-interface HouseholdMember {
-  name: string;
-  income: string;
-  frequency: string;
-  yearlyIncome: number;
-}
-interface SideHustle {
-  name: string;
-  income: string;
-  frequency: string;
-  yearlyIncome?: number;
-}
-interface SalaryFieldProps {
-  netSalary: number | null;
-  yearlySalary?: number | null;
-  salaryFrequency: string;
-  handleSalaryChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handleSalaryFrequencyChange: (freq: string) => void; // <-- new callback
-  errors?: { [key: string]: string };
-  touched?: { [key: string]: boolean };
-}
-
-
-
-/**  Local helper for calculating yearly income */
-function calculateYearlyIncome(income: number, frequency: string): number {
+function calculateYearlyIncome(income: number | null, frequency: string): number {
+  if (income === null || isNaN(income)) return 0;
   let total = income;
   switch (frequency) {
-    case "weekly":
-      total *= 52;
-      break;
-    case "quarterly":
-      total *= 4;
-      break;
-    case "annually":
-      // no change
-      break;
-    case "monthly":
-    default:
-      total *= 12;
-      break;
+    case "weekly": total *= 52; break;
+    case "quarterly": total *= 4; break;
+    case "annually": break;
+    case "monthly": default: total *= 12; break;
   }
   return total;
 }
 
-const StepBudgetIncome = forwardRef<StepBudgetIncomeRef, StepBudgetIncomeProps  >(
-  (
-    {
-      setStepValid,
-      wizardSessionId,
-      onSaveStepData,
-      stepNumber,
-      initialData,
-      onNext,
-      onPrev,
-      showSideIncome,
-      setShowSideIncome,
-      showHouseholdMembers,
-      setShowHouseholdMembers,
-      loading,
-    },
-    ref
-  ) => {
-    /** 1) Define initial form values for the hook */
-    const initialValues: FormValues = {
-      netSalary: initialData?.netSalary ?? null,
-      showSideIncome: initialData?.showSideIncome ?? false,
-      showHouseholdMembers: initialData?.showHouseholdMembers ?? false,
-      salaryFrequency: initialData?.salaryFrequency ?? "monthly",
-      householdMembers: initialData?.householdMembers ?? [],
-      sideHustles: initialData?.sideHustles ?? [],
-    };
+const StepBudgetIncome: React.FC<StepBudgetIncomeProps> = ({
+  onNext,
+  onPrev,
+  loading,
+}) => {
+  const {
+    control,
+    watch,
+    setValue,
+    getValues,
+    formState: { errors },
+  } = useFormContext<IncomeFormValues>();
 
-    /** 2) Validation function referencing ONLY `values` */
-    const validateFn = (values: FormValues) => {
-      const newErrors: { [key: string]: string } = {};
+  const watchedNetSalary = watch('netSalary');
+  const watchedSalaryFrequency = watch('salaryFrequency');
+  const watchedShowSideIncome = watch('showSideIncome');
+  const watchedShowHouseholdMembers = watch('showHouseholdMembers');
+  const watchedHouseholdMembers = watch('householdMembers');
+  const watchedSideHustles = watch('sideHustles');
 
-      // netSalary
-      if (values.netSalary === null) {
-        newErrors.netSalary = "Ange din primära inkomst.";
-      } else if (values.netSalary === 0) {
-        newErrors.netSalary = "Inkomsten kan inte vara 0.";
-      } else if (values.netSalary < 0) {
-        newErrors.netSalary = "Inkomsten kan inte vara negativ.";
-      }
+  const { fields: householdMemberFields, append: appendHouseholdMember, remove: removeHouseholdMember } = useFieldArray({
+    control, name: "householdMembers",
+  });
+  const { fields: sideHustleFields, append: appendSideHustle, remove: removeSideHustle } = useFieldArray({
+    control, name: "sideHustles",
+  });
 
-      // salaryFrequency
-      if (!values.salaryFrequency) {
-        newErrors.salaryFrequency = "Välj lönefrekvens.";
-      }
+  useEffect(() => {
+    const householdErrorEntry = get(errors, 'householdMembers' as FieldPath<IncomeFormValues>);
+    const hasErrorsInHousehold = Array.isArray(householdErrorEntry)
+      ? householdErrorEntry.some(e => e && Object.keys(e).length > 0)
+      : !!(householdErrorEntry && typeof householdErrorEntry === 'object' && Object.keys(householdErrorEntry).length > 0);
 
-      // householdMembers
-      if (values.householdMembers.length > 0) {
-        values.householdMembers.forEach((member, index) => {
-          if (!member.name.trim()) {
-            newErrors[`memberName-${index}`] = "Ange namn på personen.";
-          }
-          if (member.income === "") {
-            newErrors[`memberIncome-${index}`] = "Ange nettoinkomst.";
-          } else if (member.income === "0") {
-            newErrors[`memberIncome-${index}`] = "Inkomsten kan inte vara 0.";
-          } else if (parseFloat(member.income) < 0) {
-            newErrors[`memberIncome-${index}`] = "Inkomsten kan inte vara negativ.";
-          }
-          if (!member.frequency) {
-            newErrors[`memberFrequency-${index}`] = "Välj frekvens.";
-          }
-        });
-      }
-
-      // sideHustles
-      if (values.sideHustles.length > 0) {
-        values.sideHustles.forEach((side, index) => {
-          if (!side.name.trim()) {
-            newErrors[`sideHustleName-${index}`] = "Ange namn för inkomst.";
-          }
-          const incomeStr = side.income ? side.income.toString() : "";
-          if (!incomeStr.trim()) {
-            newErrors[`sideHustleIncome-${index}`] = "Ange inkomstens storlek.";
-          }
-          else if (incomeStr === "0") {
-            newErrors[`sideHustleIncome-${index}`] = "Inkomsten kan inte vara 0.";
-          } else if (parseFloat(incomeStr) < 0) {
-            newErrors[`sideHustleIncome-${index}`] = "Inkomsten kan inte vara negativ.";
-          }
-          if (!side.frequency) {
-            newErrors[`sideHustleFrequency-${index}`] = "Välj inkomstens frekvens.";
-          }
-        });
-      }
-      return newErrors;
-    };
-
-    /** 3) Custom form validation hook */
-    const {
-      values,
-      setValues,
-      errors,
-      touched,
-      validateFields,
-      validateField,
-      markAllTouched,
-      markFieldTouched,
-      removeFieldState,
-    } = useFormValidation(initialValues, validateFn);
-
-    const shouldShowHouseholdMembers = showHouseholdMembers ||
-    Object.keys(errors).some(key =>
-      (key.startsWith("memberName") || key.startsWith("memberIncome")) &&
-      errors[key] !== undefined && errors[key] !== null && errors[key] !== ""
-    );
-  
-    const shouldShowSideIncome = showSideIncome ||
-    Object.keys(errors).some(key =>
-      (key.startsWith("sideHustleName") || key.startsWith("sideHustleIncome")) &&
-      errors[key] !== undefined && errors[key] !== null && errors[key] !== ""
-    );
-  
-    /** 4) We can compute the main yearly salary with a separate hook */
-    const yearlySalary = useYearlyIncome({
-      amount: values.netSalary,
-      frequency: values.salaryFrequency,
-    });
-
-    /** 5) refs to track changes in validity if needed */
-    const prevValidityRef = useRef<boolean | null>(null);
-    
-    /** )6 Various Helpers */
-    // Toast Notification
-    const { showToast } = useToast();
-    // Helpers for showing side income and household members
-    const openSideIncome = () => {
-        flushSync(() => {
-          setShowSideIncome(true);
-        });
-    };
-    const openHouseholdMembers = () => {
-      flushSync(() => {
-        setShowHouseholdMembers(true);(true);
-      });
-    };
-
-    /** 7) Whenever your form changes, check validity, update parent's isStepValid */
-    useEffect(() => {
-      const valid = Object.keys(validateFn(values)).length === 0; // assume no errors means valid
-      if (valid !== prevValidityRef.current) {
-        setStepValid(valid);
-        prevValidityRef.current = valid;
-      }
-    }, [values, validateFn, setStepValid]);
-
-
-    
-    /** 8) For sideHustles, we see if any input is non-empty */
-    const sideHustleHasValue = values.sideHustles.some((side: SideHustle) =>
-      side.name.trim() !== "" || side.income !== ""
-    );
-
-    /** 9) Field Handlers */
-    // Salary
-    const handleSalaryChange = (value: string) => {
-      const parsed = value === "" ? null : parseFloat(value);
-      setValues((prev: FormValues) => ({ ...prev, netSalary: parsed }));
-      markFieldTouched("netSalary");
-    };
-    const handleSalaryBlur = () => {
-      markFieldTouched("netSalary");
-      validateField("netSalary");
-    };
-    // Salary Frequency
-    const handleSalaryFrequencyChange = (freq: string) => {
-      setValues((prev: FormValues) => ({ ...prev, salaryFrequency: freq }));
-      markFieldTouched("salaryFrequency");
-    };
-    const handleSalaryFrequencyBlur = () => {
-      markFieldTouched("salaryFrequency");
-      // Optionally call validateFields()
-    };
-
-    // Household Member
-    const handleMemberChange = (
-      index: number,
-      field: keyof HouseholdMember,
-      value: string
-    ) => {
-      setValues((prev: FormValues) => {
-        const updatedMembers = [...prev.householdMembers];
-        updatedMembers[index] = {
-          ...updatedMembers[index],
-          [field]: value,
-        };
-
-        // Recalculate yearly income if needed
-        if (field === "income" || field === "frequency") {
-          const numericIncome = parseFloat(updatedMembers[index].income) || 0;
-          updatedMembers[index].yearlyIncome = calculateYearlyIncome(
-            numericIncome,
-            updatedMembers[index].frequency
-          );
-        }
-
-        return { ...prev, householdMembers: updatedMembers };
-      });
-      markFieldTouched(`member-${index}-${field}`);
-    };
-
-    const handleAddMember = () => {
-      // Update form state for householdMembers
-      setValues((prev: FormValues) => ({
-        ...prev,
-        householdMembers: [
-          ...prev.householdMembers,
-          {
-            name: "",
-            income: "",
-            frequency: "monthly",
-            yearlyIncome: 0,
-          },
-        ],
-      }));
-      showToast(
-        <>
-          Person tillagd! <br />
-          Fyll i uppgifter eller ta bort för att gå vidare.
-        </>,
-        "success"
-      );
+    if (hasErrorsInHousehold && !watchedShowHouseholdMembers) {
+      setValue('showHouseholdMembers', true, { shouldValidate: false, shouldDirty: false });
     }
 
-    const handleRemoveMember = (index: number) => {
-      setValues((prev: FormValues) => {
-        const updated = [...prev.householdMembers];
-        updated.splice(index, 1);
-        return { ...prev, householdMembers: updated };
-      });
-      // Remove touched and error state for the removed member's fields
-      removeFieldState(`memberName-${index}`);
-      removeFieldState(`memberIncome-${index}`);
-      removeFieldState(`memberFrequency-${index}`);
-      
-      showToast("Person borttagen!", "error");
-    };
+    const sideHustleErrorEntry = get(errors, 'sideHustles' as FieldPath<IncomeFormValues>);
+    const hasErrorsInSideHustles = Array.isArray(sideHustleErrorEntry)
+      ? sideHustleErrorEntry.some(e => e && Object.keys(e).length > 0)
+      : !!(sideHustleErrorEntry && typeof sideHustleErrorEntry === 'object' && Object.keys(sideHustleErrorEntry).length > 0);
 
-    // Side Hustles
-    const handleSideHustleChange = (
-      index: number,
-      field: keyof SideHustle,
-      value: string
-    ) => {
-      setValues((prev: FormValues) => {
-        const updated = [...prev.sideHustles];
-        updated[index] = { ...updated[index], [field]: value };
-
-        if (field === "income" || field === "frequency") {
-          const numericIncome = parseFloat(updated[index].income) || 0;
-          updated[index].yearlyIncome = calculateYearlyIncome(
-            numericIncome,
-            updated[index].frequency
-          );
-        }
-        return { ...prev, sideHustles: updated };
-      });
-      markFieldTouched(`sideHustle-${index}-${field}`);
-
-    };
-
-    const handleAddSideHustle = () => {
-      setValues((prev: FormValues) => ({
-        ...prev,
-        sideHustles: [
-          ...prev.sideHustles,
-          { name: "", income: "", frequency: "monthly" },
-        ],
-      }));
-      showToast(
-        <>
-          Sidoinkomst tillagd! <br />
-          Fyll i uppgifter eller ta bort för att gå vidare.
-        </>,
-        "success"
-      );
-    };
-
-    const handleRemoveSideHustle = (index: number) => {
-      setValues((prev: FormValues) => {
-        const updated = [...prev.sideHustles];
-        updated.splice(index, 1);
-        return { ...prev, sideHustles: updated };
-      });
-      removeFieldState(`sideHustleName-${index}`);
-      removeFieldState(`sideHustleIncome-${index}`);
-      removeFieldState(`frequency-${index}`);
-      showToast("Sidoinkomst borttagen!", "error");
-    };
-    
-    /** 10) Imperative Handle for the parent */
-    useImperativeHandle(ref, () => ({
-      validateFields,
-      markAllTouched,
-      getStepData: () => values,
-      getErrors: () => errors,
-      openSideIncome: () => setShowSideIncome(true),
-      openHouseholdMembers: () => setShowHouseholdMembers(true),
-    }));
-
-    if (loading) {
-      return (
-        <GlassPane>
-          <LoadingScreen />
-        </GlassPane>
-      );
+    if (hasErrorsInSideHustles && !watchedShowSideIncome) {
+      setValue('showSideIncome', true, { shouldValidate: false, shouldDirty: false });
     }
+  }, [errors, watchedShowHouseholdMembers, watchedShowSideIncome, setValue, get]);
 
-    // -------------------- Render --------------------
-    return (
-      <GlassPane>
-        
+  const yearlySalary = useYearlyIncome({
+    amount: watchedNetSalary,
+    frequency: watchedSalaryFrequency,
+  });
+
+  // Corrected useEffect for Household Members Yearly Income
+  useEffect(() => {
+    const members = getValues('householdMembers');
+    if (members) {
+      members.forEach((member, index) => {
+        if (member) {
+          const calculatedYearly = calculateYearlyIncome(member.income, member.frequency);
+          const currentYearlyIncomeInState = getValues(`householdMembers.${index}.yearlyIncome`);
+          if (currentYearlyIncomeInState !== calculatedYearly) {
+            setValue(`householdMembers.${index}.yearlyIncome`, calculatedYearly, {
+              shouldValidate: false,
+              shouldDirty: false,
+            });
+          }
+        }
+      });
+    }
+  }, [
+    JSON.stringify(watchedHouseholdMembers?.map(m => ({ income: m?.income, frequency: m?.frequency }))),
+    getValues,
+    setValue,
+    calculateYearlyIncome 
+  ]);
+
+  const totalHouseholdYearlyIncome = React.useMemo(() => {
+    if (watchedHouseholdMembers && watchedHouseholdMembers.length > 0) {
+      return watchedHouseholdMembers.reduce((sum, member) => {
+        const yearlyIncomeVal = (member && typeof member.yearlyIncome === 'number' && !isNaN(member.yearlyIncome))
+          ? member.yearlyIncome
+          : 0;
+        return sum + yearlyIncomeVal;
+      }, 0);
+    }
+    return 0;
+  }, [JSON.stringify(watchedHouseholdMembers?.map(member => member?.yearlyIncome))]);
+  
+  // Corrected useEffect for Side Hustles Yearly Income
+  useEffect(() => {
+    const hustles = getValues('sideHustles');
+    if (hustles) {
+      hustles.forEach((hustle, index) => {
+        if (hustle) {
+          const calculatedYearly = calculateYearlyIncome(hustle.income, hustle.frequency);
+          const currentYearlyIncomeInState = getValues(`sideHustles.${index}.yearlyIncome`);
+          if (currentYearlyIncomeInState !== calculatedYearly) {
+            setValue(`sideHustles.${index}.yearlyIncome`, calculatedYearly, {
+              shouldValidate: false,
+              shouldDirty: false,
+            });
+          }
+        }
+      });
+    }
+  }, [
+    JSON.stringify(watchedSideHustles?.map(h => ({ income: h?.income, frequency: h?.frequency }))),
+    getValues,
+    setValue,
+    calculateYearlyIncome
+  ]);
+
+  const totalSideHustleYearlyIncome = React.useMemo(() => {
+    if (watchedSideHustles && watchedSideHustles.length > 0) {
+      return watchedSideHustles.reduce((sum, hustle) => {
+        const yearlyIncomeVal = (hustle && typeof hustle.yearlyIncome === 'number' && !isNaN(hustle.yearlyIncome))
+          ? hustle.yearlyIncome
+          : 0;
+        return sum + yearlyIncomeVal;
+      }, 0);
+    }
+    return 0;
+  }, [JSON.stringify(watchedSideHustles?.map(hustle => hustle?.yearlyIncome))]);
+
+  // Grand Total Yearly Income
+  const grandTotalYearlyIncome = React.useMemo(() => {
+    const mainSalaryNum = (typeof yearlySalary === 'number' && !isNaN(yearlySalary)) ? yearlySalary : 0;
+    return mainSalaryNum + totalHouseholdYearlyIncome + totalSideHustleYearlyIncome;
+  }, [yearlySalary, totalHouseholdYearlyIncome, totalSideHustleYearlyIncome]);
+
+  const { showToast } = useToast();
+
+  const handleAddHouseholdMember = () => {
+    appendHouseholdMember({ name: "", income: null, frequency: "monthly", yearlyIncome: 0 });
+    showToast(<>Person tillagd! <br />Fyll i uppgifter eller ta bort för att gå vidare.</>, "success");
+  };
+  const handleRemoveHouseholdMember = (index: number) => {
+    removeHouseholdMember(index);
+    showToast("Person borttagen!", "error");
+  };
+  const handleAddSideHustle = () => {
+    appendSideHustle({ name: "", income: null, frequency: "monthly", yearlyIncome: 0 });
+    showToast(<>Sidoinkomst tillagd! <br />Fyll i uppgifter eller ta bort för att gå vidare.</>, "success");
+  };
+  const handleRemoveSideHustle = (index: number) => {
+    removeSideHustle(index);
+    showToast("Sidoinkomst borttagen!", "error");
+  };
+
+  // Removed duplicate useEffects for calculating yearly incomes (older versions)
+
+  const householdMembersHelpContent = (
+    <>
+      <p>Alla personer i ditt hushåll vars ekonomi påverkar din budget.</p>
+      <p className="mt-2">
+        Hushållsmedlemmar inkluderar alla personer vars ekonomi påverkar den gemensamma budgeten,
+        t.ex. partner, barn eller andra samboende. Du kan ange deras inkomster och utgifter
+        separat för att få en mer komplett budgetöversikt.
+      </p>
+    </>
+  );
+  const sideHustlesHelpContent = (
+    <>
+      <p>Andra inkomster som inte är din huvudsakliga lön.</p>
+      <p className="mt-2">
+        Här kan du lägga till exempelvis frilansarbete, hobbyverksamhet eller olika bidrag
+        som inte är din huvudsakliga lön. Detta hjälper dig att få en mer
+        komplett bild av din ekonomi.
+      </p>
+    </>
+  );
+
+  if (loading) {
+    return <GlassPane><LoadingScreen /></GlassPane>;
+  }
+
+  const _hasActualHouseholdErrors = Array.isArray(get(errors, 'householdMembers' as FieldPath<IncomeFormValues>))
+    ? get(errors, 'householdMembers' as FieldPath<IncomeFormValues>).some((e: any) => e && Object.keys(e).length > 0)
+    : !!get(errors, 'householdMembers' as FieldPath<IncomeFormValues>);
+
+  const _hasActualSideHustleErrors = Array.isArray(get(errors, 'sideHustles' as FieldPath<IncomeFormValues>))
+    ? get(errors, 'sideHustles' as FieldPath<IncomeFormValues>).some((e: any) => e && Object.keys(e).length > 0)
+    : !!get(errors, 'sideHustles' as FieldPath<IncomeFormValues>);
+
+  return (
+    <GlassPane>
       <h3 className="text-3xl font-bold mb-6 text-darkLimeGreen text-center">
         Din ekonomi börjar här! 🚀
       </h3>
-  
-      <div className="space-y-4 text-lg">
-        <p className="text-customBlue1 font-medium">
-          📌 <span className="font-semibold">Ange din huvudinkomst.</span>
-        </p>
-  
-        <p className="text-customBlue1 font-medium">
-          👥 <span className="font-semibold">Har du delad ekonomi?</span>  
-          Lägg till en person med knappen <strong>"Lägg till person"</strong>.
-        </p>
-  
-        <p className="text-customBlue1 font-medium">
-          💰 <span className="font-semibold">Har du andra inkomster vid sidan av?</span>  
-          Lägg till dem med knappen <strong>"Andra typer av inkomster"</strong>.
-        </p>
+      <div className="text-center space-y-2 mb-6 text-lg text-customBlue1 font-medium">
+        <p>📌 Ange din huvudinkomst.</p>
+        <p>👥 Har du delad ekonomi? Lägg till en person med knappen <strong>"Lägg till person"</strong>.</p>
+        <p>💰 Har du andra inkomster vid sidan av? Lägg till dem med knappen <strong>"Lägg till sidoinkomst"</strong>.</p>
+      </div>
+      <div className="flex justify-center my-6">
+        <Lottie animationData={coinsAnimation} className="w-24 h-24" loop />
       </div>
 
-    
-        {/* Animated Icon */}
-        <div className="flex justify-center mt-4">
-          <Lottie animationData={coinsAnimation} className="w-24 h-24" loop />
-        </div>
-    
-        {/* Primary Income Section */}
-        <OptionContainer>
+      <OptionContainer>
         <SalaryField
-          netSalary={values.netSalary}
-          yearlySalary={yearlySalary}
-          salaryFrequency={values.salaryFrequency}
-          onSalaryChange={handleSalaryChange}
-          onSalaryBlur={handleSalaryBlur}
-          onFrequencyChange={handleSalaryFrequencyChange}
-          onFrequencyBlur={handleSalaryFrequencyBlur}
-
-          errorNetSalary={errors.netSalary}
-          errorSalaryFrequency={errors.salaryFrequency}
-          touchedNetSalary={touched.netSalary}
-          touchedSalaryFrequency={touched.salaryFrequency}
+          netSalaryFieldName="netSalary"
+          salaryFrequencyFieldName="salaryFrequency"
+          yearlySalaryCalculated={yearlySalary}
         />
-          
-          {yearlySalary !== null && yearlySalary > 0 && (
+        {errors.netSalary && <p className="text-red-500 text-sm mt-1">{errors.netSalary.message}</p>}
+        {errors.salaryFrequency && <p className="text-red-500 text-sm mt-1">{errors.salaryFrequency.message}</p>}
+        {yearlySalary != null && yearlySalary > 0 && (
           <p className="text-customBlue1 text-sm mt-2 bg-white/20 p-2 rounded-lg shadow-md inline-block">
-            🏦 <strong>Månadsinkomst: </strong> 
+            🏦 <strong>Månadsinkomst: </strong>
             <span className="text-black font-semibold">
-              {(yearlySalary / 12).toLocaleString()} SEK
+              {(yearlySalary / 12).toLocaleString('sv-SE', { style: 'currency', currency: 'SEK', minimumFractionDigits: 0, maximumFractionDigits: 0 })}
             </span>
           </p>
         )}
+      </OptionContainer>
 
-        </OptionContainer>
-
-        {/* Optional Household Members Section */}
-        <OptionContainer>
-          <div className="flex items-center justify-center mt-4 gap-2">
-
-          <h4 className="text-lg font-semibold mb-2">
-            Hushålls&shy;medlemmar&nbsp;(valfritt)
-          </h4>       
-          <div className="hidden md:block">
-            <HelpSection
-                  label=""
-                  helpText="Alla personer i ditt hushåll vars ekonomi påverkar din budget."
-                  detailedHelpText="Hushållsmedlemmar inkluderar alla personer vars ekonomi påverkar den gemensamma budgeten, t.ex. partner, barn eller andra samboende. Du kan ange deras inkomster och utgifter separat för att få en mer komplett budgetöversikt."
-                > </HelpSection>
-          </div>
-
-          </div>
-          <div className="block md:hidden">
-            <HelpSection
-                  label=""
-                  helpText="Alla personer i ditt hushåll vars ekonomi påverkar din budget."
-                  detailedHelpText="Hushållsmedlemmar inkluderar alla personer vars ekonomi påverkar den gemensamma budgeten, t.ex. partner, barn eller andra samboende. Du kan ange deras inkomster och utgifter separat för att få en mer komplett budgetöversikt."
-                > </HelpSection>
-          </div>
-          <button
-            onClick={() => setShowHouseholdMembers(!showHouseholdMembers)}
-            className="mt-2 bg-darkLimeGreen hover:bg-darkBlueMenuColor text-white font-bold py-3 px-6 rounded-xl shadow-md transform hover:scale-105 transition-all"
-            >
-            {showHouseholdMembers
-              ? `Dölj hushålls\u00admedlemmar ❌`
-              : `Visa hushålls\u00admedlemmar`}
-          </button>
-          {shouldShowHouseholdMembers && values.householdMembers.length == 0 && (
-          <>  
-            <p className="text-customBlue1 text-sm mt-2 bg-white/20 p-2 rounded-lg shadow-md inline-block">
-              🏠 Inga hushållsmedlemmar angivna.
-            </p>
-          </>  
-          )}
-          {shouldShowHouseholdMembers && (
-          <>
-          {/* Add button for new household member */}
-          <AcceptButton onClick={handleAddMember}>
-            ➕ Lägg till person
-          </AcceptButton>
-            </>
-          )  
-          }
-
-
-          {/* Household Member Section */}
-          {shouldShowHouseholdMembers  && (
-            <>
-
-              {values.householdMembers.map((member: HouseholdMember, index: number) => (
-                <div key={index} className="mb-4 border-b border-gray-300 pb-4">
-                  {/* HouseholdMemberField for Name */}
-                  <HouseholdMemberField
-                    label="Namn:"
-                    type="text"
-                    id={`memberName-${index}`}
-                    value={member.name}
-                    placeholder="Ange namn"
-                    error={errors[`memberName-${index}`]}
-                    touched={touched[`memberName-${index}`]}
-                    onBlur={() => {
-                      markFieldTouched(`memberName-${index}`);
-                      validateField(`memberName-${index}`);
-                    }}
-                    onChange={(e) =>
-                      handleMemberChange(index, "name", e.target.value)
-                    }
-                  />
-                  {/* Display the error message if touched & error */}
-                  {errors[`memberName-${index}`] && touched[`memberName-${index}`] && (
-                    <p className="text-red-500 text-sm mt-1">
-                      {errors[`memberName-${index}`]}
-                    </p>
-                  )}
-
-                  {/* Income Field */}
-                  <HouseholdMemberField
-                    label="Nettoinkomst:"
-                    type="number"
-                    id={`memberIncome-${index}`}
-                    value={member.income}
-                    placeholder="Ange nettoinkomst"
-                    error={errors[`memberIncome-${index}`]}
-                    touched={touched[`memberIncome-${index}`]}
-                    onBlur={() => {
-                      markFieldTouched(`memberIncome-${index}`);
-                      validateField(`memberIncome-${index}`);
-                    }}
-                    onChange={(e) =>
-                      handleMemberChange(index, "income", e.target.value)
-                    }
-                    frequency={member.frequency} // If your field component needs freq
-                  />
-                  {errors[`memberIncome-${index}`] && touched[`memberIncome-${index}`] && (
-                    <p className="text-red-500 text-sm mt-1">
-                      {errors[`memberIncome-${index}`]}
-                    </p>
-                  )}
-
-                  {/* Display yearly income if > 0 */}
-                  {member.income && parseFloat(member.income) > 0 && (
-                    <p className="text-customBlue1 text-sm mt-2 bg-white/20 p-2 rounded-lg shadow-md inline-block">
-                      🏦 <strong>Månadsinkomst: </strong>
-                      <span className="text-black font-semibold">
-                        {(isNaN(member.yearlyIncome) ? 0 : member.yearlyIncome/12).toLocaleString()} SEK
-                      </span>
-                    </p>
-                  )}
-
-                  {/* Frequency */}
-                  <HouseholdMemberField
-                    label="Lönefrekvens:"
-                    type="select"
-                    id={`memberFrequency-${index}`}
-                    value={member.frequency}
-                    options={[
-                      { value: "monthly", label: "Per månad" },
-                      { value: "weekly", label: "Per vecka" },
-                      { value: "quarterly", label: "Per kvartal" },
-                      { value: "annually", label: "Årligen" },
-                    ]}
-                    onBlur={() => markFieldTouched(`memberFrequency-${index}`)}
-                    onChange={(e) =>
-                      handleMemberChange(index, "frequency", e.target.value)
-                    }
-                  />
-                  {errors[`memberFrequency-${index}`] && touched[`memberFrequency-${index}`] && (
-                    <p className="text-red-500 text-sm mt-1">
-                      {errors[`memberFrequency-${index}`]}
-                    </p>
-                  )}
-
-                  {/* Removal Button */}
-                  <RemovalButton onClick={() => handleRemoveMember(index)} />
-                </div>
-              ))}
-            </>
-          )}
-          {/* Household Member Summary (If Collapsed) */}
-          {!showHouseholdMembers && values.householdMembers.length > 0 && (
-            <div className="mt-2 p-3 bg-white/10 rounded-lg text-customBlue1 shadow-md">
-              <p className="text-lg font-semibold">
-                🏠 {values.householdMembers.length} hushållsmedlem(mar) totalt – samlad inkomst: {values.householdMembers.reduce(
-                    (sum: number, member: HouseholdMember) => sum + Number(member.income),
-                    0
-                )} SEK/mån. 💸
-              </p>
-              <p className="text-sm text-gray-300">Klicka på knappen ovan för att redigera.</p>
-            </div>
-          )}
-
-        </OptionContainer>
-
-        {/* Side Hustle Section */}
-        <OptionContainer>  
-        {/* Toggle for Side Hustle Income */}
-        <div className="flex items-center justify-center mt-4 gap-2">
-          <h4 className="text-lg font-semibold mb-2">Övriga inkomster (valfritt) </h4>
-          <HelpSection
-                label=""
-                helpText="All typ av inkomst vid sidan av din huvudsakliga inkomstkälla."
-                detailedHelpText="Andra former av inkomster är all typ av inkomst vid sidan av din huvudsakliga inkomstkälla. Exempel: Frilansarbete, extrajobb, eget företag, uthyrning, passiv inkomst eller olika former av bidrag såsom barnbidrag, bostadsbidrag och studiestöd."
-              > </HelpSection>
+      {/* Optional Household Members Section */}
+      <OptionContainer>
+        <div className="flex items-center justify-center mt-4 gap-x-2 mb-3">
+          <h4 className="text-lg font-semibold">Hushålls&shy;medlemmar&nbsp;(valfritt)</h4>
+          <HelpSectionDark
+            label="Hushållsmedlemmar (valfritt)" 
+            helpText={householdMembersHelpContent}
+            idSuffix="household-section-title" 
+          />
         </div>
-
         <button
-        onClick={() => setShowSideIncome(!showSideIncome)}
-          className={`mt-2 bg-darkLimeGreen hover:bg-darkBlueMenuColor text-white font-bold py-3 px-6 rounded-xl shadow-md transform hover:scale-105  transition-all
-          }`}
+          type="button"
+          onClick={() => setValue('showHouseholdMembers', !watchedShowHouseholdMembers, { shouldDirty: true, shouldValidate: false })}
+          className="block mx-auto mt-2 bg-darkLimeGreen hover:bg-darkBlueMenuColor text-white font-bold py-3 px-6 rounded-xl shadow-md transform hover:scale-105 transition-all"
         >
-          {showSideIncome
-            ? "Dölj andra former av inkomster ❌"
-            : "Visa andra former av inkomster "}
+          {watchedShowHouseholdMembers ? `Dölj hushålls\u00admedlemmar ❌` : `Visa hushålls\u00admedlemmar`}
         </button>
-        {/* Side Hustle Summary (If Collapsed) */}
-        {!shouldShowSideIncome  && values.sideHustles.length > 0 && (
-          <div className="mt-2 p-3 bg-white/10 rounded-lg text-customBlue1 shadow-md">
-            <p className="text-lg font-semibold">
-              💼 {values.sideHustles.length} sidoinkomst(er) totalt – {values.sideHustles.reduce(
-                  (sum: number, s: SideHustle) => sum + Number(s.income),
-                  0
-              )} SEK/mån. 💸
-            </p>
-            <p className="text-sm text-gray-300">Klicka på knappen ovan för att redigera.</p>
+        {watchedShowHouseholdMembers && (
+          <div className="mt-4 text-center">
+            <AcceptButton onClick={handleAddHouseholdMember} >
+              ➕ Lägg till person
+            </AcceptButton>
           </div>
         )}
-
-        {/* Side Hustle Section */}
-        {shouldShowSideIncome && (
-          <OptionContainer>
-            {/* Show existing side hustles or an empty input for a new one */}
-            {values.sideHustles.length === 0 && (
-            <motion.p
-              initial={{ opacity: 0, y: -5 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-              className="mb-2 text-lg font-semibold text-customBlue1 text-center bg-white/10 px-4 py-2 rounded-lg shadow-md"
-            >
-              🧐 Finns det en extra inkomst vi missar?
-              Lägg till den här så vi får en full bild av din ekonomi! 💸
-            </motion.p>
-          )}
-          {values.sideHustles.map((side: SideHustle, index: number) => (
-            <div key={index} className="mb-4 border-b border-gray-300 pb-4">
-              <SideHustleField
-                label="Sidoinkomstens namn:"
+        {watchedShowHouseholdMembers && householdMemberFields.length === 0 && !_hasActualHouseholdErrors && (
+          <p className="text-customBlue1 text-sm mt-4 text-center bg-white/20 p-2 rounded-lg shadow-md">
+            🏠 Inga hushållsmedlemmar angivna. Klicka ovan för att lägga till.
+          </p>
+        )}
+        {watchedShowHouseholdMembers && householdMemberFields.map((fieldItem, index) => {
+          const memberIncome = watch(`householdMembers.${index}.income`);
+          const memberFrequency = watch(`householdMembers.${index}.frequency` as FieldPath<IncomeFormValues>);
+          const memberYearlyIncome = watch(`householdMembers.${index}.yearlyIncome`) ?? calculateYearlyIncome(memberIncome, memberFrequency as string);
+          return (
+            <div key={fieldItem.id} className="my-6 border-b border-gray-300 dark:border-gray-700 pb-6 last:border-b-0 last:pb-0">
+              <HouseholdMemberField
+                label="Namn:"
+                fieldName={`householdMembers.${index}.name`}
                 type="text"
-                id={`sideHustleName-${index}`}
-                value={side.name}
-                error={errors[`sideHustleName-${index}`]}
-                touched={touched[`sideHustleName-${index}`]}
-                placeholder="Ange sidoinkomstens namn"
-                onBlur={() => {
-                  markFieldTouched(`sideHustleName-${index}`);
-                  validateField(`sideHustleName-${index}`);
-
-                }}
-                onChange={(e) =>
-                  handleSideHustleChange(index, "name", e.target.value)
-                }
+                placeholder="T.ex. Partner, Barn"
               />
-              {errors[`sideHustleName-${index}`] && touched[`sideHustleName-${index}`] && (
-                <p className="text-red-500 text-sm mt-1">
-                  {errors[`sideHustleName-${index}`]}
-                </p>
-              )}
-
-              <SideHustleField
-                label="Sidoinkomst netto(SEK):"
+              <HouseholdMemberField
+                label="Nettoinkomst:"
+                fieldName={`householdMembers.${index}.income`}
                 type="number"
-                id={`sideHustleIncome-${index}`}
-                value={side.income}
-                error={errors[`sideHustleIncome-${index}`]}
-                onChange={(e) =>
-                  handleSideHustleChange(index, "income", e.target.value)
-                }
                 placeholder="Ange nettoinkomst"
-                touched={touched[`sideHustleIncome-${index}`]}
-                onBlur={() => {
-                  markFieldTouched(`sideHustleIncome-${index}`);
-                  validateField(`sideHustleIncome-${index}`);
-
-                }}
-                yearlyIncome={side.yearlyIncome}
+                displayYearlyIncome={memberYearlyIncome}
               />
-              {errors[`sideHustleIncome-${index}`] &&
-                touched[`sideHustleIncome-${index}`] && (
-                  <p className="text-red-500 text-sm mt-1">
-                    {errors[`sideHustleIncome-${index}`]}
-                  </p>
-                )}
-
-              <SideHustleField
-                label="Inkomstfrekvens:"
+              <HouseholdMemberField
+                label="Lönefrekvens:"
+                fieldName={`householdMembers.${index}.frequency`}
                 type="select"
-                id={`sideHustleFrequency-${index}`}
-                value={side.frequency}
-                onChange={(e) =>
-                  handleSideHustleChange(index, "frequency", e.target.value)
-                }
                 options={[
-                  { value: "monthly", label: "Per månad" },
-                  { value: "weekly", label: "Per vecka" },
-                  { value: "quarterly", label: "Per kvartal" },
-                  { value: "annually", label: "Årligen" },
+                  { value: "monthly", label: "Per månad" }, { value: "weekly", label: "Per vecka" },
+                  { value: "quarterly", label: "Per kvartal" }, { value: "annually", label: "Årligen" },
                 ]}
-                onBlur={() => markFieldTouched(`frequency-${index}`)}
               />
-              {errors[`sideHustleFrequency-${index}`] &&
-                touched[`frequency-${index}`] && (
-                  <p className="text-red-500 text-sm mt-1">
-                    {errors[`sideHustleFrequency-${index}`]}
-                  </p>
-                )}
-
-              <RemovalButton onClick={() => handleRemoveSideHustle(index)} />
+              <div className="mt-3 flex justify-end">
+                <RemovalButton onClick={() => handleRemoveHouseholdMember(index)} />
               </div>
-            ))}
-              <AcceptButton onClick={handleAddSideHustle}>
+            </div>
+          );
+        })}
+        {!watchedShowHouseholdMembers && watchedHouseholdMembers && watchedHouseholdMembers.length > 0 && (
+          <div className="mt-4 p-3 bg-white/10 rounded-lg text-customBlue1 shadow-md text-center">
+            <p className="text-lg font-semibold">
+              🏠 {watchedHouseholdMembers.length}{' '}
+              {watchedHouseholdMembers.length === 1 ? 'hushållsmedlem angiven' : 'hushållsmedlemmar angivna'}.
+            </p>
+            {totalHouseholdYearlyIncome > 0 && (
+              <p className="text-md font-medium mt-1">
+                💰 Total årlig inkomst (hushåll):{' '}
+                {totalHouseholdYearlyIncome.toLocaleString('sv-SE', {
+                  style: 'currency',
+                  currency: 'SEK',
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0,
+                })}
+              </p>
+            )}
+            {_hasActualHouseholdErrors && (
+              <p className="text-sm text-red-400 dark:text-red-300 mt-2">
+                Obs! Det finns felaktig information som behöver åtgärdas. Klicka ovan för att visa.
+              </p>
+            )}
+            <p className="text-sm text-gray-300 mt-1">Klicka på knappen ovan för att visa och redigera.</p>
+          </div>
+        )}
+      </OptionContainer>
+
+      {/* Side Hustle Section */}
+      <OptionContainer>
+        <div className="flex items-center justify-center mt-4 gap-x-2 mb-3"> {/* Changed gap-2 to gap-x-2 */}
+          <h4 className="text-lg font-semibold">Övriga inkomster (valfritt)</h4>
+          <HelpSectionDark
+            label="Övriga inkomster (valfritt)" // Corrected label
+            helpText={sideHustlesHelpContent}
+            idSuffix="sidehustle-section-title" // Corrected suffix
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => setValue('showSideIncome', !watchedShowSideIncome, { shouldDirty: true, shouldValidate: false })}
+          className="block mx-auto mt-2 bg-darkLimeGreen hover:bg-darkBlueMenuColor text-white font-bold py-3 px-6 rounded-xl shadow-md transform hover:scale-105 transition-all"
+        >
+          {watchedShowSideIncome ? "Dölj andra former av inkomster ❌" : "Visa andra former av inkomster"}
+        </button>
+        {watchedShowSideIncome && (
+          <div className="mt-4 text-center">
+            <AcceptButton onClick={handleAddSideHustle} >
               ➕ Lägg till sidoinkomst
-              </AcceptButton>
-            </OptionContainer>
-          )}
-         </OptionContainer>
-        {/* Data Transparency Section */}
-        <DataTransparencySection />
-      </GlassPane>
-    );
-  }
-);
+            </AcceptButton>
+          </div>
+        )}
+        {watchedShowSideIncome && sideHustleFields.length === 0 && !_hasActualSideHustleErrors && (
+          <p className="text-customBlue1 text-sm mt-4 text-center bg-white/20 p-2 rounded-lg shadow-md">
+            🧐 Inga sidoinkomster angivna. Klicka ovan för att lägga till.
+          </p>
+        )}
+        {watchedShowSideIncome && sideHustleFields.map((fieldItem, index) => {
+          const hustleIncome = watch(`sideHustles.${index}.income`);
+          const hustleFrequency = watch(`sideHustles.${index}.frequency` as FieldPath<IncomeFormValues>);
+          const hustleYearlyIncome = watch(`sideHustles.${index}.yearlyIncome`) ?? calculateYearlyIncome(hustleIncome, hustleFrequency as string);
+          return (
+            <div key={fieldItem.id} className="my-6 border-b border-gray-300 dark:border-gray-700 pb-6 last:border-b-0 last:pb-0">
+              <SideHustleField
+                label="Namn på sidoinkomst:"
+                fieldName={`sideHustles.${index}.name`}
+                type="text"
+                placeholder="T.ex. frilans, hobby, olika bidrag"
+              />
+              <SideHustleField
+                label="Nettoinkomst (SEK):"
+                fieldName={`sideHustles.${index}.income`}
+                type="number"
+                placeholder="Ange nettoinkomst"
+                displayYearlyIncome={hustleYearlyIncome}
+              />
+              <SideHustleField
+                label="Lönefrekvens:"
+                fieldName={`sideHustles.${index}.frequency`}
+                type="select"
+                options={[
+                  { value: "monthly", label: "Per månad" }, { value: "weekly", label: "Per vecka" },
+                  { value: "quarterly", label: "Per kvartal" }, { value: "annually", label: "Årligen" },
+                ]}
+              />
+              <div className="mt-3 flex justify-end">
+                <RemovalButton onClick={() => handleRemoveSideHustle(index)} />
+              </div>
+            </div>
+          );
+        })}
+        {!watchedShowSideIncome && watchedSideHustles && watchedSideHustles.length > 0 && (
+          <div className="mt-4 p-3 bg-white/10 rounded-lg text-customBlue1 shadow-md text-center">
+            <p className="text-lg font-semibold">
+              💼 {watchedSideHustles.length}{' '}
+              {watchedSideHustles.length === 1 ? 'sidoinkomst angiven' : 'sidoinkomster angivna'}.
+            </p>
+            {totalSideHustleYearlyIncome > 0 && (
+              <p className="text-md font-medium mt-1 text-customBlue1">
+                💸 Total årlig inkomst (sidoinkomster):{' '}
+                {totalSideHustleYearlyIncome.toLocaleString('sv-SE', {
+                  style: 'currency',
+                  currency: 'SEK',
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0,
+                })}
+              </p>
+            )}
+            {_hasActualSideHustleErrors && (
+              <p className="text-sm text-red-400 dark:text-red-300 mt-2">
+                Obs! Det finns osparade ändringar eller felaktig information som behöver åtgärdas.
+              </p>
+            )}
+            <p className="text-sm text-gray-300 mt-1">
+              Klicka på knappen ovan för att visa och redigera.
+            </p>
+          </div>
+        )}
+      </OptionContainer>
+
+      {/* Grand Total Income Summary Section */}
+      {grandTotalYearlyIncome > 0 && (
+        <div className="mt-10 mb-6 p-6 bg-gradient-to-br from-lime-500 via-emerald-500 to-teal-600 text-white rounded-xl shadow-2xl text-center mx-auto max-w-2xl">
+          <h4 className="text-3xl font-extrabold mb-3 tracking-tight">
+            🎉 Din Totala Beräknade Årsinkomst 🎉
+          </h4>
+          <p className="text-4xl font-bold mb-4 opacity-95">
+            {grandTotalYearlyIncome.toLocaleString('sv-SE', {
+              style: 'currency',
+              currency: 'SEK',
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0,
+            })}
+          </p>
+          <div className="border-t border-white/30 my-4"></div>
+          <p className="text-xl mb-1">
+            Detta motsvarar en genomsnittlig månadsinkomst på:
+          </p>
+          <p className="text-2xl font-semibold">
+            {(grandTotalYearlyIncome / 12).toLocaleString('sv-SE', {
+              style: 'currency',
+              currency: 'SEK',
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0,
+            })}
+          </p>
+          <p className="text-xs mt-4 opacity-80">
+            Observera: Detta är en uppskattning baserad på de angivna nettoinkomsterna och frekvenserna.
+          </p>
+        </div>
+      )}
+
+      <DataTransparencySection />
+    </GlassPane>
+  );
+};
 
 export default StepBudgetIncome;

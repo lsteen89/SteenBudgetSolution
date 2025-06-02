@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App'; 
 import './index.css';
+import './styles/loading.css';
 
 // Dynamically calculate and set --vh for mobile browsers
 const setVh = () => {
