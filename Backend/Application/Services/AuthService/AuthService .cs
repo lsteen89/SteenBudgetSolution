@@ -110,12 +110,12 @@ namespace Backend.Application.Services.AuthService
 
             /* 6 ─ refresh-token */
             var ctx = new UserCtx(user.PersoId, access.SessionId, deviceId, ua, user.Email, roles);
-            var (refreshTok, _, _) = await IssueAsync(ctx, access.TokenJti);
+            var (refreshTok, _, _) = await IssueAsync(ctx, access.TokenJti, dto.RememberMe);
 
             /* 7 ─ reset failures */
             await ResetFailedLoginAttempts(user.PersoId, dto.Email);
 
-            return new LoginOutcome.Success(access, refreshTok, user.PersoId);
+            return new LoginOutcome.Success(access, refreshTok, user.PersoId, dto.RememberMe);
         }
         public async Task LogoutAsync(string accessToken, string refreshToken, Guid sessionId, bool logoutAllUsers)
         {
@@ -222,6 +222,7 @@ namespace Backend.Application.Services.AuthService
                     new UserCtx(storedToken.Persoid, sessionId, deviceId,
                                 userAgent, user.Email, roles),
                     jti: newAccess.TokenJti,
+                    rememberMe: storedToken.IsPersistent,
                     rollingWindow: _refreshWindow,
                     absDays: _jwtSettings.RefreshTokenExpiryDaysAbsolute,
                     jwt: _jwtService,
@@ -239,7 +240,7 @@ namespace Backend.Application.Services.AuthService
             }
 
             /* ── 5. winner returns brand-new tokens ─────────────────────────── */
-            return AuthStatusResult.Success(newAccess.Token, newAccess.SessionId, user.PersoId, newRolling, newRefresh);
+            return AuthStatusResult.Success(newAccess.Token, newAccess.SessionId, user.PersoId, newRolling, storedToken.IsPersistent, newRefresh);
         }
 
 
@@ -253,15 +254,16 @@ namespace Backend.Application.Services.AuthService
          *  This is already done in the refreshflow, since its a bigger transaction.
          */
 
-        public Task<(string token, Guid tokenId, DateTime exp)> IssueAsync(UserCtx ctx, string jti) =>
+        public Task<(string token, Guid tokenId, DateTime exp)> IssueAsync(UserCtx ctx, string jti, bool rememberMe) =>
             ExecuteInTransactionAsync((c, tx) =>
-                UpsertRefreshTokenAsync(ctx, jti,
+                UpsertRefreshTokenAsync(ctx, jti, rememberMe,
                               _refreshWindow, _jwtSettings.RefreshTokenExpiryDaysAbsolute,
                               _jwtService, _timeProvider, c, tx));
         // PRIVATE – Must be called in a transaction
         private static async Task<(string token, Guid tokenId, DateTime rollingExp)> UpsertRefreshTokenAsync(
                 UserCtx ctx,
                 string jti,
+                bool rememberMe,
                 TimeSpan rollingWindow,
                 int absDays,
                 IJwtService jwt,
@@ -286,7 +288,8 @@ namespace Backend.Application.Services.AuthService
                 UserAgent = ctx.UserAgent,
                 ExpiresRollingUtc = rolling,
                 ExpiresAbsoluteUtc = abs,
-                Status = TokenStatus.Active
+                Status = TokenStatus.Active,
+                IsPersistent = rememberMe,
             };
 
             bool inserted = await jwt.UpsertRefreshTokenAsync(row, conn, tx);

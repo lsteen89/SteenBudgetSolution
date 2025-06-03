@@ -1,39 +1,45 @@
-import { api, refreshInFlight } from '@api/axios';
+import { api, refreshInFlight } from '@/api/axios'; // Assuming queueRefresh is also in @api/axios
 import { isAxiosError } from 'axios';
 import { useAuthStore } from '@/stores/Auth/authStore';
-import { UserLoginDto } from '@/types/User/Auth/userLoginForm';
-import { LoginRes } from '@/types/User/Auth/authTypes';
+import type { UserLoginDto } from '@/types/User/Auth/userLoginForm'; // Ensure this type can include rememberMe or adjust DTO
+import type { LoginRes } from '@/types/User/Auth/authTypes';
 
+// Define an extended DTO for login if your backend expects 'rememberMe' in the body
+interface UserLoginDtoWithRemember extends UserLoginDto {
+  rememberMe?: boolean;
+}
 
 let logoutOnce: Promise<void> | null = null;
-let isLoggingOut = false;
+let isLoggingOutFlag = false; // Renamed to avoid conflict if isLoggingOut is exported
 
 /* ───── silent refresh ───── */
 export async function refreshToken(): Promise<string> {
-  const { setAuth } = useAuthStore.getState();
+  const { setAuth, sessionId, accessToken: currentAccessToken } = useAuthStore.getState();
+
 
   const { data } = await api.post('/api/auth/refresh',
-    { sessionId: useAuthStore.getState().sessionId,
-      accessToken: useAuthStore.getState().accessToken },
-    { headers: { 'X-Session-Id': useAuthStore.getState().sessionId ?? '' } });
+    { sessionId: sessionId, // Make sure these are correctly fetched if null initially
+      accessToken: currentAccessToken },
+    { headers: { 'X-Session-Id': sessionId ?? '' } });
 
-  if (!data.success  || !data.accessToken)
-      throw new Error('refresh failed');        // bubbles up
+  if (!data.success || !data.accessToken || !data.persoid) { // also check persoid
+    throw new Error('refresh failed');
+  }
 
-  setAuth(data.accessToken, data.sessionId, data.persoid, data.wsMac);
+  // When refreshing, we don't change the original rememberMe preference.
+  // It's preserved in the store. setAuth should be smart enough or we fetch existing rememberMe.
+  const existingRememberMe = useAuthStore.getState().rememberMe;
+  setAuth(data.accessToken, data.sessionId, data.persoid, data.wsMac, existingRememberMe);
   api.defaults.headers.common.Authorization = `Bearer ${data.accessToken}`;
   return data.accessToken;
 }
 
 /* ───── interactive login ───── */
-export async function callLogin(dto: UserLoginDto): Promise<LoginRes> {
+export async function callLogin(dto: UserLoginDto, rememberMe: boolean): Promise<LoginRes> {
   try {
-    const { data } = await api.post<LoginRes>('/api/auth/login', dto);
-    if (data.success) {
-      const { accessToken, sessionId, persoid, wsMac } = data;
-      useAuthStore.getState().setAuth(accessToken, sessionId, persoid, wsMac);
-      api.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-    }
+    const loginPayload: UserLoginDtoWithRemember = { ...dto, rememberMe };
+    const { data } = await api.post<LoginRes>('/api/auth/login', loginPayload);
+
     return data;
   } catch (err) {
     const message = isAxiosError(err)
@@ -46,28 +52,30 @@ export async function callLogin(dto: UserLoginDto): Promise<LoginRes> {
 
 /* ───── logout ───── */
 export async function callLogout(): Promise<void> {
-  if (isLoggingOut) return logoutOnce ?? Promise.resolve();
-  isLoggingOut = true;
+  if (isLoggingOutFlag) return logoutOnce ?? Promise.resolve();
+  isLoggingOutFlag = true;
 
   if (!logoutOnce) {
-    const tok = useAuthStore.getState().accessToken;         // NEW
+    const tok = useAuthStore.getState().accessToken;
     logoutOnce = api.post(
       '/api/auth/logout',
       {},
-      tok ? { headers: { Authorization: `Bearer ${tok}` } }  // NEW
-          : undefined
+      tok ? { headers: { Authorization: `Bearer ${tok}` } } : undefined
     )
-      .then(() => {}) // ensure Promise<void>
-      .catch(() => {})   // swallow 4xx/5xx
+      .then(() => { }) // ensure Promise<void>
+      .catch(() => { })  // swallow 4xx/5xx
       .finally(() => {
-        useAuthStore.getState().clear();
+        useAuthStore.getState().clear(); // This should also clear rememberMe in the store and sessionStorage marker
         delete api.defaults.headers.common.Authorization;
-        isLoggingOut = false;
-        logoutOnce   = null;
-        location.href = '/login';
+        isLoggingOutFlag = false;
+        logoutOnce = null;
+        if (window.location.pathname !== '/login') { // Avoid loop if already on login
+          window.location.href = '/login'; // Redirect to login
+        }
       });
   }
   return logoutOnce;
 }
 
-export { isLoggingOut };                               
+// Exporting the flag for Axios interceptor if needed
+export { isLoggingOutFlag as isLoggingOut };

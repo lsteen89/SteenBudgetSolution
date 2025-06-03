@@ -712,7 +712,8 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
                 {
                     Email = registeredUser.Email,
                     Password = "Password123!",
-                    CaptchaToken = "valid-captcha-token"
+                    CaptchaToken = "valid-captcha-token",
+                    RememberMe = true,
                 },
                 ip: "127.0.0.1",
                 deviceId: "test-device",
@@ -818,8 +819,8 @@ namespace Backend.Tests.IntegrationTests.Services.WebSocketManagerIntegrationTes
             // Assert the content of the exception message to confirm it's due to an HTTP 400
             exception.And.Message.Should().Contain("status code '400'",
                 "the server should return a 400 Bad Request due to missing authentication query parameters.");
-            exception.And.Message.Should().Contain("status code '101' was expected'",
-                "this is part of the standard WebSocketException message when the handshake fails at the HTTP level.");
+            exception.And.Message.Should().Contain("status code '101' was expected.", "because...",
+             "this is part of the standard WebSocketException message when the handshake fails at the HTTP level.");
 
             // After ConnectAsync fails, the client's state should be Closed.
             client.State.Should().Be(WebSocketState.Closed,
