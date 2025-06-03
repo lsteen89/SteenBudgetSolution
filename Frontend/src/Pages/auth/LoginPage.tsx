@@ -15,6 +15,7 @@ import InputField from '@components/atoms/InputField/ContactFormInputField';
 import SubmitButton from '@components/atoms/buttons/SubmitButton';
 import Checkbox from '@components/atoms/boxes/Checkbox';
 import LoginBird from '@assets/Images/LoginBird.png';
+import { translateBackendError } from '@/translations/errorMessages';
 
 /* —— yup schema —— */
 const schema = object({
@@ -62,7 +63,9 @@ export default function LoginPage() {
     setSub(false);
 
     if (res.success) return nav('/dashboard', { replace: true });
-    setErr({ form: res.message });
+    const swedishErrorMessage = translateBackendError(res.message);
+    setErr({ form: swedishErrorMessage }); // Set the error message for the form
+    // Reset the captcha if login fails
     capRef.current?.reset();
   };
 
