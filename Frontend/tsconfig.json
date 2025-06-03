@@ -33,7 +33,8 @@
 	  "@routes/*": ["routes/*"],		  
 	  "@styles/*": ["styles/*"],	
 	  "@schemas/*": ["schemas/*"],	  
-	  "@stores/*": ["stores/*"],	  	  
+	  "@stores/*": ["stores/*"],	  	
+	  "@translations/*": ["translations/*"],	  			
     }
   },
   "include": ["src/**/*",]
