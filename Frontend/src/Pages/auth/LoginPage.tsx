@@ -29,7 +29,9 @@ export default function LoginPage() {
   const [form, setForm] = useState<UserLoginDto>({ email: '', password: '', captchaToken: '' });
   const [err, setErr] = useState<Record<string, string>>({});
   const [sub, setSub] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false); // State for the checkbox
+  // State to track whether the user wants to be remembered on this device.
+  // Default value is `false` to ensure users explicitly opt in.
+  const [rememberMe, setRememberMe] = useState(false);
   const capRef = useRef<ReCAPTCHAWithReset>(null);
 
   const nav = useNavigate();
