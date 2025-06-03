@@ -22,7 +22,8 @@ export async function refreshToken(): Promise<string> {
       accessToken: currentAccessToken },
     { headers: { 'X-Session-Id': sessionId ?? '' } });
 
-  if (!data.success || !data.accessToken || !data.persoid) { // also check persoid
+  // Ensure the response includes 'persoid', which is required for identifying the user session.
+  if (!data.success || !data.accessToken || !data.persoid) {
     throw new Error('refresh failed');
   }
 
