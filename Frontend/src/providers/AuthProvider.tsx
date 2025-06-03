@@ -1,52 +1,69 @@
-import { PropsWithChildren, useEffect, useState } from 'react';
-import { callLogout, refreshToken } from '@/api/Auth/auth';
+import { PropsWithChildren, useEffect } from 'react';
+import { callLogout } from '@/api/Auth/auth';
 import { useAuthStore } from '@/stores/Auth/authStore';
 import LoadingScreen from "@components/molecules/feedback/LoadingScreen";
-import { useProactiveRefresh } from '@/hooks/useProactiveRefresh'; // Hook to refresh the token proactively
-import { usePeriodicRefresh } from '@/hooks/usePeriodicRefresh'; // Hook to refresh the token periodically
+import { useProactiveRefresh } from '@/hooks/useProactiveRefresh';
 import { queueRefresh } from '@/api/axios';
 
 export const AuthProvider = ({ children }: PropsWithChildren) => {
-  const { setReady } = useAuthStore();
-  const ready        = useAuthStore(s => s.ready);
+  const appInitialized = useAuthStore(state => state.authProviderInitialized);
+  const setAppInitialized = useAuthStore(state => state.setAuthProviderInitialized);
+  const clearAuthStore = useAuthStore(state => state.clear);
 
-    useEffect(() => {
-    let isMounted = true; // Good practice for async operations in useEffect
-    (async () => {
-        await useAuthStore.persist.rehydrate();
-        if (!isMounted) return;
+  useEffect(() => {
+    let isMounted = true;
 
-        const { accessToken, sessionId } = useAuthStore.getState();
-        if (accessToken && sessionId) {
-        try {
-            console.log('[AuthProvider] Initial token/session exists, attempting refresh via queueRefresh...');
-            // Use queueRefresh to handle the refresh logic
-            await queueRefresh(true); // Changed from direct refreshToken()
-            if (!isMounted) return;
-            console.log('[AuthProvider] Initial refresh attempt processed by queueRefresh.');
-        } catch (err) {
-            if (!isMounted) return;
-            console.error('[AuthProvider] Initial refresh via queueRefresh failed. Logging out.', err);
-            // If the refresh fails, we should log out the user
-            await callLogout(); 
-            // setReady(true) will still be called in the finally/after if not returned here
-            // but if logout happens, ready state might be handled by redirection or store clear.
-            // For clarity, if logout occurs, we might not want to proceed to setReady(true) immediately.
-            // However, callLogout redirects, so setReady might be moot.
-            return; // Explicitly return if logout is called
-        }
-        }
+    const initializeAuth = async () => {
+      // Ensure we start fresh if this effect re-runs, though with stable deps it shouldn't.
+      // However, onRehydrateStorage in store already sets authProviderInitialized to false.
+      // setAppInitialized(false); // Not strictly needed here due to onRehydrateStorage
+
+      await useAuthStore.persist.rehydrate();
+      if (!isMounted) return;
+
+      const { accessToken, sessionId, rememberMe: rehydratedRememberMe } = useAuthStore.getState();
+      const browserSessionMarker = sessionStorage.getItem('appSessionActive');
+
+      if (!rehydratedRememberMe && accessToken && !browserSessionMarker) {
+        console.log('[AuthProvider] "Remember Me" false, AT found, but no session marker. Clearing local session.');
         if (isMounted) {
-        setReady(true); // Either refreshed, nothing to refresh, or handled error by logging out
+          clearAuthStore(); // clearAuthStore now sets authProviderInitialized to true
+          // setAppInitialized(true); // Not needed, clearAuthStore handles it
         }
-    })();
+        return;
+      }
+
+      if (accessToken && sessionId) {
+        try {
+          console.log('[AuthProvider] Initial token/session exists, attempting refresh via queueRefresh...');
+          await queueRefresh(true);
+          if (!isMounted) return;
+          console.log('[AuthProvider] Initial refresh attempt processed.');
+
+          if (!useAuthStore.getState().rememberMe && useAuthStore.getState().accessToken) {
+            sessionStorage.setItem('appSessionActive', 'true');
+          }
+        } catch (err) {
+          if (!isMounted) return;
+          console.error('[AuthProvider] Initial refresh via queueRefresh failed. Logging out.', err);
+          await callLogout(); // callLogout will trigger clearAuthStore, which sets authProviderInitialized to true
+          return;
+        }
+      }
+
+      if (isMounted) {
+        setAppInitialized(true); // All checks done, app is initialized
+      }
+    };
+
+    initializeAuth();
 
     return () => {
-        isMounted = false;
+      isMounted = false;
     };
-    }, []); // Empty dependency array, runs once on mount
+  }, [setAppInitialized, clearAuthStore]); // Stable dependencies
 
   useProactiveRefresh();
-  return ready ? <>{children}</> : <LoadingScreen />;
-};
 
+  return appInitialized ? <>{children}</> : <LoadingScreen />;
+};

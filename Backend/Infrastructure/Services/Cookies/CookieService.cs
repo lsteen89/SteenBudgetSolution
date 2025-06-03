@@ -19,26 +19,38 @@ namespace Backend.Infrastructure.Services.CookieService
             _jwtSettings = jwtSettings;
         }
 
-        public void SetRefreshCookie(HttpResponse res, string refreshToken)
+        public void SetRefreshCookie(HttpResponse res, string refreshToken, bool rememberMe)
         {
-            res.Cookies.Append("RefreshToken", refreshToken, BuildOptions(
-                DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenExpiryDaysAbsolute)));
+            DateTimeOffset? expiryDate = null;
+            if (rememberMe)
+            {
+                expiryDate = DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenExpiryDaysAbsolute);
+            }
+
+            // If rememberMe is false, expiryDate remains null, leading to a session cookie
+            res.Cookies.Append("RefreshToken", refreshToken, BuildOptions(expiryDate));
         }
 
         public void DeleteRefreshCookie(HttpResponse res)
-            => res.Cookies.Delete("RefreshToken", BuildOptions(DateTime.UnixEpoch));
+        {
+            res.Cookies.Append("RefreshToken", "", BuildOptions(DateTimeOffset.UtcNow.AddDays(-1)));
+        }
 
         /* ---------- private ---------- */
-        CookieOptions BuildOptions(DateTime expiresUtc)
+        private CookieOptions BuildOptions(DateTimeOffset? expiresUtc = null)
         {
             var opt = new CookieOptions
             {
                 HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.Strict,
-                Path = "/",
-                Expires = expiresUtc
+                Secure = true, // Good practice: always true if possible (requires HTTPS)
+                SameSite = SameSiteMode.Strict, 
+                Path = "/", // Todo: Maybe if "/" is too broad. "/api/auth" might be more specific if applicable.
             };
+
+            if (expiresUtc.HasValue)
+            {
+                opt.Expires = expiresUtc.Value;
+            }
 
             if (_env.IsProduction() &&
                 _ctx.HttpContext?.Request.Host.Host.EndsWith("ebudget.se") == true)

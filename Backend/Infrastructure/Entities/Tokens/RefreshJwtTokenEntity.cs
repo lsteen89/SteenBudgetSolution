@@ -16,6 +16,7 @@
         public DateTime ExpiresAbsoluteUtc { get; init; }                 // hard cap
         public DateTime? RevokedUtc { get; set; }                  // NULL = active
         public TokenStatus Status { get; set; } = TokenStatus.Active;
+        public bool IsPersistent { get; init; } 
 
         /* Telemetry (optional) */
         public string? DeviceId { get; init; }

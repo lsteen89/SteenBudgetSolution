@@ -1,0 +1,84 @@
+/* Wrapper keeps label pointer-friendly */
+.checkbox {
+  cursor: pointer;
+}
+
+/* Native checkbox – visually hidden but accessible */
+.checkbox_input {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Custom square ------------------------------------------------------ */
+.checkbox_check {
+  width: 25px;
+  height: 25px;
+  box-sizing: border-box;
+  border: 0.2rem solid #32CD32;            /* brand dark-lime-green */
+  border-radius: 0.25rem;
+  background: transparent;
+  will-change: transform;                  /* hint GPU */
+  transition:
+    transform 250ms cubic-bezier(.22,1,.36,1),
+    background 400ms ease,
+    box-shadow 250ms ease;
+}
+
+/* Tick polyline – ghost-tick by default ----------------------------- */
+.checkbox_check polyline {
+  --ghost-colour: rgba(50 205 50 / .45);   /* brand @45 % alpha */
+  stroke: var(--ghost-colour);
+  stroke-dasharray: 25;
+  stroke-dashoffset: 25;                   /* hidden */
+  stroke-linecap: round;
+  stroke-width: 0.2em;
+  fill: none;
+  transition: stroke-dashoffset .4s ease,  /* draw/undraw */
+              stroke            .2s ease;  /* colour swap */
+}
+
+/* Checked – box fills & tick turns white ---------------------------- */
+.checkbox_input:checked + .checkbox_check {
+  background: #32CD32;
+}
+.checkbox_input:checked + .checkbox_check polyline {
+  stroke: #fff;
+  stroke-dashoffset: 0;                    /* stay drawn */
+}
+
+/* Hover – lift & ghost-tick preview --------------------------------- */
+.checkbox:hover .checkbox_check {
+  transform: translateY(-1px) scale(1.05);
+  box-shadow: 0 4px 8px rgba(50 205 50 / .35);
+}
+/* draw the ghost only if currently unchecked */
+.checkbox:hover input:not(:checked) + .checkbox_check polyline {
+  stroke-dashoffset: 0;
+}
+
+/* tiniest delay so ghost erases smoothly on mouse-leave */
+.checkbox input:not(:checked) + .checkbox_check polyline {
+  transition-delay: .05s;
+}
+
+/* Press feedback ----------------------------------------------------- */
+.checkbox_input:active + .checkbox_check {
+  transform: scale(.96);
+}
+
+/* Keyboard focus (WCAG 2.2) ----------------------------------------- */
+.checkbox_input:focus-visible + .checkbox_check {
+  outline: 2px solid #98FF98;
+  outline-offset: 2px;
+}
+
+/* Motion-safe fallback ---------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .checkbox_check,
+  .checkbox_check polyline {
+    transition: none;
+  }
+}

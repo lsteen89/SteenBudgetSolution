@@ -72,7 +72,7 @@ namespace Backend.Presentation.Controllers
 
                 case LoginOutcome.Success s:
                     _logger.LogInformation("Login successful for user: {MaskedEmail}", LogHelper.MaskEmail(dto.Email));
-                    cookieService.SetRefreshCookie(Response, s.RefreshToken);
+                    cookieService.SetRefreshCookie(Response, s.RefreshToken, s.RememberMe);
                     var wsMac = WebSocketAuth.MakeWsMac(s.Access.Persoid, s.Access.SessionId, _wsCfg.Secret);
                     return Ok(new AuthResult(true,
                                              s.Access.Token,
@@ -148,7 +148,7 @@ namespace Backend.Presentation.Controllers
 
             /* 5 ─ set new refresh cookie, if rotated */
             if (result.NewRefreshCookie is not null)
-                cookieService.SetRefreshCookie(Response, result.NewRefreshCookie);
+                cookieService.SetRefreshCookie(Response, result.NewRefreshCookie, result.ShouldBePersistent);
             _logger.LogInformation("Refresh successful for persoid: {Persoid}:", result.Persoid);
             /* 6 ─ return AuthResult + WsMac */
             var wsMac = WebSocketAuth.MakeWsMac(result.Persoid, result.SessionId, _wsCfg.Secret);

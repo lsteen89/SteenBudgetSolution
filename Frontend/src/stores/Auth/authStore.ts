@@ -1,110 +1,141 @@
-import { create } from 'zustand'
-import { persist, createJSONStorage } from 'zustand/middleware'
-import type { UserDto } from '@myTypes/User/UserDto'
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import type { UserDto } from '@myTypes/User/UserDto';
+import { api } from '@/api/axios'; // Assuming this is your configured axios instance
 
+// Define the AuthSlice interface with distinct readiness flags
 interface AuthSlice {
-  accessToken    : string | null      // JWT token for authentication
-  sessionId      : string | null      // Session ID for tracking user sessions
-  persoid        : string | null;     // Personal ID for user identification
-  wsMac          : string | null      // MAC address for WebSocket connection
-  user           : UserDto | null     // User data, null if not authenticated
-  isLoading      : boolean            // Indicates if the store is currently loading data
-  wsEnabled      : boolean            // Indicates if WebSocket is enabled
-  ready           : boolean           // Indicates if the Websocket is ready for use
-  setReady  : (v: boolean) => void    // Sets the readiness state for WebSocket
+  accessToken: string | null;
+  sessionId: string | null;
+  persoid: string | null;
+  wsMac: string | null;
+  user: UserDto | null;
+  isLoading: boolean;            // For operational loading (e.g., login process)
+  rememberMe: boolean;
+
+  // AuthProvider readiness
+  authProviderInitialized: boolean;
+  setAuthProviderInitialized: (isInitialized: boolean) => void;
+
+  // WebSocket readiness
+  isWsReady: boolean;
+  setIsWsReady: (isReady: boolean) => void;
+
+  wsEnabled: boolean; // Retaining this from your original if it has a distinct purpose
 
   /* actions */
-  setAuth      : (tok: string, sid: string, pid: string, mac: string, ) => void
-  mergeUser    : (u:UserDto)=>void
-  setLoad      : (b:boolean)=>void
-  setWs        : (b:boolean)=>void
-  clear        : ()=>void
+  setAuth: (tok: string, sid: string, pid: string, mac: string | null, remember: boolean) => void;
+  mergeUser: (u: UserDto) => void;
+  setOpLoading: (isLoading: boolean) => void;
+  setWsEnabledStatus: (isEnabled: boolean) => void; // Clarified name if 'wsEnabled' is a status
+  clear: () => void;
 
   /* derived */
-  isTokenValid : () => boolean
+  isTokenValid: () => boolean;
 }
 
+// Persisted type should only include what needs to be saved to localStorage
 type Persisted = Pick<AuthSlice,
-  'accessToken' | 'sessionId' | 'persoid' | 'wsMac' | 'user'>;
+  'accessToken' | 'sessionId' | 'persoid' | 'wsMac' | 'user' | 'rememberMe'>;
 
-/**
- * Extracts the `exp` claim from a JWT and returns the timestamp in seconds.
- * Returns null if parsing fails.
- */
 function getTokenExp(token: string): number | null {
   try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return null
-    const payload = JSON.parse(atob(parts[1]))
-    return typeof payload.exp === 'number' ? payload.exp : null
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const payload = JSON.parse(atob(parts[1]));
+    return typeof payload.exp === 'number' ? payload.exp : null;
   } catch {
-    return null
+    return null;
   }
 }
 
 export const useAuthStore = create<AuthSlice>()(
   persist(
     (set, get) => ({
-      accessToken   : null,
-      sessionId     : null,
-      persoid       : null, 
-      wsMac         : null,
-      user          : null,
-      isLoading     : false,
-      wsEnabled     : false,
-      ready   : false,
+      accessToken: null,
+      sessionId: null,
+      persoid: null,
+      wsMac: null,
+      user: null,
+      isLoading: false,
+      rememberMe: false,
+      wsEnabled: false, // Assuming default
 
-      setReady: (v) => set({ ready: v }),
+      authProviderInitialized: false, // For AuthProvider
+      setAuthProviderInitialized: (isInitialized) => set({ authProviderInitialized: isInitialized }),
 
-     /** called by login|refresh */
-    setAuth: (tok: string, sid: string, pid: string, mac: string ) => {
-       set({
-         accessToken   : tok,
-         sessionId     : sid,
-         persoid       : pid,
-         wsMac         : mac,
-         wsEnabled     : true,
-       });
-                       
+      isWsReady: false, // For WebSocket
+      setIsWsReady: (isReady) => set({ isWsReady: isReady }),
+
+      setAuth: (tok, sid, pid, mac, remember) => {
+        set({
+          accessToken: tok,
+          sessionId: sid,
+          persoid: pid,
+          wsMac: mac,
+          rememberMe: remember,
+          isLoading: false,
+          // wsEnabled: true, // Setting wsEnabled here might be appropriate if login implies WS should be active
+          // authProviderInitialized is set by AuthProvider itself after its checks
+          // isWsReady is set by useAuthWs
+        });
+        if (!remember) {
+          sessionStorage.setItem('appSessionActive', 'true');
+        } else {
+          sessionStorage.removeItem('appSessionActive');
+        }
       },
 
-      mergeUser: (u) => set({ user: u }),
-      setLoad  : (b) => set({ isLoading: b }),
-      setWs    : (b) => set({ wsEnabled: b }),
+      mergeUser: (u) => set((state) => ({ user: { ...state.user, ...u } })),
+      setOpLoading: (isLoading) => set({ isLoading: isLoading }),
+      setWsEnabledStatus: (isEnabled) => set({ wsEnabled: isEnabled }),
 
       clear: () => {
-        console.log('[AuthStore] Clearing authentication state and WebSocket params.'); 
+        console.log('[AuthStore] Clearing authentication state.');
         set({
-          accessToken   : null,
-          sessionId     : null,
-          persoid       : null, 
-          wsMac         : null, 
-          user          : null,
-          wsEnabled     : false,
-          ready         : false, 
-          isLoading: false, // Todo: should this be true? (evaluate)
+          accessToken: null,
+          sessionId: null,
+          persoid: null,
+          wsMac: null,
+          user: null,
+          isLoading: false,
+          rememberMe: false,
+          authProviderInitialized: true, // After clear, AuthProvider is "initialized" to show login/public state
+          isWsReady: false,              // WebSocket is no longer ready
+          wsEnabled: false,              // WebSocket should probably be disabled
         });
+        sessionStorage.removeItem('appSessionActive');
+        if (api && api.defaults.headers.common.Authorization) {
+          delete api.defaults.headers.common.Authorization;
+        }
       },
 
-
       isTokenValid: () => {
-        const token = get().accessToken
-        if (!token) return false
-        const exp = getTokenExp(token)
-        return exp ? Date.now() < exp * 1000 : false
+        const token = get().accessToken;
+        if (!token) return false;
+        const exp = getTokenExp(token);
+        return exp ? Date.now() < exp * 1000 : false;
       },
     }),
     {
-      name       : 'auth',
-      partialize : (state): Persisted => ({
+      name: 'auth',
+      partialize: (state): Persisted => ({
         accessToken: state.accessToken,
-        sessionId  : state.sessionId,
-        persoid    : state.persoid,
-        user       : state.user,
-        wsMac      : state.wsMac,
-      }),
-      storage    : createJSONStorage(() => localStorage),
-
+        sessionId: state.sessionId,
+        persoid: state.persoid,
+        user: state.user,
+        wsMac: state.wsMac,
+        rememberMe: state.rememberMe,
+      }), // authProviderInitialized and isWsReady are not persisted
+      storage: createJSONStorage(() => localStorage),
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          // Reset transient readiness flags on rehydration; AuthProvider and useAuthWs will set them.
+          state.authProviderInitialized = false;
+          state.isWsReady = false;
+          state.isLoading = false;
+        }
+      },
     }
   )
-)
+);

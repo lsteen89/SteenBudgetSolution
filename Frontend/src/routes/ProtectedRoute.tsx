@@ -3,10 +3,11 @@ import { useAuthStore } from '@/stores/Auth/authStore';
 import LoadingScreen from '@components/molecules/feedback/LoadingScreen';
 
 const ProtectedRoute = () => {
-  const { ready, accessToken } = useAuthStore();
+  const isAuthInitialized = useAuthStore(state => state.authProviderInitialized);
+  const accessToken = useAuthStore(state => state.accessToken);
   const isDebugMode = process.env.NODE_ENV === 'development';
   
-  if (!ready && !isDebugMode) { // Only show loading if not in debug and not ready
+  if (!isAuthInitialized  && !isDebugMode) { // Only show loading if not in debug and not ready
     return <LoadingScreen />;
   }
 

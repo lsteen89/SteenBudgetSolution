@@ -36,11 +36,11 @@ namespace Backend.Infrastructure.Data.Sql.Queries.UserQueries
             const string sql = @"
             INSERT INTO RefreshTokens
               (TokenId, Persoid, SessionId, HashedToken, AccessTokenJti,
-               ExpiresRollingUtc, ExpiresAbsoluteUtc, RevokedUtc, Status,
+               ExpiresRollingUtc, ExpiresAbsoluteUtc, RevokedUtc, Status, IsPersistent,
                DeviceId, UserAgent, CreatedUtc)
             VALUES
               (@TokenId, @Persoid, @SessionId, @HashedToken, @AccessTokenJti,
-               @ExpiresRollingUtc, @ExpiresAbsoluteUtc, @RevokedUtc, @Status,
+               @ExpiresRollingUtc, @ExpiresAbsoluteUtc, @RevokedUtc, @Status, @IsPersistent,
                @DeviceId, @UserAgent, @CreatedUtc)
             ON DUPLICATE KEY UPDATE
               HashedToken        = VALUES(HashedToken),
@@ -66,6 +66,7 @@ namespace Backend.Infrastructure.Data.Sql.Queries.UserQueries
                 ExpiresAbsoluteUtc = token.ExpiresAbsoluteUtc,
                 RevokedUtc = token.RevokedUtc,
                 Status = token.Status,
+                IsPersistent = token.IsPersistent,
                 token.DeviceId,
                 token.UserAgent,
                 CreatedUtc = token.CreatedUtc
@@ -99,6 +100,7 @@ namespace Backend.Infrastructure.Data.Sql.Queries.UserQueries
                     ExpiresRollingUtc,
                     ExpiresAbsoluteUtc,
                     Status,
+                    IsPersistent,
                     RevokedUtc,
                     DeviceId,
                     UserAgent,
