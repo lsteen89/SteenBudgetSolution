@@ -13,7 +13,7 @@ import { useAuthWs }      from '@/hooks/auth/useAuthWs';
  * @returns {JSX.Element} The main App component.
  */
 export default function App() {
-  useAuthWs();                        // safe: this runs only after AuthProvider is "ready"
+  useAuthWs();                        // safe: this runs only after AuthProvider is "setProviderReady"
 
   return (
     <BrowserRouter>

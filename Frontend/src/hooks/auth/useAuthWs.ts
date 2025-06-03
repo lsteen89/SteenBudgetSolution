@@ -14,7 +14,7 @@ export function useAuthWs() {
   const persoid = useAuthStore(s => s.persoid); // Using primitive persoid directly
   const wsMac = useAuthStore(s => s.wsMac);
   const clearStoreAction = useAuthStore(s => s.clear); // The clear action from the store
-  const setWsReady = useAuthStore(s => s.setReady);   // Action to set WebSocket ready state
+  const setWsReady = useAuthStore(s => s.setIsWsReady);   // Action to set WebSocket ready state
 
   const wsRef      = useRef<WebSocket>();
   const backoffRef = useRef(1_000); // Initial backoff delay for retries
@@ -186,10 +186,23 @@ export function useAuthWs() {
 
   /* ② push fresh JWTs in-band */
   useEffect(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN && accessToken && useAuthStore.getState().ready) { // Also check if WS is "ready"
-      const authMessage = `AUTH-REFRESH ${accessToken}`;
+    const {
+      accessToken: currentAccessToken,
+      isWsReady: currentWsReadyState, // Use the specific WebSocket ready state
+      authProviderInitialized: currentAuthProviderInitialized // Check if AuthProvider is done
+    } = useAuthStore.getState();
+
+    // Ensure WebSocket itself is reported as ready by this hook,
+    // AuthProvider is initialized, and we have an access token.
+    if (wsRef.current?.readyState === WebSocket.OPEN &&
+        currentWsReadyState &&
+        currentAuthProviderInitialized && // Ensure auth system is stable
+        currentAccessToken) {
+      const authMessage = `AUTH-REFRESH ${currentAccessToken}`;
       console.log('[WS → SENT]', authMessage);
       wsRef.current.send(authMessage);
     }
-  }, [accessToken]); // Re-run only when accessToken changes
+    // Dependencies: accessToken changing is the primary trigger.
+    // isWsReady and authProviderInitialized are checked on each run.
+  }, [accessToken]); // Re-run when accessToken changes
 }

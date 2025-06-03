@@ -150,6 +150,7 @@ CREATE TABLE RefreshTokens (
     ExpiresAbsoluteUtc  DATETIME     NOT NULL,
     RevokedUtc          DATETIME      NULL,          -- null ⇒ still usable
     Status              INT          NOT NULL,       -- 0 = Inactive, 1 = Active, 2 = Revoked
+    IsPersistent        BOOLEAN     NOT NULL DEFAULT FALSE,
 
     DeviceId            VARCHAR(255),
     UserAgent           VARCHAR(255),
@@ -178,6 +179,7 @@ CREATE TABLE RefreshTokens_Archive (
     ExpiresAbsoluteUtc  DATETIME     NOT NULL,
     RevokedUtc          DATETIME      NULL,
     Status              INT          NOT NULL,
+    IsPersistent        BOOLEAN     NOT NULL DEFAULT FALSE,
     DeviceId            VARCHAR(255),
     UserAgent           VARCHAR(255),
     CreatedUtc          DATETIME     NOT NULL,
@@ -194,11 +196,11 @@ FOR EACH ROW
 BEGIN
   INSERT INTO RefreshTokens_Archive
     (TokenId, Persoid, SessionId, HashedToken, AccessTokenJti,
-     ExpiresRollingUtc, ExpiresAbsoluteUtc, RevokedUtc, Status,
+     ExpiresRollingUtc, ExpiresAbsoluteUtc, RevokedUtc, Status, IsPersistent,
      DeviceId, UserAgent, CreatedUtc, ArchivedAt)
   VALUES
     (OLD.TokenId, OLD.Persoid, OLD.SessionId, OLD.HashedToken, OLD.AccessTokenJti,
-     OLD.ExpiresRollingUtc, OLD.ExpiresAbsoluteUtc, OLD.RevokedUtc, OLD.Status,
+     OLD.ExpiresRollingUtc, OLD.ExpiresAbsoluteUtc, OLD.RevokedUtc, OLD.Status, OLD.IsPersistent,
      OLD.DeviceId, OLD.UserAgent, OLD.CreatedUtc, NOW());
 END$$
 DELIMITER ;

@@ -25,6 +25,7 @@ public static class RefreshTokenMapper
                   e.ExpiresAbsoluteUtc,
                   e.RevokedUtc,
                   e.Status,
+                  e.IsPersistent,
                   e.DeviceId,
                   e.UserAgent,
                   e.CreatedUtc);
@@ -47,6 +48,7 @@ public static class RefreshTokenMapper
             ExpiresAbsoluteUtc = m.ExpiresAbsoluteUtc,
             RevokedUtc = m.RevokedUtc,
             Status = m.Status,
+            IsPersistent = m.IsPersistent,
             DeviceId = m.DeviceId,
             UserAgent = m.UserAgent,
             CreatedUtc = createdUtcOverride ?? m.CreatedUtc

@@ -26,7 +26,7 @@
     {
         public sealed record Success(
             AccessTokenResult Access,
-            string RefreshToken, Guid Persoid) : LoginOutcome;
+            string RefreshToken, Guid Persoid, bool RememberMe) : LoginOutcome;
 
         public sealed record Fail(string Error) : LoginOutcome;
     }
