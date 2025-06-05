@@ -18,12 +18,18 @@ import WizardFormWrapperStep2, {
   WizardFormWrapperStep2Ref,
 } from './wrapper/WizardFormWrapperStep2';
 
+/*Substeps for major step 2*/
+// Step 1
 import ExpenditureOverviewMainText from './Pages/SubSteps/ExpenditureOverviewMainText';
-import SubStepRent  from './Pages/SubSteps/2_SubStepRent/SubStepRent';
-import SubStepFood  from './Pages/SubSteps/3_SubStepFood/SubStepFood';
+// Step 2
+import SubStepRent  from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/2_SubStepRent/SubStepRent';
+// Step 3
+import SubStepFood  from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/3_SubStepFood/SubStepFood';
+// Step 4
+import SubStepFixedExp from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/4_SubStepFixedExpenses/SubStepFixedExpenses';
 
 import LoadingScreen from '@components/molecules/feedback/LoadingScreen';
-import { Loader2 } from 'lucide-react';
+
 import AnimatedContent from '@components/atoms/wrappers/AnimatedContent';
 import StepButton      from '@components/molecules/buttons/StepButton';
 import WizardProgress  from '@components/organisms/overlays/wizard/SharedComponents/Menu/WizardProgress';
@@ -140,7 +146,7 @@ const StepBudgetExpenditureContainer = forwardRef<
   const goToSub = async (dest: number) => {
     const goingBack      = dest < currentSub;
     const skipValidation = currentSub === 1 || goingBack;
-  
+    console.log('Current sub-step:', currentSub);
     setIsSaving(true);
     await saveStepData(currentSub, dest, skipValidation, goingBack);
     setIsSaving(false);
@@ -198,10 +204,12 @@ const StepBudgetExpenditureContainer = forwardRef<
       case 1: return <ExpenditureOverviewMainText />;
       case 2: return <SubStepRent />;
       case 3: return <SubStepFood />;
+      case 4: return <SubStepFixedExp />;
+      // Add more cases for other sub-steps as needed
       default:return <div>All sub-steps complete!</div>;
     }
   };
-
+  
   /* 9 ─── JSX ------------------------------------------------------- */
   return (
     <WizardFormWrapperStep2 ref={handleFormWrapperRef}>

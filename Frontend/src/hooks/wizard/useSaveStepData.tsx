@@ -50,7 +50,7 @@ export function useSaveStepData<T extends ExpenditureFormValues>({
 }: UseSaveStepDataProps<T>) {
   const { showToast } = useToast();
   const saveQueue     = useWizardSaveQueue();
-  
+  const isDebugMode   = import.meta.env.MODE !== 'production';
   /* ------------------------------------------------------------------
      ⬇️  main callback
   ------------------------------------------------------------------ */
@@ -69,7 +69,7 @@ export function useSaveStepData<T extends ExpenditureFormValues>({
 
       /* 1 ─── validation */
       let isValid = true;
-      if (!skipValidation && !goingBackwards) {
+      if (!skipValidation && !goingBackwards && !isDebugMode) {
       // Determine the top-level field keys relevant to the step we are leaving.
       // We use methods.getValues() to provide the full form data structure that getPartialData might expect.
         const relevantDataSlice = getPartialData<T>(stepLeaving, methods.getValues());
@@ -129,9 +129,9 @@ export function useSaveStepData<T extends ExpenditureFormValues>({
           
           onError?.(); // Trigger shake animation
           console.log(`Validation failed for fields [${fieldsToValidate.join(', ')}] in step ${stepLeaving}. Errors:`, methods.formState.errors);
-          // Consider making the toast message more specific if possible,
-          // or rely on field-level errors and the scroll-to-error behavior.
-          showToast('🚨 Något i formuläret är fel ifyllt för detta steg.', 'error');
+
+          // This toast might be too generic; consider making it more specific
+          //showToast('🚨 Något i formuläret är fel ifyllt för detta steg.', 'error');
           return false;
         }
       }
