@@ -43,7 +43,7 @@ import WizardNavigationFooter from "@components/organisms/overlays/wizard/Shared
 // Modal import
 import ConfirmModal from "@components/atoms/modals/ConfirmModal";
 // Stores
-import { useWizardSaveQueue } from '@/stores/Wizard/wizardSaveQueue';
+
 // ---------------------------- TYPES ----------------------------
 interface SetupWizardProps {
   onClose: () => void;

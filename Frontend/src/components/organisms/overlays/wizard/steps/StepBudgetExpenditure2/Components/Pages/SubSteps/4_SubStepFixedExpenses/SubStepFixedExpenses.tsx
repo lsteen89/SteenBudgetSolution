@@ -1,16 +1,20 @@
-import React, { useEffect } from "react";
-import { useFormContext, useFieldArray, Controller } from "react-hook-form"; // Controller is now used
-import { PlusCircle, Trash2 } from "lucide-react"; // HelpCircle not used directly here anymore
-
-// Components
+import React, { useEffect, useState } from "react";
+import { useFormContext, useFieldArray, Controller } from "react-hook-form";
+import { PlusCircle, Trash2, Info } from "lucide-react";
+import { motion } from "framer-motion";
 import OptionContainer from "@components/molecules/containers/OptionContainer";
 import FormattedNumberInput from "@components/atoms/InputField/FormattedNumberInput";
-import TextInput from "@components/atoms/InputField/TextInput"; // Assuming this is the updated version accepting className
+import TextInput from "@components/atoms/InputField/TextInput";
 import HelpSection from "@components/molecules/helptexts/HelpSection";
-// import Button from "@components/atoms/buttons/GoodButton"; // No longer using GoodButton
-import SubmitButton from "@components/atoms/buttons/SubmitButton"; // Using SubmitButton
+import SubmitButton from "@components/atoms/buttons/SubmitButton";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Separator } from "@/components/ui/separator";
+import GlossyFlipCard from "@components/molecules/cards/GlossyFlipCard/GlossyFlipCard";
+import FlipCardText from "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/text/FlipCardText";
+import useMediaQuery from '@hooks/useMediaQuery';
+import useScrollToFirstError from "@/hooks/useScrollToFirstError";
+import { idFromPath } from "@/utils/idFromPath";
 
-// Types
 export interface FixedExpenseItem {
   id?: string;
   name?: string;
@@ -26,21 +30,41 @@ export interface FixedExpensesSubForm {
   customExpenses?: (FixedExpenseItem | undefined)[];
 }
 
-const generateUniqueId = () => `custom_${new Date().getTime()}_${Math.random().toString(36).substring(2, 7)}`;
-
 const SubStepFixedExpenses: React.FC = () => {
   const {
-    control, // control is used by useFieldArray and Controller
-    // register, // No longer directly using register for TextInput here
+    control,
     watch,
     setValue,
-    formState: { errors },
+    setFocus,
+    trigger,
+    clearErrors,
+    formState: { errors, submitCount },
   } = useFormContext<{ fixedExpenses: FixedExpensesSubForm }>();
+  
+  const [openAccordion, setOpenAccordion] = useState<string>("custom");
+  const scrollableErrors =
+    submitCount > 0 && openAccordion === "custom" ? errors : {};
+  useScrollToFirstError(scrollableErrors);
 
   const { fields, append, remove } = useFieldArray({
     control,
     name: "fixedExpenses.customExpenses",
+    keyName: "fieldId",
+    shouldUnregister: true,
   });
+
+  const handleAddExpense = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    append({ name: "", fee: null });
+    setTimeout(() => {
+      setFocus(`fixedExpenses.customExpenses.${fields.length}.name`);
+    }, 0);
+  };
+
+  
+  const isMdScreenOrUp = useMediaQuery('(min-width: 768px)');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const insuranceVal = watch("fixedExpenses.insurance");
   const electricityVal = watch("fixedExpenses.electricity");
@@ -59,177 +83,196 @@ const SubStepFixedExpenses: React.FC = () => {
 
   const formattedTotalValue = calculatedTotalValue.toLocaleString("sv-SE");
 
-  useEffect(() => {
-    if (!customExpensesVal || customExpensesVal.length === 0) {
-      // append({ id: generateUniqueId(), name: "", fee: null }); // Optional
-    }
-  }, [customExpensesVal, append]);
-
   const commonExpenseFields = [
-    {
-      name: "insurance" as const,
-      label: "Försäkringar",
-      placeholder: "t.ex. 300 kr",
-      helpText: "Ange dina totala månatliga kostnader för försäkringar (hem, bil, person etc.).",
-    },
-    {
-      name: "electricity" as const,
-      label: "El",
-      placeholder: "t.ex. 500 kr",
-      helpText: "Din månadskostnad för el. Kan variera, ange ett snitt.",
-    },
-    {
-      name: "internet" as const,
-      label: "Internet",
-      placeholder: "t.ex. 400 kr",
-      helpText: "Månadskostnad för bredband och eventuellt mobilt bredband.",
-    },
-    {
-      name: "phone" as const,
-      label: "Telefoni",
-      placeholder: "t.ex. 250 kr",
-      helpText: "Månadskostnad för mobilabonnemang och/eller fast telefoni.",
-    },
-    {
-      name: "unionFees" as const,
-      label: "Fackföreningsavgift",
-      placeholder: "t.ex. 350 kr",
-      helpText: "Din månatliga avgift till fackförbund och/eller A-kassa.",
-    },
+    { name: "insurance" as const, label: "Försäkringar", placeholder: "t.ex. 300 kr", helpText: "..." },
+    { name: "electricity" as const, label: "El", placeholder: "t.ex. 500 kr", helpText: "..." },
+    { name: "internet" as const, label: "Internet", placeholder: "t.ex. 400 kr", helpText: "..." },
+    { name: "phone" as const, label: "Telefoni", placeholder: "t.ex. 250 kr", helpText: "..." },
+    { name: "unionFees" as const, label: "Fackförenings-\navgift", placeholder: "t.ex. 350 kr", helpText: "..." },
   ];
+
+  const itemVariants = {
+    initial: { opacity: 0, scale: 0.8, y: 20 },
+    animate: { opacity: 1, scale: 1, y: 0 },
+    exit: { opacity: 0, scale: 0.8, x: -300 },
+  };
+
+  useEffect(() => {
+    if (errors.fixedExpenses?.customExpenses) setOpenAccordion("custom");
+  }, [errors.fixedExpenses?.customExpenses]);
+
+  useEffect(() => {
+    const items = customExpensesVal ?? [];
+    const hasIncompleteItems = items.some(
+      (item) => item && (!item.name?.trim() || !item.fee || item.fee <= 0)
+    );
+
+    // If there are no items, or if all items are valid, clear any array-level errors.
+    if (items.length === 0 && !hasIncompleteItems) {
+      clearErrors("fixedExpenses.customExpenses");
+    }
+  }, [customExpensesVal, clearErrors]);
+
+  console.log("errors.fixedExpenses.customExpenses", errors.fixedExpenses?.customExpenses);
+  console.log("fields", fields);
 
   return (
     <OptionContainer>
-      <div className="space-y-6">
-        <div className="text-center mb-6">
-          <h2 className="text-xl font-semibold text-white">Fasta Månadskostnader</h2>
-          <p className="text-sm text-gray-300">
-            Ange dina regelbundna fasta utgifter varje månad.
-          </p>
+      <section className="w-auto mx-auto sm:px-6 lg:px-12 py-8 pb-safe">
+        <div className="flex justify-center md:mt-4">
+          <GlossyFlipCard
+            frontText={<FlipCardText pageKey="fixedExpenses" variant="front" />}
+            backText={<FlipCardText pageKey="fixedExpenses" variant="back" />}
+            frontTextClass="text-lg text-white"
+            backTextClass="text-sm text-limeGreen"
+            disableBounce={true}
+            containerClassName="w-[170px] h-[400px] md:w-[350px] md:h-[270px]"
+          />
         </div>
 
-        <div className="bg-white bg-opacity-10 p-4 md:p-6 rounded-xl shadow-inner space-y-6">
-          {/* Predefined Expenses */}
-          <div className="grid md:grid-cols-2 gap-6">
-            {commonExpenseFields.map((fieldInfo) => (
-              <div key={fieldInfo.name}>
-                <div className="flex items-center justify-center mb-2">
-                  <label htmlFor={`fixedExpenses.${fieldInfo.name}`} className="flex items-center text-white font-semibold">
-                    {fieldInfo.label}
+        <div className="bg-white/5 rounded-2xl shadow-xl p-3 md:p-6 mt-8 max-w-2xl mx-auto space-y-6">
+          <div className="grid sm:grid-cols-2 gap-x-4 gap-y-4">
+            {commonExpenseFields.map((field) => (
+              <motion.div
+                key={field.name}
+                layout
+                className="bg-white/10 rounded-xl shadow-inner transition-all duration-200 hover:bg-white/20 p-3 flex flex-col gap-2"
+              >
+                <div className="flex items-center gap-1">
+                  <label htmlFor={`fixedExpenses.${field.name}`} className="text-sm text-white font-semibold flex-shrink min-w-0">
+                    {field.label}
                   </label>
-                  <HelpSection className="ml-2" label="" helpText={fieldInfo.helpText} />
+                  <HelpSection label="" className="flex-shrink-0 ml-auto" helpText={field.helpText} />
                 </div>
-                <FormattedNumberInput
-                  id={`fixedExpenses.${fieldInfo.name}`}
-                  value={watch(`fixedExpenses.${fieldInfo.name}`) ?? 0}
-                  onValueChange={(val) => setValue(`fixedExpenses.${fieldInfo.name}`, val ?? null, { shouldValidate: true, shouldDirty: true })}
-                  placeholder={fieldInfo.placeholder}
-                  error={errors.fixedExpenses?.[fieldInfo.name]?.message}
-                  name={`fixedExpenses.${fieldInfo.name}`}
-                />
-              </div>
+                <div className="mt-auto w-full flex justify-center">
+                  <FormattedNumberInput
+                    id={idFromPath(`fixedExpenses.${field.name}`)}
+                    value={watch(`fixedExpenses.${field.name}`) ?? null}
+                    onValueChange={(val) => setValue(`fixedExpenses.${field.name}`, val ?? null, { shouldValidate: true, shouldDirty: true })}
+                    placeholder={field.placeholder}
+                    error={errors.fixedExpenses?.[field.name]?.message}
+                    name={`fixedExpenses.${field.name}`}
+                    className="w-full max-w-[200px] sm:max-w-xs"
+                  />
+                </div>
+              </motion.div>
             ))}
           </div>
 
-          {/* Custom Expenses */}
-          <div className="mt-6 pt-6 border-t border-gray-500 border-opacity-50">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-white">Egna Fasta Utgifter</h3>
-              <SubmitButton
-                isSubmitting={false}
-                onClick={() => append({ id: generateUniqueId(), name: "", fee: null })}
-                icon={<PlusCircle size={18} />} // Using icon prop
-                label="Lägg till Egen Utgift"    // Using label prop
-                type="button"
-                size="default" // Example size
-                className="text-sm" // Added some custom styling to match previous visual if needed
-                                    // SubmitButton has `inline-flex items-center justify-center`
-                                    // so "flex items-center" might be redundant from previous code
-                                    // You can adjust className for specific styling needs.
-                                    // Example: `className="px-4 py-2"` for custom padding
-              />
-            </div>
+          <Separator className="bg-white/20" />
 
-            {fields.length === 0 && (
-              <p className="text-center text-gray-400 text-sm">
-                Du har inte lagt till några egna fasta utgifter än.
-              </p>
-            )}
+          <Accordion type="single" collapsible value={openAccordion} onValueChange={setOpenAccordion}>
+            {/* anchor for scroll-to-first-error */}
 
-            <div className="space-y-4">
-              {fields.map((item, index) => (
-                <div key={item.id} className="flex flex-col md:flex-row items-start md:items-center gap-3 p-3 bg-white bg-opacity-5 rounded-lg">
-                  <div className="flex-grow w-full md:w-auto">
-                    <label htmlFor={`fixedExpenses.customExpenses.${index}.name`} className="sr-only">Namn på utgift</label>
-                    <Controller
-                      name={`fixedExpenses.customExpenses.${index}.name` as const}
-                      control={control}
-                      rules={{ required: "Namn får inte vara tomt" }}
-                      defaultValue={item.name || ""} 
-                      render={({ field, fieldState }) => (
-                        <TextInput
-                          id={`fixedExpenses.customExpenses.${index}.name`}
-                          placeholder="Namn på utgift (t.ex. Streaming, Gym)"
-                          // Spread other field props like onChange, onBlur, name, ref
-                          // BUT explicitly provide 'value' to ensure it's a string.
-                          onChange={field.onChange}
-                          onBlur={field.onBlur}
-                          name={field.name}
-                          ref={field.ref}
-                          value={field.value ?? ''} 
-                          error={fieldState.error?.message}
-                          className="w-full"
-                          // touched={fieldState.isTouched} // Still an option if TextInput uses it
-                        />
-                      )}
-                    />
-                  </div>
-                  <div className="w-full md:w-auto md:max-w-[200px]">
-                    <label htmlFor={`fixedExpenses.customExpenses.${index}.fee`} className="sr-only">Belopp</label>
-                    {/* For FormattedNumberInput, we are still using watch/setValue,
-                        If it were to be used with Controller, similar changes would apply.
-                        For now, assuming it works as intended. */}
-                    <FormattedNumberInput
-                      id={`fixedExpenses.customExpenses.${index}.fee`}
-                      value={watch(`fixedExpenses.customExpenses.${index}.fee`) ?? 0}
-                      onValueChange={(val) => setValue(`fixedExpenses.customExpenses.${index}.fee`, val ?? null, { shouldValidate: true, shouldDirty: true })}
-                      placeholder="Belopp"
-                      error={errors.fixedExpenses?.customExpenses?.[index]?.fee?.message}
-                      name={`fixedExpenses.customExpenses.${index}.fee`}
-                    />
-                  </div>
+            <AccordionItem value="custom">
+              <AccordionTrigger className="text-lg font-semibold text-white hover:no-underline focus:outline-none py-3">
+                Egna Fasta Utgifter
+              </AccordionTrigger>
+              <AccordionContent className="pt-2 pb-4 space-y-4">
+                <div className="flex justify-end">
                   <SubmitButton
                     isSubmitting={false}
-                    onClick={() => remove(index)}
-                    icon={<Trash2 size={18} />}
-                    label="" // No label text, SubmitButton might render default "Submit" if not handled
+                    onClick={handleAddExpense}
+                    icon={<PlusCircle size={18} />}
+                    label="Lägg till utgift"
                     type="button"
-                    aria-label="Ta bort utgift"
-                    size="small" // Good size for an icon-only button
-                    // For DANGER styling: override SubmitButton's default green
-                    // These classes will be appended to SubmitButton's classes.
-                    // Order and specificity matter with Tailwind.
-                    className="p-2 self-center md:self-center !bg-red-600 hover:!bg-red-700 focus:!ring-red-500 text-white"
-                    // enhanceOnHover={false} // Default is false, probably don't want blue hover on danger
+                    size="default"
                   />
                 </div>
-              ))}
-            </div>
-          </div>
 
-          {/* Total Sum */}
-          <div className="mt-8 pt-4 border-t border-gray-500 border-opacity-50">
-            <p className="text-white text-lg text-center font-semibold">
-              Totala Fasta Månadskostnader: <strong>{formattedTotalValue} kr</strong>
-            </p>
-            {errors.fixedExpenses && typeof errors.fixedExpenses.message === 'string' && (
-              <p className="mt-2 text-red-400 text-sm text-center">
+                <div className="space-y-4">
+                  {fields.map((item, index) => {
+                    const isDeleting = item.fieldId === deletingId;
+                    return (
+                      <motion.div
+                        key={item.fieldId}
+                        layout
+                        variants={itemVariants}
+                        initial="initial"
+                        animate={isDeleting ? "exit" : "animate"}
+                        transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                        onAnimationComplete={() => {
+                          if (isDeleting) {
+                            remove(index);
+                            setDeletingId(null);
+                          }
+                        }}
+                        className="flex flex-col md:flex-row items-center gap-3 p-3 bg-white/5 rounded-lg overflow-hidden"
+                      >
+                        <div className="flex-grow w-full md:w-auto">
+                          <Controller
+                            name={`fixedExpenses.customExpenses.${index}.name` as const}
+                            control={control}
+                            defaultValue={item.name || ""}
+                            render={({ field: controllerField, fieldState }) => (
+                              <TextInput
+                                id={idFromPath(`fixedExpenses.customExpenses.${index}.name`)}
+                                placeholder="Namn på utgift (t.ex. Streaming, Gym)"
+                                {...controllerField}
+                                value={controllerField.value ?? ""}
+                                error={fieldState.error?.message}
+                                className="w-full"
+                              />
+                            )}
+                          />
+                        </div>
+                        <div className="w-full md:w-auto md:max-w-[160px]">
+                          <FormattedNumberInput
+                            id={idFromPath(`fixedExpenses.customExpenses.${index}.fee`)}
+                            value={watch(`fixedExpenses.customExpenses.${index}.fee`) ?? null}
+                            onValueChange={(val) =>
+                              setValue(`fixedExpenses.customExpenses.${index}.fee`, val ?? null, { shouldValidate: true, shouldDirty: true })
+                            }
+                            placeholder="Belopp"
+                            error={errors.fixedExpenses?.customExpenses?.[index]?.fee?.message}
+                            name={`fixedExpenses.customExpenses.${index}.fee`}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setDeletingId(item.fieldId)}
+                          disabled={deletingId !== null}
+                          aria-label="Ta bort utgift"
+                          className="p-2 bg-red-600 hover:bg-red-700 focus:ring-2 focus:ring-offset-2 focus:ring-red-500 text-white rounded-lg flex items-center justify-center self-center md:self-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+
+                {/* validation message */}
+                {typeof errors.fixedExpenses?.customExpenses?.message === "string" && (
+                  <p className="mt-2 text-red-600 text-sm text-center">
+                    {errors.fixedExpenses.customExpenses.message}
+                  </p>
+                )}
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+
+          <Separator className="bg-white/20" />
+
+          <div className="pt-2">
+            <motion.p
+              key={formattedTotalValue}
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.3 }}
+              className="text-center text-xl font-bold text-white"
+            >
+              {isMdScreenOrUp ? 'Totala Fasta Månadskostnader: ' : <>Totala Fasta Månads-&shy;kostnader: </>}
+              <span className="tracking-wide">{formattedTotalValue} kr</span>
+            </motion.p>
+            {errors.fixedExpenses && typeof errors.fixedExpenses.message === "string" && (
+              <p className="mt-2 text-red-600 text-l text-center">
                 {errors.fixedExpenses.message}
               </p>
             )}
           </div>
         </div>
-      </div>
+      </section>
     </OptionContainer>
   );
 };

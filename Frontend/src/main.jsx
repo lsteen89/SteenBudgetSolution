@@ -29,7 +29,5 @@ window.addEventListener('resize', debugVh);
 window.addEventListener('orientationchange', debugVh);
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
     <App />
-  </React.StrictMode>
 );

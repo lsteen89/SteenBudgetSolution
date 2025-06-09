@@ -118,6 +118,7 @@ const WizardFormWrapperStep1 = forwardRef<
   useImperativeHandle(ref, () => ({
     validateFields: async () => {
       const isValid = await trigger(); // Validate all fields
+
       if (!isValid) {
         const currentErrors = formState.errors;
         const errorFieldNames = Object.keys(currentErrors) as Array<FieldPath<IncomeFormValues>>;
@@ -168,8 +169,10 @@ const WizardFormWrapperStep1 = forwardRef<
       // if the parent calls validateFields. If markAllTouched is called independently,
       // you might want to replicate the focus/scroll logic here too if needed.
       // For now, let's assume validateFields is the primary path for this.
+
       if (!isValid) {
           const currentErrors = formState.errors;
+
           const errorFieldNames = Object.keys(currentErrors) as Array<FieldPath<IncomeFormValues>>;
           if (errorFieldNames.length > 0) {
               const firstErrorFieldPath = errorFieldNames[0];

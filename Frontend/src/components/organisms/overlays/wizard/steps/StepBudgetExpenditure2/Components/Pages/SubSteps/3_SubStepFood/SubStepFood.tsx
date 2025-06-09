@@ -8,7 +8,7 @@ import FormattedNumberInput from "@components/atoms/InputField/FormattedNumberIn
 import ToggleButton from "@components/atoms/buttons/ToggleButton";
 import HouseholdFoodCostEstimate from "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/3_SubStepFood/HouseholdFoodCostEstimate";
 import HelpSection from "@components/molecules/helptexts/HelpSection";
-import { flipCardFrontText, flipCardBackText } from "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/text/flipCardTextContent";
+
 // hooks
 import { usePrevious } from "@hooks/usePrevious";
 // css module
@@ -125,8 +125,8 @@ const formattedTotalValue = calculatedTotalValue.toLocaleString("sv-SE");
       <div className="flex justify-center md:mt-4">
         <div className="">
           <GlossyFlipCard
-            frontText={<FlipCardText variant="front" />}
-            backText={<FlipCardText variant="back" />}
+            frontText={<FlipCardText pageKey="foodExpenses" variant="front" />}
+            backText={<FlipCardText pageKey="foodExpenses" variant="back" />}
             frontTextClass="text-lg text-white"
             backTextClass="text-sm text-limeGreen"
             disableBounce={true}

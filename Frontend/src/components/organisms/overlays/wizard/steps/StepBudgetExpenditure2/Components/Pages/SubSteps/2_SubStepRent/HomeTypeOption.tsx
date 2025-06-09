@@ -5,6 +5,7 @@ import ConfirmModal from "@components/atoms/modals/ConfirmModal";
 import HelpSection from "@components/molecules/helptexts/HelpSection";
 import FormattedNumberInput from "@components/atoms/InputField/FormattedNumberInput";
 import { useEffect, useState } from "react";
+import { idFromPath } from "@utils/idFromPath"; 
 
 interface RentForm {
   rent: {
@@ -105,7 +106,7 @@ const HomeTypeOption: React.FC = () => {
                   error={errors.rent?.monthlyRent?.message}
                   name={monthlyRentRegister.name}
                   onBlur={monthlyRentRegister.onBlur}
-                  id="monthlyRent"
+                  id={idFromPath(monthlyRentRegister.name)}
                 />
               </div>
               {errors.rent?.monthlyRent?.message && (
@@ -129,7 +130,7 @@ const HomeTypeOption: React.FC = () => {
             placeholder="Ange avgifter"
             error={errors.rent?.rentExtraFees?.message}
             name={rentExtraFeesRegister.name}
-            id="rentExtraFees"
+            id={idFromPath(rentExtraFeesRegister.name)}
           />
           {errors.rent?.rentExtraFees?.message && (
             <p className="text-red-600 text-lg mt-1">
@@ -159,6 +160,7 @@ const HomeTypeOption: React.FC = () => {
               error={errors.rent?.monthlyFee?.message}
               name={monthlyFee.name}
               onBlur={monthlyFee.onBlur}
+              id={idFromPath(monthlyFee.name)} 
             />
             {errors.rent?.monthlyFee?.message && (
               <p className="text-red-600 text-lg mt-1">
@@ -178,7 +180,7 @@ const HomeTypeOption: React.FC = () => {
               placeholder="Ange avgifter"
               error={errors.rent?.brfExtraFees?.message}
               name={brfExtraFees.name}
-              id="brfExtraFees"
+              id={idFromPath(brfExtraFees.name)}
             />
           </div>
           {errors.rent?.brfExtraFees?.message && (
@@ -210,6 +212,7 @@ const HomeTypeOption: React.FC = () => {
               name={mortgagePayment.name}
               placeholder="Ange bolånebetalning"
               error={errors.rent?.mortgagePayment?.message}
+              id={idFromPath(mortgagePayment.name)}
             />
             {errors.rent?.mortgagePayment && (
               <p className="text-red-600 text-lg mt-1">
@@ -229,6 +232,7 @@ const HomeTypeOption: React.FC = () => {
               name={houseotherCosts.name}
               placeholder="Ange kostnader"
               error={errors.rent?.houseotherCosts?.message}
+              id={idFromPath(houseotherCosts.name)}
             />
             {errors.rent?.houseotherCosts && (
               <p className="text-red-600 text-lg mt-1">
@@ -259,6 +263,7 @@ const HomeTypeOption: React.FC = () => {
               name={otherCosts.name}
               placeholder="Ange kostnader"
               error={errors.rent?.otherCosts?.message}
+              id={idFromPath(otherCosts.name)}
             />
             {errors.rent?.otherCosts && (
               <p className="text-red-600 text-lg mt-1">

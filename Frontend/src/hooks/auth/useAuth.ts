@@ -25,19 +25,9 @@ export function useAuth() {
       return res;
     }
 
-    // Pass rememberMe to the store when setting auth data
     // Ensure wsMac is handled correctly (null if undefined)
     setAuthAction(res.accessToken, res.sessionId, res.persoid, res.wsMac ?? null, rememberMe);
     api.defaults.headers.common.Authorization = `Bearer ${res.accessToken}`;
-
-    // The logic for setting appSessionActive was moved to the store's setAuth action
-    // for better centralization, but can also be here if preferred.
-    // If it's in the store, remove these lines:
-    // if (!rememberMe) {
-    //   sessionStorage.setItem('appSessionActive', 'true');
-    // } else {
-    //   sessionStorage.removeItem('appSessionActive');
-    // }
 
     try {
       const { data: me } = await api.get<UserDto>('/api/users/me');
