@@ -1,81 +1,79 @@
-import React, { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
+import React, { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import {
   useForm,
   FormProvider,
   UseFormReturn,
-  Resolver,
   FieldErrors,
-} from 'react-hook-form';
-import { yupResolver } from '@hookform/resolvers/yup';
+} from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
 
-import { wizardRootSchema } from '@schemas/wizard/wizardRootSchema';
-import { ExpenditureFormValues } from '@/types/Wizard/ExpenditureFormValues';
-import { useWizardDataStore } from '@/stores/Wizard/wizardDataStore';
+import { step2Schema, Step2FormValues } from "@/schemas/wizard/step2Schema";
+import { useWizardDataStore } from "@/stores/Wizard/wizardDataStore";
+import { ensureStep2Defaults } from "@/utils/ensureStep2Defaults";
+import useScrollToFirstError from "@/hooks/useScrollToFirstError";
 
-/* ------------------------------------------------------------------ */
-/*                  TYPES EXPOSED TO THE PARENT COMPONENT             */
-/* ------------------------------------------------------------------ */
+/* ───────────────── Types exposed to parent ───────────────── */
 export interface WizardFormWrapperStep2Ref {
   validateFields: () => Promise<boolean>;
-  getStepData: () => ExpenditureFormValues;
-  getErrors: () => FieldErrors<ExpenditureFormValues>;
-  getMethods: () => UseFormReturn<ExpenditureFormValues>;
+  getStepData  : () => Step2FormValues;
+  getErrors    : () => FieldErrors<Step2FormValues>;
+  getMethods   : () => UseFormReturn<Step2FormValues>;
 }
 
 interface WizardFormWrapperStep2Props {
   children: React.ReactNode;
 }
 
-/* ------------------------------------------------------------------ */
-/*                       COMPONENT IMPLEMENTATION                     */
-/* ------------------------------------------------------------------ */
+/* ───────────────── Component ───────────────── */
 const WizardFormWrapperStep2 = forwardRef<
   WizardFormWrapperStep2Ref,
-  WizardFormWrapperStep2Props
->(({ children }, ref) => {
-  /* ------------------------------------------------------------------ */
-  /*                            HOOKS                                   */
-  /* 1. ─── Grab slice + setter from Zustand */ 
+  WizardFormWrapperStep2Props            
+>(( { children }, ref ) => {
+  /* 1.  Data from store */
   const {
     data: { expenditure },
-    setExpenditure,
   } = useWizardDataStore();
 
-  /* 2. ─── React-Hook-Form instance */
-  const methods = useForm<ExpenditureFormValues>({
-    resolver: yupResolver(wizardRootSchema) as unknown as Resolver<ExpenditureFormValues>,
-    defaultValues: expenditure,          // hydrate from store
-    mode: 'onBlur',
-    reValidateMode: 'onChange',
-    shouldUnregister: false,
+  /* 2.  Build defaults **after** we have the slice */
+  const defaults = ensureStep2Defaults(
+    expenditure as Partial<Step2FormValues>
+  );
+  /* 3.  RHF instance */
+  const methods = useForm<Step2FormValues>({
+    resolver: yupResolver(step2Schema),
+    defaultValues: defaults,          // <- safe
+    mode: "onBlur",
+    reValidateMode: "onChange",
   });
+   const { formState: { errors } } = methods;
+  useScrollToFirstError(errors);         
+  /* 4.  Hydrate once if store updates later */
+  const hydrated = useRef(false);
 
-  /* 3. ─── Sync every change back to the store */
   useEffect(() => {
-    const sub = methods.watch(vals => setExpenditure(vals));
-    return () => sub.unsubscribe();
-  }, [methods, setExpenditure]);
-
-
-  /* 4) Reset *once* when the external data first arrives */
-  const hasHydrated = useRef(false);
-  useEffect(() => {
-    if (!hasHydrated.current && expenditure && Object.keys(expenditure).length > 0) {
-      methods.reset(expenditure);
-      hasHydrated.current = true;
+    if (!hydrated.current) {
+      methods.reset(
+        ensureStep2Defaults(expenditure as Partial<Step2FormValues>)
+      );
+      hydrated.current = true;
     }
   }, [expenditure, methods]);
 
-  /* 5. ─── Imperative API exposed to the parent */
+  /* 5.  Imperative API */
   useImperativeHandle(ref, () => ({
     validateFields: () => methods.trigger(),
-    getStepData:    () => methods.getValues(),
-    getErrors:      () => methods.formState.errors,
-    getMethods:     () => methods,
+    getStepData   : () => methods.getValues(),
+    getErrors     : () => methods.formState.errors,
+    getMethods    : () => methods,
   }));
 
-  /* 6. ─── Render subtree */
-  return <FormProvider {...methods}>{children}</FormProvider>;
-});
+  /* 6.  Provide context */
+return (                                           //  ←  you missed this
+  <FormProvider {...methods}>
+    {children}
+  </FormProvider>
+);
+}
+);
 
 export default WizardFormWrapperStep2;

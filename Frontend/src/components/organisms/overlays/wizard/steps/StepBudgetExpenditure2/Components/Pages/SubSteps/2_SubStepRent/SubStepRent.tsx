@@ -22,7 +22,7 @@ const SubStepRent: React.FC = () => {
     control,
 
   } = useFormContext<RentForm>();
-
+       
   return (
     <div className="relative w-full max-w-md mx-auto mt-4 p-4"> {/* Adjusted width and padding */}
       <h3 className="text-2xl font-bold text-darkLimeGreen mb-6 text-center"> {/* Increased mb */}
@@ -32,30 +32,31 @@ const SubStepRent: React.FC = () => {
       {        /* Controller for rent.homeType */}
       <Controller
         control={control}
-        name={"rent.homeType" as FieldPath<RentForm>}
-        defaultValue=""
-        render={({
-          field: { onChange: rhfOnChange, onBlur: rhfOnBlur, value: rhfValue, name: rhfName, ref: rhfRef }, // Destructure RHF field props
-          fieldState: { error: rhfError } // Destructure error from fieldState
-        }) => (
+        name={"rent.homeType"}                // RHF path
+        defaultValue=""                       // ← no need to cast
+        render={({ field, fieldState }) => (
           <SelectDropdown
-            ref={rhfRef} 
-            name={rhfName} // Pass name from RHF field
-            id={rhfName}   // Use name for id, good for label association
-            value={String(rhfValue || "")}
-            onChange={(e: ChangeEvent<HTMLSelectElement>) => {
-              rhfOnChange(e.target.value);
-            }}
-            onBlur={rhfOnBlur} // Pass RHF's onBlur
-            options={[
-              { value: "", label: "Välj typ av boende...", disabled: true }, // Default/placeholder
-              { value: "rent", label: "Hyresrätt" },
-              { value: "brf", label: "Bostadsrätt" },
-              { value: "house", label: "Hus" },
-              { value: "free", label: "Jag bor gratis!" },
-            ]}
-            error={rhfError?.message} 
+            /* ① name === id === RHF path */
+            id={field.name}
+            name={field.name}
 
+            /* ② wire to RHF */
+            ref={field.ref}
+            value={field.value ?? ""}
+            onChange={(e) => field.onChange(e.target.value)}
+            onBlur={field.onBlur}
+
+            /* ③ show validation error */
+            error={fieldState.error?.message}
+
+            /* ④ options */
+            options={[
+              { value: "", label: "Välj typ av boende...", disabled: true },
+              { value: "rent",  label: "Hyresrätt"  },
+              { value: "brf",   label: "Bostadsrätt" },
+              { value: "house", label: "Hus"        },
+              { value: "free",  label: "Jag bor gratis!" }
+            ]}
           />
         )}
       />

@@ -1,4 +1,3 @@
-// …/StepBudgetExpenditure2/Components/StepBudgetExpenditureContainer.tsx
 import React, {
   useState,
   forwardRef,
@@ -13,17 +12,22 @@ import {
   UseFormReturn,
 } from 'react-hook-form';
 
-import { ExpenditureFormValues } from '@myTypes/Wizard/ExpenditureFormValues';
+import { Step2FormValues }       from '@/schemas/wizard/step2Schema';
 import WizardFormWrapperStep2, {
   WizardFormWrapperStep2Ref,
 } from './wrapper/WizardFormWrapperStep2';
 
+/*Substeps for major step 2*/
+// Step 1
 import ExpenditureOverviewMainText from './Pages/SubSteps/ExpenditureOverviewMainText';
-import SubStepRent  from './Pages/SubSteps/2_SubStepRent/SubStepRent';
-import SubStepFood  from './Pages/SubSteps/3_SubStepFood/SubStepFood';
+// Step 1
+import SubStepRent  from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/2_SubStepRent/SubStepRent';
+
+import SubStepFood  from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/3_SubStepFood/SubStepFood';
+import SubStepFixedExp from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/4_SubStepFixedExpenses/SubStepFixedExpenses';
 
 import LoadingScreen from '@components/molecules/feedback/LoadingScreen';
-import { Loader2 } from 'lucide-react';
+
 import AnimatedContent from '@components/atoms/wrappers/AnimatedContent';
 import StepButton      from '@components/molecules/buttons/StepButton';
 import WizardProgress  from '@components/organisms/overlays/wizard/SharedComponents/Menu/WizardProgress';
@@ -32,7 +36,8 @@ import WizardNavPair   from '@components/organisms/overlays/wizard/SharedCompone
 
 import useMediaQuery  from '@hooks/useMediaQuery';
 import { useSaveStepData } from '@hooks/wizard/useSaveStepData';
-import { useToast }  from '@context/ToastContext';
+import { ensureStep2Defaults } from "@/utils/ensureStep2Defaults";
+
 
 import {
   Info, Home, FileText, Utensils, Car,
@@ -46,9 +51,9 @@ import { useWizardDataStore } from '@/stores/Wizard/wizardDataStore';
 /* ------------------------------------------------------------------ */
 export interface StepBudgetExpenditureContainerRef {
   validateFields(): Promise<boolean>;
-  getStepData(): any;
+  getStepData(): Step2FormValues;
   markAllTouched(): void;
-  getErrors(): FieldErrors<ExpenditureFormValues>;
+  getErrors(): FieldErrors<Step2FormValues>;
   getCurrentSubStep(): number;
   goPrevSub(): void;
   goNextSub(): void;
@@ -66,7 +71,7 @@ interface StepBudgetExpenditureContainerProps {
     goingBackwards: boolean
   ) => Promise<boolean>;
   stepNumber: number;
-  initialData?: Partial<ExpenditureFormValues>; // fetched from API
+  initialData?: Partial<Step2FormValues>; // fetched from API
   onNext: () => void;
   onPrev: () => void;
   loading: boolean;
@@ -110,8 +115,8 @@ const StepBudgetExpenditureContainer = forwardRef<
 
   const [isSaving,     setIsSaving]     = useState(false);
   const [currentSub,   setCurrentSub]   = useState(initialSubStep || 1);
-  const [formMethods,  setFormMethods]  =
-  useState<UseFormReturn<ExpenditureFormValues> | null>(null);
+  const [formMethods, setFormMethods] =
+    useState<UseFormReturn<Step2FormValues> | null>(null);
 
 
   const hasSetMethods = useRef(false);
@@ -126,7 +131,7 @@ const StepBudgetExpenditureContainer = forwardRef<
   );
 
   /* 3 ─── save-hook (methods may be null on first render) ----------- */
-  const { saveStepData } = useSaveStepData<ExpenditureFormValues>({
+  const { saveStepData } = useSaveStepData<Step2FormValues>({
     stepNumber,
     methods: formMethods ?? undefined,   
     isMobile,
@@ -140,7 +145,7 @@ const StepBudgetExpenditureContainer = forwardRef<
   const goToSub = async (dest: number) => {
     const goingBack      = dest < currentSub;
     const skipValidation = currentSub === 1 || goingBack;
-  
+    console.log('Current sub-step:', currentSub);
     setIsSaving(true);
     await saveStepData(currentSub, dest, skipValidation, goingBack);
     setIsSaving(false);
@@ -170,7 +175,7 @@ const StepBudgetExpenditureContainer = forwardRef<
   /* 7 ─── imperative API ------------------------------------------- */
   useImperativeHandle(ref, () => ({
     validateFields: () => formMethods?.trigger() ?? Promise.resolve(false),
-    getStepData:    () => formMethods?.getValues() ?? {},
+  getStepData   : () => formMethods?.getValues() ?? ensureStep2Defaults({}),
     markAllTouched: () => formMethods?.trigger(),
     getErrors:      () => formMethods?.formState.errors ?? {},
     getCurrentSubStep: () => currentSub,
@@ -198,10 +203,12 @@ const StepBudgetExpenditureContainer = forwardRef<
       case 1: return <ExpenditureOverviewMainText />;
       case 2: return <SubStepRent />;
       case 3: return <SubStepFood />;
+      case 4: return <SubStepFixedExp />;
+      // Add more cases for other sub-steps as needed
       default:return <div>All sub-steps complete!</div>;
     }
   };
-
+  
   /* 9 ─── JSX ------------------------------------------------------- */
   return (
     <WizardFormWrapperStep2 ref={handleFormWrapperRef}>

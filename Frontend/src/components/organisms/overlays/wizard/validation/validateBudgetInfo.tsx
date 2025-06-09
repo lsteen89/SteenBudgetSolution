@@ -22,6 +22,6 @@ export const validateStepBudgetIncome = (
       setShowHouseholdMembers(true);
     });
   }
-
+  console.log("Validation result for Budget Income step:", isValid, allErrors);
   return isValid;
 };

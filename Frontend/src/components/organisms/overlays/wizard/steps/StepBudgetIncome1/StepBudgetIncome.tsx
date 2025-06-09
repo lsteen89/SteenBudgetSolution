@@ -20,7 +20,8 @@ import LoadingScreen from "@components/molecules/feedback/LoadingScreen";
 import DataTransparencySection from "@components/organisms/overlays/wizard/SharedComponents/Pages/DataTransparencySection";
 import HelpSectionDark from "@components/molecules/helptexts/HelpSectionDark";
 import { IncomeFormValues } from '@myTypes/Wizard/IncomeFormValues';
-// Removed: import { s } from "framer-motion/dist/types.d-6pKw1mTI";
+
+
 
 interface StepBudgetIncomeProps {
   onNext: () => void;
@@ -46,13 +47,12 @@ const StepBudgetIncome: React.FC<StepBudgetIncomeProps> = ({
   onPrev,
   loading,
 }) => {
-  const {
-    control,
-    watch,
-    setValue,
-    getValues,
-    formState: { errors },
-  } = useFormContext<IncomeFormValues>();
+const {
+  control, watch, setValue, getValues,
+  formState: { errors },
+} = useFormContext<IncomeFormValues>();
+
+
 
   const watchedNetSalary = watch('netSalary');
   const watchedSalaryFrequency = watch('salaryFrequency');
@@ -93,7 +93,7 @@ const StepBudgetIncome: React.FC<StepBudgetIncomeProps> = ({
     frequency: watchedSalaryFrequency,
   });
 
-  // Corrected useEffect for Household Members Yearly Income
+
   useEffect(() => {
     const members = getValues('householdMembers');
     if (members) {
@@ -129,7 +129,7 @@ const StepBudgetIncome: React.FC<StepBudgetIncomeProps> = ({
     return 0;
   }, [JSON.stringify(watchedHouseholdMembers?.map(member => member?.yearlyIncome))]);
   
-  // Corrected useEffect for Side Hustles Yearly Income
+
   useEffect(() => {
     const hustles = getValues('sideHustles');
     if (hustles) {

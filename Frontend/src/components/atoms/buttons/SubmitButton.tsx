@@ -63,35 +63,37 @@
 
 import React from 'react';
 
-interface SubmitButtonProps {
-  isSubmitting: boolean;
-  label?: string;
-  onClick?: () => void;
-  style?: React.CSSProperties;
-  type?: 'button' | 'submit' | 'reset';
-  size?: 'small' | 'large' | 'default';
-  enhanceOnHover?: boolean; // Optional flag for enhanced hover behavior
-  icon?: React.ReactNode; // Optional icon prop
-  className?: string; // optional className prop
-}
+  interface SubmitButtonProps {
+    isSubmitting: boolean;
+    label?: string;
+    onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void; 
+    style?: React.CSSProperties;
+    type?: 'button' | 'submit' | 'reset';
+    size?: 'small' | 'large' | 'default';
+    enhanceOnHover?: boolean; // Optional flag for enhanced hover behavior
+    icon?: React.ReactNode; // Optional icon prop
+    className?: string; // optional className prop
+  }
 
-const sizeClasses = {
-  small: 'text-[16px] py-2 px-4',
-  default: 'text-[20px] py-3 px-6',
-  large: 'text-[32px] py-4 px-8',
-};
+  const sizeClasses = {
+    small: 'text-[16px] py-2 px-4',
+    default: 'text-[20px] py-3 px-6',
+    large: 'text-[32px] py-4 px-8',
+  };
 
-const SubmitButton: React.FC<SubmitButtonProps> = ({
-  isSubmitting,
-  label = 'Submit',
-  onClick,
-  style,
-  type = 'button',
-  size = 'default',
-  enhanceOnHover = false,
-  icon,
-  className = '', // Default to an empty string
-}) => {
+
+
+  const SubmitButton: React.FC<SubmitButtonProps> = ({
+    isSubmitting,
+    label = 'Submit',
+    onClick, // We will use this directly
+    style,
+    type = 'button',
+    size = 'default',
+    enhanceOnHover = false,
+    icon,
+    className = '',
+  }) => {
   return (
     <button
       type={type}
