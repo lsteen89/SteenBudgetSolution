@@ -21,4 +21,10 @@ export interface ExpenditureFormValues extends FieldValues {
     water: number | null;
   };
   fixedExpenses?: FixedExpensesSubForm;
+  transport: {
+    hasCar: boolean;
+    monthlyFuelCost: number | null;
+    hasTransitCard: boolean;
+    monthlyTransitCost: number | null;
+  };
 }

@@ -25,6 +25,7 @@ import SubStepRent  from '@components/organisms/overlays/wizard/steps/StepBudget
 
 import SubStepFood  from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/3_SubStepFood/SubStepFood';
 import SubStepFixedExp from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/4_SubStepFixedExpenses/SubStepFixedExpenses';
+import SubStepTransport from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/SubStepTransport';
 
 import LoadingScreen from '@components/molecules/feedback/LoadingScreen';
 
@@ -204,6 +205,7 @@ const StepBudgetExpenditureContainer = forwardRef<
       case 2: return <SubStepRent />;
       case 3: return <SubStepFood />;
       case 4: return <SubStepFixedExp />;
+      case 5: return <SubStepTransport />;
       // Add more cases for other sub-steps as needed
       default:return <div>All sub-steps complete!</div>;
     }
