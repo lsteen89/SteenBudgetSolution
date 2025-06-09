@@ -1,7 +1,6 @@
 import { useCallback } from "react";
 import { useToast } from "@context/ToastContext";
-import { handleStepValidation } from
-  "@components/organisms/overlays/wizard/validation/handleStepValidation";
+import { handleStepValidation } from "@components/organisms/overlays/wizard/validation/handleStepValidation";
 
 /* ------------------------------------------------------------------ */
 /* Hook props                                                         */
@@ -9,20 +8,15 @@ import { handleStepValidation } from
 interface UseWizardNavigationProps {
   step: number;
   setStep: React.Dispatch<React.SetStateAction<number>>;
-
   totalSteps: number;
-
   /* refs to every major-step component (index == major-step) */
   stepRefs: Record<number, React.RefObject<any>>;
-
   /* global UI-locks / spinners */
   setTransitionLoading(v: boolean): void;
-
   /* local cache of form-snapshots */
   setCurrentStepState(
     v: React.SetStateAction<Record<number, { subStep: number; data: any }>>
   ): void;
-
   /* server-side save supplied by parent */
   handleSaveStepData(
     stepNumber: number,
@@ -30,14 +24,12 @@ interface UseWizardNavigationProps {
     data: any,
     goingBackwards: boolean
   ): Promise<boolean>;
-
   /* wizard meta-data (last visited sub-step) */
   setWizardData(
     v: React.SetStateAction<
       Record<number, { lastVisitedSubStep?: number }>
     >
   ): void;
-
   /* misc helpers */
   triggerShakeAnimation(duration?: number): void;
   isDebugMode: boolean;
@@ -46,7 +38,7 @@ interface UseWizardNavigationProps {
 }
 
 /* ------------------------------------------------------------------ */
-/* The hook                                                            */
+/* The hook                                                           */
 /* ------------------------------------------------------------------ */
 const useWizardNavigation = ({
   step,
@@ -65,7 +57,7 @@ const useWizardNavigation = ({
   const { showToast } = useToast();
 
   /* ================================================================ */
-  /* One unified handler for both “next” and “prev”                    */
+  /* One unified handler for both “next” and “prev”                   */
   /* ================================================================ */
   const navigateStep = useCallback(
     async (direction: "next" | "prev") => {
@@ -74,25 +66,26 @@ const useWizardNavigation = ({
       /* -------------------------------------------------------------- */
       setTransitionLoading(true);
 
-      const ref           = stepRefs[step];
-      const onRealStep    = step > 0 && ref?.current;
-      const currentSub    = onRealStep
-        ? ref.current.getCurrentSubStep?.() ?? 1
-        : 1;
-      const currentData   = onRealStep ? ref.current.getStepData() : undefined;
-      const goingBack     = direction === "prev";
+      const ref = stepRefs[step];
+      const onRealStep = step > 0 && ref?.current;
+      const goingBack = direction === "prev";
 
       /* -------------------------------------------------------------- */
       /* 2. Client-side validation (only when moving forward)           */
       /* -------------------------------------------------------------- */
+      let validatedData: any | null = null; // Will hold our clean data on success
+
       if (!goingBack && onRealStep) {
-        const valid = await handleStepValidation(
+        // Call our updated validation function which returns clean data or null
+        validatedData = await handleStepValidation(
           step,
           stepRefs,
           setShowSideIncome,
           setShowHouseholdMembers
         );
-        if (!valid) {
+
+        // NEW: Check if it returned null (which signifies validation failure)
+        if (!validatedData) {
           triggerShakeAnimation();
           setTransitionLoading(false);
           return;
@@ -104,10 +97,16 @@ const useWizardNavigation = ({
       /* -------------------------------------------------------------- */
       let saveSuccess = true;
       if (onRealStep) {
+        // NEW: Determine the correct data to save.
+        // If moving forward, use the clean data from our validation step.
+        // If going backward, get the raw data since validation was skipped.
+        const dataToSave = goingBack ? ref.current.getStepData() : validatedData;
+        const currentSub = ref.current.getCurrentSubStep?.() ?? 1;
+
         saveSuccess = await handleSaveStepData(
           step,
           currentSub,
-          currentData,
+          dataToSave, // Use the corrected data object
           goingBack
         );
 
@@ -126,14 +125,18 @@ const useWizardNavigation = ({
       /* 4. Update local caches *only* after successful save            */
       /* -------------------------------------------------------------- */
       if (onRealStep && saveSuccess) {
+        // NEW: Also use the clean/correct data for the local snapshot.
+        const dataForCache = goingBack ? ref.current.getStepData() : validatedData;
+        const currentSub = ref.current.getCurrentSubStep?.() ?? 1;
+        
         /* snapshot of the form */
-        setCurrentStepState(prev => ({
+        setCurrentStepState((prev) => ({
           ...prev,
-          [step]: { subStep: currentSub, data: currentData },
+          [step]: { subStep: currentSub, data: dataForCache },
         }));
 
         /* remember last visited sub-step for each major-step */
-        setWizardData(prev => ({
+        setWizardData((prev) => ({
           ...prev,
           [step]: { ...prev[step], lastVisitedSubStep: currentSub },
         }));
@@ -142,7 +145,7 @@ const useWizardNavigation = ({
       /* -------------------------------------------------------------- */
       /* 5. Finally change major-step index                             */
       /* -------------------------------------------------------------- */
-      setStep(prev =>
+      setStep((prev) =>
         direction === "next"
           ? Math.min(prev + 1, totalSteps)
           : Math.max(prev - 1, 0)

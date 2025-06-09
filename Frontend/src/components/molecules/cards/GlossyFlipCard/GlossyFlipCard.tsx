@@ -58,10 +58,10 @@ const GlossyFlipCard: React.FC<GlossyFlipCardProps> = ({
 
       <div className={styles.card}>
         <div className={styles.frontSide}>
-          <p className={`${frontTextClass} ${styles.text}`}>{frontText}</p>
+          <div className={`${frontTextClass} ${styles.text}`}>{frontText}</div>
         </div>
         <div className={styles.backSide}>
-          <p className={`${backTextClass} ${styles.text}`}>{backText}</p>
+          <div className={`${backTextClass} ${styles.text}`}>{backText}</div>
         </div>
       </div>
     </div>

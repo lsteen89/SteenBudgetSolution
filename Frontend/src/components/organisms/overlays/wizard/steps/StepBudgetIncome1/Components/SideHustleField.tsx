@@ -123,7 +123,7 @@ const SideHustleField: React.FC<SideHustleFieldProps> = ({
       <Controller
         name={fieldName}
         control={control}
-        defaultValue={type === 'number' ? null : ''} // Sensible default for Controller
+        defaultValue={type === 'number' ? null : ''} 
         render={({ field, fieldState }) => {
           const specificFieldErrorFromController = fieldState.error?.message;
           return (
@@ -135,7 +135,7 @@ const SideHustleField: React.FC<SideHustleFieldProps> = ({
                   value={field.value || ''} // Ensure controlled input
                   placeholder={placeholder}
                   error={specificFieldErrorFromController}
-                  // touched={fieldState.isTouched} // If TextInput uses it for styling
+                  // touched={fieldState.isTouched} 
                 />
               )}
               {type === 'number' && (

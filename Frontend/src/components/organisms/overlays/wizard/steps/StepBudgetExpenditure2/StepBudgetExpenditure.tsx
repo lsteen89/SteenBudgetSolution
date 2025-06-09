@@ -6,7 +6,7 @@ import DataTransparencySection from "@components/organisms/overlays/wizard/Share
 import StepBudgetExpenditureContainer, {
   StepBudgetExpenditureContainerRef,
 } from "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/StepBudgetExpenditureContainer";
-import type { ExpenditureFormValues } from '@myTypes/Wizard/ExpenditureFormValues';
+import type { Step2FormValues }       from '@/schemas/wizard/step2Schema';
 
 export interface StepBudgetExpenditureRef {
   validateFields(): Promise<boolean>;
@@ -32,7 +32,7 @@ interface StepBudgetExpenditureProps {
   ) => Promise<boolean>;
   stepNumber: number;
   initialSubStep: number;
-  initialData: Partial<ExpenditureFormValues>;   
+  initialData: Partial<Step2FormValues>;   
   onNext: () => void;
   onPrev: () => void;
   loading: boolean;

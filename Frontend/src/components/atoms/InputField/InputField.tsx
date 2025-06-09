@@ -1,41 +1,39 @@
 // InputField.tsx
-import React, { forwardRef } from 'react'; // Import forwardRef
+import React, { ChangeEvent, FocusEvent } from 'react';
 
-interface TextInputProps {
-  id?: string;
-  name?: string; // Name from RHF's field object
-  value?: string; // value from RHF's field object
-  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void; // onChange from RHF's field object
-  onBlur?: () => void; // onBlur from RHF's field object
-  placeholder?: string;
-  error?: string; // Error message from RHF's fieldState
-  // ... any other specific props your TextInput needs
+interface InputFieldProps {
+    type: string;
+    name: string;
+    value: string;
+    onChange: (event: ChangeEvent<HTMLInputElement>) => void;
+    onBlur: (event: FocusEvent<HTMLInputElement>) => void;
+    error?: string;
+    placeholder: string;
+    className?: string;
 }
 
-// Use React.ForwardedRef for the type of the ref, HTMLInputElement is the DOM element type
-const TextInput = forwardRef<HTMLInputElement, TextInputProps>(
-  ({ id, name, value, onChange, onBlur, placeholder, error, ...rest }, ref) => {
-    return (
-      <>
+const InputField: React.FC<InputFieldProps> = ({
+    type,
+    name,
+    value,
+    onChange,
+    onBlur,
+    error,
+    placeholder,
+    className,
+}) => (
+    <div className="input-field-container">
         <input
-          ref={ref} // <--- ASSIGN THE FORWARDED REF HERE
-          type="text"
-          id={id || name}
-          name={name}
-          value={value || ''} // Ensure value is not undefined for controlled input
-          onChange={onChange}
-          onBlur={onBlur}
-          placeholder={placeholder}
-          className={`your-styles ${error ? 'input-error-class' : ''}`} // Example styling
-          {...rest}
+            type={type}
+            name={name}
+            value={value}
+            onChange={onChange}
+            onBlur={onBlur}
+            placeholder={placeholder}
+            className={className}
         />
-        {/* If TextInput itself displays errors based on the error prop */}
-        {/* {error && <p className="text-red-500 text-sm mt-1">{error}</p>} */}
-      </>
-    );
-  }
+        {error && <div className="error-message">{error}</div>}
+    </div>
 );
 
-TextInput.displayName = 'TextInput'; // Good practice for components wrapped in forwardRef
-
-export default TextInput;
+export default InputField;
