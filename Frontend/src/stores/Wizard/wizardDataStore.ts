@@ -44,9 +44,9 @@ const initialWizardDataState: WizardData = {
       customExpenses: [],
     },
     transport: {
-      hasCar: false,
       monthlyFuelCost: 0,
-      hasTransitCard: false,
+      monthlyInsuranceCost: 0, 
+      monthlyTotalCarCost: 0, 
       monthlyTransitCost: 0,
     },
     // Todo: For consistency, we should also define the structure for rent, food, and utilities.

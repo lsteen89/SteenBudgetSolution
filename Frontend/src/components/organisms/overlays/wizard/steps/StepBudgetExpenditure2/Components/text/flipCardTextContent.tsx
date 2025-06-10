@@ -5,7 +5,7 @@ export interface CardContent {
   back: (isMd: boolean) => React.ReactNode;
 }
 
-export type FlipCardPageKey = "foodExpenses" | "fixedExpenses" | "incomeInput" | "anotherPage";
+export type FlipCardPageKey = "foodExpenses" | "fixedExpenses" | "transportation" | "anotherPage";
 
 export const flipCardContentByPage: Record<FlipCardPageKey, CardContent> = {
   foodExpenses: {
@@ -66,18 +66,28 @@ export const flipCardContentByPage: Record<FlipCardPageKey, CardContent> = {
       </>
     ),
   },
-  // Other pages follow the same function pattern
-  incomeInput: {
+  transportation: {
     front: () => (
       <>
-        <span className="block text-base font-semibold mb-1">💰 Dina Inkomster:</span>
-        Ange alla dina inkomstkällor efter skatt. Detta hjälper oss att skapa en korrekt budget.
+        <span className="block text-base font-semibold mb-1">Transportkostnader</span>
+        <p className='mb-2'>🚗 ✈️ 🚅 <br /></p>
+        <span className="mb-2 text-base block">Ange dina kostnader för transport, inklusive fordonskostnader och kollektivtrafik.</span>
+ 
       </>
     ),
     back: () => (
       <>
         <span className="block text-base font-semibold mb-1">✨ Kom ihåg:</span>
-        Inkludera även eventuella sidoinkomster eller bidrag för en komplett bild.
+         Ett snitt på tre månader ger en mer exakt bild av dina transportkostnader.
+        <br /> <br />
+        Vanliga transportkostnader inkluderar:
+        <ul className="list-disc list-inside text-sm mt-2">
+          <li>Bränslekostnader</li>
+          <li>Försäkring</li>
+          <li>Underhåll och reparationer</li>
+          <li>Kollektivtrafik (buss, tåg, tunnelbana)</li>
+        </ul>
+        <br />
       </>
     ),
   },

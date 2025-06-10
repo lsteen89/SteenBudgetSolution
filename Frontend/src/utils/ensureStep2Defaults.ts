@@ -45,10 +45,11 @@ export function ensureStep2Defaults(
 
     /* ---------- transport ---------- */
     transport: {
-      hasCar           : src?.transport?.hasCar            ?? false,
-      monthlyFuelCost  : src?.transport?.monthlyFuelCost   ?? 0,
-      hasTransitCard   : src?.transport?.hasTransitCard    ?? false,
+      monthlyFuelCost: src?.transport?.monthlyFuelCost ?? 0,
+      monthlyInsuranceCost: src?.transport?.monthlyInsuranceCost ?? 0, 
+      monthlyTotalCarCost: src?.transport?.monthlyTotalCarCost ?? 0,
       monthlyTransitCost: src?.transport?.monthlyTransitCost ?? 0,
+
     },
   };
 }
