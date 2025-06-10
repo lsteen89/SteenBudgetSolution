@@ -229,9 +229,17 @@ namespace Backend.Application.Services.AuthService
                     clock: _timeProvider,
                     conn, tx);
 
-                /* 4-c) Blacklist the *old* AT */                           
-                if (!await _jwtService.BlacklistJwtTokenAsync(accessToken!, conn, tx))
-                    throw new InvalidOperationException("black-list failed");
+                /* 4-c) Blacklist the *old* AT */
+                // It's okay if this fails for an already-expired token. The blacklist is to
+                // immediately invalidate non-expired tokens (e.g., on logout). Expired tokens
+                // are already invalid.
+                if (!string.IsNullOrEmpty(accessToken))
+                {
+                    if (!await _jwtService.BlacklistJwtTokenAsync(accessToken, conn, tx))
+                    {
+                        _logger.LogWarning("Could not blacklist the old access token for session {SessionId}. This is expected if the token was already expired.", sessionId);
+                    }
+                }
             }
             catch (Exception ex)
             {
