@@ -84,11 +84,11 @@ const SubStepFixedExpenses: React.FC = () => {
   const formattedTotalValue = calculatedTotalValue.toLocaleString("sv-SE");
 
   const commonExpenseFields = [
-    { name: "insurance" as const, label: "Försäkringar", placeholder: "t.ex. 300 kr", helpText: "..." },
+    { name: "insurance" as const, label: "Försäkringar", placeholder: "t.ex. 300 kr", helpText: "Ett samlat månadssnitt på dina försäkringar. Exempelvis hemförsäkring, bilförsäkring, livsförsäkring." },
     { name: "electricity" as const, label: "El", placeholder: "t.ex. 500 kr", helpText: "..." },
-    { name: "internet" as const, label: "Internet", placeholder: "t.ex. 400 kr", helpText: "..." },
-    { name: "phone" as const, label: "Telefoni", placeholder: "t.ex. 250 kr", helpText: "..." },
-    { name: "unionFees" as const, label: "Fackförenings-\navgift", placeholder: "t.ex. 350 kr", helpText: "..." },
+    { name: "internet" as const, label: "Internet", placeholder: "t.ex. 400 kr", helpText: "Din månadskostnad för all form av bredband" },
+    { name: "phone" as const, label: "Telefoni", placeholder: "t.ex. 250 kr", helpText: "Din månadskostnad för alla typer av telefoni du betalar för" },
+    { name: "unionFees" as const, label: "Fackförenings-\navgift", placeholder: "t.ex. 350 kr", helpText: "Om du är med i ett fack och/eller A-kassa kan du ange det här." },
   ];
 
   const itemVariants = {

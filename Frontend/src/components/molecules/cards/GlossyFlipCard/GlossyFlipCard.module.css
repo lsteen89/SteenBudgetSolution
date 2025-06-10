@@ -49,14 +49,14 @@
   background: radial-gradient(
     circle at 50% 50%, 
     rgba(152, 255, 152, 0.8) 10%, /* Intense lime green at the center */
-    rgba(152, 255, 152, 0.4) 40%, /* Softer lime green in the middle */
+    rgba(152, 255, 152, 0.4) 10%, /* Softer lime green in the middle */
     rgba(255, 255, 255, 0.1) 100% /* Almost transparent at the edges */
   );
   opacity: 1; /* Makes the gloss more prominent */
   border-radius: 12px; /* Matches the `.frontSide` border radius */
   pointer-events: none; /* Ensures no interaction */
   z-index: 1; /* Stays on top of the background but behind the text */
-  filter: blur(5px); /* Adds depth to the gloss effect */
+  filter: blur(25px); /* Adds depth to the gloss effect */
 }
 
 .frontSide p {

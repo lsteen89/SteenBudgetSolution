@@ -1,7 +1,7 @@
 import React, { ChangeEvent } from "react"; 
 import { useFormContext, Controller, FieldPath } from "react-hook-form";
 import SelectDropdown from "@components/atoms/dropdown/SelectDropdown"; 
-import HomeTypeOption from "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/2_SubStepRent/HomeTypeOption";
+import HomeTypeOption from "@/components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/2_SubStepRent/components/HomeTypeOption";
 
 
 interface RentForm {

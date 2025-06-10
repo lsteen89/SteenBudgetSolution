@@ -3,6 +3,7 @@ import { rentSchema }        from "./rentSchema";
 import { foodSchema }        from "./foodSchema";
 import { utilitiesSchema }   from "./utilitiesSchema";
 import { fixedExpensesSchema } from "./fixedExpensesSchema";
+import { transportSchema }   from "./transportSchema";
 
 // Step 2 schema for the wizard, which includes rent, food, utilities, and fixed expenses
 export const step2Schema = yup.object({
@@ -10,6 +11,7 @@ export const step2Schema = yup.object({
   food         : foodSchema,
   utilities    : utilitiesSchema,
   fixedExpenses: fixedExpensesSchema,
+  transport    : transportSchema,
 });
 
 /* infer the correct TS interface from the schema */

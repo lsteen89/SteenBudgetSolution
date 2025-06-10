@@ -21,4 +21,10 @@ export interface ExpenditureFormValues extends FieldValues {
     water: number | null;
   };
   fixedExpenses?: FixedExpensesSubForm;
+  transport: {
+    monthlyFuelCost: number | null;
+    monthlyInsuranceCost: number | null;
+    monthlyTotalCarCost: number | null; 
+    monthlyTransitCost: number | null;
+  };
 }

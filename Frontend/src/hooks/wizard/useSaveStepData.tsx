@@ -32,6 +32,8 @@ function getPartialData<T extends ExpenditureFormValues>(
       return { food: allData.food } as Partial<T>;
     case 4:
       return { fixedExpenses: allData.fixedExpenses } as Partial<T>;
+    case 5:
+      return { transport: allData.transport } as Partial<T>;
     default:
       return {};
   }
