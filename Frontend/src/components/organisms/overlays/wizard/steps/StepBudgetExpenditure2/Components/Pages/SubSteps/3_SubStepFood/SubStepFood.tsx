@@ -6,7 +6,7 @@ import GlossyFlipCard from "@components/molecules/cards/GlossyFlipCard/GlossyFli
 import FlipCardText from "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/text/FlipCardText";
 import FormattedNumberInput from "@components/atoms/InputField/FormattedNumberInput";
 import ToggleButton from "@components/atoms/buttons/ToggleButton";
-import HouseholdFoodCostEstimate from "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/3_SubStepFood/HouseholdFoodCostEstimate";
+import HouseholdFoodCostEstimate from "@/components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/3_SubStepFood/components/HouseholdFoodCostEstimate";
 import HelpSection from "@components/molecules/helptexts/HelpSection";
 
 // hooks

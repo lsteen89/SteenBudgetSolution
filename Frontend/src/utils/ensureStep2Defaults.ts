@@ -42,5 +42,14 @@ export function ensureStep2Defaults(
           fee : e?.fee ?? null,
         })) ?? [],
     },
+
+    /* ---------- transport ---------- */
+    transport: {
+      monthlyFuelCost: src?.transport?.monthlyFuelCost ?? 0,
+      monthlyInsuranceCost: src?.transport?.monthlyInsuranceCost ?? 0, 
+      monthlyTotalCarCost: src?.transport?.monthlyTotalCarCost ?? 0,
+      monthlyTransitCost: src?.transport?.monthlyTransitCost ?? 0,
+
+    },
   };
 }
