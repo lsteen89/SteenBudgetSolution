@@ -5,7 +5,7 @@ export interface CardContent {
   back: (isMd: boolean) => React.ReactNode;
 }
 
-export type FlipCardPageKey = "foodExpenses" | "fixedExpenses" | "transportation" | "anotherPage";
+export type FlipCardPageKey = "foodExpenses" | "fixedExpenses" | "transportation" | "clothing" | "anotherPage";
 
 export const flipCardContentByPage: Record<FlipCardPageKey, CardContent> = {
   foodExpenses: {
@@ -88,6 +88,21 @@ export const flipCardContentByPage: Record<FlipCardPageKey, CardContent> = {
           <li>Kollektivtrafik (buss, tåg, tunnelbana)</li>
         </ul>
         <br />
+      </>
+    ),
+  },
+  clothing: {
+    front: () => (
+      <>
+        <span className="block text-base font-semibold mb-1">Klädkostnader</span>
+        <span className="mb-2 text-base block">Ange dina genomsnittliga kostnader för kläder per månad.</span>
+      </>
+    ),
+    back: () => (
+      <>
+        <span className="block text-base font-semibold mb-1">Tips</span>
+        <br />
+        Summera dina klädinköp för tre månader och dela summan med tre för att uppskatta en månadskostnad.
       </>
     ),
   },
