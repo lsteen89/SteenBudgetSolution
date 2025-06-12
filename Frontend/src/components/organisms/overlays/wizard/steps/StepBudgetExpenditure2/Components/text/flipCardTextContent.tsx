@@ -94,15 +94,15 @@ export const flipCardContentByPage: Record<FlipCardPageKey, CardContent> = {
   clothing: {
     front: () => (
       <>
-        <span className="block text-base font-semibold mb-1">Klädkostnader</span>
+        <span className="block text-base font-semibold mb-1">👚👕 Klädkostnader</span>
         <span className="mb-2 text-base block">Ange dina genomsnittliga kostnader för kläder per månad.</span>
       </>
     ),
     back: () => (
       <>
-        <span className="block text-base font-semibold mb-1">Tips</span>
+        <span className="block text-base font-semibold mb-1">✨ Kom ihåg:</span>
         <br />
-        Summera dina klädinköp för tre månader och dela summan med tre för att uppskatta en månadskostnad.
+        Summera dina klädinköp för tre månader och dela summan med tre för att uppskatta en månadskostnad. Kläder är ofta en underskattad kostnad, så var noga med att inkludera allt!
       </>
     ),
   },
