@@ -5,7 +5,7 @@ export interface CardContent {
   back: (isMd: boolean) => React.ReactNode;
 }
 
-export type FlipCardPageKey = "foodExpenses" | "fixedExpenses" | "transportation" | "clothing" | "anotherPage";
+export type FlipCardPageKey = "foodExpenses" | "fixedExpenses" | "transportation" | "clothing" | "subscriptions" | "anotherPage";
 
 export const flipCardContentByPage: Record<FlipCardPageKey, CardContent> = {
   foodExpenses: {
@@ -103,6 +103,21 @@ export const flipCardContentByPage: Record<FlipCardPageKey, CardContent> = {
         <span className="block text-base font-semibold mb-1">✨ Kom ihåg:</span>
         <br />
         Summera dina klädinköp för tre månader och dela summan med tre för att uppskatta en månadskostnad. Kläder är ofta en underskattad kostnad, så var noga med att inkludera allt!
+      </>
+    ),
+  },
+  subscriptions: {
+    front: () => (
+      <>
+        <span className="block text-base font-semibold mb-1">💳 Prenumerationer</span>
+        <span className="mb-2 text-base block">Fyll i kostnader för dina streamingtjänster och andra abonnemang.</span>
+      </>
+    ),
+    back: () => (
+      <>
+        <span className="block text-base font-semibold mb-1">✨ Tips:</span>
+        <br />
+        Många små belopp blir stora över tid. Se över vilka tjänster du verkligen använder.
       </>
     ),
   },

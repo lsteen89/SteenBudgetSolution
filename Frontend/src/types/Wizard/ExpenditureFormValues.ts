@@ -1,5 +1,6 @@
 import { FieldValues } from "react-hook-form";
 import type { FixedExpensesSubForm } from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/4_SubStepFixedExpenses/SubStepFixedExpenses';
+import type { SubscriptionsSubForm } from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/SubStepSubscriptions';
 
 export interface ExpenditureFormValues extends FieldValues {
   rent: {
@@ -30,4 +31,5 @@ export interface ExpenditureFormValues extends FieldValues {
   clothing: {
     monthlyClothingCost: number | null;
   };
+  subscriptions?: SubscriptionsSubForm;
 }
