@@ -1,15 +1,12 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { FieldErrors } from "react-hook-form";
 import { firstPath }  from "@/utils/firstPath";   
 import { idFromPath } from "@/utils/idFromPath";
 
 export default function useScrollToFirstError(errors: FieldErrors) {
-  const prevPath = useRef<string | null>(null);
-
   useEffect(() => {
-    const path = firstPath(errors);        
-    if (!path || path === prevPath.current) return;
-    prevPath.current = path;                 
+    const path = firstPath(errors);
+    if (!path) return;
 
     let tries = 0;
     const scroll = () => {
@@ -22,11 +19,11 @@ export default function useScrollToFirstError(errors: FieldErrors) {
           el.classList.add("ring-2", "ring-red-400");
           setTimeout(() => el.classList.remove("ring-2", "ring-red-400"), 2000);
         }
-        return;                           
+        return;
       }
       if (++tries < 8) requestAnimationFrame(scroll); // wait for motion/accordion
     };
 
     requestAnimationFrame(scroll);
-  });                                          
+  });
 }

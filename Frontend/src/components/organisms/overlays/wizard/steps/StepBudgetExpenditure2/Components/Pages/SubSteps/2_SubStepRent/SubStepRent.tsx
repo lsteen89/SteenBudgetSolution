@@ -3,6 +3,7 @@ import { useFormContext, Controller, FieldPath } from "react-hook-form";
 import SelectDropdown from "@components/atoms/dropdown/SelectDropdown"; 
 import HomeTypeOption from "@/components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/2_SubStepRent/components/HomeTypeOption";
 import { idFromPath } from "@/utils/idFromPath"; // 👈 Import the utility
+import useScrollToFirstError from "@/hooks/useScrollToFirstError";
 
 interface RentForm {
   rent: {
@@ -20,7 +21,10 @@ interface RentForm {
 const SubStepRent: React.FC = () => {
   const {
     control,
+    formState: { errors },
   } = useFormContext<RentForm>();
+
+  useScrollToFirstError(errors);
        
   return (
     <div className="relative w-full max-w-md mx-auto mt-4 p-4">

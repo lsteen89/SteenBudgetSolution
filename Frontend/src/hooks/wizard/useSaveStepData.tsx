@@ -103,6 +103,7 @@ export function useSaveStepData<T extends ExpenditureFormValues>({
         console.error('Error saving step data:', err);
         onError?.();
         saveQueue.enqueue({ stepNumber, subStepNumber: stepLeaving, data: part, goingBackwards });
+        return false;
       }
 
       setCurrentStep(stepGoing);

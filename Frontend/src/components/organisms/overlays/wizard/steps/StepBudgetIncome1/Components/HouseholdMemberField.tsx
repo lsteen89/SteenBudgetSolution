@@ -6,6 +6,7 @@ import FormattedNumberInput from '@components/atoms/InputField/FormattedNumberIn
 import SelectDropdown from '@components/atoms/dropdown/SelectDropdown';
 import HelpSectionDark from '@components/molecules/helptexts/HelpSectionDark';
 import { IncomeFormValues } from '@myTypes/Wizard/IncomeFormValues';
+import { idFromPath } from '@/utils/idFromPath';
 
 interface RefactoredHouseholdMemberFieldProps {
   label: string;
@@ -74,7 +75,7 @@ const HouseholdMemberField: React.FC<RefactoredHouseholdMemberFieldProps> = ({
 
   return (
     <div className="relative mb-4">
-      <label htmlFor={fieldName} className="block text-sm font-medium flex items-center gap-1 pt-2">
+      <label htmlFor={idFromPath(fieldName)} className="block text-sm font-medium flex items-center gap-1 pt-2">
         {label}
         {/* Use the new HelpSectionDark component */}
         {helpSectionContentNode && ( // Only show if there's help content
@@ -98,7 +99,7 @@ const HouseholdMemberField: React.FC<RefactoredHouseholdMemberFieldProps> = ({
             <>
               {type === 'text' && (
                 <TextInput
-                  id={fieldName}
+                  id={idFromPath(fieldName)}
                   {...field}
                   value={field.value || ''}
                   placeholder={placeholder}
@@ -110,7 +111,7 @@ const HouseholdMemberField: React.FC<RefactoredHouseholdMemberFieldProps> = ({
 
                   ref={field.ref} 
                   name={field.name}
-                  id={fieldName}
+                  id={idFromPath(fieldName)}
                   value={field.value as number | null}
 
                   onValueChange={field.onChange} 
@@ -123,7 +124,7 @@ const HouseholdMemberField: React.FC<RefactoredHouseholdMemberFieldProps> = ({
               {type === 'select' && (
                 <SelectDropdown
                   {...field}
-                  id={fieldName} // Ensure SelectDropdown uses this id if it needs one
+                  id={idFromPath(fieldName)} // Ensure SelectDropdown uses this id if it needs one
                   value={field.value || ''}
                   options={options || []}
                   error={specificFieldError}

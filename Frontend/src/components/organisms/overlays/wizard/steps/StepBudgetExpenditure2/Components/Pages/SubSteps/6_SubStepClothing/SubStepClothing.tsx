@@ -9,6 +9,7 @@ import FlipCardText from "@components/organisms/overlays/wizard/steps/StepBudget
 import FormattedNumberInput from "@components/atoms/InputField/FormattedNumberInput";
 import HelpSection from "@components/molecules/helptexts/HelpSection";
 import { idFromPath } from "@/utils/idFromPath";
+import useScrollToFirstError from "@/hooks/useScrollToFirstError";
 
 interface ClothingForm {
   clothing: {
@@ -23,11 +24,16 @@ const SubStepClothing: React.FC = () => {
   const {
     watch,
     setValue,
+    register,
     formState: { errors },
   } = useFormContext<ClothingForm>();
 
+  useScrollToFirstError(errors);
+
   const fieldPath = "clothing.monthlyClothingCost";
   const inputId = idFromPath(fieldPath);
+
+  const reg = register(fieldPath);
 
   return (
     <OptionContainer>
@@ -76,20 +82,27 @@ const SubStepClothing: React.FC = () => {
               />
             </div>
 
-            <FormattedNumberInput
-              id={inputId}
-              name={fieldPath}
-              value={watch(fieldPath) ?? null}
-              onValueChange={(val) =>
-                setValue(fieldPath, val ?? null, {
-                  shouldValidate: true,
-                  shouldDirty: true,
-                })
-              }
-              placeholder="t.ex. 500 kr"
-              error={errors.clothing?.monthlyClothingCost?.message}
-            />
-          </div>
+              <FormattedNumberInput
+                id={inputId}
+                name={reg.name}
+                ref={reg.ref}
+                onBlur={reg.onBlur}
+                value={watch(fieldPath) ?? null}
+                onValueChange={(val) =>
+                  setValue(fieldPath, val ?? null, {
+                    shouldValidate: true,
+                    shouldDirty: true,
+                  })
+                }
+                placeholder="t.ex. 500 kr"
+                error={errors.clothing?.monthlyClothingCost?.message}
+              />
+              {errors.clothing?.monthlyClothingCost?.message && (
+                <p className="text-red-600 text-lg mt-1">
+                  {errors.clothing.monthlyClothingCost?.message}
+                </p>
+              )}
+            </div>
         </motion.div>
       </motion.section>
     </OptionContainer>
