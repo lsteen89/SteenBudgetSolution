@@ -1,5 +1,6 @@
 import React from "react";
 import { useFormContext } from "react-hook-form";
+import useScrollToFirstError from "@/hooks/useScrollToFirstError";
 
 import OptionContainer from "@components/molecules/containers/OptionContainer";
 import GlossyFlipCard from "@components/molecules/cards/GlossyFlipCard/GlossyFlipCard";
@@ -17,7 +18,9 @@ interface TransportForm {
 }
 
 const SubStepTransport: React.FC = () => {
-  useFormContext<TransportForm>();
+  const { formState: { errors } } = useFormContext<TransportForm>();
+
+  useScrollToFirstError(errors);
 
   return (
     <OptionContainer>
