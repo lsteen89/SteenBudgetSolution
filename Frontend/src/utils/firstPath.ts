@@ -4,7 +4,9 @@ export const firstPath = (errs: FieldErrors, prefix = ""): string | null => {
   if (!errs) return null;
 
   // dive first, fall back to this obj's .message
-  const keys = Object.keys(errs).filter(k => k !== "message" && k !== "root");
+  const keys = Object.keys(errs).filter(
+    k => k !== "message" && k !== "root" && k !== "type" && k !== "ref"
+  );
   for (const key of keys) {
     const val  = (errs as any)[key];
     const path = prefix ? `${prefix}.${key}` : key;
