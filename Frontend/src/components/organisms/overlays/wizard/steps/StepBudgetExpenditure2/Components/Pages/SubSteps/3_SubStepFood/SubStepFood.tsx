@@ -11,6 +11,7 @@ import HelpSection from "@components/molecules/helptexts/HelpSection";
 
 // hooks
 import { usePrevious } from "@hooks/usePrevious";
+import useScrollToFirstError from "@/hooks/useScrollToFirstError";
 // css module
 import styles from "./Styling/SubStepFood.module.css";
 // icons
@@ -31,6 +32,8 @@ const SubStepFood: React.FC = () => {
     setValue,
     formState: { errors },
   } = useFormContext<FoodForm>();
+
+  useScrollToFirstError(errors);
 
   // Ref for the Food Store Expenses container
   const foodStoreRef = useRef<HTMLDivElement>(null);

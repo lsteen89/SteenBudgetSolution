@@ -16,6 +16,7 @@ import AcceptButton from "@components/atoms/buttons/AcceptButton";
 import coinsAnimation from "@assets/lottie/coins.json";
 import useYearlyIncome from "@hooks/wizard/useYearlyIncome";
 import { useToast } from "@context/ToastContext";
+import useScrollToFirstError from "@/hooks/useScrollToFirstError";
 import LoadingScreen from "@components/molecules/feedback/LoadingScreen";
 import DataTransparencySection from "@components/organisms/overlays/wizard/SharedComponents/Pages/DataTransparencySection";
 import HelpSectionDark from "@components/molecules/helptexts/HelpSectionDark";
@@ -51,6 +52,9 @@ const {
   control, watch, setValue, getValues,
   formState: { errors },
 } = useFormContext<IncomeFormValues>();
+
+  // Scroll to the first validation error when present
+  useScrollToFirstError(errors);
 
 
 

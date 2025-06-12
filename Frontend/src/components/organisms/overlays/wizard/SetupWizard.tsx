@@ -31,6 +31,8 @@ import useSaveWizardStep from "@hooks/wizard/useSaveWizardStep";
 import useWizardInit from "@hooks/wizard/useWizardInit";
 import useMediaQuery from "@hooks/useMediaQuery";
 import useWizardNavigation from "@hooks/wizard/useWizardNavigation";
+import useScrollToFirstError from "@/hooks/useScrollToFirstError";
+import { FieldErrors } from "react-hook-form";
 //local display state
 import useBudgetInfoDisplayFlags from "@hooks/wizard/flagHooks/useBudgetInfoDisplayFlags";
 // Header import
@@ -189,6 +191,11 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
       setActiveStepRef(refObject.current);
     }
   }, [step, stepRefs[step]]);
+
+  // Scroll to the first error in whichever step is active
+  useScrollToFirstError(
+    (activeStepRef?.getErrors?.() as FieldErrors<any>) || {}
+  );
 
     /* -----------------------------------------------------------
     7. Ask the active child step (if any) for its sub-nav API

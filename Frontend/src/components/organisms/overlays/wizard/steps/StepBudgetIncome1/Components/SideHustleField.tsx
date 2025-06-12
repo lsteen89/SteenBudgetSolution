@@ -7,6 +7,7 @@ import TextInput from '@components/atoms/InputField/TextInput';
 import FormattedNumberInput from '@components/atoms/InputField/FormattedNumberInput'; // Assuming this is your number input component
 // Note: You were using a raw <select> here, not SelectDropdown. We'll stick to that.
 import { IncomeFormValues } from '@myTypes/Wizard/IncomeFormValues'; // Adjust path
+import { idFromPath } from '@/utils/idFromPath';
 
 interface SideHustleFieldProps {
   label: string;
@@ -74,7 +75,7 @@ const SideHustleField: React.FC<SideHustleFieldProps> = ({
   return (
     <div className="relative mb-4"> 
       <label
-        htmlFor={fieldName} // Use RHF fieldName for unique ID
+        htmlFor={idFromPath(fieldName)} // Use RHF fieldName for unique ID
         className="block text-sm font-medium flex items-center gap-1 pt-2"
         // onClick={(e) => e.stopPropagation()} // Not strictly needed on label usually
       >
@@ -130,7 +131,7 @@ const SideHustleField: React.FC<SideHustleFieldProps> = ({
             <>
               {type === 'text' && (
                 <TextInput
-                  id={fieldName}
+                  id={idFromPath(fieldName)}
                   {...field}
                   value={field.value || ''} // Ensure controlled input
                   placeholder={placeholder}
@@ -140,9 +141,9 @@ const SideHustleField: React.FC<SideHustleFieldProps> = ({
               )}
               {type === 'number' && (
                 <FormattedNumberInput
-                  ref={field.ref}     
-                  name={field.name}   
-                  id={fieldName}     
+                  ref={field.ref}
+                  name={field.name}
+                  id={idFromPath(fieldName)}
                   
                   value={field.value as number | null} 
                   onValueChange={field.onChange} 
@@ -156,7 +157,7 @@ const SideHustleField: React.FC<SideHustleFieldProps> = ({
               )}
               {type === 'select' && (
                 <select
-                  id={fieldName}
+                  id={idFromPath(fieldName)}
                   {...field} // Spreads name, value, onChange, onBlur, ref
                   className="mt-1 block w-full pl-3 pr-10 py-2 border-gray-300 dark:border-gray-600 focus:ring-darkLimeGreen focus:border-darkLimeGreen sm:text-sm rounded-lg bg-white/80 dark:bg-gray-700/80 backdrop-blur-md shadow-sm text-gray-900 dark:text-gray-100"
                 >
