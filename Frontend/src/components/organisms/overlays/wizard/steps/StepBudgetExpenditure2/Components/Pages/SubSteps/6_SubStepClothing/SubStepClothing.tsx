@@ -82,22 +82,27 @@ const SubStepClothing: React.FC = () => {
               />
             </div>
 
-            <FormattedNumberInput
-              id={inputId}
-              name={reg.name}
-              ref={reg.ref}
-              onBlur={reg.onBlur}
-              value={watch(fieldPath) ?? null}
-              onValueChange={(val) =>
-                setValue(fieldPath, val ?? null, {
-                  shouldValidate: true,
-                  shouldDirty: true,
-                })
-              }
-              placeholder="t.ex. 500 kr"
-              error={errors.clothing?.monthlyClothingCost?.message}
-            />
-          </div>
+              <FormattedNumberInput
+                id={inputId}
+                name={reg.name}
+                ref={reg.ref}
+                onBlur={reg.onBlur}
+                value={watch(fieldPath) ?? null}
+                onValueChange={(val) =>
+                  setValue(fieldPath, val ?? null, {
+                    shouldValidate: true,
+                    shouldDirty: true,
+                  })
+                }
+                placeholder="t.ex. 500 kr"
+                error={errors.clothing?.monthlyClothingCost?.message}
+              />
+              {errors.clothing?.monthlyClothingCost?.message && (
+                <p className="text-red-600 text-lg mt-1">
+                  {errors.clothing.monthlyClothingCost?.message}
+                </p>
+              )}
+            </div>
         </motion.div>
       </motion.section>
     </OptionContainer>
