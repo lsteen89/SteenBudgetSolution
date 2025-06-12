@@ -24,6 +24,7 @@ const SubStepClothing: React.FC = () => {
   const {
     watch,
     setValue,
+    register,
     formState: { errors },
   } = useFormContext<ClothingForm>();
 
@@ -31,6 +32,8 @@ const SubStepClothing: React.FC = () => {
 
   const fieldPath = "clothing.monthlyClothingCost";
   const inputId = idFromPath(fieldPath);
+
+  const reg = register(fieldPath);
 
   return (
     <OptionContainer>
@@ -81,7 +84,9 @@ const SubStepClothing: React.FC = () => {
 
             <FormattedNumberInput
               id={inputId}
-              name={fieldPath}
+              name={reg.name}
+              ref={reg.ref}
+              onBlur={reg.onBlur}
               value={watch(fieldPath) ?? null}
               onValueChange={(val) =>
                 setValue(fieldPath, val ?? null, {
