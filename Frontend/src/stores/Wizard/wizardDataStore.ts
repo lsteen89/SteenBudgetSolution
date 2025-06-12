@@ -45,9 +45,12 @@ const initialWizardDataState: WizardData = {
     },
     transport: {
       monthlyFuelCost: 0,
-      monthlyInsuranceCost: 0, 
-      monthlyTotalCarCost: 0, 
+      monthlyInsuranceCost: 0,
+      monthlyTotalCarCost: 0,
       monthlyTransitCost: 0,
+    },
+    clothing: {
+      monthlyClothingCost: 0,
     },
     // Todo: For consistency, we should also define the structure for rent, food, and utilities.
   },

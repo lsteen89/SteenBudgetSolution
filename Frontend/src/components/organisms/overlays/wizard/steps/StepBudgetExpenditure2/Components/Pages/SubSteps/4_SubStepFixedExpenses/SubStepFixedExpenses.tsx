@@ -12,8 +12,8 @@ import { Separator } from "@/components/ui/separator";
 import GlossyFlipCard from "@components/molecules/cards/GlossyFlipCard/GlossyFlipCard";
 import FlipCardText from "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/text/FlipCardText";
 import useMediaQuery from '@hooks/useMediaQuery';
-import useScrollToFirstError from "@/hooks/useScrollToFirstError";
 import { idFromPath } from "@/utils/idFromPath";
+
 
 export interface FixedExpenseItem {
   id?: string;
@@ -42,9 +42,6 @@ const SubStepFixedExpenses: React.FC = () => {
   } = useFormContext<{ fixedExpenses: FixedExpensesSubForm }>();
   
   const [openAccordion, setOpenAccordion] = useState<string>("custom");
-  const scrollableErrors =
-    submitCount > 0 && openAccordion === "custom" ? errors : {};
-  useScrollToFirstError(scrollableErrors);
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -162,10 +159,14 @@ const SubStepFixedExpenses: React.FC = () => {
           <Separator className="bg-white/20" />
 
           <Accordion type="single" collapsible value={openAccordion} onValueChange={setOpenAccordion}>
+             <span id={idFromPath("fixedExpenses.customExpenses")} className="block h-0" />
             {/* anchor for scroll-to-first-error */}
 
             <AccordionItem value="custom">
-              <AccordionTrigger className="text-lg font-semibold text-white hover:no-underline focus:outline-none py-3">
+              <AccordionTrigger className="text-lg font-semibold text-white hover:no-underline focus:outline-none py-3"
+              id={idFromPath("fixedExpenses.customExpenses")}>
+              
+                
                 Egna Fasta Utgifter
               </AccordionTrigger>
               <AccordionContent className="pt-2 pb-4 space-y-4">

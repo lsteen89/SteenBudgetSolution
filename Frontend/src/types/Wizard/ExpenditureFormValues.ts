@@ -24,7 +24,10 @@ export interface ExpenditureFormValues extends FieldValues {
   transport: {
     monthlyFuelCost: number | null;
     monthlyInsuranceCost: number | null;
-    monthlyTotalCarCost: number | null; 
+    monthlyTotalCarCost: number | null;
     monthlyTransitCost: number | null;
+  };
+  clothing: {
+    monthlyClothingCost: number | null;
   };
 }

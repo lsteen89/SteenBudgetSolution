@@ -5,6 +5,7 @@ import { foodSchema } from "./foodSchema";
 import { incomeStepSchema } from "./incomeStepSchema";
 import { fixedExpensesSchema } from './fixedExpensesSchema';
 import { transportSchema } from './transportSchema';
+import { clothingSchema } from './clothingSchema';
 
 export const wizardRootSchema = yup.object().shape({
   // Step 1: Income schema
@@ -15,5 +16,6 @@ export const wizardRootSchema = yup.object().shape({
   utilities: utilitiesSchema,
   fixedExpenses: fixedExpensesSchema,
   transport: transportSchema,
+  clothing: clothingSchema,
   // Add other sub-schemas here, e.g., expenditures: expendituresSchema
 });
