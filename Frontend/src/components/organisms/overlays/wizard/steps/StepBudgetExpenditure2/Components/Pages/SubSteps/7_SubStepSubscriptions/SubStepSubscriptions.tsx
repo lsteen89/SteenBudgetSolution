@@ -118,7 +118,7 @@ const SubStepSubscriptions: React.FC = () => {
 
           <Separator className="bg-white/20" />
 
-          <Accordion type="single" collapsible>
+          <Accordion type="single" collapsible defaultValue="custom">
             <AccordionItem value="custom">
               <AccordionTrigger className="text-lg font-semibold text-white hover:no-underline focus:outline-none py-3" id={idFromPath("subscriptions.customSubscriptions")}>Egna Prenumerationer</AccordionTrigger>
               <AccordionContent className="pt-2 pb-4 space-y-4">

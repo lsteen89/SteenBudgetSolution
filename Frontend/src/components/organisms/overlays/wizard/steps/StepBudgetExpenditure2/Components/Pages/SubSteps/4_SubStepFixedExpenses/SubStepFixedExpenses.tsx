@@ -6,7 +6,6 @@ import OptionContainer from "@components/molecules/containers/OptionContainer";
 import FormattedNumberInput from "@components/atoms/InputField/FormattedNumberInput";
 import TextInput from "@components/atoms/InputField/TextInput";
 import HelpSection from "@components/molecules/helptexts/HelpSection";
-import SubmitButton from "@components/atoms/buttons/SubmitButton";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Separator } from "@/components/ui/separator";
 import GlossyFlipCard from "@components/molecules/cards/GlossyFlipCard/GlossyFlipCard";
@@ -173,14 +172,13 @@ const SubStepFixedExpenses: React.FC = () => {
               </AccordionTrigger>
               <AccordionContent className="pt-2 pb-4 space-y-4">
                 <div className="flex justify-end">
-                  <SubmitButton
-                    isSubmitting={false}
-                    onClick={handleAddExpense}
-                    icon={<PlusCircle size={18} />}
-                    label="Lägg till utgift"
+                  <button
                     type="button"
-                    size="default"
-                  />
+                    onClick={handleAddExpense}
+                    className="flex items-center gap-2 px-3 py-1 bg-limeGreen text-black rounded-md"
+                  >
+                    <PlusCircle size={18} /> Lägg till
+                  </button>
                 </div>
 
                 <div className="space-y-4">
