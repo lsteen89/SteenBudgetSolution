@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useFormContext, useFieldArray, Controller } from "react-hook-form";
-import { PlusCircle, Trash2, Info } from "lucide-react";
+import { PlusCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import OptionContainer from "@components/molecules/containers/OptionContainer";
 import FormattedNumberInput from "@components/atoms/InputField/FormattedNumberInput";
@@ -14,6 +14,7 @@ import FlipCardText from "@components/organisms/overlays/wizard/steps/StepBudget
 import useMediaQuery from '@hooks/useMediaQuery';
 import { idFromPath } from "@/utils/idFromPath";
 import useScrollToFirstError from "@/hooks/useScrollToFirstError";
+import CustomItemRow from "@components/organisms/overlays/wizard/SharedComponents/InputRows/CustomItemRow";
 
 
 export interface FixedExpenseItem {
@@ -113,8 +114,6 @@ const SubStepFixedExpenses: React.FC = () => {
     }
   }, [customExpensesVal, clearErrors]);
 
-  console.log("errors.fixedExpenses.customExpenses", errors.fixedExpenses?.customExpenses);
-  console.log("fields", fields);
 
   return (
     <OptionContainer>
@@ -185,65 +184,22 @@ const SubStepFixedExpenses: React.FC = () => {
                 </div>
 
                 <div className="space-y-4">
-                  {fields.map((item, index) => {
-                    const isDeleting = item.fieldId === deletingId;
-                    return (
-                      <motion.div
-                        key={item.fieldId}
-                        layout
-                        variants={itemVariants}
-                        initial="initial"
-                        animate={isDeleting ? "exit" : "animate"}
-                        transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                        onAnimationComplete={() => {
-                          if (isDeleting) {
-                            remove(index);
-                            setDeletingId(null);
-                          }
-                        }}
-                        className="flex flex-col md:flex-row items-center gap-3 p-3 bg-white/5 rounded-lg overflow-hidden"
-                      >
-                        <div className="flex-grow w-full md:w-auto">
-                          <Controller
-                            name={`fixedExpenses.customExpenses.${index}.name` as const}
-                            control={control}
-                            defaultValue={item.name || ""}
-                            render={({ field: controllerField, fieldState }) => (
-                              <TextInput
-                                id={idFromPath(`fixedExpenses.customExpenses.${index}.name`)}
-                                placeholder="Namn på utgift (t.ex. Streaming, Gym)"
-                                {...controllerField}
-                                value={controllerField.value ?? ""}
-                                error={fieldState.error?.message}
-                                className="w-full"
-                              />
-                            )}
-                          />
-                        </div>
-                        <div className="w-full md:w-auto md:max-w-[160px]">
-                          <FormattedNumberInput
-                            id={idFromPath(`fixedExpenses.customExpenses.${index}.fee`)}
-                            value={watch(`fixedExpenses.customExpenses.${index}.fee`) ?? null}
-                            onValueChange={(val) =>
-                              setValue(`fixedExpenses.customExpenses.${index}.fee`, val ?? null, { shouldValidate: true, shouldDirty: true })
-                            }
-                            placeholder="Belopp"
-                            error={errors.fixedExpenses?.customExpenses?.[index]?.fee?.message}
-                            name={`fixedExpenses.customExpenses.${index}.fee`}
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setDeletingId(item.fieldId)}
-                          disabled={deletingId !== null}
-                          aria-label="Ta bort utgift"
-                          className="p-2 bg-red-600 hover:bg-red-700 focus:ring-2 focus:ring-offset-2 focus:ring-red-500 text-white rounded-lg flex items-center justify-center self-center md:self-auto disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </motion.div>
-                    );
-                  })}
+                  {fields.map((item, index) => (
+                    <CustomItemRow
+                      key={item.fieldId}
+                      basePath="fixedExpenses.customExpenses"
+                      amountKey="fee"
+                      index={index}
+                      fieldId={item.fieldId}
+                      isDeleting={item.fieldId === deletingId}
+                      onStartDelete={() => setDeletingId(item.fieldId)}
+                      onRemove={() => {
+                        remove(index);
+                        setDeletingId(null);
+                      }}
+                      namePlaceholder="Namn på utgift (t.ex. Streaming, Gym)"
+                    />
+                  ))}
                 </div>
 
                 {/* validation message */}

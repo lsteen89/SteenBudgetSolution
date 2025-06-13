@@ -9,7 +9,7 @@ import OptionContainer from "@components/molecules/containers/OptionContainer";
 import GlossyFlipCard from "@components/molecules/cards/GlossyFlipCard/GlossyFlipCard";
 import FlipCardText from "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/text/FlipCardText";
 import PredefinedSubscriptionInput from "./components/PredefinedSubscriptionInput";
-import CustomSubscriptionRow from "./components/CustomSubscriptionRow";
+import CustomItemRow from "@components/organisms/overlays/wizard/SharedComponents/InputRows/CustomItemRow";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Separator } from "@/components/ui/separator";
 import useMediaQuery from "@hooks/useMediaQuery";
@@ -129,8 +129,9 @@ const SubStepSubscriptions: React.FC = () => {
                 </div>
                 <div className="space-y-4">
                   {fields.map((item, index) => (
-                    <CustomSubscriptionRow
+                    <CustomItemRow
                       key={item.fieldId}
+                      basePath="subscriptions.customSubscriptions"
                       index={index}
                       fieldId={item.fieldId}
                       isDeleting={item.fieldId === deletingId}
