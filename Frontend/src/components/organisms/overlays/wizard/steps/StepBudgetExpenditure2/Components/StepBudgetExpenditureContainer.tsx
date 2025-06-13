@@ -28,7 +28,7 @@ import SubStepFixedExp from '@components/organisms/overlays/wizard/steps/StepBud
 import SubStepTransport from '@/components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/5_SubStepTransport/SubStepTransport';
 import SubStepClothing from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/6_SubStepClothing/SubStepClothing';
 import SubStepSubscriptions from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/7_SubStepSubscriptions/SubStepSubscriptions';
-import SubStepConfirm from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/SubStepConfirm';
+import SubStepConfirm from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/8_SubStepConfirm/SubStepConfirm';
 
 import LoadingScreen from '@components/molecules/feedback/LoadingScreen';
 
