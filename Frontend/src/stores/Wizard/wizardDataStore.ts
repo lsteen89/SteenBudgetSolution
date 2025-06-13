@@ -52,6 +52,14 @@ const initialWizardDataState: WizardData = {
     clothing: {
       monthlyClothingCost: 0,
     },
+    subscriptions: {
+      netflix: null,
+      spotify: null,
+      hbomax: null,
+      viaplay: null,
+      disneyPlus: null,
+      customSubscriptions: [],
+    },
     // Todo: For consistency, we should also define the structure for rent, food, and utilities.
   },
 };

@@ -56,5 +56,20 @@ export function ensureStep2Defaults(
     clothing: {
       monthlyClothingCost: src?.clothing?.monthlyClothingCost ?? 0,
     },
+
+    /* ---------- subscriptions ---------- */
+    subscriptions: {
+      netflix    : src?.subscriptions?.netflix     ?? null,
+      spotify    : src?.subscriptions?.spotify     ?? null,
+      hbomax     : src?.subscriptions?.hbomax      ?? null,
+      viaplay    : src?.subscriptions?.viaplay     ?? null,
+      disneyPlus : src?.subscriptions?.disneyPlus  ?? null,
+      customSubscriptions:
+        src?.subscriptions?.customSubscriptions?.map(s => ({
+          id  : s?.id ?? crypto.randomUUID(),
+          name: s?.name ?? "",
+          cost: s?.cost ?? null,
+        })) ?? [],
+    },
   };
 }
