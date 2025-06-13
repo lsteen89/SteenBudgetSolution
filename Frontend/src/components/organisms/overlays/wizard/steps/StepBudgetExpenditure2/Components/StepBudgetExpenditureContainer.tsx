@@ -27,6 +27,8 @@ import SubStepFood  from '@components/organisms/overlays/wizard/steps/StepBudget
 import SubStepFixedExp from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/4_SubStepFixedExpenses/SubStepFixedExpenses';
 import SubStepTransport from '@/components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/5_Transport/SubStepTransport';
 import SubStepClothing from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/6_SubStepClothing/SubStepClothing';
+import SubStepSubscriptions from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/7_SubStepSubscriptions/SubStepSubscriptions';
+import SubStepConfirm from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/SubStepConfirm';
 
 import LoadingScreen from '@components/molecules/feedback/LoadingScreen';
 
@@ -208,6 +210,8 @@ const StepBudgetExpenditureContainer = forwardRef<
       case 4: return <SubStepFixedExp />;
       case 5: return <SubStepTransport />;
       case 6: return <SubStepClothing />;
+      case 7: return <SubStepSubscriptions />;
+      case 8: return <SubStepConfirm />;
       // Add more cases for other sub-steps as needed
       default:return <div>All sub-steps complete!</div>;
     }
