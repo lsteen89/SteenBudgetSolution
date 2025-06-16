@@ -64,6 +64,7 @@ export interface StepBudgetExpenditureContainerRef {
   hasPrevSub(): boolean;
   hasNextSub(): boolean;
   isSaving(): boolean;
+  hasSubSteps: () => boolean; 
 }
 
 interface StepBudgetExpenditureContainerProps {
@@ -144,30 +145,42 @@ const StepBudgetExpenditureContainer = forwardRef<
     onError: () => triggerShakeAnimation(1000),
   });
 
-  /* 4 ─── navigation helpers --------------------------------------- */
-  const totalSteps = 8;
-  const goToSub = async (dest: number) => {
-    const goingBack      = dest < currentSub;
-    const skipValidation = currentSub === 1 || goingBack;
-    console.log('Current sub-step:', currentSub);
-    setIsSaving(true);
-    await saveStepData(currentSub, dest, skipValidation, goingBack);
-    setIsSaving(false);
-  };
+/* 4 ─── navigation helpers --------------------------------------- */
+const totalSteps = 8;
 
-  const next = () => {
-    console.log('current sub-step:', currentSub);
-    console.log('total steps:', totalSteps);
-    if (currentSub === 1)     return setCurrentSub(2);
-    if (currentSub === totalSteps)
-      return isMobile ? goToSub(1) : onNext();
-    goToSub(currentSub + 1);
-  };
-  const prev = () => {
-    if (currentSub === 1)
-      return isMobile ? goToSub(totalSteps) : onPrev();
+const goToSub = async (dest: number) => {
+  const goingBack = dest < currentSub;
+  // The welcome step is read-only, validation is not needed when leaving it.
+  const skipValidation = currentSub === 1 || goingBack;
+  
+  setIsSaving(true);
+  // saveStepData now handles setting the current step after a successful save.
+  await saveStepData(currentSub, dest, skipValidation, goingBack);
+  setIsSaving(false);
+};
+
+
+const next = () => {
+  if (currentSub < totalSteps) {
+    // We are NOT on the last sub-step. Advance normally.
+    if (currentSub === 1) {
+      // Skip validation for the welcome step
+      setCurrentSub(2);
+    } else {
+      goToSub(currentSub + 1);
+    }
+  } else {
+    onNext();
+  }
+};
+
+// Simplified 'prev' function. Its only job is to go back one sub-step.
+const prev = () => {
+  if (currentSub > 1) {
     goToSub(currentSub - 1);
-  };
+  }
+  // NOTE: There is no 'else'. The parent handles moving to the previous MAJOR step.
+};
 
   /* 5 ─── progress click handlers ---------------------------------- */
   const clickCarousel = (z: number) => goToSub(z + 1);
@@ -189,6 +202,7 @@ const StepBudgetExpenditureContainer = forwardRef<
     hasPrevSub: () => currentSub > 1,
     hasNextSub: () => currentSub < totalSteps,
     isSaving: () => isSaving,
+    hasSubSteps: () => true,
   }));
 
   /* 8 ─── render helpers ------------------------------------------- */
@@ -240,13 +254,11 @@ const StepBudgetExpenditureContainer = forwardRef<
                 />
               </div>
             )}
-            {isMobile && <StepButton isLeft onClick={prev} />}
             <div className="flex-1 text-center">
               {isMobile ? (
                 <StepCarousel
                   steps={steps}
                   currentStep={currentSub - 1}
-                  onStepClick={clickCarousel}
                 />
               ) : (
                 <WizardProgress
@@ -258,7 +270,6 @@ const StepBudgetExpenditureContainer = forwardRef<
                 />
               )}
             </div>
-            {isMobile && <StepButton isLeft={false} onClick={next} />}
           </div>
 
           {/* Content */}
@@ -267,26 +278,6 @@ const StepBudgetExpenditureContainer = forwardRef<
               {renderSubStep()}
             </AnimatedContent>
           </div>
-
-          {/* Desktop nav */}
-          {!isMobile && (
-            <div className="my-6 w-full flex items-center justify-between">
-              <WizardNavPair
-                step={currentSub}
-                prevStep={prev}
-                nextStep={next}
-                hasPrev={currentSub > 1}
-                hasNext={currentSub < totalSteps}
-                connectionError={false}
-                initLoading={false}
-                transitionLoading={false}
-                isDebugMode={false}
-                showShakeAnimation={showShakeAnimation}
-                isMajor={false}
-                isSaving={isSaving}
-              />
-            </div>
-          )}
         </form>
       )}
     </WizardFormWrapperStep2>
