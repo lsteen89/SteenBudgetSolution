@@ -176,10 +176,6 @@ const StepBudgetExpenditureContainer = forwardRef<
   /* 6 ─── notify parent of sub-step -------------------------------- */
   useEffect(() => props.onSubStepChange?.(currentSub), [currentSub]);
 
-  // Scroll to top whenever a sub-step changes
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [currentSub]);
 
   /* 7 ─── imperative API ------------------------------------------- */
   useImperativeHandle(ref, () => ({
