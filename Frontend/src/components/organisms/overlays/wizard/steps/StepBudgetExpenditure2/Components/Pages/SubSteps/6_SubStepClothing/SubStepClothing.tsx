@@ -60,24 +60,30 @@ const SubStepClothing: React.FC = () => {
           transition={{ delay: 0.3, duration: 0.4, ease: "easeOut" }}
           className="space-y-6 bg-white/5 backdrop-blur-md rounded-2xl p-6 ring-1 ring-white/10 shadow-xl hover:ring-standardMenuColor/50 transition"
         >
-          {/* Monthly cost */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Shirt className="w-6 h-6 text-darkBlueMenuColor flex-shrink-0" />
-                <label
-                  htmlFor={inputId}
-                  className="block text-sm font-medium text-standardMenuColor/90 dark:text-standardMenuColor"
-                >
-                  Månadskostnad
-                </label>
+            {/* Monthly cost */}
+            <div className="space-y-2">
+              {/*
+                - We allow wrapping with flex-wrap.
+                - We keep justify-between to align the help icon to the right if it wraps.
+              */}
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                {/* This container will grow and fill the space */}
+                <div className="flex flex-grow items-center gap-2">
+                  <Shirt className="h-6 w-6 flex-shrink-0 text-darkBlueMenuColor" />
+                  <label
+                    htmlFor={inputId}
+                    className="block text-sm font-medium text-standardMenuColor/90 dark:text-standardMenuColor"
+                  >
+                    Månadskostnad
+                  </label>
+                </div>
+                <HelpSection
+                  label=""
+                  className="flex-shrink-0"
+                  helpText="Ta dina totala klädinköp för de senaste tre månaderna och dividera med tre för att få fram en genomsnittlig månadskostnad."
+                />
               </div>
-              <HelpSection
-                label=""
-                className="flex-shrink-0"
-                helpText="Ta dina totala klädinköp för de senaste tre månaderna och dividera med tre för att få fram en genomsnittlig månadskostnad."
-              />
-            </div>
+
 
               <FormattedNumberInput
                 id={inputId}
