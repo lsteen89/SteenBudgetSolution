@@ -45,8 +45,8 @@ const WizardFormWrapperStep2 = forwardRef<
     mode: "onBlur",
     reValidateMode: "onChange",
   });
-   const { formState: { errors } } = methods;
-  useScrollToFirstError(errors);         
+  const { formState: { errors } } = methods;
+  useScrollToFirstError(errors);
   /* 4.  Hydrate once if store updates later */
   const hydrated = useRef(false);
 
@@ -68,12 +68,12 @@ const WizardFormWrapperStep2 = forwardRef<
   }));
 
   /* 6.  Provide context */
-return (                                           //  ←  you missed this
-  <FormProvider {...methods}>
-    {children}
-  </FormProvider>
-);
-}
-);
+  return (
+    <FormProvider {...methods}>
+      {children}
+    </FormProvider>
+  );
+});
 
+WizardFormWrapperStep2.displayName = 'WizardFormWrapperStep2';
 export default WizardFormWrapperStep2;

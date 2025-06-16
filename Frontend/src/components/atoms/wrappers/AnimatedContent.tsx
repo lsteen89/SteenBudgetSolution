@@ -6,7 +6,7 @@ interface AnimatedContentProps extends React.ComponentPropsWithoutRef<typeof mot
   animationKey: string | number;
 }
 
-const AnimatedContent: React.FC<AnimatedContentProps> = ({
+const AnimatedContent = React.forwardRef<HTMLDivElement, AnimatedContentProps>(({
   animationKey,
   children,
   initial = { opacity: 0, x: 50 },
@@ -14,10 +14,11 @@ const AnimatedContent: React.FC<AnimatedContentProps> = ({
   exit = { opacity: 0, x: -50 },
   transition = { duration: 0.3 },
   ...rest
-}) => {
+}, ref) => {
   return (
     <AnimatePresence mode="wait">
       <motion.div
+        ref={ref}
         key={animationKey}
         initial={initial}
         animate={animate}
@@ -29,6 +30,8 @@ const AnimatedContent: React.FC<AnimatedContentProps> = ({
       </motion.div>
     </AnimatePresence>
   );
-};
+});
+
+AnimatedContent.displayName = 'AnimatedContent';
 
 export default AnimatedContent;

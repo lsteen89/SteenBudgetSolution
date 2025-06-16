@@ -31,8 +31,7 @@ import useSaveWizardStep from "@hooks/wizard/useSaveWizardStep";
 import useWizardInit from "@hooks/wizard/useWizardInit";
 import useMediaQuery from "@hooks/useMediaQuery";
 import useWizardNavigation from "@hooks/wizard/useWizardNavigation";
-import useScrollToFirstError from "@/hooks/useScrollToFirstError";
-import { FieldErrors } from "react-hook-form";
+// removed per-form hooks; wrappers will handle scrolling to errors
 //local display state
 import useBudgetInfoDisplayFlags from "@hooks/wizard/flagHooks/useBudgetInfoDisplayFlags";
 // Header import
@@ -137,7 +136,6 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     { icon: CheckCircle, label: "Bekräfta" },
   ];
   const [isStepValid, setIsStepValid] = useState(true);
-  const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({});
   const isDebugMode = process.env.NODE_ENV === 'development';
 
   // 5. Refs to child steps
@@ -192,10 +190,11 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     }
   }, [step, stepRefs[step]]);
 
-  // Scroll to the first error in whichever step is active
-  useScrollToFirstError(
-    (activeStepRef?.getErrors?.() as FieldErrors<any>) || {}
-  );
+  // Scroll to top whenever the major or sub step changes
+  const containerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [step, subTick]);
 
     /* -----------------------------------------------------------
     7. Ask the active child step (if any) for its sub-nav API
@@ -253,7 +252,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
             steps={steps}
             onStepClick={handleStepClick}
           />
-          <AnimatedContent animationKey={step} className="mb-6 text-center text-gray-700 h-[60vh] md:h-[70vh] lg:h-auto overflow-y-auto">
+          <AnimatedContent ref={containerRef} animationKey={step} className="mb-6 text-center text-gray-700 h-[60vh] md:h-[70vh] lg:h-auto overflow-y-auto">
             <WizardStepContainer
               disableDefaultWidth={step === 2} // disable default for step 2
               className={

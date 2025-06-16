@@ -13,7 +13,6 @@ import CustomItemRow from "@components/organisms/overlays/wizard/SharedComponent
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Separator } from "@/components/ui/separator";
 import useMediaQuery from "@hooks/useMediaQuery";
-import useScrollToFirstError from "@/hooks/useScrollToFirstError";
 import { idFromPath } from "@/utils/idFromPath";
 
 export interface SubscriptionItem {
@@ -48,8 +47,6 @@ const SubStepSubscriptions: React.FC = () => {
     clearErrors,
     formState: { errors },
   } = useFormContext<{ subscriptions: SubscriptionsSubForm }>();
-
-  useScrollToFirstError(errors);
 
   const { fields, append, remove } = useFieldArray({
     control,
