@@ -22,6 +22,7 @@ import { shallow } from 'zustand/shallow';
 import { useWizardDataStore, WizardDataStore } from '@/stores/Wizard/wizardDataStore';
 import { IncomeFormValues } from '@myTypes/Wizard/IncomeFormValues';
 import { incomeStepSchema } from '@schemas/wizard/incomeStepSchema';
+import useScrollToFirstError from '@/hooks/useScrollToFirstError'; 
 
 export interface WizardFormWrapperStep1Ref {
   validateFields: () => Promise<boolean>;
@@ -60,6 +61,9 @@ const WizardFormWrapperStep1 = forwardRef<
   });
 
   const { control, watch, reset, getValues, formState, trigger, setFocus } = methods;
+
+  // 👇 Use the centralized hook with the form's errors
+  useScrollToFirstError(formState.errors);
 
   useEffect(() => {
     const subscription = watch(
