@@ -228,7 +228,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
 
   // ---------------------------- RENDER ----------------------------
   return (
-    <div ref={containerRef} className="fixed inset-0 z-[2000] overflow-y-auto w-full h-full ">
+    <div className="fixed inset-0 z-[2000] overflow-y-auto w-full h-full ">
       <div className="flex items-center justify-center bg-black bg-opacity-50 min-h-screen py-10">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -252,7 +252,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
             steps={steps}
             onStepClick={handleStepClick}
           />
-          <AnimatedContent animationKey={step} className="mb-6 text-center text-gray-700 h-[60vh] md:h-[70vh] lg:h-auto overflow-y-auto">
+          <AnimatedContent ref={containerRef} animationKey={step} className="mb-6 text-center text-gray-700 h-[60vh] md:h-[70vh] lg:h-auto overflow-y-auto">
             <WizardStepContainer
               disableDefaultWidth={step === 2} // disable default for step 2
               className={
