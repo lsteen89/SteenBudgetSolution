@@ -1,28 +1,23 @@
 /**
- * WizardNavigationFooter – mobile-only row with four buttons
- * ordered ⏪ ‹ › ⏩ (prevMajor, prevSub, nextSub, nextMajor).
+ * WizardNavigationFooter – mobile-only row with TWO smart buttons.
+ * It combines major and sub-step navigation into a unified experience.
  * Use in a fixed <footer> on screens < md.
  */
-import React from "react";
-import clsx from "clsx";
-import { WizardNavPairProps } from "@components/organisms/overlays/wizard/SharedComponents/Buttons/WizardNavPair"; 
-import NavigationButton, { WizardNavIconProps } from "@components/organisms/overlays/wizard/SharedComponents/Buttons/WizardNavIcon";
+import React from 'react';
+import clsx from 'clsx';
+import NavigationButton from '@components/organisms/overlays/wizard/SharedComponents/Buttons/WizardNavIcon';
 
+// Interface remains the same, we're just using the props differently
 export interface WizardNavigationFooterProps {
-  /* major-step handlers */
   prevMajor(): void;
   nextMajor(): void;
   hasPrevMajor: boolean;
   hasNextMajor: boolean;
-
-  /* sub-step handlers (optional if step has no sub-pages) */
   prevSub(): void;
   nextSub(): void;
   hasPrevSub: boolean;
   hasNextSub: boolean;
   isSaving: boolean;
-
-  /* shared flags */
   step: number;
   connectionError: boolean;
   initLoading: boolean;
@@ -32,71 +27,53 @@ export interface WizardNavigationFooterProps {
 }
 
 const WizardNavigationFooter: React.FC<WizardNavigationFooterProps> = ({
-  // handlers
   prevMajor, nextMajor, prevSub, nextSub,
-  // availability flags
   hasPrevMajor, hasNextMajor, hasPrevSub, hasNextSub,
-  // shared flags
   step, connectionError, initLoading, transitionLoading, isDebugMode, showShakeAnimation, isSaving,
 }) => {
-  // We hide sub-nav buttons if there are no sub-steps available.
-  const showSubNav = hasPrevSub || hasNextSub;
-  
   /* Lock the whole bar when requests / transitions are running */
   const isLocked =
-  isSaving ||                             // always locked when saving
-  (!isDebugMode && (                     // when *not* in debug…
-    initLoading ||                       // …if still initializing
-    transitionLoading ||                 // …or mid-transition
-    (connectionError && step === 0)      // …or on step 0 with a connection error
-  ));  
+    isSaving ||
+    (!isDebugMode && (
+      initLoading ||
+      transitionLoading ||
+      (connectionError && step === 0)
+    ));
 
-  /* One boolean per button */
-  const disablePrevMajor = isLocked || !hasPrevMajor;
-  const disablePrevSub   = isLocked || !hasPrevSub;
-  const disableNextSub   = isLocked || !hasNextSub;
-  const disableNextMajor = isLocked || !hasNextMajor;
+  // --- THE SMART LOGIC ---
+  // Determine the correct "Back" action and availability
+  const goBack = hasPrevSub ? prevSub : prevMajor;
+  const canGoBack = hasPrevSub || hasPrevMajor;
+  const disablePrev = isLocked || !canGoBack;
 
-  const isDisabled = isDebugMode && (connectionError || initLoading || transitionLoading);
+  // Determine the correct "Next" action and availability
+  const goNext = hasNextSub ? nextSub : nextMajor;
+  const canGoNext = hasNextSub || hasNextMajor;
+  const disableNext = isLocked || !canGoNext;
+
+  // Determine which icons to use
+  const prevIcon = hasPrevSub ? 'prevSub' : 'prevMajor';
+  const nextIcon = hasNextSub ? 'nextSub' : 'nextMajor';
+
   const btnCls = (disabled: boolean) =>
-    clsx(disabled && "opacity-50 cursor-not-allowed", showShakeAnimation && "motion-safe:animate-shake");
+    clsx(disabled && 'opacity-50 cursor-not-allowed', showShakeAnimation && 'motion-safe:animate-shake');
 
   return (
-    <div className="flex items-center justify-between w-full">
-      {/* 1 — Prev major (left) */}
+    <div className="flex items-center justify-between w-full px-4">
+      {/* 1 — The One "Back" Button */}
       <NavigationButton
-        variant="prevMajor"
-        onClick={prevMajor}
-        disabled={disablePrevMajor || isDisabled}
-        className={clsx(btnCls(disablePrevMajor), "w-12 h-12 md:w-14 md:h-14")}
+        variant={prevIcon}
+        onClick={goBack}
+        disabled={disablePrev}
+        className={clsx(btnCls(disablePrev), 'w-14 h-14')}
       />
 
-      {showSubNav && (
-        <div className="flex items-center space-x-16">
-          {/* 2 — Prev sub */}
-          <NavigationButton
-            variant="prevSub"
-            onClick={prevSub}
-            disabled={disablePrevSub || isDisabled}
-            className={clsx(btnCls(disablePrevSub), "w-12 h-12 md:w-14 md:h-14")}
-          />
-
-          {/* 3 — Next sub */}
-          <NavigationButton
-            variant="nextSub"
-            onClick={nextSub}
-            disabled={disableNextSub || isDisabled}
-            className={clsx(btnCls(disableNextSub), "w-12 h-12 md:w-14 md:h-14")}
-          />
-        </div>
-      )}
-
-      {/* 4 — Next major (right) */}
+      {/* 2 — The One "Next" Button */}
       <NavigationButton
-        variant="nextMajor"
-        onClick={nextMajor}
-        disabled={disableNextMajor  || isDisabled}
-        className={clsx(btnCls(disableNextMajor), "w-12 h-12 md:w-14 md:h-14")}
+        variant={nextIcon}
+        onClick={goNext}
+        disabled={disableNext}
+        className={clsx(btnCls(disableNext), 'w-14 h-14')}
       />
     </div>
   );
