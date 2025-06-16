@@ -19,6 +19,7 @@ export interface StepBudgetExpenditureRef {
   hasPrevSub(): boolean;
   hasNextSub(): boolean;
   isSaving(): boolean;
+  hasSubSteps: () => boolean; 
 }
 
 interface StepBudgetExpenditureProps {
@@ -68,6 +69,7 @@ const StepBudgetExpenditure = forwardRef<
     hasPrevSub: () => containerRef.current?.hasPrevSub?.() ?? false,
     hasNextSub: () => containerRef.current?.hasNextSub?.() ?? false,
     isSaving: () => containerRef.current?.isSaving?.() ?? false,
+    hasSubSteps: () => true,
   }));
   const containerKey = "step-budget-expenditure-container";
   const getCurrentSubStep = () => {

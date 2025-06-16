@@ -314,49 +314,29 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
 
           </AnimatedContent>
 
-          {/* NAVIGATION BUTTONS (BOTTOM) */}
-          {isMobile ? (
-            <footer className="fixed bottom-0 inset-x-0 p-4 bg-white/30 rounded-xl backdrop-blur-lg shadow-lg">
-              <WizardNavigationFooter
-                /* major */
-                prevMajor={hookPrevStep}
-                nextMajor={hookNextStep}
-                hasPrevMajor={step > 0}
-                hasNextMajor={step < totalSteps}
-                /* sub  */
-                prevSub={subNav.prevSub}
-                nextSub={subNav.nextSub}
-                hasPrevSub={subNav.hasPrevSub}
-                hasNextSub={subNav.hasNextSub}
-                /* shared flags */
-                connectionError={connectionError}
-                initLoading={initLoading}
-                transitionLoading={transitionLoading}
-                isDebugMode={isDebugMode}
-                showShakeAnimation={showShakeAnimation}
-                isSaving={saving}
-                step={step}
-              />
-            </footer>
-            ) : (
-            /* desktop */
+          <div className="w-full max-w-4xl mx-auto">
             <div className="my-6 w-full flex items-center justify-between">
               <WizardNavPair
                 step={step}
-                prevStep={hookPrevStep}
-                nextStep={hookNextStep}
-                hasPrev={step > 0}
-                hasNext={step < totalSteps}
+                prevStep={subNav.hasPrevSub ? subNav.prevSub : hookPrevStep}
+                nextStep={subNav.hasNextSub ? subNav.nextSub : hookNextStep}
+                hasPrev={subNav.hasPrevSub || step > 0}
+                hasNext={subNav.hasNextSub || step < totalSteps}
+                
+                // --- SUPPLY THE NEW INTEL ---
+                hasPrevSub={subNav.hasPrevSub}
+                hasNextSub={subNav.hasNextSub}
+
+                // ... all other props ...
                 connectionError={connectionError}
                 initLoading={initLoading}
                 transitionLoading={transitionLoading}
                 isDebugMode={isDebugMode}
                 showShakeAnimation={showShakeAnimation}
                 isSaving={saving}
-                isMajor
               />
             </div>
-          )}
+          </div>
         </motion.div>
       </div>
       {/* Confirm Modal */}

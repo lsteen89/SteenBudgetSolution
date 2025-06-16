@@ -1,82 +1,76 @@
-/**
- * WizardNavPair – renders two buttons:
- *   • Major mode  : ⏪ ⏩
- *   • Sub-step mode: ‹ › (or “Start” › on first sub-step)
- * Desktop / tablet use one major pair + one sub pair in different places.
- */
-import React from "react";
-import clsx from "clsx";
-import { ChevronLeft, ChevronRight, Rewind, FastForward } from "lucide-react";
-import GhostIconButton from "@components/atoms/buttons/GhostIconButton";
+import React from 'react';
+import clsx from 'clsx';
+import { ChevronLeft, ChevronRight, Rewind, FastForward } from 'lucide-react';
+import GhostIconButton from '@components/atoms/buttons/GhostIconButton';
 
 export interface WizardNavPairProps {
   step: number;
   prevStep(): void;
   nextStep(): void;
-  hasPrev: boolean;   
+  hasPrev: boolean;
   hasNext: boolean;
+  
+  // --- NEW INTEL ---
+  // The component now needs to know the sub-step status specifically.
+  hasPrevSub: boolean;
+  hasNextSub: boolean;
+
+  // ... other props are the same
   connectionError: boolean;
   initLoading: boolean;
   transitionLoading: boolean;
   isDebugMode: boolean;
   showShakeAnimation: boolean;
-  /** true = ⏪⏩  |  false = ‹ › / “Start” › */
-  isMajor: boolean;       
   isSaving: boolean;
 }
 
-const WizardNavPair: React.FC<WizardNavPairProps > = ({
+const WizardNavPair: React.FC<WizardNavPairProps> = ({
   step,
   prevStep,
   nextStep,
   hasPrev,
   hasNext,
+  // De-structure the new props
+  hasPrevSub,
+  hasNextSub,
   connectionError,
   initLoading,
   transitionLoading,
   isDebugMode,
   showShakeAnimation,
-  isMajor,
   isSaving,
 }) => {
-  
-  /* locks all buttons during async work */
-const isLocked =
-  isSaving ||                             // always locked when saving
-  (!isDebugMode && (                     // when *not* in debug…
-    initLoading ||                       // …if still initializing
-    transitionLoading ||                 // …or mid-transition
-    (connectionError && step === 0)      // …or on step 0 with a connection error
-  ));
+  const isLocked =
+    isSaving ||
+    (!isDebugMode && (
+      initLoading ||
+      transitionLoading ||
+      (connectionError && step === 0)
+    ));
 
-  /* decide per-button */
   const disablePrev = isLocked || !hasPrev;
   const disableNext = isLocked || !hasNext;
 
-  const btnClass = (disabled: boolean) =>
-      clsx(
-        disabled && "opacity-50 cursor-not-allowed"
-      );
-  const sizeClass = "w-12 h-12 md:w-14 md:h-14";          // or props.sizeClass
+  // --- THE REAL FIX: One brain for each button! ---
+  const isPrevMajor = !hasPrevSub; // If there's no sub-step to go back to, it's a major step back.
+  const isNextMajor = !hasNextSub; // If there's no sub-step to go forward to, it's a major step forward.
 
-  const hoverClass =
-  !showShakeAnimation && "hover:bg-customBlue2 hover:scale-105 transition-transform duration-150";
+  const IconPrev = isPrevMajor ? Rewind : ChevronLeft;
+  const IconNext = isNextMajor ? FastForward : ChevronRight;
 
-  //Lämnade här! När vi kollar connectionerror är det viktigt att vi också bara kollar i första steget, annars kommer inte användare komma vidare i guiden.
-  const IconPrev = isMajor ? Rewind : ChevronLeft;
-  const IconNext = isMajor ? FastForward : ChevronRight;
+  const labelPrev = isPrevMajor
+    ? 'Föregående huvudsteg'
+    : 'Föregående delsteg';
 
-  const labelPrev = isMajor
-    ? "Föregående huvudsteg"
-    : "Föregående delsteg";
+  const labelNext = isNextMajor
+    ? 'Nästa huvudsteg'
+    : 'Nästa delsteg';
 
-  /* sub-step pair shows “Starta” only on its first page (= no prev)  */
-  const labelNext = isMajor
-    ? "Nästa huvudsteg"
-    : !hasPrev                     // first sub-step
-    ? "Starta"
-    : "Nästa delsteg";
-
+  // ... the rest of the component is mostly the same ...
+  const btnClass = (disabled: boolean) => clsx(disabled && 'opacity-50 cursor-not-allowed');
+  const sizeClass = 'w-12 h-12 md:w-14 md:h-14';
+  const hoverClass = !showShakeAnimation && 'hover:bg-customBlue2 hover:scale-105 transition-transform duration-150';
+  
   return (
     <>
       <GhostIconButton
