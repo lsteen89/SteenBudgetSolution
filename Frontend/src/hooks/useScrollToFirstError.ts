@@ -1,9 +1,3 @@
-// As of 15/06/2025, this file is redundant and can be removed.
-// However, it is kept here for reference in case the functionality needs to be reintroduced in the future.
-// File: src/hooks/useScrollToFirstError.ts
-
-/*
-
 import { useEffect } from "react";
 import { FieldErrors } from "react-hook-form";
 import { firstPath }  from "@/utils/firstPath";   
@@ -33,4 +27,3 @@ export default function useScrollToFirstError(errors: FieldErrors) {
     requestAnimationFrame(scroll);
   });
 }
-*/

@@ -12,6 +12,7 @@ import GlossyFlipCard from "@components/molecules/cards/GlossyFlipCard/GlossyFli
 import FlipCardText from "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/text/FlipCardText";
 import useMediaQuery from '@hooks/useMediaQuery';
 import { idFromPath } from "@/utils/idFromPath";
+import useScrollToFirstError from "@/hooks/useScrollToFirstError";
 import CustomItemRow from "@components/organisms/overlays/wizard/SharedComponents/InputRows/CustomItemRow";
 
 
@@ -41,6 +42,7 @@ const SubStepFixedExpenses: React.FC = () => {
     formState: { errors, submitCount },
   } = useFormContext<{ fixedExpenses: FixedExpensesSubForm }>();
 
+  useScrollToFirstError(errors);
   
   const [openAccordion, setOpenAccordion] = useState<string>("custom");
 

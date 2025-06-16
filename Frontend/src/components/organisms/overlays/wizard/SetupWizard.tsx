@@ -31,6 +31,7 @@ import useSaveWizardStep from "@hooks/wizard/useSaveWizardStep";
 import useWizardInit from "@hooks/wizard/useWizardInit";
 import useMediaQuery from "@hooks/useMediaQuery";
 import useWizardNavigation from "@hooks/wizard/useWizardNavigation";
+import useScrollToFirstError from "@/hooks/useScrollToFirstError";
 import { FieldErrors } from "react-hook-form";
 //local display state
 import useBudgetInfoDisplayFlags from "@hooks/wizard/flagHooks/useBudgetInfoDisplayFlags";
@@ -62,10 +63,6 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
   const handleStepClick = (targetStep: number) => {
     setStep(targetStep);
   };
-
-  // Ref for the scroll container
-  // This is used to scroll to top of the wizard content when a step changes
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // 1. Wizard closure
   // State for the confirmation modal
@@ -159,18 +156,6 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
   const { flags, setShowSideIncome, setShowHouseholdMembers } = useBudgetInfoDisplayFlags();
   const [subTick, setSubTick] = useState(0);
 
-  // 5A. Effect to scroll to top of the wizard content when step changes
-  useEffect(() => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTo({
-        top: 0,
-        behavior: "smooth" // Use smooth scrolling for a better user experience
-      });
-    }
-  }, [step, subTick]); // Dependency array ensures this runs on any step/sub-step change
-
-
-
   // 6. Handle step navigation
   // Call the useWizardNavigation hook
   const { nextStep: hookNextStep, prevStep: hookPrevStep } =
@@ -198,6 +183,19 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     }
   }, [step]);
 
+  const [activeStepRef, setActiveStepRef] = useState<any | null>(null);
+
+  useEffect(() => {
+    const refObject = stepRefs[step];
+    if (refObject && refObject.current !== activeStepRef) {
+      setActiveStepRef(refObject.current);
+    }
+  }, [step, stepRefs[step]]);
+
+  // Scroll to the first error in whichever step is active
+  useScrollToFirstError(
+    (activeStepRef?.getErrors?.() as FieldErrors<any>) || {}
+  );
 
     /* -----------------------------------------------------------
     7. Ask the active child step (if any) for its sub-nav API
@@ -255,7 +253,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
             steps={steps}
             onStepClick={handleStepClick}
           />
-          <AnimatedContent ref={scrollContainerRef} animationKey={step} className="mb-6 text-center text-gray-700 h-[60vh] md:h-[70vh] lg:h-auto overflow-y-auto">
+          <AnimatedContent animationKey={step} className="mb-6 text-center text-gray-700 h-[60vh] md:h-[70vh] lg:h-auto overflow-y-auto">
             <WizardStepContainer
               disableDefaultWidth={step === 2} // disable default for step 2
               className={
