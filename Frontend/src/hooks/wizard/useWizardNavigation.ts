@@ -1,7 +1,6 @@
 import { useCallback } from "react";
 import { useToast } from "@context/ToastContext";
 import { handleStepValidation } from "@components/organisms/overlays/wizard/validation/handleStepValidation";
-import { FieldErrors } from "react-hook-form";
 
 /* ------------------------------------------------------------------ */
 /* Hook props                                                         */
@@ -87,16 +86,6 @@ const useWizardNavigation = ({
 
         // NEW: Check if it returned null (which signifies validation failure)
         if (!validatedData) {
-          // If validation fails, find the first error and scroll to it.
-          const errors = ref.current.getErrors?.() as FieldErrors;
-          if (errors) {
-            const firstErrorName = Object.keys(errors)[0];
-            if (firstErrorName) {
-              // Use querySelector for reliability with nested field names
-              const errorField = document.querySelector(`[name="${firstErrorName}"]`);
-              errorField?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-          }
           triggerShakeAnimation();
           setTransitionLoading(false);
           return;
