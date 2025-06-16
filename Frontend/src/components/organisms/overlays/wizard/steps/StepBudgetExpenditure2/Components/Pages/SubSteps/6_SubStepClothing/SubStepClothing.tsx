@@ -9,7 +9,6 @@ import FlipCardText from "@components/organisms/overlays/wizard/steps/StepBudget
 import FormattedNumberInput from "@components/atoms/InputField/FormattedNumberInput";
 import HelpSection from "@components/molecules/helptexts/HelpSection";
 import { idFromPath } from "@/utils/idFromPath";
-import useScrollToFirstError from "@/hooks/useScrollToFirstError";
 
 interface ClothingForm {
   clothing: {
@@ -28,7 +27,6 @@ const SubStepClothing: React.FC = () => {
     formState: { errors },
   } = useFormContext<ClothingForm>();
 
-  useScrollToFirstError(errors);
 
   const fieldPath = "clothing.monthlyClothingCost";
   const inputId = idFromPath(fieldPath);
