@@ -32,6 +32,7 @@ const HelpSection: React.FC<HelpSectionProps> = ({
     const [showDetailed, setShowDetailed] = useState(false);
     const [manualDesktopPosition, setManualDesktopPosition] = useState<{ left: number; top: number } | null>(null);
     const [initialButtonRect, setInitialButtonRect] = useState<{ left: number; top: number; bottom: number } | null>(null);
+    const isInitialMount = useRef(true); 
 
     /* ---------- refs ---------- */
     const containerRef         = useRef<HTMLDivElement>(null);
@@ -100,7 +101,17 @@ const HelpSection: React.FC<HelpSectionProps> = ({
 
     /* restore focus */
     useEffect(() => {
-        if (!showHelp) helpButtonRef.current?.focus();
+    // If it's the first render, just update the ref and do nothing.
+    if (isInitialMount.current) {
+        isInitialMount.current = false;
+        return;
+    }
+
+    // On subsequent renders (i.e., when the user closes the help),
+    // this will run as intended.
+    if (!showHelp) {
+        helpButtonRef.current?.focus({ preventScroll: true });
+    }
     }, [showHelp]);
 
 /* ---------- shared pop‑up ---------- */
