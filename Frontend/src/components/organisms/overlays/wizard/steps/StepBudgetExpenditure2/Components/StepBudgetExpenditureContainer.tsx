@@ -100,6 +100,8 @@ const StepBudgetExpenditureContainer = forwardRef<
     initialSubStep,
   } = props;
 
+  // Refs and state management
+  
   const isMobile = useMediaQuery('(max-width: 1367px)');
   const [showShakeAnimation, setShowShakeAnimation] = useState(false);
   const triggerShakeAnimation = (duration = 1000) => {
@@ -151,8 +153,19 @@ const StepBudgetExpenditureContainer = forwardRef<
     const skipValidation = currentSub === 1 || goingBack;
     console.log('Current sub-step:', currentSub);
     setIsSaving(true);
-    await saveStepData(currentSub, dest, skipValidation, goingBack);
+    const wasSuccessful = await saveStepData(currentSub, dest, skipValidation, goingBack);
     setIsSaving(false);
+    if (!wasSuccessful) {
+      const errors = formMethods?.formState.errors;
+      if (errors) {
+        const firstErrorName = Object.keys(errors)[0];
+        if (firstErrorName) {
+          // Use querySelector for reliability with nested field names
+          const errorField = document.querySelector(`[name="${firstErrorName}"]`);
+          errorField?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }
+    }
   };
 
   const next = () => {
@@ -176,7 +189,8 @@ const StepBudgetExpenditureContainer = forwardRef<
   /* 6 ─── notify parent of sub-step -------------------------------- */
   useEffect(() => props.onSubStepChange?.(currentSub), [currentSub]);
 
-  /* 7 ─── imperative API ------------------------------------------- */
+  /* 7 ─── imperative API and  Useeffect for scrolling to top -------- */
+
   useImperativeHandle(ref, () => ({
     validateFields: () => formMethods?.trigger() ?? Promise.resolve(false),
   getStepData   : () => formMethods?.getValues() ?? ensureStep2Defaults({}),
@@ -261,8 +275,10 @@ const StepBudgetExpenditureContainer = forwardRef<
           </div>
 
           {/* Content */}
-          <div className="flex-1">
-            <AnimatedContent animationKey={currentSub}>
+          <div className="flex-1"> 
+            <AnimatedContent
+              animationKey={currentSub}
+            >
               {renderSubStep()}
             </AnimatedContent>
           </div>
