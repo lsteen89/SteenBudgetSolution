@@ -68,12 +68,12 @@ const WizardFormWrapperStep2 = forwardRef<
   }));
 
   /* 6.  Provide context */
-return (                                           //  ←  you missed this
-  <FormProvider {...methods}>
-    {children}
-  </FormProvider>
-);
-}
-);
+  return (
+    <FormProvider {...methods}>
+      {children}
+    </FormProvider>
+  );
+});
 
+WizardFormWrapperStep2.displayName = 'WizardFormWrapperStep2';
 export default WizardFormWrapperStep2;
