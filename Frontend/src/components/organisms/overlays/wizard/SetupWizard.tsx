@@ -192,6 +192,11 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     }
   }, [step, stepRefs[step]]);
 
+  // Scroll to top whenever the major step changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [step]);
+
   // Scroll to the first error in whichever step is active
   useScrollToFirstError(
     (activeStepRef?.getErrors?.() as FieldErrors<any>) || {}

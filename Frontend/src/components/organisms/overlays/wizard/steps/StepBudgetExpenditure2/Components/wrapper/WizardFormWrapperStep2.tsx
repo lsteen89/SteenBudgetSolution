@@ -10,7 +10,6 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import { step2Schema, Step2FormValues } from "@/schemas/wizard/step2Schema";
 import { useWizardDataStore } from "@/stores/Wizard/wizardDataStore";
 import { ensureStep2Defaults } from "@/utils/ensureStep2Defaults";
-import useScrollToFirstError from "@/hooks/useScrollToFirstError";
 
 /* ───────────────── Types exposed to parent ───────────────── */
 export interface WizardFormWrapperStep2Ref {
@@ -45,8 +44,6 @@ const WizardFormWrapperStep2 = forwardRef<
     mode: "onBlur",
     reValidateMode: "onChange",
   });
-   const { formState: { errors } } = methods;
-  useScrollToFirstError(errors);         
   /* 4.  Hydrate once if store updates later */
   const hydrated = useRef(false);
 
