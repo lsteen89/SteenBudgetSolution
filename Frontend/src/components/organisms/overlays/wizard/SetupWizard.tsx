@@ -16,7 +16,7 @@ import WizardStepContainer from "@components/molecules/containers/WizardStepCont
 import StepWelcome from "@components/organisms/overlays/wizard/steps/StepWelcome";
 // Importing step components
 // INITIAL STEPS
-import StepPreferences from "@components/organisms/overlays/wizard/steps/StepPreferences";
+import StepBudgetSavings, { StepBudgetSavingsRef } from "@components/organisms/overlays/wizard/steps/StepBudgetSavings3/StepBudgetSavings";
 import StepConfirmation from "@components/organisms/overlays/wizard/steps/StepConfirmation";
 // Step 1: Income 
 import WizardFormWrapperStep1, { WizardFormWrapperStep1Ref } from '@components/organisms/overlays/wizard/steps/StepBudgetIncome1/wrapper/WizardFormWrapperStep1'; 
@@ -141,13 +141,13 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
   // 5. Refs to child steps
   const step1WrapperRef = useRef<WizardFormWrapperStep1Ref>(null);
   const StepBudgetExpenditureRef = useRef<StepBudgetExpenditureRef>(null);
+  const step3Ref = useRef<StepBudgetSavingsRef>(null);
 
   // Refs for all steps
   const stepRefs: { [key: number]: React.RefObject<any> } = {
     1: step1WrapperRef,
     2: StepBudgetExpenditureRef,
-    //3: stepExpenditureRef,
-    //4: stepConfirmationRef,
+    3: step3Ref,
   };
 
   // State for local state
@@ -305,7 +305,16 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
                     initialSubStep={initialSubStepForStep(2)} // Use derived state
                     onSubStepChange={() => setSubTick(t => t + 1)} // Force re-render on sub-step change
                   />}
-                  {step === 3 && <StepPreferences />}
+                  {step === 3 && (
+                    <StepBudgetSavings
+                      ref={step3Ref}
+                      onNext={() => hookNextStep()}
+                      onPrev={() => hookPrevStep()}
+                      loading={transitionLoading || initLoading}
+                      initialSubStep={initialSubStepForStep(3)}
+                      onSubStepChange={() => setSubTick(t => t + 1)}
+                    />
+                  )}
                   {step === 4 && <StepConfirmation />}
                 </>
               )}
