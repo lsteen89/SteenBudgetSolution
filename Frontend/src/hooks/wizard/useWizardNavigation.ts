@@ -60,12 +60,9 @@ const useWizardNavigation = ({
 
       if (!goingBack && onRealStep) {
         if (isComplexStep) {
-
-          console.log(`DUKE'S ORDERS: Trusting complex step ${step}. Advancing without major validation.`);
           validatedData = ref.current.getStepData();
         } else {
 
-          console.log(`DUKE'S ORDERS: Validating simple step ${step}...`);
           validatedData = await handleStepValidation(
             step,
             stepRefs,

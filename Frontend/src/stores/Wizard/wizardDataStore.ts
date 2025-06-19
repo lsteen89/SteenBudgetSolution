@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { devtools, persist, createJSONStorage } from 'zustand/middleware';
 import type { ExpenditureFormValues } from '@myTypes/Wizard/ExpenditureFormValues';
 import type { IncomeFormValues } from '@myTypes/Wizard/IncomeFormValues';
+import type { SavingsFormValues } from '@myTypes/Wizard/SavingsFormValues';
 import { createWithEqualityFn } from 'zustand/traditional';
 
 
@@ -14,6 +15,7 @@ type DeepPartial<T> = {
 export interface WizardData {
   income: DeepPartial<IncomeFormValues>;
   expenditure: DeepPartial<ExpenditureFormValues>;
+  savings: DeepPartial<SavingsFormValues>;
   // Add other steps here if they are part of this store's 'data' object
 }
 
@@ -22,6 +24,7 @@ export interface WizardDataStore {
   data: WizardData;
   setIncome: (d: DeepPartial<IncomeFormValues>) => void;
   setExpenditure: (d: DeepPartial<ExpenditureFormValues>) => void;
+  setSavings: (d: DeepPartial<SavingsFormValues>) => void;
   reset: () => void;
 }
 
@@ -32,7 +35,7 @@ const generateUniqueId = () => `default_${Date.now()}_${Math.random().toString(3
 const initialWizardDataState: WizardData = {
   income: {
 
-  }, 
+  },
   expenditure: {
     // This is the key change: we're defining the default structure for fixedExpenses.
     fixedExpenses: {
@@ -62,6 +65,10 @@ const initialWizardDataState: WizardData = {
     },
     // Todo: For consistency, we should also define the structure for rent, food, and utilities.
   },
+  savings: {
+    currentSavings: null,
+    goals: [],
+  },
 };
 
 // 4️⃣ Update the store creation to include persist middleware
@@ -82,6 +89,13 @@ export const useWizardDataStore = createWithEqualityFn<WizardDataStore>()(
             data: {
               ...state.data,
               expenditure: expenditureUpdate,
+            },
+          })),
+        setSavings: (savingsUpdate) =>
+          set((state) => ({
+            data: {
+              ...state.data,
+              savings: { ...state.data.savings, ...savingsUpdate },
             },
           })),
         reset: () => set({ data: { ...initialWizardDataState } }), // Reset to the defined initial state

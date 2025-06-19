@@ -70,7 +70,7 @@ const StepBudgetExpenditure = forwardRef<
     hasNextSub: () => containerRef.current?.hasNextSub?.() ?? false,
     isSaving: () => containerRef.current?.isSaving?.() ?? false,
     hasSubSteps: () => true,
-  }));
+  }), []);
   const containerKey = "step-budget-expenditure-container";
   const getCurrentSubStep = () => {
     return containerRef.current?.getCurrentSubStep() ?? 0;
