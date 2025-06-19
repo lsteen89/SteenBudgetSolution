@@ -40,7 +40,7 @@ const StepBudgetSavings = forwardRef<StepBudgetSavingsRef, StepBudgetSavingsProp
     hasNextSub: () => containerRef.current?.hasNextSub?.() ?? false,
     isSaving: () => containerRef.current?.isSaving?.() ?? false,
     hasSubSteps: () => true,
-  }));
+  }), []);
 
   return (
     <div>

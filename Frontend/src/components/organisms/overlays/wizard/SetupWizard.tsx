@@ -40,7 +40,6 @@ import WizardProgress from "@components/organisms/overlays/wizard/SharedComponen
 import AnimatedContent from "@components/atoms/wrappers/AnimatedContent";
 // Footer import
 import WizardNavPair from "@components/organisms/overlays/wizard/SharedComponents/Buttons/WizardNavPair";
-import WizardNavigationFooter from "@components/organisms/overlays/wizard/SharedComponents/Wrappers/WizardNavigationFooter";
 // Modal import
 import ConfirmModal from "@components/atoms/modals/ConfirmModal";
 // Stores
@@ -62,6 +61,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
   const handleStepClick = (targetStep: number) => {
     setStep(targetStep);
   };
+
 
   // 1. Wizard closure
   // State for the confirmation modal
@@ -153,6 +153,9 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
   // State for local state
   const { flags, setShowSideIncome, setShowHouseholdMembers } = useBudgetInfoDisplayFlags();
   const [subTick, setSubTick] = useState(0);
+  const handleSubStepChange = useCallback(() => {
+    setSubTick(t => t + 1);
+  }, []);
 
   // 6. Handle step navigation
   // Call the useWizardNavigation hook
@@ -181,15 +184,6 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     }
   }, [step]);
 
-  const [activeStepRef, setActiveStepRef] = useState<any | null>(null);
-
-  useEffect(() => {
-    const refObject = stepRefs[step];
-    if (refObject && refObject.current !== activeStepRef) {
-      setActiveStepRef(refObject.current);
-    }
-  }, [step, stepRefs[step]]);
-
   // Scroll to top whenever the major or sub step changes
   const containerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -199,33 +193,54 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     /* -----------------------------------------------------------
     7. Ask the active child step (if any) for its sub-nav API
     ------------------------------------------------------------*/
-    const subNav = useMemo(() => {
-      const api = stepRefs[step]?.current;
-    
-      if (api && typeof api.goPrevSub === "function") {
-        return {
-          prevSub: api.goPrevSub,
-          nextSub: api.goNextSub,
-          hasPrevSub: api.hasPrevSub(),
-          hasNextSub: api.hasNextSub(),
-        };
-      }
-      return {
-        prevSub: () => {},
-        nextSub: () => {},
-        hasPrevSub: false,
-        hasNextSub: false,
-      };
-    }, [step, stepRefs[step], subTick]);  
-    const activeStepAPI = stepRefs[step]?.current;
+  // State for the active step API
+  const [activeStepAPI, setActiveStepAPI] = useState<any>(null);
+  // 2. Use EFFECT to watch the ref and update the state when the ref is ready.
+  useEffect(() => {
+    // This code runs AFTER every render.
+    const currentRefAPI = stepRefs[step]?.current;
 
-    const saving = activeStepAPI && "isSaving" in activeStepAPI
+    // If the ref is populated and its value is different from what's in our state...
+    if (currentRefAPI !== activeStepAPI) {
+      // ...update the state! This will trigger a new, corrected render.
+      setActiveStepAPI(currentRefAPI);
+    }
+    
+    // This effect depends on the step and the ref's current value.
+  }, [step, stepRefs[step]?.current, activeStepAPI]);
+  const subNav = useMemo(() => {
+  const api = activeStepAPI; // Read from the reliable state variable.
+
+  // Use the hasSubSteps function for a more explicit check!
+  if (api && typeof api.hasSubSteps === "function" && api.hasSubSteps()) {
+    return {
+      prevSub: api.goPrevSub,
+      nextSub: api.goNextSub,
+      hasPrevSub: typeof api.hasPrevSub === 'function' ? api.hasPrevSub() : false,
+      hasNextSub: typeof api.hasNextSub === 'function' ? api.hasNextSub() : false,
+    };
+  }
+
+  // Default return value
+  return {
+    prevSub: () => {},
+    nextSub: () => {},
+    hasPrevSub: false,
+    hasNextSub: false,
+  };
+}, [activeStepAPI, subTick]); // Now only depends on state.
+
+const isSaving = useMemo(() => {
+    // This logic also reads from the reliable state variable.
+    return activeStepAPI && typeof activeStepAPI.isSaving === 'function'
       ? activeStepAPI.isSaving()
       : false;
+}, [activeStepAPI]);
+
 
   // media query for small screens
   const isMobile = useMediaQuery('(max-width: 1367px)');
-
+  console.log("Current step:", step, "Sub-tick:", subTick, "Is mobile:", isMobile, "Has sub-steps:", subNav.hasNextSub, subNav.hasPrevSub);  
   // ---------------------------- RENDER ----------------------------
   return (
     <div className="fixed inset-0 z-[2000] overflow-y-auto w-full h-full ">
@@ -303,7 +318,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
                     onPrev={() => hookPrevStep()} // Use the hook's prevStep
                     loading={transitionLoading || initLoading}
                     initialSubStep={initialSubStepForStep(2)} // Use derived state
-                    onSubStepChange={() => setSubTick(t => t + 1)} // Force re-render on sub-step change
+                    onSubStepChange={handleSubStepChange}
                   />}
                   {step === 3 && (
                     <StepBudgetSavings
@@ -312,7 +327,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
                       onPrev={() => hookPrevStep()}
                       loading={transitionLoading || initLoading}
                       initialSubStep={initialSubStepForStep(3)}
-                      onSubStepChange={() => setSubTick(t => t + 1)}
+                      onSubStepChange={handleSubStepChange}
                     />
                   )}
                   {step === 4 && <StepConfirmation />}
@@ -331,18 +346,16 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
                 nextStep={subNav.hasNextSub ? subNav.nextSub : hookNextStep}
                 hasPrev={subNav.hasPrevSub || step > 0}
                 hasNext={subNav.hasNextSub || step < totalSteps}
-                
-                // --- SUPPLY THE NEW INTEL ---
+
                 hasPrevSub={subNav.hasPrevSub}
                 hasNextSub={subNav.hasNextSub}
 
-                // ... all other props ...
                 connectionError={connectionError}
                 initLoading={initLoading}
                 transitionLoading={transitionLoading}
                 isDebugMode={isDebugMode}
                 showShakeAnimation={showShakeAnimation}
-                isSaving={saving}
+                isSaving={isSaving}
               />
             </div>
           </div>

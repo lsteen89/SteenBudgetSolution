@@ -1,4 +1,4 @@
-import React, { useState, forwardRef, useImperativeHandle, useRef } from 'react';
+import React, { useState, forwardRef, useImperativeHandle, useRef, useCallback, useEffect } from 'react'; 
 import AnimatedContent from '@components/atoms/wrappers/AnimatedContent';
 import WizardProgress from '@components/organisms/overlays/wizard/SharedComponents/Menu/WizardProgress';
 import StepCarousel from '@components/molecules/progress/StepCarousel';
@@ -34,7 +34,7 @@ interface StepBudgetSavingsContainerProps {
 }
 
 const StepBudgetSavingsContainer = forwardRef<StepBudgetSavingsContainerRef, StepBudgetSavingsContainerProps>((props, ref) => {
-  const { onNext, onPrev, loading: parentLoading, initialSubStep } = props;
+  const { onNext, onPrev, loading: parentLoading, initialSubStep, onSubStepChange } = props;
   const isMobile = useMediaQuery('(max-width: 1367px)');
 
   const [currentSub, setCurrentSub] = useState(initialSubStep || 1);
@@ -43,21 +43,26 @@ const StepBudgetSavingsContainer = forwardRef<StepBudgetSavingsContainerRef, Ste
 
   const totalSteps = 4;
 
-  const next = () => {
+  const next = useCallback(() => {
     if (currentSub < totalSteps) {
       setCurrentSub(currentSub + 1);
     } else {
       onNext();
     }
-  };
+  }, [currentSub, onNext, totalSteps]);
 
-  const prev = () => {
+
+  const prev = useCallback(() => {
     if (currentSub > 1) {
       setCurrentSub(currentSub - 1);
     } else {
       onPrev();
     }
-  };
+  }, [currentSub, onPrev]);
+
+  useEffect(() => {
+    onSubStepChange?.(currentSub);
+  }, [currentSub, onSubStepChange]);
 
   useImperativeHandle(ref, () => ({
     validateFields: () => Promise.resolve(true),
@@ -71,7 +76,7 @@ const StepBudgetSavingsContainer = forwardRef<StepBudgetSavingsContainerRef, Ste
     hasNextSub: () => currentSub < totalSteps,
     isSaving: () => false,
     hasSubSteps: () => true,
-  }));
+  }), [currentSub, prev, next, totalSteps]); 
 
   const steps = [
     { icon: Info, label: 'Info' },
