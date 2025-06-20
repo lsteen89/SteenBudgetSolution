@@ -4,7 +4,7 @@ import WizardProgress from '@components/organisms/overlays/wizard/SharedComponen
 import StepCarousel from '@components/molecules/progress/StepCarousel';
 import useMediaQuery from '@hooks/useMediaQuery';
 import { Info, PiggyBank, Target, ShieldCheck } from 'lucide-react';
-import SubStepInfo from './Pages/SubSteps/1_SubStepInfo/SubStepInfo';
+import SubStepIntro from './Pages/SubSteps/1_SubStepIntro/SubStepIntro';
 import SubStepHabits from './Pages/SubSteps/2_SubStepHabits/SubStepHabits';
 import SubStepGoals from './Pages/SubSteps/3_SubStepGoals/SubStepGoals';
 import SubStepConfirm from './Pages/SubSteps/4_SubStepConfirm/SubStepConfirm';
@@ -38,12 +38,21 @@ const StepBudgetSavingsContainer = forwardRef<StepBudgetSavingsContainerRef, Ste
   const isMobile = useMediaQuery('(max-width: 1367px)');
 
   const [currentSub, setCurrentSub] = useState(initialSubStep || 1);
+  const [skippedHabits, setSkippedHabits] = useState(false);
 
   const formWrapperRef = useRef<WizardFormWrapperStep3Ref>(null);
 
   const totalSteps = 4;
 
   const next = useCallback(() => {
+    if (currentSub === 1) {
+      const answer = formWrapperRef.current?.getMethods().getValues('savingHabit');
+      const skip = answer === 'start' || answer === 'no';
+      setSkippedHabits(skip);
+      setCurrentSub(skip ? 3 : 2);
+      return;
+    }
+
     if (currentSub < totalSteps) {
       setCurrentSub(currentSub + 1);
     } else {
@@ -53,33 +62,40 @@ const StepBudgetSavingsContainer = forwardRef<StepBudgetSavingsContainerRef, Ste
 
 
   const prev = useCallback(() => {
+    if (currentSub === 3 && skippedHabits) {
+      setCurrentSub(1);
+      return;
+    }
     if (currentSub > 1) {
       setCurrentSub(currentSub - 1);
     } else {
       onPrev();
     }
-  }, [currentSub, onPrev]);
+  }, [currentSub, onPrev, skippedHabits]);
 
   useEffect(() => {
     onSubStepChange?.(currentSub);
   }, [currentSub, onSubStepChange]);
 
-  useImperativeHandle(ref, () => ({
-    validateFields: () => Promise.resolve(true),
-    getStepData: () => ({}),
-    markAllTouched: () => {},
-    getErrors: () => ({}),
-    getCurrentSubStep: () => currentSub,
-    goPrevSub: prev,
-    goNextSub: next,
-    hasPrevSub: () => currentSub > 1,
-    hasNextSub: () => currentSub < totalSteps,
-    isSaving: () => false,
-    hasSubSteps: () => true,
-  }), [currentSub, prev, next, totalSteps]); 
+  useImperativeHandle(ref, () => {
+    const methods = formWrapperRef.current?.getMethods();
+    return {
+      validateFields: () => methods?.trigger() ?? Promise.resolve(false),
+      getStepData: () => methods?.getValues() ?? {},
+      markAllTouched: () => methods?.trigger(),
+      getErrors: () => methods?.formState.errors ?? {},
+      getCurrentSubStep: () => currentSub,
+      goPrevSub: prev,
+      goNextSub: next,
+      hasPrevSub: () => (currentSub === 3 && skippedHabits) || currentSub > 1,
+      hasNextSub: () => currentSub < totalSteps,
+      isSaving: () => false,
+      hasSubSteps: () => true,
+    };
+  }, [currentSub, prev, next, totalSteps, skippedHabits]);
 
   const steps = [
-    { icon: Info, label: 'Info' },
+    { icon: Info, label: 'Intro' },
     { icon: PiggyBank, label: 'Vanor' },
     { icon: Target, label: 'Mål' },
     { icon: ShieldCheck, label: 'Bekräfta' },
@@ -87,7 +103,7 @@ const StepBudgetSavingsContainer = forwardRef<StepBudgetSavingsContainerRef, Ste
 
   const renderSubStep = () => {
     switch (currentSub) {
-      case 1: return <SubStepInfo />;
+      case 1: return <SubStepIntro />;
       case 2: return <SubStepHabits />;
       case 3: return <SubStepGoals />;
       case 4: return <SubStepConfirm />;

@@ -66,6 +66,7 @@ const initialWizardDataState: WizardData = {
     // Todo: For consistency, we should also define the structure for rent, food, and utilities.
   },
   savings: {
+    savingHabit: '',
     currentSavings: null,
     goals: [],
   },
