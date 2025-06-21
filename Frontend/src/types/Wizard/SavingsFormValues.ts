@@ -8,6 +8,7 @@ export interface SavingsGoal {
 
 export interface SavingsFormValues extends FieldValues {
   savingHabit: string;
-  currentSavings: number | null;
+  monthlySavings: number | null;
+  savingMethod: string | null;
   goals: SavingsGoal[];
 }
