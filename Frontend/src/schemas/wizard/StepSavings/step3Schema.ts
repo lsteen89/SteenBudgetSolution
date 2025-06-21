@@ -1,5 +1,6 @@
 import * as yup from 'yup';
 import { savingHabitsSchema } from './SubSchemas/savingHabitsSchema';
+import { goalsSchema } from './SubSchemas/goalsSchema';
 
 export const step3Schema = yup.object({
   // Field from the Intro sub-step
@@ -11,13 +12,7 @@ export const step3Schema = yup.object({
   ...savingHabitsSchema.fields,
 
   // Fields from the Goals sub-step
-  goals: yup.array(
-    yup.object({
-      id: yup.string().optional(),
-      name: yup.string().required(),
-      amount: yup.number().nullable(),
-    })
-  ).nullable(),
+  goals: goalsSchema,
 });
 
 export type Step3FormValues = yup.InferType<typeof step3Schema>;

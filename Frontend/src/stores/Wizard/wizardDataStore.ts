@@ -68,7 +68,7 @@ const initialWizardDataState: WizardData = {
   savings: {
     savingHabit: '',
     monthlySavings: null,
-    savingMethods: [], 
+    savingMethods: [],
     goals: [],
   },
 };

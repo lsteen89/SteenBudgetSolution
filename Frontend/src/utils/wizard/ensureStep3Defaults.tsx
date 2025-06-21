@@ -22,9 +22,11 @@ export function ensureStep3Defaults(
     // Then, map over the source array to ensure each object within it also has defaults.
     goals:
       src?.goals?.map(g => ({
-        id: g?.id ?? crypto.randomUUID(), // Provide a new ID for client-side keys if one doesn't exist.
+        id: g?.id ?? crypto.randomUUID(),
         name: g?.name ?? "",
-        amount: g?.amount ?? null,
+        targetAmount: g?.targetAmount ?? null,
+        targetDate: g?.targetDate ?? "",
+        amountSaved: g?.amountSaved ?? null,
       })) ?? [],
   };
 }
