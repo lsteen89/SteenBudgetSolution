@@ -2,6 +2,7 @@ import React, { forwardRef, useImperativeHandle, useRef } from 'react';
 import GlassPane from '@components/layout/GlassPane';
 import DataTransparencySection from '@components/organisms/overlays/wizard/SharedComponents/Pages/DataTransparencySection';
 import StepBudgetSavingsContainer, { StepBudgetSavingsContainerRef } from './Components/StepBudgetSavingsContainer';
+import { Step3FormValues } from '@/schemas/wizard/StepSavings/step3Schema';
 
 export interface StepBudgetSavingsRef {
   validateFields(): Promise<boolean>;
@@ -18,6 +19,15 @@ export interface StepBudgetSavingsRef {
 }
 
 interface StepBudgetSavingsProps {
+  wizardSessionId: string;
+  onSaveStepData: (
+    step: number,
+    subStep: number,
+    data: any,
+    goingBackwards: boolean
+  ) => Promise<boolean>;
+  stepNumber: number;
+  initialData?: Partial<Step3FormValues>;
   onNext: () => void;
   onPrev: () => void;
   loading: boolean;
@@ -45,8 +55,12 @@ const StepBudgetSavings = forwardRef<StepBudgetSavingsRef, StepBudgetSavingsProp
   return (
     <div>
       <GlassPane>
-        <StepBudgetSavingsContainer
+       <StepBudgetSavingsContainer
           ref={containerRef}
+          wizardSessionId={props.wizardSessionId}
+          onSaveStepData={props.onSaveStepData}
+          stepNumber={props.stepNumber}
+          initialData={props.initialData}
           onNext={props.onNext}
           onPrev={props.onPrev}
           loading={props.loading}

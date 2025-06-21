@@ -6,7 +6,7 @@ import DataTransparencySection from "@components/organisms/overlays/wizard/Share
 import StepBudgetExpenditureContainer, {
   StepBudgetExpenditureContainerRef,
 } from "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/StepBudgetExpenditureContainer";
-import type { Step2FormValues }       from '@/schemas/wizard/step2Schema';
+import type { Step2FormValues }       from '@/schemas/wizard/StepExpenditures/step2Schema';
 
 export interface StepBudgetExpenditureRef {
   validateFields(): Promise<boolean>;
