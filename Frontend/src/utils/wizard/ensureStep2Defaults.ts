@@ -1,4 +1,4 @@
-import { Step2FormValues } from "@/schemas/wizard/step2Schema";
+import { Step2FormValues } from "@/schemas/wizard/StepExpenditures/step2Schema";
 
 export function ensureStep2Defaults(
   src: Partial<Step2FormValues> | undefined

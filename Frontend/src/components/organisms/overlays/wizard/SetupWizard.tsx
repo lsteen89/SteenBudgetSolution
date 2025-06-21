@@ -104,7 +104,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     initialSubStep,
   } = useWizardInit();
   // 3B. Handler for saving step data
-  const { handleSaveStepData } = useSaveWizardStep(wizardSessionId || '', setWizardData);
+  const { handleSaveStepData } = useSaveWizardStep(wizardSessionId || '');
   // 3C. loading state
   const [transitionLoading, setTransitionLoading] = useState(false);
 
@@ -322,12 +322,16 @@ const isSaving = useMemo(() => {
                   />}
                   {step === 3 && (
                     <StepBudgetSavings
-                      ref={step3Ref}
-                      onNext={() => hookNextStep()}
-                      onPrev={() => hookPrevStep()}
-                      loading={transitionLoading || initLoading}
-                      initialSubStep={initialSubStepForStep(3)}
-                      onSubStepChange={handleSubStepChange}
+                        ref={step3Ref}
+                        onNext={() => hookNextStep()}
+                        onPrev={() => hookPrevStep()}
+                        loading={transitionLoading || initLoading}
+                        initialSubStep={initialSubStepForStep(3)}
+                        onSubStepChange={handleSubStepChange}
+                        wizardSessionId={wizardSessionId || ''}
+                        onSaveStepData={handleSaveStepData}
+                        stepNumber={3}
+                        initialData={initialDataForStep(3)}
                     />
                   )}
                   {step === 4 && <StepConfirmation />}

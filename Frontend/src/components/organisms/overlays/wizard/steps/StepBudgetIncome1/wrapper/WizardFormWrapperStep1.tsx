@@ -21,7 +21,7 @@ import { shallow } from 'zustand/shallow';
 
 import { useWizardDataStore, WizardDataStore } from '@/stores/Wizard/wizardDataStore';
 import { IncomeFormValues } from '@myTypes/Wizard/IncomeFormValues';
-import { incomeStepSchema } from '@schemas/wizard/incomeStepSchema';
+import { incomeStepSchema } from '@schemas/wizard/StepIncome/incomeStepSchema';
 import useScrollToFirstError from '@/hooks/useScrollToFirstError';
 
 export interface WizardFormWrapperStep1Ref {

@@ -1,11 +1,11 @@
 import * as yup from "yup";
-import { rentSchema }        from "./rentSchema";
-import { foodSchema }        from "./foodSchema";
-import { utilitiesSchema }   from "./utilitiesSchema";
-import { fixedExpensesSchema } from "./fixedExpensesSchema";
-import { transportSchema }   from "./transportSchema";
-import { clothingSchema }    from "./clothingSchema";
-import { subscriptionsSchema } from "./subscriptionsSchema";
+import { rentSchema }        from "./SubSchemas/rentSchema";
+import { foodSchema }        from "./SubSchemas/foodSchema";
+import { utilitiesSchema }   from "./SubSchemas/utilitiesSchema";
+import { fixedExpensesSchema } from "./SubSchemas/fixedExpensesSchema";
+import { transportSchema }   from "./SubSchemas/transportSchema";
+import { clothingSchema }    from "./SubSchemas/clothingSchema";
+import { subscriptionsSchema } from "./SubSchemas/subscriptionsSchema";
 
 // Step 2 schema for the wizard, which includes rent, food, utilities, and fixed expenses
 export const step2Schema = yup.object({
