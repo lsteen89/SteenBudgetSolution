@@ -12,7 +12,7 @@ import {
   UseFormReturn,
 } from 'react-hook-form';
 
-import { Step2FormValues }       from '@/schemas/wizard/step2Schema';
+import { Step2FormValues }       from '@/schemas/wizard/StepExpenditures/step2Schema';
 import WizardFormWrapperStep2, {
   WizardFormWrapperStep2Ref,
 } from './wrapper/WizardFormWrapperStep2';
@@ -40,7 +40,7 @@ import WizardNavPair   from '@components/organisms/overlays/wizard/SharedCompone
 
 import useMediaQuery  from '@hooks/useMediaQuery';
 import { useSaveStepData } from '@hooks/wizard/useSaveStepData';
-import { ensureStep2Defaults } from "@/utils/ensureStep2Defaults";
+import { ensureStep2Defaults } from "@/utils/wizard/ensureStep2Defaults";
 
 
 import {
@@ -82,6 +82,22 @@ interface StepBudgetExpenditureContainerProps {
   loading: boolean;
   initialSubStep: number;
   onSubStepChange?: (newSub: number) => void;
+}
+
+function getExpenditurePartialData(
+  subStep: number,
+  allData: Step2FormValues
+): Partial<Step2FormValues> {
+  switch (subStep) {
+    case 2: return { rent: allData.rent };
+    case 3: return { food: allData.food };
+    case 4: return { fixedExpenses: allData.fixedExpenses };
+    case 5: return { transport: allData.transport };
+    case 6: return { clothing: allData.clothing };
+    case 7: return { subscriptions: allData.subscriptions };
+    // case 8 is the confirm step, no data to slice
+    default: return {};
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -136,13 +152,15 @@ const StepBudgetExpenditureContainer = forwardRef<
   );
 
   /* 3 ─── save-hook (methods may be null on first render) ----------- */
-  const { saveStepData } = useSaveStepData<Step2FormValues>({
+  const { saveStepData } = useSaveStepData<Step2FormValues>({ 
     stepNumber,
     methods: formMethods ?? undefined,   
     isMobile,
     onSaveStepData,
     setCurrentStep: setCurrentSub,
     onError: () => triggerShakeAnimation(1000),
+    // --- (B) Pass the slicing function as a prop to the hook ---
+    getPartialDataForSubstep: getExpenditurePartialData,
   });
 
 /* 4 ─── navigation helpers --------------------------------------- */

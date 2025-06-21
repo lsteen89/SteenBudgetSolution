@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import { devtools, persist, createJSONStorage } from 'zustand/middleware';
 import type { ExpenditureFormValues } from '@myTypes/Wizard/ExpenditureFormValues';
 import type { IncomeFormValues } from '@myTypes/Wizard/IncomeFormValues';
-import type { SavingsFormValues } from '@myTypes/Wizard/SavingsFormValues';
+import type { Step3FormValues as SavingsFormValues } from '@/schemas/wizard/StepSavings/step3Schema';
 import { createWithEqualityFn } from 'zustand/traditional';
 
 
@@ -68,7 +68,7 @@ const initialWizardDataState: WizardData = {
   savings: {
     savingHabit: '',
     monthlySavings: null,
-    savingMethod: '',
+    savingMethods: [], 
     goals: [],
   },
 };

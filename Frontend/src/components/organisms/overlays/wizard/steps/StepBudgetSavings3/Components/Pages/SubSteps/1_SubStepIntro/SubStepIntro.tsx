@@ -2,7 +2,7 @@ import React from 'react';
 import { useFormContext } from 'react-hook-form';
 import { motion } from 'framer-motion';
 import OptionContainer from '@components/molecules/containers/OptionContainer';
-import { Step3FormValues } from '@/schemas/wizard/step3Schema';
+import { Step3FormValues } from '@/schemas/wizard/StepSavings/step3Schema';
 import BirdIllustration from '@assets/Images/bird_freedom.png';
 
 /**

@@ -1,13 +1,11 @@
 import { useCallback } from 'react';
-import { UseFormReturn, Path, FieldValues } from 'react-hook-form';
-import * as yup from 'yup'; // Import yup
+import { UseFormReturn, Path, FieldValues } from 'react-hook-form'; 
+import * as yup from 'yup';
 import { useToast } from '@context/ToastContext';
-import { ExpenditureFormValues } from '@myTypes/Wizard/ExpenditureFormValues';
 import { useWizardSaveQueue } from '@/stores/Wizard/wizardSaveQueue';
 
-
-// Interface is slightly cleaned up
-interface UseSaveStepDataProps<T extends ExpenditureFormValues> {
+// --- (1) The generic constraint  FieldValues ---
+interface UseSaveStepDataProps<T extends FieldValues> {
   stepNumber: number;
   methods?: UseFormReturn<T>;
   isMobile: boolean;
@@ -18,38 +16,20 @@ interface UseSaveStepDataProps<T extends ExpenditureFormValues> {
     goingBackwards: boolean
   ) => Promise<boolean>;
   setCurrentStep: React.Dispatch<React.SetStateAction<number>>;
-  onError?: () => void; // Callback for shake
+  onError?: () => void;
+
+  getPartialDataForSubstep: (subStep: number, allData: T) => Partial<T>;
 }
 
-function getPartialData<T extends ExpenditureFormValues>(
-  subStep: number,
-  allData: T
-): Partial<T> {
-  switch (subStep) {
-    case 2:
-      return { rent: allData.rent } as Partial<T>;
-    case 3:
-      return { food: allData.food } as Partial<T>;
-    case 4:
-      return { fixedExpenses: allData.fixedExpenses } as Partial<T>;
-    case 5:
-      return { transport: allData.transport } as Partial<T>;
-    case 6:
-      return { clothing: allData.clothing } as Partial<T>;
-    case 7:
-      return { subscriptions: (allData as any).subscriptions } as Partial<T>;
-    default:
-      return {};
-  }
-}
 
-export function useSaveStepData<T extends ExpenditureFormValues>({
+export function useSaveStepData<T extends FieldValues>({ 
   stepNumber,
   methods,
   isMobile,
   onSaveStepData,
   setCurrentStep,
   onError,
+  getPartialDataForSubstep, 
 }: UseSaveStepDataProps<T>) {
   const { showToast } = useToast();
   const saveQueue = useWizardSaveQueue();
@@ -67,20 +47,22 @@ export function useSaveStepData<T extends ExpenditureFormValues>({
         return true;
       }
 
-      /* 1 ─── NEW BULLETPROOF VALIDATION LOGIC */
       if (!skipValidation && !goingBackwards && isDebugMode) {
-          const sliceKeys = Object.keys(
-          getPartialData(stepLeaving, methods.getValues())
-      );                                           // ["rent"] | ["food"] | ["fixedExpenses"]
 
-      const ok = await methods.trigger(sliceKeys as Path<T>[]); 
-        if (!ok) {
-          console.warn('Validation failed, showing errors');
-          const allErrors = methods.formState.errors as Record<Path<T>, yup.ValidationError>;
-          console.error('Validation errors:', allErrors);
-          showToast("Vänligen korrigera felen.", "error");
-          onError?.();                          
-          return false;
+        const sliceKeys = Object.keys(
+          getPartialDataForSubstep(stepLeaving, methods.getValues())
+        );
+
+        if (sliceKeys.length > 0) {
+            const ok = await methods.trigger(sliceKeys as Path<T>[]);
+            if (!ok) {
+                console.warn('Validation failed, showing errors');
+                const allErrors = methods.formState.errors as Record<Path<T>, yup.ValidationError>;
+                console.error('Validation errors:', allErrors);
+                showToast("Vänligen korrigera felen.", "error");
+                onError?.();
+                return false;
+            }
         }
       }
       
@@ -91,7 +73,8 @@ export function useSaveStepData<T extends ExpenditureFormValues>({
       }
 
       const all = methods.getValues();
-      const part = getPartialData<T>(stepLeaving, all);
+
+      const part = getPartialDataForSubstep(stepLeaving, all);
 
       if (Object.keys(part).length === 0) {
         setCurrentStep(stepGoing);
@@ -105,13 +88,14 @@ export function useSaveStepData<T extends ExpenditureFormValues>({
         console.error('Error saving step data:', err);
         onError?.();
         saveQueue.enqueue({ stepNumber, subStepNumber: stepLeaving, data: part, goingBackwards });
+        // setCurrentStep(stepGoing); // Decide if you want to advance on offline save
         return false;
       }
 
       setCurrentStep(stepGoing);
       return true;
     },
-    [methods, stepNumber, onSaveStepData, setCurrentStep, showToast, onError, saveQueue]
+    [methods, stepNumber, onSaveStepData, setCurrentStep, showToast, onError, saveQueue, getPartialDataForSubstep] // <-- (2) Add to dependency array
   );
 
   return { saveStepData };

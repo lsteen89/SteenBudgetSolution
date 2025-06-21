@@ -7,9 +7,9 @@ import {
 } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 
-import { step2Schema, Step2FormValues } from "@/schemas/wizard/step2Schema";
+import { step2Schema, Step2FormValues } from "@/schemas/wizard/StepExpenditures/step2Schema";
 import { useWizardDataStore } from "@/stores/Wizard/wizardDataStore";
-import { ensureStep2Defaults } from "@/utils/ensureStep2Defaults";
+import { ensureStep2Defaults } from "@/utils/wizard/ensureStep2Defaults";
 import useScrollToFirstError from "@/hooks/useScrollToFirstError";
 
 /* ───────────────── Types exposed to parent ───────────────── */
