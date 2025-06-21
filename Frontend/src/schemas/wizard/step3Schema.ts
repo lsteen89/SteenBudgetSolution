@@ -2,7 +2,8 @@ import * as yup from 'yup';
 
 export const step3Schema = yup.object({
   savingHabit: yup.string().required(),
-  currentSavings: yup.number().nullable(),
+  monthlySavings: yup.number().nullable(),
+  savingMethod: yup.string().nullable(),
   goals: yup.array(
     yup.object({
       id: yup.string().optional(),

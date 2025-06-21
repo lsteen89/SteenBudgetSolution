@@ -40,7 +40,6 @@ const WizardNavigationFooter: React.FC<WizardNavigationFooterProps> = ({
       (connectionError && step === 0)
     ));
 
-  // --- THE SMART LOGIC ---
   // Determine the correct "Back" action and availability
   const goBack = hasPrevSub ? prevSub : prevMajor;
   const canGoBack = hasPrevSub || hasPrevMajor;
