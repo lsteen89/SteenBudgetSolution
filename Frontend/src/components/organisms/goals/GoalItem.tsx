@@ -8,7 +8,7 @@ import { calcMonthly, calcProgress } from '@/utils/budget/goalCalculations';
 import useAnimatedCounter from '@/hooks/useAnimatedCounter';
 
 import TextInput from '@/components/atoms/InputField/TextInput';
-import FormattedNumberInput from "@components/atoms/InputField/FormattedNumberInput";
+import FormattedNumberInput from "@/components/atoms/InputField/FormattedNumberInput";
 import { idFromPath } from '@/utils/idFromPath';
 import GoalContainer from "@/components/molecules/containers/GoalContainer";
 
