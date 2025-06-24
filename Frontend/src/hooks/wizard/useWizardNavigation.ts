@@ -47,6 +47,10 @@ const useWizardNavigation = ({
 
   const navigateStep = useCallback(
     async (direction: 'next' | 'prev') => {
+      console.log(
+        `%cTHE GREAT ROAD: A request to navigate '${direction}' from step ${step} has begun.`,
+        'color: #FFD700; background: #333; font-weight: bold; padding: 2px 5px; border-radius: 3px;'
+      );
       setTransitionLoading(true);
 
       const ref = stepRefs[step];

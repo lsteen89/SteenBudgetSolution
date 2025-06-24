@@ -194,9 +194,16 @@ const StepBudgetSavingsContainer = forwardRef<
   const clickProgress = (d: number) => goToSub(d);
 
   /* 6 ─── notify parent of sub-step -------------------------------- */
-  useEffect(() => {
-    onSubStepChange?.(currentSub);
-  }, [currentSub, onSubStepChange]);
+useEffect(() => {
+  // --- The Child's Proclamation ---
+  console.log(
+    `%cTHE CHILD PROCLAIMS: Sub-step is now ${currentSub}. Notifying parent...`,
+    'color: cyan;',
+    `(Is onSubStepChange a function? ${typeof onSubStepChange === 'function'})`
+  );
+
+  onSubStepChange?.(currentSub);
+}, [currentSub, onSubStepChange]);
 
   /* 7 ─── imperative API ------------------------------------------- */
   useImperativeHandle(ref, () => ({

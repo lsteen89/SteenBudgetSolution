@@ -240,7 +240,7 @@ const {
         <Lottie animationData={coinsAnimation} className="w-24 h-24" loop />
       </div>
 
-      <OptionContainer>
+      <OptionContainer className="p-4">
         <SalaryField
           netSalaryFieldName="netSalary"
           salaryFrequencyFieldName="salaryFrequency"
@@ -259,7 +259,7 @@ const {
       </OptionContainer>
 
       {/* Optional Household Members Section */}
-      <OptionContainer>
+      <OptionContainer className="p-4">
         <div className="flex items-center justify-center mt-4 gap-x-2 mb-3">
           <h4 className="text-lg font-semibold">Hushålls&shy;medlemmar&nbsp;(valfritt)</h4>
           <HelpSectionDark
@@ -349,7 +349,7 @@ const {
       </OptionContainer>
 
       {/* Side Hustle Section */}
-      <OptionContainer>
+      <OptionContainer className="p-4">
         <div className="flex items-center justify-center mt-4 gap-x-2 mb-3"> {/* Changed gap-2 to gap-x-2 */}
           <h4 className="text-lg font-semibold">Övriga inkomster (valfritt)</h4>
           <HelpSectionDark

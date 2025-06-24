@@ -186,7 +186,7 @@ const SubStepConfirm: React.FC = () => {
   const doughnutSlices = allCategories.map(({ name, value }) => ({ name, value }));
 
   return (
-    <OptionContainer>
+    <OptionContainer className="p-4">
       {/* 1. Header & Welcome */}
       <section className="space-y-6 text-white">
         <motion.h3
