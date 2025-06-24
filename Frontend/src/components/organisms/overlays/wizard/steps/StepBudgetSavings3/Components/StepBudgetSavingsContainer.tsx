@@ -7,7 +7,7 @@ import React, {
   useCallback,
 } from 'react';
 import { UseFormReturn, FieldErrors } from 'react-hook-form';
-
+import AnimatedContent from '@components/atoms/wrappers/AnimatedContent';
 
 import { Step3FormValues } from '@/schemas/wizard/StepSavings/step3Schema';
 import { ensureStep3Defaults } from '@/utils/wizard/ensureStep3Defaults';
@@ -15,7 +15,6 @@ import { useSaveStepData } from '@hooks/wizard/useSaveStepData';
 import { useWizardDataStore } from '@/stores/Wizard/wizardDataStore';
 import useMediaQuery from '@hooks/useMediaQuery';
 
-import AnimatedContent from '@components/atoms/wrappers/AnimatedContent';
 import WizardProgress from '@components/organisms/overlays/wizard/SharedComponents/Menu/WizardProgress';
 import StepCarousel from '@components/molecules/progress/StepCarousel';
 import LoadingScreen from '@components/molecules/feedback/LoadingScreen';
@@ -271,8 +270,8 @@ useEffect(() => {
             </div>
           </div>
           <div className="flex-1">
-            <AnimatedContent animationKey={currentSub}>
-              {renderSubStep()}
+            <AnimatedContent animationKey={String(currentSub)}>
+                {renderSubStep()}
             </AnimatedContent>
           </div>
         </form>

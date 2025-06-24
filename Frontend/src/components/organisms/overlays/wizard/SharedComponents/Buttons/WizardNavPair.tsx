@@ -66,7 +66,16 @@ const WizardNavPair: React.FC<WizardNavPairProps> = ({
     ? 'Nästa huvudsteg'
     : 'Nästa delsteg';
 
-  // ... the rest of the component is mostly the same ...
+  const handlePrevClick = () => {
+    (document.activeElement as HTMLElement)?.blur();
+    prevStep();
+  };
+
+  const handleNextClick = () => {
+    (document.activeElement as HTMLElement)?.blur();
+    nextStep();
+  };
+
   const btnClass = (disabled: boolean) => clsx(disabled && 'opacity-50 cursor-not-allowed');
   const sizeClass = 'w-12 h-12 md:w-14 md:h-14';
   const hoverClass = !showShakeAnimation && 'hover:bg-customBlue2 hover:scale-105 transition-transform duration-150';
@@ -74,7 +83,7 @@ const WizardNavPair: React.FC<WizardNavPairProps> = ({
   return (
     <>
       <GhostIconButton
-        onClick={prevStep}
+        onClick={handlePrevClick}
         disabled={disablePrev}
         aria-label={labelPrev}
         shake={false}
@@ -84,7 +93,7 @@ const WizardNavPair: React.FC<WizardNavPairProps> = ({
       </GhostIconButton>
 
       <GhostIconButton
-        onClick={nextStep}
+        onClick={handleNextClick}
         disabled={disableNext}
         aria-label={labelNext}
         shake={showShakeAnimation}
