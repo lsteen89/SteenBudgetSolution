@@ -85,7 +85,7 @@ const HomeTypeOption: React.FC = () => {
 
   if (effectiveHomeType === "rent") {
     renderedHomeTypeSection = (
-      <OptionContainer>
+      <OptionContainer className="p-4"> 
 
         <p className="text-center text-customBlue1 text-lg mb-4">
           Enkelt och smidigt! Fyll i din månadshyra. Under övrigt så anger du fasta utgifter, såsom el, vatten och annat kopplat till boendekostnader per månad.
@@ -142,7 +142,7 @@ const HomeTypeOption: React.FC = () => {
     );
   } else if (effectiveHomeType === "brf") {
     renderedHomeTypeSection = (
-      <OptionContainer>
+      <OptionContainer className="p-4">
         <p className="text-center text-customBlue1 text-lg">
           Härligt med något eget! Här anger du din månadsavgift till föreningen. Under övrigt så anger du fasta utgifter, såsom el, vatten och annat kopplat till boendekostnader per månad.
         </p>
@@ -193,7 +193,7 @@ const HomeTypeOption: React.FC = () => {
     );
   } else if (effectiveHomeType === "house") {
     renderedHomeTypeSection = (
-      <OptionContainer>
+      <OptionContainer className="p-4">
         <p className="text-center text-customBlue1 text-lg">
           Frihet och ansvar! Här anger du din bolånebetalning. Under övrigt så anger du fasta utgifter, såsom el, vatten och annat kopplat till boendekostnader per månad.
         </p>
@@ -245,7 +245,7 @@ const HomeTypeOption: React.FC = () => {
     );
   } else if (effectiveHomeType === "free") {
     renderedHomeTypeSection = (
-      <OptionContainer>
+      <OptionContainer className="p-4">
         <p className="text-center text-customBlue1 text-lg">
           Om du ändå har några kostnader kopplade till boendet (t.ex. el, vatten), fyll gärna i dem här.
         </p>

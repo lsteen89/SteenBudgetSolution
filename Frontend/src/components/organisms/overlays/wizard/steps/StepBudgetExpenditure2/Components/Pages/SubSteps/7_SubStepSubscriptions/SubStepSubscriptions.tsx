@@ -91,7 +91,7 @@ const SubStepSubscriptions: React.FC = () => {
   };
 
   return (
-    <OptionContainer>
+    <OptionContainer className="p-4">
       <section className="w-auto mx-auto sm:px-6 lg:px-12 py-8 pb-safe">
         <div className="flex justify-center md:mt-4">
           <GlossyFlipCard

@@ -33,7 +33,7 @@ const SubStepClothing: React.FC = () => {
   const reg = register(fieldPath);
 
   return (
-    <OptionContainer>
+    <OptionContainer className="p-4">
       <motion.section
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

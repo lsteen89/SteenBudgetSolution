@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import OptionContainer from '@components/molecules/containers/OptionContainer';
 import { Step3FormValues } from '@/schemas/wizard/StepSavings/step3Schema';
 import BirdIllustration from '@assets/Images/bird_freedom.png';
-
+import InfoBox from "@/components/molecules/messaging/InfoBox";
 /**
  * SubStepIntro – Savings introduction step
  * Adds a floating bird illustration in the top‑right corner to create a sense of
@@ -15,7 +15,7 @@ const SubStepIntro: React.FC = () => {
   const selected = watch('savingHabit');
 
   return (
-    <OptionContainer>
+    <OptionContainer className="p-4">
       {/* Relative wrapper allows absolute positioning of the bird */}
       <section className="relative max-w-xl mx-auto sm:px-6 lg:px-12 py-8 pb-safe space-y-8">
         {/* Floating bird – sits in the corner, gently bobbing */}
@@ -33,10 +33,10 @@ const SubStepIntro: React.FC = () => {
           <h3 className="text-2xl font-bold text-darkLimeGreen">
             Din resa mot ekonomisk frihet börjar här
           </h3>
-          <p className="text-white">
+          <InfoBox>
             Att spara pengar är ett kraftfullt steg mot nya möjligheter. Hur ser dina
             sparvanor ut idag?
-          </p>
+          </InfoBox>
         </header>
 
         {/* Radio Group */}
