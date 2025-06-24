@@ -85,6 +85,8 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
 
 
     const handleSubStepChange = useCallback((newSubStep: number) => {
+        // HAWK 2: Confirms the message was received and that subTick will be updated.
+        console.log(`HAWK 2: Message received in SetupWizard. New sub-step: ${newSubStep}. Updating subTick.`);
         setCurrentStepState(prev => ({
             ...prev,
             [step]: { ...prev[step], subStep: newSubStep }
@@ -164,18 +166,9 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
 // =========================================================================
 const WizardContent = (props: any) => {
     const { isActionBlocked } = useWizard();
-    const topOfContentRef = useRef<HTMLDivElement>(null);
 
-    // This is the final spell for the scroll. It cannot be defied.
-    useEffect(() => {
-        // A more patient spell. We wait for other magics (like form auto-focus)
-        // to finish before we cast our final scroll command.
-        const timer = setTimeout(() => {
-            topOfContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 150); 
 
-        return () => clearTimeout(timer);
-    }, [props.step, props.subTick]);
+
 
     return (
         <div className="fixed inset-0 z-[2000] overflow-y-auto w-full h-full ">
@@ -191,9 +184,13 @@ const WizardContent = (props: any) => {
                     </button>
                     <WizardHeading step={props.step} type="wizard" />
                     <WizardProgress step={props.step} totalSteps={props.totalSteps} steps={props.steps} onStepClick={props.handleStepClick} />
-                    <AnimatedContent animationKey={String(props.step)} className="mb-6 text-center text-gray-700 h-[60vh] md:h-[70vh] lg:h-auto overflow-y-auto">
-                        {/* The Lodestone. Our unwavering target for the scroll. */}
-                        <div ref={topOfContentRef} />
+                    <AnimatedContent 
+                        animationKey={String(props.step)} 
+                        // The new triggerKey combines the major step and the sub-tick.
+                        // It will be unique for every single view change!
+                        triggerKey={`${props.step}-${props.subTick}`}
+                        className="mb-6 text-center text-gray-700 h-[60vh] md:h-[70vh] lg:h-auto overflow-y-auto"
+                    >
                         <WizardStepContainer disableDefaultWidth={props.step === 2} className={props.step === 2 ? (props.isMobile ? "max-w-lg" : "max-w-4xl") : ""}>
                             
                             {props.step === 0 ? (

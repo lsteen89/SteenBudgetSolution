@@ -179,6 +179,7 @@ const goToSub = async (dest: number) => {
 
 
 const next = () => {
+  console.log(`HAWK 1A: 'next' called. Current sub-step: ${currentSub}`);
   if (currentSub < totalSteps) {
     // We are NOT on the last sub-step. Advance normally.
     if (currentSub === 1) {
@@ -194,6 +195,7 @@ const next = () => {
 
 // Simplified 'prev' function. Its only job is to go back one sub-step.
 const prev = () => {
+  console.log(`HAWK 1B: 'prev' called. Current sub-step: ${currentSub}`);
   if (currentSub > 1) {
     goToSub(currentSub - 1);
   }
@@ -205,7 +207,11 @@ const prev = () => {
   const clickProgress = (d: number) => goToSub(d);
 
   /* 6 ─── notify parent of sub-step -------------------------------- */
-  useEffect(() => props.onSubStepChange?.(currentSub), [currentSub]);
+  useEffect(() => {
+      // HAWK 1C: Reports that it is sending the message to the parent.
+      console.log(`HAWK 1C: Sub-step state is now ${currentSub}. Notifying parent.`);
+      props.onSubStepChange?.(currentSub)
+  }, [currentSub, props.onSubStepChange]);
 
 
   /* 7 ─── imperative API ------------------------------------------- */
@@ -292,7 +298,7 @@ const prev = () => {
 
           {/* Content */}
           <div className="flex-1">
-            <AnimatedContent animationKey={String(currentSub)}>
+            <AnimatedContent animationKey={String(currentSub)} triggerKey={String(currentSub)}>
               {renderSubStep()}
             </AnimatedContent>
           </div>

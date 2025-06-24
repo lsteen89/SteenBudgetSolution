@@ -270,7 +270,7 @@ useEffect(() => {
             </div>
           </div>
           <div className="flex-1">
-            <AnimatedContent animationKey={String(currentSub)}>
+            <AnimatedContent animationKey={String(currentSub)} triggerKey={String(currentSub)}>
                 {renderSubStep()}
             </AnimatedContent>
           </div>
