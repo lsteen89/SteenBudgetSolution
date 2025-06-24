@@ -167,11 +167,24 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
 const WizardContent = (props: any) => {
     const { isActionBlocked } = useWizard();
 
+    const [outermostScrollNode, setOutermostScrollNode] = useState<HTMLDivElement | null>(null);
+        const outermostContainerPact = useCallback((node: HTMLDivElement | null) => {
+        if (node !== null) {
+            setOutermostScrollNode(node);
+        }
+    }, []);
 
+    useEffect(() => {
+
+        if (outermostScrollNode) {
+
+            outermostScrollNode.scrollTo({ top: 0, behavior: 'instant' });
+        }
+    }, [props.step, props.subTick, outermostScrollNode]);
 
 
     return (
-        <div className="fixed inset-0 z-[2000] overflow-y-auto w-full h-full ">
+        <div ref={outermostContainerPact} className="fixed inset-0 z-[2000] overflow-y-auto w-full h-full ">
             <div className="flex items-center justify-center bg-black bg-opacity-50 min-h-screen py-10">
                 <motion.div
                     initial={{ opacity: 0, y: -20 }}
@@ -189,7 +202,7 @@ const WizardContent = (props: any) => {
                         // The new triggerKey combines the major step and the sub-tick.
                         // It will be unique for every single view change!
                         triggerKey={`${props.step}-${props.subTick}`}
-                        className="mb-6 text-center text-gray-700 h-[60vh] md:h-[70vh] lg:h-auto overflow-y-auto"
+                        className="mb-6 text-center text-gray-700"
                     >
                         <WizardStepContainer disableDefaultWidth={props.step === 2} className={props.step === 2 ? (props.isMobile ? "max-w-lg" : "max-w-4xl") : ""}>
                             
