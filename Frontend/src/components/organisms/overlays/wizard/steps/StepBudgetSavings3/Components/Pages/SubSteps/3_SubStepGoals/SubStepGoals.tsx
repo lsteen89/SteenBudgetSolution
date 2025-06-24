@@ -1,128 +1,147 @@
-import React, { useState } from 'react';
-import { useFormContext, useFieldArray } from 'react-hook-form';
-import { motion } from 'framer-motion';
-import { PlusCircle, Trash2 } from 'lucide-react';
+import React, { useState } from "react";
+import { useFormContext, useFieldArray } from "react-hook-form";
+import { motion } from "framer-motion";
+import { PlusCircle, PiggyBank } from "lucide-react";
+import { AnimatePresence } from "framer-motion";
 
-import OptionContainer from '@components/molecules/containers/OptionContainer';
-import TextInput from '@components/atoms/InputField/TextInput';
-import FormattedNumberInput from '@components/atoms/InputField/FormattedNumberInput';
-import { idFromPath } from '@/utils/idFromPath';
-import { Step3FormValues } from '@/schemas/wizard/StepSavings/step3Schema';
+import { FormValues } from "@/types/budget/goalTypes";
+import OptionContainer from "@/components/molecules/containers/OptionContainer";
+import GoalItem from "@/components/organisms/goals/GoalItem";
+import InfoBox from "@/components/molecules/messaging/InfoBox"; 
+import GoalContainer from "@/components/molecules/containers/GoalContainer";
+import FormErrorSummary from "@/components/molecules/messaging/FormErrorSummary";
+import { GoalTemplateModal } from "@/components/modals/GoalTemplateModal";
+import { GoalTemplate } from "@/components/modals/goalTemplates"; 
+import { useWizard } from '@/context/WizardContext';
 
-const calcMonthly = (target: number | null, saved: number | null, date: string): number | null => {
-  if (!target || !date) return null;
-  const remaining = target - (saved ?? 0);
-  if (remaining <= 0) return 0;
-  const now = new Date();
-  const end = new Date(date);
-  const months = (end.getFullYear() - now.getFullYear()) * 12 + (end.getMonth() - now.getMonth()) + 1;
-  if (months <= 0) return null;
-  return Math.ceil(remaining / months);
-};
-
-const SubStepGoals: React.FC = () => {
-  const { control, watch, setValue, formState: { errors } } = useFormContext<Step3FormValues>();
+const SubStepGoals = () => {
+  const { control, getValues, formState: { errors }, } = useFormContext<FormValues>(); 
   const { fields, append, remove } = useFieldArray({
     control,
-    name: 'goals',
-    keyName: 'fieldId',
+    name: "goals",
+    keyName: "fieldId",
     shouldUnregister: true,
   });
 
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const { isActionBlocked, setIsActionBlocked } = useWizard();
 
-  const handleAdd = () => {
-    append({ id: crypto.randomUUID(), name: '', targetAmount: null, targetDate: '', amountSaved: null });
+  // This is for when they pick a template.
+  const handleSelectTemplate = (template: GoalTemplate) => {
+    append({
+      id: crypto.randomUUID(),
+      name: template.name,
+      targetAmount: template.targetAmount,
+      targetDate: template.targetDate, 
+      amountSaved: null,
+    });
+    setIsActionBlocked(false);
+  };
+
+  // This is for the wise guy who wants to start from scratch. Respect.
+  const handleSelectBlank = () => {
+    append({ id: crypto.randomUUID(), name: "", targetAmount: null, targetDate: "", amountSaved: null });
+    setIsActionBlocked(false);
   };
 
   return (
-    <OptionContainer>
-      <section className="w-auto mx-auto sm:px-6 lg:px-12 py-8 pb-safe space-y-6">
-        <div className="flex justify-between items-center">
-          <h3 className="text-xl font-bold text-darkLimeGreen">Sparmål</h3>
-          <button
-            type="button"
-            onClick={handleAdd}
-            className="flex items-center gap-2 px-3 py-1 bg-limeGreen text-black rounded-md"
-          >
-            <PlusCircle size={18} /> Lägg till mål
-          </button>
+    <OptionContainer className="p-1 md:p-4">
+      <GoalTemplateModal
+          isOpen={isActionBlocked} 
+          onClose={() => setIsActionBlocked(false)} 
+          onSelect={handleSelectTemplate}
+          onSelectBlank={handleSelectBlank}
+        />
+        <section className="mx-auto w-full max-w-5xl space-y-10 py-10 px-0 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between">
+          <h3 className="text-2xl font-bold text-darkLimeGreen">
+            <PiggyBank className="mb-1 inline" size={26} /> Sparmål
+          </h3>
         </div>
 
-        <div className="space-y-4">
-          {fields.map((item, index) => {
-            const base = `goals.${index}`;
-            const target = watch(`${base}.targetAmount` as const);
-            const saved = watch(`${base}.amountSaved` as const);
-            const date = watch(`${base}.targetDate` as const);
-            const monthly = calcMonthly(target, saved, date);
+        <InfoBox>
+          Här lägger du till dina sparmål. Ge varje mål ett namn, välj hur mycket du vill spara och när du vill ha det klart. Vi räknar automatiskt ut hur mycket du behöver lägga undan varje månad.
+        </InfoBox>
+        
+        <FormErrorSummary errors={errors} name="goals" />
+        <div id="goals" style={{ height: 0 }} />
 
-            return (
-              <motion.div
-                key={item.fieldId}
-                layout
-                initial={{ opacity: 0, scale: 0.8, y: 20 }}
-                animate={deletingId === item.fieldId ? 'exit' : 'animate'}
-                variants={{ animate: { opacity: 1, scale: 1, y: 0 }, exit: { opacity: 0, scale: 0.8, x: -300 } }}
-                onAnimationComplete={() => { if (deletingId === item.fieldId) remove(index); }}
-                className="bg-white/10 rounded-xl p-4 space-y-3"
+        <motion.div layout className="flex flex-col gap-y-6">
+            <AnimatePresence>
+                {/* AND WE STICK TO THE WASTE MANAGEMENT PLAN.
+                  The parent, this component, provides the container for each item.
+                */}
+                {fields.map((item, index) => (
+                    <GoalContainer
+                        key={item.fieldId}
+                        layout
+                        variants={{
+                            initial: { opacity: 0, y: 20 },
+                            animate: { opacity: 1, y: 0 },
+                            exit: { opacity: 0, height: 0, paddingTop: 0, paddingBottom: 0, marginTop: 0, marginBottom: 0, transition: { duration: 0.3 } },
+                        }}
+                        initial="initial"
+                        animate="animate"
+                        exit="exit"
+                        className="p-4 text-center sm:p-8 md:p-12"
+                    >
+                        <GoalItem
+                            item={item}
+                            index={index}
+                            onRemove={remove}
+                        />
+                    </GoalContainer>
+                ))}
+
+                {fields.length === 0 && (
+              <GoalContainer
+                key="empty-state"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20, transition: { duration: 0.3 } }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+                className="p-4 sm:p-6"
               >
-                <div className="grid md:grid-cols-5 gap-3">
-                  <TextInput
-                    id={idFromPath(`${base}.name`)}
-                    value={watch(`${base}.name`) || ''}
-                    onChange={(e) => setValue(`${base}.name`, e.target.value, { shouldValidate: true, shouldDirty: true })}
-                    placeholder="Namn på mål"
-                    error={(errors.goals as any)?.[index]?.name?.message}
-                    name={`${base}.name`}
-                    className="md:col-span-2"
-                  />
-                  <FormattedNumberInput
-                    id={idFromPath(`${base}.targetAmount`)}
-                    value={target ?? null}
-                    onValueChange={(val) => setValue(`${base}.targetAmount`, val ?? null, { shouldValidate: true, shouldDirty: true })}
-                    placeholder="Belopp"
-                    error={(errors.goals as any)?.[index]?.targetAmount?.message}
-                    name={`${base}.targetAmount`}
-                  />
-                  <TextInput
-                    id={idFromPath(`${base}.targetDate`)}
-                    type="date"
-                    value={date || ''}
-                    onChange={(e) => setValue(`${base}.targetDate`, e.target.value, { shouldValidate: true, shouldDirty: true })}
-                    placeholder="Datum"
-                    error={(errors.goals as any)?.[index]?.targetDate?.message}
-                    name={`${base}.targetDate`}
-                  />
-                  <FormattedNumberInput
-                    id={idFromPath(`${base}.amountSaved`)}
-                    value={saved ?? null}
-                    onValueChange={(val) => setValue(`${base}.amountSaved`, val ?? null, { shouldValidate: true, shouldDirty: true })}
-                    placeholder="Sparat (valfritt)"
-                    error={(errors.goals as any)?.[index]?.amountSaved?.message}
-                    name={`${base}.amountSaved`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setDeletingId(item.fieldId)}
-                    className="p-2 bg-red-600 hover:bg-red-700 text-white rounded self-center"
-                    aria-label="Ta bort mål"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-                {monthly !== null && (
-                  <p className="text-sm text-white/80">
-                    Månadssparande för att nå målet: <span className="font-semibold">{monthly.toLocaleString('sv-SE')} kr/mån</span>
+                <div className="flex flex-col items-center justify-center text-center">
+                    <PiggyBank size={48} className="mx-auto text-darkLimeGreen" />
+                    <h4 className="mt-4 text-xl font-semibold text-white">Dags att sätta upp dina sparmål!</h4>
+                    <p className="mt-2 max-w-md text-white/60">
+                        Vad drömmer du om? En resa, en ny bil, eller en buffert? Klicka på knappen för att lägga till ditt första mål.
+                    </p>
+                    <button
+                        type="button"
+                        onClick={() => setIsActionBlocked(true)}
+                        className="mt-6 flex items-center gap-2 rounded-2xl bg-darkLimeGreen px-5 py-2.5 text-sm font-semibold text-black shadow-lg transition hover:scale-105 hover:bg-limeGreen focus:outline-none focus:ring-2 focus:ring-limeGreen/70"
+                    >
+                        <PlusCircle size={20} /> Lägg till första målet
+                    </button>
+                    <p className="mt-4 text-sm text-white/50">
+                      Har du inga sparmål just nu? 
+                      <br />
+                      Inga problem!
+                      <br />
+                      Du kan lägga till dem senare.
                   </p>
-                )}
-              </motion.div>
-            );
-          })}
-        </div>
+                </div>
+            </GoalContainer>
+          )}
+          </AnimatePresence>
+        </motion.div>
+
+        {fields.length > 0 && (
+          <div className="flex justify-center">
+            <button
+              type="button"
+              onClick={() => setIsActionBlocked(true)}
+              className="flex items-center gap-2 rounded-2xl bg-darkLimeGreen px-4 py-2 text-sm font-semibold text-black shadow-md transition hover:scale-105 hover:bg-limeGreen focus:outline-none focus:ring-2 focus:ring-limeGreen/70"
+            >
+              <PlusCircle size={20} /> Lägg till mål
+            </button>
+          </div>
+        )}
       </section>
     </OptionContainer>
   );
 };
 
 export default SubStepGoals;
+

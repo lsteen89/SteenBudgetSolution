@@ -121,7 +121,7 @@ const calculatedTotalValue = (foodStoreExpenses ?? 0) + (takeoutExpenses ?? 0);
 const formattedTotalValue = calculatedTotalValue.toLocaleString("sv-SE");
 
   return (
-    <OptionContainer>
+    <OptionContainer className="p-4">
       <div className="flex justify-center md:mt-4">
         <div className="">
           <GlossyFlipCard

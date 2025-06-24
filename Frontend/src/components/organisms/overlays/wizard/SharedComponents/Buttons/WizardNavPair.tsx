@@ -10,7 +10,6 @@ export interface WizardNavPairProps {
   hasPrev: boolean;
   hasNext: boolean;
   
-  // --- NEW INTEL ---
   // The component now needs to know the sub-step status specifically.
   hasPrevSub: boolean;
   hasNextSub: boolean;
@@ -22,6 +21,7 @@ export interface WizardNavPairProps {
   isDebugMode: boolean;
   showShakeAnimation: boolean;
   isSaving: boolean;
+  isActionBlocked: boolean; 
 }
 
 const WizardNavPair: React.FC<WizardNavPairProps> = ({
@@ -39,6 +39,7 @@ const WizardNavPair: React.FC<WizardNavPairProps> = ({
   isDebugMode,
   showShakeAnimation,
   isSaving,
+  isActionBlocked,
 }) => {
   const isLocked =
     isSaving ||
@@ -48,12 +49,11 @@ const WizardNavPair: React.FC<WizardNavPairProps> = ({
       (connectionError && step === 0)
     ));
 
-  const disablePrev = isLocked || !hasPrev;
-  const disableNext = isLocked || !hasNext;
+    const disablePrev = isLocked || !hasPrev || isActionBlocked;
+    const disableNext = isLocked || !hasNext || isActionBlocked;
 
-  // --- THE REAL FIX: One brain for each button! ---
-  const isPrevMajor = !hasPrevSub; // If there's no sub-step to go back to, it's a major step back.
-  const isNextMajor = !hasNextSub; // If there's no sub-step to go forward to, it's a major step forward.
+  const isPrevMajor = !hasPrevSub; 
+  const isNextMajor = !hasNextSub; 
 
   const IconPrev = isPrevMajor ? Rewind : ChevronLeft;
   const IconNext = isNextMajor ? FastForward : ChevronRight;
