@@ -1,37 +1,36 @@
-import React from 'react';
+import React, { useRef, ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-interface AnimatedContentProps extends React.ComponentPropsWithoutRef<typeof motion.div> {
-  children: React.ReactNode;
-  animationKey: string | number;
+interface AnimatedContentProps {
+  children: ReactNode;
+  animationKey: string;
+  className?: string;
 }
 
-const AnimatedContent = React.forwardRef<HTMLDivElement, AnimatedContentProps>(({
-  animationKey,
-  children,
-  initial = { opacity: 0, x: 50 },
-  animate = { opacity: 1, x: 0 },
-  exit = { opacity: 0, x: -50 },
-  transition = { duration: 0.3 },
-  ...rest
-}, ref) => {
+const AnimatedContent: React.FC<AnimatedContentProps> = ({ children, animationKey, className }) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
   return (
-    <AnimatePresence mode="wait">
+    <AnimatePresence>
       <motion.div
-        ref={ref}
+        ref={scrollRef}
         key={animationKey}
-        initial={initial}
-        animate={animate}
-        exit={exit}
-        transition={transition}
-        {...rest}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        transition={{ duration: 0.4, ease: 'easeInOut' }}
+        className={className}
+        style={{ width: '100%' }}
+        onAnimationComplete={() => {
+          if (scrollRef.current) {
+            scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+          }
+        }}
       >
         {children}
       </motion.div>
     </AnimatePresence>
   );
-});
-
-AnimatedContent.displayName = 'AnimatedContent';
+};
 
 export default AnimatedContent;

@@ -292,7 +292,7 @@ const prev = () => {
 
           {/* Content */}
           <div className="flex-1">
-            <AnimatedContent animationKey={currentSub}>
+            <AnimatedContent animationKey={String(currentSub)}>
               {renderSubStep()}
             </AnimatedContent>
           </div>

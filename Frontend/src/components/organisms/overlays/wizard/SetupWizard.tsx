@@ -39,7 +39,6 @@ interface SetupWizardProps {
 
 // =========================================================================
 // THE MIND OF GANDALF (The Main Component)
-// It holds all state and logic, but renders almost no JSX itself.
 // =========================================================================
 const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     // All of the hooks and state management are safely kept here.
@@ -69,8 +68,6 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     const stepRefs: { [key: number]: React.RefObject<any> } = { 1: step1WrapperRef, 2: StepBudgetExpenditureRef, 3: step3Ref };
     const { setShowSideIncome, setShowHouseholdMembers } = useBudgetInfoDisplayFlags();
     const [subTick, setSubTick] = useState(0);
-    console.log(`%cHAWK TWO: The Wizard's mind awakens. Step: ${step}, SubTick: ${subTick}`, "color: orange;");
-
 
     // All the callbacks and effects also remain here, safe and sound.
     const handleWizardClose = useCallback(() => { setConfirmModalOpen(true); }, []);
@@ -87,19 +84,17 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
 
 
 
-    const handleSubStepChange = useCallback(() => {
-    // --- The Parent's Ear ---
-    console.log('%cTHE PARENT HEARS: The handleSubStepChange function has been invoked!', 'color: lime; font-weight: bold;');
-    setSubTick(t => t + 1);
-    }, []);
+    const handleSubStepChange = useCallback((newSubStep: number) => {
+        setCurrentStepState(prev => ({
+            ...prev,
+            [step]: { ...prev[step], subStep: newSubStep }
+        }));
+        setSubTick(t => t + 1);
+    }, [step]);
+
     const handleStepClick = (targetStep: number) => { setStep(targetStep); };
-    useEffect(() => {
-    // --- The Parent's Heartbeat ---
-    console.log(`%cTHE PARENT'S HEARTBEAT: subTick has settled to ${subTick}. The scroll and nav logic should now update.`, 'color: orange;');
-    }, [subTick]);
 
     const subNav = useMemo(() => {
-        // We look directly at the true source: the ref's current value.
         const api = stepRefs[step]?.current;
         if (api && typeof api.hasSubSteps === "function" && api.hasSubSteps()) {
             return {
@@ -109,22 +104,19 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
                 hasNextSub: typeof api.hasNextSub === 'function' ? api.hasNextSub() : false,
             };
         }
-        // If there's no API, we know the truth: there are no sub-steps.
         return { prevSub: () => {}, nextSub: () => {}, hasPrevSub: false, hasNextSub: false };
-    }, [step, subTick]); // This now depends on the step and the tick that signals a change.
+    }, [step, subTick]); 
 
 
     const isSaving = useMemo(() => {
-        // This logic is also purified.
         const api = stepRefs[step]?.current;
         return api && typeof api.isSaving === 'function'
             ? api.isSaving()
             : false;
-    }, [step, subTick]); // Add subTick here to force a re-check when sub-steps change.
+    }, [step, subTick]);
 
     const isMobile = useMediaQuery('(max-width: 1367px)');
 
-    // Gandalf's only job is to provide the magic and pass his knowledge down to his body.
     return (
         <WizardProvider>
             <WizardContent
@@ -146,7 +138,6 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
                     { icon: User, label: "Sparande" }, { icon: CheckCircle, label: "Bekräfta" },
                 ]}
                 handleStepClick={handleStepClick}
-
                 isMobile={isMobile}
                 wizardSessionId={wizardSessionId}
                 isDebugMode={isDebugMode}
@@ -162,6 +153,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
                 step3Ref={step3Ref}
                 subNav={subNav}
                 isSaving={isSaving}
+                subTick={subTick}
             />
         </WizardProvider>
     );
@@ -169,22 +161,20 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
 
 // =========================================================================
 // THE BODY OF GANDALF (The Helper Component)
-// It contains all the JSX and lives inside the Provider's magic circle.
 // =========================================================================
 const WizardContent = (props: any) => {
-    // This is where the magic happens, the body of Gandalf.
     const { isActionBlocked } = useWizard();
-    const containerRef = useRef<HTMLDivElement>(null);
+    const topOfContentRef = useRef<HTMLDivElement>(null);
 
-    useLayoutEffect(() => {
-    // We wrap our command in a setTimeout. This tells the browser:
-    // "Finish your current work (painting, layout), and then do this."
-    const timer = setTimeout(() => {
-        containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-    }, 0); // A delay of 0 is all that is needed to wait for the next "tick".
+    // This is the final spell for the scroll. It cannot be defied.
+    useEffect(() => {
+        // A more patient spell. We wait for other magics (like form auto-focus)
+        // to finish before we cast our final scroll command.
+        const timer = setTimeout(() => {
+            topOfContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 150); 
 
-    // A good wizard always cleans up his spells.
-    return () => clearTimeout(timer);
+        return () => clearTimeout(timer);
     }, [props.step, props.subTick]);
 
     return (
@@ -201,10 +191,11 @@ const WizardContent = (props: any) => {
                     </button>
                     <WizardHeading step={props.step} type="wizard" />
                     <WizardProgress step={props.step} totalSteps={props.totalSteps} steps={props.steps} onStepClick={props.handleStepClick} />
-                    <AnimatedContent ref={containerRef} animationKey={`${props.step}-${props.subTick}`} className="mb-6 text-center text-gray-700 h-[60vh] md:h-[70vh] lg:h-auto overflow-y-auto">
+                    <AnimatedContent animationKey={String(props.step)} className="mb-6 text-center text-gray-700 h-[60vh] md:h-[70vh] lg:h-auto overflow-y-auto">
+                        {/* The Lodestone. Our unwavering target for the scroll. */}
+                        <div ref={topOfContentRef} />
                         <WizardStepContainer disableDefaultWidth={props.step === 2} className={props.step === 2 ? (props.isMobile ? "max-w-lg" : "max-w-4xl") : ""}>
                             
-                            {/* --- The Heart of the Wizard - Here is your original code, complete and untouched --- */}
                             {props.step === 0 ? (
                                 <StepWelcome
                                     connectionError={props.connectionError}
