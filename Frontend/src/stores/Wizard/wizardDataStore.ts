@@ -5,6 +5,7 @@ import type { ExpenditureFormValues } from '@myTypes/Wizard/ExpenditureFormValue
 import type { IncomeFormValues } from '@myTypes/Wizard/IncomeFormValues';
 import type { Step3FormValues as SavingsFormValues } from '@/schemas/wizard/StepSavings/step3Schema';
 import { createWithEqualityFn } from 'zustand/traditional';
+import { CODE_DATA_VERSION } from '@/constants/wizardVersion';
 
 
 type DeepPartial<T> = {
@@ -22,6 +23,7 @@ export interface WizardData {
 
 export interface WizardDataStore {
   data: WizardData;
+  version: number;
   setIncome: (d: DeepPartial<IncomeFormValues>) => void;
   setExpenditure: (d: DeepPartial<ExpenditureFormValues>) => void;
   setSavings: (d: DeepPartial<SavingsFormValues>) => void;
@@ -79,6 +81,7 @@ export const useWizardDataStore = createWithEqualityFn<WizardDataStore>()(
     persist( // Apply the persist middleware
       (set) => ({
         data: initialWizardDataState, // Initialize with the explicit initial state
+        version: CODE_DATA_VERSION,
         setIncome: (incomeUpdate) =>
           set((state) => ({
             data: {
@@ -100,7 +103,7 @@ export const useWizardDataStore = createWithEqualityFn<WizardDataStore>()(
               savings: { ...state.data.savings, ...savingsUpdate },
             },
           })),
-        reset: () => set({ data: { ...initialWizardDataState } }), // Reset to the defined initial state
+        reset: () => set({ data: { ...initialWizardDataState }, version: CODE_DATA_VERSION }), // Reset to the defined initial state
       }),
       {
         name: 'wizard-form-data-storage', // Unique key for localStorage

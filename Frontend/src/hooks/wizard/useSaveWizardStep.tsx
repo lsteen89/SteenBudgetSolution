@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useToast } from '@context/ToastContext';
 import { saveWizardStep } from '@api/Services/wizard/wizardService';
+import { CODE_DATA_VERSION } from '@/constants/wizardVersion';
 
 /**
  * A custom hook responsible for providing a stable, memoized function 
@@ -42,7 +43,7 @@ const useSaveWizardStep = (wizardSessionId: string) => {
       console.log("useSaveWizardStep: Calling API to save step data:", { wizardSessionId, stepNumber, subStepNumber, dataToSave });
       
       // Call the actual API service function.
-      await saveWizardStep(wizardSessionId, stepNumber, subStepNumber, dataToSave);
+      await saveWizardStep(wizardSessionId, stepNumber, subStepNumber, dataToSave, CODE_DATA_VERSION);
       
       console.log(`Step ${stepNumber} / Sub-step ${subStepNumber} saved successfully to the backend.`);
       return true; // Return true on success

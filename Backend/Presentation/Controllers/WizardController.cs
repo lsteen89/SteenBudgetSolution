@@ -89,7 +89,7 @@ namespace Backend.Presentation.Controllers
             try
             {
                 // Call service which will deserialize, validate, and upsert the data.
-                bool saveSuccessful = await _wizardService.SaveStepDataAsync(dto.WizardSessionId, stepNumber, dto.subStepNumber, dto.StepData);
+                bool saveSuccessful = await _wizardService.SaveStepDataAsync(dto.WizardSessionId, stepNumber, dto.subStepNumber, dto.StepData, dto.DataVersion);
                 if (!saveSuccessful)
                     return StatusCode(500, "Failed to save step data.");
             }

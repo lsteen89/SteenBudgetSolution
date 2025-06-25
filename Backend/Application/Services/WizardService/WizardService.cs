@@ -35,7 +35,7 @@ namespace Backend.Application.Services.WizardService
             return (true, wizardSessionId, "Wizard session created successfully.");
         }
 
-        public async Task<bool> SaveStepDataAsync(string wizardSessionId, int stepNumber, int substepNumber, object stepData)
+        public async Task<bool> SaveStepDataAsync(string wizardSessionId, int stepNumber, int substepNumber, object stepData, int dataVersion)
         {
             string jsonData = string.Empty;
             _logger.LogInformation("Saving step {StepNumber} with substep {substepNumber} data for session {WizardSessionId}", stepNumber, substepNumber, wizardSessionId);
@@ -107,7 +107,7 @@ namespace Backend.Application.Services.WizardService
             }
 
             // Upsert the (validated) JSON data in the DB
-            var upsertSuccess = await _wizardProvider.WizardSqlExecutor.UpsertStepDataAsync(wizardSessionId, stepNumber, substepNumber, jsonData);
+            var upsertSuccess = await _wizardProvider.WizardSqlExecutor.UpsertStepDataAsync(wizardSessionId, stepNumber, substepNumber, jsonData, dataVersion);
             if (!upsertSuccess)
             {
                 _logger.LogError("Failed to save step data for session {WizardSessionId}, step {StepNumber}", wizardSessionId, stepNumber);

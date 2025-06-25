@@ -61,20 +61,22 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
 
             // Setup the repository's upsert method to simulate success.
             _wizardSqlExecutorMock
-                .Setup(x => x.UpsertStepDataAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), null, null))
+                .Setup(x => x.UpsertStepDataAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<int>(), null, null))
                 .ReturnsAsync(true);
 
             // Act
-            var result = await _wizardService.SaveStepDataAsync("test-session-guid", 1, 2, stepDataJson);
+            var result = await _wizardService.SaveStepDataAsync("test-session-guid", 1, 2, stepDataJson, 2);
 
             // Assert
             Assert.True(result);
             _wizardSqlExecutorMock.Verify(x => x.UpsertStepDataAsync(
                 "test-session-guid",
-                1, // Main step number
-                2, // Substep number
-                It.Is<string>(json => json.Contains("50000") && json.Contains("monthly"))
-                , null, null
+                1,
+                2,
+                It.Is<string>(json => json.Contains("50000") && json.Contains("monthly")),
+                2,
+                null,
+                null
             ), Times.Once);
         }
 
@@ -96,13 +98,13 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
             // Act & Assert: Expect an exception due to failed validation.
             var exception = await Assert.ThrowsAsync<Exception>(async () =>
             {
-                await _wizardService.SaveStepDataAsync("test-session-guid", 1, 2, stepDataJson);
+                await _wizardService.SaveStepDataAsync("test-session-guid", 1, 2, stepDataJson, 2);
             });
             Assert.Contains("Validation failed", exception.Message);
 
             // Verify that the repository's upsert method was never called.
             _wizardSqlExecutorMock.Verify(x => x.UpsertStepDataAsync(
-                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), null, null
+                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<int>(), null, null
             ), Times.Never);
         }
         [Fact]
@@ -130,11 +132,11 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
             string json = JsonConvert.SerializeObject(validDto);
 
             _wizardSqlExecutorMock
-                 .Setup(x => x.UpsertStepDataAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), null, null))
+                 .Setup(x => x.UpsertStepDataAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<int>(), null, null))
                  .ReturnsAsync(true);
 
             // Act
-            var result = await _wizardService.SaveStepDataAsync("test-session-guid", 1, 2, json);
+            var result = await _wizardService.SaveStepDataAsync("test-session-guid", 1, 2, json, 2);
 
             // Assert
             Assert.True(result);
@@ -142,7 +144,10 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
                 "test-session-guid",
                 1,
                 2,
-                It.Is<string>(s => s.Contains("John Doe") && s.Contains("monthly")), null, null
+                It.Is<string>(s => s.Contains("John Doe") && s.Contains("monthly")),
+                2,
+                null,
+                null
             ), Times.Once);
         }
 
@@ -163,19 +168,22 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
 
             // Setup the repository's upsert method to simulate success.
             _wizardSqlExecutorMock
-                .Setup(x => x.UpsertStepDataAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), null, null))
+                .Setup(x => x.UpsertStepDataAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<int>(), null, null))
                 .ReturnsAsync(true);
 
             // Act
-            var result = await _wizardService.SaveStepDataAsync("test-session-guid", 1, 2, json);
+            var result = await _wizardService.SaveStepDataAsync("test-session-guid", 1, 2, json, 2);
 
             // Assert
             Assert.True(result);
             _wizardSqlExecutorMock.Verify(x => x.UpsertStepDataAsync(
                 "test-session-guid",
                 1,
-                2, 
-                It.Is<string>(s => s.Contains("monthly")), null, null
+                2,
+                It.Is<string>(s => s.Contains("monthly")),
+                2,
+                null,
+                null
             ), Times.Once);
         }
 
@@ -205,12 +213,12 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
             // Act & Assert: Expect an exception due to invalid side hustle data.
             var exception = await Assert.ThrowsAsync<Exception>(async () =>
             {
-                await _wizardService.SaveStepDataAsync("test-session-guid", 1, 2, json);
+                await _wizardService.SaveStepDataAsync("test-session-guid", 1, 2, json, 2);
             });
             Assert.Contains("Ange namn för sidoinkomst.", exception.Message);
 
             _wizardSqlExecutorMock.Verify(x => x.UpsertStepDataAsync(
-                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), null, null
+                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<int>(), null, null
             ), Times.Never);
         }
         [Fact]
@@ -240,12 +248,12 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
             // Act & Assert: Expect an exception due to the invalid household member's name.
             var exception = await Assert.ThrowsAsync<Exception>(async () =>
             {
-                await _wizardService.SaveStepDataAsync("test-session-guid", 1, 2, json);
+                await _wizardService.SaveStepDataAsync("test-session-guid", 1, 2, json, 2);
             });
             Assert.Contains("Ange namn", exception.Message);
 
             _wizardSqlExecutorMock.Verify(x => x.UpsertStepDataAsync(
-                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), null, null
+                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<int>(), null, null
             ), Times.Never);
         }
     }

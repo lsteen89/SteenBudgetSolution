@@ -57,6 +57,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
                     StepNumber = 1,
                     SubStep = 1,
                     StepData = "{\"netSalary\":1233.0,\"salaryFrequency\":\"monthly\",\"yearlySalary\":14796.0,\"householdMembers\":[],\"sideHustles\":[]}",
+                    DataVersion = 2,
                     UpdatedAt = DateTime.UtcNow
                 }
             };
@@ -119,6 +120,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
                     StepNumber = 1,
                     SubStep = 1,
                     StepData = "{\"netSalary\":1000,\"salaryFrequency\":\"monthly\",\"yearlySalary\":12000,\"householdMembers\":[],\"sideHustles\":[]}",
+                    DataVersion = 2,
                     UpdatedAt = DateTime.UtcNow
                 },
                 new WizardStepRowEntity
@@ -127,6 +129,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
                     StepNumber = 2,
                     SubStep = 1,
                     StepData = "{\"someOtherKey\":\"someValue\"}",
+                    DataVersion = 2,
                     UpdatedAt = DateTime.UtcNow
                 }
             };
@@ -167,6 +170,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
                     StepNumber = stepNumber,
                     SubStep = 1,
                     StepData = "{\"rent\":{\"homeType\":\"Apartment\",\"monthlyRent\":1000}}",
+                    DataVersion = 2,
                     UpdatedAt = DateTime.UtcNow
                 },
                 new WizardStepRowEntity
@@ -175,6 +179,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
                     StepNumber = stepNumber,
                     SubStep = 2,
                     StepData = "{\"utilities\":{\"electricity\":50,\"water\":30}}",
+                    DataVersion = 2,
                     UpdatedAt = DateTime.UtcNow
                 }
             };
@@ -220,6 +225,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
                     StepNumber = stepNumber,
                     SubStep = 1,
                     StepData = "{\"rent\":{\"monthlyRent\":1000}}",
+                    DataVersion = 2,
                     UpdatedAt = DateTime.UtcNow
                 },
                 new WizardStepRowEntity
@@ -228,6 +234,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
                     StepNumber = stepNumber,
                     SubStep = 1,
                     StepData = "{\"utilities\":{\"electricity\":50}}",
+                    DataVersion = 2,
                     UpdatedAt = DateTime.UtcNow
                 }
             };

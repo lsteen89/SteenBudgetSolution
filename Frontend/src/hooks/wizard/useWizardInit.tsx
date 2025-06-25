@@ -4,6 +4,7 @@ import { useToast } from "@context/ToastContext";
 import { useWizardSessionStore } from '@/stores/Wizard/wizardSessionStore';
 import { useWizardDataStore } from '@/stores/Wizard/wizardDataStore';
 import { IncomeFormValues } from '@myTypes/Wizard/IncomeFormValues';
+import { CODE_DATA_VERSION } from '@/constants/wizardVersion';
 
 const useWizardInit = () => {
   const [loading, setLoading] = useState(false);
@@ -19,9 +20,15 @@ const useWizardInit = () => {
 
   // Get the setter for the 'income' slice from your wizard data store
   const setIncomeDataInStore = useWizardDataStore(s => s.setIncome);
+  const localStoreVersion = useWizardDataStore(s => s.version);
+  const resetDataStore = useWizardDataStore(s => s.reset);
 
   const initWizard = async () => {
     setLoading(true);
+    if (localStoreVersion < CODE_DATA_VERSION) {
+      console.log(`Local store version (${localStoreVersion}) is outdated. Resetting.`);
+      resetDataStore();
+    }
     if (failedAttempts >= 3) {
       if (failedAttempts === 3) {
         showToast("🚨 Kontakt support – för många misslyckade försök.", "error");
