@@ -33,6 +33,7 @@ interface StepBudgetSavingsProps {
   loading: boolean;
   initialSubStep: number;
   onSubStepChange?: (newSub: number) => void;
+  onValidationError?: () => void;
 }
 
 const StepBudgetSavings = forwardRef<StepBudgetSavingsRef, StepBudgetSavingsProps>((props, ref) => {
@@ -66,6 +67,7 @@ const StepBudgetSavings = forwardRef<StepBudgetSavingsRef, StepBudgetSavingsProp
           loading={props.loading}
           initialSubStep={props.initialSubStep}
           onSubStepChange={props.onSubStepChange}
+          onValidationError={props.onValidationError}
         />
         <DataTransparencySection />
       </GlassPane>

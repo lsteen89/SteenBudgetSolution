@@ -38,7 +38,7 @@ const EditableSavingsInput: React.FC<EditableSavingsInputProps> = ({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 w-full"> {/* Make sure our main container knows its width */}
       <RangeSlider
         min={0}
         max={max}
@@ -80,23 +80,27 @@ const EditableSavingsInput: React.FC<EditableSavingsInputProps> = ({
                 setEditing(true);
                 setShowHint(false);
               }}
-              className="group flex items-center text-white/90 hover:text-limeGreen/95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-limeGreen rounded-md cursor-pointer"
+
+              className="group flex flex-wrap justify-center items-center text-white/90 hover:text-limeGreen/95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-limeGreen rounded-md cursor-pointer gap-x-2"
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
             >
-              <span className="text-3xl leading-none font-bold tabular-nums">
-                {value.toLocaleString("sv-SE")}
-              </span>
-              <span className="ml-1 text-lg leading-none font-semibold">kr</span>
-              <Pencil className="ml-2 w-6 h-6 opacity-60 group-hover:opacity-100 transition-opacity" />
+              {/* Grouped the number and currency for better wrapping behavior */}
+              <div className="flex items-baseline">
+                <span className="text-3xl leading-none font-bold tabular-nums">
+                  {value.toLocaleString("sv-SE")}
+                </span>
+                <span className="ml-1 text-lg leading-none font-semibold">kr</span>
+              </div>
+              <Pencil className="w-6 h-6 opacity-60 group-hover:opacity-100 transition-opacity" />
             </motion.button>
           )}
         </AnimatePresence>
         {showHint && !editing && (
           <motion.p
             key="hint"
-            className="mt-1 text-xs text-gray-300/80"
+            className="mt-1 text-xs text-center text-gray-300/80"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4 }}

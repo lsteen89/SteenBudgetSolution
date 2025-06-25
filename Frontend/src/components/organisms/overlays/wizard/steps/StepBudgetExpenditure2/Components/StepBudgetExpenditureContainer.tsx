@@ -18,11 +18,8 @@ import WizardFormWrapperStep2, {
 } from './wrapper/WizardFormWrapperStep2';
 
 /*Substeps for major step 2*/
-// Step 1
 import ExpenditureOverviewMainText from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/1_SubStepWelcome/ExpenditureOverviewMainText';
-// Step 1
 import SubStepRent  from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/2_SubStepRent/SubStepRent';
-
 import SubStepFood  from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/3_SubStepFood/SubStepFood';
 import SubStepFixedExp from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/4_SubStepFixedExpenses/SubStepFixedExpenses';
 import SubStepTransport from '@/components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/5_SubStepTransport/SubStepTransport';
@@ -31,7 +28,6 @@ import SubStepSubscriptions from '@components/organisms/overlays/wizard/steps/St
 import SubStepConfirm from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/8_SubStepConfirm/SubStepConfirm';
 
 import LoadingScreen from '@components/molecules/feedback/LoadingScreen';
-
 import AnimatedContent from '@components/atoms/wrappers/AnimatedContent';
 import StepButton      from '@components/molecules/buttons/StepButton';
 import WizardProgress  from '@components/organisms/overlays/wizard/SharedComponents/Menu/WizardProgress';
@@ -42,7 +38,6 @@ import useMediaQuery  from '@hooks/useMediaQuery';
 import { useSaveStepData } from '@hooks/wizard/useSaveStepData';
 import { ensureStep2Defaults } from "@/utils/wizard/ensureStep2Defaults";
 
-
 import {
   Info, Home, FileText, Utensils, Car,
   Shirt, CreditCard, ShieldCheck,
@@ -51,7 +46,7 @@ import {
 import { useWizardDataStore } from '@/stores/Wizard/wizardDataStore';
 
 /* ------------------------------------------------------------------ */
-/*                            INTERFACES                              */
+/* INTERFACES                              */
 /* ------------------------------------------------------------------ */
 export interface StepBudgetExpenditureContainerRef {
   validateFields(): Promise<boolean>;
@@ -82,6 +77,7 @@ interface StepBudgetExpenditureContainerProps {
   loading: boolean;
   initialSubStep: number;
   onSubStepChange?: (newSub: number) => void;
+  onValidationError?: () => void;
 }
 
 function getExpenditurePartialData(
@@ -101,7 +97,7 @@ function getExpenditurePartialData(
 }
 
 /* ------------------------------------------------------------------ */
-/*                        COMPONENT IMPLEMENTATION                     */
+/* COMPONENT IMPLEMENTATION                     */
 /* ------------------------------------------------------------------ */
 const StepBudgetExpenditureContainer = forwardRef<
   StepBudgetExpenditureContainerRef,
@@ -118,18 +114,19 @@ const StepBudgetExpenditureContainer = forwardRef<
   } = props;
 
   const isMobile = useMediaQuery('(max-width: 1367px)');
-  const [showShakeAnimation, setShowShakeAnimation] = useState(false);
-  const triggerShakeAnimation = (duration = 1000) => {
-    setShowShakeAnimation(true);
-    setTimeout(() => setShowShakeAnimation(false), duration);
-  };
+
+  const hasHydrated = useRef(false);
 
   /* 1 ─── Hydrate slice once --------------------------------------- */
   const { setExpenditure } = useWizardDataStore();
   useEffect(() => {
-    if (initialData) setExpenditure(initialData);  // DeepPartial merge
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialData]);
+    // FIX 1: The magical ward. This spell now only runs if it has data
+    // and has not been run before, breaking the hydration loop.
+    if (initialData && Object.keys(initialData).length > 0 && !hasHydrated.current) {
+        setExpenditure(initialData);
+        hasHydrated.current = true;
+    }
+  }, [initialData, setExpenditure]);
 
   /* 2 ─── refs & local state --------------------------------------- */
   const formWrapperRef = useRef<WizardFormWrapperStep2Ref>(null);
@@ -158,8 +155,7 @@ const StepBudgetExpenditureContainer = forwardRef<
     isMobile,
     onSaveStepData,
     setCurrentStep: setCurrentSub,
-    onError: () => triggerShakeAnimation(1000),
-    // --- (B) Pass the slicing function as a prop to the hook ---
+    onError: () => props.onValidationError?.(),
     getPartialDataForSubstep: getExpenditurePartialData,
   });
 
@@ -168,22 +164,17 @@ const totalSteps = 8;
 
 const goToSub = async (dest: number) => {
   const goingBack = dest < currentSub;
-  // The welcome step is read-only, validation is not needed when leaving it.
   const skipValidation = currentSub === 1 || goingBack;
   
   setIsSaving(true);
-  // saveStepData now handles setting the current step after a successful save.
   await saveStepData(currentSub, dest, skipValidation, goingBack);
   setIsSaving(false);
 };
 
 
 const next = () => {
-  console.log(`HAWK 1A: 'next' called. Current sub-step: ${currentSub}`);
   if (currentSub < totalSteps) {
-    // We are NOT on the last sub-step. Advance normally.
     if (currentSub === 1) {
-      // Skip validation for the welcome step
       setCurrentSub(2);
     } else {
       goToSub(currentSub + 1);
@@ -193,13 +184,11 @@ const next = () => {
   }
 };
 
-// Simplified 'prev' function. Its only job is to go back one sub-step.
 const prev = () => {
   console.log(`HAWK 1B: 'prev' called. Current sub-step: ${currentSub}`);
   if (currentSub > 1) {
     goToSub(currentSub - 1);
   }
-  // NOTE: There is no 'else'. The parent handles moving to the previous MAJOR step.
 };
 
   /* 5 ─── progress click handlers ---------------------------------- */
@@ -208,16 +197,18 @@ const prev = () => {
 
   /* 6 ─── notify parent of sub-step -------------------------------- */
   useEffect(() => {
-      // HAWK 1C: Reports that it is sending the message to the parent.
       console.log(`HAWK 1C: Sub-step state is now ${currentSub}. Notifying parent.`);
       props.onSubStepChange?.(currentSub)
-  }, [currentSub, props.onSubStepChange]);
+      // FIX 2: This spell now only listens for a change in the sub-step number,
+      // breaking the notification loop.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSub]);
 
 
   /* 7 ─── imperative API ------------------------------------------- */
   useImperativeHandle(ref, () => ({
     validateFields: () => formMethods?.trigger() ?? Promise.resolve(false),
-  getStepData   : () => formMethods?.getValues() ?? ensureStep2Defaults({}),
+    getStepData   : () => formMethods?.getValues() ?? ensureStep2Defaults({}),
     markAllTouched: () => formMethods?.trigger(),
     getErrors:      () => formMethods?.formState.errors ?? {},
     getCurrentSubStep: () => currentSub,
@@ -251,7 +242,6 @@ const prev = () => {
       case 6: return <SubStepClothing />;
       case 7: return <SubStepSubscriptions />;
       case 8: return <SubStepConfirm />;
-      // Add more cases for other sub-steps as needed
       default:return <div>All sub-steps complete!</div>;
     }
   };
