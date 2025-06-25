@@ -173,7 +173,6 @@ const goToSub = async (dest: number) => {
 
 
 const next = () => {
-  console.log(`HAWK 1A: 'next' called. Current sub-step: ${currentSub}`);
   if (currentSub < totalSteps) {
     if (currentSub === 1) {
       setCurrentSub(2);
