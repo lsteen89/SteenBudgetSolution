@@ -38,6 +38,7 @@ interface StepBudgetExpenditureProps {
   onPrev: () => void;
   loading: boolean;
   onSubStepChange?: (newSub: number) => void;
+  onValidationError?: () => void;
 }
 
 const StepBudgetExpenditure = forwardRef<
@@ -91,6 +92,7 @@ const StepBudgetExpenditure = forwardRef<
           onPrev={props.onPrev}
           loading={props.loading}
           onSubStepChange={props.onSubStepChange}
+          onValidationError={props.onValidationError}
         />
         <DataTransparencySection />
         {/* If you have extra navigation buttons for the user, place them here */}

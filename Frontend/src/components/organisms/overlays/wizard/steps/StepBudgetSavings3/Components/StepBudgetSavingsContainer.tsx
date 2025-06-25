@@ -65,6 +65,7 @@ interface StepBudgetSavingsContainerProps {
   loading: boolean;
   initialSubStep: number;
   onSubStepChange?: (newSub: number) => void;
+  onValidationError?: () => void;
 }
 
 function getSavingsPartialData(
@@ -98,20 +99,17 @@ const StepBudgetSavingsContainer = forwardRef<
   } = props;
 
   const isMobile = useMediaQuery('(max-width: 1367px)');
+  const hasHydrated = useRef(false);
 
   /* 1 ─── Hydrate slice once --------------------------------------- */
   const { setSavings } = useWizardDataStore();
   useEffect(() => {
-    if (initialData && Object.keys(initialData).length > 0) {
-      // Use the defaults utility to create a complete and type-safe object.
-      // This resolves all type inconsistencies at once.
+    if (initialData && Object.keys(initialData).length > 0 && !hasHydrated.current) {
       const completeData = ensureStep3Defaults(initialData);
-      
-      // Pass the perfectly typed data to the store.
       setSavings(completeData);
+      hasHydrated.current = true;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialData]);
+  }, [initialData, setSavings]);
 
   /* 2 ─── refs & local state --------------------------------------- */
   const [isSaving, setIsSaving] = useState(false);
@@ -138,41 +136,50 @@ const StepBudgetSavingsContainer = forwardRef<
     isMobile,
     onSaveStepData,
     setCurrentStep: setCurrentSub,
-    // onError can be added here if shake animations are desired
-    // --- (B) Pass the NEW slicing function as a prop to the hook ---
+    onError: () => props.onValidationError?.(),
     getPartialDataForSubstep: getSavingsPartialData,
   });
 
   /* 4 ─── navigation helpers --------------------------------------- */
   const totalSteps = 4;
 
-  const goToSub = async (dest: number, skipValidation = false) => {
+const goToSub = async (dest: number) => {
     const goingBack = dest < currentSub;
+    // We only skip validation if going backwards.
+    // When moving forward, even from sub-step 1, saveStepData will now perform the validation.
+    const skipValidation = goingBack;
+
     setIsSaving(true);
-    await saveStepData(currentSub, dest, skipValidation || goingBack, goingBack);
+    // saveStepData will now handle validation and return true/false.
+    const wasSuccessful = await saveStepData(currentSub, dest, skipValidation, goingBack);
     setIsSaving(false);
+
+    // Only proceed to the next sub-step if the validation and save were successful.
+    if (wasSuccessful) {
+        setCurrentSub(dest);
+    }
   };
 
+  // This function is used to skip the habit step based on the user's choice.
+  // If the user chooses to skip, we go directly to sub-step 3 (Goals).
+  // Its also the main function for moving to the next sub-step.
   const next = async () => {
     // Logic for skipping habit step
     if (currentSub === 1) {
+      // We no longer validate here. Just get the value and let goToSub handle the rest.
       const answer = formMethods?.getValues('savingHabit');
       const skip = answer === 'start' || answer === 'no';
-      setSkippedHabits(skip);
-      // The Intro step requires no validation, just save and proceed
-      await goToSub(skip ? 3 : 2, true);
+      await goToSub(skip ? 3 : 2);
       return;
     }
 
     if (currentSub < totalSteps) {
+      // For all other forward movements, just call goToSub.
       await goToSub(currentSub + 1);
     } else {
-      // On the final sub-step, validate and save before calling parent onNext
-      const isValid = await formMethods?.trigger();
-      if (isValid) {
-        await goToSub(currentSub, true); // Save final step data
-        onNext();
-      }
+      // When at the last sub-step, we call onNext to let the parent wizard
+      // trigger the FINAL validation for the whole of Step 3.
+      onNext();
     }
   };
 
@@ -193,16 +200,16 @@ const StepBudgetSavingsContainer = forwardRef<
   const clickProgress = (d: number) => goToSub(d);
 
   /* 6 ─── notify parent of sub-step -------------------------------- */
-useEffect(() => {
-  // --- The Child's Proclamation ---
-  console.log(
-    `%cTHE CHILD PROCLAIMS: Sub-step is now ${currentSub}. Notifying parent...`,
-    'color: cyan;',
-    `(Is onSubStepChange a function? ${typeof onSubStepChange === 'function'})`
-  );
+  useEffect(() => {
+    console.log(
+      `%cTHE CHILD PROCLAIMS: Sub-step is now ${currentSub}. Notifying parent...`,
+      'color: cyan;',
+      `(Is onSubStepChange a function? ${typeof onSubStepChange === 'function'})`
+    );
 
-  onSubStepChange?.(currentSub);
-}, [currentSub, onSubStepChange]);
+    onSubStepChange?.(currentSub);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSub]);
 
   /* 7 ─── imperative API ------------------------------------------- */
   useImperativeHandle(ref, () => ({
