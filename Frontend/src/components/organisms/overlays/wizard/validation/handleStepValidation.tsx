@@ -46,6 +46,21 @@ export const handleStepValidation = async (
         return null;
       }
     }
+    
+    case 3: {
+      // THIS IS THE NEW SPELL FOR STEP 3:
+      // It calls the validation method directly on the step component's ref.
+      const isValid = await stepRefObject.current.validateFields();
+      if (isValid) {
+        // If the path is clear, we return the step's data.
+        return stepRefObject.current.getStepData();
+      } else {
+        // If the way is blocked, we mark the fields to show the user the errors...
+        stepRefObject.current.markAllTouched();
+        // ...and we return null, which is the signal for the shake animation.
+        return null;
+      }
+    }
 
     default:
       // For any other step, assume it's valid and return its data or an empty object.

@@ -30,7 +30,7 @@ import AnimatedContent from "@components/atoms/wrappers/AnimatedContent";
 import WizardNavPair from "@components/organisms/overlays/wizard/SharedComponents/Buttons/WizardNavPair";
 import ConfirmModal from "@components/atoms/modals/ConfirmModal";
 import { useWizard, WizardProvider } from '@/context/WizardContext';
-
+import { useWizardDataStore } from '@/stores/Wizard/wizardDataStore';
 
 // ---------------------------- TYPES ----------------------------
 interface SetupWizardProps {
@@ -68,6 +68,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     const stepRefs: { [key: number]: React.RefObject<any> } = { 1: step1WrapperRef, 2: StepBudgetExpenditureRef, 3: step3Ref };
     const { setShowSideIncome, setShowHouseholdMembers } = useBudgetInfoDisplayFlags();
     const [subTick, setSubTick] = useState(0);
+    const { setIncome, setExpenditure, setSavings } = useWizardDataStore();
 
     // All the callbacks and effects also remain here, safe and sound.
     const handleWizardClose = useCallback(() => { setConfirmModalOpen(true); }, []);
@@ -82,17 +83,24 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     });
     useEffect(() => { setIsStepValid(step === 0); }, [step]);
 
-
+    const syncStoreWithCurrentStep = useCallback(() => {
+        const api = stepRefs[step]?.current;
+        const getData = api && typeof api.getStepData === 'function' ? api.getStepData : null;
+        if (!getData) return;
+        const data = getData();
+        if (step === 1) setIncome(data);
+        if (step === 2) setExpenditure(data);
+        if (step === 3) setSavings(data);
+    }, [step, stepRefs, setIncome, setExpenditure, setSavings]);
 
     const handleSubStepChange = useCallback((newSubStep: number) => {
-        // HAWK 2: Confirms the message was received and that subTick will be updated.
-        console.log(`HAWK 2: Message received in SetupWizard. New sub-step: ${newSubStep}. Updating subTick.`);
         setCurrentStepState(prev => ({
             ...prev,
             [step]: { ...prev[step], subStep: newSubStep }
         }));
+        syncStoreWithCurrentStep();
         setSubTick(t => t + 1);
-    }, [step]);
+    }, [step, syncStoreWithCurrentStep]);
 
     const handleStepClick = (targetStep: number) => { setStep(targetStep); };
 
@@ -156,6 +164,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
                 subNav={subNav}
                 isSaving={isSaving}
                 subTick={subTick}
+                triggerShakeAnimation={triggerShakeAnimation}
             />
         </WizardProvider>
     );
@@ -241,6 +250,7 @@ const WizardContent = (props: any) => {
                                         loading={props.transitionLoading || props.initLoading}
                                         initialSubStep={props.initialSubStepForStep(2)}
                                         onSubStepChange={props.handleSubStepChange}
+                                        onValidationError={props.triggerShakeAnimation}
                                     />}
                                     {props.step === 3 && (
                                         <StepBudgetSavings
@@ -254,6 +264,7 @@ const WizardContent = (props: any) => {
                                             onSaveStepData={props.handleSaveStepData}
                                             stepNumber={3}
                                             initialData={props.initialDataForStep(3)}
+                                            onValidationError={props.triggerShakeAnimation}
                                         />
                                     )}
                                     {props.step === 4 && <StepConfirmation />}

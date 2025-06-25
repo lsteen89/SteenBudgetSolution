@@ -77,9 +77,17 @@ const SubStepHabits: React.FC = () => {
               onChange={(newValue) => setValue("monthlySavings", newValue, { shouldValidate: true, shouldDirty: true })}
               aria-labelledby="monthlySavingsLabel"
             />
+            {/* Tonys Note: Here it is. Just like you asked.
+              Your guy handles the rules, we just put the message on display.
+            */}
+            {errors.monthlySavings && (
+              <p className="text-sm text-red-600 mt-2" role="alert">
+                {errors.monthlySavings.message}
+              </p>
+            )}
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2 mt-6"> {/* Added some margin here for better spacing */}
             
             <label className="text-sm font-medium text-standardMenuColor/90 dark:text-standardMenuColor" id="saving-methods-label">
               Hur brukar du spara? (Välj alla som passar)
@@ -96,8 +104,9 @@ const SubStepHabits: React.FC = () => {
                 />
               ))}
             </div>
+            {/* This is the existing error message for the checkboxes. We just copied the style. */}
             {errors.savingMethods && (
-              <p className="text-sm text-red-500 mt-2" role="alert">
+              <p className="text-sm text-red-600 mt-2" role="alert">
                 {errors.savingMethods.message}
               </p>
             )}

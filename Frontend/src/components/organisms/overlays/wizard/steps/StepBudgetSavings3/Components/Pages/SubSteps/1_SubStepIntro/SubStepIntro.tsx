@@ -11,7 +11,8 @@ import InfoBox from "@/components/molecules/messaging/InfoBox";
  * motion and freedom without taking focus away from the form.
  */
 const SubStepIntro: React.FC = () => {
-  const { register, watch } = useFormContext<Step3FormValues>();
+  // We summon formState and extract the errors!
+  const { register, watch, formState: { errors } } = useFormContext<Step3FormValues>();
   const selected = watch('savingHabit');
 
   return (
@@ -68,6 +69,18 @@ const SubStepIntro: React.FC = () => {
             </label>
           ))}
         </fieldset>
+        
+        {/* Our new messenger of truth! It shall appear when needed. */}
+        {errors.savingHabit && (
+            <motion.p
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-center font-bold text-red-600"
+                role="alert"
+            >
+                {errors.savingHabit.message}
+            </motion.p>
+        )}
 
         {/* Conditional Helper Text */}
         {(selected === 'start' || selected === 'no') && (
@@ -76,6 +89,7 @@ const SubStepIntro: React.FC = () => {
           </p>
         )}
       </section>
+      <div id="savingHabit" style={{ position: 'absolute', top: 0 }} />
     </OptionContainer>
   );
 };
