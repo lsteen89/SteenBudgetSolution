@@ -1,4 +1,3 @@
-using Backend.Application.DTO.Wizard.Steps;
 using Backend.Application.Interfaces.AuthService;
 using Backend.Application.Interfaces.Cookies;
 using Backend.Application.Interfaces.EmailServices;
@@ -267,11 +266,12 @@ builder.Services.AddSingleton<IWebSocketManager, Backend.Infrastructure.WebSocke
 //WizardService
 builder.Services.AddScoped<IWizardService, WizardService>();
 //Wizard Validation
-builder.Services.AddValidatorsFromAssemblyContaining<StepBudgetInfoValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<IncomeValidator>(); //<-- Register all validators in the assembly 
 
 // Background services
 builder.Services.AddHostedService<ExpiredTokenScanner>();
 builder.Services.AddHostedService<WebSocketHealthCheckService>();
+
 
 #endregion
 

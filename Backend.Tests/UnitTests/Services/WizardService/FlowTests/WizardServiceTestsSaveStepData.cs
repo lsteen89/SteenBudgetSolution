@@ -1,260 +1,402 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Backend.Application.DTO.Wizard.Steps; // Adjust namespaces as needed
-using Backend.Application.Services.WizardService;
+﻿using Backend.Contracts.Wizard;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
+using Backend.Infrastructure.Data.Sql.Interfaces.WizardQueries;
 using FluentValidation;
 using FluentValidation.Results;
-using Moq;
-using Newtonsoft.Json;
-using Xunit;
 using Microsoft.Extensions.Logging;
-using Backend.Application.Validators.WizardValidation;
-using Backend.Infrastructure.Data.Sql.Interfaces.WizardQueries;
+using Moq;
+using System.Data.Common;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Xunit;
 using WizardServiceClass = Backend.Application.Services.WizardService.WizardService;
 
 namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
 {
     public class WizardServiceTestsSaveStepData
     {
-        private readonly Mock<IWizardSqlProvider> _wizardProviderMock;
-        private readonly Mock<IWizardSqlExecutor> _wizardSqlExecutorMock;
-        private readonly WizardServiceClass _wizardService;
-        private readonly IValidator<StepBudgetInfoDto> _validator;
+        protected readonly Mock<IWizardSqlProvider> _wizardProviderMock;
+        protected readonly Mock<IWizardSqlExecutor> _wizardSqlExecutorMock;
+        protected readonly Mock<IValidator<IncomeFormValues>> _incomeValidatorMock;
+        protected readonly Mock<IValidator<ExpenditureFormValues>> _expensesValidatorMock;
+        protected readonly Mock<IValidator<SavingsFormValues>> _savingsValidatorMock;
+        protected readonly WizardServiceClass _wizardService;
+
+        protected static readonly JsonSerializerOptions Camel = new()
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        };
 
         public WizardServiceTestsSaveStepData()
         {
             _wizardProviderMock = new Mock<IWizardSqlProvider>();
             _wizardSqlExecutorMock = new Mock<IWizardSqlExecutor>();
 
-            // Setup the WizardSqlExecutor property on the provider
-            _wizardProviderMock.Setup(x => x.WizardSqlExecutor)
+            _wizardProviderMock.Setup(p => p.WizardSqlExecutor)
                                .Returns(_wizardSqlExecutorMock.Object);
 
-            // Use a real validator instance
-            _validator = new StepBudgetInfoValidator();
+            // validators that always succeed
+            _incomeValidatorMock = CreatePassingValidatorMock<IncomeFormValues>();
+            _expensesValidatorMock = CreatePassingValidatorMock<ExpenditureFormValues>();
+            _savingsValidatorMock = CreatePassingValidatorMock<SavingsFormValues>();
 
-            // Create a dummy logger
             var logger = Mock.Of<ILogger<WizardServiceClass>>();
 
-            // Instantiate the service with the mocked provider and the validator
-            _wizardService = new WizardServiceClass(_wizardProviderMock.Object, _validator, logger);
+            _wizardService = new WizardServiceClass(
+                _wizardProviderMock.Object,
+                _incomeValidatorMock.Object,
+                _expensesValidatorMock.Object,
+                _savingsValidatorMock.Object,
+                logger);
         }
 
+        protected static Mock<IValidator<T>> CreatePassingValidatorMock<T>() where T : class
+        {
+            var m = new Mock<IValidator<T>>();
+            m.Setup(v => v.Validate(It.IsAny<T>()))
+             .Returns(new ValidationResult());     // always valid
+            return m;
+        }
+
+        // ─────────────────────────────────────────────────────────────────────────
         [Fact]
         public async Task SaveStepDataAsync_Step1_ValidData_UpsertsSuccessfully()
         {
-            // Arrange: Create a valid DTO for Step 1
-            var validDto = new StepBudgetInfoDto
+            // Arrange – build a valid IncomeFormValues payload
+            var validDto = new IncomeFormValues
             {
-                NetSalary = 50000,
-                SalaryFrequency = "monthly",
-                YearlySalary = 600000,
-                HouseholdMembers = new List<HouseholdMemberDto>(), // No household members for individual
-                SideHustles = new List<SideHustleDto>()
+                NetSalary = 50_000m,
+                SalaryFrequency = Frequency.Monthly,
+                YearlySalary = 600_000m,
+                HouseholdMembers = new(),
+                SideHustles = new()
             };
 
-            // Convert the valid DTO to JSON as it would come from the FE.
-            string stepDataJson = JsonConvert.SerializeObject(validDto);
+            string json = JsonSerializer.Serialize(validDto, Camel);
 
-            // Setup the repository's upsert method to simulate success.
             _wizardSqlExecutorMock
-                .Setup(x => x.UpsertStepDataAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<int>(), null, null))
+                .Setup(x => x.UpsertStepDataAsync(
+                           It.IsAny<string>(),
+                           It.IsAny<int>(),
+                           It.IsAny<int>(),
+                           It.IsAny<string>(),
+                           It.IsAny<int>(),
+                           It.IsAny<DbConnection?>(),    
+                           It.IsAny<DbTransaction?>())) 
                 .ReturnsAsync(true);
 
             // Act
-            var result = await _wizardService.SaveStepDataAsync("test-session-guid", 1, 2, stepDataJson, 2);
+            var ok = await _wizardService.SaveStepDataAsync(
+                         "test-session-guid", 1, 2, json, 2);
 
-            // Assert
-            Assert.True(result);
+            // Assert – service reports success
+            Assert.True(ok);
+
+            // & repository received JSON containing key data
             _wizardSqlExecutorMock.Verify(x => x.UpsertStepDataAsync(
                 "test-session-guid",
                 1,
                 2,
-                It.Is<string>(json => json.Contains("50000") && json.Contains("monthly")),
+                It.Is<string>(s =>
+                    s.Contains("\"netSalary\":50000") &&
+                    s.Contains("\"salaryFrequency\":\"monthly\"")), // string
                 2,
-                null,
-                null
-            ), Times.Once);
+                It.IsAny<DbConnection?>(),              
+                It.IsAny<DbTransaction?>()),          
+                Times.Once);
         }
-
         [Fact]
-        public async Task SaveStepDataAsync_Step1_InvalidData_ThrowsException()
+        public async Task SaveStepDataAsync_Step1_InvalidData_ThrowsValidationException()
         {
-            // Arrange: Create an invalid DTO for Step 1 (e.g., NetSalary is 0, which fails validation)
-            var invalidDto = new StepBudgetInfoDto
+            // ── Arrange ───────────────────────────────────────────────────────
+            var dto = new IncomeFormValues
             {
-                NetSalary = 0,
-                SalaryFrequency = "monthly",
-                YearlySalary = 0,
-                HouseholdMembers = new List<HouseholdMemberDto>(),
-                SideHustles = new List<SideHustleDto>()
+                NetSalary = 0m,                    // invalid (must be > 0)
+                SalaryFrequency = Frequency.Monthly,
+                YearlySalary = 0m
             };
+            string json = JsonSerializer.Serialize(dto, Camel);
 
-            string stepDataJson = JsonConvert.SerializeObject(invalidDto);
+            // real validator that contains the rules for step 1
+            var incomeValidator = new IncomeValidator();
 
-            // Act & Assert: Expect an exception due to failed validation.
-            var exception = await Assert.ThrowsAsync<Exception>(async () =>
-            {
-                await _wizardService.SaveStepDataAsync("test-session-guid", 1, 2, stepDataJson, 2);
-            });
-            Assert.Contains("Validation failed", exception.Message);
+            // passing mocks for the other two steps
+            var expensesValidator = CreatePassingValidatorMock<ExpenditureFormValues>().Object;
+            var savingsValidator = CreatePassingValidatorMock<SavingsFormValues>().Object;
 
-            // Verify that the repository's upsert method was never called.
-            _wizardSqlExecutorMock.Verify(x => x.UpsertStepDataAsync(
-                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<int>(), null, null
-            ), Times.Never);
+            var wizardService = new WizardServiceClass(
+                _wizardProviderMock.Object,
+                incomeValidator,         // ← real rules execute
+                expensesValidator,
+                savingsValidator,
+                Mock.Of<ILogger<WizardServiceClass>>());
+
+            // DB layer shouldn’t be called at all
+            _wizardSqlExecutorMock.Setup(e => e.UpsertStepDataAsync(
+                        It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
+                        It.IsAny<string>(), It.IsAny<int>(),
+                        It.IsAny<DbConnection?>(), It.IsAny<DbTransaction?>()))
+                        .ReturnsAsync(true);
+
+            // ── Act & Assert ──────────────────────────────────────────────────
+            var ex = await Assert.ThrowsAsync<ValidationException>(() =>
+                wizardService.SaveStepDataAsync("test-session-guid", 1, 2, json, 2));
+
+            Assert.Contains("NetSalary", ex.Message);
+
+            _wizardSqlExecutorMock.Verify(e => e.UpsertStepDataAsync(
+                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
+                It.IsAny<string>(), It.IsAny<int>(),
+                It.IsAny<DbConnection?>(), It.IsAny<DbTransaction?>()),
+                Times.Never);
         }
+
         [Fact]
         public async Task SaveStepDataAsync_Step1_HouseholdValidData_UpsertsSuccessfully()
         {
-            // Arrange: Create a valid household DTO (IsHousehold = true with one member)
-            var validDto = new StepBudgetInfoDto
+            // ────────── Arrange ────────────────────────────────────────────────
+            var validDto = new IncomeFormValues
             {
-                NetSalary = 1, 
-                SalaryFrequency = "monthly",
-                YearlySalary = 0,
-                HouseholdMembers = new List<HouseholdMemberDto>
+                NetSalary = 1m,
+                SalaryFrequency = Frequency.Monthly,
+                YearlySalary = 0m,
+                HouseholdMembers = new()
         {
-            new HouseholdMemberDto
+            new HouseholdMember
             {
-                Name = "John Doe",
-                Income = 30000,
-                Frequency = "monthly",
-                YearlyIncome = 360000
+                Name         = "John Doe",
+                Income       = 30_000m,
+                Frequency    = Frequency.Monthly,
+                YearlyIncome = 360_000m
             }
         },
-                SideHustles = new List<SideHustleDto>()
+                SideHustles = new()
             };
 
-            string json = JsonConvert.SerializeObject(validDto);
+            string json = JsonSerializer.Serialize(validDto, Camel);
 
             _wizardSqlExecutorMock
-                 .Setup(x => x.UpsertStepDataAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<int>(), null, null))
-                 .ReturnsAsync(true);
-
-            // Act
-            var result = await _wizardService.SaveStepDataAsync("test-session-guid", 1, 2, json, 2);
-
-            // Assert
-            Assert.True(result);
-            _wizardSqlExecutorMock.Verify(x => x.UpsertStepDataAsync(
-                "test-session-guid",
-                1,
-                2,
-                It.Is<string>(s => s.Contains("John Doe") && s.Contains("monthly")),
-                2,
-                null,
-                null
-            ), Times.Once);
-        }
-
-        [Fact]
-        public async Task SaveStepDataAsync_Step1_HouseholdValidData_WithNoMembers_UpsertsSuccessfully()
-        {
-            // Arrange: Create a valid DTO for a household scenario with no household members
-            var validDto = new StepBudgetInfoDto
-            {
-                NetSalary = 1,
-                SalaryFrequency = "monthly",
-                YearlySalary = 0,
-                HouseholdMembers = new List<HouseholdMemberDto>(), // Valid now: can be 0 to N.
-                SideHustles = new List<SideHustleDto>()
-            };
-
-            string json = JsonConvert.SerializeObject(validDto);
-
-            // Setup the repository's upsert method to simulate success.
-            _wizardSqlExecutorMock
-                .Setup(x => x.UpsertStepDataAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<int>(), null, null))
+                .Setup(x => x.UpsertStepDataAsync(
+                           It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
+                           It.IsAny<string>(), It.IsAny<int>(),
+                           It.IsAny<DbConnection?>(), It.IsAny<DbTransaction?>()))
                 .ReturnsAsync(true);
 
-            // Act
-            var result = await _wizardService.SaveStepDataAsync("test-session-guid", 1, 2, json, 2);
+            // ────────── Act ────────────────────────────────────────────────────
+            var ok = await _wizardService.SaveStepDataAsync(
+                         "test-session-guid", stepNumber: 1, substepNumber: 2,
+                         json, dataVersion: 2);
 
-            // Assert
-            Assert.True(result);
+            // ────────── Assert ────────────────────────────────────────────────
+            Assert.True(ok);
+
             _wizardSqlExecutorMock.Verify(x => x.UpsertStepDataAsync(
                 "test-session-guid",
                 1,
                 2,
-                It.Is<string>(s => s.Contains("monthly")),
+                It.Is<string>(s =>
+                    s.Contains("John Doe") &&   // name
+                    s.Contains("\"frequency\":\"monthly\"") &&  // string enum
+                    s.Contains("\"netSalary\":1")),        // quick sanity check
                 2,
-                null,
-                null
-            ), Times.Once);
+                It.IsAny<DbConnection?>(),
+                It.IsAny<DbTransaction?>()),
+                Times.Once);
         }
 
+
         [Fact]
-        public async Task SaveStepDataAsync_Step1_SideHustleInvalidData_ThrowsException()
+        public async Task SaveStepDataAsync_Step1_HouseholdValidData_NoMembers_UpsertsSuccessfully()
         {
-            // Arrange: Create a valid individual DTO but with an invalid side hustle (e.g., missing name, income, frequency)
-            var invalidDto = new StepBudgetInfoDto
+            // ────────── Arrange ────────────────────────────────────────────────
+            var dto = new IncomeFormValues
             {
-                NetSalary = 50000,
-                SalaryFrequency = "monthly",
-                YearlySalary = 600000,
-                HouseholdMembers = new List<HouseholdMemberDto>(),
-                SideHustles = new List<SideHustleDto>
-                {
-            new SideHustleDto
+                NetSalary = 1m,
+                SalaryFrequency = Frequency.Monthly,
+                YearlySalary = 0m,
+                HouseholdMembers = new(),   // ✓ zero members is allowed
+                SideHustles = new()
+            };
+
+            string json = JsonSerializer.Serialize(dto, Camel);
+
+            _wizardSqlExecutorMock
+                .Setup(x => x.UpsertStepDataAsync(
+                           It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
+                           It.IsAny<string>(), It.IsAny<int>(),
+                           It.IsAny<DbConnection?>(), It.IsAny<DbTransaction?>()))
+                .ReturnsAsync(true);
+
+            // ────────── Act ────────────────────────────────────────────────────
+            var ok = await _wizardService.SaveStepDataAsync(
+                         "test-session-guid", stepNumber: 1, substepNumber: 2,
+                         json, dataVersion: 2);
+
+            // ────────── Assert ────────────────────────────────────────────────
+            Assert.True(ok);
+
+            _wizardSqlExecutorMock.Verify(x => x.UpsertStepDataAsync(
+                "test-session-guid",
+                1,
+                2,
+                It.Is<string>(s =>
+                s.Contains("\"salaryFrequency\":\"monthly\"") &&
+                    s.Contains("\"netSalary\":1")),
+                2,
+                It.IsAny<DbConnection?>(),
+                It.IsAny<DbTransaction?>()),
+                Times.Once);
+        }
+
+
+        [Fact]
+        public async Task SaveStepDataAsync_Step1_SideHustleInvalidData_ThrowsValidationException()
+        {
+            // ── Arrange ───────────────────────────────────────────────────────
+            var dto = new IncomeFormValues
             {
-                Name = "",   // Invalid: empty name
-                Income = 0,  // Invalid: should be a positive value
-                Frequency = "" // Invalid: missing frequency
+                NetSalary = 50_000m,
+                SalaryFrequency = Frequency.Monthly,
+                YearlySalary = 600_000m,
+                SideHustles = new()
+        {
+            new SideHustle   // invalid entry
+            {
+                Name      = "",
+                Income    = 0m,
+                Frequency = Frequency.Unknown
             }
         }
             };
+            string json = JsonSerializer.Serialize(dto, Camel);
 
-            string json = JsonConvert.SerializeObject(invalidDto);
+            // real validator for the failing step
+            var incomeValidator = new IncomeValidator();        
+            var expensesValidator = CreatePassingValidatorMock<ExpenditureFormValues>().Object;
+            var savingsValidator = CreatePassingValidatorMock<SavingsFormValues>().Object;
 
-            // Act & Assert: Expect an exception due to invalid side hustle data.
-            var exception = await Assert.ThrowsAsync<Exception>(async () =>
+            var wizardService = new WizardServiceClass(
+                _wizardProviderMock.Object,
+                incomeValidator,           // use the real one
+                expensesValidator,
+                savingsValidator,
+                Mock.Of<ILogger<WizardServiceClass>>());
+
+            // DB layer should never be hit
+            _wizardSqlExecutorMock
+                .Setup(e => e.UpsertStepDataAsync(
+                           It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
+                           It.IsAny<string>(), It.IsAny<int>(),
+                           It.IsAny<DbConnection?>(), It.IsAny<DbTransaction?>()))
+                .ReturnsAsync(true);
+
+            // ── Act & Assert ──────────────────────────────────────────────────
+            var ex = await Assert.ThrowsAsync<ValidationException>(() =>
+                wizardService.SaveStepDataAsync("test-session-guid", 1, 2, json, 2));
+
+            Assert.Contains("Side hustles should not be provided when the section is hidden", ex.Message);
+
+            _wizardSqlExecutorMock.Verify(e => e.UpsertStepDataAsync(
+                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
+                It.IsAny<string>(), It.IsAny<int>(),
+                It.IsAny<DbConnection?>(), It.IsAny<DbTransaction?>()),
+                Times.Never);
+        }
+
+        public async Task SaveStepDataAsync_Step1_HouseholdMemberInvalidData_ThrowsValidationException()
+        {
+            // ── Arrange ───────────────────────────────────────────────────────
+            var dto = new IncomeFormValues
             {
-                await _wizardService.SaveStepDataAsync("test-session-guid", 1, 2, json, 2);
-            });
-            Assert.Contains("Ange namn för sidoinkomst.", exception.Message);
+                NetSalary = 1m,
+                SalaryFrequency = Frequency.Monthly,
+                HouseholdMembers = new()
+        {
+            new HouseholdMember           // invalid → empty Name
+            {
+                Name      = "",
+                Income    = 30_000m,
+                Frequency = Frequency.Monthly
+            }
+        }
+            };
+            string json = JsonSerializer.Serialize(dto, Camel);
+
+            // real failing validator for step 1
+            var incomeValidator = new IncomeValidator();
+
+            // passing mocks for steps 2 & 3
+            var expensesValidator = CreatePassingValidatorMock<ExpenditureFormValues>().Object;
+            var savingsValidator = CreatePassingValidatorMock<SavingsFormValues>().Object;
+
+            var wizardService = new WizardServiceClass(
+                _wizardProviderMock.Object,
+                incomeValidator,         // real
+                expensesValidator,
+                savingsValidator,
+                Mock.Of<ILogger<WizardServiceClass>>());
+
+            // Act  &  Assert
+            var ex = await Assert.ThrowsAsync<ValidationException>(() =>
+                wizardService.SaveStepDataAsync("test-session-guid", 1, 2, json, 2));
+
+            Assert.Contains("Household member name is required", ex.Message);
 
             _wizardSqlExecutorMock.Verify(x => x.UpsertStepDataAsync(
-                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<int>(), null, null
-            ), Times.Never);
+                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
+                It.IsAny<string>(), It.IsAny<int>(),
+                It.IsAny<DbConnection?>(), It.IsAny<DbTransaction?>()),
+                Times.Never);
         }
         [Fact]
-        public async Task SaveStepDataAsync_Step1_HouseholdMemberInvalidData_ThrowsException()
+        public async Task SaveStepDataAsync_Step1_StringEnumFrequency_UpsertsSuccessfully()
         {
-            // Arrange: Create an invalid DTO for a household scenario with invalid member data.
-            var invalidDto = new StepBudgetInfoDto
-            {
-                NetSalary = 1,
-                SalaryFrequency = "monthly",
-                YearlySalary = 0,
-                HouseholdMembers = new List<HouseholdMemberDto>
-        {
-            new HouseholdMemberDto
-            {
-                Name = "", // Invalid
-                Income = 30000,
-                Frequency = "monthly",
-                YearlyIncome = 360000
-            }
-        },
-                SideHustles = new List<SideHustleDto>()
-            };
+            // ────────── Arrange ────────────────────────────────────────────────
+            const string payload =
+                @"{""netSalary"":50000,""salaryFrequency"":""monthly"",""yearlySalary"":600000,""householdMembers"":[],""sideHustles"":[]}";
 
-            string json = JsonConvert.SerializeObject(invalidDto);
 
-            // Act & Assert: Expect an exception due to the invalid household member's name.
-            var exception = await Assert.ThrowsAsync<Exception>(async () =>
-            {
-                await _wizardService.SaveStepDataAsync("test-session-guid", 1, 2, json, 2);
-            });
-            Assert.Contains("Ange namn", exception.Message);
+            // all three validators succeed (we merely test enum deserialization)
+            var incomeValidator = CreatePassingValidatorMock<IncomeFormValues>().Object;
+            var expensesValidator = CreatePassingValidatorMock<ExpenditureFormValues>().Object;
+            var savingsValidator = CreatePassingValidatorMock<SavingsFormValues>().Object;
 
-            _wizardSqlExecutorMock.Verify(x => x.UpsertStepDataAsync(
-                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<int>(), null, null
-            ), Times.Never);
+            _wizardSqlExecutorMock
+                .Setup(e => e.UpsertStepDataAsync(
+                           It.IsAny<string>(), 1, 2,
+                           It.IsAny<string>(), 2,
+                           It.IsAny<DbConnection?>(), It.IsAny<DbTransaction?>()))
+                .ReturnsAsync(true);
+
+            var wizardService = new WizardServiceClass(
+                _wizardProviderMock.Object,
+                incomeValidator,
+                expensesValidator,
+                savingsValidator,
+                Mock.Of<ILogger<WizardServiceClass>>());
+
+            // ────────── Act ────────────────────────────────────────────────────
+            var ok = await wizardService.SaveStepDataAsync(
+                         "test-session-guid", stepNumber: 1, substepNumber: 2,
+                         payload, dataVersion: 2);
+
+            // ────────── Assert ────────────────────────────────────────────────
+            Assert.True(ok);
+
+            // verify DB called once with serialized JSON that now contains enum *number* 3
+            _wizardSqlExecutorMock.Verify(e => e.UpsertStepDataAsync(
+                "test-session-guid",
+                1,
+                2,
+                It.Is<string>(s =>
+                    s.Contains("\"salaryFrequency\":\"monthly\"") &&
+                    s.Contains("\"netSalary\":50000")),
+                2,
+                It.IsAny<DbConnection?>(),
+                It.IsAny<DbTransaction?>()),
+                Times.Once);
         }
+
     }
 }

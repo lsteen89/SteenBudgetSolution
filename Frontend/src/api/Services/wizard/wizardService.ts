@@ -1,10 +1,12 @@
 import { api } from '@/api/axios';
 import { StartWizardResponse } from '@myTypes/Wizard/StartWizardResponse';
 import { CODE_DATA_VERSION } from '@/constants/wizardVersion';
+import { WizardData } from '@/stores/Wizard/wizardDataStore';
 
 export interface WizardDataResponseDto {
-  wizardData: Record<number, any> | null;
-  subStep: number;
+  wizardData: Partial<WizardData>;   
+  subStep: number | null;
+  dataVersion: number;
 }
 
 

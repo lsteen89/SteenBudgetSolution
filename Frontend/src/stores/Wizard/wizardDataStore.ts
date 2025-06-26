@@ -1,116 +1,75 @@
 import { create } from 'zustand';
-
 import { devtools, persist, createJSONStorage } from 'zustand/middleware';
-import type { ExpenditureFormValues } from '@myTypes/Wizard/ExpenditureFormValues';
-import type { IncomeFormValues } from '@myTypes/Wizard/IncomeFormValues';
-import type { Step3FormValues as SavingsFormValues } from '@/schemas/wizard/StepSavings/step3Schema';
 import { createWithEqualityFn } from 'zustand/traditional';
 import { CODE_DATA_VERSION } from '@/constants/wizardVersion';
 
+// =========================================================================
+// 1. IMPORT THE BLUEPRINTS FOR EACH DEPARTMENT
+// =========================================================================
+import type { ExpenditureFormValues } from '@myTypes/Wizard/ExpenditureFormValues';
+import type { IncomeFormValues } from '@myTypes/Wizard/IncomeFormValues';
+import type { SavingsFormValues } from '@myTypes/Wizard/SavingsFormValues'; 
 
-type DeepPartial<T> = {
-  [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];
-};
-
-
+// =========================================================================
+// 2. WizardData
+// This is the blueprint for the entire operation. One object to rule them all.
+// =========================================================================
 export interface WizardData {
-  income: DeepPartial<IncomeFormValues>;
-  expenditure: DeepPartial<ExpenditureFormValues>;
-  savings: DeepPartial<SavingsFormValues>;
-  // Add other steps here if they are part of this store's 'data' object
+  income: Partial<IncomeFormValues>;
+  expenditure: Partial<ExpenditureFormValues>;
+  savings: Partial<SavingsFormValues>;
 }
 
-
+// =========================================================================
+// 3. DEFINE THE STORE'S RESPONSIBILITIES
+// =========================================================================
 export interface WizardDataStore {
-  data: WizardData;
+  data: WizardData; // It holds the main ledger.
   version: number;
-  setIncome: (d: DeepPartial<IncomeFormValues>) => void;
-  setExpenditure: (d: DeepPartial<ExpenditureFormValues>) => void;
-  setSavings: (d: DeepPartial<SavingsFormValues>) => void;
+  setIncome: (d: Partial<IncomeFormValues>) => void;
+  setExpenditure: (d: Partial<ExpenditureFormValues>) => void;
+  setSavings: (d: Partial<SavingsFormValues>) => void;
   reset: () => void;
 }
 
-
-const generateUniqueId = () => `default_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-
-// 3️⃣ Define the initial state for your wizard data explicitly
+// =========================================================================
+// 4. DEFINE THE STARTING POINT
+// This is the initial state of the store. It starts empty, like a fresh ledger.
+// You can think of it as the empty book that the accountant will fill in.
+// =========================================================================
 const initialWizardDataState: WizardData = {
-  income: {
-
-  },
-  expenditure: {
-    // This is the key change: we're defining the default structure for fixedExpenses.
-    fixedExpenses: {
-      insurance: null,
-      electricity: null,
-      internet: null,
-      phone: null,
-      unionFees: null,
-      customExpenses: [],
-    },
-    transport: {
-      monthlyFuelCost: 0,
-      monthlyInsuranceCost: 0,
-      monthlyTotalCarCost: 0,
-      monthlyTransitCost: 0,
-    },
-    clothing: {
-      monthlyClothingCost: 0,
-    },
-    subscriptions: {
-      netflix: null,
-      spotify: null,
-      hbomax: null,
-      viaplay: null,
-      disneyPlus: null,
-      customSubscriptions: [],
-    },
-    // Todo: For consistency, we should also define the structure for rent, food, and utilities.
-  },
-  savings: {
-    savingHabit: '',
-    monthlySavings: null,
-    savingMethods: [],
-    goals: [],
-  },
+  income: {},
+  expenditure: {},
+  savings: {},
 };
 
-// 4️⃣ Update the store creation to include persist middleware
+// =========================================================================
+// 5. BUILD THE ACCOUNTANT'S OFFICE
+// =========================================================================
 export const useWizardDataStore = createWithEqualityFn<WizardDataStore>()(
-  devtools( // devtools can wrap persist
-    persist( // Apply the persist middleware
+  devtools(
+    persist(
       (set) => ({
-        data: initialWizardDataState, // Initialize with the explicit initial state
+        data: initialWizardDataState,
         version: CODE_DATA_VERSION,
         setIncome: (incomeUpdate) =>
           set((state) => ({
-            data: {
-              ...state.data,
-              income: { ...state.data.income, ...incomeUpdate }, // Merge update into income
-            },
+            data: { ...state.data, income: { ...state.data.income, ...incomeUpdate } },
           })),
         setExpenditure: (expenditureUpdate) =>
           set((state) => ({
-            data: {
-              ...state.data,
-              expenditure: expenditureUpdate,
-            },
+            data: { ...state.data, expenditure: { ...state.data.expenditure, ...expenditureUpdate } },
           })),
         setSavings: (savingsUpdate) =>
           set((state) => ({
-            data: {
-              ...state.data,
-              savings: { ...state.data.savings, ...savingsUpdate },
-            },
+            data: { ...state.data, savings: { ...state.data.savings, ...savingsUpdate } },
           })),
-        reset: () => set({ data: { ...initialWizardDataState }, version: CODE_DATA_VERSION }), // Reset to the defined initial state
+        reset: () => set({ data: { ...initialWizardDataState }, version: CODE_DATA_VERSION }),
       }),
       {
-        name: 'wizard-form-data-storage', // Unique key for localStorage
-        storage: createJSONStorage(() => localStorage), // Use localStorage
-
+        name: 'wizard-form-data-storage',
+        storage: createJSONStorage(() => localStorage),
       }
     )
   )
-  // You can add equality function if needed, e.g., shallow from 'zustand/shallow'
 );
