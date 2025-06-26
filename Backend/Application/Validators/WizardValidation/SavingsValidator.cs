@@ -11,9 +11,18 @@ namespace Backend.Application.Validators.WizardValidation
             RuleFor(g => g.Name)
                 .NotEmpty();
 
-            RuleFor(g => g.Amount)
+            RuleFor(g => g.TargetAmount)
                 .NotNull()
                 .GreaterThan(0);
+
+            RuleFor(g => g.TargetDate)
+                .NotNull()
+                .GreaterThanOrEqualTo(DateTime.Today)
+                .LessThanOrEqualTo(DateTime.Today.AddYears(40));
+
+            RuleFor(g => g.AmountSaved)
+                .GreaterThanOrEqualTo(0)
+                .When(g => g.AmountSaved.HasValue);
         }
     }
 
@@ -34,17 +43,6 @@ namespace Backend.Application.Validators.WizardValidation
                 .Must(list => list!.Count > 0)
                 .WithMessage("At least one saving method must be chosen.");
 
-
-            RuleFor(x => x.Goals)
-                .Must(g =>
-                {
-                    if (g is null) return true;                
-                    var ids = g.Where(goal => !string.IsNullOrWhiteSpace(goal.Id))
-                               .Select(goal => goal.Id!)
-                               .ToList();
-                    return ids.Distinct().Count() == ids.Count;
-                })
-                .WithMessage("Duplicate goal IDs are not allowed.");
 
             When(x => x.Goals is not null, () =>
             {

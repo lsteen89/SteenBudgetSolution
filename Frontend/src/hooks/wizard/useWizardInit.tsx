@@ -105,21 +105,12 @@ const useWizardInit = () => {
         } finally {
             setLoading(false);
         }
-    }, [
-        // Dependencies for useCallback
-        failedAttempts,
-        localStoreVersion,
-        resetDataStore,
-        setExpenditure,
-        setIncome,
-        setSavings,
-        setSessionIdInStore,
-        showToast,
-    ]);
+    }, []);
 
     useEffect(() => {
         initWizard();
-    }, [initWizard]); // Pass the function itself as a dependency
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     return {
         loading,

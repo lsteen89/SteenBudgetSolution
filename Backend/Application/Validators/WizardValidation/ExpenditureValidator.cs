@@ -10,15 +10,19 @@ public sealed class RentValidator : AbstractValidator<Rent>
         RuleFor(r => r.HomeType).NotEmpty();
 
         RuleFor(r => r.MonthlyRent)
-            .NotNull().GreaterThan(0)
+            .NotNull().GreaterThan(0).LessThanOrEqualTo(50000)
             .When(r => r.HomeType == "rent");
 
         RuleFor(r => r.MonthlyFee)
-            .NotNull().GreaterThan(0)
+            .NotNull().GreaterThan(0).LessThanOrEqualTo(50000)
             .When(r => r.HomeType == "brf");
 
+        RuleFor(r => r.MonthlyFee)
+            .LessThanOrEqualTo(100000)
+            .When(r => r.HomeType != "brf" && r.MonthlyFee.HasValue);
+
         RuleFor(r => r.MortgagePayment)
-            .NotNull().GreaterThan(0)
+            .NotNull().GreaterThan(0).LessThanOrEqualTo(50000)
             .When(r => r.HomeType == "house");
 
         RuleFor(r => r.RentExtraFees)
@@ -43,13 +47,8 @@ public sealed class FoodValidator : AbstractValidator<Food>
 {
     public FoodValidator()
     {
-        RuleFor(f => f.FoodStoreExpenses)
-            .GreaterThanOrEqualTo(0)
-            .When(f => f.FoodStoreExpenses.HasValue);
-
-        RuleFor(f => f.TakeoutExpenses)
-            .GreaterThanOrEqualTo(0)
-            .When(f => f.TakeoutExpenses.HasValue);
+        // FE only ensures numeric input; no range validation
+        // Keep values if provided
     }
 }
 
@@ -95,6 +94,7 @@ public sealed class ClothingValidator : AbstractValidator<Clothing>
     {
         RuleFor(c => c.MonthlyClothingCost)
             .GreaterThanOrEqualTo(0)
+            .LessThanOrEqualTo(1_000_000)
             .When(c => c.MonthlyClothingCost.HasValue);
     }
 }
@@ -131,25 +131,7 @@ public sealed class SubscriptionsValidator : AbstractValidator<SubscriptionsSubF
 {
     public SubscriptionsValidator()
     {
-        RuleFor(s => s.Netflix)
-            .GreaterThanOrEqualTo(0)
-            .When(s => s.Netflix.HasValue);
 
-        RuleFor(s => s.Spotify)
-            .GreaterThanOrEqualTo(0)
-            .When(s => s.Spotify.HasValue);
-
-        RuleFor(s => s.HBOMax)
-            .GreaterThanOrEqualTo(0)
-            .When(s => s.HBOMax.HasValue);
-
-        RuleFor(s => s.Viaplay)
-            .GreaterThanOrEqualTo(0)
-            .When(s => s.Viaplay.HasValue);
-
-        RuleFor(s => s.DisneyPlus)
-            .GreaterThanOrEqualTo(0)
-            .When(s => s.DisneyPlus.HasValue);
 
         When(s => s.CustomSubscriptions is not null, () =>
         {
