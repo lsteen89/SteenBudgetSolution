@@ -7,7 +7,7 @@ using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
 using Backend.Infrastructure.Data.Sql.Interfaces.WizardQueries;
 using FluentValidation;
 using FluentValidation.Results;
-using Backend.Application.DTO.Wizard.Steps;
+using Backend.Contracts.Wizard;
 
 namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
 {
@@ -15,6 +15,9 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
     {
         private readonly Mock<IWizardSqlProvider> _wizardProviderMock;
         private readonly Mock<IWizardSqlExecutor> _wizardSqlExecutorMock;
+        private readonly Mock<IValidator<IncomeFormValues>> _incomeValidatorMock;
+        private readonly Mock<IValidator<ExpenditureFormValues>> _expensesValidatorMock;
+        private readonly Mock<IValidator<SavingsFormValues>> _savingsValidatorMock;
         private readonly WizardServiceClass _wizardService;
 
         public WizardServiceTestsCreateSession()
@@ -22,20 +25,30 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
             _wizardProviderMock = new Mock<IWizardSqlProvider>();
             _wizardSqlExecutorMock = new Mock<IWizardSqlExecutor>();
 
-            // Setup the WizardSqlExecutor property on the provider
-            _wizardProviderMock.Setup(x => x.WizardSqlExecutor)
+            _wizardProviderMock.Setup(p => p.WizardSqlExecutor)
                                .Returns(_wizardSqlExecutorMock.Object);
 
-            // Create a mock validator for StepBudgetInfoDto that always returns valid.
-            var validatorMock = new Mock<IValidator<StepBudgetInfoDto>>();
-            validatorMock.Setup(x => x.Validate(It.IsAny<StepBudgetInfoDto>()))
-                         .Returns(new ValidationResult()); // Always valid
+            // validators that always succeed
+            _incomeValidatorMock = CreatePassingValidatorMock<IncomeFormValues>();
+            _expensesValidatorMock = CreatePassingValidatorMock<ExpenditureFormValues>();
+            _savingsValidatorMock = CreatePassingValidatorMock<SavingsFormValues>();
 
-            // Create a dummy logger for WizardService
             var logger = Mock.Of<ILogger<WizardServiceClass>>();
 
-            // Instantiate your service with the mocked provider, the mock validator, and the logger.
-            _wizardService = new WizardServiceClass(_wizardProviderMock.Object, validatorMock.Object, logger);
+            _wizardService = new WizardServiceClass(
+                _wizardProviderMock.Object,
+                _incomeValidatorMock.Object,
+                _expensesValidatorMock.Object,
+                _savingsValidatorMock.Object,
+                logger);
+        }
+
+        private static Mock<IValidator<T>> CreatePassingValidatorMock<T>() where T : class
+        {
+            var m = new Mock<IValidator<T>>();
+            m.Setup(v => v.Validate(It.IsAny<T>())).Returns(new ValidationResult());
+
+            return m;
         }
 
         [Fact]

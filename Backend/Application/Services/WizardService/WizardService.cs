@@ -1,29 +1,33 @@
-﻿using Backend.Application.Interfaces.WizardService;
+﻿using Backend.Application.DTO.Wizard;
+using Backend.Application.Interfaces.WizardService;
+using Backend.Contracts.Wizard;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
-using Backend.Domain.Entities.Wizard;
-using Backend.Application.DTO.Wizard;
-using Backend.Application.DTO.Wizard.Steps;
-using Newtonsoft.Json;
 using FluentValidation;
-using FluentValidation.Results;
-using Newtonsoft.Json.Serialization;
-using Backend.Application.Models.Wizard;
-using Newtonsoft.Json.Linq;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Backend.Application.Services.WizardService
 {
     public class WizardService : IWizardService
     {
         private readonly IWizardSqlProvider _wizardProvider;
-        private readonly IValidator<StepBudgetInfoDto> _stepValidator;
+        private readonly IValidator<IncomeFormValues> _incomeValidator;
+        private readonly IValidator<ExpenditureFormValues> _expensesValidator;
+        private readonly IValidator<SavingsFormValues> _savingsValidator;
         private readonly ILogger<WizardService> _logger;
 
-        public WizardService(IWizardSqlProvider wizardProvider, IValidator<StepBudgetInfoDto> stepValidator, ILogger<WizardService> logger)
+        public WizardService(
+            IWizardSqlProvider wizardProvider,
+            IValidator<IncomeFormValues> incomeValidator,
+            IValidator<ExpenditureFormValues> expensesValidator,
+            IValidator<SavingsFormValues> savingsValidator,
+            ILogger<WizardService> logger)
         {
             _wizardProvider = wizardProvider;
-            _stepValidator = stepValidator;
+            _incomeValidator = incomeValidator;
+            _expensesValidator = expensesValidator;
+            _savingsValidator = savingsValidator;
             _logger = logger;
-            
         }
         public async Task<(bool IsSuccess, Guid WizardSessionId, string Message)> CreateWizardSessionAsync(Guid persoid)
         {
@@ -35,113 +39,73 @@ namespace Backend.Application.Services.WizardService
             return (true, wizardSessionId, "Wizard session created successfully.");
         }
 
-        public async Task<bool> SaveStepDataAsync(string wizardSessionId, int stepNumber, int substepNumber, object stepData)
+        public async Task<bool> SaveStepDataAsync(
+                string wizardSessionId,
+                int stepNumber,
+                int substepNumber,
+                object stepData,
+                int dataVersion)
         {
-            string jsonData = string.Empty;
-            _logger.LogInformation("Saving step {StepNumber} with substep {substepNumber} data for session {WizardSessionId}", stepNumber, substepNumber, wizardSessionId);
+            _logger.LogInformation("Saving step {Step}.{Sub} for {Session}",
+                                   stepNumber, substepNumber, wizardSessionId);
+
+            string jsonData;
 
             switch (stepNumber)
             {
                 case 1:
-                    // Deserialize step data into a strongly typed DTO for Step 1
-                    StepBudgetInfoDto budgetDto;
-                    try
-                    {
-                        budgetDto = JsonConvert.DeserializeObject<StepBudgetInfoDto>(stepData.ToString());
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Deserialization failed for step {StepNumber}", stepNumber);
-                        throw new Exception("Invalid data format for step 1.");
-                    }
-
-                    // Post-deserialization processing:
-                    // (Filter or clear empty collections as needed)
-                    budgetDto.HouseholdMembers = budgetDto.HouseholdMembers?.Where(m => !string.IsNullOrWhiteSpace(m.Name) || !string.IsNullOrWhiteSpace(m.Income?.ToString())).ToList()
-                                                      ?? new List<HouseholdMemberDto>();
-                    budgetDto.SideHustles = budgetDto.SideHustles?.Where(s => !string.IsNullOrWhiteSpace(s.Name) || !string.IsNullOrWhiteSpace(s.Income?.ToString())).ToList()
-                                                      ?? new List<SideHustleDto>();
-
-                    // Validate the DTO
-                    ValidationResult result = _stepValidator.Validate(budgetDto);
-                    if (!result.IsValid)
-                    {
-                        string errorMsg = string.Join("; ", result.Errors.Select(e => e.ErrorMessage));
-                        _logger.LogError("Validation failed for step {StepNumber}: {Errors}", stepNumber, errorMsg);
-                        throw new Exception("Validation failed: " + errorMsg);
-                    }
-
-                    // Re-serialize the validated DTO to JSON using camelCase settings.
-                    jsonData = JsonConvert.SerializeObject(budgetDto, new JsonSerializerSettings
-                    {
-                        ContractResolver = new CamelCasePropertyNamesContractResolver()
-                    });
+                    jsonData = ValidateAndSerialize(stepData, _incomeValidator, CleanIncome);
                     break;
 
-                /* PlaceHolder for additional steps
                 case 2:
-                    // For example, if Step 2 has its own validator:
-                    var personalInfoDto = JsonConvert.DeserializeObject<StepPersonalInfoDto>(stepData.ToString());
-                    var personalResult = _personalValidator.Validate(personalInfoDto);
-                    if (!personalResult.IsValid)
-                    {
-                        string errorMsg = string.Join("; ", personalResult.Errors.Select(e => e.ErrorMessage));
-                        _logger.LogError("Validation failed for step {StepNumber}: {Errors}", stepNumber, errorMsg);
-                        throw new Exception("Validation failed: " + errorMsg);
-                    }
-                    jsonData = JsonConvert.SerializeObject(personalInfoDto);
+                    jsonData = ValidateAndSerialize(stepData, _expensesValidator);
                     break;
 
-                // Continue for other steps as needed
-                default:
-                    // If no validation is needed, simply serialize the stepData
-                    jsonData = JsonConvert.SerializeObject(stepData);
+                case 3:
+                    jsonData = ValidateAndSerialize(stepData, _savingsValidator);
                     break;
-            }
-                */
-                // Upsert the (validated) JSON data in the repository
+
                 default:
-                    // For other steps, simply serialize the data
-                    jsonData = JsonConvert.SerializeObject(stepData);
+                    jsonData = stepData.ToString()!;
                     break;
             }
 
-            // Upsert the (validated) JSON data in the DB
-            var upsertSuccess = await _wizardProvider.WizardSqlExecutor.UpsertStepDataAsync(wizardSessionId, stepNumber, substepNumber, jsonData);
-            if (!upsertSuccess)
+            var ok = await _wizardProvider.WizardSqlExecutor.UpsertStepDataAsync(
+                         wizardSessionId, stepNumber, substepNumber,
+                         jsonData, dataVersion);
+
+            if (!ok)
             {
-                _logger.LogError("Failed to save step data for session {WizardSessionId}, step {StepNumber}", wizardSessionId, stepNumber);
+                _logger.LogError("DB upsert failed for {Session}, step {Step}",
+                                 wizardSessionId, stepNumber);
                 return false;
             }
-            _logger.LogInformation("Step {StepNumber} data saved for session {WizardSessionId}", stepNumber, wizardSessionId);
+
+            _logger.LogInformation("Step {Step}.{Sub} saved (session {Session})",
+                                   stepNumber, substepNumber, wizardSessionId);
             return true;
         }
-
-        public async Task<Dictionary<int, object>?> GetWizardDataAsync(string wizardSessionId)
+        public async Task<WizardSavedDataDTO?> GetWizardDataAsync(string wizardSessionId)
         {
-            _logger.LogInformation("Retrieving wizard data for session {WizardSessionId}", wizardSessionId);
+            // We get the whole package we need to send the data back to the client.
+            var result = await AssembleWizardPackage(wizardSessionId);
 
-            var rawEntities = await _wizardProvider.WizardSqlExecutor.GetRawWizardStepDataAsync(wizardSessionId);
 
-            if (rawEntities == null || !rawEntities.Any())
-            {
-                _logger.LogWarning("No raw wizard data found for session {WizardSessionId}", wizardSessionId);
+            if (result == null)
                 return null;
-            }
-            
-            var applicationModels = rawEntities.Select(entity => new WizardStepRow
+
+            // We retrieve the substep number from the database, which is the substep
+            (WizardData data, int version) = result.Value;
+            int? subStep = await GetWizardSubStep(wizardSessionId);
+
+            // We return the assembled data in a DTO.
+            return new WizardSavedDataDTO
             {
-                StepNumber = entity.StepNumber,
-                SubStep = entity.SubStep,
-                StepData = entity.StepData
-            });
-
-            var mergedData = MergeSubstepData(applicationModels);
-
-            _logger.LogInformation("Wizard data retrieved and merged successfully for session {WizardSessionId}", wizardSessionId);
-            return mergedData;
+                WizardData = data,
+                DataVersion = version,
+                SubStep = subStep
+            };
         }
-
         public async Task<Guid> UserHasWizardSessionAsync(Guid? persoid) => 
             (await _wizardProvider.WizardSqlExecutor.GetWizardSessionIdAsync(persoid)) ?? Guid.Empty;
 
@@ -169,38 +133,85 @@ namespace Backend.Application.Services.WizardService
             return true;
         }
 
+        // Assembles a whole wizard package from the substep data
         // Merges substep data into a single object for each step
-        private Dictionary<int, object> MergeSubstepData(IEnumerable<WizardStepRow> stepDataRows)
+        private async Task<(WizardData Data, int Version)?> AssembleWizardPackage(string wizardSessionId)
         {
-            var result = new Dictionary<int, object>();
-            var stepGroupedData = new Dictionary<int, Dictionary<int, JObject>>();
+            _logger.LogDebug("Assembling wizard package for session {WizardSessionId}", wizardSessionId);
 
-            foreach (var row in stepDataRows)
+            var rawEntities = await _wizardProvider.WizardSqlExecutor.GetRawWizardStepDataAsync(wizardSessionId);
+
+            if (rawEntities == null || !rawEntities.Any())
             {
-
-                var stepNumber = row.StepNumber;
-                var stepDataObject = JsonConvert.DeserializeObject<JObject>(row.StepData);
-                var subStepNumber = row.SubStep;
-
-                if (!stepGroupedData.ContainsKey(stepNumber))
-                {
-                    stepGroupedData[stepNumber] = new Dictionary<int, JObject>();
-                }
-                stepGroupedData[stepNumber][subStepNumber] = stepDataObject;
+                _logger.LogWarning("No raw wizard data found for session {WizardSessionId}", wizardSessionId);
+                return null;
             }
 
-            foreach (var stepNumber in stepGroupedData.Keys)
+            var wizardData = new WizardData();
+            int highestDataVersion = 0;
+
+            var latestSteps = rawEntities
+                .GroupBy(e => e.StepNumber)
+                .Select(g => g.OrderByDescending(e => e.UpdatedAt).First());
+
+            foreach (var entity in latestSteps)
             {
-                var mergedStepData = new JObject();
-                foreach (var subStepNumberData in stepGroupedData[stepNumber].OrderBy(kvp => kvp.Key))
+                if (entity.DataVersion > highestDataVersion)
                 {
-                    mergedStepData.Merge(subStepNumberData.Value, new JsonMergeSettings { MergeArrayHandling = MergeArrayHandling.Concat });
+                    highestDataVersion = entity.DataVersion;
                 }
-                result[stepNumber] = mergedStepData;
+
+                switch (entity.StepNumber)
+                {
+                    case 1:
+                        wizardData.Income = JsonSerializer.Deserialize<IncomeFormValues>(entity.StepData, Camel);
+                        break;
+                    case 2:
+                        wizardData.Expenditure = JsonSerializer.Deserialize<ExpenditureFormValues>(entity.StepData, Camel);
+                        break;
+                    case 3:
+                        wizardData.Savings = JsonSerializer.Deserialize<SavingsFormValues>(entity.StepData, Camel);
+                        break;
+                }
             }
 
-            return result;
+            return (wizardData, highestDataVersion);
         }
+        #region helpers
+        private static readonly JsonSerializerOptions Camel = new()
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+            Converters =
+            {
+                new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)  
+            }
+        };
+        private string ValidateAndSerialize<T>(
+        object raw,
+        IValidator<T> validator,
+        Action<T>? postProcess = null) where T : class
+        {
+            var dto = JsonSerializer.Deserialize<T>(raw.ToString()!, Camel)
+                      ?? throw new Exception($"Invalid JSON for type {typeof(T).Name}");
+
+            postProcess?.Invoke(dto);
+            validator.ValidateAndThrow(dto);
+
+            return JsonSerializer.Serialize(dto, Camel);
+        }
+
+        #endregion
+        #region cleaners
+        private static void CleanIncome(IncomeFormValues v)
+        {
+            v.HouseholdMembers?
+                .RemoveAll(m => string.IsNullOrWhiteSpace(m.Name) && !m.Income.HasValue);
+
+            v.SideHustles?
+                .RemoveAll(h => string.IsNullOrWhiteSpace(h.Name) && !h.Income.HasValue);
+        }
+        #endregion
 
     }
 }

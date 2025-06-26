@@ -75,7 +75,26 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     const handleConfirmCloseWizard = useCallback(() => { setConfirmModalOpen(false); onClose(); }, [onClose]);
     const handleCancelCloseWizard = useCallback(() => { setConfirmModalOpen(false); }, []);
     const triggerShakeAnimation = (duration = 1000) => { setShowShakeAnimation(true); setTimeout(() => setShowShakeAnimation(false), duration); };
-    const initialDataForStep = (stepNumber: number) => currentStepState[stepNumber]?.data || wizardData[stepNumber] || {};
+    const initialDataForStep = (stepNumber: number) => {
+        const stepStateData = currentStepState[stepNumber]?.data;
+        if (stepStateData && Object.keys(stepStateData).length > 0) {
+            return stepStateData;
+        }
+        switch (stepNumber) {
+            case 1:
+                // Step 1 is the income business.
+                return wizardData.income || {};
+            case 2:
+                // Step 2 is the expenditure business.
+                return wizardData.expenditure || {};
+            case 3:
+                // Step 3 is the savings business.
+                return wizardData.savings || {};
+            default:
+                // If he asks for a page that don't exist, he gets nothing. An empty slate.
+                return {};
+        }
+    };
     const initialSubStepForStep = (stepNumber: number) => (currentStepState[stepNumber]?.subStep || initialSubStep) ?? 1;
     useEffect(() => { if (initialStep > 0) setStep(initialStep); }, [initialStep]);
     const { nextStep: hookNextStep, prevStep: hookPrevStep } = useWizardNavigation({

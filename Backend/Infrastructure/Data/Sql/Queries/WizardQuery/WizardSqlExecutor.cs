@@ -96,16 +96,18 @@ namespace Backend.Infrastructure.Data.Sql.Queries.WizardQuery
             int stepNumber,
             int substepNumber,
             string jsonData,
+            int dataVersion,
             DbConnection? conn = null,
             DbTransaction? tx = null)
         {
             try
             {
                 string sql = @"
-            INSERT INTO WizardStep (WizardSessionId, StepNumber, SubStep, StepData, UpdatedAt)
-            VALUES (@WizardSessionId, @StepNumber, @SubStep, @StepData, UTC_TIMESTAMP())
-            ON DUPLICATE KEY UPDATE 
+            INSERT INTO WizardStep (WizardSessionId, StepNumber, SubStep, StepData, DataVersion, UpdatedAt)
+            VALUES (@WizardSessionId, @StepNumber, @SubStep, @StepData, @DataVersion, UTC_TIMESTAMP())
+            ON DUPLICATE KEY UPDATE
                 StepData = @StepData,
+                DataVersion = @DataVersion,
                 UpdatedAt = UTC_TIMESTAMP();";
 
                 int rowsAffected;
@@ -118,7 +120,8 @@ namespace Backend.Infrastructure.Data.Sql.Queries.WizardQuery
                         WizardSessionId = wizardSessionId,
                         StepNumber = stepNumber,
                         SubStep = substepNumber,
-                        StepData = jsonData
+                        StepData = jsonData,
+                        DataVersion = dataVersion
                     }, tx);
                 }
                 else
@@ -130,7 +133,8 @@ namespace Backend.Infrastructure.Data.Sql.Queries.WizardQuery
                         WizardSessionId = wizardSessionId,
                         StepNumber = stepNumber,
                         SubStep = substepNumber,
-                        StepData = jsonData
+                        StepData = jsonData,
+                        DataVersion = dataVersion
                     });
                 }
 
@@ -151,7 +155,7 @@ namespace Backend.Infrastructure.Data.Sql.Queries.WizardQuery
         public async Task<IEnumerable<WizardStepRowEntity>?> GetRawWizardStepDataAsync(string wizardSessionId, DbConnection? conn = null, DbTransaction? tx = null)
         {
             const string query = @"
-            SELECT StepNumber, SubStep, StepData
+            SELECT StepNumber, SubStep, StepData, DataVersion
             FROM WizardStep
             WHERE WizardSessionId = @WizardSessionId
             ORDER BY StepNumber ASC";
