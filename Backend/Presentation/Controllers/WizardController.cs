@@ -38,7 +38,7 @@ namespace Backend.Presentation.Controllers
                 return Unauthorized("User identifier not found in token.");
             }
 
-            Guid persoid = persoidNullable.Value; // Now persoid is a non-nullable Guid
+            Guid persoid = persoidNullable.Value; 
 
             // Check if the user (identified by their persoid) already has a session.
             // Assuming _wizardService.UserHasWizardSessionAsync(Guid userId) returns Task<Guid?>
@@ -89,7 +89,7 @@ namespace Backend.Presentation.Controllers
             try
             {
                 // Call service which will deserialize, validate, and upsert the data.
-                bool saveSuccessful = await _wizardService.SaveStepDataAsync(dto.WizardSessionId, stepNumber, dto.subStepNumber, dto.StepData);
+                bool saveSuccessful = await _wizardService.SaveStepDataAsync(dto.WizardSessionId, stepNumber, dto.subStepNumber, dto.StepData, dto.DataVersion);
                 if (!saveSuccessful)
                     return StatusCode(500, "Failed to save step data.");
             }
@@ -124,21 +124,10 @@ namespace Backend.Presentation.Controllers
 
 
             var wizardData = await _wizardService.GetWizardDataAsync(dto.wizardSessionId);
-            if (wizardData == null)
-            {
-                return NotFound("No wizard data found for the given session.");
-            }
-            int subStep = await _wizardService.GetWizardSubStep(dto.wizardSessionId);
 
             _logger.LogDebug("Wizard data before sending: {wizardData}", JsonConvert.SerializeObject(wizardData));
 
-            var response = new WizardSavedDataDTO
-            {
-                WizardData = wizardData,
-                SubStep = subStep
-            };
-
-            return Ok(response);
+            return Ok(wizardData);
         }
     }
 }
