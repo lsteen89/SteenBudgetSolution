@@ -3,15 +3,16 @@ import { introSchema } from './SubSchemas/introSchema';
 import { savingHabitsSchema } from './SubSchemas/savingHabitsSchema';
 import { goalsSchema } from './SubSchemas/goalsSchema';
 
-export const step3Schema = yup.object({
-  // Field from the Intro sub-step
-  ...introSchema.fields,
+// We start with our base schema...
+export const step3Schema = introSchema
+  // ...then we merge the next schema into it using .concat().
+  // This preserves all type information from both schemas.
+  .concat(savingHabitsSchema)
+  // ...and finally, we add the last piece using .shape().
+  // This is a clean way to add or override specific fields.
+  .shape({
+    goals: goalsSchema,
+  });
 
-  // Fields from the Habits sub-step (now imported)
-  ...savingHabitsSchema.fields,
-
-  // Fields from the Goals sub-step
-  goals: goalsSchema,
-});
-
+// Now, this InferType will work perfectly!
 export type Step3FormValues = yup.InferType<typeof step3Schema>;

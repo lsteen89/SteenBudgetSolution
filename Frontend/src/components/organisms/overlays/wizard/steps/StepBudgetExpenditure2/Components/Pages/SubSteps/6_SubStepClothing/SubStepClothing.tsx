@@ -1,4 +1,4 @@
-import React from "react";
+import { useEffect } from "react";
 import { useFormContext } from "react-hook-form";
 import { Shirt } from "lucide-react";
 import { motion } from "framer-motion";
@@ -29,8 +29,10 @@ const SubStepClothing: React.FC = () => {
 
   const fieldPath = "clothing.monthlyClothingCost";
   const inputId = idFromPath(fieldPath);
+  useEffect(() => {
+    register(fieldPath);
+  }, [register, fieldPath]);
 
-  const reg = register(fieldPath);
 
   return (
     <OptionContainer className="p-4">
@@ -86,19 +88,32 @@ const SubStepClothing: React.FC = () => {
 
 
               <FormattedNumberInput
-                id={inputId}
-                name={reg.name}
-                ref={reg.ref}
-                onBlur={reg.onBlur}
-                value={watch(fieldPath) ?? null}
-                onValueChange={(val) =>
-                  setValue(fieldPath, val ?? null, {
-                    shouldValidate: true,
-                    shouldDirty: true,
-                  })
-                }
-                placeholder="t.ex. 500 kr"
-                error={errors.clothing?.monthlyClothingCost?.message}
+                  id={inputId}
+                  // We no longer pass name, ref, or onBlur from a 'reg' object.
+                  // RHF will handle blur validation automatically now.
+                  
+                  // We watch the value directly from the form state.
+                  value={watch(fieldPath) ?? null}
+                  
+                  // We use our most powerful, robust spell here to ensure the value is pure.
+                  onValueChange={(val: string | number | null | undefined) => {
+                      let numericValue: number | null = null;
+                      
+                      if (typeof val === 'number') {
+                          numericValue = isNaN(val) ? null : val;
+                      } else if (typeof val === 'string' && val.trim() !== '') {
+                          const parsed = parseFloat(val);
+                          numericValue = isNaN(parsed) ? null : parsed;
+                      }
+                      
+                      setValue(fieldPath, numericValue, {
+                          shouldValidate: true,
+                          shouldDirty: true,
+                      });
+                  }}
+                  
+                  placeholder="t.ex. 500 kr"
+                  error={errors.clothing?.monthlyClothingCost?.message}
               />
               {errors.clothing?.monthlyClothingCost?.message && (
                 <p className="text-red-600 text-lg mt-1">

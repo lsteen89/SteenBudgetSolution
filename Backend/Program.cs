@@ -10,12 +10,15 @@ using Backend.Application.Services.EmailServices;
 using Backend.Application.Services.UserServices;
 using Backend.Application.Services.WizardService;
 using Backend.Application.Validators;
-using Backend.Application.Validators.WizardValidation;
 using Backend.Common.Converters;
 using Backend.Common.Interfaces;
 using Backend.Common.Services;
 using Backend.Domain.Entities.Email;
 using Backend.Infrastructure.BackgroundServices;
+using Backend.Infrastructure.Data.Sql.Factories;
+using Backend.Infrastructure.Data.Sql.Helpers;
+using Backend.Infrastructure.Data.Sql.Interfaces.Factories;
+using Backend.Infrastructure.Data.Sql.Interfaces.Helpers;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
 using Backend.Infrastructure.Data.Sql.Interfaces.UserQueries;
 using Backend.Infrastructure.Data.Sql.Interfaces.WizardQueries;
@@ -26,7 +29,9 @@ using Backend.Infrastructure.Data.Sql.Queries.WizardQuery;
 using Backend.Infrastructure.Email;
 using Backend.Infrastructure.Implementations;
 using Backend.Infrastructure.Services.CookieService;
+using Backend.Infrastructure.WebSockets;
 using Backend.Presentation.Middleware;
+using Backend.Settings;
 using Backend.Tests.Mocks;
 using Dapper;
 using FluentValidation;
@@ -34,26 +39,17 @@ using FluentValidation.AspNetCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Moq;
-using MySqlConnector;
 using Serilog;
-using System.Data.Common;
 using System.IdentityModel.Tokens.Jwt;
 using System.Reflection;
-using System.Text;
-using System.Threading.RateLimiting;
-using Newtonsoft.Json.Serialization;
-using Backend.Infrastructure.Data.Sql.Factories;
-using Backend.Infrastructure.Data.Sql.Interfaces.Factories;
-using Backend.Settings;
-using Microsoft.Extensions.Options;
-using System.Configuration;
 using System.Security.Claims;
-using Backend.Infrastructure.Data.Sql.Helpers;
-using Backend.Infrastructure.Data.Sql.Interfaces.Helpers;
-using Microsoft.AspNetCore.Authorization;
-using Backend.Infrastructure.WebSockets;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -131,9 +127,17 @@ else // Development, Testing, CI
 }
 // Add JsonOptions to use camelCase for JSON properties
 builder.Services.AddControllers()
-    .AddNewtonsoftJson(options =>
+    .AddJsonOptions(options =>
     {
-        options.SerializerSettings.ContractResolver = new CamelCasePropertyNamesContractResolver();
+        // PART 1: This sets the policy for property NAMES.
+        // It will turn C# `NetSalary` into JSON `"netSalary"`.
+        options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+
+        // PART 2: This sets the policy for enum VALUES.
+        // It will turn C# `Frequency.Monthly` into the JSON string `"monthly"`.
+        options.JsonSerializerOptions.Converters.Add(
+            new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)
+        );
     });
 
 #endregion

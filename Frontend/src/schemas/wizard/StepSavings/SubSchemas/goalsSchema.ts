@@ -1,6 +1,5 @@
 import * as yup from 'yup';
 
-
 const today = new Date();
 today.setHours(0, 0, 0, 0);
 
@@ -9,9 +8,11 @@ const maxDate = new Date();
 maxDate.setFullYear(maxDate.getFullYear() + maxYearsInFuture);
 
 export const goalItemSchema = yup.object({
-  id: yup.string().optional(),
+  id: yup.string().required(),
   name: yup.string().trim().required('Ange ett namn på målet.'),
-  targetAmount: yup
+  
+  // The name is now corrected to 'amount' to match your 'SavingsGoal' type
+  amount: yup
     .number()
     .typeError('Ange ett giltigt belopp.')
     .nullable()
@@ -21,7 +22,6 @@ export const goalItemSchema = yup.object({
   targetDate: yup
     .date() 
     .transform((value, originalValue) => {
-       
         return originalValue === "" ? null : value;
     })
     .typeError('Välj ett giltigt datum.') 
@@ -29,7 +29,6 @@ export const goalItemSchema = yup.object({
     .min(today, 'Måldatumet kan inte vara i dåtiden.')
     .max(maxDate, `Målet kan inte vara mer än ${maxYearsInFuture} år framåt i tiden.`),
     
-
   amountSaved: yup
     .number()
     .typeError('Ange ett giltigt belopp.')
@@ -38,5 +37,7 @@ export const goalItemSchema = yup.object({
 });
 
 
-export const goalsSchema = yup.array(goalItemSchema).nullable();
+// This spell remains correct from our last encounter
+export const goalsSchema = yup.array(goalItemSchema).ensure();
+
 export type GoalItem = yup.InferType<typeof goalItemSchema>;

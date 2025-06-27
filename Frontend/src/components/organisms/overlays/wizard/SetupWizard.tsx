@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, useLayoutEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-    ChevronLeft,
-    ChevronRight,
     X,
     Wallet,
     User,
@@ -31,7 +29,7 @@ import WizardNavPair from "@components/organisms/overlays/wizard/SharedComponent
 import ConfirmModal from "@components/atoms/modals/ConfirmModal";
 import { useWizard, WizardProvider } from '@/context/WizardContext';
 import { useWizardDataStore } from '@/stores/Wizard/wizardDataStore';
-
+import { useWizardSessionStore } from '@/stores/Wizard/wizardSessionStore';
 // ---------------------------- TYPES ----------------------------
 interface SetupWizardProps {
     onClose: () => void;
@@ -44,18 +42,21 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     // All of the hooks and state management are safely kept here.
     const [confirmModalOpen, setConfirmModalOpen] = useState(false);
     const [showShakeAnimation, setShowShakeAnimation] = useState(false);
+    const wizardSessionId = useWizardSessionStore(state => state.wizardSessionId);
     const { showToast } = useToast();
     const {
         loading: initLoading,
-        wizardSessionId,
-        wizardData,
-        setWizardData,
         failedAttempts,
         connectionError,
         initWizard,
         initialStep,
         initialSubStep,
     } = useWizardInit();
+    const { income, expenditure, savings } = useWizardDataStore(state => ({
+        income: state.data.income,
+        expenditure: state.data.expenditure,
+        savings: state.data.savings,
+    }));
     const { handleSaveStepData } = useSaveWizardStep(wizardSessionId || '');
     const [transitionLoading, setTransitionLoading] = useState(false);
     const [currentStepState, setCurrentStepState] = useState<Record<number, any>>({});
@@ -82,23 +83,19 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
         }
         switch (stepNumber) {
             case 1:
-                // Step 1 is the income business.
-                return wizardData.income || {};
+                return income || {};
             case 2:
-                // Step 2 is the expenditure business.
-                return wizardData.expenditure || {};
+                return expenditure || {};
             case 3:
-                // Step 3 is the savings business.
-                return wizardData.savings || {};
+                return savings || {};
             default:
-                // If he asks for a page that don't exist, he gets nothing. An empty slate.
                 return {};
         }
     };
     const initialSubStepForStep = (stepNumber: number) => (currentStepState[stepNumber]?.subStep || initialSubStep) ?? 1;
     useEffect(() => { if (initialStep > 0) setStep(initialStep); }, [initialStep]);
     const { nextStep: hookNextStep, prevStep: hookPrevStep } = useWizardNavigation({
-        step, setStep, totalSteps: 4, stepRefs, setTransitionLoading, setCurrentStepState, handleSaveStepData, setWizardData, triggerShakeAnimation, isDebugMode, setShowSideIncome, setShowHouseholdMembers,
+        step, setStep, totalSteps: 4, stepRefs, setTransitionLoading, setCurrentStepState, handleSaveStepData, triggerShakeAnimation, isDebugMode, setShowSideIncome, setShowHouseholdMembers,
     });
     useEffect(() => { setIsStepValid(step === 0); }, [step]);
 

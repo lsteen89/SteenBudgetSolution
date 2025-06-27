@@ -29,9 +29,6 @@ export const fixedExpensesSchema = yup.object({
   phone: yup.number().nullable(),
   unionFees: yup.number().nullable(),
 
-  /**
-   * ✅ CORRECTED LOGIC: This section now implements our agreed-upon rules.
-   */
   customExpenses: yup
     .array(fixedExpenseItemSchema) // This is important for individual field errors.
     .ensure() // Converts undefined to [] to prevent errors.

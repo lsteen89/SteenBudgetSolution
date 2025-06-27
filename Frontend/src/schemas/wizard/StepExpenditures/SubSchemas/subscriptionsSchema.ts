@@ -7,7 +7,7 @@ const subscriptionItemSchema = yup.object({
     .trim()
     .required("Ange namn på prenumerationen.")
     .min(2, "Minst 2 tecken."),
-  cost: yup
+  fee: yup
     .number()
     .typeError("Ange ett giltigt belopp.")
     .required("Ange kostnaden.")

@@ -33,14 +33,14 @@ const CustomItemRow: React.FC<CustomItemRowProps> = ({
   basePath,
   index,
   fieldId,
-  amountKey = "cost",
+  amountKey = "fee",
   namePlaceholder = "Namn",
   amountPlaceholder = "Belopp",
   isDeleting,
   onStartDelete,
   onRemove,
 }) => {
-  const { control, watch, setValue, formState: { errors } } = useFormContext<any>();
+  const { control, formState: { errors } } = useFormContext<any>();
 
   const namePath = `${basePath}.${index}.name`;
   const amountPath = `${basePath}.${index}.${amountKey}`;
@@ -54,10 +54,11 @@ const CustomItemRow: React.FC<CustomItemRowProps> = ({
       transition={{ type: "spring", stiffness: 300, damping: 25 }}
       onAnimationComplete={() => { if (isDeleting) onRemove(); }}
       className="flex flex-col md:flex-row items-center gap-3 p-3 bg-white/5 rounded-lg overflow-hidden"
-    >
+ >
       <div className="flex-grow w-full md:w-auto">
+        {/* The 'name' field was already perfect. It stays the same. */}
         <Controller
-          name={namePath as any}
+          name={namePath}
           control={control}
           defaultValue=""
           render={({ field }) => (
@@ -73,13 +74,22 @@ const CustomItemRow: React.FC<CustomItemRowProps> = ({
         />
       </div>
       <div className="w-full md:w-auto md:max-w-[160px]">
-        <FormattedNumberInput
-          id={idFromPath(amountPath)}
-          value={watch(amountPath) ?? null}
-          onValueChange={(val) => setValue(amountPath, val ?? null, { shouldValidate: true, shouldDirty: true })}
-          placeholder={amountPlaceholder}
-          error={get(errors, amountPath)?.message as string | undefined}
+        <Controller
           name={amountPath}
+          control={control}
+          defaultValue={null} // A safe, pure default for a nullable number
+          render={({ field }) => (
+            <FormattedNumberInput
+              id={idFromPath(amountPath)}
+              placeholder={amountPlaceholder}
+              value={field.value}
+              onValueChange={field.onChange}
+              onBlur={field.onBlur}
+              ref={field.ref}
+              name={field.name}
+              error={get(errors, amountPath)?.message as string | undefined}
+            />
+          )}
         />
       </div>
       <button

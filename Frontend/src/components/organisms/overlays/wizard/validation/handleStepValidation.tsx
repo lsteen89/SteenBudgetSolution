@@ -48,8 +48,7 @@ export const handleStepValidation = async (
     }
     
     case 3: {
-      // THIS IS THE NEW SPELL FOR STEP 3:
-      // It calls the validation method directly on the step component's ref.
+
       const isValid = await stepRefObject.current.validateFields();
       if (isValid) {
         // If the path is clear, we return the step's data.

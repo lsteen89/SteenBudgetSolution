@@ -104,12 +104,31 @@ public sealed class FixedExpenseItemValidator : AbstractValidator<FixedExpenseIt
     public FixedExpenseItemValidator()
     {
         RuleFor(f => f.Name)
-            .NotEmpty()
-            .MinimumLength(2);
+            .NotEmpty().WithMessage("Ange namn på utgiften.")
+            .MinimumLength(2).WithMessage("Minst 2 tecken.");
 
-        RuleFor(f => f.Amount)
-            .NotNull()
-            .GreaterThan(0);
+        RuleFor(f => f.Fee)
+            .NotNull().WithMessage("Ange kostnaden.")
+            .GreaterThan(0).WithMessage("Beloppet måste vara > 0 kr.");
+    }
+}
+
+public sealed class FixedExpensesValidator : AbstractValidator<FixedExpensesSubForm>
+{
+    public FixedExpensesValidator()
+    {
+        // Rules for the standard, nullable fields
+        RuleFor(x => x.Electricity).GreaterThanOrEqualTo(0).When(x => x.Electricity.HasValue);
+        RuleFor(x => x.Insurance).GreaterThanOrEqualTo(0).When(x => x.Insurance.HasValue);
+        RuleFor(x => x.Internet).GreaterThanOrEqualTo(0).When(x => x.Internet.HasValue);
+        RuleFor(x => x.Phone).GreaterThanOrEqualTo(0).When(x => x.Phone.HasValue);
+        RuleFor(x => x.UnionFees).GreaterThanOrEqualTo(0).When(x => x.UnionFees.HasValue);
+
+        When(x => x.CustomExpenses is not null, () =>
+        {
+            RuleForEach(x => x.CustomExpenses!)
+                .SetValidator(new FixedExpenseItemValidator());
+        });
     }
 }
 
@@ -181,7 +200,7 @@ public sealed class ExpenditureValidator : AbstractValidator<ExpenditureFormValu
             () => RuleFor(x => x.Clothing!).SetValidator(new ClothingValidator()));
 
         When(x => x.FixedExpenses is not null,
-            () => RuleFor(x => x.FixedExpenses!).SetValidator(new FixedExpenseItemValidator()));
+                    () => RuleFor(x => x.FixedExpenses!).SetValidator(new FixedExpensesValidator()));
 
         When(x => x.Subscriptions is not null,
             () => RuleFor(x => x.Subscriptions!).SetValidator(new SubscriptionsValidator()));

@@ -110,7 +110,7 @@ const HomeTypeOption: React.FC = () => {
                 />
               </div>
               {errors.rent?.monthlyRent?.message && (
-                <p className="text-red-600 text-lg mt-1">
+                <p className="text-red-500 text-lg mt-1">
                   {errors.rent.monthlyRent.message}
                 </p>
               )}
@@ -133,7 +133,7 @@ const HomeTypeOption: React.FC = () => {
             id={idFromPath(rentExtraFeesRegister.name)}
           />
           {errors.rent?.rentExtraFees?.message && (
-            <p className="text-red-600 text-lg mt-1">
+            <p className="text-red-500 text-lg mt-1">
               {errors.rent.rentExtraFees.message}
             </p>
           )}
@@ -163,7 +163,7 @@ const HomeTypeOption: React.FC = () => {
               id={idFromPath(monthlyFee.name)} 
             />
             {errors.rent?.monthlyFee?.message && (
-              <p className="text-red-600 text-lg mt-1">
+              <p className="text-red-500 text-lg mt-1">
                 {errors.rent.monthlyFee.message}
               </p>
             )}
@@ -184,7 +184,7 @@ const HomeTypeOption: React.FC = () => {
             />
           </div>
           {errors.rent?.brfExtraFees?.message && (
-            <p className="text-red-600 text-lg mt-1">
+            <p className="text-red-500 text-lg mt-1">
               {errors.rent.brfExtraFees.message}
             </p>
           )}
@@ -215,7 +215,7 @@ const HomeTypeOption: React.FC = () => {
               id={idFromPath(mortgagePayment.name)}
             />
             {errors.rent?.mortgagePayment && (
-              <p className="text-red-600 text-lg mt-1">
+              <p className="text-red-500 text-lg mt-1">
                 {errors.rent.mortgagePayment.message}
               </p>
             )}
@@ -235,7 +235,7 @@ const HomeTypeOption: React.FC = () => {
               id={idFromPath(houseotherCosts.name)}
             />
             {errors.rent?.houseotherCosts && (
-              <p className="text-red-600 text-lg mt-1">
+              <p className="text-red-500 text-lg mt-1">
                 {errors.rent.houseotherCosts.message}
               </p>
             )}
@@ -266,7 +266,7 @@ const HomeTypeOption: React.FC = () => {
               id={idFromPath(otherCosts.name)}
             />
             {errors.rent?.otherCosts && (
-              <p className="text-red-600 text-lg mt-1">
+              <p className="text-red-500 text-lg mt-1">
                 {errors.rent.otherCosts.message}
               </p>
             )}
