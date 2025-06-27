@@ -95,7 +95,7 @@ public sealed class ExpenditureFormValues
 
     // Optional sub-forms – keep as nullable
     [JsonPropertyName("fixedExpenses")]
-    public FixedExpenseItem? FixedExpenses { get; init; }
+    public FixedExpensesSubForm? FixedExpenses { get; init; }
 
     [JsonPropertyName("transport")]
     public Transport? Transport { get; init; }       // ❗️nullable, no = new()
@@ -175,14 +175,40 @@ public sealed class Clothing
     public decimal? MonthlyClothingCost { get; init; }
 }
 
+public sealed class FixedExpensesSubForm
+{
+    [JsonPropertyName("electricity")]
+    public decimal? Electricity { get; init; }
+
+    [JsonPropertyName("insurance")]
+    public decimal? Insurance { get; init; }
+
+    [JsonPropertyName("internet")]
+    public decimal? Internet { get; init; }
+
+    [JsonPropertyName("phone")]
+    public decimal? Phone { get; init; }
+
+    [JsonPropertyName("unionFees")]
+    public decimal? UnionFees { get; init; }
+
+    [JsonPropertyName("customExpenses")]
+    public List<FixedExpenseItem>? CustomExpenses { get; init; }
+}
+
 public sealed class FixedExpenseItem
 {
+    [JsonPropertyName("id")]
+    public string? Id { get; init; } // Match frontend's optional 'id'
+
     [JsonPropertyName("name")]
     public string Name { get; init; } = string.Empty;
 
-    [JsonPropertyName("amount")]
-    public decimal? Amount { get; init; }
+    // Renamed 'Amount' to 'Fee' to perfectly align with the frontend yup schema
+    [JsonPropertyName("fee")]
+    public decimal? Fee { get; init; }
 }
+
 
 public sealed class SubscriptionsSubForm
 {
@@ -213,7 +239,7 @@ public sealed class SubscriptionItem
     [JsonPropertyName("name")]
     public string? Name { get; init; }
 
-    [JsonPropertyName("fee")]
+    [JsonPropertyName("cost")] 
     public decimal? Fee { get; init; }
 }
 
@@ -244,6 +270,13 @@ public sealed class SavingsGoal
 
     [JsonPropertyName("amount")]
     public decimal? Amount { get; init; }
+
+    [JsonPropertyName("targetDate")]
+    public DateTime? TargetDate { get; init; }
+
+
+    [JsonPropertyName("amountSaved")]
+    public decimal? AmountSaved { get; init; }
 }
 
 /* ---------- Shared ---------- */

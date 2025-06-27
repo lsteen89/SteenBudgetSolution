@@ -3,6 +3,7 @@ using Backend.Application.Interfaces.WizardService;
 using Backend.Contracts.Wizard;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
 using FluentValidation;
+using System.Buffers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -135,48 +136,55 @@ namespace Backend.Application.Services.WizardService
 
         // Assembles a whole wizard package from the substep data
         // Merges substep data into a single object for each step
-        private async Task<(WizardData Data, int Version)?> AssembleWizardPackage(string wizardSessionId)
+        private async Task<(WizardData Data, int Version)?> AssembleWizardPackage(string sessionId)
         {
-            _logger.LogDebug("Assembling wizard package for session {WizardSessionId}", wizardSessionId);
+            var raw = await _wizardProvider.WizardSqlExecutor.GetRawWizardStepDataAsync(sessionId);
+            if (!raw?.Any() ?? true) return null;
 
-            var rawEntities = await _wizardProvider.WizardSqlExecutor.GetRawWizardStepDataAsync(wizardSessionId);
+            // 1. keep the newest row for each (StepNumber, SubStep)
+            var latestRows = raw
+                .GroupBy(e => new { e.StepNumber, e.SubStep })
+                .Select(g => g.OrderByDescending(e => e.UpdatedAt).First())
+                .ToLookup(r => r.StepNumber);
 
-            if (rawEntities == null || !rawEntities.Any())
+            int highestVersion = latestRows.SelectMany(l => l).Max(r => r.DataVersion);
+            var data = new WizardData();
+
+            // STEP 1 – income (one sub-step only)
+            if (latestRows.Contains(1))
+                data.Income = JsonSerializer.Deserialize<IncomeFormValues>(
+                    latestRows[1].First().StepData, Camel);
+
+            // STEP 2 – expenditure (many sub-steps → merge)
+            if (latestRows.Contains(2))
             {
-                _logger.LogWarning("No raw wizard data found for session {WizardSessionId}", wizardSessionId);
-                return null;
-            }
+                var buffer = new ArrayBufferWriter<byte>();        
+                using var writer = new Utf8JsonWriter(buffer);     
 
-            var wizardData = new WizardData();
-            int highestDataVersion = 0;
+                writer.WriteStartObject();
 
-            var latestSteps = rawEntities
-                .GroupBy(e => e.StepNumber)
-                .Select(g => g.OrderByDescending(e => e.UpdatedAt).First());
-
-            foreach (var entity in latestSteps)
-            {
-                if (entity.DataVersion > highestDataVersion)
+                foreach (var row in latestRows[2].OrderBy(r => r.SubStep))
                 {
-                    highestDataVersion = entity.DataVersion;
+                    using var doc = JsonDocument.Parse(row.StepData);
+                    foreach (var p in doc.RootElement.EnumerateObject())
+                        p.WriteTo(writer);                        
                 }
 
-                switch (entity.StepNumber)
-                {
-                    case 1:
-                        wizardData.Income = JsonSerializer.Deserialize<IncomeFormValues>(entity.StepData, Camel);
-                        break;
-                    case 2:
-                        wizardData.Expenditure = JsonSerializer.Deserialize<ExpenditureFormValues>(entity.StepData, Camel);
-                        break;
-                    case 3:
-                        wizardData.Savings = JsonSerializer.Deserialize<SavingsFormValues>(entity.StepData, Camel);
-                        break;
-                }
+                writer.WriteEndObject();
+                writer.Flush();                                     
+
+                data.Expenditure = JsonSerializer.Deserialize<ExpenditureFormValues>(
+                    buffer.WrittenSpan, Camel);                      
             }
 
-            return (wizardData, highestDataVersion);
+            // STEP 3 – savings (similar to step 1)
+            if (latestRows.Contains(3))
+                data.Savings = JsonSerializer.Deserialize<SavingsFormValues>(
+                    latestRows[3].First().StepData, Camel);
+
+            return (data, highestVersion);
         }
+
         #region helpers
         private static readonly JsonSerializerOptions Camel = new()
         {
