@@ -24,6 +24,7 @@ The backend is built with a focus on maintainability and separation of concerns.
     * `Backend.Tests\UnitTests\BaseClasses\UnitTestBase.cs`
     * `Backend.Tests\IntegrationTests\BaseClasses\IntegrationTestBase.cs`
 * > **VERY IMPORTANT RULE:** Do **not** execute tests that you have not created or modified, unless specifically instructed to do so. Some integration tests are time-consuming and resource-intensive. Running them unnecessarily is inefficient. Deciding when to run a full test suite is the responsibility of the human developer in charge.
+* > **ADDITIONAL RULE:** Every test you create is to stay. Do not delete tests, even as part of a cleanup process. All created tests should remain in the codebase for review.
 
 ---
 
@@ -41,6 +42,11 @@ The frontend is a modern, responsive single-page application (SPA).
 ---
 
 ## 4. General Instructions
+
+* **Git Workflow:** Your role is to generate code and propose commit messages, but not to manage the repository history directly.
+    * You are **NEVER** to execute `git commit` or `git push`.
+    * After you have finished generating or modifying code based on a task, you **SHOULD** write a proposed commit message into a file named `COMMIT_MSG.tmp` located in the project's root directory.
+    * Please format the message using the **Conventional Commits** specification (e.g., `feat: Add user login functionality`). The human developer will review this file and perform the actual commit.
 
 * **Code Style:** Follow the existing code style, naming conventions, and formatting.
 * **Clarity Over Brevity:** Write clear, readable, and maintainable code.

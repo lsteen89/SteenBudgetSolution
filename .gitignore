@@ -375,3 +375,6 @@ Frontend/src/assets/Images/Originals
 #Documentation files that sensitive
 docs/Security/AuthenticationBackend.md
 certs
+
+# Temporary file for AI-generated commit messages
+COMMIT_MSG.tmp
