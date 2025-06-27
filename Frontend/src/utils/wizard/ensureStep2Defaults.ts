@@ -1,4 +1,4 @@
-import { Step2FormValues } from "@/schemas/wizard/StepExpenditures/step2Schema";
+  import { Step2FormValues } from "@/schemas/wizard/StepExpenditures/step2Schema";
 
 export function ensureStep2Defaults(
   src: Partial<Step2FormValues> | undefined
@@ -68,7 +68,7 @@ export function ensureStep2Defaults(
         src?.subscriptions?.customSubscriptions?.map(s => ({
           id  : s?.id ?? crypto.randomUUID(),
           name: s?.name ?? "",
-          cost: s?.cost ?? null,
+          fee: s?.fee ?? null,
         })) ?? [],
     },
   };

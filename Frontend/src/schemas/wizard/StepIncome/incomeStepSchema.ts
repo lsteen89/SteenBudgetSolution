@@ -3,7 +3,7 @@ import { Frequency, VALID_FREQUENCIES } from '@/types/common';
 
 // Schema for an individual household member
 const householdMemberSchema = yup.object().shape({
-  id: yup.string().optional(),
+  id: yup.string().nullable().optional(),
   name: yup.string().trim().required('Ange namn på personen.'),
   income: yup
     .number()
@@ -21,7 +21,7 @@ const householdMemberSchema = yup.object().shape({
 
 // Schema for an individual side hustle
 const sideHustleSchema = yup.object().shape({
-  id: yup.string().optional(),
+  id: yup.string().nullable().optional(),
   name: yup.string().trim().required('Ange namn för sidoinkomsten.'),
   income: yup
     .number()
