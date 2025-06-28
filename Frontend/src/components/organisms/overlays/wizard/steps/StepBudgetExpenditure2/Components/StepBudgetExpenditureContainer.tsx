@@ -123,7 +123,7 @@ const StepBudgetExpenditureContainer = forwardRef<
     // FIX 1: The magical ward. This spell now only runs if it has data
     // and has not been run before, breaking the hydration loop.
     if (initialData && Object.keys(initialData).length > 0 && !hasHydrated.current) {
-        setExpenditure(initialData);
+        setExpenditure(initialData as any);
         hasHydrated.current = true;
     }
   }, [initialData, setExpenditure]);

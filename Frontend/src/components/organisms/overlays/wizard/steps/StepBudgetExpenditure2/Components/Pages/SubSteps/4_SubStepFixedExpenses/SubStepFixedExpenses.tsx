@@ -47,7 +47,7 @@ const SubStepFixedExpenses: React.FC = () => {
     control,
     name: "fixedExpenses.customExpenses",
     keyName: "fieldId",
-    shouldUnregister: true,
+    shouldUnregister: false,
   });
 
   const handleAddExpense = (e: React.MouseEvent) => {

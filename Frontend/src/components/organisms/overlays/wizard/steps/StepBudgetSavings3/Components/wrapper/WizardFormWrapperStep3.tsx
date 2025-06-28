@@ -3,7 +3,8 @@ import { useForm, FormProvider, UseFormReturn, FieldErrors } from 'react-hook-fo
 import { yupResolver } from '@hookform/resolvers/yup';
 
 // --- Added: Import the schema and defaults utility ---
-import { step3Schema, Step3FormValues } from '@/schemas/wizard/StepSavings/step3Schema';
+import { step3Schema } from '@/schemas/wizard/StepSavings/step3Schema';
+import { Step3FormValues } from '@/types/Wizard/Step3FormValues';
 import { ensureStep3Defaults } from "@/utils/wizard/ensureStep3Defaults";
 
 import { useWizardDataStore } from '@/stores/Wizard/wizardDataStore';
@@ -29,7 +30,7 @@ const WizardFormWrapperStep3 = forwardRef<WizardFormWrapperStep3Ref, WizardFormW
 
   // 3. RHF instance
   const methods = useForm<Step3FormValues>({
-    resolver: yupResolver(step3Schema),
+    resolver: yupResolver(step3Schema as any),
     defaultValues: defaults, // <-- Changed: Use safe defaults
     mode: 'onBlur',
     reValidateMode: 'onChange',

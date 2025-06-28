@@ -2,21 +2,8 @@ import React, { forwardRef, useImperativeHandle, useRef } from 'react';
 import GlassPane from '@components/layout/GlassPane';
 import DataTransparencySection from '@components/organisms/overlays/wizard/SharedComponents/Pages/DataTransparencySection';
 import StepBudgetSavingsContainer, { StepBudgetSavingsContainerRef } from './Components/StepBudgetSavingsContainer';
-import { Step3FormValues } from '@/schemas/wizard/StepSavings/step3Schema';
-
-export interface StepBudgetSavingsRef {
-  validateFields(): Promise<boolean>;
-  getStepData(): any;
-  markAllTouched(): void;
-  getErrors(): any;
-  getCurrentSubStep(): number;
-  goPrevSub(): void;
-  goNextSub(): void;
-  hasPrevSub(): boolean;
-  hasNextSub(): boolean;
-  isSaving(): boolean;
-  hasSubSteps: () => boolean;
-}
+import { Step3FormValues } from '@/types/Wizard/Step3FormValues';
+import { StepBudgetSavingsRef } from '@/types/Wizard/StepBudgetSavingsRef';
 
 interface StepBudgetSavingsProps {
   wizardSessionId: string;

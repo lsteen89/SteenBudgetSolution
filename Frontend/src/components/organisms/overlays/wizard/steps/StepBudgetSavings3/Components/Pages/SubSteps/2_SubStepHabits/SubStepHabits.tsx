@@ -9,8 +9,9 @@ import EditableSavingsInput from "@/components/molecules/InputField/EditableSavi
 import InfoBox from "@/components/molecules/messaging/InfoBox";
 // --- Store, Schema, and Utility Imports ---
 import { useWizardDataStore } from "@/stores/Wizard/wizardDataStore";
-import { Step3FormValues } from "@/schemas/wizard/StepSavings/step3Schema";
+import { Step3FormValues } from '@/types/Wizard/Step3FormValues';
 import { calcMonthlyIncome } from "@/utils/wizard/wizardHelpers";
+import { idFromPath } from "@/utils/idFromPath";
 
 const SubStepHabits: React.FC = () => {
   const { watch, setValue, formState: { errors } } = useFormContext<Step3FormValues>();
@@ -18,8 +19,8 @@ const SubStepHabits: React.FC = () => {
   const income = useWizardDataStore((s) => s.data.income);
   const maxIncome = calcMonthlyIncome(income);
 
-  const monthlySavings = watch("monthlySavings");
-  const savingMethods = watch("savingMethods");
+  const monthlySavings = watch("habits.monthlySavings");
+  const savingMethods = watch("habits.savingMethods");
 
   const options = [
     { value: "auto", label: "Automatiska överföringar" },
@@ -32,7 +33,7 @@ const SubStepHabits: React.FC = () => {
     const currentValues = Array.isArray(savingMethods) ? [...savingMethods] : [];
 
     if (value === 'prefer_not') {
-      setValue("savingMethods", currentValues.includes('prefer_not') ? [] : ['prefer_not'], { shouldValidate: true, shouldDirty: true });
+      setValue("habits.savingMethods", currentValues.includes('prefer_not') ? [] : ['prefer_not'], { shouldValidate: true, shouldDirty: true });
       return;
     }
 
@@ -45,7 +46,7 @@ const SubStepHabits: React.FC = () => {
       filteredValues.push(value);
     }
     
-    setValue("savingMethods", filteredValues, { shouldValidate: true, shouldDirty: true });
+    setValue("habits.savingMethods", filteredValues, { shouldValidate: true, shouldDirty: true });
   };
 
   const sliderValue = typeof monthlySavings === 'number' ? monthlySavings : 0;
@@ -72,27 +73,26 @@ const SubStepHabits: React.FC = () => {
               Ungefär hur mycket sparar du varje månad?
             </label>
             <EditableSavingsInput
+              id={idFromPath("habits.monthlySavings")}
               value={sliderValue}
               max={maxIncome}
-              onChange={(newValue) => setValue("monthlySavings", newValue, { shouldValidate: true, shouldDirty: true })}
+              onChange={(newValue) => setValue("habits.monthlySavings", newValue, { shouldValidate: true, shouldDirty: true })}
               aria-labelledby="monthlySavingsLabel"
             />
-            {/* Tonys Note: Here it is. Just like you asked.
-              Your guy handles the rules, we just put the message on display.
-            */}
-            {errors.monthlySavings && (
+
+            {errors.habits?.monthlySavings && (
               <p className="text-sm text-red-600 mt-2" role="alert">
-                {errors.monthlySavings.message}
+                {errors.habits?.monthlySavings?.message}
               </p>
             )}
           </div>
 
-          <div className="space-y-2 mt-6"> {/* Added some margin here for better spacing */}
+          <div className="space-y-2 mt-6"> 
             
             <label className="text-sm font-medium text-standardMenuColor/90 dark:text-standardMenuColor" id="saving-methods-label">
               Hur brukar du spara? (Välj alla som passar)
             </label>
-            <div className="space-y-3" role="group" aria-labelledby="saving-methods-label">
+            <div id={idFromPath("habits.savingMethods")} className="space-y-3" role="group" aria-labelledby="saving-methods-label">
               {options.map((option) => (
                 <CheckboxOption
                   key={option.value}
@@ -105,12 +105,11 @@ const SubStepHabits: React.FC = () => {
               ))}
             </div>
             {/* This is the existing error message for the checkboxes. We just copied the style. */}
-            {errors.savingMethods && (
+            {errors.habits?.savingMethods && (
               <p className="text-sm text-red-600 mt-2" role="alert">
-                {errors.savingMethods.message}
+                {errors.habits?.savingMethods?.message}
               </p>
             )}
-            <div id="savingMethods" style={{ height: 0 }} />
             <HelpSection
               label="Varför frågar vi detta?"
               className="mt-2 text-xs text-standardMenuColor/80"

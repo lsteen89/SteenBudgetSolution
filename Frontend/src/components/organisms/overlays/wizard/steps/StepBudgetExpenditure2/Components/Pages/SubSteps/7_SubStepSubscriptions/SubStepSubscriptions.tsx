@@ -52,7 +52,7 @@ const SubStepSubscriptions: React.FC = () => {
     control,
     name: "subscriptions.customSubscriptions",
     keyName: "fieldId",
-    shouldUnregister: true,
+    shouldUnregister: false,
   });
 
   const handleAdd = () => {
