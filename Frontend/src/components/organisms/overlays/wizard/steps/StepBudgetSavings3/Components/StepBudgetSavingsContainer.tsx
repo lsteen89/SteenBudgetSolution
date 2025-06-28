@@ -44,6 +44,7 @@ export interface StepBudgetSavingsContainerRef {
   hasNextSub(): boolean;
   isSaving(): boolean;
   hasSubSteps: () => boolean;
+  getTotalSubSteps: () => number;
 }
 
 interface StepBudgetSavingsContainerProps {
@@ -238,6 +239,7 @@ const StepBudgetSavingsContainer = forwardRef<
     hasNextSub: () => currentSub < totalSteps,
     isSaving: () => isSaving,
     hasSubSteps: () => true,
+    getTotalSubSteps: () => totalSteps,
   }));
 
   /* 8 ─── render helpers ------------------------------------------- */
