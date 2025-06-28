@@ -11,7 +11,8 @@ import {
 
 import WizardStepContainer from "@components/molecules/containers/WizardStepContainer";
 import StepWelcome from "@components/organisms/overlays/wizard/steps/StepWelcome";
-import StepBudgetSavings, { StepBudgetSavingsRef } from "@components/organisms/overlays/wizard/steps/StepBudgetSavings3/StepBudgetSavings";
+import StepBudgetSavings from "@components/organisms/overlays/wizard/steps/StepBudgetSavings3/StepBudgetSavings";
+import { StepBudgetSavingsRef } from "@/types/Wizard/StepBudgetSavingsRef";
 import StepConfirmation from "@components/organisms/overlays/wizard/steps/StepConfirmation";
 import WizardFormWrapperStep1, { WizardFormWrapperStep1Ref } from '@components/organisms/overlays/wizard/steps/StepBudgetIncome1/wrapper/WizardFormWrapperStep1'; 
 import StepBudgetIncome from "@components/organisms/overlays/wizard/steps/StepBudgetIncome1/StepBudgetIncome";
@@ -97,6 +98,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     const { nextStep: hookNextStep, prevStep: hookPrevStep } = useWizardNavigation({
         step, setStep, totalSteps: 4, stepRefs, setTransitionLoading, setCurrentStepState, handleSaveStepData, triggerShakeAnimation, isDebugMode, setShowSideIncome, setShowHouseholdMembers,
     });
+
     useEffect(() => { setIsStepValid(step === 0); }, [step]);
 
     const syncStoreWithCurrentStep = useCallback(() => {
@@ -203,7 +205,7 @@ const WizardContent = (props: any) => {
 
         if (outermostScrollNode) {
 
-            outermostScrollNode.scrollTo({ top: 0, behavior: 'instant' });
+            outermostScrollNode.scrollTo({ top: 0, behavior: 'auto' });
         }
     }, [props.step, props.subTick, outermostScrollNode]);
 

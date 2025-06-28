@@ -4,6 +4,7 @@ import { Pencil } from "lucide-react";
 import RangeSlider from "@/components/atoms/InputField/RangeSlider";
 
 interface EditableSavingsInputProps {
+  id?: string;
   value: number;
   max: number;
   onChange: (newValue: number) => void;
@@ -15,6 +16,7 @@ interface EditableSavingsInputProps {
  * and allows the user to click to edit the exact amount in a text input.
  */
 const EditableSavingsInput: React.FC<EditableSavingsInputProps> = ({
+  id,
   value,
   max,
   onChange,
@@ -38,7 +40,7 @@ const EditableSavingsInput: React.FC<EditableSavingsInputProps> = ({
   };
 
   return (
-    <div className="space-y-4 w-full"> {/* Make sure our main container knows its width */}
+    <div id={id} className="space-y-4 w-full"> {/* Make sure our main container knows its width */}
       <RangeSlider
         min={0}
         max={max}

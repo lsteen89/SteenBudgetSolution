@@ -13,6 +13,7 @@ import FormErrorSummary from "@/components/molecules/messaging/FormErrorSummary"
 import { GoalTemplateModal } from "@/components/modals/GoalTemplateModal";
 import { GoalTemplate } from "@/components/modals/goalTemplates"; 
 import { useWizard } from '@/context/WizardContext';
+import { idFromPath } from "@/utils/idFromPath";
 
 const SubStepGoals = () => {
   const { control, getValues, formState: { errors }, } = useFormContext<FormValues>(); 
@@ -63,13 +64,10 @@ const SubStepGoals = () => {
         </InfoBox>
         
         <FormErrorSummary errors={errors} name="goals" />
-        <div id="goals" style={{ height: 0 }} />
+        <div id={idFromPath("goals")} style={{ height: 0 }} />
 
         <motion.div layout className="flex flex-col gap-y-6">
             <AnimatePresence>
-                {/* AND WE STICK TO THE WASTE MANAGEMENT PLAN.
-                  The parent, this component, provides the container for each item.
-                */}
                 {fields.map((item, index) => (
                     <GoalContainer
                         key={item.fieldId}

@@ -9,7 +9,7 @@ import React, {
 import { UseFormReturn, FieldErrors } from 'react-hook-form';
 import AnimatedContent from '@components/atoms/wrappers/AnimatedContent';
 
-import { Step3FormValues } from '@/schemas/wizard/StepSavings/step3Schema';
+import { Step3FormValues } from '@/types/Wizard/Step3FormValues';
 import { ensureStep3Defaults } from '@/utils/wizard/ensureStep3Defaults';
 import { useSaveStepData } from '@hooks/wizard/useSaveStepData';
 import { useWizardDataStore } from '@/stores/Wizard/wizardDataStore';
@@ -73,8 +73,8 @@ function getSavingsPartialData(
   allData: Step3FormValues
 ): Partial<Step3FormValues> {
   switch (subStep) {
-    case 1: return { savingHabit: allData.savingHabit };
-    case 2: return { monthlySavings: allData.monthlySavings, savingMethods: allData.savingMethods };
+    case 1: return { intro: allData.intro };
+    case 2: return { habits: allData.habits };
     case 3: return { goals: allData.goals };
     default: return {};
   }
@@ -167,7 +167,7 @@ const goToSub = async (dest: number) => {
     // Logic for skipping habit step
     if (currentSub === 1) {
       // We no longer validate here. Just get the value and let goToSub handle the rest.
-      const answer = formMethods?.getValues('savingHabit');
+      const answer = formMethods?.getValues('intro.savingHabit');
       const skip = answer === 'start' || answer === 'no';
       await goToSub(skip ? 3 : 2);
       return;

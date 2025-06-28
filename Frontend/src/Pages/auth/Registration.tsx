@@ -4,7 +4,7 @@ import ReCAPTCHA from 'react-google-recaptcha';
 import SubmitButton from '@components/atoms/buttons/SubmitButton';
 import InputField from "@components/atoms/InputField/ContactFormInputField";
 import { registerUser } from '@api/Services/User/registerUser';
-import { UserFormData } from '../../types/registrationForm';
+import { UserFormData } from '@myTypes/User/Creation/registrationForm';
 import { validateRegistrationForm} from '@utils/validation/userValidation';
 import { validateField } from '@utils/validation/fieldValidator';
 import FormContainer from '@components/molecules/containers/FormContainer';
@@ -35,13 +35,13 @@ const Registration: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
   const handleCaptchaChange = (token: string | null) => {
-    setFormData((prevData) => ({
+    setFormData((prevData: UserFormData) => ({
         ...prevData,
         captchaToken: token || '', 
     }));
 };
   const handleInputChange = (field: keyof UserFormData, value: string) => {
-    setFormData((prevData) => ({
+    setFormData((prevData: UserFormData) => ({
       ...prevData,
       [field]: value,
     }));
@@ -76,7 +76,7 @@ const Registration: React.FC = () => {
       // Reset the captcha if there are validation errors
       if (captchaRef.current) {
         captchaRef.current.reset();
-        setFormData((prevData) => ({
+        setFormData((prevData: UserFormData) => ({
             ...prevData,
             captchaToken: '', // Clear the captcha token
         }));
@@ -123,7 +123,7 @@ const Registration: React.FC = () => {
         // Reset the captcha on failure
         if (captchaRef.current) {
           captchaRef.current.reset();
-          setFormData((prevData) => ({
+          setFormData((prevData: UserFormData) => ({
               ...prevData,
               captchaToken: '', // Clear the captcha token
           }));
@@ -201,7 +201,7 @@ const Registration: React.FC = () => {
           <div className="flex-1">
             <InputField
               placeholder="Förnamn"
-              value={formData.firstName}
+              value={formData.firstName ?? ''}
               onChange={(e) => handleInputChange('firstName', e.target.value)}
               onBlur={() => handleBlur('firstName')}
               width='100%'
@@ -215,7 +215,7 @@ const Registration: React.FC = () => {
           <div className="flex-1">
             <InputField
               placeholder="Efternamn"
-              value={formData.lastName}
+              value={formData.lastName ?? ''}
               onChange={(e) => handleInputChange('lastName', e.target.value)}
               onBlur={() => handleBlur('lastName')}
               width='100%'
@@ -245,7 +245,7 @@ const Registration: React.FC = () => {
             <InputField
               type="email"
               placeholder="upprepa E-post"
-              value={formData.repeatEmail}
+              value={formData.repeatEmail ?? ''}
               onChange={(e) => handleInputChange('repeatEmail', e.target.value)}
               onBlur={() => handleBlur('repeatEmail')}
               width='100%'              
@@ -275,7 +275,7 @@ const Registration: React.FC = () => {
             <InputField
               type="password"
               placeholder="Upprepa Lösenord"
-              value={formData.repeatPassword}
+              value={formData.repeatPassword ?? ''}
               onChange={(e) => handleInputChange('repeatPassword', e.target.value)}
               onBlur={() => handleBlur('repeatPassword')}
               width='100%'
@@ -294,7 +294,7 @@ const Registration: React.FC = () => {
               name="honeypot"
               value={formData.honeypot || ''}
               onChange={(e) =>
-                  setFormData((prevData) => ({
+                  setFormData((prevData: UserFormData) => ({
                       ...prevData,
                       honeypot: e.target.value,
                   }))
@@ -358,6 +358,3 @@ const Registration: React.FC = () => {
 };
 
 export default Registration;
-
-
-
