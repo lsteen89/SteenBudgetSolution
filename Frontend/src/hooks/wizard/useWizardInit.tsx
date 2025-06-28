@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { startWizard, getWizardData } from "@api/Services/wizard/wizardService";
-import { useWizardSessionStore } from '@/stores/Wizard/wizardSessionStore';
-import { useWizardDataStore, WizardData } from '@/stores/Wizard/wizardDataStore';
-import { CODE_DATA_VERSION } from '@/constants/wizardVersion';
-
+import { useWizardSessionStore } from "@/stores/Wizard/wizardSessionStore";
+import {
+  useWizardDataStore,
+  WizardData,
+} from "@/stores/Wizard/wizardDataStore";
+import { CODE_DATA_VERSION } from "@/constants/wizardVersion";
 
 // This is the shape of the satchel we expect from the backend
 interface ApiStepData {
@@ -18,83 +20,120 @@ interface WizardApiResponse {
 }
 
 const useWizardInit = () => {
-    const [loading, setLoading] = useState(true);
-    const [failedAttempts, setFailedAttempts] = useState(0);
-    const [connectionError, setConnectionError] = useState(false);
-    const [initialSubStep, setInitialWizardSubStep] = useState<number | null>(null);
-    const [initialStep, setInitialStep] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [connectionError, setConnectionError] = useState(false);
+  const [initialSubStep, setInitialWizardSubStep] = useState<number | null>(
+    null,
+  );
+  const [initialStep, setInitialStep] = useState(0);
 
-    const setSessionIdInStore = useWizardSessionStore(s => s.setWizardSessionId);
-    // We now use the wizardDataStore to manage our data
-    const {
-        localStoreVersion,
-        resetDataStore,
-        setIncome,
-        setExpenditure,
-        setSavings,
-    } = useWizardDataStore(state => ({
-        localStoreVersion: state.version,
-        resetDataStore: state.reset,
-        setIncome: state.setIncome,
-        setExpenditure: state.setExpenditure,
-        setSavings: state.setSavings,
+  const setSessionIdInStore = useWizardSessionStore(
+    (s) => s.setWizardSessionId,
+  );
+  // We now use the wizardDataStore to manage our data
+  const { resetDataStore, setIncome, setExpenditure, setSavings } =
+    useWizardDataStore((state) => ({
+      resetDataStore: state.reset,
+      setIncome: state.setIncome,
+      setExpenditure: state.setExpenditure,
+      setSavings: state.setSavings,
     }));
-    
-    const initWizard = useCallback(async () => {}, []);
 
-    useEffect(() => {
-        const performInit = async () => {
-            console.log('%c🧙‍♂️ The Wizard awakens! Beginning the initialization sequence...', 'color: #8a2be2;');
-            setLoading(true);
-            
-            if (localStoreVersion < CODE_DATA_VERSION) {
-                console.log(`%c📜 An old scroll was found! Resetting...`, 'color: #ff8c00;');
-                resetDataStore();
-            }
+  const initWizard = useCallback(async () => {}, []);
 
-            try {
-                const { wizardSessionId: fetchedWizardSessionId } = await startWizard();
-                setSessionIdInStore(fetchedWizardSessionId);
-                console.log(`%c🔑 A key to the tower has been forged:`, 'color: #4682b4;', fetchedWizardSessionId);
+  useEffect(() => {
+    const performInit = async () => {
+      console.log(
+        "%c🧙‍♂️ The Wizard awakens! Beginning the initialization sequence...",
+        "color: #8a2be2;",
+      );
+      setLoading(true);
 
-                const existingResponse = await getWizardData(fetchedWizardSessionId).catch(() => null);
+      // Ensure Zustand has fully rehydrated from localStorage before manipulating state
+      await useWizardDataStore.persist.rehydrate();
 
-                // We now align our logic with the TRUE shape of the response
-                if (existingResponse && existingResponse.wizardData) {
-                    const { wizardData: fetchedData, subStep } = existingResponse;
-                    
-                    console.log('%c📬 A pre-assembled book has arrived from the server!', 'color: #0077be; font-weight: bold;', fetchedData);
+      const { version: hydratedVersion } = useWizardDataStore.getState();
 
-                    // We no longer need to assemble. We just set the data directly.
-                    if (fetchedData.income) setIncome(fetchedData.income);
-                    if (fetchedData.expenditure) setExpenditure(fetchedData.expenditure);
-                    if (fetchedData.savings) setSavings(fetchedData.savings);
+      if (hydratedVersion < CODE_DATA_VERSION) {
+        console.log(
+          `%c📜 An old scroll was found! Resetting...`,
+          "color: #ff8c00;",
+        );
+        resetDataStore();
+      }
 
-                    console.log('%c✅ The great ledger (Zustand) has been updated.', 'color: #228b22;');
+      try {
+        const { wizardSessionId: fetchedWizardSessionId } = await startWizard();
+        setSessionIdInStore(fetchedWizardSessionId);
+        console.log(
+          `%c🔑 A key to the tower has been forged:`,
+          "color: #4682b4;",
+          fetchedWizardSessionId,
+        );
 
-                    let highestStep = 0;
-                    if (fetchedData.income) highestStep = 1;
-                    if (fetchedData.expenditure) highestStep = 2;
-                    if (fetchedData.savings) highestStep = 3;
-                    setInitialStep(highestStep);
-                    setInitialWizardSubStep(subStep);
-                    console.log(`🗺️ Setting the starting point of our journey to Step ${highestStep}.`);
-                } else {
-                    console.log('📬 The book from the server was empty. Starting a new chronicle.');
-                    setInitialStep(0);
-                }
+        const existingResponse = await getWizardData(
+          fetchedWizardSessionId,
+        ).catch(() => null);
 
-            } catch (error) {
-                console.error('🔥 A dark magic has interfered!', error);
-            } finally {
-                setLoading(false);
-            }
-        };
+        // We now align our logic with the TRUE shape of the response
+        if (existingResponse && existingResponse.wizardData) {
+          const { wizardData: fetchedData, subStep } = existingResponse;
 
-        performInit();
-    }, []); // Note: For production, you'd want to add your store setters to this dependency array.
+          console.log(
+            "%c📬 A pre-assembled book has arrived from the server!",
+            "color: #0077be; font-weight: bold;",
+            fetchedData,
+          );
 
-    return { loading, failedAttempts, connectionError, initWizard, initialStep, initialSubStep };
+          // Replace the stored wizard data with the data from the backend
+          useWizardDataStore.setState((state) => ({
+            ...state,
+            data: {
+              income: fetchedData.income ?? {},
+              expenditure: fetchedData.expenditure ?? {},
+              savings: fetchedData.savings ?? {},
+            },
+          }));
+
+          console.log(
+            "%c✅ The great ledger (Zustand) has been updated.",
+            "color: #228b22;",
+          );
+
+          let highestStep = 0;
+          if (fetchedData.income) highestStep = 1;
+          if (fetchedData.expenditure) highestStep = 2;
+          if (fetchedData.savings) highestStep = 3;
+          setInitialStep(highestStep);
+          setInitialWizardSubStep(subStep);
+          console.log(
+            `🗺️ Setting the starting point of our journey to Step ${highestStep}.`,
+          );
+        } else {
+          console.log(
+            "📬 The book from the server was empty. Starting a new chronicle.",
+          );
+          setInitialStep(0);
+        }
+      } catch (error) {
+        console.error("🔥 A dark magic has interfered!", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    performInit();
+  }, []); // Note: For production, you'd want to add your store setters to this dependency array.
+
+  return {
+    loading,
+    failedAttempts,
+    connectionError,
+    initWizard,
+    initialStep,
+    initialSubStep,
+  };
 };
 
 export default useWizardInit;
