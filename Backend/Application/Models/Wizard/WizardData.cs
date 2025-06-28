@@ -243,41 +243,36 @@ public sealed class SubscriptionItem
     public decimal? Fee { get; init; }
 }
 
+
 /* ---------- Savings ---------- */
 
 public sealed class SavingsFormValues
 {
-    [JsonPropertyName("savingHabit")]
-    public string SavingHabit { get; init; } = string.Empty;
+    [JsonPropertyName("intro")]
+    public SavingsIntro? Intro { get; set; }
 
-    [JsonPropertyName("monthlySavings")]
-    public decimal? MonthlySavings { get; init; }
-
-    [JsonPropertyName("savingMethods")]
-    public List<string> SavingMethods { get; init; } = new();
+    [JsonPropertyName("habits")]
+    public SavingHabits? Habits { get; set; }
 
     [JsonPropertyName("goals")]
-    public List<SavingsGoal> Goals { get; init; } = new();
+    public List<SavingsGoal>? Goals { get; set; }
 }
 
-public sealed class SavingsGoal
+public sealed class SavingsIntro
 {
-    [JsonPropertyName("id")]
-    public string Id { get; init; } = string.Empty;
-
-    [JsonPropertyName("name")]
-    public string Name { get; init; } = string.Empty;
-
-    [JsonPropertyName("amount")]
-    public decimal? Amount { get; init; }
-
-    [JsonPropertyName("targetDate")]
-    public DateTime? TargetDate { get; init; }
-
-
-    [JsonPropertyName("amountSaved")]
-    public decimal? AmountSaved { get; init; }
+    [JsonPropertyName("savingHabit")]
+    public string? SavingHabit { get; set; }
 }
+
+public sealed class SavingHabits
+{
+    [JsonPropertyName("monthlySavings")]
+    public decimal? MonthlySavings { get; set; }
+
+    [JsonPropertyName("savingMethods")]
+    public List<string>? SavingMethods { get; set; }
+}
+
 
 /* ---------- Shared ---------- */
 

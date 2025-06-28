@@ -1,7 +1,6 @@
-import { UserCreationDto } from './Creation/userCreation';
+import { UserCreationDto } from './userCreation';
 
-// Composite type for registration form
-export type UserFormData = UserCreationDto & {
-  repeatEmail: string;
-  repeatPassword: string;
-};
+export interface UserFormData extends UserCreationDto {
+  repeatEmail?: string;
+  repeatPassword?: string;
+}

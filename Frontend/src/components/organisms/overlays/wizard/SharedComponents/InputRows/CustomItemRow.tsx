@@ -33,7 +33,7 @@ const CustomItemRow: React.FC<CustomItemRowProps> = ({
   basePath,
   index,
   fieldId,
-  amountKey = "fee",
+  amountKey = "cost",
   namePlaceholder = "Namn",
   amountPlaceholder = "Belopp",
   isDeleting,

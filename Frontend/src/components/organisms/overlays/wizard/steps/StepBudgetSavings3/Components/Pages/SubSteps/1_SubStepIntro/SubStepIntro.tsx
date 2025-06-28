@@ -2,9 +2,11 @@ import React from 'react';
 import { useFormContext } from 'react-hook-form';
 import { motion } from 'framer-motion';
 import OptionContainer from '@components/molecules/containers/OptionContainer';
-import { Step3FormValues } from '@/schemas/wizard/StepSavings/step3Schema';
+import { Step3FormValues } from '@/types/Wizard/Step3FormValues';
 import BirdIllustration from '@assets/Images/bird_freedom.png';
 import InfoBox from "@/components/molecules/messaging/InfoBox";
+import { idFromPath } from "@/utils/idFromPath";
+
 /**
  * SubStepIntro – Savings introduction step
  * Adds a floating bird illustration in the top‑right corner to create a sense of
@@ -13,7 +15,7 @@ import InfoBox from "@/components/molecules/messaging/InfoBox";
 const SubStepIntro: React.FC = () => {
   // We summon formState and extract the errors!
   const { register, watch, formState: { errors } } = useFormContext<Step3FormValues>();
-  const selected = watch('savingHabit');
+  const selected = watch('intro.savingHabit');
 
   return (
     <OptionContainer className="p-4">
@@ -41,7 +43,7 @@ const SubStepIntro: React.FC = () => {
         </header>
 
         {/* Radio Group */}
-        <fieldset className="space-y-4">
+        <fieldset id={idFromPath('intro.savingHabit')} className="space-y-4">
           <legend className="sr-only">Sparvanor</legend>
           {[
             { value: 'regular', label: 'Ja, jag sparar regelbundet.' },
@@ -62,7 +64,7 @@ const SubStepIntro: React.FC = () => {
               <input
                 type="radio"
                 value={option.value}
-                {...register('savingHabit')}
+                {...register('intro.savingHabit')}
                 className="h-5 w-5 accent-limeGreen"
               />
               <span className="text-white">{option.label}</span>
@@ -70,15 +72,14 @@ const SubStepIntro: React.FC = () => {
           ))}
         </fieldset>
         
-        {/* Our new messenger of truth! It shall appear when needed. */}
-        {errors.savingHabit && (
+        {errors.intro?.savingHabit && (
             <motion.p
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="text-center font-bold text-red-600"
                 role="alert"
             >
-                {errors.savingHabit.message}
+                {errors.intro?.savingHabit?.message}
             </motion.p>
         )}
 
@@ -89,7 +90,6 @@ const SubStepIntro: React.FC = () => {
           </p>
         )}
       </section>
-      <div id="savingHabit" style={{ position: 'absolute', top: 0 }} />
     </OptionContainer>
   );
 };

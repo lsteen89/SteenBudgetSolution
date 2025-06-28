@@ -1,15 +1,17 @@
-import * as yup from "yup";
+import * as yup from 'yup';
 
+/**
+ * Defines the validation rules for the second sub-step of the Savings step.
+ * This schema is conditionally applied based on the user's answer in the first sub-step.
+ */
 export const savingHabitsSchema = yup.object({
-
   monthlySavings: yup
     .number()
-    // A required field needs a message for when it's empty.
-    .required('Du måste ange hur mycket du sparar.') 
-    // The original rule, now with real power behind it.
-    .min(1, 'Vänligen ange ett belopp större än 0.'), 
-    
+    .typeError('Ange ett giltigt belopp.')
+    .required('Ange hur mycket du sparar varje månad.')
+    .min(1, 'Beloppet måste vara större än 0 kr.'),
+  
   savingMethods: yup
     .array(yup.string().required())
-    .min(1, 'Vänligen välj minst ett alternativ.'),
+    .min(1, 'Välj minst ett alternativ.'),
 });
