@@ -22,13 +22,14 @@ export interface WizardFormWrapperStep2Ref {
 
 interface WizardFormWrapperStep2Props {
   children: React.ReactNode;
+  onHydrationComplete?: () => void;
 }
 
 /* ───────────────── Component ───────────────── */
 const WizardFormWrapperStep2 = forwardRef<
   WizardFormWrapperStep2Ref,
-  WizardFormWrapperStep2Props            
->(( { children }, ref ) => {
+  WizardFormWrapperStep2Props
+>(({ children, onHydrationComplete }, ref) => {
   /* 1.  Data from store */
   const {
     data: { expenditure },
@@ -41,11 +42,13 @@ const WizardFormWrapperStep2 = forwardRef<
   /* 3.  RHF instance */
   const methods = useForm<Step2FormValues>({
     resolver: yupResolver(step2Schema),
-    defaultValues: defaults,          // <- safe
-    mode: "onBlur",
-    reValidateMode: "onChange",
+    defaultValues: defaults, // <- safe
+    mode: 'onBlur',
+    reValidateMode: 'onChange',
   });
-  const { formState: { errors } } = methods;
+  const {
+    formState: { errors },
+  } = methods;
   useScrollToFirstError(errors);
   /* 4.  Hydrate once if store updates later */
   const hydrated = useRef(false);
@@ -56,8 +59,9 @@ const WizardFormWrapperStep2 = forwardRef<
         ensureStep2Defaults(expenditure as Partial<Step2FormValues>)
       );
       hydrated.current = true;
+      onHydrationComplete?.();
     }
-  }, [expenditure, methods]);
+  }, [expenditure, methods, onHydrationComplete]);
 
   /* 5.  Imperative API */
   useImperativeHandle(ref, () => ({
