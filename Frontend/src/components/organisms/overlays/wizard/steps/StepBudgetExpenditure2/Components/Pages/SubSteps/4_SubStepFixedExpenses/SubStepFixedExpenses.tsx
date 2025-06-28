@@ -18,7 +18,7 @@ import CustomItemRow from "@components/organisms/overlays/wizard/SharedComponent
 export interface FixedExpenseItem {
   id?: string;
   name?: string;
-  fee?: number | null;
+  cost?: number | null;
 }
 
 export interface FixedExpensesSubForm {
@@ -53,7 +53,7 @@ const SubStepFixedExpenses: React.FC = () => {
   const handleAddExpense = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    append({ name: "", fee: null });
+    append({ name: "", cost: null });
     setTimeout(() => {
       setFocus(`fixedExpenses.customExpenses.${fields.length}.name`);
     }, 0);
@@ -76,7 +76,7 @@ const SubStepFixedExpenses: React.FC = () => {
     (internetVal ?? 0) +
     (phoneVal ?? 0) +
     (unionFeesVal ?? 0) +
-    (customExpensesVal?.reduce((acc, expenseItem) => acc + (expenseItem?.fee ?? 0), 0) ?? 0);
+    (customExpensesVal?.reduce((acc, expenseItem) => acc + (expenseItem?.cost ?? 0), 0) ?? 0);
 
   const formattedTotalValue = calculatedTotalValue.toLocaleString("sv-SE");
 
@@ -101,7 +101,7 @@ const SubStepFixedExpenses: React.FC = () => {
   useEffect(() => {
     const items = customExpensesVal ?? [];
     const hasIncompleteItems = items.some(
-      (item) => item && (!item.name?.trim() || !item.fee || item.fee <= 0)
+      (item) => item && (!item.name?.trim() || !item.cost || item.cost <= 0)
     );
 
     // If there are no items, or if all items are valid, clear any array-level errors.
@@ -183,7 +183,6 @@ const SubStepFixedExpenses: React.FC = () => {
                     <CustomItemRow
                       key={item.fieldId}
                       basePath="fixedExpenses.customExpenses"
-                      amountKey="fee"
                       index={index}
                       fieldId={item.fieldId}
                       isDeleting={item.fieldId === deletingId}
