@@ -46,7 +46,8 @@ The frontend is a modern, responsive single-page application (SPA).
 * **Git Workflow:** Your role is to generate code and propose commit messages, but not to manage the repository history directly.
     * You are **NEVER** to execute `git commit` or `git push`.
     * After you have finished generating or modifying code based on a task, you **SHOULD** write a proposed commit message into a file named `COMMIT_MSG.tmp` located in the project's root directory.
-    * Please format the message using the **Conventional Commits** specification (e.g., `feat: Add user login functionality`). The human developer will review this file and perform the actual commit.
+    * Please format the message using the **Conventional Commits** specification (e.g., `feat: Add user login functionality`).
+    * For all commit messages, use single quotes (`'`) instead of double quotes (`"`). For example: `feat: Add 'Remember Me' checkbox to login`.
 
 * **Compilation Guarantee:** All generated or modified code must be able to compile successfully. When you report that a task is complete, the code should be free of syntax errors, type mismatches, or other issues that would prevent the backend (C#) or frontend (TypeScript) from building.
 
