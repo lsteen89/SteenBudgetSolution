@@ -95,7 +95,7 @@ const SubStepConfirm: React.FC = () => {
     exp.fixedExpenses?.internet,
     exp.fixedExpenses?.phone,
     exp.fixedExpenses?.unionFees,
-    ...(exp.fixedExpenses?.customExpenses?.map(e => e?.fee) ?? []),
+    ...(exp.fixedExpenses?.customExpenses?.map(e => e?.cost) ?? []),
   ]);
 
   const variableTotal = sumArray([
@@ -161,7 +161,7 @@ const SubStepConfirm: React.FC = () => {
                 "Telefon": exp.fixedExpenses?.phone,
                 "Fackavgifter": exp.fixedExpenses?.unionFees,
             }),
-            ...(exp.fixedExpenses?.customExpenses?.filter((e): e is NonNullable<typeof e> => !!e).map(e => ({name: e.name ?? 'Annan fast utgift', value: e.fee ?? 0})) ?? [])
+            ...(exp.fixedExpenses?.customExpenses?.filter((e): e is NonNullable<typeof e> => !!e).map(e => ({name: e.name ?? 'Annan fast utgift', value: e.cost ?? 0})) ?? [])
         ],
       },
       {
