@@ -39,7 +39,7 @@ export function ensureStep2Defaults(
         src?.fixedExpenses?.customExpenses?.map(e => ({
           id  : e?.id  ?? crypto.randomUUID(),
           name: e?.name ?? "",
-          fee : e?.fee ?? null,
+          cost : e?.cost ?? null,
         })) ?? [],
     },
 
@@ -68,7 +68,7 @@ export function ensureStep2Defaults(
         src?.subscriptions?.customSubscriptions?.map(s => ({
           id  : s?.id ?? crypto.randomUUID(),
           name: s?.name ?? "",
-          fee: s?.fee ?? null,
+          cost: s?.cost ?? null,
         })) ?? [],
     },
   };

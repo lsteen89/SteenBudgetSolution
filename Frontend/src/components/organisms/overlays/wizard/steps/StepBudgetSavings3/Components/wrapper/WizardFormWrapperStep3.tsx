@@ -19,11 +19,17 @@ export interface WizardFormWrapperStep3Ref {
 
 interface WizardFormWrapperStep3Props {
   children: React.ReactNode;
+  onHydrationComplete?: () => void;
 }
 
-const WizardFormWrapperStep3 = forwardRef<WizardFormWrapperStep3Ref, WizardFormWrapperStep3Props>(({ children }, ref) => {
+const WizardFormWrapperStep3 = forwardRef<
+  WizardFormWrapperStep3Ref,
+  WizardFormWrapperStep3Props
+>(({ children, onHydrationComplete }, ref) => {
   // 1. Data from store (unchanged)
-  const { data: { savings } } = useWizardDataStore();
+  const {
+    data: { savings },
+  } = useWizardDataStore();
 
   // 2. --- Added: Build safe defaults BEFORE initializing the form ---
   const defaults = ensureStep3Defaults(savings as Partial<Step3FormValues>);
@@ -35,9 +41,11 @@ const WizardFormWrapperStep3 = forwardRef<WizardFormWrapperStep3Ref, WizardFormW
     mode: 'onBlur',
     reValidateMode: 'onChange',
   });
-  
+
   // --- Added: Error scrolling hook for better UX ---
-  const { formState: { errors } } = methods;
+  const {
+    formState: { errors },
+  } = methods;
   useScrollToFirstError(errors);
 
   // 4. --- Added: Hydration logic to handle async store updates ---
@@ -54,8 +62,9 @@ const WizardFormWrapperStep3 = forwardRef<WizardFormWrapperStep3Ref, WizardFormW
       // We set hydrated to true to prevent resetting the form on every subsequent change,
       // which would overwrite the user's current input.
       hydrated.current = true;
+      onHydrationComplete?.();
     }
-  }, [savings, methods]);
+  }, [savings, methods, onHydrationComplete]);
 
 
   // 5. Imperative API (unchanged)

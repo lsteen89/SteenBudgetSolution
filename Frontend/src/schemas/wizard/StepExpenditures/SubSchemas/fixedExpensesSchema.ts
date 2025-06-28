@@ -11,7 +11,7 @@ const fixedExpenseItemSchema = yup.object({
     .trim()
     .required("Ange namn på utgiften.")
     .min(2, "Minst 2 tecken."),
-  fee: yup
+  cost: yup
     .number()
     .typeError("Ange ett giltigt belopp.")
     .required("Ange kostnaden.")

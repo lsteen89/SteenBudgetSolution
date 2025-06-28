@@ -107,7 +107,7 @@ public sealed class FixedExpenseItemValidator : AbstractValidator<FixedExpenseIt
             .NotEmpty().WithMessage("Ange namn på utgiften.")
             .MinimumLength(2).WithMessage("Minst 2 tecken.");
 
-        RuleFor(f => f.Fee)
+        RuleFor(f => f.Cost)
             .NotNull().WithMessage("Ange kostnaden.")
             .GreaterThan(0).WithMessage("Beloppet måste vara > 0 kr.");
     }
@@ -140,7 +140,7 @@ public sealed class SubscriptionItemValidator : AbstractValidator<SubscriptionIt
             .NotEmpty()
             .MinimumLength(2);
 
-        RuleFor(s => s.Fee)
+        RuleFor(s => s.Cost)
             .NotNull()
             .GreaterThan(0);
     }

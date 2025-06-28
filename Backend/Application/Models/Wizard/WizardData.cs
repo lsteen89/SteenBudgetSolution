@@ -204,9 +204,9 @@ public sealed class FixedExpenseItem
     [JsonPropertyName("name")]
     public string Name { get; init; } = string.Empty;
 
-    // Renamed 'Amount' to 'Fee' to perfectly align with the frontend yup schema
-    [JsonPropertyName("fee")]
-    public decimal? Fee { get; init; }
+    // Renamed 'Amount' to 'Cost' to perfectly align with the frontend yup schema
+    [JsonPropertyName("cost")]
+    public decimal? Cost { get; init; }
 }
 
 
@@ -240,7 +240,7 @@ public sealed class SubscriptionItem
     public string? Name { get; init; }
 
     [JsonPropertyName("cost")] 
-    public decimal? Fee { get; init; }
+    public decimal? Cost { get; init; }
 }
 
 
