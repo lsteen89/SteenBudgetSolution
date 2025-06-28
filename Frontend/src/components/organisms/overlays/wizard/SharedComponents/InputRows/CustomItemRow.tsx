@@ -33,7 +33,6 @@ const CustomItemRow: React.FC<CustomItemRowProps> = ({
   basePath,
   index,
   fieldId,
-  amountKey = "cost",
   namePlaceholder = "Namn",
   amountPlaceholder = "Belopp",
   isDeleting,
@@ -43,7 +42,7 @@ const CustomItemRow: React.FC<CustomItemRowProps> = ({
   const { control, formState: { errors } } = useFormContext<any>();
 
   const namePath = `${basePath}.${index}.name`;
-  const amountPath = `${basePath}.${index}.${amountKey}`;
+  const amountPath = `${basePath}.${index}.cost`;
 
   return (
     <motion.div

@@ -131,11 +131,15 @@ const StepBudgetExpenditureContainer = forwardRef<
   /* 2 ─── refs & local state --------------------------------------- */
   const formWrapperRef = useRef<WizardFormWrapperStep2Ref>(null);
 
-  const [isSaving,     setIsSaving]     = useState(false);
-  const [currentSub,   setCurrentSub]   = useState(initialSubStep || 1);
+  const [isSaving, setIsSaving] = useState(false);
+  const [currentSub, setCurrentSub] = useState(initialSubStep || 1);
   const [formMethods, setFormMethods] =
     useState<UseFormReturn<Step2FormValues> | null>(null);
+  const [isFormHydrated, setIsFormHydrated] = useState(false);
 
+  const handleFormHydration = () => {
+    setIsFormHydrated(true);
+  };
 
   const hasSetMethods = useRef(false);
   const handleFormWrapperRef = useCallback(
@@ -149,9 +153,9 @@ const StepBudgetExpenditureContainer = forwardRef<
   );
 
   /* 3 ─── save-hook (methods may be null on first render) ----------- */
-  const { saveStepData } = useSaveStepData<Step2FormValues>({ 
+  const { saveStepData } = useSaveStepData<Step2FormValues>({
     stepNumber,
-    methods: formMethods ?? undefined,   
+    methods: formMethods ?? undefined,
     isMobile,
     onSaveStepData,
     setCurrentStep: setCurrentSub,
@@ -159,37 +163,36 @@ const StepBudgetExpenditureContainer = forwardRef<
     getPartialDataForSubstep: getExpenditurePartialData,
   });
 
-/* 4 ─── navigation helpers --------------------------------------- */
-const totalSteps = 8;
+  /* 4 ─── navigation helpers --------------------------------------- */
+  const totalSteps = 8;
 
-const goToSub = async (dest: number) => {
-  const goingBack = dest < currentSub;
-  const skipValidation = currentSub === 1 || goingBack;
-  
-  setIsSaving(true);
-  await saveStepData(currentSub, dest, skipValidation, goingBack);
-  setIsSaving(false);
-};
+  const goToSub = async (dest: number) => {
+    const goingBack = dest < currentSub;
+    const skipValidation = currentSub === 1 || goingBack;
 
+    setIsSaving(true);
+    await saveStepData(currentSub, dest, skipValidation, goingBack);
+    setIsSaving(false);
+  };
 
-const next = () => {
-  if (currentSub < totalSteps) {
-    if (currentSub === 1) {
-      setCurrentSub(2);
+  const next = () => {
+    if (currentSub < totalSteps) {
+      if (currentSub === 1) {
+        setCurrentSub(2);
+      } else {
+        goToSub(currentSub + 1);
+      }
     } else {
-      goToSub(currentSub + 1);
+      onNext();
     }
-  } else {
-    onNext();
-  }
-};
+  };
 
-const prev = () => {
-  console.log(`HAWK 1B: 'prev' called. Current sub-step: ${currentSub}`);
-  if (currentSub > 1) {
-    goToSub(currentSub - 1);
-  }
-};
+  const prev = () => {
+    console.log(`HAWK 1B: 'prev' called. Current sub-step: ${currentSub}`);
+    if (currentSub > 1) {
+      goToSub(currentSub - 1);
+    }
+  };
 
   /* 5 ─── progress click handlers ---------------------------------- */
   const clickCarousel = (z: number) => goToSub(z + 1);
@@ -197,12 +200,16 @@ const prev = () => {
 
   /* 6 ─── notify parent of sub-step -------------------------------- */
   useEffect(() => {
-      console.log(`HAWK 1C: Sub-step state is now ${currentSub}. Notifying parent.`);
-      props.onSubStepChange?.(currentSub)
-      // FIX 2: This spell now only listens for a change in the sub-step number,
-      // breaking the notification loop.
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentSub]);
+    if (isFormHydrated) {
+      console.log(
+        `HAWK 1C: Sub-step state is now ${currentSub}. Notifying parent.`
+      );
+      props.onSubStepChange?.(currentSub);
+    }
+    // FIX 2: This spell now only listens for a change in the sub-step number,
+    // breaking the notification loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSub, isFormHydrated]);
 
 
   /* 7 ─── imperative API ------------------------------------------- */
@@ -248,7 +255,10 @@ const prev = () => {
   
   /* 9 ─── JSX ------------------------------------------------------- */
   return (
-    <WizardFormWrapperStep2 ref={handleFormWrapperRef}>
+    <WizardFormWrapperStep2
+      ref={handleFormWrapperRef}
+      onHydrationComplete={handleFormHydration}
+    >
       {parentLoading ? (
         <div className="absolute inset-0 z-50 flex items-center justify-center
               bg-white/60 backdrop-blur-sm">

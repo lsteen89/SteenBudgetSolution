@@ -48,6 +48,12 @@ The frontend is a modern, responsive single-page application (SPA).
     * After you have finished generating or modifying code based on a task, you **SHOULD** write a proposed commit message into a file named `COMMIT_MSG.tmp` located in the project's root directory.
     * Please format the message using the **Conventional Commits** specification (e.g., `feat: Add user login functionality`). The human developer will review this file and perform the actual commit.
 
+* **Compilation Guarantee:** All generated or modified code must be able to compile successfully. When you report that a task is complete, the code should be free of syntax errors, type mismatches, or other issues that would prevent the backend (C#) or frontend (TypeScript) from building.
+
+* **Scope of Modifications:** Your modifications must be strictly limited to the files and functionality related to the current task.
+    * **Focused Corrections:** Only correct compilation or runtime errors that you have introduced yourself in the files you are tasked to modify or create.
+    * **Do Not Modify Unrelated Code:** If you encounter pre-existing errors in other, unrelated files (in either the C# backend or TypeScript frontend), you must **not** fix them. Instead, you must notify the human developer about the specific error and its location.
+
 * **Code Style:** Follow the existing code style, naming conventions, and formatting.
 * **Clarity Over Brevity:** Write clear, readable, and maintainable code.
 * **Questions:** If an instruction is unclear or ambiguous, please ask for clarification before proceeding.
