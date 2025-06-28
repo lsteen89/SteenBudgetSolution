@@ -117,6 +117,11 @@ const StepBudgetSavingsContainer = forwardRef<
   const [skippedHabits, setSkippedHabits] = useState(false);
   const [formMethods, setFormMethods] =
     useState<UseFormReturn<Step3FormValues> | null>(null);
+  const [isFormHydrated, setIsFormHydrated] = useState(false);
+
+  const handleFormHydration = () => {
+    setIsFormHydrated(true);
+  };
 
   const hasSetMethods = useRef(false);
   const handleFormWrapperRef = useCallback(
@@ -143,7 +148,7 @@ const StepBudgetSavingsContainer = forwardRef<
   /* 4 ─── navigation helpers --------------------------------------- */
   const totalSteps = 4;
 
-const goToSub = async (dest: number) => {
+  const goToSub = async (dest: number) => {
     const goingBack = dest < currentSub;
     // We only skip validation if going backwards.
     // When moving forward, even from sub-step 1, saveStepData will now perform the validation.
@@ -151,12 +156,17 @@ const goToSub = async (dest: number) => {
 
     setIsSaving(true);
     // saveStepData will now handle validation and return true/false.
-    const wasSuccessful = await saveStepData(currentSub, dest, skipValidation, goingBack);
+    const wasSuccessful = await saveStepData(
+      currentSub,
+      dest,
+      skipValidation,
+      goingBack
+    );
     setIsSaving(false);
 
     // Only proceed to the next sub-step if the validation and save were successful.
     if (wasSuccessful) {
-        setCurrentSub(dest);
+      setCurrentSub(dest);
     }
   };
 
@@ -201,15 +211,19 @@ const goToSub = async (dest: number) => {
 
   /* 6 ─── notify parent of sub-step -------------------------------- */
   useEffect(() => {
-    console.log(
-      `%cTHE CHILD PROCLAIMS: Sub-step is now ${currentSub}. Notifying parent...`,
-      'color: cyan;',
-      `(Is onSubStepChange a function? ${typeof onSubStepChange === 'function'})`
-    );
+    if (isFormHydrated) {
+      console.log(
+        `%cTHE CHILD PROCLAIMS: Sub-step is now ${currentSub}. Notifying parent...`,
+        'color: cyan;',
+        `(Is onSubStepChange a function? ${
+          typeof onSubStepChange === 'function'
+        })`
+      );
 
-    onSubStepChange?.(currentSub);
+      onSubStepChange?.(currentSub);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentSub]);
+  }, [currentSub, isFormHydrated]);
 
   /* 7 ─── imperative API ------------------------------------------- */
   useImperativeHandle(ref, () => ({
@@ -246,7 +260,10 @@ const goToSub = async (dest: number) => {
 
   /* 9 ─── JSX ------------------------------------------------------- */
   return (
-    <WizardFormWrapperStep3 ref={handleFormWrapperRef}>
+    <WizardFormWrapperStep3
+      ref={handleFormWrapperRef}
+      onHydrationComplete={handleFormHydration}
+    >
       {parentLoading ? (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/60 backdrop-blur-sm">
           <LoadingScreen full textColor="black" />
