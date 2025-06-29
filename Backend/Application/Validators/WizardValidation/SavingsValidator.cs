@@ -35,7 +35,7 @@ namespace Backend.Application.Validators.WizardValidation
         {
             RuleFor(g => g.Id).NotEmpty().WithMessage("Goal must have a unique ID.");
             RuleFor(g => g.Name).NotEmpty().WithMessage("Goal must have a name.");
-            RuleFor(g => g.Amount).NotNull().GreaterThan(0).WithMessage("Goal amount must be greater than 0.");
+            RuleFor(g => g.TargetAmount).NotNull().GreaterThan(0).WithMessage("Goal amount must be greater than 0.");
             RuleFor(g => g.TargetDate).NotNull().GreaterThan(System.DateTime.UtcNow.Date).WithMessage("Target date cannot be in the past.");
             RuleFor(g => g.AmountSaved).GreaterThanOrEqualTo(0).When(g => g.AmountSaved.HasValue);
         }

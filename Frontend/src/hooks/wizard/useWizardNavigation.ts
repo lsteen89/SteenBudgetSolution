@@ -38,7 +38,10 @@ const useWizardNavigation = ({
 
   const navigateStep = useCallback(
     async (direction: 'next' | 'prev') => {
-      console.log(`%cTHE GREAT ROAD: Navigating '${direction}' from step ${step}...`, 'color: #FFD700;');
+      console.log(
+        `%cTHE GREAT ROAD: Navigating '${direction}' from step ${step}...`,
+        'color: #FFD700;'
+      );
       setTransitionLoading(true);
 
       const ref = stepRefs[step];
@@ -46,21 +49,27 @@ const useWizardNavigation = ({
       const goingBack = direction === 'prev';
 
       let validatedData: any | null = null;
-      
+
       // 1. If we're going back, we don't validate, we just get the data.
       if (!goingBack && onRealStep) {
-
         const isComplexStep = typeof ref.current.hasSubSteps === 'function';
 
         if (isComplexStep) {
           // 2. For complex steps like 'Expenditure', we do NOT run the global validation.
           // We trust that its internal sub-steps are valid. We simply get its current data to be saved.
-          console.log("Navigating from a complex step. Skipping global validation, just getting data.");
+          console.log(
+            'Navigating from a complex step. Skipping global validation, just getting data.'
+          );
           validatedData = ref.current.getStepData();
         } else {
           // 3. For simple steps like 'Income', we cast the great validation spell as before.
-          console.log("Navigating from a simple step. Running global validation.");
-          validatedData = await handleStepValidation(step, stepRefs, setShowSideIncome, setShowHouseholdMembers);
+          console.log('Navigating from a simple step. Running global validation.');
+          validatedData = await handleStepValidation(
+            step,
+            stepRefs,
+            setShowSideIncome,
+            setShowHouseholdMembers
+          );
         }
 
         // 4. If either path failed to produce data, the journey is halted.
@@ -76,17 +85,24 @@ const useWizardNavigation = ({
       if (onRealStep) {
         const dataToSave = goingBack ? ref.current.getStepData() : validatedData;
         const currentSub = ref.current.getCurrentSubStep?.() ?? 1;
-        saveSuccess = await handleSaveStepData(step, currentSub, dataToSave, goingBack);
+        saveSuccess = await handleSaveStepData(
+          step,
+          currentSub,
+          dataToSave,
+          goingBack
+        );
         // ... error handling ...
       }
 
       // 4. Update local caches *only* after successful save
       if (onRealStep && saveSuccess) {
-        const dataForCache = goingBack ? ref.current.getStepData() : validatedData;
+        const dataForCache = goingBack
+          ? ref.current.getStepData()
+          : validatedData;
         const currentSub = ref.current.getCurrentSubStep?.() ?? 1;
-        
+
         // This part is for temporary component state, it's fine.
-        setCurrentStepState((prev) => ({
+        setCurrentStepState(prev => ({
           ...prev,
           [step]: { subStep: currentSub, data: dataForCache },
         }));
@@ -96,8 +112,28 @@ const useWizardNavigation = ({
         setLastVisitedSubStep(step, currentSub);
       }
 
+      // --- New Sub-step Targeting Logic ---
+      const targetStep = direction === 'next' ? step + 1 : step - 1;
+      const destinationRef = stepRefs[targetStep]?.current;
+
+      if (destinationRef && typeof destinationRef.hasSubSteps === 'function') {
+        let targetSubStep = 1; // Default for forward navigation
+        if (goingBack) {
+          targetSubStep = destinationRef.getTotalSubSteps?.() ?? 1;
+        }
+        setCurrentStepState(prev => ({
+          ...prev,
+          [targetStep]: { ...prev[targetStep], subStep: targetSubStep },
+        }));
+      }
+      // --- End of New Logic ---
+
       // ... Step change logic remains the same ...
-      setStep((prev) => direction === 'next' ? Math.min(prev + 1, totalSteps) : Math.max(prev - 1, 0));
+      setStep(prev =>
+        direction === 'next'
+          ? Math.min(prev + 1, totalSteps)
+          : Math.max(prev - 1, 0)
+      );
       setTransitionLoading(false);
     },
     // The dependency array is now cleaner

@@ -5,6 +5,7 @@ export type Goal = {
   targetAmount: number | null;
   targetDate: string;
   amountSaved: number | null;
+  
 };
 
 // Type for the entire form's values, used in react-hook-form

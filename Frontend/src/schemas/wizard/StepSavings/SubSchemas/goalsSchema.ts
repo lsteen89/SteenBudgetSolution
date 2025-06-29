@@ -12,7 +12,7 @@ export const goalItemSchema = yup.object({
   name: yup.string().trim().required('Ange ett namn på målet.'),
   
   // The name is now corrected to 'amount' to match your 'SavingsGoal' type
-  amount: yup
+  targetAmount: yup
     .number()
     .typeError('Ange ett giltigt belopp.')
     .nullable()
