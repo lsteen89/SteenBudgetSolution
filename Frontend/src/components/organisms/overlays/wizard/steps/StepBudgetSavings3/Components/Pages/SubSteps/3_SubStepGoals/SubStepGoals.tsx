@@ -26,7 +26,7 @@ const SubStepGoals = () => {
 
   const { isActionBlocked, setIsActionBlocked } = useWizard();
 
-  // This is for when they pick a template.
+
   const handleSelectTemplate = (template: GoalTemplate) => {
     append({
       id: crypto.randomUUID(),
@@ -38,7 +38,7 @@ const SubStepGoals = () => {
     setIsActionBlocked(false);
   };
 
-  // This is for the wise guy who wants to start from scratch. Respect.
+
   const handleSelectBlank = () => {
     append({ id: crypto.randomUUID(), name: "", targetAmount: null, targetDate: "", amountSaved: null });
     setIsActionBlocked(false);
