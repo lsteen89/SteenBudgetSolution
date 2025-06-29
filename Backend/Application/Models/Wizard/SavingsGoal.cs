@@ -11,8 +11,8 @@ public sealed class SavingsGoal
     [JsonPropertyName("name")]
     public string Name { get; init; } = string.Empty;
 
-    [JsonPropertyName("amount")]
-    public decimal? Amount { get; init; }
+    [JsonPropertyName("targetAmount")]
+    public decimal? TargetAmount { get; init; }
 
     [JsonPropertyName("targetDate")]
     public DateTime? TargetDate { get; init; }

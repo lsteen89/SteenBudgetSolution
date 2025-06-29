@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Trash2, Info } from 'lucide-react';
 
 import { FormValues } from '@/types/budget/goalTypes';
-import { calcMonthly, calcProgress } from '@/utils/budget/goalCalculations';
+import { calculateMonthlyContribution, calcProgress } from '@/utils/budget/goalCalculations';
 import useAnimatedCounter from '@/hooks/useAnimatedCounter';
 
 import TextInput from '@/components/atoms/InputField/TextInput';
@@ -24,9 +24,11 @@ const GoalItem: React.FC<GoalItemProps> = ({ index, item, onRemove }) => {
 
     const target = watch(`${base}.targetAmount`);
     const saved = watch(`${base}.amountSaved`);
-    const date = watch(`${base}.targetDate`);
+    const dateString = watch(`${base}.targetDate`);
 
-    const monthly = calcMonthly(target, saved, date);
+    const dateObject = dateString ? new Date(dateString) : null;
+
+    const monthly = calculateMonthlyContribution(target, saved, dateObject);
     const progress = calcProgress(target, saved);
     const animatedMonthly = useAnimatedCounter(monthly ?? 0);
 
@@ -78,7 +80,7 @@ const GoalItem: React.FC<GoalItemProps> = ({ index, item, onRemove }) => {
                     <TextInput
                         id={idFromPath(`${base}.targetDate`)}
                         type="date"
-                        value={date || ""}
+                        value={dateString || ""}
                         onChange={(e) => setValue(`${base}.targetDate`, e.target.value, { shouldValidate: true, shouldDirty: true })}
                         error={errors.goals?.[index]?.targetDate?.message}
                         name={`${base}.targetDate`}

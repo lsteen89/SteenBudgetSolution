@@ -59,7 +59,8 @@ export interface StepBudgetExpenditureContainerRef {
   hasPrevSub(): boolean;
   hasNextSub(): boolean;
   isSaving(): boolean;
-  hasSubSteps: () => boolean; 
+  hasSubSteps: () => boolean;
+  getTotalSubSteps: () => number;
 }
 
 interface StepBudgetExpenditureContainerProps {
@@ -215,9 +216,9 @@ const StepBudgetExpenditureContainer = forwardRef<
   /* 7 ─── imperative API ------------------------------------------- */
   useImperativeHandle(ref, () => ({
     validateFields: () => formMethods?.trigger() ?? Promise.resolve(false),
-    getStepData   : () => formMethods?.getValues() ?? ensureStep2Defaults({}),
+    getStepData: () => formMethods?.getValues() ?? ensureStep2Defaults({}),
     markAllTouched: () => formMethods?.trigger(),
-    getErrors:      () => formMethods?.formState.errors ?? {},
+    getErrors: () => formMethods?.formState.errors ?? {},
     getCurrentSubStep: () => currentSub,
     goPrevSub: prev,
     goNextSub: next,
@@ -225,6 +226,7 @@ const StepBudgetExpenditureContainer = forwardRef<
     hasNextSub: () => currentSub < totalSteps,
     isSaving: () => isSaving,
     hasSubSteps: () => true,
+    getTotalSubSteps: () => totalSteps,
   }));
 
   /* 8 ─── render helpers ------------------------------------------- */
