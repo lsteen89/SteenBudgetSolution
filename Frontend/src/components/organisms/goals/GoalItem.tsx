@@ -1,16 +1,16 @@
 import React from 'react';
-import { useFormContext, FieldArrayWithId } from 'react-hook-form';
+// Import Controller
+import { useFormContext, FieldArrayWithId, Controller } from 'react-hook-form'; 
 import { motion } from 'framer-motion';
 import { Trash2, Info } from 'lucide-react';
 
 import { FormValues } from '@/types/budget/goalTypes';
-import { calculateMonthlyContribution, calcProgress } from '@/utils/budget/goalCalculations';
+import { calculateMonthlyContribution, calcProgress } from '@/utils/budget/financialCalculations';
 import useAnimatedCounter from '@/hooks/useAnimatedCounter';
 
 import TextInput from '@/components/atoms/InputField/TextInput';
 import FormattedNumberInput from "@/components/atoms/InputField/FormattedNumberInput";
 import { idFromPath } from '@/utils/idFromPath';
-import GoalContainer from "@/components/molecules/containers/GoalContainer";
 
 interface GoalItemProps {
     index: number;
@@ -19,71 +19,100 @@ interface GoalItemProps {
 }
 
 const GoalItem: React.FC<GoalItemProps> = ({ index, item, onRemove }) => {
-    const { watch, setValue, formState: { errors } } = useFormContext<FormValues>();
+    // We only need 'control', 'watch', and 'errors' now. No more 'setValue'!
+    const { control, watch, formState: { errors } } = useFormContext<FormValues>();
     const base = `goals.${index}` as const;
 
-    const target = watch(`${base}.targetAmount`);
-    const saved = watch(`${base}.amountSaved`);
-    const dateString = watch(`${base}.targetDate`);
+    // 'watch' is still the perfect tool for calculations that depend on form values.
+    const targetAmount = watch(`${base}.targetAmount`);
+    const amountSaved = watch(`${base}.amountSaved`);
+    const targetDateString = watch(`${base}.targetDate`);
 
-    const dateObject = dateString ? new Date(dateString) : null;
-
-    const monthly = calculateMonthlyContribution(target, saved, dateObject);
-    const progress = calcProgress(target, saved);
+    const dateObject = targetDateString ? new Date(targetDateString) : null;
+    const monthly = calculateMonthlyContribution(targetAmount, amountSaved, dateObject);
+    const progress = calcProgress(targetAmount, amountSaved);
     const animatedMonthly = useAnimatedCounter(monthly ?? 0);
 
     return (
         <>
             <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-6">
                 
-                {/* ROW 1: THE NAME. Gets all 6 columns. */}
+                {/* ROW 1: THE NAME. */}
                 <div className="md:col-span-6">
                     <label htmlFor={idFromPath(`${base}.name`)} className="block text-xs font-medium text-white/70 mb-1.5">Målets namn</label>
-                    <TextInput
-                        id={idFromPath(`${base}.name`)}
-                        value={watch(`${base}.name`) || ""}
-                        onChange={(e) => setValue(`${base}.name`, e.target.value, { shouldValidate: true, shouldDirty: true })}
-                        placeholder="T.ex. Resa till Sicilien"
-                        error={errors.goals?.[index]?.name?.message}
+                    <Controller
                         name={`${base}.name`}
+                        control={control}
+                        render={({ field }) => (
+                            <TextInput
+                                id={idFromPath(`${base}.name`)}
+                                placeholder="T.ex. Resa till Sicilien"
+                                error={errors.goals?.[index]?.name?.message}
+                                {...field} // Spreads onChange, onBlur, value, ref
+                            />
+                        )}
                     />
                 </div>
 
-                {/* ROW 2: THE MONEY TEAM. They split the 6 columns 3 and 3. */}
+                {/* ROW 2: THE MONEY TEAM. */}
                 <div className="md:col-span-3">
                     <label htmlFor={idFromPath(`${base}.targetAmount`)} className="block text-xs font-medium text-white/70 mb-1.5">Målbelopp (kr)</label>
-                    <FormattedNumberInput
-                        id={idFromPath(`${base}.targetAmount`)}
-                        value={target}
-                        onValueChange={(val) => setValue(`${base}.targetAmount`, val, { shouldValidate: true, shouldDirty: true })}
-                        placeholder="50 000"
-                        error={errors.goals?.[index]?.targetAmount?.message}
+                    <Controller
                         name={`${base}.targetAmount`}
+                        control={control}
+                        render={({ field }) => (
+                            <FormattedNumberInput
+                                id={idFromPath(`${base}.targetAmount`)}
+                                placeholder="50 000"
+                                error={errors.goals?.[index]?.targetAmount?.message}
+                                // Connect Controller to FormattedNumberInput's specific props
+                                value={field.value}
+                                onValueChange={field.onChange}
+                                name={field.name}
+                                ref={field.ref}
+                            />
+                        )}
                     />
                 </div>
                 
                 <div className="md:col-span-3">
                     <label htmlFor={idFromPath(`${base}.amountSaved`)} className="block text-xs font-medium text-white/70 mb-1.5">Redan sparat (kr)</label>
-                    <FormattedNumberInput
-                        id={idFromPath(`${base}.amountSaved`)}
-                        value={saved}
-                        onValueChange={(val) => setValue(`${base}.amountSaved`, val, { shouldValidate: true, shouldDirty: true })}
-                        placeholder="Valfritt"
-                        error={errors.goals?.[index]?.amountSaved?.message}
+                    <Controller
                         name={`${base}.amountSaved`}
+                        control={control}
+                        render={({ field }) => (
+                            <FormattedNumberInput
+                                id={idFromPath(`${base}.amountSaved`)}
+                                placeholder="Valfritt"
+                                error={errors.goals?.[index]?.amountSaved?.message}
+                                value={field.value}
+                                onValueChange={field.onChange}
+                                name={field.name}
+                                ref={field.ref}
+                            />
+                        )}
                     />
                 </div>
 
-                {/* ROW 3: THE ACTION TEAM. We split this 4 and 2. */}
+                {/* ROW 3: THE ACTION TEAM - THE FIX IS HERE! */}
                 <div className="md:col-span-4">
                     <label htmlFor={idFromPath(`${base}.targetDate`)} className="block text-xs font-medium text-white/70 mb-1.5">Måldatum</label>
-                    <TextInput
-                        id={idFromPath(`${base}.targetDate`)}
-                        type="date"
-                        value={dateString || ""}
-                        onChange={(e) => setValue(`${base}.targetDate`, e.target.value, { shouldValidate: true, shouldDirty: true })}
-                        error={errors.goals?.[index]?.targetDate?.message}
+                    <Controller
                         name={`${base}.targetDate`}
+                        control={control}
+                        render={({ field }) => {
+                            // Format the date from "YYYY-MM-DDTHH:mm:ss" to "YYYY-MM-DD" for the input
+                            const dateValue = field.value ? field.value.split('T')[0] : '';
+                            return (
+                                <TextInput
+                                    id={idFromPath(`${base}.targetDate`)}
+                                    type="date"
+                                    error={errors.goals?.[index]?.targetDate?.message}
+                                    {...field}
+                                    value={dateValue}
+                                />
+                            );
+                        }}
                     />
                 </div>
                 
@@ -100,12 +129,13 @@ const GoalItem: React.FC<GoalItemProps> = ({ index, item, onRemove }) => {
                 </div>
             </div>
 
+            {/* --- The rest of your component remains the same --- */}
             <div className="mt-6 space-y-2">
                 <div className="h-2 w-full overflow-hidden rounded-full bg-white/20">
                     <motion.div layout className="h-full rounded-full bg-darkLimeGreen" style={{ width: `${progress}%` }} transition={{ type: "spring", stiffness: 100, damping: 20 }} />
                 </div>
                 <div className="flex items-center justify-between text-sm text-white/80">
-                    <span>Sparat: <span className="font-semibold">{saved?.toLocaleString("sv-SE") ?? 0} kr</span></span>
+                    <span>Sparat: <span className="font-semibold">{amountSaved?.toLocaleString("sv-SE") ?? 0} kr</span></span>
                     <span>{progress}% klart</span>
                 </div>
                 {monthly !== null && (
