@@ -3,6 +3,7 @@ import GlassPane from '@components/layout/GlassPane';
 import DataTransparencySection from '@components/organisms/overlays/wizard/SharedComponents/Pages/DataTransparencySection';
 import StepBudgetDebtsContainer, { StepBudgetDebtsContainerRef } from './Components/StepBudgetDebtsContainer';
 import { Step4FormValues } from '@/types/Wizard/Step4FormValues';
+import { ensureStep4Defaults } from '@/utils/wizard/ensureStep4Defaults';
 import { StepBudgetDebtsRef } from '@/types/Wizard/StepBudgetDebtsRef';
 
 interface StepBudgetDebtsProps {
@@ -28,7 +29,7 @@ const StepBudgetDebts = forwardRef<StepBudgetDebtsRef, StepBudgetDebtsProps>((pr
 
   useImperativeHandle(ref, () => ({
     validateFields: async () => (await containerRef.current?.validateFields()) ?? false,
-    getStepData: () => containerRef.current?.getStepData() ?? {},
+    getStepData: () => containerRef.current?.getStepData() ?? ensureStep4Defaults({}),
     markAllTouched: () => containerRef.current?.markAllTouched(),
     getErrors: () => containerRef.current?.getErrors() ?? {},
     getCurrentSubStep: () => containerRef.current?.getCurrentSubStep() ?? 0,

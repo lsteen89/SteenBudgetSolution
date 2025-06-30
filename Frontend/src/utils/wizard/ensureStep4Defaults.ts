@@ -1,4 +1,4 @@
-import { Step4FormValues } from '@/schemas/wizard/StepDebts/step4Schema';
+import { Step4FormValues } from '@/types/Wizard/Step4FormValues';
 
 export function ensureStep4Defaults(src: Partial<Step4FormValues> | undefined): Step4FormValues {
   return {
