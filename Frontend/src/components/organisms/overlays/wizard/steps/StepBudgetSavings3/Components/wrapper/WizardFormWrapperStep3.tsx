@@ -9,6 +9,7 @@ import { ensureStep3Defaults } from "@/utils/wizard/ensureStep3Defaults";
 
 import { useWizardDataStore } from '@/stores/Wizard/wizardDataStore';
 import useScrollToFirstError from "@/hooks/useScrollToFirstError";
+import { useWizard } from '@/context/WizardContext';
 
 export interface WizardFormWrapperStep3Ref {
   validateFields: () => Promise<boolean>;
@@ -21,7 +22,7 @@ interface WizardFormWrapperStep3Props {
   children: React.ReactNode;
   onHydrationComplete?: () => void;
 }
-
+console.log('%c[Wrapper] WizardFormWrapperStep3 rendering/mounting.', 'color: orange;');
 const WizardFormWrapperStep3 = forwardRef<
   WizardFormWrapperStep3Ref,
   WizardFormWrapperStep3Props
@@ -30,7 +31,8 @@ const WizardFormWrapperStep3 = forwardRef<
   const {
     data: { savings },
   } = useWizardDataStore();
-
+  
+  const { setWizardFlags } = useWizard();
   // 2. --- Added: Build safe defaults BEFORE initializing the form ---
   const defaults = ensureStep3Defaults(savings as Partial<Step3FormValues>);
 
@@ -42,7 +44,7 @@ const WizardFormWrapperStep3 = forwardRef<
     reValidateMode: 'onChange',
   });
 
-  // --- Added: Error scrolling hook for better UX ---
+
   const {
     formState: { errors },
   } = methods;
@@ -52,19 +54,21 @@ const WizardFormWrapperStep3 = forwardRef<
   const hydrated = useRef(false);
 
   useEffect(() => {
-    // This effect runs if the `savings` data from the store changes.
-    // We use `reset` to update the form with the latest data from the store,
-    // which is essential when the store hydrates from localStorage after the component has mounted.
     if (!hydrated.current) {
       methods.reset(
         ensureStep3Defaults(savings as Partial<Step3FormValues>)
       );
-      // We set hydrated to true to prevent resetting the form on every subsequent change,
-      // which would overwrite the user's current input.
       hydrated.current = true;
       onHydrationComplete?.();
     }
   }, [savings, methods, onHydrationComplete]);
+
+  useEffect(() => {
+    console.log('%c[Wrapper] Syncing context flag. The value is:', savings?.goals != null, 'color: purple;');
+    setWizardFlags({ 
+      goalsHaveBeenSet: savings?.goals != null 
+    });
+  }, [savings, setWizardFlags]);
 
 
   // 5. Imperative API (unchanged)

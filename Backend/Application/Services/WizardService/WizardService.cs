@@ -2,6 +2,7 @@
 using Backend.Application.Interfaces.WizardService;
 using Backend.Contracts.Wizard;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
+using Backend.Infrastructure.Entities.Wizard;
 using FluentValidation;
 using System.Buffers;
 using System.Text.Json;
@@ -133,7 +134,7 @@ namespace Backend.Application.Services.WizardService
 
             return true;
         }
-
+        #region Step assembly
         // Assembles a whole wizard package from the substep data
         // Merges substep data into a single object for each step
         private async Task<(WizardData Data, int Version)?> AssembleWizardPackage(string sessionId)
@@ -141,7 +142,7 @@ namespace Backend.Application.Services.WizardService
             var raw = await _wizardProvider.WizardSqlExecutor.GetRawWizardStepDataAsync(sessionId);
             if (!raw?.Any() ?? true) return null;
 
-            // 1. keep the newest row for each (StepNumber, SubStep)
+            // 1. We still keep the newest row for each (StepNumber, SubStep)
             var latestRows = raw
                 .GroupBy(e => new { e.StepNumber, e.SubStep })
                 .Select(g => g.OrderByDescending(e => e.UpdatedAt).First())
@@ -150,40 +151,57 @@ namespace Backend.Application.Services.WizardService
             int highestVersion = latestRows.SelectMany(l => l).Max(r => r.DataVersion);
             var data = new WizardData();
 
-            // STEP 1 – income (one sub-step only)
+            // STEP 1 – income (A simple step, with but one part)
             if (latestRows.Contains(1))
-                data.Income = JsonSerializer.Deserialize<IncomeFormValues>(
-                    latestRows[1].First().StepData, Camel);
+                data.Income = AssembleStepData<IncomeFormValues>(latestRows[1]);
 
-            // STEP 2 – expenditure (many sub-steps → merge)
+            // STEP 2 – expenditure (A complex step, with many parts)
             if (latestRows.Contains(2))
-            {
-                var buffer = new ArrayBufferWriter<byte>();        
-                using var writer = new Utf8JsonWriter(buffer);     
+                data.Expenditure = AssembleStepData<ExpenditureFormValues>(latestRows[2], isMultiPart: true);
 
-                writer.WriteStartObject();
-
-                foreach (var row in latestRows[2].OrderBy(r => r.SubStep))
-                {
-                    using var doc = JsonDocument.Parse(row.StepData);
-                    foreach (var p in doc.RootElement.EnumerateObject())
-                        p.WriteTo(writer);                        
-                }
-
-                writer.WriteEndObject();
-                writer.Flush();                                     
-
-                data.Expenditure = JsonSerializer.Deserialize<ExpenditureFormValues>(
-                    buffer.WrittenSpan, Camel);                      
-            }
-
-            // STEP 3 – savings (similar to step 1)
+            // STEP 3 – savings (Now correctly treated as a complex step!)
             if (latestRows.Contains(3))
-                data.Savings = JsonSerializer.Deserialize<SavingsFormValues>(
-                    latestRows[3].First().StepData, Camel);
+                data.Savings = AssembleStepData<SavingsFormValues>(latestRows[3], isMultiPart: true);
 
             return (data, highestVersion);
         }
+        private T? AssembleStepData<T>(IEnumerable<WizardStepRowEntity> stepRows, bool isMultiPart = false)
+        {
+            if (!stepRows.Any())
+                return default;
+
+            if (!isMultiPart)
+            {
+                // For simple steps like Step 1, we take the newest data and translate it directly.
+                return JsonSerializer.Deserialize<T>(stepRows.First().StepData, Camel);
+            }
+            else
+            {
+                // For complex steps like 2 and 3, we must perform the great merge.
+                var buffer = new ArrayBufferWriter<byte>();
+                using var writer = new Utf8JsonWriter(buffer);
+
+                writer.WriteStartObject();
+
+                // We take every piece of data for this step and merge their contents.
+                foreach (var row in stepRows.OrderBy(r => r.SubStep))
+                {
+                    using var doc = JsonDocument.Parse(row.StepData);
+                    foreach (var property in doc.RootElement.EnumerateObject())
+                    {
+                        property.WriteTo(writer);
+                    }
+                }
+
+                writer.WriteEndObject();
+                writer.Flush();
+
+                // Once merged, the final translation can occur.
+                return JsonSerializer.Deserialize<T>(buffer.WrittenSpan, Camel);
+            }
+        }
+
+        #endregion
 
         #region helpers
         private static readonly JsonSerializerOptions Camel = new()

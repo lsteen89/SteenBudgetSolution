@@ -1,9 +1,9 @@
 export interface SavingsGoal {
-    id: string;
-    name: string;
-    targetAmount: number | null;
-    targetDate?: Date | null;
-    amountSaved?: number | null;
+  id: string;
+  name?: string;
+  targetAmount: number | null;
+  targetDate?: string | null;
+  amountSaved?: number | null;
 }
 
 export interface SavingsIntro {
