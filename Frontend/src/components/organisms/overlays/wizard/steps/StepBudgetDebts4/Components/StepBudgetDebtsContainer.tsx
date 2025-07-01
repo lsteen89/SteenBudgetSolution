@@ -124,7 +124,7 @@ const StepBudgetDebtsContainer = forwardRef<StepBudgetDebtsContainerRef, StepBud
   const next = async () => {
     if (currentSub === 1) {
       const answer = formMethods?.getValues('intro.hasDebts');
-      const hasDebts = answer === true || answer === 'true';
+      const hasDebts = answer === true 
       if (!hasDebts) {
         setDebts({ debts: [] });
         setSkippedDebts(true);

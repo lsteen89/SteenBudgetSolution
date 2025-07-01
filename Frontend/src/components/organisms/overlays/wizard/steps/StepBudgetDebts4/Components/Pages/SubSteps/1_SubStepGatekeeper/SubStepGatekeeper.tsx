@@ -1,51 +1,110 @@
 import React from 'react';
 import { useFormContext } from 'react-hook-form';
-import { motion } from 'framer-motion';
+import { Step4FormValues } from '@/types/Wizard/Step4FormValues';
 import OptionContainer from '@components/molecules/containers/OptionContainer';
 import InfoBox from '@/components/molecules/messaging/InfoBox';
-import { Step4FormValues } from '@/types/Wizard/Step4FormValues';
+import { motion } from 'framer-motion';
 
+/**
+ * Gatekeeper for the "Skulder" (debts) step.
+ *
+ * UX in short:
+ *  – Presents a single, crystal‑clear question.
+ *  – Two large click‑targets double as buttons.
+ *  – Selecting "Nej" lets the wizard skip the debt‑entry flow entirely.
+ */
 const SubStepGatekeeper: React.FC = () => {
-  const { register, watch, formState: { errors } } = useFormContext<Step4FormValues>();
+  const {
+    register,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useFormContext<Step4FormValues>();
+
+  // Current choice (boolean | undefined)
   const selected = watch('intro.hasDebts');
 
+  /**
+   * Update form state and (optionally) trigger navigation handled
+   * by the parent wizard context.
+   */
+  const handleChoice = (answer: boolean) => {
+    setValue('intro.hasDebts', answer, {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
+
+    // If the user has **no** debts we can safely fast‑forward. The actual
+    // navigation happens in the wizard controller, so we simply dispatch an
+    // event. Feel free to adapt to your routing setup.
+    if (!answer) {
+      const skipEvent = new CustomEvent('wizard:skipDebts');
+      window.dispatchEvent(skipEvent);
+    }
+  };
+
   return (
-    <OptionContainer className="p-4">
-      <section className="space-y-6 text-white">
-        <h3 className="text-2xl font-bold text-darkLimeGreen text-center">
-          Har du några befintliga lån eller skulder?
+    <OptionContainer className="p-6 md:p-8">
+      <section className="space-y-8 text-white">
+        <h3 className="text-2xl md:text-3xl font-extrabold text-center text-darkLimeGreen">
+          Har du några befintliga lån eller skulder som du vill hålla koll på?
         </h3>
+
         <InfoBox>
-          Den här delen hjälper dig att hålla koll på dina skulder. Om du inte har några kan du hoppa vidare direkt.
+          Den här delen hjälper dig att samla alla dina skulder så att du enkelt kan följa
+          utvecklingen och planera avbetalningar. Om du inte har några kan du hoppa över det här
+          steget.
         </InfoBox>
-        <div className="flex flex-col gap-4">
-          <label
-            className={`px-4 py-3 rounded-2xl cursor-pointer bg-darkBlueMenuColor/30 backdrop-blur-md transition ${selected === true ? 'ring-2 ring-limeGreen bg-darkBlueMenuColor/50' : 'hover:bg-darkBlueMenuColor/40'}`}
+
+        <div className="grid md:grid-cols-2 gap-6">
+          <button
+            type="button"
+            onClick={() => handleChoice(true)}
+            className={`rounded-2xl px-6 py-8 font-semibold transition ring-offset-2 ring-limeGreen/60
+              backdrop-blur-md focus:outline-none
+              ${
+                selected === true
+                  ? 'ring-4 bg-darkBlueMenuColor/70'
+                  : 'bg-darkBlueMenuColor/40 hover:bg-darkBlueMenuColor/60'
+              }`}
           >
-            <input type="radio" value="true" {...register('intro.hasDebts')} className="hidden" />
-            <span className="text-white">Ja, låt oss lägga till dem</span>
-          </label>
-          <label
-            className={`px-4 py-3 rounded-2xl cursor-pointer bg-darkBlueMenuColor/30 backdrop-blur-md transition ${selected === false ? 'ring-2 ring-limeGreen bg-darkBlueMenuColor/50' : 'hover:bg-darkBlueMenuColor/40'}`}
+            <span className="block text-lg md:text-xl">Ja, lägg till dem</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleChoice(false)}
+            className={`rounded-2xl px-6 py-8 font-semibold transition ring-offset-2 ring-limeGreen/60
+              backdrop-blur-md focus:outline-none
+              ${
+                selected === false
+                  ? 'ring-4 bg-darkBlueMenuColor/70'
+                  : 'bg-darkBlueMenuColor/40 hover:bg-darkBlueMenuColor/60'
+              }`}
           >
-            <input type="radio" value="false" {...register('intro.hasDebts')} className="hidden" />
-            <span className="text-white">Nej, jag har inga skulder</span>
-          </label>
+            <span className="block text-lg md:text-xl">Nej, jag har inga skulder</span>
+          </button>
         </div>
+
+        {/* Hidden input keeps RHF in sync without exposing default radio styling */}
+        <input
+          type="hidden"
+          {...register('intro.hasDebts', { required: 'Välj ett alternativ' })}
+          value={selected === undefined ? '' : String(selected)}
+        />
+
         {errors.intro?.hasDebts && (
-          <motion.p initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="text-center font-bold text-red-600" role="alert">
-            {errors.intro?.hasDebts?.message}
+          <motion.p
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center font-bold text-red-500"
+            role="alert"
+          >
+            {errors.intro.hasDebts.message}
           </motion.p>
         )}
-        <div className="mt-6 text-sm text-gray-300 space-y-1 text-center">
-          <p>[ Steg 4: Skulder ]</p>
-          <p> &darr; </p>
-          <p>[ Delsteg 1: Start ] --(Nej)--&gt; [ Hoppa till Steg 5 ]</p>
-          <p> &darr; </p>
-          <p>[ Delsteg 2: Lägg till skulder ]</p>
-          <p> &darr; </p>
-          <p>[ Delsteg 3: Strategi &amp; sammanfattning ]</p>
-        </div>
+
+
       </section>
     </OptionContainer>
   );
