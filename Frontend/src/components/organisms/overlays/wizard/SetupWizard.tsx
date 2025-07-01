@@ -13,6 +13,8 @@ import WizardStepContainer from "@components/molecules/containers/WizardStepCont
 import StepWelcome from "@components/organisms/overlays/wizard/steps/StepWelcome";
 import StepBudgetSavings from "@components/organisms/overlays/wizard/steps/StepBudgetSavings3/StepBudgetSavings";
 import { StepBudgetSavingsRef } from "@/types/Wizard/StepBudgetSavingsRef";
+import StepBudgetDebts from "@components/organisms/overlays/wizard/steps/StepBudgetDebts4/StepBudgetDebts";
+import { StepBudgetDebtsRef } from "@/types/Wizard/StepBudgetDebtsRef";
 import StepConfirmation from "@components/organisms/overlays/wizard/steps/StepConfirmation";
 import WizardFormWrapperStep1, { WizardFormWrapperStep1Ref } from '@components/organisms/overlays/wizard/steps/StepBudgetIncome1/wrapper/WizardFormWrapperStep1'; 
 import StepBudgetIncome from "@components/organisms/overlays/wizard/steps/StepBudgetIncome1/StepBudgetIncome";
@@ -53,10 +55,11 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
         initialStep,
         initialSubStep,
     } = useWizardInit();
-    const { income, expenditure, savings } = useWizardDataStore(state => ({
+    const { income, expenditure, savings, debts } = useWizardDataStore(state => ({
         income: state.data.income,
         expenditure: state.data.expenditure,
         savings: state.data.savings,
+        debts: state.data.debts,
     }));
     const { handleSaveStepData } = useSaveWizardStep(wizardSessionId || '');
     const [transitionLoading, setTransitionLoading] = useState(false);
@@ -67,10 +70,11 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     const step1WrapperRef = useRef<WizardFormWrapperStep1Ref>(null);
     const StepBudgetExpenditureRef = useRef<StepBudgetExpenditureRef>(null);
     const step3Ref = useRef<StepBudgetSavingsRef>(null);
-    const stepRefs: { [key: number]: React.RefObject<any> } = { 1: step1WrapperRef, 2: StepBudgetExpenditureRef, 3: step3Ref };
+    const step4Ref = useRef<StepBudgetDebtsRef>(null);
+    const stepRefs: { [key: number]: React.RefObject<any> } = { 1: step1WrapperRef, 2: StepBudgetExpenditureRef, 3: step3Ref, 4: step4Ref };
     const { setShowSideIncome, setShowHouseholdMembers } = useBudgetInfoDisplayFlags();
     const [subTick, setSubTick] = useState(0);
-    const { setIncome, setExpenditure, setSavings } = useWizardDataStore();
+    const { setIncome, setExpenditure, setSavings, setDebts } = useWizardDataStore();
 
     // All the callbacks and effects also remain here, safe and sound.
     const handleWizardClose = useCallback(() => { setConfirmModalOpen(true); }, []);
@@ -89,6 +93,8 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
                 return expenditure || {};
             case 3:
                 return savings || {};
+            case 4:
+                return debts || {};
             default:
                 return {};
         }
@@ -96,7 +102,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     const initialSubStepForStep = (stepNumber: number) => (currentStepState[stepNumber]?.subStep || initialSubStep) ?? 1;
     useEffect(() => { if (initialStep > 0) setStep(initialStep); }, [initialStep]);
     const { nextStep: hookNextStep, prevStep: hookPrevStep } = useWizardNavigation({
-        step, setStep, totalSteps: 4, stepRefs, setTransitionLoading, setCurrentStepState, handleSaveStepData, triggerShakeAnimation, isDebugMode, setShowSideIncome, setShowHouseholdMembers,
+        step, setStep, totalSteps: 5, stepRefs, setTransitionLoading, setCurrentStepState, handleSaveStepData, triggerShakeAnimation, isDebugMode, setShowSideIncome, setShowHouseholdMembers,
     });
 
     useEffect(() => { setIsStepValid(step === 0); }, [step]);
@@ -109,7 +115,8 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
         if (step === 1) setIncome(data);
         if (step === 2) setExpenditure(data);
         if (step === 3) setSavings(data);
-    }, [step, stepRefs, setIncome, setExpenditure, setSavings]);
+        if (step === 4) setDebts(data);
+    }, [step, stepRefs, setIncome, setExpenditure, setSavings, setDebts]);
 
     const handleSubStepChange = useCallback((newSubStep: number) => {
         setCurrentStepState(prev => ({
@@ -160,10 +167,13 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
                 initWizard={initWizard}
                 transitionLoading={transitionLoading}
                 step={step}
-                totalSteps={4}
+                totalSteps={5}
                 steps={[
-                    { icon: Wallet, label: "Inkomster" }, { icon: CreditCard, label: "Utgifter" },
-                    { icon: User, label: "Sparande" }, { icon: CheckCircle, label: "Bekräfta" },
+                    { icon: Wallet, label: "Inkomster" },
+                    { icon: CreditCard, label: "Utgifter" },
+                    { icon: User, label: "Sparande" },
+                    { icon: CreditCard, label: "Skulder" },
+                    { icon: CheckCircle, label: "Bekräfta" },
                 ]}
                 handleStepClick={handleStepClick}
                 isMobile={isMobile}
@@ -179,6 +189,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
                 initialSubStepForStep={initialSubStepForStep}
                 handleSubStepChange={handleSubStepChange}
                 step3Ref={step3Ref}
+                step4Ref={step4Ref}
                 subNav={subNav}
                 isSaving={isSaving}
                 subTick={subTick}
@@ -285,7 +296,22 @@ const WizardContent = (props: any) => {
                                             onValidationError={props.triggerShakeAnimation}
                                         />
                                     )}
-                                    {props.step === 4 && <StepConfirmation />}
+                                    {props.step === 4 && (
+                                        <StepBudgetDebts
+                                            ref={props.stepRefs[4]}
+                                            onNext={props.hookNextStep}
+                                            onPrev={props.hookPrevStep}
+                                            loading={props.transitionLoading || props.initLoading}
+                                            initialSubStep={props.initialSubStepForStep(4)}
+                                            onSubStepChange={props.handleSubStepChange}
+                                            wizardSessionId={props.wizardSessionId || ''}
+                                            onSaveStepData={props.handleSaveStepData}
+                                            stepNumber={4}
+                                            initialData={props.initialDataForStep(4)}
+                                            onValidationError={props.triggerShakeAnimation}
+                                        />
+                                    )}
+                                    {props.step === 5 && <StepConfirmation />}
                                 </>
                             )}
 
