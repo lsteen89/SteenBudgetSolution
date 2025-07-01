@@ -30,7 +30,9 @@ const WizardHeading: React.FC<WizardHeadingProps> = ({ type, step }) => {
       case 3:
         return "Steg 3: Sparande";
       case 4:
-        return "Steg 4: Bekräfta";
+        return "Steg 4: Skulder";
+      case 5:
+        return "Steg 5: Bekräfta";
       default:
         return "Setup Wizard";
     }

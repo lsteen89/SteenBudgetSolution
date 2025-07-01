@@ -32,12 +32,14 @@ const useWizardInit = () => {
         setIncome,
         setExpenditure,
         setSavings,
+        setDebts,
     } = useWizardDataStore(state => ({
         localStoreVersion: state.version,
         resetDataStore: state.reset,
         setIncome: state.setIncome,
         setExpenditure: state.setExpenditure,
         setSavings: state.setSavings,
+        setDebts: state.setDebts,
     }));
     
     const initWizard = useCallback(async () => {}, []);
@@ -69,6 +71,7 @@ const useWizardInit = () => {
                     if (fetchedData.income) setIncome(fetchedData.income);
                     if (fetchedData.expenditure) setExpenditure(fetchedData.expenditure);
                     if (fetchedData.savings) setSavings(fetchedData.savings);
+                    if (fetchedData.debts) setDebts(fetchedData.debts);
 
                     console.log('%c✅ The great ledger (Zustand) has been updated.', 'color: #228b22;');
 
@@ -76,6 +79,7 @@ const useWizardInit = () => {
                     if (fetchedData.income) highestStep = 1;
                     if (fetchedData.expenditure) highestStep = 2;
                     if (fetchedData.savings) highestStep = 3;
+                    if (fetchedData.debts) highestStep = 4;
                     setInitialStep(highestStep);
                     setInitialWizardSubStep(subStep);
                     console.log(`🗺️ Setting the starting point of our journey to Step ${highestStep}.`);
