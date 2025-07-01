@@ -42,7 +42,7 @@ const StepBudgetDebts = forwardRef<StepBudgetDebtsRef, StepBudgetDebtsProps>((pr
   }), []);
 
   return (
-    <div>
+    <div key="step-budget-debts-container">
       <GlassPane>
        <StepBudgetDebtsContainer
           ref={containerRef}

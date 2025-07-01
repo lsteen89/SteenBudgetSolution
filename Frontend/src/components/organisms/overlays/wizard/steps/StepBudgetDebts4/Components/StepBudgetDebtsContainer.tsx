@@ -57,7 +57,17 @@ function getDebtsPartialData(subStep: number, allData: Step4FormValues): Partial
 }
 
 const StepBudgetDebtsContainer = forwardRef<StepBudgetDebtsContainerRef, StepBudgetDebtsContainerProps>((props, ref) => {
-  const { onSaveStepData, stepNumber, initialData = {}, onNext, onPrev, loading: parentLoading, initialSubStep } = props;
+  const {
+    onSaveStepData,
+    stepNumber,
+    initialData = {},
+    onNext,
+    onPrev,
+    loading: parentLoading,
+    initialSubStep,
+    onSubStepChange,      // ✅ Add this
+    onValidationError,    // ✅ And this
+  } = props;
   const isMobile = useMediaQuery('(max-width: 1367px)');
   const hasHydrated = useRef(false);
 
@@ -126,10 +136,9 @@ const StepBudgetDebtsContainer = forwardRef<StepBudgetDebtsContainerRef, StepBud
   const clickProgress = (d: number) => goToSub(d);
 
   useEffect(() => {
-    if (isFormHydrated) {
-      props.onSubStepChange?.(currentSub);
-    }
-  }, [currentSub, isFormHydrated, props]);
+    if (isFormHydrated) onSubStepChange?.(currentSub);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSub, isFormHydrated]);
 
   useImperativeHandle(ref, () => ({
     validateFields: () => formMethods?.trigger() ?? Promise.resolve(false),
