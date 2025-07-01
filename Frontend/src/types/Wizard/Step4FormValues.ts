@@ -5,6 +5,9 @@ export interface DebtEntry {
 }
 
 export interface Step4FormValues {
+  intro: {
+    hasDebts: boolean | null;
+  };
   info: {
     notes: string;
   };
