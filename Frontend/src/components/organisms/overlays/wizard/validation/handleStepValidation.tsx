@@ -1,7 +1,14 @@
 import { wizardRootSchema } from "@schemas/wizard/wizardRootSchema"; // Add this import
 import { validateStepBudgetIncome } from "@components/organisms/overlays/wizard/validation/validateBudgetInfo";
-
-
+import { validateSimpleStep } from "@/utils/wizard/validateHelpers";
+/**
+ * Handles validation for each step in the wizard.
+ * @param step - The current step number.
+ * @param stepRefs - A record of refs for each step.
+ * @param setShowSideIncome - Function to set visibility of side income section.
+ * @param setShowHouseholdMembers - Function to set visibility of household members section.
+ * @returns The validated data for the step or null if validation fails.
+ */
 export const handleStepValidation = async (
   step: number,
   stepRefs: Record<number, any>,
@@ -16,53 +23,23 @@ export const handleStepValidation = async (
 
   switch (step) {
     case 1: {
-      // Pass the entire ref object to the validation function
       const isValid = await validateStepBudgetIncome(
-        stepRefObject, // <-- CORRECTED
+        stepRefObject,
         setShowSideIncome,
         setShowHouseholdMembers
       );
-      
-      // If valid, get data from the instance inside the ref's current property
       return isValid ? stepRefObject.current.getStepData() : null;
     }
     
-    case 2: {
-      const rawData = stepRefObject.current.getStepData();
-      try {
-        // Use the schema to VALIDATE and CLEAN the data in one step.
-        const cleanedAndValidatedData = await wizardRootSchema.validate(rawData, {
-          abortEarly: false,
-          stripUnknown: true,
-        });
-        // On success, return the clean data.
-        return cleanedAndValidatedData;
-      } catch (error) {
-        // If validation fails, yup throws an error.
-        console.error("Validation failed for Step 2:", error);
-        // Ensure all fields show their errors.
-        stepRefObject.current.markAllTouched();
-        // Return null to signify failure.
-        return null;
-      }
+    /* ──────────────────────────── STEP 2 ─────────────────────────── */
+    case 2:
+    /* ──────────────────────────── STEP 3 ─────────────────────────── */
+    case 3:
+    /* ──────────────────────────── STEP 4 … n ─────────────────────── */
+    default: {
+      // any step that exposes validateFields/getStepData falls through here
+      const data = await validateSimpleStep(stepRefObject);
+      return data ?? {};
     }
-    
-    case 3: {
-
-      const isValid = await stepRefObject.current.validateFields();
-      if (isValid) {
-        // If the path is clear, we return the step's data.
-        return stepRefObject.current.getStepData();
-      } else {
-        // If the way is blocked, we mark the fields to show the user the errors...
-        stepRefObject.current.markAllTouched();
-        // ...and we return null, which is the signal for the shake animation.
-        return null;
-      }
-    }
-
-    default:
-      // For any other step, assume it's valid and return its data or an empty object.
-      return stepRefObject.current?.getStepData?.() ?? {};
   }
 };

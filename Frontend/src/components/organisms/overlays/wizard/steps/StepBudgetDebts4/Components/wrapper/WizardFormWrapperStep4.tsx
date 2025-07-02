@@ -6,6 +6,10 @@ import { Step4FormValues } from '@/types/Wizard/Step4FormValues';
 import { ensureStep4Defaults } from '@/utils/wizard/ensureStep4Defaults';
 import { useWizardDataStore } from '@/stores/Wizard/wizardDataStore';
 import useScrollToFirstError from '@/hooks/useScrollToFirstError';
+import { useWizard } from '@/context/WizardContext';
+import { DebtsFormValues } from "@/types/Wizard/debtFormValues";
+
+
 
 export interface WizardFormWrapperStep4Ref {
   validateFields: () => Promise<boolean>;
@@ -26,6 +30,7 @@ const WizardFormWrapperStep4 = forwardRef<WizardFormWrapperStep4Ref, WizardFormW
 
   const defaults = ensureStep4Defaults(debts as Partial<Step4FormValues>);
 
+  const { setWizardFlags } = useWizard();
   const methods = useForm<Step4FormValues>({
     resolver: yupResolver(step4Schema) as any,
     defaultValues: defaults,
@@ -44,6 +49,10 @@ const WizardFormWrapperStep4 = forwardRef<WizardFormWrapperStep4Ref, WizardFormW
       onHydrationComplete?.();
     }
   }, [debts, methods, onHydrationComplete]);
+
+  useEffect(()=>{
+    setWizardFlags({ debtsHaveBeenSet: (debts?.debts?.length ?? 0) > 0 });
+  }, [debts, setWizardFlags]);
 
   useImperativeHandle(ref, () => ({
     validateFields: () => methods.trigger(),

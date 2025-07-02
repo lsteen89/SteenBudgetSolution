@@ -12,7 +12,7 @@ import LoadingScreen from '@components/molecules/feedback/LoadingScreen';
 import WizardFormWrapperStep4, { WizardFormWrapperStep4Ref } from './wrapper/WizardFormWrapperStep4';
 import { Info, CreditCard, ShieldCheck } from 'lucide-react';
 import GatekeeperPage from './Pages/SubSteps/1_SubStepGatekeeper/SubStepGatekeeper';
-import SkulderPage from './Pages/SubSteps/2_Skulder/Skulder';
+import SkulderPage from './Pages/SubSteps/2_SubStepDebts/SubStepDebts';
 import ConfirmPage from './Pages/SubSteps/3_SubStepConfirm/SubStepConfirm';
 
 export interface StepBudgetDebtsContainerRef {
