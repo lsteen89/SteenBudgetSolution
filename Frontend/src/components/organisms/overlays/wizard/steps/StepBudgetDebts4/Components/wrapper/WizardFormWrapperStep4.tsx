@@ -7,7 +7,7 @@ import { ensureStep4Defaults } from '@/utils/wizard/ensureStep4Defaults';
 import { useWizardDataStore } from '@/stores/Wizard/wizardDataStore';
 import useScrollToFirstError from '@/hooks/useScrollToFirstError';
 import { useWizard } from '@/context/WizardContext';
-import { DebtsFormValues } from "@/types/Wizard/debtFormValues";
+import { DebtsFormValues } from "@/types/Wizard/DebtFormValues";
 
 
 
