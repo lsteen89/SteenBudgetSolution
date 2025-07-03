@@ -1,12 +1,7 @@
-export interface DebtEntry {
-  id: string;
-  name?: string;
-  amount: number | null;
-}
+import { DebtItem, DebtsIntro, DebtsInfo } from "./DebtFormValues";
 
 export interface Step4FormValues {
-  info: {
-    notes: string;
-  };
-  debts: DebtEntry[];
+  intro?: DebtsIntro;
+  info?:  DebtsInfo;
+  debts?: DebtItem[];
 }

@@ -163,6 +163,10 @@ namespace Backend.Application.Services.WizardService
             if (latestRows.Contains(3))
                 data.Savings = AssembleStepData<SavingsFormValues>(latestRows[3], isMultiPart: true);
 
+            // Step 4 - Debts (A complex step, with many parts)
+            if (latestRows.Contains(4))
+                data.Debts = AssembleStepData<DebtsFormValues>(latestRows[4], isMultiPart: true);
+
             return (data, highestVersion);
         }
         private T? AssembleStepData<T>(IEnumerable<WizardStepRowEntity> stepRows, bool isMultiPart = false)

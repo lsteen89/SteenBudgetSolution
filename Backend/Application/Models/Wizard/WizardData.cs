@@ -16,10 +16,13 @@ public sealed class WizardData
 
     [JsonPropertyName("savings")]
     public SavingsFormValues? Savings { get; set; }
+
+    [JsonPropertyName("debts")]
+    public DebtsFormValues? Debts { get; set; }
 }
 
 /* ---------- Income ---------- */
-
+#region income
 public sealed class IncomeFormValues
 {
     [JsonPropertyName("netSalary")]
@@ -79,9 +82,9 @@ public sealed class SideHustle
     [JsonPropertyName("yearlyIncome")]
     public decimal? YearlyIncome { get; init; }
 }
-
+#endregion
 /* ---------- Expenditure ---------- */
-
+#region expenditure
 public sealed class ExpenditureFormValues
 {
     [JsonPropertyName("rent")]
@@ -243,9 +246,9 @@ public sealed class SubscriptionItem
     public decimal? Cost { get; init; }
 }
 
-
+#endregion
 /* ---------- Savings ---------- */
-
+#region savings
 public sealed class SavingsFormValues
 {
     [JsonPropertyName("intro")]
@@ -272,7 +275,59 @@ public sealed class SavingHabits
     [JsonPropertyName("savingMethods")]
     public List<string>? SavingMethods { get; set; }
 }
+#endregion
+/* ---------- Debts ---------- */
+#region debts
 
+public sealed class DebtsFormValues
+{
+    [JsonPropertyName("intro")]
+    public DebtsIntro? Intro { get; set; }
+
+    [JsonPropertyName("info")]
+    public DebtsInfo? Info { get; set; }
+
+    [JsonPropertyName("debts")]
+    public List<DebtItem>? Debts { get; set; }
+}
+
+public sealed class DebtsIntro
+{
+    [JsonPropertyName("hasDebts")]
+    public bool? HasDebts { get; set; }
+}
+
+public sealed class DebtsInfo
+{
+    [JsonPropertyName("notes")]
+    public string? Notes { get; set; }
+}
+
+public sealed class DebtItem
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = string.Empty; // "installment", "revolving", or "private"
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+
+    [JsonPropertyName("balance")]
+    public decimal? Balance { get; set; }
+
+    [JsonPropertyName("apr")]
+    public decimal? Apr { get; set; }
+
+    [JsonPropertyName("minPayment")]
+    public decimal? MinPayment { get; set; }
+
+    [JsonPropertyName("termMonths")]
+    public int? TermMonths { get; set; }
+}
+
+#endregion
 
 /* ---------- Shared ---------- */
 

@@ -1,5 +1,11 @@
 import { Goal } from '@/types/Wizard/goal';
 
+/// --- Financial Calculations for Budgeting and Savings Goals ---
+/// This module provides various financial calculations related to budgeting and savings goals.
+/// It includes functions to calculate monthly contributions, total savings, future value of investments,
+/// and progress towards goals. It also includes amortization calculations for loans.
+/// A true wizard of financial calculations, this module is designed to help you manage your budget and savings goals effectively.
+
 /**
  * Calculates the required monthly contribution to reach a savings goal.
  */
@@ -90,4 +96,14 @@ export const calculateMonthsToGoal = (
   if (remainingAmount === 0) return 0; // The quest is already complete!
 
   return Math.ceil(remainingAmount / monthlyContribution);
+};
+
+export const amortize = (
+  principal: number|null,
+  annualRate: number|null,
+  months: number|null
+): number|null => {
+  if(!principal || !annualRate || !months) return null;
+  const r = (annualRate/100)/12;
+  return +(principal * r / (1 - Math.pow(1 + r, -months))).toFixed(2);
 };
