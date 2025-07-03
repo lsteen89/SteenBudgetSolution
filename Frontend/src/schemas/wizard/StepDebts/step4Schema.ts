@@ -1,16 +1,12 @@
-import * as yup from 'yup';
+import * as yup from "yup";
+import { debtsIntroSchema }  from "./SubSchemas/introSchema";
+import { debtsInfoSchema }   from "./SubSchemas/infoSchema";
+import { debtsArraySchema }  from "./SubSchemas/debtsArraySchema";
 
 export const step4Schema = yup.object({
-  info: yup.object({
-    notes: yup.string().optional(),
-  }).optional(),
-  debts: yup.array().of(
-    yup.object({
-      id: yup.string().required(),
-      name: yup.string().optional(),
-      amount: yup.number().nullable().optional(),
-    })
-  ).optional(),
+  intro: debtsIntroSchema.optional(),
+  info : debtsInfoSchema.optional(),
+  debts: debtsArraySchema,
 });
 
 export type Step4FormValues = yup.InferType<typeof step4Schema>;

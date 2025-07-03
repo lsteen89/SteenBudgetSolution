@@ -11,8 +11,8 @@ import StepCarousel from '@components/molecules/progress/StepCarousel';
 import LoadingScreen from '@components/molecules/feedback/LoadingScreen';
 import WizardFormWrapperStep4, { WizardFormWrapperStep4Ref } from './wrapper/WizardFormWrapperStep4';
 import { Info, CreditCard, ShieldCheck } from 'lucide-react';
-import InfoPage from './Pages/SubSteps/1_Info/Info';
-import SkulderPage from './Pages/SubSteps/2_Skulder/Skulder';
+import GatekeeperPage from './Pages/SubSteps/1_SubStepGatekeeper/SubStepGatekeeper';
+import SkulderPage from './Pages/SubSteps/2_SubStepDebts/SubStepDebts';
 import ConfirmPage from './Pages/SubSteps/3_SubStepConfirm/SubStepConfirm';
 
 export interface StepBudgetDebtsContainerRef {
@@ -50,9 +50,12 @@ interface StepBudgetDebtsContainerProps {
 
 function getDebtsPartialData(subStep: number, allData: Step4FormValues): Partial<Step4FormValues> {
   switch (subStep) {
-    case 1: return { info: allData.info };
-    case 2: return { debts: allData.debts };
-    default: return {};
+    case 1:
+      return { intro: allData.intro };
+    case 2:
+      return { debts: allData.debts };
+    default:
+      return {};
   }
 }
 
@@ -83,6 +86,7 @@ const StepBudgetDebtsContainer = forwardRef<StepBudgetDebtsContainerRef, StepBud
   const formWrapperRef = useRef<WizardFormWrapperStep4Ref>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [currentSub, setCurrentSub] = useState(initialSubStep || 1);
+  const [skippedDebts, setSkippedDebts] = useState(false);
   const [formMethods, setFormMethods] = useState<UseFormReturn<Step4FormValues> | null>(null);
   const [isFormHydrated, setIsFormHydrated] = useState(false);
 
@@ -118,6 +122,19 @@ const StepBudgetDebtsContainer = forwardRef<StepBudgetDebtsContainerRef, StepBud
   };
 
   const next = async () => {
+    if (currentSub === 1) {
+      const answer = formMethods?.getValues('intro.hasDebts');
+      const hasDebts = answer === true 
+      if (!hasDebts) {
+        setDebts({ debts: [] });
+        setSkippedDebts(true);
+        await goToSub(3);
+        return;
+      }
+      await goToSub(2);
+      return;
+    }
+
     if (currentSub < totalSteps) {
       await goToSub(currentSub + 1);
     } else {
@@ -126,8 +143,13 @@ const StepBudgetDebtsContainer = forwardRef<StepBudgetDebtsContainerRef, StepBud
   };
 
   const prev = () => {
-    if (currentSub > 1) {
-      goToSub(currentSub - 1);
+    let destinationSub = currentSub - 1;
+    if (currentSub === 3 && skippedDebts) {
+      destinationSub = 1;
+    }
+
+    if (destinationSub >= 1) {
+      goToSub(destinationSub);
     } else {
       onPrev();
     }
@@ -148,7 +170,7 @@ const StepBudgetDebtsContainer = forwardRef<StepBudgetDebtsContainerRef, StepBud
     getCurrentSubStep: () => currentSub,
     goPrevSub: prev,
     goNextSub: next,
-    hasPrevSub: () => currentSub > 1,
+    hasPrevSub: () => (currentSub === 3 && skippedDebts) || currentSub > 1,
     hasNextSub: () => currentSub < totalSteps,
     isSaving: () => isSaving,
     hasSubSteps: () => true,
@@ -156,14 +178,14 @@ const StepBudgetDebtsContainer = forwardRef<StepBudgetDebtsContainerRef, StepBud
   }));
 
   const steps = [
-    { icon: Info, label: 'Info' },
+    { icon: Info, label: 'Intro' },
     { icon: CreditCard, label: 'Skulder' },
     { icon: ShieldCheck, label: 'Bekräfta' },
   ];
 
   const renderSubStep = () => {
     switch (currentSub) {
-      case 1: return <InfoPage />;
+      case 1: return <GatekeeperPage />;
       case 2: return <SkulderPage />;
       case 3: return <ConfirmPage />;
       default: return <div>All sub-steps complete!</div>;

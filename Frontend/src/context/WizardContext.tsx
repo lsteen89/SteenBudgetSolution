@@ -7,6 +7,7 @@ interface IWizardContext extends IWizardFlags {
 }
 interface IWizardFlags {
   goalsHaveBeenSet: boolean;
+  debtsHaveBeenSet: boolean;
 }
 
 const WizardContext = createContext<IWizardContext | undefined>(undefined);
@@ -16,6 +17,7 @@ export const WizardProvider = ({ children }: { children: ReactNode }) => {
 
   const [wizardFlags, setWizardFlagsState] = useState<IWizardFlags>({
     goalsHaveBeenSet: false,
+    debtsHaveBeenSet: false,
   });
 
   const setWizardFlags = useCallback((flags: Partial<IWizardFlags>) => {
