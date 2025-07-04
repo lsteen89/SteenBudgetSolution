@@ -1,11 +1,11 @@
 import * as yup from "yup";
 import { debtsIntroSchema }  from "./SubSchemas/introSchema";
-import { debtsInfoSchema }   from "./SubSchemas/infoSchema";
+import { summaryPageSchema }   from "./SubSchemas/summarySchema";
 import { debtsArraySchema }  from "./SubSchemas/debtsArraySchema";
 
 export const step4Schema = yup.object({
   intro: debtsIntroSchema.optional(),
-  info : debtsInfoSchema.optional(),
+  info : summaryPageSchema.optional(),
   debts: debtsArraySchema,
 });
 

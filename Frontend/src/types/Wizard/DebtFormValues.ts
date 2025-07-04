@@ -1,18 +1,24 @@
 export interface DebtItem {
   id: string;
-  type: 'installment' | 'revolving' | 'private'; 
+  type: 'installment' | 'bank_loan' | 'private' | 'revolving'; 
   name: string;
   balance: number | null;
-  apr: number | null;                  // annual %
-  minPayment?: number | null;          // only for revolving
-  termMonths?: number | null;          // only for installment
+  apr: number | null;
+  monthlyFee?: number | null;
+  minPayment?: number | null;
+  termMonths?: number | null;
 }
 
-export interface DebtsIntro { hasDebts: boolean | null; }
-export interface DebtsInfo  { notes: string; }
+export interface DebtsIntro { 
+  hasDebts: boolean | null; 
+}
+
+export interface DebtsSummary { 
+  repaymentStrategy: 'avalanche' | 'snowball' | 'noAction'; 
+}
 
 export interface DebtsFormValues {
   intro: DebtsIntro;
-  info:  DebtsInfo;
+  summary: DebtsSummary;
   debts: DebtItem[];
 }
