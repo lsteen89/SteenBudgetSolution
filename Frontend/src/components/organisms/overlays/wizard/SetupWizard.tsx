@@ -15,7 +15,8 @@ import StepBudgetSavings from "@components/organisms/overlays/wizard/steps/StepB
 import { StepBudgetSavingsRef } from "@/types/Wizard/StepBudgetSavingsRef";
 import StepBudgetDebts from "@components/organisms/overlays/wizard/steps/StepBudgetDebts4/StepBudgetDebts";
 import { StepBudgetDebtsRef } from "@/types/Wizard/StepBudgetDebtsRef";
-import StepConfirmation from "@components/organisms/overlays/wizard/steps/StepConfirmation";
+import StepBudgetFinal from "@components/organisms/overlays/wizard/steps/StepBudgetFinal5/StepBudgetFinal";
+import { StepBudgetFinalRef } from "@/types/Wizard/StepBudgetFinalRef";
 import WizardFormWrapperStep1, { WizardFormWrapperStep1Ref } from '@components/organisms/overlays/wizard/steps/StepBudgetIncome1/wrapper/WizardFormWrapperStep1'; 
 import StepBudgetIncome from "@components/organisms/overlays/wizard/steps/StepBudgetIncome1/StepBudgetIncome";
 import StepExpenditure, { StepBudgetExpenditureRef } from "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/StepBudgetExpenditure";
@@ -71,7 +72,8 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     const StepBudgetExpenditureRef = useRef<StepBudgetExpenditureRef>(null);
     const step3Ref = useRef<StepBudgetSavingsRef>(null);
     const step4Ref = useRef<StepBudgetDebtsRef>(null);
-    const stepRefs: { [key: number]: React.RefObject<any> } = { 1: step1WrapperRef, 2: StepBudgetExpenditureRef, 3: step3Ref, 4: step4Ref };
+    const step5Ref = useRef<StepBudgetFinalRef>(null);
+    const stepRefs: { [key: number]: React.RefObject<any> } = { 1: step1WrapperRef, 2: StepBudgetExpenditureRef, 3: step3Ref, 4: step4Ref, 5: step5Ref };
     const { setShowSideIncome, setShowHouseholdMembers } = useBudgetInfoDisplayFlags();
     const [subTick, setSubTick] = useState(0);
     const { setIncome, setExpenditure, setSavings, setDebts } = useWizardDataStore();
@@ -311,7 +313,21 @@ const WizardContent = (props: any) => {
                                             onValidationError={props.triggerShakeAnimation}
                                         />
                                     )}
-                                    {props.step === 5 && <StepConfirmation />}
+                                    {props.step === 5 && (
+                                        <StepBudgetFinal
+                                            ref={props.stepRefs[5]}
+                                            onNext={props.hookNextStep}
+                                            onPrev={props.hookPrevStep}
+                                            loading={props.transitionLoading || props.initLoading}
+                                            initialSubStep={props.initialSubStepForStep(5)}
+                                            onSubStepChange={props.handleSubStepChange}
+                                            wizardSessionId={props.wizardSessionId || ''}
+                                            onSaveStepData={props.handleSaveStepData}
+                                            stepNumber={5}
+                                            initialData={props.initialDataForStep(5)}
+                                            onValidationError={props.triggerShakeAnimation}
+                                        />
+                                    )}
                                 </>
                             )}
 
