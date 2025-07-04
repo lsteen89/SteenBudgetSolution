@@ -54,6 +54,8 @@ function getDebtsPartialData(subStep: number, allData: Step4FormValues): Partial
       return { intro: allData.intro };
     case 2:
       return { debts: allData.debts };
+    case 3:
+      return { summary: allData.summary };
     default:
       return {};
   }
@@ -68,8 +70,8 @@ const StepBudgetDebtsContainer = forwardRef<StepBudgetDebtsContainerRef, StepBud
     onPrev,
     loading: parentLoading,
     initialSubStep,
-    onSubStepChange,      // ✅ Add this
-    onValidationError,    // ✅ And this
+    onSubStepChange,     
+    onValidationError,    
   } = props;
   const isMobile = useMediaQuery('(max-width: 1367px)');
   const hasHydrated = useRef(false);
@@ -164,7 +166,13 @@ const StepBudgetDebtsContainer = forwardRef<StepBudgetDebtsContainerRef, StepBud
 
   useImperativeHandle(ref, () => ({
     validateFields: () => formMethods?.trigger() ?? Promise.resolve(false),
-    getStepData: () => formMethods?.getValues() ?? ensureStep4Defaults({}),
+    getStepData: () => {
+      const allData = formMethods?.getValues() ?? ensureStep4Defaults({});
+      // Instead of all data, return only the data from the final substep.
+      return {
+        summary: allData.summary,
+      };
+    },
     markAllTouched: () => formMethods?.trigger(),
     getErrors: () => formMethods?.formState.errors ?? {},
     getCurrentSubStep: () => currentSub,

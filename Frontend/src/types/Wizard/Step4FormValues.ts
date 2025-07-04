@@ -1,7 +1,7 @@
-import { DebtItem, DebtsIntro, DebtsInfo } from "./DebtFormValues";
+import { DebtItem, DebtsIntro, DebtsSummary } from "./DebtFormValues";
 
 export interface Step4FormValues {
   intro?: DebtsIntro;
-  info?:  DebtsInfo;
+  summary: DebtsSummary;
   debts?: DebtItem[];
 }

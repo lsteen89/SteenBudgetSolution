@@ -1,13 +1,12 @@
-/* src/components/organisms/debts/DebtItem.tsx */
 import React from "react";
 import {
   useFormContext,
   Controller,
   FieldArrayWithId,
 } from "react-hook-form";
-import { motion } from "framer-motion";
 import { Trash2, Info } from "lucide-react";
 
+// Assuming Step4FormValues imports the final DebtItem type
 import { Step4FormValues } from "@/types/Wizard/Step4FormValues";
 import { amortize } from "@/utils/budget/financialCalculations";
 import TextInput from "@/components/atoms/InputField/TextInput";
@@ -22,12 +21,6 @@ interface DebtItemProps {
   onRemove: (i: number) => void;
 }
 
-/**
- * DebtItem for constrained spaces.
- * Uses a simple 2x3 grid layout on medium screens and up
- * to ensure fields don't become too cramped.
- * - md: grid-cols-4 for a balanced, vertical layout.
- */
 const DebtItem: React.FC<DebtItemProps> = ({ index, onRemove }) => {
   const {
     control,
@@ -35,38 +28,51 @@ const DebtItem: React.FC<DebtItemProps> = ({ index, onRemove }) => {
     formState: { errors },
   } = useFormContext<Step4FormValues>();
 
-  /* ---------- derived paths & helpers ---------- */
   const base = `debts.${index}` as const;
-  const typeHelpText = "Välj typ av skuld. Avbetalningslån har fast löptid, banklån är flexibla, och privatlån är för informella lån (t.ex. från familj).";
+
+  const typeHelpText =
+    "Välj den kategori som bäst beskriver din skuld. Detta styr vilka fält som visas och hur beräkningar görs.";
 
   /* ---------- watch live values ---------- */
-  const type = watch(`${base}.type`) as "installment" | "revolving" | "private";
+  const type = watch(`${base}.type`) as
+    | "installment"
+    | "revolving"
+    | "private"
+    | "bank_loan";
   const balance = watch(`${base}.balance`) ?? null;
   const apr = watch(`${base}.apr`) ?? null;
   const termMonths = watch(`${base}.termMonths`) ?? null;
+  const monthlyFee = watch(`${base}.monthlyFee`) ?? null;
 
-  const monthly =
-    type === "installment" ? amortize(balance, apr, termMonths) : null;
-  const animatedPay = useAnimatedCounter(monthly ?? 0);
+  /* ---------- calculations ---------- */
+  const isAmortizing = type === "installment" || type === "bank_loan";
+  const amortizationAmount = isAmortizing
+    ? amortize(balance, apr, termMonths) ?? 0
+    : 0;
+  // The total monthly cost is the amortization plus any fixed fees.
+  const totalMonthly =
+    isAmortizing && amortizationAmount > 0
+      ? amortizationAmount + (monthlyFee ?? 0)
+      : null;
+  const animatedPay = useAnimatedCounter(totalMonthly ?? 0);
 
+  /* ---------- dynamic placeholders ---------- */
   const namePlaceholder =
-    type === "installment"
-      ? "Klarna, privatlån .."
+    type === "bank_loan"
+      ? "SBAB Bolån, Volvofinans Billån..."
       : type === "revolving"
-      ? "Banklån, Billån.."
+      ? "Bank Norwegian, Amex..."
+      : type === "installment"
+      ? "Klarna, Elgiganten-köp..."
       : type === "private"
-      ? "Anhörig, vän .."
+      ? "Lån från Pappa, skuld till vän..."
       : "Skuldens namn";
-      
+
   return (
     <>
-      {/* ---------------- form grid ---------------- */}
-
       <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-4">
-
-        {/* ---------- NAME (Corrected) ---------- */}
+        {/* ---------- NAME ---------- */}
         <div className="md:col-span-2">
-          {/* This label now mimics the structure and padding inside HelpSection */}
           <label
             htmlFor={idFromPath(`${base}.name`)}
             className="block text-sm font-medium flex items-center gap-2 pb-2"
@@ -88,9 +94,8 @@ const DebtItem: React.FC<DebtItemProps> = ({ index, onRemove }) => {
           />
         </div>
 
-        {/* ---------- TYPE SELECT (Corrected Usage) ---------- */}
+        {/* ---------- TYPE SELECT ---------- */}
         <div className="md:col-span-2">
-          {/* Use HelpSection as a wrapper, passing the Controller as a child */}
           <HelpSection label="Typ av skuld" helpText={typeHelpText}>
             <Controller
               name={`${base}.type`}
@@ -101,23 +106,20 @@ const DebtItem: React.FC<DebtItemProps> = ({ index, onRemove }) => {
                   id={idFromPath(`${base}.type`)}
                   className="h-11 w-full rounded-lg bg-slate-800/60 px-3 text-white"
                 >
-                  <option value="installment">Avbetalningslån</option>
-                  <option value="revolving">Banklån</option>
-                  <option value="private">Privatlån</option>
+                  <option value="bank_loan">Banklån (Bolån, Billån, Privatlån)</option>
+                  <option value="revolving">Kreditkort / Kontokredit</option>
+                  <option value="installment">Avbetalning (Klarna, Snabblån)</option>
+                  <option value="private">Privat lån (Familj, Vänner)</option>
                 </select>
               )}
             />
           </HelpSection>
         </div>
 
-        {/* ---------- BALANCE ---------- */}
-        {/* Change -> Spans 2 of 4 columns */}
+        {/* ---------- BALANCE & APR ---------- */}
         <div className="md:col-span-2">
-          <label
-            htmlFor={idFromPath(`${base}.balance`)}
-            className="mb-1.5 block text-xs font-medium text-white/70"
-          >
-            Belopp (kr)
+          <label htmlFor={idFromPath(`${base}.balance`)} className="mb-1.5 block text-xs font-medium text-white/70">
+            Restbelopp (kr)
           </label>
           <Controller
             name={`${base}.balance`}
@@ -127,7 +129,7 @@ const DebtItem: React.FC<DebtItemProps> = ({ index, onRemove }) => {
                 id={idFromPath(`${base}.balance`)}
                 placeholder="25 000"
                 error={errors.debts?.[index]?.balance?.message}
-                value={field.value}
+                value={field.value ?? null}
                 onValueChange={field.onChange}
                 name={field.name}
                 ref={field.ref}
@@ -135,14 +137,8 @@ const DebtItem: React.FC<DebtItemProps> = ({ index, onRemove }) => {
             )}
           />
         </div>
-
-        {/* ---------- APR ---------- */}
-        {/* Change -> Spans 2 of 4 columns */}
         <div className="md:col-span-2">
-          <label
-            htmlFor={idFromPath(`${base}.apr`)}
-            className="mb-1.5 block text-xs font-medium text-white/70"
-          >
+          <label htmlFor={idFromPath(`${base}.apr`)} className="mb-1.5 block text-xs font-medium text-white/70">
             Ränta (%)
           </label>
           <Controller
@@ -163,13 +159,9 @@ const DebtItem: React.FC<DebtItemProps> = ({ index, onRemove }) => {
         </div>
 
         {/* ---------- CONDITIONAL FIELDS ---------- */}
-        {type === "installment" && (
-          // Change -> Spans 2 of 4 columns
+        {(type === "installment" || type === "bank_loan") && (
           <div className="md:col-span-2">
-            <label
-              htmlFor={idFromPath(`${base}.termMonths`)}
-              className="mb-1.5 block text-xs font-medium text-white/70"
-            >
+            <label htmlFor={idFromPath(`${base}.termMonths`)} className="mb-1.5 block text-xs font-medium text-white/70">
               Löptid (mån)
             </label>
             <Controller
@@ -189,13 +181,32 @@ const DebtItem: React.FC<DebtItemProps> = ({ index, onRemove }) => {
           </div>
         )}
 
+        {(type === "installment" || type === "bank_loan") && (
+            <div className="md:col-span-2">
+                <label htmlFor={idFromPath(`${base}.monthlyFee`)} className="mb-1.5 block text-xs font-medium text-white/70">
+                    Månadsavgift (kr)
+                </label>
+                <Controller
+                  name={`${base}.monthlyFee`}
+                  control={control}
+                  render={({ field }) => (
+                    <FormattedNumberInput
+                        id={idFromPath(`${base}.monthlyFee`)}
+                        placeholder="29"
+                        error={errors.debts?.[index]?.monthlyFee?.message}
+                        value={field.value ?? null}
+                        onValueChange={field.onChange}
+                        name={field.name}
+                        ref={field.ref}
+                    />
+                  )}
+                />
+            </div>
+        )}
+
         {type === "revolving" && (
-          // Change -> Spans 2 of 4 columns
           <div className="md:col-span-2">
-            <label
-              htmlFor={idFromPath(`${base}.minPayment`)}
-              className="mb-1.5 block text-xs font-medium text-white/70"
-            >
+            <label htmlFor={idFromPath(`${base}.minPayment`)} className="mb-1.5 block text-xs font-medium text-white/70">
               Minsta betalning (kr)
             </label>
             <Controller
@@ -216,8 +227,6 @@ const DebtItem: React.FC<DebtItemProps> = ({ index, onRemove }) => {
           </div>
         )}
 
-        {/* ---------- REMOVE BUTTON ---------- */}
-        {/* Change -> Spans 2 of 4 columns */}
         <div className="flex items-end md:col-span-2">
           <button
             type="button"
@@ -232,7 +241,7 @@ const DebtItem: React.FC<DebtItemProps> = ({ index, onRemove }) => {
       </div>
 
       {/* ---------- INSTALLMENT SUMMARY ---------- */}
-      {monthly !== null && (
+      {totalMonthly !== null && (
         <p className="mt-3 text-sm text-white/90">
           Beräknad månadsbetalning:&nbsp;
           <span className="font-semibold text-darkLimeGreen">

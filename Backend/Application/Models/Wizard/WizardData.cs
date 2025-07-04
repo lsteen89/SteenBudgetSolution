@@ -284,8 +284,8 @@ public sealed class DebtsFormValues
     [JsonPropertyName("intro")]
     public DebtsIntro? Intro { get; set; }
 
-    [JsonPropertyName("info")]
-    public DebtsInfo? Info { get; set; }
+    [JsonPropertyName("summary")]
+    public DebtsSummary? Summary { get; set; }
 
     [JsonPropertyName("debts")]
     public List<DebtItem>? Debts { get; set; }
@@ -297,10 +297,10 @@ public sealed class DebtsIntro
     public bool? HasDebts { get; set; }
 }
 
-public sealed class DebtsInfo
+public sealed class DebtsSummary
 {
-    [JsonPropertyName("notes")]
-    public string? Notes { get; set; }
+    [JsonPropertyName("repaymentStrategy")]
+    public string? RepaymentStrategy { get; set; }
 }
 
 public sealed class DebtItem
@@ -308,8 +308,9 @@ public sealed class DebtItem
     [JsonPropertyName("id")]
     public string Id { get; set; } = string.Empty;
 
+
     [JsonPropertyName("type")]
-    public string Type { get; set; } = string.Empty; // "installment", "revolving", or "private"
+    public string Type { get; set; } = string.Empty; // "installment", "revolving", "private", or "bank_loan"
 
     [JsonPropertyName("name")]
     public string Name { get; set; } = string.Empty;
@@ -319,6 +320,10 @@ public sealed class DebtItem
 
     [JsonPropertyName("apr")]
     public decimal? Apr { get; set; }
+
+    // --- ADDED ---
+    [JsonPropertyName("monthlyFee")]
+    public decimal? MonthlyFee { get; set; }
 
     [JsonPropertyName("minPayment")]
     public decimal? MinPayment { get; set; }
