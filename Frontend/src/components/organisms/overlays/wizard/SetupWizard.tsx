@@ -236,7 +236,7 @@ const WizardContent = (props: any) => {
                         <X size={24} />
                     </button>
                     <WizardHeading step={props.step} type="wizard" />
-                    <WizardProgress step={props.step} totalSteps={props.totalSteps} steps={props.steps} onStepClick={props.handleStepClick} />
+                    <WizardProgress step={props.step} totalSteps={props.totalSteps} steps={props.steps} onStepClick={props.handleStepClick} useBlackText={true} />
                     <AnimatedContent 
                         animationKey={String(props.step)} 
                         // The new triggerKey combines the major step and the sub-tick.
@@ -244,7 +244,7 @@ const WizardContent = (props: any) => {
                         triggerKey={`${props.step}-${props.subTick}`}
                         className="mb-6 text-center text-gray-700"
                     >
-                        <WizardStepContainer disableDefaultWidth={props.step === 2} className={props.step === 2 ? (props.isMobile ? "max-w-lg" : "max-w-4xl") : ""}>
+                        <WizardStepContainer maxWidth={props.step === 1 ? "md" : undefined}>
                             
                             {props.step === 0 ? (
                                 <StepWelcome

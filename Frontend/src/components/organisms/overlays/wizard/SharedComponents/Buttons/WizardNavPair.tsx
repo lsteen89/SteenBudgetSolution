@@ -82,6 +82,7 @@ const WizardNavPair: React.FC<WizardNavPairProps> = ({
   
   return (
     <>
+    {hasPrev && (
       <GhostIconButton
         onClick={handlePrevClick}
         disabled={disablePrev}
@@ -91,7 +92,8 @@ const WizardNavPair: React.FC<WizardNavPairProps> = ({
       >
         <IconPrev size={24} className="text-darkLimeGreen" />
       </GhostIconButton>
-
+    )}
+    {hasNext && (
       <GhostIconButton
         onClick={handleNextClick}
         disabled={disableNext}
@@ -101,6 +103,7 @@ const WizardNavPair: React.FC<WizardNavPairProps> = ({
       >
         <IconNext size={24} className="text-darkLimeGreen" />
       </GhostIconButton>
+    )}
     </>
   );
 };

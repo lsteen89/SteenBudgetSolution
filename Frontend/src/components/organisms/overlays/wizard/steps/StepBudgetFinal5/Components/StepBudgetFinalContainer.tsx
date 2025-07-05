@@ -9,6 +9,7 @@ import WizardProgress from '@components/organisms/overlays/wizard/SharedComponen
 import StepCarousel from '@components/molecules/progress/StepCarousel';
 import SubStepFinal from './Pages/SubSteps/1_SubStepFinal/SubStepFinal';
 import LoadingScreen from '@components/molecules/feedback/LoadingScreen';
+import { ShieldCheck } from 'lucide-react';
 
 export interface StepBudgetFinalContainerRef extends StepBudgetFinalRef {
   markAllTouched(): void;
@@ -41,7 +42,7 @@ const StepBudgetFinalContainer = forwardRef<StepBudgetFinalContainerRef, StepBud
   const [currentSub, setCurrentSub] = useState(initialSubStep || 1);
   const wrapperRef = useRef<WizardFormWrapperStep5Ref>(null);
 
-  const steps = [ { label: 'Slut', icon: undefined } ];
+  const steps = [ { label: 'Slut', icon: ShieldCheck } ];
   const totalSteps = 1;
 
   const next = () => {
@@ -92,7 +93,12 @@ const StepBudgetFinalContainer = forwardRef<StepBudgetFinalContainerRef, StepBud
               {isMobile ? (
                 <StepCarousel steps={steps} currentStep={0} />
               ) : (
-                <WizardProgress step={1} totalSteps={1} steps={steps} />
+                <WizardProgress
+                  step={1}
+                  totalSteps={1}
+                  steps={steps}
+                  onStepClick={() => {}} 
+                />
               )}
             </div>
           </div>
