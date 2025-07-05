@@ -1,23 +1,41 @@
-import React, { ReactNode } from "react";
+import React from "react";
+import { wizardWidths } from "@/utils/wizard/ui";
+import { cn } from "@/utils/cn";         
 
 interface WizardStepContainerProps {
-  children: ReactNode;
+  children: React.ReactNode;
   className?: string;
-  disableDefaultWidth?: boolean; // optional prop to disable default width
+  /**
+   * Width: 'sm' | 'md' | 'lg'            – choose one of the presets
+   * 'responsive' (default)               – sm→lg ramp
+   * 'none'                               – let content flow full-width
+   */
+  maxWidth?: keyof typeof wizardWidths | "responsive" | "none";
 }
 
-const WizardStepContainer: React.FC<WizardStepContainerProps> = ({ children, className, disableDefaultWidth }) => {
+const WizardStepContainer: React.FC<WizardStepContainerProps> = ({
+  children,
+  className = "",
+  maxWidth = "responsive",
+}) => {
+  const widthClass =
+    maxWidth === "none"
+      ? ""
+      : maxWidth === "responsive"
+      ? "sm:max-w-md md:max-w-xl lg:max-w-4xl"
+      : wizardWidths[maxWidth];
+
   return (
     <div
-      className={`
-        space-y-4 p-6 rounded-xl shadow-md mx-auto bg-darkBlueMenuColor 
-        ${!disableDefaultWidth ? "max-w-lg" : ""} 
-        ${className || ""}
-      `}
+      className={cn(
+        "space-y-4 p-6 rounded-xl shadow-md mx-auto bg-darkBlueMenuColor",
+        widthClass,
+        className,
+      )}
     >
       {children}
     </div>
   );
 };
 
-export default WizardStepContainer;
+export default React.memo(WizardStepContainer);

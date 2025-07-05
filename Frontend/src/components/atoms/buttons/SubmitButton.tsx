@@ -62,6 +62,7 @@
  */
 
 import React from 'react';
+import clsx from "clsx";
 
   interface SubmitButtonProps {
     isSubmitting: boolean;
@@ -100,16 +101,26 @@ import React from 'react';
       disabled={isSubmitting}
       onClick={onClick}
       style={style}
-      className={`inline-flex items-center justify-center font-bold bg-limeGreen
-      rounded-[20px] shadow-md transition-all ease-out duration-300 border-none
-      ${sizeClasses[size]} 
-      ${
-        isSubmitting
-          ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-          : enhanceOnHover
-          ? 'hover:bg-[#001F3F] hover:text-white hover:scale-110'
-          : 'hover:bg-[limeGreen]'
-      }`}
+      className={clsx(
+        "inline-flex items-center justify-center font-bold rounded-[20px] shadow-md",
+        "transition-all ease-out duration-300 border-none whitespace-nowrap",
+        sizeClasses[size],
+
+        /* base colours (only applied when caller hasn’t overridden them) */
+        !isSubmitting && "bg-lime-500 text-slate-900",
+
+        /* disabled */
+        isSubmitting && "bg-gray-300 text-gray-600 cursor-not-allowed",
+
+        /* hover variants (when not submitting) */
+        !isSubmitting &&
+          (enhanceOnHover
+            ? "hover:bg-[#001F3F] hover:text-white hover:scale-110"
+            : "hover:bg-lime-400"),
+
+
+        className,
+      )}
     >
       {isSubmitting ? (
         <div
