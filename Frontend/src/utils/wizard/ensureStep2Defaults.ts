@@ -22,7 +22,7 @@ export function ensureStep2Defaults(
       takeoutExpenses  : src?.food?.takeoutExpenses   ?? 0,
     },
 
-    /* ---------- utilities ---------- */
+    /* ---------- utilities ---------- NOT USED AS OF NOW*/
     utilities: {
       electricity: src?.utilities?.electricity ?? 0,
       water      : src?.utilities?.water       ?? 0,
