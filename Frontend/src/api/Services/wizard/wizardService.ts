@@ -40,3 +40,9 @@ export async function getWizardData(
   );
   return data;
 }
+
+export async function completeWizard(sessionId: string): Promise<void> {
+  console.log(`Completing wizard session with ID: ${sessionId}`);
+  // POST /api/Wizard/{sessionId}/complete
+  await api.post(`/api/Wizard/${sessionId}/complete`);
+}

@@ -15,6 +15,12 @@ import { formatCurrencyParts, formatCurrency } from '@/utils/budget/currencyForm
 import { SummaryGrid } from './SummaryGrid';
 import SubmitButton from '@components/atoms/buttons/SubmitButton';
 
+interface SubStepFinalProps {
+  onFinalize: () => void;
+  isFinalizing: boolean;
+  finalizationError: string | null;
+}
+
 type StrictGoal = {
   id: string;
   name: string;
@@ -23,14 +29,12 @@ type StrictGoal = {
   targetDate: string;
 };
 
-const SubStepFinal: React.FC = () => {
+const SubStepFinal: React.FC<SubStepFinalProps> = ({
+  onFinalize,
+  isFinalizing,
+  finalizationError,
+}) => {
     const { income, expenditure, savings, debts } = useWizardDataStore((s) => s.data);
-    const navigate = useNavigate();
-    const handleGoToDashboard = () => {
-        // This function will contain the logic to end the wizard and redirect the user
-        navigate('/dashboard'); 
-    };
-    // 1. Total Monthly Income (Spell from the Scroll of Totals)
     const totalIncome = calcMonthlyIncome(income);
 
     // 2. Total Monthly Expenditure (The Grand Summation Spell, also from the Scroll of Totals)
@@ -154,15 +158,21 @@ const SubStepFinal: React.FC = () => {
               {/* III. The Detailed Ledger, now in its place */}
               <DetailedLedger />
 
+              {finalizationError && (
+                <p className="text-red-600 text-center my-4">
+                  {finalizationError}
+                </p>
+              )}
               {/* Final CTA */}
               <SubmitButton
-                isSubmitting={false}
+                isSubmitting={isFinalizing}
                 label="Fortsätt din resa!"
                 size="large"
                 className="bg-darkLimeGreen text-darkBlueMenuColor"
                 enhanceOnHover
-                onClick={handleGoToDashboard}
+                onClick={onFinalize}
               />
+              {finalizationError && <p className="text-red-500 mt-4">{finalizationError}</p>}
           </div>
       </div>
     );

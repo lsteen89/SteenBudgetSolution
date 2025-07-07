@@ -21,6 +21,9 @@ interface StepBudgetFinalProps {
   initialSubStep: number;
   onSubStepChange?: (newSub: number) => void;
   onValidationError?: () => void;
+  finalizeWizard: () => void;
+  isFinalizing: boolean;
+  finalizationError: string | null;
 }
 
 const StepBudgetFinal = forwardRef<StepBudgetFinalRef, StepBudgetFinalProps>((props, ref) => {
@@ -55,6 +58,9 @@ const StepBudgetFinal = forwardRef<StepBudgetFinalRef, StepBudgetFinalProps>((pr
           initialSubStep={props.initialSubStep}
           onSubStepChange={props.onSubStepChange}
           onValidationError={props.onValidationError}
+          finalizeWizard={props.finalizeWizard}
+          isFinalizing={props.isFinalizing}
+          finalizationError={props.finalizationError}
         />
         <DataTransparencySection />
       </GlassPane>
