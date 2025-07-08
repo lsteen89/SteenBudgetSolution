@@ -75,59 +75,62 @@ namespace Backend.Presentation.Controllers
             return Ok(new { wizardSessionId = creationResult.WizardSessionId });
         }
 
-        [HttpPut("steps/{stepNumber}")]
-        public async Task<IActionResult> SaveStepData(int stepNumber, [FromBody] WizardStepDto dto)
+        // PUT /api/wizard/{sessionId}/steps/{stepNumber}/{subStepNumber}
+        [HttpPut("{sessionId:guid}/steps/{stepNumber:int}/{subStepNumber:int}")]
+        public async Task<IActionResult> SaveStepData(
+            Guid sessionId,
+            int stepNumber,
+            int subStepNumber,                 // ← comes from the route now
+            [FromBody] WizardStepDto dto)       // dto is slim: { stepData, dataVersion }
         {
-            if (string.IsNullOrEmpty(dto.WizardSessionId))
-            return BadRequest("Missing wizardSessionId");
+            // 1. Authorise (same as before)
+            if (!await _wizardService.GetWizardSessionAsync(sessionId))
+                return Forbid();
 
-            // Verify session exists and belongs to this user
-            bool userOwnsSession = await _wizardService.GetWizardSessionAsync(dto.WizardSessionId);
-            if (!userOwnsSession)
-                return Forbid(); // ) Reject any foreign session
-
+            // 2. Validate + upsert
             try
             {
-                // Call service which will deserialize, validate, and upsert the data.
-                bool saveSuccessful = await _wizardService.SaveStepDataAsync(dto.WizardSessionId, stepNumber, dto.subStepNumber, dto.StepData, dto.DataVersion);
-                if (!saveSuccessful)
-                    return StatusCode(500, "Failed to save step data.");
+                var ok = await _wizardService.SaveStepDataAsync(
+                    sessionId, stepNumber, subStepNumber,
+                    dto.StepData, dto.DataVersion);
+
+                if (!ok) return StatusCode(500, "Failed to save step data.");
             }
-            catch (ValidationException vex)
+            catch (ValidationException ex)
             {
-                // Return validation errors to the client
-                return BadRequest(new { message = "Validation failed", errors = vex.Errors });
+                return BadRequest(new { message = "Validation failed", errors = ex.Errors });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error saving wizard step data for session {WizardSessionId}", dto.WizardSessionId);
+                _logger.LogError(ex,
+                    "Error saving wizard step data for session {SessionId}", sessionId);
                 return StatusCode(500, "An unexpected error occurred.");
             }
 
             return Ok(new { message = "Step saved successfully." });
         }
-        [HttpPost("data")]
-        public async Task<IActionResult> GetWizardData(
-            [FromBody] WizardSessionRequestDTO dto
-        )
+        [HttpGet("{sessionId:guid}")]
+        public async Task<IActionResult> GetWizardData(Guid sessionId)
         {
-            
-            if (string.IsNullOrWhiteSpace(dto.wizardSessionId))
-            {
-                return BadRequest("Wizard session ID is required.");
-            }
+            if (!await _wizardService.GetWizardSessionAsync(sessionId))
+                return Forbid();
 
-            // Verify session exists and belongs to this user
-            bool userOwnsSession = await _wizardService.GetWizardSessionAsync(dto.wizardSessionId);
-            if (!userOwnsSession)
-                return Forbid(); // Reject any foreign session
+            var wizardData = await _wizardService.GetWizardDataAsync(sessionId);
 
-
-            var wizardData = await _wizardService.GetWizardDataAsync(dto.wizardSessionId);
-
-            _logger.LogDebug("Wizard data before sending: {wizardData}", JsonConvert.SerializeObject(wizardData));
+            _logger.LogDebug("Wizard data before sending: {Data}",
+                             JsonConvert.SerializeObject(wizardData));
 
             return Ok(wizardData);
         }
+        /*
+        [HttpPost("{sessionId:guid}/complete")]
+        public async Task<IActionResult> Complete(Guid sessionId)
+        {
+            if (!await _wizardService.GetWizardSessionAsync(sessionId)) return Forbid();
+            var res = await _wizardService.FinalizeBudgetAsync(sessionId);
+            if (!res.IsSuccess) return StatusCode(500, res.Message);
+            return NoContent();
+        }
+        */
     }
 }

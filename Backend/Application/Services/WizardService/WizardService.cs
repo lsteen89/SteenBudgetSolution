@@ -42,7 +42,7 @@ namespace Backend.Application.Services.WizardService
         }
 
         public async Task<bool> SaveStepDataAsync(
-                string wizardSessionId,
+                Guid wizardSessionId,
                 int stepNumber,
                 int substepNumber,
                 object stepData,
@@ -87,14 +87,17 @@ namespace Backend.Application.Services.WizardService
                                    stepNumber, substepNumber, wizardSessionId);
             return true;
         }
-        public async Task<WizardSavedDataDTO?> GetWizardDataAsync(string wizardSessionId)
+        public async Task<WizardSavedDataDTO?> GetWizardDataAsync(Guid wizardSessionId)
         {
             // We get the whole package we need to send the data back to the client.
             var result = await AssembleWizardPackage(wizardSessionId);
 
 
             if (result == null)
+            {
+                _logger.LogWarning("No wizard data found for session {WizardSessionId}", wizardSessionId);
                 return null;
+            }
 
             // We retrieve the substep number from the database, which is the substep
             (WizardData data, int version) = result.Value;
@@ -111,9 +114,9 @@ namespace Backend.Application.Services.WizardService
         public async Task<Guid> UserHasWizardSessionAsync(Guid? persoid) => 
             (await _wizardProvider.WizardSqlExecutor.GetWizardSessionIdAsync(persoid)) ?? Guid.Empty;
 
-        public async Task<int> GetWizardSubStep(string wizardSessionId) =>
+        public async Task<int> GetWizardSubStep(Guid wizardSessionId) =>
             await _wizardProvider.WizardSqlExecutor.GetWizardSubStepAsync(wizardSessionId);
-        public async Task<bool> GetWizardSessionAsync(string wizardSessionId)
+        public async Task<bool> GetWizardSessionAsync(Guid wizardSessionId)
         {
             WizardSessionDto? session;
             session = await _wizardProvider.WizardSqlExecutor.GetWizardSessionAsync(wizardSessionId);
@@ -123,7 +126,7 @@ namespace Backend.Application.Services.WizardService
             return userOwnsSession;
 
         }
-        private bool UserOwnsSession(WizardSessionDto session, string wizardSessionId)
+        private bool UserOwnsSession(WizardSessionDto session, Guid wizardSessionId)
         {
             if(session == null)
             {
@@ -137,9 +140,9 @@ namespace Backend.Application.Services.WizardService
         #region Step assembly
         // Assembles a whole wizard package from the substep data
         // Merges substep data into a single object for each step
-        private async Task<(WizardData Data, int Version)?> AssembleWizardPackage(string sessionId)
+        private async Task<(WizardData Data, int Version)?> AssembleWizardPackage(Guid wizardSessionId)
         {
-            var raw = await _wizardProvider.WizardSqlExecutor.GetRawWizardStepDataAsync(sessionId);
+            var raw = await _wizardProvider.WizardSqlExecutor.GetRawWizardStepDataAsync(wizardSessionId);
             if (!raw?.Any() ?? true) return null;
 
             // 1. We still keep the newest row for each (StepNumber, SubStep)

@@ -46,7 +46,6 @@ namespace Backend.Application.Validators.WizardValidation
     {
         public SavingsValidator()
         {
-            // This logic is now identical in pattern to your ExpenditureValidator!
             When(x => x.Intro != null, () => {
                 RuleFor(x => x.Intro).SetValidator(new SavingsIntroValidator());
             });
@@ -57,6 +56,9 @@ namespace Backend.Application.Validators.WizardValidation
 
             When(x => x.Goals != null && x.Goals.Any(), () => {
                 RuleForEach(x => x.Goals).SetValidator(new SavingsGoalValidator());
+                RuleFor(x => x.Goals)
+                    .Must(goals => goals.Select(g => g.Id).Distinct().Count() == goals.Count)
+                    .WithMessage("Found duplicate goal IDs. Please ensure all goals have a unique ID.");
             });
         }
     }

@@ -74,10 +74,11 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
             };
 
             string json = JsonSerializer.Serialize(validDto, Camel);
+            var wizardSessionId = Guid.NewGuid();
 
             _wizardSqlExecutorMock
                 .Setup(x => x.UpsertStepDataAsync(
-                           It.IsAny<string>(),
+                           It.IsAny<Guid>(),
                            It.IsAny<int>(),
                            It.IsAny<int>(),
                            It.IsAny<string>(),
@@ -88,14 +89,14 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
 
             // Act
             var ok = await _wizardService.SaveStepDataAsync(
-                         "test-session-guid", 1, 2, json, 2);
+                         wizardSessionId, 1, 2, json, 2);
 
             // Assert – service reports success
             Assert.True(ok);
 
             // & repository received JSON containing key data
             _wizardSqlExecutorMock.Verify(x => x.UpsertStepDataAsync(
-                "test-session-guid",
+                wizardSessionId, // session ID
                 1,
                 2,
                 It.Is<string>(s =>
@@ -117,7 +118,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
                 YearlySalary = 0m
             };
             string json = JsonSerializer.Serialize(dto, Camel);
-
+            var wizardSessionId = Guid.NewGuid();
             // real validator that contains the rules for step 1
             var incomeValidator = new IncomeValidator();
 
@@ -134,19 +135,19 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
 
             // DB layer shouldn’t be called at all
             _wizardSqlExecutorMock.Setup(e => e.UpsertStepDataAsync(
-                        It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
+                        It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<int>(),
                         It.IsAny<string>(), It.IsAny<int>(),
                         It.IsAny<DbConnection?>(), It.IsAny<DbTransaction?>()))
                         .ReturnsAsync(true);
 
             // ── Act & Assert ──────────────────────────────────────────────────
             var ex = await Assert.ThrowsAsync<ValidationException>(() =>
-                wizardService.SaveStepDataAsync("test-session-guid", 1, 2, json, 2));
+                wizardService.SaveStepDataAsync(wizardSessionId, 1, 2, json, 2));
 
             Assert.Contains("NetSalary", ex.Message);
 
             _wizardSqlExecutorMock.Verify(e => e.UpsertStepDataAsync(
-                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
+                It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<int>(),
                 It.IsAny<string>(), It.IsAny<int>(),
                 It.IsAny<DbConnection?>(), It.IsAny<DbTransaction?>()),
                 Times.Never);
@@ -156,6 +157,8 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
         public async Task SaveStepDataAsync_Step1_HouseholdValidData_UpsertsSuccessfully()
         {
             // ────────── Arrange ────────────────────────────────────────────────
+            var wizardSessionId = Guid.NewGuid();
+
             var validDto = new IncomeFormValues
             {
                 NetSalary = 1m,
@@ -178,21 +181,21 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
 
             _wizardSqlExecutorMock
                 .Setup(x => x.UpsertStepDataAsync(
-                           It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
+                           It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<int>(),
                            It.IsAny<string>(), It.IsAny<int>(),
                            It.IsAny<DbConnection?>(), It.IsAny<DbTransaction?>()))
                 .ReturnsAsync(true);
 
             // ────────── Act ────────────────────────────────────────────────────
             var ok = await _wizardService.SaveStepDataAsync(
-                         "test-session-guid", stepNumber: 1, substepNumber: 2,
+                         wizardSessionId, stepNumber: 1, substepNumber: 2,
                          json, dataVersion: 2);
 
             // ────────── Assert ────────────────────────────────────────────────
             Assert.True(ok);
 
             _wizardSqlExecutorMock.Verify(x => x.UpsertStepDataAsync(
-                "test-session-guid",
+                wizardSessionId, // session ID
                 1,
                 2,
                 It.Is<string>(s =>
@@ -218,26 +221,27 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
                 HouseholdMembers = new(),   // ✓ zero members is allowed
                 SideHustles = new()
             };
-
+            
+            var wizardSessionId = Guid.NewGuid();
             string json = JsonSerializer.Serialize(dto, Camel);
 
             _wizardSqlExecutorMock
                 .Setup(x => x.UpsertStepDataAsync(
-                           It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
+                           It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<int>(),
                            It.IsAny<string>(), It.IsAny<int>(),
                            It.IsAny<DbConnection?>(), It.IsAny<DbTransaction?>()))
                 .ReturnsAsync(true);
 
             // ────────── Act ────────────────────────────────────────────────────
             var ok = await _wizardService.SaveStepDataAsync(
-                         "test-session-guid", stepNumber: 1, substepNumber: 2,
+                         wizardSessionId, stepNumber: 1, substepNumber: 2,
                          json, dataVersion: 2);
 
             // ────────── Assert ────────────────────────────────────────────────
             Assert.True(ok);
 
             _wizardSqlExecutorMock.Verify(x => x.UpsertStepDataAsync(
-                "test-session-guid",
+                wizardSessionId,
                 1,
                 2,
                 It.Is<string>(s =>
@@ -270,7 +274,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
         }
             };
             string json = JsonSerializer.Serialize(dto, Camel);
-
+            var wizardSessionId = Guid.NewGuid();
             // real validator for the failing step
             var incomeValidator = new IncomeValidator();        
             var expensesValidator = CreatePassingValidatorMock<ExpenditureFormValues>().Object;
@@ -286,19 +290,19 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
             // DB layer should never be hit
             _wizardSqlExecutorMock
                 .Setup(e => e.UpsertStepDataAsync(
-                           It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
+                           It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<int>(),
                            It.IsAny<string>(), It.IsAny<int>(),
                            It.IsAny<DbConnection?>(), It.IsAny<DbTransaction?>()))
                 .ReturnsAsync(true);
 
             // ── Act & Assert ──────────────────────────────────────────────────
             var ex = await Assert.ThrowsAsync<ValidationException>(() =>
-                wizardService.SaveStepDataAsync("test-session-guid", 1, 2, json, 2));
+                wizardService.SaveStepDataAsync(wizardSessionId, 1, 2, json, 2));
 
             Assert.Contains("Side hustles should not be provided when the section is hidden", ex.Message);
 
             _wizardSqlExecutorMock.Verify(e => e.UpsertStepDataAsync(
-                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
+                It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<int>(),
                 It.IsAny<string>(), It.IsAny<int>(),
                 It.IsAny<DbConnection?>(), It.IsAny<DbTransaction?>()),
                 Times.Never);
@@ -322,7 +326,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
         }
             };
             string json = JsonSerializer.Serialize(dto, Camel);
-
+            var wizardSessionId = Guid.NewGuid();
             // real failing validator for step 1
             var incomeValidator = new IncomeValidator();
 
@@ -339,12 +343,12 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
 
             // Act  &  Assert
             var ex = await Assert.ThrowsAsync<ValidationException>(() =>
-                wizardService.SaveStepDataAsync("test-session-guid", 1, 2, json, 2));
+                wizardService.SaveStepDataAsync(wizardSessionId, 1, 2, json, 2));
 
             Assert.Contains("Household member name is required", ex.Message);
 
             _wizardSqlExecutorMock.Verify(x => x.UpsertStepDataAsync(
-                It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(),
+                It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<int>(),
                 It.IsAny<string>(), It.IsAny<int>(),
                 It.IsAny<DbConnection?>(), It.IsAny<DbTransaction?>()),
                 Times.Never);
@@ -361,10 +365,11 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
             var incomeValidator = CreatePassingValidatorMock<IncomeFormValues>().Object;
             var expensesValidator = CreatePassingValidatorMock<ExpenditureFormValues>().Object;
             var savingsValidator = CreatePassingValidatorMock<SavingsFormValues>().Object;
+            var wizardSessionId = Guid.NewGuid();
 
             _wizardSqlExecutorMock
                 .Setup(e => e.UpsertStepDataAsync(
-                           It.IsAny<string>(), 1, 2,
+                           It.IsAny<Guid>(), 1, 2,
                            It.IsAny<string>(), 2,
                            It.IsAny<DbConnection?>(), It.IsAny<DbTransaction?>()))
                 .ReturnsAsync(true);
@@ -378,7 +383,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
 
             // ────────── Act ────────────────────────────────────────────────────
             var ok = await wizardService.SaveStepDataAsync(
-                         "test-session-guid", stepNumber: 1, substepNumber: 2,
+                         wizardSessionId, stepNumber: 1, substepNumber: 2,
                          payload, dataVersion: 2);
 
             // ────────── Assert ────────────────────────────────────────────────
@@ -386,7 +391,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
 
             // verify DB called once with serialized JSON that now contains enum *number* 3
             _wizardSqlExecutorMock.Verify(e => e.UpsertStepDataAsync(
-                "test-session-guid",
+                wizardSessionId,
                 1,
                 2,
                 It.Is<string>(s =>

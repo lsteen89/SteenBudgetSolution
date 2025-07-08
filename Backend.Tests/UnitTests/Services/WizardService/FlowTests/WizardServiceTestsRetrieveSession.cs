@@ -63,7 +63,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
         public async Task GetWizardDataAsync_OneRow_ReturnsWizardSavedDataDto()
         {
             // ────────── Arrange ────────────────────────────────────────────────
-            var wizardSessionId = "test-session-id";
+            var wizardSessionId = Guid.NewGuid();
 
             var rawEntities = new List<WizardStepRowEntity>
             {
@@ -118,7 +118,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
         public async Task GetWizardDataAsync_NoRows_ReturnsNull()
         {
             // Arrange: simulate an empty list of raw entities from the database.
-            var wizardSessionId = "test-session-id";
+            var wizardSessionId = Guid.NewGuid();
             List<WizardStepRowEntity>? emptyList = null; // Or new List<WizardStepRowEntity>()
 
             // Set up the mock for the GetRawWizardStepDataAsync method to return null or an empty list.
@@ -134,7 +134,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
                 x => x.Log(
                     LogLevel.Warning,
                     It.IsAny<EventId>(),
-                    It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("No raw wizard data found for session")),
+                    It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("No wizard data found for session")),
                     null,
                     It.IsAny<Func<It.IsAnyType, Exception?, string>>()
                 ), Times.Once);
@@ -144,7 +144,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
         public async Task GetWizardDataAsync_TwoRowsDifferentSteps_ReturnsBothSteps()
         {
             // ────────── Arrange ────────────────────────────────────────────────
-            var wizardSessionId = "test-session-id";
+            var wizardSessionId = Guid.NewGuid();
 
             // Enum values are sent as numbers (3 == Frequency.Monthly)
             const string step1Json =
@@ -223,7 +223,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
         public async Task GetWizardDataAsync_TwoRowsSameStepDifferentSubsteps_ReturnsLatestMergedStep()
         {
             // ────────── Arrange ────────────────────────────────────────────────
-            var wizardSessionId = "test-session-id";
+            var wizardSessionId = Guid.NewGuid();
             var now = DateTime.UtcNow;
 
             const string subStep1Json =
@@ -299,7 +299,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
         public async Task GetWizardDataAsync_TwoRowsSameStepSameSubstep_LastRowWins()
         {
             // ────────── Arrange ────────────────────────────────────────────────
-            var wizardSessionId = "test-session-id";
+            var wizardSessionId = Guid.NewGuid();
             var now = DateTime.UtcNow;
 
             const string firstJson = @"{""rent"":{""monthlyRent"":1000}}";
