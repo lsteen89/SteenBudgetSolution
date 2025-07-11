@@ -1,4 +1,5 @@
 ﻿using Backend.Application.DTO.Wizard;
+using Backend.Domain.Shared;
 
 namespace Backend.Application.Interfaces.WizardService
 {
@@ -10,5 +11,6 @@ namespace Backend.Application.Interfaces.WizardService
         Task<WizardSavedDataDTO> GetWizardDataAsync(Guid wizardSessionId);
         Task<int> GetWizardSubStep(Guid wizardSessionId);
         Task<bool> GetWizardSessionAsync(Guid wizardSessionId);
+        Task<OperationResult> FinalizeBudgetAsync(Guid sessionId);
     }
 }

@@ -122,15 +122,13 @@ namespace Backend.Presentation.Controllers
 
             return Ok(wizardData);
         }
-        /*
         [HttpPost("{sessionId:guid}/complete")]
         public async Task<IActionResult> Complete(Guid sessionId)
         {
             if (!await _wizardService.GetWizardSessionAsync(sessionId)) return Forbid();
             var res = await _wizardService.FinalizeBudgetAsync(sessionId);
-            if (!res.IsSuccess) return StatusCode(500, res.Message);
+            if (!res.Success) return StatusCode(500, res.Message);
             return NoContent();
         }
-        */
     }
 }

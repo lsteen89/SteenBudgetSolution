@@ -1,7 +1,7 @@
 ﻿using Backend.Contracts.Wizard;
+using Backend.Domain.Entities.Wizard;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
 using Backend.Infrastructure.Data.Sql.Interfaces.WizardQueries;
-using Backend.Infrastructure.Entities.Wizard;
 using FluentValidation;
 using FluentValidation.Results;
 using Microsoft.Extensions.Logging;

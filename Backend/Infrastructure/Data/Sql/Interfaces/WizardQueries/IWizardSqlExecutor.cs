@@ -1,5 +1,5 @@
 ﻿using Backend.Application.DTO.Wizard;
-using Backend.Infrastructure.Entities.Wizard;
+using Backend.Domain.Entities.Wizard;
 using System.Data.Common;
 
 namespace Backend.Infrastructure.Data.Sql.Interfaces.WizardQueries

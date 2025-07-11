@@ -1,8 +1,9 @@
 ﻿using Backend.Application.DTO.Wizard;
 using Backend.Application.Interfaces.WizardService;
 using Backend.Contracts.Wizard;
+using Backend.Domain.Entities.Wizard;
+using Backend.Domain.Shared;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
-using Backend.Infrastructure.Entities.Wizard;
 using FluentValidation;
 using System.Buffers;
 using System.Text.Json;
@@ -31,6 +32,7 @@ namespace Backend.Application.Services.WizardService
             _savingsValidator = savingsValidator;
             _logger = logger;
         }
+        #region create
         public async Task<(bool IsSuccess, Guid WizardSessionId, string Message)> CreateWizardSessionAsync(Guid persoid)
         {
             Guid wizardSessionId = await _wizardProvider.WizardSqlExecutor.CreateWizardAsync(persoid);
@@ -40,6 +42,8 @@ namespace Backend.Application.Services.WizardService
             }
             return (true, wizardSessionId, "Wizard session created successfully.");
         }
+        #endregion
+        #region Save
 
         public async Task<bool> SaveStepDataAsync(
                 Guid wizardSessionId,
@@ -87,6 +91,25 @@ namespace Backend.Application.Services.WizardService
                                    stepNumber, substepNumber, wizardSessionId);
             return true;
         }
+        #endregion
+
+
+        #region Finalize
+        // This method is called once the user has completed all steps of the wizard.
+        // It is used to finalize the budget and perform any necessary cleanup.
+        public async Task<OperationResult> FinalizeBudgetAsync(Guid sessionId)
+        {
+            //Step 1: Collect all data from the wizard session
+            var wizardData = await _wizardProvider.WizardSqlExecutor.GetRawWizardStepDataAsync(sessionId);
+
+            //Step 2: Insert the data
+
+            return OperationResult.SuccessResult(Messages.PasswordReset.PasswordUpdated);
+
+        }
+
+        #endregion
+        #region getters
         public async Task<WizardSavedDataDTO?> GetWizardDataAsync(Guid wizardSessionId)
         {
             // We get the whole package we need to send the data back to the client.
@@ -111,7 +134,7 @@ namespace Backend.Application.Services.WizardService
                 SubStep = subStep
             };
         }
-        public async Task<Guid> UserHasWizardSessionAsync(Guid? persoid) => 
+        public async Task<Guid> UserHasWizardSessionAsync(Guid? persoid) =>
             (await _wizardProvider.WizardSqlExecutor.GetWizardSessionIdAsync(persoid)) ?? Guid.Empty;
 
         public async Task<int> GetWizardSubStep(Guid wizardSessionId) =>
@@ -126,17 +149,7 @@ namespace Backend.Application.Services.WizardService
             return userOwnsSession;
 
         }
-        private bool UserOwnsSession(WizardSessionDto session, Guid wizardSessionId)
-        {
-            if(session == null)
-            {
-                // This is null when a session is not found in the database
-                _logger.LogWarning("Session not found for wizard session ID {WizardSessionId}", wizardSessionId);
-                return false;
-            }
-
-            return true;
-        }
+        #endregion
         #region Step assembly
         // Assembles a whole wizard package from the substep data
         // Merges substep data into a single object for each step
@@ -209,8 +222,18 @@ namespace Backend.Application.Services.WizardService
         }
 
         #endregion
-
         #region helpers
+        private bool UserOwnsSession(WizardSessionDto session, Guid wizardSessionId)
+        {
+            if (session == null)
+            {
+                // This is null when a session is not found in the database
+                _logger.LogWarning("Session not found for wizard session ID {WizardSessionId}", wizardSessionId);
+                return false;
+            }
+
+            return true;
+        }
         private static readonly JsonSerializerOptions Camel = new()
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -245,6 +268,7 @@ namespace Backend.Application.Services.WizardService
                 .RemoveAll(h => string.IsNullOrWhiteSpace(h.Name) && !h.Income.HasValue);
         }
         #endregion
+        
 
     }
 }
