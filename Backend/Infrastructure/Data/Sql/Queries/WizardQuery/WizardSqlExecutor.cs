@@ -3,9 +3,9 @@ using Newtonsoft.Json;
 using Backend.Infrastructure.Data.Sql.Interfaces.Factories;
 using System.Data.Common;
 using Dapper;
-using Backend.Infrastructure.Entities.Wizard;
 using Backend.Application.DTO.Wizard;
 using Backend.Infrastructure.Entities.Tokens;
+using Backend.Domain.Entities.Wizard;
 
 namespace Backend.Infrastructure.Data.Sql.Queries.WizardQuery
 {
