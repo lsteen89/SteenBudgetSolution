@@ -1,5 +1,0 @@
-Great! Now all that is left to do is to write unittests! 
-Wizard tests are done here: 
-SteenBudgetSolution\Backend.Tests\UnitTests\Services\WizardService\
-So, we can create a new file named WizardServiceTestsFinalize in the FlowTests catalog. In it, we will write our tests for the service, and see the overall flow. 
-You will use the three tests already in place as a guideline how to setup everything, we do have an testbase that implements everything we need.
