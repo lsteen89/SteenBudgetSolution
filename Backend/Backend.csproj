@@ -70,7 +70,6 @@
     <Folder Include="Application\Services\TokenService\" />
     <Folder Include="Domain\Interfaces\" />
     <Folder Include="Infrastructure\Entities\Wizard\" />
-    <Folder Include="Infrastructure\Identity\" />
 
     <Folder Include="logs\" />
   </ItemGroup>

@@ -1,13 +1,14 @@
-﻿using WizardServiceClass = Backend.Application.Services.WizardService.WizardService;
-using Moq;
-using Xunit;
-using Microsoft.Extensions.Logging;
-using System;
+using Backend.Application.Interfaces.Wizard;
+using Backend.Infrastructure.Data.Sql.Interfaces.Helpers;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
 using Backend.Infrastructure.Data.Sql.Interfaces.WizardQueries;
 using FluentValidation;
 using FluentValidation.Results;
-using Backend.Contracts.Wizard;
+using Microsoft.Extensions.Logging;
+using Moq;
+using Xunit;
+using WizardServiceClass = Backend.Application.Services.WizardService.WizardService;
+using Backend.Application.Models.Wizard;
 
 namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
 {
@@ -18,12 +19,14 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
         private readonly Mock<IValidator<IncomeFormValues>> _incomeValidatorMock;
         private readonly Mock<IValidator<ExpenditureFormValues>> _expensesValidatorMock;
         private readonly Mock<IValidator<SavingsFormValues>> _savingsValidatorMock;
+        private readonly Mock<ITransactionRunner> _transactionRunnerMock;
         private readonly WizardServiceClass _wizardService;
 
         public WizardServiceTestsCreateSession()
         {
             _wizardProviderMock = new Mock<IWizardSqlProvider>();
             _wizardSqlExecutorMock = new Mock<IWizardSqlExecutor>();
+            _transactionRunnerMock = new Mock<ITransactionRunner>();
 
             _wizardProviderMock.Setup(p => p.WizardSqlExecutor)
                                .Returns(_wizardSqlExecutorMock.Object);
@@ -40,7 +43,9 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
                 _incomeValidatorMock.Object,
                 _expensesValidatorMock.Object,
                 _savingsValidatorMock.Object,
-                logger);
+                logger,
+                _transactionRunnerMock.Object,
+                new List<IWizardStepProcessor>());
         }
 
         private static Mock<IValidator<T>> CreatePassingValidatorMock<T>() where T : class

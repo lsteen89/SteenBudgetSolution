@@ -1,11 +1,14 @@
-﻿using Backend.Application.DTO.Wizard;
+using Backend.Application.DTO.Budget;
+using Backend.Application.DTO.Wizard;
+using Backend.Application.Interfaces.Wizard;
 using Backend.Application.Interfaces.WizardService;
-using Backend.Contracts.Wizard;
+using Backend.Application.Models.Wizard;
 using Backend.Domain.Entities.Wizard;
 using Backend.Domain.Shared;
+using Backend.Infrastructure.Data.Sql.Interfaces.Helpers;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
 using FluentValidation;
-using System.Buffers;
+using System.Data;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -18,19 +21,25 @@ namespace Backend.Application.Services.WizardService
         private readonly IValidator<ExpenditureFormValues> _expensesValidator;
         private readonly IValidator<SavingsFormValues> _savingsValidator;
         private readonly ILogger<WizardService> _logger;
+        private readonly ITransactionRunner _transactionRunner;
+        private readonly IEnumerable<IWizardStepProcessor> _stepProcessors;
 
         public WizardService(
             IWizardSqlProvider wizardProvider,
             IValidator<IncomeFormValues> incomeValidator,
             IValidator<ExpenditureFormValues> expensesValidator,
             IValidator<SavingsFormValues> savingsValidator,
-            ILogger<WizardService> logger)
+            ILogger<WizardService> logger,
+            ITransactionRunner transactionRunner,
+            IEnumerable<IWizardStepProcessor> stepProcessors)
         {
             _wizardProvider = wizardProvider;
             _incomeValidator = incomeValidator;
             _expensesValidator = expensesValidator;
             _savingsValidator = savingsValidator;
             _logger = logger;
+            _transactionRunner = transactionRunner;
+            _stepProcessors = stepProcessors;
         }
         #region create
         public async Task<(bool IsSuccess, Guid WizardSessionId, string Message)> CreateWizardSessionAsync(Guid persoid)
@@ -60,7 +69,7 @@ namespace Backend.Application.Services.WizardService
             switch (stepNumber)
             {
                 case 1:
-                    jsonData = ValidateAndSerialize(stepData, _incomeValidator, CleanIncome);
+                    jsonData = ValidateAndSerialize(stepData, _incomeValidator);
                     break;
 
                 case 2:
@@ -92,20 +101,40 @@ namespace Backend.Application.Services.WizardService
             return true;
         }
         #endregion
-
-
         #region Finalize
-        // This method is called once the user has completed all steps of the wizard.
-        // It is used to finalize the budget and perform any necessary cleanup.
         public async Task<OperationResult> FinalizeBudgetAsync(Guid sessionId)
         {
-            //Step 1: Collect all data from the wizard session
             var wizardData = await _wizardProvider.WizardSqlExecutor.GetRawWizardStepDataAsync(sessionId);
+            if (wizardData == null || !wizardData.Any())
+            {
+                return OperationResult.FailureResult("No wizard data found to finalize.");
+            }
 
-            //Step 2: Insert the data
+            // Await the result into a local variable.
+            var finalizationResult = await _transactionRunner.ExecuteAsync(async (connection, transaction) =>
+            {
+                foreach (var stepData in wizardData.GroupBy(d => d.StepNumber))
+                {
+                    var processor = _stepProcessors.FirstOrDefault(p => p.StepNumber == stepData.Key);
 
-            return OperationResult.SuccessResult(Messages.PasswordReset.PasswordUpdated);
+                    if (processor == null)
+                    {
+                        return OperationResult.FailureResult($"No processor registered for step number {stepData.Key}.");
+                    }
 
+                    var latestStepData = stepData.OrderByDescending(s => s.UpdatedAt).First();
+                    var result = await processor.ProcessAsync(latestStepData.StepData, connection, transaction);
+
+                    if (!result.Success)
+                    {
+                        return result;
+                    }
+                }
+                return OperationResult.SuccessResult("Budget finalized successfully.");
+            });
+
+            // Return the captured variable. 
+            return finalizationResult;
         }
 
         #endregion
@@ -198,7 +227,7 @@ namespace Backend.Application.Services.WizardService
             else
             {
                 // For complex steps like 2 and 3, we must perform the great merge.
-                var buffer = new ArrayBufferWriter<byte>();
+                var buffer = new System.Buffers.ArrayBufferWriter<byte>();
                 using var writer = new Utf8JsonWriter(buffer);
 
                 writer.WriteStartObject();
@@ -240,7 +269,7 @@ namespace Backend.Application.Services.WizardService
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
             Converters =
             {
-                new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)  
+                new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)
             }
         };
         private string ValidateAndSerialize<T>(
@@ -268,7 +297,7 @@ namespace Backend.Application.Services.WizardService
                 .RemoveAll(h => string.IsNullOrWhiteSpace(h.Name) && !h.Income.HasValue);
         }
         #endregion
-        
+
 
     }
 }

@@ -1,5 +1,8 @@
-﻿using Backend.Application.Validators.WizardValidation;
-using Backend.Contracts.Wizard;
+﻿using Backend.Application.Interfaces.Wizard;
+using Backend.Application.Validators.WizardValidation;
+using Backend.Application.Models.Wizard;
+using Backend.Domain.Enums;
+using Backend.Infrastructure.Data.Sql.Interfaces.Helpers;
 using Backend.Tests.UnitTests.Services.WizardService.FlowTests;
 using FluentValidation;
 using FluentValidation.Results;
@@ -29,9 +32,9 @@ namespace Backend.Tests.UnitTests.Services.WizardService.ValidationTests
 
                 ShowSideIncome = false,          // section hidden
                 SideHustles = new()           // but data sent → must fail
-        {
-            new() { Name = "Dev-blog", Income = 1_000m, Frequency = Frequency.Monthly }
-        }
+                {
+                    new() { Name = "Dev-blog", Income = 1_000m, Frequency = Frequency.Monthly }
+                }
             };
             string json = JsonSerializer.Serialize(dto, Camel);
             var wizardSessionId = Guid.NewGuid();
@@ -54,7 +57,10 @@ namespace Backend.Tests.UnitTests.Services.WizardService.ValidationTests
                 incomeValidator,
                 expensesValidator,
                 savingsValidator,
-                Mock.Of<ILogger<WizardServiceClass>>());
+                Mock.Of<ILogger<WizardServiceClass>>(),
+                Mock.Of<ITransactionRunner>(), 
+                Enumerable.Empty<IWizardStepProcessor>() 
+                );
 
             // ─── Act & Assert ──────────────────────────────────────────────────────
             var ex = await Assert.ThrowsAsync<ValidationException>(() =>
@@ -113,7 +119,9 @@ namespace Backend.Tests.UnitTests.Services.WizardService.ValidationTests
                 incomeValidator,
                 expensesValidator.Object,
                 savingsValidator.Object,
-                Mock.Of<ILogger<WizardServiceClass>>());
+                Mock.Of<ILogger<WizardServiceClass>>(),
+                Mock.Of<ITransactionRunner>(),          
+                Enumerable.Empty<IWizardStepProcessor>());   
 
             // ─── Act & Assert ──────────────────────────────────────────────────────
             var ex = await Assert.ThrowsAsync<ValidationException>(() =>
@@ -184,7 +192,9 @@ namespace Backend.Tests.UnitTests.Services.WizardService.ValidationTests
                 CreatePassingValidatorMock<IncomeFormValues>().Object,
                 expenseValidator,
                 CreatePassingValidatorMock<SavingsFormValues>().Object,
-                Mock.Of<ILogger<WizardServiceClass>>());
+                Mock.Of<ILogger<WizardServiceClass>>(),
+                Mock.Of<ITransactionRunner>(),          
+                Enumerable.Empty<IWizardStepProcessor>());   
 
             // ─── Act & Assert ───────────────────────────────────────────────────────
             var ex = await Assert.ThrowsAsync<ValidationException>(() =>
@@ -230,7 +240,9 @@ namespace Backend.Tests.UnitTests.Services.WizardService.ValidationTests
                 incomeValidator,
                 expenseValidator,
                 savingsValidator,                  // <-- real one
-                Mock.Of<ILogger<WizardServiceClass>>());
+                Mock.Of<ILogger<WizardServiceClass>>(),
+                Mock.Of<ITransactionRunner>(),
+                Enumerable.Empty<IWizardStepProcessor>());
 
             // ─── Act & Assert ──────────────────────────────────────────────────────
             var ex = await Assert.ThrowsAsync<ValidationException>(() =>
@@ -307,7 +319,10 @@ namespace Backend.Tests.UnitTests.Services.WizardService.ValidationTests
                 incomeValidator,
                 expenseValidator,
                 savingsValidator,
-                Mock.Of<ILogger<WizardServiceClass>>());
+                Mock.Of<ILogger<WizardServiceClass>>(),
+                Mock.Of<ITransactionRunner>(),
+                Enumerable.Empty<IWizardStepProcessor>());
+                
 
             // ─── Act & Assert ──────────────────────────────────────────────────────
             var ex = await Assert.ThrowsAsync<ValidationException>(() =>

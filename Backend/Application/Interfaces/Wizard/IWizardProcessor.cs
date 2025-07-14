@@ -1,10 +1,11 @@
 ﻿using Backend.Domain.Shared;
+using System.Data;
 
 namespace Backend.Application.Interfaces.Wizard
 {
-    public interface IWizardProcessor
+    public interface IWizardStepProcessor
     {
-        int StepNumber { get; set; } // Current step in the wizard process
-        Task<OperationResult> ProcessAsync(string StepData); // Process the current step with provided data
+        int StepNumber { get; }
+        Task<OperationResult> ProcessAsync(string stepData, IDbConnection connection, IDbTransaction transaction);
     }
 }

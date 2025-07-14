@@ -1,47 +1,56 @@
-﻿using Backend.Application.Interfaces.Wizard;
-using Backend.Application.DTO.Wizard;
-using Backend.Application.Interfaces.Repositories;
+﻿using Backend.Application.DTO.Budget;
+using Backend.Application.Interfaces.Wizard;
+using Backend.Application.Mapping;
+using Backend.Domain.Interfaces.Repositories;
 using Backend.Domain.Shared;
+using Newtonsoft.Json;
+using System.Data;
+using Backend.Domain.Abstractions;
 
-namespace Backend.Application.Services.WizardServices.Processors
+namespace Backend.Application.Services.WizardServices.Processors;
+
+public sealed class IncomeStepProcessor : IWizardStepProcessor
 {
-    public class IncomeStepProcessor : IWizardProcessor
+    public int StepNumber => 1;                    
+
+    private readonly IIncomeRepository _incomeRepository;
+    private readonly ICurrentUserContext _currentUser;     
+    private readonly ILogger<IncomeStepProcessor> _logger;
+
+    public IncomeStepProcessor(
+        IIncomeRepository incomeRepository,
+        ICurrentUserContext currentUser,         
+        ILogger<IncomeStepProcessor> logger)
     {
-        public int StepNumber => 1; // Income step is the first step in the wizard
-        private readonly IIncomeRepository _incomeRepository; // Repository to handle income data
+        _incomeRepository = incomeRepository;
+        _currentUser = currentUser;
+        _logger = logger;
+    }
 
-        public IncomeStepProcessor(IIncomeRepository incomeRepository)
+    public async Task<OperationResult> ProcessAsync(
+        string stepData,
+        IDbConnection connection,
+        IDbTransaction transaction)
+    {
+        try
         {
-            _incomeRepository = incomeRepository;
+            var dto = JsonConvert.DeserializeObject<IncomeData>(stepData);
+            if (dto is null)
+                return OperationResult.FailureResult("Failed to deserialize income step data.");
+
+            
+            var income = dto.ToDomain(
+                persoid: _currentUser.Persoid,    
+                createdBy: _currentUser.UserName);  
+
+            await _incomeRepository.AddAsync(income, connection, transaction);
+
+            return OperationResult.SuccessResult("Income step processed successfully.");
         }
-        public async Task<OperationResult> ProcessAsync(string stepData)
+        catch (Exception ex)
         {
-            try
-            {
-                // Deserialize the step data into a model (assuming it's in JSON format)
-                var incomeData = JsonConvert.DeserializeObject<IncomeDataModel>(stepData);
-
-                if (incomeData == null)
-                {
-                    return OperationResult.FailureResult("Invalid income data provided.");
-                }
-
-                // Validate the income data (you can add more validation logic as needed)
-                if (string.IsNullOrEmpty(incomeData.Source) || incomeData.Amount <= 0)
-                {
-                    return OperationResult.FailureResult("Income source and amount must be valid.");
-                }
-
-                // Save the income data using the repository
-                await _incomeRepository.SaveIncomeAsync(incomeData);
-
-                return OperationResult.SuccessResult("Income data processed successfully.");
-            }
-            catch (Exception ex)
-            {
-                // Log the exception and return a failure result
-                return OperationResult.FailureResult($"An error occurred while processing income data: {ex.Message}");
-            }
+            _logger.LogError(ex, "Error processing income step.");
+            return OperationResult.FailureResult("An error occurred while processing the income step.");
         }
     }
 }

@@ -2,7 +2,7 @@
 using System.Text.Json.Serialization;
 using Backend.Domain.Enums;
 
-namespace Backend.Contracts.Wizard;
+namespace Backend.Application.Models.Wizard;
 
 /// <summary>
 /// Root payload exchanged with the React wizard.
