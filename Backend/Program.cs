@@ -4,16 +4,20 @@ using Backend.Application.Interfaces.EmailServices;
 using Backend.Application.Interfaces.JWT;
 using Backend.Application.Interfaces.UserServices;
 using Backend.Application.Interfaces.WebSockets;
+using Backend.Application.Interfaces.Wizard;
 using Backend.Application.Interfaces.WizardService;
 using Backend.Application.Services.AuthService;
 using Backend.Application.Services.EmailServices;
 using Backend.Application.Services.UserServices;
 using Backend.Application.Services.WizardService;
+using Backend.Application.Services.WizardServices.Processors;
 using Backend.Application.Validators;
 using Backend.Common.Converters;
 using Backend.Common.Interfaces;
 using Backend.Common.Services;
+using Backend.Domain.Abstractions;
 using Backend.Domain.Entities.Email;
+using Backend.Domain.Interfaces.Repositories;
 using Backend.Infrastructure.BackgroundServices;
 using Backend.Infrastructure.Data.Sql.Factories;
 using Backend.Infrastructure.Data.Sql.Helpers;
@@ -22,12 +26,15 @@ using Backend.Infrastructure.Data.Sql.Interfaces.Helpers;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
 using Backend.Infrastructure.Data.Sql.Interfaces.UserQueries;
 using Backend.Infrastructure.Data.Sql.Interfaces.WizardQueries;
+using Backend.Infrastructure.Data.Sql.Providers.BudgetProvider;
 using Backend.Infrastructure.Data.Sql.Providers.UserProvider;
 using Backend.Infrastructure.Data.Sql.Providers.WizardProvider;
 using Backend.Infrastructure.Data.Sql.Queries.UserQueries;
 using Backend.Infrastructure.Data.Sql.Queries.WizardQuery;
 using Backend.Infrastructure.Email;
+using Backend.Infrastructure.Identity;
 using Backend.Infrastructure.Implementations;
+using Backend.Infrastructure.Repositories.Budget;
 using Backend.Infrastructure.Services.CookieService;
 using Backend.Infrastructure.WebSockets;
 using Backend.Presentation.Middleware;
@@ -206,12 +213,23 @@ builder.Services.AddScoped<IUserSqlExecutor, UserSqlExecutor>();
 builder.Services.AddScoped<IVerificationTokenSqlExecutor, VerificationTokenSqlExecutor>();
 builder.Services.AddScoped<IAuthenticationSqlExecutor, AuthenticationSqlExecutor>();
 builder.Services.AddScoped<IRefreshTokenSqlExecutor, RefreshTokenSqlExecutor> ();
+
+// Contexts
+builder.Services.AddScoped<ICurrentUserContext, HttpCurrentUserContext>();
 // Wizard
 builder.Services.AddScoped<IWizardSqlExecutor, WizardSqlExecutor>();
 
 // Add the UserSQLProviders to the services
 builder.Services.AddScoped<IUserSQLProvider, UserSQLProvider>();
 builder.Services.AddScoped<IWizardSqlProvider, WizardSqlProvider>();
+builder.Services.AddScoped<IBudgetSqlProvider, BudgetSqlProvider>();
+
+// Repositories
+builder.Services.AddScoped<IIncomeRepository, IncomeRepository>();
+
+// Wizard Step Processors
+builder.Services.AddScoped<IWizardStepProcessor, IncomeStepProcessor>();
+
 // Transaction runner
 builder.Services.AddScoped<ITransactionRunner, TransactionRunner>();
 

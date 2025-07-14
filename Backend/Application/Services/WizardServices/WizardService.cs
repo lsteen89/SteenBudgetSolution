@@ -1,10 +1,14 @@
-﻿using Backend.Application.DTO.Wizard;
+using Backend.Application.DTO.Budget;
+using Backend.Application.DTO.Wizard;
+using Backend.Application.Interfaces.Wizard;
 using Backend.Application.Interfaces.WizardService;
-using Backend.Contracts.Wizard;
+using Backend.Application.Models.Wizard;
+using Backend.Domain.Entities.Wizard;
+using Backend.Domain.Shared;
+using Backend.Infrastructure.Data.Sql.Interfaces.Helpers;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
-using Backend.Infrastructure.Entities.Wizard;
 using FluentValidation;
-using System.Buffers;
+using System.Data;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -17,20 +21,27 @@ namespace Backend.Application.Services.WizardService
         private readonly IValidator<ExpenditureFormValues> _expensesValidator;
         private readonly IValidator<SavingsFormValues> _savingsValidator;
         private readonly ILogger<WizardService> _logger;
+        private readonly ITransactionRunner _transactionRunner;
+        private readonly IEnumerable<IWizardStepProcessor> _stepProcessors;
 
         public WizardService(
             IWizardSqlProvider wizardProvider,
             IValidator<IncomeFormValues> incomeValidator,
             IValidator<ExpenditureFormValues> expensesValidator,
             IValidator<SavingsFormValues> savingsValidator,
-            ILogger<WizardService> logger)
+            ILogger<WizardService> logger,
+            ITransactionRunner transactionRunner,
+            IEnumerable<IWizardStepProcessor> stepProcessors)
         {
             _wizardProvider = wizardProvider;
             _incomeValidator = incomeValidator;
             _expensesValidator = expensesValidator;
             _savingsValidator = savingsValidator;
             _logger = logger;
+            _transactionRunner = transactionRunner;
+            _stepProcessors = stepProcessors;
         }
+        #region create
         public async Task<(bool IsSuccess, Guid WizardSessionId, string Message)> CreateWizardSessionAsync(Guid persoid)
         {
             Guid wizardSessionId = await _wizardProvider.WizardSqlExecutor.CreateWizardAsync(persoid);
@@ -40,9 +51,11 @@ namespace Backend.Application.Services.WizardService
             }
             return (true, wizardSessionId, "Wizard session created successfully.");
         }
+        #endregion
+        #region Save
 
         public async Task<bool> SaveStepDataAsync(
-                string wizardSessionId,
+                Guid wizardSessionId,
                 int stepNumber,
                 int substepNumber,
                 object stepData,
@@ -56,7 +69,7 @@ namespace Backend.Application.Services.WizardService
             switch (stepNumber)
             {
                 case 1:
-                    jsonData = ValidateAndSerialize(stepData, _incomeValidator, CleanIncome);
+                    jsonData = ValidateAndSerialize(stepData, _incomeValidator);
                     break;
 
                 case 2:
@@ -87,14 +100,56 @@ namespace Backend.Application.Services.WizardService
                                    stepNumber, substepNumber, wizardSessionId);
             return true;
         }
-        public async Task<WizardSavedDataDTO?> GetWizardDataAsync(string wizardSessionId)
+        #endregion
+        #region Finalize
+        public async Task<OperationResult> FinalizeBudgetAsync(Guid sessionId)
+        {
+            var wizardData = await _wizardProvider.WizardSqlExecutor.GetRawWizardStepDataAsync(sessionId);
+            if (wizardData == null || !wizardData.Any())
+            {
+                return OperationResult.FailureResult("No wizard data found to finalize.");
+            }
+
+            // Await the result into a local variable.
+            var finalizationResult = await _transactionRunner.ExecuteAsync(async (connection, transaction) =>
+            {
+                foreach (var stepData in wizardData.GroupBy(d => d.StepNumber))
+                {
+                    var processor = _stepProcessors.FirstOrDefault(p => p.StepNumber == stepData.Key);
+
+                    if (processor == null)
+                    {
+                        return OperationResult.FailureResult($"No processor registered for step number {stepData.Key}.");
+                    }
+
+                    var latestStepData = stepData.OrderByDescending(s => s.UpdatedAt).First();
+                    var result = await processor.ProcessAsync(latestStepData.StepData, connection, transaction);
+
+                    if (!result.Success)
+                    {
+                        return result;
+                    }
+                }
+                return OperationResult.SuccessResult("Budget finalized successfully.");
+            });
+
+            // Return the captured variable. 
+            return finalizationResult;
+        }
+
+        #endregion
+        #region getters
+        public async Task<WizardSavedDataDTO?> GetWizardDataAsync(Guid wizardSessionId)
         {
             // We get the whole package we need to send the data back to the client.
             var result = await AssembleWizardPackage(wizardSessionId);
 
 
             if (result == null)
+            {
+                _logger.LogWarning("No wizard data found for session {WizardSessionId}", wizardSessionId);
                 return null;
+            }
 
             // We retrieve the substep number from the database, which is the substep
             (WizardData data, int version) = result.Value;
@@ -108,12 +163,12 @@ namespace Backend.Application.Services.WizardService
                 SubStep = subStep
             };
         }
-        public async Task<Guid> UserHasWizardSessionAsync(Guid? persoid) => 
+        public async Task<Guid> UserHasWizardSessionAsync(Guid? persoid) =>
             (await _wizardProvider.WizardSqlExecutor.GetWizardSessionIdAsync(persoid)) ?? Guid.Empty;
 
-        public async Task<int> GetWizardSubStep(string wizardSessionId) =>
+        public async Task<int> GetWizardSubStep(Guid wizardSessionId) =>
             await _wizardProvider.WizardSqlExecutor.GetWizardSubStepAsync(wizardSessionId);
-        public async Task<bool> GetWizardSessionAsync(string wizardSessionId)
+        public async Task<bool> GetWizardSessionAsync(Guid wizardSessionId)
         {
             WizardSessionDto? session;
             session = await _wizardProvider.WizardSqlExecutor.GetWizardSessionAsync(wizardSessionId);
@@ -123,23 +178,13 @@ namespace Backend.Application.Services.WizardService
             return userOwnsSession;
 
         }
-        private bool UserOwnsSession(WizardSessionDto session, string wizardSessionId)
-        {
-            if(session == null)
-            {
-                // This is null when a session is not found in the database
-                _logger.LogWarning("Session not found for wizard session ID {WizardSessionId}", wizardSessionId);
-                return false;
-            }
-
-            return true;
-        }
+        #endregion
         #region Step assembly
         // Assembles a whole wizard package from the substep data
         // Merges substep data into a single object for each step
-        private async Task<(WizardData Data, int Version)?> AssembleWizardPackage(string sessionId)
+        private async Task<(WizardData Data, int Version)?> AssembleWizardPackage(Guid wizardSessionId)
         {
-            var raw = await _wizardProvider.WizardSqlExecutor.GetRawWizardStepDataAsync(sessionId);
+            var raw = await _wizardProvider.WizardSqlExecutor.GetRawWizardStepDataAsync(wizardSessionId);
             if (!raw?.Any() ?? true) return null;
 
             // 1. We still keep the newest row for each (StepNumber, SubStep)
@@ -182,7 +227,7 @@ namespace Backend.Application.Services.WizardService
             else
             {
                 // For complex steps like 2 and 3, we must perform the great merge.
-                var buffer = new ArrayBufferWriter<byte>();
+                var buffer = new System.Buffers.ArrayBufferWriter<byte>();
                 using var writer = new Utf8JsonWriter(buffer);
 
                 writer.WriteStartObject();
@@ -206,15 +251,25 @@ namespace Backend.Application.Services.WizardService
         }
 
         #endregion
-
         #region helpers
+        private bool UserOwnsSession(WizardSessionDto session, Guid wizardSessionId)
+        {
+            if (session == null)
+            {
+                // This is null when a session is not found in the database
+                _logger.LogWarning("Session not found for wizard session ID {WizardSessionId}", wizardSessionId);
+                return false;
+            }
+
+            return true;
+        }
         private static readonly JsonSerializerOptions Camel = new()
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
             Converters =
             {
-                new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)  
+                new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)
             }
         };
         private string ValidateAndSerialize<T>(
@@ -242,6 +297,7 @@ namespace Backend.Application.Services.WizardService
                 .RemoveAll(h => string.IsNullOrWhiteSpace(h.Name) && !h.Income.HasValue);
         }
         #endregion
+
 
     }
 }

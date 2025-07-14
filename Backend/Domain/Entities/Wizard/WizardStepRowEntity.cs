@@ -1,5 +1,5 @@
 ﻿// Represents a row in the wizard step table
-namespace Backend.Infrastructure.Entities.Wizard
+namespace Backend.Domain.Entities.Wizard
 {
     public class WizardStepRowEntity
     {

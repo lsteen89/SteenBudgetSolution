@@ -9,34 +9,32 @@ export interface WizardDataResponseDto {
   dataVersion: number;
 }
 
-
+// Function to start a new wizard session
 export async function startWizard(): Promise<StartWizardResponse> {
   const { data } = await api.post<StartWizardResponse>("/api/Wizard/start");
   return data;
 }
 
-export async function saveWizardStep(
-  wizardSessionId: string,
-  stepNumber: number,
-  subStepNumber: number,
-  stepData: any,
+// Function to save the current step data in the wizard session
+export const saveWizardStep = async (
+  sid: string,
+  step: number,
+  subStep: number,
+  stepData: unknown,
   dataVersion: number = CODE_DATA_VERSION
-): Promise<void> {
-  // PUT /api/wizard/steps/{stepNumber}
-  await api.put(`/api/Wizard/steps/${stepNumber}`, {
-    wizardSessionId,
-    subStepNumber,
+) =>
+  api.put(`/api/wizard/${sid}/steps/${step}/${subStep}`, {
     stepData,
     dataVersion,
   });
-}
 
-export async function getWizardData(
-  wizardSessionId: string
-): Promise<WizardDataResponseDto> {
-  const { data } = await api.post<WizardDataResponseDto>(
-    "/api/Wizard/data",
-    { wizardSessionId }
-  );
-  return data;
+// Function to get the current wizard data for a specific session
+export const getWizardData = async (sid: string) =>
+  api.get<WizardDataResponseDto>(`/api/wizard/${sid}`).then(r => r.data);
+
+// Function to finalize the wizard session
+export async function completeWizard(sessionId: string): Promise<void> {
+  console.log(`Completing wizard session with ID: ${sessionId}`);
+  // POST /api/Wizard/{sessionId}/complete
+  await api.post(`/api/Wizard/${sessionId}/complete`);
 }

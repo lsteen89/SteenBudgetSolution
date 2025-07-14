@@ -1,4 +1,4 @@
-﻿using Backend.Contracts.Wizard;
+﻿using Backend.Application.Models.Wizard;
 
 namespace Backend.Application.DTO.Wizard
 {
