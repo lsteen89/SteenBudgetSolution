@@ -1,4 +1,4 @@
-﻿using Backend.Contracts.Wizard;
+﻿using Backend.Application.Models.Wizard;
 using FluentValidation;
 using System.Collections.Generic;
 using System.Linq;

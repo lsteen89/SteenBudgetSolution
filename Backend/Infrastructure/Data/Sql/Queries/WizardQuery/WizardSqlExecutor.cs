@@ -3,9 +3,9 @@ using Newtonsoft.Json;
 using Backend.Infrastructure.Data.Sql.Interfaces.Factories;
 using System.Data.Common;
 using Dapper;
-using Backend.Infrastructure.Entities.Wizard;
 using Backend.Application.DTO.Wizard;
 using Backend.Infrastructure.Entities.Tokens;
+using Backend.Domain.Entities.Wizard;
 
 namespace Backend.Infrastructure.Data.Sql.Queries.WizardQuery
 {
@@ -92,7 +92,7 @@ namespace Backend.Infrastructure.Data.Sql.Queries.WizardQuery
             return sessionId;
         }
         public async Task<bool> UpsertStepDataAsync(
-            string wizardSessionId,
+            Guid wizardSessionId,
             int stepNumber,
             int substepNumber,
             string jsonData,
@@ -152,7 +152,7 @@ namespace Backend.Infrastructure.Data.Sql.Queries.WizardQuery
                 return false;
             }
         }
-        public async Task<IEnumerable<WizardStepRowEntity>?> GetRawWizardStepDataAsync(string wizardSessionId, DbConnection? conn = null, DbTransaction? tx = null)
+        public async Task<IEnumerable<WizardStepRowEntity>?> GetRawWizardStepDataAsync(Guid wizardSessionId, DbConnection? conn = null, DbTransaction? tx = null)
         {
             const string query = @"
             SELECT StepNumber, SubStep, StepData, DataVersion
@@ -179,7 +179,7 @@ namespace Backend.Infrastructure.Data.Sql.Queries.WizardQuery
             }
         }
 
-        public async Task<int> GetWizardSubStepAsync(string wizardSessionId, DbConnection? conn = null, DbTransaction? tx = null)
+        public async Task<int> GetWizardSubStepAsync(Guid wizardSessionId, DbConnection? conn = null, DbTransaction? tx = null)
         {
             const string query = @"
             SELECT SubStep
@@ -206,7 +206,7 @@ namespace Backend.Infrastructure.Data.Sql.Queries.WizardQuery
                 throw;
             }
         }
-        public async Task<WizardSessionDto> GetWizardSessionAsync(string wizardSessionId, DbConnection? conn = null, DbTransaction? tx = null)
+        public async Task<WizardSessionDto> GetWizardSessionAsync(Guid wizardSessionId, DbConnection? conn = null, DbTransaction? tx = null)
         {
             const string query = @"
             SELECT 

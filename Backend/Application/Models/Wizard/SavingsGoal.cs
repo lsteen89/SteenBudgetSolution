@@ -1,7 +1,7 @@
 using System;
 using System.Text.Json.Serialization;
 
-namespace Backend.Contracts.Wizard;
+namespace Backend.Application.Models.Wizard;
 
 public sealed class SavingsGoal
 {

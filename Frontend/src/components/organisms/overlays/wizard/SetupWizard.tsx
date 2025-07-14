@@ -26,6 +26,7 @@ import useWizardInit from "@hooks/wizard/useWizardInit";
 import useMediaQuery from "@hooks/useMediaQuery";
 import useWizardNavigation from "@hooks/wizard/useWizardNavigation";
 import useBudgetInfoDisplayFlags from "@hooks/wizard/flagHooks/useBudgetInfoDisplayFlags";
+import { useWizardFinalization } from "@hooks/wizard/useWizardFinalization";
 import WizardHeading from "@components/organisms/overlays/wizard/SharedComponents/Menu/WizardHeading";
 import WizardProgress from "@components/organisms/overlays/wizard/SharedComponents/Menu/WizardProgress";
 import AnimatedContent from "@components/atoms/wrappers/AnimatedContent";
@@ -77,6 +78,8 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     const { setShowSideIncome, setShowHouseholdMembers } = useBudgetInfoDisplayFlags();
     const [subTick, setSubTick] = useState(0);
     const { setIncome, setExpenditure, setSavings, setDebts } = useWizardDataStore();
+
+    const { finalizeWizard, isFinalizing, finalizationError } = useWizardFinalization();
 
     // All the callbacks and effects also remain here, safe and sound.
     const handleWizardClose = useCallback(() => { setConfirmModalOpen(true); }, []);
@@ -196,6 +199,9 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
                 isSaving={isSaving}
                 subTick={subTick}
                 triggerShakeAnimation={triggerShakeAnimation}
+                isFinalizing={isFinalizing}
+                finalizeWizard={finalizeWizard}
+                finalizationError={finalizationError}
             />
         </WizardProvider>
     );
@@ -318,7 +324,7 @@ const WizardContent = (props: any) => {
                                             ref={props.stepRefs[5]}
                                             onNext={props.hookNextStep}
                                             onPrev={props.hookPrevStep}
-                                            loading={props.transitionLoading || props.initLoading}
+                                            loading={props.transitionLoading || props.initLoading || props.isFinalizing}
                                             initialSubStep={props.initialSubStepForStep(5)}
                                             onSubStepChange={props.handleSubStepChange}
                                             wizardSessionId={props.wizardSessionId || ''}
@@ -326,6 +332,10 @@ const WizardContent = (props: any) => {
                                             stepNumber={5}
                                             initialData={props.initialDataForStep(5)}
                                             onValidationError={props.triggerShakeAnimation}
+                                            finalizeWizard={props.finalizeWizard}       
+                                            isFinalizing={props.isFinalizing}
+                                            finalizationError={props.finalizationError}
+
                                         />
                                     )}
                                 </>

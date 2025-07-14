@@ -69,7 +69,7 @@
     <Folder Include="Application\DTO\Wizard\Steps\" />
     <Folder Include="Application\Services\TokenService\" />
     <Folder Include="Domain\Interfaces\" />
-    <Folder Include="Infrastructure\Identity\" />
+    <Folder Include="Infrastructure\Entities\Wizard\" />
 
     <Folder Include="logs\" />
   </ItemGroup>

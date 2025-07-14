@@ -1,7 +1,8 @@
 ﻿using System.Collections.Generic;
 using System.Text.Json.Serialization;
+using Backend.Domain.Enums;
 
-namespace Backend.Contracts.Wizard;
+namespace Backend.Application.Models.Wizard;
 
 /// <summary>
 /// Root payload exchanged with the React wizard.
@@ -334,15 +335,3 @@ public sealed class DebtItem
 
 #endregion
 
-/* ---------- Shared ---------- */
-
-public enum Frequency
-{
-    Unknown = 0,
-    Weekly,
-    BiWeekly,
-    Monthly,
-    Quarterly,
-    Yearly,
-    Other
-}

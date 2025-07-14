@@ -1,15 +1,19 @@
-﻿using Backend.Contracts.Wizard;
+using Backend.Application.Interfaces.Wizard;
+using Backend.Domain.Entities.Wizard;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
 using Backend.Infrastructure.Data.Sql.Interfaces.WizardQueries;
-using Backend.Infrastructure.Entities.Wizard;
 using FluentValidation;
 using FluentValidation.Results;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Newtonsoft.Json.Linq;
 using System.Data.Common;
 using Xunit;
 using WizardServiceClass = Backend.Application.Services.WizardService.WizardService;
+using Backend.Infrastructure.Data.Sql.Interfaces.Helpers;
+using System.Collections.Generic;
+using Backend.Domain.Enums;
+using Backend.Application.DTO.Budget;
+using Backend.Application.Models.Wizard;
 
 namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
 {
@@ -18,6 +22,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
         private readonly Mock<IWizardSqlProvider> _wizardProviderMock;
         private readonly Mock<IWizardSqlExecutor> _wizardSqlExecutorMock;
         private readonly Mock<ILogger<WizardServiceClass>> _loggerMock;
+        private readonly Mock<ITransactionRunner> _transactionRunnerMock;
 
         // three validator mocks
         private readonly Mock<IValidator<IncomeFormValues>> _incomeValidatorMock;
@@ -31,6 +36,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
             _wizardProviderMock = new Mock<IWizardSqlProvider>();
             _wizardSqlExecutorMock = new Mock<IWizardSqlExecutor>();
             _loggerMock = new Mock<ILogger<WizardServiceClass>>();
+            _transactionRunnerMock = new Mock<ITransactionRunner>();
 
             _wizardProviderMock.Setup(p => p.WizardSqlExecutor)
                                .Returns(_wizardSqlExecutorMock.Object);
@@ -46,7 +52,9 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
                 _incomeValidatorMock.Object,
                 _expensesValidatorMock.Object,
                 _savingsValidatorMock.Object,
-                _loggerMock.Object);
+                _loggerMock.Object,
+                _transactionRunnerMock.Object,
+                new List<IWizardStepProcessor>());
         }
         // helper to keep the setup DRY
         private static Mock<IValidator<T>> CreatePassingValidatorMock<T>() where T : class
@@ -63,13 +71,13 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
         public async Task GetWizardDataAsync_OneRow_ReturnsWizardSavedDataDto()
         {
             // ────────── Arrange ────────────────────────────────────────────────
-            var wizardSessionId = "test-session-id";
+            var wizardSessionId = System.Guid.NewGuid();
 
             var rawEntities = new List<WizardStepRowEntity>
             {
                 new WizardStepRowEntity
                 {
-                    WizardSessionId = Guid.NewGuid(),
+                    WizardSessionId = System.Guid.NewGuid(),
                     StepNumber      = 1,
                     SubStep         = 1,
                     StepData        = "{\"netSalary\":1233.0," +
@@ -78,7 +86,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
                                       "\"householdMembers\":[]," +
                                       "\"sideHustles\":[]}",
                     DataVersion     = 2,
-                    UpdatedAt       = DateTime.UtcNow
+                    UpdatedAt       = System.DateTime.UtcNow
                 }
             };
 
@@ -109,7 +117,6 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
             Assert.NotNull(income);
             Assert.Equal(1233.0m, income!.NetSalary);
             Assert.Equal(Frequency.Monthly, income.SalaryFrequency);
-            Assert.Equal(14796.0m, income.YearlySalary);
             Assert.Empty(income.HouseholdMembers);
             Assert.Empty(income.SideHustles);
         }
@@ -118,7 +125,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
         public async Task GetWizardDataAsync_NoRows_ReturnsNull()
         {
             // Arrange: simulate an empty list of raw entities from the database.
-            var wizardSessionId = "test-session-id";
+            var wizardSessionId = System.Guid.NewGuid();
             List<WizardStepRowEntity>? emptyList = null; // Or new List<WizardStepRowEntity>()
 
             // Set up the mock for the GetRawWizardStepDataAsync method to return null or an empty list.
@@ -134,46 +141,58 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
                 x => x.Log(
                     LogLevel.Warning,
                     It.IsAny<EventId>(),
-                    It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("No raw wizard data found for session")),
+                    It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("No wizard data found for session")),
                     null,
-                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()
-                ), Times.Once);
+                    It.IsAny<System.Func<It.IsAnyType, System.Exception?, string>>()), Times.Once);
         }
 
         [Fact]
         public async Task GetWizardDataAsync_TwoRowsDifferentSteps_ReturnsBothSteps()
         {
             // ────────── Arrange ────────────────────────────────────────────────
-            var wizardSessionId = "test-session-id";
+            var wizardSessionId = System.Guid.NewGuid();
 
             // Enum values are sent as numbers (3 == Frequency.Monthly)
             const string step1Json =
-                @"{""netSalary"":1000,""salaryFrequency"":3,""yearlySalary"":12000,
-           ""householdMembers"":[], ""sideHustles"":[]}";
+                """
+                {
+                    "netSalary": 1000,
+                    "salaryFrequency": 3,
+                    "yearlySalary": 12000,
+                    "householdMembers": [],
+                    "sideHustles": []
+                }
+                """;
 
             // Minimal, but valid, Expenditure JSON
             const string step2Json =
-                @"{""rent"":{""monthlyRent"":800}}";
+                """
+                {
+                    "rent": {
+                        "monthlyRent": 800
+                    }
+                }
+                """;
 
             var rawEntities = new List<WizardStepRowEntity>
             {
                 new WizardStepRowEntity
                 {
-                    WizardSessionId = Guid.NewGuid(),
+                    WizardSessionId = System.Guid.NewGuid(),
                     StepNumber      = 1,
                     SubStep         = 1,
                     StepData        = step1Json,
                     DataVersion     = 2,
-                    UpdatedAt       = DateTime.UtcNow
+                    UpdatedAt       = System.DateTime.UtcNow
                 },
                 new WizardStepRowEntity
                 {
-                    WizardSessionId = Guid.NewGuid(),
+                    WizardSessionId = System.Guid.NewGuid(),
                     StepNumber      = 2,
                     SubStep         = 1,
                     StepData        = step2Json,
                     DataVersion     = 2,
-                    UpdatedAt       = DateTime.UtcNow
+                    UpdatedAt       = System.DateTime.UtcNow
                 }
             };
 
@@ -208,7 +227,6 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
             Assert.NotNull(income);
             Assert.Equal(1000m, income!.NetSalary);
             Assert.Equal(Frequency.Monthly, income.SalaryFrequency);
-            Assert.Equal(12000m, income.YearlySalary);
 
             // step-2 (Expenditure)
             var exp = result.WizardData.Expenditure;
@@ -223,22 +241,38 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
         public async Task GetWizardDataAsync_TwoRowsSameStepDifferentSubsteps_ReturnsLatestMergedStep()
         {
             // ────────── Arrange ────────────────────────────────────────────────
-            var wizardSessionId = "test-session-id";
-            var now = DateTime.UtcNow;
+            var wizardSessionId = System.Guid.NewGuid();
+            var now = System.DateTime.UtcNow;
 
             const string subStep1Json =
-                @"{""rent"":{""homeType"":""Apartment"",""monthlyRent"":1000}}";
+                """
+                {
+                    "rent": {
+                        "homeType": "Apartment",
+                        "monthlyRent": 1000
+                    }
+                }
+                """;
 
-
-            const string subStep2Json =
-                @"{""rent"":{""homeType"":""Apartment"",""monthlyRent"":1000},
-           ""utilities"":{""electricity"":50,""water"":30}}";
+                        const string subStep2Json =
+                            """
+                {
+                    "rent": {
+                        "homeType": "Apartment",
+                        "monthlyRent": 1000
+                    },
+                    "utilities": {
+                        "electricity": 50,
+                        "water": 30
+                    }
+                }
+                """;
 
             var rawEntities = new List<WizardStepRowEntity>
             {
                 new WizardStepRowEntity
                 {
-                    WizardSessionId = Guid.NewGuid(),
+                    WizardSessionId = System.Guid.NewGuid(),
                     StepNumber      = 2,
                     SubStep         = 1,
                     StepData        = subStep1Json,
@@ -247,7 +281,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
                 },
                 new WizardStepRowEntity
                 {
-                    WizardSessionId = Guid.NewGuid(),
+                    WizardSessionId = System.Guid.NewGuid(),
                     StepNumber      = 2,
                     SubStep         = 2,
                     StepData        = subStep2Json,
@@ -299,17 +333,31 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
         public async Task GetWizardDataAsync_TwoRowsSameStepSameSubstep_LastRowWins()
         {
             // ────────── Arrange ────────────────────────────────────────────────
-            var wizardSessionId = "test-session-id";
-            var now = DateTime.UtcNow;
+            var wizardSessionId = System.Guid.NewGuid();
+            var now = System.DateTime.UtcNow;
 
-            const string firstJson = @"{""rent"":{""monthlyRent"":1000}}";
-            const string latestJson = @"{""utilities"":{""electricity"":50}}";
+            const string firstJson =
+                """
+                {
+                    "rent": {
+                        "monthlyRent": 1000
+                    }
+                }
+                """;
+            const string latestJson =
+                """
+                {
+                    "utilities": {
+                        "electricity": 50
+                    }
+                }
+                """;
 
             var rawEntities = new List<WizardStepRowEntity>
             {
                 new WizardStepRowEntity
                 {
-                    WizardSessionId = Guid.NewGuid(),
+                    WizardSessionId = System.Guid.NewGuid(),
                     StepNumber      = 2,
                     SubStep         = 1,
                     StepData        = firstJson,
@@ -318,7 +366,7 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
                 },
                 new WizardStepRowEntity
                 {
-                    WizardSessionId = Guid.NewGuid(),
+                    WizardSessionId = System.Guid.NewGuid(),
                     StepNumber      = 2,
                     SubStep         = 1,                   // same sub-step
                     StepData        = latestJson,

@@ -33,7 +33,9 @@ interface StepBudgetFinalContainerProps {
   loading: boolean;
   initialSubStep: number;
   onSubStepChange?: (newSub: number) => void;
-  onValidationError?: () => void;
+  onValidationError?: () => void;  finalizeWizard: () => void;
+  isFinalizing: boolean;
+  finalizationError: string | null;
 }
 
 const StepBudgetFinalContainer = forwardRef<StepBudgetFinalContainerRef, StepBudgetFinalContainerProps>((props, ref) => {
@@ -78,7 +80,13 @@ const StepBudgetFinalContainer = forwardRef<StepBudgetFinalContainerRef, StepBud
     getTotalSubSteps: () => totalSteps,
   }), [currentSub, next, prev]);
 
-  const renderSubStep = () => <SubStepFinal />;
+const renderSubStep = () => (
+    <SubStepFinal
+      onFinalize={props.finalizeWizard}
+      isFinalizing={props.isFinalizing}
+      finalizationError={props.finalizationError}
+    />
+  );
 
   return (
     <WizardFormWrapperStep5 ref={wrapperRef}>
