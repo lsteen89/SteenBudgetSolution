@@ -1,4 +1,4 @@
-using Backend.Domain.Entities.Budget;
+using Backend.Domain.Entities.Budget.Expenditure;
 using Backend.Domain.Interfaces.Repositories.Budget;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
 using System.Data;
@@ -6,18 +6,18 @@ using System.Threading.Tasks;
 
 namespace Backend.Infrastructure.Repositories.Budget
 {
-    public class IncomeRepository : IIncomeRepository
+    public class ExpenditureRepository : IExpenditureRepository
     {
         private readonly IBudgetSqlProvider _budgetSqlProvider;
 
-        public IncomeRepository(IBudgetSqlProvider budgetSqlProvider)
+        public ExpenditureRepository(IBudgetSqlProvider budgetSqlProvider)
         {
             _budgetSqlProvider = budgetSqlProvider;
         }
 
-        public async Task AddAsync(Income income, Guid budgetId)
+        public async Task AddAsync(Expenditure expenditure, Guid budgetId)
         {
-            await _budgetSqlProvider.IncomeSqlExecutor.InsertIncomeAndSubItemsAsync(income, budgetId);
+            await _budgetSqlProvider.ExpenditureSqlExecutor.InsertExpenditureAsync(expenditure, budgetId);
         }
     }
 }

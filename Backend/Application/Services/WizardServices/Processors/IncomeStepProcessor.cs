@@ -1,11 +1,12 @@
 ﻿using Backend.Application.DTO.Budget;
 using Backend.Application.Interfaces.Wizard;
 using Backend.Application.Mapping;
-using Backend.Domain.Interfaces.Repositories;
+using Backend.Domain.Abstractions;
+using Backend.Domain.Entities.Budget.Expenditure;
+using Backend.Domain.Interfaces.Repositories.Budget;
 using Backend.Domain.Shared;
 using Newtonsoft.Json;
 using System.Data;
-using Backend.Domain.Abstractions;
 
 namespace Backend.Application.Services.WizardServices.Processors;
 
@@ -29,8 +30,7 @@ public sealed class IncomeStepProcessor : IWizardStepProcessor
 
     public async Task<OperationResult> ProcessAsync(
         string stepData,
-        IDbConnection connection,
-        IDbTransaction transaction)
+        Guid budgetId)
     {
         try
         {
@@ -41,9 +41,10 @@ public sealed class IncomeStepProcessor : IWizardStepProcessor
             
             var income = dto.ToDomain(
                 persoid: _currentUser.Persoid,    
-                createdBy: _currentUser.UserName);  
+                createdBy: _currentUser.UserName);
+            income.BudgetId = budgetId;
 
-            await _incomeRepository.AddAsync(income, connection, transaction);
+            await _incomeRepository.AddAsync(income, budgetId);
 
             return OperationResult.SuccessResult("Income step processed successfully.");
         }

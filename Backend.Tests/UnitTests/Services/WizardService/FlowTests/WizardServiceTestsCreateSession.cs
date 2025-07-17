@@ -1,14 +1,13 @@
-using Backend.Application.Interfaces.Wizard;
+﻿using Backend.Application.Models.Wizard;
 using Backend.Infrastructure.Data.Sql.Interfaces.Helpers;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
 using Backend.Infrastructure.Data.Sql.Interfaces.WizardQueries;
+using Backend.Tests.UnitTests.Helpers;
 using FluentValidation;
-using FluentValidation.Results;
-using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 using WizardServiceClass = Backend.Application.Services.WizardService.WizardService;
-using Backend.Application.Models.Wizard;
+using System.Data.Common;
 
 namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
 {
@@ -22,110 +21,121 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
         private readonly Mock<ITransactionRunner> _transactionRunnerMock;
         private readonly WizardServiceClass _wizardService;
 
-        public WizardServiceTestsCreateSession()
-        {
-            _wizardProviderMock = new Mock<IWizardSqlProvider>();
-            _wizardSqlExecutorMock = new Mock<IWizardSqlExecutor>();
-            _transactionRunnerMock = new Mock<ITransactionRunner>();
-
-            _wizardProviderMock.Setup(p => p.WizardSqlExecutor)
-                               .Returns(_wizardSqlExecutorMock.Object);
-
-            // validators that always succeed
-            _incomeValidatorMock = CreatePassingValidatorMock<IncomeFormValues>();
-            _expensesValidatorMock = CreatePassingValidatorMock<ExpenditureFormValues>();
-            _savingsValidatorMock = CreatePassingValidatorMock<SavingsFormValues>();
-
-            var logger = Mock.Of<ILogger<WizardServiceClass>>();
-
-            _wizardService = new WizardServiceClass(
-                _wizardProviderMock.Object,
-                _incomeValidatorMock.Object,
-                _expensesValidatorMock.Object,
-                _savingsValidatorMock.Object,
-                logger,
-                _transactionRunnerMock.Object,
-                new List<IWizardStepProcessor>());
-        }
-
-        private static Mock<IValidator<T>> CreatePassingValidatorMock<T>() where T : class
-        {
-            var m = new Mock<IValidator<T>>();
-            m.Setup(v => v.Validate(It.IsAny<T>())).Returns(new ValidationResult());
-
-            return m;
-        }
-
         [Fact]
         public async Task CreateWizardSessionAsync_ReturnsSuccess_WhenSqlExecutorReturnsValidGuid()
         {
-            // Arrange
-            string testEmail = "test@example.com";
-            Guid validGuid = Guid.NewGuid();
-            _wizardSqlExecutorMock
-                .Setup(x => x.CreateWizardAsync(validGuid, null, null))
-                .ReturnsAsync(validGuid);
+            // ─── Arrange ───────────────────────────────────────────────────────────
+            Guid personId = Guid.NewGuid();      // persoid (first ctor arg)
+            Guid sessionId = Guid.NewGuid();      // value the executor will return
 
-            // Act
-            var result = await _wizardService.CreateWizardSessionAsync(validGuid);
+            var builder = new WizardServiceBuilder();   // auto‑mocks everything
 
-            // Assert
+            // Wire the *same* executor the service receives
+            builder.SqlExecutorMock
+                   .Setup(e => e.CreateWizardAsync(
+                              personId,
+                              It.IsAny<DbConnection?>(),
+                              It.IsAny<DbTransaction?>()))
+                   .ReturnsAsync(sessionId);
+
+            var wizard = builder.Build();
+
+            // ─── Act ───────────────────────────────────────────────────────────────
+            var result = await wizard.CreateWizardSessionAsync(personId);
+
+            // ─── Assert ────────────────────────────────────────────────────────────
             Assert.True(result.IsSuccess);
-            Assert.Equal(validGuid, result.WizardSessionId);
+            Assert.Equal(sessionId, result.WizardSessionId);
             Assert.Equal("Wizard session created successfully.", result.Message);
+
+            // optional: verify executor called once
+            builder.SqlExecutorMock.Verify(e => e.CreateWizardAsync(
+                personId,
+                It.IsAny<DbConnection?>(),
+                It.IsAny<DbTransaction?>()),
+                Times.Once);
         }
 
         [Fact]
         public async Task CreateWizardSessionAsync_ReturnsFailure_WhenSqlExecutorReturnsEmptyGuid()
         {
-            // Arrange
-            string testEmail = "test@example.com";
-            Guid validGuid = Guid.NewGuid();
-            _wizardSqlExecutorMock
-                .Setup(x => x.CreateWizardAsync(validGuid, null, null))
-                .ReturnsAsync(Guid.Empty);
+            // ─── Arrange ───────────────────────────────────────────────────────────
+            Guid personId = Guid.NewGuid();   // persoid
 
-            // Act
-            var result = await _wizardService.CreateWizardSessionAsync(validGuid);
+            var builder = new WizardServiceBuilder();          // default mocks
 
-            // Assert
+            // Executor returns Guid.Empty ⇒ service should fail
+            builder.SqlExecutorMock
+                   .Setup(e => e.CreateWizardAsync(
+                              personId,
+                              It.IsAny<DbConnection?>(),
+                              It.IsAny<DbTransaction?>()))
+                   .ReturnsAsync(Guid.Empty);
+
+            var wizard = builder.Build();
+
+            // ─── Act ───────────────────────────────────────────────────────────────
+            var result = await wizard.CreateWizardSessionAsync(personId);
+
+            // ─── Assert ────────────────────────────────────────────────────────────
             Assert.False(result.IsSuccess);
             Assert.Equal(Guid.Empty, result.WizardSessionId);
             Assert.Equal("Failed to create wizard session.", result.Message);
+
+            builder.SqlExecutorMock.Verify(e => e.CreateWizardAsync(
+                personId,
+                It.IsAny<DbConnection?>(),
+                It.IsAny<DbTransaction?>()),
+                Times.Once);
         }
 
         [Fact]
         public async Task UserHasWizardSessionAsync_ReturnsGuid_WhenSessionExists()
         {
-            // Arrange
-            string testEmail = "test@example.com";
+            // ─── Arrange ───────────────────────────────────────────────────────────
             Guid persoid = Guid.NewGuid();
-            Guid sessionGuid = Guid.NewGuid();
-            _wizardSqlExecutorMock
-                .Setup(x => x.GetWizardSessionIdAsync(persoid, null, null))
-                .ReturnsAsync(sessionGuid);
+            Guid sessionId = Guid.NewGuid();
 
-            // Act
-            var result = await _wizardService.UserHasWizardSessionAsync(persoid);
+            var builder = new WizardServiceBuilder();               // auto‑mocks everything
 
-            // Assert
-            Assert.Equal(sessionGuid, result);
+            builder.SqlExecutorMock
+                   .Setup(e => e.GetWizardSessionIdAsync(
+                              persoid,
+                              It.IsAny<System.Data.Common.DbConnection?>(),
+                              It.IsAny<System.Data.Common.DbTransaction?>()))
+                   .ReturnsAsync(sessionId);
+
+            var wizard = builder.Build();
+
+            // ─── Act ───────────────────────────────────────────────────────────────
+            var result = await wizard.UserHasWizardSessionAsync(persoid);
+
+            // ─── Assert ────────────────────────────────────────────────────────────
+            Assert.Equal(sessionId, result);
         }
 
         [Fact]
         public async Task UserHasWizardSessionAsync_ReturnsEmptyGuid_WhenNoSessionExists()
         {
-            // Arrange
-            string testEmail = "test@example.com";
+            // ─── Arrange ───────────────────────────────────────────────────────────
             Guid persoid = Guid.NewGuid();
-            _wizardSqlExecutorMock
-                .Setup(x => x.GetWizardSessionIdAsync(persoid, null, null))
-                .ReturnsAsync((Guid?)null);
 
-            // Act
-            var result = await _wizardService.UserHasWizardSessionAsync(persoid);
+            var builder = new WizardServiceBuilder();     // auto‑mocks everything
 
-            // Assert
+            // executor returns null ⇒ service should translate to Guid.Empty
+            builder.SqlExecutorMock
+                   .Setup(e => e.GetWizardSessionIdAsync(
+                              persoid,
+                              It.IsAny<DbConnection?>(),        
+                              It.IsAny<DbTransaction?>()))
+                   .ReturnsAsync((Guid?)null);
+
+            var wizard = builder.Build();
+
+            // ─── Act ───────────────────────────────────────────────────────────────
+            var result = await wizard.UserHasWizardSessionAsync(persoid);
+
+            // ─── Assert ────────────────────────────────────────────────────────────
             Assert.Equal(Guid.Empty, result);
         }
     }

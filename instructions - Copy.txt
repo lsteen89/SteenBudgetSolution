@@ -1,5 +1,22 @@
-Great! Now all that is left to do is to write unittests! 
-Wizard tests are done here: 
-SteenBudgetSolution\Backend.Tests\UnitTests\Services\WizardService\
-So, we can create a new file named WizardServiceTestsFinalize in the FlowTests catalog. In it, we will write our tests for the service, and see the overall flow. 
-You will use the three tests already in place as a guideline how to setup everything, we do have an testbase that implements everything we need.
+In our last PR, we introduced alot of things in the BE related to the finalizing of the wizard, you can see the flow in the method FinalizeBudgetAsync in WizardService.
+We are to extend this method now when income part is done. 
+Now next is the expenditure, which we will construct in a similiar way to income. Meaning, we will extract all parts related to expenditure within the WizardData region Expenditure 
+and make DTOs and entities of them in a maintainable way. 
+Each expenditure is to get its own DTO and entity as of now. 
+Entity will be placed in Backend\Domain\Entities\Budget\Expenditure folder, which you will have to create. 
+DTO will be placed in the Backend\Application\DTO\Budget\Expenditure folder, which you will also have to create. 
+
+Then, due to our strategy, you will not have to modify FinalizeBudgetAsync that much, but slightly. Since we are now introducing expenditure, its important
+that expenditureStepProcessor is created in the same way as IncomeStepProcessor. 
+The pattern should remain the same. 
+You will have to create a ExpenditureRepo, that it will implement the method AddAsync in the exact same way as the IncomeRepository. It will call the budgetSqlProvider.
+But, there is a big modification you are going to do here
+
+IMPORTANT: 
+The budgetSqlProvider should follow the pattern of the other providers. Meanining: 
+UserSQLProvider points to different queries and executors, you will do the same for budgetSqlProvider.
+You will create two new query files under \Backend\Infrastructure\Data\Sql\Queries\Budget, IncomeSqlExecutor and ExpenditureSqlExecutor. You will place the existing Income queries
+already made in the provider there. 
+You will make the NEW quries for expenditure in the ExpenditureSqlExecutor. 
+
+All new files mentioned above will have to have DI. 
