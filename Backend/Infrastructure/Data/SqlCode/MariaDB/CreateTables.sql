@@ -1,4 +1,40 @@
-﻿-- Declare the environment variable (either 'prod' or 'test')
+﻿-- This script creates the necessary tables for the SteenBudgetSystem application.
+-- It is designed to be run in a MariaDB environment.
+-- Ensure you have the necessary privileges to create databases and tables.
+-- Set the environment variable to determine which database to use
+-- This script assumes you are using MariaDB 10.2 or later for the RefreshTokens table.
+
+-- It creates the following tables:
+-- 1. User
+-- 2. Income
+-- 3. Partner
+-- 4. PartnerIncome
+-- 5. UserExpenseRatio
+-- 6. ErrorLog
+-- 7. VerificationToken
+-- 8. UserVerificationTracking
+-- 9. FailedLoginAttempts
+-- 10. PasswordResetTokens
+-- 11. RefreshTokens
+-- 12. BlacklistedTokens
+-- 13. WizardSession
+-- 14. WizardStep
+-- 15. RefreshTokens_Archive (for archiving old rows)
+-- 16. Trigger for archiving RefreshTokens
+-- 17. Create a table for blacklisted tokens
+-- 18. Create a table for wizard sessions and steps
+
+
+-- NOTE --
+-- Since this is a work in progress, the script may not include all necessary fields or relationships.
+-- It may even contain obsolete tables or fields.
+
+-- DATA TO BE CHANGED (Probably)--
+-- PartnerIncome
+-- UserExpenseRatio
+-- Partner (Scoop of this table is not clear yet)
+
+-- Declare the environment variable (either 'prod' or 'test')
 SET @env = 'test';  -- Change this to 'prod' for production
 
 -- Set the database name based on the environment
@@ -36,40 +72,56 @@ CREATE TABLE IF NOT EXISTS User (
 );
 
 -- Create Income table
-CREATE TABLE IF NOT EXISTS Income (
-    Id INT AUTO_INCREMENT PRIMARY KEY,
-    PersoId CHAR(36),
-    MainIncome DECIMAL(10, 2),
-    SideIncome DECIMAL(10, 2),
-    CreatedBy VARCHAR(50) NOT NULL,
-    CreatedTime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    LastUpdatedTime DATETIME,
-    FOREIGN KEY (PersoId) REFERENCES User(PersoId)  -- Reference to 'User'
-);
+CREATE TABLE Income (
+    -- Keys
+    Id UUID PRIMARY KEY,
+    BudgetId UUID NOT NULL,
+    Persoid UUID NOT NULL,
 
--- Create Partner table
-CREATE TABLE IF NOT EXISTS Partner (
-    Id INT AUTO_INCREMENT PRIMARY KEY,
-    PersoId CHAR(36),
-    PartnerId CHAR(36) UNIQUE,  -- Unique PartnerId
-    Name VARCHAR(255),
-    CreatedBy VARCHAR(50) NOT NULL,
-    CreatedTime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    LastUpdatedTime DATETIME,
-    FOREIGN KEY (PersoId) REFERENCES User(PersoId)  -- Reference to 'User'
-);
+    -- Main Details
+    NetSalary DECIMAL(10, 2) NOT NULL,
+    SalaryFrequency TINYINT NOT NULL, --COMMENT 'Maps to the Frequency enum in C#',
 
--- Create PartnerIncome table
-CREATE TABLE IF NOT EXISTS PartnerIncome (
-    Id INT AUTO_INCREMENT PRIMARY KEY,
-    PartnerId CHAR(36),  -- Removed unique constraint here
-    MainIncome DECIMAL(10, 2),
-    SideIncome DECIMAL(10, 2),
-    CreatedBy VARCHAR(50) NOT NULL,
-    CreatedTime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    LastUpdatedTime DATETIME,
-    FOREIGN KEY (PartnerId) REFERENCES Partner(PartnerId)
-);
+    -- Audit Fields
+    CreatedBy VARCHAR(255) NOT NULL,
+    CreatedTime DATETIME NOT NULL,
+    LastUpdatedTime DATETIME NULL,
+
+    --Future: Add foreign key constraints
+    -- FOREIGN KEY (BudgetId) REFERENCES Budgets(Id),
+    -- FOREIGN KEY (Persoid) REFERENCES Users(Id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE HouseholdMember (
+    -- Keys
+    Id UUID PRIMARY KEY,
+    IncomeId UUID NOT NULL,
+
+    -- Details
+    Name VARCHAR(255) NOT NULL,
+    IncomeAmount DECIMAL(10, 2) NOT NULL,
+    IncomeFrequency TINYINT NOT NULL --COMMENT 'Maps to the Frequency enum in C#',
+
+    -- Define the relationship to the Income table
+    CONSTRAINT fk_householdmember_income
+    FOREIGN KEY (IncomeId) REFERENCES Income(Id)
+    ON DELETE CASCADE -- If the parent Income record is deleted, delete this too
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE SideHustle (
+    -- Keys
+    Id UUID PRIMARY KEY,
+    IncomeId UUID NOT NULL,
+
+    -- Details
+    Name VARCHAR(255) NOT NULL,
+    MonthlyIncome DECIMAL(10, 2) NOT NULL,
+
+    -- Define the relationship to the Income table
+    CONSTRAINT fk_sidehustle_income
+    FOREIGN KEY (IncomeId) REFERENCES Income(Id)
+    ON DELETE CASCADE -- If the parent Income record is deleted, delete this too
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Create UserExpenseRatio table
 CREATE TABLE IF NOT EXISTS UserExpenseRatio (

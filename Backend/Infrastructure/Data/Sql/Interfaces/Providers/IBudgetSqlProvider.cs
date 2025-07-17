@@ -1,10 +1,10 @@
-using Backend.Domain.Entities.Budget;
-using System.Data;
+using Backend.Infrastructure.Data.Sql.Interfaces.Queries;
 
 namespace Backend.Infrastructure.Data.Sql.Interfaces.Providers
 {
     public interface IBudgetSqlProvider
     {
-        Task InsertIncomeAsync(Income income, IDbConnection connection, IDbTransaction transaction);
+        IIncomeSqlExecutor IncomeSqlExecutor { get; }
+        IExpenditureSqlExecutor ExpenditureSqlExecutor { get; }
     }
 }

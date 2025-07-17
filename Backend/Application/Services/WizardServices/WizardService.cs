@@ -20,6 +20,7 @@ namespace Backend.Application.Services.WizardService
         private readonly IValidator<IncomeFormValues> _incomeValidator;
         private readonly IValidator<ExpenditureFormValues> _expensesValidator;
         private readonly IValidator<SavingsFormValues> _savingsValidator;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly ILogger<WizardService> _logger;
         private readonly ITransactionRunner _transactionRunner;
         private readonly IEnumerable<IWizardStepProcessor> _stepProcessors;
@@ -29,6 +30,7 @@ namespace Backend.Application.Services.WizardService
             IValidator<IncomeFormValues> incomeValidator,
             IValidator<ExpenditureFormValues> expensesValidator,
             IValidator<SavingsFormValues> savingsValidator,
+            IUnitOfWork unitOfWork,
             ILogger<WizardService> logger,
             ITransactionRunner transactionRunner,
             IEnumerable<IWizardStepProcessor> stepProcessors)
@@ -37,6 +39,7 @@ namespace Backend.Application.Services.WizardService
             _incomeValidator = incomeValidator;
             _expensesValidator = expensesValidator;
             _savingsValidator = savingsValidator;
+            _unitOfWork = unitOfWork;
             _logger = logger;
             _transactionRunner = transactionRunner;
             _stepProcessors = stepProcessors;
@@ -110,31 +113,52 @@ namespace Backend.Application.Services.WizardService
                 return OperationResult.FailureResult("No wizard data found to finalize.");
             }
 
-            // Await the result into a local variable.
-            var finalizationResult = await _transactionRunner.ExecuteAsync(async (connection, transaction) =>
+            // 1. Generate the master Budget ID for this entire operation.
+            var budgetId = Guid.NewGuid();
+            _logger.LogInformation("Beginning budget finalization for new BudgetId: {BudgetId}", budgetId);
+
+            try
             {
+                // 2. Start the transaction via the Unit of Work.
+                _unitOfWork.BeginTransaction();
+
                 foreach (var stepData in wizardData.GroupBy(d => d.StepNumber))
                 {
                     var processor = _stepProcessors.FirstOrDefault(p => p.StepNumber == stepData.Key);
 
                     if (processor == null)
                     {
+                        // We must rollback before returning a failure.
+                        _unitOfWork.Rollback();
                         return OperationResult.FailureResult($"No processor registered for step number {stepData.Key}.");
                     }
 
                     var latestStepData = stepData.OrderByDescending(s => s.UpdatedAt).First();
-                    var result = await processor.ProcessAsync(latestStepData.StepData, connection, transaction);
+
+                    // 3. Call the ProcessAsync
+                    // The processor and its repositories will now use the transaction from the UoW implicitly.
+                    var result = await processor.ProcessAsync(latestStepData.StepData, budgetId);
 
                     if (!result.Success)
                     {
+                        // The processor failed, so we roll everything back.
+                        _unitOfWork.Rollback();
                         return result;
                     }
                 }
-                return OperationResult.SuccessResult("Budget finalized successfully.");
-            });
 
-            // Return the captured variable. 
-            return finalizationResult;
+                // 4. If all steps succeed, commit the entire transaction.
+                _unitOfWork.Commit();
+                _logger.LogInformation("Successfully finalized and committed BudgetId: {BudgetId}", budgetId);
+                return OperationResult.SuccessResult("Budget finalized successfully.");
+            }
+            catch (Exception ex)
+            {
+                // 5. If any unexpected error occurs, roll everything back.
+                _logger.LogError(ex, "A critical error occurred during finalization for BudgetId {BudgetId}. Rolling back transaction.", budgetId);
+                _unitOfWork.Rollback();
+                return OperationResult.FailureResult("An unexpected error occurred while finalizing the budget.");
+            }
         }
 
         #endregion

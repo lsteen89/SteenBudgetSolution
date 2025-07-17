@@ -17,18 +17,20 @@ using Backend.Common.Interfaces;
 using Backend.Common.Services;
 using Backend.Domain.Abstractions;
 using Backend.Domain.Entities.Email;
-using Backend.Domain.Interfaces.Repositories;
+using Backend.Domain.Interfaces.Repositories.Budget;
 using Backend.Infrastructure.BackgroundServices;
 using Backend.Infrastructure.Data.Sql.Factories;
 using Backend.Infrastructure.Data.Sql.Helpers;
 using Backend.Infrastructure.Data.Sql.Interfaces.Factories;
 using Backend.Infrastructure.Data.Sql.Interfaces.Helpers;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
+using Backend.Infrastructure.Data.Sql.Interfaces.Queries;
 using Backend.Infrastructure.Data.Sql.Interfaces.UserQueries;
 using Backend.Infrastructure.Data.Sql.Interfaces.WizardQueries;
 using Backend.Infrastructure.Data.Sql.Providers.BudgetProvider;
 using Backend.Infrastructure.Data.Sql.Providers.UserProvider;
 using Backend.Infrastructure.Data.Sql.Providers.WizardProvider;
+using Backend.Infrastructure.Data.Sql.Queries.Budget;
 using Backend.Infrastructure.Data.Sql.Queries.UserQueries;
 using Backend.Infrastructure.Data.Sql.Queries.WizardQuery;
 using Backend.Infrastructure.Email;
@@ -57,6 +59,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -207,12 +210,20 @@ builder.Services.AddScoped<IConnectionFactory>(provider =>
     }
     return new MySqlConnectionFactory(settings.ConnectionString);
 });
+// Unit of Work
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-// Users
+// SQL executors
+// USERS
 builder.Services.AddScoped<IUserSqlExecutor, UserSqlExecutor>();
 builder.Services.AddScoped<IVerificationTokenSqlExecutor, VerificationTokenSqlExecutor>();
 builder.Services.AddScoped<IAuthenticationSqlExecutor, AuthenticationSqlExecutor>();
 builder.Services.AddScoped<IRefreshTokenSqlExecutor, RefreshTokenSqlExecutor> ();
+// Budget
+builder.Services.AddScoped<IIncomeSqlExecutor, IncomeSqlExecutor>();
+builder.Services.AddScoped<IExpenditureSqlExecutor, ExpenditureSqlExecutor>();
+
+
 
 // Contexts
 builder.Services.AddScoped<ICurrentUserContext, HttpCurrentUserContext>();
@@ -226,9 +237,11 @@ builder.Services.AddScoped<IBudgetSqlProvider, BudgetSqlProvider>();
 
 // Repositories
 builder.Services.AddScoped<IIncomeRepository, IncomeRepository>();
+builder.Services.AddScoped<IExpenditureRepository, ExpenditureRepository>();
 
 // Wizard Step Processors
 builder.Services.AddScoped<IWizardStepProcessor, IncomeStepProcessor>();
+builder.Services.AddScoped<IWizardStepProcessor, ExpenditureStepProcessor>();
 
 // Transaction runner
 builder.Services.AddScoped<ITransactionRunner, TransactionRunner>();
