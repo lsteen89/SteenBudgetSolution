@@ -6,6 +6,6 @@ namespace Backend.Application.Interfaces.Wizard
     public interface IWizardStepProcessor
     {
         int StepNumber { get; }
-        Task<OperationResult> ProcessAsync(string stepData, IDbConnection connection, IDbTransaction transaction);
+        Task<OperationResult> ProcessAsync(string stepData, Guid budgetId);
     }
 }

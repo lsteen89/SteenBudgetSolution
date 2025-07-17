@@ -33,7 +33,8 @@ interface StepBudgetFinalContainerProps {
   loading: boolean;
   initialSubStep: number;
   onSubStepChange?: (newSub: number) => void;
-  onValidationError?: () => void;  finalizeWizard: () => void;
+  onValidationError?: () => void;  
+  finalizeWizard: () => void;
   isFinalizing: boolean;
   finalizationError: string | null;
 }

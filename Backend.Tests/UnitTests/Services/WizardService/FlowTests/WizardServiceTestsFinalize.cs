@@ -1,18 +1,20 @@
-using Backend.Application.Interfaces.Wizard;
+﻿using Backend.Application.Interfaces.Wizard;
 using Backend.Application.Models.Wizard;
 using Backend.Domain.Entities.Wizard;
 using Backend.Domain.Shared;
 using Backend.Infrastructure.Data.Sql.Interfaces.Helpers;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
 using Backend.Infrastructure.Data.Sql.Interfaces.WizardQueries;
+using Backend.Tests.UnitTests.Helpers;
 using FluentValidation;
 using FluentValidation.Results;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System.Data;
-using Xunit;
-using WizardServiceClass = Backend.Application.Services.WizardService.WizardService;
 using System.Data.Common;
+using Xunit;
+using static System.Runtime.InteropServices.JavaScript.JSType;
+using WizardServiceClass = Backend.Application.Services.WizardService.WizardService;
 
 namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
 {
@@ -27,107 +29,142 @@ namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
         private readonly Mock<IValidator<SavingsFormValues>> _savingsValidatorMock;
         private readonly WizardServiceClass _wizardService;
 
-        public WizardServiceTestsFinalize()
-        {
-            _wizardProviderMock = new Mock<IWizardSqlProvider>();
-            _wizardSqlExecutorMock = new Mock<IWizardSqlExecutor>();
-            _transactionRunnerMock = new Mock<ITransactionRunner>();
-            _incomeStepProcessorMock = new Mock<IWizardStepProcessor>();
-
-            _wizardProviderMock.Setup(p => p.WizardSqlExecutor).Returns(_wizardSqlExecutorMock.Object);
-
-            _incomeValidatorMock = CreatePassingValidatorMock<IncomeFormValues>();
-            _expensesValidatorMock = CreatePassingValidatorMock<ExpenditureFormValues>();
-            _savingsValidatorMock = CreatePassingValidatorMock<SavingsFormValues>();
-
-            var stepProcessors = new[] { _incomeStepProcessorMock.Object };
-
-            _transactionRunnerMock
-                .Setup(tr => tr.ExecuteAsync<OperationResult>(
-                    It.IsAny<Func<DbConnection, DbTransaction, Task<OperationResult>>>()))
-                .Returns((Func<DbConnection, DbTransaction, Task<OperationResult>> work) =>
-                {
-                    var conn = new Mock<DbConnection>().Object;     
-                    var tx = new Mock<DbTransaction>().Object;
-                    return work(conn, tx);                          
-                });
-
-            _wizardService = new WizardServiceClass(
-                _wizardProviderMock.Object,
-                _incomeValidatorMock.Object,
-                _expensesValidatorMock.Object,
-                _savingsValidatorMock.Object,
-                Mock.Of<ILogger<WizardServiceClass>>(),
-                _transactionRunnerMock.Object,
-                stepProcessors);
-        }
-
-        private static Mock<IValidator<T>> CreatePassingValidatorMock<T>() where T : class
-        {
-            var m = new Mock<IValidator<T>>();
-            m.Setup(v => v.Validate(It.IsAny<T>())).Returns(new ValidationResult());
-            return m;
-        }
-
         [Fact]
         public async Task FinalizeBudgetAsync_CallsProcessor_WhenDataExists()
         {
-            // Arrange
+            // ─── Arrange ───────────────────────────────────────────────────────────
             var sessionId = Guid.NewGuid();
-            var wizardData = new List<WizardStepRowEntity>
-            {
-                new WizardStepRowEntity { StepNumber = 1, StepData = "{}" }
-            };
 
-            _wizardSqlExecutorMock.Setup(e => e.GetRawWizardStepDataAsync(sessionId, null, null)).ReturnsAsync(wizardData);
-            _incomeStepProcessorMock.Setup(p => p.StepNumber).Returns(1);
-            _incomeStepProcessorMock.Setup(p => p.ProcessAsync(It.IsAny<string>(), It.IsAny<IDbConnection>(), It.IsAny<IDbTransaction>()))
-                .ReturnsAsync(OperationResult.SuccessResult("Success"));
-
-            // Act
-            var result = await _wizardService.FinalizeBudgetAsync(sessionId);
-
-            // Assert
-            Assert.True(result.Success);
-            _incomeStepProcessorMock.Verify(p => p.ProcessAsync(It.IsAny<string>(), It.IsAny<IDbConnection>(), It.IsAny<IDbTransaction>()), Times.Once);
+            var rows = new List<WizardStepRowEntity>
+    {
+        new() {
+            WizardSessionId = sessionId,           // match the call
+            StepNumber      = 1,
+            SubStep         = 1,
+            StepData        = "{}",
+            DataVersion     = 2,
+            UpdatedAt       = DateTime.UtcNow
         }
+    };
+
+            // 1️⃣ processor that should be executed
+            var incomeProcessorMock = new Mock<IWizardStepProcessor>();
+            incomeProcessorMock.Setup(p => p.StepNumber).Returns(1);
+            incomeProcessorMock.Setup(p => p.ProcessAsync(It.IsAny<string>(), It.IsAny<Guid>()))
+                               .ReturnsAsync(OperationResult.SuccessResult("Success"));
+
+            // 2️⃣ build the service with helper
+            var builder = new WizardServiceBuilder()
+                            .WithProcessors(new[] { incomeProcessorMock.Object });
+
+            // 3️⃣ supply DB rows
+            builder.SqlExecutorMock.Setup(e => e.GetRawWizardStepDataAsync(
+                                             sessionId,
+                                             It.IsAny<DbConnection>(),
+                                             It.IsAny<DbTransaction>()))
+                                   .ReturnsAsync(rows);
+
+            // Unit‑of‑work no‑ops to avoid exceptions
+            builder.UnitOfWorkMock.Setup(u => u.BeginTransaction());
+            builder.UnitOfWorkMock.Setup(u => u.Commit());
+
+            var wizard = builder.Build();
+
+            // ─── Act ───────────────────────────────────────────────────────────────
+            var result = await wizard.FinalizeBudgetAsync(sessionId);
+
+            // ─── Assert ────────────────────────────────────────────────────────────
+            Assert.True(result.Success);
+            Assert.Equal("Budget finalized successfully.", result.Message);
+
+            incomeProcessorMock.Verify(
+                p => p.ProcessAsync(It.IsAny<string>(), It.IsAny<Guid>()),
+                Times.Once);
+        }
+
 
         [Fact]
         public async Task FinalizeBudgetAsync_ReturnsFailure_WhenNoDataExists()
         {
-            // Arrange
+            // ─── Arrange ───────────────────────────────────────────────────────────
             var sessionId = Guid.NewGuid();
-            _wizardSqlExecutorMock.Setup(e => e.GetRawWizardStepDataAsync(sessionId, null, null)).ReturnsAsync((List<WizardStepRowEntity>)null);
 
-            // Act
-            var result = await _wizardService.FinalizeBudgetAsync(sessionId);
+            var builder = new WizardServiceBuilder();          // pass‑through validators, mocks
 
-            // Assert
+            // executor returns null → service should bail out early
+            builder.SqlExecutorMock.Setup(e => e.GetRawWizardStepDataAsync(
+                                             sessionId,
+                                             It.IsAny<DbConnection>(),
+                                             It.IsAny<DbTransaction>()))
+                                   .ReturnsAsync((List<WizardStepRowEntity>?)null);
+
+            // (UoW won’t be touched, but safe to stub)
+            builder.UnitOfWorkMock.Setup(u => u.BeginTransaction());
+            builder.UnitOfWorkMock.Setup(u => u.Rollback());
+
+            var wizard = builder.Build();
+
+            // ─── Act ───────────────────────────────────────────────────────────────
+            var result = await wizard.FinalizeBudgetAsync(sessionId);
+
+            // ─── Assert ────────────────────────────────────────────────────────────
             Assert.False(result.Success);
             Assert.Equal("No wizard data found to finalize.", result.Message);
+
+            // prove we never began a transaction
+            builder.UnitOfWorkMock.Verify(u => u.BeginTransaction(), Times.Never);
         }
+
 
         [Fact]
         public async Task FinalizeBudgetAsync_ReturnsFailure_WhenProcessorFails()
         {
-            // Arrange
+            // ─── Arrange ───────────────────────────────────────────────────────────
             var sessionId = Guid.NewGuid();
-            var wizardData = new List<WizardStepRowEntity>
+
+            // Fake row for step‑1
+            var rows = new List<WizardStepRowEntity>
             {
-                new WizardStepRowEntity { StepNumber = 1, StepData = "{}" }
+                new() { WizardSessionId = sessionId,
+                        StepNumber      = 1,
+                        SubStep         = 1,
+                        StepData        = "{}",
+                        DataVersion     = 2,
+                        UpdatedAt       = DateTime.UtcNow }
             };
 
-            _wizardSqlExecutorMock.Setup(e => e.GetRawWizardStepDataAsync(sessionId, null, null)).ReturnsAsync(wizardData);
-            _incomeStepProcessorMock.Setup(p => p.StepNumber).Returns(1);
-            _incomeStepProcessorMock.Setup(p => p.ProcessAsync(It.IsAny<string>(), It.IsAny<IDbConnection>(), It.IsAny<IDbTransaction>()))
-                .ReturnsAsync(OperationResult.FailureResult("Processor failed"));
+            // 1️⃣ failing processor for step‑1
+            var procMock = new Mock<IWizardStepProcessor>();
+            procMock.Setup(p => p.StepNumber).Returns(1);
+            procMock.Setup(p => p.ProcessAsync(It.IsAny<string>(), It.Is<Guid>(g => g != Guid.Empty)))
+                    .ReturnsAsync(OperationResult.FailureResult("Processor failed"));
 
-            // Act
-            var result = await _wizardService.FinalizeBudgetAsync(sessionId);
+            // 2️⃣ build service via helper
+            var builder = new WizardServiceBuilder()
+                            .WithProcessors(new[] { procMock.Object });
 
-            // Assert
+            // 3️⃣ plug in DB + UoW behaviour
+            builder.SqlExecutorMock.Setup(e => e.GetRawWizardStepDataAsync(
+                                             sessionId,
+                                             It.IsAny<DbConnection>(),
+                                             It.IsAny<DbTransaction>()))
+                                   .ReturnsAsync(rows);
+
+            builder.UnitOfWorkMock.Setup(u => u.BeginTransaction());
+            builder.UnitOfWorkMock.Setup(u => u.Commit());
+            builder.UnitOfWorkMock.Setup(u => u.Rollback());
+
+            var wizard = builder.Build();
+
+            // ─── Act ───────────────────────────────────────────────────────────────
+            var result = await wizard.FinalizeBudgetAsync(sessionId);
+
+            // ─── Assert ────────────────────────────────────────────────────────────
             Assert.False(result.Success);
             Assert.Equal("Processor failed", result.Message);
+
+            // optional: prove Rollback was triggered once
+            builder.UnitOfWorkMock.Verify(u => u.Rollback(), Times.Once);
         }
     }
 }

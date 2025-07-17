@@ -6,6 +6,8 @@ namespace Backend.Application.Models.Wizard;
 
 /// <summary>
 /// Root payload exchanged with the React wizard.
+/// this is ONLY used for the initial data exchange.
+/// NEVER within the rest of the application. (Finalize wizard step converts it to domain models(DTO, entities ETC))
 /// </summary>
 public sealed class WizardData
 {

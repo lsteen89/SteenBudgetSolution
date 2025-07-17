@@ -12,7 +12,8 @@ namespace Backend.Domain.Entities.Budget
 {
     public class Income
     {
-        public int Id { get; set; }
+        public Guid BudgetId { get; set; } // Foreign key to Budget
+        public Guid Id { get; set; } // Unique identifier for the Income record
         public Guid Persoid { get; set; } // Foreign key to User
 
         // Main salary details from the form
