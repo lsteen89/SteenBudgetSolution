@@ -26,8 +26,18 @@ namespace Backend.Infrastructure.Data.Sql.Queries.Budget
                 expenditure.Rent.Id = Guid.NewGuid();
                 expenditure.Rent.BudgetId = budgetId;
                 var rentSql = @"
-                INSERT INTO Rent (Id, BudgetId, HomeType, MonthlyRent, ...)
-                VALUES (@Id, @BudgetId, @HomeType, @MonthlyRent, ...);";
+                INSERT INTO `Rent`
+                (
+                    `Id`, `BudgetId`, `HomeType`, `MonthlyRent`,
+                    `RentExtraFees`, `MonthlyFee`, `BrfExtraFees`,
+                    `MortgagePayment`, `HouseOtherCosts`, `OtherCosts`
+                )
+                VALUES
+                (
+                    @Id, @BudgetId, @HomeType, @MonthlyRent,
+                    @RentExtraFees, @MonthlyFee, @BrfExtraFees,
+                    @MortgagePayment, @HouseOtherCosts, @OtherCosts
+                );";
                 await ExecuteAsync(rentSql, expenditure.Rent);
             }
 
@@ -46,8 +56,18 @@ namespace Backend.Infrastructure.Data.Sql.Queries.Budget
                 expenditure.Transport.Id = Guid.NewGuid();
                 expenditure.Transport.BudgetId = budgetId;
                 var transportSql = @"
-                INSERT INTO Transport (Id, BudgetId, MonthlyFuelCost, ...)
-                VALUES (@Id, @BudgetId, @MonthlyFuelCost, ...);";
+                INSERT INTO `Transport`
+                (
+                    `Id`, `BudgetId`,
+                    `MonthlyFuelCost`, `MonthlyInsuranceCost`,
+                    `MonthlyTotalCarCost`, `MonthlyTransitCost`
+                )
+                VALUES
+                (
+                    @Id, @BudgetId,
+                    @MonthlyFuelCost, @MonthlyInsuranceCost,
+                    @MonthlyTotalCarCost, @MonthlyTransitCost
+                );";
                 await ExecuteAsync(transportSql, expenditure.Transport);
             }
 
@@ -93,8 +113,18 @@ namespace Backend.Infrastructure.Data.Sql.Queries.Budget
                 expenditure.Subscriptions.Id = Guid.NewGuid();
                 expenditure.Subscriptions.BudgetId = budgetId;
                 const string sqlSubs = @"
-                INSERT INTO Subscriptions (Id, BudgetId, Netflix, Spotify, ...)
-                VALUES (@Id, @BudgetId, @Netflix, @Spotify, ...);";
+                INSERT INTO `Subscriptions`
+                (
+                    `Id`, `BudgetId`,
+                    `Netflix`, `Spotify`, `HBOMax`,
+                    `Viaplay`, `DisneyPlus`
+                )
+                VALUES
+                (
+                    @Id, @BudgetId,
+                    @Netflix, @Spotify, @HBOMax,
+                    @Viaplay, @DisneyPlus
+                );";
                 await ExecuteAsync(sqlSubs, expenditure.Subscriptions);
 
                 // 2. Create the child records
