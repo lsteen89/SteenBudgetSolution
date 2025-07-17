@@ -12,7 +12,7 @@ namespace Backend.Infrastructure.Data.Sql.Queries.Budget
     {
         private readonly ILogger<ExpenditureSqlExecutor> _logger;
 
-        public ExpenditureSqlExecutor(IUnitOfWork unitOfWork, ILogger<IncomeSqlExecutor> logger)
+        public ExpenditureSqlExecutor(IUnitOfWork unitOfWork, ILogger<ExpenditureSqlExecutor> logger)
             : base(unitOfWork, logger) { }
 
         public async Task InsertExpenditureAsync(Expenditure expenditure, Guid budgetId)

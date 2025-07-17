@@ -33,7 +33,7 @@ namespace Backend.Application.Services.WizardServices.Processors
         {
             try
             {
-                var dto = JsonConvert.DeserializeObject<ExpenditureData>(stepData);
+                var dto = System.Text.Json.JsonSerializer.Deserialize<ExpenditureData>(stepData, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                 if (dto is null)
                     return OperationResult.FailureResult("Failed to deserialize expenditure step data.");
 

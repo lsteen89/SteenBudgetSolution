@@ -34,7 +34,7 @@ public sealed class IncomeStepProcessor : IWizardStepProcessor
     {
         try
         {
-            var dto = JsonConvert.DeserializeObject<IncomeData>(stepData);
+            var dto = System.Text.Json.JsonSerializer.Deserialize<IncomeData>(stepData, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             if (dto is null)
                 return OperationResult.FailureResult("Failed to deserialize income step data.");
 
