@@ -8,13 +8,16 @@ namespace Backend.Infrastructure.Data.Sql.Providers.BudgetProvider
     {
         public IIncomeSqlExecutor IncomeSqlExecutor { get; }
         public IExpenditureSqlExecutor ExpenditureSqlExecutor { get; }
+        public ISavingsSqlExecutor SavingsSqlExecutor { get; }
 
         public BudgetSqlProvider(
             IIncomeSqlExecutor incomeSqlExecutor,
-            IExpenditureSqlExecutor expenditureSqlExecutor)
+            IExpenditureSqlExecutor expenditureSqlExecutor,
+            ISavingsSqlExecutor savingsSqlExecutor)
         {
             IncomeSqlExecutor = incomeSqlExecutor;
             ExpenditureSqlExecutor = expenditureSqlExecutor;
+            SavingsSqlExecutor = savingsSqlExecutor;
         }
     }
 }

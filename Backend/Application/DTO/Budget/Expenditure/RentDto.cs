@@ -1,6 +1,6 @@
 namespace Backend.Application.DTO.Budget.Expenditure
 {
-    public class RentDto
+    public sealed class RentDto
     {
         public string? HomeType { get; set; }
         public decimal? MonthlyRent { get; set; }

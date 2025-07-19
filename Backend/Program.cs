@@ -222,7 +222,7 @@ builder.Services.AddScoped<IRefreshTokenSqlExecutor, RefreshTokenSqlExecutor> ()
 // Budget
 builder.Services.AddScoped<IIncomeSqlExecutor, IncomeSqlExecutor>();
 builder.Services.AddScoped<IExpenditureSqlExecutor, ExpenditureSqlExecutor>();
-
+builder.Services.AddScoped<ISavingsSqlExecutor, SavingsSqlExecutor>();
 
 
 // Contexts
@@ -238,10 +238,12 @@ builder.Services.AddScoped<IBudgetSqlProvider, BudgetSqlProvider>();
 // Repositories
 builder.Services.AddScoped<IIncomeRepository, IncomeRepository>();
 builder.Services.AddScoped<IExpenditureRepository, ExpenditureRepository>();
+builder.Services.AddScoped<ISavingsRepository, SavingsRepository>();
 
 // Wizard Step Processors
 builder.Services.AddScoped<IWizardStepProcessor, IncomeStepProcessor>();
-builder.Services.AddScoped<IWizardStepProcessor, ExpenditureStepProcessor>();
+builder.Services.AddScoped<IWizardStepProcessor, ExpenseProcessor>();
+builder.Services.AddScoped<IWizardStepProcessor, SavingsStepProcessor>();
 
 // Transaction runner
 builder.Services.AddScoped<ITransactionRunner, TransactionRunner>();

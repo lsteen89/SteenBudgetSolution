@@ -1,5 +1,4 @@
 ﻿using Backend.Infrastructure.Data.Sql.Interfaces.WizardQueries;
-using Newtonsoft.Json;
 using Backend.Infrastructure.Data.Sql.Interfaces.Factories;
 using System.Data.Common;
 using Dapper;
