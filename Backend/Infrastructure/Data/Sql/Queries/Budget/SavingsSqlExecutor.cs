@@ -40,8 +40,8 @@ namespace Backend.Infrastructure.Data.Sql.Queries.Budget
             if (savings.SavingMethods is { Count: > 0 })
             {
                 const string insertMethodSql = @"
-                INSERT INTO SavingsMethod (SavingsId, Method)
-                VALUES (@SavingsId, @Method);";
+                INSERT INTO SavingsMethod (Id, SavingsId, Method)
+                VALUES (@Id, @SavingsId, @Method);";
 
                 foreach (var raw in savings.SavingMethods)
                 {
