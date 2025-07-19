@@ -1,4 +1,4 @@
-using Backend.Domain.Entities.Budget;
+using Backend.Domain.Entities.Budget.Income;
 using Backend.Domain.Interfaces.Repositories.Budget;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
 using System.Data;
@@ -17,6 +17,8 @@ namespace Backend.Infrastructure.Repositories.Budget
 
         public async Task AddAsync(Income income, Guid budgetId)
         {
+            if (income.BudgetId != budgetId)
+                income.BudgetId = budgetId;
             await _budgetSqlProvider.IncomeSqlExecutor.InsertIncomeAndSubItemsAsync(income, budgetId);
         }
     }

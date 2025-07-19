@@ -6,5 +6,6 @@ namespace Backend.Infrastructure.Data.Sql.Interfaces.Providers
     {
         IIncomeSqlExecutor IncomeSqlExecutor { get; }
         IExpenditureSqlExecutor ExpenditureSqlExecutor { get; }
+        ISavingsSqlExecutor SavingsSqlExecutor { get; }
     }
 }

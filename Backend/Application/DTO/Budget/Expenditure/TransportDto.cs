@@ -1,6 +1,6 @@
 namespace Backend.Application.DTO.Budget.Expenditure
 {
-    public class TransportDto
+    public sealed class TransportDto
     {
         public decimal? MonthlyFuelCost { get; set; }
         public decimal? MonthlyInsuranceCost { get; set; }
