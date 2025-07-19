@@ -1,38 +1,33 @@
-﻿-- This script creates the necessary tables for the SteenBudgetSystem application.
+
+-- This script creates the necessary tables for the SteenBudgetSystem application related to 
+-- user management and wizard functionality.
+
 -- It is designed to be run in a MariaDB environment.
 -- Ensure you have the necessary privileges to create databases and tables.
 -- Set the environment variable to determine which database to use
 -- This script assumes you are using MariaDB 10.2 or later for the RefreshTokens table.
 
+
+
+
+
 -- It creates the following tables:
 -- 1. User
--- 2. Income
--- 3. Partner
--- 4. PartnerIncome
--- 5. UserExpenseRatio
--- 6. ErrorLog
--- 7. VerificationToken
--- 8. UserVerificationTracking
--- 9. FailedLoginAttempts
--- 10. PasswordResetTokens
--- 11. RefreshTokens
--- 12. BlacklistedTokens
--- 13. WizardSession
--- 14. WizardStep
--- 15. RefreshTokens_Archive (for archiving old rows)
--- 16. Trigger for archiving RefreshTokens
--- 17. Create a table for blacklisted tokens
--- 18. Create a table for wizard sessions and steps
+-- 2. ErrorLog
+-- 3. VerificationToken
+-- 5. UserVerificationTracking
+-- 6. FailedLoginAttempts
+-- 7. PasswordResetTokens
+-- 8. RefreshTokens
+-- 9. BlacklistedTokens
+-- 10. WizardSession
+-- 11. WizardStep
+-- 12. RefreshTokens_Archive (for archiving old rows)
+-- 13. Trigger for archiving RefreshTokens
+-- 14. Create a table for blacklisted tokens
+-- 15. Create a table for wizard sessions and steps
 
 
--- NOTE --
--- Since this is a work in progress, the script may not include all necessary fields or relationships.
--- It may even contain obsolete tables or fields.
-
--- DATA TO BE CHANGED (Probably)--
--- PartnerIncome
--- UserExpenseRatio
--- Partner (Scoop of this table is not clear yet)
 
 -- Declare the environment variable (either 'prod' or 'test')
 SET @env = 'test';  -- Change this to 'prod' for production
@@ -51,12 +46,14 @@ SET @useDB = CONCAT('USE ', @dbName, ';');
 PREPARE stmt FROM @useDB;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
+
+
 -- Create the tables
 
 -- Create User table
 CREATE TABLE IF NOT EXISTS User (
     Id INT AUTO_INCREMENT PRIMARY KEY,
-    Persoid CHAR(36) NOT NULL UNIQUE,
+    Persoid UUID NOT NULL UNIQUE,
     Firstname VARCHAR(50) NOT NULL,
     LastName VARCHAR(50) NOT NULL,
     Email VARCHAR(100) NOT NULL UNIQUE,
@@ -71,69 +68,7 @@ CREATE TABLE IF NOT EXISTS User (
     LastUpdatedTime DATETIME
 );
 
--- Create Income table
-CREATE TABLE Income (
-    -- Keys
-    Id UUID PRIMARY KEY,
-    BudgetId UUID NOT NULL,
-    Persoid UUID NOT NULL,
 
-    -- Main Details
-    NetSalary DECIMAL(10, 2) NOT NULL,
-    SalaryFrequency TINYINT NOT NULL, --COMMENT 'Maps to the Frequency enum in C#',
-
-    -- Audit Fields
-    CreatedBy VARCHAR(255) NOT NULL,
-    CreatedTime DATETIME NOT NULL,
-    LastUpdatedTime DATETIME NULL,
-
-    --Future: Add foreign key constraints
-    -- FOREIGN KEY (BudgetId) REFERENCES Budgets(Id),
-    -- FOREIGN KEY (Persoid) REFERENCES Users(Id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE HouseholdMember (
-    -- Keys
-    Id UUID PRIMARY KEY,
-    IncomeId UUID NOT NULL,
-
-    -- Details
-    Name VARCHAR(255) NOT NULL,
-    IncomeAmount DECIMAL(10, 2) NOT NULL,
-    IncomeFrequency TINYINT NOT NULL --COMMENT 'Maps to the Frequency enum in C#',
-
-    -- Define the relationship to the Income table
-    CONSTRAINT fk_householdmember_income
-    FOREIGN KEY (IncomeId) REFERENCES Income(Id)
-    ON DELETE CASCADE -- If the parent Income record is deleted, delete this too
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE SideHustle (
-    -- Keys
-    Id UUID PRIMARY KEY,
-    IncomeId UUID NOT NULL,
-
-    -- Details
-    Name VARCHAR(255) NOT NULL,
-    MonthlyIncome DECIMAL(10, 2) NOT NULL,
-
-    -- Define the relationship to the Income table
-    CONSTRAINT fk_sidehustle_income
-    FOREIGN KEY (IncomeId) REFERENCES Income(Id)
-    ON DELETE CASCADE -- If the parent Income record is deleted, delete this too
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- Create UserExpenseRatio table
-CREATE TABLE IF NOT EXISTS UserExpenseRatio (
-    Id INT AUTO_INCREMENT PRIMARY KEY,
-    PersoId CHAR(36),
-    PartnerId CHAR(36) NULL,
-    Ratio DECIMAL(10, 2),
-    CreatedBy VARCHAR(50) NOT NULL,
-    CreatedTime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    LastUpdatedTime DATETIME,
-    FOREIGN KEY (PersoId) REFERENCES User(PersoId)  -- Reference to 'User'
-);
 
 -- Create ErrorLog table
 CREATE TABLE IF NOT EXISTS ErrorLog (
@@ -148,7 +83,7 @@ CREATE TABLE IF NOT EXISTS ErrorLog (
 -- Create VerificationToken table
 CREATE TABLE IF NOT EXISTS VerificationToken (
     Id INT AUTO_INCREMENT PRIMARY KEY,
-    PersoId CHAR(36),
+    PersoId UUID,
     Token CHAR(36) NOT NULL UNIQUE,
     TokenExpiryDate DATETIME NOT NULL,
     CreatedTime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -158,7 +93,7 @@ CREATE TABLE IF NOT EXISTS VerificationToken (
 -- Create UserVerificationTracking table
 CREATE TABLE UserVerificationTracking (
     Id INT PRIMARY KEY AUTO_INCREMENT,           
-    PersoId CHAR(36) NOT NULL,                   
+    PersoId UUID NOT NULL,                   
     LastResendRequestTime DATETIME,              -- Timestamp of the last resend request
     DailyResendCount INT DEFAULT 0,              -- Counter for resend attempts in the current day
     LastResendRequestDate DATE,                  -- Date of the last resend attempt for daily reset
@@ -169,7 +104,7 @@ CREATE TABLE UserVerificationTracking (
 
 CREATE TABLE IF NOT EXISTS FailedLoginAttempts (
     Id INT AUTO_INCREMENT PRIMARY KEY,
-    PersoId CHAR(36) NOT NULL,
+    PersoId UUID NOT NULL,
     AttemptTime DATETIME NOT NULL,
     IpAddress VARCHAR(45) NULL,
  FOREIGN KEY (PersoId) REFERENCES User(PersoId)  ON DELETE CASCADE 
@@ -177,7 +112,7 @@ CREATE TABLE IF NOT EXISTS FailedLoginAttempts (
 
 CREATE TABLE IF NOT EXISTS PasswordResetTokens (
     Id INT AUTO_INCREMENT PRIMARY KEY,
-    PersoId CHAR(36) NOT NULL,
+    PersoId UUID NOT NULL,
     Token CHAR(36) NOT NULL, -- GUID format
     Expiry DATETIME NOT NULL,
     FOREIGN KEY (PersoId) REFERENCES User(PersoId) ON DELETE CASCADE
@@ -192,9 +127,9 @@ CREATE TABLE IF NOT EXISTS PasswordResetTokens (
 DROP TABLE IF EXISTS RefreshTokens;
 
 CREATE TABLE RefreshTokens (
-    TokenId             CHAR(36)     NOT NULL PRIMARY KEY,
-    Persoid             CHAR(36)     NOT NULL,
-    SessionId           CHAR(36)     NOT NULL,
+    TokenId             UUID         NOT NULL PRIMARY KEY,
+    Persoid             UUID         NOT NULL,
+    SessionId           UUID         NOT NULL,
     HashedToken         VARCHAR(255) NOT NULL,
     AccessTokenJti      VARCHAR(50)  NOT NULL,
 
@@ -222,9 +157,9 @@ CREATE TABLE RefreshTokens (
 
 -- 1) Create archive table and trigger for inserting old rows
 CREATE TABLE RefreshTokens_Archive (
-    TokenId             CHAR(36)     NOT NULL,
-    Persoid             CHAR(36)     NOT NULL,
-    SessionId           CHAR(36)     NOT NULL,
+    TokenId             UUID         NOT NULL,
+    Persoid             UUID         NOT NULL,
+    SessionId           UUID         NOT NULL,
     HashedToken         VARCHAR(255) NOT NULL,
     AccessTokenJti      VARCHAR(50)  NOT NULL,
     ExpiresRollingUtc   DATETIME     NOT NULL,
@@ -265,8 +200,8 @@ CREATE TABLE BlacklistedTokens (
 );
 
 CREATE TABLE WizardSession (
-  WizardSessionId CHAR(36) NOT NULL,
-  Persoid char(36) NOT NULL,
+  WizardSessionId UUID NOT NULL,
+  Persoid UUID NOT NULL,
   CurrentStep INT NOT NULL DEFAULT 0,
   CreatedAt DATETIME NOT NULL DEFAULT UTC_TIMESTAMP(),
   UpdatedAt DATETIME NOT NULL DEFAULT UTC_TIMESTAMP(),
@@ -275,7 +210,7 @@ CREATE TABLE WizardSession (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE WizardStep (
-  WizardSessionId CHAR(36) NOT NULL,
+  WizardSessionId UUID NOT NULL,
   StepNumber INT NOT NULL,
   SubStep INT NOT NULL,
   StepData TEXT NOT NULL,
@@ -286,3 +221,4 @@ CREATE TABLE WizardStep (
     REFERENCES WizardSession(WizardSessionId)
     ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+

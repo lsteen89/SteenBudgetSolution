@@ -1,189 +1,302 @@
 ﻿using Backend.Application.Services.WizardServices.Processors;
 using Backend.Domain.Abstractions;
+using Backend.Domain.Entities.Budget.Expenditure; // Expense, ExpenseItem, ExpenseCategories
+using Backend.Domain.Entities.Budget.Expenses;
+using Backend.Domain.Interfaces.Repositories.Budget;
 using Microsoft.Extensions.Logging;
 using Moq;
+using System;
+using System.Linq;
+using System.Threading.Tasks;
 using Xunit;
-using Backend.Domain.Entities.Budget.Expenditure;
-using Backend.Domain.Interfaces.Repositories.Budget;
 
 namespace Backend.Tests.UnitTests.Processors.Wizard
 {
-    public class ExpenditureStepProcessorTests
+    public class ExpenseProcessorTests
     {
+        private const string FailureMsg = "An error occurred in the 'ExpenseProcessor'. Please try again later or contact support if the issue persists.";
+
+        // Helper – build minimal valid JSON fragment
+        private const string ValidRentJson =
+            @"{""rent"":{""homeType"":""rent"",""monthlyRent"":15000,""rentExtraFees"":500,""monthlyFee"":0,""mortgagePayment"":0}}";
+
+        private const string FullMixedJson =
+            @"{
+                ""rent"":{""homeType"":""rent"",""monthlyRent"":15000,""rentExtraFees"":500,""monthlyFee"":0,""mortgagePayment"":0},
+                ""food"":{""foodStoreExpenses"":1111,""takeoutExpenses"":2},
+                ""fixedExpenses"":{""electricity"":2,""insurance"":1,""internet"":3,""phone"":4,""unionFees"":5,
+                    ""customExpenses"":[{""name"":""Gym"", ""cost"":299}]},
+                ""transport"":{""monthlyFuelCost"":1,""monthlyInsuranceCost"":2,""monthlyTotalCarCost"":3,""monthlyTransitCost"":1},
+                ""clothing"":{""monthlyClothingCost"":1},
+                ""subscriptions"":{""subscriptions"":[{""name"":""Netflix"", ""cost"":1.0},{""name"":""Spotify"", ""cost"":2.0}]}
+              }";
+
+        private ExpenseProcessor BuildProcessor(Mock<IExpenditureRepository> repoMock,
+                                                        Mock<ILogger<ExpenseProcessor>>? loggerMock = null)
+            => new(repoMock.Object, loggerMock?.Object ?? Mock.Of<ILogger<ExpenseProcessor>>());
+
+        // ------------------------------------------------------------------ //
+        // 1. Valid (Rent only)                                               //
+        // ------------------------------------------------------------------ //
         [Fact]
-        public async Task ProcessAsync_WithValidData_CallsRepositoryWithCorrectlyMappedObject()
+        public async Task ProcessAsync_WithValidRentOnly_CreatesExpectedItems()
         {
-            // Arrange
-            // Use the complete and valid JSON string you provided.
-            var validJson = @"{""rent"":{""homeType"":""rent"",""monthlyRent"":15000,""rentExtraFees"":500,""monthlyFee"":0,""mortgagePayment"":0}}";
             var budgetId = Guid.NewGuid();
+            var repoMock = new Mock<IExpenditureRepository>();
+            var processor = BuildProcessor(repoMock);
 
-            var expenditureRepoMock = new Mock<IExpenditureRepository>();
+            var result = await processor.ProcessAsync(ValidRentJson, budgetId);
 
-            var processor = new ExpenditureStepProcessor(
-                expenditureRepoMock.Object,
-                Mock.Of<ICurrentUserContext>(),
-                Mock.Of<ILogger<ExpenditureStepProcessor>>());
-
-            // Act
-            var result = await processor.ProcessAsync(validJson, budgetId);
-
-            // Assert
             Assert.True(result.Success);
 
-            // Verify the repository was called with the correctly mapped data from the JSON.
-            expenditureRepoMock.Verify(
-                repo => repo.AddAsync(
-                    It.Is<Expenditure>(exp =>
-                        exp.Rent.MonthlyRent == 15000 &&
-                        exp.BudgetId == budgetId),
-                    budgetId
+            repoMock.Verify(r => r.AddAsync(
+                It.Is<Expense>(e =>
+                    e.BudgetId == budgetId &&
+                    e.Items.Any(i =>
+                        i.CategoryId == ExpenseCategories.Rent &&
+                        i.Name == "Rent" &&
+                        i.AmountMonthly == 15000M) &&
+                    e.Items.Any(i =>
+                        i.CategoryId == ExpenseCategories.Rent &&
+                        i.Name == "RentExtraFees" &&
+                        i.AmountMonthly == 500M) &&
+                    e.Items.Count == 2 // zero-value fields filtered out
                 ),
+                budgetId),
                 Times.Once);
         }
+
+        // ------------------------------------------------------------------ //
+        // 2. Fully populated multi-section JSON                              //
+        // ------------------------------------------------------------------ //
         [Fact]
-        public async Task ProcessAsync_WithMalformedJson_ReturnsFailureAndDoesNotCallRepository()
+        public async Task ProcessAsync_WithFullMixedData_FlattensAllSections()
         {
-            // --- Arrange ---
-            // 1. Prepare the corrupted data. This JSON is intentionally broken.
-            var malformedJson = "{ \"rent\": { \"monthlyRent\": 5000"; // Missing closing brackets
             var budgetId = Guid.NewGuid();
+            var repoMock = new Mock<IExpenditureRepository>();
+            var processor = BuildProcessor(repoMock);
 
-            // 2. Create the mock dependency. We expect it to never be called.
-            var expenditureRepoMock = new Mock<IExpenditureRepository>();
+            var result = await processor.ProcessAsync(FullMixedJson, budgetId);
 
-            // 3. Create the real object we are testing.
-            var processor = new ExpenditureStepProcessor(
-                expenditureRepoMock.Object,
-                Mock.Of<ICurrentUserContext>(),
-                Mock.Of<ILogger<ExpenditureStepProcessor>>());
-
-            // --- Act ---
-            // 4. Run the processor with the corrupted data.
-            var result = await processor.ProcessAsync(malformedJson, budgetId);
-
-            // --- Assert ---
-            // 5. Check that the operation correctly reported a failure.
-            Assert.False(result.Success);
-            Assert.Equal("An error occurred while processing the expenditure step.", result.Message);
-
-            // 6. This is the most important check: prove the database was never touched.
-            expenditureRepoMock.Verify(
-                repo => repo.AddAsync(It.IsAny<Expenditure>(), It.IsAny<Guid>()),
-                Times.Never);
-        }
-        [Fact]
-        public async Task ProcessAsync_WithPropertyTypeMismatch_ReturnsFailureAndDoesNotCallRepository()
-        {
-            // --- Arrange ---
-            // 1. The JSON is structurally valid, but the data type for 'monthlyRent' is wrong.
-            var invalidJson = @"{ ""rent"": { ""monthlyRent"": ""a lot"" } }"; // string instead of number
-            var budgetId = Guid.NewGuid();
-
-            // 2. The mock dependency.
-            var expenditureRepoMock = new Mock<IExpenditureRepository>();
-
-            // 3. The real object we are testing.
-            var processor = new ExpenditureStepProcessor(
-                expenditureRepoMock.Object,
-                Mock.Of<ICurrentUserContext>(),
-                Mock.Of<ILogger<ExpenditureStepProcessor>>());
-
-            // --- Act ---
-            // 4. Run the processor with the invalid data type.
-            var result = await processor.ProcessAsync(invalidJson, budgetId);
-
-            // --- Assert ---
-            // 5. Assert the failure.
-            Assert.False(result.Success);
-            Assert.Equal("An error occurred while processing the expenditure step.", result.Message);
-
-            // 6. Prove that the failure was caught early and the database was not called.
-            expenditureRepoMock.Verify(
-                repo => repo.AddAsync(It.IsAny<Expenditure>(), It.IsAny<Guid>()),
-                Times.Never);
-        }
-        [Fact]
-        public async Task ProcessAsync_WithEmptyJsonObject_CallsRepositoryWithEmptyObject()
-        {
-            // --- Arrange ---
-            // 1. The input is an empty but valid JSON object.
-            var emptyJson = "{}";
-            var budgetId = Guid.NewGuid();
-
-            // 2. The mock dependency.
-            var expenditureRepoMock = new Mock<IExpenditureRepository>();
-
-            // 3. The real object we are testing.
-            var processor = new ExpenditureStepProcessor(
-                expenditureRepoMock.Object,
-                Mock.Of<ICurrentUserContext>(),
-                Mock.Of<ILogger<ExpenditureStepProcessor>>());
-
-            // --- Act ---
-            // 4. Run the processor with the empty data.
-            var result = await processor.ProcessAsync(emptyJson, budgetId);
-
-            // --- Assert ---
-            // 5. The operation should still be considered a success.
             Assert.True(result.Success);
 
-            // 6. Verify the repository was called once with a "default" Expenditure object.
-            //    We check that its nested properties are null, but its BudgetId is set correctly.
-            expenditureRepoMock.Verify(
-                repo => repo.AddAsync(
-                    It.Is<Expenditure>(exp =>
-                        exp.BudgetId == budgetId &&
-                        exp.Rent == null &&
-                        exp.Food == null &&
-                        exp.Transport == null),
-                    budgetId
+            repoMock.Verify(r => r.AddAsync(
+                It.Is<Expense>(e =>
+                    e.BudgetId == budgetId &&
+                    // rent
+                    e.Items.Any(i => i.CategoryId == ExpenseCategories.Rent && i.Name == "Rent" && i.AmountMonthly == 15000M) &&
+                    e.Items.Any(i => i.CategoryId == ExpenseCategories.Rent && i.Name == "RentExtraFees" && i.AmountMonthly == 500M) &&
+                    // food
+                    e.Items.Any(i => i.CategoryId == ExpenseCategories.Food && i.Name == "FoodStore" && i.AmountMonthly == 1111M) &&
+                    e.Items.Any(i => i.CategoryId == ExpenseCategories.Food && i.Name == "Takeout" && i.AmountMonthly == 2M) &&
+                    // fixed predefined
+                    e.Items.Any(i => i.CategoryId == ExpenseCategories.FixedExpense && i.Name == "Electricity" && i.AmountMonthly == 2M) &&
+                    e.Items.Any(i => i.CategoryId == ExpenseCategories.FixedExpense && i.Name == "Internet" && i.AmountMonthly == 3M) &&
+                    // custom fixed
+                    e.Items.Any(i => i.CategoryId == ExpenseCategories.FixedExpense && i.Name == "Gym" && i.AmountMonthly == 299M) &&
+                    // subscriptions
+                    e.Items.Any(i => i.CategoryId == ExpenseCategories.Subscription && i.Name == "Netflix" && i.AmountMonthly == 1M) &&
+                    e.Items.Any(i => i.CategoryId == ExpenseCategories.Subscription && i.Name == "Spotify" && i.AmountMonthly == 2M)
                 ),
+                budgetId),
                 Times.Once);
         }
+
+        // ------------------------------------------------------------------ //
+        // 3. Malformed JSON                                                  //
+        // ------------------------------------------------------------------ //
         [Fact]
-        public async Task ProcessAsync_WhenRepositoryThrows_ReturnsFailureAndLogsError()
+        public async Task ProcessAsync_WithMalformedJson_ReturnsFailure_NoRepoCalls()
         {
-            // --- Arrange ---
-            // 1. Provide valid data to ensure the process reaches the repository call.
-            var validJson = "{}";
+            var malformed = @"{ ""rent"": { ""monthlyRent"": 5000 "; // missing braces
+            var budgetId = Guid.NewGuid();
+            var repoMock = new Mock<IExpenditureRepository>();
+            var processor = BuildProcessor(repoMock);
+
+            var result = await processor.ProcessAsync(malformed, budgetId);
+
+            Assert.False(result.Success);
+            Assert.Equal(FailureMsg, result.Message);
+
+            repoMock.Verify(r => r.AddAsync(It.IsAny<Expense>(), It.IsAny<Guid>()), Times.Never);
+        }
+
+        // ------------------------------------------------------------------ //
+        // 4. Type mismatch                                                   //
+        // ------------------------------------------------------------------ //
+        [Fact]
+        public async Task ProcessAsync_WithTypeMismatch_ReturnsFailure_NoRepoCalls()
+        {
+            var invalid = @"{ ""rent"": { ""monthlyRent"": ""a lot"" } }";
+            var budgetId = Guid.NewGuid();
+            var repoMock = new Mock<IExpenditureRepository>();
+            var processor = BuildProcessor(repoMock);
+
+            var result = await processor.ProcessAsync(invalid, budgetId);
+
+            Assert.False(result.Success);
+            Assert.Equal(FailureMsg, result.Message);
+
+            repoMock.Verify(r => r.AddAsync(It.IsAny<Expense>(), It.IsAny<Guid>()), Times.Never);
+        }
+
+        // ------------------------------------------------------------------ //
+        // 5. Empty JSON => success + zero items                              //
+        // ------------------------------------------------------------------ //
+        [Fact]
+        public async Task ProcessAsync_WithEmptyObject_SucceedsWithZeroItems()
+        {
+            var empty = "{}";
+            var budgetId = Guid.NewGuid();
+            var repoMock = new Mock<IExpenditureRepository>();
+            var processor = BuildProcessor(repoMock);
+
+            var result = await processor.ProcessAsync(empty, budgetId);
+
+            Assert.True(result.Success);
+
+            repoMock.Verify(r => r.AddAsync(
+                It.Is<Expense>(e =>
+                    e.BudgetId == budgetId &&
+                    e.Items.Count == 0),
+                budgetId),
+                Times.Once);
+        }
+
+        // ------------------------------------------------------------------ //
+        // 6. Repository throws                                               //
+        // ------------------------------------------------------------------ //
+        [Fact]
+        public async Task ProcessAsync_WhenRepositoryThrows_ReturnsFailureAndLogs()
+        {
+            var json = "{}";
             var budgetId = Guid.NewGuid();
 
-            // 2. Command the repository mock to throw an exception when called.
-            var expenditureRepoMock = new Mock<IExpenditureRepository>();
-            var dbException = new InvalidOperationException("The database is sleeping.");
-            expenditureRepoMock
-                .Setup(repo => repo.AddAsync(It.IsAny<Expenditure>(), It.IsAny<Guid>()))
-                .ThrowsAsync(dbException);
+            var repoMock = new Mock<IExpenditureRepository>();
+            var dbEx = new InvalidOperationException("DB down");
+            repoMock.Setup(r => r.AddAsync(It.IsAny<Expense>(), It.IsAny<Guid>()))
+                    .ThrowsAsync(dbEx);
 
-            // 3. Create a verifiable logger to ensure the error is recorded.
-            var loggerMock = new Mock<ILogger<ExpenditureStepProcessor>>();
+            var loggerMock = new Mock<ILogger<ExpenseProcessor>>();
+            var processor = new ExpenseProcessor(repoMock.Object, loggerMock.Object);
 
-            // 4. Create the real processor with our failing repository.
-            var processor = new ExpenditureStepProcessor(
-                expenditureRepoMock.Object,
-                Mock.Of<ICurrentUserContext>(),
-                loggerMock.Object);
+            var result = await processor.ProcessAsync(json, budgetId);
 
-            // --- Act ---
-            // 5. Run the processor, which will trigger the exception internally.
-            var result = await processor.ProcessAsync(validJson, budgetId);
-
-            // --- Assert ---
-            // 6. Assert that the operation correctly reported a failure.
             Assert.False(result.Success);
-            Assert.Equal("An error occurred while processing the expenditure step.", result.Message);
+            Assert.Equal(FailureMsg, result.Message);
 
-            // 7. Verify that the exception was logged at the Error level.
-            //    This proves our catch block is working as intended.
-            loggerMock.Verify(
-                log => log.Log(
+            loggerMock.Verify(log => log.Log(
                     LogLevel.Error,
                     It.IsAny<EventId>(),
-                    It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("Error processing expenditure step.")),
-                    dbException, // We can even assert that the correct exception was logged.
+                    It.Is<It.IsAnyType>((v, _) => v.ToString().Contains("Persistence error", StringComparison.OrdinalIgnoreCase)
+                                               || v.ToString().Contains("An error occurred", StringComparison.OrdinalIgnoreCase)),
+                    dbEx,
                     It.IsAny<Func<It.IsAnyType, Exception, string>>()),
                 Times.Once);
         }
+        [Fact]
+        public async Task ProcessAsync_FiltersZeroAndNullAmounts()
+        {
+            var json = @"{ ""rent"": { ""monthlyRent"": 0, ""rentExtraFees"": null, ""mortgagePayment"": 2500 } }";
+            var budgetId = Guid.NewGuid();
+            var repo = new Mock<IExpenditureRepository>();
+            var processor = BuildProcessor(repo);
+
+            var result = await processor.ProcessAsync(json, budgetId);
+            Assert.True(result.Success);
+
+            repo.Verify(r => r.AddAsync(
+                It.Is<Expense>(e =>
+                    e.Items.Count == 1 &&
+                    e.Items.Single().Name == "MortgagePayment" &&
+                    e.Items.Single().AmountMonthly == 2500M),
+                budgetId),
+                Times.Once);
+        }
+        [Fact]
+        public async Task ProcessAsync_RoundsAmountsToTwoDecimals()
+        {
+            var json = @"{ ""food"": { ""foodStoreExpenses"": 123.4567 } }";
+            var repo = new Mock<IExpenditureRepository>();
+            var budgetId = Guid.NewGuid();
+            var processor = BuildProcessor(repo);
+
+            await processor.ProcessAsync(json, budgetId);
+
+            repo.Verify(r => r.AddAsync(
+                It.Is<Expense>(e =>
+                    e.Items.Single().AmountMonthly == 123.46M),
+                budgetId),
+                Times.Once);
+        }
+        [Fact]
+        public async Task ProcessAsync_CustomFixedExpensesOnly()
+        {
+            var json = @"{ ""fixedExpenses"": { ""customExpenses"": [
+        { ""name"": ""Gym"", ""cost"": 199 },
+        { ""name"": ""CloudBackup"", ""cost"": 49 }
+    ] } }";
+            var budgetId = Guid.NewGuid();
+            var repo = new Mock<IExpenditureRepository>();
+            var processor = BuildProcessor(repo);
+
+            await processor.ProcessAsync(json, budgetId);
+
+            repo.Verify(r => r.AddAsync(
+                It.Is<Expense>(e =>
+                    e.Items.Count == 2 &&
+                    e.Items.All(i => i.CategoryId == ExpenseCategories.FixedExpense) &&
+                    e.Items.Any(i => i.Name == "Gym" && i.AmountMonthly == 199M) &&
+                    e.Items.Any(i => i.Name == "CloudBackup" && i.AmountMonthly == 49M)),
+                budgetId),
+                Times.Once);
+        }
+        [Fact]
+        public async Task ProcessAsync_TrimsCustomNames()
+        {
+            var json = @"{ ""fixedExpenses"": { ""customExpenses"": [
+                { ""name"": ""  Gym  "", ""cost"": 100 }
+            ] } }";
+            var budgetId = Guid.NewGuid();
+            var repo = new Mock<IExpenditureRepository>();
+            var processor = BuildProcessor(repo);
+
+            await processor.ProcessAsync(json, budgetId);
+
+            repo.Verify(r => r.AddAsync(
+                It.Is<Expense>(e =>
+                    e.Items.Single().Name == "Gym"),
+                budgetId),
+                Times.Once);
+        }
+        [Fact]
+        public void AddItem_WithUnknownCategory_Throws()
+        {
+            var exp = new Expense { BudgetId = Guid.NewGuid() };
+            var invalidCat = Guid.NewGuid();
+            Assert.Throws<InvalidOperationException>(() =>
+                exp.AddItem(invalidCat, "Foo", 10M));
+        }
+        [Fact]
+        public async Task ProcessAsync_DuplicateCustomNames_AreBothKept()
+        {
+            var json = @"{ ""fixedExpenses"": { ""customExpenses"": [
+                { ""name"": ""Gym"", ""cost"": 50 },
+                { ""name"": ""Gym"", ""cost"": 20 }
+            ] } }";
+            var repo = new Mock<IExpenditureRepository>();
+            var budgetId = Guid.NewGuid();
+            var processor = BuildProcessor(repo);
+
+            await processor.ProcessAsync(json, budgetId);
+
+            repo.Verify(r => r.AddAsync(
+                It.Is<Expense>(e =>
+                    e.Items.Count(i => i.Name == "Gym") == 2),
+                budgetId),
+                Times.Once);
+        }
+
     }
+
 }

@@ -1,4 +1,4 @@
-using Backend.Domain.Entities.Budget;
+using Backend.Domain.Entities.Budget.Income;
 using Backend.Infrastructure.Data.Sql.Interfaces.Helpers;
 using Backend.Infrastructure.Data.Sql.Interfaces.Queries;
 using Dapper;
@@ -17,46 +17,76 @@ namespace Backend.Infrastructure.Data.Sql.Queries.Budget
 
         public async Task InsertIncomeAndSubItemsAsync(Income income, Guid budgetId)
         {
-            _logger.LogInformation("Inserting income for user {Persoid} with BudgetId {BudgetId}", income.Persoid, budgetId);
+            _logger.LogInformation("Inserting income for BudgetId {BudgetId}.", budgetId);
 
-            // 1. Generate Primary Keys in the application
-            income.Id = Guid.NewGuid(); // Give the main Income object its own new Guid PK
-            income.BudgetId = budgetId; // Assign the BudgetId from the orchestrator
+            if (income.Id == Guid.Empty)
+                income.Id = Guid.NewGuid();
+            income.BudgetId = budgetId;
 
-            // 2. Update the SQL to insert all necessary columns, including the new Guids.
-            //    We use UUID_TO_BIN for efficient storage in MySQL.
-            var incomeSql = @"
-                INSERT INTO Income (Id, BudgetId, Persoid, NetSalary, SalaryFrequency, CreatedBy, CreatedTime)
-                VALUES (@Id, @BudgetId, @Persoid, @NetSalary, @SalaryFrequency, @CreatedBy, @CreatedTime);";
+            const string insertIncomeSql = @"
+            INSERT INTO Income (Id, BudgetId, NetSalaryMonthly, SalaryFrequency)
+            VALUES (@Id, @BudgetId, @NetSalaryMonthly, @SalaryFrequency);";
 
-            // 5. Use the new helper methods from SqlBase. No more passing conn/tx.
-            await ExecuteAsync(incomeSql, income);
-
-            // --- Handle Child Items ---
-
-            foreach (var sideHustle in income.SideHustles)
+            await ExecuteAsync(insertIncomeSql, new
             {
-                sideHustle.Id = Guid.NewGuid(); // Give the child its own PK
-                sideHustle.IncomeId = income.Id; // Assign the FK from the parent object we just created
+                income.Id,
+                income.BudgetId,
+                income.NetSalaryMonthly,
+                income.SalaryFrequency
+            });
 
-                var sideHustleSql = @"
-                    INSERT INTO SideHustle (Id, Name, MonthlyIncome, IncomeId)
-                    VALUES (UUID_TO_BIN(@Id, 1), @Name, @MonthlyIncome, UUID_TO_BIN(@IncomeId, 1));";
-                await ExecuteAsync(sideHustleSql, sideHustle);
+            // Side Hustles
+            if (income.SideHustles?.Count > 0)
+            {
+                const string insertSideSql = @"
+                INSERT INTO IncomeSideHustle (Id, IncomeId, Name, IncomeMonthly, Frequency)
+                VALUES (@Id, @IncomeId, @Name, @IncomeMonthly, @Frequency);";
+
+                foreach (var sh in income.SideHustles)
+                {
+                    sh.Id = Guid.NewGuid();
+                    sh.IncomeId = income.Id;
+
+                    await ExecuteAsync(insertSideSql, new
+                    {
+                        sh.Id,
+                        sh.IncomeId,
+                        sh.Name,
+                        sh.IncomeMonthly,
+                        sh.Frequency
+                    });
+                }
             }
 
-            foreach (var member in income.HouseholdMembers)
+            // Household Members
+            if (income.HouseholdMembers?.Count > 0)
             {
-                member.Id = Guid.NewGuid(); // Give the child its own PK
-                member.IncomeId = income.Id; // Assign the FK
+                const string insertMemberSql = @"
+                INSERT INTO IncomeHouseholdMember (Id, IncomeId, Name, IncomeMonthly, Frequency)
+                VALUES (@Id, @IncomeId, @Name, @IncomeMonthly, @Frequency);";
 
-                var memberSql = @"
-                    INSERT INTO HouseholdMember (Id, Name, IncomeAmount, IncomeFrequency, IncomeId)
-                    VALUES (UUID_TO_BIN(@Id, 1), @Name, @IncomeAmount, @IncomeFrequency, UUID_TO_BIN(@IncomeId, 1));";
-                await ExecuteAsync(memberSql, member);
+                foreach (var hm in income.HouseholdMembers)
+                {
+                    hm.Id = Guid.NewGuid();
+                    hm.IncomeId = income.Id;
+
+                    await ExecuteAsync(insertMemberSql, new
+                    {
+                        hm.Id,
+                        hm.IncomeId,
+                        hm.Name,
+                        hm.IncomeMonthly,
+                        hm.Frequency
+                    });
+                }
             }
 
-            _logger.LogInformation("Successfully inserted income and its child items for BudgetId {BudgetId}", budgetId);
+            _logger.LogInformation(
+                "Inserted income + {SideCount} side hustles + {MemberCount} household members for BudgetId {BudgetId}.",
+                income.SideHustles?.Count ?? 0,
+                income.HouseholdMembers?.Count ?? 0,
+                budgetId);
         }
     }
 }
+

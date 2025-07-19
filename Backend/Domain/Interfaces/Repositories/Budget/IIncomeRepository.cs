@@ -1,4 +1,4 @@
-using Backend.Domain.Entities.Budget;
+using Backend.Domain.Entities.Budget.Income;
 using System.Data;
 using System.Threading.Tasks;
 
