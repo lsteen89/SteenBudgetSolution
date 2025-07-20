@@ -52,10 +52,14 @@ namespace Backend.Tests.UnitTests.Processors.Wizard
                 repo => repo.AddAsync(
                     It.Is<Savings>(s =>
                         s.BudgetId == budgetId &&
-                        s.SavingHabit == "automatic" &&
+                        s.SavingMethods.First().Method == "auto" &&
                         s.MonthlySavings == 8629M &&
+
+                        // --- This is the fix ---
                         s.SavingMethods.Count == 1 &&
-                        s.SavingMethods.First() == "auto" &&
+                        s.SavingMethods.First().Method == "auto" && // We check the 'Method' property
+                                                                    // ---------------------
+
                         s.SavingsGoals.Count == 1 &&
                         s.SavingsGoals.First().Name == "Emergency" &&
                         s.SavingsGoals.First().TargetAmount == 10000M &&
@@ -142,7 +146,6 @@ namespace Backend.Tests.UnitTests.Processors.Wizard
                 repo => repo.AddAsync(
                     It.Is<Savings>(s =>
                         s.BudgetId == budgetId &&
-                        s.SavingHabit == null &&
                         s.MonthlySavings == 0 &&
                         s.SavingMethods.Count == 0 &&
                         s.SavingsGoals.Count == 0),

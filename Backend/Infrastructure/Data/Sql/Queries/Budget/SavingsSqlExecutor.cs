@@ -13,77 +13,50 @@ namespace Backend.Infrastructure.Data.Sql.Queries.Budget
 
         public async Task AddSavingsAsync(Savings savings, Guid budgetId)
         {
-            _logger.LogInformation("Inserting savings for budget {BudgetId}", savings.BudgetId);
+            _logger.LogInformation("Inserting savings and children for budget {BudgetId}", budgetId);
 
-            // Guard: ensure ID once; don't override upstream deterministic ID
+            // --- ID MANAGEMENT ---
             if (savings.Id == Guid.Empty)
                 savings.Id = Guid.NewGuid();
 
-            // ------------------------------------------------------------------
-            // Parent row
-            // ------------------------------------------------------------------
-            const string insertSavingsSql = @"
-            INSERT INTO Savings (Id, BudgetId, SavingHabit, MonthlySavings)
-            VALUES (@Id, @BudgetId, @SavingHabit, @MonthlySavings);";
-
-            await ExecuteAsync(insertSavingsSql, new
+            // Prepare the children before the call.
+            // Make sure every kid knows who their daddy is and has their own ID.
+            foreach (var method in savings.SavingMethods)
             {
-                savings.Id,
-                savings.BudgetId,
-                savings.SavingHabit,
-                savings.MonthlySavings
-            });
+                if (method.Id == Guid.Empty) method.Id = Guid.NewGuid();
+                method.SavingsId = savings.Id;
+            }
+            foreach (var goal in savings.SavingsGoals)
+            {
+                if (goal.Id == Guid.Empty) goal.Id = Guid.NewGuid();
+                goal.SavingsId = savings.Id;
+            }
 
-            // ------------------------------------------------------------------
-            // Methods (list of strings)
-            // ------------------------------------------------------------------
-            if (savings.SavingMethods is { Count: > 0 })
+            // --- THE CALLS ---
+            // One trip for the parent.
+            const string insertSavingsSql = @"
+            INSERT INTO Savings (Id, BudgetId, MonthlySavings)
+            VALUES (UUID_TO_BIN(@Id), UUID_TO_BIN(@BudgetId), @MonthlySavings);";
+            await ExecuteAsync(insertSavingsSql, savings);
+
+            // One trip for ALL the methods.
+            if (savings.SavingMethods.Any())
             {
                 const string insertMethodSql = @"
                 INSERT INTO SavingsMethod (Id, SavingsId, Method)
-                VALUES (@Id, @SavingsId, @Method);";
-
-                foreach (var raw in savings.SavingMethods)
-                {
-                    // Basic hygiene: trim, skip null/empty
-                    var method = raw?.Trim();
-                    if (string.IsNullOrWhiteSpace(method)) continue;
-
-                    await ExecuteAsync(insertMethodSql, new
-                    {
-                        SavingsId = savings.Id,
-                        Method = method
-                    });
-                }
+                VALUES (UUID_TO_BIN(@Id), UUID_TO_BIN(@SavingsId), @Method);";
+                // Dapper is smart enough to run this for every item in the list.
+                await ExecuteAsync(insertMethodSql, savings.SavingMethods);
             }
 
-            // ------------------------------------------------------------------
-            // Goals (child entities)
-            // ------------------------------------------------------------------
-            if (savings.SavingsGoals is { Count: > 0 })
+            // One trip for ALL the goals.
+            if (savings.SavingsGoals.Any())
             {
                 const string insertGoalSql = @"
                 INSERT INTO SavingsGoal (Id, SavingsId, Name, TargetAmount, TargetDate, AmountSaved)
-                VALUES (@Id, @SavingsId, @Name, @TargetAmount, @TargetDate, @AmountSaved);";
-
-                foreach (var goal in savings.SavingsGoals)
-                {
-                    if (goal.Id == Guid.Empty)
-                        goal.Id = Guid.NewGuid();
-
-                    goal.SavingsId = savings.Id;
-
-                    await ExecuteAsync(insertGoalSql, new
-                    {
-                        goal.Id,
-                        goal.SavingsId,
-                        goal.Name,
-                        goal.TargetAmount,
-                        // Use DateTime? to allow nulls (This needs to be tested later, // as it may not be nullable in the database schema)
-                        goal.TargetDate,
-                        goal.AmountSaved
-                    });
-                }
+                VALUES (UUID_TO_BIN(@Id), UUID_TO_BIN(@SavingsId), @Name, @TargetAmount, @TargetDate, @AmountSaved);";
+                // Same deal here. One call, many inserts.
+                await ExecuteAsync(insertGoalSql, savings.SavingsGoals);
             }
         }
     }
