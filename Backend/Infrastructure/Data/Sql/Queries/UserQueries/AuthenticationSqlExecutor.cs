@@ -1,6 +1,6 @@
 ﻿using Backend.Domain.Entities.User;
 using Backend.Infrastructure.Data.Sql.Interfaces.Factories;
-using Backend.Infrastructure.Data.Sql.Interfaces.UserQueries;
+using Backend.Infrastructure.Data.Sql.Interfaces.Queries.UserQueries;
 using Dapper;
 using System.Data.Common;
 

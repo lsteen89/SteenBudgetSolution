@@ -4,7 +4,7 @@ using Backend.Application.Interfaces.JWT;
 using Backend.Common.Interfaces;
 using Backend.Domain.Entities.Auth;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
-using Backend.Infrastructure.Data.Sql.Interfaces.UserQueries;
+using Backend.Infrastructure.Data.Sql.Interfaces.Queries.UserQueries;
 using Backend.Infrastructure.Entities.Tokens;
 using Backend.Infrastructure.Security;
 using Backend.Settings;

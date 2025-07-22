@@ -1,6 +1,6 @@
 ﻿using System.Data.Common;
 
-namespace Backend.Infrastructure.Data.Sql.Interfaces.UserQueries
+namespace Backend.Infrastructure.Data.Sql.Interfaces.Queries.UserQueries
 {
     public interface IAuthenticationSqlExecutor
     {

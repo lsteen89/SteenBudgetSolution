@@ -9,11 +9,11 @@ namespace Backend.Domain.Entities.Budget.Savings
         public Guid BudgetId { get; set; }
         public decimal MonthlySavings { get; set; }
 
-        // It has a collection of its own soldiers.
+        // collection of savings methods and goals
         public ICollection<SavingsMethod> SavingMethods { get; private set; } = new List<SavingsMethod>();
         public ICollection<SavingsGoal> SavingsGoals { get; private set; } = new List<SavingsGoal>();
 
-        // It knows how to manage its own crew.
+        
         public void AddMethod(SavingsMethod method)
         {
             if (method is null || string.IsNullOrWhiteSpace(method.Method)) return;

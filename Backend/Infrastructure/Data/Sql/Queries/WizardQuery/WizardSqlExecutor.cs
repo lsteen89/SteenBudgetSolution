@@ -1,10 +1,10 @@
-﻿using Backend.Infrastructure.Data.Sql.Interfaces.WizardQueries;
-using Backend.Infrastructure.Data.Sql.Interfaces.Factories;
+﻿using Backend.Infrastructure.Data.Sql.Interfaces.Factories;
 using System.Data.Common;
 using Dapper;
 using Backend.Application.DTO.Wizard;
 using Backend.Infrastructure.Entities.Tokens;
 using Backend.Domain.Entities.Wizard;
+using Backend.Infrastructure.Data.Sql.Interfaces.Queries.WizardQueries;
 
 namespace Backend.Infrastructure.Data.Sql.Queries.WizardQuery
 {

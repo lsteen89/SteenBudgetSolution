@@ -1,6 +1,6 @@
 using Backend.Domain.Entities.Budget.Savings;
 using Backend.Infrastructure.Data.Sql.Interfaces.Helpers;
-using Backend.Infrastructure.Data.Sql.Interfaces.Queries;
+using Backend.Infrastructure.Data.Sql.Interfaces.Queries.Budget;
 
 namespace Backend.Infrastructure.Data.Sql.Queries.Budget
 {
@@ -10,6 +10,26 @@ namespace Backend.Infrastructure.Data.Sql.Queries.Budget
             : base(unitOfWork, logger)
         {
         }
+        #region SQL Queries Insert
+
+        // These SQL queries are used to insert data into the Savings, SavingsMethod, and SavingsGoal tables.
+
+        // Savings table stores the overall savings plan.
+        const string insertSavingsSql = @"
+            INSERT INTO Savings (Id, BudgetId, MonthlySavings)
+            VALUES (BINARY(16)_TO_BIN(@Id), BINARY(16)_TO_BIN(@BudgetId), @MonthlySavings);";
+
+        // SavingsMethod table stores the methods used to save money.
+        const string insertMethodSql = @"
+                INSERT INTO SavingsMethod (Id, SavingsId, Method)
+                VALUES (BINARY(16)_TO_BIN(@Id), BINARY(16)_TO_BIN(@SavingsId), @Method);";
+
+        // SavingsGoal table stores specific savings goals.
+        const string insertGoalSql = @"
+                INSERT INTO SavingsGoal (Id, SavingsId, Name, TargetAmount, TargetDate, AmountSaved)
+                VALUES (BINARY(16)_TO_BIN(@Id), BINARY(16)_TO_BIN(@SavingsId), @Name, @TargetAmount, @TargetDate, @AmountSaved);";
+
+        #endregion
 
         public async Task AddSavingsAsync(Savings savings, Guid budgetId)
         {
@@ -32,19 +52,13 @@ namespace Backend.Infrastructure.Data.Sql.Queries.Budget
                 goal.SavingsId = savings.Id;
             }
 
-            // --- THE CALLS ---
-            // One trip for the parent.
-            const string insertSavingsSql = @"
-            INSERT INTO Savings (Id, BudgetId, MonthlySavings)
-            VALUES (UUID_TO_BIN(@Id), UUID_TO_BIN(@BudgetId), @MonthlySavings);";
+            // Insert the main savings record.
             await ExecuteAsync(insertSavingsSql, savings);
 
             // One trip for ALL the methods.
             if (savings.SavingMethods.Any())
             {
-                const string insertMethodSql = @"
-                INSERT INTO SavingsMethod (Id, SavingsId, Method)
-                VALUES (UUID_TO_BIN(@Id), UUID_TO_BIN(@SavingsId), @Method);";
+
                 // Dapper is smart enough to run this for every item in the list.
                 await ExecuteAsync(insertMethodSql, savings.SavingMethods);
             }
@@ -52,9 +66,7 @@ namespace Backend.Infrastructure.Data.Sql.Queries.Budget
             // One trip for ALL the goals.
             if (savings.SavingsGoals.Any())
             {
-                const string insertGoalSql = @"
-                INSERT INTO SavingsGoal (Id, SavingsId, Name, TargetAmount, TargetDate, AmountSaved)
-                VALUES (UUID_TO_BIN(@Id), UUID_TO_BIN(@SavingsId), @Name, @TargetAmount, @TargetDate, @AmountSaved);";
+
                 // Same deal here. One call, many inserts.
                 await ExecuteAsync(insertGoalSql, savings.SavingsGoals);
             }
