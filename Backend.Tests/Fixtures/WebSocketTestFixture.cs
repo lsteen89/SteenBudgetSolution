@@ -9,7 +9,6 @@ using Backend.Application.Services.EmailServices;
 using Backend.Application.Services.UserServices;
 using Backend.Common.Interfaces;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
-using Backend.Infrastructure.Data.Sql.Interfaces.UserQueries;
 using Backend.Infrastructure.Data.Sql.Providers.UserProvider;
 using Backend.Infrastructure.Entities.Tokens;
 using Backend.Infrastructure.Implementations;
@@ -35,6 +34,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 using Backend.Infrastructure.WebSockets;
 using static MailKit.Telemetry;
+using Backend.Infrastructure.Data.Sql.Interfaces.Queries.UserQueries;
 
 public sealed class WebSocketFixture : IAsyncLifetime
 {

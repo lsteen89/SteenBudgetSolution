@@ -24,9 +24,11 @@ using Backend.Infrastructure.Data.Sql.Helpers;
 using Backend.Infrastructure.Data.Sql.Interfaces.Factories;
 using Backend.Infrastructure.Data.Sql.Interfaces.Helpers;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
-using Backend.Infrastructure.Data.Sql.Interfaces.Queries;
-using Backend.Infrastructure.Data.Sql.Interfaces.UserQueries;
-using Backend.Infrastructure.Data.Sql.Interfaces.WizardQueries;
+using Backend.Infrastructure.Data.Sql.Interfaces.Queries.Budget;
+using Backend.Infrastructure.Data.Sql.Interfaces.Queries.Budget_Queries;
+using Backend.Infrastructure.Data.Sql.Interfaces.Queries.BudgetQuries;
+using Backend.Infrastructure.Data.Sql.Interfaces.Queries.UserQueries;
+using Backend.Infrastructure.Data.Sql.Interfaces.Queries.WizardQueries;
 using Backend.Infrastructure.Data.Sql.Providers.BudgetProvider;
 using Backend.Infrastructure.Data.Sql.Providers.UserProvider;
 using Backend.Infrastructure.Data.Sql.Providers.WizardProvider;
@@ -220,9 +222,11 @@ builder.Services.AddScoped<IVerificationTokenSqlExecutor, VerificationTokenSqlEx
 builder.Services.AddScoped<IAuthenticationSqlExecutor, AuthenticationSqlExecutor>();
 builder.Services.AddScoped<IRefreshTokenSqlExecutor, RefreshTokenSqlExecutor> ();
 // Budget
+builder.Services.AddScoped<IBudgetSqlExecutor, BudgetSqlExecutor>();
 builder.Services.AddScoped<IIncomeSqlExecutor, IncomeSqlExecutor>();
 builder.Services.AddScoped<IExpenditureSqlExecutor, ExpenditureSqlExecutor>();
 builder.Services.AddScoped<ISavingsSqlExecutor, SavingsSqlExecutor>();
+builder.Services.AddScoped<IDebtsSqlExecutor, DebtsSqlExecutor>();
 
 
 // Contexts
@@ -239,10 +243,11 @@ builder.Services.AddScoped<IBudgetSqlProvider, BudgetSqlProvider>();
 builder.Services.AddScoped<IIncomeRepository, IncomeRepository>();
 builder.Services.AddScoped<IExpenditureRepository, ExpenditureRepository>();
 builder.Services.AddScoped<ISavingsRepository, SavingsRepository>();
+builder.Services.AddScoped<IDebtsRepository, DebtsRepository>();
 
 // Wizard Step Processors
 builder.Services.AddScoped<IWizardStepProcessor, IncomeStepProcessor>();
-builder.Services.AddScoped<IWizardStepProcessor, ExpenseProcessor>();
+builder.Services.AddScoped<IWizardStepProcessor, ExpenseStepProcessor>();
 builder.Services.AddScoped<IWizardStepProcessor, SavingsStepProcessor>();
 
 // Transaction runner

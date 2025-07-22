@@ -9,16 +9,16 @@ using System.Text.Json;
 
 namespace Backend.Application.Services.WizardServices.Processors
 {
-    public class ExpenseProcessor : IWizardStepProcessor
+    public class ExpenseStepProcessor : IWizardStepProcessor
     {
         public int StepNumber => 2;
 
         private readonly IExpenditureRepository _expenditureRepository;
-        private readonly ILogger<ExpenseProcessor> _logger;
+        private readonly ILogger<ExpenseStepProcessor> _logger;
 
-        public ExpenseProcessor(
+        public ExpenseStepProcessor(
             IExpenditureRepository expenditureRepository,
-            ILogger<ExpenseProcessor> logger)
+            ILogger<ExpenseStepProcessor> logger)
         {
             _expenditureRepository = expenditureRepository;
             _logger = logger;
@@ -29,7 +29,7 @@ namespace Backend.Application.Services.WizardServices.Processors
             Guid budgetId)
         {
             // Make sure we have our consistent failure message
-            string FailureMsg = FailureMsgHelper.GetFailureMessage(nameof(ExpenseProcessor));
+            string FailureMsg = FailureMsgHelper.GetFailureMessage(nameof(ExpenseStepProcessor));
 
             try
             {

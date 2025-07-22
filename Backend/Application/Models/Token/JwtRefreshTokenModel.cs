@@ -10,7 +10,7 @@ namespace Backend.Application.Models.Token
     /// </summary>
     public sealed record JwtRefreshTokenModel
     (
-        Guid TokenId,            // surrogate PK (UUID)
+        Guid TokenId,            // surrogate PK (BINARY(16))
         Guid Persoid,            // user
         Guid SessionId,          // device / browser
         string HashedToken,        // SHA-256 hex (raw value never stored)

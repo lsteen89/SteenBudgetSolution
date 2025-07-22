@@ -59,11 +59,7 @@ namespace Backend.Application.Mapping.Budget
             {
                 foreach (var s in dto.Subscriptions.Subscriptions)
                 {
-                    if (s?.Cost is null || s.Cost <= 0) continue;
-                    var name = (s.Name ?? string.Empty).Trim();
-                    if (name.Length == 0) continue;
-
-                    exp.AddItem(ExpenseCategories.Subscription, name, s.Cost);
+                    exp.AddItem(ExpenseCategories.Subscription, s.Name, s.Cost);
                 }
             }
 

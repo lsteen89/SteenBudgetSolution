@@ -1,23 +1,24 @@
 using Backend.Domain.Entities.Budget.Expenses;
 using Backend.Domain.Interfaces.Repositories.Budget;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
+using Backend.Infrastructure.Data.Sql.Interfaces.Queries.Budget;
 
 namespace Backend.Infrastructure.Repositories.Budget
 {
     public class ExpenditureRepository : IExpenditureRepository
     {
-        private readonly IBudgetSqlProvider _budgetSqlProvider;
+        private readonly IExpenditureSqlExecutor _expenditureSqlExecutor;
 
-        public ExpenditureRepository(IBudgetSqlProvider budgetSqlProvider)
+        public ExpenditureRepository(IExpenditureSqlExecutor expenditureSqlExecutor)
         {
-            _budgetSqlProvider = budgetSqlProvider;
+            _expenditureSqlExecutor = expenditureSqlExecutor;
         }
 
         public async Task AddAsync(Expense expenditure, Guid budgetId)
         {
             if (expenditure.BudgetId != budgetId)
                 expenditure.BudgetId = budgetId;
-            await _budgetSqlProvider.ExpenditureSqlExecutor.InsertExpenseItemsAsync(expenditure);
+            await _expenditureSqlExecutor.InsertExpenseItemsAsync(expenditure);
         }
     }
 }

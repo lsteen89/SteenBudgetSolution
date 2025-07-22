@@ -3,7 +3,7 @@
     public sealed class RefreshJwtTokenEntity
     {
         /* PK */
-        public Guid TokenId { get; init; } = Guid.NewGuid(); // UUID v4
+        public Guid TokenId { get; init; } = Guid.NewGuid(); // BINARY(16) v4
 
         /* Identity */
         public Guid Persoid { get; init; }

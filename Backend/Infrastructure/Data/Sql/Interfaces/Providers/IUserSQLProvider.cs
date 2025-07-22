@@ -1,4 +1,4 @@
-﻿using Backend.Infrastructure.Data.Sql.Interfaces.UserQueries;
+﻿using Backend.Infrastructure.Data.Sql.Interfaces.Queries.UserQueries;
 
 namespace Backend.Infrastructure.Data.Sql.Interfaces.Providers
 {

@@ -164,7 +164,7 @@ namespace Backend.Tests.UnitTests.Processors.Wizard
                     LogLevel.Error,
                     It.IsAny<EventId>(),
                     It.Is<It.IsAnyType>((v, _) =>
-                        v.ToString().Contains("savings", StringComparison.OrdinalIgnoreCase) &&
+                        v.ToString().Contains("IncomeStepProcessor", StringComparison.OrdinalIgnoreCase) &&
                         v.ToString().Contains("step", StringComparison.OrdinalIgnoreCase)),
                     dbException,
                     It.IsAny<Func<It.IsAnyType, Exception, string>>()),

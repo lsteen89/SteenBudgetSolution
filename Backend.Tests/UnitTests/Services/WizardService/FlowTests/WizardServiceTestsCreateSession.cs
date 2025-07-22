@@ -1,13 +1,13 @@
 ﻿using Backend.Application.Models.Wizard;
 using Backend.Infrastructure.Data.Sql.Interfaces.Helpers;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
-using Backend.Infrastructure.Data.Sql.Interfaces.WizardQueries;
 using Backend.Tests.UnitTests.Helpers;
 using FluentValidation;
 using Moq;
 using Xunit;
 using WizardServiceClass = Backend.Application.Services.WizardService.WizardService;
 using System.Data.Common;
+using Backend.Infrastructure.Data.Sql.Interfaces.Queries.WizardQueries;
 
 namespace Backend.Tests.UnitTests.Services.WizardService.FlowTests
 {

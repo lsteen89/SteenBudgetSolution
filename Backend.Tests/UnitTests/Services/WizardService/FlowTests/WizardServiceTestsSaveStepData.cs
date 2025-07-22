@@ -4,7 +4,7 @@ using Backend.Application.Models.Wizard;
 using Backend.Domain.Enums;
 using Backend.Infrastructure.Data.Sql.Interfaces.Helpers;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
-using Backend.Infrastructure.Data.Sql.Interfaces.WizardQueries;
+using Backend.Infrastructure.Data.Sql.Interfaces.Queries.WizardQueries;
 using Backend.Tests.UnitTests.Helpers;
 using FluentValidation;
 using FluentValidation.Results;

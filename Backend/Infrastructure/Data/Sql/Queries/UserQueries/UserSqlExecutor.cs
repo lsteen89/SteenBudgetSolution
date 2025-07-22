@@ -1,8 +1,8 @@
 ﻿using Backend.Domain.Entities.User;
-using Backend.Infrastructure.Data.Sql.Interfaces.UserQueries;
 using Dapper;
 using Backend.Infrastructure.Data.Sql.Interfaces.Factories;
 using System.Data.Common;
+using Backend.Infrastructure.Data.Sql.Interfaces.Queries.UserQueries;
 
 namespace Backend.Infrastructure.Data.Sql.Queries.UserQueries
 {

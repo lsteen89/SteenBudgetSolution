@@ -31,9 +31,9 @@ namespace Backend.Tests.UnitTests.Processors.Wizard
                 ""subscriptions"":{""subscriptions"":[{""name"":""Netflix"", ""cost"":1.0},{""name"":""Spotify"", ""cost"":2.0}]}
               }";
 
-        private ExpenseProcessor BuildProcessor(Mock<IExpenditureRepository> repoMock,
-                                                        Mock<ILogger<ExpenseProcessor>>? loggerMock = null)
-            => new(repoMock.Object, loggerMock?.Object ?? Mock.Of<ILogger<ExpenseProcessor>>());
+        private ExpenseStepProcessor BuildProcessor(Mock<IExpenditureRepository> repoMock,
+                                                        Mock<ILogger<ExpenseStepProcessor>>? loggerMock = null)
+            => new(repoMock.Object, loggerMock?.Object ?? Mock.Of<ILogger<ExpenseStepProcessor>>());
 
         // ------------------------------------------------------------------ //
         // 1. Valid (Rent only)                                               //
@@ -177,8 +177,8 @@ namespace Backend.Tests.UnitTests.Processors.Wizard
             repoMock.Setup(r => r.AddAsync(It.IsAny<Expense>(), It.IsAny<Guid>()))
                     .ThrowsAsync(dbEx);
 
-            var loggerMock = new Mock<ILogger<ExpenseProcessor>>();
-            var processor = new ExpenseProcessor(repoMock.Object, loggerMock.Object);
+            var loggerMock = new Mock<ILogger<ExpenseStepProcessor>>();
+            var processor = new ExpenseStepProcessor(repoMock.Object, loggerMock.Object);
 
             var result = await processor.ProcessAsync(json, budgetId);
 

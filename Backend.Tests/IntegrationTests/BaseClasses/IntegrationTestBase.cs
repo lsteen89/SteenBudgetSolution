@@ -12,7 +12,6 @@ using Backend.Common.Interfaces;
 using Backend.Domain.Entities.User;
 using Backend.Infrastructure.Data.Sql.Factories;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
-using Backend.Infrastructure.Data.Sql.Interfaces.UserQueries;
 using Backend.Infrastructure.Data.Sql.Providers.UserProvider;
 using Backend.Infrastructure.Data.Sql.Queries.UserQueries;
 using Backend.Infrastructure.Email;
@@ -43,6 +42,7 @@ using MySqlConnector;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.Caching.Distributed;
+using Backend.Infrastructure.Data.Sql.Interfaces.Queries.UserQueries;
 
 public abstract class IntegrationTestBase : IAsyncLifetime, IClassFixture<DatabaseFixture>
 {

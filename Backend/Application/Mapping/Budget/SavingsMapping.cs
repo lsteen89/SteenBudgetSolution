@@ -9,33 +9,45 @@ namespace Backend.Application.Mapping.Budget
         {
             var savings = new Savings
             {
-                Id = Guid.NewGuid(),
                 BudgetId = budgetId,
-                SavingHabit = dto.Intro?.SavingHabit,
-                MonthlySavings = dto.Habits?.MonthlySavings ?? 0,
-                SavingMethods = dto.Habits?.SavingMethods?.ToList() ?? new List<string>(),
-                SavingsGoals = dto.Goals?.Select(g => g.ToDomain()).ToList() ?? new List<SavingsGoal>()
+                // Get the monthly amount from the single habits object.
+                MonthlySavings = dto.Habits?.MonthlySavings ?? 0
             };
 
-            foreach (var goal in savings.SavingsGoals)
+            // --- Map the Methods ---
+            // If the habits object exists, and its list of methods exists...
+            if (dto.Habits?.SavingMethods is { Length: > 0 })
             {
-                goal.SavingsId = savings.Id;
+                // ...loop through the array of strings...
+                foreach (var methodString in dto.Habits.SavingMethods)
+                {
+                    // ...and for EACH string, create a new SavingsMethod object and add it.
+                    savings.AddMethod(new SavingsMethod { Method = methodString });
+                }
+            }
+
+            // --- Map the Goals ---
+            if (dto.Goals is not null)
+            {
+                foreach (var goalDto in dto.Goals)
+                {
+                    savings.AddGoal(goalDto.ToDomain()); // Assumes a ToDomain for SavingsGoalDto
+                }
             }
 
             return savings;
         }
 
+        // Helper mapper for a single goal
         private static SavingsGoal ToDomain(this SavingsGoalDto dto)
         {
             return new SavingsGoal
             {
-                Id = Guid.TryParse(dto.Id, out var id) ? id : Guid.NewGuid(),
                 Name = dto.Name,
                 TargetAmount = dto.TargetAmount,
                 AmountSaved = dto.AmountSaved,
-                TargetDate = DateTime.TryParse(dto.TargetDate, out var date) ? date : null
+                TargetDate = dto.TargetDate
             };
         }
     }
-
 }

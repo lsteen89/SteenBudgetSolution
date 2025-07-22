@@ -4,7 +4,6 @@ using Backend.Application.Services.UserServices;
 using Backend.Settings;
 using Backend.Common.Interfaces;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
-using Backend.Infrastructure.Data.Sql.Interfaces.UserQueries;
 using Backend.Tests.Mocks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
@@ -14,6 +13,7 @@ using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
 using Backend.Application.Interfaces.JWT;
+using Backend.Infrastructure.Data.Sql.Interfaces.Queries.UserQueries;
 
 public abstract class UnitTestBase
 {

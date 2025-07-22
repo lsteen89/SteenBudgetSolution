@@ -9,7 +9,7 @@ using Backend.Domain.Entities.Auth;
 using Backend.Domain.Entities.User;
 using System.Data.Common;
 
-namespace Backend.Infrastructure.Data.Sql.Interfaces.UserQueries
+namespace Backend.Infrastructure.Data.Sql.Interfaces.Queries.UserQueries
 {
     public interface IVerificationTokenSqlExecutor
     {

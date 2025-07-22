@@ -53,7 +53,7 @@ DEALLOCATE PREPARE stmt;
 -- Create User table
 CREATE TABLE IF NOT EXISTS User (
     Id INT AUTO_INCREMENT PRIMARY KEY,
-    Persoid UUID NOT NULL UNIQUE,
+    Persoid BINARY(16) NOT NULL UNIQUE,
     Firstname VARCHAR(50) NOT NULL,
     LastName VARCHAR(50) NOT NULL,
     Email VARCHAR(100) NOT NULL UNIQUE,
@@ -83,7 +83,7 @@ CREATE TABLE IF NOT EXISTS ErrorLog (
 -- Create VerificationToken table
 CREATE TABLE IF NOT EXISTS VerificationToken (
     Id INT AUTO_INCREMENT PRIMARY KEY,
-    PersoId UUID,
+    PersoId BINARY(16),
     Token CHAR(36) NOT NULL UNIQUE,
     TokenExpiryDate DATETIME NOT NULL,
     CreatedTime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -93,7 +93,7 @@ CREATE TABLE IF NOT EXISTS VerificationToken (
 -- Create UserVerificationTracking table
 CREATE TABLE UserVerificationTracking (
     Id INT PRIMARY KEY AUTO_INCREMENT,           
-    PersoId UUID NOT NULL,                   
+    PersoId BINARY(16) NOT NULL,                   
     LastResendRequestTime DATETIME,              -- Timestamp of the last resend request
     DailyResendCount INT DEFAULT 0,              -- Counter for resend attempts in the current day
     LastResendRequestDate DATE,                  -- Date of the last resend attempt for daily reset
@@ -104,7 +104,7 @@ CREATE TABLE UserVerificationTracking (
 
 CREATE TABLE IF NOT EXISTS FailedLoginAttempts (
     Id INT AUTO_INCREMENT PRIMARY KEY,
-    PersoId UUID NOT NULL,
+    PersoId BINARY(16) NOT NULL,
     AttemptTime DATETIME NOT NULL,
     IpAddress VARCHAR(45) NULL,
  FOREIGN KEY (PersoId) REFERENCES User(PersoId)  ON DELETE CASCADE 
@@ -112,7 +112,7 @@ CREATE TABLE IF NOT EXISTS FailedLoginAttempts (
 
 CREATE TABLE IF NOT EXISTS PasswordResetTokens (
     Id INT AUTO_INCREMENT PRIMARY KEY,
-    PersoId UUID NOT NULL,
+    PersoId BINARY(16) NOT NULL,
     Token CHAR(36) NOT NULL, -- GUID format
     Expiry DATETIME NOT NULL,
     FOREIGN KEY (PersoId) REFERENCES User(PersoId) ON DELETE CASCADE
@@ -127,9 +127,9 @@ CREATE TABLE IF NOT EXISTS PasswordResetTokens (
 DROP TABLE IF EXISTS RefreshTokens;
 
 CREATE TABLE RefreshTokens (
-    TokenId             UUID         NOT NULL PRIMARY KEY,
-    Persoid             UUID         NOT NULL,
-    SessionId           UUID         NOT NULL,
+    TokenId             BINARY(16)         NOT NULL PRIMARY KEY,
+    Persoid             BINARY(16)         NOT NULL,
+    SessionId           BINARY(16)         NOT NULL,
     HashedToken         VARCHAR(255) NOT NULL,
     AccessTokenJti      VARCHAR(50)  NOT NULL,
 
@@ -157,9 +157,9 @@ CREATE TABLE RefreshTokens (
 
 -- 1) Create archive table and trigger for inserting old rows
 CREATE TABLE RefreshTokens_Archive (
-    TokenId             UUID         NOT NULL,
-    Persoid             UUID         NOT NULL,
-    SessionId           UUID         NOT NULL,
+    TokenId             BINARY(16)         NOT NULL,
+    Persoid             BINARY(16)         NOT NULL,
+    SessionId           BINARY(16)         NOT NULL,
     HashedToken         VARCHAR(255) NOT NULL,
     AccessTokenJti      VARCHAR(50)  NOT NULL,
     ExpiresRollingUtc   DATETIME     NOT NULL,
@@ -200,8 +200,8 @@ CREATE TABLE BlacklistedTokens (
 );
 
 CREATE TABLE WizardSession (
-  WizardSessionId UUID NOT NULL,
-  Persoid UUID NOT NULL,
+  WizardSessionId BINARY(16) NOT NULL,
+  Persoid BINARY(16) NOT NULL,
   CurrentStep INT NOT NULL DEFAULT 0,
   CreatedAt DATETIME NOT NULL DEFAULT UTC_TIMESTAMP(),
   UpdatedAt DATETIME NOT NULL DEFAULT UTC_TIMESTAMP(),
@@ -210,7 +210,7 @@ CREATE TABLE WizardSession (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE WizardStep (
-  WizardSessionId UUID NOT NULL,
+  WizardSessionId BINARY(16) NOT NULL,
   StepNumber INT NOT NULL,
   SubStep INT NOT NULL,
   StepData TEXT NOT NULL,

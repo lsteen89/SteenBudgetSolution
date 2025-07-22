@@ -1,6 +1,7 @@
 using Backend.Domain.Entities.Budget.Income;
+using Backend.Domain.Entities.Budget.Savings;
 using Backend.Infrastructure.Data.Sql.Interfaces.Helpers;
-using Backend.Infrastructure.Data.Sql.Interfaces.Queries;
+using Backend.Infrastructure.Data.Sql.Interfaces.Queries.Budget;
 using Dapper;
 using Microsoft.Extensions.Logging;
 using System.Data;
@@ -10,22 +11,36 @@ namespace Backend.Infrastructure.Data.Sql.Queries.Budget
 {
     public class IncomeSqlExecutor : SqlBase, IIncomeSqlExecutor
     {
-        private readonly ILogger<IncomeSqlExecutor> _logger;
-
         public IncomeSqlExecutor(IUnitOfWork unitOfWork, ILogger<IncomeSqlExecutor> logger)
             : base(unitOfWork, logger) { }
+
+        #region SQL Queries Insert
+        // SQL query to insert the main income record
+        const string insertIncomeSql = @"
+            INSERT INTO Income (Id, BudgetId, NetSalaryMonthly, SalaryFrequency)
+            VALUES (@Id, @BudgetId, @NetSalaryMonthly, @SalaryFrequency);";
+
+        // SQL query to insert side hustles
+        const string insertSideSql = @"
+                INSERT INTO IncomeSideHustle (Id, IncomeId, Name, IncomeMonthly, Frequency)
+                VALUES (@Id, @IncomeId, @Name, @IncomeMonthly, @Frequency);";
+
+        // SQL query to insert household members
+        const string insertMemberSql = @"
+                INSERT INTO IncomeHouseholdMember (Id, IncomeId, Name, IncomeMonthly, Frequency)
+                VALUES (@Id, @IncomeId, @Name, @IncomeMonthly, @Frequency);";
+        #endregion
 
         public async Task InsertIncomeAndSubItemsAsync(Income income, Guid budgetId)
         {
             _logger.LogInformation("Inserting income for BudgetId {BudgetId}.", budgetId);
 
+            // Set PK
             if (income.Id == Guid.Empty)
                 income.Id = Guid.NewGuid();
-            income.BudgetId = budgetId;
 
-            const string insertIncomeSql = @"
-            INSERT INTO Income (Id, BudgetId, NetSalaryMonthly, SalaryFrequency)
-            VALUES (@Id, @BudgetId, @NetSalaryMonthly, @SalaryFrequency);";
+            // ensure the income record is associated with the budget
+            income.BudgetId = budgetId;
 
             await ExecuteAsync(insertIncomeSql, new
             {
@@ -35,50 +50,47 @@ namespace Backend.Infrastructure.Data.Sql.Queries.Budget
                 income.SalaryFrequency
             });
 
+            // Prepare the children before the call.
+            // Make sure every side hustle knows who their daddy is and has their own ID.
+
             // Side Hustles
             if (income.SideHustles?.Count > 0)
             {
-                const string insertSideSql = @"
-                INSERT INTO IncomeSideHustle (Id, IncomeId, Name, IncomeMonthly, Frequency)
-                VALUES (@Id, @IncomeId, @Name, @IncomeMonthly, @Frequency);";
 
                 foreach (var sh in income.SideHustles)
                 {
                     sh.Id = Guid.NewGuid();
                     sh.IncomeId = income.Id;
-
-                    await ExecuteAsync(insertSideSql, new
-                    {
-                        sh.Id,
-                        sh.IncomeId,
-                        sh.Name,
-                        sh.IncomeMonthly,
-                        sh.Frequency
-                    });
                 }
             }
 
             // Household Members
             if (income.HouseholdMembers?.Count > 0)
             {
-                const string insertMemberSql = @"
-                INSERT INTO IncomeHouseholdMember (Id, IncomeId, Name, IncomeMonthly, Frequency)
-                VALUES (@Id, @IncomeId, @Name, @IncomeMonthly, @Frequency);";
-
                 foreach (var hm in income.HouseholdMembers)
                 {
                     hm.Id = Guid.NewGuid();
                     hm.IncomeId = income.Id;
-
-                    await ExecuteAsync(insertMemberSql, new
-                    {
-                        hm.Id,
-                        hm.IncomeId,
-                        hm.Name,
-                        hm.IncomeMonthly,
-                        hm.Frequency
-                    });
                 }
+            }
+
+            // Insert the data, parent first, then children.
+            // Insert the main savings record.
+            await ExecuteAsync(insertIncomeSql, income);
+
+            // Side Hustles
+            if (income.SideHustles.Any())
+            {
+                // Dapper is smart enough to run this for every item in the list.
+                await ExecuteAsync(insertSideSql, income.SideHustles);
+            }
+
+            // Household Members
+            if (income.HouseholdMembers.Any())
+            {
+
+                // Same deal here. One call, many inserts.
+                await ExecuteAsync(insertMemberSql, income.HouseholdMembers);
             }
 
             _logger.LogInformation(

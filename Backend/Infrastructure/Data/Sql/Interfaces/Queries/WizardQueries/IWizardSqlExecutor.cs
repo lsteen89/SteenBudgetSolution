@@ -2,7 +2,7 @@
 using Backend.Domain.Entities.Wizard;
 using System.Data.Common;
 
-namespace Backend.Infrastructure.Data.Sql.Interfaces.WizardQueries
+namespace Backend.Infrastructure.Data.Sql.Interfaces.Queries.WizardQueries
 {
     public interface IWizardSqlExecutor
     {

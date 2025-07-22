@@ -3,7 +3,7 @@ using Backend.Application.Models.Wizard;
 using Backend.Application.Services.WizardService;
 using Backend.Infrastructure.Data.Sql.Interfaces.Helpers;
 using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
-using Backend.Infrastructure.Data.Sql.Interfaces.WizardQueries;
+using Backend.Infrastructure.Data.Sql.Interfaces.Queries.WizardQueries;
 using FluentValidation;
 using FluentValidation.Results;
 using Microsoft.Extensions.Logging;
