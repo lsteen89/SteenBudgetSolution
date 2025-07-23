@@ -105,15 +105,8 @@ builder.Services.Configure<WebSocketSettings>(o => o.Secret = secret);
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
 // Set up JWT settings
-var jwtSettings = new JwtSettings
-{
-    Issuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "eBudget",
-    Audience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "eBudget",
-    SecretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY") ?? "development-fallback-key",
-    ExpiryMinutes = jwtSettingsSection.GetValue<int>("ExpiryMinutes", 15),
-    RefreshTokenExpiryDays = jwtSettingsSection.GetValue<int>("RefreshTokenExpiryDays", 30),
-    RefreshTokenExpiryDaysAbsolute = jwtSettingsSection.GetValue<int>("RefreshTokenExpiryDaysAbsolute", 90)
-};
+builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
+var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();
 
 
 if (builder.Environment.IsProduction())
@@ -156,9 +149,7 @@ builder.Services.AddControllers()
 
 #region Serilog Configuration
 // Configure Serilog early in the application lifecycle
-var logFilePath = builder.Environment.IsProduction()
-    ? "/var/www/backend/logs/app-log.txt"
-    : "logs/app-log.txt";  // Default to this path for test and dev environments
+var logFilePath = "logs/app-log.txt";
 
 // Initialize Serilog and set up logging before anything else
 Log.Logger = new LoggerConfiguration()
@@ -402,7 +393,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("DevelopmentCorsPolicy", policy =>
     {
-        policy.WithOrigins("http://localhost:3000") // Local frontend URL
+        policy.WithOrigins("http://localhost:5173") // Local frontend URL
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials(); 
@@ -431,11 +422,8 @@ JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
 var jwtParams = new TokenValidationParameters
 {
-    ValidateIssuerSigningKey = true,
     IssuerSigningKey = new SymmetricSecurityKey(
-                                  Encoding.UTF8.GetBytes(
-                                      Environment.GetEnvironmentVariable("JWT_SECRET_KEY")
-                                      ?? "development-fallback-key")),
+        Encoding.UTF8.GetBytes(jwtSettings.SecretKey)),
     ValidateIssuer = false,
     ValidateAudience = false,
     ValidateLifetime = true,
@@ -552,7 +540,7 @@ app.UseMiddleware<TokenBlacklistMiddleware>();
 app.UseRateLimiter();
 
 // Swagger configuration
-if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
+if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI(c =>
@@ -565,7 +553,7 @@ if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
 }
 
 // HTTPS redirection
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 
 // Map controllers
 app.MapControllers();

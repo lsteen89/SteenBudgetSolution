@@ -1,7 +1,4 @@
-version: '3.8'
-
 services:
-  # 1. Database Service
   db:
     image: mariadb:10.6
     restart: always
@@ -9,38 +6,44 @@ services:
       MARIADB_ROOT_PASSWORD: ${DB_PASSWORD}
       MARIADB_DATABASE: steenbudgetDEV
     ports:
-      - "3306:3306" # Connect to the DB from your PC on localhost:3306
+      - "3306:3306"
     volumes:
-      - mariadb_data:/var/lib/mysql # Persists database data
+      - ./database/init:/docker-entrypoint-initdb.d
+      - mariadb_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # 2. Backend .NET Service
   backend:
-    build: ./Backend # Tells Compose to build the Dockerfile in this folder
+    build:
+      context: .
+      dockerfile: Backend/Dockerfile
     ports:
       - "5001:8080"
-    volumes:
-      - ./Backend:/app # Mounts source code for live-reloading
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:8080
-      - ConnectionStrings__Default=Server=db;Database=steenbudgetDEV;User=root;Password=${DB_PASSWORD}
+      - DatabaseSettings__ConnectionString=Server=db;Database=steenbudgetDEV;User=root;Password=${DB_PASSWORD}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - RECAPTCHA_SECRET_KEY=${RECAPTCHA_SECRET_KEY}
+    # This condition waits for the health check to pass
     depends_on:
-      - db # Ensures the DB starts before the backend
+      db:
+        condition: service_healthy
 
-  # 3. Frontend React Service
   frontend:
-    build: ./frontend # Tells Compose to build the Dockerfile in this folder
+    build: ./Frontend
     ports:
-      - "5173:5173" # Vite's default port
+      - "5173:5173"
     volumes:
-      - ./frontend:/app # Mounts source code for hot-reloading
-      - /app/node_modules # Exclude this folder from the mount for performance
+      - ./Frontend:/app
+      - /app/node_modules
     environment:
       - VITE_RECAPTCHA_SITE_KEY=${VITE_RECAPTCHA_SITE_KEY}
       - VITE_API_URL=${VITE_API_URL}
       - VITE_USE_MOCK=${VITE_USE_MOCK}
 
 volumes:
-  mariadb_data: # Defines the named volume for the database
+  mariadb_data:

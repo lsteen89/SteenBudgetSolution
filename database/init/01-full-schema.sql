@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS User (
     Email VARCHAR(100) NOT NULL UNIQUE,
     EmailConfirmed BOOLEAN,
     Password VARCHAR(100) NOT NULL,
-    roles VARCHAR(20) NOT NULL,
+    Roles VARCHAR(20) NOT NULL,
     Locked BOOLEAN DEFAULT FALSE,
     LockoutUntil DATETIME,
     FirstLogin BOOLEAN DEFAULT TRUE,
@@ -34,16 +34,16 @@ CREATE TABLE IF NOT EXISTS ErrorLog (
 -- Create VerificationToken table
 CREATE TABLE IF NOT EXISTS VerificationToken (
     Id INT AUTO_INCREMENT PRIMARY KEY,
-    PersoId BINARY(16),
+    Persoid BINARY(16),
     Token CHAR(36) NOT NULL UNIQUE,
     TokenExpiryDate DATETIME NOT NULL,
     CreatedBy VARCHAR(50) NOT NULL,
     CreatedTime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT FK_VerificationToken_User FOREIGN KEY (PersoId) REFERENCES User(PersoId) ON DELETE CASCADE
+    CONSTRAINT FK_VerificationToken_User FOREIGN KEY (Persoid) REFERENCES User(Persoid) ON DELETE CASCADE
 );
 
 -- Create RefreshTokens table
-CREATE TABLE RefreshTokens (
+CREATE TABLE IF NOT EXISTS RefreshTokens (
     TokenId              BINARY(16)   NOT NULL PRIMARY KEY,
     Persoid              BINARY(16)   NOT NULL,
     SessionId            BINARY(16)   NOT NULL,
@@ -65,13 +65,13 @@ CREATE TABLE RefreshTokens (
 -- Create UserVerificationTracking table
 CREATE TABLE UserVerificationTracking (
     Id INT PRIMARY KEY AUTO_INCREMENT,
-    PersoId BINARY(16) NOT NULL,
+    Persoid BINARY(16) NOT NULL,
     LastResendRequestTime DATETIME,
     DailyResendCount INT DEFAULT 0,
     LastResendRequestDate DATE,
     CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT FK_UserVerificationTracking_User FOREIGN KEY (PersoId) REFERENCES User(PersoId) ON DELETE CASCADE
+    CONSTRAINT FK_UserVerificationTracking_User FOREIGN KEY (Persoid) REFERENCES User(Persoid) ON DELETE CASCADE
 );
 
 -- ##################################################################
@@ -122,7 +122,7 @@ CREATE TABLE ExpenseCategory (
     Name VARCHAR(100) NOT NULL UNIQUE
 ) ENGINE=InnoDB;
 
-INSERT INTO ExpenseCategory (Id, Name) VALUES
+INSERT IGNORE INTO ExpenseCategory (Id, Name) VALUES
 (UNHEX(REPLACE('2a9a1038-6ff1-4f2b-bd73-f2b9bb3f4c21', '-', '')), 'Rent'),
 (UNHEX(REPLACE('5d5c51aa-9f05-4d4c-8ff1-0a61d6c9cc10', '-', '')), 'Food'),
 (UNHEX(REPLACE('5eb2896c-59f9-4a18-8c84-4c2a1659de80', '-', '')), 'Transport'),
