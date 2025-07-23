@@ -3,7 +3,6 @@ using Backend.Application.Interfaces.Wizard;
 using Backend.Application.Mapping.Budget;
 using Backend.Application.Services.WizardServices.Processors.Helpers;
 using Backend.Common.Utilities;
-using Backend.Domain.Entities.Budget.Savings;
 using Backend.Domain.Interfaces.Repositories.Budget;
 using Backend.Domain.Shared;
 using System.Text.Json;

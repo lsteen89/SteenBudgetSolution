@@ -11,7 +11,7 @@ namespace Backend.Infrastructure.Repositories.Budget
     {
         private readonly ISavingsSqlExecutor _savingsSqlExecutor;
 
-        public SavingsRepository(SavingsSqlExecutor savingsSqlExecutorr)
+        public SavingsRepository(ISavingsSqlExecutor savingsSqlExecutorr)
         {
             _savingsSqlExecutor = savingsSqlExecutorr;
         }

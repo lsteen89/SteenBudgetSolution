@@ -373,7 +373,7 @@ Frontend/dist/
 Frontend/src/assets/Images/Originals
 
 #Documentation files that sensitive
-docs/Security/AuthenticationBackend.md
+docs/internal
 certs
 
 # Temporary file for AI-generated commit messages

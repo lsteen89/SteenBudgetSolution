@@ -240,6 +240,7 @@ builder.Services.AddScoped<IWizardSqlProvider, WizardSqlProvider>();
 builder.Services.AddScoped<IBudgetSqlProvider, BudgetSqlProvider>();
 
 // Repositories
+builder.Services.AddScoped<IBudgetRepository, BudgetRepository>();
 builder.Services.AddScoped<IIncomeRepository, IncomeRepository>();
 builder.Services.AddScoped<IExpenditureRepository, ExpenditureRepository>();
 builder.Services.AddScoped<ISavingsRepository, SavingsRepository>();
