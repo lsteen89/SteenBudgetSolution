@@ -37,7 +37,9 @@ services:
         condition: service_healthy
 
   frontend:
-    build: ./Frontend
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile.dev
     ports:
       - "5173:5173"
     volumes:

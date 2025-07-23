@@ -33,7 +33,11 @@ export default defineConfig({
   },
   root: '.',
   server: {
-    port: 3000,
+    host: true, 
+    port: 5173,
+    watch: {
+      usePolling: true,
+    },
   },
   build: {
     outDir: 'dist',

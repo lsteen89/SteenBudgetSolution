@@ -1,0 +1,16 @@
+# Use the official Node.js image
+FROM node:18-alpine
+
+# Set the working directory inside the container
+WORKDIR /app
+
+# Copy package.json and install dependencies
+# This is done separately to leverage Docker's layer caching
+COPY package*.json ./
+RUN npm install
+
+# Copy the rest of your application's source code
+COPY . .
+
+# The command to start the Vite development server
+CMD ["npm", "run", "dev"]
