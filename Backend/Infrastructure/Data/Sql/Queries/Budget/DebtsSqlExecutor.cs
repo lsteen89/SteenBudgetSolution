@@ -2,8 +2,6 @@
 using Backend.Domain.Entities.Budget.Debt;
 using Backend.Infrastructure.Data.Sql.Interfaces.Helpers;
 using Backend.Infrastructure.Data.Sql.Interfaces.Queries.BudgetQuries;
-using Backend.Infrastructure.Data.Sql.Queries.Budget;
-using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace Backend.Infrastructure.Data.Sql.Queries.Budget
 {
@@ -23,28 +21,29 @@ namespace Backend.Infrastructure.Data.Sql.Queries.Budget
         #region SQL Queries Insert
         private const string InsertNewDebtSql = @"
             INSERT INTO Debt (Id, BudgetId, Name, Type, Balance, Apr, MonthlyFee, MinPayment, TermMonths, CreatedByUserId)
-            VALUES (BINARY(16)_TO_BIN(@Id), BINARY(16)_TO_BIN(@BudgetId), @Name, @Type, @Balance, @Apr, @MonthlyFee, @MinPayment, @TermMonths, @CreatedByUserId);";
+            VALUES (@Id, @BudgetId, @Name, @Type, @Balance, @Apr, @MonthlyFee, @MinPayment, @TermMonths, @CreatedByUserId);";
         #endregion
         public async Task AddDebtsAsync(IEnumerable<Debt> debts, Guid budgetId)
         {
-            var CreatedByUserId = _currentUser.Persoid;
+            var debtList = debts.ToList();
+            var debtCount = debtList.Count;
 
-            if (CreatedByUserId == Guid.Empty)
+            var createdByUserId = _currentUser.Persoid;
+
+            if (createdByUserId == Guid.Empty)
                 throw new InvalidOperationException("Current user context is not set.");
 
-            var ID = Guid.NewGuid();
-
             // Prepare the debts for insertion
-            foreach (var debt in debts)
+            foreach (var debt in debtList)
             {
                 debt.Id = Guid.NewGuid();
                 debt.BudgetId = budgetId;
-                debt.CreatedByUserId = CreatedByUserId;
+                debt.CreatedByUserId = createdByUserId;
             }
             _logger.LogInformation("Inserting debts for BudgetId {BudgetId}.", budgetId);
             // Execute the insert command for each debt
-            await ExecuteAsync(InsertNewDebtSql, debts);
-            _logger.LogInformation("Inserted {Count} debts for BudgetId {BudgetId}.", debts.Count(), budgetId);
+            await ExecuteAsync(InsertNewDebtSql, debtList);
+            _logger.LogInformation("Successfully inserted {Count} debts for BudgetId {BudgetId}.", debtCount, budgetId);
         }
     }
 }
