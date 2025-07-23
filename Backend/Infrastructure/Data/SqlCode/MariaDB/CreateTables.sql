@@ -1,3 +1,11 @@
+-- ##################################################################
+-- # DEPRECATED - DO NOT USE
+-- ##################################################################
+-- # This script is no longer maintained.
+-- # The canonical database schema is now managed by Docker initialization.
+-- # See: /database/init/01-full-schema.sql
+-- ##################################################################
+
 
 -- This script creates the necessary tables for the SteenBudgetSystem application related to 
 -- user management and wizard functionality.
