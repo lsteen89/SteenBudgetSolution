@@ -17,7 +17,7 @@
                 BudgetId = BudgetId,
                 CategoryId = categoryId,
                 Name = name.Trim(),
-                AmountMonthly = decimal.Round(amount.Value, 2, MidpointRounding.AwayFromZero)
+                AmountMonthly = decimal.Round(amount.Value, 2, MidpointRounding.AwayFromZero),
             });
         }
     }

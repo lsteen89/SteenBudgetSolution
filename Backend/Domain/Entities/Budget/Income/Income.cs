@@ -18,5 +18,11 @@ namespace Backend.Domain.Entities.Budget.Income
 
         public ICollection<SideHustle> SideHustles { get; set; } = new List<SideHustle>();
         public ICollection<HouseholdMember> HouseholdMembers { get; set; } = new List<HouseholdMember>();
+        public DateTime CreatedAt { get; set; } // The date and time when the Income was created
+        public DateTime? UpdatedAt { get; set; } // The date and time when the Income was last updated
+
+        public Guid CreatedByUserId { get; set; } // The ID of the user who created the Income
+        public Guid? UpdatedByUserId { get; set; } // The ID of the user who last updated the Income
+
     }
 }
