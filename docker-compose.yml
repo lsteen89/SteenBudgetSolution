@@ -20,13 +20,16 @@ services:
     build:
       context: .
       dockerfile: Backend/Dockerfile
+      target: build 
     ports:
       - "5001:8080"
+    volumes:
+      - ./Backend:/src/Backend
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:8080
       - DatabaseSettings__ConnectionString=Server=db;Database=steenbudgetDEV;User=root;Password=${DB_PASSWORD}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - JwtSettings__SecretKey=${JWT_SECRET_KEY}
       - RECAPTCHA_SECRET_KEY=${RECAPTCHA_SECRET_KEY}
     # This condition waits for the health check to pass
     depends_on:
