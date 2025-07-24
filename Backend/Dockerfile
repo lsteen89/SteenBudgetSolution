@@ -1,24 +1,27 @@
-# --- Build and Development Stage (has the SDK) ---
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+# --- build stage ---------------------------------------------------
+FROM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS build
 WORKDIR /src
 
-COPY SteenBudgetSolution.sln .
-COPY Backend/ ./Backend/
-RUN dotnet restore "Backend/Backend.csproj"
+COPY Backend/*.csproj Backend/
+RUN dotnet restore Backend/*.csproj --runtime linux-arm64
 
-# This part now runs for development
+COPY Backend ./Backend
 WORKDIR /src/Backend
-EXPOSE 8080
-CMD ["dotnet", "watch", "run", "--urls", "http://*:8080"]
+RUN dotnet publish -c Release -r linux-arm64 -o /out \
+    /p:PublishTrimmed=false /p:PublishSingleFile=false /p:UseAppHost=false
 
-
-# --- Publish Stage (for production builds) ---
-FROM build AS publish
-WORKDIR "/src/Backend"
-RUN dotnet publish "Backend.csproj" -c Release -o /app/publish
-
-# --- Final Production Stage (has Runtime only) ---
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
+# --- runtime stage -------------------------------------------------
+FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine AS runtime
 WORKDIR /app
-COPY --from=publish /app/publish .
+RUN addgroup -S app && adduser -S app -G app
+USER app
+
+ENV ASPNETCORE_URLS=http://0.0.0.0:5000 \
+    DOTNET_EnableDiagnostics=0
+
+COPY --from=build /out ./
+EXPOSE 5000
+HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
+  CMD wget -qO- http://localhost:5000/auth/health || exit 1
+
 ENTRYPOINT ["dotnet", "Backend.dll"]

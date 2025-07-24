@@ -1,0 +1,75 @@
+version: "3.9"
+
+networks:
+  steen:
+    driver: bridge
+
+services:
+  mariadb:
+    image: mariadb:11.4.2-jammy
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MARIADB_DATABASE: ${MARIADB_DATABASE}
+      MARIADB_USER: ${DB_USER}
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+    command: ["mysqld", "--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    volumes:
+      - ./mariadb:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb-admin ping -uroot -p${DB_ROOT_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+    networks: [steen]
+    labels:
+      - com.centurylinklabs.watchtower.enable=false
+
+  backend:
+    image: ghcr.io/lsteen89/steenbudget-backend:latest
+    env_file: .env
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      DATABASESETTINGS__CONNECTIONSTRING: ${DATABASESETTINGS__CONNECTIONSTRING}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      WEBSOCKET_SECRET: ${WEBSOCKET_SECRET}
+      RECAPTCHA_SECRET_KEY: ${RECAPTCHA_SECRET_KEY}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_PASSWORD_INFO: ${SMTP_PASSWORD_INFO}
+      SMTP_FROM: ${SMTP_FROM}
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [steen]
+    labels:
+      - com.centurylinklabs.watchtower.enable=false
+
+  caddy:
+    build:
+      context: ./caddy
+    env_file: .env
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./certs:/data              # Caddy cert storage
+      - ./frontend/dist:/srv:ro    # CI drops built SPA here
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks: [steen]
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+
+  watchtower:
+    image: containrrr/watchtower
+    command: --schedule "0 4 * * *" --cleanup --label-enable
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+    networks: [steen]

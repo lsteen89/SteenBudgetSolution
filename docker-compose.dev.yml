@@ -19,7 +19,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: Backend/Dockerfile
+      dockerfile: Backend/Dockerfile.dev
       target: build 
     ports:
       - "5001:8080"
