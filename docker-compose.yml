@@ -17,7 +17,7 @@ services:
       MARIADB_DATABASE: ${MARIADB_DATABASE}
       MARIADB_USER: ${DB_USER}
       MARIADB_PASSWORD: ${DB_PASSWORD}
-    command: ["mysqld", "--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
     volumes:
       - mariadb_data:/var/lib/mysql
     healthcheck:
@@ -59,6 +59,7 @@ services:
   caddy:
     build:
       context: ./caddy
+      working_dir: /etc/caddy
     env_file: .env
     ports:
       - "80:80"
