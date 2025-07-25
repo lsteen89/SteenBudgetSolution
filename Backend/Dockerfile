@@ -3,25 +3,25 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS build
 WORKDIR /src
 
 COPY Backend/*.csproj Backend/
+# This restore command is not ideal for multi-arch. fix it by specifying the runtime.
+# This is necessary to ensure that the SDK can restore the project correctly for the target architecture.
+# The runtime is set to linux-arm64, which is the target architecture for this build.
 RUN dotnet restore Backend/*.csproj --runtime linux-arm64
 
 COPY Backend ./Backend
 WORKDIR /src/Backend
+# The output of this command goes to the "/out" directory
 RUN dotnet publish -c Release -r linux-arm64 -o /out \
     /p:PublishTrimmed=false /p:PublishSingleFile=false /p:UseAppHost=false
 
 # --- runtime stage -------------------------------------------------
 FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine AS runtime
 WORKDIR /app
-RUN addgroup -S app && adduser -S app -G app
+
+# Copy from the "build" stage and from the "/out" directory.
+COPY --from=build --chown=app:app /out .
+
+# Switch to the non-root user that already exists in the base image
 USER app
-
-ENV ASPNETCORE_URLS=http://0.0.0.0:5000 \
-    DOTNET_EnableDiagnostics=0
-
-COPY --from=build /out ./
-EXPOSE 5000
-HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
-  CMD wget -qO- http://localhost:5000/auth/health || exit 1
 
 ENTRYPOINT ["dotnet", "Backend.dll"]
