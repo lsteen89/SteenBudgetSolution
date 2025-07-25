@@ -59,7 +59,7 @@ services:
   caddy:
     build:
       context: ./caddy
-      working_dir: /etc/caddy
+    working_dir: /etc/caddy
     env_file: .env
     ports:
       - "80:80"
