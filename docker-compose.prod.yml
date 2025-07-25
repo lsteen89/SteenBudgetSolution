@@ -11,7 +11,7 @@ volumes:
 
 services:
   mariadb:
-    image: mariadb:11.4.2-jammy
+    image: mariadb:11.4.2
     environment:
       MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
       MARIADB_DATABASE: ${MARIADB_DATABASE}
@@ -32,7 +32,7 @@ services:
       - com.centurylinklabs.watchtower.enable=false
 
   backend:
-    image: ghcr.io/lsteen89/steenbudget-backend:latest
+    image: ghcr.io/lsteen89/steenbudget-backend:v0.0.1
     env_file: .env
     # NOTE: We will stop using environment variables in the future in favor of a more secure approach
     environment:
