@@ -36,7 +36,7 @@ jobs:
             -t $IMAGE:${{ github.sha }} \
             -t $IMAGE:latest \
             -f Backend/Dockerfile \
-            --push Backend
+            --push .
 
       - name: Setup Node
         uses: actions/setup-node@v4
