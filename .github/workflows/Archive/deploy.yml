@@ -1,3 +1,11 @@
+## GitHub Actions Workflow for Deploying SteenBudget to Raspberry Pi
+# This workflow deploys the SteenBudget application to a Raspberry Pi.
+# This baby was the first to be deployed to a Raspberry Pi, and it has been running smoothly since then.
+# Retired 2025-07-26, but still a great example of how to deploy to a Raspberry Pi using GitHub Actions.
+
+# Replaced by .github/workflows/Archive/deploy.yml
+# This file is kept for reference and historical purposes.
+
 name: Deploy to Raspberry Pi
 
 on:

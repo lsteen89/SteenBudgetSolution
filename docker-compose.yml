@@ -32,8 +32,8 @@ services:
       - com.centurylinklabs.watchtower.enable=false
 
   backend:
-    image: ghcr.io/lsteen89/steenbudget-backend:v0.0.1
-    env_file: .env
+    image: ghcr.io/lsteen89/steenbudget-backend:latest
+    env_file: .env                # contains ASPNETCORE_ENVIRONMENT, DB/JWT/etc.
     # NOTE: We will stop using environment variables in the future in favor of a more secure approach
     environment:
       ASPNETCORE_ENVIRONMENT: Production
