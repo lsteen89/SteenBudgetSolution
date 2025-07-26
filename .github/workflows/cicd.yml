@@ -1,3 +1,5 @@
+# .github/workflows/cicd.yml
+
 name: CI-CD (Pi, multi-arch)
 
 on:
@@ -8,7 +10,7 @@ on:
       - "Frontend/**"
       - "caddy/**"
       - "docker-compose.yml"
-      - ".github/workflows/**"
+      - ".github/workflows/cicd.yml"
   workflow_dispatch:
 
 env:
@@ -16,6 +18,7 @@ env:
 
 jobs:
   build:
+    name: Build Artifacts
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -23,6 +26,7 @@ jobs:
     environment: production-pi
     steps:
       - uses: actions/checkout@v4
+
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
 
@@ -33,7 +37,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build & push backend (linux/amd64, linux/arm64)
+      - name: Build & push backend image
         run: |
           docker buildx build \
             --platform linux/amd64,linux/arm64 \
@@ -46,8 +50,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'npm'
+          cache-dependency-path: Frontend/package-lock.json
 
-      - name: Build frontend
+      - name: Build and archive frontend
         working-directory: Frontend
         env:
           VITE_APP_API_URL: ${{ vars.VITE_APP_API_URL }}
@@ -57,16 +63,15 @@ jobs:
           npm run build
           tar czf dist.tar.gz dist
 
-      - name: Upload frontend dist
+      - name: Upload frontend artifact
         uses: actions/upload-artifact@v4
         with:
           name: frontend-dist
           path: Frontend/dist.tar.gz
-          retention-days: 3
 
   deploy:
     name: Deploy to Production
-    runs-on: [self-hosted, pi, deploy]   # Pi3 runner
+    runs-on: [self-hosted, pi, deploy] # Your Pi3 runner
     needs: build
     environment: production-pi
     steps:
@@ -76,21 +81,47 @@ jobs:
           name: frontend-dist
           path: .
 
-      - name: Ship frontend to Pi4
+      - name: Setup SSH Agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: |
+            ${{ secrets.PROD_SSH_KEY_ANON }}
+            ${{ secrets.PROD_SSH_KEY_DEPLOY }}
+
+      - name: Deploy and Verify on Pi4
+        env:
+          PI4_HOST: anon@192.168.50.61
+          PI4_DEPLOY_HOST: deploy@192.168.50.61
+          PROJECT_PATH: /opt/steenbudget
         run: |
-          scp -P 2222 -i /home/runner/.ssh/anon_ci -o StrictHostKeyChecking=accept-new \
+          echo ">>> 1. Shipping frontend package to Pi4..."
+          scp -P 2222 -o StrictHostKeyChecking=accept-new \
             ./dist.tar.gz \
-            anon@192.168.50.61:/opt/steenbudget/frontend/
-          ssh -p 2222 -i /home/runner/.ssh/anon_ci anon@192.168.50.61 \
-            'cd /opt/steenbudget/frontend && rm -rf dist && tar xzf dist.tar.gz && rm dist.tar.gz && chown -R anon:anon dist'
+            $PI4_HOST:$PROJECT_PATH/
 
-      - name: Trigger backend deploy on Pi4
-        run: |
-          ssh -T -p 2222 -i /home/runner/.ssh/deploy_pi3 deploy@192.168.50.61 || true
+          echo ">>> 2. Unpacking frontend on Pi4..."
+          ssh -p 2222 $PI4_HOST << EOF
+            set -e
+            cd $PROJECT_PATH
+            echo "Unpacking..."
+            rm -rf ./frontend/dist
+            tar xzf dist.tar.gz -C ./frontend/
+            # Ensure correct ownership (root) and permissions for Caddy
+            sudo chown -R root:root ./frontend/dist
+            sudo chmod -R 755 ./frontend/dist
+            rm dist.tar.gz
+          EOF
 
-      - name: Confirm services
-        run: |
-          ssh -p 2222 -i /home/runner/.ssh/anon_ci anon@192.168.50.61 \
-            'docker compose -f /opt/steenbudget/docker-compose.yml ps'
-          ssh -p 2222 -i /home/runner/.ssh/anon_ci anon@192.168.50.61 \
-            'curl -sS -o /dev/null -w "%{http_code}\n" https://ebudget.se/health'
+          echo ">>> 3. Triggering final forced-command deploy script..."
+          # We don't need '|| true'. If the deploy script fails, the workflow SHOULD fail.
+          ssh -T -p 2222 $PI4_DEPLOY_HOST
+
+          echo ">>> 4. Confirming services and health check..."
+          sleep 10 # Give services time to restart before health check
+          ssh -p 2222 $PI4_HOST << EOF
+            echo "--- Service Status ---"
+            docker compose -f $PROJECT_PATH/docker-compose.yml ps
+            echo "--- Health Check ---"
+            # Use curl's fail flag to exit with an error code if HTTP status is not 2xx
+            curl --fail -sS https://ebudget.se/api/login/health
+          EOF
