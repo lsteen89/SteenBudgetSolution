@@ -48,8 +48,11 @@ services:
   caddy:
     build:
       context: ./caddy
-    working_dir: /etc/caddy
-    env_file: .env
+      dockerfile: Dockerfile
+      args:
+        - CADDY_VERSION=2.8.4
+    environment:
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:?set CLOUDFLARE_API_TOKEN}
     ports:
       - "80:80"
       - "443:443"
