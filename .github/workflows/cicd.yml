@@ -80,13 +80,6 @@ jobs:
           name: frontend-dist
           path: .
 
-      - name: Setup SSH Agent
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: |
-            ${{ secrets.PROD_SSH_KEY_ANON }}
-            ${{ secrets.PROD_SSH_KEY_DEPLOY }}
-
       - name: Deploy and Verify on Pi4
         env:
           PI4_HOST: anon@192.168.50.61
