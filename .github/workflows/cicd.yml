@@ -96,6 +96,8 @@ jobs:
           ssh -p 2222 -i /home/runner/.ssh/anon_ci -o IdentitiesOnly=yes $PI4_HOST << 'EOF'
             set -euo pipefail
             cd /opt/steenbudget/frontend
+            echo "--- Pulling latest configuration from Git ---"
+            git pull  # <-- THIS IS THE CRITICAL FIX
             rm -rf dist
             tar xzf dist.tar.gz
             rm dist.tar.gz
