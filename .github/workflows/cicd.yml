@@ -86,32 +86,20 @@ jobs:
           PI4_DEPLOY_HOST: deploy@192.168.50.61
           PROJECT_PATH: /opt/steenbudget
         run: |
-          echo ">>> 1. Shipping frontend package to Pi4..."
+          echo ">>> 1. Shipping frontend package to Pi4 (staging)..."
           scp -P 2222 \
               -i /home/runner/.ssh/anon_ci -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new \
               ./dist.tar.gz \
-              $PI4_HOST:$PROJECT_PATH/frontend/
-
-          echo ">>> 2. Unpacking frontend on Pi4..."
-          ssh -p 2222 -i /home/runner/.ssh/anon_ci -o IdentitiesOnly=yes $PI4_HOST << 'EOF'
-            set -euo pipefail
-            cd /opt/steenbudget/frontend
-            rm -rf dist
-            tar xzf dist.tar.gz
-            rm dist.tar.gz
-          EOF
-
-          echo ">>> 3. Triggering final forced-command deploy script..."
+              $PI4_HOST:$PROJECT_PATH/incoming/dist.tar.gz
+      
+          echo ">>> 2. Triggering deploy script (git reset + compose) ..."
           ssh -T -p 2222 \
               -i /home/runner/.ssh/deploy_pi3 -o IdentitiesOnly=yes \
               $PI4_DEPLOY_HOST
-
-          echo ">>> 4. Confirming services and health check..."
-          sleep 10 # Give services time to restart before health check
+      
+          echo ">>> 3. Confirm services and health check..."
+          sleep 10
           ssh -T -p 2222 -i /home/runner/.ssh/anon_ci -o IdentitiesOnly=yes $PI4_HOST << EOF
-            echo "--- Service Status ---"
             docker compose -f $PROJECT_PATH/docker-compose.yml ps
-            echo "--- Health Check ---"
-            # Use curl's fail flag to exit with an error code if HTTP status is not 2xx
             curl --fail -sS https://ebudget.se/api/login/health
           EOF
