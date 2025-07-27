@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
 
 env:
-  IMAGE: ghcr.io/${{ github.repository }}
+  IMAGE: ghcr.io/lsteen89/steenbudgetsolution
 jobs:
   build:
     name: Build Artifacts
