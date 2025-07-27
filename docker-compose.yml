@@ -50,7 +50,7 @@ services:
       context: ./caddy
       dockerfile: Dockerfile
       args:
-        - CADDY_VERSION=2.8.4
+        - CADDY_VERSION=2.9.1
     environment:
       CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:?set CLOUDFLARE_API_TOKEN}
     ports:
