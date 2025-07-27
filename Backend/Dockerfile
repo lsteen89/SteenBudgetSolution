@@ -1,5 +1,5 @@
 # --- build stage ---------------------------------------------------
-FROM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS build
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
 COPY Backend/*.csproj Backend/
@@ -15,7 +15,7 @@ RUN dotnet publish -c Release -r linux-arm64 -o /out \
     /p:PublishTrimmed=false /p:PublishSingleFile=false /p:UseAppHost=false
 
 # --- runtime stage -------------------------------------------------
-FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 
 # Copy from the "build" stage and from the "/out" directory.
