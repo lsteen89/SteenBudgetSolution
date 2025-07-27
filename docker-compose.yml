@@ -1,5 +1,3 @@
-version: "3.9"
-
 networks:
   steen:
     driver: bridge
@@ -35,18 +33,6 @@ services:
     image: ghcr.io/lsteen89/steenbudget-backend:latest
     env_file: .env                # contains ASPNETCORE_ENVIRONMENT, DB/JWT/etc.
     # NOTE: We will stop using environment variables in the future in favor of a more secure approach
-    environment:
-      ASPNETCORE_ENVIRONMENT: Production
-      DATABASESETTINGS__CONNECTIONSTRING: ${DATABASESETTINGS__CONNECTIONSTRING}
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
-      WEBSOCKET_SECRET: ${WEBSOCKET_SECRET}
-      RECAPTCHA_SECRET_KEY: ${RECAPTCHA_SECRET_KEY}
-      SMTP_HOST: ${SMTP_HOST}
-      SMTP_PORT: ${SMTP_PORT}
-      SMTP_USER: ${SMTP_USER}
-      SMTP_PASSWORD: ${SMTP_PASSWORD}
-      SMTP_PASSWORD_INFO: ${SMTP_PASSWORD_INFO}
-      SMTP_FROM: ${SMTP_FROM}
     depends_on:
       mariadb:
         condition: service_healthy
