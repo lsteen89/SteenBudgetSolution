@@ -45,6 +45,17 @@ jobs:
             -f Backend/Dockerfile \
             --push .
 
+      - name: Build & push Caddy (Cloudflare DNS)
+        run: |
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            -t $CADDY_IMAGE:${CADDY_VERSION} \
+            -t $CADDY_IMAGE:latest \
+            -f caddy/Dockerfile \
+            --build-arg CADDY_VERSION=${CADDY_VERSION} \
+            --push caddy         
+
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:

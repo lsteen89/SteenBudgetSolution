@@ -45,29 +45,25 @@ services:
     labels:
       - com.centurylinklabs.watchtower.enable=false
 
-  caddy:
-    build:
-      context: ./caddy
-      dockerfile: Dockerfile
-      args:
-        - CADDY_VERSION=2.9.1
-    environment:
-      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:?set CLOUDFLARE_API_TOKEN}
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-      - ./frontend/dist:/srv:ro
-    depends_on:
-      - backend
-    restart: unless-stopped
-    networks:
-      - steen
-    labels:
-      - com.centurylinklabs.watchtower.enable=true
+caddy:
+  image: ghcr.io/lsteen89/caddy-cloudflare:2.9.1  
+  environment:
+    CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:?set CLOUDFLARE_API_TOKEN}
+  ports:
+    - "80:80"
+    - "443:443"
+  volumes:
+    - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+    - caddy_data:/data
+    - caddy_config:/config
+    - ./frontend/dist:/srv:ro
+  depends_on:
+    - backend
+  restart: unless-stopped
+  networks:
+    - steen
+  labels:
+    - com.centurylinklabs.watchtower.enable=true
 
   watchtower:
     image: containrrr/watchtower
