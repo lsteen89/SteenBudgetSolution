@@ -97,6 +97,12 @@ builder.Services.AddDistributedMemoryCache();
 
 // Add environment variables to configuration
 builder.Configuration.AddEnvironmentVariables();
+builder.Services
+    .AddOptions<JwtSettings>()
+    .Bind(builder.Configuration.GetSection("JwtSettings"))
+    .Validate(s => !string.IsNullOrWhiteSpace(s.SecretKey), "JWT secret missing")
+    .Validate(s => GetSigningKeyBytesFromConfigValue(s.SecretKey).Length >= 32, "JWT secret too short (<32 bytes)")
+    .ValidateOnStart();
 
 // WEBSOCKET_SECRET configuration
 var secret = builder.Configuration["WEBSOCKET_SECRET"]!;
@@ -420,10 +426,13 @@ builder.Services.AddCors(options =>
 // JwtBearer pipeline
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
+var rawSecret = GetRawJwtSecret(builder.Configuration);
+var keyBytes  = GetSigningKeyBytesFromConfigValue(rawSecret);
+
 var jwtParams = new TokenValidationParameters
 {
-    IssuerSigningKey = new SymmetricSecurityKey(
-        Encoding.UTF8.GetBytes(jwtSettings.SecretKey)),
+    ValidateIssuerSigningKey = true,
+    IssuerSigningKey = new SymmetricSecurityKey(keyBytes), // Use the key bytes from the configuration
     ValidateIssuer = false,
     ValidateAudience = false,
     ValidateLifetime = true,
@@ -439,10 +448,6 @@ builder.Services.AddAuthentication(o =>
 .AddJwtBearer("AccessScheme", o =>
 {
     o.TokenValidationParameters = jwtParams;
-
-    // --- START: Explicitly configure the handler for this scheme ---
-    var customJwtHandler = new JwtSecurityTokenHandler();
-    customJwtHandler.InboundClaimTypeMap.Clear(); // Clear map FOR THIS INSTANCE
 
 
     o.MapInboundClaims = false; 
@@ -583,6 +588,36 @@ _logger.LogInformation("Application setup complete. Running app...");
 // Run the application
 app.Run();
 
+#endregion
+
+#region Helper Methods
+static byte[] GetSigningKeyBytesFromConfigValue(string raw)
+{
+    if (string.IsNullOrWhiteSpace(raw))
+        throw new InvalidOperationException("JWT secret missing");
+
+    if (raw.StartsWith("base64:", StringComparison.OrdinalIgnoreCase))
+        return Convert.FromBase64String(raw["base64:".Length..].Trim());
+
+    var bytes = Encoding.UTF8.GetBytes(raw);
+    if (bytes.Length < 32)
+        throw new InvalidOperationException("JWT secret too short. Use >= 32 bytes or base64:...");
+    return bytes;
+}
+
+// Helper that checks both config key and legacy env var:
+string GetRawJwtSecret(IConfiguration cfg)
+{
+    // Primary: bound settings (supports `JwtSettings__SecretKey`)
+    var fromSettings = cfg["JwtSettings:SecretKey"];
+    if (!string.IsNullOrWhiteSpace(fromSettings)) return fromSettings;
+
+    // Legacy/backup: plain env var
+    var legacy = cfg["JWT_SECRET_KEY"]; // because AddEnvironmentVariables() added envs to cfg
+    if (!string.IsNullOrWhiteSpace(legacy)) return legacy;
+
+    throw new InvalidOperationException("No JWT secret found in JwtSettings:SecretKey or JWT_SECRET_KEY");
+}
 #endregion
 
 // Declare partial Program class

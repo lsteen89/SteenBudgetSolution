@@ -33,6 +33,9 @@ services:
     image: ghcr.io/lsteen89/steenbudget-backend:latest
     env_file: .env                # contains ASPNETCORE_ENVIRONMENT, DB/JWT/etc.
     # NOTE: We will stop using environment variables in the future in favor of a more secure approach
+    environment:
+      JwtSettings__SecretKey: ${JWT_SECRET_KEY:?JWT_SECRET_KEY must be set and non-empty}
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
     depends_on:
       mariadb:
         condition: service_healthy
