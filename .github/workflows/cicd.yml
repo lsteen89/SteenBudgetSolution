@@ -87,26 +87,24 @@ jobs:
           PROJECT_PATH: /opt/steenbudget
         run: |
           echo ">>> 1. Shipping frontend package to Pi4..."
-          scp -P 2222 -o StrictHostKeyChecking=accept-new \
-            ./dist.tar.gz \
-            $PI4_HOST:$PROJECT_PATH/
+          scp -P 2222 \
+              -i /home/runner/.ssh/anon_ci -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new \
+              ./dist.tar.gz \
+              $PI4_HOST:$PROJECT_PATH/frontend/
 
           echo ">>> 2. Unpacking frontend on Pi4..."
-          ssh -p 2222 $PI4_HOST << EOF
-            set -e
-            cd $PROJECT_PATH
-            echo "Unpacking..."
-            rm -rf ./frontend/dist
-            tar xzf dist.tar.gz -C ./frontend/
-            # Ensure correct ownership (root) and permissions for Caddy
-            sudo chown -R root:root ./frontend/dist
-            sudo chmod -R 755 ./frontend/dist
+          ssh -p 2222 -i /home/runner/.ssh/anon_ci -o IdentitiesOnly=yes $PI4_HOST << 'EOF'
+            set -euo pipefail
+            cd /opt/steenbudget/frontend
+            rm -rf dist
+            tar xzf dist.tar.gz
             rm dist.tar.gz
           EOF
 
           echo ">>> 3. Triggering final forced-command deploy script..."
-          # We don't need '|| true'. If the deploy script fails, the workflow SHOULD fail.
-          ssh -T -p 2222 $PI4_DEPLOY_HOST
+          ssh -T -p 2222 \
+              -i /home/runner/.ssh/deploy_pi3 -o IdentitiesOnly=yes \
+              $PI4_DEPLOY_HOST
 
           echo ">>> 4. Confirming services and health check..."
           sleep 10 # Give services time to restart before health check
