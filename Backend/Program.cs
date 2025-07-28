@@ -520,6 +520,9 @@ builder.Services.AddSingleton(jwtParams);
 // Add HttpContextAccessor
 builder.Services.AddHttpContextAccessor();
 
+// Add Health Checks
+// This is a placeholder for actual health checks, e.g. database connectivity
+builder.Services.AddHealthChecks();
 #endregion
 
 #region Application Pipeline Configuration

@@ -6,6 +6,9 @@ COPY SteenBudgetSolution.sln .
 COPY Backend/ ./Backend/
 RUN dotnet restore Backend/Backend.csproj
 
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /src/Backend
 EXPOSE 8080
 CMD ["dotnet", "watch", "run", "--urls", "http://*:8080"]
