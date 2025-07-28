@@ -58,17 +58,17 @@ jobs:
           username: ${{ github.actor }}     
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Build & push backend — add provenance=false to avoid flakiness with GHCR
       - name: Build & push backend (linux/amd64, linux/arm64)
         env:
           DOCKER_BUILDKIT: 1
           BUILDKIT_PROGRESS: plain
         run: |
+          set -euo pipefail
           docker buildx build \
             --platform linux/amd64,linux/arm64 \
-            --provenance=false \                # new: turn off attestation for now
-            -t $IMAGE:${{ github.sha }} \
-            -t $IMAGE:latest \
+            --provenance=false \
+            -t "$IMAGE:${{ github.sha }}" \
+            -t "$IMAGE:latest" \
             -f Backend/Dockerfile \
             --push .
 
