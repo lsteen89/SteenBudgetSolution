@@ -32,6 +32,8 @@ services:
   backend:
     image: ghcr.io/lsteen89/steenbudget-backend:latest
     env_file: .env                 # ← JWT_SECRET_KEY, DATABASESETTINGS__CONNECTIONSTRING, WEBSOCKET_SECRET, etc.
+    environment:
+      JwtSettings__SecretKey: ${JWT_SECRET_KEY:?set JWT_SECRET_KEY in .env}
     depends_on:
       mariadb:
         condition: service_healthy
