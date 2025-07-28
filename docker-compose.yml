@@ -43,7 +43,7 @@ services:
       - com.centurylinklabs.watchtower.enable=false
 
   caddy:
-    image: ghcr.io/lsteen89/caddy-cloudflare:2.9.1@sha256:<digest>  # optional: pin digest
+    image: ghcr.io/lsteen89/caddy-cloudflare:2.9.1
     pull_policy: missing                                           # ← don’t pull if already present
     environment:
       CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:?set CLOUDFLARE_API_TOKEN}
