@@ -522,13 +522,6 @@ builder.Services.AddHttpContextAccessor();
 
 #endregion
 
-#region Health Checks Registration
-
-builder.Services.AddHealthChecks()
-    .AddCheck("self", () => HealthCheckResult.Healthy())
-    .AddCheck<DatabaseHealthCheck>("database", tags: new[] { "dependencies" });
-#endregion
-
 #region Application Pipeline Configuration
 
 // Build the app after service registration
