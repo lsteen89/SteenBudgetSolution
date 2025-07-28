@@ -2,26 +2,34 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-COPY Backend/*.csproj Backend/
-# This restore command is not ideal for multi-arch. fix it by specifying the runtime.
-# This is necessary to ensure that the SDK can restore the project correctly for the target architecture.
-# The runtime is set to linux-arm64, which is the target architecture for this build.
-RUN dotnet restore Backend/*.csproj --runtime linux-arm64
+# restore
+COPY Backend/Backend.csproj Backend/
+RUN dotnet restore Backend/Backend.csproj
 
-COPY Backend ./Backend
-WORKDIR /src/Backend
-# The output of this command goes to the "/out" directory
-RUN dotnet publish -c Release -r linux-arm64 -o /out \
+# publish (portable; no RID) → works for amd64 and arm64
+COPY Backend/ ./Backend/
+RUN dotnet publish Backend/Backend.csproj \
+    -c Release -o /app/publish \
     /p:PublishTrimmed=false /p:PublishSingleFile=false /p:UseAppHost=false
 
-# --- runtime stage -------------------------------------------------
+# --- runtime stage (Debian) ---------------------------------------
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 
-# Copy from the "build" stage and from the "/out" directory.
-COPY --from=build --chown=app:app /out .
+# Healthcheck needs curl
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
 
-# Switch to the non-root user that already exists in the base image
+# Listen on 8080 inside the container
+ENV ASPNETCORE_URLS=http://+:8080
+EXPOSE 8080
+
+# Container health = readiness (includes DB via /api/readyz)
+HEALTHCHECK --interval=30s --timeout=3s --retries=3 --start-period=20s \
+  CMD curl -fsS http://localhost:8080/api/readyz || exit 1
+
+# app files + least privilege
+COPY --from=build /app/publish ./
 USER app
 
-ENTRYPOINT ["dotnet", "Backend.dll"]
+ENTRYPOINT ["dotnet","Backend.dll"]
