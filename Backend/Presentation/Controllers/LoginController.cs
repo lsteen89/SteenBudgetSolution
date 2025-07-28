@@ -159,7 +159,6 @@ namespace Backend.Presentation.Controllers
                                      wsMac));
         }
         [AllowAnonymous] // No authentication required for health check
-        [EnableRateLimiting("HealthCheckPolicy")] // Rate limit this endpoint
         [HttpGet("health")]
         public IActionResult HealthCheck()
         {

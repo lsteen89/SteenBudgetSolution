@@ -31,22 +31,20 @@ services:
 
   backend:
     image: ghcr.io/lsteen89/steenbudget-backend:latest
-    env_file: .env                # contains ASPNETCORE_ENVIRONMENT, DB/JWT/etc.
-    # NOTE: We will stop using environment variables in the future in favor of a more secure approach
-    environment:
-      JwtSettings__SecretKey: ${JWT_SECRET_KEY:?JWT_SECRET_KEY must be set and non-empty}
-      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+    env_file: .env                 # ← JWT_SECRET_KEY, DATABASESETTINGS__CONNECTIONSTRING, WEBSOCKET_SECRET, etc.
     depends_on:
       mariadb:
         condition: service_healthy
     restart: unless-stopped
     networks:
       - steen
+    pull_policy: always            # ← always pull the latest image
     labels:
       - com.centurylinklabs.watchtower.enable=false
 
   caddy:
-    image: ghcr.io/lsteen89/caddy-cloudflare:2.9.1  
+    image: ghcr.io/lsteen89/caddy-cloudflare:2.9.1@sha256:<digest>  # optional: pin digest
+    pull_policy: missing                                           # ← don’t pull if already present
     environment:
       CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:?set CLOUDFLARE_API_TOKEN}
     ports:
@@ -58,12 +56,12 @@ services:
       - caddy_config:/config
       - ./frontend/dist:/srv:ro
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
-    networks:
-      - steen
+    networks: [steen]
     labels:
-      - com.centurylinklabs.watchtower.enable=true
+      - com.centurylinklabs.watchtower.enable=false   # ← disable watchtower for Caddy
 
   watchtower:
     image: containrrr/watchtower

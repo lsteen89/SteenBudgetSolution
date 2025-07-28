@@ -1,3 +1,37 @@
+#region using directives
+
+// System namespaces
+using System.IdentityModel.Tokens.Jwt;
+using System.Reflection;
+using System.Security.Claims;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
+
+// Microsoft namespaces
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
+
+// Third-party packages
+using Dapper;
+using FluentValidation;
+using FluentValidation.AspNetCore;
+using HealthChecks.UI.Client;
+using Moq;
+using Serilog;
+
+// Domain layer
+using Backend.Domain.Abstractions;
+using Backend.Domain.Entities.Email;
+using Backend.Domain.Interfaces.Repositories.Budget;
+
+// Application layer
 using Backend.Application.Interfaces.AuthService;
 using Backend.Application.Interfaces.Cookies;
 using Backend.Application.Interfaces.EmailServices;
@@ -12,12 +46,8 @@ using Backend.Application.Services.UserServices;
 using Backend.Application.Services.WizardService;
 using Backend.Application.Services.WizardServices.Processors;
 using Backend.Application.Validators;
-using Backend.Common.Converters;
-using Backend.Common.Interfaces;
-using Backend.Common.Services;
-using Backend.Domain.Abstractions;
-using Backend.Domain.Entities.Email;
-using Backend.Domain.Interfaces.Repositories.Budget;
+
+// Infrastructure layer
 using Backend.Infrastructure.BackgroundServices;
 using Backend.Infrastructure.Data.Sql.Factories;
 using Backend.Infrastructure.Data.Sql.Helpers;
@@ -41,26 +71,22 @@ using Backend.Infrastructure.Implementations;
 using Backend.Infrastructure.Repositories.Budget;
 using Backend.Infrastructure.Services.CookieService;
 using Backend.Infrastructure.WebSockets;
+
+// Common layer
+using Backend.Common.Converters;
+using Backend.Common.Interfaces;
+using Backend.Common.Services;
+
+// Presentation layer
 using Backend.Presentation.Middleware;
+
+// Settings
 using Backend.Settings;
+
+// Tests (
 using Backend.Tests.Mocks;
-using Dapper;
-using FluentValidation;
-using FluentValidation.AspNetCore;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Diagnostics;
-using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Tokens;
-using Moq;
-using Serilog;
-using System.IdentityModel.Tokens.Jwt;
-using System.Reflection;
-using System.Security.Claims;
-using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Threading.RateLimiting;
+
+#endregion
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -179,9 +205,16 @@ builder.Host.UseSerilog();
 #endregion
 
 #region Application Build Information
-// Get the build date and time of the application
+// Build metadata
 var buildDateTime = BuildInfoHelper.GetBuildDate(Assembly.GetExecutingAssembly());
-Log.Information($"Application build date and time: {buildDateTime}");
+var assembly     = Assembly.GetExecutingAssembly();
+var fileVersion  = assembly.GetCustomAttribute<AssemblyFileVersionAttribute>()?.Version ?? "unknown";
+var infoVersion  = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "unknown";
+Log.Information("Version: {Version} | Info: {InfoVersion} | Build: {BuildDate}", fileVersion, infoVersion, buildDateTime);
+
+// Optional: read IMAGE_TAG passed from compose (for runtime confirmation)
+var imageTag = Environment.GetEnvironmentVariable("IMAGE_TAG") ?? "unknown";
+
 #endregion
 
 #region Dapper Type Handler
@@ -484,12 +517,16 @@ builder.Services.AddAuthorization();
 // jwtParams needed elsewhere (e.g. token generator)
 builder.Services.AddSingleton(jwtParams);
 
-// Add Health Checks
-builder.Services.AddHealthChecks();
-
 // Add HttpContextAccessor
 builder.Services.AddHttpContextAccessor();
 
+#endregion
+
+#region Health Checks Registration
+
+builder.Services.AddHealthChecks()
+    .AddCheck("self", () => HealthCheckResult.Healthy())
+    .AddCheck<DatabaseHealthCheck>("database", tags: new[] { "dependencies" });
 #endregion
 
 #region Application Pipeline Configuration
@@ -524,6 +561,17 @@ app.UseExceptionHandler(errorApp =>
         await context.Response.WriteAsync("An unexpected error occurred.");
     });
 });
+
+app.MapHealthChecks("/api/healthz", new HealthCheckOptions {
+    Predicate = hc => !hc.Tags.Any(),
+    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+}).AllowAnonymous();
+
+app.MapHealthChecks("/api/readyz", new HealthCheckOptions {
+    Predicate = hc => hc.Tags.Contains("dependencies"),
+    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+}).AllowAnonymous();
+
 
 // Middleware for static files with caching headers
 app.UseStaticFiles(new StaticFileOptions

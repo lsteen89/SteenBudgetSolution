@@ -1,0 +1,6 @@
+### Liveness Check (Is the app alive?)
+GET http://localhost:5001/api/healthz
+
+###
+### Readiness Check (Is the app ready for traffic? DB up?)
+GET http://localhost:5001/api/readyz
