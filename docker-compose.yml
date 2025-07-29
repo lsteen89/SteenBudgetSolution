@@ -10,6 +10,8 @@ volumes:
 services:
   mariadb:
     image: mariadb:11.4.2
+    ports:
+      - "127.0.0.1:3306:3306" 
     environment:
       MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
       MARIADB_DATABASE: ${MARIADB_DATABASE}
@@ -17,6 +19,7 @@ services:
       MARIADB_PASSWORD: ${DB_PASSWORD}
     command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
     volumes:
+      - ./database/init:/docker-entrypoint-initdb.d:ro 
       - mariadb_data:/var/lib/mysql
     healthcheck:
       test: ["CMD-SHELL", "mariadb-admin ping -uroot -p${DB_ROOT_PASSWORD} --silent"]
