@@ -50,6 +50,7 @@ using Backend.Application.Validators;
 // Infrastructure layer
 using Backend.Infrastructure.BackgroundServices;
 using Backend.Infrastructure.Data.Sql.Factories;
+using Backend.Infrastructure.Data.Sql.Health;
 using Backend.Infrastructure.Data.Sql.Helpers;
 using Backend.Infrastructure.Data.Sql.Interfaces.Factories;
 using Backend.Infrastructure.Data.Sql.Interfaces.Helpers;
@@ -71,6 +72,7 @@ using Backend.Infrastructure.Implementations;
 using Backend.Infrastructure.Repositories.Budget;
 using Backend.Infrastructure.Services.CookieService;
 using Backend.Infrastructure.WebSockets;
+
 
 // Common layer
 using Backend.Common.Converters;
@@ -521,8 +523,9 @@ builder.Services.AddSingleton(jwtParams);
 builder.Services.AddHttpContextAccessor();
 
 // Add Health Checks
-// This is a placeholder for actual health checks, e.g. database connectivity
-builder.Services.AddHealthChecks();
+builder.Services
+    .AddHealthChecks()
+    .AddCheck<MariaDbHealthCheck>("mariadb", tags: new[] { "dependencies" });
 #endregion
 
 #region Application Pipeline Configuration
@@ -558,16 +561,16 @@ app.UseExceptionHandler(errorApp =>
     });
 });
 
+// Endpoints (liveness vs readiness)
 app.MapHealthChecks("/api/healthz", new HealthCheckOptions {
-    Predicate = hc => !hc.Tags.Any(),
+    Predicate = _ => false, // liveness only, no deps
     ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
 }).AllowAnonymous();
 
 app.MapHealthChecks("/api/readyz", new HealthCheckOptions {
-    Predicate = hc => hc.Tags.Contains("dependencies"),
+    Predicate = r => r.Tags.Contains("dependencies"),
     ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
 }).AllowAnonymous();
-
 
 // Middleware for static files with caching headers
 app.UseStaticFiles(new StaticFileOptions
