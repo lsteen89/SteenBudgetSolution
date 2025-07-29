@@ -386,3 +386,4 @@ instructions.txt
 # Docker
 .env
 docker-compose.dev.yml
+.env.dev
