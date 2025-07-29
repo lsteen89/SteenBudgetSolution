@@ -121,35 +121,37 @@ jobs:
           name: frontend-dist
           path: .
 
-      - name: Deploy and Verify on Pi4
+      - name: Confirm services and health (internal + external)
         env:
-          PI4_HOST: anon@192.168.50.61
           PI4_DEPLOY_HOST: deploy@192.168.50.61
           PROJECT_PATH: /opt/steenbudget
         run: |
-          echo ">>> 1. Shipping frontend package to Pi4 (staging)..."
-          scp -P 2222 \
-              -i /home/runner/.ssh/anon_ci \
-              -o IdentitiesOnly=yes \
-              -o StrictHostKeyChecking=accept-new \
-              ./dist.tar.gz \
-              $PI4_HOST:$PROJECT_PATH/incoming/dist.tar.gz
-
-          echo ">>> 2. Triggering deploy script (git reset + compose) ..."
+          # === Internal checks on the Pi (run as 'deploy' so compose/.env work)
           ssh -T -p 2222 \
-              -i /home/runner/.ssh/deploy_pi3 \
-              -o IdentitiesOnly=yes \
-              -o StrictHostKeyChecking=accept-new \
-              $PI4_DEPLOY_HOST
+            -i /home/runner/.ssh/deploy_pi3 \
+            -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new \
+            "$PI4_DEPLOY_HOST" <<'EOF'
+            set -Eeuo pipefail
+            cd "$PROJECT_PATH"
 
-          echo ">>> 3. Confirm services and health check..."
-          sleep 10
-          ssh -T -p 2222 \
-              -i /home/runner/.ssh/anon_ci \
-              -o IdentitiesOnly=yes \
-              -o StrictHostKeyChecking=accept-new \
-              $PI4_HOST << EOF
-            docker compose -f $PROJECT_PATH/docker-compose.yml ps
-            # Use a health endpoint you control; 200 -> success
-            curl --fail -sS https://ebudget.se/api/healthz
+            echo "== compose ps =="
+            docker compose -f docker-compose.yml ps
+
+            CID=$(docker compose -f docker-compose.yml ps -q backend)
+            if [ -z "$CID" ]; then echo "backend container not found"; exit 1; fi
+
+            echo "== internal health =="
+            docker run --rm --network container:$CID curlimages/curl:8.7.1 \
+              -fsS http://127.0.0.1:8080/api/healthz  -o /dev/null
+            docker run --rm --network container:$CID curlimages/curl:8.7.1 \
+              -fsS http://127.0.0.1:8080/api/readyz   -o /dev/null
+
+            echo "== last 80 backend log lines =="
+            docker logs --tail=80 "$CID" || true
           EOF
+
+          # === External checks via Caddy (public), with small retry for reload lag
+          retry() { n=0; until "$@"; do n=$((n+1)); [ $n -ge 8 ] && return 1; sleep 2; done; }
+          retry curl --fail -sS https://ebudget.se/api/healthz -o /dev/null
+          retry curl --fail -sS https://ebudget.se/api/readyz  -o /dev/null
+
