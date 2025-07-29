@@ -33,7 +33,7 @@ This project uses a modern, separated architecture to ensure security, stability
 ### GitHub (Cloud Build Environment)
 * **Role:** Acts as a powerful, disposable **build factory**. It handles all CPU-intensive compilation and packaging.
 * **Actions:**
-    * On a push to `main`, it builds a **multi-architecture (`linux/amd64`, `linux/arm64`)** backend Docker image and pushes it to the GitHub Container Registry (GHCR).
+    * On a push to `master`, it builds a **multi-architecture (`linux/amd64`, `linux/arm64`)** backend Docker image and pushes it to the GitHub Container Registry (GHCR).
     * It builds the production-optimized React frontend (`dist` bundle) and uploads it as a workflow artifact.
     * It then triggers the `deploy` job, which is picked up by the self-hosted runner on the Pi 3.
 
@@ -166,6 +166,9 @@ graph TD
     GitHubActions["GitHub Actions"]
     GHCR(GHCR - Container Registry)
     FrontendArtifact{Frontend Artifact}
+    
+    %% Action Node
+    DockerComposeUp("docker compose up")
 
     %% == 2. Define Subgraphs (Visual Grouping) ==
     subgraph "Cloud Services"
@@ -184,6 +187,7 @@ graph TD
             Caddy
             BackendAPI
             MariaDB
+            DockerComposeUp
         end
         
         subgraph "CI/CD Host (Pi 3)"
@@ -212,9 +216,10 @@ graph TD
     
     %% Deployment Flow
     Runner -- "Downloads Artifact &<br/>Triggers deploy.sh via SSH" --> Pi4
-    Pi4 -- "docker compose pull" --> GHCR
-    Pi4 -- "docker compose up" --> Caddy
-    Pi4 -- "docker compose up" --> BackendAPI
+    GHCR -- 1. Image is Pulled by --> Pi4
+    Pi4 -- 2. Executes --> DockerComposeUp
+    DockerComposeUp -- Starts/Updates --> Caddy
+    DockerComposeUp -- Starts/Updates --> BackendAPI
 
     %% == 3. Define Subgraphs (Visual Grouping) ==
 
