@@ -1,6 +1,6 @@
 # SteenBudgetSolution
 
-[![Deploy to Azure App Service](https://github.com/lsteen89/SteenBudgetSolution/actions/workflows/deploy.yml/badge.svg)](https://github.com/lsteen89/SteenBudgetSolution/actions/workflows/cicd.yml) 
+[![CI/CD Pipeline](https://github.com/lsteen89/SteenBudgetSolution/actions/workflows/cicd.yml/badge.svg)](https://github.com/lsteen89/SteenBudgetSolution/actions/workflows/cicd.yml)
 ![alt text](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 SteenBudgetSolution is a comprehensive, full-stack personal finance management application designed to empower users to track income, expenses, and manage budgets effectively.
@@ -86,63 +86,140 @@ This project uses a modern, separated architecture to ensure security, stability
 
 ---
 
+## 🚀 Getting Started (Local Development)
+
+Follow these instructions to get the project running on your local machine for development and testing purposes.
+
+### Prerequisites
+
+* [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+* [Node.js](https://nodejs.org/) (v18 or later)
+* [Docker](https://www.docker.com/products/docker-desktop/)
+* [Git](https://git-scm.com/)
+
+### Installation
+
+1.  **Clone the repository:**
+    ```sh
+    git clone [https://github.com/lsteen89/SteenBudgetSolution.git](https://github.com/lsteen89/SteenBudgetSolution.git)
+    cd SteenBudgetSolution
+    ```
+
+2.  **Set up Backend Environment Variables:**
+    * Navigate to the backend project directory.
+    * Create a `.env` file by copying the example: `cp env.example .env`
+    * Fill in the required values in your new `.env` file (database credentials, JWT secret, etc.).
+
+3.  **Start the Database:**
+    * Run the MariaDB container using Docker Compose. This will also create the necessary volume for data persistence.
+    ```sh
+    docker-compose up -d db
+    ```
+
+4.  **Run the Backend API:**
+    * Navigate to the backend project directory.
+    * Trust the dev certificate, restore dependencies, and run the application.
+    ```sh
+    dotnet dev-certs https --trust
+    dotnet restore
+    dotnet run
+    ```
+    The API will be available at `https://localhost:5001`.
+
+5.  **Run the Frontend:**
+    * Open a new terminal and navigate to the `frontend` directory.
+    * Install dependencies and start the development server.
+    ```sh
+    npm install
+    npm run dev
+    ```
+    The frontend will be available at `http://localhost:3000` and will proxy API requests to the backend.
+
+
+
+
 ## High-Level System Flowchart
 
 ```mermaid
 graph TD
 
-    %% == Define ALL Nodes First ==
+    %% == 1. Define ALL Nodes First ==
     
-    %% User Flow
-    UserBrowser[User's Browser]
-    Cloudflare[Cloudflare DNS]
+    %% User Flow & Services
+    UserBrowser["User's Browser"]
+    Cloudflare["Cloudflare DNS"]
 
-    %% Prod Host (Pi 4)
-    Pi4[Raspberry Pi 4 - Production Host]
+    %% Production Host (Pi 4)
+    Pi4["Raspberry Pi 4 - Prod Host"]
     UFW(UFW Firewall)
-    Caddy[Caddy Reverse Proxy]
-    BackendAPI(".NET 8 Backend")
+    Caddy["Caddy Reverse Proxy"]
+    BackendAPI[".NET 8 Backend API"]
     MariaDB[(MariaDB Database)]
 
     %% Runner Host (Pi 3)
-    Pi3[Raspberry Pi 3 - CI/CD Runner]
-    Runner(Self-Hosted Runner)
+    Pi3["Raspberry Pi 3 - CI/CD Host"]
+    Runner("Self-Hosted<br/>GitHub Runner")
 
-    %% Cloud Services
+    %% Cloud & Git
+    Developer[Developer]
     GitHubRepo(GitHub Repo)
-    GitHubActions[GitHub Actions (Cloud Build)]
+    GitHubActions["GitHub Actions"]
     GHCR(GHCR - Container Registry)
     FrontendArtifact{Frontend Artifact}
 
-    %% == Define Links ==
+    %% == 2. Define Subgraphs (Visual Grouping) ==
+    subgraph "Cloud Services"
+        Developer
+        GitHubRepo
+        GitHubActions
+        GHCR
+        FrontendArtifact
+    end
+
+    subgraph "Home Lab"
+        subgraph "Production Host (Pi 4)"
+            direction LR
+            Pi4
+            UFW
+            Caddy
+            BackendAPI
+            MariaDB
+        end
+        
+        subgraph "CI/CD Host (Pi 3)"
+            Pi3
+            Runner
+        end
+    end
+
+    %% == 3. Define Links ==
 
     %% User Request Flow
-    UserBrowser -- HTTPS --> Cloudflare
+    UserBrowser -- HTTPS Request --> Cloudflare
     Cloudflare -- DNS Resolves --> Pi4
     Pi4 --> UFW
-    UFW -- Allows 80/443 --> Caddy
-    Caddy -- Serves Static Files --> UserBrowser
-    Caddy -- /api/* --> BackendAPI
-    BackendAPI -- Dapper --> MariaDB
+    UFW -- Allows Ports 80/443 --> Caddy
+    Caddy -- Serves Static Frontend --> UserBrowser
+    Caddy -- Proxies /api/* --> BackendAPI
+    BackendAPI -- "Dapper ORM" --> MariaDB
 
-    %% Development & CI/CD Flow
+    %% CI/CD Flow
     Developer -- git push --> GitHubRepo
     GitHubRepo -- Triggers --> GitHubActions
-    GitHubActions -- Builds & Pushes Image --> GHCR
-    GitHubActions -- Builds & Uploads --> FrontendArtifact
-    GitHubActions -- Triggers Job --> Pi3
+    GitHubActions -- 1. Builds & Pushes Image --> GHCR
+    GitHubActions -- 2. Builds & Uploads --> FrontendArtifact
+    GitHubActions -- 3. Sends job to --> Runner
     
     %% Deployment Flow
-    Pi3 --> Runner
-    Runner -- Pulls Job --> GitHubActions
-    Runner -- Downloads --> FrontendArtifact
-    Runner -- SSH (LAN) --> Pi4
-    Pi4 -- docker compose pull --> GHCR
-    Pi4 -- Deploys Frontend & Restarts Stack --> Caddy
+    Runner -- "Downloads Artifact &<br/>Triggers deploy.sh via SSH" --> Pi4
+    Pi4 -- "docker compose pull" --> GHCR
+    Pi4 -- "docker compose up" --> Caddy
+    Pi4 -- "docker compose up" --> BackendAPI
 
-    %% == Define Subgraphs ==
+    %% == 3. Define Subgraphs (Visual Grouping) ==
 
     subgraph "Cloud Services"
+        Developer
         GitHubRepo
         GitHubActions
         GHCR
