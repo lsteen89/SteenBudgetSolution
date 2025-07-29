@@ -150,8 +150,4 @@ jobs:
             docker logs --tail=80 "$CID" || true
           EOF
 
-          # === External checks via Caddy (public), with small retry for reload lag
-          retry() { n=0; until "$@"; do n=$((n+1)); [ $n -ge 8 ] && return 1; sleep 2; done; }
-          retry curl --fail -sS https://ebudget.se/api/healthz -o /dev/null
-          retry curl --fail -sS https://ebudget.se/api/readyz  -o /dev/null
 

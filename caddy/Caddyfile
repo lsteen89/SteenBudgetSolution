@@ -1,11 +1,24 @@
 ebudget.se, www.ebudget.se {
     encode zstd gzip
-    root * /srv
-    file_server
-    try_files {path} /index.html
 
+    # Block public access to health endpoints first
+    handle /api/healthz* {
+        respond 404
+    }
+    handle /api/readyz* {
+        respond 404
+    }
+
+    # Handle all other API requests
     handle_path /api/* {
         reverse_proxy backend:8080
+    }
+
+    # Handle the frontend SPA
+    handle {
+        root * /srv
+        try_files {path} /index.html
+        file_server
     }
 
     tls {
