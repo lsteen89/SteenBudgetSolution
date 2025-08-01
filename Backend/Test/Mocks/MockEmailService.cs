@@ -7,13 +7,13 @@ using Backend.Domain.Entities.Email;
 
 namespace Backend.Tests.Mocks
 {
-    public class MockEmailService : IEmailService
+    public class MockEmailService : ILegacyEmailService
     {
         private readonly ILogger<MockEmailService> _logger;
-        private readonly IEmailPreparationService _emailPreparationService;
+        private readonly ILegacyEmailPreparationService _emailPreparationService;
 
         
-        public MockEmailService(ILogger<MockEmailService> logger, IEmailPreparationService emailPreparationService)
+        public MockEmailService(ILogger<MockEmailService> logger, ILegacyEmailPreparationService emailPreparationService)
         {
             _logger = logger;
             _emailPreparationService = emailPreparationService;

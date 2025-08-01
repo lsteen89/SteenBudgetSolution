@@ -2,7 +2,7 @@
 
 namespace Backend.Application.Interfaces.EmailServices
 {
-    public interface IEmailPreparationService
+    public interface ILegacyEmailPreparationService
     {
         Task<EmailMessageModel> PrepareVerificationEmailAsync(EmailMessageModel emailMessageModel);
         Task<EmailMessageModel> PrepareContactUsEmailAsync(EmailMessageModel emailMessageModel);

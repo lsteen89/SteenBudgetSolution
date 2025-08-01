@@ -95,14 +95,14 @@ public abstract class UnitTestBase
 
         // Register dependencies
         var mockLoggerForMockEmailService = Mock.Of<ILogger<MockEmailService>>();
-        var mockEmailPreparationService = Mock.Of<IEmailPreparationService>(); // Can use a real/mock implementation
+        var mockEmailPreparationService = Mock.Of<ILegacyEmailPreparationService>(); // Can use a real/mock implementation
         LoggerMockUserManagementService = new Mock<ILogger<UserManagementService>>(); // Mock logger for UserManagementService
 
         services.AddScoped<IUserSQLProvider>(_ => MockUserSQLProvider.Object);
         services.AddScoped<IEmailResetPasswordService>(_ => MockEmailResetPasswordService.Object);
 
         // Register MockEmailService as the real implementation of IEmailService
-        services.AddScoped<IEmailService>(_ => new MockEmailService(
+        services.AddScoped<ILegacyEmailService>(_ => new MockEmailService(
             mockLoggerForMockEmailService,
             mockEmailPreparationService
         ));
@@ -137,7 +137,7 @@ public abstract class UnitTestBase
         services.AddScoped<IEmailVerificationService>(_ => new EmailVerificationService(
             MockUserSQLProvider.Object,
             MockUserTokenService.Object,
-            ServiceProvider.GetRequiredService<IEmailService>(),
+            ServiceProvider.GetRequiredService<ILegacyEmailService>(),
             mockOptions,
             Mock.Of<ILogger<EmailVerificationService>>(),
             mockEmailPreparationService,
@@ -168,7 +168,7 @@ public abstract class UnitTestBase
 
         // Assertions to validate setup
         Assert.NotNull(EmailVerificationService);
-        Assert.NotNull(ServiceProvider.GetRequiredService<IEmailService>());
+        Assert.NotNull(ServiceProvider.GetRequiredService<ILegacyEmailService>());
     }
     protected void SetupUserAuthenticationServiceWithMocks()
     {

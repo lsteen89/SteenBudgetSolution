@@ -13,19 +13,19 @@ public class EmailVerificationService: IEmailVerificationService
 {
     private readonly IUserSQLProvider _userSQLProvider;
     private readonly IUserTokenService _userTokenService;
-    private readonly IEmailService _emailService;
+    private readonly ILegacyEmailService _emailService;
     private readonly ILogger<EmailVerificationService> _logger;
     private readonly Func<DateTime> _getCurrentTime;
     private readonly ResendEmailSettings _settings;
-    IEmailPreparationService emailPreparationService;
+    ILegacyEmailPreparationService emailPreparationService;
 
     public EmailVerificationService(
         IUserSQLProvider userSQLProvider,
         IUserTokenService userTokenService,
-        IEmailService emailService,
+        ILegacyEmailService emailService,
         IOptions<ResendEmailSettings> options,
         ILogger<EmailVerificationService> logger,
-        IEmailPreparationService emailPreparationService,
+        ILegacyEmailPreparationService emailPreparationService,
         Func<DateTime> getCurrentTime = null)
     {
         _userSQLProvider = userSQLProvider;

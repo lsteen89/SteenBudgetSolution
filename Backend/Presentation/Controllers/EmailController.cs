@@ -6,11 +6,11 @@ using Backend.Application.DTO.Email;
 [Route("api/[controller]")]
 public class EmailController : ControllerBase
 {
-    private readonly IEmailService _emailService;
+    private readonly ILegacyEmailService _emailService;
     private readonly ILogger<EmailController> _logger;
     private readonly IRecaptchaService _recaptchaService;
 
-    public EmailController(IEmailService emailService, ILogger<EmailController> logger, IRecaptchaService recaptchaService)
+    public EmailController(ILegacyEmailService emailService, ILogger<EmailController> logger, IRecaptchaService recaptchaService)
     {
         _emailService = emailService;
         _logger = logger;

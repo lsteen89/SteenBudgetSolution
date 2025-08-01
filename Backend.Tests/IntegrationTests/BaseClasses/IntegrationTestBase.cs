@@ -53,7 +53,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime, IClassFixture<Databa
     protected readonly IUserServices UserServices;
     protected readonly IAuthService AuthService;
     protected readonly IUserSQLProvider UserSQLProvider;
-    protected readonly IEmailService EmailService;
+    protected readonly ILegacyEmailService EmailService;
     protected readonly IUserTokenService UserTokenService;
     protected readonly IJwtService jwtService;
     protected readonly ITokenBlacklistService TokenBlacklistService;
@@ -194,7 +194,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime, IClassFixture<Databa
         UserServices = ServiceProvider.GetRequiredService<IUserServices>();
         AuthService = ServiceProvider.GetRequiredService<IAuthService>();
         UserSQLProvider = ServiceProvider.GetRequiredService<IUserSQLProvider>();
-        EmailService = ServiceProvider.GetRequiredService<IEmailService>();
+        EmailService = ServiceProvider.GetRequiredService<ILegacyEmailService>();
         EmailResetPasswordService = ServiceProvider.GetRequiredService<IEmailResetPasswordService>();
 
         UserTokenService = ServiceProvider.GetRequiredService<IUserTokenService>();
@@ -245,11 +245,11 @@ public abstract class IntegrationTestBase : IAsyncLifetime, IClassFixture<Databa
         // Register application services
         services.AddScoped<IUserServices, UserServices>();
         services.AddScoped<IAuthService, AuthService>();
-        services.AddSingleton<IEmailService, MockEmailService>();
+        services.AddSingleton<ILegacyEmailService, MockEmailService>();
         services.AddScoped<IUserManagementService, UserManagementService>();
         services.AddScoped<IUserTokenService, UserTokenService>();
         services.AddScoped<IUserEmailService, UserEmailService>();
-        services.AddScoped<IEmailPreparationService, EmailPreparationService>();
+        services.AddScoped<ILegacyEmailPreparationService, LegacyEmailPreparationService>();
         services.AddScoped<IEmailVerificationService, EmailVerificationService>();
         services.AddScoped<IUserAuthenticationService, UserAuthenticationService>();
         services.AddScoped<UserServiceTest>();

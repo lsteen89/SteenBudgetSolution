@@ -9,8 +9,8 @@ namespace Backend.Application.Services.EmailServices
     public class EmailResetPasswordService : IEmailResetPasswordService
     {
         private readonly IUserSQLProvider _userSQLProvider;
-        private readonly IEmailService _emailService;
-        public EmailResetPasswordService(IUserSQLProvider userSQLProvider, IEmailService emailService)
+        private readonly ILegacyEmailService _emailService;
+        public EmailResetPasswordService(IUserSQLProvider userSQLProvider, ILegacyEmailService emailService)
         {
             _userSQLProvider = userSQLProvider;
             _emailService = emailService;

@@ -107,10 +107,10 @@ public class EmailVerificationServiceTests : UnitTestBase
         EmailVerificationService = new EmailVerificationService(
             MockUserSQLProvider.Object,
             MockUserTokenService.Object,
-            ServiceProvider.GetRequiredService<IEmailService>(),
+            ServiceProvider.GetRequiredService<ILegacyEmailService>(),
             mockOptions,
             Mock.Of<ILogger<EmailVerificationService>>(),
-            new Mock<IEmailPreparationService>().Object,
+            new Mock<ILegacyEmailPreparationService>().Object,
             () => currentTime
         );
 

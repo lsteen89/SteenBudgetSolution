@@ -84,8 +84,9 @@ using Backend.Presentation.Middleware;
 
 // Settings
 using Backend.Settings;
+using Backend.Settings.Email;
 
-// Tests (
+// Tests 
 using Backend.Tests.Mocks;
 
 #endregion
@@ -113,8 +114,10 @@ var jwtSettingsSection = builder.Configuration.GetSection("JwtSettings");
 
 // DB settings
 builder.Services.Configure<DatabaseSettings>(builder.Configuration.GetSection("DatabaseSettings"));
-
 builder.Services.Configure<ResendEmailSettings>(builder.Configuration.GetSection("ResendEmailSettings"));
+
+// Email settings (Smtp)
+builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("Smtp"));
 
 
 #endregion
@@ -297,9 +300,9 @@ builder.Services.AddScoped<IUserAuthenticationService, UserAuthenticationService
 
 // Section for email services
 builder.Services.AddScoped<IEmailVerificationService, EmailVerificationService>();
-builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<ILegacyEmailService, LegacyEmailService>();
 builder.Services.AddScoped<IUserEmailService, UserEmailService>();
-builder.Services.AddScoped<IEmailPreparationService, EmailPreparationService>();
+builder.Services.AddScoped<ILegacyEmailPreparationService, LegacyEmailPreparationService>();
 builder.Services.AddScoped<IEmailResetPasswordService, EmailResetPasswordService>();
 
 // Other various services
@@ -315,9 +318,9 @@ builder.Services.AddScoped<IEnvironmentService, EnvironmentService>();
 // Configure EmailService based on environment
 if (builder.Environment.IsDevelopment())
 {
-    builder.Services.AddSingleton<IEmailService, MockEmailService>();
+    builder.Services.AddSingleton<ILegacyEmailService, MockEmailService>();
 
-    var mockEmailPreparationService = new Mock<IEmailPreparationService>();
+    var mockEmailPreparationService = new Mock<ILegacyEmailPreparationService>();
     mockEmailPreparationService
         .Setup(service => service.PrepareVerificationEmailAsync(It.IsAny<EmailMessageModel>()))
         .ReturnsAsync((EmailMessageModel email) => email);
@@ -326,12 +329,12 @@ if (builder.Environment.IsDevelopment())
         .Setup(service => service.PrepareContactUsEmailAsync(It.IsAny<EmailMessageModel>()))
         .ReturnsAsync((EmailMessageModel email) => email);
 
-    builder.Services.AddSingleton<IEmailPreparationService>(mockEmailPreparationService.Object);
+    builder.Services.AddSingleton<ILegacyEmailPreparationService>(mockEmailPreparationService.Object);
 }
 else
 {
-    builder.Services.AddSingleton<IEmailService, EmailService>();
-    builder.Services.AddSingleton<IEmailPreparationService, EmailPreparationService>();
+    builder.Services.AddSingleton<ILegacyEmailService, LegacyEmailService>();
+    builder.Services.AddSingleton<ILegacyEmailPreparationService, LegacyEmailPreparationService>();
 }
 
 // Add WebSockets and their helpers

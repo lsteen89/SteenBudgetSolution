@@ -8,13 +8,13 @@ using Backend.Domain.Entities.Email;
 /// Manages the flow of email preparation and sending based on email type.
 /// Provides configuration and logging for both verification and contact emails.
 /// </summary>
-public class EmailService : EmailSenderBase, IEmailService
+public class LegacyEmailService : EmailSenderBase, ILegacyEmailService
 {
     private readonly IConfiguration _configuration;
-    private readonly ILogger<EmailService> _logger;
-    IEmailPreparationService emailPreparationService;
+    private readonly ILogger<LegacyEmailService> _logger;
+    ILegacyEmailPreparationService emailPreparationService;
 
-    public EmailService(IConfiguration configuration, ILogger<EmailService> logger, IEmailPreparationService emailPreparationService)
+    public LegacyEmailService(IConfiguration configuration, ILogger<LegacyEmailService> logger, ILegacyEmailPreparationService emailPreparationService)
         : base(configuration, logger)
     {
         _configuration = configuration;

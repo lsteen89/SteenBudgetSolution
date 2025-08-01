@@ -6,11 +6,11 @@ using System.Net.Mail;
 
 namespace Backend.Infrastructure.Email
 {
-    public class EmailPreparationService : IEmailPreparationService
+    public class LegacyEmailPreparationService : ILegacyEmailPreparationService
     {
         private readonly IConfiguration _configuration;
 
-        public EmailPreparationService(IConfiguration configuration)
+        public LegacyEmailPreparationService(IConfiguration configuration)
         {
             _configuration = configuration;
         }

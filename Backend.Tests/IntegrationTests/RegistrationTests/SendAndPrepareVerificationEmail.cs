@@ -8,13 +8,13 @@ using Xunit;
 namespace Backend.Tests.UnitTests.Email;
 public class SendAndPrepareVerificationEmail
 {
-    private readonly Mock<IEmailPreparationService> _emailPreparationServiceMock;
+    private readonly Mock<ILegacyEmailPreparationService> _emailPreparationServiceMock;
     private readonly Mock<ILogger<MockEmailService>> _loggerMock;
     private readonly MockEmailService _mockEmailService;
 
     public SendAndPrepareVerificationEmail()
     {
-        _emailPreparationServiceMock = new Mock<IEmailPreparationService>();
+        _emailPreparationServiceMock = new Mock<ILegacyEmailPreparationService>();
         _loggerMock = new Mock<ILogger<MockEmailService>>();
 
         // Initialize the MockEmailService with mocked dependencies

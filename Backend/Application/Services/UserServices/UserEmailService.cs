@@ -6,12 +6,12 @@ namespace Backend.Application.Services.UserServices
 {
     public class UserEmailService : IUserEmailService
     {
-        private readonly IEmailService _emailService;
+        private readonly ILegacyEmailService _emailService;
         private readonly IEmailVerificationService _emailVerificationService;
         private readonly ILogger<UserEmailService> _logger;
 
 
-        public UserEmailService(IEmailService emailService, IEmailVerificationService emailVerificationService, ILogger<UserEmailService> logger)
+        public UserEmailService(ILegacyEmailService emailService, IEmailVerificationService emailVerificationService, ILogger<UserEmailService> logger)
         {
             _emailService = emailService;
             _emailVerificationService = emailVerificationService;
