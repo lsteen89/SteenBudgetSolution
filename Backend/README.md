@@ -1,144 +1,258 @@
-SteenBudget Backend
+# SteenBudgetSolution
 
-The backend application for SteenBudget, built with C# and .NET 8, focuses on robust data management, security, and scalability. It provides a comprehensive API for managing users, budgets, and financial data.
+[![CI-CD (Pi, multi-arch)](https://github.com/lsteen89/SteenBudgetSolution/actions/workflows/cicd.yml/badge.svg)](https://github.com/lsteen89/SteenBudgetSolution/actions/workflows/cicd.yml)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-🛠️ Project Status
+A full-stack personal finance app focused on **security**, **clean architecture**, and a **lean self-hosted** deployment. The backend is .NET 8 (C#), the frontend is React/Vite, and everything is shipped with Docker to a Raspberry Pi home-lab.
 
-⚠️ Work in Progress
-This project is actively being developed. Changes to folder structure, components, and functionality may occur frequently.
+---
 
-🚀 Features
+## Project status
 
-    Secure Authentication: JWT-based authentication for secure API access.
-    ReCAPTCHA Integration: Protects against bot activity in registration and contact forms.
-    CRUD Operations: Full support for managing users, budgets, and financial transactions.
-    Email Notifications: SMTP integration for account verification and notifications.
-    Optimized Database Access: Dapper for high-performance SQL queries.
+> **WIP** – active development. Folder structure and features evolve as the system is refined toward a final stable cut.
 
-📂 Folder Structure
+---
 
-    /Backend
-    │   appsettings.Development.json     # Development configuration
-    │   appsettings.json                 # Shared configuration
-    │   appsettings.Production.json      # Production configuration
-    │   Backend.csproj                   # Project file
-    │   Backend.http                     # HTTP request examples
-    │   Program.cs                       # Application entry point
-    │
-    ├───Application                      # Core business logic and interfaces
-    │   ├───DTO                          # Data Transfer Objects
-    │   ├───Interfaces                   # Interfaces for services
-    │   ├───Services                     # Business services (Email, Token, User)
-    │   ├───Settings                     # Application settings classes
-    │   └───Validators                   # Input validation classes
-    │
-    ├───Domain                           # Application domain models
-    │   ├───Entities                     # Data models (e.g., User, Income)
-    │   └───Interfaces                   # Interface definitions
-    │
-    ├───Infrastructure                   # Data and infrastructure services
-    │   ├───Data                         # Database access logic
-    │   │   ├───Sql                      # SQL execution classes and queries
-    │   │   └───SqlCode                  # Raw SQL scripts
-    │   ├───Email                        # Email handling services
-    │   ├───Helpers                      # Helper utilities
-    │   └───Security                     # Security helpers (e.g., hashing)
-    │
-    ├───logs                             # Log files
-    ├───Presentation                     # API controllers
-    │   └───Controllers                  # RESTful controllers (e.g., Registration)
-    ├───Properties                       # Application properties
-    │   └───launchSettings.json          # Local launch settings
-    └───Test                             # Unit tests and mocks
-        ├───Mocks                        # Mock services for testing
-        └───UserTests                    # User-related unit tests
-    /backend.test                        # Separate folder for tests
-    ├───IntegrationTests                 # Integration tests for APIs and services
-    ├───UnitTests                        # Unit tests for individual components
-    ├───StartupTest.cs                   # Test-specific configuration setup
+## Highlights
 
-🛠️ Setup and Installation
-Prerequisites
+- 🔐 **Authentication built right**  
+  Short-lived JWT **access tokens** (in-memory) + opaque **refresh tokens** (HttpOnly cookie) with rotation & absolute cap.
 
-    .NET 8 SDK and Runtime installed.
-    MariaDB for the database.
-    SMTP server for email functionality.
+- 📧 **Email workflows**  
+  Verification, resend, and contact-us via SMTP (MailKit) with per-user/per-IP **rate limiting**.
 
-⚙️ Environment Variables
+- 🧱 **Vertical slices + MediatR**  
+  Thin controllers, orchestration in handlers, repositories do SQL. Unit of Work wraps data operations.
 
-Set the following environment variables to ensure proper functionality:
-Required
+- 🧰 **Self-hosted CI/CD**  
+  GitHub Actions builds **multi-arch** images → Pi runner deploys via `docker compose` with readiness checks.
 
-    JWT_SECRET_KEY: Secret key for JWT authentication.
-    DatabaseSettings__ConnectionString: Connection string for the MariaDB database.
+- 🛡️ **Defense in depth**  
+  Lockouts, CAPTCHA, secure cookies, best-effort JWT blacklist, WebSocket session revocation.
 
-Production Only
+---
 
-    SMTP_PASSWORD: Password for the SMTP server.
-    SMTP_PASSWORD_INFO: Secondary SMTP password for contact/support emails.
+## Architecture (high-level)
 
-🧩 Key Components
+- **Frontend**: React (TypeScript), Vite, Tailwind. Served by **Caddy**.
+- **Backend**: ASP.NET Core (.NET 8), MediatR, Dapper, MariaDB, WebSockets.
+- **Infra**: Docker Compose (Pi 4 prod host), GHCR for images, Pi 3 runner for deploys, Cloudflare DNS for Caddy’s DNS-01.
 
-Core Layers
+```mermaid
+graph TD
+  User[Browser] -->|HTTPS| Caddy
+  Caddy -->|/api| API[.NET 8 API]
+  API --> DB[(MariaDB)]
+  Caddy -->|Static / Frontend| FE[React / Vite]
+  GH[GitHub Actions] -->|Build & Push| GHCR[(GHCR)]
+  GH -->|Deploy Job| Runner[Pi 3 Runner]
+  Runner -->|ssh + compose| Host[Pi 4 Prod Host]
+  Host --> Caddy
+  Host --> API
+  API -. WebSockets .- User
+```
+## Repository layout (abridged)
 
-    Application: Contains services, DTOs, validators, and business logic interfaces.
-    Domain: Houses the domain entities and models.
-    Infrastructure: Manages data access and external services.
-    Presentation: Provides API endpoints via controllers.
+    Backend/
+    ├── Application/
+    │   ├── Abstractions/…             # Interfaces (Data, Email, Security, etc.)
+    │   ├── Common/…                   # Behaviors, cross-cutting
+    │   ├── DTO/…                      # Transport objects
+    │   ├── Features/
+    │   │   ├── Authentication/…       # Login, Logout, Refresh, Verify, Resend
+    │   │   ├── Contact/…              # Contact form
+    │   │   ├── Register/…             # Registration flow
+    │   │   └── Wizard/…               # Budget wizard
+    │   ├── Helpers/Jwt/…
+    │   ├── Mappings/…
+    │   ├── Options/…                  # JwtSettings, Lockout, Email, Urls
+    │   └── Validators/…
+    ├── Domain/
+    │   ├── Entities/…                 # Auth, Budget, Email, User, Wizard
+    │   └── Shared/…
+    ├── Infrastructure/
+    │   ├── Data/Sql/…                 # BaseClass, Factories, Health
+    │   ├── Repositories/…             # Auth, User, Budget, Email
+    │   ├── Email/…                    # MailKit impl, rate limits repo
+    │   ├── Auth/ Security/ WebSockets/…
+    │   └── BackgroundServices/…
+    ├── Presentation/
+    │   ├── Controllers/               # Thin endpoints
+    │   └── Middleware/
+    ├── Settings/…
+    ├── Program.cs
+    └── docs/
+        ├── authentication.md
+        ├── rate-limits.md
+        ├── email-workflows.md
+        └── api.md
+    
+    Backend.Tests/
+    ├── Authentication/…               # Integration/API tests
+    ├── Slice/_Infra/…                 # Slice helpers
+    ├── Unit/Features/Authentication/… # Unit tests (login/logout/refresh)
+    └── Configuration/…
 
-Test Folder
+# Getting Started
 
-The backend.test folder, located in the root directory, contains unit and integration tests for the backend:
+## 1) Prerequisites
 
-    Unit Tests: Validate individual components and services.
-    Integration Tests: Test end-to-end functionality of APIs and database interactions.
-    StartupTest.cs: Provides a custom configuration for testing environments.
+- **Docker & Docker Compose**
+- **A domain** (for TLS) and **Cloudflare token** if you use Caddy DNS-01
+- *(Optional)* **.NET 8 SDK** + **Node 20** for local development without Docker
 
-Services and Features
+---
 
-    User Services: Handles user registration, authentication, and management.
-    Token Services: Issues and validates JWTs.
-    Email Services: Sends account verification and notification emails.
+## 2) Configure `.env` (root)
 
-🛡️ Security
+```dotenv
+# Runtime
+ASPNETCORE_ENVIRONMENT=Production
 
-    JWT Authentication: Ensures secure access to the API.
-    Environment Variables: Protects sensitive data.
-    Firewall and Fail2Ban: Recommended for production environments.
+# Secrets
+WEBSOCKET_SECRET=             # 32+ bytes random
+JWT_SECRET_KEY=               # 32+ bytes (raw or base64:... format)
+RECAPTCHA_SECRET_KEY=
 
-🛠️ Testing
+# DB (app)
+DATABASESETTINGS__CONNECTIONSTRING=Server=mariadb;Port=3306;Database=steenbudgetPROD;User Id=...;Password=...;SslMode=Preferred
 
-The Backend.Tests folder is structured to include both unit tests and integration tests, ensuring comprehensive coverage of the backend functionality:
+# DB (container)
+DB_ROOT_PASSWORD=...
+DB_USER=steenbudget
+DB_PASSWORD=...
+MARIADB_DATABASE=steenbudgetPROD
 
-    /Backend.Tests
-    ├───Configuration          # Test-specific configuration setups
-    ├───IntegrationTests       # End-to-end tests for APIs and services
-    ├───UnitTests              # Isolated tests for individual components
-    ├───Backend.Tests.cs       # Main test project file
+# SMTP (prod)
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASSWORD=
+SMTP_PASSWORD_INFO=
+SMTP_FROM=noreply@ebudget.se
 
-Features of the Test Setup
+# Caddy DNS-01
+CLOUDFLARE_API_TOKEN=...
 
-    Organized Structure: Unit tests and integration tests are clearly separated into respective folders.
-    Base Classes: Common test setups and helpers are included as base classes to reduce redundancy and improve maintainability.
-    Full Integration: Tests are fully integrated with the main project, making it easy to validate actual application functionality.
-    Ease of Use: By aligning the test environment closely with the production setup, tests are straightforward to write and execute.
+# URLs used in emails
+AppUrls__VerifyUrl=https://yourdomain.tld/verify-email
+```
+>Tip: Keep .env out of git. Store a safe .env.example for reference.
 
-Running Tests
+## 3) Bring up the stack
 
-To run all tests:
+        docker compose up -d
+        docker compose ps
+        docker compose logs backend --tail=100
+
+### Health checks:
+
+    Liveness: GET http://<backend>:8080/api/healthz
+
+    Readiness: GET http://<backend>:8080/api/readyz
+
+### Local Development (without Docker)
+
+#### Backend:
+
+    cd Backend
+    dotnet dev-certs https --trust
+    dotnet restore
+    dotnet run
+
+#### Frontend:
+
+    cd Frontend
+    npm ci
+    npm run dev
+
+### Configuration: JWT & Cookies
+
+JWT secret must be ≥32 bytes (or prefixed with base64: for a base64 value).
+Refresh token cookie is:
+
+    HttpOnly
+
+    Secure
+
+    SameSite=Strict/Lax
+
+    Sent by server, never readable by JS.
+
+> Access token (JWT) is stored in memory on the client.
+More details: docs/authentication.md
+
+## CI/CD
+
+### Build Job (GitHub Actions)
+
+    Build & push backend image to GHCR (linux/amd64, linux/arm64).
+    Build frontend artifact (Vite) and upload it.
+    Build Caddy (arm64) only if caddy/** changed.
+
+### Deploy Job (self-hosted runner on Pi 3)
+
+    Downloads frontend artifact.
+
+    SSH to Pi 4 host, docker compose pull && docker compose up -d.
+
+    Verifies health: /api/healthz and /api/readyz.
+
+    Shows last backend logs on failure.
+
+>Workflow: .github/workflows/cicd.yml
+
+## Testing
+
+    Unit tests: handlers, policies
+
+    Integration/API tests: auth flows, refresh rotation, logout, verification
+
+    Tools: xUnit, FluentAssertions, Microsoft.AspNetCore.Mvc.Testing, Moq, Coverlet
+
+Run locally:
+
+    cd Backend.Tests
+    
+dotnet test
+
+    CI runs tests on every push before build/publish.
+
+# Security Notes
+
+Access tokens live in memory; refresh token stays in cookie → reduces XSS blast radius.
+
+Failed logins recorded → lockout policy enforced.
+
+Best-effort JWT blacklist on logout + WebSocket session revoke.
+
+Reverse proxy security headers: HSTS, CSP, X-Frame-Options, etc.
+
+
+> **Tip:** Keep `.env` out of git. Provide a safe `\`.env.example\`` for reference.
+
+To run tests locally:
 
     cd Backend.Tests
     dotnet test
 
+CI automatically runs these tests on every push before building and publishing.
 
-Types of Tests
+Documentation
 
-    Unit Tests: Focus on testing individual components or services in isolation.
-    Integration Tests: Validate the interaction between various components, including database access and API endpoints.
+    docs/authentication.md – token model & flows
+
+    docs/rate-limits.md – email rate limiting
+
+    docs/email-workflows.md – verification/resend/contact
+
+    docs/api.md – endpoints & contracts
 
 📄 License
 
 This project is licensed under the MIT License. See the LICENSE file for details.
 🤝 Contributing
 
-Contributions are welcome! Feel free to fork the repository and create pull requests.
+Contributions are welcome! Feel free to fork the repository and open pull requests.
+
+   
