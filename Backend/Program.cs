@@ -487,7 +487,7 @@ builder.Services.AddAuthentication(o =>
             var ct = CancellationToken.None; // Use a default cancellation token
 
             var jti = ctx.Principal?.FindFirstValue(JwtRegisteredClaimNames.Jti);
-            if (jti != null && await repo.IsTokenBlacklistedAsync(jti, ct))
+            if (jti != null && await repo.IsTokenBlacklistedAsync(jti))
             {
                 logger.LogWarning("Rejected JTI {jti} black-listed", jti);
                 ctx.Fail("revoked");

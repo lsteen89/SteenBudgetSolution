@@ -221,7 +221,7 @@ namespace Backend.Infrastructure.Implementations
                 var jti = principal.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
                 if (jti != null &&
                     _tokenBlacklistService
-                      .IsTokenBlacklistedAsync(jti, ct)
+                      .IsTokenBlacklistedAsync(jti)
                       .GetAwaiter()
                       .GetResult())
                 {

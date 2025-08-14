@@ -26,10 +26,10 @@ public class BlacklistRepo : SqlBase, IBlacklistRepo
         }
     }
 
-    public async Task<bool> IsTokenBlacklistedAsync(string jti, CancellationToken ct)
+    public async Task<bool> IsTokenBlacklistedAsync(string jti)
     {
         string sql = "SELECT COUNT(1) FROM BlacklistedTokens WHERE Jti = @Jti";
-        int count = await ExecuteScalarAsync<int>(sql, new { Jti = jti }, ct);
+        int count = await ExecuteScalarAsync<int>(sql, new { Jti = jti });
         return count > 0;
     }
     public async Task<bool> IsJtiBlacklistedAsync(string jti, CancellationToken ct)

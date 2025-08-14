@@ -13,7 +13,7 @@ namespace Backend.Presentation.Middleware
             _next = next;
         }
 
-        public async Task InvokeAsync(HttpContext context, CancellationToken cancellationToken)
+        public async Task InvokeAsync(HttpContext context)
         {
             // Check if the user is authenticated
             if (context.User?.Identity?.IsAuthenticated ?? false)
@@ -37,7 +37,7 @@ namespace Backend.Presentation.Middleware
                             var logger = context.RequestServices.GetRequiredService<ILogger<TokenBlacklistMiddleware>>();
 
                             // Check if jti is in the blacklist
-                            var isBlacklisted = await tokenBlacklistService.IsTokenBlacklistedAsync(jti, cancellationToken);
+                            var isBlacklisted = await tokenBlacklistService.IsTokenBlacklistedAsync(jti);
                             if (isBlacklisted)
                             {
                                 logger.LogWarning($"Blacklisted token detected: JTI {jti}");
