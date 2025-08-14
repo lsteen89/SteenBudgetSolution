@@ -9,7 +9,25 @@ This project showcases the ability to design, build, deploy, and manage a comple
 
 ---
 
-## Architecture Overview
+# Project Docs
+   
+   Quick links:
+   
+   - **Security**
+     - [Authentication](Security/Authentication.md)
+     - [Rate Limits](Security/rate-limits.md)
+   - **Email**
+     - [Email Workflows](Email/email-workflows.md)
+   - **API**
+     - [API Reference](API/api.md)
+   - **WebSockets**
+     - [WebSocket Handler](WebSockets/WebSocketHandler.md)
+   - **Roadmap**
+     - [Roadmap](roadmap.md)
+ 
+---
+
+# Architecture Overview
 
 This project uses a modern, separated architecture to ensure security, stability, and maintainability.
 
