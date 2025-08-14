@@ -9,7 +9,7 @@ namespace Backend.Infrastructure.Implementations
         public Task<bool> BlacklistTokenAsync(string jti, DateTime expiration, CancellationToken ct
                                                 ) => Task.FromResult(true);
 
-        public Task<bool> IsTokenBlacklistedAsync(string jti, CancellationToken ct
+        public Task<bool> IsTokenBlacklistedAsync(string jti
                                                   ) => Task.FromResult(false);
 
         public Task<bool> DoesAccessTokenJtiExistAsync(string accessTokenJti, CancellationToken ct

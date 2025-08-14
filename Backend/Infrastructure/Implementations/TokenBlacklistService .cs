@@ -58,7 +58,7 @@ public class TokenBlacklistService : ITokenBlacklistService
 
         return ok;
     }
-    public async Task<bool> IsTokenBlacklistedAsync(string jti, CancellationToken ct)
+    public async Task<bool> IsTokenBlacklistedAsync(string jti)
     {
         if (string.IsNullOrEmpty(jti))
             throw new ArgumentException("Token JTI cannot be null or empty.", nameof(jti));
@@ -73,7 +73,7 @@ public class TokenBlacklistService : ITokenBlacklistService
         }
 
         // If not in cache, check the database
-        bool isBlacklistedDB = await _blacklist.IsTokenBlacklistedAsync(jti, ct);
+        bool isBlacklistedDB = await _blacklist.IsTokenBlacklistedAsync(jti);
 
         // Cache the result as a string ("true" or "false") for _cacheDuration
         await _cache.SetStringAsync(jti, isBlacklistedDB.ToString(), new DistributedCacheEntryOptions
