@@ -108,54 +108,17 @@ This project uses a modern, separated architecture to ensure security, stability
 
 Follow these instructions to get the project running on your local machine for development and testing purposes.
 
-### Prerequisites
-
-* [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-* [Node.js](https://nodejs.org/) (v18 or later)
-* [Docker](https://www.docker.com/products/docker-desktop/)
-* [Git](https://git-scm.com/)
-
-### Installation
-
-1.  **Clone the repository:**
-    ```sh
-    git clone [https://github.com/lsteen89/SteenBudgetSolution.git](https://github.com/lsteen89/SteenBudgetSolution.git)
-    cd SteenBudgetSolution
-    ```
-
-2.  **Set up Backend Environment Variables:**
-    * Navigate to the backend project directory.
-    * Create a `.env` file by copying the example: `cp env.example .env`
-    * Fill in the required values in your new `.env` file (database credentials, JWT secret, etc.).
-
-3.  **Start the Database:**
-    * Run the MariaDB container using Docker Compose. This will also create the necessary volume for data persistence.
-    ```sh
-    docker-compose up -d db
-    ```
-
-4.  **Run the Backend API:**
-    * Navigate to the backend project directory.
-    * Trust the dev certificate, restore dependencies, and run the application.
-    ```sh
-    dotnet dev-certs https --trust
-    dotnet restore
-    dotnet run
-    ```
-    The API will be available at `https://localhost:5001`.
-
-5.  **Run the Frontend:**
-    * Open a new terminal and navigate to the `frontend` directory.
-    * Install dependencies and start the development server.
-    ```sh
-    npm install
-    npm run dev
-    ```
-    The frontend will be available at `http://localhost:3000` and will proxy API requests to the backend.
+### 1. Clone repo, create .env file.
+### 2. Run the full stack with a single command:
+      docker compose -f docker-compose.dev.yml up
+> assuming you have a docker-compose.dev.yml file for local dev)
+ Your backend and frontend will be running in containers,
+ and you can use docker compose exec to run commands inside them.
 
 
 
 
+---
 ## High-Level System Flowchart
 
 ```mermaid
@@ -239,29 +202,7 @@ graph TD
     DockerComposeUp -- Starts/Updates --> Caddy
     DockerComposeUp -- Starts/Updates --> BackendAPI
 
-    %% == 3. Define Subgraphs (Visual Grouping) ==
 
-    subgraph "Cloud Services"
-        Developer
-        GitHubRepo
-        GitHubActions
-        GHCR
-        FrontendArtifact
-    end
-
-    subgraph "Home Lab"
-        subgraph "Production Host (Pi 4)"
-            direction LR
-            Pi4 -- Manages --> UFW
-            UFW -- Protects --> Caddy
-            Caddy -- Proxies to --> BackendAPI
-            BackendAPI -- Connects to --> MariaDB
-        end
-        
-        subgraph "Orchestrator (Pi 3)"
-            Pi3 -- Runs --> Runner
-        end
-    end
 ```
 
 ## License
