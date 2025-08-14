@@ -1,9 +1,13 @@
-﻿namespace Backend.Application.DTO.Auth
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace Backend.Application.DTO.Auth
 {
     public class ResetPassword
     {
         public Guid Token { get; set; }
-        public string Password { get; set; }
-        public string ConfirmPassword { get; set; }
+        [Required]
+        public required string Password { get; set; }
+        [Required]
+        public required string ConfirmPassword { get; set; }
     }
 }

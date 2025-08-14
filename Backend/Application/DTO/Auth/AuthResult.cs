@@ -1,9 +1,11 @@
 ﻿namespace Backend.Application.DTO.Auth
 {
     public record AuthResult(
-        bool Success,
         string AccessToken,
-        Guid Persoid,
+        string RefreshToken,
+        Guid PersoId,
         Guid SessionId,
-        string WsMac);
+        string WsMac,
+        bool RememberMe
+    );
 }

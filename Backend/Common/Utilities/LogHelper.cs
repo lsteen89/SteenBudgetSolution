@@ -8,25 +8,25 @@ namespace Backend.Common.Utilities
 {
     public static class LogHelper
     {
-    public static string CreateUserLogHelper(UserModel user)
-    {
-        var sb = new StringBuilder();
-        foreach (var prop in user.GetType().GetProperties())
+        public static string CreateUserLogHelper(UserModel user)
         {
-            if (prop.Name == nameof(user.Password))
-                continue;
-
-            var raw = prop.GetValue(user)?.ToString() ?? "NULL";
-            string val = prop.Name switch
+            var sb = new StringBuilder();
+            foreach (var prop in user.GetType().GetProperties())
             {
-                nameof(user.Email)     when LoggingSettings.MaskSensitiveData 
-                                           => MaskEmail(raw),
+                if (prop.Name == nameof(user.Password))
+                    continue;
 
-            };
-            sb.AppendLine($"{prop.Name}: {val}");
+                var raw = prop.GetValue(user)?.ToString() ?? "NULL";
+                string val = prop.Name switch
+                {
+                    nameof(user.Email) when LoggingSettings.MaskSensitiveData
+                        => MaskEmail(raw),
+                    _ => raw
+                };
+                sb.AppendLine($"{prop.Name}: {val}");
+            }
+            return sb.ToString();
         }
-        return sb.ToString();
-    }
 
         public static string MaskEmail(string email)
         {

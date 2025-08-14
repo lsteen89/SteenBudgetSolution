@@ -1,12 +1,15 @@
 ﻿using Backend.Application.DTO.Wizard;
-using Backend.Application.Interfaces.WizardService;
 using Backend.Common.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using FluentValidation;
-using Newtonsoft.Json;
-using System.Security.Claims;
-using System.IdentityModel.Tokens.Jwt;
+using Backend.Application.Features.Wizard.SaveStep;
+using Backend.Application.Features.Wizard.StartWizard;
+using Backend.Application.Features.Wizard.AuthorizeSession;
+using Backend.Application.Features.Wizard.GetWizardData;
+using Backend.Application.Features.Wizard.FinalizeWizard;
+using Backend.Presentation.Shared;
+using MediatR;
+using Backend.Domain.Shared;
 
 namespace Backend.Presentation.Controllers
 {
@@ -15,120 +18,93 @@ namespace Backend.Presentation.Controllers
     [ApiController]
     public class WizardController : ControllerBase
     {
-        private readonly IWizardService _wizardService;
+        private readonly ISender _mediator;
         private readonly ILogger<WizardController> _logger;
 
-        public WizardController(IWizardService wizardService, ILogger<WizardController> logger)
+        public WizardController(ISender mediator, ILogger<WizardController> logger)
         {
-            _wizardService = wizardService;
+            _mediator = mediator;
             _logger = logger;
         }
         [HttpPost("start")]
-        public async Task<IActionResult> StartWizard()
+        [ProducesResponseType(typeof(Guid), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> StartWizard(CancellationToken ct)
         {
-            var (ip, ua, deviceId) = RequestMetadataHelper.ExtractMetadata(HttpContext);
-            _logger.LogInformation("StartWizard request: IP: {MaskedIP}, User-Agent: {UserAgent}, Device-ID: {DeviceId}",
-                LogHelper.MaskIp(ip), ua, deviceId);
-
-            Guid? persoidNullable = User.GetPersoid();
-
-            if (!persoidNullable.HasValue || persoidNullable.Value == Guid.Empty)
+            Guid? userId = User.GetPersoid();
+            if (!userId.HasValue)
             {
-                _logger.LogWarning("User Persoid (User ID) not found in token or is invalid.");
-                return Unauthorized("User identifier not found in token.");
+                return Unauthorized(new ApiErrorResponse("Token.Invalid", "User identifier not found in token."));
             }
 
-            Guid persoid = persoidNullable.Value; 
+            var command = new StartWizardCommand(userId.Value);
+            var result = await _mediator.Send(command, ct);
 
-            // Check if the user (identified by their persoid) already has a session.
-            // Assuming _wizardService.UserHasWizardSessionAsync(Guid userId) returns Task<Guid?>
-            Guid? existingSessionId = await _wizardService.UserHasWizardSessionAsync(persoid);
-
-            if (existingSessionId.HasValue && existingSessionId.Value != Guid.Empty)
-            {
-                _logger.LogInformation("User {Persoid} already has a wizard session: {SessionId}", persoid, existingSessionId.Value);
-                return Ok(new { wizardSessionId = existingSessionId.Value });
-            }
-
-            // They don't have a session, so create a new one.
-
-            var creationResult = await _wizardService.CreateWizardSessionAsync(persoid);
-
-            if (!creationResult.IsSuccess) // Check IsSuccess from the tuple
-            {
-                // Use the message from the result for more specific error logging and response
-                _logger.LogError("Failed to create wizard session for User ID {Persoid}: {ErrorMessage}", persoid, creationResult.Message);
-                return BadRequest(new { message = creationResult.Message }); // Return the specific message
-            }
-
-            // If IsSuccess is true, creationResult.WizardSessionId should contain the new ID
-            // (even if the service method sets it to Guid.Empty on failure, IsSuccess is the primary check)
-            if (creationResult.WizardSessionId == Guid.Empty)
-            {
-                // This case might indicate an internal logic issue in the service if IsSuccess was true
-                // but WizardSessionId is still Guid.Empty. Or, it's a state the service can return.
-                _logger.LogError("Wizard session creation reported success but returned an empty Session ID for User ID {Persoid}.", persoid);
-                return BadRequest(new { message = "Failed to create wizard session due to an internal error." });
-            }
-
-            _logger.LogInformation("Wizard session {SessionId} created for User ID {Persoid}", creationResult.WizardSessionId, persoid);
-            return Ok(new { wizardSessionId = creationResult.WizardSessionId });
+            return result.ToActionResult();
         }
 
-        // PUT /api/wizard/{sessionId}/steps/{stepNumber}/{subStepNumber}
         [HttpPut("{sessionId:guid}/steps/{stepNumber:int}/{subStepNumber:int}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> SaveStepData(
-            Guid sessionId,
-            int stepNumber,
-            int subStepNumber,                 // ← comes from the route now
-            [FromBody] WizardStepDto dto)       // dto is slim: { stepData, dataVersion }
+            Guid sessionId, int stepNumber, int subStepNumber, [FromBody] WizardStepDto dto, CancellationToken ct)
         {
-            // 1. Authorise (same as before)
-            if (!await _wizardService.GetWizardSessionAsync(sessionId))
+            // Authorization is a critical first step. Does this user even own this session?
+            // 1. Authorize
+            var persoid = User.GetPersoid();
+            if (!persoid.HasValue || !await AuthorizeSession(sessionId, ct))
+            {
                 return Forbid();
-
-            // 2. Validate + upsert
-            try
-            {
-                var ok = await _wizardService.SaveStepDataAsync(
-                    sessionId, stepNumber, subStepNumber,
-                    dto.StepData, dto.DataVersion);
-
-                if (!ok) return StatusCode(500, "Failed to save step data.");
-            }
-            catch (ValidationException ex)
-            {
-                return BadRequest(new { message = "Validation failed", errors = ex.Errors });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex,
-                    "Error saving wizard step data for session {SessionId}", sessionId);
-                return StatusCode(500, "An unexpected error occurred.");
             }
 
-            return Ok(new { message = "Step saved successfully." });
+            var command = new SaveWizardStepCommand(sessionId, stepNumber, subStepNumber, dto.StepData, dto.DataVersion);
+            var result = await _mediator.Send(command, ct);
+
+            return result.ToCommandResult("Step saved successfully.");
         }
         [HttpGet("{sessionId:guid}")]
-        public async Task<IActionResult> GetWizardData(Guid sessionId)
+        [ProducesResponseType(typeof(ApiResponse<WizardSavedDataDTO>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetWizardData(Guid sessionId, CancellationToken ct)
         {
-            if (!await _wizardService.GetWizardSessionAsync(sessionId))
-                return Forbid();
+            // 1. Authorize
+            if (!await AuthorizeSession(sessionId, ct)) return Forbid();
 
-            var wizardData = await _wizardService.GetWizardDataAsync(sessionId);
+            // 2. Send the query to get the data
+            var query = new GetWizardDataQuery(sessionId);
+            var result = await _mediator.Send(query, ct);
 
-            _logger.LogDebug("Wizard data before sending: {Data}",
-                             JsonConvert.SerializeObject(wizardData));
-
-            return Ok(wizardData);
+            // 3. Handle the result
+            return result.ToActionResult();
         }
+        // POST /api/wizard/{sessionId}/complete
         [HttpPost("{sessionId:guid}/complete")]
-        public async Task<IActionResult> Complete(Guid sessionId)
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<IActionResult> Complete(Guid sessionId, CancellationToken ct)
         {
-            if (!await _wizardService.GetWizardSessionAsync(sessionId)) return Forbid();
-            var res = await _wizardService.FinalizeBudgetAsync(sessionId);
-            if (!res.Success) return StatusCode(500, res.Message);
-            return NoContent();
+            var persoid = User.GetPersoid();
+
+            if (!persoid.HasValue || !await AuthorizeSession(sessionId, ct))
+            {
+                return Forbid();
+            }
+
+            var command = new FinalizeWizardCommand(sessionId, persoid.Value);
+            var result = await _mediator.Send(command, ct);
+
+            return result.ToCommandResult("Wizard completed successfully.");
+        }
+
+        // A private helper for DRY authorization checks
+        private async Task<bool> AuthorizeSession(Guid sessionId, CancellationToken ct)
+        {
+            var authQuery = new AuthorizeWizardSessionQuery(User.GetPersoid(), sessionId);
+            return await _mediator.Send(authQuery, ct);
         }
     }
 }

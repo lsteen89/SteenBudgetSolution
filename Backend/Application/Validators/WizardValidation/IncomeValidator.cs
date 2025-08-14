@@ -15,13 +15,13 @@ public sealed class IncomeValidator : AbstractValidator<IncomeFormValues>
         /* ── household members ────────────────────── */
         When(x => x.ShowHouseholdMembers == true, () =>
         {
-            RuleFor(x => x.HouseholdMembers)
+            RuleFor(x => x.HouseholdMembers!)
                 .NotNull()
                 .Must(h => h.Count > 0)
                 .WithMessage("At least one household member must be added.")
                 .Must(h =>
                 {
-                    var ids = h.Where(m => !string.IsNullOrWhiteSpace(m.Id))
+                    var ids = h.Where(m => !string.IsNullOrWhiteSpace(m!.Id))
                                .Select(m => m.Id!)
                                .ToList();
                     return ids.Distinct().Count() == ids.Count;
@@ -40,7 +40,7 @@ public sealed class IncomeValidator : AbstractValidator<IncomeFormValues>
         /* ── side hustles ─────────────────────────── */
         When(x => x.ShowSideIncome == true, () =>
         {
-            RuleFor(x => x.SideHustles)
+            RuleFor(x => x.SideHustles!)
                 .NotNull()
                 .Must(s => s.Count > 0)
                 .WithMessage("At least one side hustle must be added.")

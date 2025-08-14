@@ -1,7 +1,10 @@
-﻿namespace Backend.Application.DTO.Email
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace Backend.Application.DTO.Email
 {
     public class ResendVerificationRequest
     {
-        public string Email { get; set; }
+        [Required]
+        public required string Email { get; set; }
     }
 }

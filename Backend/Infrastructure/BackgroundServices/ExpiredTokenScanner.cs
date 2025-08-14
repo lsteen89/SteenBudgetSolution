@@ -1,9 +1,8 @@
-﻿using Backend.Application.Interfaces.WebSockets;
-using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
+﻿using Backend.Application.Abstractions.Infrastructure.WebSockets;
+using Backend.Application.Abstractions.Infrastructure.Data;
+using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Settings;
 using Microsoft.Extensions.Options;
-using Backend.Infrastructure.Data.Sql.Interfaces.Factories;
-
 
 public class ExpiredTokenScanner : BackgroundService
 {
@@ -12,15 +11,18 @@ public class ExpiredTokenScanner : BackgroundService
     private readonly TimeSpan _scanInterval;
     private readonly TimeSpan _heartbeatInterval;
     private readonly ExpiredTokenScannerSettings _settings;
+    private readonly ITimeProvider _timeProvider;
 
     public ExpiredTokenScanner(
         IServiceScopeFactory scopeFactory,
         IOptions<ExpiredTokenScannerSettings> options,
+        ITimeProvider timeProvider,
         ILogger<ExpiredTokenScanner> logger)
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
         _settings = options.Value;
+        _timeProvider = timeProvider;
         _scanInterval = TimeSpan.FromMinutes(_settings.ScanIntervalMinutes);
         _heartbeatInterval = TimeSpan.FromMinutes(_settings.HeartbeatIntervalMinutes);
 
@@ -32,7 +34,7 @@ public class ExpiredTokenScanner : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("ExpiredTokenScanner started.");
-        var lastHeartbeat = DateTime.UtcNow;
+        var lastHeartbeat = _timeProvider.UtcNow;
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -40,13 +42,12 @@ public class ExpiredTokenScanner : BackgroundService
             {
                 using var scope = _scopeFactory.CreateScope();
                 // resolve everything from this scope:
-                var userSql = scope.ServiceProvider.GetRequiredService<IUserSQLProvider>();
+                var repo = scope.ServiceProvider.GetRequiredService<IRefreshTokenRepository>();
                 var wsMgr = scope.ServiceProvider.GetRequiredService<IWebSocketManager>();
 
                 // pull all expired tokens
-                var expiredTokens = await userSql
-                    .RefreshTokenSqlExecutor
-                    .GetExpiredTokensAsync();
+                var expiredTokens = await repo.GetExpiredTokensAsync(ct: stoppingToken);
+
 
                 if (expiredTokens.Any() || _settings.LogWhenNoTokensFound)
                     _logger.LogInformation("Found {Count} expired tokens.", expiredTokens.Count());
@@ -58,7 +59,7 @@ public class ExpiredTokenScanner : BackgroundService
                       token.Persoid, token.ExpiresRollingUtc);
 
                     await wsMgr.ForceLogoutAsync(token.Persoid.ToString(), "session-expired");
-                    if (!await userSql.RefreshTokenSqlExecutor.DeleteTokenAsync(token.HashedToken))
+                    if (!await repo.DeleteTokenAsync(token.HashedToken, stoppingToken))
                         _logger.LogError("Failed to delete expired token {Token}.", token.HashedToken);
                 }
             }
@@ -67,10 +68,10 @@ public class ExpiredTokenScanner : BackgroundService
                 _logger.LogError(ex, "Error scanning for expired tokens.");
             }
 
-            if (DateTime.UtcNow - lastHeartbeat >= _heartbeatInterval)
+            if (_timeProvider.UtcNow - lastHeartbeat >= _heartbeatInterval)
             {
                 _logger.LogInformation("ExpiredTokenScanner heartbeat: still alive.");
-                lastHeartbeat = DateTime.UtcNow;
+                lastHeartbeat = _timeProvider.UtcNow;
             }
 
             await Task.Delay(_scanInterval, stoppingToken);

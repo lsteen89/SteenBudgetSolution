@@ -14,69 +14,55 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
 // Third-party packages
-using Dapper;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using HealthChecks.UI.Client;
 using Moq;
 using Serilog;
+using Mapster;
+
 
 // Domain layer
 using Backend.Domain.Abstractions;
 using Backend.Domain.Entities.Email;
-using Backend.Domain.Interfaces.Repositories.Budget;
+
 
 // Application layer
-using Backend.Application.Interfaces.AuthService;
-using Backend.Application.Interfaces.Cookies;
-using Backend.Application.Interfaces.EmailServices;
-using Backend.Application.Interfaces.JWT;
-using Backend.Application.Interfaces.UserServices;
-using Backend.Application.Interfaces.WebSockets;
-using Backend.Application.Interfaces.Wizard;
-using Backend.Application.Interfaces.WizardService;
-using Backend.Application.Services.AuthService;
-using Backend.Application.Services.EmailServices;
-using Backend.Application.Services.UserServices;
-using Backend.Application.Services.WizardService;
-using Backend.Application.Services.WizardServices.Processors;
+using Backend.Application.Abstractions.Infrastructure.Data;
+using Backend.Application.Abstractions.Infrastructure.Email;
+
+using Backend.Application.Abstractions.Infrastructure.RateLimiting;
+using Backend.Application.Abstractions.Infrastructure.Security;
+using Backend.Application.Abstractions.Infrastructure.System;
+using Backend.Application.Abstractions.Infrastructure.WebSockets;
+using Backend.Application.Features.Wizard.FinalizeWizard.Processors;
+using Backend.Application.Options.Email;
+using Backend.Application.Options.URL;
+using Backend.Application.Options.Auth;
 using Backend.Application.Validators;
+using Backend.Application.Mappings;
+
 
 // Infrastructure layer
 using Backend.Infrastructure.BackgroundServices;
 using Backend.Infrastructure.Data.Sql.Factories;
 using Backend.Infrastructure.Data.Sql.Health;
-using Backend.Infrastructure.Data.Sql.Helpers;
 using Backend.Infrastructure.Data.Sql.Interfaces.Factories;
-using Backend.Infrastructure.Data.Sql.Interfaces.Helpers;
-using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
-using Backend.Infrastructure.Data.Sql.Interfaces.Queries.Budget;
-using Backend.Infrastructure.Data.Sql.Interfaces.Queries.Budget_Queries;
-using Backend.Infrastructure.Data.Sql.Interfaces.Queries.BudgetQuries;
-using Backend.Infrastructure.Data.Sql.Interfaces.Queries.UserQueries;
-using Backend.Infrastructure.Data.Sql.Interfaces.Queries.WizardQueries;
-using Backend.Infrastructure.Data.Sql.Providers.BudgetProvider;
-using Backend.Infrastructure.Data.Sql.Providers.UserProvider;
-using Backend.Infrastructure.Data.Sql.Providers.WizardProvider;
-using Backend.Infrastructure.Data.Sql.Queries.Budget;
-using Backend.Infrastructure.Data.Sql.Queries.UserQueries;
-using Backend.Infrastructure.Data.Sql.Queries.WizardQuery;
 using Backend.Infrastructure.Email;
 using Backend.Infrastructure.Identity;
 using Backend.Infrastructure.Implementations;
 using Backend.Infrastructure.Repositories.Budget;
-using Backend.Infrastructure.Services.CookieService;
+using Backend.Infrastructure.Repositories.Email;
+using Backend.Infrastructure.Repositories.User;
+using Backend.Infrastructure.Security;
 using Backend.Infrastructure.WebSockets;
 
 
 // Common layer
-using Backend.Common.Converters;
-using Backend.Common.Interfaces;
 using Backend.Common.Services;
 
 // Presentation layer
@@ -84,9 +70,8 @@ using Backend.Presentation.Middleware;
 
 // Settings
 using Backend.Settings;
+using Backend.Settings.Email;
 
-// Tests (
-using Backend.Tests.Mocks;
 
 #endregion
 
@@ -114,14 +99,26 @@ var jwtSettingsSection = builder.Configuration.GetSection("JwtSettings");
 // DB settings
 builder.Services.Configure<DatabaseSettings>(builder.Configuration.GetSection("DatabaseSettings"));
 
-builder.Services.Configure<ResendEmailSettings>(builder.Configuration.GetSection("ResendEmailSettings"));
+// Email settings (Smtp)
+builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("Smtp"));
 
 
+#endregion
+
+#region Mappings
+// Register global type adapter config
+var cfg = TypeAdapterConfig.GlobalSettings;
+UserMappings.Register(cfg);
 #endregion
 
 #region Configuration and Services
 // Register In-Memory Distributed Cache
 builder.Services.AddDistributedMemoryCache();
+
+// MediatR
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
+
+
 
 // Add environment variables to configuration
 builder.Configuration.AddEnvironmentVariables();
@@ -162,7 +159,7 @@ else // Development, Testing, CI
     // It implements ITokenBlacklistService and always returns true for IsTokenBlacklistedAsync
 
     //builder.Services.AddSingleton<ITokenBlacklistService, NoopBlacklistService>();
-    builder.Services.AddScoped<ITokenBlacklistService, TokenBlacklistService>();
+    builder.Services.AddScoped<ITokenBlacklistService, NoopBlacklistService>();
 }
 // Add JsonOptions to use camelCase for JSON properties
 builder.Services.AddControllers()
@@ -178,6 +175,29 @@ builder.Services.AddControllers()
             new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)
         );
     });
+
+// EMAIL OPTIONS
+// Options
+builder.Services.AddOptions<EmailRateLimitOptions>()
+    .Bind(builder.Configuration.GetSection("EmailRateLimit"))
+    .ValidateDataAnnotations().ValidateOnStart();
+
+builder.Services.AddOptions<AppUrls>()
+    .Bind(builder.Configuration.GetSection("AppUrls"))
+    .ValidateDataAnnotations().ValidateOnStart();
+
+// Token TTL
+builder.Services.AddOptions<VerificationTokenOptions>()
+    .Bind(builder.Configuration.GetSection("VerificationToken"))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+// Auth lockout options
+builder.Services.AddOptions<AuthLockoutOptions>()
+        .BindConfiguration("AuthLockout")
+        .ValidateDataAnnotations()
+        .ValidateOnStart();
+
 
 #endregion
 
@@ -200,7 +220,7 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 // Log the file path after Serilog is initialized
 Log.Information($"Log file path: {logFilePath}");
-Log.Information("JWT Expiry Minutes: {ExpiryMinutes}", jwtSettings.ExpiryMinutes);
+Log.Information("JWT Expiry Minutes: {ExpiryMinutes}", jwtSettings?.ExpiryMinutes);
 
 // Set Serilog as the logging provider
 builder.Host.UseSerilog();
@@ -209,9 +229,9 @@ builder.Host.UseSerilog();
 #region Application Build Information
 // Build metadata
 var buildDateTime = BuildInfoHelper.GetBuildDate(Assembly.GetExecutingAssembly());
-var assembly     = Assembly.GetExecutingAssembly();
-var fileVersion  = assembly.GetCustomAttribute<AssemblyFileVersionAttribute>()?.Version ?? "unknown";
-var infoVersion  = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "unknown";
+var assembly = Assembly.GetExecutingAssembly();
+var fileVersion = assembly.GetCustomAttribute<AssemblyFileVersionAttribute>()?.Version ?? "unknown";
+var infoVersion = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "unknown";
 Log.Information("Version: {Version} | Info: {InfoVersion} | Build: {BuildDate}", fileVersion, infoVersion, buildDateTime);
 
 // Optional: read IMAGE_TAG passed from compose (for runtime confirmation)
@@ -224,7 +244,7 @@ var imageTag = Environment.GetEnvironmentVariable("IMAGE_TAG") ?? "unknown";
 //SqlMapper.AddTypeHandler(new GuidTypeHandler());
 
 // New way using generic method
-SqlMapper.AddTypeHandler(typeof(Guid), new GuidTypeHandler());
+//SqlMapper.AddTypeHandler(typeof(Guid), new GuidTypeHandler());
 #endregion
 
 // Continue configuring services and the rest of the application
@@ -247,77 +267,46 @@ builder.Services.AddScoped<IConnectionFactory>(provider =>
 // Unit of Work
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-// SQL executors
-// USERS
-builder.Services.AddScoped<IUserSqlExecutor, UserSqlExecutor>();
-builder.Services.AddScoped<IVerificationTokenSqlExecutor, VerificationTokenSqlExecutor>();
-builder.Services.AddScoped<IAuthenticationSqlExecutor, AuthenticationSqlExecutor>();
-builder.Services.AddScoped<IRefreshTokenSqlExecutor, RefreshTokenSqlExecutor> ();
-// Budget
-builder.Services.AddScoped<IBudgetSqlExecutor, BudgetSqlExecutor>();
-builder.Services.AddScoped<IIncomeSqlExecutor, IncomeSqlExecutor>();
-builder.Services.AddScoped<IExpenditureSqlExecutor, ExpenditureSqlExecutor>();
-builder.Services.AddScoped<ISavingsSqlExecutor, SavingsSqlExecutor>();
-builder.Services.AddScoped<IDebtsSqlExecutor, DebtsSqlExecutor>();
-
-
 // Contexts
 builder.Services.AddScoped<ICurrentUserContext, HttpCurrentUserContext>();
-// Wizard
-builder.Services.AddScoped<IWizardSqlExecutor, WizardSqlExecutor>();
-
-// Add the UserSQLProviders to the services
-builder.Services.AddScoped<IUserSQLProvider, UserSQLProvider>();
-builder.Services.AddScoped<IWizardSqlProvider, WizardSqlProvider>();
-builder.Services.AddScoped<IBudgetSqlProvider, BudgetSqlProvider>();
 
 // Repositories
+// Budget
 builder.Services.AddScoped<IBudgetRepository, BudgetRepository>();
 builder.Services.AddScoped<IIncomeRepository, IncomeRepository>();
 builder.Services.AddScoped<IExpenditureRepository, ExpenditureRepository>();
 builder.Services.AddScoped<ISavingsRepository, SavingsRepository>();
 builder.Services.AddScoped<IDebtsRepository, DebtsRepository>();
+// User
+builder.Services.AddScoped<IUserRepository, UserRepository>();
 
 // Wizard Step Processors
 builder.Services.AddScoped<IWizardStepProcessor, IncomeStepProcessor>();
 builder.Services.AddScoped<IWizardStepProcessor, ExpenseStepProcessor>();
 builder.Services.AddScoped<IWizardStepProcessor, SavingsStepProcessor>();
 
-// Transaction runner
-builder.Services.AddScoped<ITransactionRunner, TransactionRunner>();
-
 // Recaptcha service
 builder.Services.AddHttpClient<IRecaptchaService, RecaptchaService>();
 
-// Section for user services
-builder.Services.AddScoped<IUserServices, UserServices>();
-builder.Services.AddScoped<IUserManagementService, UserManagementService>();
-builder.Services.AddScoped<IUserTokenService, UserTokenService>();
-builder.Services.AddScoped<IUserAuthenticationService, UserAuthenticationService>();
-
 // Section for email services
-builder.Services.AddScoped<IEmailVerificationService, EmailVerificationService>();
+builder.Services.AddScoped<IEmailRateLimitRepository, EmailRateLimitRepository>();
+builder.Services.AddScoped<IEmailRateLimiter, EmailRateLimiter>();
 builder.Services.AddScoped<IEmailService, EmailService>();
-builder.Services.AddScoped<IUserEmailService, UserEmailService>();
-builder.Services.AddScoped<IEmailPreparationService, EmailPreparationService>();
-builder.Services.AddScoped<IEmailResetPasswordService, EmailResetPasswordService>();
 
 // Other various services
 builder.Services.AddScoped<ITimeProvider, Backend.Common.Services.TimeProvider>();
 builder.Services.AddScoped<ICookieService, CookieService>();
-
-builder.Services.AddSingleton(jwtSettings);
+// JWT Service
 builder.Services.AddScoped<IJwtService, JwtService>();
-builder.Services.AddScoped<IAuthService, AuthService>();
 
-builder.Services.AddScoped<IEnvironmentService, EnvironmentService>();
 
 // Configure EmailService based on environment
+/*
 if (builder.Environment.IsDevelopment())
 {
-    builder.Services.AddSingleton<IEmailService, MockEmailService>();
+    builder.Services.AddSingleton<ILegacyEmailService, MockEmailService>();
 
-    var mockEmailPreparationService = new Mock<IEmailPreparationService>();
+    var mockEmailPreparationService = new Mock<ILegacyEmailPreparationService>();
     mockEmailPreparationService
         .Setup(service => service.PrepareVerificationEmailAsync(It.IsAny<EmailMessageModel>()))
         .ReturnsAsync((EmailMessageModel email) => email);
@@ -326,22 +315,21 @@ if (builder.Environment.IsDevelopment())
         .Setup(service => service.PrepareContactUsEmailAsync(It.IsAny<EmailMessageModel>()))
         .ReturnsAsync((EmailMessageModel email) => email);
 
-    builder.Services.AddSingleton<IEmailPreparationService>(mockEmailPreparationService.Object);
+    builder.Services.AddSingleton<ILegacyEmailPreparationService>(mockEmailPreparationService.Object);
 }
 else
 {
-    builder.Services.AddSingleton<IEmailService, EmailService>();
-    builder.Services.AddSingleton<IEmailPreparationService, EmailPreparationService>();
+    builder.Services.AddSingleton<ILegacyEmailService, LegacyEmailService>();
+    builder.Services.AddSingleton<ILegacyEmailPreparationService, LegacyEmailPreparationService>();
 }
+*/
 
 // Add WebSockets and their helpers
 builder.Services.AddSingleton<IWebSocketManager, Backend.Infrastructure.WebSockets.WebSocketManager>();
 //builder.Services.AddHostedService(provider => (Backend.Infrastructure.WebSockets.WebSocketManager)provider.GetRequiredService<IWebSocketManager>());
 
-//WizardService
-builder.Services.AddScoped<IWizardService, WizardService>();
 //Wizard Validation
-builder.Services.AddValidatorsFromAssemblyContaining<IncomeValidator>(); //<-- Register all validators in the assembly 
+builder.Services.AddValidatorsFromAssemblyContaining<IncomeValidator>();
 
 // Background services
 builder.Services.AddHostedService<ExpiredTokenScanner>();
@@ -437,7 +425,7 @@ builder.Services.AddCors(options =>
         policy.WithOrigins("http://localhost:5173") // Local frontend URL
               .AllowAnyHeader()
               .AllowAnyMethod()
-              .AllowCredentials(); 
+              .AllowCredentials();
     });
 
     options.AddPolicy("ProductionCorsPolicy", policy =>
@@ -445,7 +433,7 @@ builder.Services.AddCors(options =>
         policy.WithOrigins("https://ebudget.se", "https://www.ebudget.se") // Production URLs
               .AllowAnyHeader()
               .AllowAnyMethod()
-              .AllowCredentials(); 
+              .AllowCredentials();
     });
 
     options.AddPolicy("DefaultCorsPolicy", policy =>
@@ -462,7 +450,7 @@ builder.Services.AddCors(options =>
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
 var rawSecret = GetRawJwtSecret(builder.Configuration);
-var keyBytes  = GetSigningKeyBytesFromConfigValue(rawSecret);
+var keyBytes = GetSigningKeyBytesFromConfigValue(rawSecret);
 
 var jwtParams = new TokenValidationParameters
 {
@@ -485,7 +473,7 @@ builder.Services.AddAuthentication(o =>
     o.TokenValidationParameters = jwtParams;
 
 
-    o.MapInboundClaims = false; 
+    o.MapInboundClaims = false;
 
     // --- END: Explicit configuration ---
 
@@ -496,9 +484,10 @@ builder.Services.AddAuthentication(o =>
         {
             var repo = ctx.HttpContext.RequestServices.GetRequiredService<ITokenBlacklistService>();
             var logger = ctx.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>(); // Or ILogger<Startup>
+            var ct = CancellationToken.None; // Use a default cancellation token
 
             var jti = ctx.Principal?.FindFirstValue(JwtRegisteredClaimNames.Jti);
-            if (jti != null && await repo.IsTokenBlacklistedAsync(jti))
+            if (jti != null && await repo.IsTokenBlacklistedAsync(jti, ct))
             {
                 logger.LogWarning("Rejected JTI {jti} black-listed", jti);
                 ctx.Fail("revoked");
@@ -562,12 +551,14 @@ app.UseExceptionHandler(errorApp =>
 });
 
 // Endpoints (liveness vs readiness)
-app.MapHealthChecks("/api/healthz", new HealthCheckOptions {
+app.MapHealthChecks("/api/healthz", new HealthCheckOptions
+{
     Predicate = _ => false, // liveness only, no deps
     ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
 }).AllowAnonymous();
 
-app.MapHealthChecks("/api/readyz", new HealthCheckOptions {
+app.MapHealthChecks("/api/readyz", new HealthCheckOptions
+{
     Predicate = r => r.Tags.Contains("dependencies"),
     ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
 }).AllowAnonymous();

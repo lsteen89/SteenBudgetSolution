@@ -2,9 +2,9 @@
 {
     public class RecaptchaResponse
     {
-        public bool Success { get; set; }
-        public DateTime Challenge_ts { get; set; }
-        public string Hostname { get; set; }
-        public IEnumerable<string> ErrorCodes { get; set; }
+        public required bool Success { get; set; }
+        public required DateTime Challenge_ts { get; set; }
+        public required string Hostname { get; set; }
+        public required IEnumerable<string> ErrorCodes { get; set; }
     }
 }

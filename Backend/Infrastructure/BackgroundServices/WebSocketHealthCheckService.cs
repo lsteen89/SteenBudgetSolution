@@ -1,8 +1,7 @@
 ﻿
-using Backend.Application.Interfaces.WebSockets;
-using Backend.Infrastructure.WebSockets;
+using Backend.Application.Abstractions.Infrastructure.WebSockets;
+using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Settings;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 
 namespace Backend.Infrastructure.BackgroundServices
@@ -11,6 +10,7 @@ namespace Backend.Infrastructure.BackgroundServices
     {
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<WebSocketHealthCheckService> _logger;
+        private readonly ITimeProvider _timeProvider;
         private readonly TimeSpan _interval;
         private readonly TimeSpan _heartbeatInterval;
         private readonly int _minActiveConnections;
@@ -18,10 +18,12 @@ namespace Backend.Infrastructure.BackgroundServices
         public WebSocketHealthCheckService(
             IOptions<WebSocketHealthCheckSettings> options,
             ILogger<WebSocketHealthCheckService> logger,
-            IServiceScopeFactory scopeFactory)
+            IServiceScopeFactory scopeFactory,
+            ITimeProvider timeProvider)
         {
             _logger = logger;
             _scopeFactory = scopeFactory;
+            _timeProvider = timeProvider;
 
             var settings = options.Value;
             _interval = TimeSpan.FromSeconds(settings.IntervalSeconds);
@@ -37,7 +39,7 @@ namespace Backend.Infrastructure.BackgroundServices
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            var lastHeartbeat = DateTime.UtcNow;
+            var lastHeartbeat = _timeProvider.UtcNow;
 
             while (!stoppingToken.IsCancellationRequested)
             {
@@ -53,13 +55,12 @@ namespace Backend.Infrastructure.BackgroundServices
                 }
 
                 // 3) periodic heartbeat log
-                if (DateTime.UtcNow - lastHeartbeat >= _heartbeatInterval)
+                if (_timeProvider.UtcNow - lastHeartbeat >= _heartbeatInterval)
                 {
                     _logger.LogInformation("WebSocketHealthCheckService heartbeat: I'm still alive, all is good!");
-                    lastHeartbeat = DateTime.UtcNow;
+                    lastHeartbeat = _timeProvider.UtcNow;
                 }
 
-                // 4) wait interval
                 await Task.Delay(_interval, stoppingToken);
             }
         }

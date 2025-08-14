@@ -1,4 +1,11 @@
-﻿namespace Backend.Infrastructure.Entities.Tokens
+﻿// Token entity for refresh JWT tokens
+// This entity is used to store refresh tokens in the database.
+// NOT TO BE USED FOR VERIFICATION TOKENS. 
+
+// Verification token = short-lived, single-use token for email verification, password reset, etc.
+using System.ComponentModel.DataAnnotations;
+
+namespace Backend.Infrastructure.Entities.Tokens
 {
     public sealed class RefreshJwtTokenEntity
     {
@@ -11,12 +18,13 @@
 
         /* Security & lifetime */
         public string HashedToken { get; init; } = string.Empty; // SHA-256
-        public string AccessTokenJti { get; init; }
+        [Required]
+        public required string AccessTokenJti { get; init; }
         public DateTime ExpiresRollingUtc { get; init; }                 // sliding window
         public DateTime ExpiresAbsoluteUtc { get; init; }                 // hard cap
         public DateTime? RevokedUtc { get; set; }                  // NULL = active
         public TokenStatus Status { get; set; } = TokenStatus.Active;
-        public bool IsPersistent { get; init; } 
+        public bool IsPersistent { get; init; }
 
         /* Telemetry (optional) */
         public string? DeviceId { get; init; }

@@ -1,24 +1,52 @@
+using Backend.Application.Abstractions.Infrastructure.Data;
+using Backend.Infrastructure.Data.BaseClass;
+using Backend.Domain.Abstractions;
 using Backend.Domain.Entities.Budget.Expenses;
-using Backend.Domain.Interfaces.Repositories.Budget;
-using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
-using Backend.Infrastructure.Data.Sql.Interfaces.Queries.Budget;
 
-namespace Backend.Infrastructure.Repositories.Budget
+namespace Backend.Infrastructure.Repositories.Budget;
+
+public class ExpenditureRepository : SqlBase, IExpenditureRepository
 {
-    public class ExpenditureRepository : IExpenditureRepository
+    private readonly ICurrentUserContext _currentUser;
+
+    public ExpenditureRepository(IUnitOfWork unitOfWork, ILogger<ExpenditureRepository> logger, ICurrentUserContext currentUser)
+        : base(unitOfWork, logger)
     {
-        private readonly IExpenditureSqlExecutor _expenditureSqlExecutor;
-
-        public ExpenditureRepository(IExpenditureSqlExecutor expenditureSqlExecutor)
-        {
-            _expenditureSqlExecutor = expenditureSqlExecutor;
-        }
-
-        public async Task AddAsync(Expense expenditure, Guid budgetId)
-        {
-            if (expenditure.BudgetId != budgetId)
-                expenditure.BudgetId = budgetId;
-            await _expenditureSqlExecutor.InsertExpenseItemsAsync(expenditure);
-        }
+        _currentUser = currentUser;
     }
+
+    public async Task AddAsync(Expense expense, Guid budgetId, CancellationToken ct)
+    {
+        const string sql = @"
+            INSERT INTO ExpenseItem (Id, BudgetId, CategoryId, Name, AmountMonthly, CreatedByUserId)
+            VALUES (@Id, @BudgetId, @CategoryId, @Name, @AmountMonthly, @CreatedByUserId);";
+
+        var itemsToInsert = expense.Items.ToList();
+        if (!itemsToInsert.Any())
+        {
+            return; // Nothing to do
+        }
+
+        var createdByUserId = _currentUser.Persoid;
+        if (createdByUserId == Guid.Empty)
+            throw new InvalidOperationException("Current user context is not set.");
+
+        // Prepare all items for insertion
+        foreach (var item in itemsToInsert)
+        {
+            item.Id = item.Id == Guid.Empty ? Guid.NewGuid() : item.Id;
+            item.BudgetId = budgetId;
+            item.CreatedByUserId = createdByUserId;
+        }
+
+        // Dapper will iterate over the collection and execute the insert for each item
+        await ExecuteAsync(sql, itemsToInsert, ct);
+
+        _logger.LogInformation(
+            "Inserted {Count} expense items for budget {BudgetId}",
+            itemsToInsert.Count,
+            budgetId);
+    }
+
+    // ... other IExpenditureRepository methods ...
 }

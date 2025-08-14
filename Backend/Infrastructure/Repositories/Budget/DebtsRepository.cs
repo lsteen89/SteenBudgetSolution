@@ -1,30 +1,57 @@
 ﻿using Backend.Domain.Entities.Budget.Debt;
-using Backend.Domain.Entities.Budget.Expenses;
-using Backend.Domain.Entities.Wizard;
-using Backend.Domain.Interfaces.Repositories.Budget;
-using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
-using Backend.Infrastructure.Data.Sql.Interfaces.Queries.BudgetQuries;
+using Backend.Application.Abstractions.Infrastructure.Data;
+using Backend.Infrastructure.Data.BaseClass;
+using Backend.Domain.Abstractions;
 
 namespace Backend.Infrastructure.Repositories.Budget
 {
-    public class DebtsRepository : IDebtsRepository
+    public class DebtsRepository : SqlBase, IDebtsRepository
     {
-        private readonly IDebtsSqlExecutor _debtSqlProvider;
+        private readonly ICurrentUserContext _currentUser;
 
-        public DebtsRepository(IDebtsSqlExecutor debtSqlProvider)
+        public DebtsRepository(
+            IUnitOfWork unitOfWork,
+            ILogger<DebtsRepository> logger,
+            ICurrentUserContext currentUser)
+            : base(unitOfWork, logger)
         {
-            _debtSqlProvider = debtSqlProvider;
+            _currentUser = currentUser;
         }
 
-        public async Task AddDebtsAsync(IEnumerable<Debt> debts, Guid budgetId)
+        #region SQL Queries Insert
+        private const string InsertNewDebtSql = @"
+            INSERT INTO Debt (Id, BudgetId, Name, Type, Balance, Apr, MonthlyFee, MinPayment, TermMonths, CreatedByUserId)
+            VALUES (@Id, @BudgetId, @Name, @Type, @Balance, @Apr, @MonthlyFee, @MinPayment, @TermMonths, @CreatedByUserId);";
+        #endregion
+
+        public async Task AddDebtsAsync(IEnumerable<Debt> debts, Guid budgetId, CancellationToken ct)
         {
-            foreach(var d in debts)
+            foreach (var d in debts)
             {
                 // Ensure each expense ID is valid
                 if (d.BudgetId == Guid.Empty)
                     d.BudgetId = budgetId;
             }
-            await _debtSqlProvider.AddDebtsAsync(debts, budgetId);
+
+            var debtList = debts.ToList();
+            var debtCount = debtList.Count;
+
+            var createdByUserId = _currentUser.Persoid;
+
+            if (createdByUserId == Guid.Empty)
+                throw new InvalidOperationException("Current user context is not set.");
+
+            // Prepare the debts for insertion
+            foreach (var debt in debtList)
+            {
+                debt.Id = Guid.NewGuid();
+                debt.BudgetId = budgetId;
+                debt.CreatedByUserId = createdByUserId;
+            }
+            _logger.LogInformation("Inserting debts for BudgetId {BudgetId}.", budgetId);
+            // Execute the insert command for each debt
+            await ExecuteAsync(InsertNewDebtSql, debtList, ct);
+            _logger.LogInformation("Successfully inserted {Count} debts for BudgetId {BudgetId}.", debtCount, budgetId);
         }
     }
 }

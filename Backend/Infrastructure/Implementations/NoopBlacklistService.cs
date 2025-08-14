@@ -1,4 +1,4 @@
-﻿using Backend.Application.Interfaces.JWT;
+﻿using Backend.Application.Abstractions.Infrastructure.Security;
 using System.Data.Common;
 
 
@@ -6,13 +6,13 @@ namespace Backend.Infrastructure.Implementations
 {
     public sealed class NoopBlacklistService : ITokenBlacklistService
     {
-        public Task<bool> BlacklistTokenAsync(string jti, DateTime expiration, DbConnection conn, DbTransaction tx
+        public Task<bool> BlacklistTokenAsync(string jti, DateTime expiration, CancellationToken ct
                                                 ) => Task.FromResult(true);
 
-        public Task<bool> IsTokenBlacklistedAsync(string jti
+        public Task<bool> IsTokenBlacklistedAsync(string jti, CancellationToken ct
                                                   ) => Task.FromResult(false);
 
-        public Task<bool> DoesAccessTokenJtiExistAsync(string accessTokenJti
+        public Task<bool> DoesAccessTokenJtiExistAsync(string accessTokenJti, CancellationToken ct
                                                        ) => Task.FromResult(false);
     }
 }

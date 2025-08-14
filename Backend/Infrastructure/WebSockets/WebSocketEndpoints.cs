@@ -1,4 +1,4 @@
-﻿using Backend.Application.Interfaces.WebSockets;
+﻿using Backend.Application.Abstractions.Infrastructure.WebSockets;
 using Backend.Settings;
 using Microsoft.Extensions.Options;
 
@@ -6,7 +6,7 @@ namespace Backend.Infrastructure.WebSockets
 {
     internal static class WebSocketEndpoints
     {
-        public static async Task Auth(HttpContext ctx)
+        public static async Task Auth(HttpContext ctx, CancellationToken ct)
         {
             var q = ctx.Request.Query;
             if (!Guid.TryParse(q["pid"], out var pid) ||
@@ -28,7 +28,7 @@ namespace Backend.Infrastructure.WebSockets
 
             var ws = await ctx.WebSockets.AcceptWebSocketAsync("hmac-v1");
             await ctx.RequestServices.GetRequiredService<IWebSocketManager>()
-                                     .HandleConnectionAsync(ws, pid, sid);
+                                     .HandleConnectionAsync(ws, pid, sid, ct);
         }
     }
 }

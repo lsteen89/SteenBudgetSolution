@@ -3,7 +3,7 @@
 -- ##################################################################
 
 -- Create User table
-CREATE TABLE IF NOT EXISTS User (
+CREATE TABLE IF NOT EXISTS users (
     Id INT AUTO_INCREMENT PRIMARY KEY,
     Persoid BINARY(16) NOT NULL UNIQUE,
     Firstname VARCHAR(50) NOT NULL,
@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS VerificationToken (
     TokenExpiryDate DATETIME NOT NULL,
     CreatedBy VARCHAR(50) NOT NULL,
     CreatedTime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT FK_VerificationToken_User FOREIGN KEY (Persoid) REFERENCES User(Persoid) ON DELETE CASCADE
+    CONSTRAINT FK_VerificationToken_User FOREIGN KEY (Persoid) REFERENCES Users(Persoid) ON DELETE CASCADE
 );
 
 -- Create RefreshTokens table
@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS RefreshTokens (
     DeviceId             VARCHAR(255),
     UserAgent            VARCHAR(255),
     CreatedUtc           DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT FK_RefreshTokens_User FOREIGN KEY (Persoid) REFERENCES User(Persoid) ON DELETE CASCADE,
+    CONSTRAINT FK_RefreshTokens_User FOREIGN KEY (Persoid) REFERENCES Users(Persoid) ON DELETE CASCADE,
     UNIQUE KEY UK_Hashed (HashedToken),
     UNIQUE KEY ux_user_session (Persoid, SessionId)
 ) ENGINE = InnoDB;
@@ -71,8 +71,21 @@ CREATE TABLE UserVerificationTracking (
     LastResendRequestDate DATE,
     CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT FK_UserVerificationTracking_User FOREIGN KEY (Persoid) REFERENCES User(Persoid) ON DELETE CASCADE
+    CONSTRAINT FK_UserVerificationTracking_User FOREIGN KEY (Persoid) REFERENCES Users(Persoid) ON DELETE CASCADE
 );
+
+-- ####################################################################
+-- # SECTION 1.1: EMAIL TABLES
+-- ####################################################################
+CREATE TABLE IF NOT EXISTS email_send_limits (
+    user_id BINARY(16) NOT NULL,
+    email_kind TINYINT UNSIGNED NOT NULL,
+    `date` DATE NOT NULL,            -- UTC date bucket
+    sent_count INT UNSIGNED NOT NULL DEFAULT 0,
+    last_sent_at DATETIME(6) NOT NULL,
+    PRIMARY KEY (user_id, email_kind, `date`)
+) ENGINE=InnoDB;
+
 
 -- ##################################################################
 -- # SECTION 2: CORE BUDGET TABLES
@@ -86,7 +99,7 @@ CREATE TABLE Budget (
     UpdatedAt           DATETIME      NULL ON UPDATE CURRENT_TIMESTAMP,
     CreatedByUserId     BINARY(16)    NOT NULL,
     UpdatedByUserId     BINARY(16)    NULL,
-    CONSTRAINT FK_Budget_User FOREIGN KEY (Persoid) REFERENCES User(Persoid) ON DELETE CASCADE,
+    CONSTRAINT FK_Budget_User FOREIGN KEY (Persoid) REFERENCES Users(Persoid) ON DELETE CASCADE,
     INDEX IX_Budget_Persoid (Persoid) -- (INDEX ADDED FOR PERFORMANCE)
 ) ENGINE=InnoDB;
 
@@ -200,7 +213,7 @@ CREATE TABLE WizardSession (
     CreatedAt DATETIME NOT NULL DEFAULT UTC_TIMESTAMP(),
     UpdatedAt DATETIME NOT NULL DEFAULT UTC_TIMESTAMP(),
     UNIQUE KEY UK_Persoid (Persoid),
-    CONSTRAINT FK_WizardSession_User FOREIGN KEY (Persoid) REFERENCES User(Persoid) ON DELETE CASCADE -- (FK ADDED FOR INTEGRITY)
+    CONSTRAINT FK_WizardSession_User FOREIGN KEY (Persoid) REFERENCES Users(Persoid) ON DELETE CASCADE -- (FK ADDED FOR INTEGRITY)
 ) ENGINE=InnoDB;
 
 CREATE TABLE WizardStep (
@@ -213,4 +226,13 @@ CREATE TABLE WizardStep (
     CreatedTime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (WizardSessionId, StepNumber, SubStep),
     CONSTRAINT FK_WizardStep_WizardSession FOREIGN KEY (WizardSessionId) REFERENCES WizardSession(WizardSessionId) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS EmailRateLimit (
+  KeyHash BINARY(32) NOT NULL,
+  Kind TINYINT NOT NULL,
+  DateUtc DATE NOT NULL,
+  SentCount INT NOT NULL DEFAULT 1,
+  LastSentAtUtc DATETIME NOT NULL,
+  PRIMARY KEY (KeyHash, Kind, DateUtc)
 ) ENGINE=InnoDB;

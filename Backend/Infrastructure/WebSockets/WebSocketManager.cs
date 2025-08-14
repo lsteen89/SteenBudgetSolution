@@ -1,6 +1,5 @@
-﻿using Backend.Application.Interfaces.JWT;
-using Backend.Application.Interfaces.WebSockets;
-using Backend.Common.Interfaces;
+﻿using Backend.Application.Abstractions.Infrastructure.WebSockets;
+using Backend.Application.Abstractions.Infrastructure.Security;
 using Backend.Settings;
 using Microsoft.Extensions.Options;
 using StackExchange.Redis;
@@ -8,12 +7,13 @@ using System.Collections.Concurrent;
 using System.Net.WebSockets;
 using System.Security.Claims;
 using System.Text;
+using Backend.Application.Abstractions.Infrastructure.System;
 
 
 namespace Backend.Infrastructure.WebSockets
 {
     // Composite key to uniquely identify a user's session.
-    public record UserSessionKey(Guid Persoid, Guid SessionId); 
+    public record UserSessionKey(Guid Persoid, Guid SessionId);
 
     public record WebSocketConnection(WebSocket Socket, CancellationTokenSource Cts)
     {
@@ -29,8 +29,8 @@ namespace Backend.Infrastructure.WebSockets
 
     public class WebSocketManager : IWebSocketManager, IHostedService
     {
-        public Task HandleConnectionAsync(WebSocket ws, Guid pid, Guid sid) =>
-            HandleConnectionAsync(ws, new DefaultHttpContext(), pid, sid); 
+        public Task HandleConnectionAsync(WebSocket ws, Guid pid, Guid sid, CancellationToken ct) =>
+            HandleConnectionAsync(ws, new DefaultHttpContext(), pid, sid, ct);
         // Locks for synchronizing access per user.
         private readonly ConcurrentDictionary<string, SemaphoreSlim> _userLocks = new();
 
@@ -43,7 +43,7 @@ namespace Backend.Infrastructure.WebSockets
         private readonly ILogger<WebSocketManager> _logger;
         private const int MAX_MESSAGE_SIZE_BYTES = 4 * 1024; // 4 KB max message size.
         public int ActiveConnectionCount => _connections.Count;
-        
+
         private readonly WebSocketHealthCheckSettings _settings;
         private int _missedPongThreshold;
         private bool _logoutOnStaleConnection;
@@ -51,7 +51,7 @@ namespace Backend.Infrastructure.WebSockets
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IWebHostEnvironment _env;
 
-        public WebSocketManager(ILogger<WebSocketManager> logger, IOptions<WebSocketHealthCheckSettings> options,IServiceScopeFactory scopeFactory, IWebHostEnvironment env) 
+        public WebSocketManager(ILogger<WebSocketManager> logger, IOptions<WebSocketHealthCheckSettings> options, IServiceScopeFactory scopeFactory, IWebHostEnvironment env)
         {
             _logger = logger;
             _settings = options.Value;
@@ -115,10 +115,11 @@ namespace Backend.Infrastructure.WebSockets
         private async Task HandleConnectionAsync(
                 WebSocket webSocket,
                 HttpContext context,
-                Guid persoid,         
-                Guid sessionId)
+                Guid persoid,
+                Guid sessionId,
+                CancellationToken ct)
         {
-            SemaphoreSlim userLock = null;
+            SemaphoreSlim? userLock = null;
             UserSessionKey? key = null;
 
             try
@@ -183,22 +184,22 @@ namespace Backend.Infrastructure.WebSockets
                 }
 
                 // 7) Enter your read-loop…
-                await ReadLoopAsync(key, webSocket);
+                await ReadLoopAsync(key, webSocket, ct);
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error in HandleConnectionAsync for user {key.Persoid}: {ex.Message}");
+                _logger.LogError($"Error in HandleConnectionAsync for user {key!.Persoid}: {ex.Message}");
             }
             finally
             {
                 if (key == null)
                 {
                     _logger.LogDebug("Cleaning up connection that failed before authentication completed.");
-                    
+
                 }
                 else if (key != null)
                 {
-                    await userLock.WaitAsync();
+                    await userLock!.WaitAsync();
                     try
                     {
                         if (_userSockets.TryGetValue(key, out var currentConn) && currentConn.Socket == webSocket)
@@ -225,14 +226,14 @@ namespace Backend.Infrastructure.WebSockets
                     }
                 }
                 _logger.LogDebug($"Cleanup complete for user {key?.Persoid} session {key?.SessionId}.");
-                _logger.LogInformation($"WebSocket disonnect for user {key?.Persoid} session {key.SessionId}.");
+                _logger.LogInformation($"WebSocket disonnect for user {key?.Persoid} session {key?.SessionId}.");
                 LogActiveConnections();
             }
         }
 
         // Continuously reads messages from the socket.
 
-        private async Task ReadLoopAsync(UserSessionKey key, WebSocket socket)
+        private async Task ReadLoopAsync(UserSessionKey key, WebSocket socket, CancellationToken ct)
         {
             if (!_userSockets.TryGetValue(key, out var conn))
             {
@@ -327,7 +328,7 @@ namespace Backend.Infrastructure.WebSockets
                                 using (var scope = _scopeFactory.CreateScope())
                                 {
                                     var jwtSvc = scope.ServiceProvider.GetRequiredService<IJwtService>();
-                                    principal = jwtSvc.ValidateToken(jwtRaw);
+                                    principal = jwtSvc.ValidateToken(jwtRaw, ct);
                                 }
 
                                 if (principal != null)

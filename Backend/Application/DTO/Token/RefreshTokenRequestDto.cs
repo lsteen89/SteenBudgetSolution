@@ -1,7 +1,10 @@
-﻿namespace Backend.Application.DTO.Token
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace Backend.Application.DTO.Token
 {
     public class RefreshTokenRequestDto
     {
-        public string RefreshToken { get; set; }
+        [Required]
+        public required string RefreshToken { get; set; }
     }
 }

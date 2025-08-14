@@ -73,7 +73,7 @@ public sealed class TransportValidator : AbstractValidator<Transport>
     {
         RuleFor(t => t.MonthlyFuelCost)
             .GreaterThanOrEqualTo(0)
-            .When(t => t.MonthlyFuelCost.HasValue);  
+            .When(t => t.MonthlyFuelCost.HasValue);
 
         RuleFor(t => t.MonthlyInsuranceCost)
             .GreaterThanOrEqualTo(0)
@@ -132,17 +132,21 @@ public sealed class FixedExpensesValidator : AbstractValidator<FixedExpensesSubF
     }
 }
 
-public sealed class SubscriptionItemValidator : AbstractValidator<SubscriptionItem>
+public sealed class SubscriptionItemValidator : AbstractValidator<SubscriptionItem?>
 {
     public SubscriptionItemValidator()
     {
-        RuleFor(s => s.Name)
-            .NotEmpty()
-            .MinimumLength(2);
+        // Rules for the subscription item
+        When(s => s is not null, () =>
+        {
+            RuleFor(s => s!.Name)
+                .NotEmpty()
+                .MinimumLength(2);
 
-        RuleFor(s => s.Cost)
-            .NotNull()
-            .GreaterThan(0);
+            RuleFor(s => s!.Cost)
+                .NotNull()
+                .GreaterThan(0);
+        });
     }
 }
 
@@ -173,7 +177,7 @@ public sealed class SubscriptionsValidator : AbstractValidator<SubscriptionsSubF
         When(s => s.CustomSubscriptions is not null, () =>
         {
             RuleForEach(s => s.CustomSubscriptions!)
-                .SetValidator(new SubscriptionItemValidator());
+                .SetValidator((IValidator<SubscriptionItem?>)new SubscriptionItemValidator());
         });
     }
 }

@@ -4,14 +4,18 @@
 // The properties are set based on the result of the methods, such as whether the login was successful, the message to be displayed.
 // The model is used to encapsulate the result of the methods and provide a structured way to return the result to the caller.
 
+using System.ComponentModel.DataAnnotations;
+
 namespace Backend.Application.Models.Auth
 {
     public class ValidationResult
     {
         public bool IsValid { get; set; }
-        public string ErrorMessage { get; set; }
+        [Required]
+        public required string ErrorMessage { get; set; }
         public Guid Persoid { get; set; }
-        public string Email { get; set; }
+        [Required]
+        public required string Email { get; set; }
 
     }
 }

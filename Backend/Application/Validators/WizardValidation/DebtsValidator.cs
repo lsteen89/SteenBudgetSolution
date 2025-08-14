@@ -22,7 +22,7 @@ namespace Backend.Application.Validators.WizardValidation
         {
             RuleFor(s => s.RepaymentStrategy)
                 .NotEmpty().WithMessage("Du måste välja en strategi för återbetalning.")
-                .Must(ValidStrategies.Contains).WithMessage("Vänligen välj en giltig strategi.");
+                .Must(s => ValidStrategies.Contains(s ?? string.Empty)).WithMessage("Vänligen välj en giltig strategi.");
         }
     }
 
@@ -66,12 +66,12 @@ namespace Backend.Application.Validators.WizardValidation
             {
                 When(x => x.Intro != null, () =>
                 {
-                    RuleFor(x => x.Intro).SetValidator(new DebtsIntroValidator());
+                    RuleFor(x => x.Intro!).SetValidator(new DebtsIntroValidator());
                 });
 
                 When(x => x.Summary != null, () =>
                 {
-                    RuleFor(x => x.Summary).SetValidator(new DebtsSummaryValidator());
+                    RuleFor(x => x.Summary!).SetValidator(new DebtsSummaryValidator());
                 });
 
                 When(x => x.Intro != null && x.Intro.HasDebts == true, () =>

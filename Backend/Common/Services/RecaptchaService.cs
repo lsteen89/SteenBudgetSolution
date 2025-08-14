@@ -1,4 +1,4 @@
-﻿using Backend.Common.Interfaces;
+﻿using Backend.Application.Abstractions.Infrastructure.Security;
 using Newtonsoft.Json;
 using Backend.Common.Models;
 namespace Backend.Common.Services

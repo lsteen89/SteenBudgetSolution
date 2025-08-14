@@ -1,26 +1,30 @@
 ﻿// This class handles blacklisting of tokens by adding them to a cache and a database. It also checks if a token is blacklisted.
 // However, due to convenience, this class has at least one method that falls out of the blacklisting scope. This method is used to check if an access token JTI exists.
-using Backend.Application.Interfaces.JWT;
-using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
+using Backend.Application.Abstractions.Infrastructure.Security;
+using Backend.Application.Abstractions.Infrastructure.Data;
 using Microsoft.Extensions.Caching.Distributed;
 using StackExchange.Redis;
-using System.Data.Common;
 
+namespace Backend.Infrastructure.Implementations;
+
+[Obsolete("This is a god class. Must be refactored into smaller classes asap. It will be refactored together with JwtService.")]
 public class TokenBlacklistService : ITokenBlacklistService
 {
-    private readonly IUserSQLProvider _userSQLProvider;
+    private readonly IBlacklistRepo _blacklist;
+    private readonly IRefreshTokenRepository _refresh;
     private readonly IDistributedCache _cache;
     private readonly ILogger<TokenBlacklistService> _logger;
     private readonly TimeSpan _cacheDuration = TimeSpan.FromMinutes(1);
 
-    public TokenBlacklistService(IUserSQLProvider userSQLProvider, IDistributedCache cache, ILogger<TokenBlacklistService> logger)
+    public TokenBlacklistService(IBlacklistRepo blacklist, IRefreshTokenRepository refresh, IDistributedCache cache, ILogger<TokenBlacklistService> logger)
     {
-        _userSQLProvider = userSQLProvider;
+        _blacklist = blacklist;
+        _refresh = refresh;
         _cache = cache;
         _logger = logger;
     }
 
-    public async Task<bool> BlacklistTokenAsync(string jti, DateTime expiration, DbConnection conn, DbTransaction tx)
+    public async Task<bool> BlacklistTokenAsync(string jti, DateTime expiration, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(jti))
         {
@@ -46,8 +50,7 @@ public class TokenBlacklistService : ITokenBlacklistService
             // fall through – we still write to DB
         }
 
-        var ok = await _userSQLProvider.RefreshTokenSqlExecutor
-                                       .AddBlacklistedTokenAsync(jti, expiration, conn, tx);
+        var ok = await _blacklist.AddBlacklistedTokenAsync(jti, expiration, ct);
         if (ok)
             _logger.LogInformation("Token JTI {Jti} blacklisted until {Exp}", jti, expiration);
         else
@@ -55,7 +58,7 @@ public class TokenBlacklistService : ITokenBlacklistService
 
         return ok;
     }
-    public async Task<bool> IsTokenBlacklistedAsync(string jti)
+    public async Task<bool> IsTokenBlacklistedAsync(string jti, CancellationToken ct)
     {
         if (string.IsNullOrEmpty(jti))
             throw new ArgumentException("Token JTI cannot be null or empty.", nameof(jti));
@@ -70,7 +73,7 @@ public class TokenBlacklistService : ITokenBlacklistService
         }
 
         // If not in cache, check the database
-        bool isBlacklistedDB = await _userSQLProvider.RefreshTokenSqlExecutor.IsTokenBlacklistedAsync(jti);
+        bool isBlacklistedDB = await _blacklist.IsTokenBlacklistedAsync(jti, ct);
 
         // Cache the result as a string ("true" or "false") for _cacheDuration
         await _cache.SetStringAsync(jti, isBlacklistedDB.ToString(), new DistributedCacheEntryOptions
@@ -81,7 +84,7 @@ public class TokenBlacklistService : ITokenBlacklistService
         return isBlacklistedDB;
     }
     // Note: This method falls out of the blacklisting scope, but it is used to check if an access token JTI exists.
-    public async Task<bool> DoesAccessTokenJtiExistAsync(string accessTokenJti)
+    public async Task<bool> DoesAccessTokenJtiExistAsync(string accessTokenJti, CancellationToken ct)
     {
         if (string.IsNullOrEmpty(accessTokenJti))
             throw new ArgumentException("Access token JTI cannot be null or empty.", nameof(accessTokenJti));
@@ -95,7 +98,7 @@ public class TokenBlacklistService : ITokenBlacklistService
         }
 
         // If not in cache, query the database using a lightweight SQL query.
-        bool AccessTokenJtiExists = await _userSQLProvider.RefreshTokenSqlExecutor.DoesAccessTokenJtiExistAsync(accessTokenJti);
+        bool AccessTokenJtiExists = await _refresh.DoesAccessTokenJtiExistAsync(accessTokenJti, ct);
 
         // Cache the result as a string for _cacheDuration
         await _cache.SetStringAsync(accessTokenJti, AccessTokenJtiExists.ToString(), new DistributedCacheEntryOptions

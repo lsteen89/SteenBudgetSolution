@@ -1,8 +1,10 @@
-﻿namespace Backend.Domain.Auth
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace Backend.Domain.Auth
 {
     public sealed record TokenRequestDto(
-        string? AccessToken,
-        string? RefreshToken,
+        [Required] string AccessToken,
+        [Required] string RefreshToken,
         Guid SessionId,
         string? Jti);
 

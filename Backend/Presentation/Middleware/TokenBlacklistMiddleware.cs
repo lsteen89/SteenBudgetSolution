@@ -1,11 +1,6 @@
-﻿using System;
-using System.IdentityModel.Tokens.Jwt;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
-using Backend.Application.Interfaces;
-using Backend.Application.Interfaces.JWT;
+﻿using System.IdentityModel.Tokens.Jwt;
+using Backend.Application.Abstractions.Infrastructure.Security;
+
 
 namespace Backend.Presentation.Middleware
 {
@@ -18,7 +13,7 @@ namespace Backend.Presentation.Middleware
             _next = next;
         }
 
-        public async Task InvokeAsync(HttpContext context)
+        public async Task InvokeAsync(HttpContext context, CancellationToken cancellationToken)
         {
             // Check if the user is authenticated
             if (context.User?.Identity?.IsAuthenticated ?? false)
@@ -42,7 +37,7 @@ namespace Backend.Presentation.Middleware
                             var logger = context.RequestServices.GetRequiredService<ILogger<TokenBlacklistMiddleware>>();
 
                             // Check if jti is in the blacklist
-                            var isBlacklisted = await tokenBlacklistService.IsTokenBlacklistedAsync(jti);
+                            var isBlacklisted = await tokenBlacklistService.IsTokenBlacklistedAsync(jti, cancellationToken);
                             if (isBlacklisted)
                             {
                                 logger.LogWarning($"Blacklisted token detected: JTI {jti}");
