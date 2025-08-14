@@ -1,43 +1,108 @@
-# Authentication Flow
+## TL;DR
 
-Our authentication system uses a secure, cookie-based approach for refresh tokens and in-memory JWTs for access tokens. It is designed to be secure and resilient, with automatic token refreshes to provide a smooth user experience.
+- **AT** (access token) = short-lived JWT, stored **in memory** on the client.
+- **RT** (refresh token) = opaque, **HttpOnly Secure cookie**, never exposed to JS.
+- **Refresh** = validates + **rotates RT in-place** (single-use), sets a **new cookie**, returns a new AT.
+- **Expiry policy** = **rolling** window (extended on refresh) with a hard **absolute cap** (e.g., 90 days).
+- **Logout** = revoke RT(s) in DB, best-effort blacklist AT, WS notify.
 
-## Key Features
+---
 
-*   **JWTs**: We use a short-lived `accessToken` for authenticating API requests and a long-lived `refreshToken` to obtain new access tokens.
-*   **HttpOnly Refresh Token Cookie**: The `refreshToken` is stored in a secure, `HttpOnly` cookie. This means it cannot be accessed by client-side JavaScript, which protects it from XSS (Cross-Site Scripting) attacks.
-*   **In-Memory Access Token**: The `accessToken` is stored in memory in the frontend application state, preventing it from being vulnerable to XSS attacks targeting local/session storage.
-*   **Automatic Token Refresh**: The frontend uses an interceptor to automatically refresh expired access tokens without interrupting the user.
-*   **State Management**: The user's authentication state (e.g., username, roles, and the `accessToken`) is managed in a global store on the frontend after a successful login.
+## Tokens & storage
 
-## Login Process
+- **Access token (AT)**
 
-Here is a step-by-step breakdown of the login flow:
+  - JWT, short TTL (`JwtSettings:ExpiryMinutes`, e.g., 15m).
+  - Issued with `SessionId`, `DeviceId`, roles, etc.
+  - Stored **in memory** (never localStorage/sessionStorage).
 
-1.  **User Submits Credentials**: The user enters their email and password into the login form.
-2.  **POST to /api/auth/login**: The frontend sends a POST request to the `/api/auth/login` endpoint with the user's credentials.
-3.  **Backend Validation**: The `LoginController` validates the credentials against the database.
-4.  **Token Generation**: Upon successful validation, the backend generates a new `accessToken` and `refreshToken`.
-5.  **Set Refresh Token Cookie**: The backend sets the refresh token via Set-Cookie with HttpOnly; Secure; SameSite=Strict|Lax; Path=/; Expires=<rolling>. The token is not returned in the JSON body.
-6.  **Return Access Token & User Data**: The backend returns only the accessToken and public user data.
-7.  **Update UI**: The frontend stores the `accessToken` and user data in its global state (`authStore`) and updates the UI to reflect that the user is logged in.
+- **Refresh token (RT)**
 
-## Automatic Token Refresh Flow
+  - Opaque string (random), **not a JWT**.
+  - Stored **only** in a `Set-Cookie` with:
+    ```
+    HttpOnly; Secure; SameSite=Strict|Lax; Path=/; Expires=<rolling>
+    ```
+  - DB row: `RefreshTokens` with `HashedToken`, `Persoid`, `SessionId`, `AccessTokenJti`, `ExpiresRollingUtc`, `ExpiresAbsoluteUtc`, `Status`, `DeviceId`, `UserAgent`, `CreatedUtc`.
+  - **Rotation:** Each successful refresh **updates** `HashedToken`, `AccessTokenJti`, and **extends rolling expiry**; the **absolute expiry never increases**.
 
-When an `accessToken` expires, the frontend seamlessly refreshes it without any user interaction.
+- **Absolute cap**
 
-1.  **API Request Fails**: A protected API request is made with an expired `accessToken`. The server responds with a `401 Unauthorized` status.
-2.  **Interceptor Catches Error**: An axios response interceptor on the frontend catches the `401` error.
-3.  **POST to /api/auth/refresh**: The interceptor automatically sends a POST request to the `/api/auth/refresh` endpoint. This request includes the `refreshToken` cookie.
-4.  **Backend Validates & Rotates**: The backend validates the refresh token, rotates it (single-use), and sets a new refresh cookie.
-5.  **Return New Access Token**: The response body contains the new accessToken (cookie is updated by the server).
-6.  **Retry Original Request**: The frontend interceptor receives the new `accessToken`, updates the `authStore`, and automatically retries the original API request that failed. This time, the request succeeds with the new `accessToken`.
-Security note
-    We enforce a rolling window for refreshes (extended on each refresh) with a hard absolute expiry (e.g., 90 days). After the absolute expiry, the user must log in again
-## Logout Process
+  - `JwtSettings:RefreshTokenExpiryDaysAbsolute` (e.g., 90). After this, refreshes stop → user must log in again.
 
-1.  **User Clicks Logout**: The user initiates a logout action.
-2.  **POST to /api/auth/logout**: The frontend sends a POST request to `/api/auth/logout`.
-3.  **Invalidate Tokens**: The backend revokes refresh tokens in the database (archived for audit) and blacklists the access token (best-effort).
-4.  **Clear Cookie**: The backend clears the refresh cookie (Set-Cookie: RefreshToken=; HttpOnly; Secure; SameSite=…; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT).
-5.  **Clear Local State**: The frontend clears the `accessToken` and any user data from its global state (`authStore`) and redirects the user to the login page.
+---
+
+## Login flow
+
+1. Client `POST /api/auth/login` with `email`, `password`, `captchaToken`, `deviceId`, `userAgent`.
+2. Server validates credentials, lockout, CAPTCHA.
+3. Server issues **AT** and **RT** (new `SessionId`).
+4. **RT** returned via `Set-Cookie` (HttpOnly, Secure, SameSite, Path, Expires).
+5. **AT + user** returned in JSON. Client stores AT **in memory** only.
+
+### Cookie example
+
+```
+Set-Cookie: RefreshToken=<opaque>; HttpOnly; Secure; SameSite=Strict; Path=/; Expires=Wed, 12 Nov 2025 10:00:00 GMT
+```
+
+---
+
+## Refresh flow
+
+```mermaid
+sequenceDiagram
+  participant FE as Frontend
+  participant API as Auth API
+  participant DB as MariaDB
+
+  FE->>API: POST /api/auth/refresh (RT cookie attached automatically)
+  API->>DB: SELECT ... FOR UPDATE by (SessionId, HashedToken)
+  DB-->>API: Current RT row
+  API->>API: Validate new AT
+  API->>API: Clamp rolling <= absolute
+  API->>DB: UPDATE RefreshTokens (new hash, new JTI, new rolling)
+  API->>DB: (BEFORE UPDATE trigger archives old)
+  API-->>FE: 200 { accessToken } + Set-Cookie(new RT)
+  FE->>API: Retries original request with new AT
+
+```
+
+**Clamp logic (server side):**
+
+```
+newRolling = min(now + rollingWindow, current.ExpiresAbsoluteUtc)
+```
+
+---
+
+## Logout
+
+- **Single session**: `POST /api/auth/logout` with `accessToken`, `sessionId` →
+
+  - best-effort blacklist AT
+  - `UPDATE RefreshTokens SET Status=Revoked, RevokedUtc=now` for (PersoId, SessionId)
+  - clear cookie (`Set-Cookie: RefreshToken=; Expires=Thu, 01 Jan 1970 00:00:00 GMT`)
+  - WS notify that session.
+
+- **Logout all**: same endpoint with `logoutAll=true` → revoke all active RTs for the user; WS notify all sessions.
+
+---
+
+## Security notes
+
+- **XSS:** in-memory AT reduces exposure.
+- **CSRF:** Refresh uses SameSite cookie (Strict/Lax). For state-changing endpoints, apply CSRF defenses per deployment.
+- **Lockout:** repeated invalid logins tracked + lock enforced.
+- **Archiving:** `BEFORE UPDATE` trigger copies old RT row into `RefreshTokens_Archive` (audit).
+- **JWT secret rotation:** see operations runbook; expect forced logout of all sessions.
+
+---
+
+## DB summary (auth tables)
+
+- `RefreshTokens` (+ `RefreshTokens_Archive`)
+- `BlacklistedTokens` (optional, AT best-effort blacklist)
+- `VerificationToken` (email verification; `UNIQUE(PersoId)`, `UNIQUE(Token)`)
+
+---
