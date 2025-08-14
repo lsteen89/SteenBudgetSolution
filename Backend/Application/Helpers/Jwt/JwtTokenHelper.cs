@@ -1,12 +1,19 @@
-﻿using Backend.Application.Interfaces.JWT;
-using Backend.Domain.Entities.Auth;
+﻿using Backend.Domain.Entities.Auth;
 using System.IdentityModel.Tokens.Jwt;
 
 namespace Backend.Application.Helpers.Jwt
 {
     public static class TokenHelper
     {
-        public static JwtTokenModel CreateTokenModel(Guid persoid, Guid sessionId, string email, IReadOnlyList<string> roles, string deviceId, string userAgent)
+        public static JwtTokenModel CreateTokenModel(
+            Guid persoid,
+            Guid sessionId,
+            string email,
+            IReadOnlyList<string> roles,
+            string deviceId,
+            string userAgent,
+            DateTime createdAt,
+            DateTime expiryDate)
         {
             return new JwtTokenModel
             {
@@ -16,7 +23,8 @@ namespace Backend.Application.Helpers.Jwt
                 Roles = roles,
                 DeviceId = deviceId,
                 UserAgent = userAgent,
-
+                CreatedAt = createdAt,
+                ExpiryDate = expiryDate
             };
         }
         public static (string Jti, DateTime? Expiration) ExtractJtiAndExpiration(string token)

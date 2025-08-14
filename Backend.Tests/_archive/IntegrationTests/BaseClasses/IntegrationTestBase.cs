@@ -256,7 +256,7 @@ public abstract class IntegrationTestBase : IAsyncLifetime, IClassFixture<Databa
         services.AddScoped<ITransactionRunner, TransactionRunner>();
         services.AddScoped<ITokenBlacklistService, TokenBlacklistService>();
         services.AddScoped<IUserSqlExecutor, UserSqlExecutor>();
-        services.AddScoped<IVerificationTokenSqlExecutor, VerificationTokenSqlExecutor>();
+        services.AddScoped<IVerificationTokenSqlExecutor, LegacyVerificationTokenSqlExecutor>();
         services.AddScoped<IAuthenticationSqlExecutor, AuthenticationSqlExecutor>();
         services.AddScoped<ILogger<AuthenticationSqlExecutor>, Logger<AuthenticationSqlExecutor>>();
         services.AddScoped<IRefreshTokenSqlExecutor, RefreshTokenSqlExecutor>();

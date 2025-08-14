@@ -1,4 +1,4 @@
-﻿using Backend.Common.Interfaces;
+﻿using Backend.Application.Abstractions.Infrastructure.System;
 
 namespace Backend.Common.Services
 {

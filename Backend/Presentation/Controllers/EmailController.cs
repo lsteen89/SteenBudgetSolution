@@ -1,46 +1,50 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using MediatR;
+using Microsoft.AspNetCore.Mvc;
+using Backend.Application.Features.Contact;
+using Backend.Presentation.Shared;
 using Microsoft.AspNetCore.RateLimiting;
-using Backend.Common.Interfaces;
 using Backend.Application.DTO.Email;
+using Backend.Domain.Users;
+
 [ApiController]
 [Route("api/[controller]")]
-public class EmailController : ControllerBase
+public sealed class EmailController : ControllerBase
 {
-    private readonly ILegacyEmailService _emailService;
+    private readonly IMediator _mediator;
     private readonly ILogger<EmailController> _logger;
-    private readonly IRecaptchaService _recaptchaService;
 
-    public EmailController(ILegacyEmailService emailService, ILogger<EmailController> logger, IRecaptchaService recaptchaService)
+    public EmailController(IMediator mediator, ILogger<EmailController> logger)
     {
-        _emailService = emailService;
+        _mediator = mediator;
         _logger = logger;
-        _recaptchaService = recaptchaService;
     }
-    [HttpPost("ContactUs")]
-    [EnableRateLimiting("EmailSendingPolicy")]
-    public async Task<IActionResult> ContactUs([FromBody] SendEmailDto sendEmailDto)
+
+    [HttpPost("contact")]
+    [EnableRateLimiting("EmailSendingPolicy")] // IP/global bucket
+    [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> Contact([FromBody] SendContactFormRequest req, CancellationToken ct)
     {
-        // Verify reCAPTCHA token
-        bool isTestEmail = Environment.GetEnvironmentVariable("ALLOW_TEST_EMAILS") == "true";
-        bool recaptchaValid = (isTestEmail && sendEmailDto.SenderEmail == "l@l.se") || await _recaptchaService.ValidateTokenAsync(sendEmailDto.CaptchaToken);
-        if (!recaptchaValid)
+        if (!ModelState.IsValid)
+            return BadRequest(new ApiErrorResponse("Validation.Error", "Invalid input."));
+
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+        var ua = Request.Headers.UserAgent.ToString();
+
+        var cmd = new SendContactFormCommand(req.Subject, req.Body, req.SenderEmail, req.CaptchaToken, ip, ua);
+        var result = await _mediator.Send(cmd, ct);
+
+        if (result.IsFailure)
         {
-            _logger.LogWarning("Invalid reCAPTCHA for email: {Email}", sendEmailDto.SenderEmail);
-            return BadRequest(new { message = "Invalid reCAPTCHA. Please try again." });
+            if (result.Error == UserErrors.RateLimitExceeded)
+                return StatusCode(429, new ApiErrorResponse(result.Error.Code, result.Error.Description));
+            if (result.Error == UserErrors.InvalidCaptcha)
+                return BadRequest(new ApiErrorResponse(result.Error.Code, result.Error.Description));
+            return BadRequest(new ApiErrorResponse(result.Error.Code, "Failed to send message."));
         }
 
-        try
-        {
-            _logger.LogInformation("Calling SendContactUsEmail for {Email}", sendEmailDto.SenderEmail);
-            bool SentContactUsMail = await _emailService!.SendContactUsEmail(sendEmailDto.subject, sendEmailDto.body, sendEmailDto.SenderEmail);
-            if (!SentContactUsMail)
-                return BadRequest(new { message = "Failed to send contact us email. Please try again." });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to send contact us email from {Email}\nMessage was: {Message}", sendEmailDto.SenderEmail, sendEmailDto.body);
-            throw;
-        }
-        return Ok();
+        return Ok(new ApiResponse<string>("Message received."));
     }
 }
+

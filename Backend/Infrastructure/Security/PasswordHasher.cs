@@ -1,9 +1,8 @@
-﻿using System;
-using System.Linq;
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
 
 namespace Backend.Infrastructure.Security;
+
 public class PasswordHasher
 {
     public static string GeneratePasswordWithSalt(string password)

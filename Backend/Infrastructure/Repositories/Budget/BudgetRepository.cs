@@ -1,24 +1,42 @@
-﻿using Backend.Domain.Entities.Wizard;
-using Backend.Domain.Interfaces.Repositories.Budget;
-using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
-using Backend.Infrastructure.Data.Sql.Interfaces.Queries.Budget_Queries;
-using Backend.Infrastructure.Data.Sql.Interfaces.Queries.BudgetQuries;
-using Backend.Infrastructure.Data.Sql.Providers.BudgetProvider;
+﻿using Backend.Application.Abstractions.Infrastructure.Data;
+using Backend.Domain.Abstractions;
+using Backend.Infrastructure.Data.BaseClass;
 
 namespace Backend.Infrastructure.Repositories.Budget
 {
-    public class BudgetRepository : IBudgetRepository
+    public class BudgetRepository : SqlBase, IBudgetRepository
     {
-        private readonly IBudgetSqlExecutor _budgetSqlExecutor;
+        private readonly ICurrentUserContext _currentUser;
 
-        public BudgetRepository(IBudgetSqlExecutor budgetSqlExecutor)
+        public BudgetRepository(IUnitOfWork unitOfWork, ILogger<BudgetRepository> logger, ICurrentUserContext currentUser)
+            : base(unitOfWork, logger)
         {
-            _budgetSqlExecutor = budgetSqlExecutor;
+            _currentUser = currentUser;
         }
+        const string updateRepaymentSql = @"
+            UPDATE BUDGET 
+            SET DebtRepaymentStrategy = @STRAT, UpdatedByUserId = @currentUserId
+            WHERE Id = (@BudgetId);";
 
-        public async Task UpdateRepaymentStrategyAsync(string strat, Guid budgetId)
+        public async Task UpdateRepaymentStrategyAsync(string strat, Guid budgetId, CancellationToken ct)
         {
-            await _budgetSqlExecutor.UpdateRepaymentStrategyAsync(strat, budgetId);
+            var currentUserId = _currentUser.Persoid;
+
+            if (currentUserId == Guid.Empty)
+                throw new InvalidOperationException("Current user context is not set.");
+
+            _logger.LogInformation("Updating repayment strategy for budget {BudgetId}", budgetId);
+
+            // FIX: Pass the parameters to Dapper in an anonymous object.
+            // The property names (STRAT, BudgetId) must match the @-parameters in the SQL.
+            await ExecuteAsync(updateRepaymentSql, new
+            {
+                STRAT = strat,
+                BudgetId = budgetId,
+                currentUserId = currentUserId
+            }, ct);
+
+            _logger.LogInformation("Repayment strategy updated for budget {BudgetId}", budgetId);
         }
     }
 }

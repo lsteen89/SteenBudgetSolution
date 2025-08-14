@@ -1,4 +1,5 @@
 ﻿using System.Text.Json.Serialization;
+using System.ComponentModel.DataAnnotations;
 
 namespace Backend.Application.DTO.Auth
 {
@@ -7,9 +8,11 @@ namespace Backend.Application.DTO.Auth
         [JsonPropertyName("authenticated")]
         public bool Authenticated { get; set; }
         [JsonPropertyName("email")]
-        public string Email { get; set; }
+        [Required]
+        public required string Email { get; set; }
         [JsonPropertyName("role")]
-        public string Role { get; set; }
+        [Required]
+        public required string Role { get; set; }
         [JsonPropertyName("firstTimeLogin")]
         public bool FirstTimeLogin { get; set; }
     }

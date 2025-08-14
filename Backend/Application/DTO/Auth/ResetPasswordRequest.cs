@@ -1,7 +1,10 @@
-﻿namespace Backend.Application.DTO.Auth
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace Backend.Application.DTO.Auth
 {
     public class ResetPasswordRequest
     {
-        public string Email { get; set; }
+        [Required]
+        public required string Email { get; set; }
     }
 }

@@ -1,14 +1,15 @@
 ﻿using Backend.Application.Models.Wizard;
 using FluentValidation;
-using System.Linq;
 
 namespace Backend.Application.Validators.WizardValidation
 {
     // Validator for the "Intro" part of the savings form
     public sealed class SavingsIntroValidator : AbstractValidator<SavingsIntro>
     {
+
         public SavingsIntroValidator()
         {
+
             RuleFor(i => i.SavingHabit)
                 .NotEmpty().WithMessage("You must specify your saving habit.");
         }
@@ -17,6 +18,7 @@ namespace Backend.Application.Validators.WizardValidation
     // Validator for the "Habits" part of the savings form
     public sealed class SavingHabitsValidator : AbstractValidator<SavingHabits>
     {
+
         public SavingHabitsValidator()
         {
             RuleFor(h => h.MonthlySavings)
@@ -46,18 +48,21 @@ namespace Backend.Application.Validators.WizardValidation
     {
         public SavingsValidator()
         {
-            When(x => x.Intro != null, () => {
-                RuleFor(x => x.Intro).SetValidator(new SavingsIntroValidator());
+            When(x => x.Intro != null, () =>
+            {
+                RuleFor(x => x.Intro!).SetValidator(new SavingsIntroValidator());
             });
 
-            When(x => x.Habits != null, () => {
-                RuleFor(x => x.Habits).SetValidator(new SavingHabitsValidator());
+            When(x => x.Habits != null, () =>
+            {
+                RuleFor(x => x.Habits!).SetValidator(new SavingHabitsValidator());
             });
 
-            When(x => x.Goals != null && x.Goals.Any(), () => {
-                RuleForEach(x => x.Goals).SetValidator(new SavingsGoalValidator());
+            When(x => x.Goals != null && x.Goals.Any(), () =>
+            {
+                RuleForEach(x => x.Goals!).SetValidator(new SavingsGoalValidator());
                 RuleFor(x => x.Goals)
-                    .Must(goals => goals.Select(g => g.Id).Distinct().Count() == goals.Count)
+                    .Must(goals => goals!.Select(g => g.Id).Distinct().Count() == goals!.Count())
                     .WithMessage("Found duplicate goal IDs. Please ensure all goals have a unique ID.");
             });
         }

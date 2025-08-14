@@ -51,7 +51,7 @@ namespace Backend.Infrastructure.Auth
                 catch { /* malformed → ignore */ }
             }
 
-            return new TokenRequestDto(accessToken, refreshToken, sessionId, jti);
+            return new TokenRequestDto(accessToken!, refreshToken!, sessionId, jti);
         }
     }
 }

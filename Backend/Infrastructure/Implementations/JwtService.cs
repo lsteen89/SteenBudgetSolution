@@ -1,78 +1,70 @@
 ﻿using Backend.Application.Common.Security;
 using Backend.Application.Helpers.Jwt;
-using Backend.Application.Interfaces.JWT;
-using Backend.Common.Interfaces;
+using Backend.Application.Abstractions.Infrastructure.Security;
 using Backend.Domain.Entities.Auth;
-using Backend.Infrastructure.Data.Sql.Interfaces.Providers;
-using Backend.Infrastructure.Data.Sql.Interfaces.Queries.UserQueries;
-using Backend.Infrastructure.Entities.Tokens;
+using Backend.Application.Abstractions.Infrastructure.Data;
+using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Infrastructure.Security;
 using Backend.Settings;
 using Microsoft.IdentityModel.Tokens;
-using System.Data.Common;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 
 namespace Backend.Infrastructure.Implementations
 {
-
+    [Obsolete("This is a god class. Must be refactored into smaller classes asap. Will most likely be a event and used with RabbitMQ in the future.")]
     public class JwtService : IJwtService
     {
         private readonly JwtSettings _jwtSettings;
         private readonly TokenValidationParameters _jwtParams;
-        private readonly IUserSQLProvider _userSQLProvider;
         private readonly ITokenBlacklistService _tokenBlacklistService;
-        private readonly IRefreshTokenSqlExecutor _refreshTokenSqlExecutor;
+        private readonly IRefreshTokenRepository _repo;
         private readonly ILogger<JwtService> _logger;
-        private readonly IEnvironmentService _environmentService;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly ITimeProvider _timeProvider;
 
         public JwtService(
             JwtSettings jwtSettings,
             TokenValidationParameters jwtParams,
-            IUserSQLProvider userSQLProvider,
             ITokenBlacklistService tokenBlackListSerivce,
-            IRefreshTokenSqlExecutor refreshTokenRepository,
+            IRefreshTokenRepository repo,
             ILogger<JwtService> logger,
-            IEnvironmentService environmentService,
             IHttpContextAccessor httpContextAccessor,
             ITimeProvider timeProvider)
         {
             _jwtSettings = jwtSettings;
             _jwtParams = jwtParams;
-            _userSQLProvider = userSQLProvider;
             _tokenBlacklistService = tokenBlackListSerivce;
-            _refreshTokenSqlExecutor = refreshTokenRepository;
+            _repo = repo;
             _logger = logger;
-            _environmentService = environmentService;
             _httpContextAccessor = httpContextAccessor;
             _timeProvider = timeProvider;
         }
 
         #region AccessToken
-        public async Task<AccessTokenResult> CreateAccessTokenAsync(
-                Guid persoid,
-                string email,
-                IReadOnlyList<string> roles,
-                string deviceId,
-                string userAgent,
-                Guid? sessionId = null)
+        public AccessTokenResult CreateAccessToken(
+            Guid persoid,
+            string email,
+            IReadOnlyList<string> roles,
+            string deviceId,
+            string userAgent,
+            Guid? sessionId = null)
         {
-            // 1: create a fresh session-id for a new session, or reuse the existing one
+            // ... logic for effectiveSessionId and now ...
             var effectiveSessionId = sessionId ?? Guid.NewGuid();
             var now = _timeProvider.UtcNow;
 
-            // 2: build the claim model
-            var jwtModel = TokenHelper.CreateTokenModel(
-                persoid, effectiveSessionId, email, roles, deviceId, userAgent);
-
-            // 3: sign the token
-            int ttlMinutes = _jwtSettings.ExpiryMinutes;        
+            // ... logic for ttlMinutes and expUtc ...
+            int ttlMinutes = _jwtSettings.ExpiryMinutes;
             DateTime expUtc = now.AddMinutes(ttlMinutes);
 
-            string token = GenerateJwtAccessToken(jwtModel, expUtc); 
+            // 2: build the claim model with the date values
+            var jwtModel = TokenHelper.CreateTokenModel(
+                persoid, effectiveSessionId, email, roles, deviceId, userAgent, now, expUtc);
+
+            // 3: generate the JWT token
+            string token = GenerateJwtAccessToken(jwtModel, expUtc);
             string tokenJti = TokenHelper.ExtractJtiAndExpiration(token).Jti;
 
             return new AccessTokenResult(token, tokenJti, effectiveSessionId, persoid, expUtc);
@@ -122,24 +114,12 @@ namespace Backend.Infrastructure.Implementations
         /// Creates a new JWT refresh token for the user.
         /// </summary>
         /// <returns>New refreshToken</returns>
-        public async Task<string> CreateRefreshToken()
+        public string CreateRefreshToken()
         {
             // Generate a new refresh token
             var refreshToken = TokenGenerator.GenerateRefreshToken();
             return refreshToken;
         }
-        public Task<bool> UpsertRefreshTokenAsync(
-            RefreshJwtTokenEntity newRow,
-            DbConnection conn,
-            DbTransaction tx
-        ) => _refreshTokenSqlExecutor.UpsertRefreshTokenAsync(newRow, conn, tx);
-
-        public Task<bool> ExpireRefreshTokenAsync(
-            Guid persoid,
-            Guid sessionId,
-            DbConnection conn,
-            DbTransaction tx
-        ) => _refreshTokenSqlExecutor.UpdateAbsoluteExpiryAsync(persoid, sessionId, conn, tx, whenUtc: null);
         #endregion
 
         #region Blacklist
@@ -147,7 +127,7 @@ namespace Backend.Infrastructure.Implementations
         // Blacklist the access token by JTI
         // ----------------------------------
         // Token in this case is the full JWT token, not just the JTI.
-        public async Task<bool> BlacklistJwtTokenAsync(string token, DbConnection conn, DbTransaction tx)
+        public async Task<bool> BlacklistJwtTokenAsync(string token, CancellationToken ct = default)
         {
             if (string.IsNullOrWhiteSpace(token))
                 return false;
@@ -188,7 +168,7 @@ namespace Backend.Infrastructure.Implementations
 
                 // 5) Delegate to blacklist store
                 var success = await _tokenBlacklistService
-                                        .BlacklistTokenAsync(jti, expiration, conn, tx);
+                                        .BlacklistTokenAsync(jti, expiration, ct);
 
                 if (!success)
                 {
@@ -214,7 +194,7 @@ namespace Backend.Infrastructure.Implementations
                 : token.Trim();
         #endregion
         #region validate
-        public ClaimsPrincipal? ValidateToken(string token)
+        public ClaimsPrincipal? ValidateToken(string token, CancellationToken ct)
         {
             if (string.IsNullOrWhiteSpace(token))
                 return null;
@@ -241,7 +221,7 @@ namespace Backend.Infrastructure.Implementations
                 var jti = principal.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
                 if (jti != null &&
                     _tokenBlacklistService
-                      .IsTokenBlacklistedAsync(jti)
+                      .IsTokenBlacklistedAsync(jti, ct)
                       .GetAwaiter()
                       .GetResult())
                 {

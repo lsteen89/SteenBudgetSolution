@@ -2,14 +2,14 @@
 {
     public class JwtTokenModel
     {
-        public Guid Persoid { get; set; }
-        public string Email { get; set; }
-        public IReadOnlyList<string> Roles { get; set; }
-        public DateTime? ExpiryDate { get; set; }
-        public DateTime? CreatedAt { get; set; }
-        public string DeviceId { get; set; }
-        public string UserAgent { get; set; }
-        public Guid SessionId { get; set; }
+        public required Guid Persoid { get; set; }
+        public required string Email { get; set; }
+        public required IReadOnlyList<string> Roles { get; set; }
+        public required DateTime? ExpiryDate { get; set; }
+        public required DateTime? CreatedAt { get; set; }
+        public required string DeviceId { get; set; }
+        public required string UserAgent { get; set; }
+        public required Guid SessionId { get; set; }
     }
 }
 

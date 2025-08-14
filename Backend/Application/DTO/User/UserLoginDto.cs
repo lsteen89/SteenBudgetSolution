@@ -1,11 +1,16 @@
-﻿namespace Backend.Application.DTO.User
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace Backend.Application.DTO.User
 {
     public class UserLoginDto
     {
-        public string? Email { get; set; }
-        public string? Password { get; set; }
-        public string? CaptchaToken { get; set; }
-        public bool RememberMe { get; set; }
+        [Required]
+        public required string Email { get; set; }
 
+        [Required]
+        public required string Password { get; set; }
+        [Required]
+        public required string CaptchaToken { get; set; }
+        public bool RememberMe { get; set; }
     }
 }
