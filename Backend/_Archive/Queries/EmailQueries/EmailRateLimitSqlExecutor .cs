@@ -1,6 +1,3 @@
-using Backend.Infrastructure.Data.Sql;
-using Backend.Infrastructure.Data.Sql.Interfaces.Helpers;
-using Backend.Infrastructure.Data.Sql.Interfaces.Queries.EmailQueries;
 
 namespace Backend.Infrastructure.Data.Sql.Queries.EmailQueries;
 

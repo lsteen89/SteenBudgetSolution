@@ -37,5 +37,10 @@ namespace Backend.Infrastructure.Data.BaseClass
             var rows = await Connection.QueryAsync<T>(new CommandDefinition(sql, param, Transaction, _cmdTimeout, cancellationToken: ct));
             return rows.AsList();
         }
+        protected void EnsureTransaction()
+        {
+            if (_uow.Transaction is null)
+                throw new InvalidOperationException("No active DB transaction. Ensure requests go through UnitOfWorkPipelineBehavior.");
+        }
     }
 }

@@ -55,11 +55,15 @@ using Backend.Infrastructure.Data.Sql.Interfaces.Factories;
 using Backend.Infrastructure.Email;
 using Backend.Infrastructure.Identity;
 using Backend.Infrastructure.Implementations;
+using Backend.Infrastructure.Repositories.Auth;
+using Backend.Infrastructure.Repositories.Auth.RefreshTokens;
+using Backend.Infrastructure.Repositories.Auth.VerificationTokens;
 using Backend.Infrastructure.Repositories.Budget;
 using Backend.Infrastructure.Repositories.Email;
 using Backend.Infrastructure.Repositories.User;
 using Backend.Infrastructure.Security;
 using Backend.Infrastructure.WebSockets;
+
 
 
 // Common layer
@@ -115,10 +119,15 @@ UserMappings.Register(cfg);
 // Register In-Memory Distributed Cache
 builder.Services.AddDistributedMemoryCache();
 
-// MediatR
-builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
-
-
+// MediatR: register handlers by assembly + add UoW behavior
+builder.Services.AddMediatR(cfg =>
+{
+    cfg.RegisterServicesFromAssemblies(
+        typeof(Backend.Application.Features.Authentication.Login.LoginCommandHandler).Assembly
+        // add more assemblies if you have handlers elsewhere
+    );
+    cfg.AddOpenBehavior(typeof(UnitOfWorkPipelineBehavior<,>)); // applies to all TRequest that match the constraint
+});
 
 // Add environment variables to configuration
 builder.Configuration.AddEnvironmentVariables();
@@ -273,12 +282,15 @@ builder.Services.AddScoped<ICurrentUserContext, HttpCurrentUserContext>();
 // Repositories
 // Budget
 builder.Services.AddScoped<IBudgetRepository, BudgetRepository>();
-builder.Services.AddScoped<IIncomeRepository, IncomeRepository>();
-builder.Services.AddScoped<IExpenditureRepository, ExpenditureRepository>();
-builder.Services.AddScoped<ISavingsRepository, SavingsRepository>();
 builder.Services.AddScoped<IDebtsRepository, DebtsRepository>();
+builder.Services.AddScoped<IExpenditureRepository, ExpenditureRepository>();
+builder.Services.AddScoped<IIncomeRepository, IncomeRepository>();
+builder.Services.AddScoped<ISavingsRepository, SavingsRepository>();
+
 // User
 builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IUserAuthenticationRepository, UserAuthenticationRepository>();
+
 
 // Wizard Step Processors
 builder.Services.AddScoped<IWizardStepProcessor, IncomeStepProcessor>();
@@ -296,8 +308,14 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 // Other various services
 builder.Services.AddScoped<ITimeProvider, Backend.Common.Services.TimeProvider>();
 builder.Services.AddScoped<ICookieService, CookieService>();
+
 // JWT Service
 builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+
+// Verification Token Repository
+builder.Services.AddScoped<IVerificationTokenRepository, VerificationTokenRepository>();
+
 
 
 // Configure EmailService based on environment

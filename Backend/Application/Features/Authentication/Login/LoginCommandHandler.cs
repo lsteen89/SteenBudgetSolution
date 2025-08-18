@@ -143,7 +143,7 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, Result<A
                 var inserted = await _refreshRepo.InsertAsync(row, ct);
                 if (inserted != 1) throw new InvalidOperationException("Failed to insert refresh token.");
             }
-            catch (MySqlConnector.MySqlException ex) when (ex.Number == 1062 && ex.Message.Contains("UK_Hashed"))
+            catch (DuplicateKeyException) 
             {
                 plainRt = _jwt.CreateRefreshToken();
                 var retryHash = TokenGenerator.HashToken(plainRt);
