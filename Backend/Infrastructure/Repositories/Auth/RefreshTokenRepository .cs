@@ -2,6 +2,7 @@ using Backend.Infrastructure.Entities.Tokens;
 using Backend.Infrastructure.Data.BaseClass;
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Dapper;
+using Backend.Domain.Shared;
 
 namespace Backend.Infrastructure.Repositories.Auth.RefreshTokens;
 
@@ -13,12 +14,15 @@ public sealed class RefreshTokenRepository : SqlBase, IRefreshTokenRepository
 
 
     public Task<int> RevokeSessionAsync(Guid persoid, Guid sessionId, DateTime nowUtc, CancellationToken ct)
-        => ExecuteAsync("""
+    {
+        EnsureTransaction();
+        return ExecuteAsync("""
         UPDATE RefreshTokens
             SET Status = @Revoked, RevokedUtc = @Now
             WHERE Persoid = @Perso AND SessionId = @Sess AND Status = @Active;
         """,
         new { Perso = persoid, Sess = sessionId, Now = nowUtc, Active = (int)TokenStatus.Active, Revoked = (int)TokenStatus.Revoked }, ct);
+    }
 
     public Task<int> RevokeAllForUserAsync(Guid persoid, DateTime nowUtc, CancellationToken ct)
         => ExecuteAsync("""
@@ -32,7 +36,7 @@ public sealed class RefreshTokenRepository : SqlBase, IRefreshTokenRepository
     /// Inserts a refresh token for the login flow.
     /// </summary>
     /// Only used during login to create a new refresh token.
-    public Task<int> InsertAsync(RefreshJwtTokenEntity token, CancellationToken ct)
+    public async Task<int> InsertAsync(RefreshJwtTokenEntity token, CancellationToken ct)
     {
         const string sql = """
         INSERT INTO RefreshTokens
@@ -44,7 +48,18 @@ public sealed class RefreshTokenRepository : SqlBase, IRefreshTokenRepository
             @ExpiresRollingUtc, @ExpiresAbsoluteUtc, @RevokedUtc, @Status, @IsPersistent,
             @DeviceId, @UserAgent, @CreatedUtc);
         """;
-        return ExecuteAsync(sql, token, ct);
+
+        try
+        {
+            return await ExecuteAsync(sql, token, ct);
+        }
+        catch (MySqlConnector.MySqlException ex) when (ex.Number == 1062)
+        {
+            // Throw a custom exception that is database-agnostic.
+            // This is the ideal pattern for Clean Architecture.
+            // We are deliberately not throwing the original MySqlException.
+            throw new DuplicateKeyException("Duplicate entry for refresh token hash.", ex);
+        }
     }
 
     public Task<RefreshJwtTokenEntity?> GetActiveByCookieForUpdateAsync(Guid sessionId, string cookieHash, DateTime nowUtc, CancellationToken ct)
@@ -60,12 +75,14 @@ public sealed class RefreshTokenRepository : SqlBase, IRefreshTokenRepository
           AND RevokedUtc IS NULL
           AND ExpiresAbsoluteUtc >= @Now
           AND ExpiresRollingUtc  >= @Now
-        FOR UPDATE
-        LIMIT 1;
+        LIMIT 1
+        FOR UPDATE;
         """, new { SessionId = sessionId, Hash = cookieHash, Now = nowUtc, Active = (int)TokenStatus.Active }, ct);
 
     public Task<int> RotateInPlaceAsync(Guid tokenId, string oldHash, string newHash, string newAccessJti, DateTime newRollingUtc, CancellationToken ct)
-        => ExecuteAsync(
+    {
+        EnsureTransaction();
+        return ExecuteAsync(
         """
         UPDATE RefreshTokens
            SET HashedToken       = @NewHash,
@@ -76,6 +93,7 @@ public sealed class RefreshTokenRepository : SqlBase, IRefreshTokenRepository
            AND Status      = @Active;
         """,
         new { Id = tokenId, OldHash = oldHash, NewHash = newHash, NewJti = newAccessJti, NewRolling = newRollingUtc, Active = (int)TokenStatus.Active }, ct);
+    }
 
     public Task<int> RevokeByIdAsync(Guid tokenId, DateTime nowUtc, CancellationToken ct)
         => ExecuteAsync(

@@ -3,7 +3,7 @@
 -- ##################################################################
 
 -- Create User table
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE IF NOT EXISTS Users (
     Id INT AUTO_INCREMENT PRIMARY KEY,
     Persoid BINARY(16) NOT NULL UNIQUE,
     Firstname VARCHAR(50) NOT NULL,
@@ -34,13 +34,15 @@ CREATE TABLE IF NOT EXISTS ErrorLog (
 -- Create VerificationToken table
 CREATE TABLE IF NOT EXISTS VerificationToken (
     Id INT AUTO_INCREMENT PRIMARY KEY,
-    Persoid BINARY(16),
-    Token CHAR(36) NOT NULL UNIQUE,
+    PersoId BINARY(16) NOT NULL UNIQUE,   
+    Token BINARY(16) NOT NULL UNIQUE,     
     TokenExpiryDate DATETIME NOT NULL,
-    CreatedBy VARCHAR(50) NOT NULL,
+    CreatedBy VARCHAR(50) NOT NULL DEFAULT 'System',
     CreatedTime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT FK_VerificationToken_User FOREIGN KEY (Persoid) REFERENCES Users(Persoid) ON DELETE CASCADE
+    CONSTRAINT FK_VerificationToken_User FOREIGN KEY (PersoId)
+        REFERENCES Users(PersoId) ON DELETE CASCADE
 );
+
 
 -- Create RefreshTokens table
 CREATE TABLE IF NOT EXISTS RefreshTokens (
@@ -61,6 +63,9 @@ CREATE TABLE IF NOT EXISTS RefreshTokens (
     UNIQUE KEY UK_Hashed (HashedToken),
     UNIQUE KEY ux_user_session (Persoid, SessionId)
 ) ENGINE = InnoDB;
+
+ALTER TABLE RefreshTokens
+  ADD INDEX IF NOT EXISTS ix_refreshtokens_abs_exp (ExpiresAbsoluteUtc);
 
 -- Create UserVerificationTracking table
 CREATE TABLE UserVerificationTracking (
@@ -216,7 +221,7 @@ CREATE TABLE WizardSession (
     CONSTRAINT FK_WizardSession_User FOREIGN KEY (Persoid) REFERENCES Users(Persoid) ON DELETE CASCADE -- (FK ADDED FOR INTEGRITY)
 ) ENGINE=InnoDB;
 
-CREATE TABLE WizardStep (
+CREATE TABLE WizardStepData (
     WizardSessionId BINARY(16) NOT NULL,
     StepNumber INT NOT NULL,
     SubStep INT NOT NULL,
@@ -224,8 +229,9 @@ CREATE TABLE WizardStep (
     DataVersion INT NOT NULL,
     CreatedBy VARCHAR(50) NOT NULL,
     CreatedTime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt DATETIME NOT NULL DEFAULT UTC_TIMESTAMP(),
     PRIMARY KEY (WizardSessionId, StepNumber, SubStep),
-    CONSTRAINT FK_WizardStep_WizardSession FOREIGN KEY (WizardSessionId) REFERENCES WizardSession(WizardSessionId) ON DELETE CASCADE
+    CONSTRAINT FK_WizardStepData_WizardSession FOREIGN KEY (WizardSessionId) REFERENCES WizardSession(WizardSessionId) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS EmailRateLimit (

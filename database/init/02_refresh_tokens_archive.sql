@@ -1,7 +1,3 @@
--- 0) Optional: index for cleanup/scans
-ALTER TABLE RefreshTokens
-  ADD INDEX IF NOT EXISTS ix_refreshtokens_abs_exp (ExpiresAbsoluteUtc);
-
 -- 1) Archive table
 CREATE TABLE IF NOT EXISTS RefreshTokens_Archive (
     TokenId            BINARY(16)   NOT NULL,

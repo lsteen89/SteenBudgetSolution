@@ -374,6 +374,7 @@ Frontend/src/assets/Images/Originals
 
 #Documentation files that sensitive
 docs/internal
+docs/Internal
 certs
 
 # Temporary file for AI-generated commit messages
