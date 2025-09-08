@@ -115,6 +115,29 @@ Follow these instructions to get the project running on your local machine for d
  Your backend and frontend will be running in containers,
  and you can use docker compose exec to run commands inside them.
 
+## 🧪 Dev seeding (users)
+
+A small CLI (`Backend.Tools`) seeds a user in **dev**. It runs inside the dev compose network and bypasses CAPTCHA (CLI-only) when `ALLOW_SEEDING=true`.
+
+**One-off run**
+```bash
+docker compose -f docker-compose.dev.yml run --rm seed-users
+
+Env you can tweak
+
+SEED_EMAIL=l@l.se
+SEED_PASSWORD=P@ssw0rd!
+SEED_FIRST=John
+SEED_LAST=Doe
+```
+Requirements
+
+    .env.dev must contain a Docker-internal connection string (Already in the .dev.example!):
+    DATABASESETTINGS__CONNECTIONSTRING=Server=db;Port=3306;Database=steenbudgetDEV;User=app;Password=apppwd;Connection Timeout=3;Default Command Timeout=3;GuidFormat=Binary16;OldGuids=false
+
+    Service name: seed-users (see docker-compose.dev.yml)
+
+    ⚠️ Dev-only. Not included in prod compose. Uses ALLOW_SEEDING=true and a no-op reCAPTCHA implementation in the Tools host.
 
 
 
