@@ -12,7 +12,7 @@ services:
   mariadb:
     image: mariadb:11.4.2
     env_file:
-      - .env.prod # ← DB_ROOT_PASSWORD, DB_APP_USER, DB_APP_PASSWORD, MARIADB_DATABASE
+      - .env # ← DB_ROOT_PASSWORD, DB_APP_USER, DB_APP_PASSWORD, MARIADB_DATABASE
     command: [ "--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci" ]
     volumes:
       - ./database/init:/docker-entrypoint-initdb.d:ro
