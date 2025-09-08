@@ -18,8 +18,8 @@ public class UserRepository : SqlBase, IUserRepository
     public async Task<bool> CreateUserAsync(UserModel user, CancellationToken ct = default)
     {
         const string sql = @"
-            INSERT INTO users (PersoId, Firstname, Lastname, Email, Password, Roles, CreatedBy)
-            VALUES (@PersoId, @Firstname, @Lastname, @Email, @Password, @Roles, 'System');";
+            INSERT INTO Users (PersoId, Firstname, Lastname, Email, Password, Roles, EmailConfirmed, CreatedBy)
+            VALUES (@PersoId, @Firstname, @Lastname, @Email, @Password, @Roles, @EmailConfirmed, 'System');";
 
         _logger.LogInformation("Inserting user {Email}", user.Email);
         var rows = await ExecuteAsync(sql, new
@@ -29,7 +29,8 @@ public class UserRepository : SqlBase, IUserRepository
             user.LastName,
             user.Email,
             user.Password,
-            user.Roles
+            user.Roles,
+            user.EmailConfirmed
         }, ct);
         _logger.LogInformation("Insert completed. Rows affected: {Rows}", rows);
         return rows == 1;
@@ -38,7 +39,8 @@ public class UserRepository : SqlBase, IUserRepository
     public async Task<bool> ConfirmUserEmailAsync(Guid persoid, CancellationToken ct = default)
     {
         const string sql = "UPDATE Users SET EmailConfirmed = 1 WHERE PersoId = @PersoId;";
-        return await QueryFirstOrDefaultAsync<bool>(sql, new { PersoId = persoid }, ct);
+        var rows = await ExecuteAsync(sql, new { PersoId = persoid }, ct);
+        return rows > 0;
     }
     public Task<UserModel?> GetUserModelAsync(Guid? persoid = null, string? email = null, CancellationToken ct = default)
     {

@@ -10,6 +10,7 @@ using Backend.Application.DTO.Auth;
 using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Infrastructure.Entities.Tokens;
 using Backend.Infrastructure.Security;
+using Backend.Application.Features.Wizard.FinalizeWizard.Processors.Helpers;
 
 namespace Backend.Application.Features.Authentication.Login;
 
@@ -59,6 +60,7 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, Result<A
         if (!(allowTestEmails && isTestEmail) && !await _recaptcha.ValidateTokenAsync(c.CaptchaToken))
         {
             return Result.Failure<AuthResult>(UserErrors.InvalidCaptcha);
+            //return Result.Failure<AuthResult>(UserErrors.InvalidCaptcha);
         }
 
         // 2) Normalize + load + lockout

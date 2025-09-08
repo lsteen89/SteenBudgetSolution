@@ -18,4 +18,7 @@ public record RegisterUserCommand(
     string Password,
     string CaptchaToken,
     string? Honeypot
-) : ICommand<Result>;
+) : ICommand<Result>
+{
+    public bool IsSeedingOperation { get; init; } = false;
+}

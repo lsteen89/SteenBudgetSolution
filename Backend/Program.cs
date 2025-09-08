@@ -26,20 +26,9 @@ using Serilog;
 using Mapster;
 
 
-// Domain layer
-using Backend.Domain.Abstractions;
-using Backend.Domain.Entities.Email;
-
-
 // Application layer
-using Backend.Application.Abstractions.Infrastructure.Data;
-using Backend.Application.Abstractions.Infrastructure.Email;
-
-using Backend.Application.Abstractions.Infrastructure.RateLimiting;
+using Backend.Application;
 using Backend.Application.Abstractions.Infrastructure.Security;
-using Backend.Application.Abstractions.Infrastructure.System;
-using Backend.Application.Abstractions.Infrastructure.WebSockets;
-using Backend.Application.Features.Wizard.FinalizeWizard.Processors;
 using Backend.Application.Options.Email;
 using Backend.Application.Options.URL;
 using Backend.Application.Options.Auth;
@@ -48,26 +37,10 @@ using Backend.Application.Mappings;
 
 
 // Infrastructure layer
-using Backend.Infrastructure.BackgroundServices;
-using Backend.Infrastructure.Data.Sql.Factories;
 using Backend.Infrastructure.Data.Sql.Health;
-using Backend.Infrastructure.Data.Sql.Interfaces.Factories;
-using Backend.Infrastructure.Email;
-using Backend.Infrastructure.Identity;
 using Backend.Infrastructure.Implementations;
-using Backend.Infrastructure.Repositories.Auth;
-using Backend.Infrastructure.Repositories.Auth.RefreshTokens;
-using Backend.Infrastructure.Repositories.Auth.VerificationTokens;
-using Backend.Infrastructure.Repositories.Budget;
-using Backend.Infrastructure.Repositories.Email;
-using Backend.Infrastructure.Repositories.User;
-using Backend.Infrastructure.Security;
 using Backend.Infrastructure.WebSockets;
-
-
-
-// Common layer
-using Backend.Common.Services;
+using Backend.Infrastructure;
 
 // Presentation layer
 using Backend.Presentation.Middleware;
@@ -89,45 +62,14 @@ builder.Configuration.AddJsonFile("ExpiredTokenScannerSettings.json", optional: 
 builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
 builder.Configuration.AddJsonFile("WebSocketHealthCheckSettings.json", optional: false, reloadOnChange: true);
 
-// Configure the ExpiredTokenScannerSettings
-builder.Services.Configure<ExpiredTokenScannerSettings>(
-    builder.Configuration.GetSection("ExpiredTokenScannerSettings"));
-
-// Configure the WebSocketHealthCheckSettings
-builder.Services.Configure<WebSocketHealthCheckSettings>(
-    builder.Configuration.GetSection("WebSocketHealthCheckSettings"));
-
-// Configure the JWT settings
-var jwtSettingsSection = builder.Configuration.GetSection("JwtSettings");
-
-// DB settings
-builder.Services.Configure<DatabaseSettings>(builder.Configuration.GetSection("DatabaseSettings"));
-
-// Email settings (Smtp)
-builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("Smtp"));
 
 
-#endregion
 
-#region Mappings
-// Register global type adapter config
-var cfg = TypeAdapterConfig.GlobalSettings;
-UserMappings.Register(cfg);
 #endregion
 
 #region Configuration and Services
 // Register In-Memory Distributed Cache
 builder.Services.AddDistributedMemoryCache();
-
-// MediatR: register handlers by assembly + add UoW behavior
-builder.Services.AddMediatR(cfg =>
-{
-    cfg.RegisterServicesFromAssemblies(
-        typeof(Backend.Application.Features.Authentication.Login.LoginCommandHandler).Assembly
-        // add more assemblies if you have handlers elsewhere
-    );
-    cfg.AddOpenBehavior(typeof(UnitOfWorkPipelineBehavior<,>)); // applies to all TRequest that match the constraint
-});
 
 // Add environment variables to configuration
 builder.Configuration.AddEnvironmentVariables();
@@ -149,27 +91,6 @@ builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSet
 var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();
 
 
-if (builder.Environment.IsProduction())
-{
-    // Configure Redis Cache
-    builder.Services.AddStackExchangeRedisCache(options =>
-    {
-        options.Configuration = builder.Configuration.GetSection("Redis")["ConnectionString"];
-        options.InstanceName = "eBudget:"; // Optional prefix for keys
-    });
-
-    builder.Services.AddScoped<ITokenBlacklistService, TokenBlacklistService>();
-}
-else // Development, Testing, CI
-{
-    builder.Services.AddDistributedMemoryCache();       // in-proc
-
-    // NoopBlacklistService is a mock that simulates a blacklisted state
-    // It implements ITokenBlacklistService and always returns true for IsTokenBlacklistedAsync
-
-    //builder.Services.AddSingleton<ITokenBlacklistService, NoopBlacklistService>();
-    builder.Services.AddScoped<ITokenBlacklistService, NoopBlacklistService>();
-}
 // Add JsonOptions to use camelCase for JSON properties
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -184,29 +105,6 @@ builder.Services.AddControllers()
             new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)
         );
     });
-
-// EMAIL OPTIONS
-// Options
-builder.Services.AddOptions<EmailRateLimitOptions>()
-    .Bind(builder.Configuration.GetSection("EmailRateLimit"))
-    .ValidateDataAnnotations().ValidateOnStart();
-
-builder.Services.AddOptions<AppUrls>()
-    .Bind(builder.Configuration.GetSection("AppUrls"))
-    .ValidateDataAnnotations().ValidateOnStart();
-
-// Token TTL
-builder.Services.AddOptions<VerificationTokenOptions>()
-    .Bind(builder.Configuration.GetSection("VerificationToken"))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
-
-// Auth lockout options
-builder.Services.AddOptions<AuthLockoutOptions>()
-        .BindConfiguration("AuthLockout")
-        .ValidateDataAnnotations()
-        .ValidateOnStart();
-
 
 #endregion
 
@@ -259,101 +157,12 @@ var imageTag = Environment.GetEnvironmentVariable("IMAGE_TAG") ?? "unknown";
 // Continue configuring services and the rest of the application
 var configuration = builder.Configuration;
 
+#region Custom Service Registration
 // Add services to the container
-#region Injected Services
-
-// Section for SQL related services
-// Connection factory
-builder.Services.AddScoped<IConnectionFactory>(provider =>
-{
-    var settings = provider.GetRequiredService<IOptions<DatabaseSettings>>().Value;
-    if (string.IsNullOrEmpty(settings.ConnectionString))
-    {
-        throw new InvalidOperationException("Database connection string not found in configuration.");
-    }
-    return new MySqlConnectionFactory(settings.ConnectionString);
-});
-// Unit of Work
-builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
-
-// Contexts
-builder.Services.AddScoped<ICurrentUserContext, HttpCurrentUserContext>();
-
-// Repositories
-// Budget
-builder.Services.AddScoped<IBudgetRepository, BudgetRepository>();
-builder.Services.AddScoped<IDebtsRepository, DebtsRepository>();
-builder.Services.AddScoped<IExpenditureRepository, ExpenditureRepository>();
-builder.Services.AddScoped<IIncomeRepository, IncomeRepository>();
-builder.Services.AddScoped<ISavingsRepository, SavingsRepository>();
-
-// User
-builder.Services.AddScoped<IUserRepository, UserRepository>();
-builder.Services.AddScoped<IUserAuthenticationRepository, UserAuthenticationRepository>();
-
-
-// Wizard Step Processors
-builder.Services.AddScoped<IWizardStepProcessor, IncomeStepProcessor>();
-builder.Services.AddScoped<IWizardStepProcessor, ExpenseStepProcessor>();
-builder.Services.AddScoped<IWizardStepProcessor, SavingsStepProcessor>();
-
-// Recaptcha service
-builder.Services.AddHttpClient<IRecaptchaService, RecaptchaService>();
-
-// Section for email services
-builder.Services.AddScoped<IEmailRateLimitRepository, EmailRateLimitRepository>();
-builder.Services.AddScoped<IEmailRateLimiter, EmailRateLimiter>();
-builder.Services.AddScoped<IEmailService, EmailService>();
-
-// Other various services
-builder.Services.AddScoped<ITimeProvider, Backend.Common.Services.TimeProvider>();
-builder.Services.AddScoped<ICookieService, CookieService>();
-
-// JWT Service
-builder.Services.AddScoped<IJwtService, JwtService>();
-builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
-
-// Verification Token Repository
-builder.Services.AddScoped<IVerificationTokenRepository, VerificationTokenRepository>();
-
-
-
-// Configure EmailService based on environment
-/*
-if (builder.Environment.IsDevelopment())
-{
-    builder.Services.AddSingleton<ILegacyEmailService, MockEmailService>();
-
-    var mockEmailPreparationService = new Mock<ILegacyEmailPreparationService>();
-    mockEmailPreparationService
-        .Setup(service => service.PrepareVerificationEmailAsync(It.IsAny<EmailMessageModel>()))
-        .ReturnsAsync((EmailMessageModel email) => email);
-
-    mockEmailPreparationService
-        .Setup(service => service.PrepareContactUsEmailAsync(It.IsAny<EmailMessageModel>()))
-        .ReturnsAsync((EmailMessageModel email) => email);
-
-    builder.Services.AddSingleton<ILegacyEmailPreparationService>(mockEmailPreparationService.Object);
-}
-else
-{
-    builder.Services.AddSingleton<ILegacyEmailService, LegacyEmailService>();
-    builder.Services.AddSingleton<ILegacyEmailPreparationService, LegacyEmailPreparationService>();
-}
-*/
-
-// Add WebSockets and their helpers
-builder.Services.AddSingleton<IWebSocketManager, Backend.Infrastructure.WebSockets.WebSocketManager>();
-//builder.Services.AddHostedService(provider => (Backend.Infrastructure.WebSockets.WebSocketManager)provider.GetRequiredService<IWebSocketManager>());
-
-//Wizard Validation
-builder.Services.AddValidatorsFromAssemblyContaining<IncomeValidator>();
-
-// Background services
-builder.Services.AddHostedService<ExpiredTokenScanner>();
-builder.Services.AddHostedService<WebSocketHealthCheckService>();
-
-
+// 2. Register Services from other Layers
+builder.Services
+    .AddApplicationServices(builder.Configuration)
+    .AddInfrastructureServices(builder.Configuration, builder.Environment.IsProduction());
 #endregion
 
 #region Rate Limiter Configuration
@@ -430,10 +239,6 @@ builder.Services.AddControllers();
 
 // Add Swagger services
 builder.Services.AddSwaggerGen();
-
-// Add FluentValidation for DTO validation
-builder.Services.AddFluentValidationAutoValidation();
-builder.Services.AddValidatorsFromAssemblyContaining<UserValidator>();
 
 // Add CORS policies
 builder.Services.AddCors(options =>

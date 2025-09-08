@@ -47,7 +47,7 @@ public sealed class VerifyEmailCommandHandler : IRequestHandler<VerifyEmailComma
             return Result.Failure(UserErrors.EmailAlreadyVerified);
 
         // 4) Confirm (only if not already confirmed)
-        var ok = await _users.ConfirmUserEmailAsync(user.PersoId, ct); // SQL: ... SET EmailConfirmed=1 WHERE PersoId=@Id AND EmailConfirmed=0
+        var ok = await _users.ConfirmUserEmailAsync(user.PersoId, ct);
         if (!ok)
         {
             _log.LogError("Failed to confirm email for PersoId {PersoId}", user.PersoId);

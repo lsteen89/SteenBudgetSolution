@@ -82,13 +82,13 @@ CREATE TABLE UserVerificationTracking (
 -- ####################################################################
 -- # SECTION 1.1: EMAIL TABLES
 -- ####################################################################
-CREATE TABLE IF NOT EXISTS email_send_limits (
-    user_id BINARY(16) NOT NULL,
-    email_kind TINYINT UNSIGNED NOT NULL,
-    `date` DATE NOT NULL,            -- UTC date bucket
-    sent_count INT UNSIGNED NOT NULL DEFAULT 0,
-    last_sent_at DATETIME(6) NOT NULL,
-    PRIMARY KEY (user_id, email_kind, `date`)
+CREATE TABLE IF NOT EXISTS Email_send_limits (
+    User_id BINARY(16) NOT NULL,
+    Email_kind TINYINT UNSIGNED NOT NULL,
+    `Date` DATE NOT NULL,            -- UTC date bucket
+    Sent_count INT UNSIGNED NOT NULL DEFAULT 0,
+    Last_sent_at DATETIME(6) NOT NULL,
+    PRIMARY KEY (User_id, Email_kind, `Date`)
 ) ENGINE=InnoDB;
 
 
