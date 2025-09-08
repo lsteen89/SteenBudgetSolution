@@ -42,7 +42,7 @@ public sealed class UnitOfWork : IUnitOfWork
         if (_conn.State != ConnectionState.Open)
             await _conn.OpenAsync(ct).ConfigureAwait(false);
 
-        _tx = await _conn.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct).ConfigureAwait(false);
+        _tx = await _conn.BeginTransactionAsync(IsolationLevel.RepeatableRead, ct).ConfigureAwait(false);
         _txDepth = 1;
         _log.LogDebug("UoW: BEGIN (depth=1)");
     }

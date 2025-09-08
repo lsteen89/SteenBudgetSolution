@@ -7,25 +7,22 @@ volumes:
   caddy_data:
   caddy_config:
 
+
 services:
   mariadb:
     image: mariadb:11.4.2
-    ports:
-      - "127.0.0.1:3306:3306" 
-    environment:
-      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-      MARIADB_DATABASE: ${MARIADB_DATABASE}
-      MARIADB_USER: ${DB_USER}
-      MARIADB_PASSWORD: ${DB_PASSWORD}
-    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    env_file:
+      - .env.prod # ← DB_ROOT_PASSWORD, DB_APP_USER, DB_APP_PASSWORD, MARIADB_DATABASE
+    command: [ "--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci" ]
     volumes:
-      - ./database/init:/docker-entrypoint-initdb.d:ro 
+      - ./database/init:/docker-entrypoint-initdb.d:ro
       - mariadb_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "mariadb-admin ping -uroot -p${DB_ROOT_PASSWORD} --silent"]
+      test: [ "CMD-SHELL", "mariadb-admin ping -uroot -p$$MARIADB_ROOT_PASSWORD --silent" ]
       interval: 10s
-      timeout: 3s
-      retries: 10
+      timeout: 5s
+      start_period: 60s
+      retries: 20
     restart: unless-stopped
     networks:
       - steen
@@ -34,24 +31,23 @@ services:
 
   backend:
     image: ghcr.io/lsteen89/steenbudget-backend:latest
-    env_file: .env                 # ← JWT_SECRET_KEY, DATABASESETTINGS__CONNECTIONSTRING, WEBSOCKET_SECRET, etc.
-    environment:
-      JwtSettings__SecretKey: ${JWT_SECRET_KEY:?set JWT_SECRET_KEY in .env}
+    env_file:
+      - .env.prod # contains JwtSettings__SecretKey, DatabaseSettings__ConnectionString, WEBSOCKET_SECRET, RECAPTCHA_SECRET_KEY
     depends_on:
       mariadb:
         condition: service_healthy
     restart: unless-stopped
     networks:
       - steen
-    pull_policy: always            # ← always pull the latest image
+    pull_policy: always # ← always pull the latest image
     labels:
       - com.centurylinklabs.watchtower.enable=false
 
   caddy:
     image: ghcr.io/lsteen89/caddy-cloudflare:2.9.1
-    pull_policy: missing                                           # ← don’t pull if already present
-    environment:
-      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:?set CLOUDFLARE_API_TOKEN}
+    pull_policy: missing # ← don’t pull if already present
+    env_file:
+      - .env.prod # includes CLOUDFLARE_API_TOKEN
     ports:
       - "80:80"
       - "443:443"
@@ -64,9 +60,9 @@ services:
       backend:
         condition: service_healthy
     restart: unless-stopped
-    networks: [steen]
+    networks: [ steen ]
     labels:
-      - com.centurylinklabs.watchtower.enable=false   # ← disable watchtower for Caddy
+      - com.centurylinklabs.watchtower.enable=false # ← disable watchtower for Caddy
 
   watchtower:
     image: containrrr/watchtower

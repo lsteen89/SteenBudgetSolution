@@ -22,17 +22,22 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, R
     }
     public async Task<Result> Handle(RegisterUserCommand request, CancellationToken cancellationToken)
     {
-        // Step 0: Precheck
-        // Validate reCAPTCHA
-        bool isTestEmail = Environment.GetEnvironmentVariable("ALLOW_TEST_EMAILS") == "true";
-        bool recaptchaValid = (isTestEmail && request.Email == "l@l.se") || await _recaptchaService.ValidateTokenAsync(request.CaptchaToken);
-        if (!recaptchaValid)
-            return Result.Failure(UserErrors.InvalidCaptcha);
+        var allowSeedByEnv = Environment.GetEnvironmentVariable("ALLOW_SEEDING") == "true";
+        var isTrustedSeed = request.IsSeedingOperation && allowSeedByEnv;
 
-        // Honeypot check
-        if (!string.IsNullOrWhiteSpace(request.Honeypot))
-            return Result.Success(); // Pretend success to avoid spam bots
+        if (!isTrustedSeed)
+        {
+            // Step 0: Precheck
+            // Validate reCAPTCHA
+            bool isTestEmail = Environment.GetEnvironmentVariable("ALLOW_TEST_EMAILS") == "true";
+            bool recaptchaValid = (isTestEmail && request.Email == "l@l.se") || await _recaptchaService.ValidateTokenAsync(request.CaptchaToken);
+            if (!recaptchaValid)
+                return Result.Failure(UserErrors.InvalidCaptcha);
 
+            // Honeypot check
+            if (!string.IsNullOrWhiteSpace(request.Honeypot))
+                return Result.Success(); // Pretend success to avoid spam bots
+        }
         // 1. Use the repository to check if the user exists
         if (await _userRepository.UserExistsAsync(request.Email, cancellationToken))
             return Result.Failure(UserErrors.EmailAlreadyExists);
@@ -46,7 +51,8 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, R
             LastName = request.LastName,
             Email = request.Email,
             Password = hashedPassword,
-            Roles = "1" // Default role
+            Roles = "1", // Default role
+            EmailConfirmed = isTrustedSeed ? true : false
         };
 
         // 3. Use the repository to save the new user
@@ -55,7 +61,9 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, R
         if (!success)
             return Result.Failure(UserErrors.RegistrationFailed);
 
-        await _mediator.Publish(new UserRegisteredEvent(user.PersoId, user.Email), cancellationToken);
+        // 4. Publish the UserRegisteredEvent
+        if (!isTrustedSeed)
+            await _mediator.Publish(new UserRegisteredEvent(user.PersoId, user.Email), cancellationToken);
 
         return Result.Success();
     }
