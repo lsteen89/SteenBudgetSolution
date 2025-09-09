@@ -25,7 +25,7 @@ public sealed class SaveWizardStepFlowTests
         public int StepNumber { get; }
         private readonly string _json;
         public FakeValidator(int step, string json) { StepNumber = step; _json = json; }
-        public Result<string> ValidateAndSerialize(object stepData) => _json;
+        public Result<string> ValidateAndSerialize(object stepData) => Result<string>.Success(_json);
     }
 
     [Fact]

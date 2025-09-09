@@ -23,7 +23,7 @@ public class WizardRepository : SqlBase, IWizardRepository
 
         string sql = @"
             INSERT INTO WizardSession (WizardSessionId, Persoid, CurrentStep, CreatedAt)
-            VALUES (@WizardSessionId, @Persoid, @CurrentStep, @CreatedAt)";
+            VALUES (@WizardSessionId, @Persoid, @CurrentStep, UTC_TIMESTAMP())";
 
         var parameters = new
         {
@@ -51,7 +51,7 @@ public class WizardRepository : SqlBase, IWizardRepository
             ON DUPLICATE KEY UPDATE 
             StepData = VALUES(StepData), 
             DataVersion = VALUES(DataVersion), 
-            UpdatedAt = VALUES(UpdatedAt);";
+            UpdatedAt = UTC_TIMESTAMP();";
 
         var parameters = new
         {
@@ -117,11 +117,11 @@ public class WizardRepository : SqlBase, IWizardRepository
     public async Task<IEnumerable<WizardStepRowEntity>> GetRawStepDataForFinalizationAsync(Guid sessionId, CancellationToken ct = default)
     {
         const string sql = @"
-            SELECT StepNumber, StepData, UpdatedAt 
-            FROM WizardStepData 
-            WHERE WizardSessionId = @SessionId";
+            SELECT WizardSessionId, StepNumber, SubStep, StepData, DataVersion, UpdatedAt
+            FROM WizardStepData
+            WHERE WizardSessionId = @sid;";
 
-        return await QueryAsync<WizardStepRowEntity>(sql, new { SessionId = sessionId }, ct);
+        return await QueryAsync<WizardStepRowEntity>(sql, new { sid = sessionId }, ct);
     }
     #region Helper Methods
     // --- Private Helper Methods ---

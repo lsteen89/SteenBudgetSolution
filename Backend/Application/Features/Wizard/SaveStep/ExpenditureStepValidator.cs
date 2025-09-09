@@ -5,6 +5,7 @@ using System.Text.Json;
 using Backend.Common.Utilities;
 
 namespace Backend.Application.Features.Wizard.SaveStep;
+
 public class ExpenditureStepValidator : IWizardStepValidator
 {
     public int StepNumber => 2;
@@ -16,28 +17,24 @@ public class ExpenditureStepValidator : IWizardStepValidator
     {
         try
         {
-            // 1. Deserialize to a nullable type
             var dto = JsonSerializer.Deserialize<ExpenditureFormValues>(stepData.ToString()!, JsonHelper.Camel);
 
-            // 2. Explicitly handle the null case
             if (dto is null)
             {
-                return Result.Failure<string>(new Error("Validation.Failed", "Step data cannot be null."));
+                return Result<string>.Failure(new Error("Validation.Failed", "Step data cannot be null."));
             }
 
-            // 3. From this point on, the compiler knows 'dto' is not null.
-            //    The warning will now be gone.
             _validator.ValidateAndThrow(dto);
-            
-            return JsonSerializer.Serialize(dto, JsonHelper.Camel);
+
+            return Result<string>.Success(JsonSerializer.Serialize(dto, JsonHelper.Camel));
         }
-        catch (ValidationException ex) 
-        { 
-            return Result.Failure<string>(new Error("Validation.Failed", ex.Message)); 
+        catch (ValidationException ex)
+        {
+            return Result<string>.Failure(new Error("Validation.Failed", ex.Message));
         }
-        catch (Exception ex) 
-        { 
-            return Result.Failure<string>(new Error("Serialization.Failed", ex.Message)); 
+        catch (Exception ex)
+        {
+            return Result<string>.Failure(new Error("Serialization.Failed", ex.Message));
         }
     }
 }

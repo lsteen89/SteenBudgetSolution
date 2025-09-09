@@ -5,6 +5,8 @@ using System.IdentityModel.Tokens.Jwt;
 using MediatR;
 using Backend.Application.DTO.User;
 using Backend.Application.Features.Users.Queries.GetUserModel;
+using Microsoft.AspNetCore.Mvc.ApiExplorer;
+using Backend.Presentation.Shared;
 
 namespace Backend.Presentation.Controllers
 {
@@ -31,7 +33,7 @@ namespace Backend.Presentation.Controllers
             if (string.IsNullOrWhiteSpace(email)) return Unauthorized();
 
             var dto = await _mediator.Send(new GetUserModelQuery(Email: email), ct);
-            return dto is null ? NotFound() : Ok(dto);
+            return dto is null ? NotFound(new ApiErrorResponse("User.NotFound", "User not found")) : Ok(new ApiResponse<UserDto>(dto));
         }
     }
 }

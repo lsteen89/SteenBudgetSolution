@@ -16,9 +16,19 @@ public sealed class SaveWizardStepCommandHandlerTests
     private sealed class FakeValidator : IWizardStepValidator
     {
         public int StepNumber { get; }
-        private readonly Func<object, Result<string>> _fn;
-        public FakeValidator(int step, Func<object, Result<string>> fn) { StepNumber = step; _fn = fn; }
-        public Result<string> ValidateAndSerialize(object stepData) => _fn(stepData);
+
+        // 1. Change the private field from a string to a function
+        private readonly Func<object, Result<string>> _validationFunc;
+
+        // 2. Update the constructor to accept that function
+        public FakeValidator(int step, Func<object, Result<string>> validationFunc)
+        {
+            StepNumber = step;
+            _validationFunc = validationFunc;
+        }
+
+        // 3. The method now invokes the function it was given
+        public Result<string> ValidateAndSerialize(object stepData) => _validationFunc(stepData);
     }
 
     [Fact]
@@ -39,8 +49,9 @@ public sealed class SaveWizardStepCommandHandlerTests
     public async Task Validation_Failure_Bubbles_Error_And_Does_Not_Call_Repo()
     {
         var repo = new Mock<IWizardRepository>(MockBehavior.Strict);
-        var validator = new FakeValidator(1, _ => Result.Failure<string>(new Error("Validation.Failed", "bad")));
-        var sut = new SaveWizardStepCommandHandler(repo.Object, new[] { validator });
+        var failingValidator = new FakeValidator(1,
+            _ => Result<string>.Failure(new Error("Validation.Failed", "Something was wrong with the input.")));
+        var sut = new SaveWizardStepCommandHandler(repo.Object, new[] { failingValidator });
 
         var cmd = new SaveWizardStepCommand(Guid.NewGuid(), 1, 0, new { }, 1);
         var res = await sut.Handle(cmd, CancellationToken.None);
@@ -55,8 +66,10 @@ public sealed class SaveWizardStepCommandHandlerTests
     {
         var repo = new Mock<IWizardRepository>();
         var json = """{"ok":true}""";
-        var validator = new FakeValidator(1, _ => json);
-        var sut = new SaveWizardStepCommandHandler(repo.Object, new[] { validator });
+
+        var successValidator = new FakeValidator(1, _ => Result<string>.Success(json));
+
+        var sut = new SaveWizardStepCommandHandler(repo.Object, new[] { successValidator });
 
         var sid = Guid.NewGuid();
         var cmd = new SaveWizardStepCommand(sid, 1, 2, new { any = "data" }, 3);
@@ -75,9 +88,10 @@ public sealed class SaveWizardStepCommandHandlerTests
     public async Task Repo_Returns_False_Then_Result_Is_Failure()
     {
         var repo = new Mock<IWizardRepository>();
-        var json = """{"x":1}""";
-        var validator = new FakeValidator(1, _ => json);
-        var sut = new SaveWizardStepCommandHandler(repo.Object, new[] { validator });
+        var json = """{"ok":true}""";
+
+        var successValidator = new FakeValidator(1, _ => Result<string>.Success(json));
+        var sut = new SaveWizardStepCommandHandler(repo.Object, new[] { successValidator });
 
         var sid = Guid.NewGuid();
         var cmd = new SaveWizardStepCommand(sid, 1, 0, new { }, 1);
@@ -88,16 +102,17 @@ public sealed class SaveWizardStepCommandHandlerTests
 
         var res = await sut.Handle(cmd, CancellationToken.None);
 
-        res.IsSuccess.Should().BeFalse();
-        res.Error!.Code.Should().Be("Database.SaveFailed");
+        res.IsFailure.Should().BeTrue();
+        res.Error.Code.Should().Be("Database.SaveFailed");
+        repo.VerifyAll();
     }
 
     [Fact]
     public async Task Chooses_Validator_By_StepNumber()
     {
         var repo = new Mock<IWizardRepository>();
-        var v1 = new FakeValidator(1, _ => """{"step":1}""");
-        var v2 = new FakeValidator(2, _ => """{"step":2}""");
+        var v1 = new FakeValidator(1, _ => Result<string>.Success("""{"step":1}"""));
+        var v2 = new FakeValidator(2, _ => Result<string>.Success("""{"step":2}"""));
         var sut = new SaveWizardStepCommandHandler(repo.Object, new IWizardStepValidator[] { v1, v2 });
 
         var sid = Guid.NewGuid();

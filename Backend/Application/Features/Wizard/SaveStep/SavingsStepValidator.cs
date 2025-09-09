@@ -5,6 +5,7 @@ using System.Text.Json;
 using Backend.Common.Utilities;
 
 namespace Backend.Application.Features.Wizard.SaveStep;
+
 public class SavingsStepValidator : IWizardStepValidator
 {
     public int StepNumber => 3;
@@ -17,15 +18,17 @@ public class SavingsStepValidator : IWizardStepValidator
         try
         {
             var dto = JsonSerializer.Deserialize<SavingsFormValues>(stepData.ToString()!, JsonHelper.Camel);
-            // Explicitly handle the null case
+
             if (dto is null)
             {
-                return Result.Failure<string>(new Error("Validation.Failed", "Step data cannot be null."));
+                return Result<string>.Failure(new Error("Validation.Failed", "Step data cannot be null."));
             }
+
             _validator.ValidateAndThrow(dto);
-            return JsonSerializer.Serialize(dto, JsonHelper.Camel);
+
+            return Result<string>.Success(JsonSerializer.Serialize(dto, JsonHelper.Camel));
         }
-        catch (ValidationException ex) { return Result.Failure<string>(new Error("Validation.Failed", ex.Message)); }
-        catch (Exception ex) { return Result.Failure<string>(new Error("Serialization.Failed", ex.Message)); }
+        catch (ValidationException ex) { return Result<string>.Failure(new Error("Validation.Failed", ex.Message)); }
+        catch (Exception ex) { return Result<string>.Failure(new Error("Serialization.Failed", ex.Message)); }
     }
 }

@@ -30,6 +30,12 @@ public sealed class SaveWizardStepCommandHandler : ICommandHandler<SaveWizardSte
         {
             return Result.Failure(validationResult.Error);
         }
+        if (validationResult.Value is null)
+        {
+            // This is an unexpected state: validation succeeded but produced no data to save.
+            return Result.Failure(new Error("Wizard.NullData", "Validated step data cannot be null."));
+        }
+
         string jsonData = validationResult.Value;
 
         // 3. Persist the data using the repository

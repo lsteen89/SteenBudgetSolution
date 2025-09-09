@@ -59,8 +59,7 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, Result<A
 
         if (!(allowTestEmails && isTestEmail) && !await _recaptcha.ValidateTokenAsync(c.CaptchaToken))
         {
-            return Result.Failure<AuthResult>(UserErrors.InvalidCaptcha);
-            //return Result.Failure<AuthResult>(UserErrors.InvalidCaptcha);
+            return Result<AuthResult>.Failure(UserErrors.InvalidCaptcha);
         }
 
         // 2) Normalize + load + lockout
@@ -73,7 +72,7 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, Result<A
             if (until > now)
             {
                 _log.LogInformation("User locked until {Until}", until);
-                return Result.Failure<AuthResult>(UserErrors.UserLockedOut);
+                return Result<AuthResult>.Failure(UserErrors.UserLockedOut);
             }
             await _authz.UnlockUserAsync(user.PersoId, ct); // expired → clear
         }
@@ -97,14 +96,14 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, Result<A
                     await _authz.LockUserByEmailAsync(emailNorm, now.AddMinutes(_lockoutOpts.Value.LockoutMinutes), ct);
 
                 if (!user.EmailConfirmed)
-                    return Result.Failure<AuthResult>(UserErrors.EmailNotConfirmed);
+                    return Result<AuthResult>.Failure(UserErrors.EmailNotConfirmed);
             }
 
-            return Result.Failure<AuthResult>(UserErrors.InvalidCredentials);
+            return Result<AuthResult>.Failure(UserErrors.InvalidCredentials);
         }
 
         if (string.IsNullOrWhiteSpace(user!.Email))
-            return Result.Failure<AuthResult>(UserErrors.InvalidCredentials);
+            return Result<AuthResult>.Failure(UserErrors.InvalidCredentials);
 
         IReadOnlyList<string> roles = new[] { "User" };
 
@@ -145,7 +144,7 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, Result<A
                 var inserted = await _refreshRepo.InsertAsync(row, ct);
                 if (inserted != 1) throw new InvalidOperationException("Failed to insert refresh token.");
             }
-            catch (DuplicateKeyException) 
+            catch (DuplicateKeyException)
             {
                 plainRt = _jwt.CreateRefreshToken();
                 var retryHash = TokenGenerator.HashToken(plainRt);
@@ -174,7 +173,7 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, Result<A
 
             // 9) Result (UoW pipeline commits/rolls back)
             var wsMac = WebSocketAuth.MakeWsMac(user.PersoId, at.SessionId, _wsCfg.Secret);
-            return Result.Success(new AuthResult(at.Token, plainRt, user.PersoId, at.SessionId, wsMac, c.RememberMe));
+            return Result<AuthResult>.Success(new AuthResult(at.Token, plainRt, user.PersoId, at.SessionId, wsMac, c.RememberMe));
         }
         catch (OperationCanceledException)
         {
