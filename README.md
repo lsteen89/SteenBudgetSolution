@@ -104,42 +104,87 @@ This project uses a modern, separated architecture to ensure security, stability
 
 ---
 
-## 🚀 Getting Started (Local Development)
+# 🚀 Getting Started (Local Development)
 
-Follow these instructions to get the project running on your local machine for development and testing purposes.
+> **Recommended dev mode:** MariaDB in Docker; Backend & Frontend run natively with hot-reload.
+> **Prod:** `.env` (only). **Dev:** backend uses **user-secrets**, frontend uses **`.env.local`**.
 
-### 1. Clone repo, create .env file.
-### 2. Run the full stack with a single command:
-      docker compose -f docker-compose.dev.yml up
-> assuming you have a docker-compose.dev.yml file for local dev)
- Your backend and frontend will be running in containers,
- and you can use docker compose exec to run commands inside them.
+## 1) One-time setup
 
-## 🧪 Dev seeding (users)
+**Backend (user-secrets)**
 
-A small CLI (`Backend.Tools`) seeds a user in **dev**. It runs inside the dev compose network and bypasses CAPTCHA (CLI-only) when `ALLOW_SEEDING=true`.
+```bash
+cd Backend
+dotnet user-secrets init
+
+# DB (host → container DB via 127.0.0.1)
+dotnet user-secrets set "DatabaseSettings:ConnectionString" "Server=127.0.0.1;Port=3306;Database=steenbudgetDEV;User=app;Password=apppwd;Connection Timeout=3;Default Command Timeout=30;SslMode=None"
+
+# JWT & misc
+dotnet user-secrets set "JwtSettings:SecretKey" "base64:REPLACE_ME"
+dotnet user-secrets set "RECAPTCHA_SECRET_KEY" "dev-secret"
+dotnet user-secrets set "WEBSOCKET_SECRET" "dev-secret"
+dotnet user-secrets set "AppUrls:FrontendBase" "http://localhost:5173"
+dotnet user-secrets set "AppUrls:VerifyUrl" "http://localhost:5173/verify-email?token={token}"
+dotnet user-secrets set "AppUrls:ResetPasswordUrl" "http://localhost:5173/reset-password?token={token}"
+```
+
+**Frontend (`Frontend/.env.local`)**
+
+```ini
+VITE_API_URL=http://localhost:5001
+VITE_RECAPTCHA_SITE_KEY=dev-site-key
+VITE_USE_MOCK=false
+```
+
+## 2) Start services
+
+**MariaDB (Docker)**
+
+```bash
+docker compose -f docker-compose.dev.yml up -d db
+```
+
+**Backend (hot-reload)**
+
+```bash
+cd Backend
+DOTNET_USE_POLLING_FILE_WATCHER=true dotnet watch run --urls http://localhost:5001
+```
+
+**Frontend (Vite HMR)**
+
+```bash
+cd Frontend
+npm install
+npm run dev
+```
+
+---
+
+# 🧪 Dev seeding (users)
+
+A small CLI (`Backend.Tools`) seeds a user in **dev**. It runs **inside** the dev compose network and bypasses CAPTCHA when `ALLOW_SEEDING=true`.
 
 **One-off run**
+
 ```bash
-docker compose -f docker-compose.dev.yml run --rm seed-users
-
-Env you can tweak
-
-SEED_EMAIL=l@l.se
-SEED_PASSWORD=P@ssw0rd!
-SEED_FIRST=John
-SEED_LAST=Doe
+docker compose -f docker-compose.dev.yml --profile seed run --rm seed-users
 ```
-Requirements
 
-    .env.dev must contain a Docker-internal connection string (Already in the .dev.example!):
-    DATABASESETTINGS__CONNECTIONSTRING=Server=db;Port=3306;Database=steenbudgetDEV;User=app;Password=apppwd;Connection Timeout=3;Default Command Timeout=3;GuidFormat=Binary16;OldGuids=false
+**Override on the fly (optional)**
 
-    Service name: seed-users (see docker-compose.dev.yml)
+```bash
+docker compose -f docker-compose.dev.yml --profile seed run --rm \
+  -e SEED_EMAIL=jane@doe.se -e SEED_PASSWORD=ChangeMe123 \
+  -e SEED_FIRST=Jane -e SEED_LAST=Doe \
+  seed-users
+```
 
-    ⚠️ Dev-only. Not included in prod compose. Uses ALLOW_SEEDING=true and a no-op reCAPTCHA implementation in the Tools host.
+**Requirements**
 
-
+* The seeder container uses a **Docker-internal** connection string (`Server=db;...`) already set in `docker-compose.dev.yml`.
+* Service name: `seed-users`.
 
 ---
 ## High-Level System Flowchart
