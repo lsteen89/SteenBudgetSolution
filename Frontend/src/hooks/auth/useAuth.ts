@@ -3,7 +3,7 @@ import { useAuthStore } from '@/stores/Auth/authStore';
 import { callLogin, callLogout } from '@/api/Auth/auth';
 import { api } from '@/api/axios';
 import type { UserLoginDto } from '@myTypes/User/Auth/userLoginForm';
-import type { LoginRes } from '@/types/User/Auth/authTypes';
+type LoginRes = Awaited<ReturnType<typeof callLogin>>;
 import type { UserDto } from '@myTypes/User/UserDto';
 
 export function useAuth() {
@@ -15,30 +15,48 @@ export function useAuth() {
   const isAuthInitialized = useAuthStore(s => s.authProviderInitialized);
   const currentRememberMe = useAuthStore(s => s.rememberMe);
 
-  const login = useCallback(async (dto: UserLoginDto, rememberMe: boolean): Promise<LoginRes> => {
-    const res = await callLogin(dto, rememberMe); // Assuming callLogin now takes rememberMe
+  const login = useCallback(
+    async (dto: UserLoginDto, rememberMe: boolean): Promise<LoginRes> => {
+      // Build a clean payload: coerce null → undefined and only include captchaToken if present
+      const payload = {
+        email: dto.email,
+        password: dto.password,
+        rememberMe,
+        ...(dto.captchaToken ? { captchaToken: dto.captchaToken } : {}),
+      } as const;
 
-    if (!res.success || !res.sessionId || !res.accessToken || !res.persoid) {
-      // If login is not successful, but we want to ensure store reflects an initialized state (e.g. to show login page)
-      // This depends on whether callLogin failing should still mark auth as "initialized"
-      // For now, assuming AuthProvider handles the base initialization.
+      const res = await callLogin(payload);
+
+      if (!res.success) return res; // res is union; only proceed on success
+
+      const {
+        accessToken,
+        sessionId,
+        persoId,
+        wsMac,
+        rememberMe: rememberFromBE,
+      } = res.data;
+
+      setAuthAction(
+        accessToken,
+        sessionId,
+        persoId,
+        wsMac ?? null,
+        rememberFromBE ?? rememberMe
+      );
+      api.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+      try {
+        const { data: me } = await api.get<UserDto>('/api/users/me');
+        mergeUserAction(me);
+      } catch (err) {
+        console.error('[auth] fetch /me failed:', err);
+      }
+
       return res;
-    }
-
-    // Ensure wsMac is handled correctly (null if undefined)
-    setAuthAction(res.accessToken, res.sessionId, res.persoid, res.wsMac ?? null, rememberMe);
-    api.defaults.headers.common.Authorization = `Bearer ${res.accessToken}`;
-
-    try {
-      const { data: me } = await api.get<UserDto>('/api/users/me');
-      mergeUserAction(me);
-    } catch (err) {
-      console.error("Failed to fetch user details after login:", err);
-      // Potentially clear user data or handle error if this is critical
-    }
-
-    return res;
-  }, [setAuthAction, mergeUserAction]); // Dependencies are stable store actions
+    },
+    [setAuthAction, mergeUserAction]
+  );
 
   const logout = useCallback(async () => {
     await callLogout(); // callLogout should handle clearing store (which sets authProviderInitialized=true)

@@ -64,41 +64,46 @@
 import React from 'react';
 import clsx from "clsx";
 
-  interface SubmitButtonProps {
-    isSubmitting: boolean;
-    label?: string;
-    onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void; 
-    style?: React.CSSProperties;
-    type?: 'button' | 'submit' | 'reset';
-    size?: 'small' | 'large' | 'default';
-    enhanceOnHover?: boolean; // Optional flag for enhanced hover behavior
-    icon?: React.ReactNode; // Optional icon prop
-    className?: string; // optional className prop
-  }
+interface SubmitButtonProps {
+  isSubmitting: boolean;
+  label?: string;
+  onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  style?: React.CSSProperties;
+  type?: 'button' | 'submit' | 'reset';
+  size?: 'small' | 'large' | 'default';
+  enhanceOnHover?: boolean; // Optional flag for enhanced hover behavior
+  icon?: React.ReactNode; // Optional icon prop
+  className?: string; // optional className prop
+  disabled?: boolean;
+}
 
-  const sizeClasses = {
-    small: 'text-[16px] py-2 px-4',
-    default: 'text-[20px] py-3 px-6',
-    large: 'text-[32px] py-4 px-8',
-  };
+const sizeClasses = {
+  small: 'text-[16px] py-2 px-4',
+  default: 'text-[20px] py-3 px-6',
+  large: 'text-[32px] py-4 px-8',
+};
 
 
 
-  const SubmitButton: React.FC<SubmitButtonProps> = ({
-    isSubmitting,
-    label = 'Submit',
-    onClick, // We will use this directly
-    style,
-    type = 'button',
-    size = 'default',
-    enhanceOnHover = false,
-    icon,
-    className = '',
-  }) => {
+const SubmitButton: React.FC<SubmitButtonProps> = ({
+  isSubmitting,
+  label = 'Submit',
+  onClick, // We will use this directly
+  style,
+  type = 'button',
+  size = 'default',
+  enhanceOnHover = false,
+  icon,
+  className = '',
+  disabled = false,
+}) => {
+
+  const isDisabled = isSubmitting || disabled;
+
   return (
     <button
       type={type}
-      disabled={isSubmitting}
+      disabled={isDisabled}
       onClick={onClick}
       style={style}
       className={clsx(
@@ -107,16 +112,14 @@ import clsx from "clsx";
         sizeClasses[size],
 
         /* base colours (only applied when caller hasn’t overridden them) */
-        !isSubmitting && "bg-lime-500 text-slate-900",
+        isDisabled && "bg-gray-300 text-gray-600 cursor-not-allowed",
+        !isDisabled && "bg-lime-500 text-slate-900",
 
-        /* disabled */
-        isSubmitting && "bg-gray-300 text-gray-600 cursor-not-allowed",
-
-        /* hover variants (when not submitting) */
-        !isSubmitting &&
-          (enhanceOnHover
-            ? "hover:bg-[#001F3F] hover:text-white hover:scale-110"
-            : "hover:bg-lime-400"),
+        /* hover variants (only when not disabled) */
+        !isDisabled &&
+        (enhanceOnHover
+          ? "hover:bg-[#001F3F] hover:text-white hover:scale-110"
+          : "hover:bg-lime-400"),
 
 
         className,
@@ -132,17 +135,15 @@ import clsx from "clsx";
         <>
           {icon && (
             <span
-              className={`mr-2 transition-colors duration-300 ${
-                enhanceOnHover ? 'hover:text-white' : ''
-              }`}
+              className={`mr-2 transition-colors duration-300 ${enhanceOnHover ? 'hover:text-white' : ''
+                }`}
             >
               {icon}
             </span>
           )}
           <span
-            className={`transition-colors duration-300 ${
-              enhanceOnHover ? 'hover:text-white' : ''
-            }`}
+            className={`transition-colors duration-300 ${enhanceOnHover ? 'hover:text-white' : ''
+              }`}
           >
             {label}
           </span>

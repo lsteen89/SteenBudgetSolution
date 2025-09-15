@@ -40,7 +40,7 @@ public class ExpiredTokenScanner : BackgroundService
         {
             try
             {
-                using var scope = _scopeFactory.CreateScope();
+                await using var scope = _scopeFactory.CreateAsyncScope();
                 // resolve everything from this scope:
                 var repo = scope.ServiceProvider.GetRequiredService<IRefreshTokenRepository>();
                 var wsMgr = scope.ServiceProvider.GetRequiredService<IWebSocketManager>();

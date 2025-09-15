@@ -10,5 +10,6 @@ public interface IUnitOfWork : IAsyncDisposable
     Task BeginTransactionAsync(CancellationToken ct);
     Task CommitAsync(CancellationToken ct);
     Task RollbackAsync(CancellationToken ct);
+    Task<DbConnection> GetOpenConnectionAsync(CancellationToken ct = default);
 }
 

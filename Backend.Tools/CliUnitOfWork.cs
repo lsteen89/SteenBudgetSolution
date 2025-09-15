@@ -53,7 +53,13 @@ public sealed class CliUnitOfWork : IUnitOfWork
         await _transaction.RollbackAsync(ct);
         await DisposeTransactionAsync();
     }
-
+    public async Task<DbConnection> GetOpenConnectionAsync(CancellationToken ct = default)
+    {
+        if (_disposed) throw new ObjectDisposedException(nameof(CliUnitOfWork));
+        if (_connection.State != ConnectionState.Open)
+            await _connection.OpenAsync(ct).ConfigureAwait(false);
+        return _connection;
+    }
     public async ValueTask DisposeAsync()
     {
         if (_disposed) return;

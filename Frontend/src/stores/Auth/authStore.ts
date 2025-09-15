@@ -7,7 +7,7 @@ import { api } from '@/api/axios'; // Assuming this is your configured axios ins
 interface AuthSlice {
   accessToken: string | null;
   sessionId: string | null;
-  persoid: string | null;
+  persoId: string | null;
   wsMac: string | null;
   user: UserDto | null;
   isLoading: boolean;            // For operational loading (e.g., login process)
@@ -36,7 +36,7 @@ interface AuthSlice {
 
 // Persisted type should only include what needs to be saved to localStorage
 type Persisted = Pick<AuthSlice,
-  'accessToken' | 'sessionId' | 'persoid' | 'wsMac' | 'user' | 'rememberMe'>;
+  'accessToken' | 'sessionId' | 'persoId' | 'wsMac' | 'user' | 'rememberMe'>;
 
 function getTokenExp(token: string): number | null {
   try {
@@ -54,7 +54,7 @@ export const useAuthStore = create<AuthSlice>()(
     (set, get) => ({
       accessToken: null,
       sessionId: null,
-      persoid: null,
+      persoId: null,
       wsMac: null,
       user: null,
       isLoading: false,
@@ -71,7 +71,7 @@ export const useAuthStore = create<AuthSlice>()(
         set({
           accessToken: tok,
           sessionId: sid,
-          persoid: pid,
+          persoId: pid,
           wsMac: mac,
           rememberMe: remember,
           isLoading: false,
@@ -95,7 +95,7 @@ export const useAuthStore = create<AuthSlice>()(
         set({
           accessToken: null,
           sessionId: null,
-          persoid: null,
+          persoId: null,
           wsMac: null,
           user: null,
           isLoading: false,
@@ -122,7 +122,7 @@ export const useAuthStore = create<AuthSlice>()(
       partialize: (state): Persisted => ({
         accessToken: state.accessToken,
         sessionId: state.sessionId,
-        persoid: state.persoid,
+        persoId: state.persoId,
         user: state.user,
         wsMac: state.wsMac,
         rememberMe: state.rememberMe,

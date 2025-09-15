@@ -49,12 +49,14 @@ namespace Backend.Infrastructure.WebSockets
         private bool _logoutOnStaleConnection;
         private TimeSpan _pongTimeout;
         private readonly IServiceScopeFactory _scopeFactory;
+        private readonly ITimeProvider _time;
         private readonly IWebHostEnvironment _env;
 
-        public WebSocketManager(ILogger<WebSocketManager> logger, IOptions<WebSocketHealthCheckSettings> options, IServiceScopeFactory scopeFactory, IWebHostEnvironment env)
+        public WebSocketManager(ILogger<WebSocketManager> logger, IOptions<WebSocketHealthCheckSettings> options, ITimeProvider time, IServiceScopeFactory scopeFactory, IWebHostEnvironment env)
         {
             _logger = logger;
             _settings = options.Value;
+            _time = time;
             _missedPongThreshold = _settings.MissedPongThreshold;
             _logoutOnStaleConnection = _settings.LogoutOnStaleConnection;
             _pongTimeout = _settings.PongTimeout;
@@ -323,29 +325,44 @@ namespace Backend.Infrastructure.WebSockets
                             else if (receivedMessage.StartsWith("AUTH-REFRESH ", StringComparison.OrdinalIgnoreCase))
                             {
                                 var jwtRaw = receivedMessage["AUTH-REFRESH ".Length..];
-                                ClaimsPrincipal? principal = null;
 
-                                using (var scope = _scopeFactory.CreateScope())
+                                string? kid = null;
+                                try
                                 {
+                                    // Optional: log kid to debug key-ring mismatches
+                                    try
+                                    {
+                                        var hdr = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler()
+                                                    .ReadJwtToken(jwtRaw).Header;
+                                        kid = hdr.Kid;
+                                    }
+                                    catch { /* ignore parse/logging errors */ }
+
+                                    await using var scope = _scopeFactory.CreateAsyncScope();
                                     var jwtSvc = scope.ServiceProvider.GetRequiredService<IJwtService>();
-                                    principal = jwtSvc.ValidateToken(jwtRaw, ct);
+
+                                    // Choose policy: allowExpired=false is stricter; true is okay if you only use this to reattach identity.
+                                    var principal = jwtSvc.ValidateToken(jwtRaw, ct: ct, allowExpired: false);
+
+                                    if (principal is not null)
+                                    {
+                                        conn.Principal = principal;
+                                        _logger.LogInformation("[WS SVR] AUTH-REFRESH ok uid={Uid} sid={Sid} kid={Kid}", key.Persoid, key.SessionId, kid);
+                                        await SafeSendAsync(key, "reauth-ok");
+                                    }
+                                    else
+                                    {
+                                        _logger.LogWarning("[WS SVR] AUTH-REFRESH fail (invalid) uid={Uid} sid={Sid} kid={Kid}", key.Persoid, key.SessionId, kid);
+                                        await SafeSendAsync(key, "reauth-fail");
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    _logger.LogError(ex, "[WS SVR] AUTH-REFRESH crashed uid={Uid} sid={Sid} kid={Kid}", key.Persoid, key.SessionId, kid);
+                                    await SafeSendAsync(key, "reauth-fail");
+                                    // DO NOT rethrow — keeps the socket alive; loop continues
                                 }
 
-                                if (principal != null)
-                                {
-                                    conn.Principal = principal; // Update stored claims principal
-                                    _logger.LogInformation($"[WS SVR] AUTH-REFRESH successful for User: {key.Persoid}, Session: {key.SessionId}.");
-                                    const string responseMessage = "reauth-ok";
-                                    _logger.LogDebug($"[WS SVR → SENDING TO User: {key.Persoid}, Session: {key.SessionId}] Body: \"{responseMessage}\"");
-                                    await SendMessageAsync(key, responseMessage);
-                                }
-                                else
-                                {
-                                    _logger.LogWarning($"[WS SVR] AUTH-REFRESH failed for User: {key.Persoid}, Session: {key.SessionId}. Invalid token provided.");
-                                    const string responseMessage = "reauth-fail";
-                                    _logger.LogDebug($"[WS SVR → SENDING TO User: {key.Persoid}, Session: {key.SessionId}] Body: \"{responseMessage}\"");
-                                    await SendMessageAsync(key, responseMessage);
-                                }
                                 continue;
                             }
                             else // --- This is the path for messages not matching "logout", "pong", or "AUTH-REFRESH" ---
@@ -555,28 +572,38 @@ namespace Backend.Infrastructure.WebSockets
         }
         private void HandlePong(UserSessionKey key, WebSocketConnection conn)
         {
-            DateTime pongReceivedTime;
 
-            // Create a new scope to resolve the scoped ITimeProvider
-            using (var scope = _scopeFactory.CreateScope())
-            {
-                var timeProvider = scope.ServiceProvider.GetRequiredService<ITimeProvider>();
-                pongReceivedTime = timeProvider.UtcNow;
-            }
             // The 'scope' and the 'timeProvider' instance obtained from it are disposed of here.
 
-            conn.LastPongTime = pongReceivedTime;
+            var now = _time.UtcNow;
+            conn.LastPongTime = now;
 
             if (conn.PingSentTime.HasValue)
             {
                 DateTime pingSentAt = conn.PingSentTime.Value;
-                TimeSpan latency = pongReceivedTime - pingSentAt;
+                TimeSpan latency = now - pingSentAt;
 
                 _logger.LogDebug($"[WS SVR] Pong received from User: {key.Persoid}, Session: {key.SessionId}. Latency: {latency.TotalMilliseconds:F0}ms");
             }
             else
             {
                 _logger.LogWarning($"[WS SVR] Pong received from User: {key.Persoid}, Session: {key.SessionId}, but no corresponding PingSentTime was recorded on the connection.");
+            }
+        }
+        private async Task SafeSendAsync(UserSessionKey key, string message)
+        {
+            try
+            {
+                await SendMessageAsync(key, message);
+            }
+            catch (OperationCanceledException) { /* client gone; ignore */ }
+            catch (System.Net.WebSockets.WebSocketException wse)
+            {
+                _logger.LogWarning(wse, "[WS SVR] send failed uid={Uid} sid={Sid}", key.Persoid, key.SessionId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[WS SVR] send failed uid={Uid} sid={Sid}", key.Persoid, key.SessionId);
             }
         }
         #endregion

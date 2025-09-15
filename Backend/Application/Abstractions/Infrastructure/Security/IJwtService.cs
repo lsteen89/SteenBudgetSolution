@@ -8,7 +8,8 @@ namespace Backend.Application.Abstractions.Infrastructure.Security
         AccessTokenResult CreateAccessToken(Guid persoid, string email, IReadOnlyList<string> roles, string deviceId, string userAgent, Guid? sessionId = null);
         string CreateRefreshToken();
         Task<bool> BlacklistJwtTokenAsync(string token, CancellationToken ct = default);
-        ClaimsPrincipal? ValidateToken(string token, CancellationToken ct);
+        ClaimsPrincipal? ValidateToken(string token, CancellationToken ct, bool allowExpired);
+
 
     }
 }

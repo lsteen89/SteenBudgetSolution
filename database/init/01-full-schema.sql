@@ -43,6 +43,13 @@ CREATE TABLE IF NOT EXISTS VerificationToken (
         REFERENCES Users(PersoId) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS FailedLoginAttempts (
+    Id INT AUTO_INCREMENT PRIMARY KEY,
+    PersoId BINARY(16) NOT NULL,
+    AttemptTime DATETIME NOT NULL,
+    IpAddress VARCHAR(45) NULL,
+    CONSTRAINT FK_FailedLoginAttempts_User FOREIGN KEY (PersoId) REFERENCES Users(Persoid) 
+);
 
 -- Create RefreshTokens table
 CREATE TABLE IF NOT EXISTS RefreshTokens (

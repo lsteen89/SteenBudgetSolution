@@ -9,51 +9,46 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 
+
 // Microsoft namespaces
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
 // Third-party packages
-using FluentValidation;
-using FluentValidation.AspNetCore;
 using HealthChecks.UI.Client;
 using Moq;
 using Serilog;
 using Mapster;
 
-
 // Application layer
 using Backend.Application;
 using Backend.Application.Abstractions.Infrastructure.Security;
-using Backend.Application.Options.Email;
-using Backend.Application.Options.URL;
-using Backend.Application.Options.Auth;
-using Backend.Application.Validators;
-using Backend.Application.Mappings;
+using Backend.Application.Abstractions.Infrastructure.Auth;
 
+// Common layer
+using Backend.Common.Services;
 
 // Infrastructure layer
-using Backend.Infrastructure.Data.Sql.Health;
-using Backend.Infrastructure.Implementations;
-using Backend.Infrastructure.WebSockets;
 using Backend.Infrastructure;
+using Backend.Infrastructure.Data.Sql.Health;
+using Backend.Infrastructure.WebSockets;
+using Backend.Infrastructure.Auth;
 
 // Presentation layer
 using Backend.Presentation.Middleware;
 
 // Settings
 using Backend.Settings;
-using Backend.Settings.Email;
-
 
 #endregion
 
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseDefaultServiceProvider(o => { o.ValidateScopes = true; o.ValidateOnBuild = true; });
 
 #region configurationFiles
 // Add configuration files
@@ -61,9 +56,6 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddJsonFile("ExpiredTokenScannerSettings.json", optional: false, reloadOnChange: true);
 builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
 builder.Configuration.AddJsonFile("WebSocketHealthCheckSettings.json", optional: false, reloadOnChange: true);
-
-
-
 
 #endregion
 
@@ -73,12 +65,12 @@ builder.Services.AddDistributedMemoryCache();
 
 // Add environment variables to configuration
 builder.Configuration.AddEnvironmentVariables();
-builder.Services
-    .AddOptions<JwtSettings>()
-    .Bind(builder.Configuration.GetSection("JwtSettings"))
-    .Validate(s => !string.IsNullOrWhiteSpace(s.SecretKey), "JWT secret missing")
-    .Validate(s => GetSigningKeyBytesFromConfigValue(s.SecretKey).Length >= 32, "JWT secret too short (<32 bytes)")
-    .ValidateOnStart();
+
+// Mapster config + mapper
+var mapsterConfig = TypeAdapterConfig.GlobalSettings;
+// Scan the assemblies that contain your mappings (adjust as needed)
+mapsterConfig.Scan(Assembly.GetExecutingAssembly());
+builder.Services.AddSingleton(mapsterConfig);
 
 // WEBSOCKET_SECRET configuration
 var secret = builder.Configuration["WEBSOCKET_SECRET"]!;
@@ -87,8 +79,9 @@ builder.Services.Configure<WebSocketSettings>(o => o.Secret = secret);
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
 // Set up JWT settings
-builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
-var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();
+builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
+builder.Services.AddSingleton(sp => sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<JwtSettings>>().Value);
+builder.Services.AddSingleton<IJwtKeyRing, HsKeyRing>();
 
 
 // Add JsonOptions to use camelCase for JSON properties
@@ -127,7 +120,7 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 // Log the file path after Serilog is initialized
 Log.Information($"Log file path: {logFilePath}");
-Log.Information("JWT Expiry Minutes: {ExpiryMinutes}", jwtSettings?.ExpiryMinutes);
+//Log.Information("JWT Expiry Minutes: {ExpiryMinutes}", jwtSettings?.ExpiryMinutes);
 
 // Set Serilog as the logging provider
 builder.Host.UseSerilog();
@@ -237,6 +230,10 @@ builder.Services.AddRateLimiter(options =>
 // Add controllers to support routing
 builder.Services.AddControllers();
 
+builder.Services.AddHttpClient<IRecaptchaService, RecaptchaService>(c =>
+{
+    c.Timeout = TimeSpan.FromSeconds(5);
+});
 // Add Swagger services
 builder.Services.AddSwaggerGen();
 
@@ -272,64 +269,71 @@ builder.Services.AddCors(options =>
 // JwtBearer pipeline
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
-var rawSecret = GetRawJwtSecret(builder.Configuration);
-var keyBytes = GetSigningKeyBytesFromConfigValue(rawSecret);
-
-var jwtParams = new TokenValidationParameters
-{
-    ValidateIssuerSigningKey = true,
-    IssuerSigningKey = new SymmetricSecurityKey(keyBytes), // Use the key bytes from the configuration
-    ValidateIssuer = false,
-    ValidateAudience = false,
-    ValidateLifetime = true,
-    ClockSkew = TimeSpan.Zero
-};
 
 builder.Services.AddAuthentication(o =>
 {
     o.DefaultAuthenticateScheme = "AccessScheme";
     o.DefaultChallengeScheme = "AccessScheme";
 })
-//  Access + lifetime 
-.AddJwtBearer("AccessScheme", o =>
-{
-    o.TokenValidationParameters = jwtParams;
+.AddJwtBearer("AccessScheme", _ => { })      // options come from AddOptions below
+.AddJwtBearer("RefreshScheme", _ => { });
+
+builder.Services.AddOptions<JwtBearerOptions>("AccessScheme")
+  .Configure<IJwtKeyRing, JwtSettings>((o, ring, jwt) =>
+  {
+      o.MapInboundClaims = false;
+      o.TokenValidationParameters = new TokenValidationParameters
+      {
+          ValidIssuer = jwt.Issuer,
+          ValidAudience = jwt.Audience,
+          ValidateIssuer = true,
+          ValidateAudience = true,
+          ValidateIssuerSigningKey = true,
+          IssuerSigningKeyResolver = (token, st, kid, p) =>
+              kid is not null && ring.All.TryGetValue(kid, out var k)
+                  ? new[] { k }
+                  : ring.All.Values.ToArray(),
+          ValidAlgorithms = new[] { SecurityAlgorithms.HmacSha256 },
+          ValidateLifetime = true,
+          ClockSkew = TimeSpan.FromSeconds(30)
+      };
+
+      // Resolve scoped services PER REQUEST here (safe)
+      o.Events = new JwtBearerEvents
+      {
+          OnTokenValidated = async ctx =>
+          {
+              var blacklist = ctx.HttpContext.RequestServices
+                                             .GetRequiredService<ITokenBlacklistService>();
+              var jti = ctx.Principal?.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
+              if (jti != null && await blacklist.IsTokenBlacklistedAsync(jti))
+                  ctx.Fail("revoked");
+          }
+      };
+  });
 
 
-    o.MapInboundClaims = false;
-
-    // --- END: Explicit configuration ---
-
-
-    o.Events = new JwtBearerEvents
-    {
-        OnTokenValidated = async ctx =>
-        {
-            var repo = ctx.HttpContext.RequestServices.GetRequiredService<ITokenBlacklistService>();
-            var logger = ctx.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>(); // Or ILogger<Startup>
-            var ct = CancellationToken.None; // Use a default cancellation token
-
-            var jti = ctx.Principal?.FindFirstValue(JwtRegisteredClaimNames.Jti);
-            if (jti != null && await repo.IsTokenBlacklistedAsync(jti))
-            {
-                logger.LogWarning("Rejected JTI {jti} black-listed", jti);
-                ctx.Fail("revoked");
-            }
-        }
-    };
-})
-//  Refresh lifetime 
-.AddJwtBearer("RefreshScheme", o =>
-{
-    var p = jwtParams.Clone();
-    p.ValidateLifetime = false;
-    o.TokenValidationParameters = p;
-    o.MapInboundClaims = false;
-});
+builder.Services.AddOptions<JwtBearerOptions>("RefreshScheme")
+  .Configure<IJwtKeyRing, JwtSettings>((o, ring, jwt) =>
+  {
+      o.MapInboundClaims = false;
+      o.TokenValidationParameters = new TokenValidationParameters
+      {
+          ValidIssuer = jwt.Issuer,
+          ValidAudience = jwt.Audience,
+          ValidateIssuer = true,
+          ValidateAudience = true,
+          ValidateIssuerSigningKey = true,
+          IssuerSigningKeyResolver = (token, st, kid, p) =>
+            kid is not null && ring.All.TryGetValue(kid, out var k)
+              ? new[] { k }
+              : ring.All.Values.ToArray(),
+          ValidAlgorithms = new[] { SecurityAlgorithms.HmacSha256 },
+          ValidateLifetime = false
+      };
+  });
 
 builder.Services.AddAuthorization();
-// jwtParams needed elsewhere (e.g. token generator)
-builder.Services.AddSingleton(jwtParams);
 
 // Add HttpContextAccessor
 builder.Services.AddHttpContextAccessor();
@@ -452,33 +456,7 @@ app.Run();
 #endregion
 
 #region Helper Methods
-static byte[] GetSigningKeyBytesFromConfigValue(string raw)
-{
-    if (string.IsNullOrWhiteSpace(raw))
-        throw new InvalidOperationException("JWT secret missing");
 
-    if (raw.StartsWith("base64:", StringComparison.OrdinalIgnoreCase))
-        return Convert.FromBase64String(raw["base64:".Length..].Trim());
-
-    var bytes = Encoding.UTF8.GetBytes(raw);
-    if (bytes.Length < 32)
-        throw new InvalidOperationException("JWT secret too short. Use >= 32 bytes or base64:...");
-    return bytes;
-}
-
-// Helper that checks both config key and legacy env var:
-string GetRawJwtSecret(IConfiguration cfg)
-{
-    // Primary: bound settings (supports `JwtSettings__SecretKey`)
-    var fromSettings = cfg["JwtSettings:SecretKey"];
-    if (!string.IsNullOrWhiteSpace(fromSettings)) return fromSettings;
-
-    // Legacy/backup: plain env var
-    var legacy = cfg["JWT_SECRET_KEY"]; // because AddEnvironmentVariables() added envs to cfg
-    if (!string.IsNullOrWhiteSpace(legacy)) return legacy;
-
-    throw new InvalidOperationException("No JWT secret found in JwtSettings:SecretKey or JWT_SECRET_KEY");
-}
 #endregion
 
 // Declare partial Program class
