@@ -22,7 +22,9 @@ public sealed class FinalizeWizardCommandHandler
         _stepProcessors = stepProcessors;
         _logger = logger;
     }
-
+    // This method will have to create a budgetId and pass it to each step processor.
+    // Each step processor will handle its own part of the budget creation.
+    // Then return it. 
     public async Task<Result> Handle(FinalizeWizardCommand request, CancellationToken ct)
     {
         var wizardData = await _wizardRepository.GetRawStepDataForFinalizationAsync(request.SessionId, ct);

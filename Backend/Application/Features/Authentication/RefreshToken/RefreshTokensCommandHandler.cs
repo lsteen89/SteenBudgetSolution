@@ -47,7 +47,7 @@ public sealed class RefreshTokensCommandHandler : IRequestHandler<RefreshTokensC
     public async Task<Result<AuthResult>> Handle(RefreshTokensCommand c, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(c.RefreshCookie) || c.SessionId == Guid.Empty)
-            return Result.Failure<AuthResult>(UserErrors.InvalidRefreshToken);
+            return Result<AuthResult>.Failure(UserErrors.InvalidRefreshToken);
 
         using var _ = _log.BeginScope(new Dictionary<string, object?> { ["SessionId"] = c.SessionId, ["DeviceId"] = c.DeviceId });
         var now = _clock.UtcNow;
@@ -56,11 +56,12 @@ public sealed class RefreshTokensCommandHandler : IRequestHandler<RefreshTokensC
         {
             var cookieHash = TokenGenerator.HashToken(c.RefreshCookie);
             var current = await _refreshRepo.GetActiveByCookieForUpdateAsync(c.SessionId, cookieHash, now, ct);
-            if (current is null) return Result.Failure<AuthResult>(UserErrors.InvalidRefreshToken);
+            if (current is null)
+                return Result<AuthResult>.Failure(UserErrors.InvalidRefreshToken);
 
             var user = await _userRepo.GetUserModelAsync(ct: ct, persoid: current.Persoid);
             if (user is null || string.IsNullOrWhiteSpace(user.Email))
-                return Result.Failure<AuthResult>(UserErrors.RefreshUserNotFound);
+                return Result<AuthResult>.Failure(UserErrors.RefreshUserNotFound);
 
             IReadOnlyList<string> roles = new[] { "User" };
             var at = _jwt.CreateAccessToken(current.Persoid, user.Email, roles, c.DeviceId, c.UserAgent, c.SessionId);
@@ -97,7 +98,7 @@ public sealed class RefreshTokensCommandHandler : IRequestHandler<RefreshTokensC
             }
 
             var wsMac = WebSocketAuth.MakeWsMac(current.Persoid, current.SessionId, _wsCfg.Secret);
-            return Result.Success(new AuthResult(at.Token, newPlain, user.PersoId, at.SessionId, wsMac, current.IsPersistent));
+            return Result<AuthResult>.Success(new AuthResult(at.Token, newPlain, user.PersoId, at.SessionId, wsMac, current.IsPersistent));
         }
         catch (OperationCanceledException)
         {

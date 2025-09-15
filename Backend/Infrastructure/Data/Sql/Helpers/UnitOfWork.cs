@@ -131,4 +131,16 @@ public sealed class UnitOfWork : IUnitOfWork
             await _conn.DisposeAsync().ConfigureAwait(false);
         }
     }
+    public async Task<DbConnection> GetOpenConnectionAsync(CancellationToken ct = default)
+    {
+        ThrowIfDisposed();
+
+        if (_conn is null)
+            _conn = new MySqlConnection(_opt.ConnectionString);
+
+        if (_conn.State != ConnectionState.Open)
+            await _conn.OpenAsync(ct).ConfigureAwait(false);
+
+        return _conn;
+    }
 }

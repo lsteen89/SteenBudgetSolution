@@ -27,9 +27,10 @@ namespace Backend.Presentation.Controllers
             _logger = logger;
         }
         [HttpPost("start")]
-        [ProducesResponseType(typeof(Guid), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<Guid>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> StartWizard(CancellationToken ct)
+        [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status401Unauthorized)]
+        public async Task<ActionResult<ApiResponse<Guid>>> StartWizard(CancellationToken ct)
         {
             Guid? userId = User.GetPersoid();
             if (!userId.HasValue)
@@ -40,19 +41,17 @@ namespace Backend.Presentation.Controllers
             var command = new StartWizardCommand(userId.Value);
             var result = await _mediator.Send(command, ct);
 
-            return result.ToActionResult();
+            return result.ToApiResponse();
         }
 
         [HttpPut("{sessionId:guid}/steps/{stepNumber:int}/{subStepNumber:int}")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status403Forbidden)]
         [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> SaveStepData(
             Guid sessionId, int stepNumber, int subStepNumber, [FromBody] WizardStepDto dto, CancellationToken ct)
         {
-            // Authorization is a critical first step. Does this user even own this session?
-            // 1. Authorize
             var persoid = User.GetPersoid();
             if (!persoid.HasValue || !await AuthorizeSession(sessionId, ct))
             {
@@ -60,26 +59,33 @@ namespace Backend.Presentation.Controllers
             }
 
             var command = new SaveWizardStepCommand(sessionId, stepNumber, subStepNumber, dto.StepData, dto.DataVersion);
-            var result = await _mediator.Send(command, ct);
+            var result = await _mediator.Send(command, ct); // This returns a non-generic Result
 
-            return result.ToCommandResult("Step saved successfully.");
+            return result.ToApiResponse();
         }
         [HttpGet("{sessionId:guid}")]
         [ProducesResponseType(typeof(ApiResponse<WizardSavedDataDTO>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> GetWizardData(Guid sessionId, CancellationToken ct)
+        public async Task<ActionResult<ApiResponse<WizardSavedDataDTO?>>> GetWizardData(Guid sessionId, CancellationToken ct)
         {
-            // 1. Authorize
-            if (!await AuthorizeSession(sessionId, ct)) return Forbid();
+            // 1. Authorize - does this user own this session?
+            // A better long-term solution might be a custom Authorization policy or attribute.
+            if (!await AuthorizeSession(sessionId, ct))
+            {
+                return Forbid();
+            }
 
-            // 2. Send the query to get the data
+            // 2. Send the query
             var query = new GetWizardDataQuery(sessionId);
             var result = await _mediator.Send(query, ct);
 
-            // 3. Handle the result
-            return result.ToActionResult();
+            // 3. Convert result to HTTP response using the extension method
+            return result.ToApiResponse();
         }
+
+        // This endpoint finalizes the wizard and creates the budget.
+        // Implement the creation of the budgetId and return it
         // POST /api/wizard/{sessionId}/complete
         [HttpPost("{sessionId:guid}/complete")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]

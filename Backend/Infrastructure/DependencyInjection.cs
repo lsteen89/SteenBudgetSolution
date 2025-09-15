@@ -29,6 +29,7 @@ using Backend.Infrastructure.Repositories.User;
 using Backend.Infrastructure.Security;
 using Backend.Settings;
 using Backend.Settings.Email;
+using Backend.Infrastructure.Data.Repositories;
 
 namespace Backend.Infrastructure;
 
@@ -98,10 +99,16 @@ public static class DependencyInjection
         services.AddScoped<IExpenditureRepository, ExpenditureRepository>();
         services.AddScoped<IIncomeRepository, IncomeRepository>();
         services.AddScoped<ISavingsRepository, SavingsRepository>();
+        services.AddScoped<IIncomeRepository, IncomeRepository>();
+
+        // Wizard
+        services.AddScoped<IWizardRepository, WizardRepository>();
 
         // User
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IUserAuthenticationRepository, UserAuthenticationRepository>();
+
+        // End of repositories
 
         // Recaptcha service
         services.AddHttpClient<IRecaptchaService, RecaptchaService>();
@@ -112,7 +119,7 @@ public static class DependencyInjection
         services.AddScoped<IEmailService, EmailService>();
 
         // Other various services
-        services.AddScoped<ITimeProvider, Backend.Common.Services.TimeProvider>();
+        services.AddSingleton<ITimeProvider, Backend.Common.Services.TimeProvider>();
         services.AddScoped<ICookieService, CookieService>();
 
         // JWT Service

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { useAuthStore }      from '@/stores/Auth/authStore';
-import { callLogout }        from '@/api/Auth/auth';     
+import { useAuthStore } from '@/stores/Auth/authStore';
+import { callLogout } from '@/api/Auth/auth';
 
 /**
  * Keeps an auth-WebSocket alive, replies to health-check pings,
@@ -11,20 +11,20 @@ export function useAuthWs() {
   // Select individual primitive states and stable actions for dependencies
   const accessToken = useAuthStore(s => s.accessToken);
   const sessionId = useAuthStore(s => s.sessionId);
-  const persoid = useAuthStore(s => s.persoid); // Using primitive persoid directly
+  const persoId = useAuthStore(s => s.persoId); // Using primitive persoId directly
   const wsMac = useAuthStore(s => s.wsMac);
   const clearStoreAction = useAuthStore(s => s.clear); // The clear action from the store
   const setWsReady = useAuthStore(s => s.setIsWsReady);   // Action to set WebSocket ready state
 
-  const wsRef      = useRef<WebSocket>();
+  const wsRef = useRef<WebSocket>();
   const backoffRef = useRef(1_000); // Initial backoff delay for retries
-  const tRef       = useRef<NodeJS.Timeout>(); // Timeout ID for retry scheduling
+  const tRef = useRef<NodeJS.Timeout>(); // Timeout ID for retry scheduling
 
-  /* ① Connect once — triggered by changes in sessionId, persoid, wsMac, or clearStoreAction */
+  /* ① Connect once — triggered by changes in sessionId, persoId, wsMac, or clearStoreAction */
   useEffect(() => {
     // Guard: Only proceed if all necessary parameters for connection are available
-    if (!sessionId || !persoid || !wsMac) {
-      console.log('[WS] Prerequisites for WebSocket connection not met (sessionId, persoid, or wsMac missing).');
+    if (!sessionId || !persoId || !wsMac) {
+      console.log('[WS] Prerequisites for WebSocket connection not met (sessionId, persoId, or wsMac missing).');
       // Ensure WebSocket is marked as not ready if it was previously, and cleanup any existing connection.
       if (wsRef.current) {
         wsRef.current.close(1000, 'Auth params became invalid');
@@ -45,33 +45,48 @@ export function useAuthWs() {
 
     /** Opens a socket (used on mount & back-off retry) */
     const open = () => {
+
+      function toWsBase(httpBase: string) {
+        // http://localhost:5001  -> ws://localhost:5001
+        // https://ebudget.se     -> wss://ebudget.se
+        return httpBase
+          .replace(/^http:\/\//, 'ws://')
+          .replace(/^https:\/\//, 'wss://')
+          .replace(/\/+$/, ''); // trim trailing slash
+      }
+
+      const httpBase =
+        import.meta.env.VITE_API_URL ?? window.location.origin;
+
+      const base = `${toWsBase(httpBase)}/ws/auth`;
       // Clear any pending retry timeout before attempting a new connection
       if (tRef.current) clearTimeout(tRef.current);
 
       // Double-check auth params right before connecting, in case they were cleared during a delay
       const currentSessionId = useAuthStore.getState().sessionId;
-      const currentPersoid = useAuthStore.getState().persoid;
+      const currentPersoid = useAuthStore.getState().persoId;
       const currentWsMac = useAuthStore.getState().wsMac;
 
       if (!currentSessionId || !currentPersoid || !currentWsMac) {
-          console.log('[WS] Auth details became invalid before scheduled (re)connect. Aborting open.');
-          setWsReady(false);
-          return;
+        console.log('[WS] Auth details became invalid before scheduled (re)connect. Aborting open.');
+        setWsReady(false);
+        return;
       }
-
-      const base =
-        import.meta.env.MODE === 'development'
-          ? 'ws://localhost:5000/ws/auth'   // Use local dev server for WebSocket in development
-          : 'wss://ebudget.se/ws/auth';     // Use production server for WebSocket in production
-
+      /*
+            const base =
+              import.meta.env.MODE === 'development'
+                ? 'ws://localhost:5000/ws/auth'   // Use local dev server for WebSocket in development
+                : 'wss://ebudget.se/ws/auth';     // Use production server for WebSocket in production
+      */
       const url =
         `${base}?sid=${encodeURIComponent(currentSessionId)}` +
-        `&pid=${encodeURIComponent(currentPersoid)}` +
+        `&uid=${encodeURIComponent(currentPersoid)}` +
         `&mac=${encodeURIComponent(currentWsMac)}`;
 
       console.log('[WS 🔌 CONNECTING TO]', url);
       setWsReady(false); // Mark as not ready while connecting
-      const ws = new WebSocket(url, ['hmac-v1']);
+      //const ws = new WebSocket(url, ['hmac-v1']);
+      const ws = new WebSocket(url)
       wsRef.current = ws;
 
       ws.onopen = () => {
@@ -149,7 +164,7 @@ export function useAuthWs() {
         // and if auth parameters still suggest a connection is desired.
         if (ev.code !== 1000 && ev.code !== 1001) {
           const currentAuth = useAuthStore.getState();
-          if (currentAuth.sessionId && currentAuth.persoid && currentAuth.wsMac) {
+          if (currentAuth.sessionId && currentAuth.persoId && currentAuth.wsMac) {
             const retryDelay = backoffRef.current;
             console.log(`[WS] Connection closed unexpectedly. Retrying in ${retryDelay / 1000}s...`);
             tRef.current = setTimeout(open, retryDelay);
@@ -182,7 +197,7 @@ export function useAuthWs() {
       }
       setWsReady(false); // Ensure ready state is false on cleanup
     };
-  }, [sessionId, persoid, wsMac, clearStoreAction, setWsReady]); // Stable primitive dependencies + stable store actions
+  }, [sessionId, persoId, wsMac, clearStoreAction, setWsReady]); // Stable primitive dependencies + stable store actions
 
   /* ② push fresh JWTs in-band */
   useEffect(() => {
@@ -195,9 +210,9 @@ export function useAuthWs() {
     // Ensure WebSocket itself is reported as ready by this hook,
     // AuthProvider is initialized, and we have an access token.
     if (wsRef.current?.readyState === WebSocket.OPEN &&
-        currentWsReadyState &&
-        currentAuthProviderInitialized && // Ensure auth system is stable
-        currentAccessToken) {
+      currentWsReadyState &&
+      currentAuthProviderInitialized && // Ensure auth system is stable
+      currentAccessToken) {
       const authMessage = `AUTH-REFRESH ${currentAccessToken}`;
       console.log('[WS → SENT]', authMessage);
       wsRef.current.send(authMessage);

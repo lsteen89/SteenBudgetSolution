@@ -27,7 +27,7 @@ const schema = object({
 type ReCAPTCHAWithReset = ReCAPTCHA & { reset: () => void };
 
 export default function LoginPage() {
-  const [form, setForm] = useState<UserLoginDto>({ email: '', password: '', captchaToken: '' });
+  const [form, setForm] = useState<UserLoginDto>({ email: '', password: '', captchaToken: null });
   const [err, setErr] = useState<Record<string, string>>({});
   const [sub, setSub] = useState(false);
   // State to track whether the user wants to be remembered on this device.
@@ -41,7 +41,7 @@ export default function LoginPage() {
   if (isLoading) return <CenteredContainer><LoadingScreen /></CenteredContainer>;
   if (accessToken) return <Navigate to="/dashboard" replace />;
 
-  const setField = (k: keyof UserLoginDto, v: string) =>
+  const setField = (k: keyof UserLoginDto, v: string | null) =>
     setForm(f => ({ ...f, [k]: v }));
 
   const validate = async () => {
@@ -68,12 +68,12 @@ export default function LoginPage() {
     // Reset the captcha if login fails
     capRef.current?.reset();
   };
-
+  console.log('SITE KEY LOADED BY VITE:', import.meta.env.VITE_RECAPTCHA_SITE_KEY);
   return (
     <PageContainer centerChildren>
       <ContentWrapper className='2xl:pt-[5%]' centerContent>
         <FormContainer tag="form" onSubmit={onSubmit} bgColor='gradient'
-                       className='z-10 w-full max-h-screen overflow-y-auto'>
+          className='z-10 w-full max-h-screen overflow-y-auto'>
 
           <p className='text-lg font-bold text-gray-800 mb-6 text-center'>
             Välkommen tillbaka! Logga in för att fortsätta
@@ -81,12 +81,12 @@ export default function LoginPage() {
 
           <label className='block mb-2 text-sm'>E-postadress</label>
           <InputField value={form.email} placeholder='Ange e-post'
-                      onChange={e => setField('email', e.target.value)} width='100%' />
+            onChange={e => setField('email', e.target.value)} width='100%' />
           {err.email && <p className='text-sm text-red-500'>{err.email}</p>}
 
           <label className='block mt-4 mb-2 text-sm'>Lösenord</label>
           <InputField type='password' value={form.password} placeholder='Ange lösenord'
-                      onChange={e => setField('password', e.target.value)} width='100%' />
+            onChange={e => setField('password', e.target.value)} width='100%' />
           {err.password && <p className='text-sm text-red-500'>{err.password}</p>}
 
           {/* Remember Me Checkbox */}
@@ -100,18 +100,31 @@ export default function LoginPage() {
             />
           </div>
 
-          {err.form && <p className='mt-2 text-sm text-red-500'>{err.form}</p>}
+          {/* 1. Move ReCAPTCHA to its own line before the button */}
+          <div className="mt-6 flex justify-center">
+            <ReCAPTCHA
+              sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+              onChange={tok => setField('captchaToken', tok)} // 'tok' can be null, your handler should allow it
+              onExpired={() => setField('captchaToken', null)}
+              ref={capRef}
+            />
+          </div>
 
-          <div className='mt-6 flex flex-col sm:flex-row sm:items-center sm:space-x-4'>
-            <SubmitButton type='submit' label='Logga in' isSubmitting={sub} enhanceOnHover style={{ width: '100%' }} />
-            <ReCAPTCHA sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
-                       onChange={tok => setField('captchaToken', tok || '')}
-                       ref={capRef} />
+          {/* 2. Disable the button until the form is valid and captcha is complete */}
+          <div className='mt-6'>
+            <SubmitButton
+              type='submit'
+              label='Logga in'
+              isSubmitting={sub}
+              disabled={!form.captchaToken || sub} // <-- LOGIC FIX
+              enhanceOnHover
+              style={{ width: '100%' }}
+            />
           </div>
         </FormContainer>
 
         <img src={LoginBird} loading='lazy' alt=''
-             className='z-0 mt-10 mx-auto max-w-[180px] lg:absolute lg:right-10 lg:top-3/4 lg:-translate-y-1/2 xl:max-w-[350px]' />
+          className='z-0 mt-10 mx-auto max-w-[180px] lg:absolute lg:right-10 lg:top-3/4 lg:-translate-y-1/2 xl:max-w-[350px]' />
       </ContentWrapper>
     </PageContainer>
   );

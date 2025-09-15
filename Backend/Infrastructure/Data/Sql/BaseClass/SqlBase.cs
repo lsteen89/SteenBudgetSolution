@@ -17,26 +17,39 @@ namespace Backend.Infrastructure.Data.BaseClass
             _cmdTimeout = commandTimeoutSeconds;
         }
 
-        private DbConnection Connection => _uow.Connection!;
         private DbTransaction? Transaction => _uow.Transaction;
 
-        protected Task<int> ExecuteAsync(string sql, object? param = null, CancellationToken ct = default)
-            => Connection.ExecuteAsync(new CommandDefinition(sql, param, Transaction, _cmdTimeout, cancellationToken: ct));
+        protected async Task<int> ExecuteAsync(string sql, object? param = null, CancellationToken ct = default)
+        {
+            var conn = await _uow.GetOpenConnectionAsync(ct);
+            return await conn.ExecuteAsync(new CommandDefinition(sql, param, Transaction, _cmdTimeout, cancellationToken: ct));
+        }
 
-        protected Task<T?> ExecuteScalarAsync<T>(string sql, object? param = null, CancellationToken ct = default)
-            => Connection.ExecuteScalarAsync<T>(new CommandDefinition(sql, param, Transaction, _cmdTimeout, cancellationToken: ct));
+        protected async Task<T?> ExecuteScalarAsync<T>(string sql, object? param = null, CancellationToken ct = default)
+        {
+            var conn = await _uow.GetOpenConnectionAsync(ct);
+            return await conn.ExecuteScalarAsync<T>(new CommandDefinition(sql, param, Transaction, _cmdTimeout, cancellationToken: ct));
+        }
 
-        protected Task<T?> QueryFirstOrDefaultAsync<T>(string sql, object? param = null, CancellationToken ct = default)
-            => Connection.QueryFirstOrDefaultAsync<T>(new CommandDefinition(sql, param, Transaction, _cmdTimeout, cancellationToken: ct));
+        protected async Task<T?> QueryFirstOrDefaultAsync<T>(string sql, object? param = null, CancellationToken ct = default)
+        {
+            var conn = await _uow.GetOpenConnectionAsync(ct);
+            return await conn.QueryFirstOrDefaultAsync<T>(new CommandDefinition(sql, param, Transaction, _cmdTimeout, cancellationToken: ct));
+        }
 
-        protected Task<T?> QuerySingleOrDefaultAsync<T>(string sql, object? param = null, CancellationToken ct = default)
-            => Connection.QuerySingleOrDefaultAsync<T>(new CommandDefinition(sql, param, Transaction, _cmdTimeout, cancellationToken: ct));
+        protected async Task<T?> QuerySingleOrDefaultAsync<T>(string sql, object? param = null, CancellationToken ct = default)
+        {
+            var conn = await _uow.GetOpenConnectionAsync(ct);
+            return await conn.QuerySingleOrDefaultAsync<T>(new CommandDefinition(sql, param, Transaction, _cmdTimeout, cancellationToken: ct));
+        }
 
         protected async Task<List<T>> QueryAsync<T>(string sql, object? param = null, CancellationToken ct = default)
         {
-            var rows = await Connection.QueryAsync<T>(new CommandDefinition(sql, param, Transaction, _cmdTimeout, cancellationToken: ct));
+            var conn = await _uow.GetOpenConnectionAsync(ct);
+            var rows = await conn.QueryAsync<T>(new CommandDefinition(sql, param, Transaction, _cmdTimeout, cancellationToken: ct));
             return rows.AsList();
         }
+
         protected void EnsureTransaction()
         {
             if (_uow.Transaction is null)

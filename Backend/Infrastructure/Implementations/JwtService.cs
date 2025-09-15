@@ -10,6 +10,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using Backend.Application.Abstractions.Infrastructure.Auth;
 
 namespace Backend.Infrastructure.Implementations
 {
@@ -17,29 +18,30 @@ namespace Backend.Infrastructure.Implementations
     public class JwtService : IJwtService
     {
         private readonly JwtSettings _jwtSettings;
-        private readonly TokenValidationParameters _jwtParams;
         private readonly ITokenBlacklistService _tokenBlacklistService;
         private readonly IRefreshTokenRepository _repo;
         private readonly ILogger<JwtService> _logger;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly ITimeProvider _timeProvider;
+        private readonly IJwtKeyRing _ring;
 
         public JwtService(
             JwtSettings jwtSettings,
-            TokenValidationParameters jwtParams,
             ITokenBlacklistService tokenBlackListSerivce,
             IRefreshTokenRepository repo,
             ILogger<JwtService> logger,
             IHttpContextAccessor httpContextAccessor,
-            ITimeProvider timeProvider)
+            ITimeProvider timeProvider,
+            IJwtKeyRing ring
+            )
         {
             _jwtSettings = jwtSettings;
-            _jwtParams = jwtParams;
             _tokenBlacklistService = tokenBlackListSerivce;
             _repo = repo;
             _logger = logger;
             _httpContextAccessor = httpContextAccessor;
             _timeProvider = timeProvider;
+            _ring = ring;
         }
 
         #region AccessToken
@@ -74,9 +76,7 @@ namespace Backend.Infrastructure.Implementations
             DateTime expiresUtc,
             IReadOnlyDictionary<string, string>? extraClaims = null)
         {
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.SecretKey))
-            { KeyId = "access-token-key-v1" };
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+            var creds = new SigningCredentials(_ring.ActiveKey, SecurityAlgorithms.HmacSha256);
 
             var claims = new List<Claim>
             {
@@ -101,11 +101,11 @@ namespace Backend.Infrastructure.Implementations
                 issuer: _jwtSettings.Issuer,
                 audience: _jwtSettings.Audience,
                 claims: claims,
-                notBefore: expiresUtc.AddMinutes(-_jwtSettings.ExpiryMinutes), // optional
+                notBefore: expiresUtc.AddMinutes(-_jwtSettings.ExpiryMinutes),
                 expires: expiresUtc,
                 signingCredentials: creds);
+            return new JwtSecurityTokenHandler().WriteToken(token); // header kid = ActiveKid
 
-            return new JwtSecurityTokenHandler().WriteToken(token);
         }
         #endregion
 
@@ -194,36 +194,42 @@ namespace Backend.Infrastructure.Implementations
                 : token.Trim();
         #endregion
         #region validate
-        public ClaimsPrincipal? ValidateToken(string token, CancellationToken ct)
+        private TokenValidationParameters BuildValidationParams(bool allowExpired) => new()
         {
-            if (string.IsNullOrWhiteSpace(token))
-                return null;
+            ValidIssuer = _jwtSettings.Issuer,
+            ValidAudience = _jwtSettings.Audience,
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKeyResolver = (token, st, kid, p) =>
+                kid is not null && _ring.All.TryGetValue(kid, out var k)
+                    ? new[] { k }
+                    : _ring.All.Values.ToArray(),           // fallback if kid missing
+            ValidAlgorithms = new[] { SecurityAlgorithms.HmacSha256 },
+            ValidateLifetime = !allowExpired,
+            ClockSkew = TimeSpan.FromSeconds(30)
+        };
+
+        public ClaimsPrincipal? ValidateToken(string token, CancellationToken ct, bool allowExpired = false)
+        {
+            if (string.IsNullOrWhiteSpace(token)) return null;
 
             try
             {
-                // 1) Signature & lifetime (system clock) check
                 var handler = new JwtSecurityTokenHandler();
-                var principal = handler.ValidateToken(token, _jwtParams, out var validatedToken);
+                var principal = handler.ValidateToken(token, BuildValidationParams(allowExpired), out var validated);
 
-                // 2) Manual expiry check against ITimeProvider.UtcNow
-                if (validatedToken is JwtSecurityToken jwtToken)
+                // Optional extra wall-clock enforcement if you want ITimeProvider to dominate
+                if (!allowExpired && validated is JwtSecurityToken jwt && _timeProvider.UtcNow > jwt.ValidTo)
                 {
-                    if (_timeProvider.UtcNow > jwtToken.ValidTo)
-                    {
-                        _logger.LogInformation(
-                          "ValidateToken: expired per ITimeProvider (now={Now}, exp={Exp})",
-                          _timeProvider.UtcNow, jwtToken.ValidTo);
-                        return null;
-                    }
+                    _logger.LogInformation("ValidateToken: expired per ITimeProvider (now={Now}, exp={Exp})",
+                                        _timeProvider.UtcNow, jwt.ValidTo);
+                    return null;
                 }
 
-                // 3) Blacklist
+                // Blacklist check (consider an async version if you can await in your caller)
                 var jti = principal.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
-                if (jti != null &&
-                    _tokenBlacklistService
-                      .IsTokenBlacklistedAsync(jti)
-                      .GetAwaiter()
-                      .GetResult())
+                if (jti != null && _tokenBlacklistService.IsTokenBlacklistedAsync(jti).GetAwaiter().GetResult())
                 {
                     _logger.LogWarning("ValidateToken: JTI {Jti} is blacklisted", jti);
                     return null;
@@ -233,7 +239,7 @@ namespace Backend.Infrastructure.Implementations
             }
             catch (SecurityTokenExpiredException ex)
             {
-                _logger.LogInformation("ValidateToken: token expired (handler): {Msg}", ex.Message);
+                _logger.LogInformation("ValidateToken: token expired: {Msg}", ex.Message);
                 return null;
             }
             catch (Exception ex)

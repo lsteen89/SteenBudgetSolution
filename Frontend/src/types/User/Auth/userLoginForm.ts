@@ -1,6 +1,6 @@
 export interface UserLoginDto {
     email: string;
     password: string;
-    captchaToken?: string | null;
+    captchaToken: string | null;
     form?: string;
 }

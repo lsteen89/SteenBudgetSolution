@@ -18,6 +18,6 @@ public sealed class GetWizardDataQueryHandler
     public async Task<Result<WizardSavedDataDTO?>> Handle(GetWizardDataQuery request, CancellationToken ct)
     {
         var wizardData = await _wizardRepository.GetWizardDataAsync(request.SessionId, ct);
-        return Result.Success<WizardSavedDataDTO?>(wizardData); // explicit success even if null
+        return Result<WizardSavedDataDTO?>.Success(wizardData);
     }
 }

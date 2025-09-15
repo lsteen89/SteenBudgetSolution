@@ -23,7 +23,7 @@ public sealed class StartWizardCommandHandler : ICommandHandler<StartWizardComma
         if (existingSessionId.HasValue && existingSessionId.Value != Guid.Empty)
         {
             _logger.LogInformation("User {PersoId} already has wizard session {SessionId}", request.PersoId, existingSessionId.Value);
-            return existingSessionId.Value;
+            return Result<Guid>.Success(existingSessionId.Value);
         }
 
         _logger.LogInformation("Creating new wizard session for user {PersoId}", request.PersoId);
@@ -32,9 +32,9 @@ public sealed class StartWizardCommandHandler : ICommandHandler<StartWizardComma
         if (newSessionId == Guid.Empty)
         {
             _logger.LogError("Failed to create wizard session for user {PersoId}", request.PersoId);
-            return Result.Failure<Guid>(new Error("Wizard.CreateFailed", "Failed to create wizard session."));
+            return Result<Guid>.Failure(new Error("Wizard.CreateFailed", "Failed to create wizard session."));
         }
 
-        return newSessionId;
+        return Result<Guid>.Success(newSessionId);
     }
 }

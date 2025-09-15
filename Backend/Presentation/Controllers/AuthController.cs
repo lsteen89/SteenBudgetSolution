@@ -21,6 +21,9 @@ using Backend.Domain.Users;       // For UserErrors
 using Backend.Application.Features.Commands.Auth.VerifyEmail;
 
 
+using Backend.Domain.Enums; // For ErrorType
+
+
 namespace Backend.Presentation.Controllers
 {
     [ApiController]
@@ -65,14 +68,21 @@ namespace Backend.Presentation.Controllers
             // 3. The successful payload is now in the 'Value' property
             var authResultPayload = result.Value;
 
-            // 4. Set the cookie using data from the payload
+            if (authResultPayload is null)
+            {
+                // This is an unexpected state. The login process succeeded but returned
+                // no data. This points to a server-side logic error.
+                var error = new Error("Auth.NullPayload", "An unexpected error occurred during login.", ErrorType.Validation);
+                return Result.Failure(error).ToApiResponse(); // Reuse our pattern for a 500-level error
+            }
+
+            // Now the compiler knows authResultPayload is not null and the warning is gone.
             var refreshCookie = _cookieService.CreateRefreshCookie(
                 authResultPayload.RefreshToken,
                 authResultPayload.RememberMe
             );
             Response.Cookies.Append(refreshCookie.Name, refreshCookie.Value, refreshCookie.Options);
-            // 5. Wrap the payload in our standard ApiResponse and return Ok.
-            //    The wsMac calculation is GONE from the controller.
+
             return Ok(new ApiResponse<AuthResult>(authResultPayload));
         }
         [Authorize(AuthenticationSchemes = "RefreshScheme")]
@@ -118,13 +128,20 @@ namespace Backend.Presentation.Controllers
 
             // The handler gives us the new refresh token, the controller sets the cookie
             // 4. Set the cookie using data from the payload
+            if (authResultPayload is null)
+            {
+                // This is an unexpected server error. Refresh succeeded but returned no data.
+                var error = new Error("Auth.NullPayload", "An unexpected error occurred during token refresh.", ErrorType.Validation);
+                return Result.Failure(error).ToApiResponse();
+            }
+
+            // The compiler now knows authResultPayload is not null here.
             var refreshCookie = _cookieService.CreateRefreshCookie(
                 authResultPayload.RefreshToken,
                 authResultPayload.RememberMe
             );
             Response.Cookies.Append(refreshCookie.Name, refreshCookie.Value, refreshCookie.Options);
 
-            // Wrap the payload in our standard ApiResponse
             return Ok(new ApiResponse<AuthResult>(authResultPayload));
         }
         [Obsolete("This endpoint is deprecated and will be removed in future versions. Use /authz/healthz instead. Not refactored yet because a small investigation is needed to see if it is used anywhere.")]
@@ -132,7 +149,7 @@ namespace Backend.Presentation.Controllers
         [HttpGet("health")]
         public IActionResult HealthCheck()
         {
-            return Ok(new { message = "All good!" });
+            return Ok(new ApiResponse<string>("All good!"));
         }
         [HttpPost("register")]
         [EnableRateLimiting("RegistrationPolicy")]
@@ -179,7 +196,7 @@ namespace Backend.Presentation.Controllers
         {
             if (token == Guid.Empty)
             {
-                return BadRequest(new { message = "Token cannot be empty." });
+                return BadRequest(new ApiResponse<string>("Token cannot be empty."));
             }
 
             var command = new VerifyEmailCommand(token);
@@ -192,14 +209,14 @@ namespace Backend.Presentation.Controllers
                 // For example, if the token doesn't exist, we might return 404.
                 if (result.Error == UserErrors.VerificationTokenNotFound)
                 {
-                    return NotFound(new { message = result.Error.Description });
+                    return NotFound(new ApiErrorResponse(result.Error.Code, result.Error.Description));
                 }
 
                 // For other failures (expired, already verified), 400 is appropriate.
-                return BadRequest(new { message = result.Error.Description });
+                return BadRequest(new ApiErrorResponse(result.Error.Code, result.Error.Description));
             }
 
-            return Ok(new { message = "Email successfully verified." });
+            return Ok(new ApiResponse<string>("Email successfully verified."));
         }
 
         [HttpPost("resend-verification")]

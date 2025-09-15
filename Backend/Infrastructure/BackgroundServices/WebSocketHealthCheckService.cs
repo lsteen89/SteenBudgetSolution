@@ -44,7 +44,7 @@ namespace Backend.Infrastructure.BackgroundServices
             while (!stoppingToken.IsCancellationRequested)
             {
                 // 1) open a scope and resolve IWebSocketManager
-                using var scope = _scopeFactory.CreateScope();
+                using var scope = _scopeFactory.CreateAsyncScope();
                 var wsMgr = scope.ServiceProvider.GetRequiredService<IWebSocketManager>();
 
                 // 2) only run health-check if we have enough connections

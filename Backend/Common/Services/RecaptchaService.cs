@@ -1,55 +1,61 @@
 ﻿using Backend.Application.Abstractions.Infrastructure.Security;
-using Newtonsoft.Json;
-using Backend.Common.Models;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using System.Net.Http;
+using System.Text.Json;
+
 namespace Backend.Common.Services
 {
-    public class RecaptchaService : IRecaptchaService
+    public sealed class RecaptchaService : IRecaptchaService
     {
-        private readonly IConfiguration _configuration;
-        private readonly ILogger<RecaptchaService> _logger;
-        private readonly HttpClient _httpClient;
+        private readonly HttpClient _http;
+        private readonly ILogger<RecaptchaService> _log;
+        private readonly string _secret;
 
-        public RecaptchaService(IConfiguration configuration, ILogger<RecaptchaService> logger, HttpClient httpClient)
+        public RecaptchaService(IConfiguration cfg, ILogger<RecaptchaService> log, HttpClient http)
         {
-            _configuration = configuration;
-            _logger = logger;
-            _httpClient = httpClient;
+            _http = http;
+            _log = log;
+            // Prefer appsettings/user-secrets, fallback to raw env var
+            _secret = cfg["Recaptcha:SecretKey"] ?? cfg["RECAPTCHA_SECRET_KEY"]
+                ?? throw new InvalidOperationException("reCAPTCHA secret key not found.");
         }
 
         public async Task<bool> ValidateTokenAsync(string token)
         {
-            try
+            if (string.IsNullOrWhiteSpace(token))
             {
-                var secretKey = Environment.GetEnvironmentVariable("RECAPTCHA_SECRET_KEY")
-                    ?? throw new InvalidOperationException("reCAPTCHA secret key not found.");
-
-                _logger.LogInformation("Verifying reCAPTCHA with token: {Token}", token);
-
-                var url = $"https://www.google.com/recaptcha/api/siteverify?secret={secretKey}&response={token}";
-                var response = await _httpClient.PostAsync(url, null);
-                var jsonString = await response.Content.ReadAsStringAsync();
-
-                _logger.LogInformation("Received response from reCAPTCHA API: {Response}", jsonString);
-
-                var recaptchaResponse = JsonConvert.DeserializeObject<RecaptchaResponse>(jsonString);
-
-                if (recaptchaResponse?.Success == true)
-                {
-                    _logger.LogInformation("reCAPTCHA validation successful.");
-                    return true;
-                }
-
-                _logger.LogWarning("reCAPTCHA validation failed. ErrorCodes: {ErrorCodes}", recaptchaResponse?.ErrorCodes);
+                _log.LogWarning("reCAPTCHA token missing.");
                 return false;
             }
-            catch (HttpRequestException httpEx)
+
+            using var content = new FormUrlEncodedContent(new[]
             {
-                _logger.LogError(httpEx, "HTTP request to reCAPTCHA API failed.");
-                return false;
+                new KeyValuePair<string,string>("secret", _secret),
+                new KeyValuePair<string,string>("response", token)
+                // optionally: new("remoteip", httpContext.Connection.RemoteIpAddress?.ToString() ?? "")
+            });
+
+            try
+            {
+                using var resp = await _http.PostAsync("https://www.google.com/recaptcha/api/siteverify", content);
+                var json = await resp.Content.ReadAsStringAsync();
+
+                // Minimal parse (avoid Newtonsoft dependency here)
+                var doc = JsonDocument.Parse(json);
+                var success = doc.RootElement.TryGetProperty("success", out var s) && s.GetBoolean();
+
+                if (!success)
+                {
+                    _log.LogWarning("reCAPTCHA failed. Response: {Resp}", json);
+                    return false;
+                }
+
+                return true;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "An error occurred while verifying reCAPTCHA.");
+                _log.LogError(ex, "reCAPTCHA validation error");
                 return false;
             }
         }
