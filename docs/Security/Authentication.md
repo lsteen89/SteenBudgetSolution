@@ -1,52 +1,41 @@
 ## TL;DR
 
-- **AT** (access token) = short-lived JWT, stored **in memory** on the client.
-- **RT** (refresh token) = opaque, **HttpOnly Secure cookie**, never exposed to JS.
-- **Refresh** = validates + **rotates RT in-place** (single-use), sets a **new cookie**, returns a new AT.
-- **Expiry policy** = **rolling** window (extended on refresh) with a hard **absolute cap** (e.g., 90 days).
-- **Logout** = revoke RT(s) in DB, best-effort blacklist AT, WS notify.
+* **AT (access token)**: short-lived JWT, kept **in memory** on the client.
+* **RT (refresh token)**: opaque string in **HttpOnly+Secure cookie**; never exposed to JS.
+* **Refresh**: validates & **rotates RT in-place** (single-use), issues a new AT + sets a new RT cookie.
+* **Expiry policy**: **rolling window** (extended on refresh) with **absolute cap** (e.g. 90 days).
+* **Logout**: revoke RT(s) in DB, best-effort blacklist AT, notify active WS session(s).
 
 ---
 
-## Tokens & storage
+## Tokens & Storage
 
-- **Access token (AT)**
+### Access Token (AT)
 
-  - JWT, short TTL (`JwtSettings:ExpiryMinutes`, e.g., 15m).
-  - Issued with `SessionId`, `DeviceId`, roles, etc.
-  - Stored **in memory** (never localStorage/sessionStorage).
+* JWT, TTL: `Jwt.ExpiryMinutes` (e.g. 15m).
+* Claims include: `sub` (persoId), `sessionId`, roles, `jti`, etc.
+* Stored **only in memory** (never localStorage/sessionStorage).
+* Sent as `Authorization: Bearer <AT>`.
 
-- **Refresh token (RT)**
+### Refresh Token (RT)
 
-  - Opaque string (random), **not a JWT**.
-  - Stored **only** in a `Set-Cookie` with:
-    ```
-    HttpOnly; Secure; SameSite=Strict|Lax; Path=/; Expires=<rolling>
-    ```
-  - DB row: `RefreshTokens` with `HashedToken`, `Persoid`, `SessionId`, `AccessTokenJti`, `ExpiresRollingUtc`, `ExpiresAbsoluteUtc`, `Status`, `DeviceId`, `UserAgent`, `CreatedUtc`.
-  - **Rotation:** Each successful refresh **updates** `HashedToken`, `AccessTokenJti`, and **extends rolling expiry**; the **absolute expiry never increases**.
+* Opaque random string (not a JWT).
+* Stored **only** via `Set-Cookie`:
 
-- **Absolute cap**
+  ```
+  HttpOnly; Secure; SameSite=Strict|Lax; Path=/; Expires=<rolling-exp>
+  ```
+* DB table `RefreshTokens` (Dapper/MariaDB):
 
-  - `JwtSettings:RefreshTokenExpiryDaysAbsolute` (e.g., 90). After this, refreshes stop → user must log in again.
+  * `TokenId (GUID)`, `PersoId (GUID)`, `SessionId (GUID)`
+  * `HashedToken`, `AccessTokenJti`, `ExpiresRollingUtc`, `ExpiresAbsoluteUtc`
+  * `Status`, `DeviceId`, `UserAgent`, `CreatedUtc`, `RevokedUtc`
+* **Rotation**: On each successful refresh we **hash the new RT**, update `AccessTokenJti`, and **extend rolling exp**:
 
----
-
-## Login flow
-
-1. Client `POST /api/auth/login` with `email`, `password`, `captchaToken`, `deviceId`, `userAgent`.
-2. Server validates credentials, lockout, CAPTCHA.
-3. Server issues **AT** and **RT** (new `SessionId`).
-4. **RT** returned via `Set-Cookie` (HttpOnly, Secure, SameSite, Path, Expires).
-5. **AT + user** returned in JSON. Client stores AT **in memory** only.
-
-### Cookie example
-
-```
-Set-Cookie: RefreshToken=<opaque>; HttpOnly; Secure; SameSite=Strict; Path=/; Expires=Wed, 12 Nov 2025 10:00:00 GMT
-```
-
----
+  ```txt
+  newRolling = min(now + rollingWindowDays, current.ExpiresAbsoluteUtc)
+  ```
+* **Absolute cap**: `Jwt.RefreshTokenExpiryDaysAbsolute` (e.g. 90). Beyond this, refresh stops → full login required.
 
 ## Refresh flow
 
@@ -68,41 +57,127 @@ sequenceDiagram
 
 ```
 
-**Clamp logic (server side):**
+---
 
-```
-newRolling = min(now + rollingWindow, current.ExpiresAbsoluteUtc)
-```
+## Endpoints (shapes & statuses)
+
+### POST `/api/auth/login`
+
+**Body**: `{ email, password, captchaToken, rememberMe, deviceId, userAgent }`
+**200 OK** → `ApiResponse<AuthResult>`; RT is set via `Set-Cookie`.
+**401/400** → `ApiErrorResponse { errorCode, message }`.
+
+### POST `/api/auth/refresh`
+
+* **Auth**: `RefreshScheme` (expired AT allowed) + RT cookie.
+* **200 OK** → `ApiResponse<AuthResult>` + new RT cookie (rotated).
+* **401** (missing/invalid) / **400** (validation) → `ApiErrorResponse`.
+
+### POST `/api/auth/logout?logoutAll=bool`
+
+* **Auth**: `RefreshScheme` + RT cookie.
+* **204 No Content**; RTs revoked, AT best-effort blacklisted; RT cookie cleared.
+
+> Envelope:
+>
+> * Success → `ApiResponse<T> { data: T }`
+> * Error → `ApiErrorResponse { errorCode, message }`
 
 ---
 
-## Logout
+## JSON contract & naming
 
-- **Single session**: `POST /api/auth/logout` with `accessToken`, `sessionId` →
-
-  - best-effort blacklist AT
-  - `UPDATE RefreshTokens SET Status=Revoked, RevokedUtc=now` for (PersoId, SessionId)
-  - clear cookie (`Set-Cookie: RefreshToken=; Expires=Thu, 01 Jan 1970 00:00:00 GMT`)
-  - WS notify that session.
-
-- **Logout all**: same endpoint with `logoutAll=true` → revoke all active RTs for the user; WS notify all sessions.
+* Server uses `System.Text.Json` camelCase.
+  C# `PersoId` → JSON `persoId`.
+* **FE standard**: always camelCase: `persoId`, `sessionId`, `wsMac`.
 
 ---
 
-## Security notes
+## Client notes (React)
 
-- **XSS:** in-memory AT reduces exposure.
-- **CSRF:** Refresh uses SameSite cookie (Strict/Lax). For state-changing endpoints, apply CSRF defenses per deployment.
-- **Lockout:** repeated invalid logins tracked + lock enforced.
-- **Archiving:** `BEFORE UPDATE` trigger copies old RT row into `RefreshTokens_Archive` (audit).
-- **JWT secret rotation:** see operations runbook; expect forced logout of all sessions.
+* Axios interceptor **unwraps** `ApiResponse<T>` → callers see `T` directly.
+* On `401` (non-auth routes), do **one** `refresh` attempt → replay the request; else `logout`.
+* AT is kept in memory; RT never touched (cookie-managed by browser).
+* WS connection uses `sid`, `uid` (or `persoId`), `mac`:
+
+  ```
+  ws[s]://<host>/ws/auth?sid=<sessionId>&uid=<persoId>&mac=<wsMac>
+  ```
+
+  Server validates `mac = HMAC(persoId|sessionId, WEBSOCKET_SECRET)`; optional AT re-auth in-band.
 
 ---
 
-## DB summary (auth tables)
+## JWT signing & validation (HS256 + rotation)
 
-- `RefreshTokens` (+ `RefreshTokens_Archive`)
-- `BlacklistedTokens` (optional, AT best-effort blacklist)
-- `VerificationToken` (email verification; `UNIQUE(PersoId)`, `UNIQUE(Token)`)
+* **Key ring** at `Jwt.Keys` with an **ActiveKid**:
+
+  ```json
+  // appsettings.Production.json
+  "Jwt": {
+    "Issuer": "eBudget",
+    "Audience": "eBudget",
+    "ExpiryMinutes": 15,
+    "ActiveKid": "2025-09-11",
+    "Keys": {
+      "2025-09-11": "__ENV__:JWT_KEYS__2025_09_11",
+      "2025-12-01": "__ENV__:JWT_KEYS__2025_12_01"
+    },
+    "RefreshTokenExpiryDays": 30,
+    "RefreshTokenExpiryDaysAbsolute": 90
+  }
+  ```
+* Keys are **base64 random ≥32 bytes**; stored via env/secret files.
+* New tokens are signed with `ActiveKid`; validators accept **all keys** present in `Jwt.Keys`.
+* **Rotation**: add new key → deploy → flip `ActiveKid` → after `AT_TTL + buffer` remove old key.
+
+### Program.cs (auth wiring – DI-safe)
+
+* Configure `JwtBearerOptions` via `AddOptions().Configure<IJwtKeyRing, JwtSettings>(...)`.
+* **Do not** inject scoped services into options. Resolve them **per request** in events:
+
+  ```csharp
+  o.Events = new JwtBearerEvents {
+    OnTokenValidated = async ctx => {
+      var blacklist = ctx.HttpContext.RequestServices.GetRequiredService<ITokenBlacklistService>();
+      var jti = ctx.Principal?.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
+      if (jti != null && await blacklist.IsTokenBlacklistedAsync(jti)) ctx.Fail("revoked");
+    }
+  };
+  ```
+
+### JwtService (sign & validate)
+
+* **Sign** with `_ring.ActiveKey` (HS256); header gets `kid = ActiveKid`.
+* **Validate** using a `TokenValidationParameters` built from `_ring.All`; optionally allow expired for refresh.
+
+---
+
+## Security checklist
+
+* AT in memory; RT in HttpOnly+Secure cookie; SameSite `Strict` (or `Lax` if cross-site refresh needed).
+* CORS: allow FE origins; `AllowCredentials()` enabled when cookie is used.
+* HTTPS everywhere (RT cookie requires Secure).
+* Rate-limit login & email endpoints.
+* Clock sync (NTP) to avoid JWT skew.
+* Best-effort AT blacklist (JTI) on logout; hard-fail on RT revocation.
+
+---
+
+## DB objects (auth)
+
+* `RefreshTokens` (+ `RefreshTokens_Archive` via `BEFORE UPDATE` trigger)
+* `BlacklistedTokens` (optional AT JTI store)
+* `VerificationToken` (email verification)
+
+---
+
+## Test matrix (smoke)
+
+* Login → 200; Set-Cookie for RT; AT present.
+* `/api/users/me` with AT → 200.
+* Expire AT, call any API → 401 → auto-refresh → replay → 200.
+* Logout → 204; RT cookie cleared; re-call API → 401.
+* WS connect with valid `sid/uid/mac` → server “ready”; reply to pings.
 
 ---
