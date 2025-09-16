@@ -108,6 +108,8 @@ public static class DependencyInjection
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IUserAuthenticationRepository, UserAuthenticationRepository>();
 
+        // Blacklist tokens
+        services.AddScoped<ITokenBlacklistRepo, TokenBlacklistRepo>();
         // End of repositories
 
         // Recaptcha service
