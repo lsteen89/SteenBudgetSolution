@@ -45,9 +45,22 @@ public sealed class LoginCommandHandlerTests
     private readonly IOptions<AuthLockoutOptions> _lockout =
         Options.Create(new AuthLockoutOptions { WindowMinutes = 15, MaxAttempts = 3, LockoutMinutes = 10 });
 
-    private readonly IOptions<JwtSettings> _jwtSettings =
-        Options.Create(new JwtSettings { RefreshTokenExpiryDays = 7, RefreshTokenExpiryDaysAbsolute = 30, ExpiryMinutes = 15, SecretKey = "k" });
+    private readonly IOptions<JwtSettings> _jwtSettings = Options.Create(new JwtSettings
+    {
+        Issuer = "e",
+        Audience = "e",
+        ExpiryMinutes = 15,
+        RefreshTokenExpiryDays = 7,
+        RefreshTokenExpiryDaysAbsolute = 30,
 
+        // new fields (key-rotation)
+        ActiveKid = "unit",
+        Keys = new Dictionary<string, string>
+        {
+            // 32-byte base64; fine for tests
+            ["unit"] = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+        }
+    });
     private readonly IOptions<WebSocketSettings> _ws =
         Options.Create(new WebSocketSettings { Secret = "ws-secret" });
 

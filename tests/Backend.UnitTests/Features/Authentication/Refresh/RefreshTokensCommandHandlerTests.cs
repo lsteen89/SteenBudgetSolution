@@ -43,12 +43,19 @@ public sealed class RefreshTokensCommandHandlerTests
 
     private readonly IOptions<JwtSettings> _jwtCfg = Options.Create(new JwtSettings
     {
-        RefreshTokenExpiryDays = 7,
-        RefreshTokenExpiryDaysAbsolute = 30,
-        ExpiryMinutes = 15,
         Issuer = "e",
         Audience = "e",
-        SecretKey = "k"
+        ExpiryMinutes = 15,
+        RefreshTokenExpiryDays = 7,
+        RefreshTokenExpiryDaysAbsolute = 30,
+
+        // new fields (key-rotation)
+        ActiveKid = "unit",
+        Keys = new Dictionary<string, string>
+        {
+            // 32-byte base64; fine for tests
+            ["unit"] = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+        }
     });
     private readonly IOptions<WebSocketSettings> _ws = Options.Create(new WebSocketSettings { Secret = "ws-secret" });
 
