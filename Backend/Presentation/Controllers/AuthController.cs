@@ -234,7 +234,7 @@ namespace Backend.Presentation.Controllers
 
             if (result.IsFailure)
             {
-                // The handler provides the specific error
+                // The handler provides the specific error (changed to 400 for all cases to avoid user enumeration)
                 return BadRequest(new ApiErrorResponse(result.Error.Code, result.Error.Description));
             }
 
