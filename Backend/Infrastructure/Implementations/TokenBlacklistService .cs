@@ -10,13 +10,13 @@ namespace Backend.Infrastructure.Implementations;
 [Obsolete("This is a god class. Must be refactored into smaller classes asap. It will be refactored together with JwtService.")]
 public class TokenBlacklistService : ITokenBlacklistService
 {
-    private readonly IBlacklistRepo _blacklist;
+    private readonly ITokenBlacklistRepo _blacklist;
     private readonly IRefreshTokenRepository _refresh;
     private readonly IDistributedCache _cache;
     private readonly ILogger<TokenBlacklistService> _logger;
     private readonly TimeSpan _cacheDuration = TimeSpan.FromMinutes(1);
 
-    public TokenBlacklistService(IBlacklistRepo blacklist, IRefreshTokenRepository refresh, IDistributedCache cache, ILogger<TokenBlacklistService> logger)
+    public TokenBlacklistService(ITokenBlacklistRepo blacklist, IRefreshTokenRepository refresh, IDistributedCache cache, ILogger<TokenBlacklistService> logger)
     {
         _blacklist = blacklist;
         _refresh = refresh;

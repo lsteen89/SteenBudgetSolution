@@ -249,3 +249,10 @@ CREATE TABLE IF NOT EXISTS EmailRateLimit (
   LastSentAtUtc DATETIME NOT NULL,
   PRIMARY KEY (KeyHash, Kind, DateUtc)
 ) ENGINE=InnoDB;
+
+
+CREATE TABLE IF NOT EXISTS BlacklistedTokens (
+  Jti        BINARY(16)     NOT NULL PRIMARY KEY,  -- JTI is a GUID in your code
+  ExpiresUtc DATETIME(6)  NOT NULL,              -- store UTC
+  KEY IX_BlacklistedTokens_ExpiresUtc (ExpiresUtc)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
