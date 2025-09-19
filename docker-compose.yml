@@ -24,6 +24,8 @@ services:
       start_period: 60s
       retries: 20
     restart: unless-stopped
+    ports:
+      - "3306:3306"
     networks:
       - steen
     labels:
