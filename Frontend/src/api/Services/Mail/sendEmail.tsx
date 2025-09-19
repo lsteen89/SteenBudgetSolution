@@ -1,46 +1,36 @@
-import { api } from '@/api/axios'; // Import the custom axios instance
-import { AxiosResponse } from 'axios'; // Import Axios types for stricter type checking
-import { EmailSubmissionDto } from '../../../types/User/Email/emailForm'; // Import TypeScript interface for email data
+import { api } from '@/api/axios';
+import { AxiosResponse } from 'axios';
+import { EmailSubmissionDto } from '../../../types/User/Email/emailForm';
 
+type ApiResponse<T> = { data: T; errorCode?: string; message?: string };
 
-
-// Define TypeScript interface for the response
 export interface EmailResponse {
-  status: number; // HTTP status code (e.g., 200, 400, 500)
-  message: string; // Response message from the backend
+  status: number;
+  message: string;
 }
 
-/**
- * Submit contact form data using the custom axios instance
- * @param {EmailData} emailData - The data to submit via the contact form
- * @returns {Promise<EmailResponse>} - Promise resolving to status and message
- */
 export const sendEmail = async (
   emailData: EmailSubmissionDto
 ): Promise<EmailResponse> => {
   try {
     console.log('Request Method:', 'POST');
-    console.log('Request URL:', 'http://localhost:5000/api/Email/ContactUs');
-    // Use the custom axios instance to send a POST request
-    const response: AxiosResponse<{ message: string }> = await api.post(
+    console.log('Request URL:', `${api.defaults.baseURL}/api/email/contact`);
+
+    const response: AxiosResponse<ApiResponse<string>> = await api.post(
       '/api/email/contact',
       emailData,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }
+      { headers: { 'Content-Type': 'application/json' } }
     );
 
-    return { status: response.status, message: response.data.message };
+    // Use the 'data' field from ApiResponse<T>
+    return { status: response.status, message: response.data.data };
   } catch (error: any) {
-    // Handle errors gracefully
-    const status = error.response?.status || 500; // Default to 500 if no status
+    const status = error.response?.status || 500;
     const message =
-      error.response?.data?.message || 'Failed to submit contact form';
-
+      error.response?.data?.message ||
+      error.response?.data?.errorCode ||
+      'Failed to submit contact form';
     console.error('Error submitting contact form:', error);
-
-    return { status, message }; // Return status and message for UI handling
+    return { status, message };
   }
 };
