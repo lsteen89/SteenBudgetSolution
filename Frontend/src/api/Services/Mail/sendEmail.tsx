@@ -23,7 +23,7 @@ export const sendEmail = async (
     console.log('Request URL:', 'http://localhost:5000/api/Email/ContactUs');
     // Use the custom axios instance to send a POST request
     const response: AxiosResponse<{ message: string }> = await api.post(
-      '/api/Email/ContactUs',
+      '/api/email/contact',
       emailData,
       {
         headers: {

@@ -22,23 +22,35 @@ public class ContactFormEmailComposer : IEmailComposer
 
     public MimeMessage Compose()
     {
+        if (string.IsNullOrWhiteSpace(_settings.FromAddress))
+            throw new InvalidOperationException("Smtp.FromAddress is not configured.");
+
+        // Where to deliver contact messages (fallback to FromAddress if not set)
+        var toAddress = string.IsNullOrWhiteSpace(_settings.ContactRecipient)
+            ? _settings.FromAddress
+            : _settings.ContactRecipient!;
+
         var safeFrom = HtmlEncoder.Default.Encode(_fromAddress);
         var safeBody = HtmlEncoder.Default.Encode(_body).Replace("\n", "<br/>");
 
-        var message = new MimeMessage();
-        message.From.Add(new MailboxAddress(_settings.FromName, _settings.FromAddress));
-        message.To.Add(MailboxAddress.Parse(_settings.FromAddress));
-        message.ReplyTo.Add(MailboxAddress.Parse(_fromAddress));
-        message.Subject = $"Contact Form: {_subject}";
+        var msg = new MimeMessage();
 
-        var text = $"From: {_fromAddress}\n\n{_body}";
-        var html = $"<b>Message from:</b> {safeFrom}<br/><hr/>{safeBody}";
+        // Use ctor (no parsing) for known config addresses
+        msg.From.Add(new MailboxAddress(_settings.FromName ?? "Ebudget", _settings.FromAddress));
+        msg.To.Add(new MailboxAddress("", toAddress));
 
-        message.Body = new Multipart("alternative")
+        // Sender email comes from user input; your validator already checks it,
+        // so Parse is fine here. If you want extra safety, use TryParse and handle false.
+        msg.ReplyTo.Add(MailboxAddress.Parse(_fromAddress));
+
+        msg.Subject = $"Contact Form: {_subject}";
+
+        msg.Body = new Multipart("alternative")
         {
-            new TextPart("plain") { Text = text },
-            new TextPart("html")  { Text = html  }
+            new TextPart("plain") { Text = $"From: {_fromAddress}\n\n{_body}" },
+            new TextPart("html")  { Text = $"<b>Message from:</b> {safeFrom}<br/><hr/>{safeBody}" }
         };
-        return message;
+
+        return msg;
     }
 }
