@@ -9,7 +9,7 @@ public sealed class EmailRateLimitRow
     public byte Kind { get; set; }
 
     // The UTC calendar date bucket (DATE column)
-    public DateOnly DateUtc { get; set; }
+    public DateTime DateUtc { get; set; }
 
     public int SentCount { get; set; }
 
