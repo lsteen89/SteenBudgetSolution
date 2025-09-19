@@ -2,6 +2,7 @@ using PostmarkDotNet;
 using Microsoft.Extensions.Options;
 using Backend.Application.Abstractions.Infrastructure.Email;
 using Backend.Settings.Email;
+using MimeKit;
 
 namespace Backend.Infrastructure.Email.Postmark;
 
@@ -30,27 +31,38 @@ public sealed class PostmarkEmailService : IEmailService
 
     public async Task<EmailSendResult> SendEmailAsync(IEmailComposer composer, CancellationToken ct)
     {
-        var m = composer.Compose(); // your MailMessage/MimeMessage → map fields
-        var to = string.IsNullOrWhiteSpace(_overrideTo) ? m.To.ToString() : _overrideTo;
+        var m = composer.Compose();
+
+        // Extract pure email addresses (avoids formatting surprises)
+        static string JoinAddresses(InternetAddressList list) =>
+            string.Join(",", list.Mailboxes.Select(x => x.Address));
+
+        var to = string.IsNullOrWhiteSpace(_overrideTo)
+            ? JoinAddresses(m.To)
+            : _overrideTo;
+
+        var replyTo = m.ReplyTo?.Mailboxes?.Any() == true
+            ? JoinAddresses(m.ReplyTo)
+            : null;
+
+        _log.LogInformation("Postmark From={From} To={To} ReplyTo={ReplyTo} Stream={Stream}",
+            _from, to, replyTo ?? "(none)", _stream);
 
         var req = new PostmarkMessage
         {
-            From = _from,
+            From = _from,                 // MUST be verified at Postmark
             To = to,
             Subject = m.Subject,
-            HtmlBody = m.HtmlBody, // or map from your composer
+            HtmlBody = m.HtmlBody,
             TextBody = m.TextBody,
-            MessageStream = _stream,
+            ReplyTo = replyTo,            // <-- important
+            MessageStream = _stream ?? "outbound",
             TrackOpens = false,
-            Headers = _overrideTo is null ? null : new() {
-                new("X-Original-To", m.To.ToString())
-            }
+            Headers = _overrideTo is null ? null : new() { new("X-Original-To", JoinAddresses(m.To)) }
         };
 
-        if (_testMode) req.Headers ??= new(); // tag test mode (optional)
         var resp = await _client.SendMessageAsync(req);
         var ok = resp.Status == PostmarkStatus.Success;
-
         if (!ok) _log.LogWarning("Postmark send failed: {Code} {Msg}", resp.ErrorCode, resp.Message);
         else _log.LogInformation("Postmark sent: {Id}", resp.MessageID);
 
