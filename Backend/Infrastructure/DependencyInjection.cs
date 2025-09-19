@@ -118,7 +118,8 @@ public static class DependencyInjection
         // Section for email services
         services.AddScoped<IEmailRateLimitRepository, EmailRateLimitRepository>();
         services.AddScoped<IEmailRateLimiter, EmailRateLimiter>();
-        services.AddScoped<IEmailService, EmailService>();
+
+
 
         // Other various services
         services.AddSingleton<ITimeProvider, Backend.Common.Services.TimeProvider>();

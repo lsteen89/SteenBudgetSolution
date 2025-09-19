@@ -9,21 +9,38 @@ public sealed class EmailRateLimitRepository : SqlBase, IEmailRateLimitRepositor
 {
     public EmailRateLimitRepository(IUnitOfWork uow, ILogger<EmailRateLimitRepository> log) : base(uow, log) { }
 
-    public Task<EmailRateLimitRow?> GetTodayAsync(byte[] keyHash, byte kind, DateOnly dateUtc, CancellationToken ct)
-        => QuerySingleOrDefaultAsync<EmailRateLimitRow>(
-            "SELECT KeyHash, Kind, DateUtc, SentCount, LastSentAtUtc FROM EmailRateLimit WHERE KeyHash=@Key AND Kind=@Kind AND DateUtc=@Date LIMIT 1;",
-            new { Key = keyHash, Kind = kind, Date = dateUtc }, ct);
+    public async Task<EmailRateLimitRow?> GetTodayAsync(byte[] keyHash, byte kind, DateTime dayUtc, CancellationToken ct)
+    {
+        const string sql = @"
+            SELECT SentCount, LastSentAtUtc
+            FROM EmailRateLimits
+            WHERE KeyHash = @KeyHash AND Kind = @Kind AND DateUtc = @DateUtc;";
 
-    public Task UpsertMarkSentAsync(byte[] keyHash, byte kind, DateOnly dateUtc, DateTime nowUtc, CancellationToken ct)
-        => ExecuteAsync("""
-            INSERT INTO EmailRateLimit (KeyHash, Kind, DateUtc, SentCount, LastSentAtUtc)
-            VALUES (@Key, @Kind, @Date, 1, @Now)
+        return await QuerySingleOrDefaultAsync<EmailRateLimitRow>(
+            sql,
+            new { KeyHash = keyHash, Kind = kind, DateUtc = dayUtc.Date },
+            ct);
+    }
+
+    public async Task UpsertMarkSentAsync(byte[] keyHash, byte kind, DateTime dayUtc, DateTime lastSentAtUtc, CancellationToken ct)
+    {
+        const string sql = @"
+            INSERT INTO EmailRateLimits (KeyHash, Kind, DateUtc, SentCount, LastSentAtUtc)
+            VALUES (@KeyHash, @Kind, @DateUtc, 1, @LastSentAtUtc)
             ON DUPLICATE KEY UPDATE
-              SentCount = SentCount + 1,
-              LastSentAtUtc = GREATEST(LastSentAtUtc, @Now);
-            """, new { Key = keyHash, Kind = kind, Date = dateUtc, Now = nowUtc }, ct);
+                SentCount = SentCount + 1,
+                LastSentAtUtc = GREATEST(LastSentAtUtc, @LastSentAtUtc);";
+
+        await ExecuteAsync(sql, new
+        {
+            KeyHash = keyHash,
+            Kind = kind,
+            DateUtc = dayUtc.Date,
+            LastSentAtUtc = DateTime.SpecifyKind(lastSentAtUtc, DateTimeKind.Utc)
+        }, ct);
+    }
 
     public Task<int> CleanupAsync(int retentionDays, CancellationToken ct)
-        => ExecuteAsync("DELETE FROM EmailRateLimit WHERE DateUtc < (CURRENT_DATE - INTERVAL @Days DAY);",
+        => ExecuteAsync("DELETE FROM EmailRateLimits WHERE DateUtc < (CURRENT_DATE - INTERVAL @Days DAY);",
                         new { Days = retentionDays }, ct);
 }

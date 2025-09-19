@@ -11,6 +11,7 @@ namespace Backend.Domain.Entities.Email
         ContactUs,
         ResetPassword
     }
+    [Obsolete("This class is obsolete. Not used.")]
     public class EmailMessageModel
     {
         public required string Recipient { get; set; }  // Recipient email

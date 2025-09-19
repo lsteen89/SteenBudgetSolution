@@ -35,7 +35,7 @@ public sealed class SendContactFormHandler : ICommandHandler<SendContactFormComm
         _clock = clock;
         _smtpSettings = smtpSettings;
         _logger = logger;
-        _allowTestEmails = configuration.GetValue<bool>("AllowTestEmails");
+        _allowTestEmails = configuration.GetValue<bool>("ALLOW_TEST_EMAILS");
     }
 
     public async Task<Result> Handle(SendContactFormCommand request, CancellationToken ct)

@@ -40,8 +40,8 @@ public sealed class EmailRateLimiter : IEmailRateLimiter
     private async Task<RateLimitDecision> CheckCoreAsync(byte[] keyHash, EmailKind kind, CancellationToken ct)
     {
         var now = _clock.UtcNow;
-        var today = DateOnly.FromDateTime(now);
-        var row = await _repo.GetTodayAsync(keyHash, (byte)kind, today, ct);
+        var todayUtc = now.Date;
+        var row = await _repo.GetTodayAsync(keyHash, (byte)kind, todayUtc, ct);
         if (row is null) return new(true);
 
         if (row.SentCount >= _opt.DailyLimit) return new(false, $"daily_limit:{_opt.DailyLimit}");
@@ -52,7 +52,7 @@ public sealed class EmailRateLimiter : IEmailRateLimiter
     }
 
     private Task MarkCoreAsync(byte[] keyHash, EmailKind kind, DateTimeOffset at, CancellationToken ct)
-        => _repo.UpsertMarkSentAsync(keyHash, (byte)kind, DateOnly.FromDateTime(at.UtcDateTime), at.UtcDateTime, ct);
+        => _repo.UpsertMarkSentAsync(keyHash, (byte)kind, at.UtcDateTime.Date, at.UtcDateTime, ct);
 
     // Helpers
     private static string Normalize(string s) => s.Trim().ToLowerInvariant();

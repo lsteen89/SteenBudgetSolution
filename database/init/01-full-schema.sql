@@ -241,7 +241,7 @@ CREATE TABLE WizardStepData (
     CONSTRAINT FK_WizardStepData_WizardSession FOREIGN KEY (WizardSessionId) REFERENCES WizardSession(WizardSessionId) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS EmailRateLimit (
+CREATE TABLE IF NOT EXISTS EmailRateLimits (
   KeyHash BINARY(32) NOT NULL,
   Kind TINYINT NOT NULL,
   DateUtc DATE NOT NULL,

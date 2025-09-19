@@ -53,7 +53,6 @@ public static class DependencyInjection
         services.AddScoped<IWizardStepProcessor, SavingsStepProcessor>();
 
         //Wizard Validation
-        services.AddValidatorsFromAssemblyContaining<IncomeValidator>();
 
         return services;
     }

@@ -36,12 +36,15 @@ using Backend.Infrastructure;
 using Backend.Infrastructure.Data.Sql.Health;
 using Backend.Infrastructure.WebSockets;
 using Backend.Infrastructure.Auth;
-
+using Backend.Application.Abstractions.Infrastructure.Email;
+using Backend.Infrastructure.Email;
+using Backend.Infrastructure.Email.Postmark;
 // Presentation layer
 using Backend.Presentation.Middleware;
 
 // Settings
 using Backend.Settings;
+using Backend.Settings.Email;
 
 #endregion
 
@@ -83,6 +86,9 @@ builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"))
 builder.Services.AddSingleton(sp => sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<JwtSettings>>().Value);
 builder.Services.AddSingleton<IJwtKeyRing, HsKeyRing>();
 
+// Email settings
+builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("Smtp"));
+builder.Services.Configure<PostmarkOptions>(builder.Configuration.GetSection("Postmark"));
 
 // Add JsonOptions to use camelCase for JSON properties
 builder.Services.AddControllers()
@@ -224,7 +230,13 @@ builder.Services.AddRateLimiter(options =>
 
 });
 #endregion
-
+#region Email DI Service Configuration
+var provider = builder.Configuration["Email:Provider"] ?? "Smtp";
+if (provider.Equals("Postmark", StringComparison.OrdinalIgnoreCase))
+    builder.Services.AddScoped<IEmailService, PostmarkEmailService>();
+else
+    builder.Services.AddScoped<IEmailService, EmailService>();
+#endregion
 #region Services and Middleware Registration
 
 // Add controllers to support routing
