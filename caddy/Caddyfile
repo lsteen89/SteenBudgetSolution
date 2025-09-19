@@ -9,10 +9,15 @@ ebudget.se, www.ebudget.se {
         respond 404
     }
 
-    # Handle all other API requests
-    handle_path /api/* {
+    @api path /api/*
+    handle @api {
         reverse_proxy backend:8080
+        # (optional) CYA headers
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-For   {remote_host}
+        header_up Host              {host}
     }
+
 
     # Handle the frontend SPA
     handle {
