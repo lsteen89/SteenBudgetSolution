@@ -45,11 +45,13 @@ public sealed class EmailRateLimiterTests
     {
         var userId = Guid.NewGuid();
         var keyHash = Hash($"user:{userId:N}");
-        var date = DateOnly.FromDateTime(_now);
+        var dayUtc = _now.Date;
 
         _repo.Setup(r => r.GetTodayAsync(It.Is<byte[]>(b => b.SequenceEqual(keyHash)),
-                                         (byte)EmailKind.Verification, date, It.IsAny<CancellationToken>()))
-             .ReturnsAsync((EmailRateLimitRow?)null);
+                                        (byte)EmailKind.Verification,
+                                        It.Is<DateTime>(d => d == dayUtc),
+                                        It.IsAny<CancellationToken>()))
+                    .ReturnsAsync((EmailRateLimitRow?)null);
 
         var limiter = SUT();
         var decision = await limiter.CheckAsync(userId, EmailKind.Verification, CancellationToken.None);
@@ -63,16 +65,16 @@ public sealed class EmailRateLimiterTests
     {
         var userId = Guid.NewGuid();
         var keyHash = Hash($"user:{userId:N}");
-        var date = DateOnly.FromDateTime(_now);
+        var dayUtc = _now.Date;
 
         var last = _now.AddMinutes(-3); // 7 minutes left in cooldown
         _repo.Setup(r => r.GetTodayAsync(It.Is<byte[]>(b => b.SequenceEqual(keyHash)),
-                                         (byte)EmailKind.Verification, date, It.IsAny<CancellationToken>()))
+                                         (byte)EmailKind.Verification, dayUtc, It.IsAny<CancellationToken>()))
              .ReturnsAsync(new EmailRateLimitRow
              {
                  KeyHash = keyHash,
                  Kind = (byte)EmailKind.Verification,
-                 DateUtc = date,
+                 DateUtc = dayUtc,
                  SentCount = 1,
                  LastSentAtUtc = DateTime.SpecifyKind(last, DateTimeKind.Unspecified) // exercise SpecifyKind(path)
              });
@@ -90,18 +92,18 @@ public sealed class EmailRateLimiterTests
     {
         var userId = Guid.NewGuid();
         var keyHash = Hash($"user:{userId:N}");
-        var date = DateOnly.FromDateTime(_now);
+        var dayUtc = _now.Date;
 
         _repo.Setup(r => r.GetTodayAsync(It.Is<byte[]>(b => b.SequenceEqual(keyHash)),
-                                         (byte)EmailKind.Verification, date, It.IsAny<CancellationToken>()))
-             .ReturnsAsync(new EmailRateLimitRow
-             {
-                 KeyHash = keyHash,
-                 Kind = (byte)EmailKind.Verification,
-                 DateUtc = date,
-                 SentCount = _opt.Value.DailyLimit,
-                 LastSentAtUtc = _now.AddHours(-1)
-             });
+                                        (byte)EmailKind.Verification, dayUtc, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new EmailRateLimitRow
+            {
+                KeyHash = keyHash,
+                Kind = (byte)EmailKind.Verification,
+                DateUtc = dayUtc,
+                SentCount = _opt.Value.DailyLimit,
+                LastSentAtUtc = _now.AddHours(-1)
+            });
 
         var limiter = SUT();
         var decision = await limiter.CheckAsync(userId, EmailKind.Verification, CancellationToken.None);
@@ -110,23 +112,24 @@ public sealed class EmailRateLimiterTests
         decision.Reason.Should().Be($"daily_limit:{_opt.Value.DailyLimit}");
     }
 
+
     [Fact]
     public async Task Given_AfterCooldown_And_UnderCap_When_Check_Then_Allowed()
     {
         var userId = Guid.NewGuid();
         var keyHash = Hash($"user:{userId:N}");
-        var date = DateOnly.FromDateTime(_now);
+        var dayUtc = _now.Date;
 
         _repo.Setup(r => r.GetTodayAsync(It.Is<byte[]>(b => b.SequenceEqual(keyHash)),
-                                         (byte)EmailKind.Verification, date, It.IsAny<CancellationToken>()))
-             .ReturnsAsync(new EmailRateLimitRow
-             {
-                 KeyHash = keyHash,
-                 Kind = (byte)EmailKind.Verification,
-                 DateUtc = date,
-                 SentCount = 1,
-                 LastSentAtUtc = _now.AddMinutes(-11)
-             });
+                                        (byte)EmailKind.Verification, dayUtc, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new EmailRateLimitRow
+            {
+                KeyHash = keyHash,
+                Kind = (byte)EmailKind.Verification,
+                DateUtc = dayUtc,
+                SentCount = 1,
+                LastSentAtUtc = _now.AddMinutes(-11)
+            });
 
         var limiter = SUT();
         var decision = await limiter.CheckAsync(userId, EmailKind.Verification, CancellationToken.None);
@@ -142,10 +145,13 @@ public sealed class EmailRateLimiterTests
     {
         var userId = Guid.NewGuid();
         var keyHash = Hash($"user:{userId:N}");
-        var date = DateOnly.FromDateTime(_now);
+        var dayUtc = _now.Date;
 
         _repo.Setup(r => r.UpsertMarkSentAsync(It.Is<byte[]>(b => b.SequenceEqual(keyHash)),
-                                               (byte)EmailKind.Verification, date, _now, It.IsAny<CancellationToken>()))
+                                                (byte)EmailKind.Verification,
+                                                It.Is<DateTime>(d => d == dayUtc),
+                                                It.Is<DateTime>(t => t == _now),
+                                                It.IsAny<CancellationToken>()))
              .Returns(Task.CompletedTask)
              .Verifiable();
 
@@ -163,12 +169,12 @@ public sealed class EmailRateLimiterTests
         var keyRaw = "  User@Example.Com  ";
         var norm = "user@example.com";
         var keyHash = Hash(norm);
-        var date = DateOnly.FromDateTime(_now);
+        var dayUtc = _now.Date;
 
         _repo.Setup(r => r.GetTodayAsync(It.Is<byte[]>(b => b.SequenceEqual(keyHash)),
-                                         (byte)EmailKind.Verification, date, It.IsAny<CancellationToken>()))
-             .ReturnsAsync((EmailRateLimitRow?)null)
-             .Verifiable();
+                                        (byte)EmailKind.Verification, dayUtc, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((EmailRateLimitRow?)null)
+            .Verifiable();
 
         var limiter = SUT();
         var decision = await limiter.CheckAsync(keyRaw, EmailKind.Verification, CancellationToken.None);
@@ -183,12 +189,12 @@ public sealed class EmailRateLimiterTests
         var keyRaw = "  User@Example.Com  ";
         var norm = "user@example.com";
         var keyHash = Hash(norm);
-        var date = DateOnly.FromDateTime(_now);
+        var dayUtc = _now.Date;
 
         _repo.Setup(r => r.UpsertMarkSentAsync(It.Is<byte[]>(b => b.SequenceEqual(keyHash)),
-                                               (byte)EmailKind.Verification, date, _now, It.IsAny<CancellationToken>()))
-             .Returns(Task.CompletedTask)
-             .Verifiable();
+                                            (byte)EmailKind.Verification, dayUtc, _now, It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask)
+            .Verifiable();
 
         var limiter = SUT();
         await limiter.MarkSentAsync(keyRaw, EmailKind.Verification, new DateTimeOffset(_now, TimeSpan.Zero), CancellationToken.None);
