@@ -2,10 +2,14 @@ ebudget.se, www.ebudget.se {
     encode zstd gzip
 
     # Block health endpoints
-    handle /api/healthz* { respond 404 }
-    handle /api/readyz*  { respond 404 }
+    handle /api/healthz* {
+        respond 404
+    }
+    handle /api/readyz* {
+        respond 404
+    }
 
-    # API — preserve /api prefix, allow all methods
+    # API — preserve /api prefix
     @api path /api/*
     reverse_proxy @api backend:8080
 
