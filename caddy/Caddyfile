@@ -1,25 +1,15 @@
 ebudget.se, www.ebudget.se {
     encode zstd gzip
 
-    # Block public access to health endpoints first
-    handle /api/healthz* {
-        respond 404
-    }
-    handle /api/readyz* {
-        respond 404
-    }
+    # Block health endpoints
+    handle /api/healthz* { respond 404 }
+    handle /api/readyz*  { respond 404 }
 
+    # API — preserve /api prefix, allow all methods
     @api path /api/*
-    handle @api {
-        reverse_proxy backend:8080
-        # (optional) CYA headers
-        header_up X-Forwarded-Proto {scheme}
-        header_up X-Forwarded-For   {remote_host}
-        header_up Host              {host}
-    }
+    reverse_proxy @api backend:8080
 
-
-    # Handle the frontend SPA
+    # Frontend SPA
     handle {
         root * /srv
         try_files {path} /index.html
