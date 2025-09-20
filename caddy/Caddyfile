@@ -1,7 +1,8 @@
 ebudget.se, www.ebudget.se {
     encode zstd gzip
 
-    # Block health endpoints
+    # Block specific health endpoints from public access
+    # These are checked first.
     handle /api/healthz* {
         respond 404
     }
@@ -9,11 +10,13 @@ ebudget.se, www.ebudget.se {
         respond 404
     }
 
-    # API — preserve /api prefix
-    @api path /api/*
-    reverse_proxy @api backend:8080
+    # API — all requests to /api/ are handled here and proxied.
+    # This block now correctly captures your POST request.
+    handle /api/* {
+        reverse_proxy backend:8080
+    }
 
-    # Frontend SPA
+    # Frontend SPA — this is the fallback for any request that didn't match above.
     handle {
         root * /srv
         try_files {path} /index.html
