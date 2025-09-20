@@ -15,8 +15,6 @@ ebudget.se, www.ebudget.se {
     handle /api/* {
         reverse_proxy backend:8080
     }
-
-    # Frontend SPA — this is the fallback for any request that didn't match above.
     handle {
         root * /srv
         try_files {path} /index.html
