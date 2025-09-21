@@ -1,8 +1,6 @@
 ebudget.se, www.ebudget.se {
     encode zstd gzip
 
-    # Block specific health endpoints from public access
-    # These are checked first.
     handle /api/healthz* {
         respond 404
     }

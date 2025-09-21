@@ -7,7 +7,7 @@ using Backend.Application.DTO.Email;
 using Backend.Domain.Users;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/email")]
 public sealed class EmailController : ControllerBase
 {
     private readonly IMediator _mediator;
