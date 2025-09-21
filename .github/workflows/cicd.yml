@@ -120,74 +120,38 @@ jobs:
           path: Frontend/dist.tar.gz
           retention-days: 3
 
-  deploy:
-      name: Deploy to Production
-      runs-on: [self-hosted, pi, deploy]   # Pi3 runner labels
-      needs: build
-      environment: production-pi
-      permissions:
-        contents: read
-        packages: read
-      steps:
-        - name: Download frontend artifact
-          uses: actions/download-artifact@v4
-          with:
-            name: frontend-dist
-            path: .
+deploy:
+    name: Deploy to Production
+    runs-on: [self-hosted, pi, deploy]
+    needs: build
+    environment: production-pi
+    steps:
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
 
-        - name: Deploy frontend artifact
-          env:
-            PI4_DEPLOY_HOST: deploy@192.168.50.61
-            PROJECT_PATH: /opt/steenbudget
-          run: |
-            echo "== Copying artifact to server =="
-            scp -P 2222 \
-              -i /home/runner/.ssh/deploy_pi3 \
-              -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new \
-              dist.tar.gz "$PI4_DEPLOY_HOST":"$PROJECT_PATH"/dist.tar.gz
+      - name: Copy frontend artifact to server
+        env:
+          PI4_DEPLOY_HOST: deploy@192.168.50.61
+          PROJECT_PATH: /opt/steenbudget
+        run: |
+          # Step 1: Securely copy the artifact to the 'incoming' directory
+          # that your server-side deployment script expects.
+          scp -P 2222 \
+            -i /home/runner/.ssh/deploy_pi3 \
+            -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new \
+            dist.tar.gz "$PI4_DEPLOY_HOST":"$PROJECT_PATH"/incoming/dist.tar.gz
 
-        - name: Restart Caddy and run health checks
-          env:
-            PI4_DEPLOY_HOST: deploy@192.168.50.61
-            PROJECT_PATH: /opt/steenbudget
-          run: |
-            ssh -T -p 2222 \
-              -i /home/runner/.ssh/deploy_pi3 \
-              -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new \
-              "$PI4_DEPLOY_HOST" <<'EOF'
-              set -Eeuo pipefail
-              cd "$PROJECT_PATH"
-
-              echo "== Unpacking and deploying new frontend =="
-              rm -rf frontend/dist
-              tar xzf dist.tar.gz -C frontend
-              rm dist.tar.gz
-
-              echo "== Pulling latest backend image =="
-              docker compose pull backend
-
-              echo "== Bringing services up with new image =="
-              docker compose up -d --no-deps backend
-
-              echo "== Restarting Caddy =="
-              docker compose restart caddy
-              
-              echo "== compose ps =="
-              docker compose ps
-
-              CID=$(docker compose ps -q backend)
-              if [ -z "$CID" ]; then echo "backend container not found"; exit 1; fi
-              
-              echo "== internal health =="
-              # Give the backend a moment to start up
-              sleep 5 
-              docker run --rm --network container:$CID curlimages/curl:8.7.1 \
-                -fsS http://127.0.0.1:8080/api/healthz -o /dev/null
-              docker run --rm --network container:$CID curlimages/curl:8.7.1 \
-                -fsS http://127.0.0.1:8080/api/readyz -o /dev/null
-              
-              echo "== last 80 backend log lines =="
-              docker logs --tail=80 "$CID" || true
-            EOF
+      - name: Trigger deployment script
+        env:
+          PI4_DEPLOY_HOST: deploy@192.168.50.61
+        run: |
+          # Step 2: Simply SSH to the server. The "forced command" in your
+          # authorized_keys file will automatically run your deployment script.
+          ssh -p 2222 \
+            -i /home/runner/.ssh/deploy_pi3 \
+            -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new \
+            "$PI4_DEPLOY_HOST"
 
 
