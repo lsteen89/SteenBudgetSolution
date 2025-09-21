@@ -120,38 +120,38 @@ jobs:
           path: Frontend/dist.tar.gz
           retention-days: 3
 
-deploy:
-    name: Deploy to Production
-    runs-on: [self-hosted, pi, deploy]
-    needs: build
-    environment: production-pi
-    steps:
-      - name: Download frontend artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: frontend-dist
+  deploy:
+      name: Deploy to Production
+      runs-on: [self-hosted, pi, deploy]
+      needs: build
+      environment: production-pi
+      steps:
+        - name: Download frontend artifact
+          uses: actions/download-artifact@v4
+          with:
+            name: frontend-dist
 
-      - name: Copy frontend artifact to server
-        env:
-          PI4_DEPLOY_HOST: deploy@192.168.50.61
-          PROJECT_PATH: /opt/steenbudget
-        run: |
-          # Step 1: Securely copy the artifact to the 'incoming' directory
-          # that your server-side deployment script expects.
-          scp -P 2222 \
-            -i /home/runner/.ssh/deploy_pi3 \
-            -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new \
-            dist.tar.gz "$PI4_DEPLOY_HOST":"$PROJECT_PATH"/incoming/dist.tar.gz
+        - name: Copy frontend artifact to server
+          env:
+            PI4_DEPLOY_HOST: deploy@192.168.50.61
+            PROJECT_PATH: /opt/steenbudget
+          run: |
+            # Step 1: Securely copy the artifact to the 'incoming' directory
+            # that your server-side deployment script expects.
+            scp -P 2222 \
+              -i /home/runner/.ssh/deploy_pi3 \
+              -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new \
+              dist.tar.gz "$PI4_DEPLOY_HOST":"$PROJECT_PATH"/incoming/dist.tar.gz
 
-      - name: Trigger deployment script
-        env:
-          PI4_DEPLOY_HOST: deploy@192.168.50.61
-        run: |
-          # Step 2: Simply SSH to the server. The "forced command" in your
-          # authorized_keys file will automatically run your deployment script.
-          ssh -p 2222 \
-            -i /home/runner/.ssh/deploy_pi3 \
-            -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new \
-            "$PI4_DEPLOY_HOST"
+        - name: Trigger deployment script
+          env:
+            PI4_DEPLOY_HOST: deploy@192.168.50.61
+          run: |
+            # Step 2: Simply SSH to the server. The "forced command" in your
+            # authorized_keys file will automatically run your deployment script.
+            ssh -p 2222 \
+              -i /home/runner/.ssh/deploy_pi3 \
+              -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new \
+              "$PI4_DEPLOY_HOST"
 
 
