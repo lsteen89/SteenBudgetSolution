@@ -135,11 +135,11 @@ jobs:
           env:
             PI4_DEPLOY_HOST: deploy@192.168.50.61
           run: |
-            # This single command creates the artifact stream and pipes it
-            # directly into the deployment script over one SSH connection.
-            tar czf - . | ssh -p 2222 -v \ # ... ssh command continues
-              -i /home/runner/.ssh/deploy_pi3 \
-              -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new \
-              "$PI4_DEPLOY_HOST"
+            set -euo pipefail
+            test -d frontend-dist || { echo "frontend-dist missing"; ls -la; exit 1; }
+            tar czf - -C frontend-dist . \
+            | ssh -T -p 2222 -i /home/runner/.ssh/deploy_pi3 \
+                -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new \
+                "$PI4_DEPLOY_HOST" '/opt/steenbudget/deploy_frontend.sh'
 
 
