@@ -47,7 +47,7 @@ const HomePage: React.FC = () => {
           </div>
           <div className="relative group flex flex-col items-center">
             <ShieldCheckIcon className="h-10 w-10 text-limeGreen transition-transform transform group-hover:scale-110 group-hover:shadow-lg" />
-            <p className="text-white mt-2 text-center">ALLTID säkerhet först</p>
+            <p className="text-white mt-2 text-center">ALLTID säkerhet först!</p>
             {/* Tooltip */}
             <div className="absolute bottom-14 hidden group-hover:block bg-black text-white text-xs p-2 rounded shadow-lg">
               Dina data är skyddad med högsta säkerhet! Läs mer under <Link to="/" className="underline text-limeGreen"> Integritetspolicy </Link>
