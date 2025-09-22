@@ -111,6 +111,7 @@ jobs:
         run: |
           npm ci
           npm run build
+          printf '{"git_sha":"%s","built_at":"%s"}\n' "${GITHUB_SHA}" "$(date -u +%FT%TZ)" > dist/build-meta.json
           tar czf dist.tar.gz -C dist .
 
       - name: Upload frontend artifact

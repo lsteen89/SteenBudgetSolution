@@ -1,15 +1,20 @@
+sudo tee /opt/steenbudget/Caddyfile/Caddyfile >/dev/null <<'EOF'
 ebudget.se, www.ebudget.se {
     encode zstd gzip
 
-    handle /api/healthz* { respond 404 }
-    handle /api/readyz*  { respond 404 }
+    handle /api/healthz* {
+        respond 404
+    }
+    handle /api/readyz* {
+        respond 404
+    }
 
     handle /api/* {
         reverse_proxy backend:8080
     }
 
     handle {
-        root * /srv/dist        
+        root * /srv/dist
         try_files {path} /index.html
         file_server
     }
@@ -26,9 +31,17 @@ ebudget.se, www.ebudget.se {
         Permissions-Policy "geolocation=(), microphone=()"
     }
 
-    @html { path_regexp html .*\.html$ }
-    header @html Cache-Control "no-cache"
+    @html {
+        path_regexp html .*\.html$
+    }
+    header @html {
+        Cache-Control "no-cache"
+    }
 
-    @assets { path *.js *.css *.png *.jpg *.svg *.woff2 }
-    header @assets Cache-Control "public, max-age=31536000, immutable"
+    @assets {
+        path *.js *.css *.png *.jpg *.svg *.woff2
+    }
+    header @assets {
+        Cache-Control "public, max-age=31536000, immutable"
+    }
 }
