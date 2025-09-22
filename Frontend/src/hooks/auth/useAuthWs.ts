@@ -56,7 +56,7 @@ export function useAuthWs() {
       }
 
       const httpBase =
-        import.meta.env.VITE_API_URL ?? window.location.origin;
+        import.meta.env.VITE_APP_API_URL;
 
       const base = `${toWsBase(httpBase)}/ws/auth`;
       // Clear any pending retry timeout before attempting a new connection

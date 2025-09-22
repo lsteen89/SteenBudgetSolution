@@ -132,7 +132,7 @@ dotnet user-secrets set "AppUrls:ResetPasswordUrl" "http://localhost:5173/reset-
 **Frontend (`Frontend/.env.local`)**
 
 ```ini
-VITE_API_URL=http://localhost:5001
+const baseURL = import.meta.env.VITE_APP_API_URL;=http://localhost:5001
 VITE_RECAPTCHA_SITE_KEY=dev-site-key
 VITE_USE_MOCK=false
 ```

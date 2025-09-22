@@ -48,7 +48,7 @@ function getContentType(
 const isJson = (headers?: RawAxiosResponseHeaders | AxiosHeaders) =>
   getContentType(headers).toLowerCase().includes('json');
 
-const baseURL = import.meta.env.VITE_API_URL ?? window.location.origin;
+const baseURL = import.meta.env.VITE_APP_API_URL;
 export const api = axios.create({
   baseURL,
   withCredentials: true,
