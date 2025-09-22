@@ -111,7 +111,7 @@ jobs:
         run: |
           npm ci
           npm run build
-          tar czf dist.tar.gz dist
+          tar czf dist.tar.gz -C dist .
 
       - name: Upload frontend artifact
         uses: actions/upload-artifact@v4
@@ -133,16 +133,15 @@ jobs:
           # optional but nice: put it somewhere explicit
           path: .
 
-      - name: Stream artifact and trigger deployment
+      - name: Stream artifact to forced-command deploy script
         env:
           PI4_DEPLOY_HOST: deploy@192.168.50.61
         run: |
           set -euo pipefail
           ART=dist.tar.gz
           test -f "$ART" || { echo "$ART missing"; ls -la; exit 1; }
-          # Stream the gz straight into the remote script (which runs `tar xzf -`)
           ssh -T -p 2222 -i /home/runner/.ssh/deploy_pi3 \
             -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new \
-            "$PI4_DEPLOY_HOST" '/opt/steenbudget/deploy_frontend.sh' < "$ART"
+            "$PI4_DEPLOY_HOST" < "$ART"
 
 
