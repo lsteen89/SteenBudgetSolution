@@ -126,20 +126,23 @@ jobs:
       needs: build
       environment: production-pi
       steps:
-        - name: Download frontend artifact
-          uses: actions/download-artifact@v4
-          with:
-            name: frontend-dist
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          # optional but nice: put it somewhere explicit
+          path: .
 
-        - name: Stream artifact and trigger deployment
-          env:
-            PI4_DEPLOY_HOST: deploy@192.168.50.61
-          run: |
-            set -euo pipefail
-            test -d frontend-dist || { echo "frontend-dist missing"; ls -la; exit 1; }
-            tar czf - -C frontend-dist . \
-            | ssh -T -p 2222 -i /home/runner/.ssh/deploy_pi3 \
-                -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new \
-                "$PI4_DEPLOY_HOST" '/opt/steenbudget/deploy_frontend.sh'
+      - name: Stream artifact and trigger deployment
+        env:
+          PI4_DEPLOY_HOST: deploy@192.168.50.61
+        run: |
+          set -euo pipefail
+          ART=dist.tar.gz
+          test -f "$ART" || { echo "$ART missing"; ls -la; exit 1; }
+          # Stream the gz straight into the remote script (which runs `tar xzf -`)
+          ssh -T -p 2222 -i /home/runner/.ssh/deploy_pi3 \
+            -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new \
+            "$PI4_DEPLOY_HOST" '/opt/steenbudget/deploy_frontend.sh' < "$ART"
 
 
