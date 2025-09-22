@@ -31,7 +31,7 @@ const HomePage: React.FC = () => {
         <div className="pt-14 flex flex-col space-y-8 items-center">
           <div className="relative group flex flex-col items-center">
             <BookOpenIcon className="h-10 w-10 text-limeGreen transition-transform transform group-hover:scale-110 group-hover:shadow-lg" />
-            <p className="text-white mt-2 text-center">Enkel planering!</p>
+            <p className="text-white mt-2 text-center">Enkel planering!!</p>
             {/* Tooltip */}
             <div className="absolute bottom-14 hidden group-hover:block bg-black text-white text-xs p-2 rounded shadow-lg">
               Planera din budget enkelt och snabbt! Läs mer under<Link to="/" className="underline text-limeGreen"> Hjälp </Link>
