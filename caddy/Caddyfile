@@ -1,20 +1,16 @@
 ebudget.se, www.ebudget.se {
     encode zstd gzip
 
-    handle /api/healthz* {
-        respond 404
-    }
-    handle /api/readyz* {
-        respond 404
-    }
+    handle /api/healthz* { respond 404 }
+    handle /api/readyz*  { respond 404 }
 
-    # API — all requests to /api/ are handled here and proxied.
-    # This block now correctly captures your POST request.
     handle /api/* {
         reverse_proxy backend:8080
     }
+
+    # Serve the *symlinked* dir (/opt/steenbudget/frontend/dist on host)
     handle {
-        root * /srv
+        root * /srv/dist
         try_files {path} /index.html
         file_server
     }
@@ -23,11 +19,13 @@ ebudget.se, www.ebudget.se {
         dns cloudflare {env.CLOUDFLARE_API_TOKEN}
     }
 
-    header {
-        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-        X-Content-Type-Options "nosniff"
-        X-Frame-Options "DENY"
-        Referrer-Policy "strict-origin-when-cross-origin"
-        Permissions-Policy "geolocation=(), microphone=()"
+    # Cache policy: no-cache HTML, long-cache assets
+    @html {
+        path_regexp html .*\.html$
     }
+    header @html Cache-Control "no-cache"
+    @assets {
+        path *.js *.css *.png *.jpg *.svg *.woff2
+    }
+    header @assets Cache-Control "public, max-age=31536000, immutable"
 }
