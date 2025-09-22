@@ -137,7 +137,7 @@ jobs:
           run: |
             # This single command creates the artifact stream and pipes it
             # directly into the deployment script over one SSH connection.
-            tar czf - . | ssh -p 2222 \ # ... ssh command continues
+            tar czf - . | ssh -p 2222 -v \ # ... ssh command continues
               -i /home/runner/.ssh/deploy_pi3 \
               -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new \
               "$PI4_DEPLOY_HOST"
