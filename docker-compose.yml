@@ -55,7 +55,7 @@ services:
       - "443:443"
     volumes:
       - /opt/steenbudget/Caddyfile:/etc/caddy:ro
-      - /opt/steenbudget/frontend:/srv:ro
+      - /opt/steenbudget/frontend/current/dist:/srv:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
