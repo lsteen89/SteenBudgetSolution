@@ -8,7 +8,7 @@ import { api } from '@/api/axios';
 export const verifyEmail = async (token: string): Promise<void> => {
   try {
     // Using POST is slightly better practice for an action that changes state.
-    await api.post(`/api/auth/verify-email?token=${token}`);
+    await api.get(`/api/auth/verify-email?token=${token}`);
   } catch (error: any) {
     if (error.response) {
       // Standardize on the error format from your backend: { code, description }
@@ -18,7 +18,7 @@ export const verifyEmail = async (token: string): Promise<void> => {
       throw customError;
     } else {
       // Handle network errors
-      throw new Error('Unable to connect to the server.');
+      throw new Error('Kunde inte ansluta till servern.');
     }
   }
 };

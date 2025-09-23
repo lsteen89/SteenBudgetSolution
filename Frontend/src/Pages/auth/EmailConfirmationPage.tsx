@@ -57,12 +57,12 @@ const EmailConfirmationPage: React.FC<EmailConfirmationPageProps> = ({
         setVerificationStatus('success');
       } catch (err: any) {
         const msg = err?.message ?? 'Verification failed.';
-        if (msg.toLowerCase().includes('already verified')) {
+        if (msg.toLowerCase().includes('redan verifierad'.toLowerCase())) {
           setWelcomeMessage('E-postadress redan verifierad!');
           setStatusMessage('Den här e-postadressen är redan verifierad. Du kan logga in med ditt konto.');
         } else {
           setWelcomeMessage('Det gick inte att verifiera!');
-          setStatusMessage(msg);
+          setStatusMessage('Försök igen eller kontakta support om problemet kvarstår.');
         }
         setVerificationStatus('error');
       }
