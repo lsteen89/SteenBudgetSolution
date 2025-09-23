@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS FailedLoginAttempts (
     PersoId BINARY(16) NOT NULL,
     AttemptTime DATETIME NOT NULL,
     IpAddress VARCHAR(45) NULL,
+    UserAgent VARCHAR(255) NULL,
     CONSTRAINT FK_FailedLoginAttempts_User FOREIGN KEY (PersoId) REFERENCES Users(Persoid) 
 );
 

@@ -13,22 +13,20 @@ export const registerUser = async (user: UserCreationDto): Promise<void> => {
             headers: { 'Content-Type': 'application/json' },
         });
     } catch (error: any) {
+
         if (error.response) {
-            // Log the full response for debugging
-            console.error("Backend Response Error:", error.response);
+            // Extract a clear error message from the backend response.
+            // The backend sends { code: "...", description: "..." }, so we use description.
+            const message = error.response.data?.description || 'An unknown error occurred.';
 
+            // Create a new error with a clean message and attach the original response for context.
+            const customError = new Error(message);
+            (customError as any).response = error.response; // Keep the original response data
+            throw customError;
 
-            const errorMessage = error.response.data?.message || 'Internt fel, försök igen';
-
-            // Throw the full error object with additional context
-            throw {
-                ...error, // Preserve the original Axios error
-                message: errorMessage, // Override the message
-            };
         } else {
-            // If there's no response, it's likely a network error
-            console.error("Network Error:", error);
-            throw new Error("Unable to connect to the server. Please try again later.");
+            // Handle network errors or other issues where there's no response.
+            throw new Error('Unable to connect to the server. Please try again.');
         }
     }
 };
