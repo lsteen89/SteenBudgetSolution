@@ -5,7 +5,7 @@ import translate from "@utils/translate";
  * Response type for the verify email API call.
  */
 interface VerifyEmailResponse {
-  message: string; 
+  message: string;
 }
 
 /**
@@ -16,8 +16,8 @@ interface VerifyEmailResponse {
  */
 export const verifyEmail = async (token: string): Promise<VerifyEmailResponse> => {
   try {
-    const response = await api.get<VerifyEmailResponse>(`/api/Registration/verify-email?token=${token}`);
-    
+    const response = await api.get<VerifyEmailResponse>(`/api/auth/verify-email?token=${token}`);
+
     // Translate backend response message directly to Swedish
     const translatedMessage = translate(response.data.message);
 

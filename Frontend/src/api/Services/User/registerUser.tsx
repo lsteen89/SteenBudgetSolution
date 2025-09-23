@@ -9,7 +9,7 @@ import { UserCreationDto } from '../../../types/User/Creation/userCreation';
  */
 export const registerUser = async (user: UserCreationDto): Promise<void> => {
     try {
-        await api.post('/api/Registration/register', user, {
+        await api.post('/api/auth/register', user, {
             headers: { 'Content-Type': 'application/json' },
         });
     } catch (error: any) {
@@ -17,7 +17,7 @@ export const registerUser = async (user: UserCreationDto): Promise<void> => {
             // Log the full response for debugging
             console.error("Backend Response Error:", error.response);
 
-            
+
             const errorMessage = error.response.data?.message || 'Internt fel, försök igen';
 
             // Throw the full error object with additional context

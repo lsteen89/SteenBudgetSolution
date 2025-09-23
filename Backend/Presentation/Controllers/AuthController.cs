@@ -191,12 +191,13 @@ namespace Backend.Presentation.Controllers
         #endregion
 
         #region verify email
-        [HttpPost("verify-email")]
+        [HttpGet("verify-email")]
         public async Task<IActionResult> VerifyEmail([FromQuery] Guid token)
         {
             if (token == Guid.Empty)
             {
-                return BadRequest(new ApiResponse<string>("Token cannot be empty."));
+                // RETURN A STRUCTURED ERROR CODE
+                return BadRequest(new ApiErrorResponse("Verification.Token.Invalid", "Verification token is invalid."));
             }
 
             var command = new VerifyEmailCommand(token);
@@ -204,16 +205,16 @@ namespace Backend.Presentation.Controllers
 
             if (result.IsFailure)
             {
-                // The handler will provide the correct error.
-                // We can map specific error codes to status codes here if needed.
-                // For example, if the token doesn't exist, we might return 404.
+                // The handler provides a specific error with a code
+                var errorResponse = new ApiErrorResponse(result.Error.Code, result.Error.Description);
+
                 if (result.Error == UserErrors.VerificationTokenNotFound)
                 {
-                    return NotFound(new ApiErrorResponse(result.Error.Code, result.Error.Description));
+                    return NotFound(errorResponse);
                 }
 
-                // For other failures (expired, already verified), 400 is appropriate.
-                return BadRequest(new ApiErrorResponse(result.Error.Code, result.Error.Description));
+                // Other errors (Expired, AlreadyVerified) are 400 Bad Request
+                return BadRequest(errorResponse);
             }
 
             return Ok(new ApiResponse<string>("Email successfully verified."));
