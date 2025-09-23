@@ -17,8 +17,7 @@ export const registerUser = async (user: UserCreationDto): Promise<void> => {
         if (error.response) {
             // Extract a clear error message from the backend response.
             // The backend sends { code: "...", description: "..." }, so we use description.
-            const message = error.response.data?.description || 'An unknown error occurred.';
-
+            const message = error.response.data?.message || 'An unknown error occurred.';
             // Create a new error with a clean message and attach the original response for context.
             const customError = new Error(message);
             (customError as any).response = error.response; // Keep the original response data
