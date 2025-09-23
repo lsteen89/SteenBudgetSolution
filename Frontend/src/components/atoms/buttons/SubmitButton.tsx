@@ -113,7 +113,7 @@ const SubmitButton: React.FC<SubmitButtonProps> = ({
 
         /* base colours (only applied when caller hasn’t overridden them) */
         isDisabled && "bg-gray-300 text-gray-600 cursor-not-allowed",
-        !isDisabled && "bg-lime-500 text-slate-900",
+        !isDisabled && "bg-limeGreen text-slate-900",
 
         /* hover variants (only when not disabled) */
         !isDisabled &&

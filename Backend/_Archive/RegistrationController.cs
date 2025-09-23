@@ -81,7 +81,7 @@ namespace Backend.Presentation.Controllers
                 return StatusCode(500, "An error occurred while processing your request.");
             }
         }
-        [HttpGet("verify-email")]
+        [HttpPost("verify-email")]
         public async Task<IActionResult> VerifyEmail(Guid token)
         {
             if (!Guid.TryParse(token.ToString(), out Guid parsedToken))
