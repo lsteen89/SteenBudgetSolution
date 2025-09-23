@@ -3,7 +3,7 @@ import ReCAPTCHA from 'react-google-recaptcha';
 import { EmailSubmissionDto } from '../../types/User/Email/emailForm';
 import { validateContactForm } from '@utils/validation/contactValidation';
 import ContactFormInputField from "@components/atoms/InputField/ContactFormInputField";
-import SubmitButton from '@components/atoms/buttons/SubmitButton'; 
+import SubmitButton from '@components/atoms/buttons/SubmitButton';
 import SendIcon from '@assets/icons/MailIcon.svg?react';
 import { validateField } from '@utils/validation/fieldValidator';
 import { sendEmail } from '@api/Services/Mail/sendEmail';
@@ -17,7 +17,7 @@ import ContentWrapper from '@components/layout/ContentWrapper';
 import { ToastContainer, toast, ToastContentProps } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import CustomToast from '@components/atoms/customToast/CustomToast';
-import styles from '@components/atoms/customToast/CustomToast.module.css'; 
+import styles from '@components/atoms/customToast/CustomToast.module.css';
 
 type ReCAPTCHAWithReset = ReCAPTCHA & {
   reset: () => void;
@@ -27,7 +27,7 @@ type ReCAPTCHAWithReset = ReCAPTCHA & {
 const submitContactForm = async (data: EmailSubmissionDto) => {
   return new Promise<{ status: number; message: string }>((resolve, reject) => {
     setTimeout(() => {
-      if (data && data.SenderEmail !== 'error@example.com') { 
+      if (data && data.SenderEmail !== 'error@example.com') {
         // Resolve with a status to simulate a successful API response
         resolve({ status: 200, message: "Form submitted successfully" });
       } else {
@@ -36,6 +36,15 @@ const submitContactForm = async (data: EmailSubmissionDto) => {
       }
     }, 5000); // 5-second delay
   });
+};
+
+const initialFormData: EmailSubmissionDto = {
+  FirstName: '',
+  LastName: '',
+  SenderEmail: '',
+  Subject: '',
+  Body: '',
+  CaptchaToken: '',
 };
 
 const ContactUs: React.FC = () => {
@@ -62,7 +71,7 @@ const ContactUs: React.FC = () => {
   const handleCaptchaChange = (token: string | null) => {
     setFormData((prevData) => ({
       ...prevData,
-      CaptchaToken: token || '', 
+      CaptchaToken: token || '',
     }));
   };
 
@@ -92,85 +101,54 @@ const ContactUs: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-  
+
     const validationErrors = validateContactForm(formData);
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
     }
-  
+
     if (formData.SenderEmail !== 'l@l.se' && !formData.CaptchaToken) {
       setErrors({ CaptchaToken: 'Captcha is required!' });
       return;
     }
-  
+
     setIsSubmitting(true);
     try {
       const useMock = import.meta.env.VITE_USE_MOCK === 'true';
-  
-      // Determine which function to call based on the environment
       const apiFunction = useMock ? submitContactForm : sendEmail;
-  
-      console.log('Form Data:', formData);
-      console.log('Using function:', useMock ? 'Mock (submitContactForm)' : 'API (sendEmail)');
-  
-      const response = await apiFunction(formData);
-      console.log('Response:', response);
-  
-      // Validate response status
-      if (response.status === 200) {
-        // Success toast
-        toast(
-          (toastProps: ToastContentProps) => (
-            <CustomToast
-              message="Din förfrågan har skickats!"
-              type="success"
-              {...toastProps}
-            />
-          ),
-          {
-            autoClose: 5000,
-            className: styles.toastifyContainer,
-          }
-        );
-  
-        // Reset form and errors on success
-        setFormData({
-          FirstName: '',
-          LastName: '',
-          SenderEmail: '',
-          Subject: '',
-          Body: '',
-          CaptchaToken: '',
-        });
-        setErrors({});
-        captchaRef.current?.reset?.();
-      } else {
-        // Throw an error for non-200 responses to trigger the catch block
-        throw new Error(response.message || 'Failed to submit contact form. Please try again.');
-      }
+
+      // <-- FIX 1: Simplified success-only logic in the try block
+      await apiFunction(formData);
+
+      toast(
+        (props: ToastContentProps) => (
+          <CustomToast message="Din förfrågan har skickats!" type="success" {...props} />
+        ),
+        { autoClose: 5000, className: styles.toastifyContainer }
+      );
+
+      setFormData(initialFormData); // <-- Use the constant to reset
+      setErrors({});
+      captchaRef.current?.reset?.();
+
     } catch (error: any) {
       console.error('Error:', error);
 
-      // Error toast
+      // <-- FIX 2B: Use the specific error message from the rejected promise
+      const errorMessage = error.message || "Internt fel! Försök igen senare!";
+
       toast(
-        (toastProps: ToastContentProps) => (
-          <CustomToast
-            message="Internt fel! Försök igen senare!"
-            type="error"
-            {...toastProps}
-          />
+        (props: ToastContentProps) => (
+          <CustomToast message={errorMessage} type="error" {...props} />
         ),
-        {
-          autoClose: 5000,
-          className: styles.toastifyContainer,
-        }
+        { autoClose: 5000, className: styles.toastifyContainer }
       );
     } finally {
       setIsSubmitting(false);
     }
   };
-  
+
   return (
     <>
       <ToastContainer
@@ -182,7 +160,7 @@ const ContactUs: React.FC = () => {
         pauseOnFocusLoss={false}
         pauseOnHover={false}
         style={{ zIndex: 9999 }}
-      />      
+      />
       <PageContainer centerChildren={true} >
         <ContentWrapper className='
           py-10
@@ -191,13 +169,13 @@ const ContactUs: React.FC = () => {
           '
           centerContent={true}
         >
-          <FormContainer tag="form" 
+          <FormContainer tag="form"
             className='
             z-10
-            ' 
-            onSubmit={handleSubmit} 
+            '
+            onSubmit={handleSubmit}
             bgColor="gradient"
-            
+
           >
 
             <p className="font-bold text-lg text-gray-700 text-center leading-relaxed ">
@@ -305,6 +283,7 @@ const ContactUs: React.FC = () => {
                   type="submit"
                   enhanceOnHover
                   style={{ width: '100%' }}
+                  disabled={isSubmitting || !formData.CaptchaToken}
                 />
               </div>
 
@@ -326,13 +305,13 @@ const ContactUs: React.FC = () => {
               </div>
             </div>
 
-        </FormContainer>
-          
-        {/* Bird Image */}
-        <img
-          src={MailBird}
-          alt="Mail Bird"
-          className="z-0 w-auto max-w-[320px] mt-10 
+          </FormContainer>
+
+          {/* Bird Image */}
+          <img
+            src={MailBird}
+            alt="Mail Bird"
+            className="z-0 w-auto max-w-[320px] mt-10 
           sm:relative 
           md:relative
           lg:relative
@@ -340,9 +319,9 @@ const ContactUs: React.FC = () => {
           2xl:absolute 2xl:left-[5%] 2xl:top-1/2 2xl:transform 2xl:-translate-y-1/2
           3xl:absolute 3xl:left-[30%] 3xl:top-1/2 3xl:transform 3xl:-translate-y-1/2
           "
-        />
-      </ContentWrapper>
-    </PageContainer>
+          />
+        </ContentWrapper>
+      </PageContainer>
     </>
   );
 };

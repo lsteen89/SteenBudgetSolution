@@ -58,15 +58,29 @@ export default function LoginPage() {
     if (!(await validate())) return;
 
     setSub(true);
-    // Pass the rememberMe state to the login function
-    const res = await login(form, rememberMe);
-    setSub(false);
+    try { // <-- BEST PRACTICE: Wrap API calls in try/catch
 
-    if (res.success) return nav('/dashboard', { replace: true });
-    const swedishErrorMessage = translateBackendError(res.message);
-    setErr({ form: swedishErrorMessage }); // Set the error message for the form
-    // Reset the captcha if login fails
-    capRef.current?.reset();
+      const res = await login(form, rememberMe); // Pass rememberMe here
+
+      if (res.success) {
+        nav('/dashboard', { replace: true });
+      } else {
+        // This handles defined business logic errors (e.g., wrong password)
+        const swedishErrorMessage = translateBackendError(res.message);
+        setErr({ form: swedishErrorMessage });
+        capRef.current?.reset();
+      }
+
+    } catch (error: any) {
+      console.error("Login API call failed:", error);
+
+      const swedishErrorMessage = translateBackendError("Server.Error");
+      setErr({ form: swedishErrorMessage });
+      capRef.current?.reset();
+
+    } finally {
+      setSub(false);
+    }
   };
   console.log('SITE KEY LOADED BY VITE:', import.meta.env.VITE_RECAPTCHA_SITE_KEY);
   return (
