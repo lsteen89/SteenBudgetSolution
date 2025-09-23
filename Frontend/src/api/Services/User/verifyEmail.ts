@@ -1,36 +1,24 @@
 import { api } from '@/api/axios';
-import translate from "@utils/translate";
 
 /**
- * Response type for the verify email API call.
+ * Verifies a user's email with the given token.
+ * @param token The email verification token.
+ * @throws Will throw an Error with a user-friendly message on failure.
  */
-interface VerifyEmailResponse {
-  message: string;
-}
-
-/**
- * Verify email address using token.
- * @param token - The verification token from the query parameter.
- * @returns A promise resolving to the API response data.
- * @throws An error with a descriptive message if the request fails.
- */
-export const verifyEmail = async (token: string): Promise<VerifyEmailResponse> => {
+export const verifyEmail = async (token: string): Promise<void> => {
   try {
-    const response = await api.get<VerifyEmailResponse>(`/api/auth/verify-email?token=${token}`);
-
-    // Translate backend response message directly to Swedish
-    const translatedMessage = translate(response.data.message);
-
-    return {
-      message: translatedMessage,
-    };
+    // Using POST is slightly better practice for an action that changes state.
+    await api.post(`/api/auth/verify-email?token=${token}`);
   } catch (error: any) {
-    const backendMessage = error.response?.data?.message || "UNKNOWN_ERROR";
-
-    // Translate backend error message directly to Swedish
-    const translatedMessage = translate(backendMessage);
-
-    // Throw the translated message as the error
-    throw new Error(translatedMessage);
+    if (error.response) {
+      // Standardize on the error format from your backend: { code, description }
+      const message = error.response.data?.description || 'Email verification failed.';
+      const customError = new Error(message);
+      (customError as any).response = error.response; // Preserve original response
+      throw customError;
+    } else {
+      // Handle network errors
+      throw new Error('Unable to connect to the server.');
+    }
   }
 };
