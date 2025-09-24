@@ -13,7 +13,13 @@ ebudget.se, www.ebudget.se {
     }
     @ws path /ws /ws* /ws/*
     handle @ws {
-        reverse_proxy backend:8080
+        reverse_proxy backend:8080 {
+            transport http {
+            versions 1.1
+            }
+            header_up Connection {>Connection}
+            header_up Upgrade {>Upgrade}
+        }
     }
     handle {
         root * /srv/dist
