@@ -12,7 +12,9 @@ ebudget.se, www.ebudget.se {
     handle /api/* {
         reverse_proxy backend:8080
     }
-
+    handle /ws/* {
+        reverse_proxy backend:8080
+    }
     handle {
         root * /srv/dist
         try_files {path} /index.html
