@@ -20,9 +20,16 @@ public sealed class HsKeyRing : IJwtKeyRing
         foreach (var kv in items)
         {
             var kid = kv.Key;
-            var raw = ResolveValue(cfg, kv.Value!);           // env/file/inline
-            var bytes = Convert.FromBase64String(raw);        // always base64
-            dict[kid] = new SymmetricSecurityKey(bytes) { KeyId = kid };
+            var raw = ResolveValue(cfg, kv.Value ?? string.Empty).Trim(); // <- trim
+            byte[] bytes;
+            try { bytes = Convert.FromBase64String(raw); }
+            catch (FormatException) { throw new InvalidOperationException($"Jwt key {kid} is not valid base64"); }
+
+            if (bytes.Length < 32) // 256-bit minimum
+                throw new InvalidOperationException($"Jwt key {kid} too short; need ≥ 32 bytes");
+
+            var key = new SymmetricSecurityKey(bytes) { KeyId = kid };
+            dict[kid] = key;
         }
 
         if (!dict.TryGetValue(ActiveKid, out var active))
@@ -36,9 +43,9 @@ public sealed class HsKeyRing : IJwtKeyRing
     {
         if (v.StartsWith("__ENV__:", StringComparison.Ordinal))
             return Environment.GetEnvironmentVariable(v[8..])
-                ?? throw new InvalidOperationException($"Env '{v[8..]}' missing");
+                   ?? throw new InvalidOperationException($"Env '{v[8..]}' missing");
         if (v.StartsWith("__FILE__:", StringComparison.Ordinal))
             return File.ReadAllText(v[9..]).Trim();
-        return v; // inline base64
+        return v; // inline base64 via docker env substitution
     }
 }
