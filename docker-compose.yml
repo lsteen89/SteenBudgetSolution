@@ -12,7 +12,9 @@ volumes:
 
 services:
   redis:
-    image: redis:7-alpine
+    image: redis:7-alpine'
+    environment:
+    REDIS_PASSWORD: ${REDIS_PASSWORD}
     command: [ "redis-server", "--requirepass", "${REDIS_PASSWORD}", "--appendonly", "yes", "--appendfsync", "everysec", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru", "--tcp-keepalive", "60" ]
     volumes:
       - redis_data:/data
@@ -20,6 +22,7 @@ services:
       test: [ "CMD-SHELL", "redis-cli -a $$REDIS_PASSWORD ping | grep PONG" ]
       interval: 10s
       timeout: 5s
+      start_period: 15s
       retries: 10
     restart: unless-stopped
     networks: [ steen ]
