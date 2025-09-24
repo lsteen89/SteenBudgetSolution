@@ -9,8 +9,14 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 
+# Create a non-root user
+RUN addgroup -S app && adduser -S app -G app -u 10001
+USER 10001
+
 # Copy the rest of your application's source code
 COPY . .
 
 # The command to start the Vite development server
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s \
+  CMD curl -f http://127.0.0.1:5173/ || exit 1
 CMD ["npm", "run", "dev"]

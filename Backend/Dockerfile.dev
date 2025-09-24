@@ -9,6 +9,12 @@ RUN dotnet restore Backend/Backend.csproj
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
+# Create a non-root user
+RUN addgroup --system app && adduser --system --ingroup app --no-create-home --uid 10001 app
+USER 10001
+
 WORKDIR /src/Backend
 EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=3s --start-period=20s --retries=3 \
+  CMD curl -f http://127.0.0.1:8080/api/readyz || exit 1
 CMD ["dotnet", "watch", "run", "--urls", "http://*:8080"]

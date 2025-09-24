@@ -14,9 +14,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Backend\Backend.csproj" />
-    <ProjectReference Include="..\..\src\Backend.Application\Backend.Application.csproj" />
-    <ProjectReference Include="..\..\src\Backend.Infrastructure\Backend.Infrastructure.csproj" />
     <ProjectReference Include="..\..\Backend\Backend.csproj" />
   </ItemGroup>
   
@@ -35,6 +32,8 @@
     <PackageReference Include="Dapper" Version="2.1.35" />
     <PackageReference Include="MySqlConnector" Version="2.4.0" />
     <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.13.0" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="8.0.2" />
   </ItemGroup>
 
   <ItemGroup>
