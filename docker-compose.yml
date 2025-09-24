@@ -50,6 +50,8 @@ services:
     pull_policy: missing # ← don’t pull if already present
     env_file:
       - .env # includes CLOUDFLARE_API_TOKEN
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
     ports:
       - "80:80"
       - "443:443"

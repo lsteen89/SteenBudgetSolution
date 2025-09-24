@@ -64,22 +64,25 @@ public class TokenBlacklistService : ITokenBlacklistService
             throw new ArgumentException("Token JTI cannot be null or empty.", nameof(jti));
 
         // Try to get the cached value (e.g., "true" or "false")
-        var cacheResult = await _cache.GetStringAsync(jti);
-        if (!string.IsNullOrEmpty(cacheResult))
+        try
         {
-            // Parse the cached string to a boolean
-            if (bool.TryParse(cacheResult, out bool isBlacklisted))
-                return isBlacklisted;
+            var cacheResult = await _cache.GetStringAsync(jti);
+            if (!string.IsNullOrEmpty(cacheResult))
+            {
+                return bool.TryParse(cacheResult, out var isBlacklisted) && isBlacklisted;
+            }
+        }
+        catch (Exception ex)
+        {
+            // Log the error but DO NOT re-throw. The app must continue working.
+            _logger.LogWarning(ex, "Redis connection failed. Checking blacklist in DB for JTI {Jti}.", jti);
         }
 
-        // If not in cache, check the database
+        // Fall back to the database if the cache fails or has no entry
         bool isBlacklistedDB = await _blacklist.IsTokenBlacklistedAsync(jti);
 
-        // Cache the result as a string ("true" or "false") for _cacheDuration
-        await _cache.SetStringAsync(jti, isBlacklistedDB.ToString(), new DistributedCacheEntryOptions
-        {
-            AbsoluteExpirationRelativeToNow = _cacheDuration
-        });
+        // You can even try to cache the DB result here again, but it might also fail
+        // and should be in its own try...catch block if you do.
 
         return isBlacklistedDB;
     }
