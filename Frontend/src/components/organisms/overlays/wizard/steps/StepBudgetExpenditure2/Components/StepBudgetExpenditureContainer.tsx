@@ -5,6 +5,7 @@ import React, {
   useRef,
   useEffect,
   useCallback,
+  Suspense,
 } from 'react';
 import {
   FormProvider,
@@ -18,14 +19,15 @@ import WizardFormWrapperStep2, {
 } from './wrapper/WizardFormWrapperStep2';
 
 /*Substeps for major step 2*/
-import ExpenditureOverviewMainText from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/1_SubStepWelcome/ExpenditureOverviewMainText';
-import SubStepRent  from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/2_SubStepRent/SubStepRent';
-import SubStepFood  from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/3_SubStepFood/SubStepFood';
-import SubStepFixedExp from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/4_SubStepFixedExpenses/SubStepFixedExpenses';
-import SubStepTransport from '@/components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/5_SubStepTransport/SubStepTransport';
-import SubStepClothing from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/6_SubStepClothing/SubStepClothing';
-import SubStepSubscriptions from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/7_SubStepSubscriptions/SubStepSubscriptions';
-import SubStepConfirm from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/8_SubStepConfirm/SubStepConfirm';
+const ExpenditureOverviewMainText = React.lazy(() => import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/1_SubStepWelcome/ExpenditureOverviewMainText'));
+const SubStepRent = React.lazy(() => import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/2_SubStepRent/SubStepRent'));
+const SubStepFood = React.lazy(() => import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/3_SubStepFood/SubStepFood'));
+const SubStepFixedExp = React.lazy(() => import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/4_SubStepFixedExpenses/SubStepFixedExpenses'));
+const SubStepTransport = React.lazy(() => import('@/components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/5_SubStepTransport/SubStepTransport'));
+const SubStepClothing = React.lazy(() => import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/6_SubStepClothing/SubStepClothing'));
+const SubStepSubscriptions = React.lazy(() => import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/7_SubStepSubscriptions/SubStepSubscriptions'));
+const SubStepConfirm = React.lazy(() => import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/8_SubStepConfirm/SubStepConfirm'));
+
 
 import LoadingScreen from '@components/molecules/feedback/LoadingScreen';
 import AnimatedContent from '@components/atoms/wrappers/AnimatedContent';
@@ -44,6 +46,14 @@ import {
 } from 'lucide-react';
 
 import { useWizardDataStore } from '@/stores/Wizard/wizardDataStore';
+
+const preload = (fn: () => Promise<any>) => {
+    if (typeof (window as any).requestIdleCallback === "function") {
+      (window as any).requestIdleCallback(() => fn());
+    } else {
+      setTimeout(() => fn(), 200);
+    }
+  };
 
 /* ------------------------------------------------------------------ */
 /* INTERFACES                              */
@@ -138,6 +148,21 @@ const StepBudgetExpenditureContainer = forwardRef<
     useState<UseFormReturn<Step2FormValues> | null>(null);
   const [isFormHydrated, setIsFormHydrated] = useState(false);
 
+  useEffect(() => {
+    const loaders: Record<number, () => Promise<any>> = {
+      1: () => import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/1_SubStepWelcome/ExpenditureOverviewMainText'),
+      2: () => import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/2_SubStepRent/SubStepRent'),
+      3: () => import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/3_SubStepFood/SubStepFood'),
+      4: () => import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/4_SubStepFixedExpenses/SubStepFixedExpenses'),
+      5: () => import('@/components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/5_SubStepTransport/SubStepTransport'),
+      6: () => import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/6_SubStepClothing/SubStepClothing'),
+      7: () => import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/7_SubStepSubscriptions/SubStepSubscriptions'),
+      8: () => import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/8_SubStepConfirm/SubStepConfirm'),
+    };
+    const next = Math.min(currentSub + 1, 8);
+    if (loaders[next]) preload(loaders[next]);
+  }, [currentSub]);
+
   const handleFormHydration = () => {
     setIsFormHydrated(true);
   };
@@ -168,6 +193,7 @@ const StepBudgetExpenditureContainer = forwardRef<
   const totalSteps = 8;
 
   const goToSub = async (dest: number) => {
+    performance.mark('substep_switch_start');
     const goingBack = dest < currentSub;
     const skipValidation = currentSub === 1 || goingBack;
 
@@ -179,6 +205,7 @@ const StepBudgetExpenditureContainer = forwardRef<
   const next = () => {
     if (currentSub < totalSteps) {
       if (currentSub === 1) {
+        performance.mark('substep_switch_start');
         setCurrentSub(2);
       } else {
         goToSub(currentSub + 1);
@@ -202,6 +229,14 @@ const StepBudgetExpenditureContainer = forwardRef<
   /* 6 ─── notify parent of sub-step -------------------------------- */
   useEffect(() => {
     if (isFormHydrated) {
+      performance.mark('substep_switch_end');
+      performance.measure('substep_switch', 'substep_switch_start', 'substep_switch_end');
+      if (process.env.NODE_ENV === 'development') {
+        const measure = performance.getEntriesByName('substep_switch', 'measure').pop();
+        if (measure) {
+            console.log(`Substep switch to ${currentSub} took: ${measure.duration}ms`);
+        }
+      }
       console.log(
         `HAWK 1C: Sub-step state is now ${currentSub}. Notifying parent.`
       );
@@ -300,9 +335,11 @@ const StepBudgetExpenditureContainer = forwardRef<
 
           {/* Content */}
           <div className="flex-1">
-            <AnimatedContent animationKey={String(currentSub)} triggerKey={String(currentSub)}>
-              {renderSubStep()}
-            </AnimatedContent>
+            <Suspense fallback={<LoadingScreen full={false} textColor="black" />}>
+              <AnimatedContent animationKey={String(currentSub)} triggerKey={String(currentSub)}>
+                {renderSubStep()}
+              </AnimatedContent>
+            </Suspense>
           </div>
         </form>
       )}

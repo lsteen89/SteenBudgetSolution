@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo, useLayoutEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo, useLayoutEffect, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     X,
@@ -10,16 +10,11 @@ import {
 
 
 import WizardStepContainer from "@components/molecules/containers/WizardStepContainer";
-import StepWelcome from "@components/organisms/overlays/wizard/steps/StepWelcome";
-import StepBudgetSavings from "@components/organisms/overlays/wizard/steps/StepBudgetSavings3/StepBudgetSavings";
 import { StepBudgetSavingsRef } from "@/types/Wizard/StepBudgetSavingsRef";
-import StepBudgetDebts from "@components/organisms/overlays/wizard/steps/StepBudgetDebts4/StepBudgetDebts";
 import { StepBudgetDebtsRef } from "@/types/Wizard/StepBudgetDebtsRef";
-import StepBudgetFinal from "@components/organisms/overlays/wizard/steps/StepBudgetFinal5/StepBudgetFinal";
 import { StepBudgetFinalRef } from "@/types/Wizard/StepBudgetFinalRef";
-import WizardFormWrapperStep1, { WizardFormWrapperStep1Ref } from '@components/organisms/overlays/wizard/steps/StepBudgetIncome1/wrapper/WizardFormWrapperStep1'; 
-import StepBudgetIncome from "@components/organisms/overlays/wizard/steps/StepBudgetIncome1/StepBudgetIncome";
-import StepExpenditure, { StepBudgetExpenditureRef } from "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/StepBudgetExpenditure";
+import { WizardFormWrapperStep1Ref } from '@components/organisms/overlays/wizard/steps/StepBudgetIncome1/wrapper/WizardFormWrapperStep1'; 
+import { StepBudgetExpenditureRef } from "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/StepBudgetExpenditure";
 import { useToast } from "@context/ToastContext";
 import useSaveWizardStep from "@hooks/wizard/useSaveWizardStep";
 import useWizardInit from "@hooks/wizard/useWizardInit";
@@ -35,6 +30,34 @@ import ConfirmModal from "@components/atoms/modals/ConfirmModal";
 import { useWizard, WizardProvider } from '@/context/WizardContext';
 import { useWizardDataStore } from '@/stores/Wizard/wizardDataStore';
 import { useWizardSessionStore } from '@/stores/Wizard/wizardSessionStore';
+import LoadingScreen from "@components/molecules/feedback/LoadingScreen";
+import { shallow } from 'zustand/shallow';
+
+const StepWelcome = React.lazy(() => import("@components/organisms/overlays/wizard/steps/StepWelcome"));
+const WizardFormWrapperStep1 = React.lazy(() => import("@components/organisms/overlays/wizard/steps/StepBudgetIncome1/wrapper/WizardFormWrapperStep1"));
+const StepBudgetIncome = React.lazy(() => import("@components/organisms/overlays/wizard/steps/StepBudgetIncome1/StepBudgetIncome"));
+const StepExpenditure = React.lazy(() => import("@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/StepBudgetExpenditure"));
+const StepBudgetSavings = React.lazy(() => import("@components/organisms/overlays/wizard/steps/StepBudgetSavings3/StepBudgetSavings"));
+const StepBudgetDebts = React.lazy(() => import("@components/organisms/overlays/wizard/steps/StepBudgetDebts4/StepBudgetDebts"));
+const StepBudgetFinal = React.lazy(() => import("@components/organisms/overlays/wizard/steps/StepBudgetFinal5/StepBudgetFinal"));
+
+const preload = (fn: () => Promise<any>) => {
+  if (typeof (window as any).requestIdleCallback === "function") {
+    (window as any).requestIdleCallback(() => fn());
+  } else {
+    setTimeout(() => fn(), 200);
+  }
+};
+
+const stepLoaders: Record<number, () => Promise<any>> = {
+    0: () => import("@components/organisms/overlays/wizard/steps/StepWelcome"),
+    1: () => import("@components/organisms/overlays/wizard/steps/StepBudgetIncome1/StepBudgetIncome"),
+    2: () => import("@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/StepBudgetExpenditure"),
+    3: () => import("@components/organisms/overlays/wizard/steps/StepBudgetSavings3/StepBudgetSavings"),
+    4: () => import("@components/organisms/overlays/wizard/steps/StepBudgetDebts4/StepBudgetDebts"),
+    5: () => import("@components/organisms/overlays/wizard/steps/StepBudgetFinal5/StepBudgetFinal"),
+};
+
 // ---------------------------- TYPES ----------------------------
 interface SetupWizardProps {
     onClose: () => void;
@@ -57,12 +80,12 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
         initialStep,
         initialSubStep,
     } = useWizardInit();
-    const { income, expenditure, savings, debts } = useWizardDataStore(state => ({
-        income: state.data.income,
-        expenditure: state.data.expenditure,
-        savings: state.data.savings,
-        debts: state.data.debts,
-    }));
+    const { income, expenditure, savings, debts } = useWizardDataStore(s => ({
+        income: s.data.income,
+        expenditure: s.data.expenditure,
+        savings: s.data.savings,
+        debts: s.data.debts,
+    }), shallow);
     const { handleSaveStepData } = useSaveWizardStep(wizardSessionId || '');
     const [transitionLoading, setTransitionLoading] = useState(false);
     const [currentStepState, setCurrentStepState] = useState<Record<number, any>>({});
@@ -74,12 +97,37 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     const step3Ref = useRef<StepBudgetSavingsRef>(null);
     const step4Ref = useRef<StepBudgetDebtsRef>(null);
     const step5Ref = useRef<StepBudgetFinalRef>(null);
-    const stepRefs: { [key: number]: React.RefObject<any> } = { 1: step1WrapperRef, 2: StepBudgetExpenditureRef, 3: step3Ref, 4: step4Ref, 5: step5Ref };
+    const stepRefs: { [key: number]: React.RefObject<any> } = useMemo(() => ({ 1: step1WrapperRef, 2: StepBudgetExpenditureRef, 3: step3Ref, 4: step4Ref, 5: step5Ref }), 
+    [step1WrapperRef, StepBudgetExpenditureRef, step3Ref, step4Ref, step5Ref]);
     const { setShowSideIncome, setShowHouseholdMembers } = useBudgetInfoDisplayFlags();
     const [subTick, setSubTick] = useState(0);
     const { setIncome, setExpenditure, setSavings, setDebts } = useWizardDataStore();
 
     const { finalizeWizard, isFinalizing, finalizationError } = useWizardFinalization();
+
+    useEffect(() => {
+        performance.mark('step_switch_end');
+        performance.measure('step_switch', 'step_switch_start', 'step_switch_end');
+        if (process.env.NODE_ENV === 'development') {
+            const measure = performance.getEntriesByName('step_switch', 'measure').pop();
+            if (measure) {
+                console.log(`Step switch from ${step-1} to ${step} took: ${measure.duration}ms`);
+            }
+        }
+    }, [step]);
+
+    useEffect(() => {
+        const next = Math.min(step + 1, 5);
+        if (stepLoaders[next]) preload(stepLoaders[next]);
+      }, [step]);
+
+    const stepsMemo = useMemo(() => ([
+        { icon: Wallet, label: "Inkomster" },
+        { icon: CreditCard, label: "Utgifter" },
+        { icon: User, label: "Sparande" },
+        { icon: CreditCard, label: "Skulder" },
+        { icon: CheckCircle, label: "Bekräfta" },
+      ]), []);
 
     // All the callbacks and effects also remain here, safe and sound.
     const handleWizardClose = useCallback(() => { setConfirmModalOpen(true); }, []);
@@ -110,6 +158,16 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
         step, setStep, totalSteps: 5, stepRefs, setTransitionLoading, setCurrentStepState, handleSaveStepData, triggerShakeAnimation, isDebugMode, setShowSideIncome, setShowHouseholdMembers,
     });
 
+    const nextStepWithPerf = useCallback(() => {
+        performance.mark('step_switch_start');
+        hookNextStep();
+    }, [hookNextStep]);
+    
+    const prevStepWithPerf = useCallback(() => {
+        performance.mark('step_switch_start');
+        hookPrevStep();
+    }, [hookPrevStep]);
+
     useEffect(() => { setIsStepValid(step === 0); }, [step]);
 
     const syncStoreWithCurrentStep = useCallback(() => {
@@ -132,7 +190,10 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
         setSubTick(t => t + 1);
     }, [step, syncStoreWithCurrentStep]);
 
-    const handleStepClick = (targetStep: number) => { setStep(targetStep); };
+    const handleStepClick = useCallback((targetStep: number) => { 
+        performance.mark('step_switch_start');
+        setStep(targetStep); 
+    }, []);
 
     const subNav = useMemo(() => {
         const api = stepRefs[step]?.current;
@@ -173,20 +234,14 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
                 transitionLoading={transitionLoading}
                 step={step}
                 totalSteps={5}
-                steps={[
-                    { icon: Wallet, label: "Inkomster" },
-                    { icon: CreditCard, label: "Utgifter" },
-                    { icon: User, label: "Sparande" },
-                    { icon: CreditCard, label: "Skulder" },
-                    { icon: CheckCircle, label: "Bekräfta" },
-                ]}
+                steps={stepsMemo}
                 handleStepClick={handleStepClick}
                 isMobile={isMobile}
                 wizardSessionId={wizardSessionId}
                 isDebugMode={isDebugMode}
                 stepRefs={stepRefs}
-                hookNextStep={hookNextStep}
-                hookPrevStep={hookPrevStep}
+                hookNextStep={nextStepWithPerf}
+                hookPrevStep={prevStepWithPerf}
                 StepBudgetExpenditureRef={StepBudgetExpenditureRef}
                 setIsStepValid={setIsStepValid}
                 handleSaveStepData={handleSaveStepData}
@@ -251,7 +306,7 @@ const WizardContent = (props: any) => {
                         className="mb-6 text-center text-gray-700"
                     >
                         <WizardStepContainer maxWidth={props.step === 1 ? "md" : undefined}>
-                            
+                            <Suspense fallback={<LoadingScreen full textColor="black" />}>
                             {props.step === 0 ? (
                                 <StepWelcome
                                     connectionError={props.connectionError}
@@ -340,7 +395,7 @@ const WizardContent = (props: any) => {
                                     )}
                                 </>
                             )}
-
+                            </Suspense>
 
                         </WizardStepContainer>
                     </AnimatedContent>
