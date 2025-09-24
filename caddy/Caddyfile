@@ -1,35 +1,49 @@
 ebudget.se, www.ebudget.se {
-  encode zstd gzip
+    encode zstd gzip
 
-  handle /api/healthz* { respond 404 }
-  handle /api/readyz*  { respond 404 }
+    handle /api/healthz* {
+        respond 404
+    }
+    handle /api/readyz* {
+        respond 404
+    }
 
-  handle /api/* { reverse_proxy backend:8080 }
+    handle /api/* {
+        reverse_proxy backend:8080
+    }
+    @ws path /ws /ws* /ws/*
+    handle @ws {
+        reverse_proxy backend:8080
+    }
+    handle {
+        root * /srv/dist
+        try_files {path} /index.html
+        file_server
+    }
 
-  @ws path /ws /ws* /ws/*
-  handle @ws {
-    reverse_proxy backend:8080
-  }
+    tls {
+        dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+    }
 
-  handle {
-    root * /srv/dist
-    try_files {path} /index.html
-    file_server
-  }
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "geolocation=(), microphone=()"
+    }
 
-  tls { dns cloudflare {env.CLOUDFLARE_API_TOKEN} }
+    @html {
+        path_regexp html .*\.html$
+    }
+    header @html {
+        Cache-Control "no-cache"
+    }
 
-  header {
-    Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-    X-Content-Type-Options "nosniff"
-    X-Frame-Options "DENY"
-    Referrer-Policy "strict-origin-when-cross-origin"
-    Permissions-Policy "geolocation=(), microphone=()"
-  }
-
-  @html   { path_regexp html .*\.html$ }
-  header @html   { Cache-Control "no-cache" }
-
-  @assets { path *.js *.css *.png *.jpg *.svg *.woff2 }
-  header @assets { Cache-Control "public, max-age=31536000, immutable" }
+    @assets {
+        path *.js *.css *.png *.jpg *.svg *.woff2
+    }
+    header @assets {
+        Cache-Control "public, max-age=31536000, immutable"
+    }
 }
