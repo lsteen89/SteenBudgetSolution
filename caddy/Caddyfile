@@ -17,8 +17,6 @@ ebudget.se, www.ebudget.se {
             transport http {
             versions 1.1
             }
-            header_up Connection {>Connection}
-            header_up Upgrade {>Upgrade}
         }
     }
     handle {
