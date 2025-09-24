@@ -1,50 +1,35 @@
-sudo tee /opt/steenbudget/Caddyfile/Caddyfile >/dev/null <<'EOF'
 ebudget.se, www.ebudget.se {
-    encode zstd gzip
+  encode zstd gzip
 
-    handle /api/healthz* {
-        respond 404
-    }
-    handle /api/readyz* {
-        respond 404
-    }
+  handle /api/healthz* { respond 404 }
+  handle /api/readyz*  { respond 404 }
 
-    handle /api/* {
-        reverse_proxy backend:8080
-    }
-    @ws path /ws /ws* /ws/*
-    handle @ws {
-        reverse_proxy backend:8080
-    }
-    handle {
-        root * /srv/dist
-        try_files {path} /index.html
-        file_server
-    }
+  handle /api/* { reverse_proxy backend:8080 }
 
-    tls {
-        dns cloudflare {env.CLOUDFLARE_API_TOKEN}
-    }
+  @ws path /ws /ws* /ws/*
+  handle @ws {
+    reverse_proxy backend:8080
+  }
 
-    header {
-        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-        X-Content-Type-Options "nosniff"
-        X-Frame-Options "DENY"
-        Referrer-Policy "strict-origin-when-cross-origin"
-        Permissions-Policy "geolocation=(), microphone=()"
-    }
+  handle {
+    root * /srv/dist
+    try_files {path} /index.html
+    file_server
+  }
 
-    @html {
-        path_regexp html .*\.html$
-    }
-    header @html {
-        Cache-Control "no-cache"
-    }
+  tls { dns cloudflare {env.CLOUDFLARE_API_TOKEN} }
 
-    @assets {
-        path *.js *.css *.png *.jpg *.svg *.woff2
-    }
-    header @assets {
-        Cache-Control "public, max-age=31536000, immutable"
-    }
+  header {
+    Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    X-Content-Type-Options "nosniff"
+    X-Frame-Options "DENY"
+    Referrer-Policy "strict-origin-when-cross-origin"
+    Permissions-Policy "geolocation=(), microphone=()"
+  }
+
+  @html   { path_regexp html .*\.html$ }
+  header @html   { Cache-Control "no-cache" }
+
+  @assets { path *.js *.css *.png *.jpg *.svg *.woff2 }
+  header @assets { Cache-Control "public, max-age=31536000, immutable" }
 }
