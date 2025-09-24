@@ -11,6 +11,7 @@ public sealed class HsKeyRing : IJwtKeyRing
 
     public HsKeyRing(IConfiguration cfg)
     {
+
         var jwt = cfg.GetSection("Jwt");
         ActiveKid = jwt["ActiveKid"] ?? throw new InvalidOperationException("Jwt:ActiveKid missing");
         var items = jwt.GetSection("Keys").GetChildren().ToArray();

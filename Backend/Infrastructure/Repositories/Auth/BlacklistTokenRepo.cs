@@ -13,7 +13,9 @@ public class TokenBlacklistRepo : SqlBase, ITokenBlacklistRepo
         VALUES (@Jti, @ExpiresUtc)
         ON DUPLICATE KEY UPDATE ExpiresUtc = GREATEST(ExpiresUtc, VALUES(ExpiresUtc));";
 
-        var rows = await ExecuteAsync(sql, new { Jti = jti, ExpiresUtc = expirationUtc }, ct);
+        var jtiGuid = Guid.Parse(jti);
+        var jtiBytes = jtiGuid.ToByteArray(); // 16 bytes
+        var rows = await ExecuteAsync(sql, new { Jti = jtiBytes, ExpiresUtc = expirationUtc }, ct);
         return rows > 0;
     }
 

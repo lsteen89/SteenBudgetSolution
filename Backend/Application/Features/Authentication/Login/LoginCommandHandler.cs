@@ -53,6 +53,7 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, Result<A
 
     public async Task<Result<AuthResult>> Handle(LoginCommand c, CancellationToken ct)
     {
+
         // 1) CAPTCHA
         var allowTestEmails = _configuration["ALLOW_TEST_EMAILS"] == "true";
         var isTestEmail = c.Email == _configuration["TestEmailAddress"]; // Also get the email from config!

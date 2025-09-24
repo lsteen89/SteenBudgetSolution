@@ -51,6 +51,7 @@ services:
     image: ghcr.io/lsteen89/steenbudget-backend:latest
     pull_policy: always
     env_file: [ .env ] # existing vars
+    user: "1000:1000"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       # Redis

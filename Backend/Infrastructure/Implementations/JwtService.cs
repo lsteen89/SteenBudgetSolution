@@ -96,7 +96,7 @@ namespace Backend.Infrastructure.Implementations
                     claims.Add(new Claim(kv.Key, kv.Value));
 
             _logger.LogDebug("Claims being added to JWT: {@Claims}", claims); // <--- ADD THIS LOGGING
-
+            _logger.LogInformation("JWT ring: active={Kid}, totalKeys={Count}", _jwtSettings.ActiveKid, _ring.All.Count);
             var token = new JwtSecurityToken(
                 issuer: _jwtSettings.Issuer,
                 audience: _jwtSettings.Audience,
