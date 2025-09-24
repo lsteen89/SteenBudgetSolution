@@ -91,7 +91,7 @@ services:
       - "443:443"
     volumes:
       # If /opt/steenbudget/Caddyfile is a single file, map it explicitly:
-      - /opt/steenbudget/Caddyfile/Caddyfile:/etc/caddy/Caddyfile:ro
+      - /opt/steenbudget/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - /opt/steenbudget/frontend:/srv:ro
       - caddy_data:/data
       - caddy_config:/config
