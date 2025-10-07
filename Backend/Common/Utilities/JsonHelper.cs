@@ -12,9 +12,21 @@ namespace Backend.Common.Utilities
             WriteIndented = false
         };
 
+        public static readonly JsonSerializerOptions CamelSparse = new()
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            PropertyNameCaseInsensitive = true,
+            WriteIndented = false,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        };
+
         static JsonHelper()
         {
             Camel.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false));
+            CamelSparse.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false));
         }
+
+        public static string SerializeSparse<T>(T value) =>
+            JsonSerializer.Serialize(value, CamelSparse);
     }
 }

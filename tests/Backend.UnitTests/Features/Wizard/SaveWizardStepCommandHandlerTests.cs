@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
 using Xunit;
+using Microsoft.Extensions.Logging;
 
 using Backend.Domain.Shared;
 using Backend.Application.Abstractions.Infrastructure.Data; // IWizardRepository
@@ -35,7 +36,8 @@ public sealed class SaveWizardStepCommandHandlerTests
     public async Task Missing_Validator_Returns_Error_And_Does_Not_Call_Repo()
     {
         var repo = new Mock<IWizardRepository>(MockBehavior.Strict);
-        var sut = new SaveWizardStepCommandHandler(repo.Object, Array.Empty<IWizardStepValidator>());
+        var mockLogger = Mock.Of<ILogger<SaveWizardStepCommandHandler>>();
+        var sut = new SaveWizardStepCommandHandler(repo.Object, Array.Empty<IWizardStepValidator>(), mockLogger);
 
         var cmd = new SaveWizardStepCommand(Guid.NewGuid(), 99, 0, new { }, 1);
         var res = await sut.Handle(cmd, CancellationToken.None);
@@ -51,7 +53,8 @@ public sealed class SaveWizardStepCommandHandlerTests
         var repo = new Mock<IWizardRepository>(MockBehavior.Strict);
         var failingValidator = new FakeValidator(1,
             _ => Result<string>.Failure(new Error("Validation.Failed", "Something was wrong with the input.")));
-        var sut = new SaveWizardStepCommandHandler(repo.Object, new[] { failingValidator });
+        var mockLogger = Mock.Of<ILogger<SaveWizardStepCommandHandler>>();
+        var sut = new SaveWizardStepCommandHandler(repo.Object, new[] { failingValidator }, mockLogger);
 
         var cmd = new SaveWizardStepCommand(Guid.NewGuid(), 1, 0, new { }, 1);
         var res = await sut.Handle(cmd, CancellationToken.None);
@@ -69,7 +72,8 @@ public sealed class SaveWizardStepCommandHandlerTests
 
         var successValidator = new FakeValidator(1, _ => Result<string>.Success(json));
 
-        var sut = new SaveWizardStepCommandHandler(repo.Object, new[] { successValidator });
+        var mockLogger = Mock.Of<ILogger<SaveWizardStepCommandHandler>>();
+        var sut = new SaveWizardStepCommandHandler(repo.Object, new[] { successValidator }, mockLogger);
 
         var sid = Guid.NewGuid();
         var cmd = new SaveWizardStepCommand(sid, 1, 2, new { any = "data" }, 3);
@@ -91,7 +95,9 @@ public sealed class SaveWizardStepCommandHandlerTests
         var json = """{"ok":true}""";
 
         var successValidator = new FakeValidator(1, _ => Result<string>.Success(json));
-        var sut = new SaveWizardStepCommandHandler(repo.Object, new[] { successValidator });
+
+        var mockLogger = Mock.Of<ILogger<SaveWizardStepCommandHandler>>();
+        var sut = new SaveWizardStepCommandHandler(repo.Object, new[] { successValidator }, mockLogger);
 
         var sid = Guid.NewGuid();
         var cmd = new SaveWizardStepCommand(sid, 1, 0, new { }, 1);
@@ -113,7 +119,9 @@ public sealed class SaveWizardStepCommandHandlerTests
         var repo = new Mock<IWizardRepository>();
         var v1 = new FakeValidator(1, _ => Result<string>.Success("""{"step":1}"""));
         var v2 = new FakeValidator(2, _ => Result<string>.Success("""{"step":2}"""));
-        var sut = new SaveWizardStepCommandHandler(repo.Object, new IWizardStepValidator[] { v1, v2 });
+
+        var mockLogger = Mock.Of<ILogger<SaveWizardStepCommandHandler>>();
+        var sut = new SaveWizardStepCommandHandler(repo.Object, new IWizardStepValidator[] { v1, v2 }, mockLogger);
 
         var sid = Guid.NewGuid();
 

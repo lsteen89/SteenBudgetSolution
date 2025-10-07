@@ -389,3 +389,16 @@ instructions.txt
 docker-compose.dev.yml
 .env.dev
 Agent/instruction.txt
+
+# Build artifacts
+**/bin/
+**/obj/
+
+# Secrets
+*.secret*
+*.key
+*.pfx
+*.pem
+Backend.Tools/bin/**/login.json
+Backend.Tools/bin/**/refresh.json
+reports/

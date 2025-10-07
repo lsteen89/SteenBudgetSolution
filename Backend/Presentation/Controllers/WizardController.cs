@@ -10,11 +10,12 @@ using Backend.Application.Features.Wizard.FinalizeWizard;
 using Backend.Presentation.Shared;
 using MediatR;
 using Backend.Domain.Shared;
+using Backend.Domain.Entities.Wizard;
 
 namespace Backend.Presentation.Controllers
 {
     [Authorize]
-    [Route("api/[controller]")]
+    [Route("api/wizard")]
     [ApiController]
     public class WizardController : ControllerBase
     {
@@ -27,19 +28,16 @@ namespace Backend.Presentation.Controllers
             _logger = logger;
         }
         [HttpPost("start")]
-        [ProducesResponseType(typeof(ApiResponse<Guid>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<StartWizardResponse>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status401Unauthorized)]
-        public async Task<ActionResult<ApiResponse<Guid>>> StartWizard(CancellationToken ct)
+        public async Task<ActionResult<ApiResponse<StartWizardResponse>>> StartWizard(CancellationToken ct)
         {
-            Guid? userId = User.GetPersoid();
+            var userId = User.GetPersoid();
             if (!userId.HasValue)
-            {
                 return Unauthorized(new ApiErrorResponse("Token.Invalid", "User identifier not found in token."));
-            }
 
-            var command = new StartWizardCommand(userId.Value);
-            var result = await _mediator.Send(command, ct);
+            var result = await _mediator.Send(new StartWizardCommand(userId.Value), ct);
 
             return result.ToApiResponse();
         }
@@ -57,6 +55,10 @@ namespace Backend.Presentation.Controllers
             {
                 return Forbid();
             }
+            _logger.LogInformation("Saving wizard step data for session {SessionId}, step {StepNumber}, sub-step {SubStepNumber}.",
+                sessionId, stepNumber, subStepNumber);
+
+            _logger.LogInformation("Step data: {@StepData}", dto.StepData);
 
             var command = new SaveWizardStepCommand(sessionId, stepNumber, subStepNumber, dto.StepData, dto.DataVersion);
             var result = await _mediator.Send(command, ct); // This returns a non-generic Result

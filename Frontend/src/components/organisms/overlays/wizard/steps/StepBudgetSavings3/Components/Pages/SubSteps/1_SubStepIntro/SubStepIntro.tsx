@@ -33,62 +33,66 @@ const SubStepIntro: React.FC = () => {
 
         {/* Intro Text */}
         <header className="space-y-2 text-center">
-          <h3 className="text-2xl font-bold text-darkLimeGreen">
-            Din resa mot ekonomisk frihet börjar här
-          </h3>
-          <InfoBox>
+          <InfoBox icon={false}>
+            <h3 className="text-2xl font-bold text-darkLimeGreen">
+              Din resa mot ekonomisk frihet börjar här
+            </h3>
+          </InfoBox>
+          <InfoBox icon={false}>
             Att spara pengar är ett kraftfullt steg mot nya möjligheter. Hur ser dina
             sparvanor ut idag?
           </InfoBox>
         </header>
-
-        {/* Radio Group */}
-        <fieldset id={idFromPath('intro.savingHabit')} className="space-y-4">
-          <legend className="sr-only">Sparvanor</legend>
-          {[
-            { value: 'regular', label: 'Ja, jag sparar regelbundet.' },
-            { value: 'sometimes', label: 'Jag sparar ibland.' },
-            { value: 'start', label: 'Nej, men jag vill börja.' },
-            { value: 'no', label: 'Nej, det gör jag inte.' },
-          ].map((option) => (
-            <label
-              key={option.value}
-              className={`flex items-center gap-3 px-4 py-3 rounded-2xl cursor-pointer
+        <InfoBox icon={false}>
+          {/* Radio Group */}
+          <fieldset id={idFromPath('intro.savingHabit')} className="space-y-4">
+            <legend className="sr-only">Sparvanor</legend>
+            {[
+              { value: 'regular', label: 'Ja, jag sparar regelbundet.' },
+              { value: 'sometimes', label: 'Jag sparar ibland.' },
+              { value: 'start', label: 'Nej, men jag vill börja.' },
+              { value: 'no', label: 'Nej, det gör jag inte.' },
+            ].map((option) => (
+              <label
+                key={option.value}
+                className={`flex items-center gap-3 px-4 py-3 rounded-2xl cursor-pointer
                 bg-darkBlueMenuColor/30 backdrop-blur-md transition
-                ${
-                  selected === option.value
+                ${selected === option.value
                     ? 'ring-2 ring-limeGreen bg-darkBlueMenuColor/50'
                     : 'hover:bg-darkBlueMenuColor/40'
-                }`}
-            >
-              <input
-                type="radio"
-                value={option.value}
-                {...register('intro.savingHabit')}
-                className="h-5 w-5 accent-limeGreen"
-              />
-              <span className="text-white">{option.label}</span>
-            </label>
-          ))}
-        </fieldset>
-        
+                  }`}
+              >
+                <input
+                  type="radio"
+                  value={option.value}
+                  {...register('intro.savingHabit')}
+                  className="h-5 w-5 accent-limeGreen"
+                />
+                <span className="text-white">{option.label}</span>
+              </label>
+            ))}
+          </fieldset>
+        </InfoBox>
         {errors.intro?.savingHabit && (
-            <motion.p
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-center font-bold text-red-600"
-                role="alert"
-            >
-                {errors.intro?.savingHabit?.message}
-            </motion.p>
+          <motion.p
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center font-bold text-red-600"
+            role="alert"
+          >
+            {errors.intro?.savingHabit?.message}
+          </motion.p>
         )}
 
         {/* Conditional Helper Text */}
         {(selected === 'start' || selected === 'no') && (
-          <p className="mt-4 text-center text-gray-300">
-            Ingen fara! Vi hoppar över dina nuvarande vanor och fokuserar direkt på dina mål.
-          </p>
+          <InfoBox icon={false} align="center">
+            <p className="mt-4 text-lg text-center text-gray-300">
+              Ingen fara! Vi hoppar över dina nuvarande vanor och fokuserar direkt på dina mål.
+            </p>
+          </InfoBox>
         )}
+
       </section>
     </OptionContainer>
   );

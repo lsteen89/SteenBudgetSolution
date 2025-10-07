@@ -307,6 +307,7 @@ builder.Services.AddOptions<JwtBearerOptions>("AccessScheme")
                   : ring.All.Values.ToArray(),
           ValidAlgorithms = new[] { SecurityAlgorithms.HmacSha256 },
           ValidateLifetime = true,
+          RequireExpirationTime = true,
           ClockSkew = TimeSpan.FromSeconds(30)
       };
 

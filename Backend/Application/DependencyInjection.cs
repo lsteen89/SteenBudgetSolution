@@ -7,7 +7,10 @@ using Backend.Application.Options.Auth;
 using Backend.Application.Options.URL;
 using Backend.Application.Validators;
 using Backend.Application.Mappings;
+using Backend.Application.Features.Wizard.SaveStep;
 using Mapster;
+
+
 namespace Backend.Application;
 
 public static class DependencyInjection
@@ -42,6 +45,12 @@ public static class DependencyInjection
         // Validators
         services.AddValidatorsFromAssemblyContaining<UserValidator>();
         services.AddValidatorsFromAssemblyContaining<IncomeValidator>();
+
+        // Wizard Step Validators
+        services.AddScoped<IWizardStepValidator, IncomeStepValidator>();
+        services.AddScoped<IWizardStepValidator, ExpenditureStepValidator>();
+        services.AddScoped<IWizardStepValidator, SavingsStepValidator>();
+        services.AddScoped<IWizardStepValidator, DebtsStepValidator>();
 
         // Register global type adapter config
         var cfg = TypeAdapterConfig.GlobalSettings;

@@ -32,14 +32,14 @@ export const calcMonthlyIncome = (inc: Record<string, any> | undefined): number 
 
   const hustles = Array.isArray(inc.sideHustles)
     ? inc.sideHustles.reduce<number>(
-        (acc, h) =>
-          acc +
-          toMonthly(
-            h?.income ?? h?.yearlyIncome,
-            (h?.frequency as Freq) ?? (h?.yearlyIncome ? "yearly" : "monthly"),
-          ),
-        0,
-      )
+      (acc, h) =>
+        acc +
+        toMonthly(
+          h?.income ?? h?.yearlyIncome,
+          (h?.frequency as Freq) ?? (h?.yearlyIncome ? "yearly" : "monthly"),
+        ),
+      0,
+    )
     : 0;
 
   const extra = toMonthly(
@@ -55,4 +55,20 @@ export const lighten = (hex: string, pct = 0.5) => {
   const g = Math.min(255, ((n >> 8) & 255) + 255 * pct) | 0;
   const b = Math.min(255, (n & 255) + 255 * pct) | 0;
   return "#" + (1 << 24 | r << 16 | g << 8 | b).toString(16).slice(1);
+};
+
+export const hasAnyWizardData = (wd?: {
+  income?: unknown;
+  expenditure?: unknown;
+  savings?: unknown;
+  debts?: unknown;
+} | null): boolean => {
+  if (!wd) return false;
+  const vals = [wd.income, wd.expenditure, wd.savings, wd.debts];
+  return vals.some(v => {
+    if (v == null) return false;
+    if (Array.isArray(v)) return v.length > 0;
+    if (typeof v === 'object') return Object.keys(v as object).length > 0;
+    return true;
+  });
 };

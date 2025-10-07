@@ -25,8 +25,9 @@ public class ExpenditureStepValidator : IWizardStepValidator
             }
 
             _validator.ValidateAndThrow(dto);
-
-            return Result<string>.Success(JsonSerializer.Serialize(dto, JsonHelper.Camel));
+            // Use sparse serialization to omit nulls
+            var json = JsonHelper.SerializeSparse(dto);
+            return Result<string>.Success(json);
         }
         catch (ValidationException ex)
         {

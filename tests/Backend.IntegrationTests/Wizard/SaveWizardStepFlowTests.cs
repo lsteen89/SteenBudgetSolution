@@ -6,6 +6,7 @@ using FluentAssertions;
 using Moq;
 using MySqlConnector;
 using Xunit;
+using Microsoft.Extensions.Logging;
 
 using Backend.Application.Abstractions.Infrastructure.Data; // IWizardRepository
 using Backend.Application.Features.Wizard.SaveStep;
@@ -31,6 +32,8 @@ public sealed class SaveWizardStepFlowTests
     [Fact]
     public async Task Insert_New_Step_Then_Update_Same_Key_Increments_Version_And_Replaces_Data()
     {
+        var mockLogger = Mock.Of<ILogger<SaveWizardStepCommandHandler>>();
+
         await _db.ResetAsync();
         var persoId = Guid.NewGuid();
         var sessionId = Guid.NewGuid();
@@ -50,7 +53,7 @@ public sealed class SaveWizardStepFlowTests
 
         // First save (insert)
         var json1 = """{"income":[{"name":"salary","amount":1000}]}""";
-        var handler = new SaveWizardStepCommandHandler(repo.Object, new[] { new FakeValidator(1, json1) });
+        var handler = new SaveWizardStepCommandHandler(repo.Object, new[] { new FakeValidator(1, json1) }, mockLogger);
 
         var res1 = await handler.Handle(new SaveWizardStepCommand(sessionId, 1, 0, new { }, 1), CancellationToken.None);
         res1.IsSuccess.Should().BeTrue();
@@ -63,7 +66,7 @@ public sealed class SaveWizardStepFlowTests
 
         // Second save (update same PK)
         var json2 = """{"income":[{"name":"salary","amount":1337}]}""";
-        handler = new SaveWizardStepCommandHandler(repo.Object, new[] { new FakeValidator(1, json2) });
+        handler = new SaveWizardStepCommandHandler(repo.Object, new[] { new FakeValidator(1, json2) }, mockLogger);
 
         var res2 = await handler.Handle(new SaveWizardStepCommand(sessionId, 1, 0, new { }, 2), CancellationToken.None);
         res2.IsSuccess.Should().BeTrue();
@@ -92,7 +95,8 @@ public sealed class SaveWizardStepFlowTests
         """, new { sid = sessionId, pid = persoId });
 
         var repo = BuildRepoMockForUpsert(_db.ConnectionString);
-        var handler = new SaveWizardStepCommandHandler(repo.Object, Array.Empty<IWizardStepValidator>());
+        var mockLogger = Mock.Of<ILogger<SaveWizardStepCommandHandler>>();
+        var handler = new SaveWizardStepCommandHandler(repo.Object, Array.Empty<IWizardStepValidator>(), mockLogger);
 
         var res = await handler.Handle(new SaveWizardStepCommand(sessionId, 5, 0, new { }, 1), CancellationToken.None);
         res.IsSuccess.Should().BeFalse();

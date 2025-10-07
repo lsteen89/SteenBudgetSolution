@@ -5,7 +5,7 @@ import { useFormContext } from "react-hook-form";
 import OptionContainer from "@/components/molecules/containers/OptionContainer";
 import HelpSection from "@/components/molecules/helptexts/HelpSection";
 import CheckboxOption from "@/components/atoms/InputField/CheckboxOption";
-import EditableSavingsInput from "@/components/molecules/InputField/EditableSavingsInput"; 
+import EditableSavingsInput from "@/components/molecules/InputField/EditableSavingsInput";
 import InfoBox from "@/components/molecules/messaging/InfoBox";
 // --- Store, Schema, and Utility Imports ---
 import { useWizardDataStore } from "@/stores/Wizard/wizardDataStore";
@@ -15,7 +15,7 @@ import { idFromPath } from "@/utils/idFromPath";
 
 const SubStepHabits: React.FC = () => {
   const { watch, setValue, formState: { errors } } = useFormContext<Step3FormValues>();
-  
+
   const income = useWizardDataStore((s) => s.data.income);
   const maxIncome = calcMonthlyIncome(income);
 
@@ -45,7 +45,7 @@ const SubStepHabits: React.FC = () => {
     } else {
       filteredValues.push(value);
     }
-    
+
     setValue("habits.savingMethods", filteredValues, { shouldValidate: true, shouldDirty: true });
   };
 
@@ -56,22 +56,25 @@ const SubStepHabits: React.FC = () => {
     <OptionContainer className="p-4">
       <section className="max-w-xl mx-auto sm:px-6 lg:px-12 py-8 pb-safe space-y-10">
         <header className="space-y-4 text-center">
-          {/* Header content */}
-          <h3 className="text-3xl font-bold text-darkLimeGreen flex justify-center items-center gap-2">
-            Perfekt! Låt oss kolla på dina sparvanor
-          </h3>
-          <InfoBox>
+          <InfoBox icon={false}>
+            {/* Header content */}
+            <h3 className="text-3xl font-bold text-darkLimeGreen flex justify-center items-center gap-2">
+              Perfekt! Låt oss kolla på dina sparvanor
+            </h3>
+          </InfoBox>
+          <InfoBox icon={false}>
             Med denna informationen kan vi sätta upp långsiktiga mål och hjälpa dig att spara smartare.
           </InfoBox>
         </header>
         <InfoBox icon={false}>
-          <div>
+          <div className="text-center">
             <label
               id="monthlySavingsLabel"
               className="block text-sm font-medium text-standardMenuColor/90 dark:text-standardMenuColor mb-4"
             >
               Ungefär hur mycket sparar du varje månad?
             </label>
+            <br />
             <EditableSavingsInput
               id={idFromPath("habits.monthlySavings")}
               value={sliderValue}
@@ -87,8 +90,8 @@ const SubStepHabits: React.FC = () => {
             )}
           </div>
 
-          <div className="space-y-2 mt-6"> 
-            
+          <div className="space-y-2 mt-6">
+
             <label className="text-sm font-medium text-standardMenuColor/90 dark:text-standardMenuColor" id="saving-methods-label">
               Hur brukar du spara? (Välj alla som passar)
             </label>

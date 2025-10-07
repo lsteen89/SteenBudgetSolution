@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 
 using Backend.Application.Features.Wizard.StartWizard;
 using Backend.Application.Abstractions.Infrastructure.Data;
-using Backend.Domain.Shared;
+using Backend.Domain.Entities.Wizard;
 
 namespace Backend.Tests.UnitTests.Features.Wizard;
 
@@ -35,7 +35,8 @@ public sealed class StartWizardCommandHandlerTests
 
         // Assert
         res.IsSuccess.Should().BeTrue();
-        res.Value.Should().Be(existing);
+        res.Value.Should().BeOfType<StartWizardResponse>()
+            .Which.WizardSessionId.Should().Be(existing);
 
         _repo.Verify(r => r.CreateSessionAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
 
@@ -60,7 +61,8 @@ public sealed class StartWizardCommandHandlerTests
 
         // Assert
         res.IsSuccess.Should().BeTrue();
-        res.Value.Should().Be(created);
+        res.Value.Should().BeOfType<StartWizardResponse>()
+            .Which.WizardSessionId.Should().Be(created);
 
         _repo.Verify(r => r.CreateSessionAsync(persoId, ct), Times.Once);
         _log.VerifyLogged(LogLevel.Information, "Creating new wizard session", Times.Once());
@@ -84,8 +86,10 @@ public sealed class StartWizardCommandHandlerTests
 
         // Assert
         res.IsSuccess.Should().BeTrue();
-        res.Value.Should().Be(created);
+        res.Value.Should().BeOfType<StartWizardResponse>()
+            .Which.WizardSessionId.Should().Be(created);
         _repo.Verify(r => r.CreateSessionAsync(persoId, ct), Times.Once);
+        _log.VerifyLogged(LogLevel.Information, "Creating new wizard session", Times.Once());
     }
 
     [Fact]
@@ -134,7 +138,8 @@ public sealed class StartWizardCommandHandlerTests
 
         // Assert
         res.IsSuccess.Should().BeTrue();
-        res.Value.Should().Be(created);
+        res.Value.Should().BeOfType<StartWizardResponse>()
+            .Which.WizardSessionId.Should().Be(created);
         _repo.VerifyAll();
     }
 }

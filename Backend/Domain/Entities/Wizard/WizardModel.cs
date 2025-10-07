@@ -6,8 +6,8 @@
 
 namespace Backend.Domain.Entities.Wizard
 {
-    public class WizardModel
+    public class StartWizardResponse
     {
-        public Guid WizardId { get; set; }
+        public Guid WizardSessionId { get; set; }
     }
 }

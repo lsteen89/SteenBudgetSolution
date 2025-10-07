@@ -43,15 +43,23 @@ public class WizardRepository : SqlBase, IWizardRepository
         string sql = "SELECT WizardSessionId FROM WizardSession WHERE Persoid = @Persoid";
         return QueryFirstOrDefaultAsync<Guid?>(sql, new { Persoid = persoId }, ct);
     }
-    public async Task<bool> UpsertStepDataAsync(Guid wizardSessionId, int stepNumber, int substepNumber, string jsonData, int dataVersion, CancellationToken ct = default)
+    public async Task<bool> UpsertStepDataAsync(
+        Guid wizardSessionId,
+        int stepNumber,
+        int substepNumber,
+        string jsonData,
+        int dataVersion,
+        CancellationToken ct = default)
     {
         const string sql = @"
-            INSERT INTO WizardStepData (WizardSessionId, StepNumber, SubStep, StepData, DataVersion, CreatedAt, UpdatedAt)
-            VALUES (@WizardSessionId, @StepNumber, @SubStep, @JsonData, @DataVersion, @Now, @Now)
-            ON DUPLICATE KEY UPDATE 
-            StepData = VALUES(StepData), 
-            DataVersion = VALUES(DataVersion), 
-            UpdatedAt = UTC_TIMESTAMP();";
+        INSERT INTO WizardStepData
+            (WizardSessionId, StepNumber, SubStep, StepData, DataVersion, CreatedBy, CreatedTime, UpdatedAt)
+        VALUES
+            (@WizardSessionId, @StepNumber, @SubStep, @JsonData, @DataVersion, @CreatedBy, @Now, @Now)
+        ON DUPLICATE KEY UPDATE
+            StepData   = VALUES(StepData),
+            DataVersion= VALUES(DataVersion),
+            UpdatedAt  = UTC_TIMESTAMP();";
 
         var parameters = new
         {
@@ -60,6 +68,7 @@ public class WizardRepository : SqlBase, IWizardRepository
             SubStep = substepNumber,
             JsonData = jsonData,
             DataVersion = dataVersion,
+            CreatedBy = "system",          // TODO: pass the current user (persoid) down and use it here
             Now = DateTime.UtcNow
         };
 

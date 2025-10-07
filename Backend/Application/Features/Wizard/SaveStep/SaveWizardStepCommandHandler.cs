@@ -8,19 +8,24 @@ public sealed class SaveWizardStepCommandHandler : ICommandHandler<SaveWizardSte
 {
     private readonly IWizardRepository _wizardRepository;
     private readonly IEnumerable<IWizardStepValidator> _validators;
+    private readonly ILogger<SaveWizardStepCommandHandler> _logger;
 
-    public SaveWizardStepCommandHandler(IWizardRepository wizardRepository, IEnumerable<IWizardStepValidator> validators)
+    public SaveWizardStepCommandHandler(IWizardRepository wizardRepository, IEnumerable<IWizardStepValidator> validators, ILogger<SaveWizardStepCommandHandler> logger)
     {
         _wizardRepository = wizardRepository;
         _validators = validators;
+        _logger = logger;
     }
 
     public async Task<Result> Handle(SaveWizardStepCommand request, CancellationToken ct)
     {
+        _logger.LogInformation("Saving wizard step {StepNumber}.{SubStepNumber} for session {SessionId}",
+            request.StepNumber, request.SubStepNumber, request.SessionId);
         // 1. Find the correct validator strategy for this step
         var validator = _validators.FirstOrDefault(v => v.StepNumber == request.StepNumber);
         if (validator is null)
         {
+            _logger.LogError("No validator found for step {StepNumber}", request.StepNumber);
             return Result.Failure(new Error("Wizard.ValidatorNotFound", $"No validator found for step {request.StepNumber}."));
         }
 

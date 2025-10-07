@@ -17,7 +17,7 @@ import StepBudgetDebts from "@components/organisms/overlays/wizard/steps/StepBud
 import { StepBudgetDebtsRef } from "@/types/Wizard/StepBudgetDebtsRef";
 import StepBudgetFinal from "@components/organisms/overlays/wizard/steps/StepBudgetFinal5/StepBudgetFinal";
 import { StepBudgetFinalRef } from "@/types/Wizard/StepBudgetFinalRef";
-import WizardFormWrapperStep1, { WizardFormWrapperStep1Ref } from '@components/organisms/overlays/wizard/steps/StepBudgetIncome1/wrapper/WizardFormWrapperStep1'; 
+import WizardFormWrapperStep1, { WizardFormWrapperStep1Ref } from '@components/organisms/overlays/wizard/steps/StepBudgetIncome1/wrapper/WizardFormWrapperStep1';
 import StepBudgetIncome from "@components/organisms/overlays/wizard/steps/StepBudgetIncome1/StepBudgetIncome";
 import StepExpenditure, { StepBudgetExpenditureRef } from "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/StepBudgetExpenditure";
 import { useToast } from "@context/ToastContext";
@@ -144,8 +144,8 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
                 hasNextSub: typeof api.hasNextSub === 'function' ? api.hasNextSub() : false,
             };
         }
-        return { prevSub: () => {}, nextSub: () => {}, hasPrevSub: false, hasNextSub: false };
-    }, [step, subTick]); 
+        return { prevSub: () => { }, nextSub: () => { }, hasPrevSub: false, hasNextSub: false };
+    }, [step, subTick]);
 
 
     const isSaving = useMemo(() => {
@@ -214,7 +214,7 @@ const WizardContent = (props: any) => {
     const { isActionBlocked } = useWizard();
 
     const [outermostScrollNode, setOutermostScrollNode] = useState<HTMLDivElement | null>(null);
-        const outermostContainerPact = useCallback((node: HTMLDivElement | null) => {
+    const outermostContainerPact = useCallback((node: HTMLDivElement | null) => {
         if (node !== null) {
             setOutermostScrollNode(node);
         }
@@ -243,15 +243,15 @@ const WizardContent = (props: any) => {
                     </button>
                     <WizardHeading step={props.step} type="wizard" />
                     <WizardProgress step={props.step} totalSteps={props.totalSteps} steps={props.steps} onStepClick={props.handleStepClick} useBlackText={true} />
-                    <AnimatedContent 
-                        animationKey={String(props.step)} 
+                    <AnimatedContent
+                        animationKey={String(props.step)}
                         // The new triggerKey combines the major step and the sub-tick.
                         // It will be unique for every single view change!
                         triggerKey={`${props.step}-${props.subTick}`}
                         className="mb-6 text-center text-gray-700"
                     >
                         <WizardStepContainer maxWidth={props.step === 1 ? "md" : undefined}>
-                            
+
                             {props.step === 0 ? (
                                 <StepWelcome
                                     connectionError={props.connectionError}
@@ -332,7 +332,7 @@ const WizardContent = (props: any) => {
                                             stepNumber={5}
                                             initialData={props.initialDataForStep(5)}
                                             onValidationError={props.triggerShakeAnimation}
-                                            finalizeWizard={props.finalizeWizard}       
+                                            finalizeWizard={props.finalizeWizard}
                                             isFinalizing={props.isFinalizing}
                                             finalizationError={props.finalizationError}
 
