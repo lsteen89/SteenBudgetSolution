@@ -49,7 +49,7 @@ public sealed class StartWizardFlowTests
 
         var sidDb = await conn.ExecuteScalarAsync<Guid>(
             "SELECT WizardSessionId FROM WizardSession WHERE Persoid=@p LIMIT 1;", new { p = persoId });
-        sidDb.Should().Be(res1.Value);
+        sidDb.Should().Be(res1.Value.WizardSessionId);
 
         // Second start -> reuse (idempotent)
         var res2 = await sut.Handle(new StartWizardCommand(persoId), CancellationToken.None);
