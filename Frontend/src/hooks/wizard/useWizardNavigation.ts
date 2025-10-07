@@ -127,7 +127,7 @@ const useWizardNavigation = ({
         }));
       }
       // --- End of New Logic ---
-
+      // --- Step Change Logic ---
       // ... Step change logic remains the same ...
       setStep(prev =>
         direction === 'next'
