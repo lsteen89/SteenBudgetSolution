@@ -2,6 +2,8 @@ using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Infrastructure.Data.BaseClass;
 using Backend.Domain.Abstractions;
 using Backend.Domain.Entities.Budget.Income;
+using Microsoft.Extensions.Options;
+using Backend.Settings;
 
 namespace Backend.Infrastructure.Repositories.Budget;
 
@@ -9,8 +11,8 @@ public class IncomeRepository : SqlBase, IIncomeRepository
 {
     private readonly ICurrentUserContext _currentUser;
 
-    public IncomeRepository(IUnitOfWork unitOfWork, ILogger<IncomeRepository> logger, ICurrentUserContext currentUser)
-        : base(unitOfWork, logger)
+    public IncomeRepository(IUnitOfWork unitOfWork, ILogger<IncomeRepository> logger, ICurrentUserContext currentUser, IOptions<DatabaseSettings> db)
+        : base(unitOfWork, logger, db)
     {
         _currentUser = currentUser;
     }

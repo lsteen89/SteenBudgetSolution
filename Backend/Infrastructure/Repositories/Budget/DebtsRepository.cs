@@ -2,6 +2,8 @@
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Infrastructure.Data.BaseClass;
 using Backend.Domain.Abstractions;
+using Microsoft.Extensions.Options;
+using Backend.Settings;
 
 namespace Backend.Infrastructure.Repositories.Budget
 {
@@ -12,8 +14,9 @@ namespace Backend.Infrastructure.Repositories.Budget
         public DebtsRepository(
             IUnitOfWork unitOfWork,
             ILogger<DebtsRepository> logger,
-            ICurrentUserContext currentUser)
-            : base(unitOfWork, logger)
+            ICurrentUserContext currentUser,
+            IOptions<DatabaseSettings> db)
+            : base(unitOfWork, logger, db)
         {
             _currentUser = currentUser;
         }

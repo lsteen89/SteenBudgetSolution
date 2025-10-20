@@ -3,19 +3,24 @@ using Backend.Infrastructure.Data.BaseClass;
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Dapper;
 using Backend.Domain.Shared;
+using Microsoft.Extensions.Options;
+using Backend.Settings;
 
 namespace Backend.Infrastructure.Repositories.Auth.RefreshTokens;
 
 public sealed class RefreshTokenRepository : SqlBase, IRefreshTokenRepository
 {
 
-    public RefreshTokenRepository(IUnitOfWork unitOfWork, ILogger<RefreshTokenRepository> logger)
-        : base(unitOfWork, logger) { }
+    public RefreshTokenRepository(
+        IUnitOfWork unitOfWork,
+        ILogger<RefreshTokenRepository> logger,
+        IOptions<DatabaseSettings> db)
+        : base(unitOfWork, logger, db)
+    { }
 
 
     public Task<int> RevokeSessionAsync(Guid persoid, Guid sessionId, DateTime nowUtc, CancellationToken ct)
     {
-        EnsureTransaction();
         return ExecuteAsync("""
         UPDATE RefreshTokens
             SET Status = @Revoked, RevokedUtc = @Now
@@ -81,7 +86,6 @@ public sealed class RefreshTokenRepository : SqlBase, IRefreshTokenRepository
 
     public Task<int> RotateInPlaceAsync(Guid tokenId, string oldHash, string newHash, string newAccessJti, DateTime newRollingUtc, CancellationToken ct)
     {
-        EnsureTransaction();
         return ExecuteAsync(
         """
         UPDATE RefreshTokens

@@ -1,5 +1,6 @@
 using Backend.Domain.Shared;
 using Backend.Application.Abstractions.Messaging;
+using Backend.Application.Common.Behaviors;
 
 namespace Backend.Application.Features.Wizard.SaveStep;
 
@@ -9,4 +10,4 @@ public sealed record SaveWizardStepCommand(
     int SubStepNumber,
     object StepData,
     int DataVersion
-) : ICommand<Result>;
+) : ICommand<Result>, ITransactionalCommand;

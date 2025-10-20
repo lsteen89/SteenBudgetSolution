@@ -104,8 +104,13 @@ const useWizardNavigation = ({
         // This part is for temporary component state, it's fine.
         setCurrentStepState(prev => ({
           ...prev,
-          [step]: { subStep: currentSub, data: dataForCache },
+          [step]: {
+            ...(prev[step] ?? {}),
+            subStep: currentSub,
+            data: dataForCache,
+          },
         }));
+        setLastVisitedSubStep(step, currentSub);
 
         // --- THE MAGIC IS REPLACED ---
         // Instead of calling a prop, we use the action we summoned from the store.
@@ -114,26 +119,45 @@ const useWizardNavigation = ({
 
       // --- New Sub-step Targeting Logic ---
       const targetStep = direction === 'next' ? step + 1 : step - 1;
-      const destinationRef = stepRefs[targetStep]?.current;
 
-      if (destinationRef && typeof destinationRef.hasSubSteps === 'function') {
-        let targetSubStep = 1; // Default for forward navigation
+      const { getLastVisitedSubStep } = useWizardDataStore.getState();
+
+      let targetSubStep = 1;
+      // If the destination is a complex step, decide now from metadata (ref may be null until mount)
+      const destHasSubSteps =
+        !!stepRefs[targetStep]?.current?.hasSubSteps ||
+        // fallback: infer from last visited (if we ever stored one, it’s complex)
+        (getLastVisitedSubStep(targetStep) !== undefined);
+
+      if (destHasSubSteps) {
+        const lastVisited = getLastVisitedSubStep(targetStep);
         if (goingBack) {
-          targetSubStep = destinationRef.getTotalSubSteps?.() ?? 1;
+          // Policy: go back to last visited if known; else 1 (or pick “end” if you prefer)
+          targetSubStep = lastVisited ?? 1;
+        } else {
+          // Policy: forward resumes if known; else 1
+          targetSubStep = lastVisited ?? 1;
         }
-        setCurrentStepState(prev => ({
-          ...prev,
-          [targetStep]: { ...prev[targetStep], subStep: targetSubStep },
-        }));
       }
+
+      // Update local UI cache safely (don’t spread undefined)
+      setCurrentStepState(prev => ({
+        ...prev,
+        [targetStep]: { ...(prev[targetStep] ?? {}), subStep: targetSubStep },
+      }));
       // --- End of New Logic ---
       // --- Step Change Logic ---
       // ... Step change logic remains the same ...
       setStep(prev =>
-        direction === 'next'
-          ? Math.min(prev + 1, totalSteps)
-          : Math.max(prev - 1, 0)
+        direction === 'next' ? Math.min(prev + 1, totalSteps) : Math.max(prev - 1, 0)
       );
+
+      // Give React a tick to mount, then sync the child’s internal state (if it has one)
+      queueMicrotask(() => {
+        const destinationRef = stepRefs[targetStep]?.current;
+        destinationRef?.setSubStep?.(targetSubStep);
+      });
+
       setTransitionLoading(false);
     },
     // The dependency array is now cleaner

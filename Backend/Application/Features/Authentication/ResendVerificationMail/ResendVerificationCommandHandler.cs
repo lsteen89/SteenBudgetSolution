@@ -9,7 +9,7 @@ using Backend.Application.Options.Auth;
 using Microsoft.Extensions.Options;
 using Backend.Application.Options.URL;
 using Backend.Settings.Email;
-
+using Backend.Application.Common.Behaviors;
 
 namespace Backend.Application.Features.Commands.Auth.ResendVerification;
 

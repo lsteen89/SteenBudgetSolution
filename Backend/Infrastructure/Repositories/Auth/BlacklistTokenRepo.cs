@@ -1,10 +1,13 @@
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Infrastructure.Data.BaseClass;
 
+using Microsoft.Extensions.Options;
+using Backend.Settings;
+
 public class TokenBlacklistRepo : SqlBase, ITokenBlacklistRepo
 {
-    public TokenBlacklistRepo(IUnitOfWork uow, ILogger<TokenBlacklistRepo> logger)
-        : base(uow, logger) { }
+    public TokenBlacklistRepo(IUnitOfWork uow, ILogger<TokenBlacklistRepo> logger, IOptions<DatabaseSettings> db)
+        : base(uow, logger, db) { }
 
     public async Task<bool> AddBlacklistedTokenAsync(string jti, DateTime expirationUtc, CancellationToken ct)
     {

@@ -7,13 +7,16 @@ using System.Data;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Buffers;
+using Microsoft.Extensions.Options;
+using Backend.Settings;
+
 
 namespace Backend.Infrastructure.Data.Repositories;
 
 public class WizardRepository : SqlBase, IWizardRepository
 {
-    public WizardRepository(IUnitOfWork unitOfWork, ILogger<WizardRepository> logger)
-        : base(unitOfWork, logger)
+    public WizardRepository(IUnitOfWork unitOfWork, ILogger<WizardRepository> logger, IOptions<DatabaseSettings> db)
+        : base(unitOfWork, logger, db)
     {
     }
 

@@ -33,6 +33,12 @@ export const saveWizardStep = async (
   stepData: unknown,
   dataVersion: number = CODE_DATA_VERSION
 ) => {
+  const rid = crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
+  const snapshot = JSON.parse(JSON.stringify(stepData)); // freeze for logging
+  console.groupCollapsed('%c[API] saveWizardStep', 'color:#22c55e;font-weight:bold');
+  console.log({ rid, sid, step, subStep, snapshot });
+  console.trace('[API] call stack rid=' + rid);
+  console.groupEnd();
   return api.put(
     `/api/wizard/${sid}/steps/${step}/${subStep}`,
     { stepData, dataVersion }
