@@ -1,6 +1,8 @@
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Domain.Entities.Auth;
 using Backend.Infrastructure.Data.BaseClass;
+using Microsoft.Extensions.Options;
+using Backend.Settings;
 
 namespace Backend.Infrastructure.Repositories.Auth.VerificationTokens;
 
@@ -13,8 +15,8 @@ namespace Backend.Infrastructure.Repositories.Auth.VerificationTokens;
 
 public sealed class VerificationTokenRepository : SqlBase, IVerificationTokenRepository
 {
-    public VerificationTokenRepository(IUnitOfWork uow, ILogger<VerificationTokenRepository> log)
-        : base(uow, log) { }
+    public VerificationTokenRepository(IUnitOfWork uow, ILogger<VerificationTokenRepository> log, IOptions<DatabaseSettings> db)
+        : base(uow, log, db) { }
 
     // Requires UNIQUE (PersoId) on VerificationToken
     public Task<int> UpsertSingleActiveAsync(Guid persoid, Guid token, DateTime expiryUtc, CancellationToken ct)

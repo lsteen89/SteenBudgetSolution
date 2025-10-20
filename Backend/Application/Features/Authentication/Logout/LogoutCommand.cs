@@ -1,4 +1,5 @@
 using MediatR;
+using Backend.Application.Common.Behaviors;
 
 namespace Backend.Application.Features.Commands.Auth.Logout;
 

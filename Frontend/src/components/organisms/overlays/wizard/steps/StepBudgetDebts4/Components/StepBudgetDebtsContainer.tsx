@@ -14,6 +14,7 @@ import { Info, CreditCard, ShieldCheck } from 'lucide-react';
 import GatekeeperPage from './Pages/SubSteps/1_SubStepGatekeeper/SubStepGatekeeper';
 import SkulderPage from './Pages/SubSteps/2_SubStepDebts/SubStepDebts';
 import ConfirmPage from './Pages/SubSteps/3_SubStepConfirm/SubStepConfirm';
+import { devLog } from '@/utils/devLog';
 
 export interface StepBudgetDebtsContainerRef {
   validateFields(): Promise<boolean>;
@@ -49,16 +50,13 @@ interface StepBudgetDebtsContainerProps {
 }
 
 function getDebtsPartialData(subStep: number, allData: Step4FormValues): Partial<Step4FormValues> {
-  switch (subStep) {
-    case 1:
-      return { intro: allData.intro };
-    case 2:
-      return { debts: allData.debts };
-    case 3:
-      return { summary: allData.summary };
-    default:
-      return {};
-  }
+  const payload =
+    subStep === 1 ? { intro: allData.intro }
+      : subStep === 2 ? { debts: allData.debts }
+        : { summary: allData.summary };
+
+  devLog.group('Container.getPartialDataForSubstep', devLog.stamp({ subStep, payload }));
+  return payload;
 }
 
 const StepBudgetDebtsContainer = forwardRef<StepBudgetDebtsContainerRef, StepBudgetDebtsContainerProps>((props, ref) => {
@@ -70,8 +68,8 @@ const StepBudgetDebtsContainer = forwardRef<StepBudgetDebtsContainerRef, StepBud
     onPrev,
     loading: parentLoading,
     initialSubStep,
-    onSubStepChange,     
-    onValidationError,    
+    onSubStepChange,
+    onValidationError,
   } = props;
   const isMobile = useMediaQuery('(max-width: 1367px)');
   const hasHydrated = useRef(false);
@@ -123,24 +121,59 @@ const StepBudgetDebtsContainer = forwardRef<StepBudgetDebtsContainerRef, StepBud
     if (ok) setCurrentSub(dest);
   };
 
+  // Todo: if no debts, proceed to major step 4, confirmation
   const next = async () => {
+    // --- STEP 1 LOGIC (Gatekeeper) ---
     if (currentSub === 1) {
-      const answer = formMethods?.getValues('intro.hasDebts');
-      const hasDebts = answer === true 
-      if (!hasDebts) {
-        setDebts({ debts: [] });
-        setSkippedDebts(true);
-        await goToSub(3);
+      // 1. Manually trigger validation for ONLY the 'intro' fields
+      const isValid = await formMethods?.trigger('intro');
+
+      // 2. If validation fails, stop. The error message will now be visible.
+      if (!isValid) {
+        onValidationError?.();
         return;
       }
-      await goToSub(2);
+
+      // 3. Validation PASSED. Now we can safely get the value.
+      const hasDebts = formMethods?.getValues('intro.hasDebts');
+
+      if (hasDebts === true) {
+        // User has debts, proceed to sub-step 2.
+        // goToSub() will handle saving the data for step 1.
+        await goToSub(2);
+      } else {
+        // User selected 'false'. We need to save this choice, then skip.
+        setIsSaving(true);
+        const introData = formMethods?.getValues('intro');
+        // Manually save the valid 'intro' data
+        await onSaveStepData(stepNumber, currentSub, { intro: introData }, false);
+        setIsSaving(false);
+
+        // Now, skip the rest of the sub-steps
+        setDebts({ debts: [] });
+        setSkippedDebts(true);
+        onNext(); // Proceed to the next *main* step
+      }
       return;
     }
 
+    // --- LOGIC FOR OTHER SUB-STEPS (2, 3, etc.) ---
     if (currentSub < totalSteps) {
+      // Proceed to the next sub-step (e.g., 2 -> 3)
+      // goToSub() will handle validation and saving.
       await goToSub(currentSub + 1);
     } else {
-      onNext();
+      // We are on the LAST sub-step (3).
+      // We must validate/save this final step before proceeding.
+      setIsSaving(true);
+      const ok = await saveStepData(currentSub, currentSub + 1, false, false);
+      setIsSaving(false);
+
+      if (ok) {
+        onNext(); // Proceed to the next *main* step
+      } else {
+        onValidationError?.();
+      }
     }
   };
 

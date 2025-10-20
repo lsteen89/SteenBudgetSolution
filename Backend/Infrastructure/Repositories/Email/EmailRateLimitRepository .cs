@@ -2,12 +2,14 @@ using Backend.Infrastructure.Data.BaseClass;
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Infrastructure.Entities.Email;
 using Backend.Application.Abstractions.Infrastructure.Email;
+using Microsoft.Extensions.Options;
+using Backend.Settings;
 
 namespace Backend.Infrastructure.Repositories.Email;
 
 public sealed class EmailRateLimitRepository : SqlBase, IEmailRateLimitRepository
 {
-    public EmailRateLimitRepository(IUnitOfWork uow, ILogger<EmailRateLimitRepository> log) : base(uow, log) { }
+    public EmailRateLimitRepository(IUnitOfWork uow, ILogger<EmailRateLimitRepository> log, IOptions<DatabaseSettings> db) : base(uow, log, db) { }
 
     public async Task<EmailRateLimitRow?> GetTodayAsync(byte[] keyHash, byte kind, DateTime dayUtc, CancellationToken ct)
     {

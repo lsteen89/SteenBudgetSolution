@@ -1,7 +1,8 @@
 import { api } from '@/api/axios';
 import { isAxiosError } from 'axios';
 import { useAuthStore } from '@/stores/Auth/authStore';
-import type { AuthResult, ApiErrorResponse } from '@/api/types';
+import type { AuthResult } from '@/api/auth.types.ts';
+import type { ApiErrorResponse } from '@/api/api.types.ts';
 
 let logoutOnce: Promise<void> | null = null;
 let isLoggingOutFlag = false;
@@ -54,8 +55,8 @@ export async function callLogin(
     return { success: true, data: payload };
   } catch (err) {
     if (isAxiosError<ApiErrorResponse>(err)) {
-      const message = err.response?.data?.message ?? 'Login failed';
-      const errorCode = err.response?.data?.errorCode;
+      const message = err.response?.data?.error.message ?? 'Login failed';
+      const errorCode = err.response?.data?.error.code;
       return { success: false, message, errorCode, status: err.response?.status };
     }
     return { success: false, message: 'Network error' };

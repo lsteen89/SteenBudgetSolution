@@ -1,6 +1,7 @@
 using Backend.Application.Abstractions.Messaging;
 using Backend.Domain.Shared;
 using Backend.Application.DTO.Auth;
+using Backend.Application.Common.Behaviors;
 
 namespace Backend.Application.Features.Authentication.Login;
 /// <summary>

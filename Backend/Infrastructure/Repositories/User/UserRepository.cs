@@ -1,14 +1,16 @@
 using Backend.Domain.Entities.User;
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Infrastructure.Data.BaseClass;
+using Microsoft.Extensions.Options;
+using Backend.Settings;
 
 namespace Backend.Infrastructure.Repositories.User;
 
 public class UserRepository : SqlBase, IUserRepository
 {
 
-    public UserRepository(IUnitOfWork unitOfWork, ILogger<UserRepository> logger)
-        : base(unitOfWork, logger) { }
+    public UserRepository(IUnitOfWork unitOfWork, ILogger<UserRepository> logger, IOptions<DatabaseSettings> db)
+        : base(unitOfWork, logger, db) { }
 
     public async Task<bool> UserExistsAsync(string email, CancellationToken ct = default)
     {

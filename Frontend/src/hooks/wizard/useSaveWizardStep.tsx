@@ -2,15 +2,15 @@ import { useCallback } from 'react';
 import { useToast } from '@context/ToastContext';
 import { saveWizardStep } from '@api/Services/wizard/wizardService';
 import { CODE_DATA_VERSION } from '@/constants/wizardVersion';
+import { isAxiosError } from 'axios';
 
-/**
- * A custom hook responsible for providing a stable, memoized function 
- * to save wizard step data to the backend. It does NOT modify local state directly,
- * leaving that responsibility to the calling component/hook.
- * * @param wizardSessionId - The active wizard session ID.
- * @returns An object containing the `handleSaveStepData` function.
- */
-const useSaveWizardStep = (wizardSessionId: string) => {
+type Options = {
+  onValidationError?: (message: string) => void; // <-- new
+};
+
+
+
+const useSaveWizardStep = (wizardSessionId: string, opts?: Options) => {
   const { showToast } = useToast();
 
   const handleSaveStepData = useCallback(async (
@@ -19,47 +19,55 @@ const useSaveWizardStep = (wizardSessionId: string) => {
     dataToSave: any,
     goingBackwards: boolean
   ): Promise<boolean> => {
+    if (goingBackwards) return true;
 
-    // If we are navigating backwards, we don't need to save to the backend.
-    // The parent component will handle updating the local state cache.
-    if (goingBackwards) {
-      return true; // Report success immediately without an API call.
-    }
-    
-    // Safety Check 1: Don't attempt to save if the session ID isn't available.
     if (!wizardSessionId) {
-      console.error("Save failed: wizardSessionId is not available.");
-      showToast("Ett anslutningsfel uppstod. Ladda om sidan.", "error");
+      showToast('Ett anslutningsfel uppstod. Ladda om sidan.', 'error');
       return false;
     }
-    
-    // Safety Check 2: Prevent the "steps/undefined" error at the source.
-    if (typeof stepNumber === 'undefined' || stepNumber === null) {
-      console.error("Save failed: stepNumber is undefined or null.");
-      return false;
-    }
+    if (stepNumber == null) return false;
 
     try {
-      console.log("useSaveWizardStep: Calling API to save step data:", { wizardSessionId, stepNumber, subStepNumber, dataToSave });
-      
-      // Call the actual API service function.
+      console.log('[HS] handleSaveStepData called', { stepNumber, subStepNumber, dataToSave });
+      console.trace('[HS] trace');
       await saveWizardStep(wizardSessionId, stepNumber, subStepNumber, dataToSave, CODE_DATA_VERSION);
-      
-      console.log(`Step ${stepNumber} / Sub-step ${subStepNumber} saved successfully to the backend.`);
-      return true; // Return true on success
+      return true;
 
     } catch (error: any) {
-      console.error(`Error saving data for step ${stepNumber}:`, error);
-      showToast(
-        `Ett fel uppstod när data skulle sparas: ${error.message || 'Okänt fel'}`, 
-        "error"
-      );
-      return false; // Return false on failure
-    }
-  }, [wizardSessionId, showToast]); // Dependencies for useCallback
+      // If server sent our envelope, Axios error was annotated in axios-wizard: (err as any).errorCode
+      if (isAxiosError(error)) {
+        const code = (error as any)?.errorCode ?? error.response?.data?.error?.code;
+        const message = error.response?.data?.error?.message ?? error.message ?? 'Ogiltigt formulär';
 
-  // Note: We remove isSaving and saveError state. The parent component
-  // (SetupWizard) already manages this with `transitionLoading` and `isSaving`.
+        // --- Validation: show inline only, no toast ---
+        if (code === 'Validation.Failed' || error.response?.status === 400) {
+          opts?.onValidationError?.(message);
+          return false;
+        }
+
+        // Non-validation errors → toast
+        if (!error.response) {
+          showToast('Nätverksfel. Kontrollera din anslutning.', 'error');
+          return false;
+        }
+        if (error.response.status === 401 || error.response.status === 403) {
+          showToast('Din session har gått ut. Logga in igen.', 'error');
+          return false;
+        }
+        if (error.code === 'ECONNABORTED') {
+          showToast('Begäran tog för lång tid. Försök igen.', 'error');
+          return false;
+        }
+
+        showToast(message || 'Ett fel uppstod vid sparande.', 'error');
+        return false;
+      }
+
+      showToast('Ett oväntat fel inträffade.', 'error');
+      return false;
+    }
+  }, [wizardSessionId, showToast, opts]);
+
   return { handleSaveStepData };
 };
 

@@ -1,6 +1,9 @@
 ﻿using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Domain.Abstractions;
 using Backend.Infrastructure.Data.BaseClass;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Backend.Settings;
 
 namespace Backend.Infrastructure.Repositories.Budget
 {
@@ -8,8 +11,8 @@ namespace Backend.Infrastructure.Repositories.Budget
     {
         private readonly ICurrentUserContext _currentUser;
 
-        public BudgetRepository(IUnitOfWork unitOfWork, ILogger<BudgetRepository> logger, ICurrentUserContext currentUser)
-            : base(unitOfWork, logger)
+        public BudgetRepository(IUnitOfWork unitOfWork, ILogger<BudgetRepository> logger, ICurrentUserContext currentUser, IOptions<DatabaseSettings> db)
+            : base(unitOfWork, logger, db)
         {
             _currentUser = currentUser;
         }
@@ -17,6 +20,30 @@ namespace Backend.Infrastructure.Repositories.Budget
             UPDATE BUDGET 
             SET DebtRepaymentStrategy = @STRAT, UpdatedByUserId = @currentUserId
             WHERE Id = (@BudgetId);";
+
+        const string createBudget = @"
+                INSERT INTO Budget (Id, Persoid, DebtRepaymentStrategy, CreatedAt, CreatedByUserId)
+                VALUES (@BudgetId, @Persoid, @DebtRepaymentStrategy, UTC_TIMESTAMP(), @CreatedByUserId)";
+
+        public async Task<bool> CreateBudgetAsync(Guid budgetId, Guid persoId, string debtRepaymentStrategy, CancellationToken ct = default)
+        {
+
+
+            var parameters = new
+            {
+                BudgetId = budgetId,
+                Persoid = persoId,
+                DebtRepaymentStrategy = debtRepaymentStrategy,
+                CreatedByUserId = persoId
+            };
+
+
+            int rowsAffected = await ExecuteAsync(createBudget, parameters, ct);
+            if (rowsAffected > 0)
+                return true;
+            else
+                return false;
+        }
 
         public async Task UpdateRepaymentStrategyAsync(string strat, Guid budgetId, CancellationToken ct)
         {

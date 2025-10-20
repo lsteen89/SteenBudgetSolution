@@ -22,9 +22,6 @@ public sealed class FinalizeWizardCommandHandler
         _stepProcessors = stepProcessors;
         _logger = logger;
     }
-    // This method will have to create a budgetId and pass it to each step processor.
-    // Each step processor will handle its own part of the budget creation.
-    // Then return it. 
     public async Task<Result> Handle(FinalizeWizardCommand request, CancellationToken ct)
     {
         var wizardData = await _wizardRepository.GetRawStepDataForFinalizationAsync(request.SessionId, ct);
@@ -34,8 +31,11 @@ public sealed class FinalizeWizardCommandHandler
         }
 
         var budgetId = Guid.NewGuid();
-        _logger.LogInformation("Beginning budget finalization for BudgetId {BudgetId}", budgetId);
+        _logger.LogInformation("Beginning budget finalization for user: {request.Persoid} BudgetId {BudgetId}", request.Persoid, budgetId);
 
+
+        // Step 1: Create the main budget record
+        //var createBudgetResult = await _wizardRepository.CreateBudgetAsync(budgetId, request.Persoid, ct);
         // The transaction is handled automatically by the UnitOfWorkPipelineBehavior!
 
         var groupedData = wizardData.GroupBy(d => d.StepNumber);

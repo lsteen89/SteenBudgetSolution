@@ -28,6 +28,7 @@ export interface WizardDataStore {
   setDebts: (d: Partial<Step4FormValues>) => void;
   setLastVisitedSubStep: (step: number, subStep: number) => void; // The bookmarking action
   reset: () => void;
+  getLastVisitedSubStep: (step: number) => number | undefined;
 }
 
 const initialWizardDataState: WizardData = { income: {}, expenditure: {}, savings: {}, debts: {} };
@@ -36,7 +37,7 @@ const initialUIMetadata: Record<number, StepUIMetadata> = {};
 export const useWizardDataStore = createWithEqualityFn<WizardDataStore>()(
   devtools(
     persist(
-      (set) => ({
+      (set, get) => ({
         data: initialWizardDataState,
         version: CODE_DATA_VERSION,
         uiMetadata: initialUIMetadata,
@@ -44,16 +45,18 @@ export const useWizardDataStore = createWithEqualityFn<WizardDataStore>()(
         setExpenditure: (expenditureUpdate) => set((state) => ({ data: { ...state.data, expenditure: { ...state.data.expenditure, ...expenditureUpdate } } })),
         setSavings: (savingsUpdate) => set((state) => ({ data: { ...state.data, savings: { ...state.data.savings, ...savingsUpdate } } })),
         setDebts: (debtsUpdate) => set((state) => ({ data: { ...state.data, debts: { ...state.data.debts, ...debtsUpdate } } })),
-        
+
 
         setLastVisitedSubStep: (step, subStep) =>
           set((state) => ({
             uiMetadata: {
               ...state.uiMetadata,
-              [step]: { ...state.uiMetadata[step], lastVisitedSubStep: subStep },
+              [step]: { ...(state.uiMetadata[step] ?? {}), lastVisitedSubStep: subStep }, // 👈 safe spread
             },
           })),
-        
+
+        getLastVisitedSubStep: (step) => get().uiMetadata[step]?.lastVisitedSubStep,
+
         reset: () => set({ data: { ...initialWizardDataState }, uiMetadata: { ...initialUIMetadata }, version: CODE_DATA_VERSION }),
       }),
       {

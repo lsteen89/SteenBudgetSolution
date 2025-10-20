@@ -13,27 +13,43 @@ import { DebtCategoryCard } from "@/components/organisms/debts/DebtCategoryCard"
 
 const SubStepConfirm: React.FC = () => {
   const { data } = useWizardDataStore();
-  
-  // --- Logic now uses React Hook Form context ---
+
   const {
     watch,
     setValue,
-    register,
     formState: { errors },
+    // Optional: use getValues if you prefer reading current values inside effects without causing re-renders
+    // getValues,
   } = useFormContext<DebtsFormValues>();
 
-  const debtArray = data.debts?.debts ?? [];
-  const metrics = useMemo(() => summariseDebts(debtArray), [debtArray]);
+  // ---- Hydrate RHF from store/DB on first render (or when store changes) ----
+  useEffect(() => {
+    const storeDebts = data.debts?.debts ?? [];
+    const storeStrategy = data.debts?.summary?.repaymentStrategy;
 
-  // --- Field is defined and registered with the form ---
+    // If the form has no debts yet but store does, hydrate without marking dirty
+    const formDebts = watch("debts");
+    if ((!formDebts || formDebts.length === 0) && storeDebts.length > 0) {
+      setValue("debts", storeDebts, { shouldDirty: false, shouldValidate: true });
+    }
+
+    // If the form has no strategy yet but store does, hydrate it
+    const formStrategy = watch("summary.repaymentStrategy");
+    if (!formStrategy && storeStrategy) {
+      setValue("summary.repaymentStrategy", storeStrategy, {
+        shouldDirty: false,
+        shouldValidate: true,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.debts, setValue]); // <-- don't include watch in deps to avoid loops
+
+  // ---- Always compute metrics from RHF, not from store ----
+  const formDebts = watch("debts") ?? [];
+  const metrics = useMemo(() => summariseDebts(formDebts), [formDebts]);
+
   const fieldPath = "summary.repaymentStrategy";
   const fieldId = idFromPath(fieldPath);
-
-  useEffect(() => {
-    register(fieldPath);
-  }, [register, fieldPath]);
-  
-  // --- The selected choice is read from the form state ---
   const repaymentStrategy = watch(fieldPath);
 
   return (
@@ -66,7 +82,12 @@ const SubStepConfirm: React.FC = () => {
             selected={repaymentStrategy === "avalanche"}
             icon="mountain"
             title="Lavinen"
-            onSelect={() => setValue(fieldPath, "avalanche", { shouldValidate: true, shouldDirty: true })}
+            onSelect={() =>
+              setValue("summary.repaymentStrategy", "avalanche", {
+                shouldValidate: true,
+                shouldDirty: true,
+              })
+            }
             subtitle="Fokusera extra pengar på högsta räntan först."
             firstTarget={metrics.highestApr?.name ?? "N/A"}
           />
@@ -74,7 +95,12 @@ const SubStepConfirm: React.FC = () => {
             selected={repaymentStrategy === "snowball"}
             icon="footsteps"
             title="Snöbollen"
-            onSelect={() => setValue(fieldPath, "snowball", { shouldValidate: true, shouldDirty: true })}
+            onSelect={() =>
+              setValue("summary.repaymentStrategy", "snowball", {
+                shouldValidate: true,
+                shouldDirty: true,
+              })
+            }
             subtitle="Börja med minsta skulden för snabb seger."
             firstTarget={metrics.smallestBalance?.name ?? "N/A"}
           />
@@ -82,19 +108,21 @@ const SubStepConfirm: React.FC = () => {
             selected={repaymentStrategy === "noAction"}
             icon="none"
             title="Ingen preferens"
-            onSelect={() => setValue(fieldPath, "noAction", { shouldValidate: true, shouldDirty: true })}
+            onSelect={() =>
+              setValue("summary.repaymentStrategy", "noAction", {
+                shouldValidate: true,
+                shouldDirty: true,
+              })
+            }
             subtitle="Jag vill inte välja en strategi nu och fortsätter med minimibetalningar."
             firstTarget={"Du kan alltid ändra senare"}
           />
         </div>
-        
-        {/* Error message handling */}
+
         {errors.summary?.repaymentStrategy && (
           <div className="mt-4 flex items-center gap-2 text-red-500">
             <AlertTriangle className="h-5 w-5" />
-            <p className="text-sm font-medium">
-              {errors.summary.repaymentStrategy.message}
-            </p>
+            <p className="text-sm font-medium">{errors.summary.repaymentStrategy.message}</p>
           </div>
         )}
       </div>

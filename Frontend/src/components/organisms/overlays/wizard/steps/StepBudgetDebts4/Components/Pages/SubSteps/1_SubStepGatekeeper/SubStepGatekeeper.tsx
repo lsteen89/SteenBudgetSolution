@@ -4,6 +4,9 @@ import { Step4FormValues } from '@/types/Wizard/Step4FormValues';
 import OptionContainer from '@components/molecules/containers/OptionContainer';
 import InfoBox from '@/components/molecules/messaging/InfoBox';
 import { motion } from 'framer-motion';
+import { devLog } from '@/utils/devLog';
+import { useEffect, useRef } from 'react';
+import { useWizardSaveQueue } from '@/stores/Wizard/wizardSaveQueue';
 
 /**
  * Gatekeeper for the "Skulder" (debts) step.
@@ -23,6 +26,18 @@ const SubStepGatekeeper: React.FC = () => {
 
   // Current choice (boolean | undefined)
   const selected = watch('intro.hasDebts');
+
+  // Dont save changes to the queue 
+
+
+  // Trace value changes from RHF
+  const prevRef = useRef<boolean | null | undefined>(selected);
+  useEffect(() => {
+    if (prevRef.current !== selected) {
+      devLog.group('Gatekeeper.watch change', devLog.stamp({ prev: prevRef.current, next: selected }));
+      prevRef.current = selected;
+    }
+  }, [selected]);
 
   /**
    * Update form state and (optionally) trigger navigation handled
@@ -46,9 +61,11 @@ const SubStepGatekeeper: React.FC = () => {
   return (
     <OptionContainer className="p-6 md:p-8">
       <section className="space-y-8 text-white">
-        <h3 className="text-2xl md:text-3xl font-extrabold text-center text-darkLimeGreen">
-          Har du några befintliga lån eller skulder som du vill hålla koll på?
-        </h3>
+        <InfoBox icon={false}>
+          <h3 className="text-2xl md:text-3xl font-extrabold text-center text-darkLimeGreen">
+            Har du några befintliga lån eller skulder som du vill hålla koll på?
+          </h3>
+        </InfoBox>
 
         <InfoBox>
           Den här delen hjälper dig att samla alla dina skulder så att du enkelt kan följa
@@ -62,10 +79,9 @@ const SubStepGatekeeper: React.FC = () => {
             onClick={() => handleChoice(true)}
             className={`rounded-2xl px-6 py-8 font-semibold transition ring-offset-2 ring-limeGreen/60
               backdrop-blur-md focus:outline-none
-              ${
-                selected === true
-                  ? 'ring-4 bg-darkBlueMenuColor/70'
-                  : 'bg-darkBlueMenuColor/40 hover:bg-darkBlueMenuColor/60'
+              ${selected === true
+                ? 'ring-4 bg-darkBlueMenuColor/70'
+                : 'bg-darkBlueMenuColor/40 hover:bg-darkBlueMenuColor/60'
               }`}
           >
             <span className="block text-lg md:text-xl">Ja, lägg till dem</span>
@@ -76,10 +92,9 @@ const SubStepGatekeeper: React.FC = () => {
             onClick={() => handleChoice(false)}
             className={`rounded-2xl px-6 py-8 font-semibold transition ring-offset-2 ring-limeGreen/60
               backdrop-blur-md focus:outline-none
-              ${
-                selected === false
-                  ? 'ring-4 bg-darkBlueMenuColor/70'
-                  : 'bg-darkBlueMenuColor/40 hover:bg-darkBlueMenuColor/60'
+              ${selected === false
+                ? 'ring-4 bg-darkBlueMenuColor/70'
+                : 'bg-darkBlueMenuColor/40 hover:bg-darkBlueMenuColor/60'
               }`}
           >
             <span className="block text-lg md:text-xl">Nej, jag har inga skulder</span>
@@ -89,8 +104,7 @@ const SubStepGatekeeper: React.FC = () => {
         {/* Hidden input keeps RHF in sync without exposing default radio styling */}
         <input
           type="hidden"
-          {...register('intro.hasDebts', { required: 'Välj ett alternativ' })}
-          value={selected === undefined ? '' : String(selected)}
+          {...register('intro.hasDebts')}
         />
 
         {errors.intro?.hasDebts && (

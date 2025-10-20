@@ -2,6 +2,8 @@ using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Infrastructure.Data.BaseClass;
 using Backend.Domain.Abstractions;
 using Backend.Domain.Entities.Budget.Expenses;
+using Microsoft.Extensions.Options;
+using Backend.Settings;
 
 namespace Backend.Infrastructure.Repositories.Budget;
 
@@ -9,8 +11,8 @@ public class ExpenditureRepository : SqlBase, IExpenditureRepository
 {
     private readonly ICurrentUserContext _currentUser;
 
-    public ExpenditureRepository(IUnitOfWork unitOfWork, ILogger<ExpenditureRepository> logger, ICurrentUserContext currentUser)
-        : base(unitOfWork, logger)
+    public ExpenditureRepository(IUnitOfWork unitOfWork, ILogger<ExpenditureRepository> logger, ICurrentUserContext currentUser, IOptions<DatabaseSettings> db)
+        : base(unitOfWork, logger, db)
     {
         _currentUser = currentUser;
     }

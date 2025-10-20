@@ -8,7 +8,7 @@ import { useWizardDataStore } from '@/stores/Wizard/wizardDataStore';
 import useScrollToFirstError from '@/hooks/useScrollToFirstError';
 import { useWizard } from '@/context/WizardContext';
 import { DebtsFormValues } from "@/types/Wizard/DebtFormValues";
-
+import { devLog } from '@/utils/devLog';
 
 
 export interface WizardFormWrapperStep4Ref {
@@ -22,6 +22,8 @@ interface WizardFormWrapperStep4Props {
   children: React.ReactNode;
   onHydrationComplete?: () => void;
 }
+
+
 
 const WizardFormWrapperStep4 = forwardRef<WizardFormWrapperStep4Ref, WizardFormWrapperStep4Props>(({ children, onHydrationComplete }, ref) => {
   const {
@@ -38,6 +40,17 @@ const WizardFormWrapperStep4 = forwardRef<WizardFormWrapperStep4Ref, WizardFormW
     reValidateMode: 'onChange',
   });
 
+  useImperativeHandle(ref, () => ({
+    validateFields: () => methods.trigger(),
+    getStepData: () => {
+      const v = methods.getValues();
+      devLog.group('Wrapper.getStepData', devLog.stamp({ values: v }));
+      return v;
+    },
+    getErrors: () => methods.formState.errors,
+    getMethods: () => methods,
+  }));
+
   const { formState: { errors } } = methods;
   useScrollToFirstError(errors);
 
@@ -50,7 +63,7 @@ const WizardFormWrapperStep4 = forwardRef<WizardFormWrapperStep4Ref, WizardFormW
     }
   }, [debts, methods, onHydrationComplete]);
 
-  useEffect(()=>{
+  useEffect(() => {
     setWizardFlags({ debtsHaveBeenSet: (debts?.debts?.length ?? 0) > 0 });
   }, [debts, setWizardFlags]);
 

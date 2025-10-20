@@ -5,6 +5,7 @@ using Backend.Application.Abstractions.Infrastructure.Security;
 using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Application.Helpers.Jwt;
 using Backend.Infrastructure.WebSockets;
+using Backend.Application.Common.Behaviors;
 
 namespace Backend.Application.Features.Commands.Auth.Logout;
 

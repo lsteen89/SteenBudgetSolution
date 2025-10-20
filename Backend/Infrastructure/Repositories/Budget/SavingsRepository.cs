@@ -2,7 +2,8 @@ using Backend.Domain.Entities.Budget.Savings;
 using Backend.Domain.Abstractions;
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Infrastructure.Data.BaseClass;
-
+using Microsoft.Extensions.Options;
+using Backend.Settings;
 
 namespace Backend.Infrastructure.Repositories.Budget
 {
@@ -10,8 +11,8 @@ namespace Backend.Infrastructure.Repositories.Budget
     {
         private readonly ICurrentUserContext _currentUser;
 
-        public SavingsRepository(IUnitOfWork unitOfWork, ILogger<SavingsRepository> logger, ICurrentUserContext currentUser)
-            : base(unitOfWork, logger)
+        public SavingsRepository(IUnitOfWork unitOfWork, ILogger<SavingsRepository> logger, ICurrentUserContext currentUser, IOptions<DatabaseSettings> db)
+            : base(unitOfWork, logger, db)
         {
             _currentUser = currentUser;
         }

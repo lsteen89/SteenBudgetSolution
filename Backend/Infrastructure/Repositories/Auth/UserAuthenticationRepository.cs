@@ -2,13 +2,15 @@ using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Infrastructure.Data.BaseClass;
 using Backend.Domain.Entities.User;
+using Microsoft.Extensions.Options;
+using Backend.Settings;
 
 namespace Backend.Infrastructure.Repositories.Auth;
 
 internal sealed class UserAuthenticationRepository : SqlBase, IUserAuthenticationRepository
 {
     private readonly ITimeProvider _clock;
-    public UserAuthenticationRepository(IUnitOfWork uow, ILogger<UserAuthenticationRepository> log, ITimeProvider clock) : base(uow, log) { _clock = clock; }
+    public UserAuthenticationRepository(IUnitOfWork uow, ILogger<UserAuthenticationRepository> log, ITimeProvider clock, IOptions<DatabaseSettings> db) : base(uow, log, db) { _clock = clock; }
 
     public Task<UserModel?> GetByEmailAsync(string email, CancellationToken ct)
         => QuerySingleOrDefaultAsync<UserModel>(

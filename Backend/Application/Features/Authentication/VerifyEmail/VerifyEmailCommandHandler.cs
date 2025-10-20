@@ -3,7 +3,7 @@ using Backend.Domain.Shared;
 using Backend.Domain.Users;
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Application.Abstractions.Infrastructure.System;
-
+using Backend.Application.Common.Behaviors;
 
 namespace Backend.Application.Features.Commands.Auth.VerifyEmail;
 
