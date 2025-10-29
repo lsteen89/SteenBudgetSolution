@@ -55,7 +55,7 @@ public sealed class StartWizardFlowTests
         // Second start -> reuse (idempotent)
         var res2 = await sut.Handle(new StartWizardCommand(persoId), CancellationToken.None);
         res2.IsSuccess.Should().BeTrue();
-        res2.Value.Should().Be(res1.Value);
+        res2.Value.WizardSessionId.Should().Be(res1.Value.WizardSessionId);
 
         // Still one row
         var count2 = await conn.ExecuteScalarAsync<long>(
@@ -89,7 +89,7 @@ public sealed class StartWizardFlowTests
         var res = await sut.Handle(new StartWizardCommand(persoId), CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
-        res.Value.Should().Be(existingSession);
+        res.Value.WizardSessionId.Should().Be(existingSession);
 
         // Still exactly one row
         await using (var conn = new MySqlConnection(_db.ConnectionString))
