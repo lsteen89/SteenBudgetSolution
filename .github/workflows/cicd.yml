@@ -67,7 +67,6 @@
             ports:
               - 3306/tcp
             options: >-
-              # Use the root user and the socket for the most reliable check
               --health-cmd="mysqladmin ping --socket=/run/mysqld/mysqld.sock -uroot -proot"
               --health-interval=5s
               --health-timeout=3s
