@@ -52,76 +52,78 @@
           run: dotnet test --filter "TestCategory=Unit" --verbosity normal
 
     integration-tests:
-        name: Run Integration Tests
-        runs-on: ubuntu-latest
-        needs: test
+      name: Run Integration Tests
+      runs-on: ubuntu-latest
+      needs: test
 
-        services:
-          mariadb:
-            image: mariadb:11.4
-            env:
-              # DB bootstrap
-              MARIADB_DATABASE: ebudget_it
-              MARIADB_USER: ebudget
-              MARIADB_PASSWORD: ebudgetpw
-              # Root still needed for internal init
-              MARIADB_ROOT_PASSWORD: root
-            ports:
-              - 3306/tcp
-            options: >-
-              --health-cmd="mysqladmin --protocol=tcp -h127.0.0.1 -uebudget -pebudgetpw ping"
-              --health-interval=5s
-              --health-timeout=3s
-              --health-retries=30
-              --health-start-period=45s
+      services:
+        mariadb:
+          image: mariadb:11.4
+          env:
+            MARIADB_DATABASE: ebudget_it
+            MARIADB_USER: ebudget
+            MARIADB_PASSWORD: ebudgetpw
+            MARIADB_ROOT_PASSWORD: root
+          ports:
+            - 3306/tcp
+          # Use socket for health so it passes during entrypoint's temp server
+          options: >-
+            --health-cmd="mysqladmin ping -uroot -proot --socket=/run/mysqld/mysqld.sock"
+            --health-interval=5s
+            --health-timeout=3s
+            --health-retries=60
+            --health-start-period=60s
 
-        steps:
-          - uses: actions/checkout@v4
-          - uses: actions/setup-dotnet@v4
-            with:
-              dotnet-version: '8.0.x'
+      steps:
+        - uses: actions/checkout@v4
+        - uses: actions/setup-dotnet@v4
+          with:
+            dotnet-version: '8.0.x'
 
-          - name: Install MariaDB client
-            run: |
-              sudo apt-get update
-              sudo apt-get install -y mariadb-client jq netcat-traditional
+        - name: Install MariaDB client
+          run: |
+            sudo apt-get update
+            sudo apt-get install -y mariadb-client jq netcat-traditional
 
-          - name: Export DB connection vars
-            run: |
-              echo "DB_HOST=127.0.0.1" >> $GITHUB_ENV
-              echo "DB_PORT=${{ job.services.mariadb.ports['3306'] }}" >> $GITHUB_ENV
-              echo "DB_USER=ebudget" >> $GITHUB_ENV
-              echo "DB_PASS=ebudgetpw" >> $GITHUB_ENV
-              echo "DB_NAME=ebudget_it" >> $GITHUB_ENV
-              echo "MariaDB mapped port: ${{ job.services.mariadb.ports['3306'] }}"
-          
-          # (See recommendation below)
-          - name: Verify DB is reachable
-            run: |
-              for s in 1 1 2 3 5; do
-                if nc -z "$DB_HOST" "$DB_PORT"; then
-                  echo "TCP port $DB_PORT open"
-                  break
-                fi
-                echo "Waiting for TCP port $DB_PORT..."
-                sleep "$s"
-              done
-              # The final client check is no longer needed, the service health check did it.
-              # But we still need this step to get the port into the env.
+        - name: Export DB connection vars
+          run: |
+            echo "DB_HOST=127.0.0.1" >> $GITHUB_ENV
+            echo "DB_PORT=${{ job.services.mariadb.ports['3306'] }}" >> $GITHUB_ENV
+            echo "DB_USER=ebudget" >> $GITHUB_ENV
+            echo "DB_PASS=ebudgetpw" >> $GITHUB_ENV
+            echo "DB_NAME=ebudget_it" >> $GITHUB_ENV
 
-          - name: Run integration tests
-            env:
-              ConnectionStrings__Integration: Server=${{ env.DB_HOST }};Port=${{ env.DB_PORT }};Database=${{ env.DB_NAME }};Uid=${{ env.DB_USER }};Pwd=${{ env.DB_PASS }};
-            run: dotnet test --filter "TestCategory=Integration" --verbosity normal
+        - name: Verify DB is reachable (TCP + SQL)
+          env:
+            DB_HOST: ${{ env.DB_HOST }}
+            DB_PORT: ${{ env.DB_PORT }}
+            DB_USER: ${{ env.DB_USER }}
+            DB_PASS: ${{ env.DB_PASS }}
+            DB_NAME: ${{ env.DB_NAME }}
+          run: |
+            set -euo pipefail
+            echo "MariaDB mapped port: $DB_PORT"
+            for s in 1 1 2 3 5 8 13 21 34 55; do
+              if nc -z "$DB_HOST" "$DB_PORT"; then
+                echo "TCP open"; break
+              fi
+              echo "Waiting for TCP $DB_HOST:$DB_PORT ..."
+              sleep "$s"
+            done
+            mariadb --protocol=tcp -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASS" -e "SELECT 1" "$DB_NAME"
 
-          - name: Debug MariaDB container on failure
-            if: failure()
-            run: |
-              cid=$(docker ps -aqf "name=mariadb" | head -n1)
-              echo "Container: $cid"
-              docker logs "$cid" || true
-              docker inspect "$cid" | jq '.[0].State' || true
+        - name: Run integration tests
+          env:
+            ConnectionStrings__Integration: Server=${{ env.DB_HOST }};Port=${{ env.DB_PORT }};Database=${{ env.DB_NAME }};Uid=${{ env.DB_USER }};Pwd=${{ env.DB_PASS }};
+          run: dotnet test --filter "TestCategory=Integration" --verbosity normal
 
+        - name: Debug MariaDB container on failure
+          if: failure()
+          run: |
+            cid=$(docker ps -aqf "name=mariadb" | head -n1)
+            echo "Container: $cid"
+            docker logs "$cid" || true
+            docker inspect "$cid" | jq '.[0].State' || true
 
 
     build:
