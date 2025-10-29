@@ -1,4 +1,7 @@
 using Xunit;
+
+[assembly: CollectionBehavior(DisableTestParallelization = true)]
+
 namespace Backend.IntegrationTests.Shared;
 
 [CollectionDefinition("it:db")]
