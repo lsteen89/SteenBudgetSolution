@@ -66,12 +66,14 @@
               MARIADB_ROOT_PASSWORD: root
             ports:
               - 3306/tcp
+            # Comments go OUTSIDE the block string
+            # We use the 'ebudget' user for the check and a short 15s start period.
             options: >-
               --health-cmd="mysqladmin --protocol=tcp -h127.0.0.1 -uebudget -pebudgetpw ping"
               --health-interval=5s
               --health-timeout=3s
               --health-retries=10
-              --health-start-period=15s # Drastically reduced from 60s
+              --health-start-period=15s
 
         steps:
           - uses: actions/checkout@v4
@@ -79,6 +81,7 @@
             with:
               dotnet-version: '8.0.x'
 
+          # We only need 'jq' for the debug step.
           - name: Install debug tools
             run: |
               sudo apt-get update
@@ -93,7 +96,6 @@
               echo "DB_NAME=ebudget_it" >> $GITHUB_ENV
               echo "MariaDB mapped port: ${{ job.services.mariadb.ports['3306'] }}"
 
-
           - name: Run integration tests
             env:
               ConnectionStrings__Integration: Server=${{ env.DB_HOST }};Port=${{ env.DB_PORT }};Database=${{ env.DB_NAME }};Uid=${{ env.DB_USER }};Pwd=${{ env.DB_PASS }};
@@ -102,9 +104,8 @@
           - name: Debug MariaDB container on failure
             if: failure()
             run: |
-              # The container name is not 'mariadb', it's a long hash.
-              # We find it by the image label.
-              cid=$(docker ps -aqf "label=0d4f94" | head -n1)
+              # Find the container by its unique label
+              cid=$(docker ps -aqf "label=beb09b" | head -n1)
               echo "Container: $cid"
               docker logs "$cid" || true
               docker inspect "$cid" | jq '.[0].State' || true
