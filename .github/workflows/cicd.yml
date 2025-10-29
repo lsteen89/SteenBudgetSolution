@@ -62,7 +62,7 @@
           env:
             MARIADB_ROOT_PASSWORD: root
             MARIADB_DATABASE: ebudget_it
-          # Let Actions pick a free host port, but expose 3306/tcp from the container
+          # Expose 3306 in the container; let Actions pick a free host port
           ports:
             - 3306/tcp
           options: >-
@@ -79,39 +79,40 @@
           with:
             dotnet-version: '8.0.x'
 
-        # Need the client for mysqladmin ping
         - name: Install MariaDB client
           run: |
             sudo apt-get update
-            sudo apt-get install -y mariadb-client
+            sudo apt-get install -y mariadb-client jq
 
-        # Use the actual mapped host port from the service
+        # Export the mapped host port from the service
         - name: Export DB connection vars
           run: |
             echo "DB_HOST=127.0.0.1" >> $GITHUB_ENV
             echo "DB_PORT=${{ job.services.mariadb.ports['3306'] }}" >> $GITHUB_ENV
 
-        # Robust wait with exponential backoff (up to ~2 min)
-        - name: Wait for DB readiness
+        # Sanity check: print the mapped port and prove we can connect
+        - name: Verify DB is reachable
           env:
             DB_HOST: ${{ env.DB_HOST }}
             DB_PORT: ${{ env.DB_PORT }}
           run: |
-            echo "Waiting for MariaDB on $DB_HOST:$DB_PORT"
+            echo "MariaDB mapped port: $DB_PORT"
+            # Exponential backoff, max ~2 minutes
             for s in 1 1 2 3 5 8 13 21 34 55; do
               if mysqladmin ping --protocol=tcp -h"$DB_HOST" -P"$DB_PORT" -uroot -proot --silent; then
-                echo "DB up"; exit 0
+                echo "Ping OK"; break
               fi
               sleep "$s"
             done
-            echo "DB did not become ready in time"; exit 1
+            # Final hard check: run a simple query
+            mysql --protocol=tcp -h"$DB_HOST" -P"$DB_PORT" -uroot -proot -e "SELECT 1" || { echo "Cannot query DB"; exit 1; }
 
         - name: Run integration tests
           env:
             ConnectionStrings__Integration: Server=${{ env.DB_HOST }};Port=${{ env.DB_PORT }};Database=ebudget_it;Uid=root;Pwd=root;
           run: dotnet test --filter "TestCategory=Integration" --verbosity normal
 
-        # If something still fails, dump useful diagnostics
+        # Auto-dump diagnostics if anything fails
         - name: Debug MariaDB container on failure
           if: failure()
           run: |
@@ -119,6 +120,7 @@
             echo "Container: $cid"
             docker logs "$cid" || true
             docker inspect "$cid" | jq '.[0].State' || true
+
 
     build:
       name: Build Artifacts
