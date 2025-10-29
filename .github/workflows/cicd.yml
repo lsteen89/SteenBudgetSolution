@@ -70,6 +70,10 @@
           with:
             dotnet-version: '8.0.x'
             cache: true
+            cache-dependency-path: |
+              **/*.csproj
+              **/Directory.Packages.props
+              **/nuget.config
 
         - name: Restore
           run: dotnet restore
