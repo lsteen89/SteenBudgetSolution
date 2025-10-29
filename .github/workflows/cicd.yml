@@ -60,9 +60,12 @@
         mariadb:
           image: mariadb:11.4
           env:
-            MARIADB_ROOT_PASSWORD: root
+            # DB bootstrap
             MARIADB_DATABASE: ebudget_it
-          # Expose 3306 in the container; let Actions pick a free host port
+            MARIADB_USER: ebudget
+            MARIADB_PASSWORD: ebudgetpw
+            # Root still needed for internal init; we won't use it from the runner
+            MARIADB_ROOT_PASSWORD: root
           ports:
             - 3306/tcp
           options: >-
@@ -74,7 +77,6 @@
 
       steps:
         - uses: actions/checkout@v4
-
         - uses: actions/setup-dotnet@v4
           with:
             dotnet-version: '8.0.x'
@@ -82,37 +84,41 @@
         - name: Install MariaDB client
           run: |
             sudo apt-get update
-            sudo apt-get install -y mariadb-client jq
+            sudo apt-get install -y mariadb-client jq netcat-traditional
 
-        # Export the mapped host port from the service
         - name: Export DB connection vars
           run: |
             echo "DB_HOST=127.0.0.1" >> $GITHUB_ENV
             echo "DB_PORT=${{ job.services.mariadb.ports['3306'] }}" >> $GITHUB_ENV
+            echo "DB_USER=ebudget" >> $GITHUB_ENV
+            echo "DB_PASS=ebudgetpw" >> $GITHUB_ENV
+            echo "DB_NAME=ebudget_it" >> $GITHUB_ENV
 
-        # Sanity check: print the mapped port and prove we can connect
+        # Backoff + prove connectivity with the *non-root* user
         - name: Verify DB is reachable
           env:
             DB_HOST: ${{ env.DB_HOST }}
             DB_PORT: ${{ env.DB_PORT }}
+            DB_USER: ${{ env.DB_USER }}
+            DB_PASS: ${{ env.DB_PASS }}
+            DB_NAME: ${{ env.DB_NAME }}
           run: |
             echo "MariaDB mapped port: $DB_PORT"
-            # Exponential backoff, max ~2 minutes
             for s in 1 1 2 3 5 8 13 21 34 55; do
-              if mysqladmin ping --protocol=tcp -h"$DB_HOST" -P"$DB_PORT" -uroot -proot --silent; then
-                echo "Ping OK"; break
+              if nc -z  "$DB_HOST" "$DB_PORT"; then
+                echo "TCP open"
+                break
               fi
               sleep "$s"
             done
-            # Final hard check: run a simple query
-            mysql --protocol=tcp -h"$DB_HOST" -P"$DB_PORT" -uroot -proot -e "SELECT 1" || { echo "Cannot query DB"; exit 1; }
+            # Final hard check with client
+            mariadb --protocol=tcp -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASS" -e "SELECT 1" "$DB_NAME"
 
         - name: Run integration tests
           env:
-            ConnectionStrings__Integration: Server=${{ env.DB_HOST }};Port=${{ env.DB_PORT }};Database=ebudget_it;Uid=root;Pwd=root;
+            ConnectionStrings__Integration: Server=${{ env.DB_HOST }};Port=${{ env.DB_PORT }};Database=${{ env.DB_NAME }};Uid=${{ env.DB_USER }};Pwd=${{ env.DB_PASS }};
           run: dotnet test --filter "TestCategory=Integration" --verbosity normal
 
-        # Auto-dump diagnostics if anything fails
         - name: Debug MariaDB container on failure
           if: failure()
           run: |
@@ -120,6 +126,7 @@
             echo "Container: $cid"
             docker logs "$cid" || true
             docker inspect "$cid" | jq '.[0].State' || true
+
 
 
     build:
