@@ -66,10 +66,9 @@
               MARIADB_ROOT_PASSWORD: root
             ports:
               - 3306/tcp
-            # Comments go OUTSIDE the block string
-            # We use the 'ebudget' user for the check and a short 15s start period.
             options: >-
-              --health-cmd="mysqladmin --protocol=tcp -h127.0.0.1 -uebudget -pebudgetpw ping"
+              # Use the root user and the socket for the most reliable check
+              --health-cmd="mysqladmin ping --socket=/run/mysqld/mysqld.sock -uroot -proot"
               --health-interval=5s
               --health-timeout=3s
               --health-retries=10
@@ -104,12 +103,11 @@
           - name: Debug MariaDB container on failure
             if: failure()
             run: |
-              # Find the container by its unique label
-              cid=$(docker ps -aqf "label=beb09b" | head -n1)
+              # Find the container by its image
+              cid=$(docker ps -aq --filter "ancestor=mariadb:11.4" | head -n1)
               echo "Container: $cid"
               docker logs "$cid" || true
               docker inspect "$cid" | jq '.[0].State' || true
-
 
     build:
       name: Build Artifacts
