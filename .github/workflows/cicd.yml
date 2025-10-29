@@ -114,13 +114,13 @@
               ConnectionStrings__Integration: Server=${{ env.DB_HOST }};Port=${{ env.DB_PORT }};Database=${{ env.DB_NAME }};Uid=${{ env.DB_USER }};Pwd=${{ env.DB_PASS }};
             run: dotnet test --filter "TestCategory=Integration" --verbosity normal
 
-        - name: Debug MariaDB container on failure
-          if: failure()
-          run: |
-            cid=$(docker ps -aqf "name=mariadb" | head -n1)
-            echo "Container: $cid"
-            docker logs "$cid" || true
-            docker inspect "$cid" | jq '.[0].State' || true
+          - name: Debug MariaDB container on failure
+            if: failure()
+            run: |
+              cid=$(docker ps -aqf "name=mariadb" | head -n1)
+              echo "Container: $cid"
+              docker logs "$cid" || true
+              docker inspect "$cid" | jq '.[0].State' || true
 
 
 
