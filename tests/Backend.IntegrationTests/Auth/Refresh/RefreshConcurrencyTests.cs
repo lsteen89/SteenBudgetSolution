@@ -16,6 +16,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Application.Abstractions.Infrastructure.Security;
 using Backend.Application.Abstractions.Infrastructure.System;
+using Backend.Application.Common.Behaviors;
 using Backend.Application.Features.Commands.Auth.RefreshToken;
 using Backend.Infrastructure.Repositories.Auth.RefreshTokens;
 using Backend.Infrastructure.Repositories.User;
@@ -24,6 +25,7 @@ using Backend.IntegrationTests.Shared;
 using Backend.Settings;
 using Backend.Domain.Users;
 using Backend.Infrastructure.Security;
+
 
 namespace Backend.IntegrationTests.Auth.Refresh;
 // test collection
@@ -51,7 +53,7 @@ public sealed class RefreshConcurrencyTests
         var clock = new Mock<ITimeProvider>(); clock.SetupGet(x => x.UtcNow).Returns(now);
 
         var sessionId = Guid.NewGuid();
-        var persoid   = Guid.NewGuid();
+        var persoid = Guid.NewGuid();
         const string email = "user@example.com";
         const string ua = "UA";
         const string dev = "dev";
@@ -73,11 +75,18 @@ public sealed class RefreshConcurrencyTests
             INSERT INTO RefreshTokens
             (TokenId, Persoid, SessionId, HashedToken, AccessTokenJti, ExpiresRollingUtc, ExpiresAbsoluteUtc, Status, IsPersistent, DeviceId, UserAgent, CreatedUtc)
             VALUES (@tid, @pid, @sid, @hash, @jti, @roll, @abs, 1, 1, @dev, @ua, @now);
-        """, new {
-            tid = Guid.NewGuid(), pid = persoid, sid = sessionId,
-            hash = cookieHash, jti = Guid.NewGuid().ToString(),
-            roll = now.AddDays(7), abs = now.AddDays(30),
-            dev, ua, now
+        """, new
+        {
+            tid = Guid.NewGuid(),
+            pid = persoid,
+            sid = sessionId,
+            hash = cookieHash,
+            jti = Guid.NewGuid().ToString(),
+            roll = now.AddDays(7),
+            abs = now.AddDays(30),
+            dev,
+            ua,
+            now
         });
 
         // Mocks & settings
@@ -87,7 +96,7 @@ public sealed class RefreshConcurrencyTests
         jwt.SetupSequence(j => j.CreateRefreshToken()).Returns("rt1").Returns("rt2");
 
         var jwtSettings = new JwtSettings { RefreshTokenExpiryDays = 7, RefreshTokenExpiryDaysAbsolute = 30 };
-        var wsSettings  = new WebSocketSettings { Secret = "ws" };
+        var wsSettings = new WebSocketSettings { Secret = "ws" };
 
         // ---- Build DI so MediatR pipeline runs (IMPORTANT) ----
         var services = new ServiceCollection();
@@ -124,7 +133,7 @@ public sealed class RefreshConcurrencyTests
 
         var mediator1 = scope1.ServiceProvider.GetRequiredService<IMediator>();
         var mediator2 = scope2.ServiceProvider.GetRequiredService<IMediator>();
-     
+
         var cmd = new RefreshTokensCommand(null, cookie, sessionId, "UA", "dev");
 
         var t1 = mediator1.Send(cmd, CancellationToken.None);

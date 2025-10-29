@@ -29,6 +29,7 @@ namespace Backend.Application.Common.Behaviors;
 /// </summary>
 public sealed class UnitOfWorkPipelineBehavior<TRequest, TResponse>
     : IPipelineBehavior<TRequest, TResponse>
+    where TRequest : notnull
 {
     private readonly IUnitOfWork _uow;
     private readonly ILogger<UnitOfWorkPipelineBehavior<TRequest, TResponse>> _log;

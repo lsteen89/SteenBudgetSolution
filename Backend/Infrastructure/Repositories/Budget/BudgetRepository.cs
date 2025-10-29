@@ -25,10 +25,8 @@ namespace Backend.Infrastructure.Repositories.Budget
                 INSERT INTO Budget (Id, Persoid, DebtRepaymentStrategy, CreatedAt, CreatedByUserId)
                 VALUES (@BudgetId, @Persoid, @DebtRepaymentStrategy, UTC_TIMESTAMP(), @CreatedByUserId)";
 
-        public async Task<bool> CreateBudgetAsync(Guid budgetId, Guid persoId, string debtRepaymentStrategy, CancellationToken ct = default)
+        public async Task<bool> CreateBudgetAsync(Guid budgetId, Guid persoId, CancellationToken ct = default, string? debtRepaymentStrategy = null)
         {
-
-
             var parameters = new
             {
                 BudgetId = budgetId,
@@ -37,12 +35,9 @@ namespace Backend.Infrastructure.Repositories.Budget
                 CreatedByUserId = persoId
             };
 
-
             int rowsAffected = await ExecuteAsync(createBudget, parameters, ct);
-            if (rowsAffected > 0)
-                return true;
-            else
-                return false;
+
+            return rowsAffected > 0;
         }
 
         public async Task UpdateRepaymentStrategyAsync(string strat, Guid budgetId, CancellationToken ct)

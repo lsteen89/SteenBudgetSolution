@@ -10,15 +10,18 @@ public sealed class FinalizeWizardCommandHandler
     : ICommandHandler<FinalizeWizardCommand, Result>
 {
     private readonly IWizardRepository _wizardRepository;
+    private readonly IBudgetRepository _budgetRepository;
     private readonly IEnumerable<IWizardStepProcessor> _stepProcessors;
     private readonly ILogger<FinalizeWizardCommandHandler> _logger;
 
     public FinalizeWizardCommandHandler(
         IWizardRepository wizardRepository,
+        IBudgetRepository budgetRepository,
         IEnumerable<IWizardStepProcessor> stepProcessors,
         ILogger<FinalizeWizardCommandHandler> logger)
     {
         _wizardRepository = wizardRepository;
+        _budgetRepository = budgetRepository;
         _stepProcessors = stepProcessors;
         _logger = logger;
     }
@@ -33,9 +36,8 @@ public sealed class FinalizeWizardCommandHandler
         var budgetId = Guid.NewGuid();
         _logger.LogInformation("Beginning budget finalization for user: {request.Persoid} BudgetId {BudgetId}", request.Persoid, budgetId);
 
-
         // Step 1: Create the main budget record
-        //var createBudgetResult = await _wizardRepository.CreateBudgetAsync(budgetId, request.Persoid, ct);
+        var createBudgetResult = await _budgetRepository.CreateBudgetAsync(budgetId, request.Persoid, ct);
         // The transaction is handled automatically by the UnitOfWorkPipelineBehavior!
 
         var groupedData = wizardData.GroupBy(d => d.StepNumber);

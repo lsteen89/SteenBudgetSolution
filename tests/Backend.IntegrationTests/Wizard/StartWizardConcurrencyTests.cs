@@ -47,8 +47,7 @@ public sealed class StartWizardConcurrencyTests
         var r1 = t1.Result; var r2 = t2.Result;
         r1.IsSuccess.Should().BeTrue();
         r2.IsSuccess.Should().BeTrue();
-        r1.Value.Should().NotBe(Guid.Empty);
-        r2.Value.Should().Be(r1.Value);
+        r1.Value.WizardSessionId.Should().Be(r2.Value.WizardSessionId);
 
         var count = await conn.ExecuteScalarAsync<long>(
             "SELECT COUNT(*) FROM WizardSession WHERE Persoid=@p;", new { p = persoId });

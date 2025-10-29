@@ -1,0 +1,1 @@
+// Neutralized stray test artifact. File retained only to avoid accidental recreation with invalid name.
