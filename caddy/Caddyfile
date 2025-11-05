@@ -1,7 +1,6 @@
-{
-    trusted_proxies cloudflare
-}
 ebudget.se, www.ebudget.se {
+    trusted_proxies cloudflare
+    
     encode zstd gzip
 
     handle /api/healthz* {

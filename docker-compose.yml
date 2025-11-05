@@ -89,6 +89,7 @@ services:
 
   caddy:
     image: ghcr.io/lsteen89/caddy-cloudflare:2.9.1
+    hostname: caddy
     pull_policy: missing
     env_file: [ .env ] # CLOUDFLARE_API_TOKEN etc.
     environment:
