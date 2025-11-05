@@ -1,6 +1,13 @@
+{
+    servers {
+        trusted_proxies cloudflare
+        trusted_proxies_strict
+        client_ip_headers CF-Connecting-IP X-Forwarded-For
+    }
+}
+
 ebudget.se, www.ebudget.se {
-    trusted_proxies cloudflare
-    
+
     encode zstd gzip
 
     handle /api/healthz* {
