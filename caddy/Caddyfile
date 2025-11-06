@@ -1,4 +1,4 @@
-ebudget.se, www.ebudget.se {
+http://ebudget.se, http://www.ebudget.se {
 
     encode zstd gzip
 
