@@ -60,6 +60,7 @@ public static class DependencyInjection
         services.AddScoped<IWizardStepProcessor, IncomeStepProcessor>();
         services.AddScoped<IWizardStepProcessor, ExpenseStepProcessor>();
         services.AddScoped<IWizardStepProcessor, SavingsStepProcessor>();
+        services.AddScoped<IWizardStepProcessor, DebtStepProcessor>();
 
         //Wizard Validation
 
