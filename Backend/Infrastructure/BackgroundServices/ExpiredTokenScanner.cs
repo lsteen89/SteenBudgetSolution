@@ -1,8 +1,8 @@
-﻿using Backend.Application.Abstractions.Infrastructure.WebSockets;
-using Backend.Application.Abstractions.Infrastructure.Data;
+﻿using Backend.Application.Features.Commands.Auth.RefreshToken;
 using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Settings;
 using Microsoft.Extensions.Options;
+using MediatR;
 
 public class ExpiredTokenScanner : BackgroundService
 {
@@ -41,27 +41,9 @@ public class ExpiredTokenScanner : BackgroundService
             try
             {
                 await using var scope = _scopeFactory.CreateAsyncScope();
-                // resolve everything from this scope:
-                var repo = scope.ServiceProvider.GetRequiredService<IRefreshTokenRepository>();
-                var wsMgr = scope.ServiceProvider.GetRequiredService<IWebSocketManager>();
+                var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
 
-                // pull all expired tokens
-                var expiredTokens = await repo.GetExpiredTokensAsync(ct: stoppingToken);
-
-
-                if (expiredTokens.Any() || _settings.LogWhenNoTokensFound)
-                    _logger.LogInformation("Found {Count} expired tokens.", expiredTokens.Count());
-
-                foreach (var token in expiredTokens)
-                {
-                    _logger.LogInformation(
-                      "Force logout for {User}: expired at {When}.",
-                      token.Persoid, token.ExpiresRollingUtc);
-
-                    await wsMgr.ForceLogoutAsync(token.Persoid.ToString(), "session-expired");
-                    if (!await repo.DeleteTokenAsync(token.HashedToken, stoppingToken))
-                        _logger.LogError("Failed to delete expired token {Token}.", token.HashedToken);
-                }
+                await mediator.Send(new ScanExpiredTokensCommand(), stoppingToken);
             }
             catch (Exception ex)
             {

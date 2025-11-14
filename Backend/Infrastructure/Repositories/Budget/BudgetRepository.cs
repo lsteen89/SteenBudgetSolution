@@ -17,7 +17,7 @@ namespace Backend.Infrastructure.Repositories.Budget
             _currentUser = currentUser;
         }
         const string updateRepaymentSql = @"
-            UPDATE BUDGET 
+            UPDATE Budget 
             SET DebtRepaymentStrategy = @STRAT, UpdatedByUserId = @currentUserId
             WHERE Id = (@BudgetId);";
 
