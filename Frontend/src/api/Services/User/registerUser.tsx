@@ -1,32 +1,47 @@
 import { api } from '@/api/axios';
-import { UserCreationDto } from '../../../types/User/Creation/userCreation';
+import { isAxiosError } from 'axios';
+import type { ApiEnvelope } from '@/api/api.types';
+import type { UserCreationDto } from '../../../types/User/Creation/userCreation';
 
 /**
  * Registers a new user
  * @param {UserCreationDto} user - The registration details for the new user
- * @returns {Promise<void>} - Axios response promise
- * @throws Will throw an error object containing detailed response data if registration fails.
+ * @returns {Promise<void>}
+ * @throws Error with a clear message if registration fails.
  */
 export const registerUser = async (user: UserCreationDto): Promise<void> => {
     try {
-        await api.post('/api/auth/register', user, {
-            headers: { 'Content-Type': 'application/json' },
-        });
-    } catch (error: any) {
+        const response = await api.post<ApiEnvelope<string>>(
+            '/api/auth/register',
+            user,
+            {
+                headers: { 'Content-Type': 'application/json' },
+            }
+        );
 
-        if (error.response) {
-            // Extract a clear error message from the backend response.
-            // The backend sends { code: "...", description: "..." }, so we use description.
-            const message = error.response.data?.message || 'An unknown error occurred.';
-            // Create a new error with a clean message and attach the original response for context.
+        const env = response.data;
+
+        // 200 but envelope indicates failure
+        if (!env.isSuccess || env.error || !env.data) {
+            const message = env.error?.message ?? 'Registreringen misslyckades.';
             const customError = new Error(message);
-            (customError as any).response = error.response; // Keep the original response data
+            (customError as any).response = response;
             throw customError;
-
-        } else {
-            // Handle network errors or other issues where there's no response.
-            throw new Error('Unable to connect to the server. Please try again.');
         }
+
+        // Success → nothing to return
+        return;
+    } catch (error) {
+        if (isAxiosError<ApiEnvelope<string>>(error) && error.response) {
+            const env = error.response.data;
+            const message =
+                env?.error?.message ?? 'Registreringen misslyckades av okänd anledning.';
+            const customError = new Error(message);
+            (customError as any).response = error.response;
+            throw customError;
+        }
+
+        throw new Error('Unable to connect to the server. Please try again.');
     }
 };
 

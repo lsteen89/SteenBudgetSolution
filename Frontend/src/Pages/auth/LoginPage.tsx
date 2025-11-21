@@ -58,15 +58,15 @@ export default function LoginPage() {
     if (!(await validate())) return;
 
     setSub(true);
-    try { // <-- BEST PRACTICE: Wrap API calls in try/catch
+    try {
 
       const res = await login(form, rememberMe); // Pass rememberMe here
 
       if (res.success) {
         nav('/dashboard', { replace: true });
       } else {
-        // This handles defined business logic errors (e.g., wrong password)
-        const swedishErrorMessage = translateBackendError(res.message);
+        const key = res.errorCode ?? res.message; // prefer stable errorCode
+        const swedishErrorMessage = translateBackendError(key);
         setErr({ form: swedishErrorMessage });
         capRef.current?.reset();
       }
@@ -102,6 +102,13 @@ export default function LoginPage() {
           <InputField type='password' value={form.password} placeholder='Ange lösenord'
             onChange={e => setField('password', e.target.value)} width='100%' />
           {err.password && <p className='text-sm text-red-500'>{err.password}</p>}
+
+          {/* ---- form-level/backend error ---- */}
+          {err.form && (
+            <p className='mt-4 text-sm text-red-500 text-center'>
+              {err.form}
+            </p>
+          )}
 
           {/* Remember Me Checkbox */}
           <div className="mt-4 mb-4 flex items-center">

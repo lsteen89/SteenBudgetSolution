@@ -42,15 +42,16 @@ namespace Backend.Presentation.Controllers
 
         [HttpPost("login")]
         [EnableRateLimiting("LoginPolicy")]
-        [ProducesResponseType(typeof(ApiResponse<AuthResult>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ApiEnvelope<AuthResult>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiEnvelope<AuthResult>), StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> Login([FromBody] UserLoginDto dto, CancellationToken ct)
         {
             if (!ModelState.IsValid)
             {
-                // For model state errors, it's better to return a structured error response.
                 var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage);
-                return BadRequest(new ApiErrorResponse("Validation.Error", string.Join(" ", errors)));
+                var message = string.Join(" ", errors);
+                var envelope = ApiEnvelope<AuthResult>.Failure("Validation.Error", message);
+                return BadRequest(envelope);
             }
 
             var (ip, ua, deviceId) = RequestMetadataHelper.ExtractMetadata(HttpContext);
@@ -62,7 +63,8 @@ namespace Backend.Presentation.Controllers
             // 2. Check for failure using the 'IsFailure' property
             if (result.IsFailure)
             {
-                return Unauthorized(new ApiErrorResponse(result.Error.Code, result.Error.Description));
+                var envelope = ApiEnvelope<AuthResult>.Failure(result.Error.Code, result.Error.Description);
+                return Unauthorized(envelope);
             }
 
             // 3. The successful payload is now in the 'Value' property
@@ -70,10 +72,10 @@ namespace Backend.Presentation.Controllers
 
             if (authResultPayload is null)
             {
-                // This is an unexpected state. The login process succeeded but returned
-                // no data. This points to a server-side logic error.
                 var error = new Error("Auth.NullPayload", "An unexpected error occurred during login.", ErrorType.Validation);
-                return Result.Failure(error).ToApiResponse(); // Reuse our pattern for a 500-level error
+                var failureEnvelope = ApiEnvelope<AuthResult>.Failure(error.Code, error.Description);
+                // You can choose 500 or 400 here; 500 is more honest.
+                return StatusCode(StatusCodes.Status500InternalServerError, failureEnvelope);
             }
 
             // Now the compiler knows authResultPayload is not null and the warning is gone.
@@ -83,7 +85,8 @@ namespace Backend.Presentation.Controllers
             );
             Response.Cookies.Append(refreshCookie.Name, refreshCookie.Value, refreshCookie.Options);
 
-            return Ok(new ApiResponse<AuthResult>(authResultPayload));
+            var successEnvelope = ApiEnvelope<AuthResult>.Success(authResultPayload);
+            return Ok(successEnvelope);
         }
         [Authorize(AuthenticationSchemes = "RefreshScheme")]
         [HttpPost("logout")]
@@ -105,8 +108,8 @@ namespace Backend.Presentation.Controllers
 
         [Authorize(AuthenticationSchemes = "RefreshScheme")]
         [HttpPost("refresh")]
-        [ProducesResponseType(typeof(ApiResponse<AuthResult>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ApiEnvelope<AuthResult>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiEnvelope<AuthResult>), StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> Refresh(CancellationToken ct)
         {
             var req = HttpContext.Map(); // AccessToken, RefreshToken (cookie), SessionId
@@ -120,7 +123,8 @@ namespace Backend.Presentation.Controllers
             // Check for failure
             if (result.IsFailure)
             {
-                return Unauthorized(new ApiErrorResponse(result.Error.Code, result.Error.Description));
+                var envelope = ApiEnvelope<AuthResult>.Failure(result.Error.Code, result.Error.Description);
+                return Unauthorized(envelope);
             }
 
             // On success, the payload is in result.Value
@@ -130,9 +134,9 @@ namespace Backend.Presentation.Controllers
             // 4. Set the cookie using data from the payload
             if (authResultPayload is null)
             {
-                // This is an unexpected server error. Refresh succeeded but returned no data.
                 var error = new Error("Auth.NullPayload", "An unexpected error occurred during token refresh.", ErrorType.Validation);
-                return Result.Failure(error).ToApiResponse();
+                var failureEnvelope = ApiEnvelope<AuthResult>.Failure(error.Code, error.Description);
+                return StatusCode(StatusCodes.Status500InternalServerError, failureEnvelope);
             }
 
             // The compiler now knows authResultPayload is not null here.
@@ -142,19 +146,20 @@ namespace Backend.Presentation.Controllers
             );
             Response.Cookies.Append(refreshCookie.Name, refreshCookie.Value, refreshCookie.Options);
 
-            return Ok(new ApiResponse<AuthResult>(authResultPayload));
+            var successEnvelope = ApiEnvelope<AuthResult>.Success(authResultPayload);
+            return Ok(successEnvelope);
         }
         [Obsolete("This endpoint is deprecated and will be removed in future versions. Use /authz/healthz instead. Not refactored yet because a small investigation is needed to see if it is used anywhere.")]
         [AllowAnonymous] // No authentication required for health check
         [HttpGet("health")]
         public IActionResult HealthCheck()
         {
-            return Ok(new ApiResponse<string>("All good!"));
+            return Ok(ApiEnvelope<string>.Success("All good!"));
         }
         [HttpPost("register")]
         [EnableRateLimiting("RegistrationPolicy")]
-        [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status201Created)]
-        [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiEnvelope<string>), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(ApiEnvelope<string>), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> Register([FromBody] UserCreationDto userCreationDto, CancellationToken ct)
         {
             // Validate the model state first
@@ -163,7 +168,9 @@ namespace Backend.Presentation.Controllers
                 if (!ModelState.IsValid)
                 {
                     var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage);
-                    return BadRequest(new ApiErrorResponse("Validation.Error", string.Join(" ", errors)));
+                    var message = string.Join(" ", errors);
+                    var envelope = ApiEnvelope<string>.Failure("Validation.Error", message);
+                    return BadRequest(envelope);
                 }
 
                 var command = new RegisterUserCommand(
@@ -179,13 +186,14 @@ namespace Backend.Presentation.Controllers
 
                 if (result.IsFailure)
                 {
-                    // The handler provides the specific error
-                    return BadRequest(new ApiErrorResponse(result.Error.Code, result.Error.Description));
+                    var envelope = ApiEnvelope<string>.Failure(result.Error.Code, result.Error.Description);
+                    return BadRequest(envelope);
                 }
 
-                // On success, return a 201 Created status code with a helpful message
                 var successMessage = "Registration successful. Please check your email to verify your account.";
-                return CreatedAtAction(nameof(Login), new ApiResponse<string>(successMessage));
+                var successEnvelope = ApiEnvelope<string>.Success(successMessage);
+
+                return CreatedAtAction(nameof(Login), successEnvelope);
             }
         }
         #endregion
@@ -196,8 +204,11 @@ namespace Backend.Presentation.Controllers
         {
             if (token == Guid.Empty)
             {
-                // RETURN A STRUCTURED ERROR CODE
-                return BadRequest(new ApiErrorResponse("Verification.Token.Invalid", "Verification token is invalid."));
+                var envelope = ApiEnvelope<string>.Failure(
+                    "Verification.Token.Invalid",
+                    "Verification token is invalid."
+                );
+                return BadRequest(envelope);
             }
 
             var command = new VerifyEmailCommand(token);
@@ -205,29 +216,29 @@ namespace Backend.Presentation.Controllers
 
             if (result.IsFailure)
             {
-                // The handler provides a specific error with a code
-                var errorResponse = new ApiErrorResponse(result.Error.Code, result.Error.Description);
+                var envelope = ApiEnvelope<string>.Failure(result.Error.Code, result.Error.Description);
 
                 if (result.Error == UserErrors.VerificationTokenNotFound)
                 {
-                    return NotFound(errorResponse);
+                    return NotFound(envelope);
                 }
 
-                // Other errors (Expired, AlreadyVerified) are 400 Bad Request
-                return BadRequest(errorResponse);
+                return BadRequest(envelope);
             }
 
-            return Ok(new ApiResponse<string>("Email successfully verified."));
+            var successEnvelope = ApiEnvelope<string>.Success("Email successfully verified.");
+            return Ok(successEnvelope);
         }
 
         [HttpPost("resend-verification")]
-        [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiEnvelope<string>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiEnvelope<string>), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> ResendVerificationEmail([FromBody] ResendVerificationRequest request)
         {
             if (string.IsNullOrWhiteSpace(request.Email))
             {
-                return BadRequest(new ApiErrorResponse("Validation.Error", "Email is required."));
+                var envelope = ApiEnvelope<string>.Failure("Validation.Error", "Email is required.");
+                return BadRequest(envelope);
             }
 
             var command = new ResendVerificationCommand(request.Email);
@@ -235,12 +246,15 @@ namespace Backend.Presentation.Controllers
 
             if (result.IsFailure)
             {
-                // The handler provides the specific error (changed to 400 for all cases to avoid user enumeration)
-                return BadRequest(new ApiErrorResponse(result.Error.Code, result.Error.Description));
+                var envelope = ApiEnvelope<string>.Failure(result.Error.Code, result.Error.Description);
+                return BadRequest(envelope);
             }
 
-            // Always return a generic success message to prevent user enumeration.
-            return Ok(new ApiResponse<string>("If an account with that email exists, a new verification link has been sent."));
+            var successEnvelope = ApiEnvelope<string>.Success(
+                "If an account with that email exists, a new verification link has been sent."
+            );
+
+            return Ok(successEnvelope);
         }
         #endregion
     }

@@ -28,25 +28,31 @@ namespace Backend.Presentation.Controllers
             _logger = logger;
         }
         [HttpPost("start")]
-        [ProducesResponseType(typeof(ApiResponse<StartWizardResponse>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status401Unauthorized)]
-        public async Task<ActionResult<ApiResponse<StartWizardResponse>>> StartWizard(CancellationToken ct)
+        [ProducesResponseType(typeof(ApiEnvelope<StartWizardResponse>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiEnvelope<StartWizardResponse>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiEnvelope<StartWizardResponse>), StatusCodes.Status401Unauthorized)]
+        public async Task<ActionResult<ApiEnvelope<StartWizardResponse>>> StartWizard(CancellationToken ct)
         {
             var userId = User.GetPersoid();
             if (!userId.HasValue)
-                return Unauthorized(new ApiErrorResponse("Token.Invalid", "User identifier not found in token."));
+            {
+                var env = ApiEnvelope<StartWizardResponse>.Failure(
+                    "Token.Invalid",
+                    "User identifier not found in token."
+                );
+                return Unauthorized(env);
+            }
 
             var result = await _mediator.Send(new StartWizardCommand(userId.Value), ct);
 
-            return result.ToApiResponse();
+            return result.ToApiEnvelope();
         }
 
         [HttpPut("{sessionId:guid}/steps/{stepNumber:int}/{subStepNumber:int}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status403Forbidden)]
-        [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status500InternalServerError)]
+        [ProducesResponseType(typeof(ApiEnvelope<object?>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(typeof(ApiEnvelope<object?>), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> SaveStepData(
             Guid sessionId, int stepNumber, int subStepNumber, [FromBody] WizardStepDto dto, CancellationToken ct)
         {
@@ -63,13 +69,13 @@ namespace Backend.Presentation.Controllers
             var command = new SaveWizardStepCommand(sessionId, stepNumber, subStepNumber, dto.StepData, dto.DataVersion);
             var result = await _mediator.Send(command, ct); // This returns a non-generic Result
 
-            return result.ToApiResponse();
+            return result.ToApiEnvelope();
         }
         [HttpGet("{sessionId:guid}")]
-        [ProducesResponseType(typeof(ApiResponse<WizardSavedDataDTO>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ApiEnvelope<WizardSavedDataDTO>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiEnvelope<WizardSavedDataDTO>), StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
-        public async Task<ActionResult<ApiResponse<WizardSavedDataDTO?>>> GetWizardData(Guid sessionId, CancellationToken ct)
+        public async Task<ActionResult<ApiEnvelope<WizardSavedDataDTO?>>> GetWizardData(Guid sessionId, CancellationToken ct)
         {
             // 1. Authorize - does this user own this session?
             // A better long-term solution might be a custom Authorization policy or attribute.
@@ -83,7 +89,7 @@ namespace Backend.Presentation.Controllers
             var result = await _mediator.Send(query, ct);
 
             // 3. Convert result to HTTP response using the extension method
-            return result.ToApiResponse();
+            return result.ToApiEnvelope();
         }
 
         // This endpoint finalizes the wizard and creates the budget.
@@ -91,7 +97,7 @@ namespace Backend.Presentation.Controllers
         // POST /api/wizard/{sessionId}/complete
         [HttpPost("{sessionId:guid}/complete")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiEnvelope<object?>), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<IActionResult> Complete(Guid sessionId, CancellationToken ct)
         {
@@ -105,7 +111,7 @@ namespace Backend.Presentation.Controllers
             var command = new FinalizeWizardCommand(sessionId, persoid.Value);
             var result = await _mediator.Send(command, ct);
 
-            return result.ToCommandResult("Wizard completed successfully.");
+            return result.ToApiEnvelope();
         }
 
         // A private helper for DRY authorization checks

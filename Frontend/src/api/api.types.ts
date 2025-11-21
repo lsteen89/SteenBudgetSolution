@@ -1,23 +1,10 @@
-// /src/api/api.types.ts
-
-/**
- * The generic shape of a successful API response envelope.
- * The actual data is in the `data` property.
- */
-export type ApiResponse<T> = {
-    data: T;
-    isSuccess: boolean;
-    error: null;
+export type ApiErrorEnvelope = {
+    code: string;
+    message: string;
 };
 
-/**
- * The shape of a failed API response envelope.
- */
-export type ApiErrorResponse = {
-    data: null;
+export type ApiEnvelope<T> = {
+    data: T | null;
     isSuccess: boolean;
-    error: {
-        code: string;
-        message: string;
-    };
+    error: ApiErrorEnvelope | null;
 };

@@ -1,9 +1,14 @@
 const backendErrorTranslations: Record<string, string> = {
-  "Invalid credentials.": "Felaktig e-postadress eller lösenord.",
-  "Email not confirmed.": "E-postadressen är inte bekräftad. Kontrollera din inkorg.",
-   "Account locked.": "Ditt konto är låst. Kontakta supporten för hjälp.",
-  "Login failed": "Inloggningen misslyckades. Försök igen.", 
-  "Network Error": "Nätverksfel. Kontrollera din anslutning och försök igen.",
+  // Auth
+  'Auth.InvalidCredentials': 'Fel e-postadress eller lösenord.',
+  'Auth.EmailNotVerified': 'Du måste verifiera din e-post innan du kan logga in.',
+  'Auth.LockedOut': 'Kontot är tillfälligt låst på grund av för många försök.',
+
+  // Generic validation
+  'Validation.Error': 'Några fält är ogiltiga. Kontrollera formuläret och försök igen.',
+
+  // Server
+  'Server.Error': 'Ett oväntat fel inträffade. Försök igen senare.',
 
 };
 
