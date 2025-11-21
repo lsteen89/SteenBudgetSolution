@@ -1,6 +1,8 @@
 import { api } from '@/api/axios';
-import { validatePassword } from "@utils/validation/PasswordValidation";
-import translate from "@utils/translate";
+import { isAxiosError } from 'axios';
+import { validatePassword } from '@utils/validation/PasswordValidation';
+import translate from '@utils/translate';
+import type { ApiEnvelope } from '@/api/api.types';
 
 interface ResetPasswordResponse {
   status: number;
@@ -10,7 +12,7 @@ interface ResetPasswordResponse {
 class ValidationError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = "ValidationError";
+    this.name = 'ValidationError';
   }
 }
 
@@ -20,30 +22,41 @@ export const resetPasswordWithToken = async (
 ): Promise<ResetPasswordResponse> => {
   const passwordError = validatePassword(newPassword);
   if (passwordError) {
-    // Translate validation error directly to Swedish
+    // Client-side validation → translate directly
     throw new ValidationError(translate(passwordError));
   }
 
   try {
-    const response = await api.post<ResetPasswordResponse>(
-      "/api/UserManagement/reset-password-with-token",
+    const response = await api.post<ApiEnvelope<string>>(
+      '/api/UserManagement/reset-password-with-token',
       { token, password: newPassword, confirmPassword: newPassword }
     );
 
-    // Translate backend response message directly to Swedish
-    const translatedMessage = translate(response.data.message);
+    const env = response.data;
+
+    // 200 but envelope says failure
+    if (!env.isSuccess || env.error || !env.data) {
+      const backendMessage = env.error?.message ?? 'UNKNOWN_ERROR';
+      const translatedMessage = translate(backendMessage);
+      throw new Error(translatedMessage);
+    }
+
+    // Success: translate backend success message
+    const translatedMessage = translate(env.data);
 
     return {
       status: response.status,
       message: translatedMessage,
     };
-  } catch (error: any) {
-    const backendMessage = error.response?.data?.message || "UNKNOWN_ERROR";
+  } catch (error) {
+    if (isAxiosError<ApiEnvelope<string>>(error) && error.response) {
+      const env = error.response.data;
+      const backendMessage = env?.error?.message ?? 'UNKNOWN_ERROR';
+      const translatedMessage = translate(backendMessage);
+      throw new Error(translatedMessage);
+    }
 
-    // Translate backend error message directly to Swedish
-    const translatedMessage = translate(backendMessage);
-
-    // Throw the translated message as the error
-    throw new Error(translatedMessage);
+    // Non-Axios / network type error
+    throw new Error(translate('UNKNOWN_ERROR'));
   }
 };

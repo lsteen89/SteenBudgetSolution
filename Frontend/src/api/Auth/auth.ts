@@ -1,23 +1,27 @@
 import { api } from '@/api/axios';
 import { isAxiosError } from 'axios';
 import { useAuthStore } from '@/stores/Auth/authStore';
-import type { AuthResult } from '@/api/auth.types.ts';
-import type { ApiErrorResponse } from '@/api/api.types.ts';
+import type { AuthResult } from '@/api/auth.types.ts'
+import type { ApiEnvelope } from '@/api/api.types';
 
 let logoutOnce: Promise<void> | null = null;
 let isLoggingOutFlag = false;
 
-// ✅ export the *binding* so updates are visible to importers
 export { isLoggingOutFlag as isLoggingOut };
 
 /* ───── silent refresh (NO BODY) ───── */
 export async function refreshToken(): Promise<string> {
   const { setAuth } = useAuthStore.getState();
 
-  const { data: payload } = await api.post<AuthResult>('/api/auth/refresh'); // no body
-  if (!payload?.accessToken) throw new Error('refresh failed: no access token');
+  const { data: envelope } = await api.post<ApiEnvelope<AuthResult>>('/api/auth/refresh');
 
-  // ✅ coalesce wsMac to null (setAuth likely expects string|null)
+  if (!envelope.isSuccess || !envelope.data) {
+    // you can inspect envelope.error here if you want more nuance
+    throw new Error(envelope.error?.code ?? 'refresh failed');
+  }
+
+  const payload = envelope.data;
+
   setAuth(
     payload.accessToken,
     payload.sessionId,
@@ -39,9 +43,21 @@ export async function callLogin(
   dto: { email: string; password: string; captchaToken?: string; rememberMe?: boolean }
 ): Promise<LoginRes> {
   try {
-    const { data: payload } = await api.post<AuthResult>('/api/auth/login', dto);
+    // BE returns ApiEnvelope<AuthResult>
+    const { data: envelope } = await api.post<ApiEnvelope<AuthResult>>('/api/auth/login', dto);
 
-    // Optionally set store here:
+    // Case: HTTP 200 but business failure is inside envelope
+    if (!envelope.isSuccess || !envelope.data || envelope.error) {
+      return {
+        success: false,
+        message: envelope.error?.message ?? 'Login failed',
+        errorCode: envelope.error?.code,
+        status: 200,
+      };
+    }
+
+    const payload = envelope.data;
+
     const { setAuth } = useAuthStore.getState();
     setAuth(
       payload.accessToken,
@@ -54,11 +70,18 @@ export async function callLogin(
 
     return { success: true, data: payload };
   } catch (err) {
-    if (isAxiosError<ApiErrorResponse>(err)) {
-      const message = err.response?.data?.error.message ?? 'Login failed';
-      const errorCode = err.response?.data?.error.code;
-      return { success: false, message, errorCode, status: err.response?.status };
+    // Case: 4xx/5xx + envelope body
+    if (isAxiosError<ApiEnvelope<unknown>>(err)) {
+      const env = err.response?.data;
+
+      return {
+        success: false,
+        message: env?.error?.message ?? 'Login failed',
+        errorCode: env?.error?.code,
+        status: err.response?.status,
+      };
     }
+
     return { success: false, message: 'Network error' };
   }
 }
@@ -71,22 +94,21 @@ export async function callLogout(): Promise<void> {
   if (!logoutOnce) {
     const tok = useAuthStore.getState().accessToken;
 
-    // ✅ force Promise<void> with .then(() => undefined).catch(() => undefined)
     logoutOnce = api
+
       .post('/api/auth/logout', {}, tok ? { headers: { Authorization: `Bearer ${tok}` } } : undefined)
-      .then(() => undefined)  // ← make the chain Promise<void>
-      .catch(() => undefined) // ← swallow and keep Promise<void>
+      .then(() => undefined)
+      .catch(() => undefined)
       .finally(() => {
         useAuthStore.getState().clear();
         delete api.defaults.headers.common.Authorization;
         isLoggingOutFlag = false;
-        logoutOnce = null; // safe after we've already returned the promise
+        logoutOnce = null;
         if (window.location.pathname !== '/login') {
           window.location.href = '/login';
         }
       });
   }
 
-  // ✅ always return a Promise<void>
   return logoutOnce!;
 }

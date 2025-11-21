@@ -24,16 +24,39 @@ namespace Backend.Presentation.Controllers
             _logger = logger;
         }
 
-        [HttpGet("me")]
-        public async Task<ActionResult<UserDto>> GetMe(CancellationToken ct)
-        {
-            var email = User.FindFirstValue(ClaimTypes.Email)
-                    ?? User.FindFirstValue(JwtRegisteredClaimNames.Email);
 
-            if (string.IsNullOrWhiteSpace(email)) return Unauthorized();
+        [HttpGet("me")]
+        [ProducesResponseType(typeof(ApiEnvelope<UserDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiEnvelope<UserDto>), StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ApiEnvelope<UserDto>), StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<ApiEnvelope<UserDto>>> GetMe(CancellationToken ct)
+        {
+            var email =
+                User.FindFirstValue(ClaimTypes.Email)
+                ?? User.FindFirstValue(JwtRegisteredClaimNames.Email);
+
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                var env = ApiEnvelope<UserDto>.Failure(
+                    "Auth.EmailMissing",
+                    "No email claim found in token."
+                );
+                return Unauthorized(env);
+            }
 
             var dto = await _mediator.Send(new GetUserModelQuery(Email: email), ct);
-            return dto is null ? NotFound(new ApiErrorResponse("User.NotFound", "User not found")) : Ok(new ApiResponse<UserDto>(dto));
+
+            if (dto is null)
+            {
+                var env = ApiEnvelope<UserDto>.Failure(
+                    "User.NotFound",
+                    "User not found."
+                );
+                return NotFound(env);
+            }
+
+            var successEnv = ApiEnvelope<UserDto>.Success(dto);
+            return Ok(successEnv);
         }
     }
 }

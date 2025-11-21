@@ -1,5 +1,7 @@
 import { api } from '@/api/axios';
 import { isValidEmail } from '@utils/validation/emailValidation';
+import type { ApiEnvelope } from '@/api/api.types';
+import { isAxiosError } from 'axios';
 
 interface GenerateResetPasswordEmailResponse {
     status: number;
@@ -28,22 +30,40 @@ export const generateResetPasswordEmail = async (
     }
 
     try {
-        const response = await api.post<GenerateResetPasswordEmailResponse>(
+        const response = await api.post<ApiEnvelope<string>>(
             '/api/UserManagement/generate-reset-password-email',
             { email }
         );
+
+        const env = response.data;
+
+        // 200 but envelope says failure
+        if (!env.isSuccess || !env.data || env.error) {
+            const msg = env.error?.message ?? 'Ett fel har inträffat. Försök igen.';
+            throw new Error(`Error ${response.status}: ${msg}`);
+        }
+
+        // 200 + success
         return {
             status: response.status,
-            message: response.data.message,
+            message: env.data, // e.g. "Reset email sent" etc
         };
-    } catch (error: any) {
-        const status = error.response?.status || 500;
+    } catch (error) {
+        if (isAxiosError<ApiEnvelope<string>>(error)) {
+            const status = error.response?.status ?? 500;
 
-        // Handle specific HTTP errors
-        if (status === 429) {
-            throw new Error('För många försök. Vänta en stund och försök igen.');
+            if (status === 429) {
+                throw new Error('För många försök. Vänta en stund och försök igen.');
+            }
+
+            const env = error.response?.data;
+            const msg =
+                env?.error?.message ?? 'Ett fel har inträffat. Försök igen.';
+
+            throw new Error(`Error ${status}: ${msg}`);
         }
-        const message = error.response?.data?.message || 'Ett fel har inträffat. Försök igen.';
-        throw new Error(`Error ${status}: ${message}`);
+
+        // Non-Axios or totally unexpected
+        throw new Error('Ett fel har inträffat. Försök igen.');
     }
 };

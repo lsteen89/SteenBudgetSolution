@@ -21,13 +21,24 @@ public sealed class EmailController : ControllerBase
 
     [HttpPost("contact")]
     [EnableRateLimiting("EmailSendingPolicy")] // IP/global bucket
-    [ProducesResponseType(typeof(ApiResponse<string>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ApiErrorResponse), StatusCodes.Status429TooManyRequests)]
+    [ProducesResponseType(typeof(ApiEnvelope<string>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiEnvelope<string>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiEnvelope<string>), StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Contact([FromBody] SendContactFormRequest req, CancellationToken ct)
     {
         if (!ModelState.IsValid)
-            return BadRequest(new ApiErrorResponse("Validation.Error", "Invalid input."));
+        {
+            var errors = ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage);
+
+            var envelope = ApiEnvelope<string>.Failure(
+                "Validation.Error",
+                string.Join(" ", errors)
+            );
+
+            return BadRequest(envelope);
+        }
 
         var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
         var ua = Request.Headers.UserAgent.ToString();
@@ -38,13 +49,26 @@ public sealed class EmailController : ControllerBase
         if (result.IsFailure)
         {
             if (result.Error == UserErrors.RateLimitExceeded)
-                return StatusCode(429, new ApiErrorResponse(result.Error.Code, result.Error.Description));
+            {
+                var env = ApiEnvelope<string>.Failure(result.Error.Code, result.Error.Description);
+                return StatusCode(StatusCodes.Status429TooManyRequests, env);
+            }
+
             if (result.Error == UserErrors.InvalidCaptcha)
-                return BadRequest(new ApiErrorResponse(result.Error.Code, result.Error.Description));
-            return BadRequest(new ApiErrorResponse(result.Error.Code, "Failed to send message."));
+            {
+                var env = ApiEnvelope<string>.Failure(result.Error.Code, result.Error.Description);
+                return BadRequest(env);
+            }
+
+            var fallbackEnv = ApiEnvelope<string>.Failure(
+                result.Error.Code,
+                "Failed to send message."
+            );
+            return BadRequest(fallbackEnv);
         }
 
-        return Ok(new ApiResponse<string>("Message received."));
+        var successEnv = ApiEnvelope<string>.Success("Message received.");
+        return Ok(successEnv);
     }
 }
 

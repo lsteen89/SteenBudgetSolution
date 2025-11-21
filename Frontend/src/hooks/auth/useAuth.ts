@@ -5,9 +5,9 @@ import { api } from '@/api/axios';
 import type { UserLoginDto } from '@myTypes/User/Auth/userLoginForm';
 type LoginRes = Awaited<ReturnType<typeof callLogin>>;
 import type { UserDto } from '@myTypes/User/UserDto';
+import type { ApiEnvelope } from '@/api/api.types';
 
 export function useAuth() {
-  // Select actions and specific state pieces for stability and clarity
   const setAuthAction = useAuthStore(s => s.setAuth);
   const mergeUserAction = useAuthStore(s => s.mergeUser);
   const currentAccessToken = useAuthStore(s => s.accessToken);
@@ -17,7 +17,6 @@ export function useAuth() {
 
   const login = useCallback(
     async (dto: UserLoginDto, rememberMe: boolean): Promise<LoginRes> => {
-      // Build a clean payload: coerce null → undefined and only include captchaToken if present
       const payload = {
         email: dto.email,
         password: dto.password,
@@ -27,7 +26,7 @@ export function useAuth() {
 
       const res = await callLogin(payload);
 
-      if (!res.success) return res; // res is union; only proceed on success
+      if (!res.success) return res;
 
       const {
         accessToken,
@@ -46,9 +45,16 @@ export function useAuth() {
       );
       api.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
 
+      // Fetch /me using ApiEnvelope<UserDto>
       try {
-        const { data: me } = await api.get<UserDto>('/api/users/me');
-        mergeUserAction(me);
+        const resp = await api.get<ApiEnvelope<UserDto>>('/api/users/me');
+        const env = resp.data;
+
+        if (!env.isSuccess || !env.data || env.error) {
+          console.error('[auth] /me envelope failure:', env.error);
+        } else {
+          mergeUserAction(env.data);
+        }
       } catch (err) {
         console.error('[auth] fetch /me failed:', err);
       }
@@ -59,14 +65,14 @@ export function useAuth() {
   );
 
   const logout = useCallback(async () => {
-    await callLogout(); // callLogout should handle clearing store (which sets authProviderInitialized=true)
-  }, []); // callLogout is stable, no need to list store actions if it uses getState()
+    await callLogout();
+  }, []);
 
   return {
     accessToken: currentAccessToken,
     user: currentUser,
     authenticated: !!currentAccessToken,
-    isLoading: !isAuthInitialized, //isLoading is true if AuthProvider is NOT yet initialized
+    isLoading: !isAuthInitialized,
     rememberMe: currentRememberMe,
     login,
     logout,
