@@ -1,6 +1,7 @@
 
 using Backend.Domain.Shared;
 using Backend.Application.Abstractions.Messaging;
+using Backend.Application.Common.Behaviors;
 
 namespace Backend.Application.Features.Contact;
 
@@ -11,4 +12,4 @@ public sealed record SendContactFormCommand(
     string CaptchaToken,
     string? IpAddress = null,
     string? UserAgent = null
-) : ICommand<Result>;
+) : ICommand<Result>, ITransactionalCommand;
