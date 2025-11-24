@@ -1,5 +1,6 @@
 using Backend.Domain.Shared;
 using Backend.Application.Abstractions.Messaging;
+using Backend.Application.Common.Behaviors;
 
 namespace Backend.Application.Features.Commands.Auth.Register;
 
@@ -18,7 +19,7 @@ public record RegisterUserCommand(
     string Password,
     string CaptchaToken,
     string? Honeypot
-) : ICommand<Result>
+) : ICommand<Result>, ITransactionalCommand
 {
     public bool IsSeedingOperation { get; init; } = false;
 }
