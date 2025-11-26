@@ -9,7 +9,7 @@ export interface WizardNavPairProps {
   nextStep(): void;
   hasPrev: boolean;
   hasNext: boolean;
-  
+
   // The component now needs to know the sub-step status specifically.
   hasPrevSub: boolean;
   hasNextSub: boolean;
@@ -21,7 +21,7 @@ export interface WizardNavPairProps {
   isDebugMode: boolean;
   showShakeAnimation: boolean;
   isSaving: boolean;
-  isActionBlocked: boolean; 
+  isActionBlocked: boolean;
 }
 
 const WizardNavPair: React.FC<WizardNavPairProps> = ({
@@ -49,11 +49,11 @@ const WizardNavPair: React.FC<WizardNavPairProps> = ({
       (connectionError && step === 0)
     ));
 
-    const disablePrev = isLocked || !hasPrev || isActionBlocked;
-    const disableNext = isLocked || !hasNext || isActionBlocked;
+  const disablePrev = isLocked || !hasPrev || isActionBlocked;
+  const disableNext = isLocked || !hasNext || isActionBlocked;
 
-  const isPrevMajor = !hasPrevSub; 
-  const isNextMajor = !hasNextSub; 
+  const isPrevMajor = !hasPrevSub;
+  const isNextMajor = !hasNextSub;
 
   const IconPrev = isPrevMajor ? Rewind : ChevronLeft;
   const IconNext = isNextMajor ? FastForward : ChevronRight;
@@ -79,31 +79,33 @@ const WizardNavPair: React.FC<WizardNavPairProps> = ({
   const btnClass = (disabled: boolean) => clsx(disabled && 'opacity-50 cursor-not-allowed');
   const sizeClass = 'w-12 h-12 md:w-14 md:h-14';
   const hoverClass = !showShakeAnimation && 'hover:bg-customBlue2 hover:scale-105 transition-transform duration-150';
-  
+
+  const isSingleNextMajor = hasNext && !hasPrev && isNextMajor;
+
   return (
     <>
-    {hasPrev && (
-      <GhostIconButton
-        onClick={handlePrevClick}
-        disabled={disablePrev}
-        aria-label={labelPrev}
-        shake={false}
-        className={clsx(btnClass(disablePrev), sizeClass, hoverClass)}
-      >
-        <IconPrev size={24} className="text-darkLimeGreen" />
-      </GhostIconButton>
-    )}
-    {hasNext && (
-      <GhostIconButton
-        onClick={handleNextClick}
-        disabled={disableNext}
-        aria-label={labelNext}
-        shake={showShakeAnimation}
-        className={clsx(btnClass(disableNext), sizeClass, hoverClass)}
-      >
-        <IconNext size={24} className="text-darkLimeGreen" />
-      </GhostIconButton>
-    )}
+      {hasPrev && (
+        <GhostIconButton
+          onClick={handlePrevClick}
+          disabled={disablePrev}
+          aria-label={labelPrev}
+          shake={false}
+          className={clsx(btnClass(disablePrev), sizeClass, hoverClass)}
+        >
+          <IconPrev size={24} className="text-darkLimeGreen" />
+        </GhostIconButton>
+      )}
+      {hasNext && (
+        <GhostIconButton
+          onClick={handleNextClick}
+          disabled={disableNext}
+          aria-label={labelNext}
+          shake={showShakeAnimation}
+          className={clsx(btnClass(disableNext), sizeClass, hoverClass, isSingleNextMajor && 'ml-auto')}
+        >
+          <IconNext size={24} className="text-darkLimeGreen" />
+        </GhostIconButton>
+      )}
     </>
   );
 };
