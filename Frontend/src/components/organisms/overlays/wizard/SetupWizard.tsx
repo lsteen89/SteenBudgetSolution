@@ -112,6 +112,10 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
 
     useEffect(() => { setIsStepValid(step === 0); }, [step]);
 
+    const handleFinalizeSuccess = useCallback(() => {
+        onClose();
+    }, [onClose]);
+
     const syncStoreWithCurrentStep = useCallback(() => {
         const api = stepRefs[step]?.current;
         const getData = api && typeof api.getStepData === 'function' ? api.getStepData : null;
@@ -202,6 +206,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
                 isFinalizing={isFinalizing}
                 finalizeWizard={finalizeWizard}
                 finalizationError={finalizationError}
+                onFinalizeSuccess={handleFinalizeSuccess}
             />
         </WizardProvider>
     );
@@ -227,7 +232,6 @@ const WizardContent = (props: any) => {
             outermostScrollNode.scrollTo({ top: 0, behavior: 'auto' });
         }
     }, [props.step, props.subTick, outermostScrollNode]);
-
 
     return (
         <div ref={outermostContainerPact} className="fixed inset-0 z-[2000] overflow-y-auto w-full h-full ">
@@ -335,6 +339,7 @@ const WizardContent = (props: any) => {
                                             finalizeWizard={props.finalizeWizard}
                                             isFinalizing={props.isFinalizing}
                                             finalizationError={props.finalizationError}
+                                            onFinalizeSuccess={props.onFinalizeSuccess}
 
                                         />
                                     )}

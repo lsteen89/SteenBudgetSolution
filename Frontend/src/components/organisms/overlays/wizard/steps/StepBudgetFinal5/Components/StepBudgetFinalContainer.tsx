@@ -33,10 +33,11 @@ interface StepBudgetFinalContainerProps {
   loading: boolean;
   initialSubStep: number;
   onSubStepChange?: (newSub: number) => void;
-  onValidationError?: () => void;  
-  finalizeWizard: () => void;
+  onValidationError?: () => void;
+  finalizeWizard: () => Promise<boolean>;
   isFinalizing: boolean;
   finalizationError: string | null;
+  onFinalizeSuccess: () => void;
 }
 
 const StepBudgetFinalContainer = forwardRef<StepBudgetFinalContainerRef, StepBudgetFinalContainerProps>((props, ref) => {
@@ -45,7 +46,7 @@ const StepBudgetFinalContainer = forwardRef<StepBudgetFinalContainerRef, StepBud
   const [currentSub, setCurrentSub] = useState(initialSubStep || 1);
   const wrapperRef = useRef<WizardFormWrapperStep5Ref>(null);
 
-  const steps = [ { label: 'Slut', icon: ShieldCheck } ];
+  const steps = [{ label: 'Slut', icon: ShieldCheck }];
   const totalSteps = 1;
 
   const next = () => {
@@ -69,7 +70,7 @@ const StepBudgetFinalContainer = forwardRef<StepBudgetFinalContainerRef, StepBud
   useImperativeHandle(ref, () => ({
     validateFields: async () => true,
     getStepData: () => ({} as Step5FormValues),
-    markAllTouched: () => {},
+    markAllTouched: () => { },
     getErrors: () => ({} as FieldErrors<Step5FormValues>),
     getCurrentSubStep: () => currentSub,
     goPrevSub: prev,
@@ -81,11 +82,12 @@ const StepBudgetFinalContainer = forwardRef<StepBudgetFinalContainerRef, StepBud
     getTotalSubSteps: () => totalSteps,
   }), [currentSub, next, prev]);
 
-const renderSubStep = () => (
+  const renderSubStep = () => (
     <SubStepFinal
       onFinalize={props.finalizeWizard}
       isFinalizing={props.isFinalizing}
       finalizationError={props.finalizationError}
+      onFinalizeSuccess={props.onFinalizeSuccess}
     />
   );
 
@@ -106,7 +108,7 @@ const renderSubStep = () => (
                   step={1}
                   totalSteps={1}
                   steps={steps}
-                  onStepClick={() => {}} 
+                  onStepClick={() => { }}
                 />
               )}
             </div>
