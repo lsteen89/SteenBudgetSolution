@@ -5,6 +5,8 @@ import React, {
   useRef,
   useEffect,
   useCallback,
+  lazy,
+  Suspense,
 } from 'react';
 import { UseFormReturn, FieldErrors } from 'react-hook-form';
 import AnimatedContent from '@components/atoms/wrappers/AnimatedContent';
@@ -24,13 +26,39 @@ import WizardFormWrapperStep3, {
 
 // --- Sub-Step Pages and Icons
 import { Info, PiggyBank, Target, ShieldCheck } from 'lucide-react';
-import SubStepIntro from './Pages/SubSteps/1_SubStepIntro/SubStepIntro';
-import SubStepHabits from './Pages/SubSteps/2_SubStepHabits/SubStepHabits';
-import SubStepGoals from './Pages/SubSteps/3_SubStepGoals/SubStepGoals';
-import SubStepConfirm from './Pages/SubSteps/4_SubStepConfirm/SubStepConfirm';
+
+// lazy substeps
+const SubStepIntro = lazy(() =>
+  import('./Pages/SubSteps/1_SubStepIntro/SubStepIntro')
+);
+const SubStepHabits = lazy(() =>
+  import('./Pages/SubSteps/2_SubStepHabits/SubStepHabits')
+);
+const SubStepGoals = lazy(() =>
+  import('./Pages/SubSteps/3_SubStepGoals/SubStepGoals')
+);
+const SubStepConfirm = lazy(() =>
+  import('./Pages/SubSteps/4_SubStepConfirm/SubStepConfirm')
+);
+
+// small preload helper (same pattern as step 2)
+const preload = (fn: () => Promise<any>) => {
+  if (typeof (window as any).requestIdleCallback === 'function') {
+    (window as any).requestIdleCallback(() => fn());
+  } else {
+    setTimeout(() => fn(), 200);
+  }
+};
+
+const savingsLoaders: Record<number, () => Promise<any>> = {
+  1: () => import('./Pages/SubSteps/1_SubStepIntro/SubStepIntro'),
+  2: () => import('./Pages/SubSteps/2_SubStepHabits/SubStepHabits'),
+  3: () => import('./Pages/SubSteps/3_SubStepGoals/SubStepGoals'),
+  4: () => import('./Pages/SubSteps/4_SubStepConfirm/SubStepConfirm'),
+};
 
 /* ------------------------------------------------------------------ */
-/* INTERFACES                             */
+/* INTERFACES                                                         */
 /* ------------------------------------------------------------------ */
 export interface StepBudgetSavingsContainerRef {
   validateFields(): Promise<boolean>;
@@ -57,10 +85,6 @@ interface StepBudgetSavingsContainerProps {
   ) => Promise<boolean>;
   stepNumber: number;
   initialData?: Partial<Step3FormValues>;
-  /**
-   * Initial data to hydrate the form with.
-   * Should be a partial object matching Step3FormValues.
-   */
   onNext: () => void;
   onPrev: () => void;
   loading: boolean;
@@ -82,7 +106,7 @@ function getSavingsPartialData(
 }
 
 /* ------------------------------------------------------------------ */
-/* COMPONENT IMPLEMENTATION                       */
+/* COMPONENT IMPLEMENTATION                                           */
 /* ------------------------------------------------------------------ */
 const StepBudgetSavingsContainer = forwardRef<
   StepBudgetSavingsContainerRef,
@@ -149,14 +173,18 @@ const StepBudgetSavingsContainer = forwardRef<
   /* 4 ─── navigation helpers --------------------------------------- */
   const totalSteps = 4;
 
+  // preload next substep bundle in idle time
+  useEffect(() => {
+    const next = Math.min(currentSub + 1, totalSteps);
+    const loader = savingsLoaders[next];
+    if (loader) preload(loader);
+  }, [currentSub]);
+
   const goToSub = async (dest: number) => {
     const goingBack = dest < currentSub;
-    // We only skip validation if going backwards.
-    // When moving forward, even from sub-step 1, saveStepData will now perform the validation.
     const skipValidation = goingBack;
 
     setIsSaving(true);
-    // saveStepData will now handle validation and return true/false.
     const wasSuccessful = await saveStepData(
       currentSub,
       dest,
@@ -165,31 +193,23 @@ const StepBudgetSavingsContainer = forwardRef<
     );
     setIsSaving(false);
 
-    // Only proceed to the next sub-step if the validation and save were successful.
     if (wasSuccessful) {
       setCurrentSub(dest);
     }
   };
 
-  // This function is used to skip the habit step based on the user's choice.
-  // If the user chooses to skip, we go directly to sub-step 3 (Goals).
-  // Its also the main function for moving to the next sub-step.
   const next = async () => {
-    // Logic for skipping habit step
     if (currentSub === 1) {
-      // We no longer validate here. Just get the value and let goToSub handle the rest.
       const answer = formMethods?.getValues('intro.savingHabit');
       const skip = answer === 'start' || answer === 'no';
       await goToSub(skip ? 3 : 2);
+      if (skip) setSkippedHabits(true);
       return;
     }
 
     if (currentSub < totalSteps) {
-      // For all other forward movements, just call goToSub.
       await goToSub(currentSub + 1);
     } else {
-      // When at the last sub-step, we call onNext to let the parent wizard
-      // trigger the FINAL validation for the whole of Step 3.
       onNext();
     }
   };
@@ -213,14 +233,6 @@ const StepBudgetSavingsContainer = forwardRef<
   /* 6 ─── notify parent of sub-step -------------------------------- */
   useEffect(() => {
     if (isFormHydrated) {
-      console.log(
-        `%cTHE CHILD PROCLAIMS: Sub-step is now ${currentSub}. Notifying parent...`,
-        'color: cyan;',
-        `(Is onSubStepChange a function? ${
-          typeof onSubStepChange === 'function'
-        })`
-      );
-
       onSubStepChange?.(currentSub);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -277,6 +289,7 @@ const StepBudgetSavingsContainer = forwardRef<
               <LoadingScreen full={false} actionType="save" textColor="black" />
             </div>
           )}
+
           <div className="mb-6 flex items-center justify-between">
             <div className="flex-1 text-center">
               {isMobile ? (
@@ -295,10 +308,16 @@ const StepBudgetSavingsContainer = forwardRef<
               )}
             </div>
           </div>
+
           <div className="flex-1">
-            <AnimatedContent animationKey={String(currentSub)} triggerKey={String(currentSub)}>
+            <Suspense fallback={<LoadingScreen full={false} textColor="black" />}>
+              <AnimatedContent
+                animationKey={String(currentSub)}
+                triggerKey={String(currentSub)}
+              >
                 {renderSubStep()}
-            </AnimatedContent>
+              </AnimatedContent>
+            </Suspense>
           </div>
         </form>
       )}

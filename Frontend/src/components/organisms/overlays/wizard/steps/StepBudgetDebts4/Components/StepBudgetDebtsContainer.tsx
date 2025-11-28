@@ -1,4 +1,13 @@
-import React, { useState, forwardRef, useImperativeHandle, useRef, useEffect, useCallback } from 'react';
+import React, {
+  useState,
+  forwardRef,
+  useImperativeHandle,
+  useRef,
+  useEffect,
+  useCallback,
+  lazy,
+  Suspense,
+} from 'react';
 import { UseFormReturn, FieldErrors } from 'react-hook-form';
 import AnimatedContent from '@components/atoms/wrappers/AnimatedContent';
 import { Step4FormValues } from '@/types/Wizard/Step4FormValues';
@@ -11,10 +20,33 @@ import StepCarousel from '@components/molecules/progress/StepCarousel';
 import LoadingScreen from '@components/molecules/feedback/LoadingScreen';
 import WizardFormWrapperStep4, { WizardFormWrapperStep4Ref } from './wrapper/WizardFormWrapperStep4';
 import { Info, CreditCard, ShieldCheck } from 'lucide-react';
-import GatekeeperPage from './Pages/SubSteps/1_SubStepGatekeeper/SubStepGatekeeper';
-import SkulderPage from './Pages/SubSteps/2_SubStepDebts/SubStepDebts';
-import ConfirmPage from './Pages/SubSteps/3_SubStepConfirm/SubStepConfirm';
 import { devLog } from '@/utils/devLog';
+
+// lazy substeps
+const GatekeeperPage = lazy(() =>
+  import('./Pages/SubSteps/1_SubStepGatekeeper/SubStepGatekeeper')
+);
+const SkulderPage = lazy(() =>
+  import('./Pages/SubSteps/2_SubStepDebts/SubStepDebts')
+);
+const ConfirmPage = lazy(() =>
+  import('./Pages/SubSteps/3_SubStepConfirm/SubStepConfirm')
+);
+
+// small preload helper (same pattern you used in step 2/3)
+const preload = (fn: () => Promise<any>) => {
+  if (typeof (window as any).requestIdleCallback === 'function') {
+    (window as any).requestIdleCallback(() => fn());
+  } else {
+    setTimeout(() => fn(), 200);
+  }
+};
+
+const debtLoaders: Record<number, () => Promise<any>> = {
+  1: () => import('./Pages/SubSteps/1_SubStepGatekeeper/SubStepGatekeeper'),
+  2: () => import('./Pages/SubSteps/2_SubStepDebts/SubStepDebts'),
+  3: () => import('./Pages/SubSteps/3_SubStepConfirm/SubStepConfirm'),
+};
 
 export interface StepBudgetDebtsContainerRef {
   validateFields(): Promise<boolean>;
@@ -49,17 +81,25 @@ interface StepBudgetDebtsContainerProps {
   onValidationError?: () => void;
 }
 
-function getDebtsPartialData(subStep: number, allData: Step4FormValues): Partial<Step4FormValues> {
+function getDebtsPartialData(
+  subStep: number,
+  allData: Step4FormValues
+): Partial<Step4FormValues> {
   const payload =
-    subStep === 1 ? { intro: allData.intro }
-      : subStep === 2 ? { debts: allData.debts }
+    subStep === 1
+      ? { intro: allData.intro }
+      : subStep === 2
+        ? { debts: allData.debts }
         : { summary: allData.summary };
 
   devLog.group('Container.getPartialDataForSubstep', devLog.stamp({ subStep, payload }));
   return payload;
 }
 
-const StepBudgetDebtsContainer = forwardRef<StepBudgetDebtsContainerRef, StepBudgetDebtsContainerProps>((props, ref) => {
+const StepBudgetDebtsContainer = forwardRef<
+  StepBudgetDebtsContainerRef,
+  StepBudgetDebtsContainerProps
+>((props, ref) => {
   const {
     onSaveStepData,
     stepNumber,
@@ -71,6 +111,7 @@ const StepBudgetDebtsContainer = forwardRef<StepBudgetDebtsContainerRef, StepBud
     onSubStepChange,
     onValidationError,
   } = props;
+
   const isMobile = useMediaQuery('(max-width: 1367px)');
   const hasHydrated = useRef(false);
 
@@ -87,7 +128,8 @@ const StepBudgetDebtsContainer = forwardRef<StepBudgetDebtsContainerRef, StepBud
   const [isSaving, setIsSaving] = useState(false);
   const [currentSub, setCurrentSub] = useState(initialSubStep || 1);
   const [skippedDebts, setSkippedDebts] = useState(false);
-  const [formMethods, setFormMethods] = useState<UseFormReturn<Step4FormValues> | null>(null);
+  const [formMethods, setFormMethods] =
+    useState<UseFormReturn<Step4FormValues> | null>(null);
   const [isFormHydrated, setIsFormHydrated] = useState(false);
 
   const handleFormHydration = () => setIsFormHydrated(true);
@@ -112,6 +154,13 @@ const StepBudgetDebtsContainer = forwardRef<StepBudgetDebtsContainerRef, StepBud
 
   const totalSteps = 3;
 
+  // Preload next substep chunk on idle
+  useEffect(() => {
+    const next = Math.min(currentSub + 1, totalSteps);
+    const loader = debtLoaders[next];
+    if (loader) preload(loader);
+  }, [currentSub]);
+
   const goToSub = async (dest: number) => {
     const goingBack = dest < currentSub;
     const skipValidation = goingBack;
@@ -125,52 +174,42 @@ const StepBudgetDebtsContainer = forwardRef<StepBudgetDebtsContainerRef, StepBud
   const next = async () => {
     // --- STEP 1 LOGIC (Gatekeeper) ---
     if (currentSub === 1) {
-      // 1. Manually trigger validation for ONLY the 'intro' fields
+      // 1. Validate only 'intro'
       const isValid = await formMethods?.trigger('intro');
-
-      // 2. If validation fails, stop. The error message will now be visible.
       if (!isValid) {
         onValidationError?.();
         return;
       }
 
-      // 3. Validation PASSED. Now we can safely get the value.
+      // 2. Decide based on hasDebts
       const hasDebts = formMethods?.getValues('intro.hasDebts');
 
       if (hasDebts === true) {
-        // User has debts, proceed to sub-step 2.
-        // goToSub() will handle saving the data for step 1.
         await goToSub(2);
       } else {
-        // User selected 'false'. We need to save this choice, then skip.
+        // No debts: save intro, clear debts, skip forward
         setIsSaving(true);
         const introData = formMethods?.getValues('intro');
-        // Manually save the valid 'intro' data
         await onSaveStepData(stepNumber, currentSub, { intro: introData }, false);
         setIsSaving(false);
 
-        // Now, skip the rest of the sub-steps
         setDebts({ debts: [] });
         setSkippedDebts(true);
-        onNext(); // Proceed to the next *main* step
+        onNext();
       }
       return;
     }
 
-    // --- LOGIC FOR OTHER SUB-STEPS (2, 3, etc.) ---
+    // --- Other substeps ---
     if (currentSub < totalSteps) {
-      // Proceed to the next sub-step (e.g., 2 -> 3)
-      // goToSub() will handle validation and saving.
       await goToSub(currentSub + 1);
     } else {
-      // We are on the LAST sub-step (3).
-      // We must validate/save this final step before proceeding.
       setIsSaving(true);
       const ok = await saveStepData(currentSub, currentSub + 1, false, false);
       setIsSaving(false);
 
       if (ok) {
-        onNext(); // Proceed to the next *main* step
+        onNext();
       } else {
         onValidationError?.();
       }
@@ -201,7 +240,6 @@ const StepBudgetDebtsContainer = forwardRef<StepBudgetDebtsContainerRef, StepBud
     validateFields: () => formMethods?.trigger() ?? Promise.resolve(false),
     getStepData: () => {
       const allData = formMethods?.getValues() ?? ensureStep4Defaults({});
-      // Instead of all data, return only the data from the final substep.
       return {
         summary: allData.summary,
       };
@@ -249,19 +287,32 @@ const StepBudgetDebtsContainer = forwardRef<StepBudgetDebtsContainerRef, StepBud
               <LoadingScreen full={false} actionType="save" textColor="black" />
             </div>
           )}
+
           <div className="mb-6 flex items-center justify-between">
             <div className="flex-1 text-center">
               {isMobile ? (
                 <StepCarousel steps={steps} currentStep={currentSub - 1} />
               ) : (
-                <WizardProgress step={currentSub} totalSteps={totalSteps} steps={steps} adjustProgress onStepClick={clickProgress} />
+                <WizardProgress
+                  step={currentSub}
+                  totalSteps={totalSteps}
+                  steps={steps}
+                  adjustProgress
+                  onStepClick={clickProgress}
+                />
               )}
             </div>
           </div>
+
           <div className="flex-1">
-            <AnimatedContent animationKey={String(currentSub)} triggerKey={String(currentSub)}>
-              {renderSubStep()}
-            </AnimatedContent>
+            <Suspense fallback={<LoadingScreen full={false} textColor="black" />}>
+              <AnimatedContent
+                animationKey={String(currentSub)}
+                triggerKey={String(currentSub)}
+              >
+                {renderSubStep()}
+              </AnimatedContent>
+            </Suspense>
           </div>
         </form>
       )}
