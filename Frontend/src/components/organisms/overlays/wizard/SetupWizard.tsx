@@ -7,7 +7,8 @@ import {
     CheckCircle,
     CreditCard,
 } from "lucide-react";
-
+import { usePerformanceMode } from '@/hooks/usePerformanceMode';
+import clsx from 'clsx';
 
 import WizardStepContainer from "@components/molecules/containers/WizardStepContainer";
 
@@ -55,6 +56,8 @@ import ConfirmModal from "@components/atoms/modals/ConfirmModal";
 import { useWizard, WizardProvider } from '@/context/WizardContext';
 import { useWizardDataStore } from '@/stores/Wizard/wizardDataStore';
 import { useWizardSessionStore } from '@/stores/Wizard/wizardSessionStore';
+import LoadingScreen from "@/components/molecules/feedback/LoadingScreen";
+import { BudgetGuideSkeleton } from "@/components/atoms/loading/BudgetGuideSkeleton";
 // ---------------------------- TYPES ----------------------------
 interface SetupWizardProps {
     onClose: () => void;
@@ -65,6 +68,8 @@ interface SetupWizardProps {
 // =========================================================================
 const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     // All of the hooks and state management are safely kept here.
+    const perfMode = usePerformanceMode();
+    const isLowPerf = perfMode === 'low';
     const [confirmModalOpen, setConfirmModalOpen] = useState(false);
     const [showShakeAnimation, setShowShakeAnimation] = useState(false);
     const wizardSessionId = useWizardSessionStore(state => state.wizardSessionId);
@@ -227,6 +232,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
                 finalizeWizard={finalizeWizard}
                 finalizationError={finalizationError}
                 onFinalizeSuccess={handleFinalizeSuccess}
+                isLowPerf={isLowPerf}
             />
         </WizardProvider>
     );
@@ -237,13 +243,14 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
 // =========================================================================
 const WizardContent = (props: any) => {
     const { isActionBlocked } = useWizard();
-
+    const { isLowPerf } = props;
     const [outermostScrollNode, setOutermostScrollNode] = useState<HTMLDivElement | null>(null);
     const outermostContainerPact = useCallback((node: HTMLDivElement | null) => {
         if (node !== null) {
             setOutermostScrollNode(node);
         }
     }, []);
+
 
     useEffect(() => {
 
@@ -255,12 +262,26 @@ const WizardContent = (props: any) => {
 
     return (
         <div ref={outermostContainerPact} className="fixed inset-0 z-[2000] overflow-y-auto w-full h-full ">
-            <div className="flex items-center justify-center bg-black bg-opacity-50 min-h-screen py-10">
+            <div
+                className={clsx(
+                    'flex items-center justify-center min-h-screen py-10',
+                    // ↓ lighter bg, no extra opacity gymnastics in low perf
+                    isLowPerf ? 'bg-black/70' : 'bg-black bg-opacity-50'
+                )}
+            >
                 <motion.div
-                    initial={{ opacity: 0, y: -20 }}
+                    // ↓ in low-perf: skip enter animation entirely (initial=false)
+                    initial={isLowPerf ? false : { opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 20 }}
-                    className="bg-standardMenuColor bg-opacity-40 backdrop-blur-lg p-6 rounded-2xl shadow-xl w-11/12 relative"
+                    exit={isLowPerf ? { opacity: 0 } : { opacity: 0, y: 20 }}
+                    transition={isLowPerf ? { duration: 0.12 } : { duration: 0.25 }}
+                    className={clsx(
+                        'p-6 rounded-2xl shadow-xl w-11/12 relative',
+                        // ↓ drop blur and opacity layering in low-perf
+                        isLowPerf
+                            ? 'bg-standardMenuColor'
+                            : 'bg-standardMenuColor bg-opacity-40 backdrop-blur-lg'
+                    )}
                 >
                     <button type="button" onClick={props.handleWizardClose} title="Close Wizard" className="absolute top-3 right-3 text-red-600 hover:text-red-800">
                         <X size={24} />
@@ -271,12 +292,13 @@ const WizardContent = (props: any) => {
                         animationKey={String(props.step)}
                         triggerKey={`${props.step}-${props.subTick}`}
                         className="mb-6 text-center text-gray-700"
+                        disableAnimation={isLowPerf}
                     >
                         <WizardStepContainer maxWidth={props.step === 1 ? "md" : undefined}>
                             <Suspense
                                 fallback={
-                                    <div className="py-12 text-center text-white/70">
-                                        Laddar budgetguiden...
+                                    <div className="flex w-full min-h-[300px] items-center justify-center rounded-lg bg-white/5">
+                                        <BudgetGuideSkeleton />
                                     </div>
                                 }
                             >

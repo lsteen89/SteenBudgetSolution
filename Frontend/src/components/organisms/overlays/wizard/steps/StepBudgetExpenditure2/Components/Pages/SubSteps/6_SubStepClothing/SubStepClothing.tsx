@@ -62,65 +62,65 @@ const SubStepClothing: React.FC = () => {
           transition={{ delay: 0.3, duration: 0.4, ease: "easeOut" }}
           className="space-y-6 bg-white/5 backdrop-blur-md rounded-2xl p-6 ring-1 ring-white/10 shadow-xl hover:ring-standardMenuColor/50 transition"
         >
-            {/* Monthly cost */}
-            <div className="space-y-2">
-              {/*
+          {/* Monthly cost */}
+          <div className="space-y-2">
+            {/*
                 - We allow wrapping with flex-wrap.
                 - We keep justify-between to align the help icon to the right if it wraps.
               */}
-              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-                {/* This container will grow and fill the space */}
-                <div className="flex flex-grow items-center gap-2">
-                  <Shirt className="h-6 w-6 flex-shrink-0 text-darkBlueMenuColor" />
-                  <label
-                    htmlFor={inputId}
-                    className="block text-sm font-medium text-standardMenuColor/90 dark:text-standardMenuColor"
-                  >
-                    Månadskostnad
-                  </label>
-                </div>
-                <HelpSection
-                  label=""
-                  className="flex-shrink-0"
-                  helpText="Ta dina totala klädinköp för de senaste tre månaderna och dividera med tre för att få fram en genomsnittlig månadskostnad."
-                />
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              {/* This container will grow and fill the space */}
+              <div className="flex flex-grow items-center gap-2">
+                <Shirt className="h-6 w-6 flex-shrink-0 text-darkBlueMenuColor" />
+                <label
+                  htmlFor={inputId}
+                  className="block text-sm font-medium text-black dark:text-standardMenuColor"
+                >
+                  Månadskostnad
+                </label>
               </div>
-
-
-              <FormattedNumberInput
-                  id={inputId}
-                  // We no longer pass name, ref, or onBlur from a 'reg' object.
-                  // RHF will handle blur validation automatically now.
-                  
-                  // We watch the value directly from the form state.
-                  value={watch(fieldPath) ?? null}
-                  
-                  // We use our most powerful, robust spell here to ensure the value is pure.
-                  onValueChange={(val: string | number | null | undefined) => {
-                      let numericValue: number | null = null;
-                      
-                      if (typeof val === 'number') {
-                          numericValue = isNaN(val) ? null : val;
-                      } else if (typeof val === 'string' && val.trim() !== '') {
-                          const parsed = parseFloat(val);
-                          numericValue = isNaN(parsed) ? null : parsed;
-                      }
-                      
-                      setValue(fieldPath, numericValue, {
-                          shouldValidate: true,
-                          shouldDirty: true,
-                      });
-                  }}
-                  
-                  placeholder="t.ex. 500 kr"
-                  error={errors.clothing?.monthlyClothingCost?.message}
+              <HelpSection
+                label=""
+                className="flex-shrink-0"
+                helpText="Ta dina totala klädinköp för de senaste tre månaderna och dividera med tre för att få fram en genomsnittlig månadskostnad."
               />
-              {errors.clothing?.monthlyClothingCost?.message && (
-                <p className="text-red-600 text-lg mt-1">
-                  {errors.clothing.monthlyClothingCost?.message}
-                </p>
-              )}
             </div>
+
+
+            <FormattedNumberInput
+              id={inputId}
+              // We no longer pass name, ref, or onBlur from a 'reg' object.
+              // RHF will handle blur validation automatically now.
+
+              // We watch the value directly from the form state.
+              value={watch(fieldPath) ?? null}
+
+              // We use our most powerful, robust spell here to ensure the value is pure.
+              onValueChange={(val: string | number | null | undefined) => {
+                let numericValue: number | null = null;
+
+                if (typeof val === 'number') {
+                  numericValue = isNaN(val) ? null : val;
+                } else if (typeof val === 'string' && val.trim() !== '') {
+                  const parsed = parseFloat(val);
+                  numericValue = isNaN(parsed) ? null : parsed;
+                }
+
+                setValue(fieldPath, numericValue, {
+                  shouldValidate: true,
+                  shouldDirty: true,
+                });
+              }}
+
+              placeholder="t.ex. 500 kr"
+              error={errors.clothing?.monthlyClothingCost?.message}
+            />
+            {errors.clothing?.monthlyClothingCost?.message && (
+              <p className="text-red-600 text-lg mt-1">
+                {errors.clothing.monthlyClothingCost?.message}
+              </p>
+            )}
+          </div>
         </motion.div>
       </motion.section>
     </OptionContainer>
