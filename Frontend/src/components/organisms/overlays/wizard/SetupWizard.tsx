@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo, useLayoutEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo, useLayoutEffect, lazy, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     X,
@@ -7,19 +7,40 @@ import {
     CheckCircle,
     CreditCard,
 } from "lucide-react";
-
+import { usePerformanceMode } from '@/hooks/usePerformanceMode';
+import clsx from 'clsx';
 
 import WizardStepContainer from "@components/molecules/containers/WizardStepContainer";
-import StepWelcome from "@components/organisms/overlays/wizard/steps/StepWelcome";
-import StepBudgetSavings from "@components/organisms/overlays/wizard/steps/StepBudgetSavings3/StepBudgetSavings";
-import { StepBudgetSavingsRef } from "@/types/Wizard/StepBudgetSavingsRef";
-import StepBudgetDebts from "@components/organisms/overlays/wizard/steps/StepBudgetDebts4/StepBudgetDebts";
-import { StepBudgetDebtsRef } from "@/types/Wizard/StepBudgetDebtsRef";
-import StepBudgetFinal from "@components/organisms/overlays/wizard/steps/StepBudgetFinal5/StepBudgetFinal";
-import { StepBudgetFinalRef } from "@/types/Wizard/StepBudgetFinalRef";
-import WizardFormWrapperStep1, { WizardFormWrapperStep1Ref } from '@components/organisms/overlays/wizard/steps/StepBudgetIncome1/wrapper/WizardFormWrapperStep1';
-import StepBudgetIncome from "@components/organisms/overlays/wizard/steps/StepBudgetIncome1/StepBudgetIncome";
-import StepExpenditure, { StepBudgetExpenditureRef } from "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/StepBudgetExpenditure";
+
+import type { StepBudgetSavingsRef } from "@/types/Wizard/StepBudgetSavingsRef";
+import type { StepBudgetDebtsRef } from "@/types/Wizard/StepBudgetDebtsRef";
+import type { StepBudgetFinalRef } from "@/types/Wizard/StepBudgetFinalRef";
+import type { WizardFormWrapperStep1Ref } from '@components/organisms/overlays/wizard/steps/StepBudgetIncome1/wrapper/WizardFormWrapperStep1';
+import type { StepBudgetExpenditureRef } from "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/StepBudgetExpenditure";
+
+// Lazy components:
+const StepWelcome = lazy(() =>
+    import("@components/organisms/overlays/wizard/steps/StepWelcome")
+);
+const WizardFormWrapperStep1 = lazy(() =>
+    import("@components/organisms/overlays/wizard/steps/StepBudgetIncome1/wrapper/WizardFormWrapperStep1")
+);
+const StepBudgetIncome = lazy(() =>
+    import("@components/organisms/overlays/wizard/steps/StepBudgetIncome1/StepBudgetIncome")
+);
+const StepExpenditure = lazy(() =>
+    import("@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/StepBudgetExpenditure")
+);
+const StepBudgetSavings = lazy(() =>
+    import("@components/organisms/overlays/wizard/steps/StepBudgetSavings3/StepBudgetSavings")
+);
+const StepBudgetDebts = lazy(() =>
+    import("@components/organisms/overlays/wizard/steps/StepBudgetDebts4/StepBudgetDebts")
+);
+const StepBudgetFinal = lazy(() =>
+    import("@components/organisms/overlays/wizard/steps/StepBudgetFinal5/StepBudgetFinal")
+);
+
 import { useToast } from "@context/ToastContext";
 import useSaveWizardStep from "@hooks/wizard/useSaveWizardStep";
 import useWizardInit from "@hooks/wizard/useWizardInit";
@@ -35,6 +56,8 @@ import ConfirmModal from "@components/atoms/modals/ConfirmModal";
 import { useWizard, WizardProvider } from '@/context/WizardContext';
 import { useWizardDataStore } from '@/stores/Wizard/wizardDataStore';
 import { useWizardSessionStore } from '@/stores/Wizard/wizardSessionStore';
+import LoadingScreen from "@/components/molecules/feedback/LoadingScreen";
+import { BudgetGuideSkeleton } from "@/components/atoms/loading/BudgetGuideSkeleton";
 // ---------------------------- TYPES ----------------------------
 interface SetupWizardProps {
     onClose: () => void;
@@ -45,6 +68,8 @@ interface SetupWizardProps {
 // =========================================================================
 const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     // All of the hooks and state management are safely kept here.
+    const perfMode = usePerformanceMode();
+    const isLowPerf = perfMode === 'low';
     const [confirmModalOpen, setConfirmModalOpen] = useState(false);
     const [showShakeAnimation, setShowShakeAnimation] = useState(false);
     const wizardSessionId = useWizardSessionStore(state => state.wizardSessionId);
@@ -207,6 +232,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
                 finalizeWizard={finalizeWizard}
                 finalizationError={finalizationError}
                 onFinalizeSuccess={handleFinalizeSuccess}
+                isLowPerf={isLowPerf}
             />
         </WizardProvider>
     );
@@ -217,13 +243,14 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
 // =========================================================================
 const WizardContent = (props: any) => {
     const { isActionBlocked } = useWizard();
-
+    const { isLowPerf } = props;
     const [outermostScrollNode, setOutermostScrollNode] = useState<HTMLDivElement | null>(null);
     const outermostContainerPact = useCallback((node: HTMLDivElement | null) => {
         if (node !== null) {
             setOutermostScrollNode(node);
         }
     }, []);
+
 
     useEffect(() => {
 
@@ -235,12 +262,26 @@ const WizardContent = (props: any) => {
 
     return (
         <div ref={outermostContainerPact} className="fixed inset-0 z-[2000] overflow-y-auto w-full h-full ">
-            <div className="flex items-center justify-center bg-black bg-opacity-50 min-h-screen py-10">
+            <div
+                className={clsx(
+                    'flex items-center justify-center min-h-screen py-10',
+                    // ↓ lighter bg, no extra opacity gymnastics in low perf
+                    isLowPerf ? 'bg-black/70' : 'bg-black bg-opacity-50'
+                )}
+            >
                 <motion.div
-                    initial={{ opacity: 0, y: -20 }}
+                    // ↓ in low-perf: skip enter animation entirely (initial=false)
+                    initial={isLowPerf ? false : { opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 20 }}
-                    className="bg-standardMenuColor bg-opacity-40 backdrop-blur-lg p-6 rounded-2xl shadow-xl w-11/12 relative"
+                    exit={isLowPerf ? { opacity: 0 } : { opacity: 0, y: 20 }}
+                    transition={isLowPerf ? { duration: 0.12 } : { duration: 0.25 }}
+                    className={clsx(
+                        'p-6 rounded-2xl shadow-xl w-11/12 relative',
+                        // ↓ drop blur and opacity layering in low-perf
+                        isLowPerf
+                            ? 'bg-standardMenuColor'
+                            : 'bg-standardMenuColor bg-opacity-40 backdrop-blur-lg'
+                    )}
                 >
                     <button type="button" onClick={props.handleWizardClose} title="Close Wizard" className="absolute top-3 right-3 text-red-600 hover:text-red-800">
                         <X size={24} />
@@ -249,104 +290,113 @@ const WizardContent = (props: any) => {
                     <WizardProgress step={props.step} totalSteps={props.totalSteps} steps={props.steps} onStepClick={props.handleStepClick} useBlackText={true} />
                     <AnimatedContent
                         animationKey={String(props.step)}
-                        // The new triggerKey combines the major step and the sub-tick.
-                        // It will be unique for every single view change!
                         triggerKey={`${props.step}-${props.subTick}`}
                         className="mb-6 text-center text-gray-700"
+                        disableAnimation={isLowPerf}
                     >
                         <WizardStepContainer maxWidth={props.step === 1 ? "md" : undefined}>
-
-                            {props.step === 0 ? (
-                                <StepWelcome
-                                    connectionError={props.connectionError}
-                                    failedAttempts={props.failedAttempts}
-                                    loading={props.transitionLoading || props.initLoading}
-                                    onRetry={props.initWizard}
-                                />
-                            ) : (
-                                <>
-                                    {props.step === 1 && (
-                                        (props.wizardSessionId || props.isDebugMode) ? (
-                                            <WizardFormWrapperStep1 ref={props.stepRefs[1]}>
-                                                <StepBudgetIncome
-                                                    onNext={props.hookNextStep}
-                                                    onPrev={props.hookPrevStep}
-                                                    loading={props.transitionLoading || props.initLoading}
-                                                    stepNumber={1}
-                                                />
-                                            </WizardFormWrapperStep1>
-                                        ) : (
-                                            <p>Tekniskt fel!</p>
-                                        )
-                                    )}
-                                    {props.step === 2 && <StepExpenditure
-                                        ref={props.stepRefs[2]}
-                                        setStepValid={props.setIsStepValid}
-                                        wizardSessionId={props.wizardSessionId || ''}
-                                        onSaveStepData={props.handleSaveStepData}
-                                        stepNumber={2}
-                                        initialData={props.initialDataForStep(2)}
-                                        onNext={props.hookNextStep}
-                                        onPrev={props.hookPrevStep}
+                            <Suspense
+                                fallback={
+                                    <div className="flex w-full min-h-[300px] items-center justify-center rounded-lg bg-white/5">
+                                        <BudgetGuideSkeleton />
+                                    </div>
+                                }
+                            >
+                                {props.step === 0 ? (
+                                    <StepWelcome
+                                        connectionError={props.connectionError}
+                                        failedAttempts={props.failedAttempts}
                                         loading={props.transitionLoading || props.initLoading}
-                                        initialSubStep={props.initialSubStepForStep(2)}
-                                        onSubStepChange={props.handleSubStepChange}
-                                        onValidationError={props.triggerShakeAnimation}
-                                    />}
-                                    {props.step === 3 && (
-                                        <StepBudgetSavings
-                                            ref={props.stepRefs[3]}
-                                            onNext={props.hookNextStep}
-                                            onPrev={props.hookPrevStep}
-                                            loading={props.transitionLoading || props.initLoading}
-                                            initialSubStep={props.initialSubStepForStep(3)}
-                                            onSubStepChange={props.handleSubStepChange}
-                                            wizardSessionId={props.wizardSessionId || ''}
-                                            onSaveStepData={props.handleSaveStepData}
-                                            stepNumber={3}
-                                            initialData={props.initialDataForStep(3)}
-                                            onValidationError={props.triggerShakeAnimation}
-                                        />
-                                    )}
-                                    {props.step === 4 && (
-                                        <StepBudgetDebts
-                                            ref={props.stepRefs[4]}
-                                            onNext={props.hookNextStep}
-                                            onPrev={props.hookPrevStep}
-                                            loading={props.transitionLoading || props.initLoading}
-                                            initialSubStep={props.initialSubStepForStep(4)}
-                                            onSubStepChange={props.handleSubStepChange}
-                                            wizardSessionId={props.wizardSessionId || ''}
-                                            onSaveStepData={props.handleSaveStepData}
-                                            stepNumber={4}
-                                            initialData={props.initialDataForStep(4)}
-                                            onValidationError={props.triggerShakeAnimation}
-                                        />
-                                    )}
-                                    {props.step === 5 && (
-                                        <StepBudgetFinal
-                                            ref={props.stepRefs[5]}
-                                            onNext={props.hookNextStep}
-                                            onPrev={props.hookPrevStep}
-                                            loading={props.transitionLoading || props.initLoading || props.isFinalizing}
-                                            initialSubStep={props.initialSubStepForStep(5)}
-                                            onSubStepChange={props.handleSubStepChange}
-                                            wizardSessionId={props.wizardSessionId || ''}
-                                            onSaveStepData={props.handleSaveStepData}
-                                            stepNumber={5}
-                                            initialData={props.initialDataForStep(5)}
-                                            onValidationError={props.triggerShakeAnimation}
-                                            finalizeWizard={props.finalizeWizard}
-                                            isFinalizing={props.isFinalizing}
-                                            finalizationError={props.finalizationError}
-                                            onFinalizeSuccess={props.onFinalizeSuccess}
+                                        onRetry={props.initWizard}
+                                    />
+                                ) : (
+                                    <>
+                                        {props.step === 1 && (
+                                            (props.wizardSessionId || props.isDebugMode) ? (
+                                                <WizardFormWrapperStep1 ref={props.stepRefs[1]}>
+                                                    <StepBudgetIncome
+                                                        onNext={props.hookNextStep}
+                                                        onPrev={props.hookPrevStep}
+                                                        loading={props.transitionLoading || props.initLoading}
+                                                        stepNumber={1}
+                                                    />
+                                                </WizardFormWrapperStep1>
+                                            ) : (
+                                                <p>Tekniskt fel!</p>
+                                            )
+                                        )}
 
-                                        />
-                                    )}
-                                </>
-                            )}
+                                        {props.step === 2 && (
+                                            <StepExpenditure
+                                                ref={props.stepRefs[2]}
+                                                setStepValid={props.setIsStepValid}
+                                                wizardSessionId={props.wizardSessionId || ''}
+                                                onSaveStepData={props.handleSaveStepData}
+                                                stepNumber={2}
+                                                initialData={props.initialDataForStep(2)}
+                                                onNext={props.hookNextStep}
+                                                onPrev={props.hookPrevStep}
+                                                loading={props.transitionLoading || props.initLoading}
+                                                initialSubStep={props.initialSubStepForStep(2)}
+                                                onSubStepChange={props.handleSubStepChange}
+                                                onValidationError={props.triggerShakeAnimation}
+                                            />
+                                        )}
 
+                                        {props.step === 3 && (
+                                            <StepBudgetSavings
+                                                ref={props.stepRefs[3]}
+                                                onNext={props.hookNextStep}
+                                                onPrev={props.hookPrevStep}
+                                                loading={props.transitionLoading || props.initLoading}
+                                                initialSubStep={props.initialSubStepForStep(3)}
+                                                onSubStepChange={props.handleSubStepChange}
+                                                wizardSessionId={props.wizardSessionId || ''}
+                                                onSaveStepData={props.handleSaveStepData}
+                                                stepNumber={3}
+                                                initialData={props.initialDataForStep(3)}
+                                                onValidationError={props.triggerShakeAnimation}
+                                            />
+                                        )}
 
+                                        {props.step === 4 && (
+                                            <StepBudgetDebts
+                                                ref={props.stepRefs[4]}
+                                                onNext={props.hookNextStep}
+                                                onPrev={props.hookPrevStep}
+                                                loading={props.transitionLoading || props.initLoading}
+                                                initialSubStep={props.initialSubStepForStep(4)}
+                                                onSubStepChange={props.handleSubStepChange}
+                                                wizardSessionId={props.wizardSessionId || ''}
+                                                onSaveStepData={props.handleSaveStepData}
+                                                stepNumber={4}
+                                                initialData={props.initialDataForStep(4)}
+                                                onValidationError={props.triggerShakeAnimation}
+                                            />
+                                        )}
+
+                                        {props.step === 5 && (
+                                            <StepBudgetFinal
+                                                ref={props.stepRefs[5]}
+                                                onNext={props.hookNextStep}
+                                                onPrev={props.hookPrevStep}
+                                                loading={props.transitionLoading || props.initLoading || props.isFinalizing}
+                                                initialSubStep={props.initialSubStepForStep(5)}
+                                                onSubStepChange={props.handleSubStepChange}
+                                                wizardSessionId={props.wizardSessionId || ''}
+                                                onSaveStepData={props.handleSaveStepData}
+                                                stepNumber={5}
+                                                initialData={props.initialDataForStep(5)}
+                                                onValidationError={props.triggerShakeAnimation}
+                                                finalizeWizard={props.finalizeWizard}
+                                                isFinalizing={props.isFinalizing}
+                                                finalizationError={props.finalizationError}
+                                                onFinalizeSuccess={props.onFinalizeSuccess}
+                                            />
+                                        )}
+                                    </>
+                                )}
+                            </Suspense>
                         </WizardStepContainer>
                     </AnimatedContent>
                     <div className="w-full max-w-4xl mx-auto">

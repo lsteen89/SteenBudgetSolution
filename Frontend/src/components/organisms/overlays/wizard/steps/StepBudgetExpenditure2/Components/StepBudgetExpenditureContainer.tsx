@@ -5,6 +5,8 @@ import React, {
   useRef,
   useEffect,
   useCallback,
+  lazy,
+  Suspense,
 } from 'react';
 import {
   FormProvider,
@@ -12,29 +14,45 @@ import {
   UseFormReturn,
 } from 'react-hook-form';
 
-import { Step2FormValues }       from '@/schemas/wizard/StepExpenditures/step2Schema';
+import { Step2FormValues } from '@/schemas/wizard/StepExpenditures/step2Schema';
 import WizardFormWrapperStep2, {
   WizardFormWrapperStep2Ref,
 } from './wrapper/WizardFormWrapperStep2';
 
-/*Substeps for major step 2*/
-import ExpenditureOverviewMainText from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/1_SubStepWelcome/ExpenditureOverviewMainText';
-import SubStepRent  from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/2_SubStepRent/SubStepRent';
-import SubStepFood  from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/3_SubStepFood/SubStepFood';
-import SubStepFixedExp from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/4_SubStepFixedExpenses/SubStepFixedExpenses';
-import SubStepTransport from '@/components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/5_SubStepTransport/SubStepTransport';
-import SubStepClothing from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/6_SubStepClothing/SubStepClothing';
-import SubStepSubscriptions from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/7_SubStepSubscriptions/SubStepSubscriptions';
-import SubStepConfirm from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/8_SubStepConfirm/SubStepConfirm';
+/*Substeps for major step 2  (lazy)*/
+const ExpenditureOverviewMainText = lazy(() =>
+  import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/1_SubStepWelcome/ExpenditureOverviewMainText')
+);
+const SubStepRent = lazy(() =>
+  import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/2_SubStepRent/SubStepRent')
+);
+const SubStepFood = lazy(() =>
+  import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/3_SubStepFood/SubStepFood')
+);
+const SubStepFixedExp = lazy(() =>
+  import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/4_SubStepFixedExpenses/SubStepFixedExpenses')
+);
+const SubStepTransport = lazy(() =>
+  import('@/components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/5_SubStepTransport/SubStepTransport')
+);
+const SubStepClothing = lazy(() =>
+  import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/6_SubStepClothing/SubStepClothing')
+);
+const SubStepSubscriptions = lazy(() =>
+  import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/7_SubStepSubscriptions/SubStepSubscriptions')
+);
+const SubStepConfirm = lazy(() =>
+  import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/8_SubStepConfirm/SubStepConfirm')
+);
 
 import LoadingScreen from '@components/molecules/feedback/LoadingScreen';
 import AnimatedContent from '@components/atoms/wrappers/AnimatedContent';
-import StepButton      from '@components/molecules/buttons/StepButton';
-import WizardProgress  from '@components/organisms/overlays/wizard/SharedComponents/Menu/WizardProgress';
-import StepCarousel    from '@components/molecules/progress/StepCarousel';
-import WizardNavPair   from '@components/organisms/overlays/wizard/SharedComponents/Buttons/WizardNavPair';
+import StepButton from '@components/molecules/buttons/StepButton';
+import WizardProgress from '@components/organisms/overlays/wizard/SharedComponents/Menu/WizardProgress';
+import StepCarousel from '@components/molecules/progress/StepCarousel';
+import WizardNavPair from '@components/organisms/overlays/wizard/SharedComponents/Buttons/WizardNavPair';
 
-import useMediaQuery  from '@hooks/useMediaQuery';
+import useMediaQuery from '@hooks/useMediaQuery';
 import { useSaveStepData } from '@hooks/wizard/useSaveStepData';
 import { ensureStep2Defaults } from "@/utils/wizard/ensureStep2Defaults";
 
@@ -124,8 +142,8 @@ const StepBudgetExpenditureContainer = forwardRef<
     // FIX 1: The magical ward. This spell now only runs if it has data
     // and has not been run before, breaking the hydration loop.
     if (initialData && Object.keys(initialData).length > 0 && !hasHydrated.current) {
-        setExpenditure(initialData as any);
-        hasHydrated.current = true;
+      setExpenditure(initialData as any);
+      hasHydrated.current = true;
     }
   }, [initialData, setExpenditure]);
 
@@ -231,11 +249,11 @@ const StepBudgetExpenditureContainer = forwardRef<
 
   /* 8 ─── render helpers ------------------------------------------- */
   const steps = [
-    { icon: Info,  label: 'Översikt' },
-    { icon: Home,  label: 'Boende' },
+    { icon: Info, label: 'Översikt' },
+    { icon: Home, label: 'Boende' },
     { icon: Utensils, label: 'Matkostnader' },
     { icon: FileText, label: 'Fasta utgifter' },
-    { icon: Car,   label: 'Transport' },
+    { icon: Car, label: 'Transport' },
     { icon: Shirt, label: 'Kläder' },
     { icon: CreditCard, label: 'Prenumerationer' },
     { icon: ShieldCheck, label: 'Bekräfta' },
@@ -251,10 +269,34 @@ const StepBudgetExpenditureContainer = forwardRef<
       case 6: return <SubStepClothing />;
       case 7: return <SubStepSubscriptions />;
       case 8: return <SubStepConfirm />;
-      default:return <div>All sub-steps complete!</div>;
+      default: return <div>All sub-steps complete!</div>;
     }
   };
-  
+
+  const preload = (fn: () => Promise<any>) => {
+    if (typeof (window as any).requestIdleCallback === 'function') {
+      (window as any).requestIdleCallback(() => fn());
+    } else {
+      setTimeout(() => fn(), 200);
+    }
+  };
+
+  const substepLoaders: Record<number, () => Promise<any>> = {
+    1: () => import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/1_SubStepWelcome/ExpenditureOverviewMainText'),
+    2: () => import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/2_SubStepRent/SubStepRent'),
+    3: () => import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/3_SubStepFood/SubStepFood'),
+    4: () => import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/4_SubStepFixedExpenses/SubStepFixedExpenses'),
+    5: () => import('@/components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/5_SubStepTransport/SubStepTransport'),
+    6: () => import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/6_SubStepClothing/SubStepClothing'),
+    7: () => import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/7_SubStepSubscriptions/SubStepSubscriptions'),
+    8: () => import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/8_SubStepConfirm/SubStepConfirm'),
+  };
+  useEffect(() => {
+    const next = Math.min(currentSub + 1, 8);
+    const loader = substepLoaders[next];
+    if (loader) preload(loader);
+  }, [currentSub]);
+
   /* 9 ─── JSX ------------------------------------------------------- */
   return (
     <WizardFormWrapperStep2
@@ -264,7 +306,7 @@ const StepBudgetExpenditureContainer = forwardRef<
       {parentLoading ? (
         <div className="absolute inset-0 z-50 flex items-center justify-center
               bg-white/60 backdrop-blur-sm">
-          <LoadingScreen full={true}  textColor="black" />
+          <LoadingScreen full={true} textColor="black" />
         </div>
       ) : (
         <form className="step-budget-expenditure-container flex flex-col h-full">
@@ -273,10 +315,10 @@ const StepBudgetExpenditureContainer = forwardRef<
             {isSaving && (
               <div className="absolute inset-0 z-50 flex items-center justify-center
                             bg-white/60 backdrop-blur-sm">
-                <LoadingScreen 
-                  full={false}          
-                  actionType="save"    
-                  textColor="black"     
+                <LoadingScreen
+                  full={false}
+                  actionType="save"
+                  textColor="black"
                 />
               </div>
             )}
@@ -300,9 +342,14 @@ const StepBudgetExpenditureContainer = forwardRef<
 
           {/* Content */}
           <div className="flex-1">
-            <AnimatedContent animationKey={String(currentSub)} triggerKey={String(currentSub)}>
-              {renderSubStep()}
-            </AnimatedContent>
+            <Suspense fallback={<LoadingScreen full={false} textColor="black" />}>
+              <AnimatedContent
+                animationKey={String(currentSub)}
+                triggerKey={String(currentSub)}
+              >
+                {renderSubStep()}
+              </AnimatedContent>
+            </Suspense>
           </div>
         </form>
       )}

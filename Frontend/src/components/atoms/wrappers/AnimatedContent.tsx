@@ -6,11 +6,15 @@ interface AnimatedContentProps {
   animationKey: string;
   className?: string;
   triggerKey: string;
+  disableAnimation?: boolean;
 }
 
-const AnimatedContent: React.FC<AnimatedContentProps> = ({ children, animationKey, className, triggerKey }) => {
+const AnimatedContent: React.FC<AnimatedContentProps> = ({ children, animationKey, className, triggerKey, disableAnimation = false }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
-
+  if (disableAnimation) {
+    // ingen framer-motion, bara direkt render
+    return <div className={className}>{children}</div>;
+  }
 
   useLayoutEffect(() => {
     if (scrollRef.current) {
