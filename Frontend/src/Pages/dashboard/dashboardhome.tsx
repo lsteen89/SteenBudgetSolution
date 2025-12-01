@@ -40,7 +40,7 @@ const Dashboard: React.FC = () => {
       <ContentWrapper centerContent className="lg:pt-24 3xl:pt-48 ">
         <DashboardContent
           navigate={navigate}
-          isFirstTimeLogin={firstLogin}  // pass boolean
+          isFirstTimeLogin={firstLogin}           // pass boolean
           isWizardOpen={isWizardOpen}             // pass current wizard state
           setIsWizardOpen={setIsWizardOpen}       // pass state setter
         />
