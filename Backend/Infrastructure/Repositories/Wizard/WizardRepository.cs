@@ -186,6 +186,12 @@ public class WizardRepository : SqlBase, IWizardRepository
             return JsonSerializer.Deserialize<T>(buffer.WrittenSpan, Camel);
         }
     }
+    public async Task<bool> DeleteSessionAsync(Guid sessionId, CancellationToken ct = default)
+    {
+        const string sql = "DELETE FROM WizardSession WHERE WizardSessionId = @SessionId;";
+        var rowsAffected = await ExecuteAsync(sql, new { SessionId = sessionId }, ct);
+        return rowsAffected > 0;
+    }
 
     private static readonly JsonSerializerOptions Camel = new()
     {

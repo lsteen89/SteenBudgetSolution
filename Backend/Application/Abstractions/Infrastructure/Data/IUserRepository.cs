@@ -8,4 +8,5 @@ public interface IUserRepository
     Task<bool> CreateUserAsync(UserModel user, CancellationToken ct);
     Task<bool> ConfirmUserEmailAsync(Guid persoid, CancellationToken ct);
     Task<UserModel?> GetUserModelAsync(Guid? persoid = null, string? email = null, CancellationToken ct = default);
+    Task<bool> SetFirstTimeLoginAsync(Guid persoid, CancellationToken ct);
 }

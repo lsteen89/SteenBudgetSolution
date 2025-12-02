@@ -11,17 +11,20 @@ public sealed class FinalizeWizardCommandHandler
 {
     private readonly IWizardRepository _wizardRepository;
     private readonly IBudgetRepository _budgetRepository;
+    private readonly IUserRepository _userRepository;
     private readonly IEnumerable<IWizardStepProcessor> _stepProcessors;
     private readonly ILogger<FinalizeWizardCommandHandler> _logger;
 
     public FinalizeWizardCommandHandler(
         IWizardRepository wizardRepository,
         IBudgetRepository budgetRepository,
+        IUserRepository userRepository,
         IEnumerable<IWizardStepProcessor> stepProcessors,
         ILogger<FinalizeWizardCommandHandler> logger)
     {
         _wizardRepository = wizardRepository;
         _budgetRepository = budgetRepository;
+        _userRepository = userRepository;
         _stepProcessors = stepProcessors;
         _logger = logger;
     }
@@ -62,6 +65,25 @@ public sealed class FinalizeWizardCommandHandler
                 _logger.LogWarning("Step processor {StepNumber} failed: {Error}", group.Key, result.Error);
                 return Result.Failure(result.Error); // This will also trigger a rollback
             }
+        }
+        // All steps processed successfully
+
+        // Step 2:  Set first time login to false
+        var updateLoginResult = await _userRepository.SetFirstTimeLoginAsync(request.Persoid, ct);
+        if (!updateLoginResult)
+        {
+            // Log but do not fail the entire transaction
+            var error = new Error("Wizard.UpdateFirstTimeLoginFailed", "Failed to update first time login status.");
+            _logger.LogError(error.Description);
+        }
+
+        // Step 3: Cleanup wizard session + step data (FK cascade)
+        var cleanupResult = await _wizardRepository.DeleteSessionAsync(request.SessionId, ct);
+        if (!cleanupResult)
+        {
+            // Log but do not fail the entire transaction
+            var error = new Error("Wizard.CleanupFailed", "Failed to cleanup wizard data after finalization.");
+            _logger.LogError(error.Description);
         }
 
         // If we get here, all processors succeeded. The pipeline will commit the transaction.
