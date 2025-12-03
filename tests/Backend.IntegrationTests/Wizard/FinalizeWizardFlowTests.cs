@@ -133,6 +133,7 @@ public sealed class FinalizeWizardFlowTests
     private sealed class SqlWizardFinalizationRepo : IWizardRepository
     {
         private readonly string _cs;
+        public bool SimulateDeleteFailure { get; set; } = false;
         public SqlWizardFinalizationRepo(string cs) => _cs = cs;
 
         public Task<Guid?> GetSessionIdByPersoIdAsync(Guid persoId, CancellationToken ct) => Task.FromResult<Guid?>(null);
@@ -148,6 +149,11 @@ public sealed class FinalizeWizardFlowTests
                 SELECT WizardSessionId, StepNumber, SubStep, StepData, DataVersion, UpdatedAt
                 FROM WizardStepData
                 WHERE WizardSessionId = @sid;", new { sid = sessionId });
+        }
+        public Task<bool> DeleteSessionAsync(Guid wizardSessionId, CancellationToken ct = default)
+        {
+            // If we simulate failure, return false. Otherwise true.
+            return Task.FromResult(!SimulateDeleteFailure);
         }
     }
 
@@ -308,12 +314,20 @@ public sealed class FinalizeWizardFlowTests
 
         var wizardRepo = new SqlWizardFinalizationRepo(_db.ConnectionString);
 
+        var userRepoMock = new Mock<IUserRepository>();
+        userRepoMock.Setup(x => x.SetFirstTimeLoginAsync(userId, It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(true);
+
         var sut = new FinalizeWizardCommandHandler(
-            wizardRepo,
-            budgetRepo,
-            new IWizardStepProcessor[] { incomeProc, expenseProc },
-            NullLogger<FinalizeWizardCommandHandler>.Instance
-        );
+                wizardRepo,
+                budgetRepo,
+                userRepoMock.Object,
+                new IWizardStepProcessor[] {
+                    new IncomeStepProcessor(incomeRepo, NullLogger<IncomeStepProcessor>.Instance),
+                    new ExpenseStepProcessor(expRepo, NullLogger<ExpenseStepProcessor>.Instance)
+                },
+                NullLogger<FinalizeWizardCommandHandler>.Instance
+            );
 
         await uow.BeginTransactionAsync(CancellationToken.None);
         var res = await sut.Handle(new FinalizeWizardCommand(sessionId, userId), CancellationToken.None);
@@ -395,12 +409,20 @@ public sealed class FinalizeWizardFlowTests
 
         var wizardRepo = new SqlWizardFinalizationRepo(_db.ConnectionString);
 
+        var userRepoMock = new Mock<IUserRepository>();
+        userRepoMock.Setup(x => x.SetFirstTimeLoginAsync(userId, It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(true);
+
         var sut = new FinalizeWizardCommandHandler(
-            wizardRepo,
-            budgetRepo,
-            new IWizardStepProcessor[] { incomeProc, expenseProc },
-            NullLogger<FinalizeWizardCommandHandler>.Instance
-        );
+                wizardRepo,
+                budgetRepo,
+                userRepoMock.Object, // <--- Injected here
+                new IWizardStepProcessor[] {
+                    new IncomeStepProcessor(incomeRepo, NullLogger<IncomeStepProcessor>.Instance),
+                    new ExpenseStepProcessor(expRepo, NullLogger<ExpenseStepProcessor>.Instance)
+                },
+                NullLogger<FinalizeWizardCommandHandler>.Instance
+            );
 
         await uow.BeginTransactionAsync(CancellationToken.None);
         var res = await sut.Handle(new FinalizeWizardCommand(sessionId, userId), CancellationToken.None);
@@ -418,5 +440,156 @@ public sealed class FinalizeWizardFlowTests
             (await conn.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM Income;")).Should().Be(0);
             (await conn.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM ExpenseItem;")).Should().Be(0);
         }
+    }
+    [Fact]
+    public async Task Given_CleanupFails_When_Finalize_Then_Still_Commits_Budget_And_Logs_Warning()
+    {
+        // 1. Setup Data (Same as your existing Given_ValidSteps...)
+        await _db.ResetAsync();
+        var userId = Guid.NewGuid();
+        var sessionId = Guid.NewGuid();
+
+        await SeedCategoriesAsync();
+        await SeedUserDataAsync(userId);
+        await SeedWizardDataAsync(sessionId, userId);
+
+        var dbOpts = DbOptions(_db.ConnectionString);
+        var uow = new UnitOfWork(dbOpts, NullLogger<UnitOfWork>.Instance);
+        var currentUser = new TestCurrentUserContext { Persoid = userId };
+
+        // 2. MOCKS
+        // Mock User Repo to succeed
+        var userRepoMock = new Mock<IUserRepository>();
+        userRepoMock.Setup(x => x.SetFirstTimeLoginAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(true);
+
+        // Real Repos
+        var incomeRepo = new BudgetEnsuringIncomeRepo(new IncomeRepository(uow, NullLogger<IncomeRepository>.Instance, currentUser, dbOpts), uow, userId);
+        var expRepo = new BudgetEnsuringExpenditureRepo(new ExpenditureRepository(uow, NullLogger<ExpenditureRepository>.Instance, currentUser, dbOpts), uow, userId);
+        var budgetRepo = new BudgetRepository(uow, NullLogger<BudgetRepository>.Instance, currentUser, dbOpts);
+
+        // 3. WIZARD REPO - CONFIGURED TO FAIL CLEANUP
+        var wizardRepo = new SqlWizardFinalizationRepo(_db.ConnectionString);
+        wizardRepo.SimulateDeleteFailure = true; // <--- CRITICAL: Force cleanup failure
+
+        var sut = new FinalizeWizardCommandHandler(
+            wizardRepo,
+            budgetRepo,
+            userRepoMock.Object, // <--- Pass the new dependency
+            new IWizardStepProcessor[] {
+                new IncomeStepProcessor(incomeRepo, NullLogger<IncomeStepProcessor>.Instance),
+                new ExpenseStepProcessor(expRepo, NullLogger<ExpenseStepProcessor>.Instance)
+            },
+            NullLogger<FinalizeWizardCommandHandler>.Instance
+        );
+
+        // 4. ACT
+        await uow.BeginTransactionAsync(CancellationToken.None);
+        var res = await sut.Handle(new FinalizeWizardCommand(sessionId, userId), CancellationToken.None);
+
+        if (res.IsSuccess) await uow.CommitAsync(CancellationToken.None);
+        else await uow.RollbackAsync(CancellationToken.None);
+
+        // 5. ASSERT
+        // The Command should succeed despite cleanup failure
+        res.IsSuccess.Should().BeTrue("handler should return success even if cleanup fails");
+
+        await using (var conn = new MySqlConnection(_db.ConnectionString))
+        {
+            // Budget SHOULD exist (Transaction Committed)
+            (await conn.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM Budget;")).Should().Be(1);
+
+            // Session SHOULD still exist (Cleanup failed)
+            (await conn.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM WizardSession WHERE WizardSessionId = @id", new { id = sessionId }))
+                .Should().Be(1, "session should remain because DeleteSessionAsync returned false");
+        }
+    }
+    private async Task SeedUserDataAsync(Guid userId)
+    {
+        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await conn.ExecuteAsync("""
+            INSERT INTO Users (Persoid, Firstname, Lastname, Email, EmailConfirmed, Password, Roles, Locked, FirstLogin, CreatedBy)
+            VALUES (@pid, 'Final', 'User', 'final@example.com', 1, '$2a$12$abc...', 'User', 0, 0, 'it');
+        """, new { pid = userId });
+    }
+    private async Task SeedWizardDataAsync(Guid sessionId, Guid userId)
+    {
+        // 1. Prepare Data Objects
+        var incomeData = new IncomeDataDto
+        {
+            NetSalary = 30000m,
+            SalaryFrequency = Frequency.Monthly, // Enum
+            ShowHouseholdMembers = false,
+            ShowSideIncome = false,
+            SideHustles = new(),
+            HouseholdMembers = new()
+        };
+
+        var expenseData = new ExpenditureDataDto
+        {
+            Rent = new RentDto { MonthlyRent = 900m },
+            Food = new FoodDto { FoodStoreExpenses = 200m, TakeoutExpenses = 50m },
+            Transport = new TransportDto { MonthlyTransitCost = 600m },
+            Clothing = new ClothingDto { MonthlyClothingCost = 100m },
+            FixedExpenses = new FixedExpensesDto
+            {
+                Electricity = 300m,
+                Insurance = 120m,
+                Internet = 300m,
+                Phone = 200m,
+                CustomExpenses = new List<CustomExpenseDto> {
+                    new() { Name = "Garbage fee", Cost = 75m }
+                }
+            },
+            Subscriptions = new SubscriptionsDto
+            {
+                Subscriptions = new List<SubscriptionDto> {
+                    new() { Name = "Netflix", Cost = 149m }
+                }
+            }
+        };
+
+        // 2. Serialize (Use your JsonHelper settings to ensure Enums become strings like "monthly")
+        var jsonOpts = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
+        };
+
+        string incomeJson = JsonSerializer.Serialize(incomeData, jsonOpts);
+        string expJson = JsonSerializer.Serialize(expenseData, jsonOpts);
+
+        // 3. Insert into DB
+        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await conn.OpenAsync();
+
+        // Session
+        await conn.ExecuteAsync("""
+            INSERT INTO WizardSession (WizardSessionId, Persoid, CreatedAt, UpdatedAt)
+            VALUES (@sid, @pid, UTC_TIMESTAMP(), UTC_TIMESTAMP());
+        """, new { sid = sessionId, pid = userId });
+
+        // Steps
+        await conn.ExecuteAsync("""
+            INSERT INTO WizardStepData
+                (WizardSessionId, StepNumber, SubStep, StepData, DataVersion, CreatedBy, CreatedTime, UpdatedAt)
+            VALUES
+                (@sid, 1, 0, @income, 1, 'it', UTC_TIMESTAMP(), UTC_TIMESTAMP()),
+                (@sid, 2, 0, @exp,    1, 'it', UTC_TIMESTAMP(), UTC_TIMESTAMP());
+        """, new { sid = sessionId, income = incomeJson, exp = expJson });
+    }
+    private async Task SeedCategoriesAsync()
+    {
+        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await conn.ExecuteAsync("""
+            INSERT IGNORE INTO ExpenseCategory (Id, Name) VALUES
+            (UNHEX(REPLACE('2a9a1038-6ff1-4f2b-bd73-f2b9bb3f4c21','-','')), 'Rent'),
+            (UNHEX(REPLACE('5d5c51aa-9f05-4d4c-8ff1-0a61d6c9cc10','-','')), 'Food'),
+            (UNHEX(REPLACE('5eb2896c-59f9-4a18-8c84-4c2a1659de80','-','')), 'Transport'),
+            (UNHEX(REPLACE('e47e5c5d-4c97-4d87-89aa-e7a86b8f5ac0','-','')), 'Clothing'),
+            (UNHEX(REPLACE('8aa1d1b8-5b70-4fde-9e3f-b60dc4bfc900','-','')), 'FixedExpense'),
+            (UNHEX(REPLACE('9a3fe5f3-9fc4-4cc0-93d9-1a2ab9f7a5c4','-','')), 'Subscription'),
+            (UNHEX(REPLACE('f9f68c35-2f9b-4a8c-9faa-6f5212d3e6d2','-','')), 'Other');
+        """);
     }
 }

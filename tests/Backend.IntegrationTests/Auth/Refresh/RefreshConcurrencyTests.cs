@@ -222,5 +222,6 @@ public sealed class RefreshConcurrencyTests
         public Task<bool> UserExistsAsync(string email, CancellationToken ct) => Task.FromResult(false);
         public Task<bool> CreateUserAsync(Backend.Domain.Entities.User.UserModel user, CancellationToken ct) => Task.FromResult(true);
         public Task<bool> ConfirmUserEmailAsync(Guid persoid, CancellationToken ct) => Task.FromResult(true);
+        public Task<bool> SetFirstTimeLoginAsync(Guid persoid, CancellationToken ct) => Task.FromResult(true);
     }
 }

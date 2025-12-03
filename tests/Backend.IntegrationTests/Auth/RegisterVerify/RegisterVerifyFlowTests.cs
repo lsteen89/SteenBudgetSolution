@@ -175,6 +175,13 @@ public sealed class RegisterVerifyFlowTests
                 "UPDATE Users SET EmailConfirmed = 1 WHERE PersoId = @id;", new { id = persoid });
             return rows == 1;
         }
+        public async Task<bool> SetFirstTimeLoginAsync(Guid persoid, CancellationToken ct = default)
+        {
+            await using var c = new MySqlConnection(_cs);
+            var rows = await c.ExecuteAsync(
+                "UPDATE Users SET FirstLogin = 0 WHERE PersoId = @id;", new { id = persoid });
+            return rows == 1;
+        }
     }
 
     private sealed class SqlVerificationTokens : IVerificationTokenRepository
