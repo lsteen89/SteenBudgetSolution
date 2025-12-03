@@ -24,7 +24,7 @@ const Dashboard: React.FC = () => {
   console.log('[Dashboard] User:', auth.user); // Debug log for user state
   // If firstTimeLogin is true, start with wizard open. 
   // Otherwise, it's closed.
-  const [isWizardOpen, setIsWizardOpen] = React.useState(false);
+  const [isWizardOpen, setIsWizardOpen] = React.useState(() => firstLogin);
 
 
 

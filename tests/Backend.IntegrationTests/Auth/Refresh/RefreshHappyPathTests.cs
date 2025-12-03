@@ -38,14 +38,14 @@ public sealed class RefreshHappyPathTests
         clock.SetupGet(x => x.UtcNow).Returns(now);
 
         var sessionId = Guid.NewGuid();
-        var userId    = Guid.NewGuid();
+        var userId = Guid.NewGuid();
 
         // Seed: user + current refresh row
         var cookiePlain = "rc1";
-        var cookieHash  = TokenGenerator.HashToken(cookiePlain);
+        var cookieHash = TokenGenerator.HashToken(cookiePlain);
 
-        var currentJti  = "old-jti";
-        var newJti      = "new-jti";
+        var currentJti = "old-jti";
+        var newJti = "new-jti";
 
         await using var conn = new MySqlConnection(_db.ConnectionString);
         await conn.OpenAsync();
@@ -63,20 +63,21 @@ public sealed class RefreshHappyPathTests
           (TokenId, Persoid, SessionId, HashedToken, AccessTokenJti, ExpiresRollingUtc, ExpiresAbsoluteUtc, Status, IsPersistent, DeviceId, UserAgent, CreatedUtc)
         VALUES
           (@tid, @pid, @sid, @hash, @jti, @roll, @abs, 1, 1, 'dev', 'UA', @now);
-        """, new {
+        """, new
+        {
             tid = Guid.NewGuid(),
             pid = userId,
             sid = sessionId,
             hash = cookieHash,
-            jti  = currentJti,
+            jti = currentJti,
             roll = now.AddDays(2),
-            abs  = now.AddDays(10),
+            abs = now.AddDays(10),
             now
         });
 
         // SQL-backed shims
         var refreshRepo = new SqlRefreshRepo(_db.ConnectionString);
-        var userRepo    = new SqlUserRepo(_db.ConnectionString);
+        var userRepo = new SqlUserRepo(_db.ConnectionString);
 
         // JWT: make new AT + one new RT
         var jwt = new Mock<IJwtService>();
@@ -202,5 +203,6 @@ public sealed class RefreshHappyPathTests
         public Task<bool> UserExistsAsync(string email, CancellationToken ct) => Task.FromResult(false);
         public Task<bool> CreateUserAsync(Backend.Domain.Entities.User.UserModel user, CancellationToken ct) => Task.FromResult(true);
         public Task<bool> ConfirmUserEmailAsync(Guid persoid, CancellationToken ct) => Task.FromResult(true);
+        public Task<bool> SetFirstTimeLoginAsync(Guid persoid, CancellationToken ct = default) => Task.FromResult(true);
     }
 }

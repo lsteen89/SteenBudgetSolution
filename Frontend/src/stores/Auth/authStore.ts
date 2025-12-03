@@ -25,10 +25,12 @@ interface AuthSlice {
 
   /* actions */
   setAuth: (tok: string, sid: string, pid: string, mac: string | null, remember: boolean) => void;
-  mergeUser: (u: UserDto) => void;
+  mergeUser: (u: Partial<UserDto>) => void;
   setOpLoading: (isLoading: boolean) => void;
   setWsEnabledStatus: (isEnabled: boolean) => void; // Clarified name if 'wsEnabled' is a status
   clear: () => void;
+
+  markFirstLoginComplete: () => void;
 
   /* derived */
   isTokenValid: () => boolean;
@@ -86,7 +88,20 @@ export const useAuthStore = create<AuthSlice>()(
         }
       },
 
-      mergeUser: (u) => set((state) => ({ user: { ...state.user, ...u } })),
+      mergeUser: (u) =>
+        set((state) =>
+          state.user
+            ? { user: { ...state.user, ...u } }
+            : { user: { ...(u as UserDto) } } // if you ever merge into null, optional
+        ),
+
+      markFirstLoginComplete: () =>
+        set((state) =>
+          state.user
+            ? { user: { ...state.user, firstLogin: false } }
+            : state
+        ),
+
       setOpLoading: (isLoading) => set({ isLoading: isLoading }),
       setWsEnabledStatus: (isEnabled) => set({ wsEnabled: isEnabled }),
 

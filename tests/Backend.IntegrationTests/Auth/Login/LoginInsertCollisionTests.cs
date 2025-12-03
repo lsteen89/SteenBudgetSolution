@@ -63,7 +63,7 @@ public sealed class LoginInsertCollisionTests
 
         // SQL-backed repos
         var users = new SqlUsers(_db.ConnectionString);
-        
+
         var realRefresh = new SqlRefreshRepo(_db.ConnectionString);
         var refresh = new CollisionOnceRefreshRepo(realRefresh, _db.ConnectionString);
 
@@ -162,6 +162,7 @@ public sealed class LoginInsertCollisionTests
         public Task<bool> UserExistsAsync(string email, CancellationToken ct) => Task.FromResult(false);
         public Task<bool> CreateUserAsync(UserModel user, CancellationToken ct) => Task.FromResult(true);
         public Task<bool> ConfirmUserEmailAsync(Guid persoid, CancellationToken ct) => Task.FromResult(true);
+        public Task<bool> SetFirstTimeLoginAsync(Guid persoid, CancellationToken ct = default) => Task.FromResult(true);
     }
 
     private sealed class SqlRefreshRepo : IRefreshTokenRepository
@@ -265,10 +266,10 @@ public sealed class LoginInsertCollisionTests
                         pid = row.Persoid,
                         sid = Guid.NewGuid(),
                         hash = row.HashedToken,              // << exact same hash as SUT
-                        jti  = Guid.NewGuid().ToString(),
+                        jti = Guid.NewGuid().ToString(),
                         roll = DateTime.UtcNow.AddDays(7),
-                        abs  = DateTime.UtcNow.AddDays(30),
-                        now  = DateTime.UtcNow
+                        abs = DateTime.UtcNow.AddDays(30),
+                        now = DateTime.UtcNow
                     });
                 // do NOT catch here; we want inner.InsertAsync to throw 1062 so the handler retries
             }
@@ -293,5 +294,5 @@ public sealed class LoginInsertCollisionTests
             => _inner.DeleteTokenAsync(refreshToken, ct);
         public Task<bool> DoesAccessTokenJtiExistAsync(string accessTokenJti, CancellationToken ct)
             => _inner.DoesAccessTokenJtiExistAsync(accessTokenJti, ct);
-    }  
+    }
 }

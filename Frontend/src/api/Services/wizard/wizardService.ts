@@ -1,9 +1,11 @@
 import { api } from '@/api/axios';
 import { StartWizardResponse } from '@myTypes/Wizard/StartWizardResponse';
 import { CODE_DATA_VERSION } from '@/constants/wizardVersion';
-import { WizardData } from '@/stores/Wizard/wizardDataStore';
+import { useWizardDataStore, WizardData } from '@/stores/Wizard/wizardDataStore';
 import type { ApiEnvelope } from '@/api/api.types';
 import { isAxiosError } from 'axios';
+import { useAuthStore } from '@/stores/Auth/authStore';
+import { useWizardSessionStore } from '@/stores/Wizard/wizardSessionStore';
 
 export interface WizardDataResponseDto {
   wizardData: Partial<WizardData>;
@@ -99,7 +101,27 @@ export const getWizardData = async (
 
 /* ───── complete wizard ───── */
 // BE: 204 NoContent on success, envelope on error -> Axios throws on error.
+
 export async function completeWizard(sessionId: string): Promise<void> {
-  console.log(`Completing wizard session with ID: ${sessionId}`);
-  await api.post(`/api/wizard/${sessionId}/complete`);
+  console.log(`[Wizard] Completing wizard session with ID: ${sessionId}`);
+
+  try {
+    await api.post(`/api/wizard/${sessionId}/complete`);
+
+    // Mirror backend changes in FE state
+    const auth = useAuthStore.getState();
+    const wizard = useWizardDataStore.getState();
+    const wizardSession = useWizardSessionStore.getState();
+
+    auth.markFirstLoginComplete();
+    wizard.reset();
+    wizardSession.clear?.();
+
+    console.log(
+      '[Wizard] Wizard completed successfully. firstLogin set to false and wizard-form-data-storage cleared.'
+    );
+  } catch (error) {
+    console.error('[Wizard] Failed to complete wizard.', error);
+    throw error; // keep behavior: caller handles error
+  }
 }

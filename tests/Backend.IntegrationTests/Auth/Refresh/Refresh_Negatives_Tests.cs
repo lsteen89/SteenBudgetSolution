@@ -20,6 +20,7 @@ using Backend.Infrastructure.Security;
 using Backend.Settings;
 
 namespace Backend.IntegrationTests.Auth.Refresh;
+
 [Collection("it:db")]
 public sealed class Refresh_Negatives_Tests
 {
@@ -201,7 +202,7 @@ public sealed class Refresh_Negatives_Tests
         public Task<int> RevokeSessionAsync(Guid persoId, Guid sessionId, DateTime nowUtc, CancellationToken ct) => Task.FromResult(0);
         public Task<int> RevokeAllForUserAsync(Guid persoid, DateTime nowUtc, CancellationToken ct) => Task.FromResult(0);
         public Task<int> RevokeByIdAsync(Guid tokenId, DateTime nowUtc, CancellationToken ct) => Task.FromResult(0);
-        public Task<IEnumerable<Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity>> GetExpiredTokensAsync(int batchSize, CancellationToken ct) => 
+        public Task<IEnumerable<Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity>> GetExpiredTokensAsync(int batchSize, CancellationToken ct) =>
             Task.FromResult(Enumerable.Empty<Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity>());
         public Task<bool> DeleteTokenAsync(string refreshToken, CancellationToken ct) => Task.FromResult(true);
         public Task<bool> DoesAccessTokenJtiExistAsync(string accessTokenJti, CancellationToken ct) => Task.FromResult(false);
@@ -226,5 +227,6 @@ public sealed class Refresh_Negatives_Tests
         public Task<bool> UserExistsAsync(string email, CancellationToken ct) => Task.FromResult(false);
         public Task<bool> CreateUserAsync(Backend.Domain.Entities.User.UserModel user, CancellationToken ct) => Task.FromResult(true);
         public Task<bool> ConfirmUserEmailAsync(Guid persoid, CancellationToken ct) => Task.FromResult(true);
+        public Task<bool> SetFirstTimeLoginAsync(Guid persoid, CancellationToken ct = default) => Task.FromResult(true);
     }
 }

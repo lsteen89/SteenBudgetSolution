@@ -56,4 +56,10 @@ public class UserRepository : SqlBase, IUserRepository
             ? QueryFirstOrDefaultAsync<UserModel>(byId, new { PersoId = persoid }, ct)
             : QueryFirstOrDefaultAsync<UserModel>(byEmail, new { Email = email!.Trim() }, ct);
     }
+    public async Task<bool> SetFirstTimeLoginAsync(Guid persoid, CancellationToken ct = default)
+    {
+        const string sql = "UPDATE Users SET FirstLogin = 0 WHERE PersoId = @PersoId;";
+        var rows = await ExecuteAsync(sql, new { PersoId = persoid }, ct);
+        return rows > 0;
+    }
 }
