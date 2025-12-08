@@ -1,52 +1,56 @@
-import React, { lazy, Suspense, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useState } from 'react';
 import PageContainer from "@components/layout/PageContainer";
 import ContentWrapper from "@components/layout/ContentWrapper";
 import { useAuth } from '@/hooks/auth/useAuth';
 import DashboardBirdBackground from "@assets/Images/Background/DashboardBirdBackground.png";
 import { useNavigate } from 'react-router-dom';
-import useMediaQuery from '@hooks/useMediaQuery'
 import DashboardContent from "@components/organisms/pages/DashboardContent";
 const SetupWizard = lazy(() => import('@/components/organisms/overlays/wizard/SetupWizard'));
 import { AnimatePresence, motion } from "framer-motion";
 import LoadingScreen from "@components/molecules/feedback/LoadingScreen";
 import CenteredContainer from "@components/atoms/container/CenteredContainer";
+import { Skeleton } from '@/components/ui/Skeleton';
 
 const Dashboard: React.FC = () => {
-
   const auth = useAuth();
-  const isDebugMode = process.env.NODE_ENV === "development";
   const navigate = useNavigate();
-  const firstLogin = (isDebugMode && !auth.user)
-    ? true // In debug mode, if there's no user (e.g., due to bypass), simulate first login
-    : (auth.user?.firstLogin ?? false); // Otherwise, use the actual value or default to false
 
-  console.log('[Dashboard] First login:', firstLogin); // Debug log for first login state
-  console.log('[Dashboard] User:', auth.user); // Debug log for user state
-  // If firstTimeLogin is true, start with wizard open. 
-  // Otherwise, it's closed.
-  const [isWizardOpen, setIsWizardOpen] = React.useState(() => firstLogin);
+  const firstLogin = auth.user?.firstLogin ?? false;
 
+  console.log('[Dashboard] First login:', firstLogin);
+  console.log('[Dashboard] User:', auth.user);
 
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
 
-  if (auth.isLoading) { // Use auth.isLoading
+  // Sync wizard open state once auth is resolved
+  useEffect(() => {
+    if (!auth.isLoading) {
+      setIsWizardOpen(firstLogin);
+    }
+  }, [auth.isLoading, firstLogin]);
+
+  if (auth.isLoading) {
     return (
       <CenteredContainer>
-        <LoadingScreen />
+        <Skeleton />
       </CenteredContainer>
     );
   }
+  if (!auth.user) {
+    return null;
+  }
+
   return (
     <PageContainer className="md:px-20 items-center min-h-screen overflow-y-auto h-full">
       <ContentWrapper centerContent className="lg:pt-24 3xl:pt-48 ">
         <DashboardContent
           navigate={navigate}
-          isFirstTimeLogin={firstLogin}           // pass boolean
-          isWizardOpen={isWizardOpen}             // pass current wizard state
-          setIsWizardOpen={setIsWizardOpen}       // pass state setter
+          isFirstTimeLogin={firstLogin}
+          isWizardOpen={isWizardOpen}
+          setIsWizardOpen={setIsWizardOpen}
         />
       </ContentWrapper>
 
-      {/* AnimatePresence for smooth mount/unmount */}
       <AnimatePresence>
         {isWizardOpen && (
           <motion.div
@@ -64,7 +68,6 @@ const Dashboard: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* Anchored Image */}
       <img
         src={DashboardBirdBackground}
         alt="Dashboard Background"

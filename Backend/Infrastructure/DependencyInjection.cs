@@ -30,6 +30,7 @@ using Backend.Infrastructure.Security;
 using Backend.Settings;
 using Backend.Settings.Email;
 using Backend.Infrastructure.Data.Repositories;
+using Backend.Infrastructure.Persistence.Repositories;
 
 namespace Backend.Infrastructure;
 
@@ -100,6 +101,7 @@ public static class DependencyInjection
         services.AddScoped<IIncomeRepository, IncomeRepository>();
         services.AddScoped<ISavingsRepository, SavingsRepository>();
         services.AddScoped<IIncomeRepository, IncomeRepository>();
+        services.AddScoped<IBudgetDashboardRepository, BudgetDashboardRepository>();
 
         // Wizard
         services.AddScoped<IWizardRepository, WizardRepository>();
