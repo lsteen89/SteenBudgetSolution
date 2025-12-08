@@ -1,4 +1,6 @@
-import { useMemo } from 'react';
+// Frontend/src/hooks/dashboard/useDashboardSummary.ts
+import { useEffect, useMemo } from 'react';
+import { useBudgetDashboardStore } from '@/stores/Budget/budgetDashboardStore';
 
 export interface DashboardSummary {
     monthLabel: string;
@@ -10,22 +12,55 @@ export interface DashboardSummary {
 }
 
 export const useDashboardSummary = () => {
-    // TODO: wire this to your backend (React Query, SWR, whatever you use)
-    const data: DashboardSummary = useMemo(
-        () => ({
-            monthLabel: 'November 2025',
-            remainingToSpend: 3200,
-            remainingCurrency: 'kr',
-            emergencyFundAmount: 18000,
-            emergencyFundMonths: 3.2,
-            goalsProgressPercent: 65,
-        }),
-        []
-    );
+    const {
+        dashboard,
+        isLoading,
+        error,
+        loadDashboard,
+    } = useBudgetDashboardStore();
+
+    // Kick off load on first use if nothing loaded yet
+    useEffect(() => {
+        if (!dashboard && !isLoading && !error) {
+            void loadDashboard();
+        }
+    }, [dashboard, isLoading, error, loadDashboard]);
+
+    const data: DashboardSummary | null = useMemo(() => {
+        if (!dashboard) return null;
+
+        const remainingToSpend = dashboard.disposableAfterExpensesAndSavings;
+        const remainingCurrency = 'kr'; // TODO: plug into user settings / locale later
+
+        const monthlyExpenses = dashboard.expenditure.totalExpensesMonthly;
+        const emergencyFundGoal = dashboard.savings?.goals[0]; // naive: first goal is emergency fund
+
+        const emergencyFundAmount = emergencyFundGoal?.amountSaved ?? 0;
+        const emergencyFundMonths =
+            monthlyExpenses > 0 ? emergencyFundAmount / monthlyExpenses : 0;
+
+        // Naive placeholder until you define "overall goal progress"
+        const goalsProgressPercent = 65;
+
+        const now = new Date();
+        const monthLabel = now.toLocaleDateString('sv-SE', {
+            year: 'numeric',
+            month: 'long',
+        });
+
+        return {
+            monthLabel,
+            remainingToSpend,
+            remainingCurrency,
+            emergencyFundAmount,
+            emergencyFundMonths,
+            goalsProgressPercent,
+        };
+    }, [dashboard]);
 
     return {
         data,
-        isLoading: false,
-        isError: false,
+        isLoading,
+        isError: !!error,
     };
 };

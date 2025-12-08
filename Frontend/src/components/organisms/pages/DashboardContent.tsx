@@ -32,6 +32,15 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
       />
     );
   }
+  if (!data) {
+    return (
+      <FirstTimeDashboardSection
+        onStartWizard={() => setIsWizardOpen(true)}
+        navigate={navigate}
+      />
+    );
+  }
+
 
   return (
     <ReturningDashboardSection
