@@ -3,6 +3,7 @@ using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Settings;
 using Microsoft.Extensions.Options;
 using MediatR;
+//Common layer
 
 public class ExpiredTokenScanner : BackgroundService
 {
