@@ -1,7 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { DebtItem } from "@/types/Wizard/DebtFormValues"; 
-import DebtGroup from "./DebtGroup"; 
+import { DebtItem } from "@/types/Wizard/DebtFormValues";
+import DebtGroup from "./DebtGroup";
 
 interface DebtCategoryCardProps {
   icon: React.ReactNode;
@@ -18,25 +18,36 @@ export const DebtCategoryCard: React.FC<DebtCategoryCardProps> = ({ icon, title,
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.5 }}
-    className="rounded-xl border border-white/10 bg-white/5 p-6"
+    className="rounded-2xl border border-white/10 bg-white/5 p-5 sm:p-6"
   >
-    {/* Header with Icon and Stats */}
-    <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-      <div className="flex items-center gap-4">
-        <div className="text-darkLimeGreen">{icon}</div>
-        <h4 className="text-lg font-bold text-white">{title}</h4>
+    <div className="space-y-3 sm:space-y-0 sm:flex sm:items-start sm:justify-between">
+      {/* Left: Icon + title */}
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="shrink-0 text-darkLimeGreen">{icon}</div>
+        <h4 className="min-w-0 text-lg font-bold text-white truncate">{title}</h4>
       </div>
-      <div className="mt-2 text-right text-sm md:mt-0">
-        <span className="font-semibold text-white">
+
+      {/* Right (sm+): compact stats */}
+      <div className="hidden sm:block text-right">
+        <div className="text-sm font-semibold text-white tabular-nums whitespace-nowrap">
           {summary.totalBalance.toLocaleString("sv-SE")} kr
-        </span>
-        <span className="text-white/60"> ({summary.count} st)</span>
+        </div>
+        <div className="text-xs text-white/60 whitespace-nowrap">{summary.count} st</div>
       </div>
     </div>
 
-    {/* The list of debts */}
+    {/* Mobile-only: full-width total on its own row */}
+    <div className="sm:hidden">
+      <div className="text-xl font-extrabold text-white tabular-nums whitespace-nowrap">
+        {summary.totalBalance.toLocaleString("sv-SE")} kr
+      </div>
+      <div className="mt-1 text-xs text-white/60">{summary.count} st</div>
+    </div>
+
+    {/* List */}
     <div className="mt-4 border-t border-white/10 pt-4">
       <DebtGroup title={title} debts={summary.items} />
     </div>
   </motion.div>
 );
+

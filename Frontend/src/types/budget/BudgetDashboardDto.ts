@@ -39,7 +39,12 @@ export interface SavingsOverviewDto {
     monthlySavings: number;
     goals: DashboardSavingsGoalDto[];
 }
-
+export interface DashboardRecurringExpenseDto {
+    id: string;
+    name: string;
+    categoryName: string;
+    amountMonthly: number;
+}
 export interface BudgetDashboardDto {
     budgetId: string;
     income: IncomeOverviewDto;
@@ -48,4 +53,5 @@ export interface BudgetDashboardDto {
     debt: DebtOverviewDto;
     disposableAfterExpenses: number;
     disposableAfterExpensesAndSavings: number;
+    recurringExpenses: DashboardRecurringExpenseDto[];
 }

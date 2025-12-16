@@ -1,4 +1,3 @@
-// hooks/useSubtleFireworks.ts
 import { useCallback } from 'react';
 import confetti from 'canvas-confetti';
 

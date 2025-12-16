@@ -251,7 +251,7 @@ const WizardContent = (props: any) => {
         }
     }, []);
 
-
+    console.log("WizardContent render", { step: props.step, init: props.initLoading, trans: props.transitionLoading, final: props.isFinalizing });
     useEffect(() => {
 
         if (outermostScrollNode) {

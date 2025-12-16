@@ -9,6 +9,7 @@ import WizardProgress from '@components/organisms/overlays/wizard/SharedComponen
 import StepCarousel from '@components/molecules/progress/StepCarousel';
 import SubStepFinal from './Pages/SubSteps/1_SubStepFinal/SubStepFinal';
 import LoadingScreen from '@components/molecules/feedback/LoadingScreen';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { ShieldCheck } from 'lucide-react';
 
 export interface StepBudgetFinalContainerRef extends StepBudgetFinalRef {
@@ -93,33 +94,29 @@ const StepBudgetFinalContainer = forwardRef<StepBudgetFinalContainerRef, StepBud
 
   return (
     <WizardFormWrapperStep5 ref={wrapperRef}>
-      {parentLoading ? (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/60 backdrop-blur-sm">
-          <LoadingScreen full textColor="black" />
+
+      <form className="flex flex-col h-full">
+        <div className="mb-6 flex items-center justify-between">
+          <div className="flex-1 text-center">
+            {isMobile ? (
+              <StepCarousel steps={steps} currentStep={0} />
+            ) : (
+              <WizardProgress
+                step={1}
+                totalSteps={1}
+                steps={steps}
+                onStepClick={() => { }}
+              />
+            )}
+          </div>
         </div>
-      ) : (
-        <form className="flex flex-col h-full">
-          <div className="mb-6 flex items-center justify-between">
-            <div className="flex-1 text-center">
-              {isMobile ? (
-                <StepCarousel steps={steps} currentStep={0} />
-              ) : (
-                <WizardProgress
-                  step={1}
-                  totalSteps={1}
-                  steps={steps}
-                  onStepClick={() => { }}
-                />
-              )}
-            </div>
-          </div>
-          <div className="flex-1">
-            <AnimatedContent animationKey="1" triggerKey="1">
-              {renderSubStep()}
-            </AnimatedContent>
-          </div>
-        </form>
-      )}
+        <div className="flex-1">
+          <AnimatedContent animationKey="1" triggerKey="1">
+            {renderSubStep()}
+          </AnimatedContent>
+        </div>
+      </form>
+
     </WizardFormWrapperStep5>
   );
 });

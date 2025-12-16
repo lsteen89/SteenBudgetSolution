@@ -5,41 +5,43 @@ interface Props {
   title: string;
   debts: DebtItem[];
 }
-/**
- * DebtGroup component displays a list of debts with their details.
- * It renders a title and a list of debt items, each showing the name,
- * balance, and APR (Annual Percentage Rate).
- *
- * @param {Props} props - The properties for the DebtGroup component.
- * @returns {JSX.Element | null} - Returns a JSX element or null if no debts are provided.
- */
+
 const DebtGroup: React.FC<Props> = ({ title, debts }) =>
   debts.length === 0 ? null : (
     <div>
       <h4 className="mb-2 text-lg font-semibold text-white">{title}</h4>
 
-      <ul className="space-y-1">
-        {debts.map(d => (
-          <li
-            key={d.id}
-            className="grid grid-cols-4 gap-2 rounded bg-slate-800/30 px-3 py-2 text-sm text-white/90"
-          >
-            <span className="col-span-2">{d.name}</span>
+      <ul className="space-y-2">
+        {debts.map((d) => {
+          const balanceText = `${(d.balance ?? 0).toLocaleString("sv-SE")} kr`;
+          const aprText =
+            d.apr !== null && d.apr !== undefined ? `${Number(d.apr).toFixed(1)} %` : "–";
 
-            {/* balance */}
-            <span className="text-right">
-              {(d.balance ?? 0).toLocaleString("sv-SE")} kr
-            </span>
+          return (
+            <li
+              key={d.id}
+              className="rounded bg-slate-800/30 px-3 py-2 text-sm text-white/90"
+            >
+              {/* Mobile: stacked */}
+              <div className="sm:hidden">
+                <div className="font-medium truncate">{d.name}</div>
+                <div className="mt-1 grid grid-cols-2 gap-2 text-xs text-white/80">
+                  <div className="tabular-nums whitespace-nowrap">{balanceText}</div>
+                  <div className="text-right tabular-nums whitespace-nowrap">{aprText}</div>
+                </div>
+              </div>
 
-            {/* APR – force number, fallback “–” */}
-            <span className="text-right">
-              {d.apr !== null && d.apr !== undefined
-                ? Number(d.apr).toFixed(1) + " %"
-                : "–"}
-            </span>
-          </li>
-        ))}
+              {/* sm+: grid row */}
+              <div className="hidden sm:grid sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center sm:gap-4">
+                <span className="min-w-0 truncate">{d.name}</span>
+                <span className="text-right tabular-nums whitespace-nowrap">{balanceText}</span>
+                <span className="text-right tabular-nums whitespace-nowrap">{aprText}</span>
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
+
 export default DebtGroup;

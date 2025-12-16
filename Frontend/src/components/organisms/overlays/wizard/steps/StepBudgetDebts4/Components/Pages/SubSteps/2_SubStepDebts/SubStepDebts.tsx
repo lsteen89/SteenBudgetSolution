@@ -3,22 +3,22 @@ import { useFormContext, useFieldArray } from "react-hook-form";
 import { AnimatePresence, motion } from "framer-motion";
 import { PlusCircle, HandCoins } from "lucide-react";
 
-import { DebtsFormValues }   from "@/types/Wizard/DebtFormValues";
-import DebtItem              from "@/components/organisms/debts/DebtItem";
-import OptionContainer       from "@/components/molecules/containers/OptionContainer";
-import DebtContainer         from "@/components/molecules/containers/DebtContainer";
-import InfoBox               from "@/components/molecules/messaging/InfoBox";
-import FormErrorSummary      from "@/components/molecules/messaging/FormErrorSummary";
+import { DebtsFormValues } from "@/types/Wizard/DebtFormValues";
+import DebtItem from "@/components/organisms/debts/DebtItem";
+import OptionContainer from "@/components/molecules/containers/OptionContainer";
+import DebtContainer from "@/components/molecules/containers/DebtContainer";
+import InfoBox from "@/components/molecules/messaging/InfoBox";
+import FormErrorSummary from "@/components/molecules/messaging/FormErrorSummary";
 import { DebtTemplateModal } from "@/components/modals/DebtTemplateModal";
-import { DebtTemplate }      from "@/components/modals/debtTemplates";
-import { useWizard }         from "@/context/WizardContext";
-import { idFromPath }        from "@/utils/idFromPath"; 
+import { DebtTemplate } from "@/components/modals/debtTemplates";
+import { useWizard } from "@/context/WizardContext";
+import { idFromPath } from "@/utils/idFromPath";
 
 const SubStepDebts: React.FC = () => {
   const { control, getValues, setValue, formState: { errors } } =
     useFormContext<DebtsFormValues>();
 
-  const { fields, append } = useFieldArray({
+  const { fields, append, remove } = useFieldArray({
     control,
     name: "debts",              // array lives directly under `debts`
     keyName: "fieldId",
@@ -31,12 +31,12 @@ const SubStepDebts: React.FC = () => {
   const handleSelectTemplate = (tpl: DebtTemplate) => {
     append({
       id: crypto.randomUUID(),
-      type:           tpl.type,
-      name:           tpl.name,
-      balance:        tpl.balance,
-      apr:            tpl.apr,
-      minPayment:     tpl.minPayment ?? null,
-      termMonths:     tpl.termMonths ?? null,
+      type: tpl.type,
+      name: tpl.name,
+      balance: tpl.balance,
+      apr: tpl.apr,
+      minPayment: tpl.minPayment ?? null,
+      termMonths: tpl.termMonths ?? null,
     });
     setIsActionBlocked(false);
   };
@@ -44,7 +44,7 @@ const SubStepDebts: React.FC = () => {
   const handleSelectBlank = () => {
     append({
       id: crypto.randomUUID(),
-      type: "installment", 
+      type: "installment",
       name: "",
       balance: null,
       apr: null,
@@ -54,10 +54,7 @@ const SubStepDebts: React.FC = () => {
     setIsActionBlocked(false);
   };
 
-  const removeDebt = (idx: number) => {
-    const newDebts = getValues("debts").filter((_, i) => i !== idx);
-    setValue("debts", newDebts, { shouldValidate: true, shouldDirty: true });
-  };
+  const removeDebt = (idx: number) => remove(idx);
 
   /* ---------- ui ---------- */
   return (

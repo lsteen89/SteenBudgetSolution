@@ -113,12 +113,12 @@ const SubStepFood: React.FC = () => {
   }, [takeoutExpensesVal, prevTakeoutExpenses]);
 
   // 3. Calculate total value
-// Destructure the values from your "food" object and default to 0 if missing.
-const { foodStoreExpenses = 0, takeoutExpenses = 0 } = watch("food") || {};
+  // Destructure the values from your "food" object and default to 0 if missing.
+  const { foodStoreExpenses = 0, takeoutExpenses = 0 } = watch("food") || {};
 
-// Calculate total value and format it using Swedish number formatting.
-const calculatedTotalValue = (foodStoreExpenses ?? 0) + (takeoutExpenses ?? 0);
-const formattedTotalValue = calculatedTotalValue.toLocaleString("sv-SE");
+  // Calculate total value and format it using Swedish number formatting.
+  const calculatedTotalValue = (foodStoreExpenses ?? 0) + (takeoutExpenses ?? 0);
+  const formattedTotalValue = calculatedTotalValue.toLocaleString("sv-SE");
 
   return (
     <OptionContainer className="p-4">
@@ -130,33 +130,10 @@ const formattedTotalValue = calculatedTotalValue.toLocaleString("sv-SE");
             frontTextClass="text-lg text-white"
             backTextClass="text-sm text-limeGreen"
             disableBounce={true}
-            containerClassName="w-[170px] h-[400px] md:w-[350px] md:h-[270px]" 
+            containerClassName="w-[170px] h-[400px] md:w-[350px] md:h-[270px]"
           />
         </div>
       </div>
-
-
-      {/* 3. Example update button for matkostnad */}
-      <div className="mt-4">
-        <button
-          type="button"
-          onClick={handleUpdateStoreExpenses}
-          className="px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700"
-        >
-          Increase Store Expenses by 100
-        </button>
-      </div>
-            {/* 3. Example update button for takeaway */}
-            <div className="mt-4">
-        <button
-          type="button"
-          onClick={handleUpdateRestaurantExpenses}
-          className="px-4 py-2 text-white bg-blue-600 rounded hover:bg-blue-700"
-        >
-          Increase Store Expenses by 100
-        </button>
-      </div>
-
       <div className="mt-6">
         <div className="bg-white bg-opacity-10 p-4 rounded-xl shadow-inner">
           <div className="grid md:grid-cols-2 gap-6">
@@ -180,7 +157,7 @@ const formattedTotalValue = calculatedTotalValue.toLocaleString("sv-SE");
                   setHighlightInputFoodStore(false);
                   isAnimatingFoodStore.current = false;
                 }}
-                >
+              >
                 <FormattedNumberInput
                   value={foodStoreExpensesVal || 0}
                   onValueChange={(val) => setValue("food.foodStoreExpenses", val ?? 0)}
@@ -213,7 +190,7 @@ const formattedTotalValue = calculatedTotalValue.toLocaleString("sv-SE");
                   setHighlightInputTakeAway(false);
                   isAnimatingTakeAway.current = false;
                 }}
-                >
+              >
                 <FormattedNumberInput
                   value={takeoutExpensesVal || 0}
                   onValueChange={(val) => setValue("food.takeoutExpenses", val ?? 0)}

@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/auth/useAuth';
 import GlassPane from "@components/layout/GlassPane";
 import { useEffect } from "react";
 import LoadingScreen from "@components/molecules/feedback/LoadingScreen";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 interface StepWelcomeProps {
   connectionError: boolean;
@@ -20,12 +21,12 @@ const StepWelcome: React.FC<StepWelcomeProps> = ({ connectionError, failedAttemp
   }, [connectionError, failedAttempts, loading]);
   if (loading) {
     return (
-    <GlassPane>
-      {/* Give the pane some breathing-room so the loader is centred nicely */}
-      <div className="min-h-48 flex items-center justify-center">
-        <LoadingScreen full={false}  textColor="white" />
-      </div>
-    </GlassPane>
+      <GlassPane>
+        {/* Give the pane some breathing-room so the loader is centred nicely */}
+        <div className="min-h-48 flex items-center justify-center">
+          <Skeleton />
+        </div>
+      </GlassPane>
     );
   }
   return (
@@ -33,7 +34,7 @@ const StepWelcome: React.FC<StepWelcomeProps> = ({ connectionError, failedAttemp
       {connectionError ? (
         <>
           <p className="text-white">
-            Anslutningsproblem upptäcktes. Vi kan för närvarande inte spara eller hämta data. 
+            Anslutningsproblem upptäcktes. Vi kan för närvarande inte spara eller hämta data.
             Försöka igen eller kontakta support om problemet kvarstår. <br />
             <a href="mailto:support@ebudget.se" className="underline">
               support@ebudget.se
@@ -45,12 +46,11 @@ const StepWelcome: React.FC<StepWelcomeProps> = ({ connectionError, failedAttemp
               Inga fler försök kan göras. Vänligen kontakta support.
             </p>
           )}
-          <button 
+          <button
             onClick={onRetry}
             disabled={failedAttempts > 3}
-            className={`mt-6 px-4 py-2 items-center gap-5 text-gray-900 rounded-lg transition ml-auto bg-limeGreen ${
-              failedAttempts > 3 ? "opacity-50 cursor-not-allowed" : "hover:bg-darkLimeGreen hover:text-white"
-            }`}
+            className={`mt-6 px-4 py-2 items-center gap-5 text-gray-900 rounded-lg transition ml-auto bg-limeGreen ${failedAttempts > 3 ? "opacity-50 cursor-not-allowed" : "hover:bg-darkLimeGreen hover:text-white"
+              }`}
           >
             Försök igen
           </button>
@@ -109,7 +109,7 @@ const StepWelcome: React.FC<StepWelcomeProps> = ({ connectionError, failedAttemp
               <ShieldCheck className="w-16 h-16 text-darkLimeGreen" />
               <p>
                 Vi samlar in dessa uppgifter för att kunna ge dig en bättre upplevelse
-                och hjälpa dig att hantera din ekonomi. Vi skyddar din data och delar den aldrig med tredje part.  
+                och hjälpa dig att hantera din ekonomi. Vi skyddar din data och delar den aldrig med tredje part.
                 Läs mer i vår{" "}
                 <Link to="/data-policy" className="text-standardMenuColor underline hover:text-white">
                   dataskyddspolicy

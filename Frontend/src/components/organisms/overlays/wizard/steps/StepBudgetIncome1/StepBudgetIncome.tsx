@@ -17,6 +17,7 @@ import coinsAnimation from "@assets/lottie/coins.json";
 import useYearlyIncome from "@hooks/wizard/useYearlyIncome";
 import { useToast } from "@context/ToastContext";
 import LoadingScreen from "@components/molecules/feedback/LoadingScreen";
+import { Skeleton } from "@/components/ui/Skeleton";
 import DataTransparencySection from "@components/organisms/overlays/wizard/SharedComponents/Pages/DataTransparencySection";
 import HelpSectionDark from "@components/molecules/helptexts/HelpSectionDark";
 import { IncomeFormValues } from '@myTypes/Wizard/IncomeFormValues';
@@ -47,10 +48,10 @@ const StepBudgetIncome: React.FC<StepBudgetIncomeProps> = ({
   onPrev,
   loading,
 }) => {
-const {
-  control, watch, setValue, getValues,
-  formState: { errors },
-} = useFormContext<IncomeFormValues>();
+  const {
+    control, watch, setValue, getValues,
+    formState: { errors },
+  } = useFormContext<IncomeFormValues>();
 
 
 
@@ -115,7 +116,7 @@ const {
     JSON.stringify(watchedHouseholdMembers?.map(m => ({ income: m?.income, frequency: m?.frequency }))),
     getValues,
     setValue,
-    calculateYearlyIncome 
+    calculateYearlyIncome
   ]);
 
   const totalHouseholdYearlyIncome = React.useMemo(() => {
@@ -129,7 +130,7 @@ const {
     }
     return 0;
   }, [JSON.stringify(watchedHouseholdMembers?.map(member => member?.yearlyIncome))]);
-  
+
 
   useEffect(() => {
     const hustles = getValues('sideHustles');
@@ -215,7 +216,7 @@ const {
   );
 
   if (loading) {
-    return <GlassPane><LoadingScreen /></GlassPane>;
+    return <GlassPane><Skeleton className="w-48 h-6" /></GlassPane>;
   }
 
   const _hasActualHouseholdErrors = Array.isArray(get(errors, 'householdMembers' as FieldPath<IncomeFormValues>))
@@ -263,9 +264,9 @@ const {
         <div className="flex items-center justify-center mt-4 gap-x-2 mb-3">
           <h4 className="text-lg font-semibold">Hushålls&shy;medlemmar&nbsp;(valfritt)</h4>
           <HelpSectionDark
-            label="Hushållsmedlemmar (valfritt)" 
+            label="Hushållsmedlemmar (valfritt)"
             helpText={householdMembersHelpContent}
-            idSuffix="household-section-title" 
+            idSuffix="household-section-title"
           />
         </div>
         <button

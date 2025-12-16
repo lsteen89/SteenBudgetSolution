@@ -72,6 +72,9 @@ const SubStepConfirm: React.FC = () => {
         {metrics.installmentDebts.count > 0 && (
           <DebtCategoryCard icon={<Receipt />} title="Delbetalningar" summary={metrics.installmentDebts} />
         )}
+        {metrics.privateDebts.count > 0 && (
+          <DebtCategoryCard icon={<CircleSlash />} title="Privatlån" summary={metrics.privateDebts} />
+        )}
       </div>
 
       {/* III. Choosing the Path */}

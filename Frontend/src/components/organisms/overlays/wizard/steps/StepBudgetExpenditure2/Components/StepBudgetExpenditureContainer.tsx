@@ -46,6 +46,7 @@ const SubStepConfirm = lazy(() =>
 );
 
 import LoadingScreen from '@components/molecules/feedback/LoadingScreen';
+import { Skeleton } from '@/components/ui/Skeleton';
 import AnimatedContent from '@components/atoms/wrappers/AnimatedContent';
 import StepButton from '@components/molecules/buttons/StepButton';
 import WizardProgress from '@components/organisms/overlays/wizard/SharedComponents/Menu/WizardProgress';
@@ -306,7 +307,7 @@ const StepBudgetExpenditureContainer = forwardRef<
       {parentLoading ? (
         <div className="absolute inset-0 z-50 flex items-center justify-center
               bg-white/60 backdrop-blur-sm">
-          <LoadingScreen full={true} textColor="black" />
+          <Skeleton className="w-48 h-6" />
         </div>
       ) : (
         <form className="step-budget-expenditure-container flex flex-col h-full">
@@ -315,11 +316,7 @@ const StepBudgetExpenditureContainer = forwardRef<
             {isSaving && (
               <div className="absolute inset-0 z-50 flex items-center justify-center
                             bg-white/60 backdrop-blur-sm">
-                <LoadingScreen
-                  full={false}
-                  actionType="save"
-                  textColor="black"
-                />
+                <Skeleton className="w-48 h-6" />
               </div>
             )}
             <div className="flex-1 text-center">
