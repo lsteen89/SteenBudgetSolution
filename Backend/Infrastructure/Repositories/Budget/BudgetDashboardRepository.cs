@@ -24,6 +24,11 @@ public sealed class BudgetDashboardRepository : SqlBase, IBudgetDashboardReposit
         decimal? TargetAmount,
         DateTime? TargetDate,
         decimal? AmountSaved);
+    private sealed record RecurringExpenseRow(
+        Guid Id,
+        string Name,
+        string CategoryName,
+        decimal AmountMonthly);
 
     private const string BudgetIdSql = @"
 SELECT Id
@@ -98,6 +103,19 @@ FROM Savings s
 LEFT JOIN SavingsGoal g ON g.SavingsId = s.Id
 WHERE s.BudgetId = @BudgetId;
 ";
+    private const string RecurringExpensesSql = @"
+SELECT
+    e.Id,
+    e.Name,
+    c.Name        AS CategoryName,
+    e.AmountMonthly
+FROM ExpenseItem e
+JOIN ExpenseCategory c ON c.Id = e.CategoryId
+WHERE e.BudgetId = @BudgetId
+  AND e.AmountMonthly > 0
+ORDER BY e.AmountMonthly DESC
+LIMIT 5;
+";
 
     public BudgetDashboardRepository(
         IUnitOfWork unitOfWork,
@@ -132,6 +150,22 @@ WHERE s.BudgetId = @BudgetId;
             CategoriesSql,
             new { BudgetId = budgetId.Value },
             ct);
+
+        // 3b) Top recurring expenses (fixed + subs + other)
+        var recurringRows = await QueryAsync<RecurringExpenseRow>(
+            RecurringExpensesSql,
+            new { BudgetId = budgetId.Value },
+            ct);
+
+        var recurringExpenses = recurringRows
+            .Select(r => new DashboardRecurringExpenseDto
+            {
+                Id = r.Id,
+                Name = r.Name,
+                CategoryName = r.CategoryName,
+                AmountMonthly = r.AmountMonthly
+            })
+            .ToList();
 
         // 4) Debts
         var debtItems = await QueryAsync<DashboardDebtItemDto>(
@@ -193,7 +227,8 @@ WHERE s.BudgetId = @BudgetId;
             Income = incomeOverview,
             Expenditure = expenditureOverview,
             Savings = savingsOverview,
-            Debt = debtOverview
+            Debt = debtOverview,
+            RecurringExpenses = recurringExpenses
         };
     }
 }

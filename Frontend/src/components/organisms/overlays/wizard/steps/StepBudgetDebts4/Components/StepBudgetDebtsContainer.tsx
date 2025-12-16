@@ -18,6 +18,7 @@ import useMediaQuery from '@hooks/useMediaQuery';
 import WizardProgress from '@components/organisms/overlays/wizard/SharedComponents/Menu/WizardProgress';
 import StepCarousel from '@components/molecules/progress/StepCarousel';
 import LoadingScreen from '@components/molecules/feedback/LoadingScreen';
+import { Skeleton } from '@/components/ui/Skeleton';
 import WizardFormWrapperStep4, { WizardFormWrapperStep4Ref } from './wrapper/WizardFormWrapperStep4';
 import { Info, CreditCard, ShieldCheck } from 'lucide-react';
 import { devLog } from '@/utils/devLog';
@@ -186,16 +187,27 @@ const StepBudgetDebtsContainer = forwardRef<
 
       if (hasDebts === true) {
         await goToSub(2);
-      } else {
-        // No debts: save intro, clear debts, skip forward
+      }
+      if (hasDebts !== true) {
         setIsSaving(true);
-        const introData = formMethods?.getValues('intro');
-        await onSaveStepData(stepNumber, currentSub, { intro: introData }, false);
-        setIsSaving(false);
 
-        setDebts({ debts: [] });
+        const intro = formMethods?.getValues('intro') ?? { hasDebts: false };
+
+        await onSaveStepData(stepNumber, currentSub, { intro }, false);
+
+        // ✅ store should reflect the user decision too
+        const nextState = ensureStep4Defaults({
+          ...(formMethods?.getValues() ?? {}),
+          intro: { hasDebts: false },
+          debts: [],
+        });
+
+        setDebts(nextState);
         setSkippedDebts(true);
+
+        setIsSaving(false);
         onNext();
+        return;
       }
       return;
     }
@@ -238,12 +250,14 @@ const StepBudgetDebtsContainer = forwardRef<
 
   useImperativeHandle(ref, () => ({
     validateFields: () => formMethods?.trigger() ?? Promise.resolve(false),
+
     getStepData: () => {
-      const allData = formMethods?.getValues() ?? ensureStep4Defaults({});
-      return {
-        summary: allData.summary,
-      };
+      const all = formMethods?.getValues() ?? {};
+      const complete = ensureStep4Defaults(all);
+      devLog.group('Container.getStepData (FULL)', devLog.stamp({ complete }));
+      return complete;
     },
+
     markAllTouched: () => formMethods?.trigger(),
     getErrors: () => formMethods?.formState.errors ?? {},
     getCurrentSubStep: () => currentSub,
@@ -278,13 +292,13 @@ const StepBudgetDebtsContainer = forwardRef<
     >
       {parentLoading ? (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/60 backdrop-blur-sm">
-          <LoadingScreen full textColor="black" />
+          <Skeleton />
         </div>
       ) : (
         <form className="flex flex-col h-full">
           {isSaving && (
             <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/60 backdrop-blur-sm">
-              <LoadingScreen full={false} actionType="save" textColor="black" />
+              <Skeleton />
             </div>
           )}
 

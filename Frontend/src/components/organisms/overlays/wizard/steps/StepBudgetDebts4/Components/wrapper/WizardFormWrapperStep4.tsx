@@ -67,13 +67,6 @@ const WizardFormWrapperStep4 = forwardRef<WizardFormWrapperStep4Ref, WizardFormW
     setWizardFlags({ debtsHaveBeenSet: (debts?.debts?.length ?? 0) > 0 });
   }, [debts, setWizardFlags]);
 
-  useImperativeHandle(ref, () => ({
-    validateFields: () => methods.trigger(),
-    getStepData: () => methods.getValues(),
-    getErrors: () => methods.formState.errors,
-    getMethods: () => methods,
-  }));
-
   return <FormProvider {...methods}>{children}</FormProvider>;
 });
 

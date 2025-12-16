@@ -55,12 +55,10 @@ namespace Backend.Application.Mappings.Budget
             }
 
             // SUBSCRIPTIONS (list-based)
-            if (dto.Subscriptions is { Subscriptions.Count: > 0 })
+            if (dto.Subscriptions is not null)
             {
-                foreach (var s in dto.Subscriptions.Subscriptions)
-                {
+                foreach (var s in dto.Subscriptions.Flatten())
                     exp.AddItem(ExpenseCategories.Subscription, s.Name, s.Cost);
-                }
             }
 
 

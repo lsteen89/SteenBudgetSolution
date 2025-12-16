@@ -18,29 +18,24 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
   isFirstTimeLogin,
   setIsWizardOpen,
 }) => {
-  const { data, isLoading } = useDashboardSummary();
+  const { data, isLoading, isError } = useDashboardSummary();
 
-  if (isLoading) {
-    return <LoadingScreen />;
-  }
+  if (isLoading) return <LoadingScreen />;
 
   if (isFirstTimeLogin) {
-    return (
-      <FirstTimeDashboardSection
-        onStartWizard={() => setIsWizardOpen(true)}
-        navigate={navigate}
-      />
-    );
-  }
-  if (!data) {
-    return (
-      <FirstTimeDashboardSection
-        onStartWizard={() => setIsWizardOpen(true)}
-        navigate={navigate}
-      />
-    );
+    return <FirstTimeDashboardSection onStartWizard={() => setIsWizardOpen(true)} navigate={navigate} />;
   }
 
+  if (isError) {
+    // If dashboard endpoint says "not found", treat as "no budget yet"
+    return <FirstTimeDashboardSection onStartWizard={() => setIsWizardOpen(true)} navigate={navigate} />;
+  }
+
+  if (!data) {
+    // returning user but no dashboard data yet -> show loader or dedicated empty state
+    return <LoadingScreen />; // simplest
+    // or <NoBudgetYetSection onStartWizard=... />
+  }
 
   return (
     <ReturningDashboardSection

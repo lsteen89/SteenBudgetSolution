@@ -23,7 +23,17 @@ const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({
         emergencyFundAmount,
         emergencyFundMonths,
         goalsProgressPercent,
+        totalIncome,
+        totalExpenditure,
+        totalSavings,
+        totalDebtPayments,
+        finalBalance,
+        pillarDescriptions,
+        recurringExpenses,
     } = summary;
+
+    const formatAmount = (value: number) =>
+        `${value.toLocaleString('sv-SE')} ${remainingCurrency}`;
 
     return (
         <div className="w-full max-w-6xl space-y-6">
@@ -31,13 +41,13 @@ const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({
             <div className="flex flex-col gap-4">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                     <div>
-                        <h1 className="text-2xl font-semibold text-slate-900">Welcome back 👋</h1>
+                        <h1 className="text-2xl font-semibold text-slate-900">Välkommen tillbaka 👋</h1>
                         <p className="text-sm text-slate-600">
-                            {monthLabel} – you have{' '}
+                            {monthLabel} – du har{' '}
                             <span className="font-semibold">
                                 {remainingToSpend.toLocaleString('sv-SE')} {remainingCurrency}
                             </span>{' '}
-                            left to spend.
+                            kvar att spendera.
                         </p>
                     </div>
 
@@ -47,37 +57,37 @@ const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({
                             onClick={() => navigate('/budgets')}
                             className="px-4 py-2 rounded-full bg-emerald-500 text-white text-sm font-medium shadow hover:bg-emerald-600 transition"
                         >
-                            View your budget
+                            Se din budget
                         </button>
                         <button
                             type="button"
                             onClick={onOpenWizard}
                             className="px-4 py-2 rounded-full border border-emerald-400 text-emerald-700 text-sm font-medium bg-white/70 backdrop-blur hover:bg-emerald-50 transition"
                         >
-                            Adjust your plan
+                            Justera din plan
                         </button>
                     </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <KpiCard
-                        label="Left to spend"
+                        label="Kvar att spendera"
                         value={`${remainingToSpend.toLocaleString('sv-SE')} ${remainingCurrency}`}
-                        subtitle="For this month"
+                        subtitle="för denna månad"
                         tone={remainingToSpend >= 0 ? 'positive' : 'warning'}
                         onClick={() => navigate('/expenses')}
                     />
                     <KpiCard
-                        label="Towards your goals"
+                        label="Mot dina mål"
                         value={`${goalsProgressPercent.toFixed(0)} %`}
-                        subtitle="Overall progress"
+                        subtitle="Övergripande framsteg"
                         tone="neutral"
                         onClick={() => navigate('/goals')}
                     />
                     <KpiCard
-                        label="Emergency fund"
+                        label="Nödfond"
                         value={`${emergencyFundAmount.toLocaleString('sv-SE')} ${remainingCurrency}`}
-                        subtitle={`${emergencyFundMonths.toFixed(1)} months of expenses`}
+                        subtitle={`${emergencyFundMonths.toFixed(1)} månader av utgifter`}
                         tone="neutral"
                         onClick={() => navigate('/emergency-fund')}
                     />
@@ -88,51 +98,99 @@ const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 {/* Left: “money flow” */}
                 <div className="lg:col-span-2 space-y-4">
+                    {/* Budget snapshot instead of placeholder */}
                     <div className="rounded-3xl bg-white/80 border border-slate-100 shadow-sm px-5 py-4">
-                        <h2 className="text-sm font-semibold text-slate-900 mb-1">Budget overview</h2>
+                        <h2 className="text-sm font-semibold text-slate-900 mb-1">Budgetöversikt</h2>
                         <p className="text-xs text-slate-500 mb-3">
-                            Plan vs actual for this month. (Hook this up to your real chart later.)
+                            Din budget per månad – inkomster, utgifter, sparande och skuldbetalningar.
                         </p>
-                        <div className="h-40 flex items-center justify-center text-xs text-slate-400">
-                            Budget chart placeholder
+
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs text-slate-700">
+                            <div>
+                                <p className="font-medium text-slate-900">Inkomster</p>
+                                <p className="mt-0.5">{formatAmount(totalIncome)}</p>
+                            </div>
+                            <div>
+                                <p className="font-medium text-slate-900">Utgifter</p>
+                                <p className="mt-0.5">{formatAmount(totalExpenditure)}</p>
+                            </div>
+                            <div>
+                                <p className="font-medium text-slate-900">Sparande</p>
+                                <p className="mt-0.5">{formatAmount(totalSavings)}</p>
+                            </div>
+                            <div>
+                                <p className="font-medium text-slate-900">Skuldbetalningar</p>
+                                <p className="mt-0.5">{formatAmount(totalDebtPayments)}</p>
+                            </div>
+                            <div>
+                                <p className="font-medium text-slate-900">Kvar att spendera</p>
+                                <p className="mt-0.5">{formatAmount(remainingToSpend)}</p>
+                            </div>
+                        </div>
+
+                        <div className="mt-4 border-t border-slate-100 pt-3 flex items-baseline justify-between text-xs">
+                            <span className="font-semibold text-slate-900">
+                                Resultat (Inkomster − Utgifter − Sparande − Skulder)
+                            </span>
+                            <span
+                                className={`font-semibold ${finalBalance >= 0 ? 'text-emerald-600' : 'text-rose-600'
+                                    }`}
+                            >
+                                {formatAmount(finalBalance)}
+                            </span>
                         </div>
                     </div>
 
                     <div className="rounded-3xl bg-white/80 border border-slate-100 shadow-sm px-5 py-4">
-                        <h2 className="text-sm font-semibold text-slate-900 mb-1">Upcoming bills</h2>
+                        <h2 className="text-sm font-semibold text-slate-900 mb-1">
+                            Återkommande kostnader
+                        </h2>
                         <p className="text-xs text-slate-500 mb-3">
-                            Next important expenses so nothing sneaks up on you.
+                            Dina fasta utgifter per månad – hyra, abonnemang och andra återkommande kostnader.
                         </p>
+
                         <div className="space-y-2 text-xs text-slate-700">
-                            {/* Replace with real data later */}
-                            <div className="flex justify-between">
-                                <span>Rent</span>
-                                <span>25 Nov – 8 500 kr</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span>Electricity</span>
-                                <span>28 Nov – 600 kr</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span>Insurance</span>
-                                <span>30 Nov – 450 kr</span>
-                            </div>
+                            {recurringExpenses.length === 0 && (
+                                <p className="text-slate-500">
+                                    Du har inte lagt till några återkommande kostnader ännu.
+                                </p>
+                            )}
+
+                            {recurringExpenses.map((e) => (
+                                <div key={e.id} className="flex items-baseline justify-between">
+                                    <div className="flex flex-col">
+                                        <span className="font-medium">{e.name}</span>
+                                        <span className="text-[10px] uppercase tracking-wide text-slate-400">
+                                            {e.categoryName}
+                                        </span>
+                                    </div>
+                                    <span>{formatAmount(e.amountMonthly)}/mån</span>
+                                </div>
+                            ))}
                         </div>
+
+                        <button
+                            type="button"
+                            onClick={() => navigate('/expenses/recurring')}
+                            className="mt-4 inline-flex items-center justify-center rounded-full px-3 py-1.5 text-[11px] font-medium bg-slate-900 text-white hover:bg-slate-800 transition"
+                        >
+                            Visa alla fasta kostnader
+                        </button>
                     </div>
                 </div>
 
                 {/* Right: goals, emergency fund, next steps */}
                 <div className="space-y-4">
                     <div className="rounded-3xl bg-white/80 border border-slate-100 shadow-sm px-5 py-4">
-                        <h2 className="text-sm font-semibold text-slate-900 mb-2">Goals</h2>
+                        <h2 className="text-sm font-semibold text-slate-900 mb-2">Mål</h2>
                         <p className="text-xs text-slate-500 mb-3">
-                            A quick snapshot of how your main goals are doing.
+                            {pillarDescriptions.savings}
                         </p>
                         <div className="space-y-2 text-xs text-slate-700">
                             <div>
                                 <div className="flex justify-between mb-0.5">
-                                    <span>Emergency fund</span>
-                                    <span>65 %</span>
+                                    <span>Nödfond</span>
+                                    <span>{goalsProgressPercent.toFixed(0)} %</span>
                                 </div>
                                 <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
                                     <div
@@ -145,16 +203,16 @@ const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({
                     </div>
 
                     <PlayfulBirdCard
-                        title="Keep your journey going"
-                        description="You&apos;re on track – review your wizard once a month to keep your plan aligned with reality."
-                        ctaLabel="Open the wizard"
+                        title="Fortsätt din resa"
+                        description="Du är på rätt spår – granska din guide en gång i månaden för att hålla din plan i linje med verkligheten."
+                        ctaLabel="Öppna guiden"
                         onClick={onOpenWizard}
                     />
 
                     <PlayfulBirdCard
-                        title="Add this week&apos;s transactions"
-                        description="Logging today&apos;s spending takes less than a minute and gives you way better decisions tomorrow."
-                        ctaLabel="Add spending"
+                        title="Lägg till denna veckas transaktioner"
+                        description="Att logga dagens utgifter tar mindre än en minut och ger dig mycket bättre beslut imorgon."
+                        ctaLabel="Lägg till utgifter"
                         onClick={() => navigate('/expenses')}
                     />
                 </div>

@@ -60,7 +60,8 @@ public sealed class BudgetDashboardDto
     public ExpenditureOverviewDto Expenditure { get; init; } = default!;
     public SavingsOverviewDto? Savings { get; init; }
     public DebtOverviewDto Debt { get; init; } = default!;
-
+    public IReadOnlyList<DashboardRecurringExpenseDto> RecurringExpenses { get; init; }
+        = Array.Empty<DashboardRecurringExpenseDto>();
     public decimal DisposableAfterExpenses =>
         Income.TotalIncomeMonthly - Expenditure.TotalExpensesMonthly;
 

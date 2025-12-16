@@ -14,23 +14,27 @@ export const calculateMonthlyContribution = (
   saved: number | null | undefined,
   date: Date | null | undefined
 ): number => {
-  if (!target || !date) return 0;
+  if (target == null || date == null) return 0;
+  if (target <= 0) return 0;
+
   const remaining = Math.max(target - (saved ?? 0), 0);
   if (remaining === 0) return 0;
-  
+
   const now = new Date();
   now.setHours(0, 0, 0, 0);
 
   const end = new Date(date);
-  if (end <= now) return remaining;
+  end.setHours(0, 0, 0, 0);
 
-  const months = Math.max(
+  // overdue => you need to fund it immediately (1-month bucket)
+  if (end <= now) return Math.ceil(remaining);
+
+  const months =
     (end.getFullYear() - now.getFullYear()) * 12 +
-    (end.getMonth() - now.getMonth()) + 1,
-    1,
-  );
+    (end.getMonth() - now.getMonth()) +
+    1; // inclusive of current month
 
-  return Math.ceil(remaining / months);
+  return Math.ceil(remaining / Math.max(months, 1));
 };
 
 /**
@@ -99,11 +103,17 @@ export const calculateMonthsToGoal = (
 };
 
 export const amortize = (
-  principal: number|null,
-  annualRate: number|null,
-  months: number|null
-): number|null => {
-  if(!principal || !annualRate || !months) return null;
-  const r = (annualRate/100)/12;
+  principal: number | null,
+  annualRate: number | null, // percent, e.g. 4.5
+  months: number | null
+): number | null => {
+  if (principal == null || months == null || annualRate == null) return null;
+  if (principal <= 0 || months <= 0) return 0;
+
+  const r = (annualRate / 100) / 12;
+
+  // 0% APR => straight-line principal
+  if (r === 0) return +(principal / months).toFixed(2);
+
   return +(principal * r / (1 - Math.pow(1 + r, -months))).toFixed(2);
 };

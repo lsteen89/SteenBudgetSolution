@@ -21,7 +21,7 @@ const FinancialSummaryCard: React.FC<FinancialSummaryCardProps> = ({ income, exp
       <p className="text-lg font-bold">
         Utgifter: {`${expenses.toLocaleString('sv-SE')} kr`}
       </p>
-      <p className={`text-xl font-bold ${savings >= 0 ? 'text-darkLimeGreen' : 'text-red-400'}`}>
+      <p className={`text-xl font-bold ${savings >= 0 ? 'text-darkLimeGreen' : 'text-red-800'}`}>
         {savings >= 0 ? 'Kvar att spara: ' : 'Underskott: '}
         {`${Math.abs(savings).toLocaleString('sv-SE')} kr`}
       </p>

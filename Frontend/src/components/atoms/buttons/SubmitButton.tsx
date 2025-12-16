@@ -80,7 +80,7 @@ interface SubmitButtonProps {
 const sizeClasses = {
   small: 'text-[16px] py-2 px-4',
   default: 'text-[20px] py-3 px-6',
-  large: 'text-[32px] py-4 px-8',
+  large: 'text-lg sm:text-xl lg:text-2xl py-3 sm:py-4 px-6 sm:px-8',
 };
 
 

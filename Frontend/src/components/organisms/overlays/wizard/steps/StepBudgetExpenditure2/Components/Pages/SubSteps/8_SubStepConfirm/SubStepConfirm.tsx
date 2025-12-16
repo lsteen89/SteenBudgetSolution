@@ -58,7 +58,7 @@ const SummaryDoughnut: React.FC<{
 /* ───────────────────── main component ───────────────────── */
 
 const SubStepConfirm: React.FC = () => {
-  const isDesktop = useMediaQuery('(min-width: 768px)'); 
+  const isDesktop = useMediaQuery('(min-width: 768px)');
 
   const { expenditure } = useWizardDataStore((s) => s.data);
   const exp = expenditure; // shorthand
@@ -112,10 +112,10 @@ const SubStepConfirm: React.FC = () => {
   const remaining = incomeTotal - grandTotal;
 
   const allCategories = useMemo(() => {
-  const createBreakdown = (items: Record<string, number | null | undefined>) =>
-        Object.entries(items)
-            .map(([name, value]) => ({ name, value: value ?? 0 }))
-            .filter(item => item.value > 0);
+    const createBreakdown = (items: Record<string, number | null | undefined>) =>
+      Object.entries(items)
+        .map(([name, value]) => ({ name, value: value ?? 0 }))
+        .filter(item => item.value > 0);
 
     return [
       {
@@ -123,10 +123,10 @@ const SubStepConfirm: React.FC = () => {
         value: rentTotal,
         icon: <Home />,
         breakdown: createBreakdown({
-            "Månadshyra": exp.rent?.monthlyRent,
-            "Avgift till BRF": exp.rent?.monthlyFee,
-            "Bolån": exp.rent?.mortgagePayment,
-            "Övriga avgifter": sumArray([exp.rent?.rentExtraFees, exp.rent?.brfExtraFees, exp.rent?.houseotherCosts, exp.rent?.otherCosts]),
+          "Månadshyra": exp.rent?.monthlyRent,
+          "Avgift till BRF": exp.rent?.monthlyFee,
+          "Bolån": exp.rent?.mortgagePayment,
+          "Övriga avgifter": sumArray([exp.rent?.rentExtraFees, exp.rent?.brfExtraFees, exp.rent?.houseotherCosts, exp.rent?.otherCosts]),
         }),
       },
       {
@@ -134,10 +134,10 @@ const SubStepConfirm: React.FC = () => {
         value: transportTotal,
         icon: <Car />,
         breakdown: createBreakdown({
-            "Bränsle": exp.transport?.monthlyFuelCost,
-            "Försäkring": exp.transport?.monthlyInsuranceCost,
-            "Bilomkostnader": exp.transport?.monthlyTotalCarCost,
-            "Kollektivtrafik": exp.transport?.monthlyTransitCost,
+          "Bränsle": exp.transport?.monthlyFuelCost,
+          "Försäkring": exp.transport?.monthlyInsuranceCost,
+          "Bilomkostnader": exp.transport?.monthlyTotalCarCost,
+          "Kollektivtrafik": exp.transport?.monthlyTransitCost,
         }),
       },
       {
@@ -145,23 +145,23 @@ const SubStepConfirm: React.FC = () => {
         value: foodTotal,
         icon: <Utensils />,
         breakdown: createBreakdown({
-            "Livsmedel": exp.food?.foodStoreExpenses,
-            "Restaurang/Take-away": exp.food?.takeoutExpenses,
+          "Livsmedel": exp.food?.foodStoreExpenses,
+          "Restaurang/Take-away": exp.food?.takeoutExpenses,
         }),
       },
       {
-        name: "Fasta Utgifter", 
+        name: "Fasta Utgifter",
         value: fixedTotal,
         icon: <ClipboardList />,
         breakdown: [
-            ...createBreakdown({
-                "Försäkringar": exp.fixedExpenses?.insurance,
-                "El": exp.fixedExpenses?.electricity,
-                "Internet": exp.fixedExpenses?.internet,
-                "Telefon": exp.fixedExpenses?.phone,
-                "Fackavgifter": exp.fixedExpenses?.unionFees,
-            }),
-            ...(exp.fixedExpenses?.customExpenses?.filter((e): e is NonNullable<typeof e> => !!e).map(e => ({name: e.name ?? 'Annan fast utgift', value: e.cost ?? 0})) ?? [])
+          ...createBreakdown({
+            "Försäkringar": exp.fixedExpenses?.insurance,
+            "El": exp.fixedExpenses?.electricity,
+            "Internet": exp.fixedExpenses?.internet,
+            "Telefon": exp.fixedExpenses?.phone,
+            "Fackavgifter": exp.fixedExpenses?.unionFees,
+          }),
+          ...(exp.fixedExpenses?.customExpenses?.filter((e): e is NonNullable<typeof e> => !!e).map(e => ({ name: e.name ?? 'Annan fast utgift', value: e.cost ?? 0 })) ?? [])
         ],
       },
       {
@@ -169,15 +169,15 @@ const SubStepConfirm: React.FC = () => {
         value: variableTotal,
         icon: <Play />,
         breakdown: [
-            ...createBreakdown({
-                "Kläder & skor": exp.clothing?.monthlyClothingCost,
-                "Netflix": exp.subscriptions?.netflix,
-                "Spotify": exp.subscriptions?.spotify,
-                "HBO Max": exp.subscriptions?.hbomax,
-                "Viaplay": exp.subscriptions?.viaplay,
-                "Disney+": exp.subscriptions?.disneyPlus,
-            }),
-            ...(exp.subscriptions?.customSubscriptions?.filter((s): s is NonNullable<typeof s> => !!s).map(s => ({name: s.name ?? 'Annan prenumeration', value: s.cost ?? 0})) ?? [])
+          ...createBreakdown({
+            "Kläder & skor": exp.clothing?.monthlyClothingCost,
+            "Netflix": exp.subscriptions?.netflix,
+            "Spotify": exp.subscriptions?.spotify,
+            "HBO Max": exp.subscriptions?.hbomax,
+            "Viaplay": exp.subscriptions?.viaplay,
+            "Disney+": exp.subscriptions?.disneyPlus,
+          }),
+          ...(exp.subscriptions?.customSubscriptions?.filter((s): s is NonNullable<typeof s> => !!s).map(s => ({ name: s.name ?? 'Annan prenumeration', value: s.cost ?? 0 })) ?? [])
         ],
       },
     ].filter(cat => cat.value > 0); // Only show categories with expenses
@@ -190,22 +190,22 @@ const SubStepConfirm: React.FC = () => {
       {/* 1. Header & Welcome */}
       <section className="space-y-6 text-white">
         <motion.h3
-            className="text-xl md:text-2xl font-bold text-center text-darkLimeGreen"
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
+          className="text-xl md:text-2xl font-bold text-center text-darkLimeGreen"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
         >
-            Sammanfattning
+          Sammanfattning
         </motion.h3>
 
-        
-        <motion.p 
-            className="text-center text-white/80 max-w-xl mx-auto"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.1 }}
+
+        <motion.p
+          className="text-center text-white/80 max-w-xl mx-auto"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.1 }}
         >
-            Bra jobbat! Du har nu kartlagt dina utgifter. Här är en översikt av din budget.
-            Kom ihåg att detta är en startpunkt, inte ett slutgiltigt resultat.
+          Bra jobbat! Du har nu kartlagt dina utgifter. Här är en översikt av din budget.
+          Kom ihåg att detta är en startpunkt, inte ett slutgiltigt resultat.
         </motion.p>
 
         {/* 2. The Overview Chart */}
@@ -217,33 +217,33 @@ const SubStepConfirm: React.FC = () => {
 
         {/* 3. The Interactive Accordion Breakdown */}
         <ExpenditureAccordion
-            categories={allCategories}
-            grandTotal={grandTotal}
-            openCategory={openCategory}
-            setOpenCategory={setOpenCategory}
+          categories={allCategories}
+          grandTotal={grandTotal}
+          openCategory={openCategory}
+          setOpenCategory={setOpenCategory}
         />
 
         {/* 4. The Final Summary */}
-        <motion.div 
-            className="text-center bg-white/5 p-4 rounded-lg text-sm text-white/70"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
+        <motion.div
+          className="text-center bg-white/5 p-4 rounded-lg text-sm text-white/70"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
         >
-            Ser något inte helt rätt ut? Du kan antingen gå tillbaka och justera siffrorna nu,
-            eller fortsätta och ändra dem senare. En budget är ett levande dokument som du kan
-            och bör anpassa över tid!
+          Ser något inte helt rätt ut? Du kan antingen gå tillbaka och justera siffrorna nu,
+          eller fortsätta och ändra dem senare. En budget är ett levande dokument som du kan
+          och bör anpassa över tid!
         </motion.div>
 
         <div className="text-center space-y-1 pt-6 border-t border-white/20">
-          <p className="text-lg font-bold">
+          <p className="text-lg font-bold text-darkLimeGreen">
             Inkomst: {`${incomeTotal.toLocaleString("sv-SE")} kr`}
           </p>
-          <p className="text-lg font-bold">
-            Utgifter: {`${grandTotal.toLocaleString("sv-SE")} kr`}
+          <p className="text-lg font-bold text-grey-200">
+            - Utgifter: {`${grandTotal.toLocaleString("sv-SE")} kr`}
           </p>
-          <p className={`text-xl font-bold ${remaining >= 0 ? "text-darkLimeGreen" : "text-red-400"}`}>
-            {remaining >= 0 ? "Kvar efter utgifter: " : "Underskott: "}
+          <p className={`text-xl font-bold ${remaining >= 0 ? "text-darkLimeGreen" : "text-red-600"}`}>
+            {remaining >= 0 ? " = Kvar efter utgifter: " : "Underskott: "}
             {`${Math.abs(remaining).toLocaleString("sv-SE")} kr`}
           </p>
         </div>

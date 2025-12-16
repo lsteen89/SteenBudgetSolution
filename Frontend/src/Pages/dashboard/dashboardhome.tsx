@@ -10,12 +10,13 @@ import { AnimatePresence, motion } from "framer-motion";
 import LoadingScreen from "@components/molecules/feedback/LoadingScreen";
 import CenteredContainer from "@components/atoms/container/CenteredContainer";
 import { Skeleton } from '@/components/ui/Skeleton';
+import { useAuthStore } from '@/stores/Auth/authStore';
 
 const Dashboard: React.FC = () => {
   const auth = useAuth();
   const navigate = useNavigate();
 
-  const firstLogin = auth.user?.firstLogin ?? false;
+  const firstLogin = useAuthStore(s => s.user?.firstLogin ?? true);
 
   console.log('[Dashboard] First login:', firstLogin);
   console.log('[Dashboard] User:', auth.user);

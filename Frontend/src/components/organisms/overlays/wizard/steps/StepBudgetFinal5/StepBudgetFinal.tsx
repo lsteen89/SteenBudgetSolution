@@ -4,6 +4,7 @@ import DataTransparencySection from '@components/organisms/overlays/wizard/Share
 import StepBudgetFinalContainer, { StepBudgetFinalContainerRef } from './Components/StepBudgetFinalContainer';
 import { Step5FormValues } from '@/types/Wizard/Step5FormValues';
 import { StepBudgetFinalRef } from '@/types/Wizard/StepBudgetFinalRef';
+import { Skeleton } from '@/components/ui/Skeleton';
 
 interface StepBudgetFinalProps {
   wizardSessionId: string;
@@ -44,9 +45,18 @@ const StepBudgetFinal = forwardRef<StepBudgetFinalRef, StepBudgetFinalProps>((pr
     hasSubSteps: () => containerRef.current?.hasSubSteps?.() ?? false,
   }), []);
 
+  const isBusy = props.loading || props.isFinalizing;
+
   return (
-    <div>
-      <GlassPane>
+    <GlassPane className="relative">
+      {isBusy && (
+        <div className="absolute inset-0 z-[9999] flex items-center justify-center bg-white/60 backdrop-blur-sm">
+          <Skeleton className="h-10 w-40" />
+        </div>
+      )}
+
+      {/* Optional: prevent interactions + visually dim underneath */}
+      <div className={isBusy ? "pointer-events-none opacity-40" : ""}>
         <StepBudgetFinalContainer
           ref={containerRef}
           wizardSessionId={props.wizardSessionId}
@@ -65,8 +75,8 @@ const StepBudgetFinal = forwardRef<StepBudgetFinalRef, StepBudgetFinalProps>((pr
           onFinalizeSuccess={props.onFinalizeSuccess}
         />
         <DataTransparencySection />
-      </GlassPane>
-    </div>
+      </div>
+    </GlassPane>
   );
 });
 

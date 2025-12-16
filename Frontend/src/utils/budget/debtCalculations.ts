@@ -1,5 +1,5 @@
 import { DebtItem } from "@/types/Wizard/DebtFormValues";
-import { amortize } from "./financialCalculations"; 
+import { amortize } from "./financialCalculations";
 
 /**
  * Calculates the real monthly payment for any given debt item.
@@ -8,12 +8,23 @@ const getMonthlyPayment = (d: DebtItem): number => {
   switch (d.type) {
     case "revolving":
       return d.minPayment ?? 0;
+
     case "bank_loan":
-    case "installment":
-      // The payment is the calculated amortization plus any fixed monthly fee.
+    case "installment": {
       const amortization = amortize(d.balance ?? null, d.apr ?? null, d.termMonths ?? null);
       return (amortization ?? 0) + (d.monthlyFee ?? 0);
-    case "private":
+    }
+
+    case "private": {
+      // If termMonths exists, treat it like an installment/loan
+      if (d.termMonths != null) {
+        const amortization = amortize(d.balance ?? null, d.apr ?? null, d.termMonths ?? null);
+        return (amortization ?? 0) + (d.monthlyFee ?? 0);
+      }
+      // Otherwise, respect minPayment if user entered it
+      return d.minPayment ?? 0;
+    }
+
     default:
       return 0;
   }
@@ -24,58 +35,58 @@ const getMonthlyPayment = (d: DebtItem): number => {
  */
 export const summariseDebts = (debts: DebtItem[]) => {
   if (!debts || debts.length === 0) {
-    // Return a more detailed default object
     return {
       total: 0,
       totalMonthlyPayment: 0,
       avgApr: 0,
-      bankLoanDebts:    { items: [], count: 0, totalBalance: 0 },
-      revolvingDebts:   { items: [], count: 0, totalBalance: 0 },
+      bankLoanDebts: { items: [], count: 0, totalBalance: 0 },
+      revolvingDebts: { items: [], count: 0, totalBalance: 0 },
       installmentDebts: { items: [], count: 0, totalBalance: 0 },
+      privateDebts: { items: [], count: 0, totalBalance: 0 }, // ✅
       highestApr: null,
       smallestBalance: null,
     };
   }
 
   const total = debts.reduce((s, d) => s + (d.balance ?? 0), 0);
-  
   const totalMonthlyPayment = debts.reduce((s, d) => s + getMonthlyPayment(d), 0);
 
   const weightedApr =
-    total === 0
-      ? 0
-      : debts.reduce((s, d) => s + (d.apr ?? 0) * (d.balance ?? 0), 0) / total;
+    total === 0 ? 0 : debts.reduce((s, d) => s + (d.apr ?? 0) * (d.balance ?? 0), 0) / total;
 
-
-  const bankLoanItems    = debts.filter(d => d.type === "bank_loan");
-  const revolvingItems   = debts.filter(d => d.type === "revolving");
+  const bankLoanItems = debts.filter(d => d.type === "bank_loan");
+  const revolvingItems = debts.filter(d => d.type === "revolving");
   const installmentItems = debts.filter(d => d.type === "installment");
-  
-  // Safely find the highest APR and smallest balance debts
+  const privateItems = debts.filter(d => d.type === "private"); // ✅
+
+  // Handle empty safely (even though debts length > 0)
   const highestApr = debts.reduce((a, b) => ((a.apr ?? 0) > (b.apr ?? 0) ? a : b));
   const smallestBalance = debts.reduce((a, b) => ((a.balance ?? 0) < (b.balance ?? 0) ? a : b));
 
+  const sumBalance = (items: DebtItem[]) => items.reduce((sum, d) => sum + (d.balance ?? 0), 0);
+  console.table((debts ?? []).map(d => ({
+    name: d.name,
+    type: d.type,
+    balance: d.balance,
+    apr: d.apr,
+    termMonths: d.termMonths,
+    minPayment: d.minPayment,
+    monthlyFee: d.monthlyFee,
+    monthlyPayment: getMonthlyPayment(d),
+  })));
   return {
     total,
     totalMonthlyPayment,
     avgApr: weightedApr,
-    // FIX: Return an object for each group containing items, count, and total balance
-    bankLoanDebts: {
-      items: bankLoanItems,
-      count: bankLoanItems.length,
-      totalBalance: bankLoanItems.reduce((sum, d) => sum + (d.balance ?? 0), 0),
-    },
-    revolvingDebts: {
-      items: revolvingItems,
-      count: revolvingItems.length,
-      totalBalance: revolvingItems.reduce((sum, d) => sum + (d.balance ?? 0), 0),
-    },
-    installmentDebts: {
-      items: installmentItems,
-      count: installmentItems.length,
-      totalBalance: installmentItems.reduce((sum, d) => sum + (d.balance ?? 0), 0),
-    },
+
+    bankLoanDebts: { items: bankLoanItems, count: bankLoanItems.length, totalBalance: sumBalance(bankLoanItems) },
+    revolvingDebts: { items: revolvingItems, count: revolvingItems.length, totalBalance: sumBalance(revolvingItems) },
+    installmentDebts: { items: installmentItems, count: installmentItems.length, totalBalance: sumBalance(installmentItems) },
+    privateDebts: { items: privateItems, count: privateItems.length, totalBalance: sumBalance(privateItems) },
+
     highestApr,
     smallestBalance,
+
   };
+
 };

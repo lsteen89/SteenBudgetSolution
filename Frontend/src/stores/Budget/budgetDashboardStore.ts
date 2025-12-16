@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { fetchBudgetDashboard } from '@api/Services/Budget/budgetService';
 import type { BudgetDashboardDto } from '@myTypes/budget/BudgetDashboardDto';
+import axios from 'axios';
 
 interface BudgetDashboardState {
     dashboard: BudgetDashboardDto | null;
@@ -37,6 +38,12 @@ export const useBudgetDashboardStore = create<BudgetDashboardState>((set, get) =
                 lastLoadedAt: Date.now(),
             });
         } catch (err) {
+            if (axios.isAxiosError(err) && err.response?.status === 404) {
+                // No budget exists yet => not an "error" UX-wise
+                set({ dashboard: null, error: null, isLoading: false, lastLoadedAt: Date.now() });
+                return;
+            }
+
             const msg = err instanceof Error ? err.message : 'Unexpected error while loading dashboard.';
             set({ error: msg, isLoading: false });
         }
