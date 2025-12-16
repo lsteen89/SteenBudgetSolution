@@ -47,8 +47,7 @@ using TransportDto = Backend.Application.DTO.Budget.Expenditure.TransportDto;
 using ClothingDto = Backend.Application.DTO.Budget.Expenditure.ClothingDto;
 using FixedExpensesDto = Backend.Application.DTO.Budget.Expenditure.FixedExpensesDto;
 using CustomExpenseDto = Backend.Application.DTO.Budget.Expenditure.CustomExpenseDto;
-using SubscriptionsDto = Backend.Application.DTO.Budget.Expenditure.SubscriptionsDto;
-using SubscriptionDto = Backend.Application.DTO.Budget.Expenditure.SubscriptionDto;
+
 
 namespace Backend.IntegrationTests.Wizard;
 
@@ -237,10 +236,18 @@ public sealed class FinalizeWizardFlowTests
             // Subscriptions MUST be list-based
             Subscriptions = new SubscriptionsDto
             {
-                Subscriptions = new List<SubscriptionDto> {
-            new() { Name = "Netflix",     Cost = 149m },
-            new() { Name = "Extra Cloud", Cost =  29m }
-            }
+                // FE style: "customSubscriptions": [...]
+                CustomSubscriptions = new List<SubscriptionDto>
+                    {
+                        new() { Name = "Extra Cloud", Cost = 29m }
+                    },
+
+                // FE style: "netflix": 149, "spotify": 119 ...
+                Other = new Dictionary<string, JsonElement>
+                {
+                    ["netflix"] = JsonDocument.Parse("149").RootElement,
+                    ["spotify"] = JsonDocument.Parse("119").RootElement,
+                }
             }
         });
         var incomeJson = J(new IncomeDataDto
@@ -543,8 +550,17 @@ public sealed class FinalizeWizardFlowTests
             },
             Subscriptions = new SubscriptionsDto
             {
-                Subscriptions = new List<SubscriptionDto> {
-                    new() { Name = "Netflix", Cost = 149m }
+                // FE style: "customSubscriptions": [...]
+                CustomSubscriptions = new List<SubscriptionDto>
+                {
+                    new() { Name = "Extra Cloud", Cost = 29m }
+                },
+
+                // FE style: "netflix": 149, "spotify": 119 ...
+                Other = new Dictionary<string, JsonElement>
+                {
+                    ["netflix"] = JsonDocument.Parse("149").RootElement,
+                    ["spotify"] = JsonDocument.Parse("119").RootElement,
                 }
             }
         };
