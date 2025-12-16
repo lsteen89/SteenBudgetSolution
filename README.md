@@ -14,16 +14,16 @@ This project showcases the ability to design, build, deploy, and manage a comple
    Quick links:
    
    - **Security**
-     - [Authentication](Security/Authentication.md)
-     - [Rate Limits](Security/rate-limits.md)
+     - [Authentication](docs/Security/Authentication.md)
+     - [Rate Limits](docs/Security/rate-limits.md)
    - **Email**
-     - [Email Workflows](Email/email-workflows.md)
+     - [Email Workflows](docs/Email/email-workflows.md)
    - **API**
-     - [API Reference](API/api.md)
+     - [API Reference](docs/API/api.md)
    - **WebSockets**
-     - [WebSocket Handler](WebSockets/WebSocketHandler.md)
+     - [WebSocket Handler](docs/WebSockets/WebSocketHandler.md)
    - **Roadmap**
-     - [Roadmap](roadmap.md)
+     - [Roadmap](docs/roadmap.md)
  
 ---
 
