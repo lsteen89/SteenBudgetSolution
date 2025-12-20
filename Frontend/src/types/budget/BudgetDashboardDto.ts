@@ -1,6 +1,7 @@
 export interface IncomeOverviewDto {
     netSalaryMonthly: number;
     sideHustleMonthly: number;
+    householdMembersMonthly: number;
     totalIncomeMonthly: number;
 }
 
@@ -20,10 +21,12 @@ export interface DashboardDebtItemDto {
     type: string;
     balance: number;
     apr: number;
+    monthlyPayment: number;
 }
 
 export interface DebtOverviewDto {
     totalDebtBalance: number;
+    totalMonthlyPayments: number;
     debts: DashboardDebtItemDto[];
 }
 
@@ -45,6 +48,17 @@ export interface DashboardRecurringExpenseDto {
     categoryName: string;
     amountMonthly: number;
 }
+export interface DashboardSubscriptionDto {
+    id: string;
+    name: string;
+    amountMonthly: number;
+}
+
+export interface SubscriptionsOverviewDto {
+    totalMonthlyAmount: number;
+    count: number;
+    items: DashboardSubscriptionDto[];
+}
 export interface BudgetDashboardDto {
     budgetId: string;
     income: IncomeOverviewDto;
@@ -54,4 +68,5 @@ export interface BudgetDashboardDto {
     disposableAfterExpenses: number;
     disposableAfterExpensesAndSavings: number;
     recurringExpenses: DashboardRecurringExpenseDto[];
+    subscriptions: SubscriptionsOverviewDto;
 }

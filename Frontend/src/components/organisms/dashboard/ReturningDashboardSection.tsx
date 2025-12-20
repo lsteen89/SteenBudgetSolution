@@ -30,6 +30,9 @@ const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({
         finalBalance,
         pillarDescriptions,
         recurringExpenses,
+        subscriptionsTotal,
+        subscriptionsCount,
+        subscriptions,
     } = summary;
 
     const formatAmount = (value: number) =>
@@ -141,41 +144,91 @@ const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({
                         </div>
                     </div>
 
-                    <div className="rounded-3xl bg-white/80 border border-slate-100 shadow-sm px-5 py-4">
-                        <h2 className="text-sm font-semibold text-slate-900 mb-1">
-                            Återkommande kostnader
-                        </h2>
-                        <p className="text-xs text-slate-500 mb-3">
-                            Dina fasta utgifter per månad – hyra, abonnemang och andra återkommande kostnader.
-                        </p>
-
-                        <div className="space-y-2 text-xs text-slate-700">
-                            {recurringExpenses.length === 0 && (
-                                <p className="text-slate-500">
-                                    Du har inte lagt till några återkommande kostnader ännu.
-                                </p>
-                            )}
-
-                            {recurringExpenses.map((e) => (
-                                <div key={e.id} className="flex items-baseline justify-between">
-                                    <div className="flex flex-col">
-                                        <span className="font-medium">{e.name}</span>
-                                        <span className="text-[10px] uppercase tracking-wide text-slate-400">
-                                            {e.categoryName}
-                                        </span>
-                                    </div>
-                                    <span>{formatAmount(e.amountMonthly)}/mån</span>
+                    <div className="space-y-4">
+                        {/* Recurring (Top 5 excluding subscriptions) */}
+                        <div className="rounded-3xl bg-white/80 border border-slate-100 shadow-sm px-5 py-4">
+                            <div className="flex items-start justify-between gap-3">
+                                <div>
+                                    <h2 className="text-sm font-semibold text-slate-900 mb-1">
+                                        Återkommande kostnader
+                                    </h2>
+                                    <p className="text-xs text-slate-500">
+                                        Dina största fasta utgifter per månad (Top 5) – exkl. abonnemang.
+                                    </p>
                                 </div>
-                            ))}
+
+                                <span className="shrink-0 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700">
+                                    Top 5
+                                </span>
+                            </div>
+
+                            <div className="mt-3 space-y-2 text-xs text-slate-700">
+                                {recurringExpenses.length === 0 && (
+                                    <p className="text-slate-500">
+                                        Du har inte lagt till några återkommande kostnader ännu.
+                                    </p>
+                                )}
+
+                                {recurringExpenses.map((e) => (
+                                    <div key={e.id} className="flex items-baseline justify-between">
+                                        <div className="flex flex-col">
+                                            <span className="font-medium">{e.name}</span>
+                                            <span className="text-[10px] uppercase tracking-wide text-slate-400">
+                                                {e.categoryName}
+                                            </span>
+                                        </div>
+                                        <span>{formatAmount(e.amountMonthly)}/mån</span>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => navigate('/expenses/recurring')}
+                                className="mt-4 inline-flex items-center justify-center rounded-full px-3 py-1.5 text-[11px] font-medium bg-slate-900 text-white hover:bg-slate-800 transition"
+                            >
+                                Visa alla fasta kostnader
+                            </button>
                         </div>
 
-                        <button
-                            type="button"
-                            onClick={() => navigate('/expenses/recurring')}
-                            className="mt-4 inline-flex items-center justify-center rounded-full px-3 py-1.5 text-[11px] font-medium bg-slate-900 text-white hover:bg-slate-800 transition"
-                        >
-                            Visa alla fasta kostnader
-                        </button>
+                        {/* Subscriptions */}
+                        <div className="rounded-3xl bg-white/80 border border-slate-100 shadow-sm px-5 py-4">
+                            <div className="flex items-start justify-between gap-3">
+                                <div>
+                                    <h2 className="text-sm font-semibold text-slate-900 mb-1">Abonnemang</h2>
+                                    <p className="text-xs text-slate-500">
+                                        {subscriptionsCount === 0
+                                            ? "Inga abonnemang registrerade ännu."
+                                            : `${subscriptionsCount} st • ${formatAmount(subscriptionsTotal)}/mån`}
+                                    </p>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={() => navigate('/expenses/subscriptions')}
+                                    className="inline-flex items-center justify-center rounded-full px-3 py-1.5 text-[11px] font-medium bg-slate-900 text-white hover:bg-slate-800 transition"
+                                >
+                                    Hantera
+                                </button>
+                            </div>
+
+                            {subscriptionsCount > 0 && (
+                                <div className="mt-3 space-y-2 text-xs text-slate-700">
+                                    {subscriptions.slice(0, 6).map((s) => (
+                                        <div key={s.id} className="flex items-baseline justify-between">
+                                            <span className="font-medium">{s.name}</span>
+                                            <span>{formatAmount(s.amountMonthly)}/mån</span>
+                                        </div>
+                                    ))}
+
+                                    {subscriptionsCount > 6 && (
+                                        <p className="text-[11px] text-slate-500 pt-1">
+                                            + {subscriptionsCount - 6} till…
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
 
@@ -217,7 +270,7 @@ const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({
                     />
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 

@@ -1,17 +1,16 @@
 import { useMemo } from "react";
 import { useWizardDataStore } from "@/stores/Wizard/wizardDataStore";
 import { getExpenditureCategoryTotals } from "@/utils/budget/expenditureTotals";
-import { calculateTotalMonthlySavings } from "@/utils/budget/financialCalculations";
 import { summariseDebts } from "@/utils/budget/debtCalculations";
 import { calcMonthlyIncome } from "@/utils/wizard/wizardHelpers";
 import type { SavingsGoal } from "@/types/Wizard/SavingsFormValues";
-import type { Goal } from "@/types/Wizard/goal";
+import { buildCoreSummary, type CoreGoal } from "@/domain/budget/budgetSummaryCore";
 
 type StrictSavingsGoal = {
   id: string;
   name: string;
   targetAmount: number;
-  targetDate: string; // ISO
+  targetDate: string;
   amountSaved?: number | null;
 };
 
@@ -31,38 +30,30 @@ export function useBudgetSummary() {
   return useMemo(() => {
     const { income, expenditure, savings, debts } = data;
 
-    // Income
-    const totalIncome = round2(calcMonthlyIncome(income));
-
-    // Expenditure (categories + total)
+    // Wizard-specific totals (still OK to compute here)
     const exp = getExpenditureCategoryTotals(expenditure);
-    const totalExpenditure = round2(exp.total);
 
-    // Savings
-    const goals: Goal[] = (savings.goals ?? [])
+    const goals: CoreGoal[] = (savings.goals ?? [])
       .filter(isGoalUsable)
       .map((g) => ({
-        id: g.id,
-        name: g.name,
         targetAmount: g.targetAmount,
-        amountSaved: g.amountSaved ?? 0,      // IMPORTANT: null => 0
-        targetDate: new Date(g.targetDate),   // Goal expects Date
+        amountSaved: g.amountSaved ?? 0,
+        targetDate: new Date(g.targetDate),
       }));
 
-    const goalSavings = round2(calculateTotalMonthlySavings(goals));
-    const habitSavings = round2(savings.habits?.monthlySavings ?? 0);
-    const totalSavings = round2(goalSavings + habitSavings);
-
-    // Debts
     const debtSummary = summariseDebts(debts.debts ?? []);
-    const totalDebtPayments = round2(debtSummary.totalMonthlyPayment);
 
-    // Final
-    const finalBalance = round2(
-      totalIncome - totalExpenditure - totalSavings - totalDebtPayments
-    );
+    // Map to core inputs
+    const core = buildCoreSummary({
+      currency: "kr",
+      totalIncomeMonthly: calcMonthlyIncome(income),
+      totalExpenditureMonthly: exp.total,
+      habitSavingsMonthly: savings.habits?.monthlySavings ?? 0,
+      goals,
+      totalDebtPaymentsMonthly: debtSummary.totalMonthlyPayment,
+    });
 
-    // UI rows
+    // UI helpers (wizard-only)
     const categoryRows = [
       { label: "Boende", value: round2(exp.housing) },
       { label: "Transport", value: round2(exp.transport) },
@@ -73,26 +64,20 @@ export function useBudgetSummary() {
     ].filter((r) => r.value > 0);
 
     const breakdownRows = [
-      { label: "Inkomster", value: totalIncome },
-      { label: "Utgifter", value: -totalExpenditure },
-      { label: "Sparande", value: -totalSavings },
-      { label: "Skuldbetalningar", value: -totalDebtPayments },
+      { label: "Inkomster", value: core.totalIncome },
+      { label: "Utgifter", value: -core.totalExpenditure },
+      { label: "Sparande", value: -core.totalSavings },
+      { label: "Skuldbetalningar", value: -core.totalDebtPayments },
     ];
 
     return {
-      // raw totals
-      totalIncome,
-      exp,
-      totalExpenditure,
-      goals,
-      goalSavings,
-      habitSavings,
-      totalSavings,
-      debtSummary,
-      totalDebtPayments,
-      finalBalance,
+      // core summary (single source of truth totals)
+      ...core,
 
-      // UI helpers
+      // wizard extras
+      exp,
+      goals,          // typed core goals (or rename to goalInputs)
+      debtSummary,
       categoryRows,
       breakdownRows,
     };

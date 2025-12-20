@@ -143,6 +143,23 @@ CREATE TABLE IncomeSideHustle (
     INDEX IX_IncomeSideHustle_IncomeId (IncomeId) -- (INDEX ADDED FOR PERFORMANCE)
 ) ENGINE=InnoDB;
 
+CREATE TABLE IncomeHouseholdMember (
+    Id             BINARY(16)          NOT NULL PRIMARY KEY,
+    IncomeId       BINARY(16)          NOT NULL,
+    Name           VARCHAR(255)  NOT NULL,
+    IncomeMonthly  DECIMAL(18,2) NOT NULL DEFAULT 0,
+    Frequency      INT           NOT NULL,
+    -- Timestamps 
+    CreatedAt        DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt        DATETIME       NULL ON UPDATE CURRENT_TIMESTAMP,
+
+    -- User Tracking
+    CreatedByUserId BINARY(16) NOT NULL,
+    UpdatedByUserId BINARY(16) NULL,
+    CONSTRAINT FK_IncomeHouseholdMember_Income FOREIGN KEY (IncomeId) REFERENCES Income(Id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+
 CREATE TABLE ExpenseCategory (
     Id   BINARY(16)   NOT NULL PRIMARY KEY,
     Name VARCHAR(100) NOT NULL UNIQUE

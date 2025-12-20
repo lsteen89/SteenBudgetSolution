@@ -1,8 +1,8 @@
-using Backend.Application.DTO.Budget.Dashboard;
+using Backend.Application.Features.Budgets.Dashboard;
 
 namespace Backend.Application.Abstractions.Infrastructure.Data;
 
 public interface IBudgetDashboardRepository
 {
-    Task<BudgetDashboardDto?> GetDashboardAsync(Guid persoid, CancellationToken ct);
+    Task<BudgetDashboardReadModel?> GetDashboardDataAsync(Guid persoid, CancellationToken ct);
 }
