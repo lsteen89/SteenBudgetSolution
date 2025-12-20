@@ -30,7 +30,7 @@ using Backend.Infrastructure.Security;
 using Backend.Settings;
 using Backend.Settings.Email;
 using Backend.Infrastructure.Data.Repositories;
-using Backend.Infrastructure.Persistence.Repositories;
+using Backend.Infrastructure.Repositories.Budget.BudgetDashboard;
 
 namespace Backend.Infrastructure;
 

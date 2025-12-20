@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using MediatR;
 // Mediator
-using Backend.Application.Features.Budget.GetBudgetDashboard;
+using Backend.Application.Features.Budgets.Dashboard;
 
 using Backend.Presentation.Shared; // For ApiResponse
 using Backend.Domain.Shared;

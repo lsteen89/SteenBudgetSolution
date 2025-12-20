@@ -4,7 +4,7 @@ import type { NavigateFunction } from 'react-router-dom';
 import LoadingScreen from '@components/molecules/feedback/LoadingScreen';
 import FirstTimeDashboardSection from '@components/organisms/dashboard/FirstTimeDashboardSection';
 import ReturningDashboardSection from '@components/organisms/dashboard/ReturningDashboardSection';
-import { useDashboardSummary } from '@hooks/dashboard/useDashboardSummary';
+import { useDashboardSummary } from "@hooks/dashboard/useDashboardSummary";
 
 export interface DashboardContentProps {
   navigate: NavigateFunction;
