@@ -1,34 +1,38 @@
-import React, { lazy, Suspense, useEffect, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
 import PageContainer from "@components/layout/PageContainer";
 import ContentWrapper from "@components/layout/ContentWrapper";
 import { useAuth } from '@/hooks/auth/useAuth';
 import DashboardBirdBackground from "@assets/Images/Background/DashboardBirdBackground.png";
 import { useNavigate } from 'react-router-dom';
 import DashboardContent from "@components/organisms/pages/DashboardContent";
-const SetupWizard = lazy(() => import('@/components/organisms/overlays/wizard/SetupWizard'));
 import { AnimatePresence, motion } from "framer-motion";
 import LoadingScreen from "@components/molecules/feedback/LoadingScreen";
 import CenteredContainer from "@components/atoms/container/CenteredContainer";
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useAuthStore } from '@/stores/Auth/authStore';
 
+
+const SetupWizard = lazy(() => import("@/components/organisms/overlays/wizard/SetupWizard"));
+
 const Dashboard: React.FC = () => {
   const auth = useAuth();
   const navigate = useNavigate();
 
-  const firstLogin = useAuthStore(s => s.user?.firstLogin ?? true);
-
-  console.log('[Dashboard] First login:', firstLogin);
-  console.log('[Dashboard] User:', auth.user);
+  // Undefined until user is loaded; treat as "unknown" not "true"
+  const firstLogin = useAuthStore((s) => s.user?.firstLogin);
 
   const [isWizardOpen, setIsWizardOpen] = useState(false);
+  const autoOpenedRef = useRef(false);
 
-  // Sync wizard open state once auth is resolved
   useEffect(() => {
-    if (!auth.isLoading) {
-      setIsWizardOpen(firstLogin);
+    if (auth.isLoading || !auth.user) return;
+
+    // only auto-open once, and only when firstLogin is explicitly true
+    if (firstLogin === true && !autoOpenedRef.current) {
+      setIsWizardOpen(true);
+      autoOpenedRef.current = true;
     }
-  }, [auth.isLoading, firstLogin]);
+  }, [auth.isLoading, auth.user, firstLogin]);
 
   if (auth.isLoading) {
     return (
@@ -37,16 +41,16 @@ const Dashboard: React.FC = () => {
       </CenteredContainer>
     );
   }
-  if (!auth.user) {
-    return null;
-  }
+
+  if (!auth.user) return null; // ProtectedRoute should prevent this anyway
 
   return (
     <PageContainer className="md:px-20 items-center min-h-screen overflow-y-auto h-full">
       <ContentWrapper centerContent className="lg:pt-24 3xl:pt-48 ">
         <DashboardContent
           navigate={navigate}
-          isFirstTimeLogin={firstLogin}
+          // only true when known true
+          isFirstTimeLogin={firstLogin === true}
           isWizardOpen={isWizardOpen}
           setIsWizardOpen={setIsWizardOpen}
         />
@@ -59,7 +63,7 @@ const Dashboard: React.FC = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 1 }}
+            transition={{ duration: 0.25 }}
             className="z-[9999]"
           >
             <Suspense fallback={<LoadingScreen />}>

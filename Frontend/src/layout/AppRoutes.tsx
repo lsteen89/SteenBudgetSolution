@@ -1,5 +1,4 @@
-// src/layout/AppRoutes.tsx (or wherever you keep it)
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import { Routes, Route } from "react-router-dom";
 
 /* Pages */
@@ -14,7 +13,7 @@ import Faq from "@pages/info/Faq";
 import NotFoundPage from "@pages/info/NotFoundPage";
 import RequestPasswordReset from "@pages/auth/RequestPasswordReset";
 import ResetPasswordPage from "@pages/auth/PerformPasswordReset";
-import Dashboard from "@pages/dashboard/dashboardhome";
+
 
 /* Auth */
 import ProtectedRoute from "@routes/ProtectedRoute";
@@ -24,6 +23,23 @@ import { mockVerifyEmail } from "@mocks/mockServices/verifyEmailMock";
 import { realVerifyEmailWrapper } from "@api/Services/User/realVerifyEmailWrapper";
 
 const isDebugMode = import.meta.env.MODE === "development";
+const Dashboard = lazy(() => import("@pages/dashboard/dashboardhome"));
+const DashboardBreakdownPage = lazy(() => import("@pages/dashboard/DashboardBreakdownPage"));
+
+
+const Lazy = ({ children }: { children: React.ReactNode }) => (
+  <Suspense
+    fallback={
+      <div className="mx-auto w-full max-w-6xl px-4 py-6">
+        <div className="rounded-3xl bg-white/80 border border-slate-100 shadow-sm p-5">
+          <p className="text-sm text-slate-600">Laddar…</p>
+        </div>
+      </div>
+    }
+  >
+    {children}
+  </Suspense>
+);
 
 const AppRoutes: React.FC = () => {
   return (
@@ -50,7 +66,8 @@ const AppRoutes: React.FC = () => {
 
       {/* Protected Routes */}
       <Route element={<ProtectedRoute />}>          {/* guard */}
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/dashboard" element={<Lazy><Dashboard /></Lazy>} />
+        <Route path="/dashboard/breakdown" element={<Lazy><DashboardBreakdownPage /></Lazy>} />
         {/* add more private pages here the same way */}
       </Route>
       {/* Catch-all */}
