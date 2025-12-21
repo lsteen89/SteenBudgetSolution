@@ -1,10 +1,11 @@
 import React from 'react';
 import type { NavigateFunction } from 'react-router-dom';
 
-import LoadingScreen from '@components/molecules/feedback/LoadingScreen';
+import DashboardHomeSkeleton from '@components/organisms/dashboard/DashboardHomeSkeleton';
 import FirstTimeDashboardSection from '@components/organisms/dashboard/FirstTimeDashboardSection';
-import ReturningDashboardSection from '@components/organisms/dashboard/ReturningDashboardSection';
+import ReturningDashboardSection from '@/components/organisms/dashboard/returning/ReturningDashboardSection';
 import { useDashboardSummary } from "@hooks/dashboard/useDashboardSummary";
+import DashboardErrorState from '../dashboard/DashboardErrorState';
 
 export interface DashboardContentProps {
   navigate: NavigateFunction;
@@ -18,32 +19,27 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
   isFirstTimeLogin,
   setIsWizardOpen,
 }) => {
-  const { data, isLoading, isError } = useDashboardSummary();
+  const { data, status, error, refetch } = useDashboardSummary();
 
-  if (isLoading) return <LoadingScreen />;
 
-  if (isFirstTimeLogin) {
+  if (status === "idle" || status === "loading") return <DashboardHomeSkeleton />;
+
+  if (isFirstTimeLogin || status === "notfound") {
     return <FirstTimeDashboardSection onStartWizard={() => setIsWizardOpen(true)} navigate={navigate} />;
   }
 
-  if (isError) {
-    // If dashboard endpoint says "not found", treat as "no budget yet"
-    return <FirstTimeDashboardSection onStartWizard={() => setIsWizardOpen(true)} navigate={navigate} />;
+  if (status === "error") {
+    return (
+      <DashboardErrorState
+        title="Kunde inte ladda din dashboard"
+        message={error?.message ?? "Försök igen om en stund."}
+        onRetry={refetch}
+        details={import.meta.env.MODE === "development" ? JSON.stringify(error, null, 2) : undefined}
+      />
+    );
   }
 
-  if (!data) {
-    // returning user but no dashboard data yet -> show loader or dedicated empty state
-    return <LoadingScreen />; // simplest
-    // or <NoBudgetYetSection onStartWizard=... />
-  }
-
-  return (
-    <ReturningDashboardSection
-      navigate={navigate}
-      onOpenWizard={() => setIsWizardOpen(true)}
-      summary={data}
-    />
-  );
+  return <ReturningDashboardSection summary={data!} navigate={navigate} onOpenWizard={() => setIsWizardOpen(true)} />;
 };
 
 export default DashboardContent;

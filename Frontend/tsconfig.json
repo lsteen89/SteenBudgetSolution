@@ -1,8 +1,15 @@
 {
   "compilerOptions": {
-	"types": ["vite/client", "node", "jest"],
+    "types": [
+      "vite/client",
+      "node"
+    ],
     "target": "es6",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -17,25 +24,57 @@
     "esModuleInterop": true,
     "outDir": "./dist",
     "rootDir": "./src",
-    "typeRoots": ["node_modules/@types", "src/declarations"],
     "baseUrl": "./src",
     "paths": {
-	  "@/*":        ["*"],
-      "@utils/*": ["utils/*"],
-      "@pages/*": ["Pages/*"],
-      "@components/*": ["components/*"],
-      "@assets/*": ["assets/*"],
-      "@hooks/*": ["hooks/*"],
-	  "@api/*": ["api/*"],
-	  "@myTypes/*": ["types/*"],
-	  "@mocks/*": ["__mocks__/*"],
-	  "@context/*": ["context/*"],	  
-	  "@routes/*": ["routes/*"],		  
-	  "@styles/*": ["styles/*"],	
-	  "@schemas/*": ["schemas/*"],	  
-	  "@stores/*": ["stores/*"],	  	
-	  "@translations/*": ["translations/*"],	  			
+      "@/*": [
+        "*"
+      ],
+      "@utils/*": [
+        "utils/*"
+      ],
+      "@pages/*": [
+        "Pages/*"
+      ],
+      "@components/*": [
+        "components/*"
+      ],
+      "@assets/*": [
+        "assets/*"
+      ],
+      "@hooks/*": [
+        "hooks/*"
+      ],
+      "@api/*": [
+        "api/*"
+      ],
+      "@myTypes/*": [
+        "types/*"
+      ],
+      "@mocks/*": [
+        "__mocks__/*"
+      ],
+      "@context/*": [
+        "context/*"
+      ],
+      "@routes/*": [
+        "routes/*"
+      ],
+      "@styles/*": [
+        "styles/*"
+      ],
+      "@schemas/*": [
+        "schemas/*"
+      ],
+      "@stores/*": [
+        "stores/*"
+      ],
+      "@translations/*": [
+        "translations/*"
+      ],
     }
   },
-  "include": ["src/**/*",]
+  "include": [
+    "src/**/*",
+    "vite.config.ts"
+  ]
 }

@@ -50,8 +50,8 @@ export const buildDashboardSummary = (dashboard: BudgetDashboardDto): DashboardS
     const monthLabel = now.toLocaleDateString("sv-SE", { year: "numeric", month: "long" });
     const remainingCurrency = "kr";
 
-    const totalIncome = round2(dashboard.income?.totalIncomeMonthly ?? 0);
-    const totalExpenditure = round2(dashboard.expenditure?.totalExpensesMonthly ?? 0);
+    const totalIncome = dashboard.income?.totalIncomeMonthly ?? 0;
+    const totalExpenditure = dashboard.expenditure?.totalExpensesMonthly ?? 0;
 
     const habitSavings = dashboard.savings?.monthlySavings ?? 0;
 
@@ -71,7 +71,7 @@ export const buildDashboardSummary = (dashboard: BudgetDashboardDto): DashboardS
     const totalDebtPayments = debts.reduce((acc, d) => acc + (d.monthlyPayment ?? 0), 0);
 
     // Round at the end (less drift)
-    const finalBalance = round2(totalIncome - totalExpenditure - totalSavings - totalDebtPayments);
+    const finalBalance = totalIncome - totalExpenditure - totalSavings - totalDebtPayments;
 
     const remainingToSpend = finalBalance;
 
@@ -156,21 +156,31 @@ const parseIsoDateLocal = (iso: string) => {
 };
 
 export const useDashboardSummary = () => {
-    const { dashboard, isLoading, error, loadDashboard } = useBudgetDashboardStore();
+    const { dashboard, status, error, loadDashboard } = useBudgetDashboardStore();
+
+    const dev = import.meta.env.MODE === "development";
+    const mock = dev ? new URLSearchParams(window.location.search).get("mockDashboard") : null;
 
     useEffect(() => {
-        if (!dashboard && !isLoading && !error) void loadDashboard();
-    }, [dashboard, isLoading, error, loadDashboard]);
+        if (status === "idle") void loadDashboard();
+    }, [status, loadDashboard]);
 
-    const data: DashboardSummary | null = useMemo(
-        () => (dashboard ? buildDashboardSummary(dashboard) : null),
-        [dashboard]
-    );
+    const data = useMemo(() => (dashboard ? buildDashboardSummary(dashboard) : null), [dashboard]);
+
+    if (mock === "loading") return { data: null, status: "loading" as const, error: null, refetch: () => loadDashboard({ force: true }) };
+    if (mock === "notfound") return { data: null, status: "notfound" as const, error: null, refetch: () => loadDashboard({ force: true }) };
+    if (mock === "error") return {
+        data: null,
+        status: "error" as const,
+        error: { message: "Simulated error", code: "SIMULATED", status: 500 },
+        refetch: () => loadDashboard({ force: true }),
+    };
+    if (mock === "ready" && data) return { data, status: "ready" as const, error: null, refetch: () => loadDashboard({ force: true }) };
 
     return {
         data,
-        isLoading,
-        isError: !!error,
+        status,
+        error,
+        refetch: () => loadDashboard({ force: true }),
     };
-
 };

@@ -1,58 +1,83 @@
-import { create } from 'zustand';
-import { fetchBudgetDashboard } from '@api/Services/Budget/budgetService';
-import type { BudgetDashboardDto } from '@myTypes/budget/BudgetDashboardDto';
-import axios from 'axios';
+import { create } from "zustand";
+import type { BudgetDashboardDto } from "@myTypes/budget/BudgetDashboardDto";
+import { fetchBudgetDashboard } from "@api/Services/Budget/budgetService";
+import { toApiProblem } from "@/utils/api/apiHelpers";
+import type { ApiProblem } from "@/api/api.types";
+
+type DashboardStatus = "idle" | "loading" | "ready" | "notfound" | "error";
 
 interface BudgetDashboardState {
     dashboard: BudgetDashboardDto | null;
-    isLoading: boolean;
-    error: string | null;
+    status: DashboardStatus;
+    error: ApiProblem | null;
     lastLoadedAt: number | null;
 
-    loadDashboard: () => Promise<void>;
+    loadDashboard: (opts?: { force?: boolean }) => Promise<void>;
     reset: () => void;
 }
 
+const NOTFOUND_CODES = new Set(["BUDGET_NOT_FOUND"]);
+
 export const useBudgetDashboardStore = create<BudgetDashboardState>((set, get) => ({
     dashboard: null,
-    isLoading: false,
+    status: "idle",
     error: null,
     lastLoadedAt: null,
 
-    async loadDashboard() {
-        const { isLoading, lastLoadedAt } = get();
-
-        // Simple throttle: if we loaded very recently, skip
+    async loadDashboard(opts) {
+        const { status, lastLoadedAt } = get();
         const now = Date.now();
-        if (!isLoading && lastLoadedAt && now - lastLoadedAt < 5_000) {
-            return;
-        }
+        const force = opts?.force === true;
 
-        set({ isLoading: true, error: null });
+        // throttle only when we recently succeeded-ish
+        const canThrottle =
+            !force &&
+            (status === "ready" || status === "notfound") &&
+            lastLoadedAt &&
+            now - lastLoadedAt < 5_000;
+
+        if (canThrottle) return;
+
+        set({ status: "loading", error: null });
 
         try {
             const data = await fetchBudgetDashboard();
             set({
                 dashboard: data,
-                isLoading: false,
+                status: "ready",
+                error: null,
                 lastLoadedAt: Date.now(),
             });
         } catch (err) {
-            if (axios.isAxiosError(err) && err.response?.status === 404) {
-                // No budget exists yet => not an "error" UX-wise
-                set({ dashboard: null, error: null, isLoading: false, lastLoadedAt: Date.now() });
+            const problem = toApiProblem(err);
+
+            const isNotFound =
+                problem.status === 404 ||
+                (problem.code && NOTFOUND_CODES.has(problem.code));
+
+            if (isNotFound) {
+                set({
+                    dashboard: null,
+                    status: "notfound",
+                    error: null,
+                    lastLoadedAt: Date.now(),
+                });
                 return;
             }
 
-            const msg = err instanceof Error ? err.message : 'Unexpected error while loading dashboard.';
-            set({ error: msg, isLoading: false });
+            set((s) => ({
+                dashboard: s.dashboard,
+                status: "error",
+                error: problem,
+                lastLoadedAt: null, // don't throttle retries after error
+            }));
         }
     },
 
     reset() {
         set({
             dashboard: null,
-            isLoading: false,
+            status: "idle",
             error: null,
             lastLoadedAt: null,
         });

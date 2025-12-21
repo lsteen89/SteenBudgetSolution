@@ -1,4 +1,3 @@
-// src/api/error.ts (additions)
 import { isAxiosError, AxiosError } from 'axios';
 import { VALIDATION_FIELD_MAP } from '@api/validationFieldMap';
 

@@ -33,25 +33,18 @@ public sealed class BudgetController : ControllerBase
 
     [HttpGet("dashboard")]
     [ProducesResponseType(typeof(ApiEnvelope<BudgetDashboardDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiEnvelope<BudgetDashboardDto>), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ApiEnvelope<BudgetDashboardDto>>> GetDashboard(CancellationToken ct)
     {
         var result = await _mediator.Send(new GetBudgetDashboardQuery(_currentUser.Persoid), ct);
 
         if (result.IsFailure || result.Value is null)
         {
-            var error = result.Error ?? new Error(
-                "Budget.NotFound",
-                "No budget found for current user."
-            );
-
-            return NotFound(ApiEnvelope<BudgetDashboardDto>.Failure(
-                error.Code,
-                error.Description
+            return Ok(ApiEnvelope<BudgetDashboardDto>.Failure(
+                code: "BUDGET_NOT_FOUND",
+                message: "No budget found for current user."
             ));
         }
 
         return Ok(ApiEnvelope<BudgetDashboardDto>.Success(result.Value));
     }
-
 }
