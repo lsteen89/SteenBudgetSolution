@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import formatCurrency from "@/utils/budget/currencyFormatter";
+import formatCurrency from "@/utils/money/currencyFormatter";
 import { calculateMonthsToGoal } from "@/utils/budget/financialCalculations";
 
 export interface QuickenPaceSliderProps {

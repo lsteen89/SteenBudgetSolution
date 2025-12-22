@@ -1,15 +1,15 @@
 import { motion } from "framer-motion";
 import clsx from "clsx";
-import { formatCurrencyParts } from "@/utils/budget/currencyFormatter";
+import { formatCurrencyParts } from "@/utils/money/currencyFormatter";
 import { LucideProps } from "lucide-react";
 
 interface Props {
-  icon: IconType; 
+  icon: IconType;
   title: string;
   amount: number;
   description: string;
 }
-type IconType = React.ComponentType<LucideProps>; 
+type IconType = React.ComponentType<LucideProps>;
 // Lucide icons are React components that accept size as a prop
 const SummaryPillarCard: React.FC<Props> = ({
   icon: Icon,
@@ -33,28 +33,28 @@ const SummaryPillarCard: React.FC<Props> = ({
 
       <h3 className="text-base sm:text-lg font-semibold tracking-wide text-white/90">
         {title}
-        </h3>
+      </h3>
 
-        {/* signed amount */}
-        <div className="flex flex-col items-center leading-tight">
+      {/* signed amount */}
+      <div className="flex flex-col items-center leading-tight">
         {/* big number – mobile-first scale */}
         <span
-            className={clsx(
+          className={clsx(
             "font-bold tracking-tight",
             "text-2xl sm:text-3xl md:text-4xl",
             amount >= 0 ? "text-green-400" : "text-red-400",
-            )}
+          )}
         >
-            {number}
+          {number}
         </span>
 
         {/* currency token – always visible, much smaller */}
         <span className="text-xs sm:text-sm text-white/70">
-            {currency}
+          {currency}
         </span>
-        </div>
+      </div>
 
-        <p
+      <p
         className="text-white/70 text-xs sm:text-sm line-clamp-3"
         title={description}        /* tooltip on hover for full text */
       >

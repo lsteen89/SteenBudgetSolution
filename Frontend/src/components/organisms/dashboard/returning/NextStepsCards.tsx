@@ -1,13 +1,11 @@
 import React from "react";
-import type { NavigateFunction } from "react-router-dom";
 import PlayfulBirdCard from "@components/molecules/cards/dashboard/PlayfulBirdCard";
 
 type Props = {
-    navigate: NavigateFunction;
     onOpenWizard: () => void;
 };
 
-const NextStepsCards: React.FC<Props> = ({ navigate, onOpenWizard }) => {
+const NextStepsCards: React.FC<Props> = ({ onOpenWizard }) => {
     return (
         <>
             <PlayfulBirdCard
@@ -20,7 +18,7 @@ const NextStepsCards: React.FC<Props> = ({ navigate, onOpenWizard }) => {
                 title="Lägg till denna veckas transaktioner"
                 description="Att logga dagens utgifter tar mindre än en minut och ger dig mycket bättre beslut imorgon."
                 ctaLabel="Lägg till utgifter"
-                onClick={() => navigate("/expenses")}
+                to="/expenses"
             />
         </>
     );

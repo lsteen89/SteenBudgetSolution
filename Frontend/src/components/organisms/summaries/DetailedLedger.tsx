@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
-import formatCurrency from "@/utils/budget/currencyFormatter";
+import formatCurrency from "@/utils/money/currencyFormatter";
 import { useWizardDataStore } from "@/stores/Wizard/wizardDataStore";
 import { sumArray, toMonthly, type Freq } from "@/utils/wizard/wizardHelpers";
 import { useBudgetSummary } from "@/hooks/budget/useBudgetSummary";

@@ -10,7 +10,7 @@ import {
   Legend,
 } from "recharts";
 import { calculateFutureValue } from "@/utils/budget/financialCalculations";
-import formatCurrency from "@/utils/budget/currencyFormatter";
+import formatCurrency from "@/utils/money/currencyFormatter";
 
 interface PotentialAnalysisProps {
   generalSavings: number;

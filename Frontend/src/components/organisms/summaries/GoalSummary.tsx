@@ -17,7 +17,7 @@ import { SavingsGoal } from "@/types/Wizard/SavingsFormValues";
 import { IncomeFormValues } from "@/types/Wizard/IncomeFormValues";
 import { calcMonthlyIncome } from "@/utils/wizard/wizardHelpers";
 import { calculateMonthlyContribution } from "@/utils/budget/financialCalculations";
-import formatCurrency from "@/utils/budget/currencyFormatter";
+import formatCurrency from "@/utils/money/currencyFormatter";
 import { QuickenPaceSlider } from "@/components/molecules/controls/QuickenPaceSlider";
 
 interface GoalSummaryProps {

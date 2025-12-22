@@ -8,14 +8,12 @@ import { useDashboardSummary } from "@hooks/dashboard/useDashboardSummary";
 import DashboardErrorState from '../dashboard/DashboardErrorState';
 
 export interface DashboardContentProps {
-  navigate: NavigateFunction;
   isFirstTimeLogin: boolean;
   isWizardOpen: boolean;
   setIsWizardOpen: (open: boolean) => void;
 }
 
 const DashboardContent: React.FC<DashboardContentProps> = ({
-  navigate,
   isFirstTimeLogin,
   setIsWizardOpen,
 }) => {
@@ -25,7 +23,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
   if (status === "idle" || status === "loading") return <DashboardHomeSkeleton />;
 
   if (isFirstTimeLogin || status === "notfound") {
-    return <FirstTimeDashboardSection onStartWizard={() => setIsWizardOpen(true)} navigate={navigate} />;
+    return <FirstTimeDashboardSection onStartWizard={() => setIsWizardOpen(true)} />;
   }
 
   if (status === "error") {
@@ -39,7 +37,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
     );
   }
 
-  return <ReturningDashboardSection summary={data!} navigate={navigate} onOpenWizard={() => setIsWizardOpen(true)} />;
+  return <ReturningDashboardSection summary={data!} onOpenWizard={() => setIsWizardOpen(true)} />;
 };
 
 export default DashboardContent;

@@ -1,6 +1,6 @@
 import React from "react";
 import type { NavigateFunction } from "react-router-dom";
-import type { DashboardSummary } from "@hooks/dashboard/useDashboardSummary";
+import type { DashboardSummary } from "@/hooks/dashboard/dashboardSummary.types";
 
 import ReturningHeader from "./ReturningHeader";
 import KpiRow from "./KpiRow";
@@ -11,12 +11,11 @@ import GoalsCard from "./GoalsCard";
 import NextStepsCards from "./NextStepsCards";
 
 export interface ReturningDashboardSectionProps {
-    navigate: NavigateFunction;
     onOpenWizard: () => void;
     summary: DashboardSummary;
 }
 
-const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({ navigate, onOpenWizard, summary }) => {
+const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({ onOpenWizard, summary }) => {
     return (
         <div className="w-full max-w-6xl space-y-6">
             <div className="flex flex-col gap-4">
@@ -24,12 +23,10 @@ const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({ n
                     monthLabel={summary.monthLabel}
                     remainingToSpend={summary.remainingToSpend}
                     currency={summary.remainingCurrency}
-                    navigate={navigate}
                     onOpenWizard={onOpenWizard}
                 />
 
                 <KpiRow
-                    navigate={navigate}
                     remainingToSpend={summary.remainingToSpend}
                     currency={summary.remainingCurrency}
                     goalsProgressPercent={summary.goalsProgressPercent}
@@ -52,13 +49,11 @@ const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({ n
 
                     <div className="space-y-4">
                         <RecurringExpensesCard
-                            navigate={navigate}
                             currency={summary.remainingCurrency}
                             recurringExpenses={summary.recurringExpenses}
                         />
 
                         <SubscriptionsCard
-                            navigate={navigate}
                             currency={summary.remainingCurrency}
                             subscriptionsTotal={summary.subscriptionsTotal}
                             subscriptionsCount={summary.subscriptionsCount}
@@ -72,7 +67,7 @@ const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({ n
                         description={summary.pillarDescriptions.savings}
                         goalsProgressPercent={summary.goalsProgressPercent}
                     />
-                    <NextStepsCards navigate={navigate} onOpenWizard={onOpenWizard} />
+                    <NextStepsCards onOpenWizard={onOpenWizard} />
                 </div>
             </div>
         </div>
