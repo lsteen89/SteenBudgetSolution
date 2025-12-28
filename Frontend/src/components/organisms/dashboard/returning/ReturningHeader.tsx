@@ -1,36 +1,35 @@
 import React from "react";
-import type { NavigateFunction } from "react-router-dom";
+import { Link } from "react-router-dom";
+import type { CurrencyCode } from "@/utils/money/currency";
+import { formatMoneyV2 } from "@/utils/money/moneyV2";
 
 type Props = {
     monthLabel: string;
     remainingToSpend: number;
-    currency: string;
-    navigate: NavigateFunction;
+    currency: CurrencyCode;
     onOpenWizard: () => void;
 };
 
-const ReturningHeader: React.FC<Props> = ({ monthLabel, remainingToSpend, currency, navigate, onOpenWizard }) => {
+const ReturningHeader: React.FC<Props> = ({ monthLabel, remainingToSpend, currency, onOpenWizard }) => {
     return (
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div>
                 <h1 className="text-2xl font-semibold text-slate-900">Välkommen tillbaka 👋</h1>
                 <p className="text-sm text-slate-600">
                     {monthLabel} – du har{" "}
-                    <span className="font-semibold">
-                        {remainingToSpend.toLocaleString("sv-SE")} {currency}
-                    </span>{" "}
+                    <span className="font-semibold">{formatMoneyV2(remainingToSpend, currency)}</span>{" "}
                     kvar att spendera.
                 </p>
             </div>
 
             <div className="flex gap-2">
-                <button
-                    type="button"
-                    onClick={() => navigate("/budgets")}
+                <Link
+                    to="/budgets"
                     className="px-4 py-2 rounded-full bg-emerald-500 text-white text-sm font-medium shadow hover:bg-emerald-600 transition"
                 >
                     Se din budget
-                </button>
+                </Link>
+
                 <button
                     type="button"
                     onClick={onOpenWizard}

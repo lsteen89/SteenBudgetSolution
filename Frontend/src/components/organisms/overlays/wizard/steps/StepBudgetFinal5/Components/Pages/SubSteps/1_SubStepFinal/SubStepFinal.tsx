@@ -9,13 +9,13 @@ import { calculateTotalMonthlySavings } from '@/utils/budget/financialCalculatio
 import { summariseDebts } from "@/utils/budget/debtCalculations";
 import { useMemo } from 'react';
 import DetailedLedger from '@/components/organisms/summaries/DetailedLedger';
-import { formatCurrencyParts } from '@/utils/budget/currencyFormatter';
+import { formatCurrencyParts } from '@/utils/money/currencyFormatter';
 import { SummaryGrid } from './SummaryGrid';
 import SubmitButton from '@components/atoms/buttons/SubmitButton';
 import { useSubtleFireworks } from '@/hooks/effects/useSubtleFireworks';
 import { getExpenditureCategoryTotals } from "@/utils/budget/expenditureTotals";
 import { useBudgetSummary } from "@/hooks/budget/useBudgetSummary";
-import formatCurrency from '@/utils/budget/currencyFormatter';
+import formatCurrency from '@/utils/money/currencyFormatter';
 import { cn } from "@/utils/cn";
 
 interface SubStepFinalProps {

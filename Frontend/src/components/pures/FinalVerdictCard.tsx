@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import clsx from 'clsx';
-import { formatCurrency, formatCurrencyParts } from "@/utils/budget/currencyFormatter";
+import { formatCurrency, formatCurrencyParts } from "@/utils/money/currencyFormatter";
 
 interface FinalVerdictCardProps {
   balance: number;
@@ -9,7 +9,7 @@ interface FinalVerdictCardProps {
 
 const FinalVerdictCard: React.FC<FinalVerdictCardProps> = ({ balance }) => {
   const isSurplus = balance >= 0;
-  const { number, currency } = formatCurrencyParts(balance);  
+  const { number, currency } = formatCurrencyParts(balance);
 
   const wisdomText = isSurplus
     ? `Bra jobbat kompis! Du har ett överskott på ${formatCurrency(balance)} varje månad. Använd detta överskott klokt, du vet aldrig när du behöver det.`
@@ -25,7 +25,7 @@ const FinalVerdictCard: React.FC<FinalVerdictCardProps> = ({ balance }) => {
       <h2
         className="text-base sm:text-lg md:text-xl lg:text-2xl font-semibold text-white/80 tracking-widest uppercase"
       >
-        Ditt&nbsp;Månads<wbr/>resultat
+        Ditt&nbsp;Månads<wbr />resultat
       </h2>
 
       <p

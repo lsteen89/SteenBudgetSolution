@@ -48,7 +48,6 @@ const Dashboard: React.FC = () => {
     <PageContainer className="md:px-20 items-center min-h-screen overflow-y-auto h-full">
       <ContentWrapper centerContent className="lg:pt-24 3xl:pt-48 ">
         <DashboardContent
-          navigate={navigate}
           // only true when known true
           isFirstTimeLogin={firstLogin === true}
           isWizardOpen={isWizardOpen}

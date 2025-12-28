@@ -1,6 +1,6 @@
 import React from "react";
 import { cn } from "@/utils/cn";
-import formatCurrency from "@/utils/budget/currencyFormatter";
+import formatCurrency from "@/utils/money/currencyFormatter";
 
 interface Row { label: string; value: number; }
 interface Props {
