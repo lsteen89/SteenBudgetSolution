@@ -1,7 +1,7 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import CardShell from "@/components/atoms/cards/CardShell";
-import type { RecurringExpenseSummary } from "@/hooks/dashboard/useDashboardSummary"; // adjust path
+import type { RecurringExpenseSummary } from "@/hooks/dashboard/dashboardSummary.types";
 
 type Props = {
     currency: string;
@@ -18,7 +18,6 @@ const SubscriptionsBreakdownCard: React.FC<Props> = ({
     subscriptions,
     maxItems = 6,
 }) => {
-    const navigate = useNavigate();
     const fmt = (n: number) => `${n.toLocaleString("sv-SE")} ${currency}`;
 
     return (
@@ -30,13 +29,12 @@ const SubscriptionsBreakdownCard: React.FC<Props> = ({
                     : `${subscriptionsCount} st • ${fmt(subscriptionsTotal)}/mån`
             }
             actions={
-                <button
-                    type="button"
-                    onClick={() => navigate("/expenses/subscriptions")}
+                <Link
+                    to="/expenses/subscriptions"
                     className="inline-flex items-center justify-center rounded-full px-3 py-1.5 text-[11px] font-medium bg-slate-900 text-white hover:bg-slate-800 transition"
                 >
                     Hantera
-                </button>
+                </Link>
             }
         >
             {subscriptionsCount > 0 ? (

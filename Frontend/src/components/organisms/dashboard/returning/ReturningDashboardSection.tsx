@@ -1,5 +1,4 @@
 import React from "react";
-import type { NavigateFunction } from "react-router-dom";
 import type { DashboardSummary } from "@/hooks/dashboard/dashboardSummary.types";
 
 import ReturningHeader from "./ReturningHeader";

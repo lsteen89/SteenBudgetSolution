@@ -1,5 +1,4 @@
 import React from 'react';
-import type { NavigateFunction } from 'react-router-dom';
 
 import DashboardHomeSkeleton from '@components/organisms/dashboard/DashboardHomeSkeleton';
 import FirstTimeDashboardSection from '@components/organisms/dashboard/FirstTimeDashboardSection';
@@ -37,7 +36,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
     );
   }
 
-  return <ReturningDashboardSection summary={data!} onOpenWizard={() => setIsWizardOpen(true)} />;
+  return <ReturningDashboardSection summary={data!.summary} onOpenWizard={() => setIsWizardOpen(true)} />;
 };
 
 export default DashboardContent;
