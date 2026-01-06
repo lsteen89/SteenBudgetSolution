@@ -17,13 +17,15 @@ const DynamicTitle = () => {
       "/login": "eBudget - Logga in",
       "/reset-password": "eBudget - Återställ lösenord",
       "/dashboard": "eBudget - Dashboard",
+      "/expenses": "eBudget - Utgifter",
+      "/dashboard/breakdown": "eBudget - Utgiftsöversikt",
     };
 
     // Set the title or fallback to "eBudget"
     document.title = titles[location.pathname] || "eBudget - Sida ej hittad";
   }, [location]);
 
-  return null; 
+  return null;
 };
 
 export default DynamicTitle;

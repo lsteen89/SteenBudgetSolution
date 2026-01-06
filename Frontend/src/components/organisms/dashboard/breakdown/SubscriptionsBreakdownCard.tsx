@@ -41,7 +41,7 @@ const SubscriptionsBreakdownCard: React.FC<Props> = ({
                 <div className="space-y-2 text-xs text-slate-700">
                     {subscriptions.slice(0, maxItems).map((s) => (
                         <div key={s.id} className="flex items-baseline justify-between">
-                            <span className="font-medium">{s.name}</span>
+                            <span className="font-medium">{s.nameLabel}</span>
                             <span>{fmt(s.amountMonthly)}/mån</span>
                         </div>
                     ))}

@@ -47,7 +47,21 @@ public sealed class BudgetDashboardQueryService : IBudgetDashboardQueryService
             {
                 NetSalaryMonthly = data.Totals.NetSalaryMonthly,
                 SideHustleMonthly = data.Totals.SideHustleMonthly,
-                HouseholdMembersMonthly = data.Totals.HouseholdMembersMonthly
+                HouseholdMembersMonthly = data.Totals.HouseholdMembersMonthly,
+
+                SideHustles = data.SideHustles.Select(x => new DashboardIncomeItemDto
+                {
+                    Id = x.Id,
+                    Name = x.Name,
+                    AmountMonthly = x.AmountMonthly
+                }).ToList(),
+
+                HouseholdMembers = data.HouseholdMembers.Select(x => new DashboardIncomeItemDto
+                {
+                    Id = x.Id,
+                    Name = x.Name,
+                    AmountMonthly = x.AmountMonthly
+                }).ToList(),
             },
             Expenditure = new ExpenditureOverviewDto
             {

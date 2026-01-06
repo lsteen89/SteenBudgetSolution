@@ -98,6 +98,26 @@ public sealed partial class BudgetDashboardRepository : SqlBase, IBudgetDashboar
             totalsRow.TotalSavingsMonthly,
             totalsRow.TotalDebtBalance);
 
+        var sideHustles = new List<BudgetDashboardIncomeItem>();
+        var householdMembers = new List<BudgetDashboardIncomeItem>();
+
+        if (totalsRow.IncomeId.HasValue)
+        {
+            var sideRows = (await QueryAsync<IncomeItemRow>(
+                SideHustlesSql, new { IncomeId = totalsRow.IncomeId.Value }, ct)).ToList();
+
+            var memberRows = (await QueryAsync<IncomeItemRow>(
+                HouseholdMembersSql, new { IncomeId = totalsRow.IncomeId.Value }, ct)).ToList();
+
+            sideHustles = sideRows
+                .Select(x => new BudgetDashboardIncomeItem(x.Id, x.Name, x.AmountMonthly))
+                .ToList();
+
+            householdMembers = memberRows
+                .Select(x => new BudgetDashboardIncomeItem(x.Id, x.Name, x.AmountMonthly))
+                .ToList();
+        }
+
         return new BudgetDashboardReadModel(
             budgetId.Value,
             totals,
@@ -105,6 +125,8 @@ public sealed partial class BudgetDashboardRepository : SqlBase, IBudgetDashboar
             recurring,
             debts,
             savings,
-            subs);
+            subs,
+            sideHustles,
+            householdMembers);
     }
 }

@@ -55,12 +55,9 @@ public sealed class BudgetDashboardQueryServiceTests
         dto.Should().NotBeNull();
         dto!.BudgetId.Should().Be(budgetId);
 
-        dto.Income.TotalIncomeMonthly.Should().Be(32000m);
-        dto.Expenditure.TotalExpensesMonthly.Should().Be(12000m);
-        dto.Savings!.MonthlySavings.Should().Be(2500m);
-
-        dto.DisposableAfterExpenses.Should().Be(32000m - 12000m);              // 20000
-        dto.DisposableAfterExpensesAndSavings.Should().Be(32000m - 12000m - 2500m); // 17500
+        dto.Income.TotalIncomeMonthly.Should().Be(32500m);
+        dto.DisposableAfterExpenses.Should().Be(20500m);
+        dto.DisposableAfterExpensesAndSavings.Should().Be(18000m);
 
         // Assert (monthly payments)
         // Revolving: MinPayment(300) + MonthlyFee(20) = 320
@@ -105,6 +102,26 @@ public sealed class BudgetDashboardQueryServiceTests
 
         dto.Debt.TotalMonthlyPayments.Should().Be(246m);
         dto.Debt.TotalDebtBalance.Should().Be(15000m); // still from DB totals
+
+        dto.Income.SideHustles.Should().HaveCount(1);
+        dto.Income.SideHustles[0].Name.Should().Be("Side job");
+        dto.Income.SideHustles[0].AmountMonthly.Should().Be(2000m);
+
+        dto.Income.HouseholdMembers.Should().HaveCount(1);
+        dto.Income.HouseholdMembers[0].Name.Should().Be("Partner contribution");
+        dto.Income.HouseholdMembers[0].AmountMonthly.Should().Be(500m);
+
+        dto.Income.TotalIncomeMonthly.Should().Be(32500m);
+        dto.Expenditure.TotalExpensesMonthly.Should().Be(12000m);
+        dto.Savings!.MonthlySavings.Should().Be(2500m);
+
+
+        // also assert the new lists here (so both tests cover the feature)
+        dto.Income.SideHustles.Should().ContainSingle(x => x.Name == "Side job" && x.AmountMonthly == 2000m);
+        dto.Income.HouseholdMembers.Should().ContainSingle(x => x.Name == "Partner contribution" && x.AmountMonthly == 500m);
+
+        dto.DisposableAfterExpenses.Should().Be(32500m - 12000m);                 // 20500
+        dto.DisposableAfterExpensesAndSavings.Should().Be(32500m - 12000m - 2500m); // 18000
     }
 
     // ---- helpers ----
@@ -142,6 +159,14 @@ public sealed class BudgetDashboardQueryServiceTests
         await conn.ExecuteAsync("""
             INSERT INTO IncomeSideHustle (Id, IncomeId, Name, IncomeMonthly, Frequency, CreatedAt, CreatedByUserId)
             SELECT UUID_TO_BIN(UUID()), i.Id, 'Side job', 2000, 0, UTC_TIMESTAMP(), @pid
+            FROM Income i
+            WHERE i.BudgetId = @bid
+            LIMIT 1;
+        """, new { bid = budgetId, pid = userId });
+
+        await conn.ExecuteAsync("""
+            INSERT INTO IncomeHouseholdMember (Id, IncomeId, Name, IncomeMonthly, Frequency, CreatedAt, CreatedByUserId)
+            SELECT UUID_TO_BIN(UUID()), i.Id, 'Partner contribution', 500, 0, UTC_TIMESTAMP(), @pid
             FROM Income i
             WHERE i.BudgetId = @bid
             LIMIT 1;

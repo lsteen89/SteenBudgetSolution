@@ -2,8 +2,10 @@ import type { CurrencyCode } from "@/utils/money/currency";
 
 export interface RecurringExpenseSummary {
     id: string;
-    name: string;
-    categoryName: string;
+    nameKey: string;
+    nameLabel: string;
+    categoryKey: string;
+    categoryLabel: string;
     amountMonthly: number;
 }
 

@@ -18,4 +18,6 @@ public sealed record BudgetDashboardReadModel(
     IReadOnlyList<DashboardRecurringExpenseDto> RecurringExpenses,
     IReadOnlyList<Debt> Debts,
     SavingsOverviewDto? Savings,
-    SubscriptionsOverviewDto Subscriptions);
+    SubscriptionsOverviewDto Subscriptions,
+    IReadOnlyList<BudgetDashboardIncomeItem> SideHustles,
+    IReadOnlyList<BudgetDashboardIncomeItem> HouseholdMembers);
