@@ -12,6 +12,8 @@ import PageContainer from "@components/layout/PageContainer";
 import ContentWrapper from "@components/layout/ContentWrapper";
 import { Link } from "react-router-dom";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
+import BreakdownInsightsCard from "@/components/organisms/dashboard/breakdown/BreakdownInsightsCard";
+import { incomeToBreakdownItems } from "@/hooks/dashboard/dashboardBreakdown.mapper";
 
 const DashboardBreakdownPage: React.FC = () => {
     const { data, status, error, refetch } = useDashboardSummary();
@@ -62,6 +64,7 @@ const DashboardBreakdownPage: React.FC = () => {
 
     const { summary, breakdown } = data;
     const toneClass = summary.finalBalance >= 0 ? "text-emerald-600" : "text-rose-600";
+    const currency = summary.remainingCurrency;
 
     return (
         <PageContainer className="md:px-20 items-center min-h-screen overflow-y-auto h-full">
@@ -81,8 +84,8 @@ const DashboardBreakdownPage: React.FC = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                     <div className="lg:col-span-2 space-y-4">
                         <IncomeBreakdownCard
-                            currency={summary.remainingCurrency}
                             totalIncome={summary.totalIncome}
+                            currency={currency}
                             items={breakdown.incomeItems}
                         />
                         <ExpensesBreakdownCard
@@ -90,15 +93,6 @@ const DashboardBreakdownPage: React.FC = () => {
                             totalExpenditure={summary.totalExpenditure}
                             categoryItems={breakdown.expenseCategoryItems}
                             recurringExpenses={summary.recurringExpenses}
-                        />
-                    </div>
-
-                    <div className="space-y-4">
-                        <SubscriptionsBreakdownCard
-                            currency={summary.remainingCurrency}
-                            subscriptionsTotal={summary.subscriptionsTotal}
-                            subscriptionsCount={summary.subscriptionsCount}
-                            subscriptions={summary.subscriptions}
                         />
                         <SavingsDebtsCard
                             currency={summary.remainingCurrency}
@@ -108,6 +102,28 @@ const DashboardBreakdownPage: React.FC = () => {
                             savingsItems={breakdown.savingsItems}
                             debtItems={breakdown.debtItems}
                         />
+                    </div>
+
+                    <div className="space-y-4">
+                        <BreakdownInsightsCard
+                            currency={summary.remainingCurrency}
+                            totalIncome={summary.totalIncome}
+                            totalExpenditure={summary.totalExpenditure}
+                            totalSavings={summary.totalSavings}
+                            totalDebtPayments={summary.totalDebtPayments}
+                            finalBalance={summary.finalBalance}
+                            expenseCategories={breakdown.expenseCategoryItems}
+                            recurringExpenses={summary.recurringExpenses}
+                            subscriptions={summary.subscriptions}
+                            subscriptionsTotal={summary.subscriptionsTotal}
+                        />
+                        <SubscriptionsBreakdownCard
+                            currency={summary.remainingCurrency}
+                            subscriptionsTotal={summary.subscriptionsTotal}
+                            subscriptionsCount={summary.subscriptionsCount}
+                            subscriptions={summary.subscriptions}
+                        />
+
                     </div>
                 </div>
             </ContentWrapper>

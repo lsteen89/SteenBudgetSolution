@@ -1,8 +1,17 @@
+export interface DashboardIncomeItemDto {
+    id: string;
+    name: string;
+    amountMonthly: number;
+}
+
 export interface IncomeOverviewDto {
     netSalaryMonthly: number;
     sideHustleMonthly: number;
     householdMembersMonthly: number;
     totalIncomeMonthly: number;
+
+    sideHustles: DashboardIncomeItemDto[];
+    householdMembers: DashboardIncomeItemDto[];
 }
 
 export interface ExpenseCategorySummaryDto {

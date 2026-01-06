@@ -3,7 +3,9 @@ import { calculateMonthlyContribution } from "@/utils/budget/financialCalculatio
 import { parseIsoDateLocal } from "@/utils/dates/parseIsoDateLocal";
 import type { DashboardSummaryAggregate, BreakdownItem } from "./dashboardSummary.types";
 import type { CurrencyCode } from "@/utils/money/currency";
-
+import { getCategoryLabel, normalizeCategoryKey } from "@/utils/i18n/categories";
+import { getRecurringExpenseNameLabel } from "@/utils/i18n/recurringExpenseNames";
+import { incomeToBreakdownItems } from "./dashboardBreakdown.mapper";
 /*
 Note: The "kr" inside pillarDescriptions.debts is fine for now since it’s just a Swedish sentence. 
 If we want it consistent, use formatMoneyV2(totalDebtBalance, currency) there later.
@@ -57,7 +59,7 @@ export function buildDashboardSummaryAggregate(
     const top3Names = [...categories]
         .sort((a, b) => b.totalMonthlyAmount - a.totalMonthlyAmount)
         .slice(0, 3)
-        .map((c) => c.categoryName)
+        .map((c) => getCategoryLabel(normalizeCategoryKey(c.categoryName), "sv-SE"))
         .join(", ");
 
     const pillarDescriptions = {
@@ -73,33 +75,46 @@ export function buildDashboardSummaryAggregate(
     };
 
     const recurringExpenses =
-        dashboard.recurringExpenses?.map((r) => ({
-            id: r.id,
-            name: r.name,
-            categoryName: r.categoryName,
-            amountMonthly: r.amountMonthly,
-        })) ?? [];
+        dashboard.recurringExpenses?.map((r) => {
+            const categoryKey = normalizeCategoryKey(r.categoryName);
+            return {
+                id: r.id,
+                nameKey: r.name,
+                nameLabel: getRecurringExpenseNameLabel(r.name, "sv-SE"),
+                categoryKey,
+                categoryLabel: getCategoryLabel(categoryKey, "sv-SE"),
+                amountMonthly: r.amountMonthly,
+            };
+        }) ?? [];
 
     const subscriptionsTotal = round2(dashboard.subscriptions?.totalMonthlyAmount ?? 0);
     const subscriptionsCount = dashboard.subscriptions?.count ?? 0;
     const subscriptions =
-        dashboard.subscriptions?.items?.map((s) => ({
-            id: s.id,
-            name: s.name,
-            categoryName: "Subscription",
-            amountMonthly: s.amountMonthly,
-        })) ?? [];
+        dashboard.subscriptions?.items?.map((s) => {
+            const categoryKey = "Subscription";
+            return {
+                id: s.id,
+                nameKey: s.name,
+                nameLabel: s.name, // don’t translate brand names unless you want to
+                categoryKey,
+                categoryLabel: getCategoryLabel(categoryKey, "sv-SE"),
+                amountMonthly: s.amountMonthly,
+            };
+        }) ?? [];
 
     // -------- Breakdown arrays ----------
-    const incomeItems: BreakdownItem[] = [
-        { key: "income:total", label: "Totala inkomster", amount: totalIncome },
-    ];
+    const incomeItems: BreakdownItem[] = dashboard.income
+        ? incomeToBreakdownItems(dashboard.income)
+        : [];
 
-    const expenseCategoryItems: BreakdownItem[] = categories.map((c) => ({
-        key: `expense:${c.categoryName}`,
-        label: c.categoryName,
-        amount: c.totalMonthlyAmount,
-    }));
+    const expenseCategoryItems: BreakdownItem[] = categories.map((c) => {
+        const categoryKey = normalizeCategoryKey(c.categoryName);
+        return {
+            key: `expense:${categoryKey}`,
+            label: getCategoryLabel(categoryKey, "sv-SE"),
+            amount: c.totalMonthlyAmount,
+        };
+    });
 
     const savingsItems: BreakdownItem[] = [
         { key: "savings:habit", label: "Månadssparande", amount: habitSavings },

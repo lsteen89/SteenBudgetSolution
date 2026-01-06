@@ -15,6 +15,7 @@ public sealed partial class BudgetDashboardRepository
 
     private const string TotalsSql = @"
     SELECT
+        i.Id AS IncomeId,
         COALESCE(i.NetSalaryMonthly, 0) AS NetSalaryMonthly,
 
         COALESCE((
@@ -52,6 +53,7 @@ public sealed partial class BudgetDashboardRepository
     WHERE b.Id = @BudgetId
     LIMIT 1;
     ";
+
 
     private const string CategoriesSql = @"
     SELECT
@@ -123,5 +125,23 @@ public sealed partial class BudgetDashboardRepository
     AND e.AmountMonthly > 0
     AND e.CategoryId = @SubscriptionCategoryId;
     ";
+    private const string SideHustlesSql = @"
+    SELECT
+        ish.Id,
+        ish.Name,
+        ish.IncomeMonthly AS AmountMonthly
+    FROM IncomeSideHustle ish
+    WHERE ish.IncomeId = @IncomeId
+    ORDER BY ish.IncomeMonthly DESC, ish.Name ASC;
+    ";
 
+    private const string HouseholdMembersSql = @"
+    SELECT
+        ihm.Id,
+        ihm.Name,
+        ihm.IncomeMonthly AS AmountMonthly
+    FROM IncomeHouseholdMember ihm
+    WHERE ihm.IncomeId = @IncomeId
+    ORDER BY ihm.IncomeMonthly DESC, ihm.Name ASC;
+    ";
 }

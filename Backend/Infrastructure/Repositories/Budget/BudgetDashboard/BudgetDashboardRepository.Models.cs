@@ -3,6 +3,7 @@ namespace Backend.Infrastructure.Repositories.Budget.BudgetDashboard;
 public sealed partial class BudgetDashboardRepository
 {
     private sealed record TotalsRow(
+        Guid? IncomeId,
         decimal NetSalaryMonthly,
         decimal SideHustleMonthly,
         decimal HouseholdMembersMonthly,
@@ -23,7 +24,7 @@ public sealed partial class BudgetDashboardRepository
         string CategoryName,
         decimal AmountMonthly);
 
-    private sealed record SubscriptionRow(
+    private sealed record IncomeItemRow(
         Guid Id,
         string Name,
         decimal AmountMonthly);
