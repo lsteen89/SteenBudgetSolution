@@ -5,7 +5,7 @@ using Backend.Domain.Abstractions;
 using Microsoft.Extensions.Options;
 using Backend.Settings;
 
-namespace Backend.Infrastructure.Repositories.Budget
+namespace Backend.Infrastructure.Repositories.Budget.Core
 {
     public class DebtsRepository : SqlBase, IDebtsRepository
     {

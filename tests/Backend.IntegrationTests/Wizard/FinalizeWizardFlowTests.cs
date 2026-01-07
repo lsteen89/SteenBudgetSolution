@@ -24,7 +24,7 @@ using Backend.Application.Mappings.Budget;
 using Backend.Domain.Shared;
 using Backend.Application.Models.Wizard;
 // Real repos
-using Backend.Infrastructure.Repositories.Budget;
+using Backend.Infrastructure.Repositories.Budget.Core;
 using Backend.Settings;
 using Backend.Domain.Abstractions;
 // Domain entities used by repos/processors

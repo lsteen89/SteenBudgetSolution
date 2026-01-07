@@ -70,9 +70,6 @@ public static class DependencyInjection
         // Calculators
         services.AddSingleton<IDebtPaymentCalculator, DebtPaymentCalculator>();
 
-        // Service Registrations
-        services.AddScoped<IBudgetDashboardQueryService, BudgetDashboardQueryService>();
-
         return services;
     }
 }

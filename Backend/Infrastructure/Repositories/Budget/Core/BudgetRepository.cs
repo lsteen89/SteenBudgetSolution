@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Backend.Settings;
 
-namespace Backend.Infrastructure.Repositories.Budget
+namespace Backend.Infrastructure.Repositories.Budget.Core
 {
     public class BudgetRepository : SqlBase, IBudgetRepository
     {

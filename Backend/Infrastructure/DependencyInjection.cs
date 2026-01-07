@@ -23,7 +23,7 @@ using Backend.Infrastructure.Implementations;
 using Backend.Infrastructure.Repositories.Auth;
 using Backend.Infrastructure.Repositories.Auth.RefreshTokens;
 using Backend.Infrastructure.Repositories.Auth.VerificationTokens;
-using Backend.Infrastructure.Repositories.Budget;
+using Backend.Infrastructure.Repositories.Budget.Core;
 using Backend.Infrastructure.Repositories.Email;
 using Backend.Infrastructure.Repositories.User;
 using Backend.Infrastructure.Security;

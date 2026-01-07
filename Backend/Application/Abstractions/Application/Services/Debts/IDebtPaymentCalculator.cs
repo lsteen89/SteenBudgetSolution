@@ -4,5 +4,5 @@ namespace Backend.Application.Abstractions.Application.Services.Debts;
 
 public interface IDebtPaymentCalculator
 {
-    decimal CalculateMonthlyPayment(Debt d);
+    decimal CalculateMonthlyPayment(IDebtPaymentInput input);
 }

@@ -1,10 +1,8 @@
 using Backend.Application.Abstractions.Infrastructure.Data;
-using Backend.Application.DTO.Budget.Dashboard;
 using Backend.Infrastructure.Data.BaseClass;
 using Backend.Application.Constants;
 using Microsoft.Extensions.Options;
 using Backend.Settings;
-using Backend.Domain.Entities.Budget.Debt;
 using Backend.Application.Features.Budgets.Dashboard;
 
 namespace Backend.Infrastructure.Repositories.Budget.BudgetDashboard;
@@ -18,6 +16,7 @@ public sealed partial class BudgetDashboardRepository : SqlBase, IBudgetDashboar
         : base(unitOfWork, logger, db)
     {
     }
+
     public async Task<BudgetDashboardReadModel?> GetDashboardDataAsync(Guid persoid, CancellationToken ct)
     {
         var budgetId = await ExecuteScalarAsync<Guid?>(
@@ -30,50 +29,35 @@ public sealed partial class BudgetDashboardRepository : SqlBase, IBudgetDashboar
 
         if (totalsRow is null) return null;
 
-        var categories = await QueryAsync<ExpenseCategorySummaryDto>(
+        var categories = await QueryAsync<DashboardCategoryRm>(
             CategoriesSql, new { BudgetId = budgetId.Value }, ct);
 
-        var recurringRows = await QueryAsync<RecurringExpenseRow>(
+        var recurring = await QueryAsync<DashboardRecurringExpenseRm>(
             RecurringExpensesSql,
             new { BudgetId = budgetId.Value, SubscriptionCategoryId = ExpenseCategoryIds.Subscription },
             ct);
 
-        var recurring = recurringRows
-            .Select(r => new DashboardRecurringExpenseDto
-            {
-                Id = r.Id,
-                Name = r.Name,
-                CategoryName = r.CategoryName,
-                AmountMonthly = r.AmountMonthly
-            })
-            .ToList();
-
-        var debts = await QueryAsync<Debt>(
+        var debts = await QueryAsync<DashboardDebtRm>(
             DebtsSql, new { BudgetId = budgetId.Value }, ct);
 
         var savingsRows = await QueryAsync<SavingsRow>(
             SavingsSql, new { BudgetId = budgetId.Value }, ct);
 
-        SavingsOverviewDto? savings = null;
+        DashboardSavingsRm? savings = null;
         if (savingsRows.Count > 0)
         {
             var monthly = savingsRows[0].MonthlySavings;
+
             var goals = savingsRows
                 .Where(r => r.Id.HasValue)
-                .Select(r => new DashboardSavingsGoalDto
-                {
-                    Id = r.Id!.Value,
-                    Name = r.Name,
-                    TargetAmount = r.TargetAmount,
-                    TargetDate = r.TargetDate,
-                    AmountSaved = r.AmountSaved
-                })
+                .Select(r => new DashboardSavingsGoalRm(
+                    r.Id!.Value, r.Name, r.TargetAmount, r.TargetDate, r.AmountSaved))
                 .ToList();
 
-            savings = new SavingsOverviewDto { MonthlySavings = monthly, Goals = goals };
+            savings = new DashboardSavingsRm(monthly, goals);
         }
 
-        var subItems = (await QueryAsync<DashboardSubscriptionDto>(
+        var subItems = (await QueryAsync<DashboardSubscriptionRm>(
             SubscriptionsSql,
             new { BudgetId = budgetId.Value, SubscriptionCategoryId = ExpenseCategoryIds.Subscription },
             ct)).ToList();
@@ -83,39 +67,35 @@ public sealed partial class BudgetDashboardRepository : SqlBase, IBudgetDashboar
             new { BudgetId = budgetId.Value, SubscriptionCategoryId = ExpenseCategoryIds.Subscription },
             ct);
 
-        var subs = new SubscriptionsOverviewDto
-        {
-            TotalMonthlyAmount = subTotal,
-            Count = subItems.Count,
-            Items = subItems
-        };
+        var subs = new DashboardSubscriptionsRm(
+            TotalMonthlyAmount: subTotal,
+            Count: subItems.Count,
+            Items: subItems
+        );
 
-        var totals = new BudgetDashboardTotals(
+        var totals = new DashboardTotalsRm(
+            totalsRow.IncomeId,
             totalsRow.NetSalaryMonthly,
             totalsRow.SideHustleMonthly,
             totalsRow.HouseholdMembersMonthly,
             totalsRow.TotalExpensesMonthly,
             totalsRow.TotalSavingsMonthly,
-            totalsRow.TotalDebtBalance);
+            totalsRow.TotalDebtBalance
+        );
 
-        var sideHustles = new List<BudgetDashboardIncomeItem>();
-        var householdMembers = new List<BudgetDashboardIncomeItem>();
+        var sideHustles = Array.Empty<DashboardIncomeItemRm>();
+        var householdMembers = Array.Empty<DashboardIncomeItemRm>();
 
         if (totalsRow.IncomeId.HasValue)
         {
-            var sideRows = (await QueryAsync<IncomeItemRow>(
-                SideHustlesSql, new { IncomeId = totalsRow.IncomeId.Value }, ct)).ToList();
+            var sideRows = await QueryAsync<IncomeItemRow>(
+                SideHustlesSql, new { IncomeId = totalsRow.IncomeId.Value }, ct);
 
-            var memberRows = (await QueryAsync<IncomeItemRow>(
-                HouseholdMembersSql, new { IncomeId = totalsRow.IncomeId.Value }, ct)).ToList();
+            var memberRows = await QueryAsync<IncomeItemRow>(
+                HouseholdMembersSql, new { IncomeId = totalsRow.IncomeId.Value }, ct);
 
-            sideHustles = sideRows
-                .Select(x => new BudgetDashboardIncomeItem(x.Id, x.Name, x.AmountMonthly))
-                .ToList();
-
-            householdMembers = memberRows
-                .Select(x => new BudgetDashboardIncomeItem(x.Id, x.Name, x.AmountMonthly))
-                .ToList();
+            sideHustles = sideRows.Select(x => new DashboardIncomeItemRm(x.Id, x.Name, x.AmountMonthly)).ToArray();
+            householdMembers = memberRows.Select(x => new DashboardIncomeItemRm(x.Id, x.Name, x.AmountMonthly)).ToArray();
         }
 
         return new BudgetDashboardReadModel(
@@ -127,6 +107,7 @@ public sealed partial class BudgetDashboardRepository : SqlBase, IBudgetDashboar
             savings,
             subs,
             sideHustles,
-            householdMembers);
+            householdMembers
+        );
     }
 }

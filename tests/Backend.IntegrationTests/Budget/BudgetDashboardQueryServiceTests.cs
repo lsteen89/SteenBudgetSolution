@@ -43,13 +43,16 @@ public sealed class BudgetDashboardQueryServiceTests
         var uow = new UnitOfWork(dbOpts, NullLogger<UnitOfWork>.Instance);
         var repo = new BudgetDashboardRepository(uow, NullLogger<BudgetDashboardRepository>.Instance, dbOpts);
 
-        // Real calculator
         IDebtPaymentCalculator calc = new DebtPaymentCalculator();
+        var handler = new GetBudgetDashboardQueryHandler(repo, calc);
 
-        var svc = new BudgetDashboardQueryService(repo, calc);
+        var result = await handler.Handle(new GetBudgetDashboardQuery(userId), CancellationToken.None);
 
-        // Act
-        var dto = await svc.GetAsync(userId, CancellationToken.None);
+        result.IsFailure.Should().BeFalse();
+        var dto = result.Value;
+
+        dto.Should().NotBeNull();
+        dto!.BudgetId.Should().Be(budgetId);
 
         // Assert (disposable)
         dto.Should().NotBeNull();
@@ -85,17 +88,21 @@ public sealed class BudgetDashboardQueryServiceTests
         var repo = new BudgetDashboardRepository(uow, NullLogger<BudgetDashboardRepository>.Instance, dbOpts);
 
         var spy = new SpyDebtPaymentCalculator(constant: 123m);
-        var svc = new BudgetDashboardQueryService(repo, spy);
+        var handler = new GetBudgetDashboardQueryHandler(repo, spy);
 
-        // Act
-        var dto = await svc.GetAsync(userId, CancellationToken.None);
+        var result = await handler.Handle(new GetBudgetDashboardQuery(userId), CancellationToken.None);
 
-        // Assert
+        result.IsFailure.Should().BeFalse();
+        var dto = result.Value;
+
+        dto.Should().NotBeNull();
+        dto!.BudgetId.Should().Be(budgetId);
         dto.Should().NotBeNull();
         dto!.BudgetId.Should().Be(budgetId);
 
         // Prove the service called calculator for each debt:
         spy.CallCount.Should().Be(2);
+        spy.SeenTypes.Should().BeEquivalentTo(new[] { "revolving", "installment" });
 
         dto.Debt.Debts.Should().HaveCount(2);
         dto.Debt.Debts.All(d => d.MonthlyPayment == 123m).Should().BeTrue();
@@ -115,12 +122,10 @@ public sealed class BudgetDashboardQueryServiceTests
         dto.Expenditure.TotalExpensesMonthly.Should().Be(12000m);
         dto.Savings!.MonthlySavings.Should().Be(2500m);
 
-
-        // also assert the new lists here (so both tests cover the feature)
         dto.Income.SideHustles.Should().ContainSingle(x => x.Name == "Side job" && x.AmountMonthly == 2000m);
         dto.Income.HouseholdMembers.Should().ContainSingle(x => x.Name == "Partner contribution" && x.AmountMonthly == 500m);
 
-        dto.DisposableAfterExpenses.Should().Be(32500m - 12000m);                 // 20500
+        dto.DisposableAfterExpenses.Should().Be(32500m - 12000m);                   // 20500
         dto.DisposableAfterExpensesAndSavings.Should().Be(32500m - 12000m - 2500m); // 18000
     }
 
@@ -135,7 +140,7 @@ public sealed class BudgetDashboardQueryServiceTests
         await conn.OpenAsync();
 
         await conn.ExecuteAsync("""
-            INSERT INTO Users (Persoid, Firstname, Lastname, Email, EmailConfirmed, Password, Roles, Locked, FirstLogin, CreatedBy)
+            INSERT INTO Users (Persoid, Firstname, LastName, Email, EmailConfirmed, Password, Roles, Locked, FirstLogin, CreatedBy)
             VALUES (@pid, 'Dash', 'User', 'dash@example.com', 1, '$2a$12$abcdefghijkABCDEFGHIJKlmn', 'User', 0, 0, 'it');
         """, new { pid = userId });
 
@@ -150,7 +155,7 @@ public sealed class BudgetDashboardQueryServiceTests
             (UNHEX(REPLACE('5d5c51aa-9f05-4d4c-8ff1-0a61d6c9cc10','-','')), 'Food');
         """);
 
-        // Income: 30 000 salary + 2 000 side hustle
+        // Income: 30 000 salary + 2 000 side hustle + 500 household
         await conn.ExecuteAsync("""
             INSERT INTO Income (Id, BudgetId, NetSalaryMonthly, SalaryFrequency, CreatedAt, CreatedByUserId)
             VALUES (UUID_TO_BIN(UUID()), @bid, 30000, 0, UTC_TIMESTAMP(), @pid);
@@ -163,6 +168,16 @@ public sealed class BudgetDashboardQueryServiceTests
             WHERE i.BudgetId = @bid
             LIMIT 1;
         """, new { bid = budgetId, pid = userId });
+
+        // Inactive side hustle and household member (should be ignored)
+        await conn.ExecuteAsync("""
+            INSERT INTO IncomeSideHustle (Id, IncomeId, Name, IncomeMonthly, Frequency, IsActive, EndedAt, CreatedAt, CreatedByUserId)
+            SELECT UUID_TO_BIN(UUID()), i.Id, 'Old side job', 9999, 0, 0, UTC_TIMESTAMP(), UTC_TIMESTAMP(), @pid
+            FROM Income i
+            WHERE i.BudgetId = @bid
+            LIMIT 1;
+        """, new { bid = budgetId, pid = userId });
+
 
         await conn.ExecuteAsync("""
             INSERT INTO IncomeHouseholdMember (Id, IncomeId, Name, IncomeMonthly, Frequency, CreatedAt, CreatedByUserId)
@@ -181,6 +196,13 @@ public sealed class BudgetDashboardQueryServiceTests
             (UUID_TO_BIN(UUID()), @bid, UNHEX(REPLACE('5d5c51aa-9f05-4d4c-8ff1-0a61d6c9cc10','-','')), 'Takeout', 500, UTC_TIMESTAMP(), @pid);
         """, new { bid = budgetId, pid = userId });
 
+        await conn.ExecuteAsync("""
+            INSERT INTO ExpenseItem (Id, BudgetId, CategoryId, Name, AmountMonthly, IsActive, EndedAt, CreatedAt, CreatedByUserId)
+            VALUES
+            (UUID_TO_BIN(UUID()), @bid, UNHEX(REPLACE('5d5c51aa-9f05-4d4c-8ff1-0a61d6c9cc10','-','')), 'Old Food', 9999, 0, UTC_TIMESTAMP(), UTC_TIMESTAMP(), @pid);
+        """, new { bid = budgetId, pid = userId });
+
+
         // Savings: 2 500 / month + goal
         await conn.ExecuteAsync("""
             INSERT INTO Savings (Id, BudgetId, MonthlySavings, CreatedAt, CreatedByUserId)
@@ -195,12 +217,19 @@ public sealed class BudgetDashboardQueryServiceTests
             LIMIT 1;
         """, new { bid = budgetId, pid = userId });
 
-        // Debts (IMPORTANT: seed MonthlyFee/MinPayment/TermMonths so monthly payment is meaningful)
+        // Debts
         await conn.ExecuteAsync("""
             INSERT INTO Debt (Id, BudgetId, Name, Type, Balance, Apr, MonthlyFee, MinPayment, TermMonths, CreatedAt, CreatedByUserId)
             VALUES
             (UUID_TO_BIN(UUID()), @bid, 'Credit Card', 'revolving',    10000, 18.0, 20, 300, NULL, UTC_TIMESTAMP(), @pid),
             (UUID_TO_BIN(UUID()), @bid, 'CSN',         'installment',   5000,  0.5, 10, NULL, 24,   UTC_TIMESTAMP(), @pid);
+        """, new { bid = budgetId, pid = userId });
+
+        await conn.ExecuteAsync("""
+            INSERT INTO Debt (Id, BudgetId, Name, Type, Balance, Apr, MonthlyFee, MinPayment, TermMonths, Status, ClosedAt, CreatedAt, CreatedByUserId)
+            VALUES
+            (UUID_TO_BIN(UUID()), @bid, 'Old Closed Debt', 'installment', 9999, 1.0, 0, NULL, 12, 'closed', UTC_TIMESTAMP(), UTC_TIMESTAMP(), @pid);
+
         """, new { bid = budgetId, pid = userId });
 
         return (userId, budgetId);
@@ -223,13 +252,16 @@ public sealed class BudgetDashboardQueryServiceTests
     private sealed class SpyDebtPaymentCalculator : IDebtPaymentCalculator
     {
         private readonly decimal _constant;
+
         public int CallCount { get; private set; }
+        public string[] SeenTypes { get; private set; } = Array.Empty<string>();
 
         public SpyDebtPaymentCalculator(decimal constant) => _constant = constant;
 
-        public decimal CalculateMonthlyPayment(Backend.Domain.Entities.Budget.Debt.Debt d)
+        public decimal CalculateMonthlyPayment(IDebtPaymentInput input)
         {
             CallCount++;
+            SeenTypes = SeenTypes.Concat(new[] { input.Type }).ToArray();
             return _constant;
         }
     }

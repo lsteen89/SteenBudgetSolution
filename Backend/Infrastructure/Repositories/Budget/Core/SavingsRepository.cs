@@ -5,7 +5,7 @@ using Backend.Infrastructure.Data.BaseClass;
 using Microsoft.Extensions.Options;
 using Backend.Settings;
 
-namespace Backend.Infrastructure.Repositories.Budget
+namespace Backend.Infrastructure.Repositories.Budget.Core
 {
     public class SavingsRepository : SqlBase, ISavingsRepository
     {
