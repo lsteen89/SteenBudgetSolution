@@ -7,6 +7,7 @@ namespace Backend.Domain.Shared;
 /// </summary>
 public record Error(string Code, string Description, ErrorType Type = ErrorType.Validation)
 {
+    public string Message => Description; // alias for API friendliness
     /// <summary>
     /// Represents a non-error. This is the default state.
     /// </summary>

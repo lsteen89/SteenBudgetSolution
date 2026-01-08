@@ -1,35 +1,12 @@
-using Backend.Application.DTO.Budget.Dashboard;
-using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Application.Abstractions.Application.Services.Debts;
-using Backend.Application.Abstractions.Messaging;
-using Backend.Domain.Shared;
+using Backend.Application.Abstractions.Infrastructure.Data;
+using Backend.Application.DTO.Budget.Dashboard;
 
-namespace Backend.Application.Features.Budgets.Dashboard;
+namespace Backend.Application.Features.Budgets.Dashboard.Utils;
 
-public sealed class GetBudgetDashboardQueryHandler
-    : IQueryHandler<GetBudgetDashboardQuery, Result<BudgetDashboardDto?>>
+internal static class BudgetDashboardMapper
 {
-    private readonly IBudgetDashboardRepository _repo;
-    private readonly IDebtPaymentCalculator _debtCalc;
-
-    public GetBudgetDashboardQueryHandler(
-        IBudgetDashboardRepository repo,
-        IDebtPaymentCalculator debtCalc)
-    {
-        _repo = repo;
-        _debtCalc = debtCalc;
-    }
-
-    public async Task<Result<BudgetDashboardDto?>> Handle(GetBudgetDashboardQuery request, CancellationToken ct)
-    {
-        var data = await _repo.GetDashboardDataAsync(request.Persoid, ct);
-        if (data is null) return Result<BudgetDashboardDto?>.Success(null);
-
-        var dto = MapToDto(data, _debtCalc);
-        return Result<BudgetDashboardDto?>.Success(dto);
-    }
-
-    private static BudgetDashboardDto MapToDto(BudgetDashboardReadModel data, IDebtPaymentCalculator calc)
+    internal static BudgetDashboardDto MapToDto(BudgetDashboardReadModel data, IDebtPaymentCalculator calc, decimal carryOverAmount)
     {
         var debtItems = data.Debts
             .Select(d => new DashboardDebtItemDto
@@ -70,6 +47,21 @@ public sealed class GetBudgetDashboardQueryHandler
                 AmountMonthly = s.AmountMonthly
             }).ToList()
         };
+
+        var incomeTotal =
+                data.Totals.NetSalaryMonthly +
+                data.Totals.SideHustleMonthly +
+                data.Totals.HouseholdMembersMonthly;
+
+        var expensesTotal = data.Totals.TotalExpensesMonthly;
+        var savingsMonthly = data.Savings?.MonthlySavings ?? 0m;
+        var debtPayments = debtItems.Sum(x => x.MonthlyPayment);
+
+        var disposableAfterExpenses = incomeTotal - expensesTotal;
+        var disposableAfterExpensesAndSavings = incomeTotal - expensesTotal - savingsMonthly;
+
+        var finalBalanceWithCarry =
+        incomeTotal - expensesTotal - savingsMonthly - debtPayments + carryOverAmount;
 
         return new BudgetDashboardDto
         {
@@ -115,7 +107,14 @@ public sealed class GetBudgetDashboardQueryHandler
                 CategoryName = r.CategoryName,
                 AmountMonthly = r.AmountMonthly
             }).ToList(),
-            Subscriptions = subsDto
+            Subscriptions = subsDto,
+
+            CarryOverAmountMonthly = carryOverAmount,
+            DisposableAfterExpensesWithCarryMonthly = disposableAfterExpenses + carryOverAmount,
+            DisposableAfterExpensesAndSavingsWithCarryMonthly = disposableAfterExpensesAndSavings + carryOverAmount,
+            FinalBalanceWithCarryMonthly = finalBalanceWithCarry
         };
     }
+    internal static BudgetDashboardDto MapToDto(BudgetDashboardReadModel data, IDebtPaymentCalculator calc)
+        => MapToDto(data, calc, carryOverAmount: 0m);
 }

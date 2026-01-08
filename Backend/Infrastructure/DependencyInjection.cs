@@ -31,6 +31,7 @@ using Backend.Settings;
 using Backend.Settings.Email;
 using Backend.Infrastructure.Data.Repositories;
 using Backend.Infrastructure.Repositories.Budget.BudgetDashboard;
+using Backend.Infrastructure.Repositories.Budget.Months;
 
 namespace Backend.Infrastructure;
 
@@ -101,7 +102,11 @@ public static class DependencyInjection
         services.AddScoped<IIncomeRepository, IncomeRepository>();
         services.AddScoped<ISavingsRepository, SavingsRepository>();
         services.AddScoped<IIncomeRepository, IncomeRepository>();
+
+        // Dashboard
         services.AddScoped<IBudgetDashboardRepository, BudgetDashboardRepository>();
+        // Budget Months
+        services.AddScoped<IBudgetMonthRepository, BudgetMonthRepository>();
 
         // Wizard
         services.AddScoped<IWizardRepository, WizardRepository>();

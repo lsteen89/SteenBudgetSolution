@@ -12,7 +12,11 @@ using Mapster;
 using Backend.Application.Common.Behaviors;
 using Backend.Application.Abstractions.Application.Services.Debts;
 using Backend.Application.Services.Debts;
-using Backend.Application.Features.Budgets.Dashboard;
+
+// services
+using Backend.Application.Services.Budget;
+using Backend.Application.Abstractions.Application.Services.Budget;
+
 
 namespace Backend.Application;
 
@@ -65,7 +69,10 @@ public static class DependencyInjection
         services.AddScoped<IWizardStepProcessor, SavingsStepProcessor>();
         services.AddScoped<IWizardStepProcessor, DebtStepProcessor>();
 
-        //Wizard Validation
+        // Budget Services;
+        services.AddScoped<IBudgetMonthCloseSnapshotService, BudgetMonthCloseSnapshotService>();
+        services.AddScoped<IBudgetMonthlyTotalsService, BudgetMonthlyTotalsService>();
+        services.AddScoped<IBudgetMonthBootstrapper, BudgetMonthBootstrapper>();
 
         // Calculators
         services.AddSingleton<IDebtPaymentCalculator, DebtPaymentCalculator>();
