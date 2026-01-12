@@ -1,6 +1,7 @@
 ﻿using Backend.Application.DTO.Budget.Debt;
 using Backend.Domain.Entities.Budget.Debt;
 using Backend.Domain.Entities.Wizard;
+using Backend.Application.Mappings.Budget;
 
 namespace Backend.Application.Mappings.Budget
 {

@@ -1,13 +1,15 @@
 import React from "react";
+import { formatMoneyV2 } from "@/utils/money/moneyV2";
+import type { CurrencyCode } from "@/utils/money/currency";
 
 type Props = {
-    currency: string;
-    totalIncome: number;
-    totalExpenditure: number;
-    totalSavings: number;
-    totalDebtPayments: number;
-    remainingToSpend: number;
-    finalBalance: number;
+    currency: CurrencyCode;
+    totalIncome?: number | null;
+    totalExpenditure?: number | null;
+    totalSavings?: number | null;
+    totalDebtPayments?: number | null;
+    remainingToSpend?: number | null;
+    finalBalance?: number | null;
 };
 
 const BudgetOverviewCard: React.FC<Props> = ({
@@ -19,7 +21,9 @@ const BudgetOverviewCard: React.FC<Props> = ({
     remainingToSpend,
     finalBalance,
 }) => {
-    const fmt = (n: number) => `${n.toLocaleString("sv-SE")} ${currency}`;
+    const fmt = (n?: number | null) => formatMoneyV2(n, currency);
+
+    const safeFinal = typeof finalBalance === "number" ? finalBalance : 0;
 
     return (
         <div className="rounded-3xl bg-white/80 border border-slate-100 shadow-sm px-5 py-4">
@@ -55,7 +59,7 @@ const BudgetOverviewCard: React.FC<Props> = ({
                 <span className="font-semibold text-slate-900">
                     Resultat (Inkomster − Utgifter − Sparande − Skulder)
                 </span>
-                <span className={`font-semibold ${finalBalance >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                <span className={`font-semibold ${safeFinal >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
                     {fmt(finalBalance)}
                 </span>
             </div>

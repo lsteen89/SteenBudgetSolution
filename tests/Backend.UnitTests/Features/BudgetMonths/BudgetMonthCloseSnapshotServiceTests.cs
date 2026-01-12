@@ -2,7 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Backend.Application.Abstractions.Application.Services.Budget;
-using Backend.Application.Services.Budget;
+using Backend.Application.Services.Budget.Compute;
 using FluentAssertions;
 using Xunit;
 

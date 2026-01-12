@@ -18,7 +18,7 @@ using Backend.Application.Features.Wizard.GetWizardData;   // GetWizardDataQuery
 using Backend.Application.DTO.Wizard;
 using Backend.Application.Models.Wizard;
 
-namespace Backend.tests.IntegrationTests.Wizard;
+namespace Backend.IntegrationTests.Wizard;
 
 [Collection("it:db")]
 public sealed class GetWizardDataFlowTests

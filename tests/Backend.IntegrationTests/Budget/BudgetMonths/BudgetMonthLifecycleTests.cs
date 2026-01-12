@@ -10,6 +10,7 @@ using MySqlConnector;
 using Xunit;
 
 using Backend.IntegrationTests.Shared;
+using Backend.IntegrationTests.Shared.Seeds;
 using Backend.Settings;
 
 using Backend.Infrastructure.Data;
@@ -24,6 +25,8 @@ using Backend.Application.Services.Debts;
 using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Application.Features.Budgets.Months.StartBudgetMonth;
 using Backend.Application.DTO.Budget.Months;
+using Backend.Application.Services.Budget.Compute;
+using Backend.IntegrationTests.Shared.Seeds.Budget;
 
 namespace Backend.IntegrationTests.Budget.BudgetMonths;
 
@@ -41,9 +44,11 @@ public sealed class BudgetMonthLifecycleTests
     {
         await _db.ResetAsync();
 
-        var (persoid, userId, budgetId) = await BudgetSeeds.SeedWithDataAsync(_db.ConnectionString);
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var persoid = seed.Persoid;
+        var userId = seed.UserId;
+        var budgetId = seed.BudgetId;
 
-        // Insert an open month using shared DSL
         await BudgetMonthDsl.InsertAsync(
             cs: _db.ConnectionString,
             budgetId: budgetId,
@@ -131,7 +136,10 @@ public sealed class BudgetMonthLifecycleTests
     {
         await _db.ResetAsync();
 
-        (Guid persoid, Guid userId, Guid budgetId) = await BudgetSeeds.SeedMinimalAsync(_db.ConnectionString);
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+        var persoid = seed.Persoid;
+        var userId = seed.UserId;
+        var budgetId = seed.BudgetId;
 
         await BudgetMonthDsl.InsertAsync(
             cs: _db.ConnectionString,
@@ -191,7 +199,10 @@ public sealed class BudgetMonthLifecycleTests
     {
         await _db.ResetAsync();
 
-        (Guid persoid, Guid userId, Guid budgetId) = await BudgetSeeds.SeedMinimalAsync(_db.ConnectionString);
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+        var persoid = seed.Persoid;
+        var userId = seed.UserId;
+        var budgetId = seed.BudgetId;
 
         await BudgetMonthDsl.InsertAsync(
             cs: _db.ConnectionString,
@@ -225,7 +236,6 @@ public sealed class BudgetMonthLifecycleTests
             CarryOverAmount: 0m,
             CreateSkippedMonths: true);
 
-        // Call twice in two separate txs
         (await uow.InTx(CancellationToken.None, () =>
             handler.Handle(new StartBudgetMonthCommand(persoid, userId, req), CancellationToken.None)))
             .IsFailure.Should().BeFalse();

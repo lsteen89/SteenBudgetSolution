@@ -13,7 +13,7 @@ using Backend.Application.Features.Wizard.StartWizard;      // StartWizardComman
 using Backend.Domain.Shared;                                // Result<T>
 using Backend.IntegrationTests.Shared;                      // MariaDbFixture
 
-namespace Backend.tests.IntegrationTests.Wizard;
+namespace Backend.IntegrationTests.Wizard;
 
 [Collection("it:db")]
 public sealed class StartWizardFlowTests

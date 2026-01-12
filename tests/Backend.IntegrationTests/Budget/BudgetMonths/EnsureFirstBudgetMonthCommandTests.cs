@@ -4,8 +4,10 @@ using System.Threading.Tasks;
 using Backend.Application.Abstractions.Application.Services.Budget;
 using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Application.Features.Budgets.Months.EnsureFirstBudgetMonth;
-using Backend.Application.Services.Budget;
+using Backend.Application.Services.Budget.Bootstrapper;
+
 using Backend.IntegrationTests.Shared;
+using Backend.IntegrationTests.Shared.Seeds;
 using Backend.Settings;
 using Dapper;
 using FluentAssertions;
@@ -13,7 +15,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using MySqlConnector;
 using Xunit;
-using Backend.Infrastructure.Repositories.Budget.Months;      // <-- adjust if your BudgetMonthRepository lives elsewhere
+using Backend.Infrastructure.Data;
+using Backend.Infrastructure.Repositories.Budget.Months;
+using Backend.IntegrationTests.Shared.Seeds.Budget;
 
 namespace Backend.IntegrationTests.BudgetMonths;
 
@@ -30,6 +34,7 @@ public sealed class EnsureFirstBudgetMonthCommandTests
             ConnectionString = cs,
             DefaultCommandTimeoutSeconds = 30
         });
+
     private static async Task<int> CountMonthsAsync(string cs, Guid budgetId)
     {
         await using var conn = new MySqlConnection(cs);
@@ -86,17 +91,18 @@ public sealed class EnsureFirstBudgetMonthCommandTests
         return row == default ? (null, null) : (row.CarryOverMode, row.CarryOverAmount);
     }
 
-    private static async Task InsertOpenMonthAsync(string cs, Guid budgetId, string ym, Guid createdByPersoid)
+    private static EnsureFirstBudgetMonthCommandHandler BuildHandler(
+        string cs,
+        ITimeProvider clock,
+        out UnitOfWork uow)
     {
-        await using var conn = new MySqlConnection(cs);
-        await conn.OpenAsync();
+        var dbOpts = DbOptions(cs);
+        uow = new UnitOfWork(dbOpts, NullLogger<UnitOfWork>.Instance);
 
-        await conn.ExecuteAsync("""
-            INSERT INTO BudgetMonth
-            (Id, BudgetId, YearMonth, Status, OpenedAt, CarryOverMode, CarryOverAmount, CreatedAt, CreatedByUserId)
-            VALUES
-            (UUID_TO_BIN(UUID()), @bid, @ym, 'open', UTC_TIMESTAMP(), 'none', NULL, UTC_TIMESTAMP(), @pid);
-        """, new { bid = budgetId, ym, pid = createdByPersoid });
+        var repo = new BudgetMonthRepository(uow, NullLogger<BudgetMonthRepository>.Instance, dbOpts);
+        IBudgetMonthBootstrapper bootstrapper = new BudgetMonthBootstrapper(repo, clock);
+
+        return new EnsureFirstBudgetMonthCommandHandler(bootstrapper);
     }
 
     [Fact]
@@ -104,13 +110,8 @@ public sealed class EnsureFirstBudgetMonthCommandTests
     {
         await _db.ResetAsync();
 
-        var dbOpts = DbOptions(_db.ConnectionString);
-        var uow = new UnitOfWork(dbOpts, NullLogger<UnitOfWork>.Instance);
-        var repo = new BudgetMonthRepository(uow, NullLogger<BudgetMonthRepository>.Instance, dbOpts);
-
         ITimeProvider clock = new FakeTimeProvider(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
-        IBudgetMonthBootstrapper bootstrapper = new BudgetMonthBootstrapper(repo, clock);
-        var handler = new EnsureFirstBudgetMonthCommandHandler(bootstrapper);
+        var handler = BuildHandler(_db.ConnectionString, clock, out var uow);
 
         await uow.BeginTransactionAsync(CancellationToken.None);
         var res = await handler.Handle(
@@ -128,17 +129,14 @@ public sealed class EnsureFirstBudgetMonthCommandTests
     {
         await _db.ResetAsync();
 
-        var (persoid, _, budgetId) = await BudgetSeeds.SeedMinimalAsync(_db.ConnectionString);
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+        var persoid = seed.Persoid;
+        var budgetId = seed.BudgetId;
 
         (await CountMonthsAsync(_db.ConnectionString, budgetId)).Should().Be(0);
 
-        var dbOpts = DbOptions(_db.ConnectionString);
-        var uow = new UnitOfWork(dbOpts, NullLogger<UnitOfWork>.Instance);
-        var repo = new BudgetMonthRepository(uow, NullLogger<BudgetMonthRepository>.Instance, dbOpts);
-
         ITimeProvider clock = new FakeTimeProvider(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
-        IBudgetMonthBootstrapper bootstrapper = new BudgetMonthBootstrapper(repo, clock);
-        var handler = new EnsureFirstBudgetMonthCommandHandler(bootstrapper);
+        var handler = BuildHandler(_db.ConnectionString, clock, out var uow);
 
         await uow.BeginTransactionAsync(CancellationToken.None);
         var res = await handler.Handle(new EnsureFirstBudgetMonthCommand(persoid, persoid), CancellationToken.None);
@@ -153,7 +151,7 @@ public sealed class EnsureFirstBudgetMonthCommandTests
 
         var (mode, amount) = await GetOpenCarryAsync(_db.ConnectionString, budgetId);
         mode.Should().Be("none");
-        amount.Should().BeNull(); // matches "none" mode constraints
+        amount.Should().BeNull();
     }
 
     [Fact]
@@ -161,18 +159,22 @@ public sealed class EnsureFirstBudgetMonthCommandTests
     {
         await _db.ResetAsync();
 
-        var (persoid, _, budgetId) = await BudgetSeeds.SeedMinimalAsync(_db.ConnectionString);
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+        var persoid = seed.Persoid;
+        var userId = seed.UserId;
+        var budgetId = seed.BudgetId;
 
-        await InsertOpenMonthAsync(_db.ConnectionString, budgetId, "2025-12", createdByPersoid: persoid);
+        await BudgetMonthDsl.InsertOpenAsync(
+            cs: _db.ConnectionString,
+            budgetId: budgetId,
+            ym: "2025-12",
+            openedAtUtc: new DateTime(2025, 12, 01, 10, 00, 00, DateTimeKind.Utc),
+            createdByUserId: userId);
+
         (await CountMonthsAsync(_db.ConnectionString, budgetId)).Should().Be(1);
 
-        var dbOpts = DbOptions(_db.ConnectionString);
-        var uow = new UnitOfWork(dbOpts, NullLogger<UnitOfWork>.Instance);
-        var repo = new BudgetMonthRepository(uow, NullLogger<BudgetMonthRepository>.Instance, dbOpts);
-
         ITimeProvider clock = new FakeTimeProvider(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
-        IBudgetMonthBootstrapper bootstrapper = new BudgetMonthBootstrapper(repo, clock);
-        var handler = new EnsureFirstBudgetMonthCommandHandler(bootstrapper);
+        var handler = BuildHandler(_db.ConnectionString, clock, out var uow);
 
         await uow.BeginTransactionAsync(CancellationToken.None);
         var res = await handler.Handle(new EnsureFirstBudgetMonthCommand(persoid, persoid), CancellationToken.None);
@@ -187,15 +189,12 @@ public sealed class EnsureFirstBudgetMonthCommandTests
     {
         await _db.ResetAsync();
 
-        var (persoid, _, budgetId) = await BudgetSeeds.SeedMinimalAsync(_db.ConnectionString);
-
-        var dbOpts = DbOptions(_db.ConnectionString);
-        var uow = new UnitOfWork(dbOpts, NullLogger<UnitOfWork>.Instance);
-        var repo = new BudgetMonthRepository(uow, NullLogger<BudgetMonthRepository>.Instance, dbOpts);
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+        var persoid = seed.Persoid;
+        var budgetId = seed.BudgetId;
 
         ITimeProvider clock = new FakeTimeProvider(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
-        IBudgetMonthBootstrapper bootstrapper = new BudgetMonthBootstrapper(repo, clock);
-        var handler = new EnsureFirstBudgetMonthCommandHandler(bootstrapper);
+        var handler = BuildHandler(_db.ConnectionString, clock, out var uow);
 
         // Call #1
         await uow.BeginTransactionAsync(CancellationToken.None);
@@ -212,5 +211,11 @@ public sealed class EnsureFirstBudgetMonthCommandTests
         (await CountMonthsAsync(_db.ConnectionString, budgetId)).Should().Be(1);
         (await CountOpenMonthsAsync(_db.ConnectionString, budgetId)).Should().Be(1);
         (await GetOpenYearMonthAsync(_db.ConnectionString, budgetId)).Should().Be("2026-01");
+    }
+
+    private sealed class FakeTimeProvider : ITimeProvider
+    {
+        public FakeTimeProvider(DateTime utcNow) => UtcNow = utcNow;
+        public DateTime UtcNow { get; }
     }
 }

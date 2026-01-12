@@ -59,7 +59,7 @@ const SubStepFixedExpenses: React.FC = () => {
     }, 0);
   };
 
-  
+
   const isMdScreenOrUp = useMediaQuery('(min-width: 768px)');
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -81,11 +81,11 @@ const SubStepFixedExpenses: React.FC = () => {
   const formattedTotalValue = calculatedTotalValue.toLocaleString("sv-SE");
 
   const commonExpenseFields = [
-    { name: "insurance" as const, label: "Försäkringar", placeholder: "t.ex. 300 kr", helpText: "Ett samlat månadssnitt på dina försäkringar. Exempelvis hemförsäkring, bilförsäkring, livsförsäkring." },
-    { name: "electricity" as const, label: "El", placeholder: "t.ex. 500 kr", helpText: "Kostnader relaterat till elkostnad, för ett bra snitt använd tre månader! Tänk på att inkludera alla kostnader relaterade till el, såsom skatt och avgifter." },
-    { name: "internet" as const, label: "Internet", placeholder: "t.ex. 400 kr", helpText: "Din månadskostnad för all form av bredband" },
-    { name: "phone" as const, label: "Telefoni", placeholder: "t.ex. 250 kr", helpText: "Din månadskostnad för alla typer av telefoni du betalar för" },
-    { name: "unionFees" as const, label: "Fackförenings-\navgift", placeholder: "t.ex. 350 kr", helpText: "Om du är med i ett fack och/eller A-kassa kan du ange det här." },
+    { name: "insurance" as const, label: "Försäkringar", placeholder: "t.ex. 300", helpText: "Ett samlat månadssnitt på dina försäkringar. Exempelvis hemförsäkring, bilförsäkring, livsförsäkring." },
+    { name: "electricity" as const, label: "El", placeholder: "t.ex. 500", helpText: "Kostnader relaterat till elkostnad, för ett bra snitt använd tre månader! Tänk på att inkludera alla kostnader relaterade till el, såsom skatt och avgifter." },
+    { name: "internet" as const, label: "Internet", placeholder: "t.ex. 400", helpText: "Din månadskostnad för all form av bredband" },
+    { name: "phone" as const, label: "Telefoni", placeholder: "t.ex. 250", helpText: "Din månadskostnad för alla typer av telefoni du betalar för" },
+    { name: "unionFees" as const, label: "Fackförenings-\navgift", placeholder: "t.ex. 350", helpText: "Om du är med i ett fack och/eller A-kassa kan du ange det här." },
   ];
 
   const itemVariants = {
@@ -157,14 +157,14 @@ const SubStepFixedExpenses: React.FC = () => {
           <Separator className="bg-white/20" />
 
           <Accordion type="single" collapsible value={openAccordion} onValueChange={setOpenAccordion}>
-             <span id={idFromPath("fixedExpenses.customExpenses")} className="block h-0" />
+            <span id={idFromPath("fixedExpenses.customExpenses")} className="block h-0" />
             {/* anchor for scroll-to-first-error */}
 
             <AccordionItem value="custom">
               <AccordionTrigger className="text-lg font-semibold text-white hover:no-underline focus:outline-none py-3"
-              id={idFromPath("fixedExpenses.customExpenses")}>
-              
-                
+                id={idFromPath("fixedExpenses.customExpenses")}>
+
+
                 Egna Fasta Utgifter
               </AccordionTrigger>
               <AccordionContent className="pt-2 pb-4 space-y-4">

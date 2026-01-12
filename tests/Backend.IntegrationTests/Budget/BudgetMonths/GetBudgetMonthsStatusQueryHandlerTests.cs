@@ -2,15 +2,17 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Backend.Application.Abstractions.Infrastructure.System;
+using Backend.Application.DTO.Budget.Months;
 using Backend.Application.Features.Budgets.Months.GetBudgetMonthsStatus;
 using Backend.Infrastructure.Data;
 using Backend.Infrastructure.Repositories.Budget.Months;
 using Backend.IntegrationTests.Shared;
+using Backend.IntegrationTests.Shared.Seeds;
 using Backend.Settings;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using Backend.Application.DTO.Budget.Months;
+using Backend.IntegrationTests.Shared.Seeds.Budget;
 
 namespace Backend.IntegrationTests.Budget.BudgetMonths;
 
@@ -49,7 +51,8 @@ public sealed class GetBudgetMonthsStatusQueryHandlerTests
     {
         await _db.ResetAsync();
 
-        var (persoid, _, _) = await BudgetSeeds.SeedMinimalAsync(_db.ConnectionString);
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+        var persoid = seed.Persoid;
 
         var dbOpts = DbOptions(_db.ConnectionString);
         var uow = new UnitOfWork(dbOpts, NullLogger<UnitOfWork>.Instance);
@@ -76,7 +79,10 @@ public sealed class GetBudgetMonthsStatusQueryHandlerTests
     {
         await _db.ResetAsync();
 
-        var (persoid, userId, budgetId) = await BudgetSeeds.SeedMinimalAsync(_db.ConnectionString);
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+        var persoid = seed.Persoid;
+        var userId = seed.UserId;
+        var budgetId = seed.BudgetId;
 
         await BudgetMonthDsl.InsertOpenAsync(
             cs: _db.ConnectionString,
@@ -110,7 +116,10 @@ public sealed class GetBudgetMonthsStatusQueryHandlerTests
     {
         await _db.ResetAsync();
 
-        var (persoid, userId, budgetId) = await BudgetSeeds.SeedMinimalAsync(_db.ConnectionString);
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+        var persoid = seed.Persoid;
+        var userId = seed.UserId;
+        var budgetId = seed.BudgetId;
 
         await BudgetMonthDsl.InsertOpenAsync(
             cs: _db.ConnectionString,
@@ -143,7 +152,10 @@ public sealed class GetBudgetMonthsStatusQueryHandlerTests
     {
         await _db.ResetAsync();
 
-        var (persoid, userId, budgetId) = await BudgetSeeds.SeedMinimalAsync(_db.ConnectionString);
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+        var persoid = seed.Persoid;
+        var userId = seed.UserId;
+        var budgetId = seed.BudgetId;
 
         await BudgetMonthDsl.InsertOpenAsync(_db.ConnectionString, budgetId, "2025-12",
             new DateTime(2025, 12, 01, 10, 00, 00, DateTimeKind.Utc), userId);
@@ -164,5 +176,11 @@ public sealed class GetBudgetMonthsStatusQueryHandlerTests
         res.IsFailure.Should().BeFalse();
         res.Value.Should().NotBeNull();
         res.Value!.OpenMonthYearMonth.Should().Be("2026-01");
+    }
+
+    private sealed class FakeTimeProvider : ITimeProvider
+    {
+        public FakeTimeProvider(DateTime utcNow) => UtcNow = utcNow;
+        public DateTime UtcNow { get; }
     }
 }

@@ -1,10 +1,9 @@
-using Backend.Application.Abstractions.Application.Services.Budget;
 using Backend.Application.Abstractions.Application.Services.Debts;
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Application.Abstractions.Messaging;
 using Backend.Application.DTO.Budget.Dashboard;
-using Backend.Application.Features.Budgets.Dashboard.Utils;
+using Backend.Application.Abstractions.Application.Services.Budget.Projections;
 using Backend.Domain.Shared;
 using Backend.Application.Features.Budgets.Months.Helpers;
 using Backend.Domain.Errors;
@@ -17,23 +16,25 @@ public sealed class GetBudgetDashboardMonthQueryHandler
 {
     private readonly IBudgetMonthRepository _months;
     private readonly IBudgetDashboardRepository _dashRepo;
-    private readonly IDebtPaymentCalculator _debtCalc;
+    private readonly IBudgetDashboardProjector _projector;
     private readonly ITimeProvider _clock;
 
     public GetBudgetDashboardMonthQueryHandler(
         IBudgetMonthRepository months,
         IBudgetDashboardRepository dashRepo,
-        IDebtPaymentCalculator debtCalc,
+        IBudgetDashboardProjector projector,
         ITimeProvider clock)
     {
         _months = months;
         _dashRepo = dashRepo;
-        _debtCalc = debtCalc;
+        _projector = projector;
         _clock = clock;
     }
 
     public async Task<Result<BudgetDashboardMonthDto?>> Handle(GetBudgetDashboardMonthQuery q, CancellationToken ct)
     {
+        const string currencyCode = "SEK"; // hardcoded for now, extend later
+
         // Find budget
         var budgetId = await _months.GetBudgetIdByPersoidAsync(q.Persoid, ct);
         if (budgetId is null) return Result<BudgetDashboardMonthDto?>.Success(null);
@@ -84,7 +85,7 @@ public sealed class GetBudgetDashboardMonthQueryHandler
                 FinalBalanceMonthly: month.SnapshotFinalBalanceMonthly!.Value
             );
 
-            return Result<BudgetDashboardMonthDto?>.Success(new(meta, null, snap));
+            return Result<BudgetDashboardMonthDto?>.Success(new(meta, currencyCode, null, snap));
         }
 
         // Open => live dashboard + carryOver affects disposable
@@ -92,7 +93,7 @@ public sealed class GetBudgetDashboardMonthQueryHandler
         if (data is null) return Result<BudgetDashboardMonthDto?>.Success(null);
 
         var carry = month.CarryOverAmount ?? 0m;
-        var live = BudgetDashboardMapper.MapToDto(data, _debtCalc, carry);
+        var live = _projector.Project(data, carry);
 
         // You ONLY have derived properties in BudgetDashboardDto.
         // So to include carryOver, we must return carry in metadata and FE adds it,
@@ -103,6 +104,7 @@ public sealed class GetBudgetDashboardMonthQueryHandler
         // For now: we keep live dashboard unchanged and rely on Month.CarryOverAmount.
         // (If you want BE to provide carry-applied disposable, add fields to dto below.)
         return Result<BudgetDashboardMonthDto?>.Success(new BudgetDashboardMonthDto(
+            CurrencyCode: currencyCode,
             Month: meta,
             LiveDashboard: live,
             SnapshotTotals: null

@@ -1,53 +1,21 @@
-using System;
-using System.Collections.Generic;
-using System.Data.Common;
-using System.Threading;
-using System.Threading.Tasks;
-using Dapper;
+using Backend.Application.Abstractions.Infrastructure.Data;
+using Backend.Application.Features.Wizard.Finalization;
+using Backend.Application.Features.Wizard.Finalization.Abstractions;
+using Backend.Application.Features.Wizard.Finalization.Processing.Processors;
+using Backend.Application.Features.Wizard.Finalization.Targets;
+using Backend.Domain.Abstractions;
+using Backend.Domain.Shared;
+using Backend.Infrastructure.Repositories.Budget.Core;
+using Backend.IntegrationTests.Shared;
+using Backend.IntegrationTests.Shared.Seeds;
+using Backend.IntegrationTests.Shared.Wizard;
 using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
 using MySqlConnector;
-using Xunit;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-
-using Backend.IntegrationTests.Shared;
-
-using Backend.Application.Abstractions.Infrastructure.Data;
-using Backend.Application.Abstractions.Infrastructure.System;
-using Backend.Application.Features.Wizard.FinalizeWizard;
-using Backend.Application.Features.Wizard.FinalizeWizard.Processors;
-using Backend.Application.Mappings.Budget;
-using Backend.Domain.Shared;
-using Backend.Application.Models.Wizard;
-// Real repos
-using Backend.Infrastructure.Repositories.Budget.Core;
-using Backend.Settings;
-using Backend.Domain.Abstractions;
-// Domain entities used by repos/processors
-using Backend.Domain.Entities.Wizard;
-using Backend.Domain.Entities.Budget.Income;
-using Backend.Domain.Entities.Budget.Expenses;
-using Backend.Domain.Enums;
-using Backend.Common.Utilities; // For JsonHelper with enum string converter
-// Repo interfaces
-using IIncomeRepository = Backend.Application.Abstractions.Infrastructure.Data.IIncomeRepository;
-using IExpenditureRepository = Backend.Application.Abstractions.Infrastructure.Data.IExpenditureRepository;
-using Backend.Application.DTO.Wizard;
-
-// DTOs
-using IncomeDataDto = Backend.Application.DTO.Budget.Income.IncomeData;
-using ExpenditureDataDto = Backend.Application.DTO.Budget.Expenditure.ExpenditureData;
-using RentDto = Backend.Application.DTO.Budget.Expenditure.RentDto;
-using FoodDto = Backend.Application.DTO.Budget.Expenditure.FoodDto;
-using TransportDto = Backend.Application.DTO.Budget.Expenditure.TransportDto;
-using ClothingDto = Backend.Application.DTO.Budget.Expenditure.ClothingDto;
-using FixedExpensesDto = Backend.Application.DTO.Budget.Expenditure.FixedExpensesDto;
-using CustomExpenseDto = Backend.Application.DTO.Budget.Expenditure.CustomExpenseDto;
-//test
+using Dapper;
 
 namespace Backend.IntegrationTests.Wizard;
 
@@ -60,552 +28,212 @@ public sealed class FinalizeWizardFlowTests
     private sealed class TestCurrentUserContext : ICurrentUserContext
     {
         public Guid Persoid { get; set; }
-        public string UserName { get; } = string.Empty; // Email as of now
+        public string UserName { get; } = string.Empty;
     }
 
-    // ---------- Decorators that ensure Budget exists before first write ----------
-    private sealed class BudgetEnsuringIncomeRepo : IIncomeRepository
+    // Keep options helper
+    private static IOptions<Backend.Settings.DatabaseSettings> DbOptions(string cs) =>
+        Options.Create(new Backend.Settings.DatabaseSettings { ConnectionString = cs });
+
+    // Small, test-local orchestrator: uses real processors + real target.
+    private sealed class TestWizardStepOrchestrator : IWizardStepOrchestrator
     {
-        private readonly IIncomeRepository _inner;
-        private readonly IUnitOfWork _uow;
-        private readonly Guid _userId;
+        private readonly IWizardRepository _wizardRepo;
+        private readonly IReadOnlyDictionary<int, IWizardStepProcessor> _processors;
+        private readonly ILogger<TestWizardStepOrchestrator> _logger;
 
-        public BudgetEnsuringIncomeRepo(IIncomeRepository inner, IUnitOfWork uow, Guid userId)
+        public TestWizardStepOrchestrator(
+            IWizardRepository wizardRepo,
+            IEnumerable<IWizardStepProcessor> processors,
+            ILogger<TestWizardStepOrchestrator> logger)
         {
-            _inner = inner; _uow = uow; _userId = userId;
+            _wizardRepo = wizardRepo;
+            _processors = processors.ToDictionary(p => p.StepNumber);
+            _logger = logger;
         }
 
-        public async Task AddAsync(Income income, Guid budgetId, CancellationToken ct)
+        public async Task<Result> RunAsync(Guid sessionId, IWizardFinalizationTarget target, CancellationToken ct)
         {
-            await EnsureBudgetAsync(budgetId, ct);
-            await _inner.AddAsync(income, budgetId, ct);
-        }
+            var rows = await _wizardRepo.GetRawStepDataForFinalizationAsync(sessionId, ct);
 
-        private async Task EnsureBudgetAsync(Guid budgetId, CancellationToken ct)
-        {
-            var exists = await _uow.Connection!.ExecuteScalarAsync<long>(
-                "SELECT COUNT(*) FROM Budget WHERE Id=@id;", new { id = budgetId }, _uow.Transaction);
-            if (exists == 0)
+            foreach (var row in rows.OrderBy(r => r.StepNumber).ThenBy(r => r.SubStep))
             {
-                await _uow.Connection!.ExecuteAsync("""
-                    INSERT INTO Budget (Id, Persoid, CreatedByUserId)
-                    VALUES (@id, @pid, @uid);
-                """, new { id = budgetId, pid = _userId, uid = _userId }, _uow.Transaction);
+                if (!_processors.TryGetValue(row.StepNumber, out var proc))
+                    return Result.Failure(new Error("Wizard.MissingProcessor", $"No processor registered for step {row.StepNumber}."));
+
+                var res = await proc.ProcessAsync(row.StepData, target, ct);
+                if (res.IsFailure)
+                {
+                    _logger.LogWarning("Wizard step {Step} failed: {Code} - {Desc}", row.StepNumber, res.Error.Code, res.Error.Description);
+                    return res;
+                }
             }
+
+            return Result.Success();
         }
     }
 
-    private sealed class BudgetEnsuringExpenditureRepo : IExpenditureRepository
+    private sealed record SutBundle(
+        UnitOfWork Uow,
+        SqlWizardRepositoryForTests WizardRepo,
+        FinalizeWizardCommandHandler Sut
+    );
+
+    private SutBundle BuildSut(Guid userId, bool simulateDeleteFailure = false)
     {
-        private readonly IExpenditureRepository _inner;
-        private readonly IUnitOfWork _uow;
-        private readonly Guid _userId;
+        var dbOpts = DbOptions(_db.ConnectionString);
 
-        public BudgetEnsuringExpenditureRepo(IExpenditureRepository inner, IUnitOfWork uow, Guid userId)
-        {
-            _inner = inner; _uow = uow; _userId = userId;
-        }
+        var uow = new UnitOfWork(dbOpts, NullLogger<UnitOfWork>.Instance);
+        var currentUser = new TestCurrentUserContext { Persoid = userId };
 
-        public async Task AddAsync(Expense expense, Guid budgetId, CancellationToken ct)
-        {
-            await EnsureBudgetAsync(budgetId, ct);
-            await _inner.AddAsync(expense, budgetId, ct);
-        }
+        // real repos used by FinalizeBudgetTarget
+        var incomeRepo = new IncomeRepository(uow, NullLogger<IncomeRepository>.Instance, currentUser, dbOpts);
+        var expRepo = new ExpenditureRepository(uow, NullLogger<ExpenditureRepository>.Instance, currentUser, dbOpts);
+        var budgetRepo = new BudgetRepository(uow, NullLogger<BudgetRepository>.Instance, currentUser, dbOpts);
 
-        private async Task EnsureBudgetAsync(Guid budgetId, CancellationToken ct)
+        // not used unless you add processors for their steps
+        var savingsRepoMock = new Mock<ISavingsRepository>(MockBehavior.Strict);
+        var debtsRepoMock = new Mock<IDebtsRepository>(MockBehavior.Strict);
+
+        var targetFactory = new FinalizeBudgetTargetFactory(
+            incomeRepo,
+            expRepo,
+            savingsRepoMock.Object,
+            debtsRepoMock.Object,
+            budgetRepo);
+
+        var wizardRepo = new SqlWizardRepositoryForTests(_db.ConnectionString)
         {
-            var exists = await _uow.Connection!.ExecuteScalarAsync<long>(
-                "SELECT COUNT(*) FROM Budget WHERE Id=@id;", new { id = budgetId }, _uow.Transaction);
-            if (exists == 0)
-            {
-                await _uow.Connection!.ExecuteAsync("""
-                    INSERT INTO Budget (Id, Persoid, CreatedByUserId)
-                    VALUES (@id, @pid, @uid);
-                """, new { id = budgetId, pid = _userId, uid = _userId }, _uow.Transaction);
-            }
-        }
+            SimulateDeleteFailure = simulateDeleteFailure
+        };
+
+        var processors = new IWizardStepProcessor[]
+        {
+            new IncomeStepProcessor(NullLogger<IncomeStepProcessor>.Instance),
+            new ExpenseStepProcessor(NullLogger<ExpenseStepProcessor>.Instance),
+        };
+
+        var orchestrator = new TestWizardStepOrchestrator(
+            wizardRepo,
+            processors,
+            NullLogger<TestWizardStepOrchestrator>.Instance);
+
+        var userRepoMock = new Mock<IUserRepository>();
+        userRepoMock.Setup(x => x.SetFirstTimeLoginAsync(userId, It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(true);
+
+        var sut = new FinalizeWizardCommandHandler(
+            wizardRepo,
+            budgetRepo,
+            userRepoMock.Object,
+            orchestrator,
+            targetFactory,
+            NullLogger<FinalizeWizardCommandHandler>.Instance);
+
+        return new SutBundle(uow, wizardRepo, sut);
     }
-
-    // You can add Savings/Debts decorators the same way if you include processors 3/4.
-
-    // ---------- Wizard repo stub wired to the DB just for finalization read ----------
-    private sealed class SqlWizardFinalizationRepo : IWizardRepository
-    {
-        private readonly string _cs;
-        public bool SimulateDeleteFailure { get; set; } = false;
-        public SqlWizardFinalizationRepo(string cs) => _cs = cs;
-
-        public Task<Guid?> GetSessionIdByPersoIdAsync(Guid persoId, CancellationToken ct) => Task.FromResult<Guid?>(null);
-        public Task<Guid> CreateSessionAsync(Guid persoId, CancellationToken ct) => Task.FromResult(Guid.Empty);
-        public Task<bool> UpsertStepDataAsync(Guid wizardSessionId, int stepNumber, int substepNumber, string jsonData, int dataVersion, CancellationToken ct) => Task.FromResult(false);
-        public Task<bool> DoesUserOwnSessionAsync(Guid userId, Guid sessionId, CancellationToken ct) => Task.FromResult(false);
-        public Task<WizardSavedDataDTO?> GetWizardDataAsync(Guid sessionId, CancellationToken ct) => Task.FromResult<WizardSavedDataDTO?>(null);
-
-        public async Task<IEnumerable<WizardStepRowEntity>> GetRawStepDataForFinalizationAsync(Guid sessionId, CancellationToken ct)
-        {
-            await using var c = new MySqlConnection(_cs);
-            return await c.QueryAsync<WizardStepRowEntity>(@"
-                SELECT WizardSessionId, StepNumber, SubStep, StepData, DataVersion, UpdatedAt
-                FROM WizardStepData
-                WHERE WizardSessionId = @sid;", new { sid = sessionId });
-        }
-        public Task<bool> DeleteSessionAsync(Guid wizardSessionId, CancellationToken ct = default)
-        {
-            // If we simulate failure, return false. Otherwise true.
-            return Task.FromResult(!SimulateDeleteFailure);
-        }
-    }
-
-    private static IOptions<DatabaseSettings> DbOptions(string cs) =>
-        Options.Create(new DatabaseSettings { ConnectionString = cs });
 
     [Fact]
     public async Task Given_ValidSteps_When_Finalize_Then_Commits_And_Writes_All()
     {
         await _db.ResetAsync();
+
         var userId = Guid.NewGuid();
         var sessionId = Guid.NewGuid();
 
-        // ----- helpers -----
-        static string J(object o) => JsonSerializer.Serialize(
-            o,
-            new JsonSerializerOptions
-            {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-            });
+        await DbSeeds.SeedDefaultExpenseCategoriesAsync(_db.ConnectionString);
+        await UserTestSeeds.SeedUserAsync(_db.ConnectionString, userId);
 
+        await WizardSeeds.SeedSessionAsync(_db.ConnectionString, sessionId, userId);
+        await WizardSeeds.SeedIncomeAndExpenditureAsync(_db.ConnectionString, sessionId);
 
-        var incomePayload = new
-        {
-            income = new
-            {
-                netSalary = 30000m,
-                salaryFrequency = 0,
-                showHouseholdMembers = false,
-                showSideIncome = false,
-                sideHustles = Array.Empty<object>(),        // no typed list
-                householdMembers = Array.Empty<object>()    // no typed list
-            }
-        };
+        var bundle = BuildSut(userId);
 
-        var expenditurePayload = new
-        {
-            expenditure = new
-            {
-                rent = new { monthlyRent = 900m },
-                food = new { foodStoreExpenses = 200m, takeoutExpenses = 50m },
-                transport = new { monthlyTransitCost = 600m },
-                clothing = new { monthlyClothingCost = 100m },
-                utilities = new { electricity = 300m, water = 0m },
-                fixedExpenses = new
-                {
-                    internet = 300m,
-                    phone = 200m,
-                    unionFees = 0m,
-                    customExpenses = new[] { new { id = "fx1", name = "Garbage fee", cost = 75m } }
-                },
-                subscriptions = new
-                {
-                    netflix = 149m,
-                    customSubscriptions = new[] { new { id = "sub1", name = "Extra Cloud", cost = 29m } }
-                }
-            }
-        };
-        var expJson = J(new ExpenditureDataDto
-        {
-            Rent = new RentDto { MonthlyRent = 900m },
-            Food = new FoodDto { FoodStoreExpenses = 200m, TakeoutExpenses = 50m },
-            Transport = new TransportDto { MonthlyTransitCost = 600m },
-            Clothing = new ClothingDto { MonthlyClothingCost = 100m },
+        await bundle.Uow.BeginTransactionAsync(CancellationToken.None);
+        var res = await bundle.Sut.Handle(new FinalizeWizardCommand(sessionId, userId), CancellationToken.None);
 
-            // This is the only place where your “fixed” bills should go
-            FixedExpenses = new FixedExpensesDto
-            {
-                Electricity = 300m,
-                Insurance = 120m,
-                Internet = 300m,
-                Phone = 200m,
-                UnionFees = 0m,
-                CustomExpenses = new List<CustomExpenseDto> {
-                    new() { Name = "Garbage fee", Cost = 75m },
-                    new() { Name = "Parking",     Cost = 250m }
-                }
-            },
+        if (res.IsSuccess) await bundle.Uow.CommitAsync(CancellationToken.None);
+        else await bundle.Uow.RollbackAsync(CancellationToken.None);
 
-            // Subscriptions MUST be list-based
-            Subscriptions = new SubscriptionsDto
-            {
-                // FE style: "customSubscriptions": [...]
-                CustomSubscriptions = new List<SubscriptionDto>
-                    {
-                        new() { Name = "Extra Cloud", Cost = 29m }
-                    },
+        res.IsSuccess.Should().BeTrue(res.IsFailure ? $"{res.Error.Code} - {res.Error.Description}" : "");
 
-                // FE style: "netflix": 149, "spotify": 119 ...
-                Other = new Dictionary<string, JsonElement>
-                {
-                    ["netflix"] = JsonDocument.Parse("149").RootElement,
-                    ["spotify"] = JsonDocument.Parse("119").RootElement,
-                }
-            }
-        });
-        var incomeJson = J(new IncomeDataDto
-        {
-            NetSalary = 30000m,
-            SalaryFrequency = Frequency.Monthly, // use explicit enum for string serialization
-            ShowHouseholdMembers = false,
-            ShowSideIncome = false,
-            SideHustles = new(),          // keep non-null
-            HouseholdMembers = new()
-        });
-        // Re-serialize using JsonHelper.Camel to ensure enums are written as strings ("monthly")
-        incomeJson = JsonSerializer.Serialize(JsonSerializer.Deserialize<IncomeDataDto>(incomeJson)!, JsonHelper.Camel);
-        // ----- seed Users -----
-        await using (var conn = new MySqlConnection(_db.ConnectionString))
-        {
-            await conn.ExecuteAsync("""
-                INSERT INTO Users (Persoid, Firstname, Lastname, Email, EmailConfirmed, Password, Roles, Locked, FirstLogin, CreatedBy)
-                VALUES (@pid, 'Final', 'User', 'final@example.com', 1, '$2a$12$abcdefghijkABCDEFGHIJKlmn', 'User', 0, 0, 'it');
-            """, new { pid = userId });
-        }
+        await using var conn = new MySqlConnection(_db.ConnectionString);
 
-        // ----- seed WizardSession + WizardStepData (Step 1 = Income, Step 2 = Expenditure) -----
-        await using (var conn = new MySqlConnection(_db.ConnectionString))
-        {
-            await conn.OpenAsync();
+        (await conn.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM Budget;")).Should().Be(1);
+        (await conn.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM Income;")).Should().Be(1);
 
-            await conn.ExecuteAsync("""
-                INSERT INTO WizardSession (WizardSessionId, Persoid, CreatedAt, UpdatedAt)
-                VALUES (@sid, @pid, UTC_TIMESTAMP(), UTC_TIMESTAMP());
-            """, new { sid = sessionId, pid = userId });
-
-            await conn.ExecuteAsync("""
-                INSERT INTO WizardStepData
-                    (WizardSessionId, StepNumber, SubStep, StepData, DataVersion, CreatedBy, CreatedTime, UpdatedAt)
-                VALUES
-                    (@sid, 1, 0, @income, 1, 'it', UTC_TIMESTAMP(), UTC_TIMESTAMP()),
-                    (@sid, 2, 0, @exp,    1, 'it', UTC_TIMESTAMP(), UTC_TIMESTAMP());
-            """, new { sid = sessionId, income = incomeJson, exp = expJson });
-        }
-
-        // ----- seed categories (if not preseeded by migration in test db) -----
-        await using (var conn = new MySqlConnection(_db.ConnectionString))
-        {
-            await conn.ExecuteAsync("""
-            INSERT IGNORE INTO ExpenseCategory (Id, Name) VALUES
-            (UNHEX(REPLACE('2a9a1038-6ff1-4f2b-bd73-f2b9bb3f4c21','-','')), 'Rent'),
-            (UNHEX(REPLACE('5d5c51aa-9f05-4d4c-8ff1-0a61d6c9cc10','-','')), 'Food'),
-            (UNHEX(REPLACE('5eb2896c-59f9-4a18-8c84-4c2a1659de80','-','')), 'Transport'),
-            (UNHEX(REPLACE('e47e5c5d-4c97-4d87-89aa-e7a86b8f5ac0','-','')), 'Clothing'),
-            (UNHEX(REPLACE('8aa1d1b8-5b70-4fde-9e3f-b60dc4bfc900','-','')), 'FixedExpense'),
-            (UNHEX(REPLACE('9a3fe5f3-9fc4-4cc0-93d9-1a2ab9f7a5c4','-','')), 'Subscription'),
-            (UNHEX(REPLACE('f9f68c35-2f9b-4a8c-9faa-6f5212d3e6d2','-','')), 'Other');
-            """);
-        }
-
-        var dbOpts = DbOptions(_db.ConnectionString);
-        var uow = new UnitOfWork(dbOpts, NullLogger<UnitOfWork>.Instance);
-        var currentUser = new TestCurrentUserContext { Persoid = userId };
-
-        var incomeRepoReal = new IncomeRepository(uow, NullLogger<IncomeRepository>.Instance, currentUser, dbOpts);
-        var expRepoReal = new ExpenditureRepository(uow, NullLogger<ExpenditureRepository>.Instance, currentUser, dbOpts);
-
-        var incomeRepo = new BudgetEnsuringIncomeRepo(incomeRepoReal, uow, userId);
-        var expRepo = new BudgetEnsuringExpenditureRepo(expRepoReal, uow, userId);
-
-        var budgetRepo = new BudgetRepository(uow, NullLogger<BudgetRepository>.Instance, currentUser, dbOpts);
-
-        var incomeProc = new IncomeStepProcessor(incomeRepo, NullLogger<IncomeStepProcessor>.Instance);
-        var expenseProc = new ExpenseStepProcessor(expRepo, NullLogger<ExpenseStepProcessor>.Instance);
-
-        var wizardRepo = new SqlWizardFinalizationRepo(_db.ConnectionString);
-
-        var userRepoMock = new Mock<IUserRepository>();
-        userRepoMock.Setup(x => x.SetFirstTimeLoginAsync(userId, It.IsAny<CancellationToken>()))
-                    .ReturnsAsync(true);
-
-        var sut = new FinalizeWizardCommandHandler(
-                wizardRepo,
-                budgetRepo,
-                userRepoMock.Object,
-                new IWizardStepProcessor[] {
-                    new IncomeStepProcessor(incomeRepo, NullLogger<IncomeStepProcessor>.Instance),
-                    new ExpenseStepProcessor(expRepo, NullLogger<ExpenseStepProcessor>.Instance)
-                },
-                NullLogger<FinalizeWizardCommandHandler>.Instance
-            );
-
-        await uow.BeginTransactionAsync(CancellationToken.None);
-        var res = await sut.Handle(new FinalizeWizardCommand(sessionId, userId), CancellationToken.None);
-        if (!res.IsSuccess) throw new Xunit.Sdk.XunitException($"Finalize failed: {res.Error.Code} - {res.Error.Description}");
-
-        await uow.CommitAsync(CancellationToken.None);
-
-        // ---- Asserts ----
-        await using (var conn = new MySqlConnection(_db.ConnectionString))
-        {
-            (await conn.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM Budget;")).Should().Be(1);
-            (await conn.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM Income;")).Should().Be(1);
-
-            var items = await conn.QueryAsync<(Guid CategoryId, string Name, decimal Amount)>(
-                "SELECT CategoryId, Name, AmountMonthly AS Amount FROM ExpenseItem;"
-            );
-            items.Should().NotBeEmpty();
-            items.Should().Contain(x => x.Name.Contains("Rent", StringComparison.OrdinalIgnoreCase));
-            items.Should().Contain(x => x.Name.Contains("Netflix", StringComparison.OrdinalIgnoreCase) || x.CategoryId != Guid.Empty);
-        }
+        var expenseNames = (await conn.QueryAsync<string>("SELECT Name FROM ExpenseItem;")).ToList();
+        expenseNames.Should().NotBeEmpty();
+        expenseNames.Should().Contain(n => n.Contains("Rent", StringComparison.OrdinalIgnoreCase));
+        expenseNames.Should().Contain(n =>
+            n.Contains("Netflix", StringComparison.OrdinalIgnoreCase) ||
+            n.Contains("spotify", StringComparison.OrdinalIgnoreCase) ||
+            n.Contains("Extra Cloud", StringComparison.OrdinalIgnoreCase));
     }
-    // ------------------------------------------------------------
-    // FAILURE: expenditure JSON broken => ROLLBACK everything
-    // ------------------------------------------------------------
+
     [Fact]
     public async Task Given_ProcessorFailure_When_Finalize_Then_Rollback_All_Writes()
     {
         await _db.ResetAsync();
+
         var userId = Guid.NewGuid();
         var sessionId = Guid.NewGuid();
 
-        await using (var conn = new MySqlConnection(_db.ConnectionString))
-        {
-            await conn.ExecuteAsync("""
-                INSERT INTO Users (Persoid, Firstname, Lastname, Email, EmailConfirmed, Password, Roles, Locked, FirstLogin, CreatedBy)
-                VALUES (@pid, 'Final', 'User', 'final@example.com', 1, '$2a$12$abcdefghijkABCDEFGHIJKlmn', 'User', 0, 0, 'it');
-            """, new { pid = userId });
+        await DbSeeds.SeedDefaultExpenseCategoriesAsync(_db.ConnectionString);
+        await UserTestSeeds.SeedUserAsync(_db.ConnectionString, userId);
 
-            // Ensure WizardSession exists for FK integrity before inserting step data rows
-            await conn.ExecuteAsync("""
-                INSERT INTO WizardSession (WizardSessionId, Persoid, CurrentStep, CreatedAt, UpdatedAt)
-                VALUES (@sid, @pid, 0, UTC_TIMESTAMP(), UTC_TIMESTAMP());
-            """, new { sid = sessionId, pid = userId });
+        await WizardSeeds.SeedSessionAsync(_db.ConnectionString, sessionId, userId);
+        await WizardSeeds.SeedIncomeAndBrokenExpenditureAsync(_db.ConnectionString, sessionId);
 
-            // Step 1 OK, Step 2 BROKEN JSON to force processor failure
-            await conn.ExecuteAsync("""
-                INSERT INTO WizardStepData (WizardSessionId, StepNumber, SubStep, StepData, DataVersion, CreatedBy, CreatedTime, UpdatedAt)
-                VALUES
-                (@sid, 1, 0, @income, 1, 'it', UTC_TIMESTAMP(), UTC_TIMESTAMP()),
-                (@sid, 2, 0, @expBroken, 1, 'it', UTC_TIMESTAMP(), UTC_TIMESTAMP());
-            """, new
-            {
-                sid = sessionId,
-                // Use string enum value (camelCase) to pass step 1 deserialization; step 2 remains broken
-                income = """
-                         {"netSalary":30000,"salaryFrequency":"monthly","showHouseholdMembers":false,"showSideIncome":false,
-                          "sideHustles":[],"householdMembers":[]}
-                         """,
-                expBroken = "{ this is not valid json"
-            });
-        }
+        var bundle = BuildSut(userId);
 
-        var dbOpts = DbOptions(_db.ConnectionString);
+        await bundle.Uow.BeginTransactionAsync(CancellationToken.None);
+        var res = await bundle.Sut.Handle(new FinalizeWizardCommand(sessionId, userId), CancellationToken.None);
 
-        var uow = new UnitOfWork(DbOptions(_db.ConnectionString), NullLogger<UnitOfWork>.Instance);
-        var currentUser = new TestCurrentUserContext { Persoid = userId };
+        if (res.IsSuccess) await bundle.Uow.CommitAsync(CancellationToken.None);
+        else await bundle.Uow.RollbackAsync(CancellationToken.None);
 
-        var incomeRepoReal = new IncomeRepository(uow, NullLogger<IncomeRepository>.Instance, currentUser, dbOpts);
-        var expRepoReal = new ExpenditureRepository(uow, NullLogger<ExpenditureRepository>.Instance, currentUser, dbOpts);
+        res.IsSuccess.Should().BeFalse("broken JSON in step 2 must fail finalization");
 
-        // Budget repo
-        var budgetRepo = new BudgetRepository(uow, NullLogger<BudgetRepository>.Instance, currentUser, dbOpts);
+        await using var conn = new MySqlConnection(_db.ConnectionString);
 
-        var incomeRepo = new BudgetEnsuringIncomeRepo(incomeRepoReal, uow, userId);
-        var expRepo = new BudgetEnsuringExpenditureRepo(expRepoReal, uow, userId);
-
-        var incomeProc = new IncomeStepProcessor(incomeRepo, NullLogger<IncomeStepProcessor>.Instance);
-        var expenseProc = new ExpenseStepProcessor(expRepo, NullLogger<ExpenseStepProcessor>.Instance);
-
-        var wizardRepo = new SqlWizardFinalizationRepo(_db.ConnectionString);
-
-        var userRepoMock = new Mock<IUserRepository>();
-        userRepoMock.Setup(x => x.SetFirstTimeLoginAsync(userId, It.IsAny<CancellationToken>()))
-                    .ReturnsAsync(true);
-
-        var sut = new FinalizeWizardCommandHandler(
-                wizardRepo,
-                budgetRepo,
-                userRepoMock.Object, // <--- Injected here
-                new IWizardStepProcessor[] {
-                    new IncomeStepProcessor(incomeRepo, NullLogger<IncomeStepProcessor>.Instance),
-                    new ExpenseStepProcessor(expRepo, NullLogger<ExpenseStepProcessor>.Instance)
-                },
-                NullLogger<FinalizeWizardCommandHandler>.Instance
-            );
-
-        await uow.BeginTransactionAsync(CancellationToken.None);
-        var res = await sut.Handle(new FinalizeWizardCommand(sessionId, userId), CancellationToken.None);
-
-        if (res.IsSuccess) await uow.CommitAsync(CancellationToken.None);
-        else await uow.RollbackAsync(CancellationToken.None);
-
-        // Handler must fail on bad JSON in step 2, and our manual rollback should revert step 1 writes.
-        res.IsSuccess.Should().BeFalse();
-
-        await using (var conn = new MySqlConnection(_db.ConnectionString))
-        {
-            // Everything rolled back
-            (await conn.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM Budget;")).Should().Be(0);
-            (await conn.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM Income;")).Should().Be(0);
-            (await conn.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM ExpenseItem;")).Should().Be(0);
-        }
+        (await conn.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM Budget;")).Should().Be(0);
+        (await conn.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM Income;")).Should().Be(0);
+        (await conn.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM ExpenseItem;")).Should().Be(0);
     }
+
     [Fact]
-    public async Task Given_CleanupFails_When_Finalize_Then_Still_Commits_Budget_And_Logs_Warning()
+    public async Task Given_CleanupFails_When_Finalize_Then_Still_Commits_Budget_And_Leaves_Session()
     {
-        // 1. Setup Data (Same as your existing Given_ValidSteps...)
         await _db.ResetAsync();
+
         var userId = Guid.NewGuid();
         var sessionId = Guid.NewGuid();
 
-        await SeedCategoriesAsync();
-        await SeedUserDataAsync(userId);
-        await SeedWizardDataAsync(sessionId, userId);
+        await DbSeeds.SeedDefaultExpenseCategoriesAsync(_db.ConnectionString);
+        await UserTestSeeds.SeedUserAsync(_db.ConnectionString, userId);
 
-        var dbOpts = DbOptions(_db.ConnectionString);
-        var uow = new UnitOfWork(dbOpts, NullLogger<UnitOfWork>.Instance);
-        var currentUser = new TestCurrentUserContext { Persoid = userId };
+        await WizardSeeds.SeedSessionAsync(_db.ConnectionString, sessionId, userId);
+        await WizardSeeds.SeedIncomeAndExpenditureAsync(_db.ConnectionString, sessionId);
 
-        // 2. MOCKS
-        // Mock User Repo to succeed
-        var userRepoMock = new Mock<IUserRepository>();
-        userRepoMock.Setup(x => x.SetFirstTimeLoginAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
-                    .ReturnsAsync(true);
+        var bundle = BuildSut(userId, simulateDeleteFailure: true);
 
-        // Real Repos
-        var incomeRepo = new BudgetEnsuringIncomeRepo(new IncomeRepository(uow, NullLogger<IncomeRepository>.Instance, currentUser, dbOpts), uow, userId);
-        var expRepo = new BudgetEnsuringExpenditureRepo(new ExpenditureRepository(uow, NullLogger<ExpenditureRepository>.Instance, currentUser, dbOpts), uow, userId);
-        var budgetRepo = new BudgetRepository(uow, NullLogger<BudgetRepository>.Instance, currentUser, dbOpts);
+        await bundle.Uow.BeginTransactionAsync(CancellationToken.None);
+        var res = await bundle.Sut.Handle(new FinalizeWizardCommand(sessionId, userId), CancellationToken.None);
 
-        // 3. WIZARD REPO - CONFIGURED TO FAIL CLEANUP
-        var wizardRepo = new SqlWizardFinalizationRepo(_db.ConnectionString);
-        wizardRepo.SimulateDeleteFailure = true; // <--- CRITICAL: Force cleanup failure
+        if (res.IsSuccess) await bundle.Uow.CommitAsync(CancellationToken.None);
+        else await bundle.Uow.RollbackAsync(CancellationToken.None);
 
-        var sut = new FinalizeWizardCommandHandler(
-            wizardRepo,
-            budgetRepo,
-            userRepoMock.Object, // <--- Pass the new dependency
-            new IWizardStepProcessor[] {
-                new IncomeStepProcessor(incomeRepo, NullLogger<IncomeStepProcessor>.Instance),
-                new ExpenseStepProcessor(expRepo, NullLogger<ExpenseStepProcessor>.Instance)
-            },
-            NullLogger<FinalizeWizardCommandHandler>.Instance
-        );
+        res.IsSuccess.Should().BeTrue("finalization should succeed even if cleanup fails");
 
-        // 4. ACT
-        await uow.BeginTransactionAsync(CancellationToken.None);
-        var res = await sut.Handle(new FinalizeWizardCommand(sessionId, userId), CancellationToken.None);
-
-        if (res.IsSuccess) await uow.CommitAsync(CancellationToken.None);
-        else await uow.RollbackAsync(CancellationToken.None);
-
-        // 5. ASSERT
-        // The Command should succeed despite cleanup failure
-        res.IsSuccess.Should().BeTrue("handler should return success even if cleanup fails");
-
-        await using (var conn = new MySqlConnection(_db.ConnectionString))
-        {
-            // Budget SHOULD exist (Transaction Committed)
-            (await conn.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM Budget;")).Should().Be(1);
-
-            // Session SHOULD still exist (Cleanup failed)
-            (await conn.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM WizardSession WHERE WizardSessionId = @id", new { id = sessionId }))
-                .Should().Be(1, "session should remain because DeleteSessionAsync returned false");
-        }
-    }
-    private async Task SeedUserDataAsync(Guid userId)
-    {
         await using var conn = new MySqlConnection(_db.ConnectionString);
-        await conn.ExecuteAsync("""
-            INSERT INTO Users (Persoid, Firstname, Lastname, Email, EmailConfirmed, Password, Roles, Locked, FirstLogin, CreatedBy)
-            VALUES (@pid, 'Final', 'User', 'final@example.com', 1, '$2a$12$abc...', 'User', 0, 0, 'it');
-        """, new { pid = userId });
-    }
-    private async Task SeedWizardDataAsync(Guid sessionId, Guid userId)
-    {
-        // 1. Prepare Data Objects
-        var incomeData = new IncomeDataDto
-        {
-            NetSalary = 30000m,
-            SalaryFrequency = Frequency.Monthly, // Enum
-            ShowHouseholdMembers = false,
-            ShowSideIncome = false,
-            SideHustles = new(),
-            HouseholdMembers = new()
-        };
 
-        var expenseData = new ExpenditureDataDto
-        {
-            Rent = new RentDto { MonthlyRent = 900m },
-            Food = new FoodDto { FoodStoreExpenses = 200m, TakeoutExpenses = 50m },
-            Transport = new TransportDto { MonthlyTransitCost = 600m },
-            Clothing = new ClothingDto { MonthlyClothingCost = 100m },
-            FixedExpenses = new FixedExpensesDto
-            {
-                Electricity = 300m,
-                Insurance = 120m,
-                Internet = 300m,
-                Phone = 200m,
-                CustomExpenses = new List<CustomExpenseDto> {
-                    new() { Name = "Garbage fee", Cost = 75m }
-                }
-            },
-            Subscriptions = new SubscriptionsDto
-            {
-                // FE style: "customSubscriptions": [...]
-                CustomSubscriptions = new List<SubscriptionDto>
-                {
-                    new() { Name = "Extra Cloud", Cost = 29m }
-                },
+        (await conn.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM Budget;")).Should().Be(1);
 
-                // FE style: "netflix": 149, "spotify": 119 ...
-                Other = new Dictionary<string, JsonElement>
-                {
-                    ["netflix"] = JsonDocument.Parse("149").RootElement,
-                    ["spotify"] = JsonDocument.Parse("119").RootElement,
-                }
-            }
-        };
-
-        // 2. Serialize (Use your JsonHelper settings to ensure Enums become strings like "monthly")
-        var jsonOpts = new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
-        };
-
-        string incomeJson = JsonSerializer.Serialize(incomeData, jsonOpts);
-        string expJson = JsonSerializer.Serialize(expenseData, jsonOpts);
-
-        // 3. Insert into DB
-        await using var conn = new MySqlConnection(_db.ConnectionString);
-        await conn.OpenAsync();
-
-        // Session
-        await conn.ExecuteAsync("""
-            INSERT INTO WizardSession (WizardSessionId, Persoid, CreatedAt, UpdatedAt)
-            VALUES (@sid, @pid, UTC_TIMESTAMP(), UTC_TIMESTAMP());
-        """, new { sid = sessionId, pid = userId });
-
-        // Steps
-        await conn.ExecuteAsync("""
-            INSERT INTO WizardStepData
-                (WizardSessionId, StepNumber, SubStep, StepData, DataVersion, CreatedBy, CreatedTime, UpdatedAt)
-            VALUES
-                (@sid, 1, 0, @income, 1, 'it', UTC_TIMESTAMP(), UTC_TIMESTAMP()),
-                (@sid, 2, 0, @exp,    1, 'it', UTC_TIMESTAMP(), UTC_TIMESTAMP());
-        """, new { sid = sessionId, income = incomeJson, exp = expJson });
-    }
-    private async Task SeedCategoriesAsync()
-    {
-        await using var conn = new MySqlConnection(_db.ConnectionString);
-        await conn.ExecuteAsync("""
-            INSERT IGNORE INTO ExpenseCategory (Id, Name) VALUES
-            (UNHEX(REPLACE('2a9a1038-6ff1-4f2b-bd73-f2b9bb3f4c21','-','')), 'Rent'),
-            (UNHEX(REPLACE('5d5c51aa-9f05-4d4c-8ff1-0a61d6c9cc10','-','')), 'Food'),
-            (UNHEX(REPLACE('5eb2896c-59f9-4a18-8c84-4c2a1659de80','-','')), 'Transport'),
-            (UNHEX(REPLACE('e47e5c5d-4c97-4d87-89aa-e7a86b8f5ac0','-','')), 'Clothing'),
-            (UNHEX(REPLACE('8aa1d1b8-5b70-4fde-9e3f-b60dc4bfc900','-','')), 'FixedExpense'),
-            (UNHEX(REPLACE('9a3fe5f3-9fc4-4cc0-93d9-1a2ab9f7a5c4','-','')), 'Subscription'),
-            (UNHEX(REPLACE('f9f68c35-2f9b-4a8c-9faa-6f5212d3e6d2','-','')), 'Other');
-        """);
+        // Session should still exist because DeleteSessionAsync returns false
+        (await conn.ExecuteScalarAsync<long>(
+            "SELECT COUNT(*) FROM WizardSession WHERE WizardSessionId = @sid;",
+            new { sid = sessionId }))
+            .Should().Be(1);
     }
 }

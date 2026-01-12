@@ -10,16 +10,40 @@
         public static readonly Guid Subscription = Guid.Parse("9a3fe5f3-9fc4-4cc0-93d9-1a2ab9f7a5c4");
         public static readonly Guid Other = Guid.Parse("f9f68c35-2f9b-4a8c-9faa-6f5212d3e6d2");
 
-        public static IReadOnlyDictionary<string, Guid> ByNameInsensitive =
+        // Parsing / lookup aliases (case-insensitive)
+        public static IReadOnlyDictionary<string, Guid> ByNameInsensitive { get; } =
             new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase)
             {
-            { "rent", Rent }, { "food", Food }, { "transport", Transport },
-            { "clothing", Clothing }, { "fixedexpense", FixedExpense },
-            { "subscription", Subscription }, { "other", Other }
+                ["rent"] = Rent,
+                ["food"] = Food,
+                ["transport"] = Transport,
+                ["clothing"] = Clothing,
+                ["fixedexpense"] = FixedExpense,
+                ["subscription"] = Subscription,
+                ["other"] = Other,
+
+                // OPTIONAL: extra aliases you might accept from FE/user input
+                ["fixed_expense"] = FixedExpense,
+                ["fixed-expense"] = FixedExpense,
+                ["fixedExpense"] = FixedExpense,
             };
 
-        private static readonly HashSet<Guid> _all = new HashSet<Guid>(ByNameInsensitive.Values);
+        private static readonly HashSet<Guid> _all = new(ByNameInsensitive.Values);
+
         /// <summary>All known category IDs (HashSet for O(1) membership tests).</summary>
         public static IReadOnlySet<Guid> All => _all;
+
+        // Canonical display names (what you output in preview/live/dashboard)
+        public static IReadOnlyDictionary<Guid, string> NameById { get; } =
+            new Dictionary<Guid, string>
+            {
+                [Rent] = "Rent",
+                [Food] = "Food",
+                [Transport] = "Transport",
+                [Clothing] = "Clothing",
+                [FixedExpense] = "FixedExpense",
+                [Subscription] = "Subscription",
+                [Other] = "Other",
+            };
     }
 }

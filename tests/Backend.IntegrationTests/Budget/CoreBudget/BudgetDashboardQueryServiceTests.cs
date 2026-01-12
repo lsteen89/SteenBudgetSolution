@@ -2,21 +2,22 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Backend.Application.Abstractions.Application.Services.Debts;
+using Backend.Application.Abstractions.Infrastructure.System;
+using Backend.Application.Features.Budgets.Dashboard.GetBudgetDashboardMonth;
+using Backend.Application.Services.Budget.Projections;
+using Backend.Application.Services.Debts;
+using Backend.Domain.Errors;
+using Backend.Infrastructure.Repositories.Budget.BudgetDashboard;
+using Backend.Infrastructure.Repositories.Budget.Months;
+using Backend.IntegrationTests.Shared;
+using Backend.IntegrationTests.Shared.Seeds;
+using Backend.Settings;
 using FluentAssertions;
 using FluentAssertions.Execution;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using Xunit;
-
-using Backend.Application.Abstractions.Application.Services.Debts;
-using Backend.Application.Abstractions.Infrastructure.System;
-using Backend.Application.Features.Budgets.Dashboard.GetBudgetDashboardMonth;
-using Backend.Application.Services.Debts;
-using Backend.Infrastructure.Repositories.Budget.BudgetDashboard;
-using Backend.Infrastructure.Repositories.Budget.Months;
-using Backend.IntegrationTests.Shared;
-using Backend.Settings;
-using Backend.Domain.Errors;
+using Backend.IntegrationTests.Shared.Seeds.Budget;
 
 namespace Backend.IntegrationTests.Budget.CoreBudget;
 
@@ -38,12 +39,15 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
     {
         await _db.ResetAsync();
 
-        var (persoid, _, budgetId) = await BudgetSeeds.SeedWithDataAsync(_db.ConnectionString);
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var persoid = seed.Persoid;
+        var budgetId = seed.BudgetId;
+
         var ym = "2026-01";
         await BudgetMonthSeeds.SeedOpenMonthAsync(
             _db.ConnectionString,
             budgetId,
-            "2026-01",
+            ym,
             carryOverMode: "none",
             carryOverAmount: null,
             createdByUserId: persoid
@@ -91,12 +95,15 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
     {
         await _db.ResetAsync();
 
-        var (persoid, _, budgetId) = await BudgetSeeds.SeedWithDataAsync(_db.ConnectionString);
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var persoid = seed.Persoid;
+        var budgetId = seed.BudgetId;
+
         var ym = "2026-01";
         await BudgetMonthSeeds.SeedOpenMonthAsync(
             _db.ConnectionString,
             budgetId,
-            "2026-01",
+            ym,
             carryOverMode: "none",
             carryOverAmount: null,
             createdByUserId: persoid
@@ -140,7 +147,10 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
     {
         await _db.ResetAsync();
 
-        var (persoid, _, budgetId) = await BudgetSeeds.SeedWithDataAsync(_db.ConnectionString);
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var persoid = seed.Persoid;
+        var budgetId = seed.BudgetId;
+
         var ym = "2025-12";
 
         await BudgetMonthSeeds.SeedClosedMonthAsync(
@@ -177,34 +187,37 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
         dto.SnapshotTotals.TotalDebtPaymentsMonthly.Should().Be(999m);
         dto.SnapshotTotals.FinalBalanceMonthly.Should().Be(18000m);
     }
+
     [Fact]
     public async Task Handle_WhenYearMonthInvalid_ReturnsInvalidYearMonth()
     {
         await _db.ResetAsync();
-        var (persoid, _, budgetId) = await BudgetSeeds.SeedWithDataAsync(_db.ConnectionString);
-        await BudgetMonthSeeds.SeedOpenMonthAsync(_db.ConnectionString, budgetId, "2026-01", "none", null, persoid);
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        await BudgetMonthSeeds.SeedOpenMonthAsync(_db.ConnectionString, seed.BudgetId, "2026-01", "none", null, seed.Persoid);
 
         var sut = BuildSut(_db.ConnectionString, new FakeTimeProvider(DateTime.UtcNow), new DebtPaymentCalculator());
 
-        var result = await sut.Handle(new GetBudgetDashboardMonthQuery(persoid, "2026-13"), CancellationToken.None);
+        var result = await sut.Handle(new GetBudgetDashboardMonthQuery(seed.Persoid, "2026-13"), CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Be(Errors.BudgetMonth.InvalidYearMonth);
     }
+
     [Fact]
     public async Task Handle_WhenMonthNotFound_ReturnsMonthNotFound()
     {
         await _db.ResetAsync();
-        var (persoid, _, _) = await BudgetSeeds.SeedMinimalAsync(_db.ConnectionString);
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
 
         var sut = BuildSut(_db.ConnectionString, new FakeTimeProvider(DateTime.UtcNow), new DebtPaymentCalculator());
 
-        var result = await sut.Handle(new GetBudgetDashboardMonthQuery(persoid, "2026-01"), CancellationToken.None);
+        var result = await sut.Handle(new GetBudgetDashboardMonthQuery(seed.Persoid, "2026-01"), CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Be(Errors.BudgetMonth.MonthNotFound);
     }
-
 
     // -------------------------
     // SUT factory
@@ -217,7 +230,9 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
         var months = new BudgetMonthRepository(uow, NullLogger<BudgetMonthRepository>.Instance, opts);
         var dashRepo = new BudgetDashboardRepository(uow, NullLogger<BudgetDashboardRepository>.Instance, opts);
 
-        return new GetBudgetDashboardMonthQueryHandler(months, dashRepo, debtCalc, clock);
+        var projector = new BudgetDashboardProjector(debtCalc);
+
+        return new GetBudgetDashboardMonthQueryHandler(months, dashRepo, projector, clock);
     }
 
     private static decimal Amortize(decimal principal, decimal annualRatePercent, int months)

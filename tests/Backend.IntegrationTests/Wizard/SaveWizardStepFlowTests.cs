@@ -13,7 +13,7 @@ using Backend.Application.Features.Wizard.SaveStep;
 using Backend.Domain.Shared;
 using Backend.IntegrationTests.Shared;
 
-namespace Backend.tests.IntegrationTests.Wizard;
+namespace Backend.IntegrationTests.Wizard;
 
 [Collection("it:db")]
 public sealed class SaveWizardStepFlowTests

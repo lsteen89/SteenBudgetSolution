@@ -40,7 +40,13 @@ public class WizardRepository : SqlBase, IWizardRepository
 
         return rowsAffected > 0 ? wizardSessionId : Guid.Empty;
     }
+    public async Task<bool> HasAnyStepDataAsync(Guid sessionId, CancellationToken ct)
+    {
+        const string sql = "SELECT EXISTS(SELECT 1 FROM WizardStepData WHERE WizardSessionId = @SessionId)";
 
+        // Use the base class ExecuteScalarAsync for consistency
+        return await ExecuteScalarAsync<bool>(sql, new { SessionId = sessionId }, ct);
+    }
     public Task<Guid?> GetSessionIdByPersoIdAsync(Guid persoId, CancellationToken ct = default)
     {
         string sql = "SELECT WizardSessionId FROM WizardSession WHERE Persoid = @Persoid";
@@ -192,7 +198,6 @@ public class WizardRepository : SqlBase, IWizardRepository
         var rowsAffected = await ExecuteAsync(sql, new { SessionId = sessionId }, ct);
         return rowsAffected > 0;
     }
-
     private static readonly JsonSerializerOptions Camel = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,

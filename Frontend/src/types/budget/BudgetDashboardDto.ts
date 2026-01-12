@@ -74,8 +74,17 @@ export interface BudgetDashboardDto {
     expenditure: ExpenditureOverviewDto;
     savings?: SavingsOverviewDto | null;
     debt: DebtOverviewDto;
+
+    // legacy
     disposableAfterExpenses: number;
     disposableAfterExpensesAndSavings: number;
+
+    CarryOverAmountMonthly: number;
+    DisposableAfterExpensesWithCarryMonthly: number;
+    DisposableAfterExpensesAndSavingsWithCarryMonthly: number;
+    finalBalanceWithCarryMonthly: number;
+
     recurringExpenses: DashboardRecurringExpenseDto[];
     subscriptions: SubscriptionsOverviewDto;
 }
+

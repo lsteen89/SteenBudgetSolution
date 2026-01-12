@@ -3,7 +3,6 @@ namespace Backend.Application.DTO.Budget.Dashboard;
 public sealed class BudgetDashboardDto
 {
     public Guid BudgetId { get; init; }
-
     public IncomeOverviewDto Income { get; init; } = default!;
     public ExpenditureOverviewDto Expenditure { get; init; } = default!;
     public SavingsOverviewDto? Savings { get; init; }
@@ -40,6 +39,7 @@ public sealed record BudgetMonthSnapshotTotalsDto(
 
 public sealed record BudgetDashboardMonthDto(
     BudgetMonthMetaDto Month,
+    string CurrencyCode,
     BudgetDashboardDto? LiveDashboard,                 // present when open
     BudgetMonthSnapshotTotalsDto? SnapshotTotals       // present when closed
 );

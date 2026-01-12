@@ -161,7 +161,7 @@ const SubStepFood: React.FC = () => {
                 <FormattedNumberInput
                   value={foodStoreExpensesVal || 0}
                   onValueChange={(val) => setValue("food.foodStoreExpenses", val ?? 0)}
-                  placeholder="t.ex. 2500 kr"
+                  placeholder="t.ex. 2500 "
                   error={errors.food?.foodStoreExpenses?.message}
                   name={foodStoreExpensesReg.name}
                   onBlur={foodStoreExpensesReg.onBlur}
@@ -194,7 +194,7 @@ const SubStepFood: React.FC = () => {
                 <FormattedNumberInput
                   value={takeoutExpensesVal || 0}
                   onValueChange={(val) => setValue("food.takeoutExpenses", val ?? 0)}
-                  placeholder="t.ex. 2500 kr"
+                  placeholder="t.ex. 2500"
                   error={errors.food?.takeoutExpenses?.message}
                   name={takeoutExpensesReg.name}
                   onBlur={takeoutExpensesReg.onBlur}

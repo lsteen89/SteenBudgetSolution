@@ -12,4 +12,5 @@ public interface IWizardRepository
     Task<WizardSavedDataDTO?> GetWizardDataAsync(Guid sessionId, CancellationToken ct);
     Task<IEnumerable<WizardStepRowEntity>> GetRawStepDataForFinalizationAsync(Guid sessionId, CancellationToken ct);
     Task<bool> DeleteSessionAsync(Guid sessionId, CancellationToken ct);
+    Task<bool> HasAnyStepDataAsync(Guid sessionId, CancellationToken ct);
 }
