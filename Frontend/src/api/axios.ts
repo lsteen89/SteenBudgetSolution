@@ -54,7 +54,7 @@ api.interceptors.request.use((cfg) => {
 /* response */
 api.interceptors.response.use(
   (res) => {
-    // ✅ Do NOT auto-unbox ApiEnvelope<any> anymore.
+
     // 204s are fine as-is; others return the raw envelope in res.data.
     return res;
   },

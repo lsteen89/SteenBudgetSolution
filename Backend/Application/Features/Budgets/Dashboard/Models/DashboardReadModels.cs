@@ -37,7 +37,8 @@ public sealed record DashboardSavingsGoalRm(
     string? Name,
     decimal? TargetAmount,
     DateTime? TargetDate,
-    decimal? AmountSaved
+    decimal? AmountSaved,
+    decimal MonthlyContribution // Todo: Implement this field 
 );
 
 public sealed record DashboardSavingsRm(

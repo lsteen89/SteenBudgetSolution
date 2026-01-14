@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import clsx from "clsx";
-import { formatCurrencyParts } from "@/utils/money/currencyFormatter";
+import { formatMoneyV2 } from "@/utils/money/moneyV2";
+import type { CurrencyCode } from "@/utils/money/currency";
 import { LucideProps } from "lucide-react";
 
 interface Props {
@@ -8,6 +9,9 @@ interface Props {
   title: string;
   amount: number;
   description: string;
+  currency: CurrencyCode;
+  locale?: string;
+  money?: { fractionDigits?: 0 | 2 };
 }
 type IconType = React.ComponentType<LucideProps>;
 // Lucide icons are React components that accept size as a prop
@@ -16,8 +20,11 @@ const SummaryPillarCard: React.FC<Props> = ({
   title,
   amount,
   description,
+  currency,
+  locale = "sv-SE",
+  money,
 }) => {
-  const { number, currency } = formatCurrencyParts(amount, /* alwaysSign */ false);
+  const number = formatMoneyV2(amount, currency, locale, money);
 
   return (
     <motion.article

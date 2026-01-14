@@ -16,14 +16,28 @@ const isNotFound = (p: any) =>
 
 const DashboardContent: React.FC<DashboardContentProps> = ({
   isFirstTimeLogin,
+  isWizardOpen,
   setIsWizardOpen,
 }) => {
-  const { data, isPending, isError, error, refetch } = useDashboardSummary();
+  const shouldFetchDashboard = !isFirstTimeLogin && !isWizardOpen;
+  console.log("isFirstTimeLogin", isFirstTimeLogin);
+  const { data, isPending, isError, error, refetch } = useDashboardSummary({
+    enabled: shouldFetchDashboard,
+  });
+
+  // First login: intro page (wizard does NOT auto open)
+  if (isFirstTimeLogin) {
+    return <FirstTimeDashboardSection onStartWizard={() => setIsWizardOpen(true)} />;
+  }
+
+  // While wizard is open, do not render dashboard content at all
+  // (your wizard overlay should be rendered by parent based on isWizardOpen)
+  if (isWizardOpen) return null;
 
   if (isPending) return <DashboardHomeSkeleton />;
 
-  // Treat 404 as "no dashboard yet" => show FirstTime section
-  if (isFirstTimeLogin || (isError && isNotFound(error)) || (!isError && !data)) {
+  // No budget yet => same intro
+  if (isError && isNotFound(error)) {
     return <FirstTimeDashboardSection onStartWizard={() => setIsWizardOpen(true)} />;
   }
 
@@ -38,9 +52,13 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
     );
   }
 
+  if (!data) {
+    return <FirstTimeDashboardSection onStartWizard={() => setIsWizardOpen(true)} />;
+  }
+
   return (
     <ReturningDashboardSection
-      summary={data!.summary}
+      summary={data.summary}
       onOpenWizard={() => setIsWizardOpen(true)}
     />
   );

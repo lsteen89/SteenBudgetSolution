@@ -9,11 +9,6 @@ public sealed class BudgetDashboardDto
     public DebtOverviewDto Debt { get; init; } = default!;
     public IReadOnlyList<DashboardRecurringExpenseDto> RecurringExpenses { get; init; }
         = Array.Empty<DashboardRecurringExpenseDto>();
-    public decimal DisposableAfterExpenses =>
-        Income.TotalIncomeMonthly - Expenditure.TotalExpensesMonthly;
-
-    public decimal DisposableAfterExpensesAndSavings =>
-        Income.TotalIncomeMonthly - Expenditure.TotalExpensesMonthly - (Savings?.MonthlySavings ?? 0m);
     public SubscriptionsOverviewDto Subscriptions { get; init; } = default!;
 
     public decimal CarryOverAmountMonthly { get; init; } // 0 for none, real value for open/full/custom 

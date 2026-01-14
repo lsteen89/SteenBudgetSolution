@@ -4,8 +4,8 @@ import { CODE_DATA_VERSION } from '@/constants/wizardVersion';
 import { useWizardDataStore, WizardData } from '@/stores/Wizard/wizardDataStore';
 import type { ApiEnvelope } from '@/api/api.types';
 import { isAxiosError } from 'axios';
-import { useAuthStore } from '@/stores/Auth/authStore';
-import { useWizardSessionStore } from '@/stores/Wizard/wizardSessionStore';
+import type { BudgetDashboardDto } from '@myTypes/budget/BudgetDashboardDto';
+import { unwrapEnvelope } from '@/utils/api/apiHelpers';
 
 export interface WizardDataResponseDto {
   wizardData: Partial<WizardData>;
@@ -104,4 +104,13 @@ export const getWizardData = async (
 
 export async function completeWizard(sessionId: string): Promise<void> {
   await api.post(`/api/wizard/${sessionId}/complete`);
+}
+
+/* ───── fetch finalization preview ───── */
+export async function fetchWizardFinalizationPreview(sessionId: string): Promise<BudgetDashboardDto> {
+  const res = await api.get<ApiEnvelope<BudgetDashboardDto>>(
+    `/api/wizard/${sessionId}/finalization-preview`
+  );
+
+  return unwrapEnvelope(res.data);
 }

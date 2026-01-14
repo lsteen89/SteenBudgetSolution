@@ -1,276 +1,304 @@
-import React, { useState, useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown } from "lucide-react";
-import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
-import formatCurrency from "@/utils/money/currencyFormatter";
-import { useWizardDataStore } from "@/stores/Wizard/wizardDataStore";
-import { sumArray, toMonthly, type Freq } from "@/utils/wizard/wizardHelpers";
-import { useBudgetSummary } from "@/hooks/budget/useBudgetSummary";
+import {
+    Accordion,
+    AccordionItem,
+    AccordionTrigger,
+    AccordionContent,
+} from "@/components/ui/accordion";
+import { formatMoneyV2 } from "@/utils/money/moneyV2";
+import { useAppCurrency, useAppLocale } from "@/hooks/i18n/useAppCurrency";
+import { labelCategory, normalizeCategoryKey } from "@/utils/i18n/categories";
+import { labelLedgerItem } from "@/utils/i18n/ledgerItems";
+import { tLedger, type AppLocale } from "@/utils/i18n/ledgerText";
+import type { CurrencyCode } from "@/utils/money/currency";
+import type { BudgetDashboardDto } from "@/types/budget/BudgetDashboardDto";
 
-const LedgerRow: React.FC<{ label: string; value: string | number | null }> = ({ label, value }) =>
-    value == null
-        ? null
-        : (
-            <li className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-y-1 py-2 border-b border-slate-700/50">
-                <span className="text-white/70 truncate">{label}</span>
-                <span className="font-mono font-semibold text-white sm:text-right">
-                    {typeof value === "number" ? formatCurrency(value) : value}
-                </span>
-            </li>
-        );
+type Props = { preview: BudgetDashboardDto };
 
+const LedgerRow: React.FC<{
+    label: string;
+    value: string | number | null | undefined;
+    currency: CurrencyCode;
+    locale: AppLocale;
+}> = ({ label, value, currency, locale }) => {
+    if (value == null) return null;
+    return (
+        <li className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-y-1 py-2 border-b border-slate-700/50">
+            <span className="text-white/70 truncate">{label}</span>
+            <span className="font-mono font-semibold text-white sm:text-right">
+                {typeof value === "number" ? formatMoneyV2(value, currency, locale) : value}
+            </span>
+        </li>
+    );
+};
 
+type GroupedRecurring = {
+    key: string;
+    label: string;
+    items: Array<{ id: string; name: string; amountMonthly: number }>;
+    total: number;
+};
 
-const DetailedLedger: React.FC = () => {
+export default function DetailedLedger({ preview }: Props) {
     const [isOpen, setIsOpen] = useState(false);
-    const { income, expenditure, savings, debts } = useWizardDataStore((s) => s.data);
-    const {
-        categoryRows,
-        totalIncome,
-        totalSavings,
-        habitSavings,
-        goalSavings,
-        debtSummary,
-        totalDebtPayments,
-        finalBalance,
-    } = useBudgetSummary();
+    const currency = useAppCurrency();
+    const locale = useAppLocale() as AppLocale;
 
-    const incomeRows = useMemo(() => {
-        const sideHustles = income.sideHustles ?? [];
-        const members = income.householdMembers ?? [];
+    const incomeTotal = preview.income?.totalIncomeMonthly ?? 0;
+    const expensesTotal = preview.expenditure?.totalExpensesMonthly ?? 0;
 
-        const memberRows = members.map((m, index) => ({
-            key: m.id ?? m.name ?? `member-${index}`,
-            label: m.name ?? "Hushållsmedlem",
-            value: toMonthly(
-                m?.income ?? m?.yearlyIncome,
-                (m?.frequency as Freq) ?? (m?.yearlyIncome ? "yearly" : "monthly"),
-            ),
-        }));
+    const habitSavings = preview.savings?.monthlySavings ?? 0;
+    const goalSavings = preview.savings?.totalGoalSavingsMonthly ?? 0;
+    const totalSavings = preview.savings?.totalSavingsMonthly ?? 0;
 
-        const sideHustleRows = sideHustles.map((h, index) => ({
-            key: h.id ?? h.name ?? `side-${index}`,
-            label: h.name ?? "Sidoinkomst",
-            value: toMonthly(
-                h?.income ?? h?.yearlyIncome,
-                (h?.frequency as Freq) ?? (h?.yearlyIncome ? "yearly" : "monthly"),
-            ),
-        }));
+    const debtPayments = preview.debt?.totalMonthlyPayments ?? 0;
 
-        const otherIncomeValue = toMonthly(
-            income.otherIncome,
-            (income.otherIncomeFrequency as Freq) ?? "monthly",
-        );
+    const finalBalance =
+        preview.finalBalanceWithCarryMonthly ??
+        incomeTotal - expensesTotal - totalSavings - debtPayments;
 
-        return { memberRows, sideHustleRows, otherIncomeValue };
-    }, [income]);
+    const groupedRecurring = useMemo<GroupedRecurring[]>(() => {
+        const items = preview.recurringExpenses ?? [];
+        if (items.length === 0) return [];
 
-    const totalSideIncome = sumArray(incomeRows.sideHustleRows.map(r => r.value));
-    const totalMembersIncome = sumArray(incomeRows.memberRows.map(r => r.value));
-    const otherIncome = incomeRows.otherIncomeValue;
+        const map = new Map<string, GroupedRecurring>();
+
+        for (const r of items) {
+            const key = normalizeCategoryKey(r.categoryName ?? "Other");
+            const groupLabel = labelCategory(key, locale);
+
+            const group =
+                map.get(key) ??
+                ({
+                    key,
+                    label: groupLabel,
+                    items: [],
+                    total: 0,
+                } satisfies GroupedRecurring);
+
+            group.items.push({
+                id: r.id ?? `${key}:${r.name ?? "item"}:${group.items.length}`,
+                // translate known keys; keep user-custom as-is
+                name: labelLedgerItem(r.name ?? "Unknown", locale),
+                amountMonthly: r.amountMonthly ?? 0,
+            });
+
+            group.total += r.amountMonthly ?? 0;
+            map.set(key, group);
+        }
+
+        return Array.from(map.values()).sort((a, b) => b.total - a.total);
+    }, [preview.recurringExpenses, locale]);
+
+    const categorySummaryRows = useMemo(() => {
+        const cats = preview.expenditure?.byCategory ?? [];
+        return cats.map((c, idx) => {
+            const key = normalizeCategoryKey(c.categoryName ?? "");
+            return {
+                id: `${key}:${idx}`,
+                label: labelCategory(key, locale),
+                value: -(c.totalMonthlyAmount ?? 0),
+            };
+        });
+    }, [preview.expenditure?.byCategory, locale]);
 
     return (
         <div className="text-center">
             <button
                 type="button"
-                onClick={() => setIsOpen(!isOpen)}
+                onClick={() => setIsOpen((x) => !x)}
                 aria-expanded={isOpen}
                 className="w-full inline-flex items-center justify-between gap-2 rounded-full border border-darkLimeGreen/70 bg-slate-900/70 px-4 py-2 text-sm sm:text-base font-semibold text-darkLimeGreen shadow-sm hover:bg-slate-900 hover:border-lime-300 hover:text-white transition-colors"
             >
-                <span>
-                    {isOpen ? 'Dölj detaljerad summering' : 'Visa fullständig detaljsummering'}
-                </span>
+                <span>{isOpen ? tLedger("hide", locale) : tLedger("show", locale)}</span>
                 <ChevronDown
-                    className={`h-5 w-5 shrink-0 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}
+                    className={`h-5 w-5 shrink-0 transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`}
                 />
             </button>
+
             <AnimatePresence>
                 {isOpen && (
                     <motion.div
                         initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
+                        animate={{ opacity: 1, height: "auto" }}
                         exit={{ opacity: 0, height: 0 }}
                         className="text-left mt-6 overflow-hidden"
                     >
                         <Accordion type="multiple" className="space-y-4">
-                            {/* INKOMSTER */}
-
+                            {/* INCOME */}
                             <AccordionItem value="income" className="bg-slate-800/50 rounded-xl border-none">
                                 <AccordionTrigger className="px-6 font-bold text-white">
-                                    Inkomster
+                                    {tLedger("income", locale)}
                                 </AccordionTrigger>
-
                                 <AccordionContent className="px-6 pb-4">
                                     <ul>
-                                        <LedgerRow label="Nettolön" value={income.netSalary ?? null} />
+                                        <LedgerRow
+                                            label={tLedger("netSalary", locale)}
+                                            value={preview.income?.netSalaryMonthly ?? 0}
+                                            currency={currency}
+                                            locale={locale}
+                                        />
 
-                                        {incomeRows.memberRows.length > 0 && (
+                                        {(preview.income?.householdMembers?.length ?? 0) > 0 && (
                                             <>
-                                                <LedgerRow label="Hushållsinkomster totalt" value={totalMembersIncome} />
-                                                {incomeRows.memberRows.map(r => (
-                                                    <LedgerRow key={r.key} label={`• ${r.label}`} value={r.value} />
+                                                <LedgerRow
+                                                    label={tLedger("householdTotal", locale)}
+                                                    value={preview.income?.householdMembersMonthly ?? 0}
+                                                    currency={currency}
+                                                    locale={locale}
+                                                />
+                                                {preview.income!.householdMembers.map((m, idx) => (
+                                                    <LedgerRow
+                                                        key={m.id ?? `${m.name ?? "member"}:${idx}`}
+                                                        label={`• ${m.name ?? tLedger("householdMemberFallback", locale)}`}
+                                                        value={m.amountMonthly ?? 0}
+                                                        currency={currency}
+                                                        locale={locale}
+                                                    />
                                                 ))}
                                             </>
                                         )}
 
-                                        {incomeRows.sideHustleRows.length > 0 && (
+                                        {(preview.income?.sideHustles?.length ?? 0) > 0 && (
                                             <>
-                                                <LedgerRow label="Sidoinkomster totalt" value={totalSideIncome} />
-                                                {incomeRows.sideHustleRows.map(r => (
-                                                    <LedgerRow key={r.key} label={`• ${r.label}`} value={r.value} />
+                                                <LedgerRow
+                                                    label={tLedger("sideIncomeTotal", locale)}
+                                                    value={preview.income?.sideHustleMonthly ?? 0}
+                                                    currency={currency}
+                                                    locale={locale}
+                                                />
+                                                {preview.income!.sideHustles.map((h, idx) => (
+                                                    <LedgerRow
+                                                        key={h.id ?? `${h.name ?? "side"}:${idx}`}
+                                                        label={`• ${h.name ?? tLedger("sideIncomeFallback", locale)}`}
+                                                        value={h.amountMonthly ?? 0}
+                                                        currency={currency}
+                                                        locale={locale}
+                                                    />
                                                 ))}
                                             </>
                                         )}
 
-                                        {otherIncome > 0 && (
-                                            <LedgerRow label="Övriga inkomster" value={otherIncome} />
-                                        )}
-
-                                        {/* SINGLE SOURCE OF TRUTH */}
-                                        <LedgerRow label="Total inkomst / månad" value={totalIncome} />
+                                        <LedgerRow
+                                            label={tLedger("totalIncomePerMonth", locale)}
+                                            value={incomeTotal}
+                                            currency={currency}
+                                            locale={locale}
+                                        />
                                     </ul>
                                 </AccordionContent>
                             </AccordionItem>
 
-                            {/* UTGIFTER */}
+                            {/* EXPENSES */}
                             <AccordionItem value="expenditure" className="bg-slate-800/50 rounded-xl border-none">
                                 <AccordionTrigger className="px-6 font-bold text-white">
-                                    Utgifter
+                                    {tLedger("expenses", locale)}
                                 </AccordionTrigger>
+
                                 <AccordionContent className="px-6 pb-4 space-y-4">
-                                    {/* 1) Snabb summering per kategori */}
-                                    {categoryRows.map(item => (
-                                        <LedgerRow key={item.label} label={item.label} value={item.value} />
-                                    ))}
+                                    <ul>
+                                        {categorySummaryRows.map((r) => (
+                                            <LedgerRow key={r.id} label={r.label} value={r.value} currency={currency} locale={locale} />
+                                        ))}
+                                        <LedgerRow
+                                            label={tLedger("totalExpensesPerMonth", locale)}
+                                            value={-expensesTotal}
+                                            currency={currency}
+                                            locale={locale}
+                                        />
+                                    </ul>
 
-                                    {/* 2) Detaljer per kategori */}
-                                    <div className="grid gap-4 md:grid-cols-2">
-                                        {/* Boende */}
-                                        <div>
-                                            <p className="text-xs uppercase tracking-wider text-white/50 mb-2">
-                                                Boende
-                                            </p>
-                                            <ul>
-                                                <LedgerRow label="Hyra" value={expenditure.rent?.monthlyRent ?? null} />
-                                                <LedgerRow label="Hyra – extra avgifter" value={expenditure.rent?.rentExtraFees ?? null} />
-                                                <LedgerRow label="BRF månadsavgift" value={expenditure.rent?.monthlyFee ?? null} />
-                                                <LedgerRow label="BRF extra avgifter" value={expenditure.rent?.brfExtraFees ?? null} />
-                                                <LedgerRow label="Bolånebetalning" value={expenditure.rent?.mortgagePayment ?? null} />
-                                                <LedgerRow label="Hus – övriga kostnader" value={expenditure.rent?.houseotherCosts ?? null} />
-                                                <LedgerRow label="Övriga boendekostnader" value={expenditure.rent?.otherCosts ?? null} />
-                                            </ul>
+                                    {groupedRecurring.length > 0 && (
+                                        <div className="grid gap-4 md:grid-cols-2">
+                                            {groupedRecurring.map((g) => (
+                                                <div key={g.key}>
+                                                    <p className="text-xs uppercase tracking-wider text-white/50 mb-2">{g.label}</p>
+                                                    <ul>
+                                                        <LedgerRow label={tLedger("total", locale)} value={-g.total} currency={currency} locale={locale} />
+                                                        {g.items.map((x) => (
+                                                            <LedgerRow
+                                                                key={x.id}
+                                                                label={`• ${x.name}`}
+                                                                value={-(x.amountMonthly ?? 0)}
+                                                                currency={currency}
+                                                                locale={locale}
+                                                            />
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            ))}
                                         </div>
-
-                                        {/* Transport */}
-                                        <div>
-                                            <p className="text-xs uppercase tracking-wider text-white/50 mb-2">
-                                                Transport
-                                            </p>
-                                            <ul>
-                                                <LedgerRow label="Bränsle" value={expenditure.transport?.monthlyFuelCost ?? null} />
-                                                <LedgerRow label="Försäkring" value={expenditure.transport?.monthlyInsuranceCost ?? null} />
-                                                <LedgerRow label="Övriga bilkostnader" value={expenditure.transport?.monthlyTotalCarCost ?? null} />
-                                                <LedgerRow label="Kollektivtrafik" value={expenditure.transport?.monthlyTransitCost ?? null} />
-                                            </ul>
-                                        </div>
-
-                                        {/* Mat */}
-                                        <div>
-                                            <p className="text-xs uppercase tracking-wider text-white/50 mb-2">
-                                                Mat
-                                            </p>
-                                            <ul>
-                                                <LedgerRow label="Matbutik" value={expenditure.food?.foodStoreExpenses ?? null} />
-                                                <LedgerRow label="Uteätande / hämtmat" value={expenditure.food?.takeoutExpenses ?? null} />
-                                            </ul>
-                                        </div>
-
-                                        {/* Fasta utgifter */}
-                                        <div>
-                                            <p className="text-xs uppercase tracking-wider text-white/50 mb-2">
-                                                Fasta utgifter
-                                            </p>
-                                            <ul>
-                                                <LedgerRow label="El" value={expenditure.fixedExpenses?.electricity ?? null} />
-                                                <LedgerRow label="Försäkring" value={expenditure.fixedExpenses?.insurance ?? null} />
-                                                <LedgerRow label="Internet" value={expenditure.fixedExpenses?.internet ?? null} />
-                                                <LedgerRow label="Telefon" value={expenditure.fixedExpenses?.phone ?? null} />
-                                                <LedgerRow label="Fackavgift" value={expenditure.fixedExpenses?.unionFees ?? null} />
-                                                {expenditure.fixedExpenses?.customExpenses?.map((e, index) => {
-                                                    if (!e) return null;
-                                                    return (
-                                                        <LedgerRow
-                                                            key={e.id ?? e.name ?? `fixed-${index}`}
-                                                            label={e.name ?? "Annan fast utgift"}
-                                                            value={e.cost ?? null}
-                                                        />
-                                                    );
-                                                })}
-                                            </ul>
-                                        </div>
-
-                                        {/* Prenumerationer */}
-                                        <div>
-                                            <p className="text-xs uppercase tracking-wider text-white/50 mb-2">
-                                                Prenumerationer
-                                            </p>
-                                            <ul>
-                                                <LedgerRow label="Netflix" value={expenditure.subscriptions?.netflix ?? null} />
-                                                <LedgerRow label="Spotify" value={expenditure.subscriptions?.spotify ?? null} />
-                                                <LedgerRow label="HBO Max" value={expenditure.subscriptions?.hbomax ?? null} />
-                                                <LedgerRow label="Viaplay" value={expenditure.subscriptions?.viaplay ?? null} />
-                                                <LedgerRow label="Disney+" value={expenditure.subscriptions?.disneyPlus ?? null} />
-                                                {expenditure.subscriptions?.customSubscriptions?.map((s, index) => {
-                                                    if (!s) return null;
-                                                    return (
-                                                        <LedgerRow
-                                                            key={s.id ?? s.name ?? `sub-${index}`}
-                                                            label={s.name ?? "Annan prenumeration"}
-                                                            value={s.cost ?? null}
-                                                        />
-                                                    );
-                                                })}
-                                            </ul>
-                                        </div>
-
-                                        {/* Rörliga utgifter / Kläder */}
-                                        <div>
-                                            <p className="text-xs uppercase tracking-wider text-white/50 mb-2">
-                                                Rörliga utgifter
-                                            </p>
-                                            <ul>
-                                                <LedgerRow label="Kläder" value={expenditure.clothing?.monthlyClothingCost ?? null} />
-                                            </ul>
-                                        </div>
-                                    </div>
+                                    )}
                                 </AccordionContent>
                             </AccordionItem>
 
-                            {/* SPARANDE */}
+                            {/* SAVINGS */}
                             <AccordionItem value="savings" className="bg-slate-800/50 rounded-xl border-none">
-                                <AccordionTrigger className="px-6 font-bold text-white">Sparande</AccordionTrigger>
+                                <AccordionTrigger className="px-6 font-bold text-white">
+                                    {tLedger("savings", locale)}
+                                </AccordionTrigger>
                                 <AccordionContent className="px-6 pb-4">
                                     <ul>
-                                        <LedgerRow label="Månadssparande (vana)" value={habitSavings} />
-                                        <LedgerRow label="Månadssparande (mål)" value={goalSavings} />
-                                        <LedgerRow label="Totalt sparande / månad" value={totalSavings} />
+                                        <LedgerRow label={tLedger("savingsHabit", locale)} value={habitSavings} currency={currency} locale={locale} />
+                                        <LedgerRow label={tLedger("savingsGoals", locale)} value={goalSavings} currency={currency} locale={locale} />
+                                        <LedgerRow label={tLedger("totalSavingsPerMonth", locale)} value={totalSavings} currency={currency} locale={locale} />
+
+                                        {(preview.savings?.goals?.length ?? 0) > 0 && (
+                                            <>
+                                                <li className="py-2" />
+                                                {preview.savings!.goals.map((g, idx) => (
+                                                    <LedgerRow
+                                                        key={g.id ?? `${g.name ?? "goal"}:${idx}`}
+                                                        label={`• ${g.name ?? tLedger("savingsGoalFallback", locale)}`}
+                                                        value={g.monthlyContribution ?? 0}
+                                                        currency={currency}
+                                                        locale={locale}
+                                                    />
+                                                ))}
+                                            </>
+                                        )}
                                     </ul>
                                 </AccordionContent>
                             </AccordionItem>
 
-                            {/* SKULDER */}
+                            {/* DEBTS */}
                             <AccordionItem value="debts" className="bg-slate-800/50 rounded-xl border-none">
-                                <AccordionTrigger className="px-6 font-bold text-white">Skulder</AccordionTrigger>
+                                <AccordionTrigger className="px-6 font-bold text-white">
+                                    {tLedger("debts", locale)}
+                                </AccordionTrigger>
                                 <AccordionContent className="px-6 pb-4">
                                     <ul>
-                                        <LedgerRow label="Skuldbetalningar / månad" value={totalDebtPayments} />
-                                        {debts.debts?.map((debt, index) => (
-                                            <LedgerRow
-                                                key={debt.id ?? debt.name ?? `debt-${index}`}
-                                                label={debt.name ?? "Namnlös skuld"}
-                                                value={`${formatCurrency(debt.balance ?? 0)} @ ${(debt.apr ?? 0).toFixed(1)}%`}
-                                            />
-                                        ))}
+                                        <LedgerRow label={tLedger("debtPaymentsPerMonth", locale)} value={debtPayments} currency={currency} locale={locale} />
+                                        <LedgerRow label={tLedger("totalDebtBalance", locale)} value={preview.debt?.totalDebtBalance ?? 0} currency={currency} locale={locale} />
+
+                                        {(preview.debt?.debts?.length ?? 0) > 0 && (
+                                            <>
+                                                <li className="py-2" />
+                                                {preview.debt!.debts.map((d, idx) => (
+                                                    <LedgerRow
+                                                        key={d.id ?? `${d.name ?? "debt"}:${idx}`}
+                                                        label={`• ${d.name ?? tLedger("debtFallback", locale)}`}
+                                                        value={`${formatMoneyV2(d.balance ?? 0, currency, locale)} @ ${(d.apr ?? 0).toFixed(1)}% (${formatMoneyV2(d.monthlyPayment ?? 0, currency, locale)}/mo)`}
+                                                        currency={currency}
+                                                        locale={locale}
+                                                    />
+                                                ))}
+                                            </>
+                                        )}
+                                    </ul>
+                                </AccordionContent>
+                            </AccordionItem>
+
+                            {/* RESULT */}
+                            <AccordionItem value="result" className="bg-slate-800/50 rounded-xl border-none">
+                                <AccordionTrigger className="px-6 font-bold text-white">
+                                    {tLedger("result", locale)}
+                                </AccordionTrigger>
+                                <AccordionContent className="px-6 pb-4">
+                                    <ul>
+                                        <LedgerRow label={tLedger("monthlyResult", locale)} value={finalBalance} currency={currency} locale={locale} />
                                     </ul>
                                 </AccordionContent>
                             </AccordionItem>
@@ -280,6 +308,4 @@ const DetailedLedger: React.FC = () => {
             </AnimatePresence>
         </div>
     );
-};
-
-export default DetailedLedger;
+}

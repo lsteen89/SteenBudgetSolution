@@ -33,14 +33,15 @@ interface StepBudgetIncomeProps {
 
 function calculateYearlyIncome(income: number | null, frequency: string): number {
   if (income === null || isNaN(income)) return 0;
-  let total = income;
+
   switch (frequency) {
-    case "weekly": total *= 52; break;
-    case "quarterly": total *= 4; break;
-    case "annually": break;
-    case "monthly": default: total *= 12; break;
+    case "Weekly": return income * 52;
+    case "BiWeekly": return income * 26;
+    case "Quarterly": return income * 4;
+    case "Yearly": return income;
+    case "Monthly":
+    default: return income * 12;
   }
-  return total;
 }
 
 const StepBudgetIncome: React.FC<StepBudgetIncomeProps> = ({
@@ -176,7 +177,7 @@ const StepBudgetIncome: React.FC<StepBudgetIncomeProps> = ({
   const { showToast } = useToast();
 
   const handleAddHouseholdMember = () => {
-    appendHouseholdMember({ name: "", income: null, frequency: "monthly", yearlyIncome: 0 });
+    appendHouseholdMember({ name: "", income: null, frequency: "Monthly", yearlyIncome: 0 });
     showToast(<>Person tillagd! <br />Fyll i uppgifter eller ta bort för att gå vidare.</>, "success");
   };
   const handleRemoveHouseholdMember = (index: number) => {
@@ -184,7 +185,7 @@ const StepBudgetIncome: React.FC<StepBudgetIncomeProps> = ({
     showToast("Person borttagen!", "error");
   };
   const handleAddSideHustle = () => {
-    appendSideHustle({ name: "", income: null, frequency: "monthly", yearlyIncome: 0 });
+    appendSideHustle({ name: "", income: null, frequency: "Monthly", yearlyIncome: 0 });
     showToast(<>Sidoinkomst tillagd! <br />Fyll i uppgifter eller ta bort för att gå vidare.</>, "success");
   };
   const handleRemoveSideHustle = (index: number) => {
@@ -312,8 +313,10 @@ const StepBudgetIncome: React.FC<StepBudgetIncomeProps> = ({
                 fieldName={`householdMembers.${index}.frequency`}
                 type="select"
                 options={[
-                  { value: "monthly", label: "Per månad" }, { value: "weekly", label: "Per vecka" },
-                  { value: "quarterly", label: "Per kvartal" }, { value: "annually", label: "Årligen" },
+                  { value: "Monthly", label: "Per månad" },
+                  { value: "Weekly", label: "Per vecka" },
+                  { value: "Quarterly", label: "Per kvartal" },
+                  { value: "Yearly", label: "Årligen" },
                 ]}
               />
               <div className="mt-3 flex justify-end">
@@ -402,8 +405,10 @@ const StepBudgetIncome: React.FC<StepBudgetIncomeProps> = ({
                 fieldName={`sideHustles.${index}.frequency`}
                 type="select"
                 options={[
-                  { value: "monthly", label: "Per månad" }, { value: "weekly", label: "Per vecka" },
-                  { value: "quarterly", label: "Per kvartal" }, { value: "annually", label: "Årligen" },
+                  { value: "Monthly", label: "Per månad" },
+                  { value: "Weekly", label: "Per vecka" },
+                  { value: "Quarterly", label: "Per kvartal" },
+                  { value: "Yearly", label: "Årligen" },
                 ]}
               />
               <div className="mt-3 flex justify-end">

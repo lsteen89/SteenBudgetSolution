@@ -43,11 +43,21 @@ const useWizardNavigation = ({
         'color: #FFD700;'
       );
       setTransitionLoading(true);
-
+      if (step === 0) {
+        // Welcome page - no ref, no save, just navigate
+        setStep(prev => (direction === "next" ? Math.min(prev + 1, totalSteps) : Math.max(prev - 1, 0)));
+        setTransitionLoading(false);
+        return;
+      }
       const ref = stepRefs[step];
-      const onRealStep = step > 0 && ref?.current;
-      const goingBack = direction === 'prev';
-
+      const stepApi = ref?.current;               // <-- safe handle
+      const onRealStep = step > 0 && !!stepApi;
+      const goingBack = direction === "prev";
+      if (step > 0 && !stepApi) {
+        console.warn("[NAV] Ref not ready for step", step, stepRefs);
+        setTransitionLoading(false);
+        return;
+      }
       let validatedData: any | null = null;
 
       // 1. If we're going back, we don't validate, we just get the data.
@@ -79,6 +89,17 @@ const useWizardNavigation = ({
           return;
         }
       }
+      const currentSub = ref.current.getCurrentSubStep?.() ?? 1;
+      const dataToSave = goingBack ? ref.current.getStepData() : validatedData;
+
+      console.log("[NAV] about to save", {
+        step,
+        currentSub,
+        goingBack,
+        hasValidatedData: !!validatedData,
+        dataToSave,
+        refKeys: Object.keys(ref.current ?? {}),
+      });
 
       // 2. If we're going back, we still validate the current step's data.
       let saveSuccess = true;

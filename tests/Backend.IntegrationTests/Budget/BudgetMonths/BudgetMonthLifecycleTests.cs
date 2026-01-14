@@ -62,15 +62,16 @@ public sealed class BudgetMonthLifecycleTests
 
         var dbOpts = DbOptions(_db.ConnectionString);
         var uow = new UnitOfWork(dbOpts, NullLogger<UnitOfWork>.Instance);
+        ITimeProvider time = new FakeTimeProvider(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
 
         var monthsRepo = new BudgetMonthRepository(uow, NullLogger<BudgetMonthRepository>.Instance, dbOpts);
-        var dashRepo = new BudgetDashboardRepository(uow, NullLogger<BudgetDashboardRepository>.Instance, dbOpts);
+        var dashRepo = new BudgetDashboardRepository(uow, NullLogger<BudgetDashboardRepository>.Instance, dbOpts, time);
 
         IDebtPaymentCalculator calc = new DebtPaymentCalculator();
         IBudgetMonthlyTotalsService totalsSvc = new BudgetMonthlyTotalsService(dashRepo, calc);
         var closeSnapshot = new BudgetMonthCloseSnapshotService(totalsSvc);
 
-        ITimeProvider time = new FakeTimeProvider(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+
 
         var handler = new StartBudgetMonthCommandHandler(
             months: monthsRepo,
@@ -117,14 +118,14 @@ public sealed class BudgetMonthLifecycleTests
         var closed = rows.Single(x => x.YearMonth == "2025-12");
         closed.SnapshotTotalIncomeMonthly.Should().Be(32500m);
         closed.SnapshotTotalExpensesMonthly.Should().Be(12000m);
-        closed.SnapshotTotalSavingsMonthly.Should().Be(2500m);
+        closed.SnapshotTotalSavingsMonthly.Should().Be(5833.33m);
 
         var expectedInstallment = Amortize(5000m, 0.5m, 24) + 10m;
         var expectedDebtPayments = 320m + expectedInstallment;
 
         closed.SnapshotTotalDebtPaymentsMonthly.Should().Be(expectedDebtPayments);
 
-        var expectedFinal = 32500m - 12000m - 2500m - expectedDebtPayments + 0m;
+        var expectedFinal = 32500m - 12000m - 5833.33m - expectedDebtPayments + 0m;
         closed.SnapshotFinalBalanceMonthly.Should().Be(expectedFinal);
 
         var open = rows.Single(x => x.YearMonth == "2026-01");
@@ -154,14 +155,15 @@ public sealed class BudgetMonthLifecycleTests
 
         var dbOpts = DbOptions(_db.ConnectionString);
         var uow = new UnitOfWork(dbOpts, NullLogger<UnitOfWork>.Instance);
+        ITimeProvider time = new FakeTimeProvider(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
 
         var monthsRepo = new BudgetMonthRepository(uow, NullLogger<BudgetMonthRepository>.Instance, dbOpts);
-        var dashRepo = new BudgetDashboardRepository(uow, NullLogger<BudgetDashboardRepository>.Instance, dbOpts);
+        var dashRepo = new BudgetDashboardRepository(uow, NullLogger<BudgetDashboardRepository>.Instance, dbOpts, time);
 
         IDebtPaymentCalculator calc = new DebtPaymentCalculator();
         IBudgetMonthlyTotalsService totalsSvc = new BudgetMonthlyTotalsService(dashRepo, calc);
         var closeSnapshot = new BudgetMonthCloseSnapshotService(totalsSvc);
-        ITimeProvider time = new FakeTimeProvider(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+
 
         var handler = new StartBudgetMonthCommandHandler(
             monthsRepo, closeSnapshot, totalsSvc, time, NullLogger<StartBudgetMonthCommandHandler>.Instance);
@@ -217,14 +219,15 @@ public sealed class BudgetMonthLifecycleTests
 
         var dbOpts = DbOptions(_db.ConnectionString);
         var uow = new UnitOfWork(dbOpts, NullLogger<UnitOfWork>.Instance);
+        ITimeProvider time = new FakeTimeProvider(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
 
         var monthsRepo = new BudgetMonthRepository(uow, NullLogger<BudgetMonthRepository>.Instance, dbOpts);
-        var dashRepo = new BudgetDashboardRepository(uow, NullLogger<BudgetDashboardRepository>.Instance, dbOpts);
+        var dashRepo = new BudgetDashboardRepository(uow, NullLogger<BudgetDashboardRepository>.Instance, dbOpts, time);
 
         IDebtPaymentCalculator calc = new DebtPaymentCalculator();
         IBudgetMonthlyTotalsService totalsSvc = new BudgetMonthlyTotalsService(dashRepo, calc);
         var closeSnapshot = new BudgetMonthCloseSnapshotService(totalsSvc);
-        ITimeProvider time = new FakeTimeProvider(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+
 
         var handler = new StartBudgetMonthCommandHandler(
             monthsRepo, closeSnapshot, totalsSvc, time, NullLogger<StartBudgetMonthCommandHandler>.Instance);

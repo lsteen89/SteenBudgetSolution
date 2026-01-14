@@ -61,7 +61,7 @@ const SalaryField: React.FC<SalaryFieldProps> = ({
           <FormattedNumberInput
             ref={field.ref}
             name={field.name}
-            id={field.name} 
+            id={field.name}
             value={field.value as number | null}
             onValueChange={field.onChange}
             onBlur={field.onBlur}
@@ -90,23 +90,23 @@ const SalaryField: React.FC<SalaryFieldProps> = ({
       <Controller
         name={salaryFrequencyFieldName}
         control={control}
-        defaultValue={"monthly"} // Or fetch from store via RHF defaultValues in the form
+        defaultValue={"Monthly"} // Or fetch from store via RHF defaultValues in the form
         render={({ field, fieldState }) => (
           <SelectDropdown
-            value={field.value || "monthly"}
+            value={field.value || "Monthly"}
             onChange={(e) => field.onChange(e.target.value)}
-            onBlur={field.onBlur} 
+            onBlur={field.onBlur}
             options={[
-              { value: "monthly", label: "Per månad" },
-              { value: "weekly", label: "Per vecka" },
-              { value: "quarterly", label: "Per kvartal" },
-              { value: "annually", label: "Årligen" },
+              { value: "Monthly", label: "Per månad" },
+              { value: "Weekly", label: "Per vecka" },
+              { value: "Quarterly", label: "Per kvartal" },
+              { value: "Yearly", label: "Årligen" },
             ]}
             error={fieldState.error?.message}
           />
         )}
       />
-       {salaryFrequencyError && !errors[salaryFrequencyFieldName]?.ref && (
+      {salaryFrequencyError && !errors[salaryFrequencyFieldName]?.ref && (
         <p className="text-red-500 text-sm mt-1">{salaryFrequencyError}</p>
       )}
 

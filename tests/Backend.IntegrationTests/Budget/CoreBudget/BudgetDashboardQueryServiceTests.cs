@@ -76,9 +76,6 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
         live.Expenditure.TotalExpensesMonthly.Should().Be(12000m);
         live.Savings!.MonthlySavings.Should().Be(2500m);
 
-        live.DisposableAfterExpenses.Should().Be(20500m);
-        live.DisposableAfterExpensesAndSavings.Should().Be(18000m);
-
         var cc = live.Debt.Debts.Single(d => d.Name == "Credit Card");
         cc.MonthlyPayment.Should().Be(320m); // 300 + 20
 
@@ -138,8 +135,6 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
         live.Income.TotalIncomeMonthly.Should().Be(32500m);
         live.Expenditure.TotalExpensesMonthly.Should().Be(12000m);
         live.Savings!.MonthlySavings.Should().Be(2500m);
-        live.DisposableAfterExpenses.Should().Be(20500m);
-        live.DisposableAfterExpensesAndSavings.Should().Be(18000m);
     }
 
     [Fact]
@@ -228,8 +223,7 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
 
         var uow = new UnitOfWork(opts, NullLogger<UnitOfWork>.Instance);
         var months = new BudgetMonthRepository(uow, NullLogger<BudgetMonthRepository>.Instance, opts);
-        var dashRepo = new BudgetDashboardRepository(uow, NullLogger<BudgetDashboardRepository>.Instance, opts);
-
+        var dashRepo = new BudgetDashboardRepository(uow, NullLogger<BudgetDashboardRepository>.Instance, opts, clock);
         var projector = new BudgetDashboardProjector(debtCalc);
 
         return new GetBudgetDashboardMonthQueryHandler(months, dashRepo, projector, clock);

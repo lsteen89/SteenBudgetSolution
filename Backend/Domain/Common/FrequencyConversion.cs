@@ -18,7 +18,11 @@ namespace Backend.Domain.Common
                 Frequency.Monthly => amount.Value,
                 Frequency.Weekly => amount.Value * 52M / 12M,
                 Frequency.BiWeekly => amount.Value * 26M / 12M,
+                Frequency.Quarterly => amount.Value * 4M / 12M,
                 Frequency.Yearly => amount.Value / 12M,
+
+                Frequency.Unknown => amount.Value,               // or 0M depending on your policy
+                Frequency.Other => amount.Value,               // same here
                 _ => amount.Value
             };
         }

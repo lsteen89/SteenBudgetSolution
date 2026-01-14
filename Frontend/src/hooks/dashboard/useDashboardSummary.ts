@@ -6,15 +6,19 @@ import { useBudgetDashboardMonthQuery } from "@/hooks/budget/useBudgetDashboardM
 import { buildDashboardSummaryAggregate } from "./buildDashboardSummaryAggregate";
 import type { CurrencyCode } from "@/utils/money/currency";
 
-export const useDashboardSummary = () => {
+type UseDashboardSummaryOptions = { enabled?: boolean };
+
+export const useDashboardSummary = (opts?: UseDashboardSummaryOptions) => {
+    const enabled = opts?.enabled ?? true;
+
     const selectedYm = useBudgetMonthStore((s) => s.selectedYearMonth);
     const setSelectedYm = useBudgetMonthStore((s) => s.setSelectedYearMonth);
 
-    const monthsQ = useBudgetMonthsStatusQuery();
-    const dashQ = useBudgetDashboardMonthQuery(selectedYm);
+    const monthsQ = useBudgetMonthsStatusQuery({ enabled });
+    const dashQ = useBudgetDashboardMonthQuery(selectedYm, { enabled });
 
-    // ✅ currency from BE (hardcoded there for now)
-    const currency: CurrencyCode = dashQ.data?.currencyCode ?? "SEK"; // default fallback during loading
+    // currency from BE (hardcoded there for now)
+    const currency: CurrencyCode = dashQ.data?.currencyCode ?? "SEK";
 
     const monthsPending = (monthsQ as any).isPending ?? monthsQ.isLoading;
     const dashPending = (dashQ as any).isPending ?? dashQ.isLoading;
@@ -30,9 +34,10 @@ export const useDashboardSummary = () => {
             : null;
 
     useEffect(() => {
+        if (!enabled) return; // <— important
         const ym = dashQ.data?.month?.yearMonth;
         if (ym && selectedYm == null) setSelectedYm(ym);
-    }, [dashQ.data?.month?.yearMonth, selectedYm, setSelectedYm]);
+    }, [enabled, dashQ.data?.month?.yearMonth, selectedYm, setSelectedYm]);
 
     const data = useMemo(
         () => (dashQ.data ? buildDashboardSummaryAggregate(dashQ.data, currency) : null),
@@ -40,10 +45,11 @@ export const useDashboardSummary = () => {
     );
 
     const refetchAll = useCallback(() => {
+        if (!enabled) return;
         void monthsQ.refetch();
         void dashQ.refetch();
-    }, [monthsQ, dashQ]);
-    const refetch = refetchAll;
+    }, [enabled, monthsQ, dashQ]);
+
     return {
         data,
         currency,
@@ -56,6 +62,6 @@ export const useDashboardSummary = () => {
         isFetching: monthsQ.isFetching || dashQ.isFetching,
 
         error,
-        refetch,
+        refetch: refetchAll,
     };
 };

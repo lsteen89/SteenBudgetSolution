@@ -4,21 +4,26 @@ using Backend.Application.Constants;
 using Microsoft.Extensions.Options;
 using Backend.Settings;
 using Backend.Application.Features.Budgets.Dashboard;
-
+using Backend.Application.Abstractions.Infrastructure.System;
 namespace Backend.Infrastructure.Repositories.Budget.BudgetDashboard;
 
 public sealed partial class BudgetDashboardRepository : SqlBase, IBudgetDashboardRepository
 {
+    private readonly ITimeProvider _clock;
     public BudgetDashboardRepository(
         IUnitOfWork unitOfWork,
         ILogger<BudgetDashboardRepository> logger,
-        IOptions<DatabaseSettings> db)
+        IOptions<DatabaseSettings> db,
+        ITimeProvider clock)
         : base(unitOfWork, logger, db)
     {
+        _clock = clock;
     }
 
     public async Task<BudgetDashboardReadModel?> GetDashboardDataAsync(Guid persoid, CancellationToken ct)
     {
+        var now = _clock.UtcNow;
+
         var budgetId = await ExecuteScalarAsync<Guid?>(
             BudgetIdSql, new { Persoid = persoid.ToString() }, ct);
 
@@ -48,10 +53,22 @@ public sealed partial class BudgetDashboardRepository : SqlBase, IBudgetDashboar
         {
             var monthly = savingsRows[0].MonthlySavings;
 
+
             var goals = savingsRows
                 .Where(r => r.Id.HasValue)
                 .Select(r => new DashboardSavingsGoalRm(
-                    r.Id!.Value, r.Name, r.TargetAmount, r.TargetDate, r.AmountSaved))
+                    r.Id!.Value,
+                    r.Name,
+                    r.TargetAmount,
+                    r.TargetDate,
+                    r.AmountSaved,
+                    SavingsGoalContribution.ComputeMonthlyContribution(
+                        r.TargetAmount,
+                        r.AmountSaved,
+                        r.TargetDate,
+                        now
+                    )
+                ))
                 .ToList();
 
             savings = new DashboardSavingsRm(monthly, goals);

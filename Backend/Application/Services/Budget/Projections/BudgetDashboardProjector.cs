@@ -18,15 +18,23 @@ public sealed class BudgetDashboardProjector : IBudgetDashboardProjector
         var subsDto = BuildSubscriptions(data);
 
         var incomeTotal = ComputeIncomeTotal(data);
-        var expensesTotal = data.Totals.TotalExpensesMonthly;
-        var savingsMonthly = data.Savings?.MonthlySavings ?? 0m;
-        var debtPayments = debtItems.Sum(x => x.MonthlyPayment);
+        var expensesTotal = MoneyRound.Kr(data.Totals.TotalExpensesMonthly);
+        var savingsMonthly = MoneyRound.Kr(data.Savings?.MonthlySavings ?? 0m)
+            + MoneyRound.Kr(data.Savings?.Goals.Sum(g => g.MonthlyContribution) ?? 0m);
+        var debtPayments = MoneyRound.Kr(debtItems.Sum(x => x.MonthlyPayment));
 
-        var disposableAfterExpenses = incomeTotal - expensesTotal;
-        var disposableAfterExpensesAndSavings = incomeTotal - expensesTotal - savingsMonthly;
+        var habitSavingsMonthly = MoneyRound.Kr(data.Savings?.MonthlySavings ?? 0m);
+        var goalSavingsMonthly = MoneyRound.Kr(data.Savings?.Goals.Sum(g => g.MonthlyContribution) ?? 0m);
+        var totalSavingsMonthly = MoneyRound.Kr(habitSavingsMonthly + goalSavingsMonthly);
+
+        var disposableAfterExpenses =
+            MoneyRound.Kr(incomeTotal - expensesTotal);
+
+        var disposableAfterExpensesAndSavings =
+            MoneyRound.Kr(incomeTotal - expensesTotal - totalSavingsMonthly);
 
         var finalBalanceWithCarry =
-            incomeTotal - expensesTotal - savingsMonthly - debtPayments + carryOverAmount;
+            MoneyRound.Kr(disposableAfterExpensesAndSavings - debtPayments + carryOverAmount);
 
         return new BudgetDashboardDto
         {
@@ -72,21 +80,30 @@ public sealed class BudgetDashboardProjector : IBudgetDashboardProjector
                 new DebtForCalc(d.Type, d.Balance, d.Apr, d.MinPayment, d.MonthlyFee, d.TermMonths))
         }).ToList();
 
-    private static SavingsOverviewDto? BuildSavings(BudgetDashboardReadModel data) =>
-        data.Savings is null
-            ? null
-            : new SavingsOverviewDto
+    private static SavingsOverviewDto? BuildSavings(BudgetDashboardReadModel data)
+    {
+        if (data.Savings is null) return null;
+
+        var habit = MoneyRound.Kr(data.Savings.MonthlySavings);
+        var goals = MoneyRound.Kr(data.Savings.Goals.Sum(g => g.MonthlyContribution));
+        var total = MoneyRound.Kr(habit + goals);
+
+        return new SavingsOverviewDto
+        {
+            MonthlySavings = habit,
+            TotalGoalSavingsMonthly = goals,
+            TotalSavingsMonthly = total,
+            Goals = data.Savings.Goals.Select(g => new DashboardSavingsGoalDto
             {
-                MonthlySavings = data.Savings.MonthlySavings,
-                Goals = data.Savings.Goals.Select(g => new DashboardSavingsGoalDto
-                {
-                    Id = g.Id,
-                    Name = g.Name,
-                    TargetAmount = g.TargetAmount,
-                    TargetDate = g.TargetDate,
-                    AmountSaved = g.AmountSaved
-                }).ToList()
-            };
+                Id = g.Id,
+                Name = g.Name,
+                TargetAmount = g.TargetAmount,
+                TargetDate = g.TargetDate,
+                AmountSaved = g.AmountSaved,
+                MonthlyContribution = MoneyRound.Kr(g.MonthlyContribution)
+            }).ToList()
+        };
+    }
 
     private static SubscriptionsOverviewDto BuildSubscriptions(BudgetDashboardReadModel data) =>
         new()

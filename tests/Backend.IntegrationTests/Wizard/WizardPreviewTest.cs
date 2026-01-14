@@ -82,11 +82,11 @@ public sealed class WizardPreviewTest
         var uow = new UnitOfWork(dbOpts, NullLogger<UnitOfWork>.Instance);
 
         var currentUser = new TestCurrentUserContext { Persoid = persoid };
+        ITimeProvider time = new FakeTimeProvider(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
 
         // real repos
         var monthsRepo = new BudgetMonthRepository(uow, NullLogger<BudgetMonthRepository>.Instance, dbOpts);
-        var dashRepo = new BudgetDashboardRepository(uow, NullLogger<BudgetDashboardRepository>.Instance, dbOpts);
-
+        var dashRepo = new BudgetDashboardRepository(uow, NullLogger<BudgetDashboardRepository>.Instance, dbOpts, time);
         var incomeRepo = new IncomeRepository(uow, NullLogger<IncomeRepository>.Instance, currentUser, dbOpts);
         var expRepo = new ExpenditureRepository(uow, NullLogger<ExpenditureRepository>.Instance, currentUser, dbOpts);
         var budgetRepo = new BudgetRepository(uow, NullLogger<BudgetRepository>.Instance, currentUser, dbOpts);
@@ -107,7 +107,7 @@ public sealed class WizardPreviewTest
         IWizardStepOrchestrator orchestrator = new WizardStepOrchestrator(wizardRepo, processors);
 
         // preview pipeline
-        var previewBuilder = new WizardPreviewReadModelBuilder();
+        var previewBuilder = new WizardPreviewReadModelBuilder(time);
         var debtCalc = new DebtPaymentCalculator();
         var projector = new BudgetDashboardProjector(debtCalc);
         var previewHandler = new GetWizardFinalizationPreviewQueryHandler(orchestrator, previewBuilder, projector);
@@ -172,6 +172,22 @@ public sealed class WizardPreviewTest
         preview.Subscriptions.TotalMonthlyAmount.Should().Be(live.Subscriptions.TotalMonthlyAmount);
         preview.Debt.TotalMonthlyPayments.Should().Be(live.Debt.TotalMonthlyPayments);
         preview.FinalBalanceWithCarryMonthly.Should().Be(live.FinalBalanceWithCarryMonthly);
+        preview.Savings.Should().NotBeNull();
+        live.Savings.Should().NotBeNull();
+
+        preview.Savings!.Goals.Select(g => g.MonthlyContribution)
+            .Should().BeEquivalentTo(live.Savings!.Goals.Select(g => g.MonthlyContribution));
+
+        var previewTotalSavings =
+            preview.Savings.MonthlySavings + preview.Savings.Goals.Sum(g => g.MonthlyContribution);
+
+        var liveTotalSavings =
+            live.Savings.MonthlySavings + live.Savings.Goals.Sum(g => g.MonthlyContribution);
+
+        previewTotalSavings.Should().Be(liveTotalSavings);
+
+        preview.DisposableAfterExpensesAndSavingsWithCarryMonthly
+            .Should().Be(preview.Income.TotalIncomeMonthly - preview.Expenditure.TotalExpensesMonthly - previewTotalSavings + preview.CarryOverAmountMonthly);
 
         preview.Expenditure.ByCategory
             .Select(x => (x.CategoryName, x.TotalMonthlyAmount))

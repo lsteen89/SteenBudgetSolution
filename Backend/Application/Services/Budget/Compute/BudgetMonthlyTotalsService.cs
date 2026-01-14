@@ -28,7 +28,9 @@ public sealed class BudgetMonthlyTotalsService : IBudgetMonthlyTotalsService
 
         var totalExpenses = data.Totals.TotalExpensesMonthly;
 
-        var totalSavings = data.Savings?.MonthlySavings ?? 0m;
+        var habit = data.Savings?.MonthlySavings ?? 0m;
+        var goal = data.Savings?.Goals.Sum(g => g.MonthlyContribution) ?? 0m;
+        var totalSavings = habit + goal;
 
         var totalDebtPayments = data.Debts.Sum(d =>
             _calc.CalculateMonthlyPayment(

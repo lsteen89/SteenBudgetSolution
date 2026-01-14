@@ -14,18 +14,20 @@ import NotFoundPage from "@pages/info/NotFoundPage";
 import RequestPasswordReset from "@pages/auth/RequestPasswordReset";
 import ResetPasswordPage from "@pages/auth/PerformPasswordReset";
 
-
 /* Auth */
 import ProtectedRoute from "@routes/ProtectedRoute";
 
-/* Debug (for email confirmation) */
+/* Debug */
 import { mockVerifyEmail } from "@mocks/mockServices/verifyEmailMock";
 import { realVerifyEmailWrapper } from "@api/Services/User/realVerifyEmailWrapper";
 
 const isDebugMode = import.meta.env.MODE === "development";
+
 const Dashboard = lazy(() => import("@pages/dashboard/dashboardhome"));
 const DashboardBreakdownPage = lazy(() => import("@pages/dashboard/DashboardBreakdownPage"));
-
+const DashboardHowItWorksPage = lazy(
+  () => import("@/Pages/dashboard/howItWorks/DashboardHowItWorksPage")
+);
 
 const Lazy = ({ children }: { children: React.ReactNode }) => (
   <Suspense
@@ -44,7 +46,7 @@ const Lazy = ({ children }: { children: React.ReactNode }) => (
 const AppRoutes: React.FC = () => {
   return (
     <Routes>
-      {/* Public Routes */}
+      {/* Public */}
       <Route path="/" element={<HomePage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/registration" element={<Registration />} />
@@ -64,12 +66,13 @@ const AppRoutes: React.FC = () => {
       <Route path="/forgotpassword" element={<RequestPasswordReset />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-      {/* Protected Routes */}
-      <Route element={<ProtectedRoute />}>          {/* guard */}
+      {/* Protected */}
+      <Route element={<ProtectedRoute />}>
         <Route path="/dashboard" element={<Lazy><Dashboard /></Lazy>} />
+        <Route path="/dashboard/how-it-works" element={<Lazy><DashboardHowItWorksPage /></Lazy>} />
         <Route path="/dashboard/breakdown" element={<Lazy><DashboardBreakdownPage /></Lazy>} />
-        {/* add more private pages here the same way */}
       </Route>
+
       {/* Catch-all */}
       <Route path="*" element={<NotFoundPage />} />
     </Routes>

@@ -1,22 +1,15 @@
-import { useWizardDataStore } from '@/stores/Wizard/wizardDataStore';
-import { SavingsGoal } from "@/types/Wizard/SavingsFormValues";
-import { Goal } from "@/types/Wizard/goal";
-import { Coins, Home, Sprout, Scale } from 'lucide-react';
-import FinalVerdictCard from '@/components/pures/FinalVerdictCard';
-import SummaryPillarCard from '@/components/pures/SummaryPillarCard';
-import { calcMonthlyIncome, sumArray } from '@/utils/wizard/wizardHelpers';
-import { calculateTotalMonthlySavings } from '@/utils/budget/financialCalculations';
-import { summariseDebts } from "@/utils/budget/debtCalculations";
-import { useMemo } from 'react';
-import DetailedLedger from '@/components/organisms/summaries/DetailedLedger';
-import { formatCurrencyParts } from '@/utils/money/currencyFormatter';
-import { SummaryGrid } from './SummaryGrid';
-import SubmitButton from '@components/atoms/buttons/SubmitButton';
-import { useSubtleFireworks } from '@/hooks/effects/useSubtleFireworks';
-import { getExpenditureCategoryTotals } from "@/utils/budget/expenditureTotals";
-import { useBudgetSummary } from "@/hooks/budget/useBudgetSummary";
-import formatCurrency from '@/utils/money/currencyFormatter';
-import { cn } from "@/utils/cn";
+import React from "react";
+import { Coins, Home, Sprout, Scale } from "lucide-react";
+
+import FinalVerdictCard from "@/components/pures/FinalVerdictCard";
+import SummaryPillarCard from "@/components/pures/SummaryPillarCard";
+import { SummaryGrid } from "./SummaryGrid";
+import SubmitButton from "@components/atoms/buttons/SubmitButton";
+import DetailedLedger from "@/components/organisms/summaries/DetailedLedger";
+import { useSubtleFireworks } from "@/hooks/effects/useSubtleFireworks";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { useWizardFinalPreviewUi } from "@/components/organisms/overlays/wizard/steps/StepBudgetFinal5/Hooks/useWizardFinalPreviewUi";
+import { useAppCurrency, useAppLocale } from "@/hooks/i18n/useAppCurrency";
 
 interface SubStepFinalProps {
   onFinalize: () => Promise<boolean>;
@@ -25,158 +18,162 @@ interface SubStepFinalProps {
   onFinalizeSuccess: () => void;
 }
 
-type StrictGoal = {
-  id: string;
-  name: string;
-  targetAmount: number;
-  amountSaved: number;
-  targetDate: string;
-};
+type FinalState =
+  | { kind: "loading" }
+  | { kind: "error" }
+  | { kind: "ready"; ui: NonNullable<ReturnType<typeof useWizardFinalPreviewUi>["ui"]>; preview: BudgetDashboardDto };
 
 const SubStepFinal: React.FC<SubStepFinalProps> = ({
   onFinalize,
   isFinalizing,
   finalizationError,
-  onFinalizeSuccess
+  onFinalizeSuccess,
 }) => {
-  const { income, expenditure, savings, debts } = useWizardDataStore((s) => s.data);
-
-  const t = getExpenditureCategoryTotals(expenditure);
-
-
   const { fire } = useSubtleFireworks();
+  const { query, ui } = useWizardFinalPreviewUi();
 
 
-  const {
-    categoryRows,
-    breakdownRows,
-    finalBalance,
-    totalIncome,
-    totalExpenditure,
-    totalSavings,
-    totalDebtPayments,
-  } = useBudgetSummary();
 
 
-  const handleFinalizeClick = async () => {
+
+  const handleFinalizeClick = React.useCallback(async () => {
     const ok = await onFinalize();
     if (!ok) return;
-
     fire();
-
-    // Close wizard immediately so nothing can flash underneath
     requestAnimationFrame(() => onFinalizeSuccess());
+  }, [onFinalize, fire, onFinalizeSuccess]);
 
-    // If you *need* a delay for navigation/animations, do it inside onFinalizeSuccess
-    // or show a "Success!" screen inside the wizard instead of keeping it open with setTimeout.
-  };
-
-  const isComplete = (g: SavingsGoal): g is Omit<StrictGoal, "amountSaved"> & { amountSaved?: number | null } =>
-    !!g.id &&
-    !!g.name &&
-    g.targetAmount != null &&
-    g.targetAmount > 0 &&
-    !!g.targetDate;
-
-  const calculableGoals: Goal[] = (savings.goals ?? [])
-    .filter(isComplete)
-    .map(g => ({
-      id: g.id,
-      name: g.name,
-      targetAmount: g.targetAmount!,
-      amountSaved: g.amountSaved ?? 0,
-      targetDate: new Date(g.targetDate),
-    }));
-
-  const goalSavings = calculateTotalMonthlySavings(calculableGoals);
-  const habitSavings = savings.habits?.monthlySavings ?? 0;
-
-
-
-
-  const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
-
-
-
-
-
-  formatCurrencyParts(finalBalance);
-
-  const pillarDescriptions = useMemo(() => {
-    const expenditureCategories = [
-      { name: 'Boende', value: t.housing },
-      { name: 'Transport', value: t.transport },
-      { name: 'Mat', value: t.food },
-      { name: 'Fasta utgifter', value: t.fixed },
-      { name: 'Prenumerationer', value: t.subscriptions },
-      { name: 'Rörliga utgifter', value: t.variable },
-    ].sort((a, b) => b.value - a.value);
-
-    const top3 = expenditureCategories
-      .filter(c => c.value > 0)
-      .slice(0, 3)
-      .map(c => c.name)
-      .join(', ') || '—';
-
-    return {
-      income: "Från lön, sidoinkomster och andra källor i hushållet.",
-      expenditure: `Dina största utgifter är ${top3}.`,
-      savings: `Du sparar för ${calculableGoals.length} specifika mål. Utmärkt!`,
-      debts: `Du har valt ${debts.summary?.repaymentStrategy === 'avalanche' ? 'Lavinen' : 'Snöbollen'} som din väg till skuldfrihet.`
-    };
-  }, [t, calculableGoals.length, debts.summary?.repaymentStrategy]);
-  const breakdown = [
-    { label: "Inkomster", value: totalIncome },
-    { label: "Utgifter", value: -totalExpenditure },
-    { label: "Sparande", value: -totalSavings },
-    { label: "Skuldbetalningar", value: -totalDebtPayments },
-  ];
-
-
+  const state: FinalState = React.useMemo(() => {
+    if (query.isLoading) return { kind: "loading" };
+    if (query.isError || !ui) return { kind: "error" };
+    return { kind: "ready", ui, preview: query.data! };
+  }, [query.isLoading, query.isError, ui]);
 
   return (
-    <div className="p-4 md:p-8 min-h-screen w-full">
-      {/* Breakdown using whatever layout you want */}
-      <div className="mb-6">
-        <SummaryGrid
-          title="Per månad"
-          topRows={finalBalance < 0 ? breakdownRows : undefined}
-          rows={categoryRows}
+    <PageShell>
+      {state.kind === "loading" && <LoadingSkeleton />}
+
+      {state.kind === "error" && (
+        <ErrorState
+          finalizationError={finalizationError}
+          isFinalizing={isFinalizing}
+          onFinalize={handleFinalizeClick}
         />
-      </div>
+      )}
 
-
-      <div className="space-y-12">
-        <FinalVerdictCard balance={finalBalance} />
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
-          <SummaryPillarCard icon={Coins} title="Inkomster" amount={totalIncome} description={pillarDescriptions.income} />
-          <SummaryPillarCard icon={Home} title="Utgifter" amount={totalExpenditure} description={pillarDescriptions.expenditure} />
-          <SummaryPillarCard icon={Sprout} title="Sparande" amount={totalSavings} description={pillarDescriptions.savings} />
-          <SummaryPillarCard icon={Scale} title="Skulder" amount={totalDebtPayments} description={pillarDescriptions.debts} />
-        </div>
-
-        <DetailedLedger />
-
-        {finalizationError && (
-          <p className="text-red-600 text-center my-4">{finalizationError}</p>
-        )}
-
-        <div className="flex justify-center">
-          <div className="w-full max-w-xl">
-            <SubmitButton
-              isSubmitting={isFinalizing}
-              label="Skapa din budget!"
-              size="large"
-              className="bg-darkLimeGreen text-darkBlueMenuColor w-full"
-              enhanceOnHover
-              onClick={handleFinalizeClick}
-            />
-          </div>
-        </div>
-      </div>
-    </div>
+      {state.kind === "ready" && (
+        <ReadyState
+          ui={state.ui}
+          preview={state.preview}
+          finalizationError={finalizationError}
+          isFinalizing={isFinalizing}
+          onFinalize={handleFinalizeClick}
+        />
+      )}
+    </PageShell>
   );
 };
 
 export default SubStepFinal;
+
+// -------------------------
+// layout + states
+// -------------------------
+
+function PageShell({ children }: { children: React.ReactNode }) {
+  return <div className="p-4 md:p-8 min-h-screen w-full">{children}</div>;
+}
+
+function LoadingSkeleton() {
+  return (
+    <div className="space-y-6">
+      <Skeleton className="h-28 w-full rounded-2xl" />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Skeleton className="h-28 w-full rounded-2xl" />
+        <Skeleton className="h-28 w-full rounded-2xl" />
+        <Skeleton className="h-28 w-full rounded-2xl" />
+        <Skeleton className="h-28 w-full rounded-2xl" />
+      </div>
+      <Skeleton className="h-64 w-full rounded-2xl" />
+    </div>
+  );
+}
+
+function ErrorState(props: {
+  finalizationError: string | null;
+  isFinalizing: boolean;
+  onFinalize: () => void;
+}) {
+  const { finalizationError, isFinalizing, onFinalize } = props;
+
+  return (
+    <>
+      <div className="rounded-2xl p-4 bg-white/60">
+        <p className="font-semibold text-gray-800">Kunde inte hämta förhandsvisningen.</p>
+        <p className="text-sm text-gray-600 mt-2">
+          Du kan fortfarande slutföra guiden, men siffrorna kan inte visas just nu.
+        </p>
+      </div>
+
+      {finalizationError && <p className="text-red-600 text-center my-4">{finalizationError}</p>}
+
+      <div className="mt-6">
+        <FinalizeCta isFinalizing={isFinalizing} onFinalize={onFinalize} />
+      </div>
+    </>
+  );
+}
+import type { BudgetDashboardDto } from "@/types/budget/BudgetDashboardDto";
+function ReadyState(props: {
+  ui: any;
+  preview: BudgetDashboardDto;
+  finalizationError: string | null;
+  isFinalizing: boolean;
+  onFinalize: () => void;
+}) {
+  const { ui, preview, finalizationError, isFinalizing, onFinalize } = props;
+  const currency = useAppCurrency();
+  const locale = useAppLocale();
+  return (
+    <div className="space-y-12">
+      <div className="mb-6">
+        <SummaryGrid title="Per månad" topRows={ui.breakdownRows} rows={ui.categoryRows} currency={currency} locale={locale} />
+      </div>
+
+      <FinalVerdictCard balance={ui.finalBalance} currency={currency} locale={locale} />
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+        <SummaryPillarCard icon={Coins} title="Inkomster" amount={ui.totalIncome} description={ui.pillarDescriptions.income} currency={currency} locale={locale} />
+        <SummaryPillarCard icon={Home} title="Utgifter" amount={ui.totalExpenditure} description={ui.pillarDescriptions.expenditure} currency={currency} locale={locale} />
+        <SummaryPillarCard icon={Sprout} title="Sparande" amount={ui.totalSavings} description={ui.pillarDescriptions.savings} currency={currency} locale={locale} />
+        <SummaryPillarCard icon={Scale} title="Skulder" amount={ui.totalDebtPayments} description={ui.pillarDescriptions.debts} currency={currency} locale={locale} />
+      </div>
+
+      {/* Still FE-based today; later feed it from preview dto */}
+      <DetailedLedger preview={preview} />
+
+      {finalizationError && <p className="text-red-600 text-center my-4">{finalizationError}</p>}
+
+      <FinalizeCta isFinalizing={isFinalizing} onFinalize={onFinalize} />
+    </div>
+  );
+}
+
+function FinalizeCta(props: { isFinalizing: boolean; onFinalize: () => void }) {
+  const { isFinalizing, onFinalize } = props;
+
+  return (
+    <div className="flex justify-center">
+      <div className="w-full max-w-xl">
+        <SubmitButton
+          isSubmitting={isFinalizing}
+          label="Skapa din budget!"
+          size="large"
+          className="bg-darkLimeGreen text-darkBlueMenuColor w-full"
+          enhanceOnHover
+          onClick={onFinalize}
+        />
+      </div>
+    </div>
+  );
+}

@@ -189,6 +189,41 @@ internal static class DbSeeds
             bid = budgetId.ToString(),
             pid = persoid.ToString()
         } /*, tx */);
+        // Normal goal -> should yield MonthlyContribution > 0
+        await conn.ExecuteAsync("""
+            INSERT INTO SavingsGoal
+            (Id, SavingsId, Name, TargetAmount, TargetDate, AmountSaved, CreatedAt, CreatedByUserId)
+            SELECT
+                UUID_TO_BIN(UUID()),
+                s.Id,
+                'Emergency fund',
+                50000,
+                '2026-12-31',
+                10000,
+                UTC_TIMESTAMP(),
+                @pid
+            FROM Savings s
+            WHERE s.BudgetId = @bid
+            LIMIT 1;
+        """, new { bid = budgetId, pid = persoid });
+
+        // Completed goal -> should yield MonthlyContribution = 0 (if ComputeMonthlyContribution is sane)
+        await conn.ExecuteAsync("""
+            INSERT INTO SavingsGoal
+            (Id, SavingsId, Name, TargetAmount, TargetDate, AmountSaved, CreatedAt, CreatedByUserId)
+            SELECT
+                UUID_TO_BIN(UUID()),
+                s.Id,
+                'Already done',
+                20000,
+                '2026-06-30',
+                20000,
+                UTC_TIMESTAMP(),
+                @pid
+            FROM Savings s
+            WHERE s.BudgetId = @bid
+            LIMIT 1;
+        """, new { bid = budgetId, pid = persoid });
 
         // Debts
         await conn.ExecuteAsync("""

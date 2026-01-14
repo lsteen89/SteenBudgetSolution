@@ -10,19 +10,23 @@ import {
   Legend,
 } from "recharts";
 import { calculateFutureValue } from "@/utils/budget/financialCalculations";
-import formatCurrency from "@/utils/money/currencyFormatter";
+import { formatMoneyV2 } from "@/utils/money/moneyV2";
+import type { CurrencyCode } from "@/utils/money/currency";
 
 // -----------------------------------------------------------------------------
 // Types
 // -----------------------------------------------------------------------------
 interface HabitProjectionProps {
   monthlySavings: number;
+  currency: CurrencyCode;
+  locale?: string;
+  money?: { fractionDigits?: 0 | 2 };
 }
 
 // -----------------------------------------------------------------------------
 // Component
 // -----------------------------------------------------------------------------
-const HabitProjection: React.FC<HabitProjectionProps> = ({ monthlySavings }) => {
+const HabitProjection: React.FC<HabitProjectionProps> = ({ monthlySavings, currency, locale = "sv-SE", money }) => {
   const prefersReduced = useReducedMotion();
   const projectionYears = [1, 5, 10, 20];
 
@@ -45,7 +49,7 @@ const HabitProjection: React.FC<HabitProjectionProps> = ({ monthlySavings }) => 
     >
       <h4 className="text-xl font-bold text-lime-400 mb-2">Skörden av ditt sparande</h4>
       <p className="text-white/80">
-        Du lägger undan <strong className="text-white text-lg">{formatCurrency(monthlySavings)}</strong> varje månad.
+        Du lägger undan <strong className="text-white text-lg">{formatMoneyV2(monthlySavings, currency, locale, money)}</strong> varje månad.
       </p>
       <p className="mt-1 text-sm text-white/70 mb-4">
         Se hur ditt sparande ökaröver tid – och hur ränta på ränta (4 %) accelererar det.
@@ -67,7 +71,7 @@ const HabitProjection: React.FC<HabitProjectionProps> = ({ monthlySavings }) => 
             />
             <Tooltip
               contentStyle={{ background: "#1f2937", borderRadius: "0.5rem" }}
-              formatter={(v: number) => formatCurrency(v)}
+              formatter={(v: number) => formatMoneyV2(v, currency, locale, money)}
             />
             <Legend
               wrapperStyle={{ fontSize: "0.75rem" }}

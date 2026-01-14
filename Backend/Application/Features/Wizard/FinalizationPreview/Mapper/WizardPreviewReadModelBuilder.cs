@@ -4,13 +4,22 @@ using Backend.Domain.Entities.Budget.Expenses;
 using Backend.Domain.Entities.Budget.Income;
 using Backend.Application.Features.Wizard.Finalization.Abstractions;
 using Backend.Application.Features.Wizard.FinalizationPreview.Models;
+using Backend.Application.Abstractions.Infrastructure.System;
 
 namespace Backend.Application.Features.Wizard.FinalizationPreview.Mapper;
 
 public sealed class WizardPreviewReadModelBuilder : IWizardPreviewReadModelBuilder
 {
+    private readonly ITimeProvider _clock;
+
+    public WizardPreviewReadModelBuilder(ITimeProvider clock)
+    {
+        _clock = clock;
+    }
+
     public BudgetDashboardReadModel Build(PreviewBudgetTarget target)
     {
+        var now = _clock.UtcNow;
         // ----------------------------
         // INCOME
         // ----------------------------
@@ -62,7 +71,7 @@ public sealed class WizardPreviewReadModelBuilder : IWizardPreviewReadModelBuild
         // ----------------------------
         // SAVINGS
         // ----------------------------
-        var savingsRm = BuildSavings(target.Savings);
+        var savingsRm = BuildSavings(target.Savings, now);
         var monthlySavings = savingsRm?.MonthlySavings ?? 0m;
 
         // ----------------------------
@@ -148,7 +157,7 @@ public sealed class WizardPreviewReadModelBuilder : IWizardPreviewReadModelBuild
         );
     }
 
-    private static DashboardSavingsRm? BuildSavings(Backend.Domain.Entities.Budget.Savings.Savings? savings)
+    private static DashboardSavingsRm? BuildSavings(Backend.Domain.Entities.Budget.Savings.Savings? savings, DateTime now)
     {
         if (savings is null) return null;
 
@@ -158,9 +167,12 @@ public sealed class WizardPreviewReadModelBuilder : IWizardPreviewReadModelBuild
                 Name: g.Name,
                 TargetAmount: g.TargetAmount,
                 TargetDate: g.TargetDate,
-                AmountSaved: g.AmountSaved
-            ))
-            .ToList();
+                AmountSaved: g.AmountSaved,
+                    SavingsGoalContribution.ComputeMonthlyContribution(
+                        g.TargetAmount, g.AmountSaved, g.TargetDate, now)
+                )).ToList();
+
+
 
         return new DashboardSavingsRm(
             MonthlySavings: savings.MonthlySavings,

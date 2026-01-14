@@ -1,20 +1,23 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import clsx from 'clsx';
-import { formatCurrency, formatCurrencyParts } from "@/utils/money/currencyFormatter";
+import { formatMoneyV2 } from "@/utils/money/moneyV2";
+import type { CurrencyCode } from "@/utils/money/currency";
 
 interface FinalVerdictCardProps {
   balance: number;
+  currency: CurrencyCode;
+  locale?: string;
+  money?: { fractionDigits?: 0 | 2 };
 }
 
-const FinalVerdictCard: React.FC<FinalVerdictCardProps> = ({ balance }) => {
+const FinalVerdictCard: React.FC<FinalVerdictCardProps> = ({ balance, currency, locale = "sv-SE", money }) => {
   const isSurplus = balance >= 0;
-  const { number, currency } = formatCurrencyParts(balance);
+  const number = formatMoneyV2(Math.abs(balance), currency, locale, money);
 
   const wisdomText = isSurplus
-    ? `Bra jobbat kompis! Du har ett överskott på ${formatCurrency(balance)} varje månad. Använd detta överskott klokt, du vet aldrig när du behöver det.`
-    : `Dina utgifter överstiger dina intäkter med ${formatCurrency(Math.abs(balance))} varje månad. Du ska vara stolt över att du nu tar ett aktivt steg mot en bättre ekonomi, första steget är alltid det svåraste, och det har du tagit nu!`;
-
+    ? `Bra jobbat kompis! Du har ett överskott på ${formatMoneyV2(balance, currency, locale, money)} varje månad. Använd detta överskott klokt, du vet aldrig när du behöver det.`
+    : `Dina utgifter överstiger dina intäkter med ${formatMoneyV2(Math.abs(balance), currency, locale, money)} varje månad. Du ska vara stolt över att du nu tar ett aktivt steg mot en bättre ekonomi, första steget är alltid det svåraste, och det har du tagit nu!`;
   return (
     <motion.div
       className="bg-slate-800/50 rounded-2xl shadow-2xl p-6 md:p-8 text-center border border-white/10"

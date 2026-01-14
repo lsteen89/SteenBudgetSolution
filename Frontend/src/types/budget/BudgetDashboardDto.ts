@@ -45,10 +45,13 @@ export interface DashboardSavingsGoalDto {
     targetAmount?: number | null;
     targetDate?: string | null;   // ISO date string from BE
     amountSaved?: number | null;
+    monthlyContribution: number;
 }
 
 export interface SavingsOverviewDto {
     monthlySavings: number;
+    totalGoalSavingsMonthly: number;
+    totalSavingsMonthly: number;
     goals: DashboardSavingsGoalDto[];
 }
 export interface DashboardRecurringExpenseDto {
@@ -75,13 +78,9 @@ export interface BudgetDashboardDto {
     savings?: SavingsOverviewDto | null;
     debt: DebtOverviewDto;
 
-    // legacy
-    disposableAfterExpenses: number;
-    disposableAfterExpensesAndSavings: number;
-
-    CarryOverAmountMonthly: number;
-    DisposableAfterExpensesWithCarryMonthly: number;
-    DisposableAfterExpensesAndSavingsWithCarryMonthly: number;
+    carryOverAmountMonthly: number;
+    disposableAfterExpensesWithCarryMonthly: number;
+    disposableAfterExpensesAndSavingsWithCarryMonthly: number;
     finalBalanceWithCarryMonthly: number;
 
     recurringExpenses: DashboardRecurringExpenseDto[];

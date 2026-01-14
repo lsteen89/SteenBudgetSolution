@@ -4,6 +4,7 @@ import { useWizardSessionStore } from '@/stores/Wizard/wizardSessionStore';
 import { useWizardDataStore, WizardData } from '@/stores/Wizard/wizardDataStore';
 import { CODE_DATA_VERSION } from '@/constants/wizardVersion';
 import { hasAnyWizardData } from '@/utils/wizard/wizardHelpers';
+import { logAxiosError } from '@/api/axiosError';
 
 // This is the shape of the satchel we expect from the backend
 interface ApiStepData {
@@ -105,7 +106,7 @@ const useWizardInit = () => {
                     setInitialStep(0);
                 }
             } catch (error) {
-                console.error('🔥 A dark magic has interfered!', error);
+                logAxiosError('🔥 A dark magic has interfered!', error);
                 // Optionally, set an error state here for the UI
             } finally {
                 setLoading(false);

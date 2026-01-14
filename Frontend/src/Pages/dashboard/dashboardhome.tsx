@@ -3,7 +3,7 @@ import PageContainer from "@components/layout/PageContainer";
 import ContentWrapper from "@components/layout/ContentWrapper";
 import { useAuth } from '@/hooks/auth/useAuth';
 import DashboardBirdBackground from "@assets/Images/Background/DashboardBirdBackground.png";
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from "react-router-dom"; // 
 import DashboardContent from "@components/organisms/pages/DashboardContent";
 import { AnimatePresence, motion } from "framer-motion";
 import LoadingScreen from "@components/molecules/feedback/LoadingScreen";
@@ -11,28 +11,46 @@ import CenteredContainer from "@components/atoms/container/CenteredContainer";
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useAuthStore } from '@/stores/Auth/authStore';
 
-
 const SetupWizard = lazy(() => import("@/components/organisms/overlays/wizard/SetupWizard"));
 
 const Dashboard: React.FC = () => {
   const auth = useAuth();
   const navigate = useNavigate();
+  const location = useLocation(); // <-- add
 
-  // Undefined until user is loaded; treat as "unknown" not "true"
   const firstLogin = useAuthStore((s) => s.user?.firstLogin);
 
   const [isWizardOpen, setIsWizardOpen] = useState(false);
-  const autoOpenedRef = useRef(false);
 
+  // prevents reopening if something re-renders while param still exists
+  const openedFromQueryRef = useRef(false);
+
+  // ✅ Open wizard ONLY via URL param
   useEffect(() => {
     if (auth.isLoading || !auth.user) return;
 
-    // only auto-open once, and only when firstLogin is explicitly true
-    if (firstLogin === true && !autoOpenedRef.current) {
-      setIsWizardOpen(true);
-      autoOpenedRef.current = true;
-    }
-  }, [auth.isLoading, auth.user, firstLogin]);
+    const params = new URLSearchParams(location.search);
+    const shouldOpen = params.get("wizard") === "1";
+
+    if (!shouldOpen) return;
+    if (openedFromQueryRef.current) return;
+
+    openedFromQueryRef.current = true;
+    setIsWizardOpen(true);
+
+    // remove the param so refresh/back doesn't pop it again
+    params.delete("wizard");
+    const nextSearch = params.toString();
+    navigate(
+      { pathname: location.pathname, search: nextSearch ? `?${nextSearch}` : "" },
+      { replace: true }
+    );
+  }, [auth.isLoading, auth.user, location.search, location.pathname, navigate]);
+
+  // Optional: if it's first login, wizard should definitely not be open
+  useEffect(() => {
+    if (firstLogin === true) setIsWizardOpen(false);
+  }, [firstLogin]);
 
   if (auth.isLoading) {
     return (
@@ -42,13 +60,12 @@ const Dashboard: React.FC = () => {
     );
   }
 
-  if (!auth.user) return null; // ProtectedRoute should prevent this anyway
+  if (!auth.user) return null;
 
   return (
     <PageContainer className="md:px-20 items-center min-h-screen overflow-y-auto h-full">
       <ContentWrapper centerContent className="lg:pt-24 3xl:pt-48 ">
         <DashboardContent
-          // only true when known true
           isFirstTimeLogin={firstLogin === true}
           isWizardOpen={isWizardOpen}
           setIsWizardOpen={setIsWizardOpen}
@@ -66,7 +83,12 @@ const Dashboard: React.FC = () => {
             className="z-[9999]"
           >
             <Suspense fallback={<LoadingScreen />}>
-              <SetupWizard onClose={() => setIsWizardOpen(false)} />
+              <SetupWizard
+                onClose={() => {
+                  setIsWizardOpen(false);
+                  openedFromQueryRef.current = false; // allow opening again later
+                }}
+              />
             </Suspense>
           </motion.div>
         )}

@@ -87,6 +87,8 @@ internal static class BudgetSeeds
             VALUES (UUID_TO_BIN(UUID()), @bid, 2500, UTC_TIMESTAMP(), @pid);
         """, new { bid = budgetId, pid = persoid });
 
+
+
         await conn.ExecuteAsync("""
             INSERT INTO Debt (Id, BudgetId, Name, Type, Balance, Apr, MonthlyFee, MinPayment, TermMonths, CreatedAt, CreatedByUserId)
             VALUES
