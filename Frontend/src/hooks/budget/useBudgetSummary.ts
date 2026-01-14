@@ -6,6 +6,7 @@ import { calcMonthlyIncome } from "@/utils/wizard/wizardHelpers";
 import type { SavingsGoal } from "@/types/Wizard/SavingsFormValues";
 import { buildCoreSummary, type CoreGoal } from "@/domain/budget/budgetSummaryCore";
 
+/*TODO: DELETE, not used */
 type StrictSavingsGoal = {
   id: string;
   name: string;

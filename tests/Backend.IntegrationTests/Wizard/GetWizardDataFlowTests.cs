@@ -72,21 +72,24 @@ public sealed class GetWizardDataFlowTests
         await InsertStep(conn, sessionId, step: 1, sub: 0,
             json: """{"netSalary":1337}""", ver: 2, updatedUtc: DateTime.UtcNow.AddMinutes(-1));
 
-
-        // Step 2 (Expenditure) – multipart objects: match your DTOs
-        await InsertStep(conn, sessionId, step: 2, sub: 0,
-            json: """{"rent":{"monthlyRent":900}}""", ver: 1, updatedUtc: DateTime.UtcNow.AddMinutes(-3));
-
-        await InsertStep(conn, sessionId, step: 2, sub: 1,
-            json: """{"utilities":{"electricity":200}}""", ver: 1, updatedUtc: DateTime.UtcNow.AddMinutes(-2));
-
+        // Step 2 (Expenditure) – multipart objects: NEW DTOs
+        // Sub 0: Housing type + payment
+        await InsertStep(conn, sessionId, step: 2, sub: 2,
+            json: """
+          {
+            "housing": {
+              "homeType": "rent",
+              "payment": { "monthlyRent": 900, "extraFees": 50 },
+              "runningCosts": { "electricity": 200 }
+            }
+          }
+          """,
+            ver: 1, updatedUtc: DateTime.UtcNow.AddMinutes(-2));
 
         // Step 3 (Savings)
         await InsertStep(conn, sessionId, step: 3, sub: 0,
             json: """{"habits":{"monthlySavings":250}}""",
             ver: 1, updatedUtc: DateTime.UtcNow.AddMinutes(-10));
-
-
 
         // ---------- SUT ----------
         var repo = BuildRepoForGetWizardData(_db.ConnectionString);
@@ -99,19 +102,26 @@ public sealed class GetWizardDataFlowTests
 
         var dto = res.Value!;
         dto.DataVersion.Should().Be(2); // highest across latest rows (step1 v2)
-        dto.SubStep.Should().Be(1);     // max SubStep for current step = 2
+        dto.SubStep.Should().Be(2);     // max SubStep for current step = 2
 
         var incomeJson = JsonSerializer.Serialize(dto.WizardData!.Income, Camel);
         incomeJson.Should().Contain("\"netSalary\":1337");
 
         var exp = dto.WizardData!.Expenditure!;
-        exp.Rent!.MonthlyRent.Should().Be(900);
-        exp.Utilities!.Electricity.Should().Be(200);
+        exp.Housing.Should().NotBeNull();
+
+        exp.Housing!.HomeType.Should().Be("rent");
+        exp.Housing.Payment.Should().NotBeNull();
+        exp.Housing.Payment!.MonthlyRent.Should().Be(900);
+        exp.Housing.Payment.ExtraFees.Should().Be(50);
+
+        exp.Housing.RunningCosts.Should().NotBeNull();
+        exp.Housing.RunningCosts!.Electricity.Should().Be(200);
 
         dto.WizardData!.Savings.Should().NotBeNull();
         dto.WizardData!.Savings!.Habits!.MonthlySavings.Should().Be(250);
-
     }
+
 
     // ----------------- helpers -----------------
 

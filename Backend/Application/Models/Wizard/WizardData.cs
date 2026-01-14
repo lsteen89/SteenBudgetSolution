@@ -90,14 +90,11 @@ public sealed class SideHustle
 #region expenditure
 public sealed class ExpenditureFormValues
 {
-    [JsonPropertyName("rent")]
-    public Rent? Rent { get; init; }                 // ❗️nullable, no = new()
+    [JsonPropertyName("housing")]
+    public Housing? Housing { get; init; }
 
     [JsonPropertyName("food")]
     public Food? Food { get; init; }                 // ❗️nullable, no = new()
-
-    [JsonPropertyName("utilities")]
-    public Utilities? Utilities { get; init; }       // ❗️nullable, no = new()
 
     // Optional sub-forms – keep as nullable
     [JsonPropertyName("fixedExpenses")]
@@ -115,31 +112,46 @@ public sealed class ExpenditureFormValues
 
 /* ---- expenditure sub-objects ---- */
 
-public sealed class Rent
+public sealed class Housing
 {
     [JsonPropertyName("homeType")]
-    public string? HomeType { get; init; }
+    public string? HomeType { get; init; } // "rent" | "brf" | "house" | "free"
 
+    [JsonPropertyName("payment")]
+    public HousingPayment? Payment { get; init; }
+
+    [JsonPropertyName("runningCosts")]
+    public HousingRunningCosts? RunningCosts { get; init; }
+}
+
+public sealed class HousingPayment
+{
     [JsonPropertyName("monthlyRent")]
-    public decimal? MonthlyRent { get; init; }       // ❗️decimal?
-
-    [JsonPropertyName("rentExtraFees")]
-    public decimal? RentExtraFees { get; init; }
+    public decimal? MonthlyRent { get; init; }
 
     [JsonPropertyName("monthlyFee")]
-    public decimal? MonthlyFee { get; init; }        // ❗️decimal?
+    public decimal? MonthlyFee { get; init; }
 
-    [JsonPropertyName("brfExtraFees")]
-    public decimal? BrfExtraFees { get; init; }
+    [JsonPropertyName("extraFees")]
+    public decimal? ExtraFees { get; init; }
+}
 
-    [JsonPropertyName("mortgagePayment")]
-    public decimal? MortgagePayment { get; init; }   // ❗️decimal?
+public sealed class HousingRunningCosts
+{
+    [JsonPropertyName("electricity")]
+    public decimal? Electricity { get; init; }
 
-    [JsonPropertyName("houseotherCosts")]
-    public decimal? HouseotherCosts { get; init; }
+    [JsonPropertyName("heating")]
+    public decimal? Heating { get; init; }
 
-    [JsonPropertyName("otherCosts")]
-    public decimal? OtherCosts { get; init; }
+    [JsonPropertyName("water")]
+    public decimal? Water { get; init; }
+
+    [JsonPropertyName("waste")]
+    public decimal? Waste { get; init; }
+
+    [JsonPropertyName("other")]
+    public decimal? Other { get; init; }
 }
 
 public sealed class Food
@@ -150,18 +162,6 @@ public sealed class Food
     [JsonPropertyName("takeoutExpenses")]
     public decimal? TakeoutExpenses { get; init; }
 }
-
-public sealed class Utilities
-{
-    [JsonPropertyName("electricity")]
-    public decimal? Electricity { get; init; }
-
-    [JsonPropertyName("water")]
-    public decimal? Water { get; init; }
-}
-/// <summary>
-///  TODO DELETE THIS CLASS
-/// </summary>
 
 public sealed class Transport
 {
@@ -248,7 +248,7 @@ public sealed class SubscriptionItem
     [JsonPropertyName("name")]
     public string? Name { get; init; }
 
-    [JsonPropertyName("cost")] 
+    [JsonPropertyName("cost")]
     public decimal? Cost { get; init; }
 }
 

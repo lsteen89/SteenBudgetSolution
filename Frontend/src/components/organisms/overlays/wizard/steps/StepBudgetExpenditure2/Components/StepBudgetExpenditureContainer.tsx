@@ -23,8 +23,8 @@ import WizardFormWrapperStep2, {
 const ExpenditureOverviewMainText = lazy(() =>
   import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/1_SubStepWelcome/ExpenditureOverviewMainText')
 );
-const SubStepRent = lazy(() =>
-  import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/2_SubStepRent/SubStepRent')
+const SubStepHousing = lazy(() =>
+  import('@/components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/2_SubStepHousing/SubStepHousing')
 );
 const SubStepFood = lazy(() =>
   import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/3_SubStepFood/SubStepFood')
@@ -105,7 +105,7 @@ function getExpenditurePartialData(
   allData: Step2FormValues
 ): Partial<Step2FormValues> {
   switch (subStep) {
-    case 2: return { rent: allData.rent };
+    case 2: return { housing: allData.housing };
     case 3: return { food: allData.food };
     case 4: return { fixedExpenses: allData.fixedExpenses };
     case 5: return { transport: allData.transport };
@@ -263,7 +263,7 @@ const StepBudgetExpenditureContainer = forwardRef<
   const renderSubStep = () => {
     switch (currentSub) {
       case 1: return <ExpenditureOverviewMainText />;
-      case 2: return <SubStepRent />;
+      case 2: return <SubStepHousing />;
       case 3: return <SubStepFood />;
       case 4: return <SubStepFixedExp />;
       case 5: return <SubStepTransport />;
@@ -284,7 +284,7 @@ const StepBudgetExpenditureContainer = forwardRef<
 
   const substepLoaders: Record<number, () => Promise<any>> = {
     1: () => import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/1_SubStepWelcome/ExpenditureOverviewMainText'),
-    2: () => import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/2_SubStepRent/SubStepRent'),
+    2: () => import('@/components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/2_SubStepHousing/SubStepHousing'),
     3: () => import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/3_SubStepFood/SubStepFood'),
     4: () => import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/4_SubStepFixedExpenses/SubStepFixedExpenses'),
     5: () => import('@/components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/5_SubStepTransport/SubStepTransport'),

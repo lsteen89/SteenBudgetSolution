@@ -2,24 +2,31 @@ import { FieldValues } from "react-hook-form";
 import type { FixedExpensesSubForm } from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/4_SubStepFixedExpenses/SubStepFixedExpenses';
 import type { SubscriptionsSubForm } from '@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/7_SubStepSubscriptions/SubStepSubscriptions';
 
+// 1. Move types outside the interface
+export type HousingType = "rent" | "brf" | "house" | "free";
+
+export interface HousingRunningCostsForm {
+  electricity: number | null;
+  heating: number | null;
+  water: number | null;
+  waste: number | null;
+  otherHomeRunningCosts: number | null;
+}
+
+export interface HousingForm {
+  homeType: HousingType | "";
+  monthlyRent: number | null;
+  monthlyApartmentFee: number | null;
+  otherHousingFees: number | null;
+  runningCosts: HousingRunningCostsForm;
+}
+
+// 2. Single declaration extending FieldValues
 export interface ExpenditureFormValues extends FieldValues {
-  rent: {
-    homeType: string;
-    monthlyRent: number;
-    rentExtraFees: number | null;
-    monthlyFee: number;
-    brfExtraFees: number | null;
-    mortgagePayment: number;
-    houseotherCosts: number | null;
-    otherCosts: number | null;
-  };
+  housing: HousingForm;
   food: {
     foodStoreExpenses: number | null;
     takeoutExpenses: number | null;
-  };
-  utilities: {
-    electricity: number | null;
-    water: number | null;
   };
   fixedExpenses?: FixedExpensesSubForm;
   transport: {

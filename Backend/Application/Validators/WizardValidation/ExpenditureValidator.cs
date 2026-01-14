@@ -3,39 +3,94 @@ using FluentValidation;
 
 /* ───────────────── sub-validators ───────────────── */
 
-public sealed class RentValidator : AbstractValidator<Rent>
+public sealed class HousingValidator : AbstractValidator<Housing>
 {
-    public RentValidator()
+    private static readonly string[] AllowedHomeTypes = ["rent", "brf", "house", "free"];
+
+    public HousingValidator()
     {
-        RuleFor(r => r.HomeType).NotEmpty();
+        RuleFor(x => x.HomeType)
+            .NotEmpty()
+            .Must(t => AllowedHomeTypes.Contains(t!))
+            .WithMessage("Invalid homeType.");
 
-        RuleFor(r => r.MonthlyRent)
+        // Validate nested objects only if present
+        When(x => x.Payment is not null, () =>
+        {
+            RuleFor(x => x.Payment!).SetValidator(new HousingPaymentValidator());
+        });
+
+        When(x => x.RunningCosts is not null, () =>
+        {
+            RuleFor(x => x.RunningCosts!).SetValidator(new HousingRunningCostsValidator());
+        });
+
+        // Conditional required fields (based on HomeType)
+        RuleFor(x => x.Payment!.MonthlyRent)
             .NotNull().GreaterThan(0)
-            .When(r => r.HomeType == "rent");
+            .WithMessage("monthlyRent must be > 0 for rent.")
+            .When(x => x.HomeType == "rent")
+            // ensure Payment exists when needed
+            .DependentRules(() =>
+            {
+                RuleFor(x => x.Payment).NotNull().WithMessage("payment is required for rent.");
+            });
 
-        RuleFor(r => r.MonthlyFee)
+        RuleFor(x => x.Payment!.MonthlyFee)
             .NotNull().GreaterThan(0)
-            .When(r => r.HomeType == "brf");
+            .WithMessage("monthlyFee must be > 0 for brf.")
+            .When(x => x.HomeType == "brf")
+            .DependentRules(() =>
+            {
+                RuleFor(x => x.Payment).NotNull().WithMessage("payment is required for brf.");
+            });
 
-        RuleFor(r => r.MortgagePayment)
-            .NotNull().GreaterThan(0)
-            .When(r => r.HomeType == "house");
+        // OPTIONAL caps mirroring FE
+        RuleFor(x => x.Payment!.MonthlyRent)
+            .LessThanOrEqualTo(50000)
+            .When(x => x.Payment?.MonthlyRent is not null);
 
-        RuleFor(r => r.RentExtraFees)
-            .GreaterThanOrEqualTo(0)
-            .When(r => r.RentExtraFees.HasValue);
+        RuleFor(x => x.Payment!.MonthlyFee)
+            .LessThanOrEqualTo(50000)
+            .When(x => x.Payment?.MonthlyFee is not null);
 
-        RuleFor(r => r.BrfExtraFees)
-            .GreaterThanOrEqualTo(0)
-            .When(r => r.BrfExtraFees.HasValue);
+        RuleFor(x => x.Payment!.ExtraFees)
+            .LessThanOrEqualTo(50000)
+            .When(x => x.Payment?.ExtraFees is not null);
+    }
+}
 
-        RuleFor(r => r.HouseotherCosts)
-            .GreaterThanOrEqualTo(0)
-            .When(r => r.HouseotherCosts.HasValue);
+public sealed class HousingPaymentValidator : AbstractValidator<HousingPayment>
+{
+    public HousingPaymentValidator()
+    {
+        RuleFor(x => x.MonthlyRent)
+            .GreaterThanOrEqualTo(0).When(x => x.MonthlyRent.HasValue);
 
-        RuleFor(r => r.OtherCosts)
-            .GreaterThanOrEqualTo(0)
-            .When(r => r.OtherCosts.HasValue);
+        RuleFor(x => x.MonthlyFee)
+            .GreaterThanOrEqualTo(0).When(x => x.MonthlyFee.HasValue);
+
+        RuleFor(x => x.ExtraFees)
+            .GreaterThanOrEqualTo(0).When(x => x.ExtraFees.HasValue);
+    }
+}
+
+public sealed class HousingRunningCostsValidator : AbstractValidator<HousingRunningCosts>
+{
+    public HousingRunningCostsValidator()
+    {
+        RuleFor(x => x.Electricity).GreaterThanOrEqualTo(0).When(x => x.Electricity.HasValue);
+        RuleFor(x => x.Heating).GreaterThanOrEqualTo(0).When(x => x.Heating.HasValue);
+        RuleFor(x => x.Water).GreaterThanOrEqualTo(0).When(x => x.Water.HasValue);
+        RuleFor(x => x.Waste).GreaterThanOrEqualTo(0).When(x => x.Waste.HasValue);
+        RuleFor(x => x.Other).GreaterThanOrEqualTo(0).When(x => x.Other.HasValue);
+
+        // OPTIONAL caps mirroring FE
+        RuleFor(x => x.Electricity).LessThanOrEqualTo(20000).When(x => x.Electricity.HasValue);
+        RuleFor(x => x.Heating).LessThanOrEqualTo(20000).When(x => x.Heating.HasValue);
+        RuleFor(x => x.Water).LessThanOrEqualTo(20000).When(x => x.Water.HasValue);
+        RuleFor(x => x.Waste).LessThanOrEqualTo(20000).When(x => x.Waste.HasValue);
+        RuleFor(x => x.Other).LessThanOrEqualTo(50000).When(x => x.Other.HasValue);
     }
 }
 
@@ -50,20 +105,6 @@ public sealed class FoodValidator : AbstractValidator<Food>
         RuleFor(f => f.TakeoutExpenses)
             .GreaterThanOrEqualTo(0)
             .When(f => f.TakeoutExpenses.HasValue);
-    }
-}
-
-public sealed class UtilitiesValidator : AbstractValidator<Utilities>
-{
-    public UtilitiesValidator()
-    {
-        RuleFor(u => u.Electricity)
-            .GreaterThanOrEqualTo(0)
-            .When(u => u.Electricity.HasValue);
-
-        RuleFor(u => u.Water)
-            .GreaterThanOrEqualTo(0)
-            .When(u => u.Water.HasValue);
     }
 }
 
@@ -188,14 +229,11 @@ public sealed class ExpenditureValidator : AbstractValidator<ExpenditureFormValu
 {
     public ExpenditureValidator()
     {
-        When(x => x.Rent is not null,
-            () => RuleFor(x => x.Rent!).SetValidator(new RentValidator()));
+        When(x => x.Housing is not null,
+            () => RuleFor(x => x.Housing!).SetValidator(new HousingValidator()));
 
         When(x => x.Food is not null,
             () => RuleFor(x => x.Food!).SetValidator(new FoodValidator()));
-
-        When(x => x.Utilities is not null,
-            () => RuleFor(x => x.Utilities!).SetValidator(new UtilitiesValidator()));
 
         When(x => x.Transport is not null,
             () => RuleFor(x => x.Transport!).SetValidator(new TransportValidator()));
