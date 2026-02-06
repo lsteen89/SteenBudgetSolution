@@ -1,3 +1,5 @@
+using Backend.Domain.Entities.Budget.Debt;
+
 namespace Backend.Application.Features.Budgets.Dashboard;
 
 // All shapes returned by the repository for the Dashboard feature.
@@ -12,11 +14,16 @@ public sealed record DashboardTotalsRm(
     decimal TotalDebtBalance
 );
 
-public sealed record DashboardCategoryRm(string CategoryName, decimal TotalMonthlyAmount);
+public sealed record DashboardCategoryRm(
+    Guid CategoryId,
+    string CategoryName,
+    decimal TotalMonthlyAmount
+);
 
 public sealed record DashboardRecurringExpenseRm(
     Guid Id,
     string Name,
+    Guid CategoryId,
     string CategoryName,
     decimal AmountMonthly
 );
@@ -64,12 +71,20 @@ public sealed record DashboardIncomeItemRm(
     decimal AmountMonthly
 );
 
+public sealed record DashboardDebtOverviewRm(
+    decimal TotalDebtBalance,
+    decimal TotalMonthlyPayments,
+    RepaymentStrategy RepaymentStrategy,
+    IReadOnlyList<DashboardDebtRm> Debts
+);
+
+
 public sealed record BudgetDashboardReadModel(
     Guid BudgetId,
     DashboardTotalsRm Totals,
     IReadOnlyList<DashboardCategoryRm> Categories,
     IReadOnlyList<DashboardRecurringExpenseRm> RecurringExpenses,
-    IReadOnlyList<DashboardDebtRm> Debts,
+    DashboardDebtOverviewRm Debt,
     DashboardSavingsRm? Savings,
     DashboardSubscriptionsRm Subscriptions,
     IReadOnlyList<DashboardIncomeItemRm> SideHustles,

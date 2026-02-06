@@ -1,5 +1,6 @@
 ﻿using Backend.Application.Models.Wizard;
 using FluentValidation;
+using Backend.Domain.Entities.Budget.Debt;
 
 namespace Backend.Application.Validators.WizardValidation
 {
@@ -22,9 +23,8 @@ namespace Backend.Application.Validators.WizardValidation
         public DebtsSummaryValidator()
         {
             RuleFor(s => s.RepaymentStrategy)
-                .NotEmpty().WithMessage("Du måste välja en strategi för återbetalning.")
-                .Must(s => ValidStrategies.Contains(s ?? string.Empty))
-                .WithMessage("Vänligen välj en giltig strategi.");
+                .Must(x => x != RepaymentStrategy.Unknown)
+                .WithMessage("Du måste välja en strategi för återbetalning.");
         }
     }
 

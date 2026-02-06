@@ -15,7 +15,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using MySqlConnector;
 using Xunit;
-using Backend.Infrastructure.Data;
+using Backend.Infrastructure.Data.Sql.Helpers.UnitOfWork;
 using Backend.Infrastructure.Repositories.Budget.Months;
 using Backend.IntegrationTests.Shared.Seeds.Budget;
 

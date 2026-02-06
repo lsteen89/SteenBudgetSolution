@@ -5,18 +5,7 @@ import { useWizardDataStore, WizardData } from '@/stores/Wizard/wizardDataStore'
 import { CODE_DATA_VERSION } from '@/constants/wizardVersion';
 import { hasAnyWizardData } from '@/utils/wizard/wizardHelpers';
 import { logAxiosError } from '@/api/axiosError';
-
-// This is the shape of the satchel we expect from the backend
-interface ApiStepData {
-    stepNumber: number;
-    subStep: number;
-    stepData: string; // The data is a JSON string from the database
-}
-
-interface WizardApiResponse {
-    wizardSteps: ApiStepData[];
-    // We can derive the highest sub-step if needed, or get it from the API
-}
+import { set } from "lodash";
 
 
 
@@ -25,10 +14,17 @@ const useWizardInit = () => {
     const [failedAttempts, setFailedAttempts] = useState(0);
     const [connectionError, setConnectionError] = useState(false);
     const [initialSubStep, setInitialWizardSubStep] = useState<number | null>(null);
-    const [initialStep, setInitialStep] = useState(0);
+    const [initialMajorStep, setInitialWizardMajorStep] = useState<number | null>(null);
     const hydratedRef = useRef(false);
 
-    const setSessionIdInStore = useWizardSessionStore(s => s.setWizardSessionId);
+    const normalizeMaxSubByMajor = (m?: Record<number, number> | null) =>
+        Object.fromEntries(
+            Object.entries(m ?? {}).map(([k, v]) => [Number(k), Number(v ?? 0)])
+        ) as Record<number, number>;
+
+    const setMaxAllowed = useWizardSessionStore((s) => s.setMaxAllowed);
+    const setMaxSubStepsByMajor = useWizardSessionStore((s) => s.setMaxSubStepsByMajor);
+    const setSessionIdInStore = useWizardSessionStore((s) => s.setWizardSessionId);
     // We now use the wizardDataStore to manage our data
     const {
         localStoreVersion,
@@ -37,6 +33,10 @@ const useWizardInit = () => {
         setExpenditure,
         setSavings,
         setDebts,
+        setIncomeReplace,
+        setExpenditureReplace,
+        setSavingsReplace,
+        setDebtsReplace,
     } = useWizardDataStore(state => ({
         localStoreVersion: state.version,
         resetDataStore: state.reset,
@@ -44,6 +44,10 @@ const useWizardInit = () => {
         setExpenditure: state.setExpenditure,
         setSavings: state.setSavings,
         setDebts: state.setDebts,
+        setIncomeReplace: state.setIncomeReplace,
+        setExpenditureReplace: state.setExpenditureReplace,
+        setSavingsReplace: state.setSavingsReplace,
+        setDebtsReplace: state.setDebtsReplace,
     }));
 
     const initWizard = useCallback(async () => { }, []);
@@ -59,10 +63,7 @@ const useWizardInit = () => {
             }
 
             try {
-                if (localStoreVersion < CODE_DATA_VERSION) {
-                    console.log(`%c📜 An old scroll was found! Resetting...`, 'color: #ff8c00;');
-                    resetDataStore();
-                }
+
 
                 // 1. Start the session and get the ID
                 const startResponse = await startWizard();
@@ -80,30 +81,43 @@ const useWizardInit = () => {
 
                 // 3. Process the data
                 if (existingData && existingData.wizardData) {
-                    const { wizardData: fetchedData, subStep } = existingData;
+                    const { wizardData: fetchedData, progress } = existingData;
                     console.log('%c📬 A pre-assembled book has arrived!', 'color: #0077be;', fetchedData);
-
+                    console.log("SAVINGS FROM API", fetchedData.savings);
                     // Update Zustand store
-                    if (fetchedData.income) setIncome(fetchedData.income);
-                    if (fetchedData.expenditure) setExpenditure(fetchedData.expenditure);
-                    if (fetchedData.savings) setSavings(fetchedData.savings);
-                    if (fetchedData.debts) setDebts(fetchedData.debts);
+                    if (fetchedData.income) setIncomeReplace(fetchedData.income);
+                    if (fetchedData.expenditure) setExpenditureReplace(fetchedData.expenditure);
+                    if (fetchedData.savings) setSavingsReplace(fetchedData.savings);
+                    if (fetchedData.debts) setDebtsReplace(fetchedData.debts);
                     console.log('%c✅ The great ledger (Zustand) has been updated.', 'color: #228b22;');
 
-                    // Determine starting step
-                    let highestStep = 0;
-                    if (fetchedData.income) highestStep = 1;
-                    if (fetchedData.expenditure) highestStep = 2;
-                    if (fetchedData.savings) highestStep = 3;
-                    if (fetchedData.debts) highestStep = 4;
+                    const startMajor = progress?.majorStep ?? 0;
+                    const startSub = progress?.subStep ?? 0;
 
-                    setInitialStep(highestStep);
-                    setInitialWizardSubStep(subStep);
-                    console.log('%c🗺️ The journey begins here:', 'color: #20b2aa;', { step: highestStep, subStep });
-                    console.log(`🗺️ Setting the journey start to Step ${highestStep}.`);
+                    setInitialWizardMajorStep(startMajor);
+                    setInitialWizardSubStep(startSub);
+
+                    const normalized = normalizeMaxSubByMajor(progress?.maxSubStepByMajor);
+                    setMaxSubStepsByMajor(normalized);
+
+                    const maxMajor = Math.max(0, ...Object.keys(normalized).map(Number), startMajor);
+                    const maxSub = normalized[maxMajor] ?? startSub;
+                    setMaxAllowed(maxMajor, maxSub);
+
+                    // this is the key line for navigation gating
+                    setMaxAllowed(startMajor, startSub);
+                    setMaxSubStepsByMajor(progress?.maxSubStepByMajor ?? {});
+                    console.log('%c🗺️ The journey begins here:', 'color: #20b2aa;', {
+                        step: startMajor,
+                        subStep: startSub,
+                    });
+                    console.log(`🗺️ Setting the journey start to Step ${startMajor}.`);
                 } else {
                     console.log('📬 The book from the server was empty. Starting a new chronicle.');
-                    setInitialStep(0);
+                    setInitialWizardMajorStep(0);
+                    setInitialWizardSubStep(0);
+                    setMaxAllowed(0, 0);
+                    setMaxSubStepsByMajor({});
                 }
             } catch (error) {
                 logAxiosError('🔥 A dark magic has interfered!', error);
@@ -116,7 +130,7 @@ const useWizardInit = () => {
         performInit();
     }, []); // Note: For production, you'd want to add your store setters to this dependency array.
 
-    return { loading, failedAttempts, connectionError, initWizard, initialStep, initialSubStep };
+    return { loading, failedAttempts, connectionError, initWizard, initialMajorStep, initialSubStep };
 };
 
 export default useWizardInit;

@@ -1,4 +1,3 @@
-// tests/Backend.IntegrationTests/Wizard/GetWizardDataFlowTests.cs
 using System;
 using System.Buffers;
 using System.Linq;
@@ -9,11 +8,13 @@ using Dapper;
 using FluentAssertions;
 using Moq;
 using MySqlConnector;
-using Xunit;
+using Backend.Domain.Entities.Wizard;
 
 using Backend.IntegrationTests.Shared;
 using Backend.Application.Abstractions.Infrastructure.Data; // IWizardRepository
-using Backend.Application.Features.Wizard.GetWizardData;   // GetWizardDataQuery, Handler, WizardSavedDataDTO (adjust if different)
+using Backend.Application.Features.Wizard.GetWizardData;
+using Backend.Application.Features.Wizard.GetWizardData.Assemble;
+using Backend.Application.Features.Wizard.GetWizardData.Reduce;
 
 using Backend.Application.DTO.Wizard;
 using Backend.Application.Models.Wizard;
@@ -41,14 +42,17 @@ public sealed class GetWizardDataFlowTests
         await SeedUserAsync(conn, persoId);
         await SeedSessionAsync(conn, sessionId, persoId, currentStep: 1);
 
-        var repo = BuildRepoForGetWizardData(_db.ConnectionString);
-        var sut = new GetWizardDataQueryHandler(repo.Object);
+        var repo = new TestWizardRepository(_db.ConnectionString);
+        var reducer = new WizardStepRowReducer();
+        var assembler = new WizardStepDataAssembler();
+        var sut = new GetWizardDataQueryHandler(repo, reducer, assembler);
 
         var res = await sut.Handle(new GetWizardDataQuery(sessionId), CancellationToken.None);
 
-        res.IsSuccess.Should().BeTrue();   // implicit Result<T> from your handler
+        res.IsSuccess.Should().BeTrue();
         res.Value.Should().BeNull();
     }
+
 
     [Fact]
     public async Task Aggregates_Latest_Per_Substep_And_Merges_Multipart()
@@ -61,39 +65,34 @@ public sealed class GetWizardDataFlowTests
         await conn.OpenAsync();
 
         await SeedUserAsync(conn, persoId);
-        // CurrentStep = 2 so SubStep will be computed from step 2’s rows
         await SeedSessionAsync(conn, sessionId, persoId, currentStep: 2);
 
-        // ---------- Insert WizardStepData rows ----------
-        // Step 1 (Income) – latest wins
         await InsertStep(conn, sessionId, step: 1, sub: 0,
             json: """{"netSalary":1000}""", ver: 1, updatedUtc: DateTime.UtcNow.AddMinutes(-5));
 
         await InsertStep(conn, sessionId, step: 1, sub: 0,
             json: """{"netSalary":1337}""", ver: 2, updatedUtc: DateTime.UtcNow.AddMinutes(-1));
 
-        // Step 2 (Expenditure) – multipart objects: NEW DTOs
-        // Sub 0: Housing type + payment
         await InsertStep(conn, sessionId, step: 2, sub: 2,
             json: """
-          {
-            "housing": {
-              "homeType": "rent",
-              "payment": { "monthlyRent": 900, "extraFees": 50 },
-              "runningCosts": { "electricity": 200 }
-            }
+        {
+          "housing": {
+            "homeType": "rent",
+            "payment": { "monthlyRent": 900, "extraFees": 50 },
+            "runningCosts": { "electricity": 200 }
           }
-          """,
+        }
+        """,
             ver: 1, updatedUtc: DateTime.UtcNow.AddMinutes(-2));
 
-        // Step 3 (Savings)
         await InsertStep(conn, sessionId, step: 3, sub: 0,
             json: """{"habits":{"monthlySavings":250}}""",
             ver: 1, updatedUtc: DateTime.UtcNow.AddMinutes(-10));
 
-        // ---------- SUT ----------
-        var repo = BuildRepoForGetWizardData(_db.ConnectionString);
-        var sut = new GetWizardDataQueryHandler(repo.Object);
+        var repo = new TestWizardRepository(_db.ConnectionString);
+        var reducer = new WizardStepRowReducer();
+        var assembler = new WizardStepDataAssembler();
+        var sut = new GetWizardDataQueryHandler(repo, reducer, assembler);
 
         var res = await sut.Handle(new GetWizardDataQuery(sessionId), CancellationToken.None);
 
@@ -101,24 +100,19 @@ public sealed class GetWizardDataFlowTests
         res.Value.Should().NotBeNull();
 
         var dto = res.Value!;
-        dto.DataVersion.Should().Be(2); // highest across latest rows (step1 v2)
-        dto.SubStep.Should().Be(2);     // max SubStep for current step = 2
+        dto.DataVersion.Should().Be(2);
+        dto.Progress.MajorStep.Should().Be(2);
+        dto.Progress.SubStep.Should().Be(2);
 
-        var incomeJson = JsonSerializer.Serialize(dto.WizardData!.Income, Camel);
-        incomeJson.Should().Contain("\"netSalary\":1337");
+        JsonSerializer.Serialize(dto.WizardData!.Income, Camel)
+            .Should().Contain("\"netSalary\":1337");
 
         var exp = dto.WizardData!.Expenditure!;
-        exp.Housing.Should().NotBeNull();
-
         exp.Housing!.HomeType.Should().Be("rent");
-        exp.Housing.Payment.Should().NotBeNull();
         exp.Housing.Payment!.MonthlyRent.Should().Be(900);
         exp.Housing.Payment.ExtraFees.Should().Be(50);
-
-        exp.Housing.RunningCosts.Should().NotBeNull();
         exp.Housing.RunningCosts!.Electricity.Should().Be(200);
 
-        dto.WizardData!.Savings.Should().NotBeNull();
         dto.WizardData!.Savings!.Habits!.MonthlySavings.Should().Be(250);
     }
 
@@ -155,88 +149,57 @@ public sealed class GetWizardDataFlowTests
         """, new { sid, step, sub, data = json, ver, upd = updatedUtc });
 
     /// Mock that executes the real SQL + assembly logic for GetWizardDataAsync.
-    private static Mock<IWizardRepository> BuildRepoForGetWizardData(string cs)
+    private sealed class TestWizardRepository : IWizardRepository
     {
-        var repo = new Mock<IWizardRepository>(MockBehavior.Strict);
+        private readonly string _cs;
+        public TestWizardRepository(string cs) => _cs = cs;
 
-        repo.Setup(r => r.GetWizardDataAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
-            .Returns(async (Guid sessionId, CancellationToken ct) =>
-            {
-                await using var c = new MySqlConnection(cs);
-                var raw = (await c.QueryAsync<WizardStepRow>(
-                    @"SELECT StepNumber, SubStep, StepData, DataVersion, UpdatedAt
-                      FROM WizardStepData
-                      WHERE WizardSessionId=@sid;", new { sid = sessionId }))
-                    .ToList();
-
-                if (!raw.Any()) return (WizardSavedDataDTO?)null;
-
-                // latest per substep by UpdatedAt
-                var latest = raw
-                    .GroupBy(e => new { e.StepNumber, e.SubStep })
-                    .Select(g => g.OrderByDescending(e => e.UpdatedAt).First())
-                    .ToLookup(r => r.StepNumber);
-
-                var highestVersion = latest.SelectMany(x => x).Max(r => r.DataVersion);
-
-                var data = new WizardData();
-                if (latest.Contains(1)) data.Income = Assemble<IncomeFormValues>(latest[1], isMultiPart: false);
-                if (latest.Contains(2)) data.Expenditure = Assemble<ExpenditureFormValues>(latest[2], isMultiPart: true);
-                if (latest.Contains(3)) data.Savings = Assemble<SavingsFormValues>(latest[3], isMultiPart: true);
-                if (latest.Contains(4)) data.Debts = Assemble<DebtsFormValues>(latest[4], isMultiPart: true);
-
-                // current-step substep: MAX(SubStep) where StepNumber = WizardSession.CurrentStep
-                var currentStep = await c.ExecuteScalarAsync<int>(
-                    "SELECT CurrentStep FROM WizardSession WHERE WizardSessionId=@sid;", new { sid = sessionId });
-                var sub = await c.ExecuteScalarAsync<int?>(
-                    "SELECT MAX(SubStep) FROM WizardStepData WHERE WizardSessionId=@sid AND StepNumber=@st;",
-                    new { sid = sessionId, st = currentStep }) ?? 0;
-
-                return new WizardSavedDataDTO
-                {
-                    WizardData = data,
-                    DataVersion = highestVersion,
-                    SubStep = sub
-                };
-            });
-
-        return repo;
-
-        // local helpers
-        static T? Assemble<T>(IEnumerable<WizardStepRow> rows, bool isMultiPart)
+        public async Task<IReadOnlyList<WizardStepRowEntity>> GetRawWizardStepDataAsync(Guid sessionId, CancellationToken ct)
         {
-            if (!rows.Any()) return default;
+            await using var c = new MySqlConnection(_cs);
+            var rows = await c.QueryAsync<WizardStepRowEntity>(
+                new CommandDefinition(
+                    @"SELECT StepNumber, SubStep, StepData, DataVersion, UpdatedAt
+                  FROM WizardStepData
+                  WHERE WizardSessionId=@sid;",
+                    new { sid = sessionId },
+                    cancellationToken: ct));
 
-            if (!isMultiPart)
-            {
-                var newest = rows.OrderByDescending(r => r.UpdatedAt).First();
-                return JsonSerializer.Deserialize<T>(newest.StepData, Camel);
-            }
-            else
-            {
-                var buffer = new ArrayBufferWriter<byte>();
-                using var writer = new Utf8JsonWriter(buffer);
-                writer.WriteStartObject();
-                foreach (var r in rows.OrderBy(r => r.SubStep))
-                {
-                    using var doc = JsonDocument.Parse(r.StepData);
-                    foreach (var p in doc.RootElement.EnumerateObject())
-                        p.WriteTo(writer);
-                }
-                writer.WriteEndObject();
-                writer.Flush();
-                return JsonSerializer.Deserialize<T>(buffer.WrittenSpan, Camel);
-            }
+            return rows.ToList();
         }
+
+        public async Task<(int majorStep, int subStep)> GetCurrentStepAsync(Guid sessionId, CancellationToken ct)
+        {
+            await using var c = new MySqlConnection(_cs);
+            var majorStep = await c.ExecuteScalarAsync<int>(
+                new CommandDefinition(
+                    "SELECT CurrentStep FROM WizardSession WHERE WizardSessionId=@sid;",
+                    new { sid = sessionId },
+                    cancellationToken: ct));
+
+            var subStep = await c.ExecuteScalarAsync<int?>(
+                new CommandDefinition(
+                    @"SELECT MAX(SubStep)
+                  FROM WizardStepData
+                  WHERE WizardSessionId=@sid AND StepNumber=@st;",
+                    new { sid = sessionId, st = majorStep },
+                    cancellationToken: ct)) ?? 0;
+
+            return (majorStep, subStep);
+        }
+
+        // --- Stubs for unused methods in this test context ---
+        public Task<Guid?> GetSessionIdByPersoIdAsync(Guid persoId, CancellationToken ct) => throw new NotImplementedException();
+        public Task<Guid> CreateSessionAsync(Guid persoId, CancellationToken ct) => throw new NotImplementedException();
+        public Task<bool> UpsertStepDataAsync(Guid wizardSessionId, int stepNumber, int substepNumber, string jsonData, int dataVersion, CancellationToken ct) => throw new NotImplementedException();
+        public Task<bool> DoesUserOwnSessionAsync(Guid userId, Guid sessionId, CancellationToken ct) => throw new NotImplementedException();
+        public Task<IEnumerable<WizardStepRowEntity>> GetRawStepDataForFinalizationAsync(Guid sessionId, CancellationToken ct) => throw new NotImplementedException();
+        public Task<bool> DeleteSessionAsync(Guid sessionId, CancellationToken ct) => throw new NotImplementedException();
+        public Task<bool> HasAnyStepDataAsync(Guid sessionId, CancellationToken ct) => throw new NotImplementedException();
+
+        // Explicit implementation to satisfy the original interface if names differ slightly
+        async Task<IEnumerable<WizardStepRowEntity>> IWizardRepository.GetRawWizardStepDataAsync(Guid sessionId, CancellationToken ct)
+            => await GetRawWizardStepDataAsync(sessionId, ct);
     }
 
-    // dumb row to map raw SQL
-    private sealed class WizardStepRow
-    {
-        public int StepNumber { get; init; }
-        public int SubStep { get; init; }
-        public string StepData { get; init; } = default!;
-        public int DataVersion { get; init; }
-        public DateTime UpdatedAt { get; init; }
-    }
 }

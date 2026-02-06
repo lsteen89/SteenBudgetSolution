@@ -4,7 +4,7 @@ using Backend.Application.Features.Events.Register;
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Application.Abstractions.Infrastructure.Security;
 using Backend.Domain.Shared;
-using Backend.Domain.Users;
+using Backend.Domain.Errors.User;
 
 namespace Backend.Application.Features.Commands.Auth.Register;
 

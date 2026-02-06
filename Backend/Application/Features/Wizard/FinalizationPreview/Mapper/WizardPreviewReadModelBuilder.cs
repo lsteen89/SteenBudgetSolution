@@ -52,14 +52,21 @@ public sealed class WizardPreviewReadModelBuilder : IWizardPreviewReadModelBuild
         var subs = BuildSubscriptions(target.Expense);
 
         var categories = recurring
-            .GroupBy(x => x.CategoryName)
-            .Select(g => new DashboardCategoryRm(g.Key, g.Sum(x => x.AmountMonthly)))
+            .GroupBy(x => x.CategoryId)
+            .Select(g => new DashboardCategoryRm(
+                CategoryId: g.Key,
+                CategoryName: CategoryName(g.Key),
+                TotalMonthlyAmount: g.Sum(x => x.AmountMonthly)
+            ))
             .ToList();
 
         if (subs.TotalMonthlyAmount > 0m)
         {
-            var subName = CategoryName(ExpenseCategories.Subscription);
-            categories.Add(new DashboardCategoryRm(subName, subs.TotalMonthlyAmount));
+            categories.Add(new DashboardCategoryRm(
+                CategoryId: ExpenseCategories.Subscription,
+                CategoryName: CategoryName(ExpenseCategories.Subscription),
+                TotalMonthlyAmount: subs.TotalMonthlyAmount
+            ));
         }
 
         categories = categories
@@ -77,7 +84,7 @@ public sealed class WizardPreviewReadModelBuilder : IWizardPreviewReadModelBuild
         // ----------------------------
         // DEBTS
         // ----------------------------
-        var debtsRm = (target.Debts ?? Array.Empty<Debt>())
+        var debts = (target.Debts ?? Array.Empty<Debt>())
             .Select(d => new DashboardDebtRm(
                 Id: d.Id != Guid.Empty ? d.Id : Guid.NewGuid(),
                 Name: d.Name ?? string.Empty,
@@ -90,7 +97,15 @@ public sealed class WizardPreviewReadModelBuilder : IWizardPreviewReadModelBuild
             ))
             .ToList();
 
-        var totalDebtBalance = debtsRm.Sum(x => x.Balance);
+        var totalDebtBalance = debts.Sum(x => x.Balance);
+        var totalDebtPayments = debts.Sum(x => x.MinPayment ?? 0m);
+
+        var debtRm = new DashboardDebtOverviewRm(
+            TotalDebtBalance: totalDebtBalance,
+            TotalMonthlyPayments: totalDebtPayments,
+            RepaymentStrategy: target.RepaymentStrategy,
+            Debts: debts
+        );
 
         // ----------------------------
         // TOTALS
@@ -110,7 +125,7 @@ public sealed class WizardPreviewReadModelBuilder : IWizardPreviewReadModelBuild
             Totals: totals,
             Categories: categories,
             RecurringExpenses: recurring,
-            Debts: debtsRm,
+            Debt: debtRm,
             Savings: savingsRm,
             Subscriptions: subs,
             SideHustles: sideHustles,
@@ -129,6 +144,7 @@ public sealed class WizardPreviewReadModelBuilder : IWizardPreviewReadModelBuild
             .Select(i => new DashboardRecurringExpenseRm(
                 Id: i.Id != Guid.Empty ? i.Id : Guid.NewGuid(),
                 Name: i.Name ?? string.Empty,
+                CategoryId: i.CategoryId, // ✅
                 CategoryName: CategoryName(i.CategoryId),
                 AmountMonthly: i.AmountMonthly
             ))

@@ -60,13 +60,14 @@ public sealed partial class BudgetDashboardRepository
 
     private const string CategoriesSql = @"
     SELECT
-        c.Name AS CategoryName,
+        c.Id          AS CategoryId,
+        c.Name        AS CategoryName,
         SUM(e.AmountMonthly) AS TotalMonthlyAmount
     FROM ExpenseItem e
     JOIN ExpenseCategory c ON e.CategoryId = c.Id
     WHERE e.BudgetId = @BudgetId
     AND e.IsActive = 1
-    GROUP BY c.Name
+    GROUP BY c.Id, c.Name
     ORDER BY c.Name;
     ";
 
@@ -103,7 +104,8 @@ public sealed partial class BudgetDashboardRepository
     SELECT
         e.Id,
         e.Name,
-        c.Name        AS CategoryName,
+        e.CategoryId   AS CategoryId,
+        c.Name         AS CategoryName,
         e.AmountMonthly
     FROM ExpenseItem e
     JOIN ExpenseCategory c ON c.Id = e.CategoryId

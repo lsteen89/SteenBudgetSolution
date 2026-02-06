@@ -1,47 +1,58 @@
-import React, { useEffect, useState } from "react";
-import { useFormContext, useFieldArray, Controller } from "react-hook-form";
-import { PlusCircle } from "lucide-react";
-import { motion } from "framer-motion";
+import React, { useEffect, useMemo, useState } from "react";
+import { useFormContext, useFieldArray, useWatch } from "react-hook-form";
+import { PlusCircle, ReceiptText } from "lucide-react";
+
 import OptionContainer from "@components/molecules/containers/OptionContainer";
-import FormattedNumberInput from "@components/atoms/InputField/FormattedNumberInput";
-import TextInput from "@components/atoms/InputField/TextInput";
-import HelpSection from "@components/molecules/helptexts/HelpSection";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Separator } from "@/components/ui/separator";
-import GlossyFlipCard from "@components/molecules/cards/GlossyFlipCard/GlossyFlipCard";
-import FlipCardText from "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/text/FlipCardText";
-import useMediaQuery from '@hooks/useMediaQuery';
+
 import { idFromPath } from "@/utils/idFromPath";
-import CustomItemRow from "@components/organisms/overlays/wizard/SharedComponents/InputRows/CustomItemRow";
+import type { FixedExpensesSubForm } from "@/types/Wizard/Step2_Expenditure/FixedExpensesFormValues";
 
+import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
+import NumberInput from "@components/atoms/InputField/NumberInput";
+import { setValueAsSvNumber } from "@/utils/forms/parseNumber";
+import { WizardStepHeader } from "@components/organisms/overlays/wizard/SharedComponents/Headers/WizardStepHeader";
+import { WizardAccordion, WizardAccordionRoot } from "@components/organisms/overlays/wizard/SharedComponents/Accordion/WizardAccordion";
+import IcedCustomItemRow from "@components/organisms/overlays/wizard/SharedComponents/InputRows/IcedCustomItemRow";
 
-export interface FixedExpenseItem {
-  id?: string;
-  name?: string;
-  cost?: number | null;
-}
+import WizardTotalBar from "@components/organisms/overlays/wizard/SharedComponents/Sections/WizardTotalBar";
+import { sumMoney } from "@/utils/money/moneyMath";
+import { formatMoneyV2 } from "@/utils/money/moneyV2";
+import { cn } from "@/utils/twMerge";
 
-export interface FixedExpensesSubForm {
-  insurance?: number | null;
-  electricity?: number | null;
-  internet?: number | null;
-  phone?: number | null;
-  unionFees?: number | null;
-  customExpenses?: (FixedExpenseItem | undefined)[];
-}
+type FormShape = { fixedExpenses: FixedExpensesSubForm };
+type SuggestedFieldName = Exclude<keyof FixedExpensesSubForm, "customExpenses">;
+
+type SuggestedField = {
+  name: SuggestedFieldName;
+  label: string;
+  placeholder: string;
+  helpText: string;
+};
+
+const SUGGESTED_FIELDS: SuggestedField[] = [
+  {
+    name: "insurance",
+    label: "Försäkring",
+    placeholder: "t.ex. 300",
+    helpText:
+      "Hem/boende- och personförsäkringar (t.ex. hem, liv). Bilförsäkring fylls i under Transport.",
+  },
+  { name: "internet", label: "Internet", placeholder: "t.ex. 400", helpText: "Månadskostnad för bredband/uppkoppling." },
+  { name: "phone", label: "Telefoni", placeholder: "t.ex. 250", helpText: "Månadskostnad för mobil/telefoni." },
+  { name: "gym", label: "Träning / medlemskap", placeholder: "t.ex. 200", helpText: "Gym eller andra medlemskap." },
+];
 
 const SubStepFixedExpenses: React.FC = () => {
-  const {
-    control,
-    watch,
-    setValue,
-    setFocus,
-    trigger,
-    clearErrors,
-    formState: { errors, submitCount },
-  } = useFormContext<{ fixedExpenses: FixedExpensesSubForm }>();
+  const { control, setFocus, clearErrors, getFieldState, formState, register } =
+    useFormContext<FormShape>();
 
-  const [openAccordion, setOpenAccordion] = useState<string>("custom");
+  const currency = useAppCurrency();
+  const locale = useAppLocale();
+
+  const [openAccordion, setOpenAccordion] = useState<string | undefined>(undefined);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -50,184 +61,156 @@ const SubStepFixedExpenses: React.FC = () => {
     shouldUnregister: false,
   });
 
-  const handleAddExpense = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    append({ name: "", cost: null });
-    setTimeout(() => {
-      setFocus(`fixedExpenses.customExpenses.${fields.length}.name`);
-    }, 0);
-  };
+  // suggested
+  const insurance = useWatch({ control, name: "fixedExpenses.insurance" });
+  const internet = useWatch({ control, name: "fixedExpenses.internet" });
+  const phone = useWatch({ control, name: "fixedExpenses.phone" });
+  const gym = useWatch({ control, name: "fixedExpenses.gym" });
 
+  // custom
+  const customExpenses = useWatch({ control, name: "fixedExpenses.customExpenses" }) ?? [];
 
-  const isMdScreenOrUp = useMediaQuery('(min-width: 768px)');
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const suggestedTotal = useMemo(
+    () => sumMoney(insurance, internet, phone, gym),
+    [insurance, internet, phone, gym]
+  );
 
-  const insuranceVal = watch("fixedExpenses.insurance");
-  const electricityVal = watch("fixedExpenses.electricity");
-  const internetVal = watch("fixedExpenses.internet");
-  const phoneVal = watch("fixedExpenses.phone");
-  const unionFeesVal = watch("fixedExpenses.unionFees");
-  const customExpensesVal = watch("fixedExpenses.customExpenses");
+  const customTotal = useMemo(() => {
+    return customExpenses.reduce((acc, item) => acc + sumMoney(item?.cost), 0);
+  }, [customExpenses]);
 
-  const calculatedTotalValue =
-    (insuranceVal ?? 0) +
-    (electricityVal ?? 0) +
-    (internetVal ?? 0) +
-    (phoneVal ?? 0) +
-    (unionFeesVal ?? 0) +
-    (customExpensesVal?.reduce((acc, expenseItem) => acc + (expenseItem?.cost ?? 0), 0) ?? 0);
+  const total = suggestedTotal + customTotal;
 
-  const formattedTotalValue = calculatedTotalValue.toLocaleString("sv-SE");
+  const customTotalText = useMemo(() => {
+    return customTotal > 0
+      ? formatMoneyV2(customTotal, currency, locale, { fractionDigits: 0 })
+      : undefined;
+  }, [customTotal, currency, locale]);
 
-  const commonExpenseFields = [
-    { name: "insurance" as const, label: "Försäkringar", placeholder: "t.ex. 300", helpText: "Ett samlat månadssnitt på dina försäkringar. Exempelvis hemförsäkring, bilförsäkring, livsförsäkring." },
-    { name: "electricity" as const, label: "El", placeholder: "t.ex. 500", helpText: "Kostnader relaterat till elkostnad, för ett bra snitt använd tre månader! Tänk på att inkludera alla kostnader relaterade till el, såsom skatt och avgifter." },
-    { name: "internet" as const, label: "Internet", placeholder: "t.ex. 400", helpText: "Din månadskostnad för all form av bredband" },
-    { name: "phone" as const, label: "Telefoni", placeholder: "t.ex. 250", helpText: "Din månadskostnad för alla typer av telefoni du betalar för" },
-    { name: "unionFees" as const, label: "Fackförenings-\navgift", placeholder: "t.ex. 350", helpText: "Om du är med i ett fack och/eller A-kassa kan du ange det här." },
-  ];
-
-  const itemVariants = {
-    initial: { opacity: 0, scale: 0.8, y: 20 },
-    animate: { opacity: 1, scale: 1, y: 0 },
-    exit: { opacity: 0, scale: 0.8, x: -300 },
-  };
 
   useEffect(() => {
-    if (errors.fixedExpenses?.customExpenses) setOpenAccordion("custom");
-  }, [errors.fixedExpenses?.customExpenses]);
+    if (formState.errors.fixedExpenses?.customExpenses) setOpenAccordion("custom");
+  }, [formState.errors.fixedExpenses?.customExpenses]);
 
   useEffect(() => {
-    const items = customExpensesVal ?? [];
-    const hasIncompleteItems = items.some(
-      (item) => item && (!item.name?.trim() || !item.cost || item.cost <= 0)
+    const items = customExpenses ?? [];
+    const hasIncomplete = items.some(
+      (item) => item && (item.cost ?? null) !== null && !item.name?.trim()
     );
-
-    // If there are no items, or if all items are valid, clear any array-level errors.
-    if (items.length === 0 && !hasIncompleteItems) {
+    if (items.length === 0 && !hasIncomplete) {
       clearErrors("fixedExpenses.customExpenses");
     }
-  }, [customExpensesVal, clearErrors]);
+  }, [customExpenses, clearErrors]);
 
+  const err = (path: Parameters<typeof getFieldState>[0]) =>
+    getFieldState(path, formState).error?.message;
+
+  const handleAddExpense = () => {
+    setOpenAccordion("custom");
+    const nextIndex = fields.length;
+    append({ name: "", cost: null });
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setFocus(`fixedExpenses.customExpenses.${nextIndex}.name`);
+      });
+    });
+  };
 
   return (
-    <OptionContainer className="p-4">
+    <div>
       <section className="w-auto mx-auto sm:px-6 lg:px-12 py-8 pb-safe">
-        <div className="flex justify-center md:mt-4">
-          <GlossyFlipCard
-            frontText={<FlipCardText pageKey="fixedExpenses" variant="front" />}
-            backText={<FlipCardText pageKey="fixedExpenses" variant="back" />}
-            frontTextClass="text-lg text-white"
-            backTextClass="text-sm text-limeGreen"
-            disableBounce={true}
-            containerClassName="w-[170px] h-[400px] md:w-[350px] md:h-[270px]"
-          />
+        <WizardStepHeader
+          title=""
+          stepPill={{ stepNumber: 4, majorLabel: "Utgifter", subLabel: "Räkningar & nödvändigheter" }}
+          subtitle="Lägg in räkningar du betalar de flesta månader. Du kan alltid justera dessa senare."
+          guardrails={[
+            { emphasis: "Prenumerationer", to: "eget steg", detail: "(Netflix/Spotify)" },
+            { emphasis: "Bilförsäkring", to: "Transport" },
+          ]}
+          helpTitle='Vad räknas som “räkningar” här?'
+          helpItems={[
+            "Hemförsäkring, internet, telefoni, gym/medlemskap.",
+            "Sånt som varierar mycket (mat, spontanköp) kommer i andra steg.",
+          ]}
+        />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {SUGGESTED_FIELDS.map((field) => {
+            const path = `fixedExpenses.${field.name}` as const;
+
+            return (
+              <NumberInput
+                key={path}
+                label={field.label}
+                currency={currency}
+                locale={locale}
+                placeholder={field.placeholder}
+                error={err(path)}
+                {...register(path, { setValueAs: setValueAsSvNumber })}
+              />
+            );
+          })}
         </div>
 
-        <div className="bg-white/5 rounded-2xl shadow-xl p-3 md:p-6 mt-8 max-w-2xl mx-auto space-y-6">
-          <div className="grid sm:grid-cols-2 gap-x-4 gap-y-4">
-            {commonExpenseFields.map((field) => (
-              <motion.div
-                key={field.name}
-                layout
-                className="bg-white/10 rounded-xl shadow-inner transition-all duration-200 hover:bg-white/20 p-3 flex flex-col gap-2"
-              >
-                <div className="flex items-center gap-1">
-                  <label htmlFor={`fixedExpenses.${field.name}`} className="text-sm text-white font-semibold flex-shrink min-w-0">
-                    {field.label}
-                  </label>
-                  <HelpSection label="" className="flex-shrink-0 ml-auto" helpText={field.helpText} />
-                </div>
-                <div className="mt-auto w-full flex justify-center">
-                  <FormattedNumberInput
-                    id={idFromPath(`fixedExpenses.${field.name}`)}
-                    value={watch(`fixedExpenses.${field.name}`) ?? null}
-                    onValueChange={(val) => setValue(`fixedExpenses.${field.name}`, val ?? null, { shouldValidate: true, shouldDirty: true })}
-                    placeholder={field.placeholder}
-                    error={errors.fixedExpenses?.[field.name]?.message}
-                    name={`fixedExpenses.${field.name}`}
-                    className="w-full max-w-[200px] sm:max-w-xs"
-                  />
-                </div>
-              </motion.div>
-            ))}
-          </div>
+        <Separator className="bg-white/20 my-6" />
 
-          <Separator className="bg-white/20" />
+        <WizardAccordionRoot
+          type="single"
+          collapsible
+          value={openAccordion}
+          onValueChange={setOpenAccordion}
+        >
+          <WizardAccordion
+            value="custom"
+            variant="shell"
+            title="Egna räkningar"
+            icon={<ReceiptText className="w-6 h-6 text-wizard-text flex-shrink-0" />}
+            totalText={customTotalText}
+            totalSuffix="/mån"
+            count={fields.length}
+            onAdd={handleAddExpense}
+          >
+            <div className="space-y-3">
+              {fields.map((item, index) => (
+                <IcedCustomItemRow
+                  key={item.fieldId}
+                  basePath="fixedExpenses.customExpenses"
+                  index={index}
+                  fieldId={item.fieldId}
+                  isDeleting={item.fieldId === deletingId}
+                  onStartDelete={() => setDeletingId(item.fieldId)}
+                  onRemove={() => {
+                    remove(index);
+                    setDeletingId(null);
+                  }}
+                  namePlaceholder="Namn på räkning (t.ex. förskola)"
+                  amountPlaceholder="Belopp"
+                />
+              ))}
+            </div>
 
-          <Accordion type="single" collapsible value={openAccordion} onValueChange={setOpenAccordion}>
-            <span id={idFromPath("fixedExpenses.customExpenses")} className="block h-0" />
-            {/* anchor for scroll-to-first-error */}
-
-            <AccordionItem value="custom">
-              <AccordionTrigger className="text-lg font-semibold text-white hover:no-underline focus:outline-none py-3"
-                id={idFromPath("fixedExpenses.customExpenses")}>
-
-
-                Egna Fasta Utgifter
-              </AccordionTrigger>
-              <AccordionContent className="pt-2 pb-4 space-y-4">
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={handleAddExpense}
-                    className="flex items-center gap-2 px-3 py-1 bg-limeGreen text-black rounded-md"
-                  >
-                    <PlusCircle size={18} /> Lägg till
-                  </button>
-                </div>
-
-                <div className="space-y-4">
-                  {fields.map((item, index) => (
-                    <CustomItemRow
-                      key={item.fieldId}
-                      basePath="fixedExpenses.customExpenses"
-                      index={index}
-                      fieldId={item.fieldId}
-                      isDeleting={item.fieldId === deletingId}
-                      onStartDelete={() => setDeletingId(item.fieldId)}
-                      onRemove={() => {
-                        remove(index);
-                        setDeletingId(null);
-                      }}
-                      namePlaceholder="Namn på utgift (t.ex. Streaming, Gym)"
-                    />
-                  ))}
-                </div>
-
-                {/* validation message */}
-                {typeof errors.fixedExpenses?.customExpenses?.message === "string" && (
-                  <p className="mt-2 text-red-600 text-sm text-center">
-                    {errors.fixedExpenses.customExpenses.message}
-                  </p>
-                )}
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-
-          <Separator className="bg-white/20" />
-
-          <div className="pt-2">
-            <motion.p
-              key={formattedTotalValue}
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.3 }}
-              className="text-center text-xl font-bold text-white"
-            >
-              {isMdScreenOrUp ? 'Totala Fasta Månadskostnader: ' : <>Totala Fasta Månads-&shy;kostnader: </>}
-              <span className="tracking-wide">{formattedTotalValue} kr</span>
-            </motion.p>
-            {errors.fixedExpenses && typeof errors.fixedExpenses.message === "string" && (
-              <p className="mt-2 text-red-600 text-l text-center">
-                {errors.fixedExpenses.message}
+            {typeof formState.errors.fixedExpenses?.customExpenses?.message === "string" && (
+              <p className="mt-3 text-xs font-semibold text-wizard-warning text-center">
+                {formState.errors.fixedExpenses.customExpenses.message}
               </p>
             )}
-          </div>
+          </WizardAccordion>
+        </WizardAccordionRoot>
+
+        <div className="pt-6">
+          <WizardTotalBar
+            title="Totalt räkningar"
+            subtitle="Summa för räkningar & egna räkningar per månad"
+            value={total}
+            currency={currency}
+            locale={locale}
+            suffix="/mån"
+            tone="accent"
+          />
         </div>
       </section>
-    </OptionContainer>
+    </div>
   );
 };
 

@@ -1,47 +1,62 @@
-import type { AppLocale } from "./ledgerText";
+import type { AppLocale } from "@/utils/i18n/locale";
+import { tDict } from "@/utils/i18n/translate";
 
 const sv: Record<string, string> = {
-    Rent: "Hyra",
-    RentExtraFees: "Extra avgifter",
+    // normalized keys!
+    housingmonthlyrent: "Hyra / boendeavgift",
+    rent: "Hyra",
+    rentextrafees: "Extra avgifter",
+    fuelorcharging: "Bränsle / laddning",
+    fuel: "Bränsle",
+    carinsurance: "Bilförsäkring",
+    parkingfee: "Parkering",
+    othercarcosts: "Övriga bilkostnader",
+    publictransit: "Kollektivtrafik",
 
-    Fuel: "Bränsle",
-    Insurance: "Försäkring",
-    TotalCarCost: "Övriga bilkostnader",
-    Transit: "Kollektivtrafik",
+    foodstore: "Matbutik",
+    takeout: "Uteätande / hämtmat",
 
-    FoodStore: "Matbutik",
-    Takeout: "Uteätande / hämtmat",
+    electricity: "El",
+    heating: "Uppvärmning",
+    water: "Vatten",
+    waste: "Sophämtning",
+    housingextrafees: "Extra avgifter",
+    otherhomerunningcosts: "Övriga boendekostnader",
 
-    Electricity: "El",
-    Internet: "Internet",
-    Phone: "Telefon",
-    UnionFees: "Fackavgift",
 
-    Clothing: "Kläder",
+    insurance: "Försäkring",
+    internet: "Internet",
+    phone: "Telefon",
+
+    clothing: "Kläder",
 };
 
 const en: Record<string, string> = {
-    Rent: "Rent",
-    RentExtraFees: "Extra fees",
+    housingmonthlyrent: "Rent / housing fee",
+    rent: "Rent",
+    rentextrafees: "Extra fees",
+    fuelorcharging: "Fuel / charging",
+    fuel: "Fuel",
+    carinsurance: "Car insurance",
+    parkingfee: "Parking",
+    othercarcosts: "Other car costs",
+    publictransit: "Public transit",
 
-    Fuel: "Fuel",
-    Insurance: "Insurance",
-    TotalCarCost: "Other car costs",
-    Transit: "Public transit",
+    foodstore: "Groceries",
+    takeout: "Takeout / eating out",
 
-    FoodStore: "Groceries",
-    Takeout: "Takeout / eating out",
+    electricity: "Electricity",
+    heating: "Heating",
+    water: "Water",
 
-    Electricity: "Electricity",
-    Internet: "Internet",
-    Phone: "Phone",
-    UnionFees: "Union fees",
-    Clothing: "Clothing",
+    insurance: "Insurance",
+    internet: "Internet",
+    phone: "Phone",
+
+    clothing: "Clothing",
 };
 
 export function labelLedgerItem(raw: string, locale: AppLocale) {
-    // if user typed custom names like "OnlyFans", keep as-is
-    const key = (raw ?? "").trim();
-    const dict = locale === "sv-SE" ? sv : en;
-    return dict[key] ?? key;
+    // normalize=true means we key by normalized strings
+    return tDict(raw, locale, { sv, en }, { normalize: true, fallback: raw });
 }

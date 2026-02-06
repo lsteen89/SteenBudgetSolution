@@ -1,15 +1,9 @@
-export type Frequency =
-    | "Weekly"
-    | "BiWeekly"
-    | "Monthly"
-    | "Quarterly"
-    | "Yearly"
-    | "Other"
-    | "Unknown";
+export type Frequency = "monthly" | "weekly" | "biWeekly" | "quarterly" | "yearly";
 
 export const VALID_FREQUENCIES: Frequency[] = [
-    "Monthly",
-    "Weekly",
-    "Quarterly",
-    "Yearly",
+    "monthly",
+    "weekly",
+    "biWeekly",
+    "quarterly",
+    "yearly",
 ];

@@ -1,6 +1,7 @@
-﻿using System.Collections.Generic;
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 using Backend.Domain.Enums;
+using System.Runtime.Serialization;
+using Backend.Domain.Entities.Budget.Debt;
 
 namespace Backend.Application.Models.Wizard;
 
@@ -26,89 +27,46 @@ public sealed class WizardData
 
 /* ---------- Income ---------- */
 #region income
-public sealed class IncomeFormValues
+public sealed record IncomeFormValues
 {
     [JsonPropertyName("netSalary")]
     public decimal? NetSalary { get; init; }
-
-    [JsonPropertyName("showSideIncome")]
-    public bool? ShowSideIncome { get; init; }              // ❗️bool? (was bool)
-
-    [JsonPropertyName("showHouseholdMembers")]
-    public bool? ShowHouseholdMembers { get; init; }        // ❗️bool? (was bool)
 
     [JsonPropertyName("salaryFrequency")]
     public Frequency SalaryFrequency { get; init; }
 
     [JsonPropertyName("householdMembers")]
-    public List<HouseholdMember>? HouseholdMembers { get; init; }   // ❗️nullable, no = new()
+    public List<IncomeItem> HouseholdMembers { get; init; } = new();
 
     [JsonPropertyName("sideHustles")]
-    public List<SideHustle>? SideHustles { get; init; }             // ❗️nullable, no = new()
-
-    [JsonPropertyName("yearlySalary")]
-    public decimal? YearlySalary { get; init; }
+    public List<IncomeItem> SideHustles { get; init; } = new();
 }
 
-public sealed class HouseholdMember
+public sealed record IncomeItem
 {
     [JsonPropertyName("id")]
     public string? Id { get; init; }
 
     [JsonPropertyName("name")]
-    public string Name { get; init; } = string.Empty;
+    public string? Name { get; init; }
 
     [JsonPropertyName("income")]
     public decimal? Income { get; init; }
 
     [JsonPropertyName("frequency")]
-    public Frequency Frequency { get; init; }
-
-    [JsonPropertyName("yearlyIncome")]
-    public decimal? YearlyIncome { get; init; }
-}
-
-public sealed class SideHustle
-{
-    [JsonPropertyName("id")]
-    public string? Id { get; init; }
-
-    [JsonPropertyName("name")]
-    public string Name { get; init; } = string.Empty;
-
-    [JsonPropertyName("income")]
-    public decimal? Income { get; init; }
-
-    [JsonPropertyName("frequency")]
-    public Frequency Frequency { get; init; }
-
-    [JsonPropertyName("yearlyIncome")]
-    public decimal? YearlyIncome { get; init; }
+    public Frequency? Frequency { get; init; }
 }
 #endregion
 /* ---------- Expenditure ---------- */
 #region expenditure
-public sealed class ExpenditureFormValues
-{
-    [JsonPropertyName("housing")]
-    public Housing? Housing { get; init; }
-
-    [JsonPropertyName("food")]
-    public Food? Food { get; init; }                 // ❗️nullable, no = new()
-
-    // Optional sub-forms – keep as nullable
-    [JsonPropertyName("fixedExpenses")]
-    public FixedExpensesSubForm? FixedExpenses { get; init; }
-
-    [JsonPropertyName("transport")]
-    public Transport? Transport { get; init; }       // ❗️nullable, no = new()
-
-    [JsonPropertyName("clothing")]
-    public Clothing? Clothing { get; init; }         // ❗️nullable, no = new()
-
-    [JsonPropertyName("subscriptions")]
-    public SubscriptionsSubForm? Subscriptions { get; init; }
-}
+public sealed record ExpenditureFormValues(
+    [property: JsonPropertyName("housing")] Housing? Housing,
+    [property: JsonPropertyName("food")] Food? Food,
+    [property: JsonPropertyName("fixedExpenses")] FixedExpensesSubForm? FixedExpenses,
+    [property: JsonPropertyName("transport")] Transport? Transport,
+    [property: JsonPropertyName("clothing")] Clothing? Clothing,
+    [property: JsonPropertyName("subscriptions")] SubscriptionsSubForm? Subscriptions
+);
 
 /* ---- expenditure sub-objects ---- */
 
@@ -165,17 +123,20 @@ public sealed class Food
 
 public sealed class Transport
 {
-    [JsonPropertyName("monthlyFuelCost")]
-    public decimal? MonthlyFuelCost { get; init; }
+    [JsonPropertyName("fuelOrCharging")]
+    public decimal? FuelOrCharging { get; init; }
 
-    [JsonPropertyName("monthlyInsuranceCost")]
-    public decimal? MonthlyInsuranceCost { get; init; }
+    [JsonPropertyName("carInsurance")]
+    public decimal? CarInsurance { get; init; }
 
-    [JsonPropertyName("monthlyTotalCarCost")]
-    public decimal? MonthlyTotalCarCost { get; init; }
+    [JsonPropertyName("parkingFee")]
+    public decimal? ParkingFee { get; init; }
 
-    [JsonPropertyName("monthlyTransitCost")]
-    public decimal? MonthlyTransitCost { get; init; }
+    [JsonPropertyName("otherCarCosts")]
+    public decimal? OtherCarCosts { get; init; }
+
+    [JsonPropertyName("publicTransit")]
+    public decimal? PublicTransit { get; init; }
 }
 
 public sealed class Clothing
@@ -184,42 +145,23 @@ public sealed class Clothing
     public decimal? MonthlyClothingCost { get; init; }
 }
 
-public sealed class FixedExpensesSubForm
-{
-    [JsonPropertyName("electricity")]
-    public decimal? Electricity { get; init; }
+public sealed record FixedExpensesSubForm(
+    [property: JsonPropertyName("electricity")] decimal? Electricity,
+    [property: JsonPropertyName("insurance")] decimal? Insurance,
+    [property: JsonPropertyName("internet")] decimal? Internet,
+    [property: JsonPropertyName("phone")] decimal? Phone,
+    [property: JsonPropertyName("gym")] decimal? Gym,
+    [property: JsonPropertyName("customExpenses")] List<FixedExpenseItem>? CustomExpenses
+);
 
-    [JsonPropertyName("insurance")]
-    public decimal? Insurance { get; init; }
-
-    [JsonPropertyName("internet")]
-    public decimal? Internet { get; init; }
-
-    [JsonPropertyName("phone")]
-    public decimal? Phone { get; init; }
-
-    [JsonPropertyName("unionFees")]
-    public decimal? UnionFees { get; init; }
-
-    [JsonPropertyName("customExpenses")]
-    public List<FixedExpenseItem>? CustomExpenses { get; init; }
-}
-
-public sealed class FixedExpenseItem
-{
-    [JsonPropertyName("id")]
-    public string? Id { get; init; } // Match frontend's optional 'id'
-
-    [JsonPropertyName("name")]
-    public string Name { get; init; } = string.Empty;
-
-    // Renamed 'Amount' to 'Cost' to perfectly align with the frontend yup schema
-    [JsonPropertyName("cost")]
-    public decimal? Cost { get; init; }
-}
+public sealed record FixedExpenseItem(
+    [property: JsonPropertyName("id")] string? Id,
+    [property: JsonPropertyName("name")] string? Name,
+    [property: JsonPropertyName("cost")] decimal? Cost
+);
 
 
-public sealed class SubscriptionsSubForm
+public sealed record SubscriptionsSubForm
 {
     [JsonPropertyName("netflix")]
     public decimal? Netflix { get; init; }
@@ -237,10 +179,10 @@ public sealed class SubscriptionsSubForm
     public decimal? DisneyPlus { get; init; }
 
     [JsonPropertyName("customSubscriptions")]
-    public List<SubscriptionItem?>? CustomSubscriptions { get; init; }  // ❗️nullable, no = new()
+    public List<SubscriptionItem>? CustomSubscriptions { get; init; }
 }
 
-public sealed class SubscriptionItem
+public sealed record SubscriptionItem
 {
     [JsonPropertyName("id")]
     public string? Id { get; init; }
@@ -279,8 +221,25 @@ public sealed class SavingHabits
     public decimal? MonthlySavings { get; set; }
 
     [JsonPropertyName("savingMethods")]
-    public List<string>? SavingMethods { get; set; }
+    public List<SavingMethod>? SavingMethods { get; set; }
 }
+
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum SavingMethod
+{
+    [EnumMember(Value = "auto")]
+    Auto,
+
+    [EnumMember(Value = "manual")]
+    Manual,
+
+    [EnumMember(Value = "invest")]
+    Invest,
+
+    [EnumMember(Value = "prefer_not")]
+    PreferNot,
+}
+
 #endregion
 /* ---------- Debts ---------- */
 #region debts
@@ -306,7 +265,7 @@ public sealed class DebtsIntro
 public sealed class DebtsSummary
 {
     [JsonPropertyName("repaymentStrategy")]
-    public string? RepaymentStrategy { get; set; }
+    public RepaymentStrategy RepaymentStrategy { get; set; } = RepaymentStrategy.Unknown;
 }
 
 public sealed class DebtItem

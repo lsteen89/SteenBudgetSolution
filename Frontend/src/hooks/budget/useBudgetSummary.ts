@@ -1,9 +1,9 @@
 import { useMemo } from "react";
 import { useWizardDataStore } from "@/stores/Wizard/wizardDataStore";
 import { getExpenditureCategoryTotals } from "@/utils/budget/expenditureTotals";
-import { summariseDebts } from "@/utils/budget/debtCalculations";
+import { summariseDebts } from "@/utils/budget/debtMath";
 import { calcMonthlyIncome } from "@/utils/wizard/wizardHelpers";
-import type { SavingsGoal } from "@/types/Wizard/SavingsFormValues";
+import type { SavingsGoal } from "@/types/Wizard/Step3_Savings/SavingsFormValues";
 import { buildCoreSummary, type CoreGoal } from "@/domain/budget/budgetSummaryCore";
 
 /*TODO: DELETE, not used */

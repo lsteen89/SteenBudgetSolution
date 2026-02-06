@@ -18,7 +18,7 @@ using Backend.Application.Abstractions.Infrastructure.Security;
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Settings;
-using Backend.Domain.Users;
+using Backend.Domain.Errors.User;
 using Backend.Infrastructure.Security;
 using Backend.Domain.Shared;
 

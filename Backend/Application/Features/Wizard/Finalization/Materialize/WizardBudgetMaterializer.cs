@@ -6,7 +6,7 @@ using Backend.Application.Mappings.Budget;
 using Backend.Domain.Shared;
 
 namespace Backend.Application.Features.Wizard.Finalization.Processing.Materialize;
-
+// TODO: DELETE?
 public abstract class WizardBudgetMaterializer
 {
     protected readonly Guid BudgetId;
@@ -26,8 +26,8 @@ public abstract class WizardBudgetMaterializer
         => OnDebtAsync(dto.ToDomain(BudgetId), ct);
 
     // The only variation: what you do with the mapped domain objects
-    protected abstract Task<Result> OnIncomeAsync(Backend.Domain.Entities.Budget.Income.Income income, CancellationToken ct);
-    protected abstract Task<Result> OnExpenditureAsync(Backend.Domain.Entities.Budget.Expenses.Expense expense, CancellationToken ct);
-    protected abstract Task<Result> OnSavingsAsync(Backend.Domain.Entities.Budget.Savings.Savings savings, CancellationToken ct);
-    protected abstract Task<Result> OnDebtAsync(Backend.Domain.Entities.Wizard.WizardDebtResult debt, CancellationToken ct);
+    protected abstract Task<Result> OnIncomeAsync(Domain.Entities.Budget.Income.Income income, CancellationToken ct);
+    protected abstract Task<Result> OnExpenditureAsync(Domain.Entities.Budget.Expenses.Expense expense, CancellationToken ct);
+    protected abstract Task<Result> OnSavingsAsync(Domain.Entities.Budget.Savings.Savings savings, CancellationToken ct);
+    protected abstract Task<Result> OnDebtAsync(Domain.Entities.Wizard.WizardDebtResult debt, CancellationToken ct);
 }

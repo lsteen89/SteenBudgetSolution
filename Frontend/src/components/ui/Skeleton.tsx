@@ -1,11 +1,16 @@
-interface SkeletonProps {
-    className?: string;
-}
+import { cn } from "@/lib/utils";
 
-export const Skeleton = ({ className = "" }: SkeletonProps) => {
-    // Using generic tailwind classes.
-    // Adjust 'bg-white/10' to 'bg-gray-200' if you are on a light theme.
+type SkeletonProps = { className?: string };
+
+export function Skeleton({ className }: SkeletonProps) {
     return (
-        <div className={`animate-pulse rounded bg-white/10 ${className}`} />
+        <div
+            aria-hidden="true"
+            className={cn(
+                "rounded-md bg-white/10",
+                "shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]",
+                className
+            )}
+        />
     );
-};
+}

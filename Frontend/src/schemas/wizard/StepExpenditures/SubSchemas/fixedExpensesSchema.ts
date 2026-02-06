@@ -1,57 +1,67 @@
 import * as yup from "yup";
 
-/**
- * Defines the validation rules for a single, perfect custom expense item.
- * This remains unchanged as it correctly defines what a valid item is.
- */
-const fixedExpenseItemSchema = yup.object({
-  id: yup.string().optional(),
-  name: yup
-    .string()
-    .trim()
-    .required("Ange namn på utgiften.")
-    .min(2, "Minst 2 tecken."),
-  cost: yup
-    .number()
-    .typeError("Ange ett giltigt belopp.")
-    .required("Ange kostnaden.")
-    .min(1, "Beloppet måste vara > 0 kr."),
-});
+const svMoneyNullable = yup
+  .number()
+  .nullable()
+  .transform((val, originalValue) => {
+    // Treat "" as null (important for inputs)
+    if (originalValue === "" || originalValue === undefined) return null;
+    return Number.isNaN(val) ? null : val;
+  });
 
-/**
- * Defines the validation for the entire fixed expenses form section.
- */
+const nameNullable = yup
+  .string()
+  .transform((v) => (typeof v === "string" ? v.trim() : v))
+  .nullable()
+  .transform((v) => (v === "" ? null : v));
+
+export const fixedExpenseItemSchema = yup
+  .object({
+    id: yup.string().optional(),
+    name: nameNullable,
+    cost: svMoneyNullable,
+  })
+  .test(
+    "empty-or-valid",
+    "Fyll i både namn (minst 2 tecken) och belopp (> 0 kr), eller lämna raden tom.",
+    function (value) {
+      const name = value?.name ?? null;
+      const cost = value?.cost ?? null;
+
+      const hasName = !!name;
+      const hasCost = cost !== null;
+
+      // 1) Empty row is OK
+      if (!hasName && !hasCost) return true;
+
+      // 2) If cost entered -> must be > 0
+      if (hasCost && Number(cost) <= 0) {
+        return this.createError({ path: `${this.path}.cost`, message: "Beloppet måste vara > 0 kr." });
+      }
+
+      // 3) If name entered -> must be at least 2 chars
+      if (hasName && String(name).length < 2) {
+        return this.createError({ path: `${this.path}.name`, message: "Minst 2 tecken." });
+      }
+
+      // 4) If either is entered, require the other as well (best UX / data quality)
+      if (hasName && !hasCost) {
+        return this.createError({ path: `${this.path}.cost`, message: "Ange ett belopp (> 0 kr)." });
+      }
+      if (hasCost && !hasName) {
+        return this.createError({ path: `${this.path}.name`, message: "Ange ett namn." });
+      }
+
+      return true;
+    }
+  );
+
 export const fixedExpensesSchema = yup.object({
-  // These fields are standard and remain the same.
-  electricity: yup.number().nullable(),
-  insurance: yup.number().nullable(),
-  internet: yup.number().nullable(),
-  phone: yup.number().nullable(),
-  unionFees: yup.number().nullable(),
+  electricity: svMoneyNullable,
+  insurance: svMoneyNullable,
+  internet: svMoneyNullable,
+  phone: svMoneyNullable,
+  gym: svMoneyNullable,
 
-  customExpenses: yup
-    .array(fixedExpenseItemSchema) // This is important for individual field errors.
-    .ensure() // Converts undefined to [] to prevent errors.
-    .test({
-      // A more descriptive name for our test's purpose.
-      name: 'all-items-are-valid-or-array-is-empty',
-
-      // A clear error message that tells the user exactly what to do.
-      message: 'Varje tillagd utgift måste ha både ett namn och ett giltigt belopp. Ta bort ofullständiga rader.',
-
-      /**
-       * The validation function that enforces our logic.
-       * @param {Array} array - The customExpenses array itself.
-       */
-      test: (array) => {
-        // Rule 1: If the user hasn't added any expenses, the array is empty and therefore VALID.
-        if (!array || array.length === 0) {
-          return true;
-        }
-
-        // Rule 2: If the array is NOT empty, EVERY single item in it must be valid.
-        // The .every() method checks this perfectly. It returns false if even one item is invalid.
-        return array.every(item => fixedExpenseItemSchema.isValidSync(item));
-      },
-    }),
+  customExpenses: yup.array(fixedExpenseItemSchema).ensure(),
 });

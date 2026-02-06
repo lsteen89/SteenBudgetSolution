@@ -5,6 +5,8 @@ using Backend.Settings;
 using Microsoft.Extensions.Options;
 using MySqlConnector;
 
+namespace Backend.Infrastructure.Data.Sql.Helpers.UnitOfWork;
+
 public sealed class UnitOfWork : IUnitOfWork
 {
     private readonly ILogger<UnitOfWork> _log;

@@ -2,6 +2,8 @@ using Backend.Application.Abstractions.Application.Services.Debts;
 using Backend.Application.DTO.Budget.Dashboard;
 using Backend.Application.Features.Budgets.Dashboard;
 using Backend.Application.Abstractions.Application.Services.Budget.Projections;
+using Backend.Domain.Entities.Budget.Expenses;
+
 namespace Backend.Application.Services.Budget.Projections;
 
 public sealed class BudgetDashboardProjector : IBudgetDashboardProjector
@@ -48,6 +50,7 @@ public sealed class BudgetDashboardProjector : IBudgetDashboardProjector
             {
                 TotalDebtBalance = data.Totals.TotalDebtBalance,
                 TotalMonthlyPayments = debtPayments,
+                RepaymentStrategy = data.Debt.RepaymentStrategy,
                 Debts = debtItems
             },
 
@@ -55,6 +58,7 @@ public sealed class BudgetDashboardProjector : IBudgetDashboardProjector
             {
                 Id = r.Id,
                 Name = r.Name,
+                CategoryKey = ExpenseCategories.Key(r.CategoryId),
                 CategoryName = r.CategoryName,
                 AmountMonthly = r.AmountMonthly
             }).ToList(),
@@ -69,7 +73,7 @@ public sealed class BudgetDashboardProjector : IBudgetDashboardProjector
     }
 
     private List<DashboardDebtItemDto> BuildDebtItems(BudgetDashboardReadModel data) =>
-        data.Debts.Select(d => new DashboardDebtItemDto
+        data.Debt.Debts.Select(d => new DashboardDebtItemDto
         {
             Id = d.Id,
             Name = d.Name,
@@ -144,8 +148,10 @@ public sealed class BudgetDashboardProjector : IBudgetDashboardProjector
             TotalExpensesMonthly = data.Totals.TotalExpensesMonthly,
             ByCategory = data.Categories.Select(c => new ExpenseCategorySummaryDto
             {
+                CategoryKey = ExpenseCategories.Key(c.CategoryId),
                 CategoryName = c.CategoryName,
-                TotalMonthlyAmount = c.TotalMonthlyAmount
+                TotalMonthlyAmount = c.TotalMonthlyAmount,
+                Items = Array.Empty<ExpenseLineItemDto>()
             }).ToList()
         };
 

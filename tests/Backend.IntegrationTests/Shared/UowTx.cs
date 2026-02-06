@@ -1,3 +1,4 @@
+using Backend.Infrastructure.Data.Sql.Helpers.UnitOfWork;
 
 namespace Backend.IntegrationTests.Shared;
 

@@ -15,8 +15,14 @@ export interface IncomeOverviewDto {
 }
 
 export interface ExpenseCategorySummaryDto {
+    categoryKey: string;
     categoryName: string;
     totalMonthlyAmount: number;
+    items: ExpenseLineItemDto[];
+}
+export interface ExpenseLineItemDto {
+    name: string;
+    amountMonthly: number;
 }
 
 export interface ExpenditureOverviewDto {
@@ -37,6 +43,7 @@ export interface DebtOverviewDto {
     totalDebtBalance: number;
     totalMonthlyPayments: number;
     debts: DashboardDebtItemDto[];
+    repaymentStrategy?: string | null;
 }
 
 export interface DashboardSavingsGoalDto {
@@ -57,6 +64,7 @@ export interface SavingsOverviewDto {
 export interface DashboardRecurringExpenseDto {
     id: string;
     name: string;
+    categoryKey: string;
     categoryName: string;
     amountMonthly: number;
 }

@@ -16,6 +16,7 @@ using Backend.Application.Abstractions.Application.Services.Budget;
 using Backend.Application.Abstractions.Application.Services.Debts;
 using Backend.Application.Abstractions.Application.Services.Budget.Projections;
 using Backend.Application.Features.Wizard.Finalization.Abstractions;
+using Backend.Application.Features.Wizard.GetWizardData.Abstractions;
 
 // services
 using Backend.Application.Services.Budget.Bootstrapper;
@@ -27,6 +28,8 @@ using Backend.Application.Services.Debts;
 using Backend.Application.Features.Wizard.Finalization.Orchestration;
 using Backend.Application.Features.Wizard.Finalization.Targets;
 using Backend.Application.Features.Wizard.FinalizationPreview.Mapper;
+using Backend.Application.Features.Wizard.GetWizardData.Assemble;
+using Backend.Application.Features.Wizard.GetWizardData.Reduce;
 
 namespace Backend.Application;
 
@@ -95,6 +98,10 @@ public static class DependencyInjection
         services.AddScoped<IBudgetDashboardProjector, BudgetDashboardProjector>();
         // Calculators
         services.AddSingleton<IDebtPaymentCalculator, DebtPaymentCalculator>();
+        // Wizard Step Data Assembler
+        services.AddScoped<IWizardStepDataAssembler, WizardStepDataAssembler>();
+        // Wizard Row Reducer
+        services.AddScoped<IWizardStepRowReducer, WizardStepRowReducer>();
 
         return services;
     }

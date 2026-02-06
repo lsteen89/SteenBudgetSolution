@@ -1,7 +1,7 @@
 ﻿using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Domain.Abstractions;
 using Backend.Infrastructure.Data.BaseClass;
-using Microsoft.Extensions.Logging;
+using Backend.Domain.Entities.Budget.Debt;
 using Microsoft.Extensions.Options;
 using Backend.Settings;
 
@@ -25,7 +25,7 @@ namespace Backend.Infrastructure.Repositories.Budget.Core
                 INSERT INTO Budget (Id, Persoid, DebtRepaymentStrategy, CreatedAt, CreatedByUserId)
                 VALUES (@BudgetId, @Persoid, @DebtRepaymentStrategy, UTC_TIMESTAMP(), @CreatedByUserId)";
 
-        public async Task<bool> CreateBudgetAsync(Guid budgetId, Guid persoId, CancellationToken ct = default, string? debtRepaymentStrategy = null)
+        public async Task<bool> CreateBudgetAsync(Guid budgetId, Guid persoId, CancellationToken ct = default, RepaymentStrategy? debtRepaymentStrategy = null)
         {
             var parameters = new
             {
@@ -40,7 +40,7 @@ namespace Backend.Infrastructure.Repositories.Budget.Core
             return rowsAffected > 0;
         }
 
-        public async Task UpdateRepaymentStrategyAsync(string strat, Guid budgetId, CancellationToken ct)
+        public async Task UpdateRepaymentStrategyAsync(RepaymentStrategy strat, Guid budgetId, CancellationToken ct)
         {
             var currentUserId = _currentUser.Persoid;
 

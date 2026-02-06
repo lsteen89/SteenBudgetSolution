@@ -1,4 +1,11 @@
-﻿namespace Backend.Domain.Entities.Budget.Debt
+﻿using System.Text.Json.Serialization;
+
+namespace Backend.Domain.Entities.Budget.Debt;
+
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum RepaymentStrategy
 {
-    public sealed record RepaymentStrategy(string Value);
+    Unknown = 0,
+    Snowball = 1,
+    Avalanche = 2
 }

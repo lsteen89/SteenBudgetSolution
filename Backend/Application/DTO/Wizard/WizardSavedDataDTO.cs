@@ -2,10 +2,15 @@
 
 namespace Backend.Application.DTO.Wizard
 {
-    public class WizardSavedDataDTO
-    {
-        public WizardData? WizardData { get; set; }
-        public int? SubStep { get; set; }
-        public int DataVersion { get; set; }
-    }
+    public sealed record WizardSavedDataDto(
+        WizardData WizardData,
+        WizardProgressDto Progress,
+        int DataVersion
+    );
+
+    public sealed record WizardProgressDto(
+        int MajorStep,
+        int SubStep,
+        IReadOnlyDictionary<int, int> MaxSubStepByMajor
+    );
 }

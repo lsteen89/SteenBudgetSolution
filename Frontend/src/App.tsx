@@ -1,9 +1,8 @@
 import { BrowserRouter } from 'react-router-dom';
-import { AuthProvider }   from '@/providers/AuthProvider';
-import AppLayout          from '@/layout/AppLayout';
-import AppRoutes          from '@/layout/AppRoutes';
-import { useAuthWs }      from '@/hooks/auth/useAuthWs';
-
+import { AuthProvider } from '@/providers/AuthProvider';
+import AppLayout from '@/layout/AppLayout';
+import AppRoutes from '@/layout/AppRoutes';
+import { useAuthWs } from '@/hooks/auth/useAuthWs';
 /**
  * App component
  * 
@@ -14,7 +13,6 @@ import { useAuthWs }      from '@/hooks/auth/useAuthWs';
  */
 export default function App() {
   useAuthWs();                        // safe: this runs only after AuthProvider is "setProviderReady"
-
   return (
     <BrowserRouter>
       <AuthProvider>

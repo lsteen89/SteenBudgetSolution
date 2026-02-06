@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
+using Backend.Infrastructure.Data.Sql.Helpers.UnitOfWork;
 using Backend.Application.Abstractions.Application.Services.Debts;
 using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Application.Features.Budgets.Dashboard.GetBudgetDashboardMonth;
@@ -18,6 +18,7 @@ using FluentAssertions.Execution;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Backend.IntegrationTests.Shared.Seeds.Budget;
+using Backend.Domain.Errors.Budget;
 
 namespace Backend.IntegrationTests.Budget.CoreBudget;
 
@@ -196,7 +197,7 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
         var result = await sut.Handle(new GetBudgetDashboardMonthQuery(seed.Persoid, "2026-13"), CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
-        result.Error.Should().Be(Errors.BudgetMonth.InvalidYearMonth);
+        result.Error.Should().Be(BudgetMonth.InvalidYearMonth);
     }
 
     [Fact]
@@ -211,7 +212,7 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
         var result = await sut.Handle(new GetBudgetDashboardMonthQuery(seed.Persoid, "2026-01"), CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
-        result.Error.Should().Be(Errors.BudgetMonth.MonthNotFound);
+        result.Error.Should().Be(BudgetMonth.MonthNotFound);
     }
 
     // -------------------------

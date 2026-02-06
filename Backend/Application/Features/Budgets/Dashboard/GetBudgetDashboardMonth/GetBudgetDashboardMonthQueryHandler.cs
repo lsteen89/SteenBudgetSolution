@@ -6,7 +6,7 @@ using Backend.Application.DTO.Budget.Dashboard;
 using Backend.Application.Abstractions.Application.Services.Budget.Projections;
 using Backend.Domain.Shared;
 using Backend.Application.Features.Budgets.Months.Helpers;
-using Backend.Domain.Errors;
+using Backend.Domain.Errors.Budget;
 using Backend.Application.DTO.Budget.Months;
 
 namespace Backend.Application.Features.Budgets.Dashboard.GetBudgetDashboardMonth;
@@ -47,7 +47,7 @@ public sealed class GetBudgetDashboardMonthQueryHandler
         if (!string.IsNullOrWhiteSpace(q.YearMonth))
         {
             if (!YearMonthUtil.TryParse(q.YearMonth!, out _, out _))
-                return Result<BudgetDashboardMonthDto?>.Failure(Errors.BudgetMonth.InvalidYearMonth);
+                return Result<BudgetDashboardMonthDto?>.Failure(BudgetMonth.InvalidYearMonth);
 
             targetYm = YearMonthUtil.Normalize(q.YearMonth!);
         }
@@ -63,7 +63,7 @@ public sealed class GetBudgetDashboardMonthQueryHandler
         // Load month row (must include snapshot columns)
         var month = await _months.GetMonthAsync(budgetId.Value, targetYm, ct);
         if (month is null)
-            return Result<BudgetDashboardMonthDto?>.Failure(Errors.BudgetMonth.MonthNotFound);
+            return Result<BudgetDashboardMonthDto?>.Failure(BudgetMonth.MonthNotFound);
 
         var meta = new BudgetMonthMetaDto(
             YearMonth: month.YearMonth,
@@ -75,7 +75,7 @@ public sealed class GetBudgetDashboardMonthQueryHandler
         if (month.Status == BudgetMonthStatuses.Closed)
         {
             if (month.SnapshotFinalBalanceMonthly is null)
-                return Result<BudgetDashboardMonthDto?>.Failure(Errors.BudgetMonth.SnapshotMissing);
+                return Result<BudgetDashboardMonthDto?>.Failure(BudgetMonth.SnapshotMissing);
 
             var snap = new BudgetMonthSnapshotTotalsDto(
                 TotalIncomeMonthly: month.SnapshotTotalIncomeMonthly!.Value,

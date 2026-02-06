@@ -7,7 +7,7 @@ using MySqlConnector;
 
 using IncomeDataDto = Backend.Application.DTO.Budget.Income.IncomeData;
 using ExpenditureDataDto = Backend.Application.DTO.Budget.Expenditure.ExpenditureData;
-using RentDto = Backend.Application.DTO.Budget.Expenditure.RentDto;
+using HousingDto = Backend.Application.DTO.Budget.Expenditure.HousingDto;
 using FoodDto = Backend.Application.DTO.Budget.Expenditure.FoodDto;
 using TransportDto = Backend.Application.DTO.Budget.Expenditure.TransportDto;
 using ClothingDto = Backend.Application.DTO.Budget.Expenditure.ClothingDto;
@@ -62,21 +62,43 @@ internal static class WizardSeeds
 
         var exp = new ExpenditureDataDto
         {
-            Rent = new RentDto { MonthlyRent = 900m },
+            Housing = new HousingDto
+            {
+                HomeType = "rent",
+                Payment = new HousingPaymentDto
+                {
+                    MonthlyRent = 12000m,
+                    MonthlyFee = 500m,
+                    ExtraFees = 0m,
+                },
+                RunningCosts = new HousingRunningCostsDto
+                {
+                    Electricity = 400m,
+                    Heating = 300m,
+                    Water = 150m,
+                    Waste = 100m,
+                    Other = 50m,
+                }
+            },
             Food = new FoodDto { FoodStoreExpenses = 200m, TakeoutExpenses = 50m },
-            Transport = new TransportDto { MonthlyTransitCost = 600m },
+            Transport = new TransportDto
+            {
+                FuelOrCharging = 1500m,
+                CarInsurance = 800m,
+                ParkingFee = 200m,
+                OtherCarCosts = 100m,
+                PublicTransit = 300m,
+            },
             Clothing = new ClothingDto { MonthlyClothingCost = 100m },
             FixedExpenses = new FixedExpensesDto
             {
-                Electricity = 300m,
-                Insurance = 120m,
-                Internet = 300m,
-                Phone = 200m,
-                UnionFees = 0m,
+                Insurance = 600m,
+                Internet = 400m,
+                Phone = 300m,
+                Gym = 250m,
                 CustomExpenses = new List<CustomExpenseDto>
                 {
-                    new() { Name = "Garbage fee", Cost = 75m },
-                    new() { Name = "Parking", Cost = 250m },
+                    new() { Name = "Yoga classes", Cost = 150m }
                 }
             },
             Subscriptions = new SubscriptionsDto

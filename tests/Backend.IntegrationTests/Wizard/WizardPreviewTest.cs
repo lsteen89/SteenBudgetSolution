@@ -33,7 +33,7 @@ using Backend.Application.Features.Wizard.FinalizationPreview.Mapper;
 using Backend.Application.Features.Wizard.FinalizationPreview;
 using Backend.Domain.Abstractions;
 using Backend.IntegrationTests.Shared.Wizard;
-
+using Backend.Infrastructure.Data.Sql.Helpers.UnitOfWork;
 namespace Backend.IntegrationTests.Wizard;
 
 [Collection("it:db")]

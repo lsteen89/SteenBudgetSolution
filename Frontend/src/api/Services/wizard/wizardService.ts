@@ -1,15 +1,21 @@
 import { api } from '@/api/axios';
-import { StartWizardResponse } from '@myTypes/Wizard/StartWizardResponse';
+import { StartWizardResponse } from '@/types/Wizard/Step0_Welcome/StartWizardResponse';
 import { CODE_DATA_VERSION } from '@/constants/wizardVersion';
-import { useWizardDataStore, WizardData } from '@/stores/Wizard/wizardDataStore';
+import { WizardData } from '@/stores/Wizard/wizardDataStore';
 import type { ApiEnvelope } from '@/api/api.types';
 import { isAxiosError } from 'axios';
 import type { BudgetDashboardDto } from '@myTypes/budget/BudgetDashboardDto';
 import { unwrapEnvelope } from '@/utils/api/apiHelpers';
 
+export interface WizardProgressDto {
+  majorStep: number;
+  subStep: number;
+  maxSubStepByMajor: Record<number, number>; // backend is IReadOnlyDictionary<int,int>
+}
+
 export interface WizardDataResponseDto {
   wizardData: Partial<WizardData>;
-  subStep: number | null;
+  progress: WizardProgressDto;
   dataVersion: number;
 }
 

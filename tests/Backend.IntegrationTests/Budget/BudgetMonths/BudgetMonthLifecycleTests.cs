@@ -27,6 +27,7 @@ using Backend.Application.Features.Budgets.Months.StartBudgetMonth;
 using Backend.Application.DTO.Budget.Months;
 using Backend.Application.Services.Budget.Compute;
 using Backend.IntegrationTests.Shared.Seeds.Budget;
+using Backend.Infrastructure.Data.Sql.Helpers.UnitOfWork;
 
 namespace Backend.IntegrationTests.Budget.BudgetMonths;
 

@@ -11,7 +11,7 @@ namespace Backend.Domain.Entities.Budget.Expenditure.Archive
         public decimal? Insurance { get; set; }
         public decimal? Internet { get; set; }
         public decimal? Phone { get; set; }
-        public decimal? UnionFees { get; set; }
+        //public decimal? UnionFees { get; set; }
 
         public List<CustomExpense> CustomExpenses { get; set; } = new();
     }

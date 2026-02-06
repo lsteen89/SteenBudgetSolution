@@ -1,50 +1,126 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import clsx from 'clsx';
+import React, { useCallback } from "react";
+import clsx from "clsx";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
 import type { CurrencyCode } from "@/utils/money/currency";
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
+import WizardCard from "@/components/organisms/overlays/wizard/SharedComponents/Cards/WizardCard";
+import VerdictChip from "../organisms/overlays/wizard/steps/StepBudgetFinal5/Components/Pages/SubSteps/1_SubStepFinal/components/VerdictChip";
 
 interface FinalVerdictCardProps {
   balance: number;
   currency: CurrencyCode;
-  locale?: string;
+  kind: "good" | "tight" | "bad";
+  title: string;
+  detail?: string;
   money?: { fractionDigits?: 0 | 2 };
 }
 
-const FinalVerdictCard: React.FC<FinalVerdictCardProps> = ({ balance, currency, locale = "sv-SE", money }) => {
-  const isSurplus = balance >= 0;
-  const number = formatMoneyV2(Math.abs(balance), currency, locale, money);
+const DESCRIPTIONS: Record<"good" | "tight" | "bad", string> = {
+  good: "Du går plus varje månad. Skapa budgeten — du kan finjustera efteråt.",
+  tight: "Det går ihop, men marginalen är liten. Skapa budgeten och justera vid behov.",
+  bad: "Du går minus varje månad. Skapa budgeten ändå — men vi markerar vad som bör justeras direkt.",
+};
 
-  const wisdomText = isSurplus
-    ? `Bra jobbat kompis! Du har ett överskott på ${formatMoneyV2(balance, currency, locale, money)} varje månad. Använd detta överskott klokt, du vet aldrig när du behöver det.`
-    : `Dina utgifter överstiger dina intäkter med ${formatMoneyV2(Math.abs(balance), currency, locale, money)} varje månad. Du ska vara stolt över att du nu tar ett aktivt steg mot en bättre ekonomi, första steget är alltid det svåraste, och det har du tagit nu!`;
+function tone(kind: "good" | "tight" | "bad") {
+  if (kind === "bad") {
+    return {
+      amount: "text-wizard-warning",
+      glow: "bg-wizard-warning/10",
+      border: "border-wizard-warning/20",
+    };
+  }
+  if (kind === "tight") {
+    return {
+      amount: "text-wizard-text",
+      glow: "bg-wizard-surface-accent/55",
+      border: "border-wizard-stroke/25",
+    };
+  }
+  return {
+    amount: "text-wizard-accent",
+    glow: "bg-wizard-accent/10",
+    border: "border-wizard-stroke/25",
+  };
+}
+
+const FinalVerdictCard: React.FC<FinalVerdictCardProps> = ({
+  balance,
+  currency,
+  kind,
+  title,
+  detail,
+  money,
+}) => {
+  const locale = useAppLocale();
+  const fractionDigits = money?.fractionDigits ?? 0;
+
+  const moneyFmt = useCallback(
+    (v: number) =>
+      formatMoneyV2(v ?? 0, currency, locale, { fractionDigits }),
+    [currency, locale, fractionDigits]
+  );
+
+  const t = tone(kind);
+
   return (
-    <motion.div
-      className="bg-slate-800/50 rounded-2xl shadow-2xl p-6 md:p-8 text-center border border-white/10"
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-    >
-      <h2
-        className="text-base sm:text-lg md:text-xl lg:text-2xl font-semibold text-white/80 tracking-widest uppercase"
-      >
-        Ditt&nbsp;Månads<wbr />resultat
-      </h2>
+    <WizardCard>
+      {/* top row */}
+      <div className="flex items-start gap-3">
+        <VerdictChip kind={kind} title={title} />
 
-      <p
-        className={clsx(
-          "my-2 text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-bold tracking-tighter",
-          isSurplus ? "text-green-400" : "text-red-400",
-        )}
-      >
-        {number}
-        <span className="hidden md:inline">&nbsp;{currency}</span>
-      </p>
+        <div className="min-w-0">
+          <p className="text-xs text-wizard-text/60 leading-relaxed">
+            {detail ?? DESCRIPTIONS[kind]}
+          </p>
+        </div>
+      </div>
 
-      <p className="max-w-2xl mx-auto text-white/70 text-sm md:text-base">
-        {wisdomText}
-      </p>
-    </motion.div>
+      <div className="mt-5">
+        <h2 className="text-xs sm:text-sm font-semibold tracking-[0.22em] uppercase text-wizard-text/55">
+          Ditt månadsresultat
+        </h2>
+
+        {/* amount */}
+        <div className="relative mt-3">
+          {/* soft glow behind amount */}
+          <div
+            aria-hidden
+            className={clsx(
+              "pointer-events-none absolute -inset-x-2 -inset-y-2 rounded-3xl blur-2xl",
+              t.glow
+            )}
+          />
+
+          <p
+            className={clsx(
+              "relative money tabular-nums font-extrabold tracking-tight",
+              "text-3xl sm:text-4xl md:text-5xl",
+              t.amount
+            )}
+          >
+            {moneyFmt(Math.abs(balance))}
+          </p>
+
+          {/* micro badge: plus/minus */}
+          <div className="mt-2">
+            <span
+              className={clsx(
+                "inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold",
+                "border bg-wizard-surface",
+                t.border,
+                "text-wizard-text/70"
+              )}
+            >
+              {balance >= 0 ? "Överskott" : "Underskott"} per månad
+            </span>
+          </div>
+        </div>
+
+        <p className="mt-4 text-sm text-wizard-text/65">
+          Kvar per månad efter utgifter, sparande och minimiskulder.
+        </p>
+      </div>
+    </WizardCard>
   );
 };
 

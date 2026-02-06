@@ -7,7 +7,7 @@ using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Application.Features.Budgets.Dashboard.GetBudgetDashboardMonth;
 using Backend.Application.Services.Budget.Projections;
 using Backend.Application.Services.Debts;
-using Backend.Domain.Errors;
+using Backend.Domain.Errors.Budget;
 using Backend.Infrastructure.Repositories.Budget.BudgetDashboard;
 using Backend.Infrastructure.Repositories.Budget.Months;
 using Backend.IntegrationTests.Shared;
@@ -19,6 +19,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using MySqlConnector;
 using Backend.IntegrationTests.Shared.Seeds.Budget;
+using Backend.Infrastructure.Data.Sql.Helpers.UnitOfWork;
 
 namespace Backend.IntegrationTests.Budget.Dashboard;
 
@@ -142,7 +143,7 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
         var result = await handler.Handle(new GetBudgetDashboardMonthQuery(persoid, "2026-1"), CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
-        result.Error!.Code.Should().Be(Errors.BudgetMonth.InvalidYearMonth.Code);
+        result.Error!.Code.Should().Be(BudgetMonth.InvalidYearMonth.Code);
     }
 
     [Fact]

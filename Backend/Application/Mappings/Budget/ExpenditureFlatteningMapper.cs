@@ -1,70 +1,114 @@
 ﻿using Backend.Application.DTO.Budget.Expenditure;
-using Backend.Application.Models.Wizard;
-using Backend.Common.Constants.Budget;
 using Backend.Domain.Entities.Budget.Expenses;
+using Backend.Common.Constants.Budget;
 
 namespace Backend.Application.Mappings.Budget
 {
     public static class ExpenditureFlatteningMapper
     {
-
+        // TODO: DELETE?
         public static Expense ToUnifiedExpense(this ExpenditureData dto, Guid budgetId)
         {
-            var exp = new Expense { BudgetId = budgetId };
+            var drafts = dto.ToExpenseItemDrafts();
 
-            if (dto.Rent is not null)
+            var exp = new Expense
             {
-                exp.AddItem(ExpenseCategories.Rent, ExpenseItemLabels.Rent, dto.Rent.MonthlyRent);
-                exp.AddItem(ExpenseCategories.Rent, ExpenseItemLabels.RentExtraFees, dto.Rent.RentExtraFees);
-                exp.AddItem(ExpenseCategories.Rent, ExpenseItemLabels.MonthlyFee, dto.Rent.MonthlyFee);
-                exp.AddItem(ExpenseCategories.Rent, ExpenseItemLabels.BrfExtraFees, dto.Rent.BrfExtraFees);
-                exp.AddItem(ExpenseCategories.Rent, ExpenseItemLabels.MortgagePayment, dto.Rent.MortgagePayment);
-                exp.AddItem(ExpenseCategories.Rent, ExpenseItemLabels.HouseOtherCosts, dto.Rent.HouseotherCosts);
-                exp.AddItem(ExpenseCategories.Rent, ExpenseItemLabels.OtherCosts, dto.Rent.OtherCosts);
+                BudgetId = budgetId,
+                Items = drafts.Select(d => new ExpenseItem
+                {
+                    Id = Guid.Empty,
+                    BudgetId = budgetId,
+                    CategoryId = d.CategoryId,
+                    Name = d.Name,
+                    AmountMonthly = decimal.Round(d.AmountMonthly, 2, MidpointRounding.AwayFromZero),
+                }).ToList()
+            };
+
+            return exp;
+        }
+        public static IReadOnlyList<ExpenseItemDraft> ToExpenseItemDrafts(this ExpenditureData dto)
+        {
+            var items = new List<ExpenseItemDraft>();
+
+            void Add(Guid categoryId, string name, decimal? amount)
+            {
+                if (amount is null || amount <= 0) return;
+                if (string.IsNullOrWhiteSpace(name)) return;
+
+                items.Add(new ExpenseItemDraft(
+                    CategoryId: categoryId,
+                    Name: name.Trim(),
+                    AmountMonthly: amount.Value
+                ));
             }
 
+            // HOUSING
+            if (dto.Housing is not null)
+            {
+                var p = dto.Housing.Payment;
+                var r = dto.Housing.RunningCosts;
+
+                Add(ExpenseCategories.Housing, ExpenseItemLabels.HousingMonthlyRent, p?.MonthlyRent);
+                Add(ExpenseCategories.Housing, ExpenseItemLabels.HousingMonthlyFee, p?.MonthlyFee);
+                Add(ExpenseCategories.Housing, ExpenseItemLabels.HousingExtraFees, p?.ExtraFees);
+
+                Add(ExpenseCategories.Housing, ExpenseItemLabels.Electricity, r?.Electricity);
+                Add(ExpenseCategories.Housing, ExpenseItemLabels.Heating, r?.Heating);
+                Add(ExpenseCategories.Housing, ExpenseItemLabels.Water, r?.Water);
+                Add(ExpenseCategories.Housing, ExpenseItemLabels.Waste, r?.Waste);
+                Add(ExpenseCategories.Housing, ExpenseItemLabels.OtherHomeRunningCosts, r?.Other);
+            }
+
+            // FOOD
             if (dto.Food is not null)
             {
-                exp.AddItem(ExpenseCategories.Food, ExpenseItemLabels.FoodStore, dto.Food.FoodStoreExpenses);
-                exp.AddItem(ExpenseCategories.Food, ExpenseItemLabels.Takeout, dto.Food.TakeoutExpenses);
+                Add(ExpenseCategories.Food, ExpenseItemLabels.FoodStore, dto.Food.FoodStoreExpenses);
+                Add(ExpenseCategories.Food, ExpenseItemLabels.Takeout, dto.Food.TakeoutExpenses);
             }
 
+            // TRANSPORT
             if (dto.Transport is not null)
             {
-                exp.AddItem(ExpenseCategories.Transport, ExpenseItemLabels.Fuel, dto.Transport.MonthlyFuelCost);
-                exp.AddItem(ExpenseCategories.Transport, ExpenseItemLabels.Insurance, dto.Transport.MonthlyInsuranceCost);
-                exp.AddItem(ExpenseCategories.Transport, ExpenseItemLabels.TotalCarCost, dto.Transport.MonthlyTotalCarCost);
-                exp.AddItem(ExpenseCategories.Transport, ExpenseItemLabels.Transit, dto.Transport.MonthlyTransitCost);
+                Add(ExpenseCategories.Transport, ExpenseItemLabels.FuelOrCharging, dto.Transport.FuelOrCharging);
+                Add(ExpenseCategories.Transport, ExpenseItemLabels.CarInsurance, dto.Transport.CarInsurance);
+                Add(ExpenseCategories.Transport, ExpenseItemLabels.ParkingFee, dto.Transport.ParkingFee);
+                Add(ExpenseCategories.Transport, ExpenseItemLabels.OtherCarCosts, dto.Transport.OtherCarCosts);
+                Add(ExpenseCategories.Transport, ExpenseItemLabels.PublicTransit, dto.Transport.PublicTransit);
             }
 
+            // CLOTHING
             if (dto.Clothing is not null)
-                exp.AddItem(ExpenseCategories.Clothing, ExpenseItemLabels.Clothing, dto.Clothing.MonthlyClothingCost);
+                Add(ExpenseCategories.Clothing, ExpenseItemLabels.Clothing, dto.Clothing.MonthlyClothingCost);
 
-            // FIXED EXPENSES
+            // FIXED
             if (dto.FixedExpenses is not null)
             {
                 var fx = dto.FixedExpenses;
-                exp.AddItem(ExpenseCategories.FixedExpense, ExpenseItemLabels.Electricity, fx.Electricity);
-                exp.AddItem(ExpenseCategories.FixedExpense, ExpenseItemLabels.Insurance, fx.Insurance);
-                exp.AddItem(ExpenseCategories.FixedExpense, ExpenseItemLabels.Internet, fx.Internet);
-                exp.AddItem(ExpenseCategories.FixedExpense, ExpenseItemLabels.Phone, fx.Phone);
-                exp.AddItem(ExpenseCategories.FixedExpense, ExpenseItemLabels.UnionFees, fx.UnionFees);
 
-                foreach (var c in fx.CustomExpenses)
-                    exp.AddItem(ExpenseCategories.FixedExpense, c.Name, c.Cost);
+                Add(ExpenseCategories.FixedExpense, ExpenseItemLabels.Insurance, fx.Insurance);
+                Add(ExpenseCategories.FixedExpense, ExpenseItemLabels.Internet, fx.Internet);
+                Add(ExpenseCategories.FixedExpense, ExpenseItemLabels.Phone, fx.Phone);
+                Add(ExpenseCategories.FixedExpense, ExpenseItemLabels.Gym, fx.Gym);
+
+                if (fx.CustomExpenses is not null)
+                {
+                    foreach (var c in fx.CustomExpenses)
+                    {
+                        if (c is null) continue;
+                        Add(ExpenseCategories.FixedExpense, c.Name, c.Cost);
+                    }
+                }
             }
 
-            // SUBSCRIPTIONS (list-based)
+            // SUBSCRIPTIONS
             if (dto.Subscriptions is not null)
             {
                 foreach (var s in dto.Subscriptions.Flatten())
-                    exp.AddItem(ExpenseCategories.Subscription, s.Name, s.Cost);
+                    Add(ExpenseCategories.Subscription, s.Name, s.Cost);
             }
 
-
-            return exp;
-
+            return items;
         }
-    }
 
+    }
 }

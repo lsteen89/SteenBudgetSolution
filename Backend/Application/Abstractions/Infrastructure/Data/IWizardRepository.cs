@@ -9,8 +9,9 @@ public interface IWizardRepository
     Task<Guid> CreateSessionAsync(Guid persoId, CancellationToken ct);
     Task<bool> UpsertStepDataAsync(Guid wizardSessionId, int stepNumber, int substepNumber, string jsonData, int dataVersion, CancellationToken ct);
     Task<bool> DoesUserOwnSessionAsync(Guid userId, Guid sessionId, CancellationToken ct);
-    Task<WizardSavedDataDTO?> GetWizardDataAsync(Guid sessionId, CancellationToken ct);
+    Task<IEnumerable<WizardStepRowEntity>> GetRawWizardStepDataAsync(Guid sessionId, CancellationToken ct);
     Task<IEnumerable<WizardStepRowEntity>> GetRawStepDataForFinalizationAsync(Guid sessionId, CancellationToken ct);
     Task<bool> DeleteSessionAsync(Guid sessionId, CancellationToken ct);
     Task<bool> HasAnyStepDataAsync(Guid sessionId, CancellationToken ct);
+    Task<(int majorStep, int subStep)> GetCurrentStepAsync(Guid sessionId, CancellationToken ct);
 }

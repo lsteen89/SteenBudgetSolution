@@ -1,13 +1,9 @@
-using Backend.Domain.Errors;
-using Backend.Domain.Enums;  // for ErrorType if needed
 using Backend.Application.Abstractions.Messaging;
-using Backend.Application.DTO.Budget.Dashboard;
 using Backend.Application.Abstractions.Infrastructure.System;
-using Backend.Application.DTO.Budget;
 using Backend.Application.DTO.Budget.Months;
 using Backend.Application.Abstractions.Application.Services.Budget;
 using Backend.Domain.Shared;
-using Microsoft.Extensions.Logging;
+using Backend.Domain.Errors.Budget;
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Application.Features.Budgets.Months.Models;
 using Backend.Application.Features.Budgets.Months.Helpers;
@@ -42,15 +38,15 @@ public sealed class StartBudgetMonthCommandHandler
         var req = cmd.Request;
 
         if (!YearMonthUtil.TryParse(req.TargetYearMonth, out _, out _))
-            return Result<BudgetMonthsStatusDto?>.Failure(Errors.BudgetMonth.InvalidYearMonth);
+            return Result<BudgetMonthsStatusDto?>.Failure(BudgetMonth.InvalidYearMonth);
 
         var targetYm = YearMonthUtil.Normalize(req.TargetYearMonth);
 
         if (req.CarryOverMode is not (BudgetMonthCarryOverModes.None or BudgetMonthCarryOverModes.Full or BudgetMonthCarryOverModes.Custom))
-            return Result<BudgetMonthsStatusDto?>.Failure(Errors.BudgetMonth.InvalidCarryMode);
+            return Result<BudgetMonthsStatusDto?>.Failure(BudgetMonth.InvalidCarryMode);
 
         if (req.CarryOverMode == BudgetMonthCarryOverModes.None && req.CarryOverAmount != 0m)
-            return Result<BudgetMonthsStatusDto?>.Failure(Errors.BudgetMonth.InvalidCarryAmount);
+            return Result<BudgetMonthsStatusDto?>.Failure(BudgetMonth.InvalidCarryAmount);
 
         var budgetId = await _months.GetBudgetIdByPersoidAsync(cmd.Persoid, ct);
         if (budgetId is null) return Result<BudgetMonthsStatusDto?>.Success(null);
@@ -77,15 +73,15 @@ public sealed class StartBudgetMonthCommandHandler
         {
             var targetDiff = YearMonthUtil.MonthsBetween(open.YearMonth, targetYm);
             if (targetDiff < 0)
-                return Result<BudgetMonthsStatusDto?>.Failure(Errors.BudgetMonth.InvalidTargetMonth);
+                return Result<BudgetMonthsStatusDto?>.Failure(BudgetMonth.InvalidTargetMonth);
         }
 
         if (open is not null && !req.ClosePreviousOpenMonth && open.YearMonth != targetYm)
-            return Result<BudgetMonthsStatusDto?>.Failure(Errors.BudgetMonth.OpenMonthExists);
+            return Result<BudgetMonthsStatusDto?>.Failure(BudgetMonth.OpenMonthExists);
 
         var existingTarget = await _months.GetMonthAsync(budgetId.Value, targetYm, ct);
         if (existingTarget is not null && existingTarget.Status == BudgetMonthStatuses.Closed)
-            return Result<BudgetMonthsStatusDto?>.Failure(Errors.BudgetMonth.MonthIsClosed);
+            return Result<BudgetMonthsStatusDto?>.Failure(BudgetMonth.MonthIsClosed);
 
         decimal previousFinalBalance = 0m;
 

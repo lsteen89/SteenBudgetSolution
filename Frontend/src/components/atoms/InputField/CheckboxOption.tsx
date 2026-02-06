@@ -24,7 +24,7 @@ const CheckboxOption: React.FC<CheckboxOptionProps> = ({ id, label, ...props }) 
         className="h-5 w-5 rounded border-gray-300 text-lime-500 focus:ring-lime-400 bg-transparent"
         {...props} // Spreads other props like 'checked', 'onChange', 'value', etc.
       />
-      <span className="text-white font-medium">{label}</span>
+      <span className="text-wizard-text font-medium">{label}</span>
     </label>
   );
 };

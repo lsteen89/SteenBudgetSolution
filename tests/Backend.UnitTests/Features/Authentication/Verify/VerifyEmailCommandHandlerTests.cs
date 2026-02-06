@@ -9,7 +9,7 @@ using Backend.Application.Features.Commands.Auth.VerifyEmail;
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Domain.Entities.Auth;
-using Backend.Domain.Users;
+using Backend.Domain.Errors.User;
 
 // Domain model
 using UserModel = Backend.Domain.Entities.User.UserModel;

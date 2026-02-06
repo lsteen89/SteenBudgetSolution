@@ -1,6 +1,6 @@
 using MediatR;
 using Backend.Domain.Shared;
-using Backend.Domain.Users;
+using Backend.Domain.Errors.User;
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Application.Abstractions.Infrastructure.Email;
 using Backend.Application.Abstractions.Infrastructure.System;

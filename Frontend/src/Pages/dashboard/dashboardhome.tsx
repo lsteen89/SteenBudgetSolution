@@ -10,22 +10,37 @@ import LoadingScreen from "@components/molecules/feedback/LoadingScreen";
 import CenteredContainer from "@components/atoms/container/CenteredContainer";
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useAuthStore } from '@/stores/Auth/authStore';
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { useWizardSaveQueue } from "@/stores/Wizard/wizardSaveQueue";
+import { useWizardSessionStore } from "@/stores/Wizard/wizardSessionStore";
+
 
 const SetupWizard = lazy(() => import("@/components/organisms/overlays/wizard/SetupWizard"));
 
 const Dashboard: React.FC = () => {
+
   const auth = useAuth();
   const navigate = useNavigate();
-  const location = useLocation(); // <-- add
+  const location = useLocation();
 
   const firstLogin = useAuthStore((s) => s.user?.firstLogin);
 
   const [isWizardOpen, setIsWizardOpen] = useState(false);
 
+  const clearQueue = useWizardSaveQueue((s) => s.clearQueue);
+  const clearWizardSession = useWizardSessionStore((s) => s.clear);
+  const wizardSessionId = useWizardSessionStore((s) => s.wizardSessionId);
+
   // prevents reopening if something re-renders while param still exists
   const openedFromQueryRef = useRef(false);
 
-  // ✅ Open wizard ONLY via URL param
+  useEffect(() => {
+    if (!wizardSessionId) {
+      clearQueue();
+    }
+  }, [wizardSessionId, clearQueue]);
+
+  // Open wizard ONLY via URL param
   useEffect(() => {
     if (auth.isLoading || !auth.user) return;
 
@@ -83,22 +98,23 @@ const Dashboard: React.FC = () => {
             className="z-[9999]"
           >
             <Suspense fallback={<LoadingScreen />}>
-              <SetupWizard
-                onClose={() => {
-                  setIsWizardOpen(false);
-                  openedFromQueryRef.current = false; // allow opening again later
-                }}
-              />
+              <TooltipProvider>
+                <SetupWizard
+                  onClose={() => {
+                    setIsWizardOpen(false);
+                    openedFromQueryRef.current = false;
+
+                    clearQueue();         // kill stale payloads
+                    clearWizardSession(); // kill session
+                  }}
+                />
+              </TooltipProvider>
             </Suspense>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <img
-        src={DashboardBirdBackground}
-        alt="Dashboard Background"
-        className="fixed bottom-0 right-0 sm:w-[150px] sm:h-auto md:w-auto md:h-auto lg:w-[400px] z-[-10] pointer-events-none"
-      />
+
     </PageContainer>
   );
 };

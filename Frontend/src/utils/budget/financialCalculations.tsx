@@ -1,4 +1,4 @@
-import { Goal } from '@/types/Wizard/goal';
+import { Goal } from '@/types/Wizard/Shared/goal';
 
 /// --- Financial Calculations for Budgeting and Savings Goals ---
 /// This module provides various financial calculations related to budgeting and savings goals.

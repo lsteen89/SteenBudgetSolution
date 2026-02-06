@@ -1,6 +1,7 @@
 using Backend.Domain.Shared;
 using Backend.Application.Abstractions.Messaging;
 using Backend.Application.Abstractions.Infrastructure.Data;
+using Application.Features.Wizard.SaveStep.Policy;
 
 namespace Backend.Application.Features.Wizard.SaveStep;
 
@@ -21,6 +22,14 @@ public sealed class SaveWizardStepCommandHandler : ICommandHandler<SaveWizardSte
     {
         _logger.LogInformation("Saving wizard step {StepNumber}.{SubStepNumber} for session {SessionId}",
             request.StepNumber, request.SubStepNumber, request.SessionId);
+
+
+        if (WizardPersistPolicy.IsSummary(request.StepNumber, request.SubStepNumber))
+        {
+            _logger.LogDebug("Step {StepNumber}.{SubStepNumber} is a summary step. Skipping validation and persistence.",
+                request.StepNumber, request.SubStepNumber);
+            return Result.Success();
+        }
         // 1. Find the correct validator strategy for this step
         var validator = _validators.FirstOrDefault(v => v.StepNumber == request.StepNumber);
         if (validator is null)

@@ -2,8 +2,8 @@ import React, { forwardRef, useImperativeHandle, useRef } from 'react';
 import GlassPane from '@components/layout/GlassPane';
 import DataTransparencySection from '@components/organisms/overlays/wizard/SharedComponents/Pages/DataTransparencySection';
 import StepBudgetSavingsContainer, { StepBudgetSavingsContainerRef } from './Components/StepBudgetSavingsContainer';
-import { Step3FormValues } from '@/types/Wizard/Step3FormValues';
-import { StepBudgetSavingsRef } from '@/types/Wizard/StepBudgetSavingsRef';
+import { Step3FormValues } from '@/types/Wizard/Step3_Savings/Step3FormValues';
+import { StepBudgetSavingsRef } from '@/types/Wizard/Step3_Savings/StepBudgetSavingsRef';
 
 interface StepBudgetSavingsProps {
   wizardSessionId: string;
@@ -21,6 +21,7 @@ interface StepBudgetSavingsProps {
   initialSubStep: number;
   onSubStepChange?: (newSub: number) => void;
   onValidationError?: () => void;
+
 }
 
 const StepBudgetSavings = forwardRef<StepBudgetSavingsRef, StepBudgetSavingsProps>((props, ref) => {
@@ -38,28 +39,31 @@ const StepBudgetSavings = forwardRef<StepBudgetSavingsRef, StepBudgetSavingsProp
     hasNextSub: () => containerRef.current?.hasNextSub?.() ?? false,
     isSaving: () => containerRef.current?.isSaving?.() ?? false,
     hasSubSteps: () => true,
+    setSubStep: (sub: number) => containerRef.current?.setSubStep?.(sub),
   }), []);
 
   return (
-    <div>
-      <GlassPane>
-       <StepBudgetSavingsContainer
-          ref={containerRef}
-          wizardSessionId={props.wizardSessionId}
-          onSaveStepData={props.onSaveStepData}
-          stepNumber={props.stepNumber}
-          initialData={props.initialData}
-          onNext={props.onNext}
-          onPrev={props.onPrev}
-          loading={props.loading}
-          initialSubStep={props.initialSubStep}
-          onSubStepChange={props.onSubStepChange}
-          onValidationError={props.onValidationError}
-        />
-        <DataTransparencySection />
-      </GlassPane>
+    <div key={props.wizardSessionId}>
+
+      <StepBudgetSavingsContainer
+        ref={containerRef}
+        wizardSessionId={props.wizardSessionId}
+        onSaveStepData={props.onSaveStepData}
+        stepNumber={props.stepNumber}
+        initialData={props.initialData}
+        onNext={props.onNext}
+        onPrev={props.onPrev}
+        loading={props.loading}
+        initialSubStep={props.initialSubStep}
+        onSubStepChange={props.onSubStepChange}
+        onValidationError={props.onValidationError}
+
+      />
+
+
     </div>
   );
+
 });
 
 export default StepBudgetSavings;

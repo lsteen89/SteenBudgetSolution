@@ -10,7 +10,7 @@ using Backend.Application.Features.Commands.Auth.Register;
 using Backend.Application.Features.Events.Register;
 using Backend.Application.Abstractions.Infrastructure.Security;
 using Backend.Application.Abstractions.Infrastructure.Data;
-using Backend.Domain.Users;
+using Backend.Domain.Errors.User;
 using Backend.Domain.Entities.User;
 
 namespace Backend.Tests.UnitTests.Features.Authentication.Register;

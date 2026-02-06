@@ -2,6 +2,7 @@ using Backend.Domain.Shared;
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Application.Features.Wizard.Finalization.Abstractions;
 using Backend.Application.Features.Wizard.Finalization.Processing.Processors;
+using System.Text.Json.Nodes;
 
 namespace Backend.Application.Features.Wizard.Finalization.Orchestration;
 
@@ -24,14 +25,24 @@ public sealed class WizardStepOrchestrator : IWizardStepOrchestrator
         if (!wizardData.Any())
             return Result.Failure(new Error("Wizard.NoData", "No wizard data found."));
 
-        // latest per step, then run in step order
-        var latest = wizardData
+        // 1) pick latest row per (step, substep)
+        var latestPerSubStep = wizardData
             .GroupBy(x => (x.StepNumber, x.SubStep))
-            .Select(g => g.OrderByDescending(x => x.UpdatedAt).First())
-            .OrderBy(x => x.StepNumber)
-            .ThenBy(x => x.SubStep);
+            .Select(g => g.OrderByDescending(x => x.UpdatedAt).First());
 
-        foreach (var x in latest)
+        // 2) merge substeps into one payload per step
+        var mergedPerStep = latestPerSubStep
+            .GroupBy(x => x.StepNumber)
+            .Select(g => new
+            {
+                StepNumber = g.Key,
+                StepData = MergeJsonObjects(
+                    g.OrderBy(x => x.SubStep).Select(x => x.StepData)
+                )
+            })
+            .OrderBy(x => x.StepNumber);
+
+        foreach (var x in mergedPerStep)
         {
             var processor = _processors.FirstOrDefault(p => p.StepNumber == x.StepNumber);
             if (processor is null)
@@ -43,6 +54,22 @@ public sealed class WizardStepOrchestrator : IWizardStepOrchestrator
         }
 
         return Result.Success();
+    }
+
+    private static string MergeJsonObjects(IEnumerable<string> jsonParts)
+    {
+        var merged = new JsonObject();
+
+        foreach (var json in jsonParts)
+        {
+            if (string.IsNullOrWhiteSpace(json)) continue;
+            if (JsonNode.Parse(json) is not JsonObject obj) continue;
+
+            foreach (var kv in obj)
+                merged[kv.Key] = kv.Value?.DeepClone(); // last write wins
+        }
+
+        return merged.ToJsonString();
     }
 }
 

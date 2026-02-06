@@ -19,7 +19,7 @@ internal static class DbSeeds
     // Reference IDs are deterministic (good). Keep them in one place.
     private static readonly (string Id, string Name)[] DefaultExpenseCategories =
     [
-        ("2a9a1038-6ff1-4f2b-bd73-f2b9bb3f4c21", "Rent"),
+        ("2a9a1038-6ff1-4f2b-bd73-f2b9bb3f4c21", "Housing"),
         ("5d5c51aa-9f05-4d4c-8ff1-0a61d6c9cc10", "Food"),
         ("5eb2896c-59f9-4a18-8c84-4c2a1659de80", "Transport"),
         ("e47e5c5d-4c97-4d87-89aa-e7a86b8f5ac0", "Clothing"),

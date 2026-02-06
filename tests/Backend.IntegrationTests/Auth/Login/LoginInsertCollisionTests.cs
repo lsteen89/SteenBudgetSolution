@@ -17,7 +17,6 @@ using Backend.Application.Features.Authentication.Login;
 using Backend.Application.Features.Authentication;
 using Backend.Application.DTO.Auth;
 using Backend.Domain.Shared;
-using Backend.Domain.Users;
 using Backend.Settings;
 using Backend.IntegrationTests.Shared;
 using Backend.Domain.Entities.User;

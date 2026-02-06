@@ -1,3 +1,6 @@
+/*
+This will be phased out in favor of IcedCustomItemRow.tsx
+*/
 import React from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import { motion } from "framer-motion";
@@ -7,6 +10,7 @@ import get from "lodash/get";
 import TextInput from "@components/atoms/InputField/TextInput";
 import FormattedNumberInput from "@components/atoms/InputField/FormattedNumberInput";
 import { idFromPath } from "@/utils/idFromPath";
+import { cn } from "@/utils/twMerge";
 
 interface CustomItemRowProps {
   /** Base path to the array in form state, e.g. "subscriptions.customSubscriptions" */
@@ -53,7 +57,7 @@ const CustomItemRow: React.FC<CustomItemRowProps> = ({
       transition={{ type: "spring", stiffness: 300, damping: 25 }}
       onAnimationComplete={() => { if (isDeleting) onRemove(); }}
       className="flex flex-col md:flex-row items-center gap-3 p-3 bg-white/5 rounded-lg overflow-hidden"
- >
+    >
       <div className="flex-grow w-full md:w-auto">
         {/* The 'name' field was already perfect. It stays the same. */}
         <Controller
@@ -95,7 +99,14 @@ const CustomItemRow: React.FC<CustomItemRowProps> = ({
         type="button"
         onClick={onStartDelete}
         aria-label="Ta bort"
-        className="p-2 bg-red-600 hover:bg-red-700 focus:ring-2 focus:ring-offset-2 focus:ring-red-500 text-white rounded-lg flex items-center justify-center self-center md:self-auto"
+        className={cn(
+          "grid h-9 w-9 place-items-center rounded-xl",
+          "bg-wizard-surface border border-wizard-stroke/20",
+          "text-wizard-text/60 shadow-sm shadow-black/5",
+          "transition-colors",
+          "hover:border-wizard-warning/30 hover:bg-wizard-warning/10 hover:text-wizard-warning",
+          "focus:outline-none focus-visible:ring-2 focus-visible:ring-wizard-stroke/45"
+        )}
       >
         <Trash2 size={18} />
       </button>

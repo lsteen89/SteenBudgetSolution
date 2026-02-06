@@ -30,6 +30,7 @@ public sealed class SavingsStepProcessor : IWizardStepProcessor
 
             // processor is now pure: validate + forward typed DTO
             return await savingsTarget.ApplySavingsAsync(dto, ct);
+
         }
         catch (JsonException ex)
         {

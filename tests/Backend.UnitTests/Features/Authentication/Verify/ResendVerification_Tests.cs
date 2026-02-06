@@ -12,13 +12,14 @@ using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Application.Options.Auth;
 using Backend.Application.Options.URL;
-using Backend.Domain.Users;
+using Backend.Domain.Errors.User;
 using Backend.Domain.Shared;
 using Backend.Settings.Email;
 using Microsoft.Extensions.Logging;
 using Backend.Domain.Entities.Auth;
 
 namespace Backend.UnitTests.Features.Authentication.Verify;
+
 public class ResendVerification_Tests
 {
     [Fact]

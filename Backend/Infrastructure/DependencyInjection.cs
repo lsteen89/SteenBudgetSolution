@@ -32,6 +32,7 @@ using Backend.Settings.Email;
 using Backend.Infrastructure.Data.Repositories;
 using Backend.Infrastructure.Repositories.Budget.BudgetDashboard;
 using Backend.Infrastructure.Repositories.Budget.Months;
+using Backend.Infrastructure.Data.Sql.Helpers.UnitOfWork;
 
 namespace Backend.Infrastructure;
 

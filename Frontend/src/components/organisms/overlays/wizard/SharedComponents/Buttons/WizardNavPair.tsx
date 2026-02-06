@@ -1,7 +1,14 @@
-import React from 'react';
-import clsx from 'clsx';
-import { ChevronLeft, ChevronRight, Rewind, FastForward } from 'lucide-react';
-import GhostIconButton from '@components/atoms/buttons/GhostIconButton';
+import React from "react";
+import clsx from "clsx";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  ArrowRight,
+} from "lucide-react";
+import GhostIconButton from "@components/atoms/buttons/GhostIconButton";
+import { useWizardNavEvents } from "@/components/organisms/overlays/wizard/SharedComponents/Nav/WizardNavEvents";
 
 export interface WizardNavPairProps {
   step: number;
@@ -10,11 +17,9 @@ export interface WizardNavPairProps {
   hasPrev: boolean;
   hasNext: boolean;
 
-  // The component now needs to know the sub-step status specifically.
   hasPrevSub: boolean;
   hasNextSub: boolean;
 
-  // ... other props are the same
   connectionError: boolean;
   initLoading: boolean;
   transitionLoading: boolean;
@@ -22,6 +27,10 @@ export interface WizardNavPairProps {
   showShakeAnimation: boolean;
   isSaving: boolean;
   isActionBlocked: boolean;
+
+  /** If you mean "first screen", keep this true. Default: step === 0 */
+  showStartOnFirstStep?: boolean;
+  hideNext?: boolean;
 }
 
 const WizardNavPair: React.FC<WizardNavPairProps> = ({
@@ -30,7 +39,6 @@ const WizardNavPair: React.FC<WizardNavPairProps> = ({
   nextStep,
   hasPrev,
   hasNext,
-  // De-structure the new props
   hasPrevSub,
   hasNextSub,
   connectionError,
@@ -40,14 +48,15 @@ const WizardNavPair: React.FC<WizardNavPairProps> = ({
   showShakeAnimation,
   isSaving,
   isActionBlocked,
+  showStartOnFirstStep = true,
+  hideNext = false
 }) => {
+
+  const nav = useWizardNavEvents();
+
   const isLocked =
     isSaving ||
-    (!isDebugMode && (
-      initLoading ||
-      transitionLoading ||
-      (connectionError && step === 0)
-    ));
+    (!isDebugMode && (initLoading || transitionLoading || (connectionError && step === 0)));
 
   const disablePrev = isLocked || !hasPrev || isActionBlocked;
   const disableNext = isLocked || !hasNext || isActionBlocked;
@@ -55,36 +64,54 @@ const WizardNavPair: React.FC<WizardNavPairProps> = ({
   const isPrevMajor = !hasPrevSub;
   const isNextMajor = !hasNextSub;
 
-  const IconPrev = isPrevMajor ? Rewind : ChevronLeft;
-  const IconNext = isNextMajor ? FastForward : ChevronRight;
+  // Major = double chevrons, Sub = single chevron
+  const IconPrev = isPrevMajor ? ChevronsLeft : ChevronLeft;
+  const IconNext = isNextMajor ? ChevronsRight : ChevronRight;
 
-  const labelPrev = isPrevMajor
-    ? 'Föregående huvudsteg'
-    : 'Föregående delsteg';
-
-  const labelNext = isNextMajor
-    ? 'Nästa huvudsteg'
-    : 'Nästa delsteg';
+  const labelPrev = isPrevMajor ? "Föregående huvudsteg" : "Föregående delsteg";
+  const labelNext = isNextMajor ? "Nästa huvudsteg" : "Nästa delsteg";
 
   const handlePrevClick = () => {
-    (document.activeElement as HTMLElement)?.blur();
+    (document.activeElement as HTMLElement | null)?.blur?.();
     prevStep();
   };
 
   const handleNextClick = () => {
-    (document.activeElement as HTMLElement)?.blur();
+    (document.activeElement as HTMLElement | null)?.blur?.();
     nextStep();
   };
 
-  const btnClass = (disabled: boolean) => clsx(disabled && 'opacity-50 cursor-not-allowed');
-  const sizeClass = 'w-12 h-12 md:w-14 md:h-14';
-  const hoverClass = !showShakeAnimation && 'hover:bg-customBlue2 hover:scale-105 transition-transform duration-150';
+  const sizeClass = "w-12 h-12 md:w-14 md:h-14";
+  const hoverClass =
+    !showShakeAnimation && "hover:bg-customBlue2 hover:scale-105 transition-transform duration-150";
+  const btnClass = (disabled: boolean) =>
+    clsx(disabled && "opacity-50 cursor-not-allowed", "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-darkLimeGreen/50");
 
-  const isSingleNextMajor = hasNext && !hasPrev && isNextMajor;
+  const iconClass = (disabled: boolean) =>
+    clsx(disabled ? "text-darkLimeGreen/40" : "text-darkLimeGreen");
+
+  // Your “Start” rule (I assume first step is step === 0)
+  const isFirst = step === 0;
+  const showStart = showStartOnFirstStep && isFirst && !hasPrev && hasNext;
+
+  // If it’s the only control, center it (works if parent is flex)
+  const startWrapperClass = "flex-1 flex justify-center";
+  const fireNextHoverStart = () => {
+    if (!disableNext) nav.emit("nextHoverStart");
+  };
+  const fireNextHoverEnd = () => nav.emit("nextHoverEnd");
+
+  const fireNextClick = () => {
+    if (disableNext) return;
+    nav.emit("nextClick");
+    handleNextClick();
+  };
+
+  console.log("navpair: hidenext:" + hideNext);
 
   return (
     <>
-      {hasPrev && (
+      {hasPrev && !showStart && (
         <GhostIconButton
           onClick={handlePrevClick}
           disabled={disablePrev}
@@ -92,19 +119,50 @@ const WizardNavPair: React.FC<WizardNavPairProps> = ({
           shake={false}
           className={clsx(btnClass(disablePrev), sizeClass, hoverClass)}
         >
-          <IconPrev size={24} className="text-darkLimeGreen" />
+          <IconPrev size={24} className={iconClass(disablePrev)} />
         </GhostIconButton>
       )}
-      {hasNext && (
-        <GhostIconButton
-          onClick={handleNextClick}
-          disabled={disableNext}
-          aria-label={labelNext}
-          shake={showShakeAnimation}
-          className={clsx(btnClass(disableNext), sizeClass, hoverClass, isSingleNextMajor && 'ml-auto')}
-        >
-          <IconNext size={24} className="text-darkLimeGreen" />
-        </GhostIconButton>
+
+      {showStart ? (
+        <div className={startWrapperClass}>
+          <button
+            type="button"
+            onMouseEnter={fireNextHoverStart}
+            onMouseLeave={fireNextHoverEnd}
+            onClick={fireNextClick}
+            disabled={disableNext}
+            aria-label="Starta guiden"
+            className={clsx(
+              "inline-flex items-center gap-3 rounded-full",
+              "px-14 py-4 md:px-14 md:py-4",          // <-- bigger
+              "text-base md:text-lg font-semibold",  // <-- bigger
+              "bg-wizard-surface border border-wizard-stroke/20",
+              "text-darkLimeGreen",
+              "shadow-sm",
+              "hover:bg-wizard-surface/80 hover:scale-[1.03] transition-transform duration-150",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-darkLimeGreen/50",
+              "shadow-[0_0_0_1px_rgba(120,255,120,0.15),0_10px_30px_rgba(0,0,0,0.18)]",
+              disableNext && "opacity-50 cursor-not-allowed hover:scale-100"
+            )}
+          >
+            Starta
+            <ArrowRight size={22} className={disableNext ? "text-darkLimeGreen/40" : "text-darkLimeGreen"} />
+          </button>
+        </div>
+      ) : (
+        !hideNext && hasNext && (
+          <GhostIconButton
+            onMouseEnter={fireNextHoverStart}
+            onMouseLeave={fireNextHoverEnd}
+            onClick={fireNextClick}
+            disabled={disableNext}
+            aria-label={labelNext}
+            shake={showShakeAnimation}
+            className={clsx(btnClass(disableNext), sizeClass, hoverClass, !hasPrev && "ml-auto")}
+          >
+            <IconNext size={24} className={iconClass(disableNext)} />
+          </GhostIconButton>
+        )
       )}
     </>
   );

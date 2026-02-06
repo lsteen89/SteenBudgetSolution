@@ -1,9 +1,17 @@
 import React, { forwardRef, ChangeEvent, FocusEvent, useMemo } from "react";
 import type { CurrencyCode } from "@/utils/money/currency";
 import { formatMoneyPartsV2 } from "@/utils/money/moneyV2";
+import { cn } from "@/lib/utils";
 
 interface NumberInputProps {
   label?: string;
+
+  /** Right-side label action (e.g., tooltip icon). */
+  labelRight?: React.ReactNode;
+
+  /** Full custom label row (advanced). If set, you render everything yourself. */
+  labelNode?: React.ReactNode;
+
   value?: string | number;
   onChange?: (e: ChangeEvent<HTMLInputElement>) => void;
   onBlur?: (e: FocusEvent<HTMLInputElement>) => void;
@@ -22,6 +30,8 @@ const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
   (
     {
       label,
+      labelRight,
+      labelNode,
       value,
       onChange,
       onBlur,
@@ -43,42 +53,73 @@ const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
     }, [suffix, currency, locale]);
 
     const isControlled = value !== undefined;
+    const inputId = id ?? name;
+
+    const allowDecimalInput = (s: string) => s.replace(/[^\d.,\s]/g, "");
+
+    const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+      const cleaned = allowDecimalInput(e.target.value);
+      if (cleaned !== e.target.value) e.target.value = cleaned;
+      onChange?.(e);
+    };
+
+    const hasError = Boolean(error);
 
     return (
-      <div className="flex flex-col gap-1.5 w-full">
-        {label && (
-          <label htmlFor={id} className="text-sm font-bold text-gray-900 ml-1">
-            {label}
-          </label>
-        )}
+      <div className="flex w-full flex-col gap-1.5">
+        {/* Label row */}
+        {labelNode ? (
+          <div className="flex items-center justify-between gap-3">{labelNode}</div>
+        ) : label ? (
+          <div className="flex items-center justify-between gap-3">
+            <label
+              htmlFor={inputId}
+              className="text-sm font-semibold text-wizard-text/80"
+            >
+              {label}
+            </label>
+
+            {labelRight ? <div className="shrink-0">{labelRight}</div> : null}
+          </div>
+        ) : null}
 
         <div className="relative">
           <input
             ref={ref}
-            type="number"
-            step={step}
+            id={inputId}
             name={name}
-            id={id}
+            type="text"
+            inputMode="decimal"
+            step={step}
             placeholder={placeholder}
-            onChange={onChange}
+            onChange={handleChange}
             onBlur={onBlur}
-            // ✅ Only set `value` in controlled mode
             {...(isControlled ? { value } : {})}
-            className={`
-              block w-full p-4 rounded-2xl transition-all duration-200
-              bg-white/60 backdrop-blur-md border-2 outline-none
-              shadow-sm text-gray-900 placeholder:text-gray-400
-              focus:ring-2 focus:ring-darkLimeGreen/20
-              ${resolvedSuffix ? "pr-16" : ""}
-              ${error
-                ? "border-red-500 focus:border-red-500"
-                : "border-gray-200 focus:border-darkLimeGreen"}
-            `}
+            className={cn(
+              [
+                "w-full rounded-2xl px-4 py-3",
+                "bg-wizard-surface border",
+                "text-wizard-text placeholder:text-wizard-text/40",
+                "shadow-[0_10px_28px_rgba(0,0,0,0.10)]",
+                "transition-colors",
+                "focus:outline-none focus:ring-2",
+              ].join(" "),
+              resolvedSuffix ? "pr-16" : "",
+              hasError
+                ? "border-wizard-warning/70 focus:border-wizard-warning/70 focus:ring-wizard-warning/25"
+                : "border-wizard-stroke/20 hover:border-wizard-stroke/35 focus:border-wizard-stroke/40 focus:ring-wizard-stroke/45"
+            )}
           />
 
           {resolvedSuffix && (
             <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-              <span className="text-xs font-bold text-gray-500 bg-white/70 border border-gray-200 rounded-xl px-2 py-1">
+              <span
+                className={cn(
+                  "rounded-xl px-2 py-1 text-xs font-bold",
+                  "bg-wizard-surface border border-wizard-stroke/20",
+                  "text-wizard-text/70 shadow-sm shadow-black/5"
+                )}
+              >
                 {resolvedSuffix}
               </span>
             </div>
@@ -86,7 +127,7 @@ const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
         </div>
 
         {error && (
-          <span className="text-xs font-bold text-red-500 ml-2 animate-in fade-in slide-in-from-top-1">
+          <span className="ml-2 animate-in fade-in slide-in-from-top-1 text-xs font-bold text-wizard-warning">
             {error}
           </span>
         )}

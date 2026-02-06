@@ -11,7 +11,9 @@ export function useWizardFinalizationPreviewQuery(sessionId: string | null | und
     queryKey: ["wizardFinalizationPreview", sessionId],
     queryFn: () => fetchWizardFinalizationPreview(sessionId!),
     enabled: (opts?.enabled ?? true) && !!sessionId,
-    staleTime: 0, // preview should always reflect latest wizard state
+    staleTime: 0,
+    gcTime: 60_000,
+    placeholderData: (prev) => prev,
     retry: (count, err) => {
       const status = (err as AxiosError)?.response?.status;
       if (status && status >= 400 && status < 500) return false; // don't retry 4xx

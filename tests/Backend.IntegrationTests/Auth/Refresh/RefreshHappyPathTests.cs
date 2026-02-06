@@ -14,7 +14,7 @@ using Backend.Application.Abstractions.Infrastructure.Security;
 using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Application.Common.Security;
 using Backend.Application.Features.Commands.Auth.RefreshToken;
-using Backend.Domain.Users;
+
 using Backend.IntegrationTests.Shared;
 using Backend.Infrastructure.Security; // TokenGenerator
 using Backend.Settings;

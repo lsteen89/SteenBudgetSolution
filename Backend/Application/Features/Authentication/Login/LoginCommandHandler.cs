@@ -5,11 +5,11 @@ using Microsoft.Extensions.Options;
 using Backend.Settings;
 using Backend.Infrastructure.WebSockets;
 using Backend.Domain.Shared;
-using Backend.Domain.Users;
 using Backend.Application.DTO.Auth;
 using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Infrastructure.Entities.Tokens;
 using Backend.Infrastructure.Security;
+using Backend.Domain.Errors.User;
 
 namespace Backend.Application.Features.Authentication.Login;
 

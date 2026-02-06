@@ -10,9 +10,10 @@ using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Domain.Shared;
 using Microsoft.Extensions.Logging;
 using Backend.Domain.Entities.Auth;
-using Backend.Domain.Users;
+using Backend.Domain.Errors.User;
 
 namespace Backend.UnitTests.Features.Authentication.Verify;
+
 public class VerifyEmail_Edge_Tests
 {
     [Fact]

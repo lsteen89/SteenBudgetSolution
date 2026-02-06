@@ -5,6 +5,8 @@ using Microsoft.Extensions.Options;
 using Backend.Settings;
 using Backend.Application.Features.Budgets.Dashboard;
 using Backend.Application.Abstractions.Infrastructure.System;
+using Backend.Domain.Entities.Budget.Debt;
+
 namespace Backend.Infrastructure.Repositories.Budget.BudgetDashboard;
 
 public sealed partial class BudgetDashboardRepository : SqlBase, IBudgetDashboardRepository
@@ -115,16 +117,23 @@ public sealed partial class BudgetDashboardRepository : SqlBase, IBudgetDashboar
             householdMembers = memberRows.Select(x => new DashboardIncomeItemRm(x.Id, x.Name, x.AmountMonthly)).ToArray();
         }
 
+        var debtOverview = new DashboardDebtOverviewRm(
+            TotalDebtBalance: totals.TotalDebtBalance,
+            TotalMonthlyPayments: debts.Sum(d => d.MinPayment ?? 0m),
+            RepaymentStrategy: RepaymentStrategy.Unknown,
+            Debts: debts
+        );
+
         return new BudgetDashboardReadModel(
-            budgetId.Value,
-            totals,
-            categories,
-            recurring,
-            debts,
-            savings,
-            subs,
-            sideHustles,
-            householdMembers
+            BudgetId: budgetId.Value,
+            Totals: totals,
+            Categories: categories,
+            RecurringExpenses: recurring,
+            Debt: debtOverview,
+            Savings: savings,
+            Subscriptions: subs,
+            SideHustles: sideHustles,
+            HouseholdMembers: householdMembers
         );
     }
 }

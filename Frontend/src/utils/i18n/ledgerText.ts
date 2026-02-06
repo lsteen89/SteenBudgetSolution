@@ -1,5 +1,4 @@
-export type AppLocale = "sv-SE" | "en-US";
-
+import type { AppLocale } from "@/utils/i18n/locale";
 // 1) Define the shape (keys) once
 type LedgerText = {
     show: string;
@@ -33,7 +32,7 @@ type LedgerText = {
     monthlyResult: string;
 };
 
-export const sv = {
+export const svLedgerText = {
     show: "Visa fullständig detaljsummering",
     hide: "Dölj detaljerad summering",
 
@@ -65,7 +64,7 @@ export const sv = {
     monthlyResult: "Månadsresultat",
 } satisfies LedgerText;
 
-export const en = {
+export const enLedgerText = {
     show: "Show detailed breakdown",
     hide: "Hide detailed breakdown",
 
@@ -99,5 +98,5 @@ export const en = {
 
 // 2) Translator helper
 export function tLedger<K extends keyof LedgerText>(key: K, locale: AppLocale) {
-    return (locale === "sv-SE" ? sv : en)[key];
+    return (locale === "sv-SE" ? svLedgerText : enLedgerText)[key];
 }

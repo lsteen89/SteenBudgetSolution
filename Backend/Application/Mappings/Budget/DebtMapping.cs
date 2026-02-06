@@ -16,9 +16,7 @@ namespace Backend.Application.Mappings.Budget
                 .ToList() ?? new List<Debt>();
 
             // Get the strategy from the summary.
-            var strategy = dto.Summary is null
-                ? null
-                : new RepaymentStrategy(dto.Summary.RepaymentStrategy ?? "default-value");
+            var strategy = dto.Summary?.RepaymentStrategy ?? RepaymentStrategy.Unknown;
 
             // Return both pieces
             return new WizardDebtResult(debtEntities, strategy);

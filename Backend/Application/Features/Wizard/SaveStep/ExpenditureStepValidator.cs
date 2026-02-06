@@ -3,6 +3,7 @@ using Backend.Domain.Shared;
 using FluentValidation;
 using System.Text.Json;
 using Backend.Common.Utilities;
+using Application.Features.Wizard.SaveStep.Sanitizers;
 
 namespace Backend.Application.Features.Wizard.SaveStep;
 
@@ -23,8 +24,10 @@ public class ExpenditureStepValidator : IWizardStepValidator
             {
                 return Result<string>.Failure(new Error("Validation.Failed", "Step data cannot be null."));
             }
+            // Sanitize the DTO to ensure data integrity
+            dto = ExpenditureSanitizer.Sanitize(dto); // normalize first
 
-            _validator.ValidateAndThrow(dto);
+            _validator.ValidateAndThrow(dto);         // then validate
             // Use sparse serialization to omit nulls
             var json = JsonHelper.SerializeSparse(dto);
             return Result<string>.Success(json);

@@ -3,6 +3,7 @@ using Backend.Domain.Shared;
 using FluentValidation;
 using System.Text.Json;
 using Backend.Common.Utilities;
+using Application.Features.Wizard.SaveStep.Sanitizers;
 
 namespace Backend.Application.Features.Wizard.SaveStep;
 
@@ -19,16 +20,18 @@ public class IncomeStepValidator : IWizardStepValidator
     {
         try
         {
-            var dto = JsonSerializer.Deserialize<IncomeFormValues>(stepData.ToString()!, JsonHelper.Camel);
+            var dto = JsonSerializer.Deserialize<IncomeFormValues>(
+                stepData.ToString()!, JsonHelper.Camel);
 
             if (dto is null)
-            {
                 return Result<string>.Failure(new Error("Validation.Failed", "Step data cannot be null."));
-            }
+
+            dto = IncomeSanitizer.Sanitize(dto);
 
             _validator.ValidateAndThrow(dto);
 
-            return Result<string>.Success(JsonSerializer.Serialize(dto, JsonHelper.Camel));
+            var json = JsonHelper.SerializeSparse(dto);
+            return Result<string>.Success(json);
         }
         catch (ValidationException ex)
         {

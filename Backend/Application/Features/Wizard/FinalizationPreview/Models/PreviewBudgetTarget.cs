@@ -22,7 +22,7 @@ public sealed class PreviewBudgetTarget
     public Savings? Savings { get; private set; }
 
     public IReadOnlyList<Debt> Debts { get; private set; } = Array.Empty<Debt>();
-    public string? RepaymentStrategy { get; private set; }
+    public RepaymentStrategy RepaymentStrategy { get; private set; } = RepaymentStrategy.Unknown;
 
     public decimal CarryOverAmountMonthly { get; private set; } = 0m;
 
@@ -34,21 +34,41 @@ public sealed class PreviewBudgetTarget
 
     public Task<Result> ApplyExpenditureAsync(ExpenditureData dto, CancellationToken ct)
     {
-        Expense = dto.ToUnifiedExpense(BudgetId);
+        Expense ??= new Expense { BudgetId = BudgetId };
+
+        // 1) This substep "owns" these categories, so we must wipe them first
+        var ownedCategories = Expense.GetOwnedExpenseCategories(dto);
+        Expense.RemoveItemsInCategories(ownedCategories);
+
+        // 2) Add drafts (only amounts > 0 will be added)
+        var drafts = dto.ToExpenseItemDrafts();
+        foreach (var d in drafts)
+            Expense.AddItem(d.CategoryId, d.Name, d.AmountMonthly);
+
         return Task.FromResult(Result.Success());
     }
 
     public Task<Result> ApplySavingsAsync(SavingsData dto, CancellationToken ct)
     {
-        Savings = dto.ToDomain(BudgetId);
+        Savings ??= new Savings { BudgetId = BudgetId };
+
+        Savings.ApplyPatchFrom(dto);
+
         return Task.FromResult(Result.Success());
     }
 
     public Task<Result> ApplyDebtAsync(DebtData dto, CancellationToken ct)
     {
-        var res = dto.ToDomain(BudgetId);
-        Debts = res.Debts;
-        RepaymentStrategy = res.Strategy?.Value;
+        // Only overwrite debts when this payload actually contains debts
+        if (dto.Debts is not null)
+        {
+            var res = dto.ToDomain(BudgetId);
+            Debts = res.Debts;
+        }
+
+        // Only overwrite strategy when present
+        RepaymentStrategy = dto.Summary?.RepaymentStrategy ?? RepaymentStrategy.Unknown;
+
         return Task.FromResult(Result.Success());
     }
 }

@@ -1,9 +1,17 @@
 import * as yup from "yup";
+import { svNumberNullable } from "@/schemas/helpers/wizard/wizardHelpers";
+
+const costOpt = (max: number, msg: string) =>
+  svNumberNullable().max(max, msg);
+
 
 const money = () =>
   yup
     .number()
-    .transform((v, orig) => (orig === "" || orig === null ? undefined : v))
+    .transform((v, orig) => {
+      if (orig === "" || orig === null || orig === undefined) return undefined;
+      return Number.isNaN(v) ? undefined : v;
+    })
     .typeError("Måste vara ett nummer.")
     .min(0, "Belopp kan inte vara negativt.");
 
@@ -45,11 +53,11 @@ export const housingSchema = yup.object({
 
   runningCosts: yup
     .object({
-      electricity: money().max(20000, "El kan inte vara mer än 20 000 kr.").nullable(),
-      heating: money().max(20000, "Uppvärmning kan inte vara mer än 20 000 kr.").nullable(),
-      water: money().max(20000, "Vatten kan inte vara mer än 20 000 kr.").nullable(),
-      waste: money().max(20000, "Sophämtning kan inte vara mer än 20 000 kr.").nullable(),
-      other: money().max(50000, "Övrigt kan inte vara mer än 50 000 kr.").nullable(),
+      electricity: costOpt(20_000, "El kan inte vara mer än 20 000 kr."),
+      heating: costOpt(20_000, "Uppvärmning kan inte vara mer än 20 000 kr."),
+      water: costOpt(20_000, "Vatten kan inte vara mer än 20 000 kr."),
+      waste: costOpt(20_000, "Sophämtning kan inte vara mer än 20 000 kr."),
+      other: costOpt(50_000, "Övrigt kan inte vara mer än 50 000 kr."),
     })
     .default({
       electricity: undefined,

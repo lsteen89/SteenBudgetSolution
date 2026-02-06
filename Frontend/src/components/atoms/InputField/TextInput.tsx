@@ -1,6 +1,7 @@
-import React, { ChangeEvent, FocusEvent, forwardRef, InputHTMLAttributes } from 'react'; // Added InputHTMLAttributes
+import React, { ChangeEvent, FocusEvent, forwardRef, InputHTMLAttributes } from "react";
 
-export interface TextInputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'onBlur' | 'value'> {
+export interface TextInputProps
+  extends Omit<InputHTMLAttributes<HTMLInputElement>, "onChange" | "onBlur" | "value"> {
   value: string;
   onChange: (e: ChangeEvent<HTMLInputElement>) => void;
   placeholder?: string;
@@ -8,8 +9,10 @@ export interface TextInputProps extends Omit<InputHTMLAttributes<HTMLInputElemen
   name?: string;
   id?: string;
   touched?: boolean;
-  onBlur?: (e: FocusEvent<HTMLInputElement>) => void; // Consistent with HTML input
-  className?: string; // Added className prop
+  onBlur?: (e: FocusEvent<HTMLInputElement>) => void;
+
+  className?: string;        // wrapper / input (legacy)
+  inputClassName?: string;   // NEW: actual input styling override
 }
 
 const TextInput = forwardRef<HTMLInputElement, TextInputProps>(
@@ -23,35 +26,32 @@ const TextInput = forwardRef<HTMLInputElement, TextInputProps>(
       name,
       id,
       onBlur,
-      className = "", 
-      ...rest // Spread any other native input props
+      className = "",
+      inputClassName = "",
+      ...rest
     },
     ref
   ) => {
-    const baseClasses = `shadow-md focus:ring-darkLimeGreen focus:border-darkLimeGreen block w-full sm:text-sm rounded-lg p-3 bg-white/60 border backdrop-blur-md`;
+    const baseClasses =
+      "shadow-md focus:ring-darkLimeGreen focus:border-darkLimeGreen block w-full sm:text-sm rounded-lg p-3 bg-white/60 border backdrop-blur-md";
     const errorClasses = error && touched ? "border-red-500" : "border-gray-300";
 
     return (
-      <>
-        <input
-          ref={ref}
-          type="text"
-          name={name}
-          id={id || name}
-          value={value}
-          onChange={onChange}
-          onBlur={onBlur}
-          className={`${baseClasses} ${errorClasses} ${className}`} // Apply base, error, and external classes
-          placeholder={placeholder}
-          {...rest} // Spread other props like autoComplete, required, etc.
-        />
-        {/* Error message display can be handled here or by the parent form */}
-        {/* {error && touched && <p className="text-red-500 text-xs mt-1">{error}</p>} */}
-      </>
+      <input
+        ref={ref}
+        type="text"
+        name={name}
+        id={id || name}
+        value={value}
+        onChange={onChange}
+        onBlur={onBlur}
+        className={`${baseClasses} ${errorClasses} ${className} ${inputClassName}`}
+        placeholder={placeholder}
+        {...rest}
+      />
     );
   }
 );
 
-TextInput.displayName = 'TextInput';
-
+TextInput.displayName = "TextInput";
 export default TextInput;

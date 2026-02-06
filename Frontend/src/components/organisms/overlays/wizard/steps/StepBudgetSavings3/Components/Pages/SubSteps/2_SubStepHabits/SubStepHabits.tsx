@@ -1,127 +1,94 @@
-import React from "react";
-import { useFormContext } from "react-hook-form";
+import React, { useMemo } from "react";
+import { useFormContext, useWatch } from "react-hook-form";
 
-// --- Component Imports (Paths to be adjusted) ---
 import OptionContainer from "@/components/molecules/containers/OptionContainer";
-import HelpSection from "@/components/molecules/helptexts/HelpSection";
-import CheckboxOption from "@/components/atoms/InputField/CheckboxOption";
-import EditableSavingsInput from "@/components/molecules/InputField/EditableSavingsInput";
-import InfoBox from "@/components/molecules/messaging/InfoBox";
-// --- Store, Schema, and Utility Imports ---
+import { WizardStepHeader } from "@/components/organisms/overlays/wizard/SharedComponents/Headers/WizardStepHeader";
 import { useWizardDataStore } from "@/stores/Wizard/wizardDataStore";
-import { Step3FormValues } from '@/types/Wizard/Step3FormValues';
+import type { Step3FormValues } from "@/types/Wizard/Step3_Savings/Step3FormValues";
 import { calcMonthlyIncome } from "@/utils/wizard/wizardHelpers";
-import { idFromPath } from "@/utils/idFromPath";
+import SavingsHabitsCard, { type SavingsMethodOption } from "@/components/organisms/overlays/wizard/steps/StepBudgetSavings3/Components/Pages/SubSteps/3_SubStepGoals/components/SavingsHabitsCard";
+import SavingsMilestoneCard from "@/components/organisms/overlays/wizard/steps/StepBudgetSavings3/Components/Pages/SubSteps/3_SubStepGoals/components/SavingsMilestoneCard";
+import { formatMoneyV2 } from "@/utils/money/moneyV2";
+import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
+import { SAVING_METHODS } from "@/types/Wizard/Step3_Savings/SavingsFormValues";
+
+type SavingMethod = (typeof SAVING_METHODS)[number];
+
+const OPTIONS: SavingsMethodOption<SavingMethod>[] = [
+  { value: "auto", label: "Automatiska överföringar" },
+  { value: "manual", label: "Manuella överföringar" },
+  { value: "invest", label: "Investeringar (fonder, aktier, etc.)" },
+  { value: "prefer_not", label: "Vill inte ange" },
+];
 
 const SubStepHabits: React.FC = () => {
-  const { watch, setValue, formState: { errors } } = useFormContext<Step3FormValues>();
+  const { control } = useFormContext<Step3FormValues>();
 
+  const locale = useAppLocale();
+  const currency = useAppCurrency();
   const income = useWizardDataStore((s) => s.data.income);
-  const maxIncome = calcMonthlyIncome(income);
+  const maxIncome = useMemo(() => calcMonthlyIncome(income), [income]);
 
-  const monthlySavings = watch("habits.monthlySavings");
-  const savingMethods = watch("habits.savingMethods");
+  const sliderSoftMax = useMemo(() => Math.max(1000, Math.round(maxIncome * 0.7)), [maxIncome]);
+  const inputHardMax = 1_000_000;
 
-  const options = [
-    { value: "auto", label: "Automatiska överföringar" },
-    { value: "manual", label: "Manuella överföringar" },
-    { value: "invest", label: "Investeringar (fonder, aktier, etc.)" },
-    { value: "prefer_not", label: "Vill inte ange" },
-  ];
+  const step = 100;
+  const recommendedSavings = useMemo(() => {
+    const raw = maxIncome * 0.2;
+    return Math.round(raw / step) * step;
+  }, [maxIncome]);
 
-  const handleCheckboxChange = (value: string) => {
-    const currentValues = Array.isArray(savingMethods) ? [...savingMethods] : [];
+  const money0 = React.useCallback(
+    (n: number) => formatMoneyV2(n, currency, locale, { fractionDigits: 0 }),
+    [currency, locale]
+  );
 
-    if (value === 'prefer_not') {
-      setValue("habits.savingMethods", currentValues.includes('prefer_not') ? [] : ['prefer_not'], { shouldValidate: true, shouldDirty: true });
-      return;
-    }
+  // only needed for milestone card (read-only)
+  const monthlySavingsRaw = useWatch({ control, name: "habits.monthlySavings" });
+  const monthlySavingsNum =
+    typeof monthlySavingsRaw === "number" && Number.isFinite(monthlySavingsRaw) ? monthlySavingsRaw : 0;
 
-    const filteredValues = currentValues.filter(v => v !== 'prefer_not');
-    const valueIndex = filteredValues.indexOf(value);
-
-    if (valueIndex > -1) {
-      filteredValues.splice(valueIndex, 1);
-    } else {
-      filteredValues.push(value);
-    }
-
-    setValue("habits.savingMethods", filteredValues, { shouldValidate: true, shouldDirty: true });
-  };
-
-  const sliderValue = typeof monthlySavings === 'number' ? monthlySavings : 0;
-  const checkedMethods = Array.isArray(savingMethods) ? savingMethods : [];
+  const overSoftCap = monthlySavingsNum > sliderSoftMax;
 
   return (
-    <OptionContainer className="p-4">
-      <section className="max-w-xl mx-auto sm:px-6 lg:px-12 py-8 pb-safe space-y-10">
-        <header className="space-y-4 text-center">
-          <InfoBox icon={false}>
-            {/* Header content */}
-            <h3 className="text-3xl font-bold text-darkLimeGreen flex justify-center items-center gap-2">
-              Perfekt! Låt oss kolla på dina sparvanor
-            </h3>
-          </InfoBox>
-          <InfoBox icon={false}>
-            Med denna informationen kan vi sätta upp långsiktiga mål och hjälpa dig att spara smartare.
-          </InfoBox>
-        </header>
-        <InfoBox icon={false}>
-          <div className="text-center">
-            <label
-              id="monthlySavingsLabel"
-              className="block text-sm font-medium text-standardMenuColor/90 dark:text-standardMenuColor mb-4"
-            >
-              Ungefär hur mycket sparar du varje månad?
-            </label>
-            <br />
-            <EditableSavingsInput
-              id={idFromPath("habits.monthlySavings")}
-              value={sliderValue}
-              max={maxIncome}
-              onChange={(newValue) => setValue("habits.monthlySavings", newValue, { shouldValidate: true, shouldDirty: true })}
-              aria-labelledby="monthlySavingsLabel"
-            />
+    <div>
+      <section className="w-auto mx-auto sm:px-6 lg:px-12 py-8 pb-safe space-y-8">
+        <WizardStepHeader
+          title=""
+          stepPill={{ stepNumber: 3, majorLabel: "Sparande", subLabel: "Sparvanor" }}
+          subtitle="Vi använder detta för att ge smartare förslag och göra dina mål mer realistiska."
+          helpTitle="Kom ihåg"
+          helpItems={[
+            "Det här är bara en startpunkt — du kan alltid ändra senare.",
+            "**Vill du inte svara?** Välj “Vill inte ange”.",
+            `Här blir **20% ≈ ${money0(recommendedSavings)}** per månad.`,
+          ]}
+        />
 
-            {errors.habits?.monthlySavings && (
-              <p className="text-sm text-red-600 mt-2" role="alert">
-                {errors.habits?.monthlySavings?.message}
+        <SavingsHabitsCard<SavingMethod>
+          idBasePath="habits"
+          sliderSoftMax={sliderSoftMax}
+          inputHardMax={inputHardMax}
+          options={OPTIONS}
+          monthlyIncome={maxIncome}
+          sliderHint={
+            overSoftCap ? (
+              <p className="text-xs text-wizard-text/55">
+                Det är en hög nivå jämfört med inkomsten — dubbelkolla att det stämmer.
               </p>
-            )}
-          </div>
+            ) : (
+              <p className="text-xs text-wizard-text/45">Markeringen 20% är en tumregel – inte ett krav.</p>
+            )
+          }
+          markers={[
+            { value: recommendedSavings, label: "Rek: 20% av inkomsten", className: "bg-sky-400/80" },
+          ]}
+        />
 
-          <div className="space-y-2 mt-6">
-
-            <label className="text-sm font-medium text-standardMenuColor/90 dark:text-standardMenuColor" id="saving-methods-label">
-              Hur brukar du spara? (Välj alla som passar)
-            </label>
-            <div id={idFromPath("habits.savingMethods")} className="space-y-3" role="group" aria-labelledby="saving-methods-label">
-              {options.map((option) => (
-                <CheckboxOption
-                  key={option.value}
-                  id={`saving-method-${option.value}`}
-                  label={option.label}
-                  value={option.value}
-                  checked={checkedMethods.includes(option.value)}
-                  onChange={() => handleCheckboxChange(option.value)}
-                />
-              ))}
-            </div>
-            {/* This is the existing error message for the checkboxes. We just copied the style. */}
-            {errors.habits?.savingMethods && (
-              <p className="text-sm text-red-600 mt-2" role="alert">
-                {errors.habits?.savingMethods?.message}
-              </p>
-            )}
-            <HelpSection
-              label="Varför frågar vi detta?"
-              className="mt-2 text-xs text-standardMenuColor/80"
-              helpText="Vi undrar hur du vanligtvis sätter undan pengar eftersom det påverkar hur stabilt sparandet blir. Om du sparar manuellt kan vi senare tipsa om automatiska överföringar om dina mål inte nås. Vill du inte svara är det helt okej – välj bara 'Vill inte ange'."
-            />
-          </div>
-        </InfoBox>
+        <SavingsMilestoneCard monthlySavings={monthlySavingsNum} monthlyIncome={maxIncome} />
       </section>
-    </OptionContainer>
+    </div>
   );
 };
 

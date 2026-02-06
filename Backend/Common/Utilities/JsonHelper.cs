@@ -28,5 +28,14 @@ namespace Backend.Common.Utilities
 
         public static string SerializeSparse<T>(T value) =>
             JsonSerializer.Serialize(value, CamelSparse);
+
+        /*
+        public static readonly JsonSerializerOptions Camel = new()
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+            Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
+        };
+        */
     }
 }

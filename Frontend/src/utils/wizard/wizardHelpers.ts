@@ -16,24 +16,23 @@ export const sumArray = (arr: ReadonlyArray<NullableNum>): number =>
   arr.reduce<number>((acc, n) => acc + toNumber(n), 0);
 
 /* ──────────────────────── income utilities ──────────────────────── */
-export type Freq = "Monthly" | "Yearly" | "Weekly" | undefined;
+export type Freq = "monthly" | "yearly" | "weekly" | undefined;
 
 
-export const toMonthly = (value: NullableNum, freq: Frequency = "Monthly") => {
+export const toMonthly = (value: NullableNum, freq: Frequency = "monthly") => {
   const n = toNumber(value);
 
   switch (freq) {
-    case "Yearly":
+    case "yearly":
       return n / 12;
-    case "Quarterly":
+    case "quarterly":
       return n * 4 / 12; // = n / 3
-    case "Weekly":
+    case "weekly":
       return (n * 52) / 12;
-    case "BiWeekly":
+    case "biWeekly":
       return (n * 26) / 12;
-    case "Monthly":
-    case "Other":
-    case "Unknown":
+    case "monthly":
+
     default:
       return n;
   }
@@ -48,7 +47,7 @@ export const calcMonthlyIncome = (inc: Record<string, any> | undefined): number 
 
   const base =
     toMonthly(inc.netSalary, inc.salaryFrequency) +
-    toMonthly(inc.yearlySalary, "Yearly");
+    toMonthly(inc.yearlySalary, "yearly");
 
   const members = Array.isArray(inc.householdMembers)
     ? inc.householdMembers.reduce<number>(
@@ -56,7 +55,7 @@ export const calcMonthlyIncome = (inc: Record<string, any> | undefined): number 
         acc +
         toMonthly(
           m?.income ?? m?.yearlyIncome,
-          (m?.frequency as Freq) ?? (m?.yearlyIncome ? "Yearly" : "Monthly"),
+          (m?.frequency as Freq) ?? (m?.yearlyIncome ? "yearly" : "monthly"),
         ),
       0,
     )
@@ -68,13 +67,13 @@ export const calcMonthlyIncome = (inc: Record<string, any> | undefined): number 
         acc +
         toMonthly(
           h?.income ?? h?.yearlyIncome,
-          (h?.frequency as Freq) ?? (h?.yearlyIncome ? "Yearly" : "Monthly"),
+          (h?.frequency as Freq) ?? (h?.yearlyIncome ? "yearly" : "monthly"),
         ),
       0,
     )
     : 0;
 
-  const extra = toMonthly(inc.otherIncome, (inc.otherIncomeFrequency as Freq) ?? "Monthly");
+  const extra = toMonthly(inc.otherIncome, (inc.otherIncomeFrequency as Freq) ?? "monthly");
 
   return base + members + hustles + extra;
 };

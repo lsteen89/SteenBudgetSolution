@@ -16,6 +16,7 @@ using Microsoft.Extensions.Options;
 using Moq;
 using MySqlConnector;
 using Dapper;
+using Backend.Infrastructure.Data.Sql.Helpers.UnitOfWork;
 
 namespace Backend.IntegrationTests.Wizard;
 

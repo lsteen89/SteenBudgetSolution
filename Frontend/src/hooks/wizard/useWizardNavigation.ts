@@ -2,6 +2,8 @@ import { useCallback } from 'react';
 import { useToast } from '@context/ToastContext';
 import { handleStepValidation } from '@components/organisms/overlays/wizard/validation/handleStepValidation';
 import { useWizardDataStore } from '@/stores/Wizard/wizardDataStore';
+import { useWizardSessionStore } from '@/stores/Wizard/wizardSessionStore';
+import { FINAL_SUMMARY_UNLOCK } from '@/components/organisms/overlays/wizard/SharedComponents/Const/wizardEntitlements';
 
 
 interface UseWizardNavigationProps {
@@ -17,8 +19,39 @@ interface UseWizardNavigationProps {
   isDebugMode: boolean;
   setShowSideIncome(v: boolean): void;
   setShowHouseholdMembers(v: boolean): void;
+
 }
 
+const getDefaultSubStepForEnter = (
+  targetStep: number,
+  direction: "next" | "prev"
+): number | undefined => {
+  // Hard overrides (your special cases)
+  if (targetStep === 4 && direction === "prev") return 3; // Debts always restart on back: THIS IS CURRENTLY DISABLED, I DONT KNOW IF ITS GOOD UX. LETS THINK ABOUT IT.
+  // Honestly, the step is short + they have an option at the final summary to go directly to the substep they want, so maybe we can just let them back into the last substep they were on instead of forcing them to start over.
+  return undefined;
+};
+
+const getEnterSubStep = (
+  targetStep: number,
+  direction: "next" | "prev"
+): number => {
+  // 1) Always honor hard overrides first
+  const policy = getDefaultSubStepForEnter(targetStep, direction);
+  if (policy != null) return policy;
+
+  // 2) Default behavior: forward = start, back = last substep
+  if (direction === "next") return 1;
+
+  const lastSubByStep: Record<number, number> = {
+    2: 8, // Expenditure 
+    3: 4, // Savings
+    4: 3, // Debts (won't be used on prev due to override above)
+
+  };
+
+  return lastSubByStep[targetStep] ?? 1;
+};
 const useWizardNavigation = ({
   step,
   setStep,
@@ -31,156 +64,118 @@ const useWizardNavigation = ({
   isDebugMode,
   setShowSideIncome,
   setShowHouseholdMembers,
+
+
 }: UseWizardNavigationProps) => {
   const { showToast } = useToast();
 
   const setLastVisitedSubStep = useWizardDataStore((state) => state.setLastVisitedSubStep);
 
-  const navigateStep = useCallback(
-    async (direction: 'next' | 'prev') => {
-      console.log(
-        `%cTHE GREAT ROAD: Navigating '${direction}' from step ${step}...`,
-        'color: #FFD700;'
-      );
-      setTransitionLoading(true);
-      if (step === 0) {
-        // Welcome page - no ref, no save, just navigate
-        setStep(prev => (direction === "next" ? Math.min(prev + 1, totalSteps) : Math.max(prev - 1, 0)));
-        setTransitionLoading(false);
-        return;
-      }
-      const ref = stepRefs[step];
-      const stepApi = ref?.current;               // <-- safe handle
-      const onRealStep = step > 0 && !!stepApi;
-      const goingBack = direction === "prev";
-      if (step > 0 && !stepApi) {
-        console.warn("[NAV] Ref not ready for step", step, stepRefs);
-        setTransitionLoading(false);
-        return;
-      }
-      let validatedData: any | null = null;
+  const bumpEntitlement = useWizardSessionStore((s) => s.bumpEntitlement);
 
-      // 1. If we're going back, we don't validate, we just get the data.
-      if (!goingBack && onRealStep) {
-        const isComplexStep = typeof ref.current.hasSubSteps === 'function';
+  const SUMMARY_SUBSTEPS: Record<number, Set<number>> = {
+    2: new Set([8]),     // Expenditure summary
+    3: new Set([4]),    // Savings summary
+    //4: new Set([3]), // Debts currently sends data on summary
+  };
+  const FINAL_EDIT_TARGETS = {
+    income: { step: 1, sub: 1 },
+    expenditure: { step: 2, sub: 1 },
+    savingsHabit: { step: 3, sub: 2 },
+    savingsGoals: { step: 3, sub: 3 },
+    debts: { step: 4, sub: 2 },
+    debtsStrategy: { step: 4, sub: 3 },
+  } as const;
 
-        if (isComplexStep) {
-          // 2. For complex steps like 'Expenditure', we do NOT run the global validation.
-          // We trust that its internal sub-steps are valid. We simply get its current data to be saved.
-          console.log(
-            'Navigating from a complex step. Skipping global validation, just getting data.'
-          );
-          validatedData = ref.current.getStepData();
-        } else {
-          // 3. For simple steps like 'Income', we cast the great validation spell as before.
-          console.log('Navigating from a simple step. Running global validation.');
-          validatedData = await handleStepValidation(
-            step,
-            stepRefs,
-            setShowSideIncome,
-            setShowHouseholdMembers
-          );
-        }
+  function isSummarySubStep(step: number, sub: number) {
+    return SUMMARY_SUBSTEPS[step]?.has(sub) ?? false;
+  }
 
-        // 4. If either path failed to produce data, the journey is halted.
-        if (!validatedData) {
-          triggerShakeAnimation();
-          setTransitionLoading(false);
-          return;
-        }
-      }
-      const currentSub = ref.current.getCurrentSubStep?.() ?? 1;
-      const dataToSave = goingBack ? ref.current.getStepData() : validatedData;
-
-      console.log("[NAV] about to save", {
-        step,
-        currentSub,
-        goingBack,
-        hasValidatedData: !!validatedData,
-        dataToSave,
-        refKeys: Object.keys(ref.current ?? {}),
-      });
-
-      // 2. If we're going back, we still validate the current step's data.
-      let saveSuccess = true;
-      if (onRealStep) {
-        const dataToSave = goingBack ? ref.current.getStepData() : validatedData;
-        const currentSub = ref.current.getCurrentSubStep?.() ?? 1;
-        saveSuccess = await handleSaveStepData(
-          step,
-          currentSub,
-          dataToSave,
-          goingBack
-        );
-        // ... error handling ...
-      }
-
-      // 4. Update local caches *only* after successful save
-      if (onRealStep && saveSuccess) {
-        const dataForCache = goingBack
-          ? ref.current.getStepData()
-          : validatedData;
-        const currentSub = ref.current.getCurrentSubStep?.() ?? 1;
-
-        // This part is for temporary component state, it's fine.
-        setCurrentStepState(prev => ({
-          ...prev,
-          [step]: {
-            ...(prev[step] ?? {}),
-            subStep: currentSub,
-            data: dataForCache,
-          },
-        }));
-        setLastVisitedSubStep(step, currentSub);
-
-        // --- THE MAGIC IS REPLACED ---
-        // Instead of calling a prop, we use the action we summoned from the store.
-        setLastVisitedSubStep(step, currentSub);
-      }
-
-      // --- New Sub-step Targeting Logic ---
-      const targetStep = direction === 'next' ? step + 1 : step - 1;
-
-      const { getLastVisitedSubStep } = useWizardDataStore.getState();
-
-      let targetSubStep = 1;
-      // If the destination is a complex step, decide now from metadata (ref may be null until mount)
-      const destHasSubSteps =
-        !!stepRefs[targetStep]?.current?.hasSubSteps ||
-        // fallback: infer from last visited (if we ever stored one, it’s complex)
-        (getLastVisitedSubStep(targetStep) !== undefined);
-
-      if (destHasSubSteps) {
-        const lastVisited = getLastVisitedSubStep(targetStep);
-        if (goingBack) {
-          // Policy: go back to last visited if known; else 1 (or pick “end” if you prefer)
-          targetSubStep = lastVisited ?? 1;
-        } else {
-          // Policy: forward resumes if known; else 1
-          targetSubStep = lastVisited ?? 1;
-        }
-      }
-
-      // Update local UI cache safely (don’t spread undefined)
-      setCurrentStepState(prev => ({
-        ...prev,
-        [targetStep]: { ...(prev[targetStep] ?? {}), subStep: targetSubStep },
-      }));
-      // --- End of New Logic ---
-      // --- Step Change Logic ---
-      // ... Step change logic remains the same ...
+  const navigateStep = useCallback(async (direction: "next" | "prev") => {
+    if (step === 0) {
       setStep(prev =>
-        direction === 'next' ? Math.min(prev + 1, totalSteps) : Math.max(prev - 1, 0)
+        direction === "next"
+          ? Math.min(prev + 1, totalSteps)
+          : Math.max(prev - 1, 0)
       );
+      return;
+    }
+    setTransitionLoading(true);
 
-      // Give React a tick to mount, then sync the child’s internal state (if it has one)
-      queueMicrotask(() => {
-        const destinationRef = stepRefs[targetStep]?.current;
-        destinationRef?.setSubStep?.(targetSubStep);
-      });
-
+    if (step === 0) {
+      setStep(prev => direction === "next" ? Math.min(prev + 1, totalSteps) : Math.max(prev - 1, 0));
       setTransitionLoading(false);
-    },
+      return;
+    }
+
+    const ref = stepRefs[step];
+    const api = ref?.current;
+    if (!api) { setTransitionLoading(false); return; }
+
+    const goingBack = direction === "prev";
+    const currentSub = api.getCurrentSubStep?.() ?? 1;
+
+    // validate / collect data
+    let dataForSave: any = null;
+    if (goingBack) {
+      console.log("[NAV api keys]", Object.keys(api));
+      console.log("[NAV has partial?]", typeof api.getPartialDataForSubStep);
+      dataForSave = api.getStepData();
+    } else {
+      const isComplex = typeof api.hasSubSteps === "function";
+
+      if (isComplex) {
+        dataForSave =
+          typeof api.getPartialDataForSubStep === "function"
+            ? api.getPartialDataForSubStep(currentSub)
+            : api.getStepData();
+      } else {
+        dataForSave = await handleStepValidation(step, stepRefs, setShowSideIncome, setShowHouseholdMembers);
+      }
+
+      if (!dataForSave) {
+        triggerShakeAnimation();
+        setTransitionLoading(false);
+        return;
+      }
+    }
+    console.log('[NAV] useWizardNavigation called', { stepNumber: step, subStepNumber: currentSub, dataToSave: dataForSave });
+    // persist (skip summary)
+    const skipPersist = !goingBack && isSummarySubStep(step, currentSub);
+    let saveSuccess = true;
+
+    if (!skipPersist) {
+      saveSuccess = await handleSaveStepData(step, currentSub, dataForSave, goingBack);
+      if (!saveSuccess) { setTransitionLoading(false); return; }
+
+      // unlock only after debts summary saved (4,3)
+      if (!goingBack && step === FINAL_SUMMARY_UNLOCK.major && currentSub === FINAL_SUMMARY_UNLOCK.sub) {
+        bumpEntitlement(step, currentSub);
+        console.log("[ENTITLEMENT] final summary unlocked via", FINAL_SUMMARY_UNLOCK);
+      }
+    }
+
+    // cache
+    setCurrentStepState(prev => ({
+      ...prev,
+      [step]: { ...(prev[step] ?? {}), subStep: currentSub, data: dataForSave },
+    }));
+    setLastVisitedSubStep(step, currentSub);
+
+    // move
+    const targetStep = direction === "next" ? step + 1 : step - 1;
+    const targetSub = getEnterSubStep(targetStep, direction);
+
+    setCurrentStepState(prev => ({
+      ...prev,
+      [targetStep]: { ...(prev[targetStep] ?? {}), subStep: targetSub },
+    }));
+
+    setStep(prev => direction === "next" ? Math.min(prev + 1, totalSteps) : Math.max(prev - 1, 0));
+
+    queueMicrotask(() => stepRefs[targetStep]?.current?.setSubStep?.(targetSub));
+    setTransitionLoading(false);
+  },
     // The dependency array is now cleaner
     [
       step,
@@ -195,14 +190,46 @@ const useWizardNavigation = ({
       setShowHouseholdMembers,
       showToast,
       setStep,
-      setLastVisitedSubStep, // Add the new dependency
+      setLastVisitedSubStep,
+      bumpEntitlement,
     ]
   );
 
   const nextStep = useCallback(() => navigateStep('next'), [navigateStep]);
   const prevStep = useCallback(() => navigateStep('prev'), [navigateStep]);
+  const jumpTo = useCallback(async (targetStep: number, targetSub: number) => {
+    // bounds
+    if (targetStep < 0 || targetStep > totalSteps) return;
 
-  return { nextStep, prevStep };
+    setTransitionLoading(true);
+
+    // update cache/state (optional but nice)
+    setCurrentStepState(prev => ({
+      ...prev,
+      [targetStep]: { ...(prev[targetStep] ?? {}), subStep: targetSub },
+    }));
+    setLastVisitedSubStep(targetStep, targetSub);
+
+    // move major step
+    setStep(() => targetStep);
+
+    // ensure substep is applied after step render/ref attach
+    queueMicrotask(() => {
+      stepRefs[targetStep]?.current?.setSubStep?.(targetSub);
+    });
+
+    setTransitionLoading(false);
+  }, [
+    totalSteps,
+    stepRefs,
+    setTransitionLoading,
+    setCurrentStepState,
+    setLastVisitedSubStep,
+    setStep,
+  ]);
+
+
+  return { nextStep, prevStep, jumpTo };
 };
 
 export default useWizardNavigation;

@@ -26,8 +26,8 @@ internal sealed class SqlWizardRepositoryForTests : IWizardRepository
     public Task<bool> DoesUserOwnSessionAsync(Guid userId, Guid sessionId, CancellationToken ct)
         => Task.FromResult(false);
 
-    public Task<WizardSavedDataDTO?> GetWizardDataAsync(Guid sessionId, CancellationToken ct)
-        => Task.FromResult<WizardSavedDataDTO?>(null);
+    public Task<WizardSavedDataDto?> GetWizardDataAsync(Guid sessionId, CancellationToken ct)
+        => Task.FromResult<WizardSavedDataDto?>(null);
 
     public async Task<IEnumerable<WizardStepRowEntity>> GetRawStepDataForFinalizationAsync(Guid sessionId, CancellationToken ct)
     {
@@ -63,5 +63,37 @@ internal sealed class SqlWizardRepositoryForTests : IWizardRepository
         var rows = await c.ExecuteAsync("DELETE FROM WizardSession WHERE WizardSessionId = @sid;", new { sid = sessionId });
 
         return rows > 0;
+    }
+    public async Task<IEnumerable<WizardStepRowEntity>> GetRawWizardStepDataAsync(Guid sessionId, CancellationToken ct)
+    {
+        await using var c = new MySqlConnection(_cs);
+        return await c.QueryAsync<WizardStepRowEntity>(
+            """
+            SELECT StepNumber, SubStep, StepData, DataVersion, UpdatedAt 
+            FROM WizardStepData 
+            WHERE WizardSessionId = @SessionId";
+            """,
+            new { SessionId = sessionId });
+    }
+
+    public async Task<(int majorStep, int subStep)> GetCurrentStepAsync(Guid sessionId, CancellationToken ct)
+    {
+        const string sql = """
+        SELECT StepNumber, SubStep 
+        FROM WizardStepData 
+        WHERE WizardSessionId = @SessionId
+        ORDER BY UpdatedAt DESC 
+        LIMIT 1
+        """;
+
+        using var connection = new MySqlConnection(_cs);
+
+        // Query a specific DTO or the Entity to allow Dapper to map columns correctly
+        var result = await connection.QueryFirstOrDefaultAsync<WizardStepRowEntity>(
+            new CommandDefinition(sql, new { SessionId = sessionId }, cancellationToken: ct)
+        );
+
+        // Return a default or the mapped tuple
+        return result == null ? (0, 0) : (result.StepNumber, result.SubStep);
     }
 }

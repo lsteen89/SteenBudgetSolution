@@ -13,8 +13,8 @@ import {
   AccordionContent,
 } from "@/components/ui/accordion";
 import { ChevronDown } from "lucide-react";
-import { SavingsGoal } from "@/types/Wizard/SavingsFormValues";
-import { IncomeFormValues } from "@/types/Wizard/IncomeFormValues";
+import { SavingsGoal } from "@/types/Wizard/Step3_Savings/SavingsFormValues";
+import { IncomeFormValues } from "@/types/Wizard/Step1_Income/IncomeFormValues";
 import { calcMonthlyIncome } from "@/utils/wizard/wizardHelpers";
 import { calculateMonthlyContribution } from "@/utils/budget/financialCalculations";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";

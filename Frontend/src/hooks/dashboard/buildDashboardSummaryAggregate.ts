@@ -3,10 +3,12 @@ import { calculateMonthlyContribution } from "@/utils/budget/financialCalculatio
 import { parseIsoDateLocal } from "@/utils/dates/parseIsoDateLocal";
 import type { DashboardSummaryAggregate, BreakdownItem } from "./dashboardSummary.types";
 import type { CurrencyCode } from "@/utils/money/currency";
-import { getCategoryLabel, normalizeCategoryKey } from "@/utils/i18n/categories";
-import { getRecurringExpenseNameLabel } from "@/utils/i18n/recurringExpenseNames";
+import { asCategoryKey, labelCategory, type CategoryKey } from "@/utils/i18n/categories";
+
 import { incomeToBreakdownItems } from "./dashboardBreakdown.mapper";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
+import { useAppLocale } from "../i18n/useAppLocale";
+import { labelLedgerItem } from "@/utils/i18n/ledgerItems";
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 const num0 = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
@@ -16,7 +18,7 @@ function ymLabel(ym: string) {
     const d = new Date(y, (m ?? 1) - 1, 1);
     return d.toLocaleDateString("sv-SE", { year: "numeric", month: "long" });
 }
-
+const locale = useAppLocale();
 export function buildDashboardSummaryAggregate(
     dto: BudgetDashboardMonthDto,
     currency: CurrencyCode,
@@ -112,7 +114,7 @@ export function buildDashboardSummaryAggregate(
     const top3Names = [...categories]
         .sort((a, b) => b.totalMonthlyAmount - a.totalMonthlyAmount)
         .slice(0, 3)
-        .map((c) => getCategoryLabel(normalizeCategoryKey(c.categoryName), "sv-SE"))
+        .map((c) => labelCategory(asCategoryKey(c.categoryKey ?? c.categoryName), locale))
         .join(", ");
 
     const pillarDescriptions = {
@@ -121,19 +123,19 @@ export function buildDashboardSummaryAggregate(
         savings: goals.length ? `Du sparar mot ${goals.length} mål.` : "Du har inte lagt upp några sparmål ännu.",
         debts:
             (dashboard.debt?.totalDebtBalance ?? 0) > 0
-                ? `Totalt skuldsaldo: ${dashboard.debt!.totalDebtBalance.toLocaleString("sv-SE")} kr.`
+                ? `Totalt skuldsaldo: ${dashboard.debt!.totalDebtBalance.toLocaleString(locale)} kr.`
                 : "Du har inga registrerade skulder just nu.",
     };
 
     const recurringExpenses =
         dashboard.recurringExpenses?.map((r) => {
-            const categoryKey = normalizeCategoryKey(r.categoryName);
+            const categoryKey = asCategoryKey(r.categoryKey ?? r.categoryName);
             return {
                 id: r.id,
                 nameKey: r.name,
-                nameLabel: getRecurringExpenseNameLabel(r.name, "sv-SE"),
+                nameLabel: labelLedgerItem(r.name, locale),
                 categoryKey,
-                categoryLabel: getCategoryLabel(categoryKey, "sv-SE"),
+                categoryLabel: labelCategory(categoryKey, locale),
                 amountMonthly: r.amountMonthly,
             };
         }) ?? [];
@@ -145,18 +147,18 @@ export function buildDashboardSummaryAggregate(
             id: s.id,
             nameKey: s.name,
             nameLabel: s.name,
-            categoryKey: "Subscription",
-            categoryLabel: getCategoryLabel("Subscription", "sv-SE"),
+            categoryKey: "subscription" as const,
+            categoryLabel: labelCategory("subscription", locale),
             amountMonthly: s.amountMonthly,
         })) ?? [];
 
     const incomeItems: BreakdownItem[] = dashboard.income ? incomeToBreakdownItems(dashboard.income) : [];
 
     const expenseCategoryItems: BreakdownItem[] = categories.map((c) => {
-        const categoryKey = normalizeCategoryKey(c.categoryName);
+        const key = asCategoryKey(c.categoryKey ?? c.categoryName);
         return {
-            key: `expense:${categoryKey}`,
-            label: getCategoryLabel(categoryKey, "sv-SE"),
+            key: `expense:${key}`,
+            label: labelCategory(key, locale),
             amount: c.totalMonthlyAmount,
         };
     });

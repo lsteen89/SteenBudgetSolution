@@ -8,10 +8,12 @@ import {
     AccordionContent,
 } from "@/components/ui/accordion";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
-import { useAppCurrency, useAppLocale } from "@/hooks/i18n/useAppCurrency";
-import { labelCategory, normalizeCategoryKey } from "@/utils/i18n/categories";
+import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
+import { asCategoryKey, labelCategory, type CategoryKey } from "@/utils/i18n/categories";
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { labelLedgerItem } from "@/utils/i18n/ledgerItems";
-import { tLedger, type AppLocale } from "@/utils/i18n/ledgerText";
+import { tLedger } from "@/utils/i18n/ledgerText";
+import type { AppLocale } from "@/utils/i18n/locale";
 import type { CurrencyCode } from "@/utils/money/currency";
 import type { BudgetDashboardDto } from "@/types/budget/BudgetDashboardDto";
 
@@ -42,6 +44,7 @@ type GroupedRecurring = {
 };
 
 export default function DetailedLedger({ preview }: Props) {
+
     const [isOpen, setIsOpen] = useState(false);
     const currency = useAppCurrency();
     const locale = useAppLocale() as AppLocale;
@@ -63,30 +66,25 @@ export default function DetailedLedger({ preview }: Props) {
         const items = preview.recurringExpenses ?? [];
         if (items.length === 0) return [];
 
-        const map = new Map<string, GroupedRecurring>();
+        const map = new Map<CategoryKey, GroupedRecurring>();
 
         for (const r of items) {
-            const key = normalizeCategoryKey(r.categoryName ?? "Other");
+            const key = asCategoryKey(r.categoryKey ?? r.categoryName);
             const groupLabel = labelCategory(key, locale);
 
-            const group =
-                map.get(key) ??
-                ({
-                    key,
-                    label: groupLabel,
-                    items: [],
-                    total: 0,
-                } satisfies GroupedRecurring);
+            let group = map.get(key);
+            if (!group) {
+                group = { key, label: groupLabel, items: [], total: 0 };
+                map.set(key, group);
+            }
 
             group.items.push({
                 id: r.id ?? `${key}:${r.name ?? "item"}:${group.items.length}`,
-                // translate known keys; keep user-custom as-is
                 name: labelLedgerItem(r.name ?? "Unknown", locale),
                 amountMonthly: r.amountMonthly ?? 0,
             });
 
             group.total += r.amountMonthly ?? 0;
-            map.set(key, group);
         }
 
         return Array.from(map.values()).sort((a, b) => b.total - a.total);
@@ -95,7 +93,7 @@ export default function DetailedLedger({ preview }: Props) {
     const categorySummaryRows = useMemo(() => {
         const cats = preview.expenditure?.byCategory ?? [];
         return cats.map((c, idx) => {
-            const key = normalizeCategoryKey(c.categoryName ?? "");
+            const key = asCategoryKey(c.categoryKey ?? c.categoryName);
             return {
                 id: `${key}:${idx}`,
                 label: labelCategory(key, locale),

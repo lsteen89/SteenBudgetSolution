@@ -1,232 +1,182 @@
-import React, { useState, useEffect, useRef } from "react";
-// components
-import { useFormContext } from "react-hook-form";
-import OptionContainer from "@components/molecules/containers/OptionContainer";
-import GlossyFlipCard from "@components/molecules/cards/GlossyFlipCard/GlossyFlipCard";
-import FlipCardText from "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/text/FlipCardText";
-import FormattedNumberInput from "@components/atoms/InputField/FormattedNumberInput";
-import ToggleButton from "@components/atoms/buttons/ToggleButton";
-import HouseholdFoodCostEstimate from "@/components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/3_SubStepFood/components/HouseholdFoodCostEstimate";
-import HelpSection from "@components/molecules/helptexts/HelpSection";
-
-// hooks
-import { usePrevious } from "@hooks/usePrevious";
-// css module
-import styles from "./Styling/SubStepFood.module.css";
-// icons
+import React, { useMemo } from "react";
+import { useFormContext, useWatch } from "react-hook-form";
 import { MdLocalGroceryStore } from "react-icons/md";
 import { FaHamburger } from "react-icons/fa";
 
-interface FoodForm {
+import OptionContainer from "@components/molecules/containers/OptionContainer";
+import { WizardStepHeader } from "@components/organisms/overlays/wizard/SharedComponents/Headers/WizardStepHeader";
+import NumberInput from "@components/atoms/InputField/NumberInput";
+import { Separator } from "@/components/ui/separator";
+
+import { setValueAsSvNumber } from "@/utils/forms/parseNumber";
+import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
+import { sumMoney } from "@/utils/money/moneyMath";
+
+import WizardTotalBar from "@components/organisms/overlays/wizard/SharedComponents/Sections/WizardTotalBar";
+import { WizardMascot } from "@/components/atoms/animation/WizardMascot";
+import foodBird from "@/assets/Images/FoodDeliveryBird.png";
+
+import { useAnimationControls, useReducedMotion } from "framer-motion";
+import { useEffect } from "react";
+import { useWizardNavEvents } from "@/components/organisms/overlays/wizard/SharedComponents/Nav/WizardNavEvents";
+
+
+type FoodForm = {
   food: {
     foodStoreExpenses: number | null;
     takeoutExpenses: number | null;
   };
-}
+};
 
 const SubStepFood: React.FC = () => {
-  const {
-    register,
-    watch,
-    setValue,
-    formState: { errors },
-  } = useFormContext<FoodForm>();
+  const { control, register, getFieldState, formState } = useFormContext<FoodForm>();
 
-  // Ref for the Food Store Expenses container
-  const foodStoreRef = useRef<HTMLDivElement>(null);
-  // Ref for the Takeaway container
-  const takeAwayRef = useRef<HTMLDivElement>(null);
+  const currency = useAppCurrency();
+  const locale = useAppLocale();
 
-  // helptext section
-  const foodStoreHelpText = "Här anger du det du spenderar varje månad i mataffärer. Ett snitt på tre månader ger en mer exakt siffra.";
-  const takeAwayHelpText = "Här anger du kostnader kopplade till utemat per månad. Ett snitt på tre månader ger en mer exakt siffra.";
+  const reduce = useReducedMotion();
+  const controls = useAnimationControls();
+  const nav = useWizardNavEvents();
 
-  // Toggle the food calculator
-  const [showFoodCalc, setShowFoodCalc] = useState(false);
-
-  // Flash highlight state
-  const [highlightInputFoodStore, setHighlightInputFoodStore] = useState(false);
-  const [highlightInputTakeAway, setHighlightInputTakeAway] = useState(false);
-  const isAnimatingFoodStore = useRef(false);
-  const isAnimatingTakeAway = useRef(false);
-
-  // Values and hooks
-  const foodStoreExpensesVal = watch("food.foodStoreExpenses");
-  const takeoutExpensesVal = watch("food.takeoutExpenses");
-  const prevFoodStoreExpenses = usePrevious(foodStoreExpensesVal);
-  const prevTakeoutExpenses = usePrevious(takeoutExpensesVal);
-  // React Hook Form registers
-  const foodStoreExpensesReg = register("food.foodStoreExpenses");
-  const takeoutExpensesReg = register("food.takeoutExpenses");
-
-  // 1. Button click -> update value (only if it changed)
-  // Food Store Expenses
-  const handleUpdateStoreExpenses = () => {
-    const newValue = (foodStoreExpensesVal ?? 0) + 100;
-    console.log("SubStepFood - handleUpdateStoreExpenses - Old Value:", foodStoreExpensesVal, "New Value:", newValue);
-    if (newValue !== foodStoreExpensesVal) {
-      console.log("SubStepFood - handleUpdateStoreExpenses - Calling setValue for food.foodStoreExpenses:", newValue);
-      setValue("food.foodStoreExpenses", newValue);
-    }
-  };
-  // Takeout Expenses
-  const handleUpdateRestaurantExpenses = () => {
-    const newValue = (takeoutExpensesVal ?? 0) + 100;
-    console.log("SubStepFood - handleUpdateRestaurantExpenses - Old Value:", takeoutExpensesVal, "New Value:", newValue);
-    if (newValue !== takeoutExpensesVal) {
-      console.log("SubStepFood - handleUpdateRestaurantExpenses - Calling setValue for food.takeoutExpenses:", newValue);
-      setValue("food.takeoutExpenses", newValue);
-    }
-  };
-
-  // 2. Watch for changes, set highlight
-  // This effect will run when the foodStoreExpensesVal changes
   useEffect(() => {
-    // Skip on initial render
-    if (prevFoodStoreExpenses === undefined) return;
+    console.log("[Food] subscribe");
+    const off1 = nav.subscribe("nextHoverStart", () => {
+      console.log("[Food] hover start");
+      if (reduce) return;
+      controls.start({ x: 10, rotate: 1, transition: { duration: 0.18 } });
+    });
 
-    if (
-      typeof foodStoreExpensesVal === "number" &&
-      foodStoreExpensesVal !== prevFoodStoreExpenses &&
-      !isAnimatingFoodStore.current
-    ) {
-      isAnimatingFoodStore.current = true;
-      setHighlightInputFoodStore(true);
-      console.log("SubStepFood - useEffect (foodStoreExpensesVal changed) - New Value:", foodStoreExpensesVal);
-    }
-  }, [foodStoreExpensesVal, prevFoodStoreExpenses]);
+    const off2 = nav.subscribe("nextHoverEnd", () => {
+      console.log("[Food] hover end");
+      if (reduce) return;
+      controls.start({ x: 0, rotate: 0, transition: { duration: 0.18 } });
+    });
 
-  // This effect will run when the takeoutExpensesVal changes
-  useEffect(() => {
-    // Skip on initial render
-    if (prevTakeoutExpenses === undefined) return;
+    const off3 = nav.subscribe("nextClick", () => {
+      console.log("[Food] click");
+      if (reduce) return;
+      controls.start({ x: 220, rotate: 6, transition: { duration: 0.32 } });
+    });
 
-    if (
-      typeof takeoutExpensesVal === "number" &&
-      takeoutExpensesVal !== prevTakeoutExpenses &&
-      !isAnimatingTakeAway.current
-    ) {
-      isAnimatingTakeAway.current = true;
-      setHighlightInputTakeAway(true);
-      console.log("SubStepFood - useEffect (takeoutExpensesVal changed) - New Value:", takeoutExpensesVal);
-    }
-  }, [takeoutExpensesVal, prevTakeoutExpenses]);
+    return () => { off1(); off2(); off3(); };
+  }, [nav, controls, reduce]);
 
-  // 3. Calculate total value
-  // Destructure the values from your "food" object and default to 0 if missing.
-  const { foodStoreExpenses = 0, takeoutExpenses = 0 } = watch("food") || {};
+  const storePath = "food.foodStoreExpenses" as const;
+  const takeoutPath = "food.takeoutExpenses" as const;
 
-  // Calculate total value and format it using Swedish number formatting.
-  const calculatedTotalValue = (foodStoreExpenses ?? 0) + (takeoutExpenses ?? 0);
-  const formattedTotalValue = calculatedTotalValue.toLocaleString("sv-SE");
+  const store = useWatch({ control, name: storePath });
+  const takeout = useWatch({ control, name: takeoutPath });
+
+  const total = useMemo(() => sumMoney(store, takeout), [store, takeout]);
+
+  const storeErr = getFieldState(storePath, formState).error?.message;
+  const takeoutErr = getFieldState(takeoutPath, formState).error?.message;
 
   return (
-    <OptionContainer className="p-4">
-      <div className="flex justify-center md:mt-4">
-        <div className="">
-          <GlossyFlipCard
-            frontText={<FlipCardText pageKey="foodExpenses" variant="front" />}
-            backText={<FlipCardText pageKey="foodExpenses" variant="back" />}
-            frontTextClass="text-lg text-white"
-            backTextClass="text-sm text-limeGreen"
-            disableBounce={true}
-            containerClassName="w-[170px] h-[400px] md:w-[350px] md:h-[270px]"
-          />
-        </div>
-      </div>
-      <div className="mt-6">
-        <div className="bg-white bg-opacity-10 p-4 rounded-xl shadow-inner">
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Food Store Expenses */}
-            <div>
-              <div className="flex items-center justify-center mb-2">
-                <label htmlFor="foodStoreExpenses" className="flex items-center text-white font-semibold">
-                  <MdLocalGroceryStore className="mr-2" />
-                  Matbutik
-                </label>
-                <HelpSection className="ml-2" label="" helpText={foodStoreHelpText} />
+
+    <div className="px-4 pb-safe">
+      <section className="mx-auto w-full max-w-4xl py-5 md:py-8 pb-16">
+        <WizardStepHeader
+          stepPill={{ stepNumber: 3, majorLabel: "Utgifter", subLabel: "Mat" }}
+          title=""
+          subtitle="Uppskatta vad du spenderar på matbutik och hämtmat. Ta gärna ett snitt på tre månader."
+          helpTitle="Tips för en bättre siffra"
+          helpItems={[
+            "Kolla kontoutdrag och ta snittet av **2–3 senaste månaderna**.",
+            "**Matbutik** = vardagsmat & storhandling. **Hämtmat** = restaurang/leverans.",
+            "Om det varierar: välj en **normalmånad** hellre än en dyr/billig extremmånad.",
+          ]}
+        />
+
+        {/* Make this relative so we can anchor the mascot */}
+        <div
+          className="
+            relative overflow-hidden
+            -mx-4 sm:mx-0                
+            rounded-none sm:rounded-2xl  
+            bg-wizard-shell2/80 border border-wizard-stroke/20 shadow-lg
+            px-4 py-5 sm:p-6 md:p-7     
+            space-y-5 md:space-y-6
+            md:pr-24 md:pb-16
+          "
+        >
+
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6 relative z-10">
+            <div className="rounded-2xl bg-white/5 border border-white/10 p-4 space-y-3">
+              <div className="flex items-center gap-2 text-wizard-text/80 font-semibold">
+                <MdLocalGroceryStore />
+                <span>Matbutik</span>
               </div>
-              <div
-                ref={foodStoreRef}
-                className={
-                  highlightInputFoodStore
-                    ? `${styles["animate-pulse-once"]} border-lime-300 shadow-lime-200`
-                    : ""
-                }
-                onAnimationEnd={() => {
-                  setHighlightInputFoodStore(false);
-                  isAnimatingFoodStore.current = false;
-                }}
-              >
-                <FormattedNumberInput
-                  value={foodStoreExpensesVal || 0}
-                  onValueChange={(val) => setValue("food.foodStoreExpenses", val ?? 0)}
-                  placeholder="t.ex. 2500 "
-                  error={errors.food?.foodStoreExpenses?.message}
-                  name={foodStoreExpensesReg.name}
-                  onBlur={foodStoreExpensesReg.onBlur}
-                  id="foodStoreExpenses"
-                />
-              </div>
+
+              <NumberInput
+
+
+                placeholder="t.ex. 3 500"
+                currency={currency}
+                locale={locale}
+                error={storeErr}
+                {...register(storePath, { setValueAs: setValueAsSvNumber })}
+              />
             </div>
 
-            {/* Takeout Expenses */}
-            <div>
-              <div className="flex items-center justify-center mb-2">
-                <label htmlFor="takeoutExpenses" className="flex items-center text-white font-semibold">
-                  <FaHamburger className="mr-2" />
-                  Hämtmat
-                </label>
-                <HelpSection className="ml-2" label="" helpText={takeAwayHelpText} />
+            <div className="rounded-2xl bg-white/5 border border-white/10 p-4 space-y-3">
+              <div className="flex items-center gap-2 text-wizard-text/80 font-semibold">
+                <FaHamburger />
+                <span>Hämtmat</span>
               </div>
-              <div
-                ref={takeAwayRef}
-                className={
-                  highlightInputTakeAway
-                    ? `${styles["animate-pulse-once"]} border-lime-300 shadow-lime-200`
-                    : ""
-                }
-                onAnimationEnd={() => {
-                  setHighlightInputTakeAway(false);
-                  isAnimatingTakeAway.current = false;
-                }}
-              >
-                <FormattedNumberInput
-                  value={takeoutExpensesVal || 0}
-                  onValueChange={(val) => setValue("food.takeoutExpenses", val ?? 0)}
-                  placeholder="t.ex. 2500"
-                  error={errors.food?.takeoutExpenses?.message}
-                  name={takeoutExpensesReg.name}
-                  onBlur={takeoutExpensesReg.onBlur}
-                  id="takeoutExpenses"
-                />
-              </div>
+
+              <NumberInput
+
+
+                placeholder="t.ex. 800"
+                currency={currency}
+                locale={locale}
+                error={takeoutErr}
+                {...register(takeoutPath, { setValueAs: setValueAsSvNumber })}
+              />
             </div>
           </div>
-          {/*Show error and calculated total sum*/}
-          {(!errors.food?.takeoutExpenses && !errors.food?.foodStoreExpenses) && (
-            <p className="mt-2 text-white text-sm text-center">
-              Uppskattad total månadskostnad: <strong>{formattedTotalValue} kr</strong>
-            </p>
-          )}
+
+          <Separator className="bg-white/15 relative z-10" />
+
+          <div className="relative z-10">
+            <WizardTotalBar
+              title="Totalt mat"
+              subtitle="Summa för matbutik + hämtmat per månad"
+              value={total}
+              currency={currency}
+              locale={locale}
+              suffix="/mån"
+              tone="accent"
+              subtitleClassName="hidden sm:block"
+            />
+          </div>
+          <WizardMascot
+            src={foodBird}
+            controls={controls}
+            className="
+              pointer-events-none select-none absolute
+              right-[-14px] bottom-[-14px]
+              opacity-[0.12] scale-[1.45]
+              md:opacity-100 md:scale-100
+              md:right-6 md:bottom-4
+            "
+            size={120}
+            mdSize={120}
+            showText={false}
+            hello={false}
+            float={false}
+            tilt={false}
+          />
         </div>
-      </div>
+      </section>
+      {/* Mascot: watermark on mobile, big on md+ */}
 
 
 
-      <ToggleButton
-        isShowing={showFoodCalc}
-        onToggle={() => setShowFoodCalc(!showFoodCalc)}
-        showLabel="📊 Visa hushålls-kalkylator"
-        hideLabel="❌ Dölj kalkylatorn"
-      />
-      {showFoodCalc && (
-        <HouseholdFoodCostEstimate
-          foodStoreRef={foodStoreRef}
-          takeAwayRef={takeAwayRef}
-        />
-      )}
-    </OptionContainer>
+    </div>
   );
 };
 

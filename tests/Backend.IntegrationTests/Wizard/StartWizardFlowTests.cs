@@ -138,7 +138,7 @@ public sealed class StartWizardFlowTests
             .Throws(new NotSupportedException("Not used in StartWizard tests."));
         repo.Setup(r => r.DoesUserOwnSessionAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .Throws(new NotSupportedException("Not used in StartWizard tests."));
-        repo.Setup(r => r.GetWizardDataAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+        repo.Setup(r => r.GetCurrentStepAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .Throws(new NotSupportedException("Not used in StartWizard tests."));
         repo.Setup(r => r.GetRawStepDataForFinalizationAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .Throws(new NotSupportedException("Not used in StartWizard tests."));

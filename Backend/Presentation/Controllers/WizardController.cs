@@ -74,10 +74,10 @@ namespace Backend.Presentation.Controllers
             return result.ToApiEnvelope();
         }
         [HttpGet("{sessionId:guid}")]
-        [ProducesResponseType(typeof(ApiEnvelope<WizardSavedDataDTO>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(ApiEnvelope<WizardSavedDataDTO>), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ApiEnvelope<WizardSavedDataDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiEnvelope<WizardSavedDataDto>), StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
-        public async Task<ActionResult<ApiEnvelope<WizardSavedDataDTO?>>> GetWizardData(Guid sessionId, CancellationToken ct)
+        public async Task<ActionResult<ApiEnvelope<WizardSavedDataDto?>>> GetWizardData(Guid sessionId, CancellationToken ct)
         {
             // 1. Authorize - does this user own this session?
             // A better long-term solution might be a custom Authorization policy or attribute.
@@ -88,6 +88,7 @@ namespace Backend.Presentation.Controllers
 
             // 2. Send the query
             var query = new GetWizardDataQuery(sessionId);
+            // SET BREAKPOINT HERE TO GET WIZARD UI BUG
             var result = await _mediator.Send(query, ct);
 
             // 3. Convert result to HTTP response using the extension method

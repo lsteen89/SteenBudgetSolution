@@ -13,6 +13,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Backend.IntegrationTests.Shared.Seeds.Budget;
+using Backend.Infrastructure.Data.Sql.Helpers.UnitOfWork;
 
 namespace Backend.IntegrationTests.Budget.BudgetMonths;
 

@@ -32,7 +32,7 @@ public sealed class BudgetMonthlyTotalsService : IBudgetMonthlyTotalsService
         var goal = data.Savings?.Goals.Sum(g => g.MonthlyContribution) ?? 0m;
         var totalSavings = habit + goal;
 
-        var totalDebtPayments = data.Debts.Sum(d =>
+        var totalDebtPayments = data.Debt.Debts.Sum(d =>
             _calc.CalculateMonthlyPayment(
                 new DebtForCalc(d.Type, d.Balance, d.Apr, d.MinPayment, d.MonthlyFee, d.TermMonths)
             )

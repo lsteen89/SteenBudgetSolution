@@ -1,21 +1,18 @@
 import * as yup from "yup";
 import { housingSchema } from "./SubSchemas/housingSchema";
 import { foodSchema } from "./SubSchemas/foodSchema";
-import { utilitiesSchema } from "./SubSchemas/utilitiesSchema";
 import { fixedExpensesSchema } from "./SubSchemas/fixedExpensesSchema";
 import { transportSchema } from "./SubSchemas/transportSchema";
 import { clothingSchema } from "./SubSchemas/clothingSchema";
-import { subscriptionsSchema } from "./SubSchemas/subscriptionsSchema";
+import { subscriptionsSchema } from "./SubSchemas/subscriptionsSchema"; // ✅ FIX
 
-// Step 2 schema for the wizard, which includes rent, food, utilities, and fixed expenses
 export const step2Schema = yup.object({
   housing: housingSchema,
   food: foodSchema,
-  utilities: utilitiesSchema,
   fixedExpenses: fixedExpensesSchema,
   transport: transportSchema,
   clothing: clothingSchema,
-  subscriptions: subscriptionsSchema,
+  subscriptions: subscriptionsSchema, // ✅ FIX
 });
 
 /* infer the correct TS interface from the schema */

@@ -23,8 +23,9 @@ using Backend.Infrastructure.Repositories.User;
 using Backend.Application.Common.Security;
 using Backend.IntegrationTests.Shared;
 using Backend.Settings;
-using Backend.Domain.Users;
+using Backend.Domain.Errors.User;
 using Backend.Infrastructure.Security;
+using Backend.Infrastructure.Data.Sql.Helpers.UnitOfWork;
 
 
 namespace Backend.IntegrationTests.Auth.Refresh;

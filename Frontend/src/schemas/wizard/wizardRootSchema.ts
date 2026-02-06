@@ -1,12 +1,11 @@
 import * as yup from "yup";
 import { housingSchema } from "./StepExpenditures/SubSchemas/housingSchema";
-import { utilitiesSchema } from "./StepExpenditures/SubSchemas/utilitiesSchema";
 import { foodSchema } from "./StepExpenditures/SubSchemas/foodSchema";
 import { incomeStepSchema } from "./StepIncome/incomeStepSchema";
 import { fixedExpensesSchema } from "./StepExpenditures/SubSchemas/fixedExpensesSchema";
 import { transportSchema } from "./StepExpenditures/SubSchemas/transportSchema";
 import { clothingSchema } from "./StepExpenditures/SubSchemas/clothingSchema";
-import { subscriptionsSchema } from "./StepExpenditures/SubSchemas/subscriptionsSchema";
+import { subscriptionItemSchema } from "./StepExpenditures/SubSchemas/subscriptionsSchema";
 import { step4Schema } from "./StepDebts/step4Schema";
 import { step3Schema } from "./StepSavings/step3Schema";
 
@@ -16,11 +15,10 @@ export const wizardRootSchema = yup.object().shape({
   // Step 2: Expenditures schemas
   housing: housingSchema,
   food: foodSchema,
-  utilities: utilitiesSchema,
   fixedExpenses: fixedExpensesSchema,
   transport: transportSchema,
   clothing: clothingSchema,
-  subscriptions: subscriptionsSchema,
+  subscriptions: subscriptionItemSchema,
 
   // Step 3: Debts schema
   // Todo
