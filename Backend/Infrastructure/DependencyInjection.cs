@@ -23,7 +23,7 @@ using Backend.Infrastructure.Implementations;
 using Backend.Infrastructure.Repositories.Auth;
 using Backend.Infrastructure.Repositories.Auth.RefreshTokens;
 using Backend.Infrastructure.Repositories.Auth.VerificationTokens;
-using Backend.Infrastructure.Repositories.Budget;
+using Backend.Infrastructure.Repositories.Budget.Core;
 using Backend.Infrastructure.Repositories.Email;
 using Backend.Infrastructure.Repositories.User;
 using Backend.Infrastructure.Security;
@@ -31,6 +31,8 @@ using Backend.Settings;
 using Backend.Settings.Email;
 using Backend.Infrastructure.Data.Repositories;
 using Backend.Infrastructure.Repositories.Budget.BudgetDashboard;
+using Backend.Infrastructure.Repositories.Budget.Months;
+using Backend.Infrastructure.Data.Sql.Helpers.UnitOfWork;
 
 namespace Backend.Infrastructure;
 
@@ -101,7 +103,11 @@ public static class DependencyInjection
         services.AddScoped<IIncomeRepository, IncomeRepository>();
         services.AddScoped<ISavingsRepository, SavingsRepository>();
         services.AddScoped<IIncomeRepository, IncomeRepository>();
+
+        // Dashboard
         services.AddScoped<IBudgetDashboardRepository, BudgetDashboardRepository>();
+        // Budget Months
+        services.AddScoped<IBudgetMonthRepository, BudgetMonthRepository>();
 
         // Wizard
         services.AddScoped<IWizardRepository, WizardRepository>();

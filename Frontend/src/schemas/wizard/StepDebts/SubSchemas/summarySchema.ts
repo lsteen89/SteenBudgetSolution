@@ -1,19 +1,11 @@
 import * as yup from "yup";
 
-// --- Constants for this schema ---
-const validStrategies: ("avalanche" | "snowball" | "noAction")[] = [
-  "avalanche",
-  "snowball",
-  "noAction",
-];
+const validStrategies = ["Snowball", "Avalanche", "NoAction"] as const;
+// or include "Unknown" if you want to allow it through forms (usually you don't)
 
-// --- The main, exported schema for the Summary Page ---
 export const summaryPageSchema = yup.object({
   repaymentStrategy: yup
-    .string()
-    .oneOf(
-      validStrategies,
-      "Vänligen välj en giltig strategi."
-    )
+    .mixed<(typeof validStrategies)[number]>()
+    .oneOf(validStrategies, "Vänligen välj en giltig strategi.")
     .required("Du måste välja en strategi för återbetalning."),
 });

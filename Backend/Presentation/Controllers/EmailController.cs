@@ -4,7 +4,7 @@ using Backend.Application.Features.Contact;
 using Backend.Presentation.Shared;
 using Microsoft.AspNetCore.RateLimiting;
 using Backend.Application.DTO.Email;
-using Backend.Domain.Users;
+using Backend.Domain.Errors.User;
 
 [ApiController]
 [Route("api/email")]

@@ -18,11 +18,6 @@ public sealed partial class BudgetDashboardRepository
         decimal? TargetAmount,
         DateTime? TargetDate,
         decimal? AmountSaved);
-    private sealed record RecurringExpenseRow(
-        Guid Id,
-        string Name,
-        string CategoryName,
-        decimal AmountMonthly);
 
     private sealed record IncomeItemRow(
         Guid Id,

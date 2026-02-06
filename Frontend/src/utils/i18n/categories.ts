@@ -1,39 +1,49 @@
-export type CategoryKey =
-    | "Rent"
-    | "Food"
-    | "Transport"
-    | "Clothing"
-    | "Subscription"
-    | "FixedExpense"
-    | string;
+import type { AppLocale } from "@/utils/i18n/locale";
 
-const sv: Record<string, string> = {
-    Rent: "Hyra",
-    Food: "Mat",
-    Transport: "Transport",
-    Clothing: "Kläder",
-    Subscription: "Abonnemang",
-    FixedExpense: "Fasta kostnader",
+export type CategoryKey =
+    | "housing"
+    | "food"
+    | "transport"
+    | "clothing"
+    | "fixed"
+    | "subscription"
+    | "other";
+
+const sv: Record<CategoryKey, string> = {
+    housing: "Boende",
+    food: "Mat",
+    transport: "Transport",
+    clothing: "Kläder",
+    fixed: "Räkningar & nödvändigt",
+    subscription: "Prenumerationer",
+    other: "Övrigt",
 };
 
-export function normalizeCategoryKey(raw: string): CategoryKey {
-    const k = (raw ?? "").trim();
-    const compact = k.replace(/\s+/g, "").toLowerCase();
+const en: Record<CategoryKey, string> = {
+    housing: "Housing",
+    food: "Food",
+    transport: "Transport",
+    clothing: "Clothing",
+    fixed: "Bills & essentials",
+    subscription: "Subscriptions",
+    other: "Other",
+};
 
-    const map: Record<string, CategoryKey> = {
-        rent: "Rent",
-        food: "Food",
-        transport: "Transport",
-        clothing: "Clothing",
-        subscription: "Subscription",
-        fixedexpense: "FixedExpense",
-        fixed_expense: "FixedExpense",
-    };
-
-    return map[compact] ?? k;
+export function labelCategory(key: CategoryKey, locale: AppLocale) {
+    return (locale === "sv-SE" ? sv : en)[key];
 }
 
-export function getCategoryLabel(key: CategoryKey, locale: "sv-SE" | "en-US" = "sv-SE") {
-    if (locale === "sv-SE") return sv[key] ?? key;
-    return key;
+const KNOWN: readonly CategoryKey[] = [
+    "housing",
+    "food",
+    "transport",
+    "clothing",
+    "fixed",
+    "subscription",
+    "other",
+] as const;
+
+export function asCategoryKey(raw: unknown): CategoryKey {
+    const s = String(raw ?? "").trim();
+    return (KNOWN as readonly string[]).includes(s) ? (s as CategoryKey) : "other";
 }

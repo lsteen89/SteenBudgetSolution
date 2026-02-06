@@ -2,9 +2,9 @@ import React, { forwardRef, useImperativeHandle, useRef } from 'react';
 import GlassPane from '@components/layout/GlassPane';
 import DataTransparencySection from '@components/organisms/overlays/wizard/SharedComponents/Pages/DataTransparencySection';
 import StepBudgetDebtsContainer, { StepBudgetDebtsContainerRef } from './Components/StepBudgetDebtsContainer';
-import { Step4FormValues } from '@/types/Wizard/Step4FormValues';
+import { Step4FormValues } from '@/types/Wizard/Step4_Debt/Step4FormValues';
 import { ensureStep4Defaults } from '@/utils/wizard/ensureStep4Defaults';
-import { StepBudgetDebtsRef } from '@/types/Wizard/StepBudgetDebtsRef';
+import { StepBudgetDebtsRef } from '@/types/Wizard/Step3_Savings/StepBudgetDebtsRef';
 
 interface StepBudgetDebtsProps {
   wizardSessionId: string;
@@ -30,6 +30,7 @@ const StepBudgetDebts = forwardRef<StepBudgetDebtsRef, StepBudgetDebtsProps>((pr
   useImperativeHandle(ref, () => ({
     validateFields: async () => (await containerRef.current?.validateFields()) ?? false,
     getStepData: () => containerRef.current?.getStepData() ?? ensureStep4Defaults({}),
+    getPartialDataForSubStep: (subStep: number) => containerRef.current?.getPartialDataForSubStep?.(subStep) ?? {},
     markAllTouched: () => containerRef.current?.markAllTouched(),
     getErrors: () => containerRef.current?.getErrors() ?? {},
     getCurrentSubStep: () => containerRef.current?.getCurrentSubStep() ?? 0,
@@ -43,22 +44,21 @@ const StepBudgetDebts = forwardRef<StepBudgetDebtsRef, StepBudgetDebtsProps>((pr
 
   return (
     <div key="step-budget-debts-container">
-      <GlassPane>
-       <StepBudgetDebtsContainer
-          ref={containerRef}
-          wizardSessionId={props.wizardSessionId}
-          onSaveStepData={props.onSaveStepData}
-          stepNumber={props.stepNumber}
-          initialData={props.initialData}
-          onNext={props.onNext}
-          onPrev={props.onPrev}
-          loading={props.loading}
-          initialSubStep={props.initialSubStep}
-          onSubStepChange={props.onSubStepChange}
-          onValidationError={props.onValidationError}
-        />
-        <DataTransparencySection />
-      </GlassPane>
+
+      <StepBudgetDebtsContainer
+        ref={containerRef}
+        wizardSessionId={props.wizardSessionId}
+        onSaveStepData={props.onSaveStepData}
+        stepNumber={props.stepNumber}
+        initialData={props.initialData}
+        onNext={props.onNext}
+        onPrev={props.onPrev}
+        loading={props.loading}
+        initialSubStep={props.initialSubStep}
+        onSubStepChange={props.onSubStepChange}
+        onValidationError={props.onValidationError}
+      />
+
     </div>
   );
 });

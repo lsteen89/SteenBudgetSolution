@@ -2,12 +2,12 @@ import React, { forwardRef, useEffect, useImperativeHandle, useRef } from 'react
 import { useForm, FormProvider, UseFormReturn, FieldErrors } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { step4Schema } from '@/schemas/wizard/StepDebts/step4Schema';
-import { Step4FormValues } from '@/types/Wizard/Step4FormValues';
+import { Step4FormValues } from '@/types/Wizard/Step4_Debt/Step4FormValues';
 import { ensureStep4Defaults } from '@/utils/wizard/ensureStep4Defaults';
 import { useWizardDataStore } from '@/stores/Wizard/wizardDataStore';
 import useScrollToFirstError from '@/hooks/useScrollToFirstError';
 import { useWizard } from '@/context/WizardContext';
-import { DebtsFormValues } from "@/types/Wizard/DebtFormValues";
+import { DebtsFormValues } from "@/types/Wizard/Step4_Debt/DebtFormValues";
 import { devLog } from '@/utils/devLog';
 
 
@@ -52,7 +52,7 @@ const WizardFormWrapperStep4 = forwardRef<WizardFormWrapperStep4Ref, WizardFormW
   }));
 
   const { formState: { errors } } = methods;
-  useScrollToFirstError(errors);
+  useScrollToFirstError(errors, methods.formState.submitCount > 0);
 
   const hydrated = useRef(false);
   useEffect(() => {

@@ -2,34 +2,36 @@
 {
     public static class ExpenseItemLabels
     {
-        // Rent
-        public const string Rent = "Rent";
-        public const string RentExtraFees = "RentExtraFees";
-        public const string MonthlyFee = "MonthlyFee";
-        public const string BrfExtraFees = "BrfExtraFees";
-        public const string MortgagePayment = "MortgagePayment";
-        public const string HouseOtherCosts = "HouseOtherCosts";
-        public const string OtherCosts = "OtherCosts";
+        // Housing
+        public const string HousingMonthlyRent = "HousingMonthlyRent";
+        public const string HousingMonthlyFee = "HousingMonthlyFee";
+        public const string HousingExtraFees = "HousingExtraFees";
+        public const string Heating = "Heating";
+        public const string Electricity = "Electricity";
+        public const string Water = "Water";
+        public const string Waste = "Waste";
+        public const string OtherHomeRunningCosts = "OtherHomeRunningCosts";
 
         // Food
-        public const string FoodStore = "FoodStore"; 
+        public const string FoodStore = "FoodStore";
         public const string Takeout = "Takeout";
 
         // Transport
-        public const string Fuel = "Fuel";
-        public const string Insurance = "Insurance";       
-        public const string TotalCarCost = "TotalCarCost";
-        public const string Transit = "Transit";
+        public const string FuelOrCharging = "FuelOrCharging";
+        public const string CarInsurance = "CarInsurance";
+        public const string ParkingFee = "ParkingFee";
+        public const string OtherCarCosts = "OtherCarCosts";
+        public const string PublicTransit = "PublicTransit";
 
         // Clothing
         public const string Clothing = "Clothing";
 
-        // Fixed Expenses
-        public const string Electricity = "Electricity";
+        // Bills & essentials
+        public const string Insurance = "Insurance";
+        public const string Gym = "Gym";
         public const string Internet = "Internet";
         public const string Phone = "Phone";
-        public const string UnionFees = "UnionFees";
-        // Insurance reused OR create FixedInsurance if needed
+
 
         // Subscriptions (predefined)
         public const string Netflix = "Netflix";

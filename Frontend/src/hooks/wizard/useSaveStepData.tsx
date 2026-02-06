@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { UseFormReturn, Path, FieldValues } from 'react-hook-form'; 
+import { UseFormReturn, Path, FieldValues } from 'react-hook-form';
 import * as yup from 'yup';
 import { useToast } from '@context/ToastContext';
 import { useWizardSaveQueue } from '@/stores/Wizard/wizardSaveQueue';
@@ -22,14 +22,14 @@ interface UseSaveStepDataProps<T extends FieldValues> {
 }
 
 
-export function useSaveStepData<T extends FieldValues>({ 
+export function useSaveStepData<T extends FieldValues>({
   stepNumber,
   methods,
   isMobile,
   onSaveStepData,
   setCurrentStep,
   onError,
-  getPartialDataForSubstep, 
+  getPartialDataForSubstep,
 }: UseSaveStepDataProps<T>) {
   const { showToast } = useToast();
   const saveQueue = useWizardSaveQueue();
@@ -54,27 +54,23 @@ export function useSaveStepData<T extends FieldValues>({
         );
 
         if (sliceKeys.length > 0) {
-            const ok = await methods.trigger(sliceKeys as Path<T>[]);
-            if (!ok) {
-                console.warn('Validation failed, showing errors');
-                const allErrors = methods.formState.errors as Record<Path<T>, yup.ValidationError>;
-                console.error('Validation errors:', allErrors);
-                showToast("Vänligen korrigera felen.", "error");
-                onError?.();
-                return false;
-            }
+          const ok = await methods.trigger(sliceKeys as Path<T>[]);
+          if (!ok) {
+            console.warn('Validation failed, showing errors');
+            const allErrors = methods.formState.errors as Record<Path<T>, yup.ValidationError>;
+            console.error('Validation errors:', allErrors);
+            showToast("Vänligen korrigera felen.", "error");
+            onError?.();
+            return false;
+          }
         }
-      }
-      
-      if (!goingBackwards) {
-        try {
-          await saveQueue.flush();
-        } catch {}
       }
 
       const all = methods.getValues();
+      console.log("[SAVE] leaving:", stepLeaving, "going:", stepGoing, "major step:", stepNumber);
 
-      const part = getPartialDataForSubstep(stepLeaving, all);
+      const part = getPartialDataForSubstep(stepLeaving, methods.getValues());
+      console.log("[SAVE] slice keys:", Object.keys(part));
 
       if (Object.keys(part).length === 0) {
         setCurrentStep(stepGoing);
@@ -82,13 +78,26 @@ export function useSaveStepData<T extends FieldValues>({
       }
 
       try {
+        // ✅ 1) Save current sub-step first
         const ok = await onSaveStepData(stepNumber, stepLeaving, part, goingBackwards);
-        if (!ok) { throw new Error('API save returned false'); }
+        if (!ok) throw new Error("API save returned false");
+
+        // ✅ 2) Only after success: flush backlog
+        if (!goingBackwards) {
+          await saveQueue.flush();
+        }
+
       } catch (err) {
-        console.error('Error saving step data:', err);
+        console.error("Error saving step data:", err);
         onError?.();
-        saveQueue.enqueue({ stepNumber, subStepNumber: stepLeaving, data: part, goingBackwards });
-        // setCurrentStep(stepGoing); // Decide if you want to advance on offline save
+
+        // queue it
+        saveQueue.enqueue({
+          stepNumber,
+          subStepNumber: stepLeaving,
+          data: part,
+          goingBackwards,
+        });
         return false;
       }
 

@@ -1,74 +1,84 @@
-  import { Step2FormValues } from "@/schemas/wizard/StepExpenditures/step2Schema";
+import { Step2FormValues } from "@/schemas/wizard/StepExpenditures/step2Schema";
+
+const toNumberOrNull = (v: unknown): number | null => {
+  if (v === "" || v === undefined || v === null) return null;
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+
+const toNumberOrZero = (v: unknown): number => {
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
 
 export function ensureStep2Defaults(
   src: Partial<Step2FormValues> | undefined
 ): Step2FormValues {
+  const s = src ?? {};
+
   return {
-    /* ---------- rent ---------- */
-    rent: {
-      homeType       : src?.rent?.homeType        ?? "",
-      monthlyRent    : src?.rent?.monthlyRent     ?? 0,
-      rentExtraFees  : src?.rent?.rentExtraFees   ?? null,
-      monthlyFee     : src?.rent?.monthlyFee      ?? 0,
-      brfExtraFees   : src?.rent?.brfExtraFees    ?? null,
-      mortgagePayment: src?.rent?.mortgagePayment ?? 0,
-      houseotherCosts: src?.rent?.houseotherCosts ?? null,
-      otherCosts     : src?.rent?.otherCosts      ?? null,
+    housing: {
+      homeType: s.housing?.homeType ?? "rent",
+
+      payment: {
+        monthlyRent: toNumberOrNull(s.housing?.payment?.monthlyRent),
+        monthlyFee: toNumberOrNull(s.housing?.payment?.monthlyFee),
+        extraFees: toNumberOrNull(s.housing?.payment?.extraFees),
+      },
+
+      runningCosts: {
+        electricity: toNumberOrNull(s.housing?.runningCosts?.electricity),
+        heating: toNumberOrNull(s.housing?.runningCosts?.heating),
+        water: toNumberOrNull(s.housing?.runningCosts?.water),
+        waste: toNumberOrNull(s.housing?.runningCosts?.waste),
+        other: toNumberOrNull(s.housing?.runningCosts?.other),
+      },
     },
 
-    /* ---------- food ---------- */
     food: {
-      foodStoreExpenses: src?.food?.foodStoreExpenses ?? 0,
-      takeoutExpenses  : src?.food?.takeoutExpenses   ?? 0,
+      foodStoreExpenses: toNumberOrZero(s.food?.foodStoreExpenses),
+      takeoutExpenses: toNumberOrZero(s.food?.takeoutExpenses),
     },
 
-    /* ---------- utilities ---------- NOT USED AS OF NOW*/
-    utilities: {
-      electricity: src?.utilities?.electricity ?? 0,
-      water      : src?.utilities?.water       ?? 0,
-    },
-
-    /* ---------- fixed expenses ---------- */
     fixedExpenses: {
-      electricity : src?.fixedExpenses?.electricity  ?? null,
-      insurance   : src?.fixedExpenses?.insurance    ?? null,
-      internet    : src?.fixedExpenses?.internet     ?? null,
-      phone       : src?.fixedExpenses?.phone        ?? null,
-      unionFees   : src?.fixedExpenses?.unionFees    ?? null,
+      electricity: toNumberOrNull(s.fixedExpenses?.electricity),
+      insurance: toNumberOrNull(s.fixedExpenses?.insurance),
+      internet: toNumberOrNull(s.fixedExpenses?.internet),
+      phone: toNumberOrNull(s.fixedExpenses?.phone),
+
       customExpenses:
-        src?.fixedExpenses?.customExpenses?.map(e => ({
-          id  : e?.id  ?? crypto.randomUUID(),
+        s.fixedExpenses?.customExpenses?.map((e) => ({
+          id: e?.id ?? crypto.randomUUID(),
           name: e?.name ?? "",
-          cost : e?.cost ?? null,
+          cost: toNumberOrNull(e?.cost),
         })) ?? [],
     },
 
-    /* ---------- transport ---------- */
     transport: {
-      monthlyFuelCost: src?.transport?.monthlyFuelCost ?? 0,
-      monthlyInsuranceCost: src?.transport?.monthlyInsuranceCost ?? 0,
-      monthlyTotalCarCost: src?.transport?.monthlyTotalCarCost ?? 0,
-      monthlyTransitCost: src?.transport?.monthlyTransitCost ?? 0,
-
+      fuelOrCharging: src?.transport?.fuelOrCharging ?? null,
+      carInsurance: src?.transport?.carInsurance ?? null,
+      parkingFee: src?.transport?.parkingFee ?? null,
+      otherCarCosts: src?.transport?.otherCarCosts ?? null,
+      publicTransit: src?.transport?.publicTransit ?? null,
     },
 
-    /* ---------- clothing ---------- */
     clothing: {
-      monthlyClothingCost: src?.clothing?.monthlyClothingCost ?? 0,
+      monthlyClothingCost: toNumberOrZero(s.clothing?.monthlyClothingCost),
     },
 
-    /* ---------- subscriptions ---------- */
     subscriptions: {
-      netflix    : src?.subscriptions?.netflix     ?? null,
-      spotify    : src?.subscriptions?.spotify     ?? null,
-      hbomax     : src?.subscriptions?.hbomax      ?? null,
-      viaplay    : src?.subscriptions?.viaplay     ?? null,
-      disneyPlus : src?.subscriptions?.disneyPlus  ?? null,
+      netflix: toNumberOrNull(s.subscriptions?.netflix),
+      spotify: toNumberOrNull(s.subscriptions?.spotify),
+      hbomax: toNumberOrNull(s.subscriptions?.hbomax),
+      viaplay: toNumberOrNull(s.subscriptions?.viaplay),
+      disneyPlus: toNumberOrNull(s.subscriptions?.disneyPlus),
+
+      // ✅ cost must be number (not null)
       customSubscriptions:
-        src?.subscriptions?.customSubscriptions?.map(s => ({
-          id  : s?.id ?? crypto.randomUUID(),
-          name: s?.name ?? "",
-          cost: s?.cost ?? null,
+        s.subscriptions?.customSubscriptions?.map((x) => ({
+          id: x?.id ?? crypto.randomUUID(),
+          name: x?.name ?? "",
+          cost: toNumberOrNull(x?.cost), // ✅ null is the only safe empty state
         })) ?? [],
     },
   };

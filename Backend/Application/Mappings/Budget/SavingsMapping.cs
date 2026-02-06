@@ -1,3 +1,4 @@
+
 using Backend.Application.DTO.Budget.Savings;
 using Backend.Domain.Entities.Budget.Savings;
 
@@ -7,47 +8,60 @@ namespace Backend.Application.Mappings.Budget
     {
         public static Savings ToDomain(this SavingsData dto, Guid budgetId)
         {
-            var savings = new Savings
-            {
-                BudgetId = budgetId,
-                // Get the monthly amount from the single habits object.
-                MonthlySavings = dto.Habits?.MonthlySavings ?? 0
-            };
+            var savings = new Savings { BudgetId = budgetId };
 
-            // --- Map the Methods ---
-            // If the habits object exists, and its list of methods exists...
-            if (dto.Habits?.SavingMethods is { Length: > 0 })
+            if (dto.Habits is not null)
             {
-                // ...loop through the array of strings...
-                foreach (var methodString in dto.Habits.SavingMethods)
-                {
-                    // ...and for EACH string, create a new SavingsMethod object and add it.
-                    savings.AddMethod(new SavingsMethod { Method = methodString });
-                }
+                if (dto.Habits.SavingMethods is not null)
+                    foreach (var methodString in dto.Habits.SavingMethods)
+                        savings.AddMethod(new SavingsMethod { Method = methodString });
+
+                if (dto.Habits.MonthlySavings is not null)
+                    savings.MonthlySavings = dto.Habits.MonthlySavings.Value;
             }
 
-            // --- Map the Goals ---
             if (dto.Goals is not null)
             {
                 foreach (var goalDto in dto.Goals)
-                {
-                    savings.AddGoal(goalDto.ToDomain()); // Assumes a ToDomain for SavingsGoalDto
-                }
+                    savings.AddGoal(goalDto.ToDomain());
             }
 
             return savings;
         }
 
-        // Helper mapper for a single goal
-        private static SavingsGoal ToDomain(this SavingsGoalDto dto)
+        public static void ApplyPatchFrom(this Savings target, SavingsData dto)
         {
-            return new SavingsGoal
+            // Habits substep owns habits fields
+            if (dto.Habits is not null)
             {
-                Name = dto.Name,
-                TargetAmount = dto.TargetAmount,
-                AmountSaved = dto.AmountSaved,
-                TargetDate = dto.TargetDate
-            };
+                // replace methods if provided
+                if (dto.Habits.SavingMethods is not null)
+                {
+                    target.SavingMethods.Clear();
+                    foreach (var m in dto.Habits.SavingMethods)
+                        target.AddMethod(new SavingsMethod { Method = m });
+                }
+
+                // overwrite monthly if provided (don’t default to 0)
+                if (dto.Habits.MonthlySavings is not null)
+                    target.MonthlySavings = dto.Habits.MonthlySavings.Value;
+            }
+
+            // Goals substep owns goals
+            if (dto.Goals is not null)
+            {
+                target.SavingsGoals.Clear();
+                foreach (var g in dto.Goals)
+                    target.AddGoal(g.ToDomain());
+            }
         }
+
+        private static SavingsGoal ToDomain(this SavingsGoalDto dto) => new()
+        {
+            Name = dto.Name,
+            TargetAmount = dto.TargetAmount,
+            AmountSaved = dto.AmountSaved,
+            TargetDate = dto.TargetDate
+        };
     }
 }

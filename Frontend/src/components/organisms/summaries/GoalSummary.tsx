@@ -13,19 +13,23 @@ import {
   AccordionContent,
 } from "@/components/ui/accordion";
 import { ChevronDown } from "lucide-react";
-import { SavingsGoal } from "@/types/Wizard/SavingsFormValues";
-import { IncomeFormValues } from "@/types/Wizard/IncomeFormValues";
+import { SavingsGoal } from "@/types/Wizard/Step3_Savings/SavingsFormValues";
+import { IncomeFormValues } from "@/types/Wizard/Step1_Income/IncomeFormValues";
 import { calcMonthlyIncome } from "@/utils/wizard/wizardHelpers";
 import { calculateMonthlyContribution } from "@/utils/budget/financialCalculations";
-import formatCurrency from "@/utils/money/currencyFormatter";
+import { formatMoneyV2 } from "@/utils/money/moneyV2";
+import type { CurrencyCode } from "@/utils/money/currency";
 import { QuickenPaceSlider } from "@/components/molecules/controls/QuickenPaceSlider";
 
 interface GoalSummaryProps {
   goals: SavingsGoal[];
   income: Partial<IncomeFormValues>;
+  currency: CurrencyCode;
+  locale?: string;
+  money?: { fractionDigits?: 0 | 2 };
 }
 
-export const GoalSummary: React.FC<GoalSummaryProps> = ({ goals, income }) => {
+export const GoalSummary: React.FC<GoalSummaryProps> = ({ goals, income, currency, locale = "sv-SE", money }) => {
   const totalMonthlyIncome = calcMonthlyIncome(income);
 
   // --------------------- no‑goal state ---------------------
@@ -45,7 +49,7 @@ export const GoalSummary: React.FC<GoalSummaryProps> = ({ goals, income }) => {
             const monthlySaving = totalMonthlyIncome * p;
             return (
               <p key={p} className="text-sm my-1">
-                Om du bara sparar <strong className="text-white">{p * 100}%</strong> av din inkomst ({formatCurrency(monthlySaving)}/m) så sparar du <strong className="text-lime-300">{formatCurrency(monthlySaving * 12)}</strong> på bara ett år!
+                Om du bara sparar <strong className="text-white">{p * 100}%</strong> av din inkomst ({formatMoneyV2(monthlySaving, currency, locale, money)}/m) så sparar du <strong className="text-lime-300">{formatMoneyV2(monthlySaving * 12, currency, locale, money)}</strong> på bara ett år!
               </p>
             );
           })}
@@ -94,7 +98,7 @@ export const GoalSummary: React.FC<GoalSummaryProps> = ({ goals, income }) => {
                 {/* Short info */}
                 <div className="flex-grow pr-2">
                   <p className="text-white font-semibold leading-tight truncate">{goal.name}</p>
-                  <p className="text-xs text-white/70">{formatCurrency(goal.amountSaved)} / {formatCurrency(goal.targetAmount)}</p>
+                  <p className="text-xs text-white/70">{formatMoneyV2(goal.amountSaved, currency, locale, money)} / {formatMoneyV2(goal.targetAmount, currency, locale, money)}</p>
                 </div>
 
                 {/* Custom chevron icon */}
@@ -104,9 +108,9 @@ export const GoalSummary: React.FC<GoalSummaryProps> = ({ goals, income }) => {
               {/* Content */}
               <AccordionContent className="px-4 pb-4">
                 <p className="text-sm text-white/70">
-                  Mål: {formatCurrency(goal.targetAmount)} · Än så länge: {formatCurrency(goal.amountSaved)}
+                  Mål: {formatMoneyV2(goal.targetAmount, currency, locale, money)} · Än så länge: {formatMoneyV2(goal.amountSaved, currency, locale, money)}
                 </p>
-                <p className="text-sm text-lime-300/80 mb-2">Behöver ≈ {formatCurrency(currentMonthly)}/m</p>
+                <p className="text-sm text-lime-300/80 mb-2">Behöver ≈ {formatMoneyV2(currentMonthly, currency, locale, money)}/m</p>
 
                 <QuickenPaceSlider
                   goalId={goal.id!}
@@ -114,6 +118,9 @@ export const GoalSummary: React.FC<GoalSummaryProps> = ({ goals, income }) => {
                   amountSaved={goal.amountSaved ?? 0}
                   currentMonthly={currentMonthly}
                   totalMonthlyIncome={totalMonthlyIncome}
+                  currency={currency}
+                  locale={locale}
+                  money={money}
                 />
               </AccordionContent>
             </AccordionItem>

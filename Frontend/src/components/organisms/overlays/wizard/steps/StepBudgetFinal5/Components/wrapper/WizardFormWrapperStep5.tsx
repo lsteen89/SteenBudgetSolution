@@ -1,6 +1,6 @@
 import React, { forwardRef, useImperativeHandle } from 'react';
 import { useForm, FormProvider, UseFormReturn, FieldErrors } from 'react-hook-form';
-import { Step5FormValues } from '@/types/Wizard/Step5FormValues';
+import { Step5FormValues } from '@/types/Wizard/Step5_Final/Step5FormValues';
 
 export interface WizardFormWrapperStep5Ref {
   validateFields: () => Promise<boolean>;

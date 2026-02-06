@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import formatCurrency from "@/utils/money/currencyFormatter";
+import { formatMoneyV2 } from "@/utils/money/moneyV2";
+import type { CurrencyCode } from "@/utils/money/currency";
 import { calculateMonthsToGoal } from "@/utils/budget/financialCalculations";
 
 export interface QuickenPaceSliderProps {
@@ -9,6 +10,9 @@ export interface QuickenPaceSliderProps {
   amountSaved: number;
   currentMonthly: number;
   totalMonthlyIncome: number;
+  currency: CurrencyCode;
+  locale?: string;
+  money?: { fractionDigits?: 0 | 2 };
 }
 
 export const QuickenPaceSlider: React.FC<QuickenPaceSliderProps> = ({
@@ -17,6 +21,9 @@ export const QuickenPaceSlider: React.FC<QuickenPaceSliderProps> = ({
   amountSaved,
   currentMonthly,
   totalMonthlyIncome,
+  currency,
+  locale = "sv-SE",
+  money,
 }) => {
   const [extraSavings, setExtraSavings] = useState(0);
 
@@ -70,7 +77,7 @@ export const QuickenPaceSlider: React.FC<QuickenPaceSliderProps> = ({
           className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-lime-400"
         />
         <span className="font-bold text-white w-24 text-center">
-          {formatCurrency(extraSavings)}
+          {formatMoneyV2(extraSavings, currency, locale, money)}
         </span>
       </div>
 

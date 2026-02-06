@@ -40,7 +40,13 @@ public class WizardRepository : SqlBase, IWizardRepository
 
         return rowsAffected > 0 ? wizardSessionId : Guid.Empty;
     }
+    public async Task<bool> HasAnyStepDataAsync(Guid sessionId, CancellationToken ct)
+    {
+        const string sql = "SELECT EXISTS(SELECT 1 FROM WizardStepData WHERE WizardSessionId = @SessionId)";
 
+        // Use the base class ExecuteScalarAsync for consistency
+        return await ExecuteScalarAsync<bool>(sql, new { SessionId = sessionId }, ct);
+    }
     public Task<Guid?> GetSessionIdByPersoIdAsync(Guid persoId, CancellationToken ct = default)
     {
         string sql = "SELECT WizardSessionId FROM WizardSession WHERE Persoid = @Persoid";
@@ -92,40 +98,7 @@ public class WizardRepository : SqlBase, IWizardRepository
 
         return await ExecuteScalarAsync<bool>(sql, parameters, ct);
     }
-    public async Task<WizardSavedDataDTO?> GetWizardDataAsync(Guid sessionId, CancellationToken ct = default)
-    {
-        var raw = await GetRawWizardStepDataAsync(sessionId, ct);
-        if (!raw.Any())
-        {
-            return null;
-        }
 
-        // 1. Group the raw data to get the latest version of each sub-step
-        var latestRows = raw
-            .GroupBy(e => new { e.StepNumber, e.SubStep })
-            .Select(g => g.OrderByDescending(e => e.UpdatedAt).First())
-            .ToLookup(r => r.StepNumber);
-
-        int highestVersion = latestRows.SelectMany(l => l).Max(r => r.DataVersion);
-        var data = new WizardData();
-
-        // 2. Assemble the data for each major step
-        if (latestRows.Contains(1)) data.Income = AssembleStepData<IncomeFormValues>(latestRows[1]);
-        if (latestRows.Contains(2)) data.Expenditure = AssembleStepData<ExpenditureFormValues>(latestRows[2], isMultiPart: true);
-        if (latestRows.Contains(3)) data.Savings = AssembleStepData<SavingsFormValues>(latestRows[3], isMultiPart: true);
-        if (latestRows.Contains(4)) data.Debts = AssembleStepData<DebtsFormValues>(latestRows[4], isMultiPart: true);
-
-        // 3. Get the most recent sub-step number
-        int subStep = await GetCurrentSubStepAsync(sessionId, ct);
-
-        // 4. Package everything into the final DTO
-        return new WizardSavedDataDTO
-        {
-            WizardData = data,
-            DataVersion = highestVersion,
-            SubStep = subStep
-        };
-    }
     public async Task<IEnumerable<WizardStepRowEntity>> GetRawStepDataForFinalizationAsync(Guid sessionId, CancellationToken ct = default)
     {
         const string sql = @"
@@ -135,9 +108,8 @@ public class WizardRepository : SqlBase, IWizardRepository
 
         return await QueryAsync<WizardStepRowEntity>(sql, new { sid = sessionId }, ct);
     }
-    #region Helper Methods
-    // --- Private Helper Methods ---
-    private async Task<IEnumerable<WizardStepRowEntity>> GetRawWizardStepDataAsync(Guid sessionId, CancellationToken ct)
+
+    public async Task<IEnumerable<WizardStepRowEntity>> GetRawWizardStepDataAsync(Guid sessionId, CancellationToken ct)
     {
         const string sql = @"
             SELECT StepNumber, SubStep, StepData, DataVersion, UpdatedAt 
@@ -146,59 +118,23 @@ public class WizardRepository : SqlBase, IWizardRepository
         return await QueryAsync<WizardStepRowEntity>(sql, new { SessionId = sessionId }, ct);
     }
 
-    private Task<int> GetCurrentSubStepAsync(Guid sessionId, CancellationToken ct)
+    public Task<(int majorStep, int subStep)> GetCurrentStepAsync(Guid sessionId, CancellationToken ct)
     {
         const string sql = @"
-            SELECT SubStep FROM WizardStepData 
+            SELECT StepNumber, SubStep FROM WizardStepData 
             WHERE WizardSessionId = @SessionId
             ORDER BY UpdatedAt DESC LIMIT 1";
-        return QuerySingleOrDefaultAsync<int>(sql, new { SessionId = sessionId }, ct);
+        return QuerySingleOrDefaultAsync<(int Step, int SubStep)>(sql, new { SessionId = sessionId }, ct);
     }
+    #region Helper Methods
+    // --- Private Helper Methods ---
 
-    private T? AssembleStepData<T>(IEnumerable<WizardStepRowEntity> stepRows, bool isMultiPart = false)
-    {
-        if (!stepRows.Any())
-            return default;
-
-        if (!isMultiPart)
-        {
-            // For simple steps, just deserialize the newest entry
-            return JsonSerializer.Deserialize<T>(stepRows.First().StepData, Camel);
-        }
-        else
-        {
-            // For complex steps, merge the JSON from all sub-steps
-            var buffer = new ArrayBufferWriter<byte>();
-            using var writer = new Utf8JsonWriter(buffer);
-
-            writer.WriteStartObject();
-            foreach (var row in stepRows.OrderBy(r => r.SubStep))
-            {
-                using var doc = JsonDocument.Parse(row.StepData);
-                foreach (var property in doc.RootElement.EnumerateObject())
-                {
-                    property.WriteTo(writer);
-                }
-            }
-            writer.WriteEndObject();
-            writer.Flush();
-
-            return JsonSerializer.Deserialize<T>(buffer.WrittenSpan, Camel);
-        }
-    }
     public async Task<bool> DeleteSessionAsync(Guid sessionId, CancellationToken ct = default)
     {
         const string sql = "DELETE FROM WizardSession WHERE WizardSessionId = @SessionId;";
         var rowsAffected = await ExecuteAsync(sql, new { SessionId = sessionId }, ct);
         return rowsAffected > 0;
     }
-
-    private static readonly JsonSerializerOptions Camel = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
-    };
     #endregion
 
 }

@@ -1,7 +1,7 @@
 // Third-party packages
 using FluentValidation;
 
-using Backend.Application.Features.Wizard.FinalizeWizard.Processors;
+using Backend.Application.Features.Wizard.Finalization.Processing.Processors;
 using Backend.Application.Options.Email;
 using Backend.Application.Options.Auth;
 using Backend.Application.Options.URL;
@@ -10,9 +10,26 @@ using Backend.Application.Mappings;
 using Backend.Application.Features.Wizard.SaveStep;
 using Mapster;
 using Backend.Application.Common.Behaviors;
+
+// Abstractions
+using Backend.Application.Abstractions.Application.Services.Budget;
 using Backend.Application.Abstractions.Application.Services.Debts;
+using Backend.Application.Abstractions.Application.Services.Budget.Projections;
+using Backend.Application.Features.Wizard.Finalization.Abstractions;
+using Backend.Application.Features.Wizard.GetWizardData.Abstractions;
+
+// services
+using Backend.Application.Services.Budget.Bootstrapper;
+using Backend.Application.Services.Budget.Compute;
+using Backend.Application.Services.Budget.Projections;
 using Backend.Application.Services.Debts;
-using Backend.Application.Features.Budgets.Dashboard;
+
+// Features
+using Backend.Application.Features.Wizard.Finalization.Orchestration;
+using Backend.Application.Features.Wizard.Finalization.Targets;
+using Backend.Application.Features.Wizard.FinalizationPreview.Mapper;
+using Backend.Application.Features.Wizard.GetWizardData.Assemble;
+using Backend.Application.Features.Wizard.GetWizardData.Reduce;
 
 namespace Backend.Application;
 
@@ -59,19 +76,32 @@ public static class DependencyInjection
         var cfg = TypeAdapterConfig.GlobalSettings;
         UserMappings.Register(cfg);
 
+        #region Wizard
         // Wizard Step Processors
         services.AddScoped<IWizardStepProcessor, IncomeStepProcessor>();
         services.AddScoped<IWizardStepProcessor, ExpenseStepProcessor>();
         services.AddScoped<IWizardStepProcessor, SavingsStepProcessor>();
         services.AddScoped<IWizardStepProcessor, DebtStepProcessor>();
 
-        //Wizard Validation
+        // Wizard Orchestration
+        services.AddScoped<IWizardStepOrchestrator, WizardStepOrchestrator>();
+        // Finalization target factory (DB persistence target)
+        services.AddScoped<IFinalizeBudgetTargetFactory, FinalizeBudgetTargetFactory>();
+        // Preview read model builder (domain snapshot -> dashboard read model)
+        services.AddScoped<IWizardPreviewReadModelBuilder, WizardPreviewReadModelBuilder>();
 
+        #endregion
+        // Budget Services;
+        services.AddScoped<IBudgetMonthCloseSnapshotService, BudgetMonthCloseSnapshotService>();
+        services.AddScoped<IBudgetMonthlyTotalsService, BudgetMonthlyTotalsService>();
+        services.AddScoped<IBudgetMonthBootstrapper, BudgetMonthBootstrapper>();
+        services.AddScoped<IBudgetDashboardProjector, BudgetDashboardProjector>();
         // Calculators
         services.AddSingleton<IDebtPaymentCalculator, DebtPaymentCalculator>();
-
-        // Service Registrations
-        services.AddScoped<IBudgetDashboardQueryService, BudgetDashboardQueryService>();
+        // Wizard Step Data Assembler
+        services.AddScoped<IWizardStepDataAssembler, WizardStepDataAssembler>();
+        // Wizard Row Reducer
+        services.AddScoped<IWizardStepRowReducer, WizardStepRowReducer>();
 
         return services;
     }

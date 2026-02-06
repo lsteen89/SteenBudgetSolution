@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
+import { Frequency } from "@/types/common";
 
-type Frequency = "weekly" | "monthly" | "quarterly" | "annually";
 
 interface UseYearlyIncomeProps {
   amount: number | null;
@@ -17,16 +17,16 @@ export default function useYearlyIncome({ amount, frequency }: UseYearlyIncomePr
     }
     let newAmount = amount;
     switch (frequency) {
-      case "weekly":
+      case "Weekly":
         newAmount *= 52;
         break;
-      case "quarterly":
+      case "Quarterly":
         newAmount *= 4;
         break;
-      case "annually":
+      case "Yearly":
         // do nothing
         break;
-      case "monthly":
+      case "Monthly":
       default:
         newAmount *= 12;
         break;

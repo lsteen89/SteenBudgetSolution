@@ -6,7 +6,7 @@ import { useToast } from '@context/ToastContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/stores/Auth/authStore';
 import { useWizardDataStore } from '@/stores/Wizard/wizardDataStore';
-import { useBudgetDashboardStore } from '@/stores/Budget/budgetDashboardStore';
+//import { useBudgetDashboardStore } from '@/stores/Budget/budgetDashboardStore';
 
 /** Handles the POST /Wizard/{id}/complete flow */
 export const useWizardFinalization = () => {
@@ -29,7 +29,7 @@ export const useWizardFinalization = () => {
       useWizardDataStore.getState().reset();
       useWizardSessionStore.getState().clear?.();
 
-      await useBudgetDashboardStore.getState().loadDashboard();
+      //await useBudgetDashboardStore.getState().loadDashboard();
 
       showToast("Budget färdigställd!", "success");
       return true;

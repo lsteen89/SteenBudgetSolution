@@ -1,5 +1,5 @@
 import { sumArray } from "@/utils/wizard/wizardHelpers";
-import type { ExpenditureFormValues } from "@/types/Wizard/ExpenditureFormValues";
+import type { ExpenditureFormValues } from "@/types/Wizard/Step2_Expenditure/ExpenditureFormValues";
 
 export function getExpenditureCategoryTotals(expenditure: Partial<ExpenditureFormValues>) {
     const housing = sumArray([

@@ -11,7 +11,7 @@ using Xunit;
 using MySqlConnector;
 
 using Backend.Application.Features.Commands.Auth.RefreshToken;
-using Backend.Domain.Users;
+using Backend.Domain.Errors.User;
 using Backend.Settings;
 using Backend.Infrastructure.Security; // TokenGenerator
 using Backend.Infrastructure.Entities.Tokens;

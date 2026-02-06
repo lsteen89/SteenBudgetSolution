@@ -7,4 +7,5 @@ public sealed class DashboardSavingsGoalDto
     public decimal? TargetAmount { get; init; }
     public DateTime? TargetDate { get; init; }
     public decimal? AmountSaved { get; init; }
+    public decimal MonthlyContribution { get; init; }
 }

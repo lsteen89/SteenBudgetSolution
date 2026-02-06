@@ -1,4 +1,4 @@
-import { SavingsFormValues } from "@/types/Wizard/SavingsFormValues";
+import { SavingsFormValues } from "@/types/Wizard/Step3_Savings/SavingsFormValues";
 
 /* 1️⃣ helper — converts both Date and ISO-string to "YYYY-MM-DD" */
 const toYMD = (d?: string | Date | null) =>
@@ -11,7 +11,7 @@ export function ensureStep3Defaults(
     id: g?.id ?? crypto.randomUUID(),
     name: g?.name ?? "",
     targetAmount: g?.targetAmount ?? null,
-    targetDate: toYMD(g?.targetDate),   
+    targetDate: toYMD(g?.targetDate),
     amountSaved: g?.amountSaved ?? null,
   }));
 

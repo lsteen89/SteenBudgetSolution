@@ -1,25 +1,27 @@
-using Backend.Domain.Entities.Budget.Debt;
+using Backend.Application.Constants;
 using Backend.Application.Abstractions.Application.Services.Debts;
 
 namespace Backend.Application.Services.Debts;
 
 public sealed class DebtPaymentCalculator : IDebtPaymentCalculator
 {
-    public decimal CalculateMonthlyPayment(Debt d)
+    public decimal CalculateMonthlyPayment(IDebtPaymentInput d)
     {
         var fee = d.MonthlyFee ?? 0m;
         var principal = d.Balance;
         var apr = d.Apr;
         var months = d.TermMonths ?? 0;
 
-        return d.Type switch
-        {
-            "revolving" => (d.MinPayment ?? 0m) + fee,
+        var type = (d.Type ?? string.Empty).Trim().ToLowerInvariant();
 
-            "installment" or "bank_loan" =>
+        return type switch
+        {
+            DebtTypes.Revolving => (d.MinPayment ?? 0m) + fee,
+
+            DebtTypes.Installment or DebtTypes.BankLoan =>
                 months > 0 ? Amortize(principal, apr, months) + fee : fee,
 
-            "private" =>
+            DebtTypes.Private =>
                 months > 0 ? Amortize(principal, apr, months) + fee : (d.MinPayment ?? 0m) + fee,
 
             _ => fee

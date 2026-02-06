@@ -1,37 +1,16 @@
 import * as yup from "yup";
 
-export const transportSchema = yup.object().shape({
-  // monthlyFuelCost is still relevant
-  monthlyFuelCost: yup
+const money = () =>
+  yup
     .number()
+    .transform((v, orig) => (orig === "" || orig === null ? undefined : v))
     .typeError("Måste vara ett nummer.")
-    .min(0, "Kostnad kan inte vara negativ.")
-    .nullable()
-    .default(0),
+    .min(0, "Belopp kan inte vara negativt.");
 
-  // Added: monthlyInsuranceCost
-  monthlyInsuranceCost: yup
-    .number()
-    .typeError("Måste vara ett nummer.")
-    .min(0, "Kostnad kan inte vara negativ.")
-    .nullable()
-    .default(0),
-
-  // Added: monthlyTotalCarCost
-  monthlyTotalCarCost: yup
-    .number()
-    .typeError("Måste vara ett nummer.")
-    .min(0, "Kostnad kan inte vara negativ.")
-    .nullable()
-    .default(0),
-    
-  // monthlyTransitCost is still relevant
-  monthlyTransitCost: yup
-    .number()
-    .typeError("Måste vara ett nummer.")
-    .min(0, "Kostnad kan inte vara negativ.")
-    .nullable()
-    .default(0),
-
-  // Removed: hasCar and hasTransitCard are no longer used
+export const transportSchema = yup.object({
+  fuelOrCharging: money().max(20000, "Kan inte vara mer än 20 000 kr.").nullable(),
+  carInsurance: money().max(20000, "Kan inte vara mer än 20 000 kr.").nullable(),
+  parkingFee: money().max(20000, "Kan inte vara mer än 20 000 kr.").nullable(),
+  otherCarCosts: money().max(50000, "Kan inte vara mer än 50 000 kr.").nullable(),
+  publicTransit: money().max(20000, "Kan inte vara mer än 20 000 kr.").nullable(),
 });

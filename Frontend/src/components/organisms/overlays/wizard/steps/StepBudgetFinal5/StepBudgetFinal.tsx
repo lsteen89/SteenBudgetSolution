@@ -2,8 +2,8 @@ import React, { forwardRef, useImperativeHandle, useRef } from 'react';
 import GlassPane from '@components/layout/GlassPane';
 import DataTransparencySection from '@components/organisms/overlays/wizard/SharedComponents/Pages/DataTransparencySection';
 import StepBudgetFinalContainer, { StepBudgetFinalContainerRef } from './Components/StepBudgetFinalContainer';
-import { Step5FormValues } from '@/types/Wizard/Step5FormValues';
-import { StepBudgetFinalRef } from '@/types/Wizard/StepBudgetFinalRef';
+import { Step5FormValues } from '@/types/Wizard/Step5_Final/Step5FormValues';
+import { StepBudgetFinalRef } from '@/types/Wizard/Step5_Final/StepBudgetFinalRef';
 import { Skeleton } from '@/components/ui/Skeleton';
 
 interface StepBudgetFinalProps {
@@ -26,6 +26,11 @@ interface StepBudgetFinalProps {
   isFinalizing: boolean;
   finalizationError: string | null;
   onFinalizeSuccess: () => void;
+  onEditIncome: () => void;
+  onEditExpenditure: () => void;
+  onEditSavingsHabit: () => void;
+  onEditSavingsGoals: () => void;
+  onEditDebts: () => void;
 }
 
 const StepBudgetFinal = forwardRef<StepBudgetFinalRef, StepBudgetFinalProps>((props, ref) => {
@@ -48,7 +53,7 @@ const StepBudgetFinal = forwardRef<StepBudgetFinalRef, StepBudgetFinalProps>((pr
   const isBusy = props.loading || props.isFinalizing;
 
   return (
-    <GlassPane className="relative">
+    <div>
       {isBusy && (
         <div className="absolute inset-0 z-[9999] flex items-center justify-center bg-white/60 backdrop-blur-sm">
           <Skeleton className="h-10 w-40" />
@@ -73,10 +78,16 @@ const StepBudgetFinal = forwardRef<StepBudgetFinalRef, StepBudgetFinalProps>((pr
           isFinalizing={props.isFinalizing}
           finalizationError={props.finalizationError}
           onFinalizeSuccess={props.onFinalizeSuccess}
+
+          onEditIncome={props.onEditIncome}
+          onEditExpenditure={props.onEditExpenditure}
+          onEditSavingsHabit={props.onEditSavingsHabit}
+          onEditSavingsGoals={props.onEditSavingsGoals}
+          onEditDebts={props.onEditDebts}
         />
-        <DataTransparencySection />
+
       </div>
-    </GlassPane>
+    </div>
   );
 });
 

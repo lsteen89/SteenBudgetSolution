@@ -6,11 +6,13 @@ using Backend.Application.Features.Wizard.SaveStep;
 using Backend.Application.Features.Wizard.StartWizard;
 using Backend.Application.Features.Wizard.AuthorizeSession;
 using Backend.Application.Features.Wizard.GetWizardData;
-using Backend.Application.Features.Wizard.FinalizeWizard;
+using Backend.Application.Features.Wizard.Finalization;
 using Backend.Presentation.Shared;
 using MediatR;
-using Backend.Domain.Shared;
+using Backend.Application.DTO.Budget.Dashboard;
 using Backend.Domain.Entities.Wizard;
+using Backend.Application.Features.Wizard.FinalizationPreview;
+using Backend.Domain.Shared;
 
 namespace Backend.Presentation.Controllers
 {
@@ -72,10 +74,10 @@ namespace Backend.Presentation.Controllers
             return result.ToApiEnvelope();
         }
         [HttpGet("{sessionId:guid}")]
-        [ProducesResponseType(typeof(ApiEnvelope<WizardSavedDataDTO>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(ApiEnvelope<WizardSavedDataDTO>), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ApiEnvelope<WizardSavedDataDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiEnvelope<WizardSavedDataDto>), StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
-        public async Task<ActionResult<ApiEnvelope<WizardSavedDataDTO?>>> GetWizardData(Guid sessionId, CancellationToken ct)
+        public async Task<ActionResult<ApiEnvelope<WizardSavedDataDto?>>> GetWizardData(Guid sessionId, CancellationToken ct)
         {
             // 1. Authorize - does this user own this session?
             // A better long-term solution might be a custom Authorization policy or attribute.
@@ -86,6 +88,7 @@ namespace Backend.Presentation.Controllers
 
             // 2. Send the query
             var query = new GetWizardDataQuery(sessionId);
+            // SET BREAKPOINT HERE TO GET WIZARD UI BUG
             var result = await _mediator.Send(query, ct);
 
             // 3. Convert result to HTTP response using the extension method
@@ -109,7 +112,37 @@ namespace Backend.Presentation.Controllers
             }
 
             var command = new FinalizeWizardCommand(sessionId, persoid.Value);
+
+            // Result is Result<Guid>
             var result = await _mediator.Send(command, ct);
+
+            if (result.IsSuccess)
+            {
+                // Force 204 No Content (ignoring the Guid)
+                return NoContent();
+            }
+
+            // Cast to base (Result) to use the non-generic extension.
+            // This returns 'ActionResult' (compatible with IActionResult) 
+            // and matches your swagger type ApiEnvelope<object?>
+            return ((Result)result).ToApiEnvelope();
+        }
+        // GET /api/wizard/{sessionId}/finalization-preview
+        // Returns a preview of the budget dashboard that would be created upon finalization
+        // This helps the user see what to expect before completing the wizard
+        // Keeps the calculation logic DRY by reusing the same query handler as the finalization process
+        [HttpGet("{sessionId:guid}/finalization-preview")]
+        [ProducesResponseType(typeof(ApiEnvelope<BudgetDashboardDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiEnvelope<object?>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(typeof(ApiEnvelope<object?>), StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<ApiEnvelope<BudgetDashboardDto>>> GetFinalizationPreview(Guid sessionId, CancellationToken ct)
+        {
+            if (!await AuthorizeSession(sessionId, ct))
+                return Forbid();
+
+            var query = new GetWizardFinalizationPreviewQuery(sessionId);
+            var result = await _mediator.Send(query, ct);
 
             return result.ToApiEnvelope();
         }

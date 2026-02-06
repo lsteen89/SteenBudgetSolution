@@ -15,8 +15,14 @@ export interface IncomeOverviewDto {
 }
 
 export interface ExpenseCategorySummaryDto {
+    categoryKey: string;
     categoryName: string;
     totalMonthlyAmount: number;
+    items: ExpenseLineItemDto[];
+}
+export interface ExpenseLineItemDto {
+    name: string;
+    amountMonthly: number;
 }
 
 export interface ExpenditureOverviewDto {
@@ -37,6 +43,7 @@ export interface DebtOverviewDto {
     totalDebtBalance: number;
     totalMonthlyPayments: number;
     debts: DashboardDebtItemDto[];
+    repaymentStrategy?: string | null;
 }
 
 export interface DashboardSavingsGoalDto {
@@ -45,15 +52,19 @@ export interface DashboardSavingsGoalDto {
     targetAmount?: number | null;
     targetDate?: string | null;   // ISO date string from BE
     amountSaved?: number | null;
+    monthlyContribution: number;
 }
 
 export interface SavingsOverviewDto {
     monthlySavings: number;
+    totalGoalSavingsMonthly: number;
+    totalSavingsMonthly: number;
     goals: DashboardSavingsGoalDto[];
 }
 export interface DashboardRecurringExpenseDto {
     id: string;
     name: string;
+    categoryKey: string;
     categoryName: string;
     amountMonthly: number;
 }
@@ -74,8 +85,13 @@ export interface BudgetDashboardDto {
     expenditure: ExpenditureOverviewDto;
     savings?: SavingsOverviewDto | null;
     debt: DebtOverviewDto;
-    disposableAfterExpenses: number;
-    disposableAfterExpensesAndSavings: number;
+
+    carryOverAmountMonthly: number;
+    disposableAfterExpensesWithCarryMonthly: number;
+    disposableAfterExpensesAndSavingsWithCarryMonthly: number;
+    finalBalanceWithCarryMonthly: number;
+
     recurringExpenses: DashboardRecurringExpenseDto[];
     subscriptions: SubscriptionsOverviewDto;
 }
+

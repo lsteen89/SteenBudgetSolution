@@ -1,126 +1,88 @@
-import React from 'react';
-import { useFormContext } from 'react-hook-form';
-import { Step4FormValues } from '@/types/Wizard/Step4FormValues';
-import OptionContainer from '@components/molecules/containers/OptionContainer';
-import InfoBox from '@/components/molecules/messaging/InfoBox';
-import { motion } from 'framer-motion';
-import { devLog } from '@/utils/devLog';
-import { useEffect, useRef } from 'react';
-import { useWizardSaveQueue } from '@/stores/Wizard/wizardSaveQueue';
+import React, { useMemo } from "react";
+import { useFormContext, useController } from "react-hook-form";
+import { motion, useReducedMotion } from "framer-motion";
 
-/**
- * Gatekeeper for the "Skulder" (debts) step.
- *
- * UX in short:
- *  – Presents a single, crystal‑clear question.
- *  – Two large click‑targets double as buttons.
- *  – Selecting "Nej" lets the wizard skip the debt‑entry flow entirely.
- */
+import OptionContainer from "@components/molecules/containers/OptionContainer";
+import { WizardStepHeader } from "@components/organisms/overlays/wizard/SharedComponents/Headers/WizardStepHeader";
+import { WizardRadioCardGroup } from "@components/organisms/overlays/wizard/SharedComponents/Buttons/WizardRadioCardGroup";
+import type { WizardRadioOption } from "@components/organisms/overlays/wizard/SharedComponents/Buttons/WizardRadioCardGroup";
+
+import BirdIllustration from "@assets/Images/bird_freedom.png";
+import type { Step4FormValues } from "@/types/Wizard/Step4_Debt/Step4FormValues";
+import { idFromPath } from "@/utils/idFromPath";
+
+type HasDebts = boolean;
+
 const SubStepGatekeeper: React.FC = () => {
-  const {
-    register,
-    setValue,
-    watch,
-    formState: { errors },
-  } = useFormContext<Step4FormValues>();
+  const { control } = useFormContext<Step4FormValues>();
+  const reduceMotion = useReducedMotion();
 
-  // Current choice (boolean | undefined)
-  const selected = watch('intro.hasDebts');
-
-  // Dont save changes to the queue 
+  const { field, fieldState } = useController({
+    control,
+    name: "intro.hasDebts",
+  });
 
 
-  // Trace value changes from RHF
-  const prevRef = useRef<boolean | null | undefined>(selected);
-  useEffect(() => {
-    if (prevRef.current !== selected) {
-      devLog.group('Gatekeeper.watch change', devLog.stamp({ prev: prevRef.current, next: selected }));
-      prevRef.current = selected;
-    }
-  }, [selected]);
+  const selected: HasDebts | null =
+    field.value === true ? true : field.value === false ? false : null;
 
-  /**
-   * Update form state and (optionally) trigger navigation handled
-   * by the parent wizard context.
-   */
-  const handleChoice = (answer: boolean) => {
-    setValue('intro.hasDebts', answer, {
-      shouldValidate: true,
-      shouldDirty: true,
-    });
+  const options = [
+    { value: true, label: "Ja, jag vill lägga till skulder." },
+    { value: false, label: "Nej, jag har inga skulder." },
+  ] satisfies WizardRadioOption<HasDebts>[];
 
-    // If the user has **no** debts we can safely fast‑forward. The actual
-    // navigation happens in the wizard controller, so we simply dispatch an
-    // event. Feel free to adapt to your routing setup.
-    if (!answer) {
-      const skipEvent = new CustomEvent('wizard:skipDebts');
-      window.dispatchEvent(skipEvent);
-    }
-  };
+  const showSkipHint = selected === false;
 
   return (
-    <OptionContainer className="p-6 md:p-8">
-      <section className="space-y-8 text-white">
-        <InfoBox icon={false}>
-          <h3 className="text-2xl md:text-3xl font-extrabold text-center text-darkLimeGreen">
-            Har du några befintliga lån eller skulder som du vill hålla koll på?
-          </h3>
-        </InfoBox>
-
-        <InfoBox>
-          Den här delen hjälper dig att samla alla dina skulder så att du enkelt kan följa
-          utvecklingen och planera avbetalningar. Om du inte har några kan du hoppa över det här
-          steget.
-        </InfoBox>
-
-        <div className="grid md:grid-cols-2 gap-6">
-          <button
-            type="button"
-            onClick={() => handleChoice(true)}
-            className={`rounded-2xl px-6 py-8 font-semibold transition ring-offset-2 ring-limeGreen/60
-              backdrop-blur-md focus:outline-none
-              ${selected === true
-                ? 'ring-4 bg-darkBlueMenuColor/70'
-                : 'bg-darkBlueMenuColor/40 hover:bg-darkBlueMenuColor/60'
-              }`}
-          >
-            <span className="block text-lg md:text-xl">Ja, lägg till dem</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleChoice(false)}
-            className={`rounded-2xl px-6 py-8 font-semibold transition ring-offset-2 ring-limeGreen/60
-              backdrop-blur-md focus:outline-none
-              ${selected === false
-                ? 'ring-4 bg-darkBlueMenuColor/70'
-                : 'bg-darkBlueMenuColor/40 hover:bg-darkBlueMenuColor/60'
-              }`}
-          >
-            <span className="block text-lg md:text-xl">Nej, jag har inga skulder</span>
-          </button>
-        </div>
-
-        {/* Hidden input keeps RHF in sync without exposing default radio styling */}
-        <input
-          type="hidden"
-          {...register('intro.hasDebts')}
+    <div>
+      <section className="relative w-auto mx-auto sm:px-6 lg:px-12 py-8 pb-safe space-y-6">
+        <motion.img
+          src={BirdIllustration}
+          alt=""
+          aria-hidden="true"
+          className="absolute -top-6 right-2 md:-top-8 md:right-6 w-20 h-20 md:w-28 md:h-28 opacity-90 pointer-events-none select-none drop-shadow-lg"
+          initial={{ opacity: 0, y: -8, scale: 0.98 }}
+          animate={reduceMotion ? { opacity: 1 } : { opacity: 1, y: [0, -6, 0] }}
+          transition={
+            reduceMotion
+              ? { duration: 0.2 }
+              : { duration: 5, repeat: Infinity, repeatType: "mirror", ease: "easeInOut" }
+          }
         />
 
-        {errors.intro?.hasDebts && (
-          <motion.p
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center font-bold text-red-500"
-            role="alert"
-          >
-            {errors.intro.hasDebts.message}
-          </motion.p>
-        )}
+        <WizardStepHeader
+          stepPill={{ stepNumber: 4, majorLabel: "Skulder", subLabel: "Intro" }}
+          title=""
+          subtitle="Vi kan samla allt på ett ställe så du får en tydlig bild av betalningar och utveckling."
+          helpTitle="Varför frågar vi?"
+          helpItems={[
+            "Om du har skulder kan vi räkna med betalningar i din helhet.",
+            "Om du inte har några hoppar vi över det här steget.",
+          ]}
+        />
 
+        <div
+          id={idFromPath("intro.hasDebts")}
+          className="rounded-2xl border border-white/10 bg-white/[0.05] p-4"
+        >
+          <WizardRadioCardGroup<HasDebts>
+            name={field.name}
+            value={selected}
+            options={options}
+            onChange={(v) => field.onChange(v)}
+            error={fieldState.error?.message}
+          />
 
+          {showSkipHint ? (
+            <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.06] p-4 text-center">
+              <p className="text-sm text-wizard-text/70">
+                Isåfall är vi klara! Bara en kort summering återstår!
+              </p>
+            </div>
+          ) : null}
+        </div>
       </section>
-    </OptionContainer>
+    </div>
   );
 };
 

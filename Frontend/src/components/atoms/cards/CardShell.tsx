@@ -56,7 +56,11 @@ const CardShell: React.FC<Props> = ({
             <div className={cn("mt-3 tabular-nums", footer ? "pb-2" : null)}>{children}</div>
 
             {footer ? (
-                <div className="mt-3 border-t border-slate-100 pt-3 text-xs">{footer}</div>
+                <div className="mt-3 pt-3 border-t border-wizard-stroke/20">
+                    <div className="rounded-2xl bg-wizard-surface-accent/35 border border-wizard-stroke/15 p-3 sm:p-3.5">
+                        {footer}
+                    </div>
+                </div>
             ) : null}
         </section>
     );

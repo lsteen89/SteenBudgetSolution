@@ -1,7 +1,8 @@
-﻿namespace Backend.Application.DTO.Budget.Debt
+﻿using Backend.Domain.Entities.Budget.Debt;
+
+namespace Backend.Application.DTO.Budget.Debt;
+
+public sealed class DebtSummaryDto
 {
-    public class DebtSummaryDto
-    {
-        public string? RepaymentStrategy { get; set; } = string.Empty; // The strategy for repaying debts, e.g., "avalanche", "snowball"
-    }
+    public RepaymentStrategy RepaymentStrategy { get; set; } = RepaymentStrategy.Unknown;
 }

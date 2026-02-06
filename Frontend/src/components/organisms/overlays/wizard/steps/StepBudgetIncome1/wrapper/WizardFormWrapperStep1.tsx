@@ -1,28 +1,16 @@
-import React, {
-  forwardRef,
-  useImperativeHandle,
-  useEffect,
-  useRef,
-  ReactNode,
-} from 'react';
-import {
-  useForm,
-  FormProvider,
-  UseFormReturn,
-  FieldErrors,
-  Resolver,
-  DeepPartial,
-  FieldPath,
-  get,
-} from 'react-hook-form';
-import { yupResolver } from '@hookform/resolvers/yup';
-import { isEqual } from 'lodash';
-import { shallow } from 'zustand/shallow';
+// WizardFormWrapperStep1.tsx
+import React, { forwardRef, useImperativeHandle, useEffect, useRef, ReactNode } from "react";
+import { useForm, FormProvider, UseFormReturn, FieldErrors, DeepPartial, FieldPath } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import { isEqual } from "lodash";
+import { shallow } from "zustand/shallow";
 
-import { useWizardDataStore, WizardDataStore } from '@/stores/Wizard/wizardDataStore';
-import { IncomeFormValues } from '@myTypes/Wizard/IncomeFormValues';
-import { incomeStepSchema } from '@schemas/wizard/StepIncome/incomeStepSchema';
-import useScrollToFirstError from '@/hooks/useScrollToFirstError';
+import { useWizardDataStore, WizardDataStore } from "@/stores/Wizard/wizardDataStore";
+import { IncomeFormValues } from "@/types/Wizard/Step1_Income/IncomeFormValues";
+import { incomeStepSchema } from "@schemas/wizard/StepIncome/incomeStepSchema";
+import useScrollToFirstError from "@/hooks/useScrollToFirstError";
+
+import WizardSkeleton from "@/components/organisms/overlays/wizard/SharedComponents/Skeletons/WizardSkeleton";
 
 export interface WizardFormWrapperStep1Ref {
   validateFields: () => Promise<boolean>;
@@ -32,90 +20,119 @@ export interface WizardFormWrapperStep1Ref {
   markAllTouched: () => Promise<boolean>;
 }
 
-interface WizardFormWrapperStep1Props {
+type Props = {
   children: ReactNode;
-}
+
+  // ✅ UI-only
+  loading?: boolean;                 // parent/API hydration
+  isSaving?: boolean;                // step transition saving
+  skeletonVariant?: "intro" | "form" | "confirm";
+};
 
 const getLatestIncomeDataFromStore = () => useWizardDataStore.getState().data.income;
 
-const WizardFormWrapperStep1 = forwardRef<
-  WizardFormWrapperStep1Ref,
-  WizardFormWrapperStep1Props
->(({ children }, ref) => {
-  const { incomeStepData, setIncome } = useWizardDataStore(
-    (state: WizardDataStore) => ({
-      incomeStepData: state.data.income,
-      setIncome: state.setIncome,
-    }),
-    shallow
-  );
+const WizardFormWrapperStep1 = forwardRef<WizardFormWrapperStep1Ref, Props>(
+  ({ children, loading = false, isSaving = false, skeletonVariant = "form" }, ref) => {
+    const { incomeStepData, setIncome } = useWizardDataStore(
+      (state: WizardDataStore) => ({
+        incomeStepData: state.data.income,
+        setIncome: state.setIncome,
+      }),
+      shallow
+    );
 
-  const methods = useForm<IncomeFormValues>({
-    resolver: yupResolver(incomeStepSchema) as unknown as Resolver<
-      IncomeFormValues, any
-    >,
-    defaultValues: incomeStepData,
-    mode: 'onBlur',
-    reValidateMode: 'onChange',
-    shouldUnregister: false,
-  });
+    const methods = useForm<IncomeFormValues>({
+      resolver: yupResolver(incomeStepSchema) as any,
+      defaultValues: {
+        ...incomeStepData,
+        salaryFrequency: incomeStepData.salaryFrequency ?? "monthly",
+      },
+      mode: "onBlur",
+      reValidateMode: "onChange",
+      shouldUnregister: false,
+    });
 
-  const { control, watch, reset, getValues, formState, trigger, setFocus } = methods;
+    const { watch, reset, getValues, formState, trigger } = methods;
 
-  // Scroll to the first error whenever validation fails
-  useScrollToFirstError(formState.errors);
+    useScrollToFirstError(formState.errors, formState.submitCount > 0);
 
-
-  useEffect(() => {
-    const subscription = watch(
-      (
-        values: DeepPartial<IncomeFormValues>,
-        { name, type }: { name?: FieldPath<IncomeFormValues>; type?: string }
-      ) => {
+    // Keep store in sync (only when not showing blocking overlay)
+    useEffect(() => {
+      const sub = watch((values: DeepPartial<IncomeFormValues>) => {
+        if (loading || isSaving) return; // ✅ prevent churn during overlay
         const currentStoreData = getLatestIncomeDataFromStore();
         if (!isEqual(values, currentStoreData)) {
           setIncome(values as IncomeFormValues);
         }
-      }
-    );
-    return () => subscription.unsubscribe();
-  }, [control, watch, setIncome]);
+      });
+      return () => sub.unsubscribe();
+    }, [watch, setIncome, loading, isSaving]);
 
-  const hasHydratedFromStoreRef = useRef(false);
-  useEffect(() => {
-    const storeData = incomeStepData;
-    const isMeaningfulData =
-      storeData &&
-      Object.keys(storeData).length > 0 &&
-      (storeData.netSalary !== undefined ||
-        (storeData.householdMembers && storeData.householdMembers.length > 0) ||
-        (storeData.sideHustles && storeData.sideHustles.length > 0));
+    // One-time hydrate form from store
+    const hasHydratedFromStoreRef = useRef(false);
+    useEffect(() => {
+      const storeData = incomeStepData;
 
-    if (isMeaningfulData) {
+      const isMeaningfulData =
+        storeData &&
+        Object.keys(storeData).length > 0 &&
+        (storeData.netSalary !== undefined ||
+          (storeData.householdMembers && storeData.householdMembers.length > 0) ||
+          (storeData.sideHustles && storeData.sideHustles.length > 0));
+
+      if (!isMeaningfulData) return;
+
       const currentFormValues = getValues();
       if (!hasHydratedFromStoreRef.current && !isEqual(currentFormValues, storeData)) {
         reset(storeData as DeepPartial<IncomeFormValues>);
         hasHydratedFromStoreRef.current = true;
       }
-    }
-  }, [incomeStepData, reset, getValues]);
+    }, [incomeStepData, reset, getValues]);
 
-  useImperativeHandle(ref, () => ({
-    // 👇 Simply trigger validation; the hook will handle scrolling
-    validateFields: async () => {
-      return await trigger();
-    },
-    getStepData: () => getValues(),
-    getErrors: () => formState.errors,
-    getMethods: () => methods,
-    // 👇 trigger() is sufficient here as well
-    markAllTouched: async () => {
-      return await trigger();
-    },
-  }));
+    useImperativeHandle(ref, () => ({
+      validateFields: async () => {
+        const ok = await trigger(undefined, { shouldFocus: true });
+        if (!ok) {
+          await methods.handleSubmit(() => { }, () => { })(); // bump submitCount
+        }
+        return ok;
+      },
+      getStepData: () => getValues(),
+      getErrors: () => formState.errors,
+      getMethods: () => methods,
+      markAllTouched: async () => {
+        const ok = await trigger(undefined, { shouldFocus: true });
+        if (!ok) {
+          await methods.handleSubmit(() => { }, () => { })();
+        }
+        return ok;
+      },
+    }));
 
-  return <FormProvider {...methods}>{children}</FormProvider>;
-});
+    const showOverlay = loading || isSaving;
 
-WizardFormWrapperStep1.displayName = 'WizardFormWrapperStep1';
+    return (
+      <FormProvider {...methods}>
+        <div className="relative h-full">
+          {children}
+
+          {showOverlay && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/25 backdrop-blur-sm">
+              <div className="w-[min(720px,95%)]">
+                <WizardSkeleton
+                  variant={skeletonVariant}
+                  withProgress={false}
+                  withFooter={false}
+                  rows={3}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </FormProvider>
+    );
+  }
+);
+
+WizardFormWrapperStep1.displayName = "WizardFormWrapperStep1";
 export default WizardFormWrapperStep1;

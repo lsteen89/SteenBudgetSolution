@@ -16,13 +16,13 @@ import BreakdownInsightsCard from "@/components/organisms/dashboard/breakdown/Br
 import { incomeToBreakdownItems } from "@/hooks/dashboard/dashboardBreakdown.mapper";
 
 const DashboardBreakdownPage: React.FC = () => {
-    const { data, status, error, refetch } = useDashboardSummary();
+    const { data, isPending, isError, error, refetch } = useDashboardSummary();
 
-    if (status === "idle" || status === "loading") {
+    if (isPending) {
         return <BreakdownPageSkeleton data-testid="breakdown-skeleton" />;
     }
 
-    if (status === "error") {
+    if (isError) {
         return (
             <PageContainer className="md:px-20 items-center min-h-screen overflow-y-auto h-full">
                 <ContentWrapper centerContent className="lg:pt-24 3xl:pt-48">
@@ -44,12 +44,14 @@ const DashboardBreakdownPage: React.FC = () => {
         );
     }
 
-    if (status === "notfound" || !data) {
+    if (!data) {
         return (
             <PageContainer className="md:px-20 items-center min-h-screen overflow-y-auto h-full">
                 <ContentWrapper centerContent className="lg:pt-24 3xl:pt-48">
                     <div className="rounded-3xl bg-white/80 border border-slate-100 shadow-sm p-5">
-                        <p className="text-sm text-slate-600">Det finns ingen budget ännu, så det finns inget att bryta ner.</p>
+                        <p className="text-sm text-slate-600">
+                            Det finns ingen budget ännu, så det finns inget att bryta ner.
+                        </p>
                         <Link
                             to="/dashboard"
                             className="mt-4 inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-medium bg-slate-900 text-white hover:bg-slate-800 transition"
@@ -64,7 +66,7 @@ const DashboardBreakdownPage: React.FC = () => {
 
     const { summary, breakdown } = data;
     const toneClass = summary.finalBalance >= 0 ? "text-emerald-600" : "text-rose-600";
-    const currency = summary.remainingCurrency;
+    const currency = summary.currency;
 
     return (
         <PageContainer className="md:px-20 items-center min-h-screen overflow-y-auto h-full">
@@ -75,7 +77,7 @@ const DashboardBreakdownPage: React.FC = () => {
                         <>
                             Inkomster − Utgifter − Sparande − Skuldbetalningar ={" "}
                             <span className={`font-semibold ${toneClass}`}>
-                                {formatMoneyV2(summary.finalBalance, summary.remainingCurrency)}
+                                {formatMoneyV2(summary.finalBalance, summary.currency)}
                             </span>
                         </>
                     }
@@ -89,13 +91,13 @@ const DashboardBreakdownPage: React.FC = () => {
                             items={breakdown.incomeItems}
                         />
                         <ExpensesBreakdownCard
-                            currency={summary.remainingCurrency}
+                            currency={summary.currency}
                             totalExpenditure={summary.totalExpenditure}
                             categoryItems={breakdown.expenseCategoryItems}
                             recurringExpenses={summary.recurringExpenses}
                         />
                         <SavingsDebtsCard
-                            currency={summary.remainingCurrency}
+                            currency={summary.currency}
                             totalSavings={summary.totalSavings}
                             totalDebtPayments={summary.totalDebtPayments}
                             finalBalance={summary.finalBalance}
@@ -106,7 +108,7 @@ const DashboardBreakdownPage: React.FC = () => {
 
                     <div className="space-y-4">
                         <BreakdownInsightsCard
-                            currency={summary.remainingCurrency}
+                            currency={summary.currency}
                             totalIncome={summary.totalIncome}
                             totalExpenditure={summary.totalExpenditure}
                             totalSavings={summary.totalSavings}
@@ -118,7 +120,7 @@ const DashboardBreakdownPage: React.FC = () => {
                             subscriptionsTotal={summary.subscriptionsTotal}
                         />
                         <SubscriptionsBreakdownCard
-                            currency={summary.remainingCurrency}
+                            currency={summary.currency}
                             subscriptionsTotal={summary.subscriptionsTotal}
                             subscriptionsCount={summary.subscriptionsCount}
                             subscriptions={summary.subscriptions}

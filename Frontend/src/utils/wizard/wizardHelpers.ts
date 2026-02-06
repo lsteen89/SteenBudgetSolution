@@ -1,3 +1,5 @@
+import { Frequency } from "@/types/common";
+
 /* ──────────────────────── number utilities ──────────────────────── */
 export type NullableNum = number | string | null | undefined;
 
@@ -17,14 +19,20 @@ export const sumArray = (arr: ReadonlyArray<NullableNum>): number =>
 export type Freq = "monthly" | "yearly" | "weekly" | undefined;
 
 
-export const toMonthly = (value: NullableNum, freq: Freq = "monthly") => {
+export const toMonthly = (value: NullableNum, freq: Frequency = "monthly") => {
   const n = toNumber(value);
+
   switch (freq) {
     case "yearly":
       return n / 12;
+    case "quarterly":
+      return n * 4 / 12; // = n / 3
     case "weekly":
       return (n * 52) / 12;
+    case "biWeekly":
+      return (n * 26) / 12;
     case "monthly":
+
     default:
       return n;
   }

@@ -20,22 +20,19 @@ public sealed class DebtsStepValidator : IWizardStepValidator
     {
         try
         {
-            if (stepData is null)
-                return Result<string>.Failure(new Error("Validation.Failed", "Step data cannot be null."));
+            var dto = JsonSerializer.Deserialize<DebtsFormValues>(stepData.ToString()!, JsonHelper.Camel);
 
-            var json = stepData is string s ? s : stepData.ToString();
-            if (string.IsNullOrWhiteSpace(json))
-                return Result<string>.Failure(new Error("Serialization.Failed", "Step data was empty."));
 
-            var dto = JsonSerializer.Deserialize<DebtsFormValues>(json!, JsonHelper.Camel);
             if (dto is null)
-                return Result<string>.Failure(new Error("Serialization.Failed", "Could not deserialize step data."));
+            {
+                return Result<string>.Failure(new Error("Validation.Failed", "Step data cannot be null."));
+            }
 
             _validator.ValidateAndThrow(dto);
 
             // Re-serialize normalized, camel-cased data as the value to persist
-            var normalized = JsonSerializer.Serialize(dto, JsonHelper.Camel);
-            return Result<string>.Success(normalized);
+            var json = JsonHelper.SerializeSparse(dto);
+            return Result<string>.Success(json);
         }
         catch (ValidationException ex)
         {

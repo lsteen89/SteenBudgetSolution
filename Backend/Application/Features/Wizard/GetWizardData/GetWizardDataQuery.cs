@@ -5,4 +5,4 @@ using Backend.Application.Abstractions.Messaging;
 namespace Backend.Application.Features.Wizard.GetWizardData;
 
 public sealed record GetWizardDataQuery(Guid SessionId)
-    : IQuery<Result<WizardSavedDataDTO?>>;
+    : IQuery<Result<WizardSavedDataDto?>>;

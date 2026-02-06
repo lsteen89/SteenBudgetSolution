@@ -5,73 +5,70 @@ public sealed class IncomeValidator : AbstractValidator<IncomeFormValues>
 {
     public IncomeValidator()
     {
-        /* ── scalar rules ─────────────────────────── */
         RuleFor(x => x.NetSalary)
-            .GreaterThan(0).WithMessage("Net salary must be greater than 0.");
+            .NotNull().WithMessage("Ange din primära inkomst.")
+            .GreaterThan(0).WithMessage("Inkomsten måste vara > 0.");
 
         RuleFor(x => x.SalaryFrequency)
-            .IsInEnum().WithMessage("Salary frequency is required.");
+            .IsInEnum().WithMessage("Välj frekvens.");
 
-        /* ── household members ────────────────────── */
-        When(x => x.ShowHouseholdMembers == true, () =>
+        RuleForEach(x => x.HouseholdMembers)
+            .SetValidator(new IncomeItemValidator());
+
+        RuleForEach(x => x.SideHustles)
+            .SetValidator(new IncomeItemValidator());
+
+        RuleFor(x => x.HouseholdMembers)
+            .Must(HaveUniqueIds)
+            .WithMessage("Duplicate household-member IDs are not allowed.");
+
+        RuleFor(x => x.SideHustles)
+            .Must(HaveUniqueIds)
+            .WithMessage("Duplicate side-hustle IDs are not allowed.");
+    }
+
+    private static bool HaveUniqueIds(List<IncomeItem> items)
+    {
+        var ids = items
+            .Where(x => !string.IsNullOrWhiteSpace(x.Id))
+            .Select(x => x.Id!)
+            .ToList();
+
+        return ids.Distinct().Count() == ids.Count;
+    }
+}
+
+public sealed class IncomeItemValidator : AbstractValidator<IncomeItem>
+{
+    public IncomeItemValidator()
+    {
+        RuleFor(x => x).Custom((x, ctx) =>
         {
-            RuleFor(x => x.HouseholdMembers!)
-                .NotNull()
-                .Must(h => h.Count > 0)
-                .WithMessage("At least one household member must be added.")
-                .Must(h =>
-                {
-                    var ids = h.Where(m => !string.IsNullOrWhiteSpace(m!.Id))
-                               .Select(m => m.Id!)
-                               .ToList();
-                    return ids.Distinct().Count() == ids.Count;
-                })
-                .WithMessage("Duplicate household-member IDs are not allowed.");
+            var hasName = !string.IsNullOrWhiteSpace(x.Name);
+            var hasIncome = x.Income.HasValue;
+            var hasFreq = x.Frequency.HasValue;
 
-            RuleForEach(x => x.HouseholdMembers!)
-                .ChildRules(m =>
-                {
-                    m.RuleFor(h => h.Name).NotEmpty().WithMessage("Name is required.");
-                    m.RuleFor(h => h.Income).GreaterThan(0).WithMessage("Income must be > 0.");
-                    m.RuleFor(h => h.Frequency).IsInEnum().WithMessage("Frequency is required.");
-                });
-        });
+            // Empty row OK
+            if (!hasName && !hasIncome && !hasFreq)
+                return;
 
-        /* ── side hustles ─────────────────────────── */
-        When(x => x.ShowSideIncome == true, () =>
-        {
-            RuleFor(x => x.SideHustles!)
-                .NotNull()
-                .Must(s => s.Count > 0)
-                .WithMessage("At least one side hustle must be added.")
-                .Must(h =>
-                {
-                    var ids = h.Where(m => !string.IsNullOrWhiteSpace(m.Id))
-                                  .Select(m => m.Id!)
-                                  .ToList();
-                    return ids.Distinct().Count() == ids.Count;
-                })
-               .WithMessage("Duplicate side-hustle IDs are not allowed.");
+            // income must be > 0
+            if (hasIncome && x.Income <= 0)
+                ctx.AddFailure(nameof(x.Income), "Beloppet måste vara > 0 kr.");
 
-            RuleForEach(x => x.SideHustles!)
-                .ChildRules(s =>
-                {
-                    s.RuleFor(h => h.Name)
-                        .NotEmpty().WithMessage("Side hustle name is required.");
+            //  min length 2
+            if (hasName && x.Name!.Trim().Length < 2)
+                ctx.AddFailure(nameof(x.Name), "Minst 2 tecken.");
 
-                    s.RuleFor(h => h.Income)
-                        .GreaterThan(0).WithMessage("Income must be > 0.");
+            //  require all fields if any are present
+            if (!hasName)
+                ctx.AddFailure(nameof(x.Name), "Ange ett namn.");
 
-                    s.RuleFor(h => h.Frequency)
-                        .IsInEnum().WithMessage("Frequency is required.");
-                });
-        });
+            if (!hasIncome)
+                ctx.AddFailure(nameof(x.Income), "Ange ett belopp (> 0 kr).");
 
-        When(x => x.ShowSideIncome != true, () =>
-        {
-            RuleFor(x => x.SideHustles)
-                .Must(s => s is null || s.Count == 0)
-                .WithMessage("Side hustles should not be provided when the section is hidden.");
+            if (!hasFreq)
+                ctx.AddFailure(nameof(x.Frequency), "Välj frekvens.");
         });
     }
 }

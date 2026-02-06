@@ -2,7 +2,6 @@
 -- # SECTION 1: USER AND AUTHENTICATION TABLES
 -- ##################################################################
 
--- Create User table
 CREATE TABLE IF NOT EXISTS Users (
     Id INT AUTO_INCREMENT PRIMARY KEY,
     Persoid BINARY(16) NOT NULL UNIQUE,
@@ -18,9 +17,8 @@ CREATE TABLE IF NOT EXISTS Users (
     CreatedBy VARCHAR(50) NOT NULL,
     CreatedTime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     LastUpdatedTime DATETIME
-);
+) ENGINE=InnoDB;
 
--- Create ErrorLog table
 CREATE TABLE IF NOT EXISTS ErrorLog (
     LogId INT AUTO_INCREMENT PRIMARY KEY,
     ErrorMessage TEXT,
@@ -29,30 +27,28 @@ CREATE TABLE IF NOT EXISTS ErrorLog (
     SubmittedBy VARCHAR(100),
     CreatedBy VARCHAR(50) NOT NULL,
     CreatedTime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+) ENGINE=InnoDB;
 
--- Create VerificationToken table
 CREATE TABLE IF NOT EXISTS VerificationToken (
     Id INT AUTO_INCREMENT PRIMARY KEY,
-    PersoId BINARY(16) NOT NULL UNIQUE,   
-    Token BINARY(16) NOT NULL UNIQUE,     
+    Persoid BINARY(16) NOT NULL UNIQUE,
+    Token BINARY(16) NOT NULL UNIQUE,
     TokenExpiryDate DATETIME NOT NULL,
     CreatedBy VARCHAR(50) NOT NULL DEFAULT 'System',
     CreatedTime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT FK_VerificationToken_User FOREIGN KEY (PersoId)
-        REFERENCES Users(PersoId) ON DELETE CASCADE
-);
+    CONSTRAINT FK_VerificationToken_User FOREIGN KEY (Persoid)
+        REFERENCES Users(Persoid) ON DELETE CASCADE
+) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS FailedLoginAttempts (
     Id INT AUTO_INCREMENT PRIMARY KEY,
-    PersoId BINARY(16) NOT NULL,
+    Persoid BINARY(16) NOT NULL,
     AttemptTime DATETIME NOT NULL,
     IpAddress VARCHAR(45) NULL,
     UserAgent VARCHAR(255) NULL,
-    CONSTRAINT FK_FailedLoginAttempts_User FOREIGN KEY (PersoId) REFERENCES Users(Persoid) 
-);
+    CONSTRAINT FK_FailedLoginAttempts_User FOREIGN KEY (Persoid) REFERENCES Users(Persoid)
+) ENGINE=InnoDB;
 
--- Create RefreshTokens table
 CREATE TABLE IF NOT EXISTS RefreshTokens (
     TokenId              BINARY(16)   NOT NULL PRIMARY KEY,
     Persoid              BINARY(16)   NOT NULL,
@@ -70,13 +66,12 @@ CREATE TABLE IF NOT EXISTS RefreshTokens (
     CONSTRAINT FK_RefreshTokens_User FOREIGN KEY (Persoid) REFERENCES Users(Persoid) ON DELETE CASCADE,
     UNIQUE KEY UK_Hashed (HashedToken),
     UNIQUE KEY ux_user_session (Persoid, SessionId)
-) ENGINE = InnoDB;
+) ENGINE=InnoDB;
 
 ALTER TABLE RefreshTokens
   ADD INDEX IF NOT EXISTS ix_refreshtokens_abs_exp (ExpiresAbsoluteUtc);
 
--- Create UserVerificationTracking table
-CREATE TABLE UserVerificationTracking (
+CREATE TABLE IF NOT EXISTS UserVerificationTracking (
     Id INT PRIMARY KEY AUTO_INCREMENT,
     Persoid BINARY(16) NOT NULL,
     LastResendRequestTime DATETIME,
@@ -85,19 +80,35 @@ CREATE TABLE UserVerificationTracking (
     CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     UpdatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     CONSTRAINT FK_UserVerificationTracking_User FOREIGN KEY (Persoid) REFERENCES Users(Persoid) ON DELETE CASCADE
-);
+) ENGINE=InnoDB;
 
 -- ####################################################################
 -- # SECTION 1.1: EMAIL TABLES
 -- ####################################################################
+
 CREATE TABLE IF NOT EXISTS Email_send_limits (
     User_id BINARY(16) NOT NULL,
     Email_kind TINYINT UNSIGNED NOT NULL,
-    `Date` DATE NOT NULL,            -- UTC date bucket
+    `Date` DATE NOT NULL,
     Sent_count INT UNSIGNED NOT NULL DEFAULT 0,
     Last_sent_at DATETIME(6) NOT NULL,
     PRIMARY KEY (User_id, Email_kind, `Date`)
 ) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS EmailRateLimits (
+  KeyHash BINARY(32) NOT NULL,
+  Kind TINYINT NOT NULL,
+  DateUtc DATE NOT NULL,
+  SentCount INT NOT NULL DEFAULT 1,
+  LastSentAtUtc DATETIME NOT NULL,
+  PRIMARY KEY (KeyHash, Kind, DateUtc)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS BlacklistedTokens (
+  Jti        BINARY(16)    NOT NULL PRIMARY KEY,
+  ExpiresUtc DATETIME(6)   NOT NULL,
+  KEY IX_BlacklistedTokens_ExpiresUtc (ExpiresUtc)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
 -- ##################################################################
@@ -105,15 +116,65 @@ CREATE TABLE IF NOT EXISTS Email_send_limits (
 -- ##################################################################
 
 CREATE TABLE Budget (
-    Id                  BINARY(16)    NOT NULL PRIMARY KEY,
-    Persoid             BINARY(16)    NOT NULL,
-    DebtRepaymentStrategy VARCHAR(50) NULL,
-    CreatedAt           DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UpdatedAt           DATETIME      NULL ON UPDATE CURRENT_TIMESTAMP,
-    CreatedByUserId     BINARY(16)    NOT NULL,
-    UpdatedByUserId     BINARY(16)    NULL,
+    Id                    BINARY(16)    NOT NULL PRIMARY KEY,
+    Persoid               BINARY(16)    NOT NULL,
+    DebtRepaymentStrategy VARCHAR(50)   NULL,
+    CreatedAt             DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt             DATETIME      NULL ON UPDATE CURRENT_TIMESTAMP,
+    CreatedByUserId       BINARY(16)    NOT NULL,
+    UpdatedByUserId       BINARY(16)    NULL,
     CONSTRAINT FK_Budget_User FOREIGN KEY (Persoid) REFERENCES Users(Persoid) ON DELETE CASCADE,
-    INDEX IX_Budget_Persoid (Persoid) -- (INDEX ADDED FOR PERFORMANCE)
+    INDEX IX_Budget_Persoid (Persoid)
+) ENGINE=InnoDB;
+
+-- =========================
+-- BudgetMonth
+-- =========================
+CREATE TABLE BudgetMonth (
+    Id                      BINARY(16)    NOT NULL PRIMARY KEY,
+    BudgetId                BINARY(16)    NOT NULL,
+
+    YearMonth               CHAR(7)       NOT NULL, -- "YYYY-MM"
+    Status                  VARCHAR(10)   NOT NULL DEFAULT 'open',   -- open|closed|skipped
+
+    OpenedAt                DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ClosedAt                DATETIME      NULL,
+
+    CarryOverMode           VARCHAR(10)   NOT NULL DEFAULT 'none',   -- none|full|custom
+    CarryOverAmount         DECIMAL(18,2) NULL,
+
+    SnapshotTotalIncomeMonthly         DECIMAL(18,2) NULL,
+    SnapshotTotalExpensesMonthly       DECIMAL(18,2) NULL,
+    SnapshotTotalSavingsMonthly        DECIMAL(18,2) NULL,
+    SnapshotTotalDebtPaymentsMonthly   DECIMAL(18,2) NULL,
+    SnapshotFinalBalanceMonthly        DECIMAL(18,2) NULL,
+
+    CreatedAt               DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt               DATETIME      NULL ON UPDATE CURRENT_TIMESTAMP,
+    CreatedByUserId         BINARY(16)    NOT NULL,
+    UpdatedByUserId         BINARY(16)    NULL,
+
+    CONSTRAINT FK_BudgetMonth_Budget
+        FOREIGN KEY (BudgetId) REFERENCES Budget(Id) ON DELETE CASCADE,
+
+    CONSTRAINT CK_BudgetMonth_YearMonth
+        CHECK (YearMonth REGEXP '^[0-9]{4}-(0[1-9]|1[0-2])$'),
+
+    CONSTRAINT CK_BudgetMonth_Status
+        CHECK (Status IN ('open','closed','skipped')),
+
+    CONSTRAINT CK_BudgetMonth_CarryOverMode
+        CHECK (CarryOverMode IN ('none','full','custom')),
+
+    CONSTRAINT CK_BudgetMonth_CarryOverAmount_CustomOnly
+        CHECK (
+            (CarryOverMode = 'none'   AND (CarryOverAmount IS NULL OR CarryOverAmount = 0))
+        OR (CarryOverMode = 'full'   AND CarryOverAmount IS NOT NULL)
+        OR (CarryOverMode = 'custom' AND CarryOverAmount IS NOT NULL AND CarryOverAmount >= 0)
+        ),
+
+    UNIQUE KEY UX_BudgetMonth_BudgetId_YearMonth (BudgetId, YearMonth),
+    KEY IX_BudgetMonth_BudgetId_Status (BudgetId, Status)
 ) ENGINE=InnoDB;
 
 CREATE TABLE Income (
@@ -126,39 +187,46 @@ CREATE TABLE Income (
     CreatedByUserId  BINARY(16)    NOT NULL,
     UpdatedByUserId  BINARY(16)    NULL,
     CONSTRAINT FK_Income_Budget FOREIGN KEY (BudgetId) REFERENCES Budget(Id) ON DELETE CASCADE,
-    INDEX IX_Income_BudgetId (BudgetId) -- (INDEX ADDED FOR PERFORMANCE)
+    INDEX IX_Income_BudgetId (BudgetId)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IncomeSideHustle (
-    Id            BINARY(16)    NOT NULL PRIMARY KEY,
-    IncomeId      BINARY(16)    NOT NULL,
-    Name          VARCHAR(255)  NOT NULL,
-    IncomeMonthly DECIMAL(18,2) NOT NULL DEFAULT 0,
-    Frequency     INT           NOT NULL,
-    CreatedAt     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UpdatedAt     DATETIME      NULL ON UPDATE CURRENT_TIMESTAMP,
-    CreatedByUserId BINARY(16)  NOT NULL,
-    UpdatedByUserId BINARY(16)  NULL,
+    Id              BINARY(16)    NOT NULL PRIMARY KEY,
+    IncomeId        BINARY(16)    NOT NULL,
+    Name            VARCHAR(255)  NOT NULL,
+    IncomeMonthly   DECIMAL(18,2) NOT NULL DEFAULT 0,
+    Frequency       INT           NOT NULL,
+
+    IsActive        TINYINT(1)    NOT NULL DEFAULT 1,
+    EndedAt         DATETIME      NULL,
+
+    CreatedAt       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt       DATETIME      NULL ON UPDATE CURRENT_TIMESTAMP,
+    CreatedByUserId BINARY(16)    NOT NULL,
+    UpdatedByUserId BINARY(16)    NULL,
     CONSTRAINT FK_IncomeSideHustle_Income FOREIGN KEY (IncomeId) REFERENCES Income(Id) ON DELETE CASCADE,
-    INDEX IX_IncomeSideHustle_IncomeId (IncomeId) -- (INDEX ADDED FOR PERFORMANCE)
+    INDEX IX_IncomeSideHustle_IncomeId (IncomeId),
+    INDEX IX_IncomeSideHustle_IncomeId_IsActive (IncomeId, IsActive)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IncomeHouseholdMember (
-    Id             BINARY(16)          NOT NULL PRIMARY KEY,
-    IncomeId       BINARY(16)          NOT NULL,
-    Name           VARCHAR(255)  NOT NULL,
-    IncomeMonthly  DECIMAL(18,2) NOT NULL DEFAULT 0,
-    Frequency      INT           NOT NULL,
-    -- Timestamps 
-    CreatedAt        DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UpdatedAt        DATETIME       NULL ON UPDATE CURRENT_TIMESTAMP,
+    Id              BINARY(16)    NOT NULL PRIMARY KEY,
+    IncomeId        BINARY(16)    NOT NULL,
+    Name            VARCHAR(255)  NOT NULL,
+    IncomeMonthly   DECIMAL(18,2) NOT NULL DEFAULT 0,
+    Frequency       INT           NOT NULL,
 
-    -- User Tracking
-    CreatedByUserId BINARY(16) NOT NULL,
-    UpdatedByUserId BINARY(16) NULL,
-    CONSTRAINT FK_IncomeHouseholdMember_Income FOREIGN KEY (IncomeId) REFERENCES Income(Id) ON DELETE CASCADE
+    IsActive        TINYINT(1)    NOT NULL DEFAULT 1,
+    EndedAt         DATETIME      NULL,
+
+    CreatedAt       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt       DATETIME      NULL ON UPDATE CURRENT_TIMESTAMP,
+    CreatedByUserId BINARY(16)    NOT NULL,
+    UpdatedByUserId BINARY(16)    NULL,
+    CONSTRAINT FK_IncomeHouseholdMember_Income FOREIGN KEY (IncomeId) REFERENCES Income(Id) ON DELETE CASCADE,
+    INDEX IX_IncomeHouseholdMember_IncomeId (IncomeId),
+    INDEX IX_IncomeHouseholdMember_IncomeId_IsActive (IncomeId, IsActive)
 ) ENGINE=InnoDB;
-
 
 CREATE TABLE ExpenseCategory (
     Id   BINARY(16)   NOT NULL PRIMARY KEY,
@@ -180,43 +248,51 @@ CREATE TABLE ExpenseItem (
     CategoryId      BINARY(16)    NOT NULL,
     Name            VARCHAR(255)  NOT NULL,
     AmountMonthly   DECIMAL(18,2) NOT NULL DEFAULT 0,
+
+    IsActive        TINYINT(1)    NOT NULL DEFAULT 1,
+    EndedAt         DATETIME      NULL,
+
     CreatedAt       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UpdatedAt       DATETIME      NULL ON UPDATE CURRENT_TIMESTAMP,
     CreatedByUserId BINARY(16)    NOT NULL,
     UpdatedByUserId BINARY(16)    NULL,
     CONSTRAINT FK_ExpenseItem_Budget    FOREIGN KEY (BudgetId)   REFERENCES Budget(Id) ON DELETE CASCADE,
     CONSTRAINT FK_ExpenseItem_Category  FOREIGN KEY (CategoryId) REFERENCES ExpenseCategory(Id) ON DELETE RESTRICT,
-    INDEX IX_ExpenseItem_BudgetId (BudgetId), -- (INDEX ADDED FOR PERFORMANCE)
-    INDEX IX_ExpenseItem_CategoryId (CategoryId) -- (INDEX ADDED FOR PERFORMANCE)
+    INDEX IX_ExpenseItem_BudgetId (BudgetId),
+    INDEX IX_ExpenseItem_BudgetId_IsActive (BudgetId, IsActive),
+    INDEX IX_ExpenseItem_CategoryId (CategoryId)
 ) ENGINE=InnoDB;
 
 CREATE TABLE Savings (
-    Id             BINARY(16)    NOT NULL PRIMARY KEY,
-    BudgetId       BINARY(16)    NOT NULL,
-    MonthlySavings DECIMAL(18,2) NOT NULL DEFAULT 0,
-    CreatedAt      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UpdatedAt      DATETIME      NULL ON UPDATE CURRENT_TIMESTAMP,
-    CreatedByUserId BINARY(16)   NOT NULL,
-    UpdatedByUserId BINARY(16)   NULL,
+    Id              BINARY(16)    NOT NULL PRIMARY KEY,
+    BudgetId        BINARY(16)    NOT NULL,
+    MonthlySavings  DECIMAL(18,2) NOT NULL DEFAULT 0,
+    CreatedAt       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt       DATETIME      NULL ON UPDATE CURRENT_TIMESTAMP,
+    CreatedByUserId BINARY(16)    NOT NULL,
+    UpdatedByUserId BINARY(16)    NULL,
     CONSTRAINT FK_Savings_Budget FOREIGN KEY (BudgetId) REFERENCES Budget(Id) ON DELETE CASCADE,
-    INDEX IX_Savings_BudgetId (BudgetId) -- (INDEX ADDED FOR PERFORMANCE)
+    INDEX IX_Savings_BudgetId (BudgetId)
 ) ENGINE=InnoDB;
 
 CREATE TABLE SavingsGoal (
-    Id           BINARY(16)    NOT NULL PRIMARY KEY,
-    SavingsId    BINARY(16)    NOT NULL,
-    Name         VARCHAR(255)  NULL,
-    TargetAmount DECIMAL(18,2) NULL,
-    TargetDate   DATE          NULL,
-    AmountSaved  DECIMAL(18,2) NULL,
-    CreatedAt    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UpdatedAt    DATETIME      NULL ON UPDATE CURRENT_TIMESTAMP,
-    CreatedByUserId BINARY(16) NOT NULL,
-    UpdatedByUserId BINARY(16) NULL,
+    Id              BINARY(16)    NOT NULL PRIMARY KEY,
+    SavingsId       BINARY(16)    NOT NULL,
+    Name            VARCHAR(255)  NULL,
+    TargetAmount    DECIMAL(18,2) NULL,
+    TargetDate      DATE          NULL,
+    AmountSaved     DECIMAL(18,2) NULL,
+    CreatedAt       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt       DATETIME      NULL ON UPDATE CURRENT_TIMESTAMP,
+    CreatedByUserId BINARY(16)    NOT NULL,
+    UpdatedByUserId BINARY(16)    NULL,
     CONSTRAINT FK_SavingsGoal_Savings FOREIGN KEY (SavingsId) REFERENCES Savings(Id) ON DELETE CASCADE,
-    INDEX IX_SavingsGoal_SavingsId (SavingsId) -- (INDEX ADDED FOR PERFORMANCE)
+    INDEX IX_SavingsGoal_SavingsId (SavingsId)
 ) ENGINE=InnoDB;
 
+-- =========================
+-- Debt lifecycle 
+-- =========================
 CREATE TABLE Debt (
     Id              BINARY(16)    NOT NULL PRIMARY KEY,
     BudgetId        BINARY(16)    NOT NULL,
@@ -226,14 +302,25 @@ CREATE TABLE Debt (
     Apr             DECIMAL(18,2) NOT NULL,
     MonthlyFee      DECIMAL(18,2) NULL,
     MinPayment      DECIMAL(18,2) NULL,
-    TermMonths      INT NULL,
+    TermMonths      INT           NULL,
+
+    OpenedAt        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ClosedAt        DATETIME      NULL,
+    Status          VARCHAR(20)   NOT NULL DEFAULT 'active', -- active|closed
+    ClosedReason    VARCHAR(100)  NULL,
+
     CreatedAt       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UpdatedAt       DATETIME      NULL ON UPDATE CURRENT_TIMESTAMP,
     CreatedByUserId BINARY(16)    NOT NULL,
     UpdatedByUserId BINARY(16)    NULL,
+
     CONSTRAINT FK_Debt_Budget FOREIGN KEY (BudgetId) REFERENCES Budget(Id) ON DELETE CASCADE,
-    INDEX IX_Debt_BudgetId (BudgetId) -- (INDEX ADDED FOR PERFORMANCE)
+    CONSTRAINT CK_Debt_Status CHECK (Status IN ('active','closed')),
+
+    INDEX IX_Debt_BudgetId (BudgetId),
+    INDEX IX_Debt_BudgetId_Status (BudgetId, Status)
 ) ENGINE=InnoDB;
+
 
 -- ##################################################################
 -- # SECTION 3: WIZARD TABLES
@@ -246,7 +333,7 @@ CREATE TABLE WizardSession (
     CreatedAt DATETIME NOT NULL DEFAULT UTC_TIMESTAMP(),
     UpdatedAt DATETIME NOT NULL DEFAULT UTC_TIMESTAMP(),
     UNIQUE KEY UK_Persoid (Persoid),
-    CONSTRAINT FK_WizardSession_User FOREIGN KEY (Persoid) REFERENCES Users(Persoid) ON DELETE CASCADE -- (FK ADDED FOR INTEGRITY)
+    CONSTRAINT FK_WizardSession_User FOREIGN KEY (Persoid) REFERENCES Users(Persoid) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 CREATE TABLE WizardStepData (
@@ -261,19 +348,4 @@ CREATE TABLE WizardStepData (
     PRIMARY KEY (WizardSessionId, StepNumber, SubStep),
     CONSTRAINT FK_WizardStepData_WizardSession FOREIGN KEY (WizardSessionId) REFERENCES WizardSession(WizardSessionId) ON DELETE CASCADE
 ) ENGINE=InnoDB;
-
-CREATE TABLE IF NOT EXISTS EmailRateLimits (
-  KeyHash BINARY(32) NOT NULL,
-  Kind TINYINT NOT NULL,
-  DateUtc DATE NOT NULL,
-  SentCount INT NOT NULL DEFAULT 1,
-  LastSentAtUtc DATETIME NOT NULL,
-  PRIMARY KEY (KeyHash, Kind, DateUtc)
-) ENGINE=InnoDB;
-
-
-CREATE TABLE IF NOT EXISTS BlacklistedTokens (
-  Jti        BINARY(16)     NOT NULL PRIMARY KEY,  -- JTI is a GUID in your code
-  ExpiresUtc DATETIME(6)  NOT NULL,              -- store UTC
-  KEY IX_BlacklistedTokens_ExpiresUtc (ExpiresUtc)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- ##################################################################

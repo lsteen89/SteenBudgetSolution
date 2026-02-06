@@ -3,14 +3,15 @@ import { FieldErrors } from 'react-hook-form';
 import AnimatedContent from '@components/atoms/wrappers/AnimatedContent';
 import WizardFormWrapperStep5, { WizardFormWrapperStep5Ref } from './wrapper/WizardFormWrapperStep5';
 import useMediaQuery from '@hooks/useMediaQuery';
-import { Step5FormValues } from '@/types/Wizard/Step5FormValues';
-import { StepBudgetFinalRef } from '@/types/Wizard/StepBudgetFinalRef';
+import { Step5FormValues } from '@/types/Wizard/Step5_Final/Step5FormValues';
+import { StepBudgetFinalRef } from '@/types/Wizard/Step5_Final/StepBudgetFinalRef';
 import WizardProgress from '@components/organisms/overlays/wizard/SharedComponents/Menu/WizardProgress';
 import StepCarousel from '@components/molecules/progress/StepCarousel';
 import SubStepFinal from './Pages/SubSteps/1_SubStepFinal/SubStepFinal';
 import LoadingScreen from '@components/molecules/feedback/LoadingScreen';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { ShieldCheck } from 'lucide-react';
+import SubStepFinalConnected from './Pages/SubSteps/1_SubStepFinal/components/SubStepFinalConnected';
 
 export interface StepBudgetFinalContainerRef extends StepBudgetFinalRef {
   markAllTouched(): void;
@@ -39,6 +40,11 @@ interface StepBudgetFinalContainerProps {
   isFinalizing: boolean;
   finalizationError: string | null;
   onFinalizeSuccess: () => void;
+  onEditIncome: () => void;
+  onEditExpenditure: () => void;
+  onEditSavingsHabit: () => void;
+  onEditSavingsGoals: () => void;
+  onEditDebts: () => void;
 }
 
 const StepBudgetFinalContainer = forwardRef<StepBudgetFinalContainerRef, StepBudgetFinalContainerProps>((props, ref) => {
@@ -47,7 +53,7 @@ const StepBudgetFinalContainer = forwardRef<StepBudgetFinalContainerRef, StepBud
   const [currentSub, setCurrentSub] = useState(initialSubStep || 1);
   const wrapperRef = useRef<WizardFormWrapperStep5Ref>(null);
 
-  const steps = [{ label: 'Slut', icon: ShieldCheck }];
+  const steps = [{ label: 'Slutför budget', icon: ShieldCheck }];
   const totalSteps = 1;
 
   const next = () => {
@@ -84,11 +90,17 @@ const StepBudgetFinalContainer = forwardRef<StepBudgetFinalContainerRef, StepBud
   }), [currentSub, next, prev]);
 
   const renderSubStep = () => (
-    <SubStepFinal
+    <SubStepFinalConnected
       onFinalize={props.finalizeWizard}
       isFinalizing={props.isFinalizing}
       finalizationError={props.finalizationError}
       onFinalizeSuccess={props.onFinalizeSuccess}
+
+      onEditIncome={props.onEditIncome}
+      onEditExpenditure={props.onEditExpenditure}
+      onEditSavingsHabit={props.onEditSavingsHabit}
+      onEditSavingsGoals={props.onEditSavingsGoals}
+      onEditDebts={props.onEditDebts}
     />
   );
 
@@ -105,6 +117,7 @@ const StepBudgetFinalContainer = forwardRef<StepBudgetFinalContainerRef, StepBud
                 step={1}
                 totalSteps={1}
                 steps={steps}
+                isDebugMode={import.meta.env.MODE === "development"}
                 onStepClick={() => { }}
               />
             )}

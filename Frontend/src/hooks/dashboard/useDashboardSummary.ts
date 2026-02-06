@@ -1,38 +1,67 @@
-import { useEffect, useMemo } from "react";
-import { useBudgetDashboardStore } from "@/stores/Budget/budgetDashboardStore";
+import { useEffect, useMemo, useCallback } from "react";
+import { toApiProblem } from "@/utils/api/apiHelpers";
+import { useBudgetMonthStore } from "@/stores/Budget/budgetMonthStore";
+import { useBudgetMonthsStatusQuery } from "@/hooks/budget/useBudgetMonthsStatusQuery";
+import { useBudgetDashboardMonthQuery } from "@/hooks/budget/useBudgetDashboardMonthQuery";
 import { buildDashboardSummaryAggregate } from "./buildDashboardSummaryAggregate";
-import type { DashboardSummaryAggregate } from "./dashboardSummary.types";
+import type { CurrencyCode } from "@/utils/money/currency";
 
-export const useDashboardSummary = () => {
-    const { dashboard, status, error, loadDashboard } = useBudgetDashboardStore();
+type UseDashboardSummaryOptions = { enabled?: boolean };
 
-    const dev = import.meta.env.MODE === "development";
-    const mock = dev ? new URLSearchParams(window.location.search).get("mockDashboard") : null;
+export const useDashboardSummary = (opts?: UseDashboardSummaryOptions) => {
+    const enabled = opts?.enabled ?? true;
+
+    const selectedYm = useBudgetMonthStore((s) => s.selectedYearMonth);
+    const setSelectedYm = useBudgetMonthStore((s) => s.setSelectedYearMonth);
+
+    const monthsQ = useBudgetMonthsStatusQuery({ enabled });
+    const dashQ = useBudgetDashboardMonthQuery(selectedYm, { enabled });
+
+    // currency from BE (hardcoded there for now)
+    const currency: CurrencyCode = dashQ.data?.currencyCode ?? "SEK";
+
+    const monthsPending = (monthsQ as any).isPending ?? monthsQ.isLoading;
+    const dashPending = (dashQ as any).isPending ?? dashQ.isLoading;
+
+    const isPending = monthsPending || dashPending;
+    const isError = monthsQ.isError || dashQ.isError;
+    const isSuccess = monthsQ.isSuccess && dashQ.isSuccess;
+
+    const error = monthsQ.isError
+        ? toApiProblem(monthsQ.error)
+        : dashQ.isError
+            ? toApiProblem(dashQ.error)
+            : null;
 
     useEffect(() => {
-        if (status === "idle") void loadDashboard();
-    }, [status, loadDashboard]);
+        if (!enabled) return; // <— important
+        const ym = dashQ.data?.month?.yearMonth;
+        if (ym && selectedYm == null) setSelectedYm(ym);
+    }, [enabled, dashQ.data?.month?.yearMonth, selectedYm, setSelectedYm]);
 
-    const data = useMemo<DashboardSummaryAggregate | null>(
-        () => (dashboard ? buildDashboardSummaryAggregate(dashboard) : null),
-        [dashboard]
+    const data = useMemo(
+        () => (dashQ.data ? buildDashboardSummaryAggregate(dashQ.data, currency) : null),
+        [dashQ.data, currency]
     );
 
-    const refetch = () => loadDashboard({ force: true });
+    const refetchAll = useCallback(() => {
+        if (!enabled) return;
+        void monthsQ.refetch();
+        void dashQ.refetch();
+    }, [enabled, monthsQ, dashQ]);
 
-    if (mock === "loading") return { data: null, status: "loading" as const, error: null, refetch };
-    if (mock === "notfound") return { data: null, status: "notfound" as const, error: null, refetch };
-    if (mock === "error")
-        return {
-            data: null,
-            status: "error" as const,
-            error: { message: "Simulated error", code: "SIMULATED", status: 500 },
-            refetch,
-        };
-    if (mock === "ready" && data) return { data, status: "ready" as const, error: null, refetch };
+    return {
+        data,
+        currency,
+        monthsStatus: monthsQ.data,
+        dashboardMonth: dashQ.data,
 
-    // If store status says ready but dashboard is null, treat as notfound to keep UI sane.
-    if (status === "ready" && !data) return { data: null, status: "notfound" as const, error: null, refetch };
+        isPending,
+        isError,
+        isSuccess,
+        isFetching: monthsQ.isFetching || dashQ.isFetching,
 
-    return { data, status, error, refetch };
+        error,
+        refetch: refetchAll,
+    };
 };

@@ -6,7 +6,7 @@ import DataTransparencySection from "@components/organisms/overlays/wizard/Share
 import StepBudgetExpenditureContainer, {
   StepBudgetExpenditureContainerRef,
 } from "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/StepBudgetExpenditureContainer";
-import type { Step2FormValues }       from '@/schemas/wizard/StepExpenditures/step2Schema';
+import type { Step2FormValues } from '@/schemas/wizard/StepExpenditures/step2Schema';
 
 export interface StepBudgetExpenditureRef {
   validateFields(): Promise<boolean>;
@@ -19,7 +19,7 @@ export interface StepBudgetExpenditureRef {
   hasPrevSub(): boolean;
   hasNextSub(): boolean;
   isSaving(): boolean;
-  hasSubSteps: () => boolean; 
+  hasSubSteps: () => boolean;
 }
 
 interface StepBudgetExpenditureProps {
@@ -33,7 +33,7 @@ interface StepBudgetExpenditureProps {
   ) => Promise<boolean>;
   stepNumber: number;
   initialSubStep: number;
-  initialData: Partial<Step2FormValues>;   
+  initialData: Partial<Step2FormValues>;
   onNext: () => void;
   onPrev: () => void;
   loading: boolean;
@@ -78,25 +78,23 @@ const StepBudgetExpenditure = forwardRef<
   }
   return (
     <div key={containerKey}>
-      <GlassPane>
-        <StepBudgetExpenditureContainer
-          ref={containerRef}
-          initialData={props.initialData}
-          wizardSessionId={props.wizardSessionId}
-          onSaveStepData={(stepNumber, subStepNumber, data, goingBackwards) =>
-            props.onSaveStepData(stepNumber, subStepNumber, data, goingBackwards)
-          }
-          stepNumber={props.stepNumber}
-          initialSubStep={props.initialSubStep}
-          onNext={props.onNext}
-          onPrev={props.onPrev}
-          loading={props.loading}
-          onSubStepChange={props.onSubStepChange}
-          onValidationError={props.onValidationError}
-        />
-        <DataTransparencySection />
-        {/* If you have extra navigation buttons for the user, place them here */}
-      </GlassPane>
+
+      <StepBudgetExpenditureContainer
+        ref={containerRef}
+        initialData={props.initialData}
+        wizardSessionId={props.wizardSessionId}
+        onSaveStepData={(stepNumber, subStepNumber, data, goingBackwards) =>
+          props.onSaveStepData(stepNumber, subStepNumber, data, goingBackwards)
+        }
+        stepNumber={props.stepNumber}
+        initialSubStep={props.initialSubStep}
+        onNext={props.onNext}
+        onPrev={props.onPrev}
+        loading={props.loading}
+        onSubStepChange={props.onSubStepChange}
+        onValidationError={props.onValidationError}
+      />
+
     </div>
   );
 });

@@ -10,13 +10,17 @@ import {
   Legend,
 } from "recharts";
 import { calculateFutureValue } from "@/utils/budget/financialCalculations";
-import formatCurrency from "@/utils/money/currencyFormatter";
+import { formatMoneyV2 } from "@/utils/money/moneyV2";
+import type { CurrencyCode } from "@/utils/money/currency";
 
 interface PotentialAnalysisProps {
   generalSavings: number;
+  currency: CurrencyCode;
+  locale?: string;
+  money?: { fractionDigits?: 0 | 2 };
 }
 
-export const PotentialAnalysis: React.FC<PotentialAnalysisProps> = ({ generalSavings }) => {
+export const PotentialAnalysis: React.FC<PotentialAnalysisProps> = ({ generalSavings, currency, locale = "sv-SE", money }) => {
   if (generalSavings <= 0) return null;
 
   const shouldReduce = useReducedMotion();
@@ -69,7 +73,7 @@ export const PotentialAnalysis: React.FC<PotentialAnalysisProps> = ({ generalSav
               />
               <Tooltip
                 contentStyle={{ backgroundColor: "#1f2937", borderRadius: "0.5rem" }}
-                formatter={(v: number) => formatCurrency(v)}
+                formatter={(v: number) => formatMoneyV2(v, currency, locale, money)}
               />
               <Legend iconType="circle" wrapperStyle={{ fontSize: "0.75rem" }} />
               <Area

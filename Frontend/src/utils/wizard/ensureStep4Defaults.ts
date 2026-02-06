@@ -1,9 +1,9 @@
-import { DebtsFormValues, DebtItem } from "@/types/Wizard/DebtFormValues"; 
-
+import { DebtsFormValues, DebtItem } from "@/types/Wizard/Step4_Debt/DebtFormValues";
+import type { RepaymentStrategy } from "@/types/Wizard/Step4_Debt/DebtFormValues";
 export const ensureStep4Defaults = (
   src: Partial<DebtsFormValues> | undefined
 ): DebtsFormValues => ({
-  
+
 
   intro: { hasDebts: src?.intro?.hasDebts ?? null },
 
@@ -12,13 +12,13 @@ export const ensureStep4Defaults = (
   },
 
   debts: (src?.debts ?? []).map((d: Partial<DebtItem> | undefined) => ({
-    id:          d?.id          ?? crypto.randomUUID(),
-    name:        d?.name        ?? "",
-    type:        d?.type        ?? "bank_loan",
-    balance:     d?.balance     ?? null,
-    apr:         d?.apr         ?? null,
-    monthlyFee:  d?.monthlyFee  ?? null,
-    minPayment:  d?.minPayment  ?? null,
-    termMonths:  d?.termMonths  ?? null,
+    id: d?.id ?? crypto.randomUUID(),
+    name: d?.name ?? "",
+    type: d?.type ?? "bank_loan",
+    balance: d?.balance ?? null,
+    apr: d?.apr ?? null,
+    monthlyFee: d?.monthlyFee ?? null,
+    minPayment: d?.minPayment ?? null,
+    termMonths: d?.termMonths ?? null,
   })),
 });

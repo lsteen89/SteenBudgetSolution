@@ -1,11 +1,12 @@
-@import './styles/fonts.css';
+@import "./styles/fonts.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-html, body {
-  @apply font-inter text-body h-full min-h-full overflow-x-hidden; /* Tailwind utilities */
-  overscroll-behavior: none; /* Raw CSS can remain outside @apply */
+html,
+body {
+  @apply font-inter text-body h-full min-h-full overflow-x-hidden;
+  overscroll-behavior: none;
 }
 
 body {
@@ -13,13 +14,12 @@ body {
 }
 
 #root {
-  @apply flex flex-col min-h-screen; /* Tailwind utility */
+  @apply flex flex-col min-h-screen;
 }
-
-
 
 @layer base {
   :root {
+    /* shadcn tokens */
     --background: 0 0% 100%;
     --foreground: 0 0% 3.9%;
     --card: 0 0% 100%;
@@ -44,8 +44,39 @@ body {
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
-    --radius: 0.5rem
+    --radius: 0.5rem;
+
+    /* Wizard overlay */
+    --wizard-overlay: radial-gradient(80% 70% at 50% 45%,
+        rgba(2, 6, 23, 0.28) 0%,
+        rgba(2, 6, 23, 0.52) 55%,
+        rgba(2, 6, 23, 0.64) 100%);
+
+    /* Wizard tokens (RGB channels) */
+    --wizard-shell: 224 240 255;
+    --wizard-shell-2: 77 185 254;
+    --wizard-shell-3: 21 39 81;
+    /* tropical-blue-100 */
+    --wizard-surface: 255 255 255;
+    /* cards stay white */
+    --wizard-surface-accent: 224 240 255;
+
+    --wizard-stroke: 199 228 255;
+    --wizard-stroke-strong: 145 179 220;
+
+    --wizard-text: 21 39 81;
+    --wizard-muted: 21 39 81;
+    /* <-- IMPORTANT: use text hue for muted, then opacity in Tailwind */
+
+
+    --wizard-warning: 185 28 28;
+
+    --wizard-accent: 34 197 94;
+    --wizard-accent-soft: 220 252 231;
+    --wizard-accent-foreground: 255 255 255;
+    /* white text on green */
   }
+
   .dark {
     --background: 0 0% 3.9%;
     --foreground: 0 0% 98%;
@@ -70,17 +101,163 @@ body {
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%
+    --chart-5: 340 75% 55%;
   }
-}
 
+  .kb-smoke {
+    position: absolute;
+    width: 26px;
+    height: 26px;
+    border-radius: 9999px;
 
+    /* cyan-ish eye color */
+    background: radial-gradient(circle at 35% 40%,
+        rgba(120, 240, 255, 0.70),
+        rgba(120, 240, 255, 0.22) 55%,
+        rgba(120, 240, 255, 0.00) 72%);
 
-@layer base {
+    filter: blur(0.6px);
+    opacity: 0;
+    transform: translate(0, 0) scale(0.8);
+    animation: kb-smoke 2.4s ease-in-out infinite;
+  }
+
+  /* tweak these to hit the eyes perfectly */
+  .kb-smoke--l {
+    left: 40px;
+    top: 34px;
+    animation-delay: 0.0s;
+  }
+
+  .kb-smoke--r {
+    left: 60px;
+    top: 34px;
+    animation-delay: 1.2s;
+  }
+
+  @keyframes kb-smoke {
+    0% {
+      opacity: 0;
+      transform: translate(0, 6px) scale(0.75);
+      filter: blur(0.4px);
+    }
+
+    15% {
+      opacity: 0.70;
+    }
+
+    65% {
+      opacity: 0.18;
+    }
+
+    100% {
+      opacity: 0;
+      transform: translate(10px, -22px) scale(1.35);
+      filter: blur(2.2px);
+    }
+  }
+
+  /* Respect reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .kb-smoke {
+      animation: none;
+      opacity: 0.25;
+    }
+  }
+
   * {
     @apply border-border;
   }
+
+  /* Don't override your gradient background */
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground;
+  }
+}
+
+@layer utilities {
+  .money {
+    @apply text-limeGreen font-semibold tracking-wide;
+  }
+
+  .money-muted {
+    @apply text-limeGreen/80 font-semibold tracking-wide;
+  }
+
+  /* Wizard */
+  .bg-wizard-overlay {
+    background: var(--wizard-overlay);
+  }
+
+  .bg-wizard-shell {
+    background-color: rgb(var(--wizard-shell) / 1);
+  }
+
+  .bg-wizard-shell-2 {
+    background-color: rgb(var(--wizard-shell-2) / 1);
+  }
+
+  .bg-wizard-shell-3 {
+    background-color: rgb(var(--wizard-shell-3) / 1);
+  }
+
+  .border-wizard-shellBorder {
+    border-color: rgb(var(--wizard-shell-border) / 0.55);
+  }
+
+  .bg-wizard-surface {
+    background-color: rgb(var(--wizard-surface) / 1);
+  }
+
+  .bg-wizard-surfaceAccent {
+    background-color: rgb(var(--wizard-surface-accent) / 1);
+  }
+
+  .border-wizard-stroke {
+    border-color: rgb(var(--wizard-stroke) / 0.5);
+  }
+
+  .border-wizard-strokeStrong {
+    border-color: rgb(var(--wizard-stroke-strong) / 1);
+  }
+
+  .text-wizard-text {
+    color: rgb(var(--wizard-text) / 1);
+  }
+
+  .text-wizard-muted {
+    color: rgb(var(--wizard-text) / 0.65);
+  }
+
+  .text-wizard-mutedBlue {
+    color: rgb(var(--wizard-muted) / 1);
+  }
+
+  .text-wizard-accent {
+    color: rgb(var(--wizard-accent) / 1);
+  }
+
+  .bg-wizard-accent {
+    background-color: rgb(var(--wizard-accent) / 1);
+  }
+
+  .bg-wizard-accentSoft {
+    background-color: rgb(var(--wizard-accent-soft) / 1);
+  }
+
+  .ring-wizard-accent {
+    --tw-ring-color: rgb(var(--wizard-accent) / 0.45);
+  }
+
+  .text-wizard-warning {
+    color: rgb(var(--wizard-warning) / 1);
+  }
+
+  .bg-wizard-warningSoft {
+    background-color: rgb(var(--wizard-warning) / 0.1);
+  }
+
+  .ring-wizard-warning {
+    --tw-ring-color: rgb(var(--wizard-warning) / 0.35);
   }
 }

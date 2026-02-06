@@ -17,7 +17,7 @@ using Backend.Application.Features.Commands.Auth.ResendVerification;
 
 using Backend.Presentation.Shared; // For ApiResponse
 using Backend.Domain.Shared;      // For Result
-using Backend.Domain.Users;       // For UserErrors
+using Backend.Domain.Errors.User;
 using Backend.Application.Features.Commands.Auth.VerifyEmail;
 
 

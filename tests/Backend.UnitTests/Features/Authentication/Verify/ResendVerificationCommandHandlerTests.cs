@@ -16,7 +16,7 @@ using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Application.Options.Auth;
 using Backend.Application.Options.URL;
 using Backend.Domain.Entities.Auth;
-using Backend.Domain.Users;
+using Backend.Domain.Errors.User;
 using Backend.Settings.Email;
 
 // Domain model

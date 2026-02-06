@@ -3,39 +3,94 @@ using FluentValidation;
 
 /* ───────────────── sub-validators ───────────────── */
 
-public sealed class RentValidator : AbstractValidator<Rent>
+public sealed class HousingValidator : AbstractValidator<Housing>
 {
-    public RentValidator()
+    private static readonly string[] AllowedHomeTypes = ["rent", "brf", "house", "free"];
+
+    public HousingValidator()
     {
-        RuleFor(r => r.HomeType).NotEmpty();
+        RuleFor(x => x.HomeType)
+            .NotEmpty()
+            .Must(t => AllowedHomeTypes.Contains(t!))
+            .WithMessage("Invalid homeType.");
 
-        RuleFor(r => r.MonthlyRent)
+        // Validate nested objects only if present
+        When(x => x.Payment is not null, () =>
+        {
+            RuleFor(x => x.Payment!).SetValidator(new HousingPaymentValidator());
+        });
+
+        When(x => x.RunningCosts is not null, () =>
+        {
+            RuleFor(x => x.RunningCosts!).SetValidator(new HousingRunningCostsValidator());
+        });
+
+        // Conditional required fields (based on HomeType)
+        RuleFor(x => x.Payment!.MonthlyRent)
             .NotNull().GreaterThan(0)
-            .When(r => r.HomeType == "rent");
+            .WithMessage("monthlyRent must be > 0 for rent.")
+            .When(x => x.HomeType == "rent")
+            // ensure Payment exists when needed
+            .DependentRules(() =>
+            {
+                RuleFor(x => x.Payment).NotNull().WithMessage("payment is required for rent.");
+            });
 
-        RuleFor(r => r.MonthlyFee)
+        RuleFor(x => x.Payment!.MonthlyFee)
             .NotNull().GreaterThan(0)
-            .When(r => r.HomeType == "brf");
+            .WithMessage("monthlyFee must be > 0 for brf.")
+            .When(x => x.HomeType == "brf")
+            .DependentRules(() =>
+            {
+                RuleFor(x => x.Payment).NotNull().WithMessage("payment is required for brf.");
+            });
 
-        RuleFor(r => r.MortgagePayment)
-            .NotNull().GreaterThan(0)
-            .When(r => r.HomeType == "house");
+        // OPTIONAL caps mirroring FE
+        RuleFor(x => x.Payment!.MonthlyRent)
+            .LessThanOrEqualTo(50000)
+            .When(x => x.Payment?.MonthlyRent is not null);
 
-        RuleFor(r => r.RentExtraFees)
-            .GreaterThanOrEqualTo(0)
-            .When(r => r.RentExtraFees.HasValue);
+        RuleFor(x => x.Payment!.MonthlyFee)
+            .LessThanOrEqualTo(50000)
+            .When(x => x.Payment?.MonthlyFee is not null);
 
-        RuleFor(r => r.BrfExtraFees)
-            .GreaterThanOrEqualTo(0)
-            .When(r => r.BrfExtraFees.HasValue);
+        RuleFor(x => x.Payment!.ExtraFees)
+            .LessThanOrEqualTo(50000)
+            .When(x => x.Payment?.ExtraFees is not null);
+    }
+}
 
-        RuleFor(r => r.HouseotherCosts)
-            .GreaterThanOrEqualTo(0)
-            .When(r => r.HouseotherCosts.HasValue);
+public sealed class HousingPaymentValidator : AbstractValidator<HousingPayment>
+{
+    public HousingPaymentValidator()
+    {
+        RuleFor(x => x.MonthlyRent)
+            .GreaterThanOrEqualTo(0).When(x => x.MonthlyRent.HasValue);
 
-        RuleFor(r => r.OtherCosts)
-            .GreaterThanOrEqualTo(0)
-            .When(r => r.OtherCosts.HasValue);
+        RuleFor(x => x.MonthlyFee)
+            .GreaterThanOrEqualTo(0).When(x => x.MonthlyFee.HasValue);
+
+        RuleFor(x => x.ExtraFees)
+            .GreaterThanOrEqualTo(0).When(x => x.ExtraFees.HasValue);
+    }
+}
+
+public sealed class HousingRunningCostsValidator : AbstractValidator<HousingRunningCosts>
+{
+    public HousingRunningCostsValidator()
+    {
+        RuleFor(x => x.Electricity).GreaterThanOrEqualTo(0).When(x => x.Electricity.HasValue);
+        RuleFor(x => x.Heating).GreaterThanOrEqualTo(0).When(x => x.Heating.HasValue);
+        RuleFor(x => x.Water).GreaterThanOrEqualTo(0).When(x => x.Water.HasValue);
+        RuleFor(x => x.Waste).GreaterThanOrEqualTo(0).When(x => x.Waste.HasValue);
+        RuleFor(x => x.Other).GreaterThanOrEqualTo(0).When(x => x.Other.HasValue);
+
+        // OPTIONAL caps mirroring FE
+        RuleFor(x => x.Electricity).LessThanOrEqualTo(20000).When(x => x.Electricity.HasValue);
+        RuleFor(x => x.Heating).LessThanOrEqualTo(20000).When(x => x.Heating.HasValue);
+        RuleFor(x => x.Water).LessThanOrEqualTo(20000).When(x => x.Water.HasValue);
+        RuleFor(x => x.Waste).LessThanOrEqualTo(20000).When(x => x.Waste.HasValue);
+        RuleFor(x => x.Other).LessThanOrEqualTo(50000).When(x => x.Other.HasValue);
     }
 }
 
@@ -53,39 +108,29 @@ public sealed class FoodValidator : AbstractValidator<Food>
     }
 }
 
-public sealed class UtilitiesValidator : AbstractValidator<Utilities>
-{
-    public UtilitiesValidator()
-    {
-        RuleFor(u => u.Electricity)
-            .GreaterThanOrEqualTo(0)
-            .When(u => u.Electricity.HasValue);
-
-        RuleFor(u => u.Water)
-            .GreaterThanOrEqualTo(0)
-            .When(u => u.Water.HasValue);
-    }
-}
-
 public sealed class TransportValidator : AbstractValidator<Transport>
 {
     public TransportValidator()
     {
-        RuleFor(t => t.MonthlyFuelCost)
-            .GreaterThanOrEqualTo(0)
-            .When(t => t.MonthlyFuelCost.HasValue);
+        RuleFor(t => t.FuelOrCharging)
+            .GreaterThanOrEqualTo(0).When(t => t.FuelOrCharging.HasValue)
+            .LessThanOrEqualTo(20_000).When(t => t.FuelOrCharging.HasValue);
 
-        RuleFor(t => t.MonthlyInsuranceCost)
-            .GreaterThanOrEqualTo(0)
-            .When(t => t.MonthlyInsuranceCost.HasValue);
+        RuleFor(t => t.CarInsurance)
+            .GreaterThanOrEqualTo(0).When(t => t.CarInsurance.HasValue)
+            .LessThanOrEqualTo(20_000).When(t => t.CarInsurance.HasValue);
 
-        RuleFor(t => t.MonthlyTotalCarCost)
-            .GreaterThanOrEqualTo(0)
-            .When(t => t.MonthlyTotalCarCost.HasValue);
+        RuleFor(t => t.ParkingFee)
+            .GreaterThanOrEqualTo(0).When(t => t.ParkingFee.HasValue)
+            .LessThanOrEqualTo(20_000).When(t => t.ParkingFee.HasValue);
 
-        RuleFor(t => t.MonthlyTransitCost)
-            .GreaterThanOrEqualTo(0)
-            .When(t => t.MonthlyTransitCost.HasValue);
+        RuleFor(t => t.OtherCarCosts)
+            .GreaterThanOrEqualTo(0).When(t => t.OtherCarCosts.HasValue)
+            .LessThanOrEqualTo(50_000).When(t => t.OtherCarCosts.HasValue);
+
+        RuleFor(t => t.PublicTransit)
+            .GreaterThanOrEqualTo(0).When(t => t.PublicTransit.HasValue)
+            .LessThanOrEqualTo(20_000).When(t => t.PublicTransit.HasValue);
     }
 }
 
@@ -103,13 +148,30 @@ public sealed class FixedExpenseItemValidator : AbstractValidator<FixedExpenseIt
 {
     public FixedExpenseItemValidator()
     {
-        RuleFor(f => f.Name)
-            .NotEmpty().WithMessage("Ange namn på utgiften.")
-            .MinimumLength(2).WithMessage("Minst 2 tecken.");
+        RuleFor(x => x).Custom((item, ctx) =>
+        {
+            var name = item.Name?.Trim();
+            var hasName = !string.IsNullOrWhiteSpace(name);
+            var hasCost = item.Cost.HasValue;
 
-        RuleFor(f => f.Cost)
-            .NotNull().WithMessage("Ange kostnaden.")
-            .GreaterThan(0).WithMessage("Beloppet måste vara > 0 kr.");
+            // 1) Empty row is OK
+            if (!hasName && !hasCost) return;
+
+            // 2) If cost entered -> must be > 0
+            if (hasCost && item.Cost!.Value <= 0)
+                ctx.AddFailure("cost", "Beloppet måste vara > 0 kr.");
+
+            // 3) If name entered -> must be >= 2 chars
+            if (hasName && name!.Length < 2)
+                ctx.AddFailure("name", "Minst 2 tecken.");
+
+            // 4) If either is entered, require the other
+            if (hasName && !hasCost)
+                ctx.AddFailure("cost", "Ange ett belopp (> 0 kr).");
+
+            if (hasCost && !hasName)
+                ctx.AddFailure("name", "Ange ett namn på utgiften.");
+        });
     }
 }
 
@@ -117,13 +179,14 @@ public sealed class FixedExpensesValidator : AbstractValidator<FixedExpensesSubF
 {
     public FixedExpensesValidator()
     {
-        // Rules for the standard, nullable fields
+        // Standard nullable fields
         RuleFor(x => x.Electricity).GreaterThanOrEqualTo(0).When(x => x.Electricity.HasValue);
         RuleFor(x => x.Insurance).GreaterThanOrEqualTo(0).When(x => x.Insurance.HasValue);
         RuleFor(x => x.Internet).GreaterThanOrEqualTo(0).When(x => x.Internet.HasValue);
         RuleFor(x => x.Phone).GreaterThanOrEqualTo(0).When(x => x.Phone.HasValue);
-        RuleFor(x => x.UnionFees).GreaterThanOrEqualTo(0).When(x => x.UnionFees.HasValue);
+        RuleFor(x => x.Gym).GreaterThanOrEqualTo(0).When(x => x.Gym.HasValue);
 
+        // Custom items (allow empty rows via item validator)
         When(x => x.CustomExpenses is not null, () =>
         {
             RuleForEach(x => x.CustomExpenses!)
@@ -136,17 +199,47 @@ public sealed class SubscriptionItemValidator : AbstractValidator<SubscriptionIt
 {
     public SubscriptionItemValidator()
     {
-        // Rules for the subscription item
-        When(s => s is not null, () =>
-        {
-            RuleFor(s => s!.Name)
-                .NotEmpty()
-                .MinimumLength(2);
+        RuleFor(x => x)
+            .Custom((item, context) =>
+            {
+                if (item is null) return;
 
-            RuleFor(s => s!.Cost)
-                .NotNull()
-                .GreaterThan(0);
-        });
+                var name = item.Name?.Trim();
+                var cost = item.Cost;
+
+                var hasName = !string.IsNullOrWhiteSpace(name);
+                var hasCost = cost.HasValue;
+
+                // 1) Empty row is OK
+                if (!hasName && !hasCost) return;
+
+                // 2) If cost entered -> must be > 0
+                if (hasCost && cost!.Value <= 0)
+                {
+                    context.AddFailure(nameof(item.Cost), "Beloppet måste vara > 0 kr.");
+                    return;
+                }
+
+                // 3) If name entered -> must be at least 2 chars
+                if (hasName && name!.Length < 2)
+                {
+                    context.AddFailure(nameof(item.Name), "Minst 2 tecken.");
+                    return;
+                }
+
+                // 4) Require both once user started
+                if (hasName && !hasCost)
+                {
+                    context.AddFailure(nameof(item.Cost), "Ange ett belopp (> 0 kr).");
+                    return;
+                }
+
+                if (hasCost && !hasName)
+                {
+                    context.AddFailure(nameof(item.Name), "Ange ett namn.");
+                    return;
+                }
+            });
     }
 }
 
@@ -154,31 +247,28 @@ public sealed class SubscriptionsValidator : AbstractValidator<SubscriptionsSubF
 {
     public SubscriptionsValidator()
     {
-        RuleFor(s => s.Netflix)
+        RuleFor(x => x.Netflix)
             .GreaterThanOrEqualTo(0)
-            .When(s => s.Netflix.HasValue);
+            .When(x => x.Netflix.HasValue);
 
-        RuleFor(s => s.Spotify)
+        RuleFor(x => x.Spotify)
             .GreaterThanOrEqualTo(0)
-            .When(s => s.Spotify.HasValue);
+            .When(x => x.Spotify.HasValue);
 
-        RuleFor(s => s.HBOMax)
+        RuleFor(x => x.HBOMax)
             .GreaterThanOrEqualTo(0)
-            .When(s => s.HBOMax.HasValue);
+            .When(x => x.HBOMax.HasValue);
 
-        RuleFor(s => s.Viaplay)
+        RuleFor(x => x.Viaplay)
             .GreaterThanOrEqualTo(0)
-            .When(s => s.Viaplay.HasValue);
+            .When(x => x.Viaplay.HasValue);
 
-        RuleFor(s => s.DisneyPlus)
+        RuleFor(x => x.DisneyPlus)
             .GreaterThanOrEqualTo(0)
-            .When(s => s.DisneyPlus.HasValue);
+            .When(x => x.DisneyPlus.HasValue);
 
-        When(s => s.CustomSubscriptions is not null, () =>
-        {
-            RuleForEach(s => s.CustomSubscriptions!)
-                .SetValidator((IValidator<SubscriptionItem?>)new SubscriptionItemValidator());
-        });
+        RuleForEach(x => x.CustomSubscriptions)
+            .SetValidator(new SubscriptionItemValidator());
     }
 }
 
@@ -188,14 +278,11 @@ public sealed class ExpenditureValidator : AbstractValidator<ExpenditureFormValu
 {
     public ExpenditureValidator()
     {
-        When(x => x.Rent is not null,
-            () => RuleFor(x => x.Rent!).SetValidator(new RentValidator()));
+        When(x => x.Housing is not null,
+            () => RuleFor(x => x.Housing!).SetValidator(new HousingValidator()));
 
         When(x => x.Food is not null,
             () => RuleFor(x => x.Food!).SetValidator(new FoodValidator()));
-
-        When(x => x.Utilities is not null,
-            () => RuleFor(x => x.Utilities!).SetValidator(new UtilitiesValidator()));
 
         When(x => x.Transport is not null,
             () => RuleFor(x => x.Transport!).SetValidator(new TransportValidator()));

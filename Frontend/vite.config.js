@@ -2,14 +2,14 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import svgr from 'vite-plugin-svgr';
-import path from 'path';
+import path from "node:path";
 import removeConsole from 'vite-plugin-remove-console';
 import dotenv from 'dotenv';
 import { configDefaults } from 'vitest/config';
 import { fileURLToPath } from 'node:url';
 import { storybookTest } from '@storybook/addon-vitest/vitest-plugin';
 const dirname = typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
-
+const rootDir = path.dirname(fileURLToPath(import.meta.url));
 // More info at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon
 dotenv.config();
 export default defineConfig({
@@ -82,22 +82,29 @@ export default defineConfig({
     }
   },
   resolve: {
+    dedupe: ["react", "react-dom"],
     alias: {
-      '@': path.resolve(__dirname, 'src'),
-      '@utils': path.resolve(__dirname, './src/utils'),
-      '@pages': path.resolve(__dirname, './src/Pages'),
-      '@components': path.resolve(__dirname, './src/components'),
-      '@assets': path.resolve(__dirname, './src/assets'),
-      '@hooks': path.resolve(__dirname, './src/hooks'),
-      '@api': path.resolve(__dirname, './src/api'),
-      '@types': path.resolve(__dirname, './src/types'),
-      '@mocks': path.resolve(__dirname, './src/__mocks__'),
-      '@context': path.resolve(__dirname, './src/context'),
-      '@routes': path.resolve(__dirname, './src/routes'),
-      '@styles': path.resolve(__dirname, './src/styles'),
-      '@schemas': path.resolve(__dirname, './src/schemas'),
-      '@stores': path.resolve(__dirname, './src/stores'),
-      '@translations': path.resolve(__dirname, './src/translations')
-    }
-  }
+      // ✅ force ONE react instance (fixes Radix hooks crash)
+      react: path.resolve(rootDir, "node_modules/react"),
+      "react-dom": path.resolve(rootDir, "node_modules/react-dom"),
+      "react-dom/client": path.resolve(rootDir, "node_modules/react-dom/client"),
+
+      // your existing aliases
+      "@": path.resolve(rootDir, "src"),
+      "@utils": path.resolve(rootDir, "./src/utils"),
+      "@pages": path.resolve(rootDir, "./src/Pages"),
+      "@components": path.resolve(rootDir, "./src/components"),
+      "@assets": path.resolve(rootDir, "./src/assets"),
+      "@hooks": path.resolve(rootDir, "./src/hooks"),
+      "@api": path.resolve(rootDir, "./src/api"),
+      "@types": path.resolve(rootDir, "./src/types"),
+      "@mocks": path.resolve(rootDir, "./src/__mocks__"),
+      "@context": path.resolve(rootDir, "./src/context"),
+      "@routes": path.resolve(rootDir, "./src/routes"),
+      "@styles": path.resolve(rootDir, "./src/styles"),
+      "@schemas": path.resolve(rootDir, "./src/schemas"),
+      "@stores": path.resolve(rootDir, "./src/stores"),
+      "@translations": path.resolve(rootDir, "./src/translations"),
+    },
+  },
 });

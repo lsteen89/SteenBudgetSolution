@@ -11,12 +11,13 @@ using Backend.Application.Abstractions.Infrastructure.Security;
 using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Domain.Entities.User;
-using Backend.Domain.Users;
+using Backend.Domain.Errors.User;
 using Microsoft.Extensions.Logging;
 using Backend.Settings;
 
 
 namespace Backend.UnitTests.Features.Authentication.Login;
+
 public class Login_Lockout_Tests
 {
     private static UserModel User(bool confirmed = true, string? bcrypt = null, DateTime? lockout = null)

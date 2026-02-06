@@ -13,7 +13,7 @@ export interface DashboardSummary {
     monthLabel: string;
 
     remainingToSpend: number;
-    remainingCurrency: CurrencyCode;
+    currency: CurrencyCode;
 
     emergencyFundAmount: number;
     emergencyFundMonths: number;

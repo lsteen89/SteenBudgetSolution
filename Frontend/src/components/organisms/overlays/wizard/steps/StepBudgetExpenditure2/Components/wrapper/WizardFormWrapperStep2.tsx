@@ -15,9 +15,9 @@ import useScrollToFirstError from "@/hooks/useScrollToFirstError";
 /* ───────────────── Types exposed to parent ───────────────── */
 export interface WizardFormWrapperStep2Ref {
   validateFields: () => Promise<boolean>;
-  getStepData  : () => Step2FormValues;
-  getErrors    : () => FieldErrors<Step2FormValues>;
-  getMethods   : () => UseFormReturn<Step2FormValues>;
+  getStepData: () => Step2FormValues;
+  getErrors: () => FieldErrors<Step2FormValues>;
+  getMethods: () => UseFormReturn<Step2FormValues>;
 }
 
 interface WizardFormWrapperStep2Props {
@@ -42,14 +42,16 @@ const WizardFormWrapperStep2 = forwardRef<
   /* 3.  RHF instance */
   const methods = useForm<Step2FormValues>({
     resolver: yupResolver(step2Schema),
-    defaultValues: defaults, // <- safe
-    mode: 'onBlur',
-    reValidateMode: 'onChange',
+    defaultValues: defaults,
+    mode: "onSubmit",          // nothing happens until trigger/submit
+    reValidateMode: "onChange",// after first submit attempt, fix live
+    shouldUnregister: false,
+    shouldFocusError: true,
   });
   const {
-    formState: { errors },
+    formState: { errors, submitCount },
   } = methods;
-  useScrollToFirstError(errors);
+  useScrollToFirstError(errors, submitCount > 0);
   /* 4.  Hydrate once if store updates later */
   const hydrated = useRef(false);
 
@@ -66,9 +68,9 @@ const WizardFormWrapperStep2 = forwardRef<
   /* 5.  Imperative API */
   useImperativeHandle(ref, () => ({
     validateFields: () => methods.trigger(),
-    getStepData   : () => methods.getValues(),
-    getErrors     : () => methods.formState.errors,
-    getMethods    : () => methods,
+    getStepData: () => methods.getValues(),
+    getErrors: () => methods.formState.errors,
+    getMethods: () => methods,
   }));
 
   /* 6.  Provide context */

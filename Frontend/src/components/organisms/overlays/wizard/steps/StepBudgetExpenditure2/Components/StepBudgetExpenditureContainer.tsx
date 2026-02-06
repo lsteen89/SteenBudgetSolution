@@ -1,3 +1,6 @@
+// TODO 
+// CREATE SKELETON FOR THE SUBSTEPS TO AVOID LOADINGSCREEN JANKINESS
+
 import React, {
   useState,
   forwardRef,
@@ -18,13 +21,13 @@ import { Step2FormValues } from '@/schemas/wizard/StepExpenditures/step2Schema';
 import WizardFormWrapperStep2, {
   WizardFormWrapperStep2Ref,
 } from './wrapper/WizardFormWrapperStep2';
-
+import WizardSkeleton from "@/components/organisms/overlays/wizard/SharedComponents/Skeletons/WizardSkeleton";
 /*Substeps for major step 2  (lazy)*/
 const ExpenditureOverviewMainText = lazy(() =>
   import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/1_SubStepWelcome/ExpenditureOverviewMainText')
 );
-const SubStepRent = lazy(() =>
-  import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/2_SubStepRent/SubStepRent')
+const SubStepHousing = lazy(() =>
+  import('@/components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/2_SubStepHousing/SubStepHousing')
 );
 const SubStepFood = lazy(() =>
   import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/3_SubStepFood/SubStepFood')
@@ -41,10 +44,10 @@ const SubStepClothing = lazy(() =>
 const SubStepSubscriptions = lazy(() =>
   import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/7_SubStepSubscriptions/SubStepSubscriptions')
 );
-const SubStepConfirm = lazy(() =>
-  import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/8_SubStepConfirm/SubStepConfirm')
+const SubStepConfirmConnected = lazy(() =>
+  import("@/components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/8_SubStepConfirm/components/SubStepConfirmExpenditureConnected")
 );
-
+import type { ItemKey } from "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/1_SubStepWelcome/ExpenditureOverviewMainText";
 import LoadingScreen from '@components/molecules/feedback/LoadingScreen';
 import { Skeleton } from '@/components/ui/Skeleton';
 import AnimatedContent from '@components/atoms/wrappers/AnimatedContent';
@@ -63,6 +66,11 @@ import {
 } from 'lucide-react';
 
 import { useWizardDataStore } from '@/stores/Wizard/wizardDataStore';
+import { WizardOverlaySkeleton } from '../../../SharedComponents/Skeletons/WizardOverlaySkeleton';
+import WizardOverlayShell from '../../../SharedComponents/shells/WizardOverlayShell';
+import { useWizardSessionStore } from '@/stores/Wizard/wizardSessionStore';
+import { useStepEntitlement } from '@/hooks/wizard/useStepEntitlement';
+import { WizardDivider } from '@/components/atoms/dividers/WizardDividerProps';
 
 /* ------------------------------------------------------------------ */
 /* INTERFACES                              */
@@ -105,7 +113,7 @@ function getExpenditurePartialData(
   allData: Step2FormValues
 ): Partial<Step2FormValues> {
   switch (subStep) {
-    case 2: return { rent: allData.rent };
+    case 2: return { housing: allData.housing };
     case 3: return { food: allData.food };
     case 4: return { fixedExpenses: allData.fixedExpenses };
     case 5: return { transport: allData.transport };
@@ -185,14 +193,19 @@ const StepBudgetExpenditureContainer = forwardRef<
 
   /* 4 ─── navigation helpers --------------------------------------- */
   const totalSteps = 8;
+  const entitlement = useStepEntitlement(2, totalSteps);
+  const bumpEntitlement = useWizardSessionStore((s) => s.bumpEntitlement);
 
   const goToSub = async (dest: number) => {
     const goingBack = dest < currentSub;
     const skipValidation = currentSub === 1 || goingBack;
 
     setIsSaving(true);
-    await saveStepData(currentSub, dest, skipValidation, goingBack);
+    const ok = await saveStepData(currentSub, dest, skipValidation, goingBack);
     setIsSaving(false);
+    if (ok && !goingBack) {
+      bumpEntitlement(2, dest); // major step 2 here
+    }
   };
 
   const next = () => {
@@ -214,10 +227,37 @@ const StepBudgetExpenditureContainer = forwardRef<
     }
   };
 
-  /* 5 ─── progress click handlers ---------------------------------- */
-  const clickCarousel = (z: number) => goToSub(z + 1);
-  const clickProgress = (d: number) => goToSub(d);
 
+
+
+
+  /* 5 ─── progress click handlers ---------------------------------- */
+
+  const maxSubStepByMajor = useWizardSessionStore((s) => s.maxSubStepByMajor);
+
+  const maxClickableStep =
+    Math.max(1, maxSubStepByMajor?.[2] ?? 1);
+
+
+
+  const clickCarousel = (z: number) => goToSub(z + 1);
+
+  const clickProgress = (dest: number) => {
+    if (dest <= maxClickableStep) goToSub(dest);
+  };
+
+
+  const canPick = (key: ItemKey) => subMap[key] <= maxClickableStep;
+
+  const onPick = (key: ItemKey) => {
+    const dest = subMap[key];
+    if (dest <= maxClickableStep) goToSub(dest);
+  };
+
+  const goToSubKey = (key: ItemKey) => {
+    const dest = subMap[key];
+    if (entitlement.canClickSub(dest)) goToSub(dest);
+  };
   /* 6 ─── notify parent of sub-step -------------------------------- */
   useEffect(() => {
     if (isFormHydrated) {
@@ -248,6 +288,16 @@ const StepBudgetExpenditureContainer = forwardRef<
     getTotalSubSteps: () => totalSteps,
   }));
 
+  const subMap: Record<ItemKey, number> = {
+    boende: 2,
+    mat: 3,
+    fasta: 4,
+    transport: 5,
+    klader: 6,
+    prenumerationer: 7,
+  };
+
+
   /* 8 ─── render helpers ------------------------------------------- */
   const steps = [
     { icon: Info, label: 'Översikt' },
@@ -262,14 +312,21 @@ const StepBudgetExpenditureContainer = forwardRef<
 
   const renderSubStep = () => {
     switch (currentSub) {
-      case 1: return <ExpenditureOverviewMainText />;
-      case 2: return <SubStepRent />;
+      case 1:
+        return (
+          <ExpenditureOverviewMainText
+            onStart={() => goToSub(2)}
+            onPick={onPick}
+            canPick={canPick}
+          />
+        );
+      case 2: return <SubStepHousing />;
       case 3: return <SubStepFood />;
       case 4: return <SubStepFixedExp />;
       case 5: return <SubStepTransport />;
       case 6: return <SubStepClothing />;
       case 7: return <SubStepSubscriptions />;
-      case 8: return <SubStepConfirm />;
+      case 8: return <SubStepConfirmConnected />;
       default: return <div>All sub-steps complete!</div>;
     }
   };
@@ -284,19 +341,22 @@ const StepBudgetExpenditureContainer = forwardRef<
 
   const substepLoaders: Record<number, () => Promise<any>> = {
     1: () => import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/1_SubStepWelcome/ExpenditureOverviewMainText'),
-    2: () => import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/2_SubStepRent/SubStepRent'),
+    2: () => import('@/components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/2_SubStepHousing/SubStepHousing'),
     3: () => import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/3_SubStepFood/SubStepFood'),
     4: () => import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/4_SubStepFixedExpenses/SubStepFixedExpenses'),
     5: () => import('@/components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/5_SubStepTransport/SubStepTransport'),
     6: () => import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/6_SubStepClothing/SubStepClothing'),
     7: () => import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/7_SubStepSubscriptions/SubStepSubscriptions'),
-    8: () => import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/8_SubStepConfirm/SubStepConfirm'),
+    8: () => import('@/components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/8_SubStepConfirm/components/SubStepConfirmExpenditureConnected'),
   };
   useEffect(() => {
     const next = Math.min(currentSub + 1, 8);
     const loader = substepLoaders[next];
     if (loader) preload(loader);
   }, [currentSub]);
+  const suspenseVariant =
+    currentSub === 1 ? "intro" : currentSub === totalSteps ? "confirm" : "form";
+
 
   /* 9 ─── JSX ------------------------------------------------------- */
   return (
@@ -304,54 +364,63 @@ const StepBudgetExpenditureContainer = forwardRef<
       ref={handleFormWrapperRef}
       onHydrationComplete={handleFormHydration}
     >
-      {parentLoading ? (
-        <div className="absolute inset-0 z-50 flex items-center justify-center
-              bg-white/60 backdrop-blur-sm">
-          <Skeleton className="w-48 h-6" />
-        </div>
-      ) : (
-        <form className="step-budget-expenditure-container flex flex-col h-full">
-          {/* Header navigation */}
-          <div className="mb-6 flex items-center justify-between">
-            {isSaving && (
-              <div className="absolute inset-0 z-50 flex items-center justify-center
-                            bg-white/60 backdrop-blur-sm">
-                <Skeleton className="w-48 h-6" />
+      <WizardOverlayShell className="h-full">
+        <form className="relative flex flex-col h-full">
+
+          {/* Shared width frame */}
+          <div className="mx-auto w-full max-w-4xl px-4 sm:px-6 lg:px-10 xl:px-14 flex flex-col h-full">
+            {/* Header navigation */}
+            <div className="flex flex-col items-center gap-3 md:gap-4">
+              <div className="w-full text-center">
+                {isMobile ? (
+                  <StepCarousel steps={steps} currentStep={currentSub - 1} />
+                ) : (
+                  <WizardProgress
+                    step={currentSub}
+                    totalSteps={totalSteps}
+                    steps={steps}
+                    onStepClick={clickProgress}
+                    isDebugMode={import.meta.env.MODE === "development"}
+                    tone="default"
+                    size="default"
+                    progressTone="accent"
+                    showProgressLine={true}
+                    maxClickableStep={maxClickableStep}
+                  />
+                )}
               </div>
-            )}
-            <div className="flex-1 text-center">
-              {isMobile ? (
-                <StepCarousel
-                  steps={steps}
-                  currentStep={currentSub - 1}
-                />
-              ) : (
-                <WizardProgress
-                  step={currentSub}
-                  totalSteps={totalSteps}
-                  steps={steps}
-                  adjustProgress
-                  onStepClick={clickProgress}
-                />
-              )}
+              <WizardDivider variant="subtle" className="mt-4" />
+
+
+            </div>
+
+
+            {/* Content */}
+            <div className="flex-1 min-h-0">
+              <Suspense
+                fallback={
+                  <WizardSkeleton
+                    variant={suspenseVariant}
+                    withProgress={false}
+                    withFooter={suspenseVariant === "confirm"}
+                    withinCard={false}
+                  />
+                }
+              >
+                <AnimatedContent
+                  animationKey={String(currentSub)}
+                  triggerKey={String(currentSub)}
+                >
+                  {renderSubStep()}
+                </AnimatedContent>
+              </Suspense>
             </div>
           </div>
-
-          {/* Content */}
-          <div className="flex-1">
-            <Suspense fallback={<LoadingScreen full={false} textColor="black" />}>
-              <AnimatedContent
-                animationKey={String(currentSub)}
-                triggerKey={String(currentSub)}
-              >
-                {renderSubStep()}
-              </AnimatedContent>
-            </Suspense>
-          </div>
         </form>
-      )}
+      </WizardOverlayShell>
     </WizardFormWrapperStep2>
   );
 });
 
 export default StepBudgetExpenditureContainer;
+

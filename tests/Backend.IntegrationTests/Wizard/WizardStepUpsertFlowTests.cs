@@ -4,7 +4,7 @@ using MySqlConnector;
 using Xunit;
 using Backend.IntegrationTests.Shared;
 
-namespace Backend.tests.IntegrationTests.Wizard;
+namespace Backend.IntegrationTests.Wizard;
 
 [Collection("it:db")]
 public sealed class WizardStepUpsertFlowTests

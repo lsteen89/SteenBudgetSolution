@@ -21,13 +21,13 @@ const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({ o
                 <ReturningHeader
                     monthLabel={summary.monthLabel}
                     remainingToSpend={summary.remainingToSpend}
-                    currency={summary.remainingCurrency}
+                    currency={summary.currency}
                     onOpenWizard={onOpenWizard}
                 />
 
                 <KpiRow
                     remainingToSpend={summary.remainingToSpend}
-                    currency={summary.remainingCurrency}
+                    currency={summary.currency}
                     goalsProgressPercent={summary.goalsProgressPercent}
                     emergencyFundAmount={summary.emergencyFundAmount}
                     emergencyFundMonths={summary.emergencyFundMonths}
@@ -37,7 +37,7 @@ const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({ o
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <div className="lg:col-span-2 space-y-4">
                     <BudgetOverviewCard
-                        currency={summary.remainingCurrency}
+                        currency={summary.currency}
                         totalIncome={summary.totalIncome}
                         totalExpenditure={summary.totalExpenditure}
                         totalSavings={summary.totalSavings}
@@ -48,12 +48,12 @@ const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({ o
 
                     <div className="space-y-4">
                         <RecurringExpensesCard
-                            currency={summary.remainingCurrency}
+                            currency={summary.currency}
                             recurringExpenses={summary.recurringExpenses}
                         />
 
                         <SubscriptionsCard
-                            currency={summary.remainingCurrency}
+                            currency={summary.currency}
                             subscriptionsTotal={summary.subscriptionsTotal}
                             subscriptionsCount={summary.subscriptionsCount}
                             subscriptions={summary.subscriptions}

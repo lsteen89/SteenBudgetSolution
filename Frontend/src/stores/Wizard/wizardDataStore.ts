@@ -2,10 +2,10 @@ import { create } from 'zustand';
 import { devtools, persist, createJSONStorage } from 'zustand/middleware';
 import { createWithEqualityFn } from 'zustand/traditional';
 import { CODE_DATA_VERSION } from '@/constants/wizardVersion';
-import type { ExpenditureFormValues } from '@/types/Wizard/ExpenditureFormValues';
-import type { IncomeFormValues } from '@/types/Wizard/IncomeFormValues';
-import type { SavingsFormValues } from '@/types/Wizard/SavingsFormValues';
-import type { Step4FormValues } from '@/types/Wizard/Step4FormValues';
+import type { ExpenditureFormValues } from '@/types/Wizard/Step2_Expenditure/ExpenditureFormValues';
+import type { IncomeFormValues } from '@/types/Wizard/Step1_Income/IncomeFormValues';
+import type { SavingsFormValues } from '@/types/Wizard/Step3_Savings/SavingsFormValues';
+import type { Step4FormValues } from '@/types/Wizard/Step4_Debt/Step4FormValues';
 
 export interface WizardData {
   income: Partial<IncomeFormValues>;
@@ -29,6 +29,10 @@ export interface WizardDataStore {
   setLastVisitedSubStep: (step: number, subStep: number) => void; // The bookmarking action
   reset: () => void;
   getLastVisitedSubStep: (step: number) => number | undefined;
+  setIncomeReplace: (d: Partial<IncomeFormValues>) => void;
+  setExpenditureReplace: (d: Partial<ExpenditureFormValues>) => void;
+  setSavingsReplace: (d: Partial<SavingsFormValues>) => void;
+  setDebtsReplace: (d: Partial<Step4FormValues>) => void;
 }
 
 const initialWizardDataState: WizardData = { income: {}, expenditure: {}, savings: {}, debts: {} };
@@ -56,6 +60,19 @@ export const useWizardDataStore = createWithEqualityFn<WizardDataStore>()(
           })),
 
         getLastVisitedSubStep: (step) => get().uiMetadata[step]?.lastVisitedSubStep,
+
+        setSavingsReplace: (savings) =>
+          set((state) => ({ data: { ...state.data, savings } })),
+
+        setExpenditureReplace: (expenditure) =>
+          set((state) => ({ data: { ...state.data, expenditure } })),
+
+        setIncomeReplace: (income) =>
+          set((state) => ({ data: { ...state.data, income } })),
+
+        setDebtsReplace: (debts) =>
+          set((state) => ({ data: { ...state.data, debts } })),
+
 
         reset: () => set({ data: { ...initialWizardDataState }, uiMetadata: { ...initialUIMetadata }, version: CODE_DATA_VERSION }),
       }),

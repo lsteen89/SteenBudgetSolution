@@ -1,15 +1,21 @@
 import { api } from '@/api/axios';
-import { StartWizardResponse } from '@myTypes/Wizard/StartWizardResponse';
+import { StartWizardResponse } from '@/types/Wizard/Step0_Welcome/StartWizardResponse';
 import { CODE_DATA_VERSION } from '@/constants/wizardVersion';
-import { useWizardDataStore, WizardData } from '@/stores/Wizard/wizardDataStore';
+import { WizardData } from '@/stores/Wizard/wizardDataStore';
 import type { ApiEnvelope } from '@/api/api.types';
 import { isAxiosError } from 'axios';
-import { useAuthStore } from '@/stores/Auth/authStore';
-import { useWizardSessionStore } from '@/stores/Wizard/wizardSessionStore';
+import type { BudgetDashboardDto } from '@myTypes/budget/BudgetDashboardDto';
+import { unwrapEnvelope } from '@/utils/api/apiHelpers';
+
+export interface WizardProgressDto {
+  majorStep: number;
+  subStep: number;
+  maxSubStepByMajor: Record<number, number>; // backend is IReadOnlyDictionary<int,int>
+}
 
 export interface WizardDataResponseDto {
   wizardData: Partial<WizardData>;
-  subStep: number | null;
+  progress: WizardProgressDto;
   dataVersion: number;
 }
 
@@ -104,4 +110,13 @@ export const getWizardData = async (
 
 export async function completeWizard(sessionId: string): Promise<void> {
   await api.post(`/api/wizard/${sessionId}/complete`);
+}
+
+/* ───── fetch finalization preview ───── */
+export async function fetchWizardFinalizationPreview(sessionId: string): Promise<BudgetDashboardDto> {
+  const res = await api.get<ApiEnvelope<BudgetDashboardDto>>(
+    `/api/wizard/${sessionId}/finalization-preview`
+  );
+
+  return unwrapEnvelope(res.data);
 }

@@ -6,7 +6,7 @@ using Backend.Application.Abstractions.Infrastructure.RateLimiting;
 using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Settings.Email;
 using Microsoft.Extensions.Options;
-using Backend.Domain.Users;
+using Backend.Domain.Errors.User;
 
 namespace Backend.Application.Features.Contact;
 

@@ -168,13 +168,15 @@ builder.Services
 // Add rate limiting services
 builder.Services.AddRateLimiter(options =>
 {
+    int debugLimit = 1000;
+
     // Set a global limiter using PartitionedRateLimiter.Create
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "global",
             factory: key => new FixedWindowRateLimiterOptions
             {
-                PermitLimit = 10,               // Allow 10 requests per minute
+                PermitLimit = builder.Environment.IsProduction() ? 10 : debugLimit,               // Allow 10 requests per minute
                 Window = TimeSpan.FromMinutes(1),
                 QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
                 QueueLimit = 2

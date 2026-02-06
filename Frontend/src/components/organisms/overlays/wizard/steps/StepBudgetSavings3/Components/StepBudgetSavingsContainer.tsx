@@ -7,43 +7,42 @@ import React, {
   useCallback,
   lazy,
   Suspense,
-} from 'react';
-import { UseFormReturn, FieldErrors } from 'react-hook-form';
-import AnimatedContent from '@components/atoms/wrappers/AnimatedContent';
+  useMemo,
+} from "react";
+import type { UseFormReturn, FieldErrors } from "react-hook-form";
+import WizardSkeleton from "@/components/organisms/overlays/wizard/SharedComponents/Skeletons/WizardSkeleton";
+import AnimatedContent from "@components/atoms/wrappers/AnimatedContent";
 
-import { Step3FormValues } from '@/types/Wizard/Step3FormValues';
-import { ensureStep3Defaults } from '@/utils/wizard/ensureStep3Defaults';
-import { useSaveStepData } from '@hooks/wizard/useSaveStepData';
-import { useWizardDataStore } from '@/stores/Wizard/wizardDataStore';
-import useMediaQuery from '@hooks/useMediaQuery';
+import type { Step3FormValues } from "@/types/Wizard/Step3_Savings/Step3FormValues";
+import { ensureStep3Defaults } from "@/utils/wizard/ensureStep3Defaults";
+import { useSaveStepData } from "@hooks/wizard/useSaveStepData";
+import { useWizardDataStore } from "@/stores/Wizard/wizardDataStore";
+import useMediaQuery from "@hooks/useMediaQuery";
 
-import WizardProgress from '@components/organisms/overlays/wizard/SharedComponents/Menu/WizardProgress';
-import StepCarousel from '@components/molecules/progress/StepCarousel';
-import LoadingScreen from '@components/molecules/feedback/LoadingScreen';
+import WizardProgress from "@components/organisms/overlays/wizard/SharedComponents/Menu/WizardProgress";
+import StepCarousel from "@components/molecules/progress/StepCarousel";
+import { Skeleton } from "@/components/ui/Skeleton";
+import type { SubStepGoalsApi } from "./Pages/SubSteps/3_SubStepGoals/SubStepGoals";
 import WizardFormWrapperStep3, {
   WizardFormWrapperStep3Ref,
-} from './wrapper/WizardFormWrapperStep3';
+} from "./wrapper/WizardFormWrapperStep3";
 
-// --- Sub-Step Pages and Icons
-import { Info, PiggyBank, Target, ShieldCheck } from 'lucide-react';
+// Icons
+import { Info, PiggyBank, Target, ShieldCheck } from "lucide-react";
+import { WizardOverlaySkeleton } from "../../../SharedComponents/Skeletons/WizardOverlaySkeleton";
+import WizardOverlayShell from "../../../SharedComponents/shells/WizardOverlayShell";
+import { useWizard } from "@/context/WizardContext";
+import { WizardDivider } from "@/components/atoms/dividers/WizardDividerProps";
 
-// lazy substeps
-const SubStepIntro = lazy(() =>
-  import('./Pages/SubSteps/1_SubStepIntro/SubStepIntro')
-);
-const SubStepHabits = lazy(() =>
-  import('./Pages/SubSteps/2_SubStepHabits/SubStepHabits')
-);
-const SubStepGoals = lazy(() =>
-  import('./Pages/SubSteps/3_SubStepGoals/SubStepGoals')
-);
-const SubStepConfirm = lazy(() =>
-  import('./Pages/SubSteps/4_SubStepConfirm/SubStepConfirm')
-);
+/* ───────────────── Lazy substeps ───────────────── */
+const SubStepIntro = lazy(() => import("./Pages/SubSteps/1_SubStepIntro/SubStepIntro"));
+const SubStepHabits = lazy(() => import("./Pages/SubSteps/2_SubStepHabits/SubStepHabits"));
+const SubStepGoals = lazy(() => import("./Pages/SubSteps/3_SubStepGoals/SubStepGoals"));
+const SubStepConfirm = lazy(() => import("./Pages/SubSteps/4_SubStepConfirm/components/SubStepConfirmSavingsConnected"));
 
-// small preload helper (same pattern as step 2)
+/* ───────────────── Preload helper ───────────────── */
 const preload = (fn: () => Promise<any>) => {
-  if (typeof (window as any).requestIdleCallback === 'function') {
+  if (typeof (window as any).requestIdleCallback === "function") {
     (window as any).requestIdleCallback(() => fn());
   } else {
     setTimeout(() => fn(), 200);
@@ -51,15 +50,13 @@ const preload = (fn: () => Promise<any>) => {
 };
 
 const savingsLoaders: Record<number, () => Promise<any>> = {
-  1: () => import('./Pages/SubSteps/1_SubStepIntro/SubStepIntro'),
-  2: () => import('./Pages/SubSteps/2_SubStepHabits/SubStepHabits'),
-  3: () => import('./Pages/SubSteps/3_SubStepGoals/SubStepGoals'),
-  4: () => import('./Pages/SubSteps/4_SubStepConfirm/SubStepConfirm'),
+  1: () => import("./Pages/SubSteps/1_SubStepIntro/SubStepIntro"),
+  2: () => import("./Pages/SubSteps/2_SubStepHabits/SubStepHabits"),
+  3: () => import("./Pages/SubSteps/3_SubStepGoals/SubStepGoals"),
+  4: () => import("./Pages/SubSteps/4_SubStepConfirm/components/SubStepConfirmSavingsConnected"),
 };
 
-/* ------------------------------------------------------------------ */
-/* INTERFACES                                                         */
-/* ------------------------------------------------------------------ */
+/* ───────────────── Types ───────────────── */
 export interface StepBudgetSavingsContainerRef {
   validateFields(): Promise<boolean>;
   getStepData(): Step3FormValues;
@@ -73,6 +70,7 @@ export interface StepBudgetSavingsContainerRef {
   isSaving(): boolean;
   hasSubSteps: () => boolean;
   getTotalSubSteps: () => number;
+  setSubStep(sub: number): void;
 }
 
 interface StepBudgetSavingsContainerProps {
@@ -98,16 +96,18 @@ function getSavingsPartialData(
   allData: Step3FormValues
 ): Partial<Step3FormValues> {
   switch (subStep) {
-    case 1: return { intro: allData.intro };
-    case 2: return { habits: allData.habits };
-    case 3: return { goals: allData.goals };
-    default: return {};
+    case 1:
+      return { intro: allData.intro };
+    case 2:
+      return { habits: allData.habits };
+    case 3:
+      return { goals: allData.goals };
+    default:
+      return {};
   }
 }
 
-/* ------------------------------------------------------------------ */
-/* COMPONENT IMPLEMENTATION                                           */
-/* ------------------------------------------------------------------ */
+/* ───────────────── Component ───────────────── */
 const StepBudgetSavingsContainer = forwardRef<
   StepBudgetSavingsContainerRef,
   StepBudgetSavingsContainerProps
@@ -123,43 +123,33 @@ const StepBudgetSavingsContainer = forwardRef<
     onSubStepChange,
   } = props;
 
-  const isMobile = useMediaQuery('(max-width: 1367px)');
+  const isMobile = useMediaQuery("(max-width: 1367px)");
+  const totalSteps = 4;
+  const subStepGoalsRef = useRef<SubStepGoalsApi>(null);
+  /* 1) Hydrate slice once (from API -> store) */
   const hasHydrated = useRef(false);
-
-  /* 1 ─── Hydrate slice once --------------------------------------- */
   const { setSavings } = useWizardDataStore();
-  useEffect(() => {
-    if (initialData && Object.keys(initialData).length > 0 && !hasHydrated.current) {
-      const completeData = ensureStep3Defaults(initialData);
-      setSavings(completeData);
-      hasHydrated.current = true;
-    }
-  }, [initialData, setSavings]);
 
-  /* 2 ─── refs & local state --------------------------------------- */
+  const { setValidationAttempted } = useWizard();
+
+  /* 2) Local state */
   const [isSaving, setIsSaving] = useState(false);
   const [currentSub, setCurrentSub] = useState(initialSubStep || 1);
-  const [skippedHabits, setSkippedHabits] = useState(false);
-  const [formMethods, setFormMethods] =
-    useState<UseFormReturn<Step3FormValues> | null>(null);
+  const [formMethods, setFormMethods] = useState<UseFormReturn<Step3FormValues> | null>(null);
   const [isFormHydrated, setIsFormHydrated] = useState(false);
 
-  const handleFormHydration = () => {
-    setIsFormHydrated(true);
-  };
+  const handleFormHydration = () => setIsFormHydrated(true);
 
+  /* 3) Capture RHF methods from wrapper once */
   const hasSetMethods = useRef(false);
-  const handleFormWrapperRef = useCallback(
-    (instance: WizardFormWrapperStep3Ref | null) => {
-      if (instance && !hasSetMethods.current) {
-        setFormMethods(instance.getMethods());
-        hasSetMethods.current = true;
-      }
-    },
-    []
-  );
+  const handleFormWrapperRef = useCallback((instance: WizardFormWrapperStep3Ref | null) => {
+    if (instance && !hasSetMethods.current) {
+      setFormMethods(instance.getMethods());
+      hasSetMethods.current = true;
+    }
+  }, []);
 
-  /* 3 ─── save-hook ------------------------------------------------ */
+  /* 4) Save hook */
   const { saveStepData } = useSaveStepData<Step3FormValues>({
     stepNumber,
     methods: formMethods ?? undefined,
@@ -170,75 +160,78 @@ const StepBudgetSavingsContainer = forwardRef<
     getPartialDataForSubstep: getSavingsPartialData,
   });
 
-  /* 4 ─── navigation helpers --------------------------------------- */
-  const totalSteps = 4;
+  /* 5) Derived: should skip habits? */
+  const savingHabit = formMethods?.getValues("intro.savingHabit");
+  const shouldSkipHabits = savingHabit === "start" || savingHabit === "no";
 
-  // preload next substep bundle in idle time
+  /* 6) Preload next substep bundle */
   useEffect(() => {
     const next = Math.min(currentSub + 1, totalSteps);
     const loader = savingsLoaders[next];
     if (loader) preload(loader);
   }, [currentSub]);
 
+  /* 7) Navigation */
   const goToSub = async (dest: number) => {
     const goingBack = dest < currentSub;
     const skipValidation = goingBack;
 
     setIsSaving(true);
-    const wasSuccessful = await saveStepData(
-      currentSub,
-      dest,
-      skipValidation,
-      goingBack
-    );
+    const ok = await saveStepData(currentSub, dest, skipValidation, goingBack);
     setIsSaving(false);
 
-    if (wasSuccessful) {
-      setCurrentSub(dest);
+    if (!ok && !goingBack) {
+      if (currentSub === 3) {
+        setValidationAttempted("step3.goals", true);
+
+
+        queueMicrotask(() => subStepGoalsRef.current?.openFirstErrorGoal());
+      }
     }
+
+    if (ok) setCurrentSub(dest);
   };
 
   const next = async () => {
     if (currentSub === 1) {
-      const answer = formMethods?.getValues('intro.savingHabit');
-      const skip = answer === 'start' || answer === 'no';
-      await goToSub(skip ? 3 : 2);
-      if (skip) setSkippedHabits(true);
+      // Decide route based on intro answer
+      await goToSub(shouldSkipHabits ? 3 : 2);
       return;
     }
 
     if (currentSub < totalSteps) {
       await goToSub(currentSub + 1);
-    } else {
-      onNext();
+      return;
     }
+
+    onNext();
   };
 
   const prev = () => {
-    let destinationSub = currentSub - 1;
-    if (currentSub === 3 && skippedHabits) {
-      destinationSub = 1;
+    // If we skipped habits, Goals (3) goes back to Intro (1)
+    if (currentSub === 3 && shouldSkipHabits) {
+      goToSub(1);
+      return;
     }
 
-    if (destinationSub >= 1) {
-      goToSub(destinationSub);
-    } else {
-      onPrev();
+    if (currentSub > 1) {
+      goToSub(currentSub - 1);
+      return;
     }
+
+    onPrev();
   };
 
-  /* 5 ─── progress click handlers ---------------------------------- */
+  /* 8) Progress clicks */
   const clickProgress = (d: number) => goToSub(d);
 
-  /* 6 ─── notify parent of sub-step -------------------------------- */
+  /* 9) Notify parent when ready */
   useEffect(() => {
-    if (isFormHydrated) {
-      onSubStepChange?.(currentSub);
-    }
+    if (isFormHydrated) onSubStepChange?.(currentSub);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentSub, isFormHydrated]);
 
-  /* 7 ─── imperative API ------------------------------------------- */
+  /* 10) Imperative API */
   useImperativeHandle(ref, () => ({
     validateFields: () => formMethods?.trigger() ?? Promise.resolve(false),
     getStepData: () => formMethods?.getValues() ?? ensureStep3Defaults({}),
@@ -247,82 +240,101 @@ const StepBudgetSavingsContainer = forwardRef<
     getCurrentSubStep: () => currentSub,
     goPrevSub: prev,
     goNextSub: next,
-    hasPrevSub: () => (currentSub === 3 && skippedHabits) || currentSub > 1,
+    hasPrevSub: () => (currentSub === 3 && shouldSkipHabits) || currentSub > 1,
     hasNextSub: () => currentSub < totalSteps,
     isSaving: () => isSaving,
     hasSubSteps: () => true,
     getTotalSubSteps: () => totalSteps,
+    setSubStep: (sub: number) => {
+      setCurrentSub(sub);
+      onSubStepChange?.(sub); // important: keep SetupWizard state in sync
+    },
   }));
 
-  /* 8 ─── render helpers ------------------------------------------- */
-  const steps = [
-    { icon: Info, label: 'Intro' },
-    { icon: PiggyBank, label: 'Vanor' },
-    { icon: Target, label: 'Mål' },
-    { icon: ShieldCheck, label: 'Bekräfta' },
-  ];
+  /* 11) Render helpers */
+  const steps = useMemo(
+    () => [
+      { icon: Info, label: "Intro" },
+      { icon: PiggyBank, label: "Vanor" },
+      { icon: Target, label: "Mål" },
+      { icon: ShieldCheck, label: "Bekräfta" },
+    ],
+    []
+  );
 
   const renderSubStep = () => {
     switch (currentSub) {
-      case 1: return <SubStepIntro />;
-      case 2: return <SubStepHabits />;
-      case 3: return <SubStepGoals />;
-      case 4: return <SubStepConfirm />;
-      default: return <div>All sub-steps complete!</div>;
+      case 1:
+        return <SubStepIntro />;
+      case 2:
+        return <SubStepHabits />;
+      case 3:
+        return <SubStepGoals ref={subStepGoalsRef} onGoToHabits={() => goToSub(2)} />;
+      case 4:
+        return <SubStepConfirm />;
+      default:
+        return <div>All sub-steps complete!</div>;
     }
   };
-
-  /* 9 ─── JSX ------------------------------------------------------- */
+  const suspenseVariant =
+    currentSub === 1 ? "intro" : currentSub === totalSteps ? "confirm" : "form";
   return (
     <WizardFormWrapperStep3
       ref={handleFormWrapperRef}
       onHydrationComplete={handleFormHydration}
     >
-      {parentLoading ? (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/60 backdrop-blur-sm">
-          <LoadingScreen full textColor="black" />
-        </div>
-      ) : (
-        <form className="flex flex-col h-full">
-          {isSaving && (
-            <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/60 backdrop-blur-sm">
-              <LoadingScreen full={false} actionType="save" textColor="black" />
-            </div>
-          )}
+      <WizardOverlayShell className="h-full">
 
-          <div className="mb-6 flex items-center justify-between">
-            <div className="flex-1 text-center">
-              {isMobile ? (
-                <StepCarousel
-                  steps={steps}
-                  currentStep={currentSub - 1}
-                />
-              ) : (
-                <WizardProgress
-                  step={currentSub}
-                  totalSteps={totalSteps}
-                  steps={steps}
-                  adjustProgress
-                  onStepClick={clickProgress}
-                />
-              )}
-            </div>
-          </div>
+        <form className="relative flex flex-col h-full">
 
-          <div className="flex-1">
-            <Suspense fallback={<LoadingScreen full={false} textColor="black" />}>
-              <AnimatedContent
-                animationKey={String(currentSub)}
-                triggerKey={String(currentSub)}
+          {/* Shared width frame */}
+          <div className="mx-auto w-full max-w-4xl px-4 sm:px-6 lg:px-10 xl:px-14 flex flex-col h-full">
+            {/* Header navigation */}
+            <div className="flex flex-col items-center gap-3 md:gap-4">
+              <div className="w-full text-center">
+                {isMobile ? (
+                  <StepCarousel steps={steps} currentStep={currentSub - 1} />
+                ) : (
+                  <WizardProgress
+                    step={currentSub}
+                    totalSteps={totalSteps}
+                    steps={steps}
+                    isDebugMode={import.meta.env.MODE === "development"}
+                    onStepClick={clickProgress}
+                  />
+                )}
+              </div>
+            </div>
+            <WizardDivider variant="subtle" className="mt-4" />
+
+            {/* Content */}
+            <div className="flex-1 min-h-0">
+              <Suspense
+                fallback={
+                  <WizardSkeleton
+                    variant={suspenseVariant}
+                    withProgress={false}
+                    withFooter={suspenseVariant === "confirm"}
+                    withinCard={false}
+                  />
+                }
               >
-                {renderSubStep()}
-              </AnimatedContent>
-            </Suspense>
+                <AnimatedContent
+                  animationKey={String(currentSub)}
+                  triggerKey={String(currentSub)}
+                >
+                  {renderSubStep()}
+                </AnimatedContent>
+              </Suspense>
+            </div>
           </div>
         </form>
-      )}
+        {/* )} */}
+      </WizardOverlayShell>
     </WizardFormWrapperStep3>
   );
 });
 
+StepBudgetSavingsContainer.displayName = "StepBudgetSavingsContainer";
 export default StepBudgetSavingsContainer;
+

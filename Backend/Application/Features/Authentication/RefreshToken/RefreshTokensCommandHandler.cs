@@ -7,7 +7,7 @@ using Backend.Infrastructure.Security;
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Settings;
 using Backend.Domain.Shared;
-using Backend.Domain.Users;
+using Backend.Domain.Errors.User;
 using Backend.Infrastructure.WebSockets;
 
 namespace Backend.Application.Features.Commands.Auth.RefreshToken;

@@ -1,1 +1,1 @@
-export const CODE_DATA_VERSION = 2;
+export const CODE_DATA_VERSION = 3;

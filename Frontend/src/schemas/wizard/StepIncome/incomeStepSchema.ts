@@ -1,58 +1,68 @@
-import * as yup from 'yup';
-import { Frequency, VALID_FREQUENCIES } from '@/types/common';
+import * as yup from "yup";
+import { Frequency, VALID_FREQUENCIES } from "@/types/common";
+import { svMoneyNullable, nameNullable } from "@/schemas/helpers/wizard/wizardHelpers";
 
-// Schema for an individual household member
-const householdMemberSchema = yup.object().shape({
-  id: yup.string().nullable().optional(),
-  name: yup.string().trim().required('Ange namn på personen.'),
-  income: yup
-    .number()
-    .typeError('Ange en giltig siffra för inkomst.')
-    .nullable()
-    .required('Ange nettoinkomst.')
-    .min(0, 'Inkomsten kan inte vara negativ.')
-    .test('is-not-zero', 'Inkomsten kan inte vara 0 om den är angiven.', (value) => value === null || value !== 0),
-  frequency: yup // <--- UPDATED SECTION
-    .string<Frequency>()
-    .oneOf(VALID_FREQUENCIES, 'Ogiltig frekvens vald.')
-    .required('Välj frekvens.'),
-  yearlyIncome: yup.number().nullable().optional(),
-});
+const idOptional = yup
+  .string()
+  .nullable()
+  .optional()
+  .transform((v) => (v === null ? undefined : v));
 
-// Schema for an individual side hustle
-const sideHustleSchema = yup.object().shape({
-  id: yup.string().nullable().optional(),
-  name: yup.string().trim().required('Ange namn för sidoinkomsten.'),
-  income: yup
-    .number()
-    .typeError('Ange en giltig siffra för inkomst.')
-    .nullable()
-    .required('Ange sidoinkomstens storlek.')
-    .min(0, 'Inkomsten kan inte vara negativ.')
-    .test('is-not-zero', 'Inkomsten kan inte vara 0 om den är angiven.', (value) => value === null || value !== 0),
-  frequency: yup // <--- UPDATED SECTION
-    .string<Frequency>()
-    .oneOf(VALID_FREQUENCIES, 'Ogiltig frekvens vald.')
-    .required('Välj sidoinkomstens frekvens.'),
-  yearlyIncome: yup.number().nullable().optional(),
-});
+export const incomeItemSchema = yup
+  .object({
+    id: idOptional,
+    name: nameNullable,
+    income: svMoneyNullable(), // ✅ call it
+    frequency: yup
+      .string<Frequency>()
+      .oneOf(VALID_FREQUENCIES, "Ogiltig frekvens vald.")
+      .nullable(),
+  })
+  .test("empty-or-valid", "Fyll i raden eller lämna den tom.", function (value) {
+    const name = value?.name ?? null;
+    const income = value?.income ?? null;
+    const frequency = value?.frequency ?? null;
 
-// Main schema for the entire income step
+    const hasName = !!name;
+    const hasIncome = income !== null;
+    const hasMeaningfulInput = hasName || hasIncome;
+
+    if (!hasMeaningfulInput) return true;
+
+    if (!hasIncome) {
+      return this.createError({ path: `${this.path}.income`, message: "Ange ett belopp (> 0 kr)." });
+    }
+
+    if (Number(income) <= 0) {
+      return this.createError({ path: `${this.path}.income`, message: "Beloppet måste vara > 0 kr." });
+    }
+
+    if (!hasName) {
+      return this.createError({ path: `${this.path}.name`, message: "Ange ett namn." });
+    }
+
+    if (String(name).length < 2) {
+      return this.createError({ path: `${this.path}.name`, message: "Minst 2 tecken." });
+    }
+
+    if (!frequency) {
+      return this.createError({ path: `${this.path}.frequency`, message: "Välj frekvens." });
+    }
+
+    return true;
+  });
 
 export const incomeStepSchema = yup.object({
-  netSalary: yup
-    .number()
-    .typeError('Ange en giltig siffra för din primära inkomst.')
-    .nullable()                        // 👈 nullable matches default null
-    .required('Ange din primära inkomst.')
-    .min(0)
-    .test('not-zero', 'Inkomsten kan inte vara 0.', v => v === null || v !== 0),
-  salaryFrequency : yup.string<Frequency>().oneOf(VALID_FREQUENCIES).required(),
-  showSideIncome  : yup.boolean().nullable().default(null),
-  showHouseholdMembers : yup.boolean().nullable().default(null),
-  householdMembers : yup.array(householdMemberSchema).nullable().default(null),
-  sideHustles     : yup.array(sideHustleSchema).nullable().default(null),
-  yearlySalary    : yup.number().nullable(),
-});
+  netSalary: svMoneyNullable() // ✅ call it
+    .required("Ange din primära inkomst.")
+    .min(0, "Inkomsten kan inte vara negativ.")
+    .test("not-zero", "Inkomsten kan inte vara 0.", (v: number | null) => v === null || v !== 0), // ✅ typed
 
-export type IncomeFormValues = yup.InferType<typeof incomeStepSchema>; 
+  salaryFrequency: yup
+    .string<Frequency>()
+    .oneOf(VALID_FREQUENCIES, "Ogiltig frekvens vald.")
+    .required("Välj frekvens."),
+
+  householdMembers: yup.array(incomeItemSchema).ensure(),
+  sideHustles: yup.array(incomeItemSchema).ensure(),
+});

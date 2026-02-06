@@ -26,7 +26,8 @@ public class SavingsStepValidator : IWizardStepValidator
 
             _validator.ValidateAndThrow(dto);
 
-            return Result<string>.Success(JsonSerializer.Serialize(dto, JsonHelper.Camel));
+            var json = JsonHelper.SerializeSparse(dto);
+            return Result<string>.Success(json);
         }
         catch (ValidationException ex) { return Result<string>.Failure(new Error("Validation.Failed", ex.Message)); }
         catch (Exception ex) { return Result<string>.Failure(new Error("Serialization.Failed", ex.Message)); }

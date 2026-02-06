@@ -1,11 +1,29 @@
-import { api } from '@/api/axios';
-import { isAxiosError } from 'axios';
-import type { ApiEnvelope } from '@/api/api.types';
-import type { BudgetDashboardDto } from '@myTypes/budget/BudgetDashboardDto';
-import { unwrapEnvelope } from '@/utils/api/apiHelpers';
+import { api } from "@/api/axios";
+import type { ApiEnvelope } from "@/api/api.types";
+import { unwrapEnvelope } from "@/utils/api/apiHelpers";
+import type { BudgetMonthsStatusDto } from "@myTypes//budget/BudgetMonthsStatusDto";
+import type { BudgetDashboardMonthDto } from "@myTypes/budget/BudgetDashboardMonthDto";
 
-export async function fetchBudgetDashboard(): Promise<BudgetDashboardDto> {
-    const res = await api.get<ApiEnvelope<BudgetDashboardDto>>('/api/budgets/dashboard');
-    const env = res.data;
+export async function fetchBudgetMonthsStatus(): Promise<BudgetMonthsStatusDto> {
+    const res = await api.get<ApiEnvelope<BudgetMonthsStatusDto>>("/api/budgets/months/status");
+    return unwrapEnvelope(res.data);
+}
+
+export type StartBudgetMonthRequestDto = {
+    targetYearMonth: string;
+    closePreviousOpenMonth: boolean;
+    carryOverMode: "none" | "full" | "custom";
+    carryOverAmount: number;
+    createSkippedMonths: boolean;
+};
+
+export async function startBudgetMonth(req: StartBudgetMonthRequestDto): Promise<BudgetMonthsStatusDto> {
+    const res = await api.post<ApiEnvelope<BudgetMonthsStatusDto>>("/api/budgets/months/start", req);
+    return unwrapEnvelope(res.data);
+}
+
+export async function fetchBudgetDashboardMonth(yearMonth?: string): Promise<BudgetDashboardMonthDto> {
+    const qs = yearMonth ? `?yearMonth=${encodeURIComponent(yearMonth)}` : "";
+    const res = await api.get<ApiEnvelope<BudgetDashboardMonthDto>>(`/api/budgets/dashboard${qs}`);
     return unwrapEnvelope(res.data);
 }
