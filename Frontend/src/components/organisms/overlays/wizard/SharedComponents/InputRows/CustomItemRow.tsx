@@ -10,7 +10,7 @@ import get from "lodash/get";
 import TextInput from "@components/atoms/InputField/TextInput";
 import FormattedNumberInput from "@components/atoms/InputField/FormattedNumberInput";
 import { idFromPath } from "@/utils/idFromPath";
-import { cn } from "@/utils/twMerge";
+import { cn } from "@/lib/utils";
 
 interface CustomItemRowProps {
   /** Base path to the array in form state, e.g. "subscriptions.customSubscriptions" */

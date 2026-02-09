@@ -1,82 +1,84 @@
 import React, { Suspense, lazy } from "react";
 import { Routes, Route } from "react-router-dom";
 
-/* Pages */
-import HomePage from "@pages/Home/HomePage";
-import LoginPage from "@pages/auth/LoginPage";
-import Registration from "@pages/auth/Registration";
-import CheckEmailPage from "@pages/auth/CheckEmailPage";
-import EmailConfirmationPage from "@pages/auth/EmailConfirmationPage";
-import AboutUs from "@pages/info/AboutUs";
-import Contact from "@pages/info/Contact";
-import Faq from "@pages/info/Faq";
-import NotFoundPage from "@pages/info/NotFoundPage";
-import RequestPasswordReset from "@pages/auth/RequestPasswordReset";
-import ResetPasswordPage from "@pages/auth/PerformPasswordReset";
-
-/* Auth */
+import RootLayout from "./RootLayout";
+import PublicLayout from "@/layout/PublicLayout";
+import AuthedLayout from "./AuthedLayout";
 import ProtectedRoute from "@routes/ProtectedRoute";
 
-/* Debug */
 import { mockVerifyEmail } from "@mocks/mockServices/verifyEmailMock";
 import { realVerifyEmailWrapper } from "@api/Services/User/realVerifyEmailWrapper";
 
-const isDebugMode = import.meta.env.MODE === "development";
+const isDebugMode = import.meta.env.DEV;
 
-const Dashboard = lazy(() => import("@pages/dashboard/dashboardhome"));
-const DashboardBreakdownPage = lazy(() => import("@pages/dashboard/DashboardBreakdownPage"));
-const DashboardHowItWorksPage = lazy(
-  () => import("@/Pages/dashboard/howItWorks/DashboardHowItWorksPage")
-);
-
-const Lazy = ({ children }: { children: React.ReactNode }) => (
+const withLazy = (el: React.ReactNode) => (
   <Suspense
     fallback={
-      <div className="mx-auto w-full max-w-6xl px-4 py-6">
-        <div className="rounded-3xl bg-white/80 border border-slate-100 shadow-sm p-5">
-          <p className="text-sm text-slate-600">Laddar…</p>
+      <div className="mx-auto w-full max-w-6xl px-4 py-8">
+        <div className="rounded-3xl bg-eb-surface/80 backdrop-blur border border-eb-stroke/30 shadow-eb p-5">
+          <p className="text-sm text-eb-text/60">Laddar…</p>
         </div>
       </div>
     }
   >
-    {children}
+    {el}
   </Suspense>
 );
 
-const AppRoutes: React.FC = () => {
+// Public (lazy)
+const HomePage = lazy(() => import("@pages/Home/HomePage"));
+const LoginPage = lazy(() => import("@pages/auth/LoginPage"));
+const Registration = lazy(() => import("@pages/auth/Registration"));
+const CheckEmailPage = lazy(() => import("@pages/auth/CheckEmailPage"));
+const EmailConfirmationPage = lazy(() => import("@pages/auth/EmailConfirmationPage"));
+const AboutUs = lazy(() => import("@pages/info/AboutUs"));
+const Faq = lazy(() => import("@pages/info/Faq"));
+const NotFoundPage = lazy(() => import("@pages/info/NotFoundPage"));
+
+// App (lazy)
+const Dashboard = lazy(() => import("@pages/dashboard/dashboardhome"));
+const DashboardBreakdownPage = lazy(() => import("@pages/dashboard/DashboardBreakdownPage"));
+const HowItWorksPage = lazy(() => import("@/Pages/info/HowItWorksPage"));
+
+// Support (protected)
+const SupportPage = lazy(() => import("@pages/info/Contact"));
+
+export default function AppRoutes() {
   return (
     <Routes>
-      {/* Public */}
-      <Route path="/" element={<HomePage />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/registration" element={<Registration />} />
-      <Route path="/check-email" element={<CheckEmailPage />} />
-      <Route
-        path="/email-confirmation"
-        element={
-          <EmailConfirmationPage
-            verifyEmail={isDebugMode ? mockVerifyEmail : realVerifyEmailWrapper}
-            debugToken={isDebugMode ? "debug-token-123" : undefined}
+      <Route element={<RootLayout />}>
+        {/* Public chrome */}
+        <Route element={<PublicLayout />}>
+          <Route path="/" element={withLazy(<HomePage />)} />
+          <Route path="/login" element={withLazy(<LoginPage />)} />
+          <Route path="/registration" element={withLazy(<Registration />)} />
+          <Route path="/check-email" element={withLazy(<CheckEmailPage />)} />
+          <Route
+            path="/email-confirmation"
+            element={withLazy(
+              <EmailConfirmationPage
+                verifyEmail={isDebugMode ? mockVerifyEmail : realVerifyEmailWrapper}
+                debugToken={isDebugMode ? "debug-token-123" : undefined}
+              />
+            )}
           />
-        }
-      />
-      <Route path="/about-us" element={<AboutUs />} />
-      <Route path="/contact" element={<Contact />} />
-      <Route path="/faq" element={<Faq />} />
-      <Route path="/forgotpassword" element={<RequestPasswordReset />} />
-      <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/about-us" element={withLazy(<AboutUs />)} />
+          <Route path="/faq" element={withLazy(<Faq />)} />
+          <Route path="/how-it-works" element={withLazy(<HowItWorksPage />)} />
 
-      {/* Protected */}
-      <Route element={<ProtectedRoute />}>
-        <Route path="/dashboard" element={<Lazy><Dashboard /></Lazy>} />
-        <Route path="/dashboard/how-it-works" element={<Lazy><DashboardHowItWorksPage /></Lazy>} />
-        <Route path="/dashboard/breakdown" element={<Lazy><DashboardBreakdownPage /></Lazy>} />
+          {/* 404 keeps the public header */}
+          <Route path="*" element={withLazy(<NotFoundPage />)} />
+        </Route>
+
+        {/* Protected chrome */}
+        <Route element={<ProtectedRoute />}>
+          <Route element={<AuthedLayout />}>
+            <Route path="/dashboard" element={withLazy(<Dashboard />)} />
+            <Route path="/dashboard/breakdown" element={withLazy(<DashboardBreakdownPage />)} />
+            <Route path="/support" element={withLazy(<SupportPage />)} />
+          </Route>
+        </Route>
       </Route>
-
-      {/* Catch-all */}
-      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
-};
-
-export default AppRoutes;
+}

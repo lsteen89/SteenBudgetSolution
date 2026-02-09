@@ -12,7 +12,7 @@ import DebtItemRow from "./DebtItemRow";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
-import { cn } from "@/utils/twMerge";
+import { cn } from "@/lib/utils";
 
 type Props = {
     index: number;

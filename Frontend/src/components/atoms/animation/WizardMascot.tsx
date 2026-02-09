@@ -1,6 +1,6 @@
 import React from "react";
 import { motion, useReducedMotion, useAnimationControls } from "framer-motion";
-import { cn } from "@/utils/twMerge";
+import { cn } from "@/lib/utils";
 
 type Controls = ReturnType<typeof useAnimationControls>;
 
@@ -15,7 +15,7 @@ type Props = {
     float?: boolean;
     tilt?: boolean;
 
-    controls?: Controls; // ✅ external drive
+    controls?: Controls;
 };
 
 export function WizardMascot({

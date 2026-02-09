@@ -19,7 +19,7 @@ const DynamicTitle = () => {
       "/dashboard": "eBudget - Dashboard",
       "/expenses": "eBudget - Utgifter",
       "/dashboard/breakdown": "eBudget - Utgiftsöversikt",
-      "/dashboard/how-it-works": "eBudget - Så fungerar det",
+      "/how-it-works": "eBudget - Så fungerar det",
     };
 
     // Set the title or fallback to "eBudget"

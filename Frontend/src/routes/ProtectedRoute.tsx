@@ -1,24 +1,34 @@
-import { Navigate, Outlet } from 'react-router-dom';
-import { useAuthStore } from '@/stores/Auth/authStore';
-import LoadingScreen from '@components/molecules/feedback/LoadingScreen';
+import React from "react";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { useShallow } from "zustand/react/shallow";
+import { useAuthStore } from "@/stores/Auth/authStore";
+import LoadingScreen from "@components/molecules/feedback/LoadingScreen";
 
-const ProtectedRoute = () => {
-  const isAuthInitialized = useAuthStore(state => state.authProviderInitialized);
-  const accessToken = useAuthStore(state => state.accessToken);
-  const isDebugMode = process.env.NODE_ENV === 'development';
-  
-  if (!isAuthInitialized  && !isDebugMode) { // Only show loading if not in debug and not ready
-    return <LoadingScreen />;
+const AUTH_BYPASS =
+  import.meta.env.DEV && import.meta.env.VITE_AUTH_BYPASS === "true";
+
+export default function ProtectedRoute() {
+  const location = useLocation();
+
+  const { initialized, token } = useAuthStore(
+    useShallow((s) => ({
+      initialized: s.authProviderInitialized,
+      token: s.accessToken,
+    }))
+  );
+
+  if (!initialized && !AUTH_BYPASS) return <LoadingScreen />;
+  if (AUTH_BYPASS) return <Outlet />;
+
+  if (!token) {
+    return (
+      <Navigate
+        to="/login"
+        replace
+        state={{ from: location.pathname + location.search }}
+      />
+    );
   }
 
-  // If in debug mode, always render the requested component (Outlet)
-  if (isDebugMode) {
-    return <Outlet />;
-  }
-
-  // Original logic: if not in debug mode, check for accessToken
-  return accessToken ? <Outlet /> : <Navigate to="/login" replace />;
-
-};
-
-export default ProtectedRoute;
+  return <Outlet />;
+}
