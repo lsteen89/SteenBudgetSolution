@@ -12,7 +12,6 @@ namespace Backend.Application.Features.Contact;
 
 public sealed class SendContactFormHandler : ICommandHandler<SendContactFormCommand, Result>
 {
-    private readonly IRecaptchaService _recaptchaService;
     private readonly IEmailService _emailService;
     private readonly IEmailRateLimiter _rateLimiter;
     private readonly ITimeProvider _clock;
@@ -21,7 +20,6 @@ public sealed class SendContactFormHandler : ICommandHandler<SendContactFormComm
     private readonly bool _allowTestEmails;
 
     public SendContactFormHandler(
-        IRecaptchaService recaptchaService,
         IEmailService emailService,
         IEmailRateLimiter rateLimiter,
         ITimeProvider clock,
@@ -29,7 +27,6 @@ public sealed class SendContactFormHandler : ICommandHandler<SendContactFormComm
         ILogger<SendContactFormHandler> logger,
         IConfiguration configuration)
     {
-        _recaptchaService = recaptchaService;
         _emailService = emailService;
         _rateLimiter = rateLimiter;
         _clock = clock;
@@ -49,11 +46,6 @@ public sealed class SendContactFormHandler : ICommandHandler<SendContactFormComm
 
         // 1) CAPTCHA
         bool isTestBypass = _allowTestEmails && request.SenderEmail == "l@l.se";
-        if (!isTestBypass && !await _recaptchaService.ValidateTokenAsync(request.CaptchaToken))
-        {
-            _logger.LogWarning("Invalid reCAPTCHA for email: {Email}", request.SenderEmail);
-            return Result.Failure(UserErrors.InvalidChallengeToken);
-        }
 
         // 2) Rate limiting (per email + per IP)
         var now = _clock.UtcNow;

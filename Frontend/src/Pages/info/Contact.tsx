@@ -13,7 +13,6 @@ import ReCAPTCHA from "react-google-recaptcha";
 import { EmailSubmissionDto } from "../../types/User/Email/emailForm";
 
 /* Toast */
-import "react-toastify/dist/ReactToastify.css";
 
 type ReCAPTCHAWithReset = ReCAPTCHA & {
   reset: () => void;

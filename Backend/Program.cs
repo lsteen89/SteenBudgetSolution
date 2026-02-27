@@ -252,10 +252,6 @@ else
 // Add controllers to support routing
 builder.Services.AddControllers();
 
-builder.Services.AddHttpClient<IRecaptchaService, RecaptchaService>(c =>
-{
-    c.Timeout = TimeSpan.FromSeconds(5);
-});
 // Add Swagger services
 builder.Services.AddSwaggerGen();
 
