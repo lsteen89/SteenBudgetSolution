@@ -27,10 +27,6 @@ var host = Host.CreateDefaultBuilder(args)
             .AddApplicationServices(ctx.Configuration)
             .AddInfrastructureServices(ctx.Configuration, isProduction: false);
 
-        // CLI: bypass CAPTCHA
-        services.RemoveAll<IRecaptchaService>();
-        services.AddSingleton<IRecaptchaService, NoopRecaptchaValidator>();
-
         services.Configure<JwtSettings>(ctx.Configuration.GetSection("Jwt"));
         services.AddSingleton(sp => sp.GetRequiredService<IOptions<JwtSettings>>().Value);
 
@@ -103,9 +99,3 @@ cmd.AddOption(lastOpt);
 cmd.AddOption(suppress);
 
 return await cmd.InvokeAsync(args);
-
-// --- CLI-only no-op CAPTCHA service ---
-public sealed class NoopRecaptchaValidator : IRecaptchaService
-{
-    public Task<bool> ValidateTokenAsync(string token) => Task.FromResult(true);
-}

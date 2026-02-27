@@ -135,9 +135,6 @@ public static class DependencyInjection
         services.AddHostedService<EmailOutboxSenderHostedService>();
         // End of repositories
 
-        // Recaptcha service
-        services.AddHttpClient<IRecaptchaService, RecaptchaService>();
-
         // Section for email services
         services.AddScoped<IEmailRateLimitRepository, EmailRateLimitRepository>();
         services.AddScoped<IEmailRateLimiter, EmailRateLimiter>();

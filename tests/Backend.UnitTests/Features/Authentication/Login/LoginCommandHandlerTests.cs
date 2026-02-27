@@ -29,7 +29,6 @@ namespace Backend.UnitTests.Unit.Features.Authentication.Login;
 public sealed class LoginCommandHandlerTests
 {
     private readonly Fixture _fx = new();
-    private readonly Mock<IRecaptchaService> _recaptcha = new();
     private readonly Mock<IHumanChallengePolicy> _challenge = new(MockBehavior.Strict);
     private readonly Mock<IUserAuthenticationRepository> _authz = new();
     private readonly Mock<IUserRepository> _users = new();
@@ -132,7 +131,6 @@ public sealed class LoginCommandHandlerTests
     public async Task Given_LockoutUntilFuture_When_Handle_Then_UserLockedOut()
     {
         var user = User(lockout: _now.AddMinutes(5));
-        _recaptcha.Setup(x => x.ValidateTokenAsync("ok")).ReturnsAsync(true);
         _users.Setup(x => x.GetUserModelAsync(null, "user@example.com", It.IsAny<CancellationToken>())).ReturnsAsync(user);
 
         var res = await SUT().Handle(Cmd(), CancellationToken.None);
@@ -178,7 +176,6 @@ public sealed class LoginCommandHandlerTests
     public async Task Given_WrongPassword_And_MaxAttemptsReached_When_Handle_Then_LocksUser()
     {
         var user = User(bcrypt: BCrypt.Net.BCrypt.HashPassword("wrong"));
-        _recaptcha.Setup(x => x.ValidateTokenAsync("ok")).ReturnsAsync(true);
         _users.Setup(x => x.GetUserModelAsync(null, "user@example.com", It.IsAny<CancellationToken>())).ReturnsAsync(user);
         _authz.Setup(x => x.CountFailedAttemptsSinceAsync("user@example.com", It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
               .ReturnsAsync(_lockout.Value.MaxAttempts);
@@ -195,7 +192,6 @@ public sealed class LoginCommandHandlerTests
     public async Task Given_EmailNotConfirmed_When_Handle_Then_EmailNotConfirmed_INTENTIONAL_FAIL()
     {
         var user = User(confirmed: false);
-        _recaptcha.Setup(x => x.ValidateTokenAsync("ok")).ReturnsAsync(true);
         _users.Setup(x => x.GetUserModelAsync(null, "user@example.com", It.IsAny<CancellationToken>())).ReturnsAsync(user);
 
         var res = await SUT().Handle(Cmd(), CancellationToken.None);
