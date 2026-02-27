@@ -12,7 +12,7 @@ namespace Backend.Presentation.Controllers
 {
     [ApiController]
     [Route("api/users")]
-    [Authorize]
+    [Authorize(Policy = "AccessAuthenticated")]
     public sealed class UserManagementController : ControllerBase
     {
         private readonly IMediator _mediator;

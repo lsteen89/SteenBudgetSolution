@@ -117,6 +117,11 @@ CREATE TABLE IF NOT EXISTS FailedLoginAttempts (
     IpAddress VARCHAR(45) NULL,
  FOREIGN KEY (PersoId) REFERENCES User(PersoId)  ON DELETE CASCADE 
 );
+CREATE INDEX IX_FailedLoginAttempts_Perso_AttemptTime
+ON FailedLoginAttempts (PersoId, AttemptTime);
+
+CREATE INDEX IX_FailedLoginAttempts_Ip_AttemptTime
+ON FailedLoginAttempts (IpAddress, AttemptTime);
 
 CREATE TABLE IF NOT EXISTS PasswordResetTokens (
     Id INT AUTO_INCREMENT PRIMARY KEY,

@@ -1,9 +1,7 @@
 using System.CommandLine;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
-using Backend.Application.Features.Commands.Auth.Register;
-using Backend.Domain.Shared;
-using System.CommandLine.Invocation;
+using Backend.Application.Features.Authentication.Register.RegisterAndIssueSession;
 
 public sealed class CreateUserCliCommand : Command
 {
@@ -32,20 +30,20 @@ public sealed class CreateUserCliCommand : Command
         await using var scope = _sp.CreateAsyncScope();
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
 
-        var cmd = new RegisterUserCommand(
+        var cmd = new RegisterAndIssueSessionCommand(
             FirstName: "Seeded",
             LastName: "User",
             Email: email,
             Password: password,
-            CaptchaToken: "",
-            Honeypot: null
+            HumanToken: "",     // ignored in trusted seed
+            Honeypot: "",       // ignored in trusted seed
+            RemoteIp: null,
+            DeviceId: "seed-cli",
+            UserAgent: "backend.tools"
         )
         { IsSeedingOperation = true };
 
-        Result result = await mediator.Send(cmd);
-
-        Console.WriteLine(result.IsSuccess
-            ? "--> User created successfully."
-            : $"--> Error: {result.Error}");
+        var result = await mediator.Send(cmd);
+        Console.WriteLine(result.IsSuccess ? "OK" : result.Error.ToString());
     }
 }

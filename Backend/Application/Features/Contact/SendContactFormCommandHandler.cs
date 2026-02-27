@@ -52,7 +52,7 @@ public sealed class SendContactFormHandler : ICommandHandler<SendContactFormComm
         if (!isTestBypass && !await _recaptchaService.ValidateTokenAsync(request.CaptchaToken))
         {
             _logger.LogWarning("Invalid reCAPTCHA for email: {Email}", request.SenderEmail);
-            return Result.Failure(UserErrors.InvalidCaptcha);
+            return Result.Failure(UserErrors.InvalidChallengeToken);
         }
 
         // 2) Rate limiting (per email + per IP)

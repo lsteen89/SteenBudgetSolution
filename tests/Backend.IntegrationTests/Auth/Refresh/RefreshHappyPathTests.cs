@@ -13,7 +13,7 @@ using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Application.Abstractions.Infrastructure.Security;
 using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Application.Common.Security;
-using Backend.Application.Features.Commands.Auth.RefreshToken;
+using Backend.Application.Features.Authentication.RefreshToken;
 
 using Backend.IntegrationTests.Shared;
 using Backend.Infrastructure.Security; // TokenGenerator
@@ -81,7 +81,7 @@ public sealed class RefreshHappyPathTests
 
         // JWT: make new AT + one new RT
         var jwt = new Mock<IJwtService>();
-        jwt.Setup(j => j.CreateAccessToken(userId, "user@example.com", It.IsAny<IReadOnlyList<string>>(), "dev", "UA", sessionId))
+        jwt.Setup(j => j.CreateAccessToken(userId, "user@example.com", It.IsAny<IReadOnlyList<string>>(), "dev", "UA", true, sessionId))
            .Returns(new AccessTokenResult("new.at", newJti, sessionId, userId, now.AddMinutes(15)));
         jwt.Setup(j => j.CreateRefreshToken()).Returns("new-rt");
         jwt.Setup(j => j.BlacklistJwtTokenAsync("oldAT", It.IsAny<CancellationToken>())).ReturnsAsync(true).Verifiable();
@@ -98,7 +98,6 @@ public sealed class RefreshHappyPathTests
         var cmd = new RefreshTokensCommand(
             AccessToken: "oldAT",              // should be blacklisted
             RefreshCookie: cookiePlain,        // plaintext cookie; handler hashes it
-            SessionId: sessionId,
             UserAgent: "UA",
             DeviceId: "dev"
         );
@@ -137,7 +136,7 @@ public sealed class RefreshHappyPathTests
         private readonly string _cs;
         public SqlRefreshRepo(string cs) => _cs = cs;
 
-        public async Task<Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity?> GetActiveByCookieForUpdateAsync(Guid sessionId, string cookieHash, DateTime nowUtc, CancellationToken ct)
+        public async Task<Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity?> GetActiveByCookieForUpdateAsync(string cookieHash, DateTime nowUtc, CancellationToken ct)
         {
             await using var c = new MySqlConnection(_cs);
             return await c.QuerySingleOrDefaultAsync<Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity>(
@@ -146,8 +145,7 @@ public sealed class RefreshHappyPathTests
                        DeviceId, UserAgent, ExpiresRollingUtc, ExpiresAbsoluteUtc,
                        Status, IsPersistent, CreatedUtc, RevokedUtc
                   FROM RefreshTokens
-                 WHERE SessionId = @sid
-                   AND HashedToken = @hash
+                 WHERE HashedToken = @hash
                    AND Status = @Active
                    AND RevokedUtc IS NULL
                    AND ExpiresAbsoluteUtc >= @now
@@ -155,7 +153,7 @@ public sealed class RefreshHappyPathTests
                  LIMIT 1
                  FOR UPDATE;
                 """,
-                new { sid = sessionId, hash = cookieHash, now = nowUtc, Active = 1 });
+                new { hash = cookieHash, now = nowUtc, Active = 1 });
         }
 
         public async Task<int> RotateInPlaceAsync(Guid tokenId, string oldHash, string newHash, string newAccessJti, DateTime newRollingUtc, CancellationToken ct)

@@ -23,11 +23,11 @@ public sealed class EmailRateLimiter : IEmailRateLimiter
     }
 
     // Guid overloads
-    public Task<RateLimitDecision> CheckAsync(Guid userId, EmailKind kind, CancellationToken ct)
-        => CheckCoreAsync(Hash($"user:{userId:N}"), kind, ct);
+    public Task<RateLimitDecision> CheckAsync(Guid persoId, EmailKind kind, CancellationToken ct)
+      => CheckCoreAsync(Hash(persoId.ToString("N")), kind, ct);
 
-    public Task MarkSentAsync(Guid userId, EmailKind kind, DateTimeOffset at, CancellationToken ct)
-        => MarkCoreAsync(Hash($"user:{userId:N}"), kind, at, ct);
+    public Task MarkSentAsync(Guid persoId, EmailKind kind, DateTimeOffset at, CancellationToken ct)
+        => MarkCoreAsync(Hash($"user:{persoId:N}"), kind, at, ct);
 
     // String overloads
     public Task<RateLimitDecision> CheckAsync(string key, EmailKind kind, CancellationToken ct)

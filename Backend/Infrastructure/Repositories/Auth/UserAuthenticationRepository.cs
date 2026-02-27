@@ -46,7 +46,7 @@ internal sealed class UserAuthenticationRepository : SqlBase, IUserAuthenticatio
            "UPDATE `User` SET LockoutUntil = NULL WHERE PersoId = @Id AND LockoutUntil IS NOT NULL AND LockoutUntil <= UTC_TIMESTAMP();",
            new { Id = persoid }, ct);
 
-    public async Task InsertLoginAttemptAsync(UserModel user, string ip, string userAgent, DateTime atUtc, CancellationToken ct)
+    public async Task InsertLoginAttemptAsync(UserModel user, string? ip, string userAgent, DateTime atUtc, CancellationToken ct)
     {
         const string sql = @"
             INSERT INTO FailedLoginAttempts (PersoId, IpAddress, UserAgent, AttemptTime)
@@ -54,4 +54,30 @@ internal sealed class UserAuthenticationRepository : SqlBase, IUserAuthenticatio
 
         await ExecuteAsync(sql, new { PersoId = user.PersoId, Ip = ip, Ua = userAgent, At = atUtc }, ct);
     }
+    public Task<int> CountFailedAttemptsByIpSinceAsync(string ip, DateTime sinceUtc, CancellationToken ct)
+    => ExecuteScalarAsync<int>("""
+        SELECT COUNT(*)
+        FROM FailedLoginAttempts
+        WHERE IpAddress = @Ip
+          AND AttemptTime >= @Since;
+        """, new { Ip = ip, Since = sinceUtc }, ct);
+
+    public Task<int> CountFailedAttemptsByEmailSinceAsync(string emailNorm, DateTime sinceUtc, CancellationToken ct)
+        => ExecuteScalarAsync<int>("""
+        SELECT COUNT(*)
+        FROM FailedLoginAttempts a
+        JOIN Users u ON u.PersoId = a.PersoId
+        WHERE u.Email = @Email
+          AND a.AttemptTime >= @Since;
+        """, new { Email = emailNorm, Since = sinceUtc }, ct);
+
+    public Task<int> CountFailedAttemptsByEmailAndIpSinceAsync(string emailNorm, string ip, DateTime sinceUtc, CancellationToken ct)
+        => ExecuteScalarAsync<int>("""
+        SELECT COUNT(*)
+        FROM FailedLoginAttempts a
+        JOIN Users u ON u.PersoId = a.PersoId
+        WHERE u.Email = @Email
+          AND a.IpAddress = @Ip
+          AND a.AttemptTime >= @Since;
+        """, new { Email = emailNorm, Ip = ip, Since = sinceUtc }, ct);
 }

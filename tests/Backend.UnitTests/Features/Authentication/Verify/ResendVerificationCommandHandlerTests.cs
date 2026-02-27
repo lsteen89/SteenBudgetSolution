@@ -8,7 +8,6 @@ using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
 
-using Backend.Application.Features.Commands.Auth.ResendVerification;
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Application.Abstractions.Infrastructure.Email;
 using Backend.Application.Abstractions.Infrastructure.RateLimiting;
@@ -18,6 +17,8 @@ using Backend.Application.Options.URL;
 using Backend.Domain.Entities.Auth;
 using Backend.Domain.Errors.User;
 using Backend.Settings.Email;
+using Backend.Application.Features.Authentication.Register.ResendVerificationMail;
+using Backend.Application.Abstractions.Application.Orchestrators;
 
 // Domain model
 using UserModel = Backend.Domain.Entities.User.UserModel;
@@ -32,6 +33,7 @@ public sealed class ResendVerificationCommandHandlerTests
     private readonly Mock<IEmailRateLimiter> _rl = new();
     private readonly Mock<IEmailService> _email = new();
     private readonly Mock<ITimeProvider> _clock = new();
+    private readonly Mock<IVerificationCodeOrchestrator> _orch = new();
     private readonly Mock<ILogger<ResendVerificationCommandHandler>> _log = new();
 
     private readonly IOptions<VerificationTokenOptions> _tokOpt = Options.Create(new VerificationTokenOptions { TtlHours = 24 });
@@ -43,10 +45,9 @@ public sealed class ResendVerificationCommandHandlerTests
     private ResendVerificationCommandHandler SUT()
     {
         _clock.Setup(x => x.UtcNow).Returns(_now);
-        return new ResendVerificationCommandHandler(_users.Object, _tokens.Object, _rl.Object, _email.Object,
-            _clock.Object, _tokOpt, _urls, _smtp, _log.Object);
+        return new ResendVerificationCommandHandler(_users.Object, _tokens.Object, _orch.Object,
+ _log.Object);
     }
-
     private static ResendVerificationCommand Cmd(string email = "User@Example.com")
         => new(email);
 
@@ -86,159 +87,72 @@ public sealed class ResendVerificationCommandHandlerTests
     }
 
     [Fact]
-    public async Task Given_RateLimited_When_Handle_Then_SilentSuccess_NoSend()
+    public async Task Given_UserExistsNotConfirmed_When_Handle_Then_EnqueueResend_And_SilentSuccess()
     {
         var id = Guid.NewGuid();
+
         _users.Setup(u => u.GetUserModelAsync(null, "user@example.com", It.IsAny<CancellationToken>()))
               .ReturnsAsync(User(id, "user@example.com", confirmed: false));
 
-        _rl.Setup(r => r.CheckAsync(id, EmailKind.Verification, It.IsAny<CancellationToken>()))
-           .ReturnsAsync(new RateLimitDecision(false, "cooldown"));
+        _orch.Setup(o => o.EnqueueForResendAsync(id, "user@example.com", It.IsAny<CancellationToken>()))
+             .Returns(Task.CompletedTask);
 
         var res = await SUT().Handle(Cmd("user@example.com"), CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
+
+        _orch.Verify(o => o.EnqueueForResendAsync(id, "user@example.com", It.IsAny<CancellationToken>()), Times.Once);
+
+        // Handler should not talk to RL/email/tokens anymore:
+        _rl.VerifyNoOtherCalls();
         _email.VerifyNoOtherCalls();
         _tokens.VerifyNoOtherCalls();
-        _rl.Verify(r => r.CheckAsync(id, EmailKind.Verification, It.IsAny<CancellationToken>()), Times.Once);
-        _rl.Verify(r => r.MarkSentAsync(It.IsAny<Guid>(), It.IsAny<EmailKind>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
-    [Fact]
-    public async Task Given_ExistingToken_WithEnoughTimeLeft_When_Handle_Then_ReusesToken_SendsEmail_And_Marks()
-    {
-        var id = Guid.NewGuid();
-        var email = "user@example.com";
-        var normalized = "user@example.com";
-        var token = Guid.NewGuid();
-
-        _users.Setup(u => u.GetUserModelAsync(null, normalized, It.IsAny<CancellationToken>()))
-              .ReturnsAsync(User(id, normalized, confirmed: false));
-
-        _rl.Setup(r => r.CheckAsync(id, EmailKind.Verification, It.IsAny<CancellationToken>()))
-           .ReturnsAsync(new RateLimitDecision(true));
-
-        _tokens.Setup(t => t.GetByUserAsync(id, It.IsAny<CancellationToken>()))
-               .ReturnsAsync(Tok(id, token, _now.AddMinutes(10))); // > 5m
-
-        IEmailComposer? captured = null;
-        _email.Setup(e => e.SendEmailAsync(It.IsAny<IEmailComposer>(), It.IsAny<CancellationToken>()))
-              .Callback<IEmailComposer, CancellationToken>((comp, _) => captured = comp)
-              .ReturnsAsync(new EmailSendResult(true, "ok", null));
-
-        var res = await SUT().Handle(Cmd(email), CancellationToken.None);
-
-        res.IsSuccess.Should().BeTrue();
-        _tokens.Verify(t => t.UpsertSingleActiveAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Never);
-
-        // Email contains token N-format and normalized recipient
-        var msg = captured!.Compose();
-        msg.To.Mailboxes.First().Address.Should().Be(normalized);
-        var html = ((Multipart)msg.Body).OfType<TextPart>().First(p => p.ContentType.MimeType == "text/html").Text;
-        html.Should().Contain(token.ToString("N"));
-
-        _rl.Verify(r => r.MarkSentAsync(id, EmailKind.Verification, new DateTimeOffset(_now, TimeSpan.Zero), It.IsAny<CancellationToken>()), Times.Once);
-    }
 
     [Fact]
-    public async Task Given_NoExistingToken_Or_ImminentExpiry_When_Handle_Then_MintsNewToken_Upserts_Sends_And_Marks()
+    public async Task Given_UserMissing_When_Handle_Then_SilentSuccess_And_NoEnqueue()
     {
-        var id = Guid.NewGuid();
-        var normalized = "user@example.com";
-
-        _users.Setup(u => u.GetUserModelAsync(null, normalized, It.IsAny<CancellationToken>()))
-              .ReturnsAsync(User(id, normalized, confirmed: false));
-
-        _rl.Setup(r => r.CheckAsync(id, EmailKind.Verification, It.IsAny<CancellationToken>()))
-           .ReturnsAsync(new RateLimitDecision(true));
-
-        // Case: either no token OR token expiring <= 5m
-        _tokens.Setup(t => t.GetByUserAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync((UserTokenModel?)null);
-
-        Guid tokenCaptured = Guid.Empty;
-        DateTime expCaptured = default;
-        _tokens.Setup(t => t.UpsertSingleActiveAsync(id, It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
-               .Callback<Guid, Guid, DateTime, CancellationToken>((_, tok, exp, __) => { tokenCaptured = tok; expCaptured = exp; })
-               .ReturnsAsync(1);
-
-        _email.Setup(e => e.SendEmailAsync(It.IsAny<IEmailComposer>(), It.IsAny<CancellationToken>()))
-              .ReturnsAsync(new EmailSendResult(true, "ok", null));
-
-        var res = await SUT().Handle(Cmd("USER@EXAMPLE.COM"), CancellationToken.None);
-
-        res.IsSuccess.Should().BeTrue();
-        tokenCaptured.Should().NotBe(Guid.Empty);
-        expCaptured.Should().Be(_now.AddHours(24));
-        _rl.Verify(r => r.MarkSentAsync(id, EmailKind.Verification, new DateTimeOffset(_now, TimeSpan.Zero), It.IsAny<CancellationToken>()), Times.Once);
-    }
-
-    [Fact]
-    public async Task Given_UpsertFails_When_Handle_Then_VerificationUpdateFailed_And_NoEmail()
-    {
-        var id = Guid.NewGuid();
-        var normalized = "user@example.com";
-
-        _users.Setup(u => u.GetUserModelAsync(null, normalized, It.IsAny<CancellationToken>()))
-              .ReturnsAsync(User(id, normalized, confirmed: false));
-        _rl.Setup(r => r.CheckAsync(id, EmailKind.Verification, It.IsAny<CancellationToken>()))
-           .ReturnsAsync(new RateLimitDecision(true));
-        _tokens.Setup(t => t.GetByUserAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync((UserTokenModel?)null);
-
-        _tokens.Setup(t => t.UpsertSingleActiveAsync(id, It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
-               .ReturnsAsync(0);
-
-        var res = await SUT().Handle(Cmd(normalized), CancellationToken.None);
-
-        res.IsSuccess.Should().BeFalse();
-        res.Error.Should().Be(UserErrors.VerificationUpdateFailed);
-        _email.VerifyNoOtherCalls();
-        _rl.Verify(r => r.MarkSentAsync(It.IsAny<Guid>(), It.IsAny<EmailKind>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()), Times.Never);
-    }
-
-    [Fact]
-    public async Task Given_SendFails_When_Handle_Then_EmailSendFailed_And_NoMark()
-    {
-        var id = Guid.NewGuid();
-        var normalized = "user@example.com";
-
-        _users.Setup(u => u.GetUserModelAsync(null, normalized, It.IsAny<CancellationToken>()))
-              .ReturnsAsync(User(id, normalized, confirmed: false));
-        _rl.Setup(r => r.CheckAsync(id, EmailKind.Verification, It.IsAny<CancellationToken>()))
-           .ReturnsAsync(new RateLimitDecision(true));
-        _tokens.Setup(t => t.GetByUserAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync((UserTokenModel?)null);
-        _tokens.Setup(t => t.UpsertSingleActiveAsync(id, It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>())).ReturnsAsync(1);
-
-        _email.Setup(e => e.SendEmailAsync(It.IsAny<IEmailComposer>(), It.IsAny<CancellationToken>()))
-              .ReturnsAsync(new EmailSendResult(false, "smtp down", null));
+        _users.Setup(u => u.GetUserModelAsync(null, "user@example.com", It.IsAny<CancellationToken>()))
+              .ReturnsAsync((UserModel?)null);
 
         var res = await SUT().Handle(Cmd("user@example.com"), CancellationToken.None);
 
-        res.IsSuccess.Should().BeFalse();
-        res.Error.Should().Be(UserErrors.EmailSendFailed);
-        _rl.Verify(r => r.MarkSentAsync(It.IsAny<Guid>(), It.IsAny<EmailKind>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()), Times.Never);
+        res.IsSuccess.Should().BeTrue();
+        _orch.VerifyNoOtherCalls();
+        _tokens.VerifyNoOtherCalls();
     }
 
     [Fact]
-    public async Task Given_ExistingToken_ImminentExpiry_When_Handle_Then_MintsNewToken()
+    public async Task Given_UserAlreadyConfirmed_When_Handle_Then_SilentSuccess_And_NoEnqueue()
     {
         var id = Guid.NewGuid();
-        var normalized = "user@example.com";
+        _users.Setup(u => u.GetUserModelAsync(null, "user@example.com", It.IsAny<CancellationToken>()))
+              .ReturnsAsync(User(id, "user@example.com", confirmed: true));
 
-        _users.Setup(u => u.GetUserModelAsync(null, normalized, It.IsAny<CancellationToken>()))
-              .ReturnsAsync(User(id, normalized, confirmed: false));
-        _rl.Setup(r => r.CheckAsync(id, EmailKind.Verification, It.IsAny<CancellationToken>())).ReturnsAsync(new RateLimitDecision(true));
-
-        // existing token but expiring in 4 minutes -> mint
-        var existing = Tok(id, Guid.NewGuid(), _now.AddMinutes(4));
-        _tokens.Setup(t => t.GetByUserAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(existing);
-        _tokens.Setup(t => t.UpsertSingleActiveAsync(id, It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
-               .ReturnsAsync(1);
-        _email.Setup(e => e.SendEmailAsync(It.IsAny<IEmailComposer>(), It.IsAny<CancellationToken>()))
-              .ReturnsAsync(new EmailSendResult(true, "ok", null));
-
-        var res = await SUT().Handle(Cmd(normalized), CancellationToken.None);
+        var res = await SUT().Handle(Cmd("user@example.com"), CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
-        _tokens.Verify(t => t.UpsertSingleActiveAsync(id, It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Once);
+        _orch.VerifyNoOtherCalls();
+        _tokens.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task Given_UserExistsNotConfirmed_When_Handle_Then_EnqueueResend_WithNormalizedEmail_And_SilentSuccess()
+    {
+        var id = Guid.NewGuid();
+
+        _users.Setup(u => u.GetUserModelAsync(null, "user@example.com", It.IsAny<CancellationToken>()))
+              .ReturnsAsync(User(id, "user@example.com", confirmed: false));
+
+        _orch.Setup(o => o.EnqueueForResendAsync(id, "user@example.com", It.IsAny<CancellationToken>()))
+             .Returns(Task.CompletedTask);
+
+        var res = await SUT().Handle(Cmd("USER@EXAMPLE.COM  "), CancellationToken.None);
+
+        res.IsSuccess.Should().BeTrue();
+
+        _orch.Verify(o => o.EnqueueForResendAsync(id, "user@example.com", It.IsAny<CancellationToken>()), Times.Once);
+        _tokens.VerifyNoOtherCalls(); // handler should not touch tokens
     }
 }

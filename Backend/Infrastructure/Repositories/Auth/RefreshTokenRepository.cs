@@ -67,22 +67,26 @@ public sealed class RefreshTokenRepository : SqlBase, IRefreshTokenRepository
         }
     }
 
-    public Task<RefreshJwtTokenEntity?> GetActiveByCookieForUpdateAsync(Guid sessionId, string cookieHash, DateTime nowUtc, CancellationToken ct)
+    public Task<RefreshJwtTokenEntity?> GetActiveByCookieForUpdateAsync(
+        string cookieHash,
+        DateTime nowUtc,
+        CancellationToken ct)
         => QuerySingleOrDefaultAsync<RefreshJwtTokenEntity>(
         """
-        SELECT TokenId, Persoid, SessionId, HashedToken, AccessTokenJti,
-               DeviceId, UserAgent, ExpiresRollingUtc, ExpiresAbsoluteUtc,
-               Status, IsPersistent, CreatedUtc, RevokedUtc
-        FROM RefreshTokens
-        WHERE SessionId = @SessionId
-          AND HashedToken = @Hash
-          AND Status = @Active
-          AND RevokedUtc IS NULL
-          AND ExpiresAbsoluteUtc >= @Now
-          AND ExpiresRollingUtc  >= @Now
-        LIMIT 1
-        FOR UPDATE;
-        """, new { SessionId = sessionId, Hash = cookieHash, Now = nowUtc, Active = (int)TokenStatus.Active }, ct);
+    SELECT TokenId, Persoid, SessionId, HashedToken, AccessTokenJti,
+           DeviceId, UserAgent, ExpiresRollingUtc, ExpiresAbsoluteUtc,
+           Status, IsPersistent, CreatedUtc, RevokedUtc
+    FROM RefreshTokens
+    WHERE HashedToken = @Hash
+      AND Status = @Active
+      AND RevokedUtc IS NULL
+      AND ExpiresAbsoluteUtc >= @Now
+      AND ExpiresRollingUtc  >= @Now
+    LIMIT 1
+    FOR UPDATE;
+    """,
+        new { Hash = cookieHash, Now = nowUtc, Active = (int)TokenStatus.Active },
+        ct);
 
     public Task<int> RotateInPlaceAsync(Guid tokenId, string oldHash, string newHash, string newAccessJti, DateTime newRollingUtc, CancellationToken ct)
     {

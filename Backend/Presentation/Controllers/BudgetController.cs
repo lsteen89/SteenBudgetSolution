@@ -23,7 +23,7 @@ namespace Backend.Presentation.Controllers;
 
 [ApiController]
 [Route("api/budgets")]
-[Authorize]
+[Authorize(Policy = "EmailConfirmed")]
 public sealed class BudgetController : ControllerBase
 {
     private readonly IMediator _mediator;

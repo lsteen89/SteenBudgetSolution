@@ -18,6 +18,7 @@ using Backend.IntegrationTests.Shared;
 using Backend.Infrastructure.WebSockets;
 
 namespace Backend.IntegrationTests.Auth.Logout;
+
 [Collection("it:db")]
 public sealed class Logout_Idempotency_Tests
 {
@@ -132,10 +133,10 @@ public sealed class Logout_Idempotency_Tests
 
         // Unused
         public Task<int> InsertAsync(Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity row, CancellationToken ct) => Task.FromResult(0);
-        public Task<Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity?> GetActiveByCookieForUpdateAsync(Guid sessionId, string cookieHash, DateTime nowUtc, CancellationToken ct) => Task.FromResult<Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity?>(null);
+        public Task<Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity?> GetActiveByCookieForUpdateAsync(string cookieHash, DateTime nowUtc, CancellationToken ct) => Task.FromResult<Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity?>(null);
         public Task<int> RotateInPlaceAsync(Guid tokenId, string oldHash, string newHash, string newAccessJti, DateTime newRollingUtc, CancellationToken ct) => Task.FromResult(0);
         public Task<int> RevokeByIdAsync(Guid tokenId, DateTime nowUtc, CancellationToken ct) => Task.FromResult(0);
-        public Task<IEnumerable<Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity>> GetExpiredTokensAsync(int batchSize, CancellationToken ct) => 
+        public Task<IEnumerable<Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity>> GetExpiredTokensAsync(int batchSize, CancellationToken ct) =>
             Task.FromResult(Enumerable.Empty<Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity>());
         public Task<bool> DeleteTokenAsync(string refreshToken, CancellationToken ct) => Task.FromResult(true);
         public Task<bool> DoesAccessTokenJtiExistAsync(string accessTokenJti, CancellationToken ct) => Task.FromResult(false);

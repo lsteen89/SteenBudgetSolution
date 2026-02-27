@@ -2,14 +2,17 @@
 using MediatR;
 using Backend.Application;
 using Backend.Application.Abstractions.Infrastructure.Security;
-using Backend.Domain.Shared;
 using Backend.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using Backend.Application.Features.Commands.Auth.Register;
+using Backend.Application.Features.Authentication.Register.RegisterAndIssueSession;
 using Backend.Application.Abstractions.Infrastructure.Data;
 using MySqlConnector;
+using Backend.Settings;
+using Microsoft.Extensions.Options;
+using Backend.Application.Abstractions.Infrastructure.Auth;
+using Backend.Infrastructure.Auth;
 
 var host = Host.CreateDefaultBuilder(args)
     // console tool: don't validate the whole web graph
@@ -28,6 +31,13 @@ var host = Host.CreateDefaultBuilder(args)
         services.RemoveAll<IRecaptchaService>();
         services.AddSingleton<IRecaptchaService, NoopRecaptchaValidator>();
 
+        services.Configure<JwtSettings>(ctx.Configuration.GetSection("Jwt"));
+        services.AddSingleton(sp => sp.GetRequiredService<IOptions<JwtSettings>>().Value);
+
+        // If anything in infra expects WebSocketSettings as concrete (some codebases do)
+        services.AddSingleton(sp => sp.GetRequiredService<IOptions<WebSocketSettings>>().Value);
+        services.AddSingleton<IJwtKeyRing, HsKeyRing>();
+
         // CLI: override the DB connection with a user-provided connection string
         services.RemoveAll<IUnitOfWork>();      // <— override the UoW the repos actually use
         services.AddScoped<IUnitOfWork>(sp =>
@@ -44,6 +54,14 @@ var host = Host.CreateDefaultBuilder(args)
 
             return new CliUnitOfWork(new MySqlConnection(cs));
         });
+        services.Configure<WebSocketSettings>(o =>
+    {
+        o.Secret = ctx.Configuration["WEBSOCKET_SECRET"]
+            ?? throw new InvalidOperationException("WEBSOCKET_SECRET missing");
+    });
+
+        // optional: if you still want concrete injection
+        services.AddSingleton(sp => sp.GetRequiredService<IOptions<WebSocketSettings>>().Value);
     })
 
     .Build();
@@ -60,20 +78,22 @@ cmd.SetHandler(async (string email, string password, string first, string last, 
     await using var scope = host.Services.CreateAsyncScope();
     var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
 
-    var register = new RegisterUserCommand(
+
+    var cmd = new RegisterAndIssueSessionCommand(
         FirstName: first,
         LastName: last,
         Email: email,
         Password: password,
-        CaptchaToken: "",   // ignored by NoopRecaptchaValidator
-        Honeypot: null
+        HumanToken: "",     // ignored in trusted seed
+        Honeypot: "",       // ignored in trusted seed
+        RemoteIp: null,
+        DeviceId: "seed-cli",
+        UserAgent: "backend.tools"
     )
-    {
-        IsSeedingOperation = true
-    };
+    { IsSeedingOperation = true };
 
-    Result r = await mediator.Send(register);
-    Console.WriteLine(r.IsSuccess ? "OK" : r.Error.ToString());
+    var result = await mediator.Send(cmd);
+    Console.WriteLine(result.IsSuccess ? "OK" : result.Error.ToString());
 }, emailOpt, passOpt, firstOpt, lastOpt, suppress);
 
 cmd.AddOption(emailOpt);

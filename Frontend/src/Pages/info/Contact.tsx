@@ -1,23 +1,19 @@
-import React, { useState, useRef } from 'react';
-import ReCAPTCHA from 'react-google-recaptcha';
-import { EmailSubmissionDto } from '../../types/User/Email/emailForm';
-import { validateContactForm } from '@utils/validation/contactValidation';
+import { sendEmail } from "@api/Services/Mail/sendEmail";
+import MailBird from "@assets/Images/ContactUsBird.png";
+import SendIcon from "@assets/icons/MailIcon.svg?react";
 import ContactFormInputField from "@components/atoms/InputField/ContactFormInputField";
-import SubmitButton from '@components/atoms/buttons/SubmitButton';
-import SendIcon from '@assets/icons/MailIcon.svg?react';
-import { validateField } from '@utils/validation/fieldValidator';
-import { sendEmail } from '@api/Services/Mail/sendEmail';
-import MailBird from '@assets/Images/ContactUsBird.png';
-import FormContainer from '@components/molecules/containers/FormContainer';
-import PageContainer from '@components/layout/PageContainer';
-import ContentWrapper from '@components/layout/ContentWrapper';
-
+import SubmitButton from "@components/atoms/buttons/SubmitButton";
+import ContentWrapper from "@components/layout/ContentWrapper";
+import PageContainer from "@components/layout/PageContainer";
+import FormContainer from "@components/molecules/containers/FormContainer";
+import { validateContactForm } from "@utils/validation/contactValidation";
+import { validateField } from "@utils/validation/fieldValidator";
+import React, { useRef, useState } from "react";
+import ReCAPTCHA from "react-google-recaptcha";
+import { EmailSubmissionDto } from "../../types/User/Email/emailForm";
 
 /* Toast */
-import { ToastContainer, toast, ToastContentProps } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-import CustomToast from '@components/atoms/customToast/CustomToast';
-import styles from '@components/atoms/customToast/CustomToast.module.css';
+import "react-toastify/dist/ReactToastify.css";
 
 type ReCAPTCHAWithReset = ReCAPTCHA & {
   reset: () => void;
@@ -27,7 +23,7 @@ type ReCAPTCHAWithReset = ReCAPTCHA & {
 const submitContactForm = async (data: EmailSubmissionDto) => {
   return new Promise<{ status: number; message: string }>((resolve, reject) => {
     setTimeout(() => {
-      if (data && data.SenderEmail !== 'error@example.com') {
+      if (data && data.SenderEmail !== "error@example.com") {
         // Resolve with a status to simulate a successful API response
         resolve({ status: 200, message: "Form submitted successfully" });
       } else {
@@ -39,31 +35,33 @@ const submitContactForm = async (data: EmailSubmissionDto) => {
 };
 
 const initialFormData: EmailSubmissionDto = {
-  FirstName: '',
-  LastName: '',
-  SenderEmail: '',
-  Subject: '',
-  Body: '',
-  CaptchaToken: '',
+  FirstName: "",
+  LastName: "",
+  SenderEmail: "",
+  Subject: "",
+  Body: "",
+  CaptchaToken: "",
 };
 
 const ContactUs: React.FC = () => {
   const captchaRef = useRef<ReCAPTCHAWithReset>(null);
   const [formData, setFormData] = useState<EmailSubmissionDto>({
-    FirstName: '',
-    LastName: '',
-    SenderEmail: '',
-    Subject: '',
-    Body: '',
-    CaptchaToken: '',
+    FirstName: "",
+    LastName: "",
+    SenderEmail: "",
+    Subject: "",
+    Body: "",
+    CaptchaToken: "",
   });
 
   const currentEnvironment = import.meta.env.MODE; // Logs 'development', 'production', etc.
   const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
-  console.log('Current Environment:', currentEnvironment);
-  console.log('All Environment Variables:', import.meta.env);
+  console.log("Current Environment:", currentEnvironment);
+  console.log("All Environment Variables:", import.meta.env);
   if (!siteKey) {
-    console.error('ReCAPTCHA sitekey is missing. Check your environment variables.');
+    console.error(
+      "ReCAPTCHA sitekey is missing. Check your environment variables.",
+    );
   }
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -71,18 +69,21 @@ const ContactUs: React.FC = () => {
   const handleCaptchaChange = (token: string | null) => {
     setFormData((prevData) => ({
       ...prevData,
-      CaptchaToken: token || '',
+      CaptchaToken: token || "",
     }));
   };
 
-  const handleInputChange = (field: keyof EmailSubmissionDto, value: string) => {
+  const handleInputChange = (
+    field: keyof EmailSubmissionDto,
+    value: string,
+  ) => {
     setFormData((prevData) => ({
       ...prevData,
       [field]: value,
     }));
     setErrors((prevErrors) => ({
       ...prevErrors,
-      [field]: '', // Clear error for this field
+      [field]: "", // Clear error for this field
     }));
   };
 
@@ -91,11 +92,11 @@ const ContactUs: React.FC = () => {
       field,
       formData[field],
       validateContactForm,
-      formData
+      formData,
     );
     setErrors((prevErrors) => ({
       ...prevErrors,
-      [field]: error || '',
+      [field]: error || "",
     }));
   };
 
@@ -108,42 +109,41 @@ const ContactUs: React.FC = () => {
       return;
     }
 
-    if (formData.SenderEmail !== 'l@l.se' && !formData.CaptchaToken) {
-      setErrors({ CaptchaToken: 'Captcha is required!' });
+    if (formData.SenderEmail !== "l@l.se" && !formData.CaptchaToken) {
+      setErrors({ CaptchaToken: "Captcha is required!" });
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const useMock = import.meta.env.VITE_USE_MOCK === 'true';
+      const useMock = import.meta.env.VITE_USE_MOCK === "true";
       const apiFunction = useMock ? submitContactForm : sendEmail;
 
       // <-- FIX 1: Simplified success-only logic in the try block
       await apiFunction(formData);
 
-      toast(
-        (props: ToastContentProps) => (
-          <CustomToast message="Din förfrågan har skickats!" type="success" {...props} />
-        ),
-        { autoClose: 5000, className: styles.toastifyContainer }
-      );
+      //toast(
+      //  (props: ToastContentProps) => (
+      //    <CustomToast message="Din förfrågan har skickats!" type="success" {...props} />
+      //  ),
+      //  { autoClose: 5000, className: styles.toastifyContainer }
+      //);
 
       setFormData(initialFormData); // <-- Use the constant to reset
       setErrors({});
       captchaRef.current?.reset?.();
-
     } catch (error: any) {
-      console.error('Error:', error);
+      console.error("Error:", error);
 
       // <-- FIX 2B: Use the specific error message from the rejected promise
       const errorMessage = error.message || "Internt fel! Försök igen senare!";
 
-      toast(
-        (props: ToastContentProps) => (
-          <CustomToast message={errorMessage} type="error" {...props} />
-        ),
-        { autoClose: 5000, className: styles.toastifyContainer }
-      );
+      //toast(
+      //  (props: ToastContentProps) => (
+      //    <CustomToast message={errorMessage} type="error" {...props} />
+      //  ),
+      //  { autoClose: 5000, className: styles.toastifyContainer }
+      //);
     } finally {
       setIsSubmitting(false);
     }
@@ -151,41 +151,34 @@ const ContactUs: React.FC = () => {
 
   return (
     <>
-      <ToastContainer
-        hideProgressBar
-        newestOnTop
-        closeOnClick={false}
-        rtl={false}
-        draggable={false}
-        pauseOnFocusLoss={false}
-        pauseOnHover={false}
-        style={{ zIndex: 9999 }}
-      />
-      <PageContainer centerChildren={true} >
-        <ContentWrapper className='
+      <PageContainer centerChildren={true}>
+        <ContentWrapper
+          className="
           py-10
           lg:pt-[10%]
           xl:pt-[5%]
-          '
+          "
           centerContent={true}
         >
-          <FormContainer tag="form"
-            className='
+          <FormContainer
+            tag="form"
+            className="
             z-10
-            '
+            "
             onSubmit={handleSubmit}
             bgColor="gradient"
-
           >
-
             <p className="font-bold text-lg text-gray-700 text-center leading-relaxed ">
               Vi välkomnar din feedback och eventuella frågor! <br />
               Du kan kontakta oss genom att fylla i formuläret nedanför
-              <br /><br />
+              <br />
+              <br />
             </p>
             {/* Display form-level error message */}
             {errors.form && (
-              <p className="text-red-500 text-sm text-center mb-4">{errors.form}</p>
+              <p className="text-red-500 text-sm text-center mb-4">
+                {errors.form}
+              </p>
             )}
             {/* First Name and Last Name */}
             <div className="flex space-x-4">
@@ -193,8 +186,10 @@ const ContactUs: React.FC = () => {
                 <ContactFormInputField
                   placeholder="Förnamn"
                   value={formData.FirstName}
-                  onChange={(e) => handleInputChange('FirstName', e.target.value)}
-                  onBlur={() => handleBlur('FirstName')}
+                  onChange={(e) =>
+                    handleInputChange("FirstName", e.target.value)
+                  }
+                  onBlur={() => handleBlur("FirstName")}
                   width="100%"
                   height="50px"
                 />
@@ -206,8 +201,10 @@ const ContactUs: React.FC = () => {
                 <ContactFormInputField
                   placeholder="Efternamn"
                   value={formData.LastName}
-                  onChange={(e) => handleInputChange('LastName', e.target.value)}
-                  onBlur={() => handleBlur('LastName')}
+                  onChange={(e) =>
+                    handleInputChange("LastName", e.target.value)
+                  }
+                  onBlur={() => handleBlur("LastName")}
                   width="100%"
                   height="50px"
                 />
@@ -224,8 +221,10 @@ const ContactUs: React.FC = () => {
                   type="email"
                   placeholder="Din epost"
                   value={formData.SenderEmail}
-                  onChange={(e) => handleInputChange('SenderEmail', e.target.value)}
-                  onBlur={() => handleBlur('SenderEmail')}
+                  onChange={(e) =>
+                    handleInputChange("SenderEmail", e.target.value)
+                  }
+                  onBlur={() => handleBlur("SenderEmail")}
                   width="100%"
                   height="50px"
                 />
@@ -241,8 +240,8 @@ const ContactUs: React.FC = () => {
                 <ContactFormInputField
                   placeholder="Ämne"
                   value={formData.Subject}
-                  onChange={(e) => handleInputChange('Subject', e.target.value)}
-                  onBlur={() => handleBlur('Subject')}
+                  onChange={(e) => handleInputChange("Subject", e.target.value)}
+                  onBlur={() => handleBlur("Subject")}
                   width="100%"
                   height="50px"
                 />
@@ -258,8 +257,8 @@ const ContactUs: React.FC = () => {
                 <ContactFormInputField
                   placeholder="Meddelande..."
                   value={formData.Body}
-                  onChange={(e) => handleInputChange('Body', e.target.value)}
-                  onBlur={() => handleBlur('Body')}
+                  onChange={(e) => handleInputChange("Body", e.target.value)}
+                  onBlur={() => handleBlur("Body")}
                   width="100%"
                   height="200px"
                   multiline={true}
@@ -282,7 +281,7 @@ const ContactUs: React.FC = () => {
                   label="Skicka"
                   type="submit"
                   enhanceOnHover
-                  style={{ width: '100%' }}
+                  style={{ width: "100%" }}
                   disabled={isSubmitting || !formData.CaptchaToken}
                 />
               </div>
@@ -291,10 +290,10 @@ const ContactUs: React.FC = () => {
               <div
                 className="mt-4 sm:mt-0 flex justify-center w-full sm:w-auto"
                 style={{
-                  transform: 'scale(0.9)',
-                  transformOrigin: 'center',
-                  height: '78px', // Typical height of the ReCAPTCHA widget when scaled
-                  overflow: 'hidden',
+                  transform: "scale(0.9)",
+                  transformOrigin: "center",
+                  height: "78px", // Typical height of the ReCAPTCHA widget when scaled
+                  overflow: "hidden",
                 }}
               >
                 <ReCAPTCHA
@@ -304,7 +303,6 @@ const ContactUs: React.FC = () => {
                 />
               </div>
             </div>
-
           </FormContainer>
 
           {/* Bird Image */}

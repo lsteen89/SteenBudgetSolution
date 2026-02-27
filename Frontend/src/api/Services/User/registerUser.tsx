@@ -1,48 +1,40 @@
-import { api } from '@/api/axios';
-import { isAxiosError } from 'axios';
-import type { ApiEnvelope } from '@/api/api.types';
-import type { UserCreationDto } from '../../../types/User/Creation/userCreation';
+import type { ApiEnvelope, ApiProblem } from "@/api/api.types";
+import { api } from "@/api/axios";
+import { toApiProblem } from "@/api/toApiProblem";
+import type {
+  RegistrationFormValues,
+  RegistrationRequest,
+} from "@/types/User/Creation/registration.types";
+import { toRegistrationRequest } from "@/types/User/Creation/registration.types";
+import { isAxiosError } from "axios";
+import type { AuthResult } from "types/User/Auth/AuthResult";
 
-/**
- * Registers a new user
- * @param {UserCreationDto} user - The registration details for the new user
- * @returns {Promise<void>}
- * @throws Error with a clear message if registration fails.
- */
-export const registerUser = async (user: UserCreationDto): Promise<void> => {
-    try {
-        const response = await api.post<ApiEnvelope<string>>(
-            '/api/auth/register',
-            user,
-            {
-                headers: { 'Content-Type': 'application/json' },
-            }
-        );
+export const registerUser = async (
+  form: RegistrationFormValues,
+): Promise<AuthResult> => {
+  const user: RegistrationRequest = toRegistrationRequest(form);
 
-        const env = response.data;
+  try {
+    const response = await api.post<ApiEnvelope<AuthResult>>(
+      "/api/auth/register",
+      user,
+    );
+    const env = response.data;
 
-        // 200 but envelope indicates failure
-        if (!env.isSuccess || env.error || !env.data) {
-            const message = env.error?.message ?? 'Registreringen misslyckades.';
-            const customError = new Error(message);
-            (customError as any).response = response;
-            throw customError;
-        }
-
-        // Success → nothing to return
-        return;
-    } catch (error) {
-        if (isAxiosError<ApiEnvelope<string>>(error) && error.response) {
-            const env = error.response.data;
-            const message =
-                env?.error?.message ?? 'Registreringen misslyckades av okänd anledning.';
-            const customError = new Error(message);
-            (customError as any).response = error.response;
-            throw customError;
-        }
-
-        throw new Error('Unable to connect to the server. Please try again.');
+    if (!env.isSuccess || env.error || !env.data) {
+      const p: ApiProblem = {
+        message: env.error?.message ?? "Registreringen misslyckades.",
+        code: env.error?.code ?? "Unknown",
+        status: response.status,
+        raw: env,
+      };
+      throw p;
     }
-};
 
-export default registerUser;
+    return env.data;
+  } catch (e) {
+    if (isAxiosError(e)) throw toApiProblem(e);
+    if (typeof e === "object" && e && "message" in e) throw e;
+    throw toApiProblem(e);
+  }
+};

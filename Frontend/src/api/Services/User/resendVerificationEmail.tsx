@@ -1,64 +1,37 @@
-import { api } from '@/api/axios';
-import { isAxiosError } from 'axios';
-import { isValidEmail } from '@utils/validation/emailValidation';
-import type { ApiEnvelope } from '@/api/api.types';
+import type { ApiEnvelope, ApiProblem } from "@/api/api.types";
+import { api } from "@/api/axios";
+import { toApiProblem } from "@/api/toApiProblem";
+import { isAxiosError } from "axios";
 
-interface ResendVerificationResponse {
-    status: number;
-    message: string;
-}
-
-class ValidationError extends Error {
-    constructor(message: string) {
-        super(message);
-        this.name = 'ValidationError';
-    }
-}
-
-export const resendVerificationEmail = async (
-    email: string
-): Promise<ResendVerificationResponse> => {
-    if (!isValidEmail(email)) {
-        throw new ValidationError(
-            'Invalid email address. Please provide a valid email.'
-        );
-    }
-
-    try {
-        const response = await api.post<ApiEnvelope<string>>(
-            '/api/auth/resend-verification',   // <-- note: auth, not UserManagement
-            { email }
-        );
-
-        const env = response.data;
-
-        // 200 but envelope indicates failure
-        if (!env.isSuccess || env.error || !env.data) {
-            return {
-                status: response.status,
-                message: env.error?.message ?? 'Something went wrong',
-            };
-        }
-
-        // success: env.data is your success message
-        return {
-            status: response.status,
-            message: env.data,
-        };
-    } catch (error) {
-        if (isAxiosError<ApiEnvelope<string>>(error) && error.response) {
-            const status = error.response.status ?? 500;
-            const env = error.response.data;
-
-            return {
-                status,
-                message: env?.error?.message ?? 'Something went wrong',
-            };
-        }
-
-        return {
-            status: 500,
-            message: 'Something went wrong',
-        };
-    }
+export type ResendVerificationRequest = {
+  email: string;
 };
+
+export async function resendVerificationEmail(
+  req: ResendVerificationRequest,
+): Promise<string> {
+  try {
+    const res = await api.post<ApiEnvelope<string>>(
+      "/api/auth/resend-verification",
+      req,
+    );
+
+    const env = res.data;
+
+    if (!env.isSuccess || env.error) {
+      const p: ApiProblem = {
+        message: env.error?.message ?? "Resend failed.",
+        code: env.error?.code ?? "Unknown",
+        status: res.status,
+        raw: env,
+      };
+      throw p;
+    }
+
+    return env.data ?? "OK";
+  } catch (e) {
+    if (isAxiosError(e)) throw toApiProblem(e);
+    if (typeof e === "object" && e && "message" in e) throw e;
+    throw toApiProblem(e);
+  }
+}

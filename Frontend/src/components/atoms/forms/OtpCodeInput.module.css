@@ -1,0 +1,29 @@
+@keyframes eb-shake {
+  0% {
+    transform: translateX(0);
+  }
+
+  18% {
+    transform: translateX(-6px);
+  }
+
+  36% {
+    transform: translateX(6px);
+  }
+
+  54% {
+    transform: translateX(-4px);
+  }
+
+  72% {
+    transform: translateX(4px);
+  }
+
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.shake {
+  animation: eb-shake 360ms ease-in-out;
+}

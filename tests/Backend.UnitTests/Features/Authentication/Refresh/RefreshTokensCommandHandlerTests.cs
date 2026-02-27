@@ -10,7 +10,7 @@ using Moq;
 using Xunit;
 using MySqlConnector;
 
-using Backend.Application.Features.Commands.Auth.RefreshToken;
+using Backend.Application.Features.Authentication.RefreshToken;
 using Backend.Domain.Errors.User;
 using Backend.Settings;
 using Backend.Infrastructure.Security; // TokenGenerator
@@ -73,7 +73,7 @@ public sealed class RefreshTokensCommandHandlerTests
         string ua = "UA",
         string device = "dev-1",
         string? oldAT = null)
-        => new(oldAT, cookie, sessionId, ua, device);
+        => new(oldAT, cookie, ua, device);
 
     private static UserModel User(Guid? id = null, string email = "user@example.com")
         => new() { Id = 1, PersoId = id ?? Guid.NewGuid(), Email = email, Password = "hash", EmailConfirmed = true };
@@ -132,7 +132,7 @@ public sealed class RefreshTokensCommandHandlerTests
         var sessionId = Guid.NewGuid();
         var hash = TokenGenerator.HashToken(cookie);
 
-        _refresh.Setup(r => r.GetActiveByCookieForUpdateAsync(sessionId, hash, _now, It.IsAny<CancellationToken>()))
+        _refresh.Setup(r => r.GetActiveByCookieForUpdateAsync(hash, _now, It.IsAny<CancellationToken>()))
                 .ReturnsAsync((RefreshJwtTokenEntity?)null);
 
         var res = await SUT().Handle(Cmd(cookie, sessionId), CancellationToken.None);
@@ -151,7 +151,7 @@ public sealed class RefreshTokensCommandHandlerTests
         var persoid = Guid.NewGuid();
 
         var current = Current(persoid, sessionId, hash, _now.AddDays(10), _now.AddDays(1));
-        _refresh.Setup(r => r.GetActiveByCookieForUpdateAsync(sessionId, hash, _now, It.IsAny<CancellationToken>()))
+        _refresh.Setup(r => r.GetActiveByCookieForUpdateAsync(hash, _now, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(current);
 
         if (email is null)
@@ -176,14 +176,14 @@ public sealed class RefreshTokensCommandHandlerTests
 
         // absolute > now+rolling -> expect newRolling = now + 7d
         var current = Current(persoid, sessionId, hash, _now.AddDays(10), _now.AddDays(1), persistent: true);
-        _refresh.Setup(r => r.GetActiveByCookieForUpdateAsync(sessionId, hash, _now, It.IsAny<CancellationToken>()))
+        _refresh.Setup(r => r.GetActiveByCookieForUpdateAsync(hash, _now, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(current);
 
         var user = User(persoid);
         _users.Setup(u => u.GetUserModelAsync(persoid, null, It.IsAny<CancellationToken>())).ReturnsAsync(user);
 
         var at = AT(persoid, sessionId);
-        _jwt.Setup(j => j.CreateAccessToken(persoid, user.Email, It.IsAny<IReadOnlyList<string>>(), "dev-1", "UA", sessionId)).Returns(at);
+        _jwt.Setup(j => j.CreateAccessToken(persoid, user.Email, It.IsAny<IReadOnlyList<string>>(), "dev-1", "UA", user.EmailConfirmed, sessionId)).Returns(at);
 
         _jwt.SetupSequence(j => j.CreateRefreshToken())
             .Returns("NEWRT");
@@ -209,11 +209,12 @@ public sealed class RefreshTokensCommandHandlerTests
         var res = await SUT().Handle(Cmd(cookie, sessionId, oldAT: null), CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
-        res.Value.PersoId.Should().Be(persoid);
-        res.Value.SessionId.Should().Be(sessionId);
-        res.Value.AccessToken.Should().Be(at.Token);
+        res.IsSuccess.Should().BeTrue();
+        res.Value!.Result.PersoId.Should().Be(persoid);
+        res.Value.Result.SessionId.Should().Be(sessionId);
+        res.Value.Result.AccessToken.Should().Be(at.Token);
         res.Value.RefreshToken.Should().NotBeNullOrEmpty();
-        res.Value.RememberMe.Should().BeTrue(); // persistent propagated
+        res.Value.Result.RememberMe.Should().BeTrue();
 
         tokenIdSeen.Should().Be(current.TokenId);
         oldHashSeen.Should().Be(current.HashedToken);
@@ -235,14 +236,14 @@ public sealed class RefreshTokensCommandHandlerTests
 
         // absolute (in 3d) < now+rolling (7d) -> clamp to 3d
         var current = Current(persoid, sessionId, hash, _now.AddDays(3), _now.AddDays(1), persistent: false);
-        _refresh.Setup(r => r.GetActiveByCookieForUpdateAsync(sessionId, hash, _now, It.IsAny<CancellationToken>()))
+        _refresh.Setup(r => r.GetActiveByCookieForUpdateAsync(hash, _now, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(current);
 
         var user = User(persoid);
         _users.Setup(u => u.GetUserModelAsync(persoid, null, It.IsAny<CancellationToken>())).ReturnsAsync(user);
 
         var at = AT(persoid, sessionId);
-        _jwt.Setup(j => j.CreateAccessToken(persoid, user.Email, It.IsAny<IReadOnlyList<string>>(), "dev-1", "UA", sessionId)).Returns(at);
+        _jwt.Setup(j => j.CreateAccessToken(persoid, user.Email, It.IsAny<IReadOnlyList<string>>(), "dev-1", "UA", user.EmailConfirmed, sessionId)).Returns(at);
         _jwt.Setup(j => j.CreateRefreshToken()).Returns("NEXT");
 
         DateTime newRollingSeen = default;
@@ -265,14 +266,14 @@ public sealed class RefreshTokensCommandHandlerTests
         var hash = TokenGenerator.HashToken(cookie);
 
         var current = Current(persoid, sessionId, hash, _now.AddDays(30), _now.AddDays(10));
-        _refresh.Setup(r => r.GetActiveByCookieForUpdateAsync(sessionId, hash, _now, It.IsAny<CancellationToken>()))
+        _refresh.Setup(r => r.GetActiveByCookieForUpdateAsync(hash, _now, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(current);
 
         var user = User(persoid);
         _users.Setup(u => u.GetUserModelAsync(persoid, null, It.IsAny<CancellationToken>())).ReturnsAsync(user);
 
         var at = AT(persoid, sessionId);
-        _jwt.Setup(j => j.CreateAccessToken(persoid, user.Email, It.IsAny<IReadOnlyList<string>>(), "dev-1", "UA", sessionId)).Returns(at);
+        _jwt.Setup(j => j.CreateAccessToken(persoid, user.Email, It.IsAny<IReadOnlyList<string>>(), "dev-1", "UA", user.EmailConfirmed, sessionId)).Returns(at);
 
         _jwt.SetupSequence(j => j.CreateRefreshToken()).Returns("FIRST").Returns("SECOND");
 
@@ -296,14 +297,14 @@ public sealed class RefreshTokensCommandHandlerTests
         var hash = TokenGenerator.HashToken(cookie);
 
         var current = Current(persoid, sessionId, hash, _now.AddDays(20), _now.AddDays(5));
-        _refresh.Setup(r => r.GetActiveByCookieForUpdateAsync(sessionId, hash, _now, It.IsAny<CancellationToken>()))
+        _refresh.Setup(r => r.GetActiveByCookieForUpdateAsync(hash, _now, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(current);
 
         var user = User(persoid);
         _users.Setup(u => u.GetUserModelAsync(persoid, null, It.IsAny<CancellationToken>())).ReturnsAsync(user);
 
         var at = AT(persoid, sessionId);
-        _jwt.Setup(j => j.CreateAccessToken(persoid, user.Email, It.IsAny<IReadOnlyList<string>>(), "dev-1", "UA", sessionId)).Returns(at);
+        _jwt.Setup(j => j.CreateAccessToken(persoid, user.Email, It.IsAny<IReadOnlyList<string>>(), "dev-1", "UA", user.EmailConfirmed, sessionId)).Returns(at);
         _jwt.Setup(j => j.CreateRefreshToken()).Returns("NEXT");
         _refresh.Setup(r => r.RotateInPlaceAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(1);
@@ -323,14 +324,14 @@ public sealed class RefreshTokensCommandHandlerTests
         var hash = TokenGenerator.HashToken(cookie);
 
         var current = Current(persoid, sessionId, hash, _now.AddDays(20), _now.AddDays(5));
-        _refresh.Setup(r => r.GetActiveByCookieForUpdateAsync(sessionId, hash, _now, It.IsAny<CancellationToken>()))
+        _refresh.Setup(r => r.GetActiveByCookieForUpdateAsync(hash, _now, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(current);
 
         var user = User(persoid);
         _users.Setup(u => u.GetUserModelAsync(persoid, null, It.IsAny<CancellationToken>())).ReturnsAsync(user);
 
         var at = AT(persoid, sessionId);
-        _jwt.Setup(j => j.CreateAccessToken(persoid, user.Email, It.IsAny<IReadOnlyList<string>>(), "dev-1", "UA", sessionId)).Returns(at);
+        _jwt.Setup(j => j.CreateAccessToken(persoid, user.Email, It.IsAny<IReadOnlyList<string>>(), "dev-1", "UA", user.EmailConfirmed, sessionId)).Returns(at);
         _jwt.Setup(j => j.CreateRefreshToken()).Returns("NEXT");
         _refresh.Setup(r => r.RotateInPlaceAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(1);
@@ -351,14 +352,14 @@ public sealed class RefreshTokensCommandHandlerTests
         var hash = TokenGenerator.HashToken(cookie);
 
         var current = Current(persoid, sessionId, hash, _now.AddDays(20), _now.AddDays(5));
-        _refresh.Setup(r => r.GetActiveByCookieForUpdateAsync(sessionId, hash, _now, It.IsAny<CancellationToken>()))
+        _refresh.Setup(r => r.GetActiveByCookieForUpdateAsync(hash, _now, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(current);
 
         var user = User(persoid);
         _users.Setup(u => u.GetUserModelAsync(persoid, null, It.IsAny<CancellationToken>())).ReturnsAsync(user);
 
         var at = AT(persoid, sessionId);
-        _jwt.Setup(j => j.CreateAccessToken(persoid, user.Email, It.IsAny<IReadOnlyList<string>>(), "dev-1", "UA", sessionId)).Returns(at);
+        _jwt.Setup(j => j.CreateAccessToken(persoid, user.Email, It.IsAny<IReadOnlyList<string>>(), "dev-1", "UA", user.EmailConfirmed, sessionId)).Returns(at);
         _jwt.Setup(j => j.CreateRefreshToken()).Returns("NEXT");
 
         _refresh.Setup(r => r.RotateInPlaceAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))

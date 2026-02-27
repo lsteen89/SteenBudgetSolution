@@ -1,8 +1,8 @@
-import { useCallback } from 'react';
-import { UseFormReturn, Path, FieldValues } from 'react-hook-form';
-import * as yup from 'yup';
-import { useToast } from '@context/ToastContext';
-import { useWizardSaveQueue } from '@/stores/Wizard/wizardSaveQueue';
+import { useWizardSaveQueue } from "@/stores/Wizard/wizardSaveQueue";
+import { useToast } from "@/ui/toast/toast";
+import { useCallback } from "react";
+import { FieldValues, Path, UseFormReturn } from "react-hook-form";
+import * as yup from "yup";
 
 // --- (1) The generic constraint  FieldValues ---
 interface UseSaveStepDataProps<T extends FieldValues> {
@@ -13,14 +13,13 @@ interface UseSaveStepDataProps<T extends FieldValues> {
     stepNumber: number,
     subStepNumber: number,
     data: Partial<T>,
-    goingBackwards: boolean
+    goingBackwards: boolean,
   ) => Promise<boolean>;
   setCurrentStep: React.Dispatch<React.SetStateAction<number>>;
   onError?: () => void;
 
   getPartialDataForSubstep: (subStep: number, allData: T) => Partial<T>;
 }
-
 
 export function useSaveStepData<T extends FieldValues>({
   stepNumber,
@@ -33,14 +32,14 @@ export function useSaveStepData<T extends FieldValues>({
 }: UseSaveStepDataProps<T>) {
   const { showToast } = useToast();
   const saveQueue = useWizardSaveQueue();
-  const isDebugMode = import.meta.env.MODE !== 'production';
+  const isDebugMode = import.meta.env.MODE !== "production";
 
   const saveStepData = useCallback(
     async (
       stepLeaving: number,
       stepGoing: number,
       skipValidation: boolean,
-      goingBackwards: boolean
+      goingBackwards: boolean,
     ): Promise<boolean> => {
       if (!methods) {
         setCurrentStep(stepGoing);
@@ -48,17 +47,19 @@ export function useSaveStepData<T extends FieldValues>({
       }
 
       if (!skipValidation && !goingBackwards && isDebugMode) {
-
         const sliceKeys = Object.keys(
-          getPartialDataForSubstep(stepLeaving, methods.getValues())
+          getPartialDataForSubstep(stepLeaving, methods.getValues()),
         );
 
         if (sliceKeys.length > 0) {
           const ok = await methods.trigger(sliceKeys as Path<T>[]);
           if (!ok) {
-            console.warn('Validation failed, showing errors');
-            const allErrors = methods.formState.errors as Record<Path<T>, yup.ValidationError>;
-            console.error('Validation errors:', allErrors);
+            console.warn("Validation failed, showing errors");
+            const allErrors = methods.formState.errors as Record<
+              Path<T>,
+              yup.ValidationError
+            >;
+            console.error("Validation errors:", allErrors);
             showToast("Vänligen korrigera felen.", "error");
             onError?.();
             return false;
@@ -67,7 +68,14 @@ export function useSaveStepData<T extends FieldValues>({
       }
 
       const all = methods.getValues();
-      console.log("[SAVE] leaving:", stepLeaving, "going:", stepGoing, "major step:", stepNumber);
+      console.log(
+        "[SAVE] leaving:",
+        stepLeaving,
+        "going:",
+        stepGoing,
+        "major step:",
+        stepNumber,
+      );
 
       const part = getPartialDataForSubstep(stepLeaving, methods.getValues());
       console.log("[SAVE] slice keys:", Object.keys(part));
@@ -79,14 +87,18 @@ export function useSaveStepData<T extends FieldValues>({
 
       try {
         // ✅ 1) Save current sub-step first
-        const ok = await onSaveStepData(stepNumber, stepLeaving, part, goingBackwards);
+        const ok = await onSaveStepData(
+          stepNumber,
+          stepLeaving,
+          part,
+          goingBackwards,
+        );
         if (!ok) throw new Error("API save returned false");
 
         // ✅ 2) Only after success: flush backlog
         if (!goingBackwards) {
           await saveQueue.flush();
         }
-
       } catch (err) {
         console.error("Error saving step data:", err);
         onError?.();
@@ -104,7 +116,16 @@ export function useSaveStepData<T extends FieldValues>({
       setCurrentStep(stepGoing);
       return true;
     },
-    [methods, stepNumber, onSaveStepData, setCurrentStep, showToast, onError, saveQueue, getPartialDataForSubstep] // <-- (2) Add to dependency array
+    [
+      methods,
+      stepNumber,
+      onSaveStepData,
+      setCurrentStep,
+      showToast,
+      onError,
+      saveQueue,
+      getPartialDataForSubstep,
+    ], // <-- (2) Add to dependency array
   );
 
   return { saveStepData };

@@ -10,21 +10,21 @@ This project showcases the ability to design, build, deploy, and manage a comple
 ---
 
 # Project Docs
-   
-   Quick links:
-   
-   - **Security**
-     - [Authentication](docs/Security/Authentication.md)
-     - [Rate Limits](docs/Security/rate-limits.md)
-   - **Email**
-     - [Email Workflows](docs/Email/email-workflows.md)
-   - **API**
-     - [API Reference](docs/API/api.md)
-   - **WebSockets**
-     - [WebSocket Handler](docs/WebSockets/WebSocketHandler.md)
-   - **Roadmap**
-     - [Roadmap](docs/roadmap.md)
- 
+
+Quick links:
+
+- **Security**
+  - [Authentication](docs/Security/Authentication.md)
+  - [Rate Limits](docs/Security/rate-limits.md)
+- **Email**
+  - [Email Workflows](docs/Email/email-workflows.md)
+- **API**
+  - [API Reference](docs/API/api.md)
+- **WebSockets**
+  - [WebSocket Handler](docs/WebSockets/WebSocketHandler.md)
+- **Roadmap**
+  - [Roadmap](docs/roadmap.md)
+
 ---
 
 # Architecture Overview
@@ -32,44 +32,48 @@ This project showcases the ability to design, build, deploy, and manage a comple
 This project uses a modern, separated architecture to ensure security, stability, and maintainability.
 
 ### Pi 4 (Production Host)
-* **Role:** The dedicated, hardened server that runs the live application stack.
-* **Services:** Runs the entire stack within Docker Compose: MariaDB, the .NET 8 backend API, and a Caddy web server.
-* **Security:**
-    * Exposes only HTTP/HTTPS (80/443) to the web.
-    * SSH (port 2222) is only accessible from the Pi 3 runner's local IP address. All other SSH traffic is blocked by `ufw`.
-    * SSH is configured for key-only authentication; password login is disabled.
-* **Secrets:** All application secrets (database credentials, JWT keys, etc.) are managed in a `.env` file in the project directory, which is excluded from Git.
+
+- **Role:** The dedicated, hardened server that runs the live application stack.
+- **Services:** Runs the entire stack within Docker Compose: MariaDB, the .NET 8 backend API, and a Caddy web server.
+- **Security:**
+  - Exposes only HTTP/HTTPS (80/443) to the web.
+  - SSH (port 2222) is only accessible from the Pi 3 runner's local IP address. All other SSH traffic is blocked by `ufw`.
+  - SSH is configured for key-only authentication; password login is disabled.
+- **Secrets:** All application secrets (database credentials, JWT keys, etc.) are managed in a `.env` file in the project directory, which is excluded from Git.
 
 ### Pi 3 (CI/CD Runner & Deploy Orchestrator)
-* **Role:** A trusted, internal orchestrator that receives deployment jobs from GitHub and executes them securely.
-* **Services:** Runs a single containerized GitHub Actions self-hosted runner.
-* **Security:**
-    * Requires **zero inbound ports** from the internet. It only makes outbound connections to GitHub.
-    * It communicates with the Pi 4 over the local LAN using a dedicated, forced-command SSH key.
-    * Its sole purpose is to execute the deployment steps defined in the CI/CD workflow.
+
+- **Role:** A trusted, internal orchestrator that receives deployment jobs from GitHub and executes them securely.
+- **Services:** Runs a single containerized GitHub Actions self-hosted runner.
+- **Security:**
+  - Requires **zero inbound ports** from the internet. It only makes outbound connections to GitHub.
+  - It communicates with the Pi 4 over the local LAN using a dedicated, forced-command SSH key.
+  - Its sole purpose is to execute the deployment steps defined in the CI/CD workflow.
 
 ### GitHub (Cloud Build Environment)
-* **Role:** Acts as a powerful, disposable **build factory**. It handles all CPU-intensive compilation and packaging.
-* **Actions:**
-    * On a push to `master`, it builds a **multi-architecture (`linux/amd64`, `linux/arm64`)** backend Docker image and pushes it to the GitHub Container Registry (GHCR).
-    * It builds the production-optimized React frontend (`dist` bundle) and uploads it as a workflow artifact.
-    * It then triggers the `deploy` job, which is picked up by the self-hosted runner on the Pi 3.
+
+- **Role:** Acts as a powerful, disposable **build factory**. It handles all CPU-intensive compilation and packaging.
+- **Actions:**
+  - On a push to `master`, it builds a **multi-architecture (`linux/amd64`, `linux/arm64`)** backend Docker image and pushes it to the GitHub Container Registry (GHCR).
+  - It builds the production-optimized React frontend (`dist` bundle) and uploads it as a workflow artifact.
+  - It then triggers the `deploy` job, which is picked up by the self-hosted runner on the Pi 3.
 
 ### Cloudflare (DNS & TLS Helper)
-* **Role:** Manages the `ebudget.se` DNS records.
-* **Actions:** Used by Caddy to perform the ACME DNS-01 challenge. Caddy uses a scoped API token to create and delete temporary TXT records to prove domain ownership for issuing and renewing Let's Encrypt TLS certificates.
+
+- **Role:** Manages the `ebudget.se` DNS records.
+- **Actions:** Used by Caddy to perform the ACME DNS-01 challenge. Caddy uses a scoped API token to create and delete temporary TXT records to prove domain ownership for issuing and renewing Let's Encrypt TLS certificates.
 
 ---
 
 ## Key Features
 
-* 🔐 **Secure User Authentication:** Robust JWT-based authentication featuring auto-refresh, periodic status checks, and WebSocket integration for immediate session termination.
-* 🤖 **ReCAPTCHA Integration:** Protects user registration from bots using Google reCAPTCHA v3.
-* 💰 **Full CRUD Operations:** Manage budgets, income, and expense transactions with complete Create, Read, Update, and Delete functionality.
-* 📧 **Email Notifications:** Integrated SMTP client (using MailKit) for user email verification and essential notifications.
-* 📱 **Responsive Design:** Modern, mobile-first UI built with Tailwind CSS ensures a great experience on any device.
-* 🚀 **Real-time Communication:** Employs WebSockets for immediate server-driven events (like session termination) and uses a ping/pong mechanism to maintain connection health.
-* 🛡️ **Hardened Security:** Multi-layered security approach including infrastructure hardening and application-level protections.
+- 🔐 **Secure User Authentication:** Robust JWT-based authentication featuring auto-refresh, periodic status checks, and WebSocket integration for immediate session termination.
+- 🤖 **ReCAPTCHA Integration:** Protects user registration from bots using Google reCAPTCHA v3.
+- 💰 **Full CRUD Operations:** Manage budgets, income, and expense transactions with complete Create, Read, Update, and Delete functionality.
+- 📧 **Email Notifications:** Integrated SMTP client (using MailKit) for user email verification and essential notifications.
+- 📱 **Responsive Design:** Modern, mobile-first UI built with Tailwind CSS ensures a great experience on any device.
+- 🚀 **Real-time Communication:** Employs WebSockets for immediate server-driven events (like session termination) and uses a ping/pong mechanism to maintain connection health.
+- 🛡️ **Hardened Security:** Multi-layered security approach including infrastructure hardening and application-level protections.
 
 ---
 
@@ -77,48 +81,82 @@ This project uses a modern, separated architecture to ensure security, stability
 
 **Backend:**
 
-* **Framework:** .NET 8 (C#) with ASP.NET Core Web API
-* **Database:** MariaDB (SQL-based relational database)
-* **Data Access:** Dapper (Micro-ORM, chosen for performance and direct SQL control)
-* **Architecture:** Clean Architecture principles for separation of concerns and testability.
-* **Real-time:** ASP.NET Core WebSockets
-* **Email:** MailKit
+- **Framework:** .NET 8 (C#) with ASP.NET Core Web API
+- **Database:** MariaDB (SQL-based relational database)
+- **Data Access:** Dapper (Micro-ORM, chosen for performance and direct SQL control)
+- **Architecture:** Clean Architecture principles for separation of concerns and testability.
+- **Real-time:** ASP.NET Core WebSockets
+- **Email:** MailKit
 
 **Frontend:**
 
-* **Framework:** React (TypeScript) for a robust and type-safe UI.
-* **Build Tool:** Vite for fast development server and optimized builds.
-* **Styling:** Tailwind CSS (Utility-first CSS framework).
-* **API Communication:** Axios (with interceptor for token refresh)
+- **Framework:** React (TypeScript) for a robust and type-safe UI.
+- **Build Tool:** Vite for fast development server and optimized builds.
+- **Styling:** Tailwind CSS (Utility-first CSS framework).
+- **API Communication:** Axios (with interceptor for token refresh)
 
 **Infrastructure & DevOps:**
 
-* **Host:** Self-hosted on Raspberry Pi 4 (Linux OS)
-* **Orchestrator:** Raspberry Pi 3 (Linux OS)
-* **Containerization:** Docker & Docker Compose
-* **Web Server / Reverse Proxy:** Caddy (with automatic HTTPS)
-* **Security Tools:** UFW (Firewall), Fail2Ban (Intrusion Prevention)
-* **CI/CD:** GitHub Actions (Automated build, test, and deployment pipeline)
-* **Secrets Management:** GitHub Actions Secrets & `.env` file on host.
-* **Domain & Network:** Custom Domain, DNS Management via Cloudflare
+- **Host:** Self-hosted on Raspberry Pi 4 (Linux OS)
+- **Orchestrator:** Raspberry Pi 3 (Linux OS)
+- **Containerization:** Docker & Docker Compose
+- **Web Server / Reverse Proxy:** Caddy (with automatic HTTPS)
+- **Security Tools:** UFW (Firewall), Fail2Ban (Intrusion Prevention)
+- **CI/CD:** GitHub Actions (Automated build, test, and deployment pipeline)
+- **Secrets Management:** GitHub Actions Secrets & `.env` file on host.
+- **Domain & Network:** Custom Domain, DNS Management via Cloudflare
 
 ---
 
 # 🚀 Getting Started (Local Development)
 
-> **Recommended dev mode:** MariaDB in Docker; Backend & Frontend run natively with hot-reload.
+> **Recommended dev mode:** MariaDB in Docker; Backend & Frontend run natively (hot-reload).
 > **Prod:** `.env` (only). **Dev:** backend uses **user-secrets**, frontend uses **`.env.local`**.
 
-## 1) One-time setup
+---
 
-**Backend (user-secrets)**
+## 0) Prereqs (Mac/Linux)
+
+- Docker Desktop (or Colima) running
+- .NET 8 SDK
+- Node 18+ / 20+
+
+---
+
+## 1) Dev database (Docker MariaDB)
+
+Create a local file (DO NOT COMMIT): `./.env.dev`
+
+```env
+MARIADB_ROOT_PASSWORD=devrootpassword
+MARIADB_DATABASE=steenbudgetDEV
+MARIADB_USER=app
+MARIADB_PASSWORD=apppwd
+
+```
+
+> Note: `.env` files do **not** expand `${VARS}`. Write literal values.
+
+Start DB (run from repo root):
 
 ```bash
+docker compose --env-file .env.dev -f docker-compose.dev.yml up -d db
+docker compose --env-file .env.dev -f docker-compose.dev.yml ps
+
+```
+
+---
+
+## 2) Backend setup (user-secrets)
+
+```bash
+
 cd Backend
 dotnet user-secrets init
+# DB (host → container via 127.0.0.1)
+dotnet user-secrets set "DatabaseSettings:ConnectionString" \
+"Server=127.0.0.1;Port=3306;Database=steenbudgetDEV;Uid=app;Pwd=apppwd;Connection Timeout=3;Default Command Timeout=30;SslMode=None;GuidFormat=Binary16"
 
-# DB (host → container DB via 127.0.0.1)
-dotnet user-secrets set "DatabaseSettings:ConnectionString" "Server=127.0.0.1;Port=3306;Database=steenbudgetDEV;User=app;Password=apppwd;Connection Timeout=3;Default Command Timeout=30;SslMode=None"
 
 # JWT & misc
 dotnet user-secrets set "JwtSettings:SecretKey" "base64:REPLACE_ME"
@@ -127,73 +165,128 @@ dotnet user-secrets set "WEBSOCKET_SECRET" "dev-secret"
 dotnet user-secrets set "AppUrls:FrontendBase" "http://localhost:5173"
 dotnet user-secrets set "AppUrls:VerifyUrl" "http://localhost:5173/verify-email?token={token}"
 dotnet user-secrets set "AppUrls:ResetPasswordUrl" "http://localhost:5173/reset-password?token={token}"
+
 ```
 
-**Frontend (`Frontend/.env.local`)**
-
-```ini
-const baseURL = import.meta.env.VITE_APP_API_URL;=http://localhost:5001
-VITE_RECAPTCHA_SITE_KEY=dev-site-key
-VITE_USE_MOCK=false
-```
-
-## 2) Start services
-
-**MariaDB (Docker)**
+Generate a JWT key:
 
 ```bash
-docker compose -f docker-compose.dev.yml up -d db
+openssl rand -base64 32
+# then set JwtSettings:SecretKey = base64:<value>
+
 ```
 
-**Backend (hot-reload)**
+Run backend (hot reload):
 
 ```bash
 cd Backend
 DOTNET_USE_POLLING_FILE_WATCHER=true dotnet watch run --urls http://localhost:5001
+
 ```
 
-**Frontend (Vite HMR)**
+---
+
+## 3) Frontend setup (Vite)
+
+Create: `Frontend/.env.local`
+
+```env
+VITE_APP_API_URL=http://localhost:5001
+VITE_TURNSTILE_SITE_KEY=XYZ
+VITE_USE_MOCK=false
+
+```
+
+Run frontend:
 
 ```bash
 cd Frontend
 npm install
 npm run dev
+
 ```
+
+> If you edit `.env.local`, restart Vite.
 
 ---
 
-# 🧪 Dev seeding (users)
+## 🧪 Dev seeding (users)
 
-A small CLI (`Backend.Tools`) seeds a user in **dev**. It runs **inside** the dev compose network and bypasses CAPTCHA when `ALLOW_SEEDING=true`.
+A small CLI (`Backend.Tools`) can seed a user in **dev**.
 
-**One-off run**
+- Seeding is guarded by `ALLOW_SEEDING=true`
+- TURNSTILE is bypassed for seeding
+
+### Option A: Seed via Docker (recommended)
+
+Run from repo root:
 
 ```bash
-docker compose -f docker-compose.dev.yml --profile seed run --rm seed-users
+docker compose --env-file .env.dev -f docker-compose.dev.yml --profile seed run --rm seed-users
+
 ```
 
-**Override on the fly (optional)**
+Override values:
 
 ```bash
-docker compose -f docker-compose.dev.yml --profile seed run --rm \
+docker compose --env-file .env.dev -f docker-compose.dev.yml --profile seed run --rm \
   -e SEED_EMAIL=jane@doe.se -e SEED_PASSWORD=ChangeMe123 \
   -e SEED_FIRST=Jane -e SEED_LAST=Doe \
   seed-users
+
 ```
+
+**Important:** the seeder must use a Docker-internal connection string (`Server=db;...`).  
+If needed, set it in `seed-users.environment`:
+
+```yml
+DATABASESETTINGS__CONNECTIONSTRING: "Server=db;Port=3306;Database=steenbudgetDEV;Uid=app;Pwd=apppwd;GuidFormat=Binary16"
+ALLOW_SEEDING: "true"
+"
+```
+
+### Option B: Seed locally (host)
+
+Set connection string via env (or user-secrets):
+
+```bash
+cd Backend.Tools
+ALLOW_SEEDING=true DATABASESETTINGS__CONNECTIONSTRING="Server=127.0.0.1;Port=3306;Database=steenbudgetDEV;Uid=app;Pwd=apppwd;SslMode=None;GuidFormat=Binary16" \
+dotnet run -- --email jane@doe.se --password 'ChangeMe123' --first Jane --last Doe
+
+```
+
+---
+
+## 🧰 DB access (GUI)
+
+Recommended: **TablePlus**
+
+- Host: `127.0.0.1`
+- Port: `3306`
+- User: `app`
+- Password: `apppwd`
+- Database: `steenbudgetDEV`
+- SSL: off
+
+> Root login from the host is typically blocked in the MariaDB image. Use `app`.
+
+---
 
 **Requirements**
 
-* The seeder container uses a **Docker-internal** connection string (`Server=db;...`) already set in `docker-compose.dev.yml`.
-* Service name: `seed-users`.
+- The seeder container uses a **Docker-internal** connection string (`Server=db;...`) already set in `docker-compose.dev.yml`.
+- Service name: `seed-users`.
 
 ---
+
 ## High-Level System Flowchart
 
 ```mermaid
 graph TD
 
     %% == 1. Define ALL Nodes First ==
-    
+
     %% User Flow & Services
     UserBrowser["User's Browser"]
     Cloudflare["Cloudflare DNS"]
@@ -215,7 +308,7 @@ graph TD
     GitHubActions["GitHub Actions"]
     GHCR(GHCR - Container Registry)
     FrontendArtifact{Frontend Artifact}
-    
+
     %% Action Node
     DockerComposeUp("docker compose up")
 
@@ -238,7 +331,7 @@ graph TD
             MariaDB
             DockerComposeUp
         end
-        
+
         subgraph "CI/CD Host (Pi 3)"
             Pi3
             Runner
@@ -262,7 +355,7 @@ graph TD
     GitHubActions -- 1. Builds & Pushes Image --> GHCR
     GitHubActions -- 2. Builds & Uploads --> FrontendArtifact
     GitHubActions -- 3. Sends job to --> Runner
-    
+
     %% Deployment Flow
     Runner -- "Downloads Artifact &<br/>Triggers deploy.sh via SSH" --> Pi4
     GHCR -- 1. Image is Pulled by --> Pi4

@@ -1,13 +1,15 @@
 import React, { Suspense, lazy } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 
-import RootLayout from "./RootLayout";
 import PublicLayout from "@/layout/PublicLayout";
-import AuthedLayout from "./AuthedLayout";
 import ProtectedRoute from "@routes/ProtectedRoute";
+import AuthedLayout from "./AuthedLayout";
+import RootLayout from "./RootLayout";
 
-import { mockVerifyEmail } from "@mocks/mockServices/verifyEmailMock";
-import { realVerifyEmailWrapper } from "@api/Services/User/realVerifyEmailWrapper";
+import {
+  mockVerifyEmailCode,
+  realVerifyEmailCodeWrapper,
+} from "@/api/Services/User/verifyEmailCode.wrapper";
 
 const isDebugMode = import.meta.env.DEV;
 
@@ -28,16 +30,19 @@ const withLazy = (el: React.ReactNode) => (
 // Public (lazy)
 const HomePage = lazy(() => import("@pages/Home/HomePage"));
 const LoginPage = lazy(() => import("@pages/auth/LoginPage"));
-const Registration = lazy(() => import("@pages/auth/Registration"));
-const CheckEmailPage = lazy(() => import("@pages/auth/CheckEmailPage"));
-const EmailConfirmationPage = lazy(() => import("@pages/auth/EmailConfirmationPage"));
+const Registration = lazy(() => import("@pages/user/Registration"));
+const EmailConfirmationPage = lazy(
+  () => import("@pages/auth/EmailConfirmationPage"),
+);
 const AboutUs = lazy(() => import("@pages/info/AboutUs"));
 const Faq = lazy(() => import("@pages/info/Faq"));
 const NotFoundPage = lazy(() => import("@pages/info/NotFoundPage"));
 
 // App (lazy)
 const Dashboard = lazy(() => import("@pages/dashboard/dashboardhome"));
-const DashboardBreakdownPage = lazy(() => import("@pages/dashboard/DashboardBreakdownPage"));
+const DashboardBreakdownPage = lazy(
+  () => import("@pages/dashboard/DashboardBreakdownPage"),
+);
 const HowItWorksPage = lazy(() => import("@/Pages/info/HowItWorksPage"));
 
 // Support (protected)
@@ -52,20 +57,20 @@ export default function AppRoutes() {
           <Route path="/" element={withLazy(<HomePage />)} />
           <Route path="/login" element={withLazy(<LoginPage />)} />
           <Route path="/registration" element={withLazy(<Registration />)} />
-          <Route path="/check-email" element={withLazy(<CheckEmailPage />)} />
+
           <Route
             path="/email-confirmation"
             element={withLazy(
               <EmailConfirmationPage
-                verifyEmail={isDebugMode ? mockVerifyEmail : realVerifyEmailWrapper}
-                debugToken={isDebugMode ? "debug-token-123" : undefined}
-              />
+                verifyEmailCode={
+                  isDebugMode ? mockVerifyEmailCode : realVerifyEmailCodeWrapper
+                }
+              />,
             )}
           />
           <Route path="/about-us" element={withLazy(<AboutUs />)} />
           <Route path="/faq" element={withLazy(<Faq />)} />
           <Route path="/how-it-works" element={withLazy(<HowItWorksPage />)} />
-
           {/* 404 keeps the public header */}
           <Route path="*" element={withLazy(<NotFoundPage />)} />
         </Route>
@@ -74,7 +79,10 @@ export default function AppRoutes() {
         <Route element={<ProtectedRoute />}>
           <Route element={<AuthedLayout />}>
             <Route path="/dashboard" element={withLazy(<Dashboard />)} />
-            <Route path="/dashboard/breakdown" element={withLazy(<DashboardBreakdownPage />)} />
+            <Route
+              path="/dashboard/breakdown"
+              element={withLazy(<DashboardBreakdownPage />)}
+            />
             <Route path="/support" element={withLazy(<SupportPage />)} />
           </Route>
         </Route>

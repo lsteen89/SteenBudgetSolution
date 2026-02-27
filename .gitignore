@@ -366,11 +366,14 @@ FodyWeavers.xsd
 NOTES.md 
 
 Frontend/.env.development
+Frontend/.env.local
+Frontend/.env.*.local
 BACKUP_steenbudget.conf
 references/
 Frontend/.env.test
 Frontend/dist/
 Frontend/src/assets/Images/Originals
+docs/scribbles.txt
 
 #Documentation files that sensitive
 docs/internal

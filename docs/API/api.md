@@ -1,4 +1,4 @@
-```md
+````md
 # eBudget API (Public Contract)
 
 This document describes the public JSON contract for the eBudget backend.
@@ -27,14 +27,15 @@ This document describes the public JSON contract for the eBudget backend.
 ### ApiEnvelope shape
 
 **Success**
+
 ```json
 {
   "isSuccess": true,
-  "data": { },
+  "data": {},
   "error": null
 }
-
 ```
+````
 
 **Failure**
 
@@ -47,7 +48,6 @@ This document describes the public JSON contract for the eBudget backend.
     "message": "Human readable message"
   }
 }
-
 ```
 
 > Note: the API may return HTTP 200 with `isSuccess=false` for domain errors. Always check the envelope.
@@ -56,57 +56,35 @@ This document describes the public JSON contract for the eBudget backend.
 
 Auth / public:
 
--   `InvalidCaptcha`
-    
--   `InvalidCredentials`
-    
--   `UserLockedOut`
-    
--   `InvalidRefreshToken`
-    
--   `RefreshUserNotFound`
-    
--   `LoginTransactionFailed`
-    
--   `RefreshTransactionFailed`
-    
--   `EmailAlreadyVerified`
-    
--   `VerificationTokenNotFound`
-    
--   `VerificationUpdateFailed`
-    
--   `EmailSendFailed`
-    
--   `TooManyRequests`
-    
--   `ValidationFailed`
-    
+- `InvalidChallengeToken`
+- `InvalidCredentials`
+- `UserLockedOut`
+- `InvalidRefreshToken`
+- `RefreshUserNotFound`
+- `LoginTransactionFailed`
+- `RefreshTransactionFailed`
+- `EmailAlreadyVerified`
+- `VerificationTokenNotFound`
+- `VerificationUpdateFailed`
+- `EmailSendFailed`
+- `TooManyRequests`
+- `ValidationFailed`
 
 Budget / months:
 
--   `INVALID_YEARMONTH`
-    
--   `INVALID_CARRY_MODE`
-    
--   `INVALID_CARRY_AMOUNT`
-    
--   `INVALID_TARGET_MONTH`
-    
--   `OPEN_MONTH_EXISTS`
-    
--   `MONTH_IS_CLOSED`
-    
--   `MONTH_NOT_FOUND`
-    
--   `SNAPSHOT_MISSING`
-    
--   `BUDGET_NOT_FOUND`
-    
+- `INVALID_YEARMONTH`
+- `INVALID_CARRY_MODE`
+- `INVALID_CARRY_AMOUNT`
+- `INVALID_TARGET_MONTH`
+- `OPEN_MONTH_EXISTS`
+- `MONTH_IS_CLOSED`
+- `MONTH_NOT_FOUND`
+- `SNAPSHOT_MISSING`
+- `BUDGET_NOT_FOUND`
 
 (Exact codes may be returned from domain errors; FE should treat `error.code` as the stable identifier.)
 
-----------
+---
 
 # Auth
 
@@ -122,7 +100,6 @@ Budget / months:
   "deviceId": "device-uuid",
   "userAgent": "UA string"
 }
-
 ```
 
 **200 (Success)**
@@ -138,20 +115,17 @@ Budget / months:
   },
   "error": null
 }
-
 ```
 
 **Set-Cookie**
 
--   `RefreshToken=<opaque>; HttpOnly; Secure; SameSite=Strict; Path=/; Expires=...`
-    
+- `RefreshToken=<opaque>; HttpOnly; Secure; SameSite=Strict; Path=/; Expires=...`
 
 **Failure codes**
 
--   `InvalidCaptcha`, `InvalidCredentials`, `UserLockedOut`, `LoginTransactionFailed`
-    
+- `InvalidChallengeToken`, `InvalidCredentials`, `UserLockedOut`, `LoginTransactionFailed`
 
-----------
+---
 
 ## POST `/api/auth/refresh`
 
@@ -161,13 +135,11 @@ Refreshes access token using the refresh cookie.
 
 ```json
 {}
-
 ```
 
 **Cookie**
 
--   `RefreshToken` (sent automatically by browser)
-    
+- `RefreshToken` (sent automatically by browser)
 
 **200 (Success)**
 
@@ -177,20 +149,17 @@ Refreshes access token using the refresh cookie.
   "data": { "accessToken": "<new jwt>" },
   "error": null
 }
-
 ```
 
 **Set-Cookie**
 
--   rotated `RefreshToken=...`
-    
+- rotated `RefreshToken=...`
 
 **Failure codes**
 
--   `InvalidRefreshToken`, `RefreshUserNotFound`, `RefreshTransactionFailed`
-    
+- `InvalidRefreshToken`, `RefreshUserNotFound`, `RefreshTransactionFailed`
 
-----------
+---
 
 ## POST `/api/auth/logout`
 
@@ -202,24 +171,20 @@ Refreshes access token using the refresh cookie.
   "sessionId": "guid",
   "logoutAll": false
 }
-
 ```
 
 **200 (Success)**
 
 ```json
 { "isSuccess": true, "data": null, "error": null }
-
 ```
 
 Notes:
 
--   Clears refresh cookie.
-    
--   Invalidates session(s) server-side (implementation detail).
-    
+- Clears refresh cookie.
+- Invalidates session(s) server-side (implementation detail).
 
-----------
+---
 
 ## POST `/api/auth/register`
 
@@ -231,24 +196,21 @@ Notes:
   "lastName": "B",
   "email": "user@example.com",
   "password": "Secret123!",
-  "captchaToken": "...",
+  "captchaToken": "..."
 }
-
 ```
 
 **200 (Success)**
 
 ```json
 { "isSuccess": true, "data": null, "error": null }
-
 ```
 
 **Failure codes**
 
--   `InvalidCaptcha`, `EmailAlreadyExists`, `RegistrationFailed`
-    
+- `InvalidChallengeToken`, `EmailAlreadyExists`, `RegistrationFailed`
 
-----------
+---
 
 ## POST `/api/auth/resend-verification`
 
@@ -256,22 +218,19 @@ Notes:
 
 ```json
 { "email": "user@example.com" }
-
 ```
 
 **200 (Success)**
 
 ```json
 { "isSuccess": true, "data": null, "error": null }
-
 ```
 
 **Failure codes**
 
--   `TooManyRequests` (optional policy)
-    
+- `TooManyRequests` (optional policy)
 
-----------
+---
 
 ## GET `/api/auth/verify?token=<guid>`
 
@@ -279,15 +238,13 @@ Notes:
 
 ```json
 { "isSuccess": true, "data": null, "error": null }
-
 ```
 
 **Failure codes**
 
--   `VerificationTokenNotFound`, `EmailAlreadyVerified`, `VerificationUpdateFailed`
-    
+- `VerificationTokenNotFound`, `EmailAlreadyVerified`, `VerificationUpdateFailed`
 
-----------
+---
 
 # Contact
 
@@ -302,31 +259,26 @@ Notes:
   "body": "Message...",
   "captchaToken": "..."
 }
-
 ```
 
 **200 (Success)**
 
 ```json
 { "isSuccess": true, "data": null, "error": null }
-
 ```
 
 **Failure codes**
 
--   `InvalidCaptcha`, `ValidationFailed`, `EmailSendFailed`
-    
--   `TooManyRequests` (optional policy)
-    
+- `InvalidChallengeToken`, `ValidationFailed`, `EmailSendFailed`
+- `TooManyRequests` (optional policy)
 
-----------
+---
 
 # Budget
 
 All budget endpoints require:
 
--   `Authorization: Bearer <accessToken>`
-    
+- `Authorization: Bearer <accessToken>`
 
 ## GET `/api/budgets/months/status`
 
@@ -343,20 +295,23 @@ Returns month overview for the current user’s budget.
     "gapMonthsCount": 0,
     "suggestedAction": "None",
     "months": [
-      { "yearMonth": "2026-01", "status": "open", "openedAt": "2026-01-01T00:00:00Z", "closedAt": null }
+      {
+        "yearMonth": "2026-01",
+        "status": "open",
+        "openedAt": "2026-01-01T00:00:00Z",
+        "closedAt": null
+      }
     ]
   },
   "error": null
 }
-
 ```
 
 **Failure codes**
 
--   `BUDGET_NOT_FOUND`
-    
+- `BUDGET_NOT_FOUND`
 
-----------
+---
 
 ## POST `/api/budgets/months/start`
 
@@ -372,29 +327,21 @@ Starts a month explicitly (and optionally closes the previous open month).
   "carryOverAmount": 0,
   "createSkippedMonths": true
 }
-
 ```
 
 **200 (Success)** returns updated `BudgetMonthsStatusDto` in `data`.
 
 **Failure codes**
 
--   `INVALID_YEARMONTH`
-    
--   `INVALID_CARRY_MODE`
-    
--   `INVALID_CARRY_AMOUNT`
-    
--   `INVALID_TARGET_MONTH`
-    
--   `OPEN_MONTH_EXISTS`
-    
--   `MONTH_IS_CLOSED`
-    
--   `BUDGET_NOT_FOUND`
-    
+- `INVALID_YEARMONTH`
+- `INVALID_CARRY_MODE`
+- `INVALID_CARRY_AMOUNT`
+- `INVALID_TARGET_MONTH`
+- `OPEN_MONTH_EXISTS`
+- `MONTH_IS_CLOSED`
+- `BUDGET_NOT_FOUND`
 
-----------
+---
 
 ## GET `/api/budgets/dashboard?yearMonth=YYYY-MM`
 
@@ -407,10 +354,8 @@ On dashboard load, backend ensures that if the user has **zero months**, it crea
 
 **Query**
 
--   `yearMonth` optional.
-    
-    -   If omitted, backend chooses: current open month if exists, otherwise current year-month.
-        
+- `yearMonth` optional.
+  - If omitted, backend chooses: current open month if exists, otherwise current year-month.
 
 **200 (Success)**
 
@@ -442,15 +387,12 @@ On dashboard load, backend ensures that if the user has **zero months**, it crea
   },
   "error": null
 }
-
 ```
 
 If `month.status == "closed"`:
 
--   `liveDashboard` is `null`
-    
--   `snapshotTotals` is present:
-    
+- `liveDashboard` is `null`
+- `snapshotTotals` is present:
 
 ```json
 {
@@ -460,30 +402,23 @@ If `month.status == "closed"`:
   "totalDebtPaymentsMonthly": 1234,
   "finalBalanceMonthly": 16766
 }
-
 ```
 
 **Failure codes**
 
--   `BUDGET_NOT_FOUND`
-    
--   `INVALID_YEARMONTH`
-    
--   `MONTH_NOT_FOUND`
-    
--   `SNAPSHOT_MISSING`
-    
+- `BUDGET_NOT_FOUND`
+- `INVALID_YEARMONTH`
+- `MONTH_NOT_FOUND`
+- `SNAPSHOT_MISSING`
 
-----------
+---
 
 # Health & docs
 
--   Swagger/OpenAPI: `/swagger` (if enabled)
-    
--   Health checks: `/health` / `/ready` (if enabled)
-    
+- Swagger/OpenAPI: `/swagger` (if enabled)
+- Health checks: `/health` / `/ready` (if enabled)
 
-----------
+---
 
 # Examples
 
@@ -513,5 +448,3 @@ curl -i https://<host>/api/budgets/dashboard?yearMonth=2026-01 \
   -H "Authorization: Bearer <jwt>"
 
 ```
-
-

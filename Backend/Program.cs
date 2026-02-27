@@ -27,7 +27,8 @@ using Mapster;
 using Backend.Application;
 using Backend.Application.Abstractions.Infrastructure.Security;
 using Backend.Application.Abstractions.Infrastructure.Auth;
-
+using Backend.Application.Constants;
+using Backend.Application.Options.Auth;
 // Common layer
 using Backend.Common.Services;
 
@@ -76,7 +77,10 @@ mapsterConfig.Scan(Assembly.GetExecutingAssembly());
 builder.Services.AddSingleton(mapsterConfig);
 
 // WEBSOCKET_SECRET configuration
-var secret = builder.Configuration["WEBSOCKET_SECRET"]!;
+var secret = builder.Configuration["WEBSOCKET_SECRET"];
+if (string.IsNullOrWhiteSpace(secret))
+    throw new InvalidOperationException("WEBSOCKET_SECRET missing (set user-secrets or env var).");
+
 builder.Services.Configure<WebSocketSettings>(o => o.Secret = secret);
 
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
@@ -89,6 +93,10 @@ builder.Services.AddSingleton<IJwtKeyRing, HsKeyRing>();
 // Email settings
 builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("Smtp"));
 builder.Services.Configure<PostmarkOptions>(builder.Configuration.GetSection("Postmark"));
+
+// Security
+builder.Services.Configure<HumanChallengeOptions>(
+    builder.Configuration.GetSection("Auth:HumanChallenge"));
 
 // Add JsonOptions to use camelCase for JSON properties
 builder.Services.AddControllers()
@@ -348,7 +356,21 @@ builder.Services.AddOptions<JwtBearerOptions>("RefreshScheme")
       };
   });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AccessAuthenticated", policy =>
+    {
+        policy.AddAuthenticationSchemes("AccessScheme");
+        policy.RequireAuthenticatedUser();
+    });
+
+    options.AddPolicy("EmailConfirmed", policy =>
+    {
+        policy.AddAuthenticationSchemes("AccessScheme");
+        policy.RequireAuthenticatedUser();
+        policy.RequireClaim(EbClaims.EmailConfirmed, "true");
+    });
+});
 
 // Add HttpContextAccessor
 builder.Services.AddHttpContextAccessor();
@@ -420,6 +442,7 @@ app.UseAuthorization();
 
 // Use Token Blacklist Middleware
 app.UseMiddleware<TokenBlacklistMiddleware>();
+app.UseMiddleware<ValidationExceptionMiddleware>();
 
 // Use Rate Limiting Middleware (if configured)
 app.UseRateLimiter();

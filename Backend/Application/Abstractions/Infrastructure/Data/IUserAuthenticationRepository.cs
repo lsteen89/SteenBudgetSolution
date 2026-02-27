@@ -11,5 +11,8 @@ public interface IUserAuthenticationRepository
     Task LockUserByEmailAsync(string email, DateTime untilUtc, CancellationToken ct);
     Task DeleteAttemptsByEmailAsync(string email, CancellationToken ct);
     Task<int> UnlockUserAsync(Guid persoid, CancellationToken ct);
-    Task InsertLoginAttemptAsync(UserModel user, string ip, string userAgent, DateTime atUtc, CancellationToken ct);
+    Task InsertLoginAttemptAsync(UserModel user, string? ip, string userAgent, DateTime atUtc, CancellationToken ct);
+    Task<int> CountFailedAttemptsByIpSinceAsync(string ip, DateTime sinceUtc, CancellationToken ct);
+    Task<int> CountFailedAttemptsByEmailSinceAsync(string emailNorm, DateTime sinceUtc, CancellationToken ct);
+    Task<int> CountFailedAttemptsByEmailAndIpSinceAsync(string emailNorm, string ip, DateTime sinceUtc, CancellationToken ct);
 }

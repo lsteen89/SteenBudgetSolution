@@ -1,12 +1,25 @@
 ﻿using Backend.Domain.Auth;
 using System.IdentityModel.Tokens.Jwt;
 
+public sealed record RefreshRequestDto(string? AccessToken, string? RefreshCookie);
 namespace Backend.Infrastructure.Auth
 {
     public static class HttpContextTokenRequestMapper
     {
         private const string SessionHeader = "X-Session-Id";
-        private const string RefreshCookie = "RefreshToken";
+        private const string RefreshCookie = "ebudget_rt";
+
+        public static RefreshRequestDto MapRefresh(this HttpContext ctx)
+        {
+            var authHeader = ctx.Request.Headers["Authorization"].FirstOrDefault() ?? "";
+            var accessToken = authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
+                ? authHeader["Bearer ".Length..].Trim()
+                : null;
+
+            var refreshToken = ctx.Request.Cookies[RefreshCookie];
+
+            return new RefreshRequestDto(accessToken, refreshToken);
+        }
 
         public static TokenRequestDto Map(this HttpContext ctx)
         {
@@ -54,4 +67,5 @@ namespace Backend.Infrastructure.Auth
             return new TokenRequestDto(accessToken!, refreshToken!, sessionId, jti);
         }
     }
+
 }

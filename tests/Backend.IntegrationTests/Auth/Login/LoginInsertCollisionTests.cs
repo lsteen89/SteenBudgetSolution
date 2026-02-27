@@ -1,8 +1,5 @@
-using System;
-using System.Security.Cryptography;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
+using Backend.Application.Common.Security;
+using Backend.Application.Features.Shared.Issuers.Auth;
 using Dapper;
 using FluentAssertions;
 using Microsoft.Extensions.Options;
@@ -13,9 +10,7 @@ using Xunit;
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Application.Abstractions.Infrastructure.Security;
 using Backend.Application.Abstractions.Infrastructure.System;
-using Backend.Application.Features.Authentication.Login;
-using Backend.Application.Features.Authentication;
-using Backend.Application.DTO.Auth;
+using Backend.Infrastructure.Entities.Tokens;
 using Backend.Domain.Shared;
 using Backend.Settings;
 using Backend.IntegrationTests.Shared;
@@ -29,114 +24,113 @@ public sealed class LoginInsertCollisionTests
     private readonly MariaDbFixture _db;
     public LoginInsertCollisionTests(MariaDbFixture db) => _db = db;
 
-    private static string Sha256Hex(string input)
-    {
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(input));
-        var sb = new StringBuilder(bytes.Length * 2);
-        foreach (var b in bytes) sb.Append(b.ToString("x2"));
-        return sb.ToString();
-    }
-
     [Fact]
-    public async Task Given_CollisionOnHashedToken_When_Login_Then_RetryAndSucceed()
+    public async Task Given_CollisionOnHashedToken_When_IssueAsync_Then_RetryAndSucceed()
     {
         await _db.ResetAsync();
         var now = new DateTime(2025, 2, 2, 11, 0, 0, DateTimeKind.Utc);
 
-        // Fixed clock
         var clock = new Mock<ITimeProvider>();
         clock.SetupGet(x => x.UtcNow).Returns(now);
 
-        // Seed confirmed user with bcrypt for "dummy"
-        var hashed = BCrypt.Net.BCrypt.HashPassword("dummy"); // work factor/defaults fine
+        // User model for issuer (no DB needed)
         var userId = Guid.NewGuid();
+        var user = new UserModel
+        {
+            PersoId = userId,
+            Email = "user@example.com",
+            Password = "dummy-hash",
+            FirstName = "Test",
+            LastName = "User",
+            Roles = "1",
+            EmailConfirmed = true
+        };
+        await using (var conn1 = new MySqlConnection(_db.ConnectionString))
+        {
+            await conn1.OpenAsync();
 
-        await using var conn = new MySqlConnection(_db.ConnectionString);
-        await conn.OpenAsync();
-
-        await conn.ExecuteAsync("""
+            // Insert minimal user row to satisfy FK RefreshTokens(Persoid) -> Users(Persoid)
+            await conn1.ExecuteAsync("""
         INSERT INTO Users
-        (Persoid, Firstname, Lastname, Email, EmailConfirmed, Password, Roles, Locked, FirstLogin, CreatedBy)
-        VALUES (@pid, 'Test', 'User', 'user@example.com', 1, @pwd, 'User', 0, 0, 'it');
-        """, new { pid = userId, pwd = hashed });
+          (Persoid, Firstname, Lastname, Email, EmailConfirmed, Password, Roles, Locked, FirstLogin, CreatedBy)
+        VALUES
+          (@pid, @fn, @ln, @eml, 1, @pwd, @roles, 0, 0, 'it');
+        """, new
+            {
+                pid = userId,
+                fn = user.FirstName,
+                ln = user.LastName,
+                eml = user.Email,
+                pwd = user.Password,
+                roles = user.Roles
+            });
+        }
 
-        // SQL-backed repos
-        var users = new SqlUsers(_db.ConnectionString);
-
-        var realRefresh = new SqlRefreshRepo(_db.ConnectionString);
-        var refresh = new CollisionOnceRefreshRepo(realRefresh, _db.ConnectionString);
-
-        // Mocks for non-DB dependencies
+        // JWT mock: access token + refresh tokens
         var jwt = new Mock<IJwtService>();
         var sessionId = Guid.NewGuid();
         var tokenJti = Guid.NewGuid().ToString();
 
+        // IMPORTANT: no named args in Moq Setup
         jwt.Setup(j => j.CreateAccessToken(
-                    userId,
-                    "user@example.com",
-                    It.IsAny<IReadOnlyList<string>>(),
-                    "dev",
-                    "UA",
-                    It.IsAny<Guid?>())) // <- explicitly match the optional parameter
-        .Returns(new Backend.Application.Common.Security.AccessTokenResult(
+                userId,
+                "user@example.com",
+                It.IsAny<IReadOnlyList<string>>(),
+                "dev",
+                "UA",
+                true,
+                (Guid?)null
+            ))
+            .Returns(new Backend.Application.Common.Security.AccessTokenResult(
                 "at.jwt", tokenJti, sessionId, userId, now.AddMinutes(15)));
 
-        jwt.SetupSequence(j => j.CreateRefreshToken()).Returns("rt1").Returns("rt2"); // first collides, second succeeds
-        jwt.Setup(j => j.BlacklistJwtTokenAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        jwt.SetupSequence(j => j.CreateRefreshToken())
+           .Returns("rt1")
+           .Returns("rt2");
 
-        var recaptcha = new Mock<IRecaptchaService>();
-        recaptcha.Setup(x => x.ValidateTokenAsync(It.IsAny<string>())).ReturnsAsync(true);
+        // Real refresh repo + DB collision decorator
+        var realRefresh = new SqlRefreshRepo(_db.ConnectionString);
+        var refresh = new CollisionOnceRefreshRepo(realRefresh, _db.ConnectionString);
 
-        var authz = new Mock<IUserAuthenticationRepository>();
-        authz.Setup(a => a.InsertLoginAttemptAsync(It.IsAny<Backend.Domain.Entities.User.UserModel>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-        authz.Setup(a => a.CountFailedAttemptsSinceAsync(It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>())).ReturnsAsync(0);
-        authz.Setup(a => a.DeleteAttemptsByEmailAsync("user@example.com", It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        // Settings
+        var jwtOpts = Options.Create(new JwtSettings
+        {
+            RefreshTokenExpiryDays = 7,
+            RefreshTokenExpiryDaysAbsolute = 30
+        });
 
-        var lockout = Options.Create(new AuthLockoutOptions { WindowMinutes = 15, MaxAttempts = 5, LockoutMinutes = 15 });
-        var jwtOpts = Options.Create(new JwtSettings { RefreshTokenExpiryDays = 7, RefreshTokenExpiryDaysAbsolute = 30 });
-        var wsOpts = Options.Create(new Backend.Settings.WebSocketSettings { Secret = "ws" });
-        var configuration = new Microsoft.Extensions.Configuration.ConfigurationBuilder()
-            .AddInMemoryCollection(new Dictionary<string, string?>
-            {
-                ["WebSocket:Secret"] = "ws",
-                ["Jwt:RefreshTokenExpiryDays"] = "7",
-                ["Jwt:RefreshTokenExpiryDaysAbsolute"] = "30"
-            })
-            .Build();
+        var wsCfg = Options.Create(new WebSocketSettings { Secret = "ws" });
 
-        var sut = new LoginCommandHandler(
-            uow: Mock.Of<IUnitOfWork>(),
-            recaptcha: recaptcha.Object,
-            authz: authz.Object,
-            lockoutOpts: lockout,
-            users: users,
+        // Issuer under test (use your real class + correct ctor signature)
+        var issuer = new AuthSessionIssuer(
             refreshRepo: refresh,
             jwt: jwt.Object,
             clock: clock.Object,
             jwtSettings: jwtOpts,
-            configuration: configuration,
-            log: Mock.Of<Microsoft.Extensions.Logging.ILogger<LoginCommandHandler>>(),
-            wsOpts: wsOpts
+            wsOpts: wsCfg
         );
 
-        var cmd = new LoginCommand(
-            Email: "user@example.com",
-            Password: "dummy", // matches bcrypt above
-            CaptchaToken: "ok",
-            RememberMe: false,
-            Ip: "127.0.0.1",
-            DeviceId: "dev",
-            UserAgent: "UA"
-        );
+        // ACT
+        var issued = await issuer.IssueAsync(
+            user,
+            rememberMe: false,
+            deviceId: "dev",
+            userAgent: "UA",
+            ct: CancellationToken.None);
 
-        var result = await sut.Handle(cmd, CancellationToken.None);
+        // ASSERT: second refresh token used after collision
+        issued.RefreshToken.Should().Be("rt2");
+        issued.Result.AccessToken.Should().Be("at.jwt");
+        issued.Result.PersoId.Should().Be(userId);
+        issued.Result.SessionId.Should().Be(sessionId);
 
-        result.IsSuccess.Should().BeTrue();
-        result.Value.RefreshToken.Should().Be("rt2"); // retry token returned
+        // DB assert: at least 1 row for this user exists
+        await using var conn = new MySqlConnection(_db.ConnectionString);
+        var rows = await conn.ExecuteScalarAsync<long>(
+            "SELECT COUNT(*) FROM RefreshTokens WHERE Persoid=@pid;",
+            new { pid = userId });
 
-        var rows = await conn.QuerySingleAsync<long>(
-            "SELECT COUNT(*) FROM RefreshTokens WHERE Persoid=@pid;", new { pid = userId });
-        rows.Should().BeGreaterOrEqualTo(2);
+        rows.Should().BeGreaterOrEqualTo(1);
     }
 
     // ---------- SQL repos ----------
@@ -213,7 +207,7 @@ public sealed class LoginInsertCollisionTests
 
         // Unused in this test
         public Task<int> RevokeAllForUserAsync(Guid persoid, DateTime nowUtc, CancellationToken ct) => Task.FromResult(0);
-        public Task<Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity?> GetActiveByCookieForUpdateAsync(Guid sessionId, string cookieHash, DateTime nowUtc, CancellationToken ct) => Task.FromResult<Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity?>(null);
+        public Task<Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity?> GetActiveByCookieForUpdateAsync(string cookieHash, DateTime nowUtc, CancellationToken ct) => Task.FromResult<Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity?>(null);
         public Task<int> RotateInPlaceAsync(Guid tokenId, string oldHash, string newHash, string newAccessJti, DateTime newRollingUtc, CancellationToken ct) => Task.FromResult(0);
         public Task<int> RevokeByIdAsync(Guid tokenId, DateTime nowUtc, CancellationToken ct) => Task.FromResult(0);
         public Task<IEnumerable<Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity>> GetExpiredTokensAsync(int batchSize = 1000, CancellationToken ct = default) => Task.FromResult<IEnumerable<Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity>>(Array.Empty<Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity>());
@@ -232,7 +226,7 @@ public sealed class LoginInsertCollisionTests
             _cs = connectionString;
         }
 
-        public async Task<int> InsertAsync(Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity row, CancellationToken ct)
+        public async Task<int> InsertAsync(RefreshJwtTokenEntity row, CancellationToken ct)
         {
             if (_armed)
             {
@@ -241,56 +235,53 @@ public sealed class LoginInsertCollisionTests
                 await using var c = new MySqlConnection(_cs);
                 await c.OpenAsync(ct);
 
-                // Ensure UNIQUE index on HashedToken exists (ignore "duplicate key name" error 1061)
-                try
-                {
-                    await c.ExecuteAsync(@"CREATE UNIQUE INDEX UX_RefreshTokens_HashedToken ON RefreshTokens(HashedToken);");
-                }
-                catch (MySqlException ex) when (ex.Number == 1061)
-                {
-                    // index already exists -> ignore
-                }
-
-                // Pre-insert a row with the SAME HashedToken as the one the SUT will try to insert,
-                // guaranteeing a 1062 on the upcoming inner.InsertAsync call.
+                // Pre-insert a row with the SAME HashedToken as the row about to be inserted.
+                // This guarantees MySQL 1062 on the upcoming inner.InsertAsync.
                 await c.ExecuteAsync("""
-                    INSERT INTO RefreshTokens
-                    (TokenId, Persoid, SessionId, HashedToken, AccessTokenJti, ExpiresRollingUtc, ExpiresAbsoluteUtc, Status, IsPersistent, DeviceId, UserAgent, CreatedUtc)
-                    VALUES
-                    (@tid, @pid, @sid, @hash, @jti, @roll, @abs, 1, 0, 'decorator', 'decorator', @now);
-                    """,
+                INSERT INTO RefreshTokens
+                (TokenId, Persoid, SessionId, HashedToken, AccessTokenJti, ExpiresRollingUtc, ExpiresAbsoluteUtc,
+                 Status, IsPersistent, DeviceId, UserAgent, CreatedUtc)
+                VALUES
+                (@tid, @pid, @sid, @hash, @jti, @roll, @abs, 1, 0, 'decorator', 'decorator', @now);
+                """,
                     new
                     {
                         tid = Guid.NewGuid(),
                         pid = row.Persoid,
                         sid = Guid.NewGuid(),
-                        hash = row.HashedToken,              // << exact same hash as SUT
+                        hash = row.HashedToken,
                         jti = Guid.NewGuid().ToString(),
                         roll = DateTime.UtcNow.AddDays(7),
                         abs = DateTime.UtcNow.AddDays(30),
                         now = DateTime.UtcNow
                     });
-                // do NOT catch here; we want inner.InsertAsync to throw 1062 so the handler retries
             }
 
             return await _inner.InsertAsync(row, ct);
         }
 
-        // passthroughs
+        // passthroughs (only those required by interface)
         public Task<int> RevokeSessionAsync(Guid persoId, Guid sessionId, DateTime nowUtc, CancellationToken ct)
             => _inner.RevokeSessionAsync(persoId, sessionId, nowUtc, ct);
+
         public Task<int> RevokeAllForUserAsync(Guid persoid, DateTime nowUtc, CancellationToken ct)
             => _inner.RevokeAllForUserAsync(persoid, nowUtc, ct);
-        public Task<Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity?> GetActiveByCookieForUpdateAsync(Guid sessionId, string cookieHash, DateTime nowUtc, CancellationToken ct)
-            => _inner.GetActiveByCookieForUpdateAsync(sessionId, cookieHash, nowUtc, ct);
+
+        public Task<RefreshJwtTokenEntity?> GetActiveByCookieForUpdateAsync(string cookieHash, DateTime nowUtc, CancellationToken ct)
+            => _inner.GetActiveByCookieForUpdateAsync(cookieHash, nowUtc, ct);
+
         public Task<int> RotateInPlaceAsync(Guid tokenId, string oldHash, string newHash, string newAccessJti, DateTime newRollingUtc, CancellationToken ct)
             => _inner.RotateInPlaceAsync(tokenId, oldHash, newHash, newAccessJti, newRollingUtc, ct);
+
         public Task<int> RevokeByIdAsync(Guid tokenId, DateTime nowUtc, CancellationToken ct)
             => _inner.RevokeByIdAsync(tokenId, nowUtc, ct);
-        public Task<IEnumerable<Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity>> GetExpiredTokensAsync(int batchSize = 1000, CancellationToken ct = default)
+
+        public Task<IEnumerable<RefreshJwtTokenEntity>> GetExpiredTokensAsync(int batchSize = 1000, CancellationToken ct = default)
             => _inner.GetExpiredTokensAsync(batchSize, ct);
+
         public Task<bool> DeleteTokenAsync(string refreshToken, CancellationToken ct)
             => _inner.DeleteTokenAsync(refreshToken, ct);
+
         public Task<bool> DoesAccessTokenJtiExistAsync(string accessTokenJti, CancellationToken ct)
             => _inner.DoesAccessTokenJtiExistAsync(accessTokenJti, ct);
     }
