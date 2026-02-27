@@ -12,12 +12,13 @@ using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Application.Abstractions.Infrastructure.Security;
 using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Application.Common.Security;
-using Backend.Application.Features.Commands.Auth.RefreshToken;
+using Backend.Application.Features.Authentication.RefreshToken;
 using Backend.Domain.Errors.User;
 using Backend.Domain.Shared;
 using Backend.IntegrationTests.Shared;
 using Backend.Infrastructure.Security;
 using Backend.Settings;
+
 
 namespace Backend.IntegrationTests.Auth.Refresh;
 
@@ -45,12 +46,12 @@ public sealed class Refresh_Negatives_Tests
         );
 
         // missing cookie
-        var r1 = await sut.Handle(new RefreshTokensCommand(null, "", Guid.NewGuid(), "UA", "dev"), CancellationToken.None);
+        var r1 = await sut.Handle(new RefreshTokensCommand(null, "", "UA", "dev"), CancellationToken.None);
         r1.IsSuccess.Should().BeFalse();
         r1.Error.Should().Be(UserErrors.InvalidRefreshToken);
 
         // no matching row (invalid cookie)
-        var r2 = await sut.Handle(new RefreshTokensCommand(null, "nope", Guid.NewGuid(), "UA", "dev"), CancellationToken.None);
+        var r2 = await sut.Handle(new RefreshTokensCommand(null, "nope", "UA", "dev"), CancellationToken.None);
         r2.IsSuccess.Should().BeFalse();
         r2.Error.Should().Be(UserErrors.InvalidRefreshToken);
     }
@@ -91,7 +92,7 @@ public sealed class Refresh_Negatives_Tests
             Mock.Of<Microsoft.Extensions.Logging.ILogger<RefreshTokensCommandHandler>>()
         );
 
-        var res = await sut.Handle(new RefreshTokensCommand(null, cookie, sid, "UA", "dev"), CancellationToken.None);
+        var res = await sut.Handle(new RefreshTokensCommand(null, cookie, "UA", "dev"), CancellationToken.None);
         res.IsSuccess.Should().BeFalse();
         res.Error.Should().Be(UserErrors.InvalidRefreshToken);
     }
@@ -130,7 +131,7 @@ public sealed class Refresh_Negatives_Tests
         """, new { tid = Guid.NewGuid(), pid = userId, sid = Guid.NewGuid(), hash = newRt1Hash, roll = now.AddDays(3), abs = now.AddDays(10), now });
 
         var jwt = new Mock<IJwtService>();
-        jwt.Setup(j => j.CreateAccessToken(userId, "user@example.com", It.IsAny<IReadOnlyList<string>>(), "dev", "UA", sid))
+        jwt.Setup(j => j.CreateAccessToken(userId, "user@example.com", It.IsAny<IReadOnlyList<string>>(), "dev", "UA", true, sid))
            .Returns(new AccessTokenResult("new.at", Guid.NewGuid().ToString(), sid, userId, now.AddMinutes(15)));
         jwt.SetupSequence(j => j.CreateRefreshToken()).Returns(newRt1).Returns("ok-after-retry");
 
@@ -145,7 +146,9 @@ public sealed class Refresh_Negatives_Tests
             Mock.Of<Microsoft.Extensions.Logging.ILogger<RefreshTokensCommandHandler>>()
         );
 
-        var res = await sut.Handle(new RefreshTokensCommand(null, cookie, sid, "UA", "dev"), CancellationToken.None);
+        var res = await sut.Handle(
+            new RefreshTokensCommand(null, cookie, "UA", "dev"),
+            CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
         res.Value.RefreshToken.Should().Be("ok-after-retry");
@@ -156,7 +159,7 @@ public sealed class Refresh_Negatives_Tests
     {
         private readonly string _cs; public SqlRefreshRepo(string cs) => _cs = cs;
 
-        public async Task<Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity?> GetActiveByCookieForUpdateAsync(Guid sessionId, string cookieHash, DateTime nowUtc, CancellationToken ct)
+        public async Task<Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity?> GetActiveByCookieForUpdateAsync(string cookieHash, DateTime nowUtc, CancellationToken ct)
         {
             await using var c = new MySqlConnection(_cs);
             return await c.QuerySingleOrDefaultAsync<Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity>(
@@ -165,15 +168,14 @@ public sealed class Refresh_Negatives_Tests
                        DeviceId, UserAgent, ExpiresRollingUtc, ExpiresAbsoluteUtc,
                        Status, IsPersistent, CreatedUtc, RevokedUtc
                   FROM RefreshTokens
-                 WHERE SessionId = @sid
-                   AND HashedToken = @hash
+                   WHERE HashedToken = @hash
                    AND Status = 1
                    AND RevokedUtc IS NULL
                    AND ExpiresAbsoluteUtc >= @now
                    AND ExpiresRollingUtc  >= @now
                  LIMIT 1
                  FOR UPDATE;
-                """, new { sid = sessionId, hash = cookieHash, now = nowUtc });
+                """, new { hash = cookieHash, now = nowUtc });
         }
 
         public async Task<int> RotateInPlaceAsync(Guid tokenId, string oldHash, string newHash, string newAccessJti, DateTime newRollingUtc, CancellationToken ct)

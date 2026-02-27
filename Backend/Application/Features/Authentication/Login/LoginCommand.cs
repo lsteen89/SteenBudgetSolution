@@ -1,6 +1,6 @@
 using Backend.Application.Abstractions.Messaging;
 using Backend.Domain.Shared;
-using Backend.Application.DTO.Auth;
+using Backend.Application.Features.Authentication.Shared.Models;
 using Backend.Application.Common.Behaviors;
 
 namespace Backend.Application.Features.Authentication.Login;
@@ -10,9 +10,9 @@ namespace Backend.Application.Features.Authentication.Login;
 public sealed record LoginCommand(
     string Email,
     string Password,
-    string CaptchaToken,
+    string? HumanToken,
     bool RememberMe,
-    string Ip,
+    string? RemoteIp,
     string DeviceId,
     string UserAgent
-) : ICommand<Result<AuthResult>>, ITransactionalCommand;
+) : ICommand<Result<IssuedAuthSession>>, ITransactionalCommand;

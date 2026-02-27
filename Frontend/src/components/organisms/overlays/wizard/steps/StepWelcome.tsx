@@ -7,7 +7,7 @@ import GlassPane from "@components/layout/GlassPane";
 import OptionContainer from "@components/molecules/containers/OptionContainer";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { BudgetGuideSkeleton } from "@/components/atoms/loading/BudgetGuideSkeleton";
-import { cn } from "@/utils/twMerge";
+import { cn } from "@/lib/utils";
 import logo from "@/assets/Images/eBudgetLogo.png";
 import { WizardMascot } from "@/components/atoms/animation/WizardMascot";
 

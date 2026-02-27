@@ -9,7 +9,7 @@ using Backend.Settings;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Text;
+using Backend.Application.Constants;
 using Backend.Application.Abstractions.Infrastructure.Auth;
 
 namespace Backend.Infrastructure.Implementations
@@ -21,7 +21,6 @@ namespace Backend.Infrastructure.Implementations
         private readonly ITokenBlacklistService _tokenBlacklistService;
         private readonly IRefreshTokenRepository _repo;
         private readonly ILogger<JwtService> _logger;
-        private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly ITimeProvider _timeProvider;
         private readonly IJwtKeyRing _ring;
 
@@ -30,7 +29,6 @@ namespace Backend.Infrastructure.Implementations
             ITokenBlacklistService tokenBlackListSerivce,
             IRefreshTokenRepository repo,
             ILogger<JwtService> logger,
-            IHttpContextAccessor httpContextAccessor,
             ITimeProvider timeProvider,
             IJwtKeyRing ring
             )
@@ -39,7 +37,6 @@ namespace Backend.Infrastructure.Implementations
             _tokenBlacklistService = tokenBlackListSerivce;
             _repo = repo;
             _logger = logger;
-            _httpContextAccessor = httpContextAccessor;
             _timeProvider = timeProvider;
             _ring = ring;
         }
@@ -51,7 +48,9 @@ namespace Backend.Infrastructure.Implementations
             IReadOnlyList<string> roles,
             string deviceId,
             string userAgent,
-            Guid? sessionId = null)
+            bool emailConfirmed = false,
+            Guid? sessionId = null
+            )
         {
             // ... logic for effectiveSessionId and now ...
             var effectiveSessionId = sessionId ?? Guid.NewGuid();
@@ -65,8 +64,14 @@ namespace Backend.Infrastructure.Implementations
             var jwtModel = TokenHelper.CreateTokenModel(
                 persoid, effectiveSessionId, email, roles, deviceId, userAgent, now, expUtc);
 
+            var extra = new Dictionary<string, string>
+            {
+                [EbClaims.EmailConfirmed] = emailConfirmed ? "true" : "false"
+            };
+
+            string token = GenerateJwtAccessToken(jwtModel, expUtc, extra);
+
             // 3: generate the JWT token
-            string token = GenerateJwtAccessToken(jwtModel, expUtc);
             string tokenJti = TokenHelper.ExtractJtiAndExpiration(token).Jti;
 
             return new AccessTokenResult(token, tokenJti, effectiveSessionId, persoid, expUtc);

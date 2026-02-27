@@ -64,41 +64,54 @@ public sealed class EmailRateLimiterTests
     public async Task Given_WithinCooldown_When_Check_Then_DeniedWithCooldownReason()
     {
         var userId = Guid.NewGuid();
-        var keyHash = Hash($"user:{userId:N}");
         var dayUtc = _now.Date;
 
-        var last = _now.AddMinutes(-3); // 7 minutes left in cooldown
-        _repo.Setup(r => r.GetTodayAsync(It.Is<byte[]>(b => b.SequenceEqual(keyHash)),
-                                         (byte)EmailKind.Verification, dayUtc, It.IsAny<CancellationToken>()))
-             .ReturnsAsync(new EmailRateLimitRow
-             {
-                 KeyHash = keyHash,
-                 Kind = (byte)EmailKind.Verification,
-                 DateUtc = dayUtc,
-                 SentCount = 1,
-                 LastSentAtUtc = DateTime.SpecifyKind(last, DateTimeKind.Unspecified) // exercise SpecifyKind(path)
-             });
+        var last = _now.AddMinutes(-3); // 7 minutes left if cooldown=10
+        _repo.Setup(r => r.GetTodayAsync(
+                It.IsAny<byte[]>(),
+                (byte)EmailKind.Verification,
+                dayUtc,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new EmailRateLimitRow
+            {
+                Kind = (byte)EmailKind.Verification,
+                DateUtc = dayUtc,
+                SentCount = 1,
+                LastSentAtUtc = DateTime.SpecifyKind(last, DateTimeKind.Unspecified) // keep this
+            });
 
         var limiter = SUT();
         var decision = await limiter.CheckAsync(userId, EmailKind.Verification, CancellationToken.None);
 
         decision.Allowed.Should().BeFalse();
-        var expectedSeconds = (int)TimeSpan.FromMinutes(7).TotalSeconds;
+
+        var cooldown = TimeSpan.FromMinutes(_opt.Value.CooldownPeriodMinutes);
+        var remaining = cooldown - (_now - DateTime.SpecifyKind(last, DateTimeKind.Utc));
+        var expectedSeconds = (int)remaining.TotalSeconds;
+
         decision.Reason.Should().Be($"cooldown:{expectedSeconds}s");
+
+        _repo.Verify(r => r.GetTodayAsync(
+            It.IsAny<byte[]>(),
+            (byte)EmailKind.Verification,
+            dayUtc,
+            It.IsAny<CancellationToken>()), Times.Once);
     }
+
 
     [Fact]
     public async Task Given_AtDailyCap_When_Check_Then_DeniedWithDailyLimitReason()
     {
         var userId = Guid.NewGuid();
-        var keyHash = Hash($"user:{userId:N}");
         var dayUtc = _now.Date;
 
-        _repo.Setup(r => r.GetTodayAsync(It.Is<byte[]>(b => b.SequenceEqual(keyHash)),
-                                        (byte)EmailKind.Verification, dayUtc, It.IsAny<CancellationToken>()))
+        _repo.Setup(r => r.GetTodayAsync(
+                It.IsAny<byte[]>(),
+                (byte)EmailKind.Verification,
+                dayUtc,
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync(new EmailRateLimitRow
             {
-                KeyHash = keyHash,
                 Kind = (byte)EmailKind.Verification,
                 DateUtc = dayUtc,
                 SentCount = _opt.Value.DailyLimit,
@@ -110,7 +123,14 @@ public sealed class EmailRateLimiterTests
 
         decision.Allowed.Should().BeFalse();
         decision.Reason.Should().Be($"daily_limit:{_opt.Value.DailyLimit}");
+
+        _repo.Verify(r => r.GetTodayAsync(
+            It.IsAny<byte[]>(),
+            (byte)EmailKind.Verification,
+            dayUtc,
+            It.IsAny<CancellationToken>()), Times.Once);
     }
+
 
 
     [Fact]

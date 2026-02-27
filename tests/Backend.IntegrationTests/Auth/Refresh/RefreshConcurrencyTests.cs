@@ -26,6 +26,7 @@ using Backend.Settings;
 using Backend.Domain.Errors.User;
 using Backend.Infrastructure.Security;
 using Backend.Infrastructure.Data.Sql.Helpers.UnitOfWork;
+using Backend.Application.Features.Authentication.RefreshToken;
 
 
 namespace Backend.IntegrationTests.Auth.Refresh;
@@ -92,7 +93,7 @@ public sealed class RefreshConcurrencyTests
 
         // Mocks & settings
         var jwt = new Mock<IJwtService>();
-        jwt.Setup(j => j.CreateAccessToken(persoid, email, It.IsAny<IReadOnlyList<string>>(), dev, ua, sessionId))
+        jwt.Setup(j => j.CreateAccessToken(persoid, email, It.IsAny<IReadOnlyList<string>>(), dev, ua, true, sessionId))
         .Returns(new AccessTokenResult("new.at", Guid.NewGuid().ToString(), sessionId, persoid, now.AddMinutes(15)));
         jwt.SetupSequence(j => j.CreateRefreshToken()).Returns("rt1").Returns("rt2");
 
@@ -135,7 +136,7 @@ public sealed class RefreshConcurrencyTests
         var mediator1 = scope1.ServiceProvider.GetRequiredService<IMediator>();
         var mediator2 = scope2.ServiceProvider.GetRequiredService<IMediator>();
 
-        var cmd = new RefreshTokensCommand(null, cookie, sessionId, "UA", "dev");
+        var cmd = new RefreshTokensCommand(null, cookie, "UA", "dev");
 
         var t1 = mediator1.Send(cmd, CancellationToken.None);
         var t2 = mediator2.Send(cmd, CancellationToken.None);
@@ -154,7 +155,7 @@ public sealed class RefreshConcurrencyTests
         private readonly string _cs; public SqlRefreshRepo(string cs) => _cs = cs;
 
         public async Task<Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity?> GetActiveByCookieForUpdateAsync(
-            Guid sessionId, string cookieHash, DateTime nowUtc, CancellationToken ct)
+            string cookieHash, DateTime nowUtc, CancellationToken ct)
         {
             await using var c = new MySqlConnection(_cs);
             return await c.QuerySingleOrDefaultAsync<Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity>(
@@ -166,8 +167,7 @@ public sealed class RefreshConcurrencyTests
                     ExpiresRollingUtc, ExpiresAbsoluteUtc,
                     Status, IsPersistent, CreatedUtc, RevokedUtc
                 FROM RefreshTokens
-                WHERE SessionId = UUID_TO_BIN(@sid)
-                AND HashedToken = @hash
+                WHERE  HashedToken = @hash
                 AND Status = @Active
                 AND RevokedUtc IS NULL
                 AND ExpiresAbsoluteUtc >= @now
@@ -175,7 +175,7 @@ public sealed class RefreshConcurrencyTests
                 LIMIT 1
                 FOR UPDATE;
                 """,
-                new { sid = sessionId, hash = cookieHash, now = nowUtc, Active = 1 });
+                new { hash = cookieHash, now = nowUtc, Active = 1 });
         }
 
         public async Task<int> RotateInPlaceAsync(Guid tokenId, string oldHash, string newHash, string newAccessJti, DateTime newRollingUtc, CancellationToken ct)
@@ -198,7 +198,7 @@ public sealed class RefreshConcurrencyTests
         public Task<int> InsertAsync(Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity row, CancellationToken ct) => Task.FromResult(1);
         public Task<int> RevokeSessionAsync(Guid persoId, Guid sessionId, DateTime nowUtc, CancellationToken ct) => Task.FromResult(1);
         public Task<int> RevokeAllForUserAsync(Guid persoId, DateTime nowUtc, CancellationToken ct) => Task.FromResult(1);
-        public Task<Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity?> GetActiveByCookieForUpdateAsync(Guid sessionId, string cookieHash, DateTime nowUtc, CancellationToken ct, object? _ = null) => GetActiveByCookieForUpdateAsync(sessionId, cookieHash, nowUtc, ct);
+        public Task<Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity?> GetActiveByCookieForUpdateAsync(string cookieHash, DateTime nowUtc, CancellationToken ct, object? _ = null) => GetActiveByCookieForUpdateAsync(cookieHash, nowUtc, ct);
         public Task<int> RevokeByIdAsync(Guid tokenId, DateTime nowUtc, CancellationToken ct) => Task.FromResult(1);
         public Task<IEnumerable<Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity>> GetExpiredTokensAsync(int batchSize = 1000, CancellationToken ct = default) => Task.FromResult(Enumerable.Empty<Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity>());
         public Task<bool> DeleteTokenAsync(string refreshToken, CancellationToken ct) => Task.FromResult(true);

@@ -5,7 +5,9 @@ using Backend.Presentation.Shared;
 using Microsoft.AspNetCore.RateLimiting;
 using Backend.Application.DTO.Email;
 using Backend.Domain.Errors.User;
+using Microsoft.AspNetCore.Authorization;
 
+[Authorize(Policy = "EmailConfirmed")]
 [ApiController]
 [Route("api/email")]
 public sealed class EmailController : ControllerBase
@@ -54,7 +56,7 @@ public sealed class EmailController : ControllerBase
                 return StatusCode(StatusCodes.Status429TooManyRequests, env);
             }
 
-            if (result.Error == UserErrors.InvalidCaptcha)
+            if (result.Error == UserErrors.InvalidChallengeToken)
             {
                 var env = ApiEnvelope<string>.Failure(result.Error.Code, result.Error.Description);
                 return BadRequest(env);

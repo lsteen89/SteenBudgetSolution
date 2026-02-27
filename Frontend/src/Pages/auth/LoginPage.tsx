@@ -1,152 +1,459 @@
-import React, { useRef, useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
-import ReCAPTCHA from 'react-google-recaptcha';
-import { object, string } from 'yup';
+import { yupResolver } from "@hookform/resolvers/yup";
+import * as React from "react";
+import { useForm, type SubmitHandler } from "react-hook-form";
+import { Navigate, useNavigate } from "react-router-dom";
 
-import { useAuth } from '@/hooks/auth/useAuth';
-import type { UserLoginDto } from '@myTypes/User/Auth/userLoginForm';
+import { toApiProblem } from "@/api/toApiProblem";
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
+import { useToast } from "@/ui/toast/toast";
+import { toUserMessage } from "@/utils/i18n/apiErrors/toUserMessage";
 
-import PageContainer from '@components/layout/PageContainer';
-import ContentWrapper from '@components/layout/ContentWrapper';
-import CenteredContainer from '@components/atoms/container/CenteredContainer';
-import LoadingScreen from '@components/molecules/feedback/LoadingScreen';
-import FormContainer from '@components/molecules/containers/FormContainer';
-import InputField from '@components/atoms/InputField/ContactFormInputField';
-import SubmitButton from '@components/atoms/buttons/SubmitButton';
-import Checkbox from '@components/atoms/boxes/Checkbox';
-import LoginBird from '@assets/Images/LoginBird.png';
-import { translateBackendError } from '@/translations/errorMessages';
+import { useCooldown } from "@/hooks/ui/useCooldown";
 
-/* —— yup schema —— */
-const schema = object({
-  email: string().email('Ogiltig e-post').required('E-post krävs'),
-  password: string().min(6, 'Minst 6 tecken').required('Lösenord krävs'),
-  captchaToken: string().required('Captcha krävs'),
-});
+import { useAuth } from "@/hooks/auth/useAuth";
 
-type ReCAPTCHAWithReset = ReCAPTCHA & { reset: () => void };
+import Mascot from "@/components/atoms/animation/Mascot";
+import { SurfaceCard } from "@/components/atoms/cards/SurfaceCard";
+import ContentWrapperV2 from "@/components/layout/ContentWrapperV2";
+import PageContainer from "@components/layout/PageContainer";
+
+import { CtaButton } from "@/components/atoms/buttons/CtaButton";
+import { SecondaryLink } from "@/components/atoms/buttons/SecondaryLink";
+import { FormField } from "@/components/atoms/forms/FormField";
+import { TextInput } from "@/components/atoms/InputField/TextInputv2";
+import {
+  TurnstileWidget,
+  type TurnstileWidgetHandle,
+} from "@/components/atoms/security/TurnstileWidget";
+
+import LoginBird from "@assets/Images/LoginBird.png";
+
+import type { ApiProblem } from "@/api/api.types";
+import type { LoginRes } from "@/api/Auth/auth"; // adjust import path to where LoginRes lives
+import { loginSchema } from "@/schemas/auth/login/login.schema";
+import type { LoginFormValues } from "@myTypes/User/Auth/loginForm.types";
+import type { UserLoginDto } from "@myTypes/User/Auth/userLoginForm";
+
+function shouldRequireChallenge(res: any): boolean {
+  const code = String(res?.errorCode ?? "");
+  return (
+    res?.requiresHumanVerification === true ||
+    code === "Auth.HumanVerificationRequired" ||
+    code === "HumanVerification.Required"
+  );
+}
+
+function resToProblem(res: Extract<LoginRes, { success: false }>): ApiProblem {
+  return {
+    message: res.message,
+    code: res.errorCode,
+    status: res.status,
+    retryAfter: res.retryAfter,
+    isNetworkError: false,
+    raw: res,
+  };
+}
+
+function parseRetryAfterSeconds(s?: string): number | null {
+  if (!s) return null;
+  const n = Number(String(s).trim());
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : null;
+}
 
 export default function LoginPage() {
-  const [form, setForm] = useState<UserLoginDto>({ email: '', password: '', captchaToken: null });
-  const [err, setErr] = useState<Record<string, string>>({});
-  const [sub, setSub] = useState(false);
-  // State to track whether the user wants to be remembered on this device.
-  // Default value is `false` to ensure users explicitly opt in.
-  const [rememberMe, setRememberMe] = useState(false);
-  const capRef = useRef<ReCAPTCHAWithReset>(null);
-
   const nav = useNavigate();
   const { login, isLoading, accessToken } = useAuth();
 
-  if (isLoading) return <CenteredContainer><LoadingScreen /></CenteredContainer>;
+  const toast = useToast();
+  const locale = useAppLocale();
+
+  const [lastProblem, setLastProblem] = React.useState<ApiProblem | null>(null);
+  const { remaining, isActive, start } = useCooldown(60);
+
+  const [rateLimitUntil, setRateLimitUntil] = React.useState<number | null>(
+    null,
+  );
+  const [tick, setTick] = React.useState(0); // forces re-render for countdown
+
+  const blocked = rateLimitUntil !== null && Date.now() < rateLimitUntil;
+  const secondsLeft = blocked
+    ? Math.max(1, Math.ceil((rateLimitUntil! - Date.now()) / 1000))
+    : 0;
+
+  React.useEffect(() => {
+    if (!blocked) return;
+    const id = window.setInterval(() => setTick((x) => x + 1), 1000);
+    return () => window.clearInterval(id);
+  }, [blocked]);
+
+  const [challengeRequired, setChallengeRequired] = React.useState(false);
+  const [failCount, setFailCount] = React.useState(0);
+  const turnstileRef = React.useRef<TurnstileWidgetHandle>(null);
+
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    setError,
+    clearErrors,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginFormValues>({
+    resolver: yupResolver(loginSchema),
+    mode: "onBlur",
+    reValidateMode: "onChange",
+    defaultValues: {
+      email: "",
+      password: "",
+      HumanToken: null,
+      rememberMe: false,
+      honeypot: "",
+    },
+  });
+
+  const shouldShowChallenge = challengeRequired || failCount >= 2;
+  const humanToken = watch("HumanToken");
+  const emailValue = watch("email").trim();
+  const [rootMessage, setRootMessage] = React.useState<string | null>(null);
+
+  if (isLoading) return null;
   if (accessToken) return <Navigate to="/dashboard" replace />;
 
-  const setField = (k: keyof UserLoginDto, v: string | null) =>
-    setForm(f => ({ ...f, [k]: v }));
+  const handleProblem = React.useCallback(
+    (p: ApiProblem) => {
+      if (p.status === 429) {
+        const secs = parseRetryAfterSeconds(p.retryAfter);
+        if (secs) setRateLimitUntil(Date.now() + secs * 1000);
+        toast.error(toUserMessage(p, locale), { id: "login:429" });
 
-  const validate = async () => {
-    try { await schema.validate(form, { abortEarly: false }); setErr({}); return true; }
-    catch (e: any) {
-      const map: Record<string, string> = {};
-      e.inner?.forEach((m: any) => { map[m.path] = m.message; });
-      setErr(map); return false;
-    }
-  };
-
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!(await validate())) return;
-
-    setSub(true);
-    try {
-
-      const res = await login(form, rememberMe); // Pass rememberMe here
-
-      if (res.success) {
-        nav('/dashboard', { replace: true });
-      } else {
-        const key = res.errorCode ?? res.message; // prefer stable errorCode
-        const swedishErrorMessage = translateBackendError(key);
-        setErr({ form: swedishErrorMessage });
-        capRef.current?.reset();
+        setLastProblem(null);
+        setRootMessage(null);
+        return;
       }
 
-    } catch (error: any) {
-      console.error("Login API call failed:", error);
+      if (p.isNetworkError || (p.status ?? 0) >= 500) {
+        toast.error(toUserMessage(p, locale), { id: "login:net" });
+        setLastProblem(null);
+        setRootMessage(null);
+        return;
+      }
 
-      const swedishErrorMessage = translateBackendError("Server.Error");
-      setErr({ form: swedishErrorMessage });
-      capRef.current?.reset();
+      setLastProblem(p);
+      setRootMessage(toUserMessage(p, locale));
+    },
+    [locale, toast],
+  );
 
-    } finally {
-      setSub(false);
+  const onSubmit: SubmitHandler<LoginFormValues> = async (v) => {
+    // Clear stale UI FIRST (not after request)
+    clearErrors();
+    setRootMessage(null);
+    // Then clear token explicitly if you want
+    setValue("HumanToken", null, { shouldValidate: false });
+    setLastProblem(null);
+
+    if (blocked) {
+      toast.info(
+        locale === "sv-SE"
+          ? `För många försök. Försök igen om ${secondsLeft} sekunder.`
+          : `Too many attempts. Try again in ${secondsLeft} seconds.`,
+        { id: "login:blocked" },
+      );
+      return;
+    }
+
+    // Honeypot => pretend invalid creds
+    if (v.honeypot?.trim()) {
+      setLastProblem({
+        message: "Invalid",
+        code: "Auth.InvalidCredentials",
+        status: 401,
+        isNetworkError: false,
+        raw: null,
+      });
+      setRootMessage(
+        toUserMessage(
+          {
+            message: "Invalid",
+            code: "Auth.InvalidCredentials",
+            status: 401,
+            isNetworkError: false,
+            raw: null,
+          },
+          locale,
+        ),
+      );
+      return; // ✅ missing
+    }
+
+    // Turnstile required but missing
+    if (shouldShowChallenge && !v.HumanToken) {
+      setError("HumanToken", {
+        type: "turnstile",
+        message:
+          locale === "sv-SE"
+            ? "Verifiera att du är människa."
+            : "Please verify you are human.",
+      });
+      return;
+    }
+
+    try {
+      const dto: UserLoginDto = {
+        email: v.email.trim(),
+        password: v.password,
+        HumanToken: shouldShowChallenge ? v.HumanToken : null,
+      };
+
+      const res = await login(dto, v.rememberMe);
+
+      if (res?.success) {
+        nav("/dashboard", { replace: true });
+        return;
+      }
+
+      // Normalize + show message consistently
+      const p = resToProblem(res);
+      handleProblem(p);
+
+      // STOP: do not escalate challenge on these (keeps UX calm)
+      if (
+        p.status === 429 ||
+        p.isNetworkError ||
+        (p.status ?? 0) >= 500 ||
+        p.code === "Verification.EmailNotConfirmed"
+      ) {
+        return;
+      }
+
+      // Escalate challenge only for "auth-ish" failures (invalid creds etc)
+      const nextFailCount = failCount + 1;
+      setFailCount(nextFailCount);
+
+      const serverWantsChallenge = shouldRequireChallenge(res);
+      if (serverWantsChallenge) setChallengeRequired(true);
+
+      const nextShowChallenge =
+        challengeRequired || serverWantsChallenge || nextFailCount >= 2;
+
+      if (nextShowChallenge) {
+        setValue("HumanToken", null, { shouldValidate: true });
+        turnstileRef.current?.reset();
+      }
+    } catch (e) {
+      const p = toApiProblem(e);
+      handleProblem(p);
+
+      // Don't escalate for rate limit / network / 5xx
+      if (p.status === 429 || p.isNetworkError || (p.status ?? 0) >= 500)
+        return;
+
+      const nextFailCount = failCount + 1;
+      setFailCount(nextFailCount);
+
+      const nextShowChallenge = challengeRequired || nextFailCount >= 2;
+      if (nextShowChallenge) {
+        setValue("HumanToken", null, { shouldValidate: true });
+        turnstileRef.current?.reset();
+      }
     }
   };
-  console.log('SITE KEY LOADED BY VITE:', import.meta.env.VITE_RECAPTCHA_SITE_KEY);
   return (
-    <PageContainer centerChildren>
-      <ContentWrapper className='2xl:pt-[5%]' centerContent>
-        <FormContainer tag="form" onSubmit={onSubmit} bgColor='gradient'
-          className='z-10 w-full max-h-screen overflow-y-auto'>
+    <PageContainer noPadding className="relative">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-56 overflow-hidden">
+        <div className="absolute -top-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-[rgb(var(--eb-shell)/0.45)] blur-2xl" />
+        <div className="absolute -top-24 left-[10%] h-56 w-56 rounded-full bg-[rgb(var(--eb-shell)/0.30)] blur-2xl" />
+        <div className="absolute -top-24 right-[10%] h-64 w-64 rounded-full bg-[rgb(var(--eb-shell)/0.30)] blur-2xl" />
+      </div>
 
-          <p className='text-lg font-bold text-gray-800 mb-6 text-center'>
-            Välkommen tillbaka! Logga in för att fortsätta
-          </p>
+      <ContentWrapperV2
+        size="lg"
+        className="relative pt-10 sm:pt-14 pb-12 sm:pb-16"
+      >
+        <div className="relative">
+          <div className="relative mx-auto w-full max-w-xl">
+            <SurfaceCard className="p-6 sm:p-8">
+              <p className="text-xs font-semibold tracking-[0.22em] uppercase text-eb-text/50">
+                Logga in
+              </p>
 
-          <label className='block mb-2 text-sm'>E-postadress</label>
-          <InputField value={form.email} placeholder='Ange e-post'
-            onChange={e => setField('email', e.target.value)} width='100%' />
-          {err.email && <p className='text-sm text-red-500'>{err.email}</p>}
+              <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-eb-text">
+                Välkommen tillbaka
+              </h1>
 
-          <label className='block mt-4 mb-2 text-sm'>Lösenord</label>
-          <InputField type='password' value={form.password} placeholder='Ange lösenord'
-            onChange={e => setField('password', e.target.value)} width='100%' />
-          {err.password && <p className='text-sm text-red-500'>{err.password}</p>}
+              <p className="mt-2 text-sm text-eb-text/65 max-w-prose">
+                Logga in för att fortsätta.
+              </p>
 
-          {/* ---- form-level/backend error ---- */}
-          {err.form && (
-            <p className='mt-4 text-sm text-red-500 text-center'>
-              {err.form}
-            </p>
-          )}
+              <form
+                onSubmit={handleSubmit(onSubmit)}
+                className="mt-6 space-y-5"
+              >
+                <div className="grid gap-4">
+                  <FormField
+                    label="E-post"
+                    htmlFor="email"
+                    error={errors.email?.message}
+                  >
+                    <TextInput
+                      id="email"
+                      type="email"
+                      autoComplete="email"
+                      {...register("email")}
+                    />
+                  </FormField>
 
-          {/* Remember Me Checkbox */}
-          <div className="mt-4 mb-4 flex items-center">
-            <Checkbox
-              id="remember-me"
-              label="Kom ihåg mig"
-              description="Håll mig inloggad på den här enheten i upp till 30 dagar."
-              checked={rememberMe}
-              onChange={e => setRememberMe(e.target.checked)}
-            />
+                  <FormField
+                    label="Lösenord"
+                    htmlFor="password"
+                    error={errors.password?.message}
+                  >
+                    <TextInput
+                      id="password"
+                      type="password"
+                      autoComplete="current-password"
+                      {...register("password")}
+                    />
+                  </FormField>
+                </div>
+
+                <div className="hidden" aria-hidden="true">
+                  <input
+                    tabIndex={-1}
+                    autoComplete="off"
+                    {...register("honeypot")}
+                  />
+                </div>
+
+                <div className="rounded-2xl border border-eb-stroke/25 bg-eb-surface/70 px-4 py-3">
+                  <div className="flex items-start gap-3">
+                    <input
+                      id="rememberMe"
+                      type="checkbox"
+                      className="mt-1 h-4 w-4 rounded border-eb-stroke/40 text-eb-accent
+                                 focus:outline-none focus:ring-2 focus:ring-eb-accent/35"
+                      {...register("rememberMe")}
+                    />
+                    <div>
+                      <label
+                        htmlFor="rememberMe"
+                        className="text-sm font-semibold text-eb-text/85"
+                      >
+                        Kom ihåg mig
+                      </label>
+                      <p className="text-sm text-eb-text/55">
+                        Håll mig inloggad på den här enheten i upp till 30
+                        dagar.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {shouldShowChallenge ? (
+                  <div className="space-y-2">
+                    <TurnstileWidget
+                      ref={turnstileRef}
+                      siteKey={import.meta.env.VITE_TURNSTILE_SITE_KEY}
+                      onToken={(t) =>
+                        setValue("HumanToken", t, { shouldValidate: true })
+                      }
+                      onExpire={() =>
+                        setValue("HumanToken", null, { shouldValidate: true })
+                      }
+                      onError={() =>
+                        setError("HumanToken", {
+                          type: "turnstile",
+                          message: "Turnstile kunde inte laddas.",
+                        })
+                      }
+                      className="rounded-2xl border border-eb-stroke/30 bg-eb-surface/70 px-3 py-3"
+                    />
+                    {errors.HumanToken?.message ? (
+                      <p className="text-sm text-eb-alert">
+                        {errors.HumanToken.message}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className="text-sm text-eb-text/50">
+                    Vi kan ibland be om en snabb verifiering för att skydda
+                    konton.
+                  </p>
+                )}
+
+                <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+                  <CtaButton
+                    type="submit"
+                    disabled={
+                      blocked ||
+                      isSubmitting ||
+                      (shouldShowChallenge && !humanToken)
+                    }
+                    aria-busy={isSubmitting}
+                    className="w-full sm:w-auto"
+                  >
+                    {blocked
+                      ? locale === "sv-SE"
+                        ? `Vänta ${secondsLeft}s`
+                        : `Wait ${secondsLeft}s`
+                      : isSubmitting
+                        ? "Loggar in..."
+                        : "Logga in"}
+                  </CtaButton>
+
+                  <SecondaryLink
+                    to="/register"
+                    className="w-full sm:w-auto justify-center"
+                  >
+                    Skapa konto
+                  </SecondaryLink>
+
+                  <SecondaryLink
+                    to="/forgot-password"
+                    className="w-full sm:w-auto justify-center"
+                  >
+                    Glömt lösenord?
+                  </SecondaryLink>
+                </div>
+              </form>
+            </SurfaceCard>
+
+            <div
+              aria-hidden="true"
+              className="pointer-events-none hidden lg:block absolute left-full top-10 ml-10"
+            >
+              <div className="relative">
+                <div className="absolute -inset-12 rounded-full bg-[radial-gradient(65%_65%_at_50%_40%,rgba(77,185,254,0.14)_0%,transparent_70%)]" />
+                <div className="absolute left-1/2 top-full mt-3 h-10 w-56 -translate-x-1/2 rounded-full bg-[rgb(var(--eb-text)/0.08)] blur-xl" />
+                <div className="opacity-95">
+                  <Mascot
+                    src={LoginBird}
+                    alt=""
+                    size={240}
+                    mdSize={320}
+                    float
+                    shadow
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* 1. Move ReCAPTCHA to its own line before the button */}
-          <div className="mt-6 flex justify-center">
-            <ReCAPTCHA
-              sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
-              onChange={tok => setField('captchaToken', tok)} // 'tok' can be null, your handler should allow it
-              onExpired={() => setField('captchaToken', null)}
-              ref={capRef}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none lg:hidden mt-8 flex justify-center"
+          >
+            <Mascot
+              src={LoginBird}
+              alt=""
+              size={200}
+              mdSize={220}
+              float
+              shadow
             />
           </div>
-
-          {/* 2. Disable the button until the form is valid and captcha is complete */}
-          <div className='mt-6'>
-            <SubmitButton
-              type='submit'
-              label='Logga in'
-              isSubmitting={sub}
-              disabled={!form.captchaToken || sub} // <-- LOGIC FIX
-              enhanceOnHover
-              style={{ width: '100%' }}
-            />
-          </div>
-        </FormContainer>
-
-        <img src={LoginBird} loading='lazy' alt=''
-          className='z-0 mt-10 mx-auto max-w-[180px] lg:absolute lg:right-10 lg:top-3/4 lg:-translate-y-1/2 xl:max-w-[350px]' />
-      </ContentWrapper>
+        </div>
+      </ContentWrapperV2>
     </PageContainer>
   );
 }

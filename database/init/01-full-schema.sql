@@ -29,16 +29,36 @@ CREATE TABLE IF NOT EXISTS ErrorLog (
     CreatedTime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS VerificationToken (
-    Id INT AUTO_INCREMENT PRIMARY KEY,
-    Persoid BINARY(16) NOT NULL UNIQUE,
-    Token BINARY(16) NOT NULL UNIQUE,
-    TokenExpiryDate DATETIME NOT NULL,
-    CreatedBy VARCHAR(50) NOT NULL DEFAULT 'System',
-    CreatedTime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT FK_VerificationToken_User FOREIGN KEY (Persoid)
-        REFERENCES Users(Persoid) ON DELETE CASCADE
-) ENGINE=InnoDB;
+CREATE TABLE EmailVerificationCodes (
+  Persoid       BINARY(16)     NOT NULL PRIMARY KEY,
+  CodeHash     BINARY(32)   NOT NULL,
+  ExpiresAtUtc DATETIME     NOT NULL,
+  AttemptCount INT          NOT NULL DEFAULT 0,
+  LockedUntilUtc DATETIME   NULL,
+  SentCount    INT          NOT NULL DEFAULT 0,
+  LastSentAtUtc DATETIME    NULL,
+  CreatedAtUtc DATETIME     NOT NULL
+);
+
+CREATE TABLE EmailOutbox (
+  Id              BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  Kind            VARCHAR(50)  NOT NULL,
+  ToEmail         VARCHAR(254) NOT NULL,
+  Subject         VARCHAR(200) NOT NULL,
+  BodyHtml        MEDIUMTEXT   NOT NULL,
+  Attempts        INT          NOT NULL DEFAULT 0,
+  NextAttemptAtUtc DATETIME    NOT NULL,
+  SentAtUtc       DATETIME     NULL,
+  ProviderId      VARCHAR(128) NULL,
+  LastError       TEXT         NULL,
+  LockedBy        BINARY(16)   NULL,
+  LockedUntilUtc  DATETIME     NULL,
+  CreatedAtUtc    DATETIME     NOT NULL
+);
+
+CREATE INDEX IX_EmailOutbox_Claim
+  ON EmailOutbox (SentAtUtc, NextAttemptAtUtc, LockedUntilUtc, Id);
+
 
 CREATE TABLE IF NOT EXISTS FailedLoginAttempts (
     Id INT AUTO_INCREMENT PRIMARY KEY,
@@ -48,6 +68,11 @@ CREATE TABLE IF NOT EXISTS FailedLoginAttempts (
     UserAgent VARCHAR(255) NULL,
     CONSTRAINT FK_FailedLoginAttempts_User FOREIGN KEY (Persoid) REFERENCES Users(Persoid)
 ) ENGINE=InnoDB;
+CREATE INDEX IX_FailedLoginAttempts_Perso_AttemptTime
+ON FailedLoginAttempts (Persoid, AttemptTime);
+
+CREATE INDEX IX_FailedLoginAttempts_Ip_AttemptTime
+ON FailedLoginAttempts (IpAddress, AttemptTime);
 
 CREATE TABLE IF NOT EXISTS RefreshTokens (
     TokenId              BINARY(16)   NOT NULL PRIMARY KEY,
@@ -87,12 +112,12 @@ CREATE TABLE IF NOT EXISTS UserVerificationTracking (
 -- ####################################################################
 
 CREATE TABLE IF NOT EXISTS Email_send_limits (
-    User_id BINARY(16) NOT NULL,
+    Persoid BINARY(16) NOT NULL,
     Email_kind TINYINT UNSIGNED NOT NULL,
     `Date` DATE NOT NULL,
     Sent_count INT UNSIGNED NOT NULL DEFAULT 0,
     Last_sent_at DATETIME(6) NOT NULL,
-    PRIMARY KEY (User_id, Email_kind, `Date`)
+    PRIMARY KEY (Persoid, Email_kind, `Date`)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS EmailRateLimits (

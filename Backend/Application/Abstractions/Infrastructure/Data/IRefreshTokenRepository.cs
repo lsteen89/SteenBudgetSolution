@@ -11,7 +11,7 @@ public interface IRefreshTokenRepository
     Task<int> RevokeSessionAsync(Guid persoId, Guid sessionId, DateTime nowUtc, CancellationToken ct);
     Task<int> RevokeAllForUserAsync(Guid persoid, DateTime nowUtc, CancellationToken ct);
 
-    Task<RefreshJwtTokenEntity?> GetActiveByCookieForUpdateAsync(Guid sessionId, string cookieHash, DateTime nowUtc, CancellationToken ct);
+    Task<RefreshJwtTokenEntity?> GetActiveByCookieForUpdateAsync(string cookieHash, DateTime nowUtc, CancellationToken ct);
     Task<int> RotateInPlaceAsync(Guid tokenId, string oldHash, string newHash, string newAccessJti, DateTime newRollingUtc, CancellationToken ct);
     Task<int> RevokeByIdAsync(Guid tokenId, DateTime nowUtc, CancellationToken ct); // still used for explicit revokes
 

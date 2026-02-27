@@ -9,10 +9,12 @@ using Backend.Settings;
 using Backend.Domain.Shared;
 using Backend.Domain.Errors.User;
 using Backend.Infrastructure.WebSockets;
+using Backend.Application.Features.Authentication.Shared.Models;
 
-namespace Backend.Application.Features.Commands.Auth.RefreshToken;
+namespace Backend.Application.Features.Authentication.RefreshToken;
 
-public sealed class RefreshTokensCommandHandler : IRequestHandler<RefreshTokensCommand, Result<AuthResult>>
+
+public sealed class RefreshTokensCommandHandler : IRequestHandler<RefreshTokensCommand, Result<IssuedAuthSession>>
 {
     private readonly IUnitOfWork _uow;
     private readonly IRefreshTokenRepository _refreshRepo;
@@ -44,27 +46,41 @@ public sealed class RefreshTokensCommandHandler : IRequestHandler<RefreshTokensC
         _absoluteDays = _jwtSettings.RefreshTokenExpiryDaysAbsolute;
     }
 
-    public async Task<Result<AuthResult>> Handle(RefreshTokensCommand c, CancellationToken ct)
+    public async Task<Result<IssuedAuthSession>> Handle(RefreshTokensCommand c, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(c.RefreshCookie) || c.SessionId == Guid.Empty)
-            return Result<AuthResult>.Failure(UserErrors.InvalidRefreshToken);
+        if (string.IsNullOrWhiteSpace(c.RefreshCookie))
+            return Result<IssuedAuthSession>.Failure(UserErrors.InvalidRefreshToken);
 
-        using var _ = _log.BeginScope(new Dictionary<string, object?> { ["SessionId"] = c.SessionId, ["DeviceId"] = c.DeviceId });
+        using var _ = _log.BeginScope(new Dictionary<string, object?> { ["DeviceId"] = c.DeviceId });
         var now = _clock.UtcNow;
 
         try
         {
             var cookieHash = TokenGenerator.HashToken(c.RefreshCookie);
-            var current = await _refreshRepo.GetActiveByCookieForUpdateAsync(c.SessionId, cookieHash, now, ct);
+            var current = await _refreshRepo.GetActiveByCookieForUpdateAsync(cookieHash, now, ct);
             if (current is null)
-                return Result<AuthResult>.Failure(UserErrors.InvalidRefreshToken);
+                return Result<IssuedAuthSession>.Failure(UserErrors.InvalidRefreshToken);
+
+            using var scope1 = _log.BeginScope(new Dictionary<string, object?>
+            {
+                ["SessionId"] = current.SessionId,
+                ["PersoId"] = current.Persoid
+            });
 
             var user = await _userRepo.GetUserModelAsync(ct: ct, persoid: current.Persoid);
             if (user is null || string.IsNullOrWhiteSpace(user.Email))
-                return Result<AuthResult>.Failure(UserErrors.RefreshUserNotFound);
+                return Result<IssuedAuthSession>.Failure(UserErrors.RefreshUserNotFound);
 
             IReadOnlyList<string> roles = new[] { "User" };
-            var at = _jwt.CreateAccessToken(current.Persoid, user.Email, roles, c.DeviceId, c.UserAgent, c.SessionId);
+            var at = _jwt.CreateAccessToken(
+                persoid: current.Persoid,
+                email: user.Email,
+                roles: roles,
+                deviceId: c.DeviceId,
+                userAgent: c.UserAgent,
+                emailConfirmed: user.EmailConfirmed,
+                sessionId: current.SessionId
+            );
 
             // Create next RT; extend ROLLING only, keep ABSOLUTE
             var newPlain = _jwt.CreateRefreshToken();
@@ -98,7 +114,15 @@ public sealed class RefreshTokensCommandHandler : IRequestHandler<RefreshTokensC
             }
 
             var wsMac = WebSocketAuth.MakeWsMac(current.Persoid, current.SessionId, _wsCfg.Secret);
-            return Result<AuthResult>.Success(new AuthResult(at.Token, newPlain, user.PersoId, at.SessionId, wsMac, current.IsPersistent));
+            var result = new AuthResult(
+                AccessToken: at.Token,
+                PersoId: user.PersoId,
+                SessionId: at.SessionId,
+                WsMac: wsMac,
+                RememberMe: current.IsPersistent
+            );
+
+            return Result<IssuedAuthSession>.Success(new IssuedAuthSession(result, newPlain));
         }
         catch (OperationCanceledException)
         {

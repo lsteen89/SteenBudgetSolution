@@ -13,7 +13,7 @@ import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
 
 import RowFrequencySelect from "@components/atoms/InputField/RowFrequencySelect";
-import { cn } from "@/utils/twMerge";
+import { cn } from "@/lib/utils";
 import { idFromPath } from "@/utils/idFromPath";
 
 type Props = { monthlyTotal: number };

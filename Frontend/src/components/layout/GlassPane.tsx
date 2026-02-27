@@ -1,4 +1,4 @@
-import { cn } from '@/utils/twMerge';
+import { cn } from '@/lib/utils';
 import React, { ReactNode } from 'react';
 
 interface GlassPaneProps {

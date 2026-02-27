@@ -3,81 +3,76 @@ using Backend.Application.Abstractions.Infrastructure.Security;
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Microsoft.Extensions.Options;
 using Backend.Settings;
-using Backend.Infrastructure.WebSockets;
 using Backend.Domain.Shared;
-using Backend.Application.DTO.Auth;
+using Backend.Application.Abstractions.Application.Services.Security;
 using Backend.Application.Abstractions.Infrastructure.System;
-using Backend.Infrastructure.Entities.Tokens;
-using Backend.Infrastructure.Security;
 using Backend.Domain.Errors.User;
+using Backend.Application.Features.Authentication.Shared.Models;
+using Backend.Application.Abstractions.Infrastructure.Verification;
+using Backend.Application.Features.Shared.Issuers.Auth;
 
 namespace Backend.Application.Features.Authentication.Login;
 
-public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, Result<AuthResult>>
+public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, Result<IssuedAuthSession>>
 {
     private const string DummyHash = "$2a$12$3v7iZz9K0wKQ9M3m8v6sUe7A1QWJ0rj3i4n0eQ9yHvsb8yT2t5m8a"; // precomputed bcrypt of "dummy"
-    private readonly IUnitOfWork _uow;
-    private readonly IRecaptchaService _recaptcha;
     private readonly IUserAuthenticationRepository _authz;
     private readonly IOptions<AuthLockoutOptions> _lockoutOpts;
     private readonly IUserRepository _users;
-    private readonly IRefreshTokenRepository _refreshRepo;
-    private readonly IJwtService _jwt;
+    private readonly IHumanChallengePolicy _humanChallengePolicy;
+    private readonly ITurnstileService _turnstile;
+    private readonly IAuthSessionIssuer _issuer;
     private readonly ITimeProvider _clock;
-    private readonly IOptions<JwtSettings> _jwtSettings;
-    private readonly IConfiguration _configuration;
     private readonly ILogger<LoginCommandHandler> _log;
-    private readonly WebSocketSettings _wsCfg;
-
     public LoginCommandHandler(
-        IUnitOfWork uow,
-        IRecaptchaService recaptcha,
         IUserAuthenticationRepository authz,
         IOptions<AuthLockoutOptions> lockoutOpts,
         IUserRepository users,
-        IRefreshTokenRepository refreshRepo,
-        IJwtService jwt,
+        IHumanChallengePolicy humanChallengePolicy,
+        ITurnstileService turnstile,
+        IAuthSessionIssuer issuer,
         ITimeProvider clock,
-        IOptions<JwtSettings> jwtSettings,
-        IConfiguration configuration,
-        ILogger<LoginCommandHandler> log,
-        IOptions<WebSocketSettings> wsOpts
+        ILogger<LoginCommandHandler> log
     )
     {
-        _uow = uow; _recaptcha = recaptcha; _authz = authz; _lockoutOpts = lockoutOpts; _users = users;
-        _refreshRepo = refreshRepo; _jwt = jwt; _clock = clock;
-        _jwtSettings = jwtSettings; _configuration = configuration; _log = log;
-        _wsCfg = wsOpts.Value;
+        _authz = authz; _lockoutOpts = lockoutOpts; _users = users;
+        _humanChallengePolicy = humanChallengePolicy; _turnstile = turnstile; _issuer = issuer;
+        _clock = clock; _log = log;
     }
 
-    public async Task<Result<AuthResult>> Handle(LoginCommand c, CancellationToken ct)
+    public async Task<Result<IssuedAuthSession>> Handle(LoginCommand c, CancellationToken ct)
     {
+        var emailNorm = c.Email.Trim().ToLowerInvariant();
+        var now = _clock.UtcNow;
 
-        // 1) CAPTCHA
-        var allowTestEmails = _configuration["ALLOW_TEST_EMAILS"] == "true";
-        var isTestEmail = c.Email == _configuration["TestEmailAddress"]; // Also get the email from config!
+        // 0) Decide if we require a challenge (you define the rule)
+        var requiresChallenge = await _humanChallengePolicy.ShouldRequireAsync(emailNorm, c.RemoteIp, c.UserAgent, ct);
 
-        if (!(allowTestEmails && isTestEmail) && !await _recaptcha.ValidateTokenAsync(c.CaptchaToken))
+        // 1) If required, token must exist
+        if (requiresChallenge && string.IsNullOrWhiteSpace(c.HumanToken))
+            return Result<IssuedAuthSession>.Failure(UserErrors.HumanVerificationRequired);
+
+        // 2) If token exists (or required), validate it
+        if (!string.IsNullOrWhiteSpace(c.HumanToken))
         {
-            return Result<AuthResult>.Failure(UserErrors.InvalidCaptcha);
+            var ok = await _turnstile.ValidateAsync(c.HumanToken, remoteIp: c.RemoteIp, ct);
+            if (!ok) return Result<IssuedAuthSession>.Failure(UserErrors.InvalidChallengeToken);
         }
 
-        // 2) Normalize + load + lockout
-        var emailNorm = c.Email.Trim().ToLowerInvariant();
+        // 3) load + lockout
         var user = await _users.GetUserModelAsync(email: emailNorm, ct: ct);
 
-        var now = _clock.UtcNow;
         if (user?.LockoutUntil is DateTime until)
         {
             if (until > now)
             {
                 _log.LogInformation("User locked until {Until}", until);
-                return Result<AuthResult>.Failure(UserErrors.UserLockedOut);
+                return Result<IssuedAuthSession>.Failure(UserErrors.UserLockedOut);
             }
             await _authz.UnlockUserAsync(user.PersoId, ct); // expired → clear
         }
 
-        // 3) Credentials (timing-safe)
+        // 4) Credentials (timing-safe)
         var since = now.AddMinutes(-_lockoutOpts.Value.WindowMinutes);
         bool passwordOk = user is not null && !string.IsNullOrEmpty(user.Password)
             ? BCrypt.Net.BCrypt.Verify(c.Password, user.Password)
@@ -90,100 +85,34 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, Result<A
         {
             if (user is not null)
             {
-                await _authz.InsertLoginAttemptAsync(user, c.Ip, c.UserAgent, now, ct);
+                await _authz.InsertLoginAttemptAsync(user, c.RemoteIp, c.UserAgent, now, ct);
                 var fails = await _authz.CountFailedAttemptsSinceAsync(emailNorm, since, ct);
                 if (fails >= _lockoutOpts.Value.MaxAttempts)
                     await _authz.LockUserByEmailAsync(emailNorm, now.AddMinutes(_lockoutOpts.Value.LockoutMinutes), ct);
 
                 if (!user.EmailConfirmed)
-                    return Result<AuthResult>.Failure(UserErrors.EmailNotConfirmed);
+                    return Result<IssuedAuthSession>.Failure(UserErrors.EmailNotConfirmed);
+                // This could be changed to a more generic error to further tighten security.
             }
 
-            return Result<AuthResult>.Failure(UserErrors.InvalidCredentials);
+            return Result<IssuedAuthSession>.Failure(UserErrors.InvalidCredentials);
         }
 
         if (string.IsNullOrWhiteSpace(user!.Email))
-            return Result<AuthResult>.Failure(UserErrors.InvalidCredentials);
+            return Result<IssuedAuthSession>.Failure(UserErrors.InvalidCredentials);
 
-        IReadOnlyList<string> roles = new[] { "User" };
+        // 5) Issue session via shared issuer (NEW single source of truth)
+        var issued = await _issuer.IssueAsync(
+            user,
+            rememberMe: c.RememberMe,
+            deviceId: c.DeviceId,
+            userAgent: c.UserAgent,
+            ct);
 
-        try
-        {
-            // 4) Access token (creates SessionId)
-            var at = _jwt.CreateAccessToken(user.PersoId, user.Email, roles, c.DeviceId, c.UserAgent);
+        // 6) Reset failed attempts
+        await _authz.DeleteAttemptsByEmailAsync(emailNorm, ct);
 
-            // 5) Hygiene: kill any leftovers for this session
-            await _refreshRepo.RevokeSessionAsync(user.PersoId, at.SessionId, now, ct);
-
-            // 6) Refresh token with clamp(rolling, absolute)
-            var rolling = now + TimeSpan.FromDays(_jwtSettings.Value.RefreshTokenExpiryDays);
-            var absolute = now.AddDays(_jwtSettings.Value.RefreshTokenExpiryDaysAbsolute);
-            if (rolling > absolute) rolling = absolute; // CLAMP
-
-            var plainRt = _jwt.CreateRefreshToken();
-            var row = new RefreshJwtTokenEntity
-            {
-                TokenId = Guid.NewGuid(),
-                Persoid = user.PersoId,
-                SessionId = at.SessionId,
-                HashedToken = TokenGenerator.HashToken(plainRt),
-                AccessTokenJti = at.TokenJti,
-                ExpiresRollingUtc = rolling,   // use the CLAMPED value
-                ExpiresAbsoluteUtc = absolute,
-                RevokedUtc = null,
-                Status = TokenStatus.Active,
-                IsPersistent = c.RememberMe,
-                DeviceId = c.DeviceId,
-                UserAgent = c.UserAgent,
-                CreatedUtc = now
-            };
-
-            // 7) Persist (retry once on UNIQUE(HashedToken))
-            try
-            {
-                var inserted = await _refreshRepo.InsertAsync(row, ct);
-                if (inserted != 1) throw new InvalidOperationException("Failed to insert refresh token.");
-            }
-            catch (DuplicateKeyException)
-            {
-                plainRt = _jwt.CreateRefreshToken();
-                var retryHash = TokenGenerator.HashToken(plainRt);
-                row = new RefreshJwtTokenEntity
-                {
-                    TokenId = row.TokenId,
-                    Persoid = row.Persoid,
-                    SessionId = row.SessionId,
-                    HashedToken = retryHash,
-                    AccessTokenJti = row.AccessTokenJti,
-                    ExpiresRollingUtc = row.ExpiresRollingUtc,
-                    ExpiresAbsoluteUtc = row.ExpiresAbsoluteUtc,
-                    RevokedUtc = row.RevokedUtc,
-                    Status = row.Status,
-                    IsPersistent = row.IsPersistent,
-                    DeviceId = row.DeviceId,
-                    UserAgent = row.UserAgent,
-                    CreatedUtc = row.CreatedUtc
-                };
-                var inserted = await _refreshRepo.InsertAsync(row, ct);
-                if (inserted != 1) throw;
-            }
-
-            // 8) Reset failed attempts (normalized email)
-            await _authz.DeleteAttemptsByEmailAsync(emailNorm, ct);
-
-            // 9) Result (UoW pipeline commits/rolls back)
-            var wsMac = WebSocketAuth.MakeWsMac(user.PersoId, at.SessionId, _wsCfg.Secret);
-            return Result<AuthResult>.Success(new AuthResult(at.Token, plainRt, user.PersoId, at.SessionId, wsMac, c.RememberMe));
-        }
-        catch (OperationCanceledException)
-        {
-            _log.LogWarning("Login cancelled.");
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _log.LogError(ex, "Login failed.");
-            throw;
-        }
+        return Result<IssuedAuthSession>.Success(issued);
     }
 }
+

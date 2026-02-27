@@ -1,7 +1,4 @@
-using System;
-using System.Reflection;
-using System.Threading;
-using System.Threading.Tasks;
+using Backend.Application.Features.Authentication.Shared.Models;
 using AutoFixture;
 using AutoFixture.AutoMoq;
 using FluentAssertions;
@@ -9,8 +6,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Configuration;
 using Moq;
-using Xunit;
-using MySqlConnector;
+using Backend.Application.Features.Shared.Issuers.Auth;
+using Backend.Application.DTO.Auth;
 
 // SUT + contracts
 using Backend.Application.Features.Authentication.Login;
@@ -19,13 +16,13 @@ using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Settings;
 using Backend.Domain.Errors.User;
-using Backend.Infrastructure.Security;
+using Backend.Application.Abstractions.Infrastructure.Verification;
 using Backend.Domain.Shared;
 
 using UserModel = Backend.Domain.Entities.User.UserModel;
 using AccessTokenResult = Backend.Application.Common.Security.AccessTokenResult;
-using RefreshJwtTokenEntity = Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity;
-using TokenStatus = Backend.Infrastructure.Entities.Tokens.TokenStatus;
+using Backend.Application.Abstractions.Application.Services.Security;
+using Org.BouncyCastle.Asn1.Cmp;
 
 namespace Backend.UnitTests.Unit.Features.Authentication.Login;
 
@@ -33,6 +30,7 @@ public sealed class LoginCommandHandlerTests
 {
     private readonly Fixture _fx = new();
     private readonly Mock<IRecaptchaService> _recaptcha = new();
+    private readonly Mock<IHumanChallengePolicy> _challenge = new(MockBehavior.Strict);
     private readonly Mock<IUserAuthenticationRepository> _authz = new();
     private readonly Mock<IUserRepository> _users = new();
     private readonly Mock<IRefreshTokenRepository> _refreshRepo = new();
@@ -41,6 +39,8 @@ public sealed class LoginCommandHandlerTests
     private readonly Mock<ITimeProvider> _clock = new();
     private readonly Mock<ILogger<LoginCommandHandler>> _log = new();
     private readonly Mock<IUnitOfWork> _uow = new();
+    private readonly Mock<ITurnstileService> _turnstile = new();
+    private readonly Mock<IAuthSessionIssuer> _issuer = new();
 
     private readonly IOptions<AuthLockoutOptions> _lockout =
         Options.Create(new AuthLockoutOptions { WindowMinutes = 15, MaxAttempts = 3, LockoutMinutes = 10 });
@@ -70,32 +70,31 @@ public sealed class LoginCommandHandlerTests
     {
         _fx.Customize(new AutoMoqCustomization { ConfigureMembers = true });
         _clock.Setup(x => x.UtcNow).Returns(_now);
+        _challenge
+  .Setup(x => x.ShouldRequireAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+  .ReturnsAsync(false);
     }
 
     private LoginCommandHandler SUT() => new(
-        _uow.Object,
-        _recaptcha.Object,
-        _authz.Object,
-        _lockout,
-        _users.Object,
-        _refreshRepo.Object,
-        _jwt.Object,
-        _clock.Object,
-        _jwtSettings,
-        _configuration.Object,
-        _log.Object,
-        _ws
+        authz: _authz.Object,
+        lockoutOpts: _lockout,
+        users: _users.Object,
+        humanChallengePolicy: _challenge.Object,
+        turnstile: _turnstile.Object,
+        issuer: _issuer.Object,
+        clock: _clock.Object,
+        log: _log.Object
     );
 
     private static LoginCommand Cmd(
         string email = "user@example.com",
         string pwd = "correct-password",
-        string captcha = "ok",
+        string? humanToken = null,
         bool remember = false,
-        string ip = "1.2.3.4",
+        string? ip = "1.2.3.4",
         string device = "dev-1",
         string ua = "UA")
-        => new(email, pwd, captcha, remember, ip, device, ua);
+        => new(email, pwd, humanToken, remember, ip, device, ua);
 
     private static UserModel User(
         Guid? id = null,
@@ -130,15 +129,6 @@ public sealed class LoginCommandHandlerTests
     // ========== Tests ==========
 
     [Fact]
-    public async Task Given_InvalidCaptcha_When_Handle_Then_InvalidCaptcha()
-    {
-        _recaptcha.Setup(x => x.ValidateTokenAsync("bad")).ReturnsAsync(false);
-        var res = await SUT().Handle(Cmd(captcha: "bad"), CancellationToken.None);
-        res.IsSuccess.Should().BeFalse();
-        res.Error.Should().Be(UserErrors.InvalidCaptcha);
-    }
-
-    [Fact]
     public async Task Given_LockoutUntilFuture_When_Handle_Then_UserLockedOut()
     {
         var user = User(lockout: _now.AddMinutes(5));
@@ -151,22 +141,37 @@ public sealed class LoginCommandHandlerTests
         res.Error.Should().Be(UserErrors.UserLockedOut);
         _authz.Verify(x => x.UnlockUserAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
-
     [Fact]
     public async Task Given_WrongPassword_When_Handle_Then_RecordsAttempt_And_InvalidCredentials()
     {
         var user = User(bcrypt: BCrypt.Net.BCrypt.HashPassword("wrong"));
-        _recaptcha.Setup(x => x.ValidateTokenAsync("ok")).ReturnsAsync(true);
-        _users.Setup(x => x.GetUserModelAsync(null, "user@example.com", It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        _users.Setup(x => x.GetUserModelAsync(null, "user@example.com", It.IsAny<CancellationToken>()))
+             .ReturnsAsync(user);
+
         _authz.Setup(x => x.CountFailedAttemptsSinceAsync("user@example.com", It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
               .ReturnsAsync(1);
 
-        var res = await SUT().Handle(Cmd(), CancellationToken.None);
+        var res = await SUT().Handle(Cmd(ip: "1.2.3.4"), CancellationToken.None);
 
         res.IsSuccess.Should().BeFalse();
         res.Error.Should().Be(UserErrors.InvalidCredentials);
+
         _authz.Verify(x => x.InsertLoginAttemptAsync(user, "1.2.3.4", "UA", _now, It.IsAny<CancellationToken>()), Times.Once);
-        _authz.Verify(x => x.LockUserByEmailAsync(It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Never);
+        _issuer.VerifyNoOtherCalls();
+    }
+    [Fact]
+    public async Task Given_HumanTokenProvided_And_Invalid_When_Handle_Then_InvalidChallengeToken()
+    {
+        _turnstile.Setup(x => x.ValidateAsync("bad", It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+                  .ReturnsAsync(false);
+
+        var res = await SUT().Handle(Cmd(humanToken: "bad"), CancellationToken.None);
+
+        res.IsSuccess.Should().BeFalse();
+        res.Error.Should().Be(UserErrors.InvalidChallengeToken);
+
+        _users.VerifyNoOtherCalls();
+        _issuer.VerifyNoOtherCalls();
     }
 
     [Fact]
@@ -200,105 +205,52 @@ public sealed class LoginCommandHandlerTests
     }
 
     [Fact]
-    public async Task Given_ValidCredentials_When_Handle_Then_Revokes_Inserts_Resets_ReturnsTokens()
+    public async Task Given_ValidCredentials_When_Handle_Then_IssuesSession_ResetsAttempts_ReturnsIssuedSession()
     {
-        var user = User();
-        _recaptcha.Setup(x => x.ValidateTokenAsync("ok")).ReturnsAsync(true);
-        _users.Setup(x => x.GetUserModelAsync(null, "user@example.com", It.IsAny<CancellationToken>())).ReturnsAsync(user);
-
-        var at = AT();
-        _jwt.Setup(x => x.CreateAccessToken(user.PersoId, user.Email, It.IsAny<IReadOnlyList<string>>(), "dev-1", "UA", null)).Returns(at);
-        _jwt.Setup(x => x.CreateRefreshToken()).Returns("PLAIN_RT");
-
-        _refreshRepo.Setup(x => x.RevokeSessionAsync(user.PersoId, at.SessionId, _now, It.IsAny<CancellationToken>())).ReturnsAsync(1);
-        _refreshRepo.Setup(x => x.InsertAsync(It.IsAny<RefreshJwtTokenEntity>(), It.IsAny<CancellationToken>())).ReturnsAsync(1);
-
-        var res = await SUT().Handle(Cmd(), CancellationToken.None);
-
-        res.IsSuccess.Should().BeTrue();
-        res.Value.PersoId.Should().Be(user.PersoId);
-        res.Value.SessionId.Should().Be(at.SessionId);
-        res.Value.AccessToken.Should().Be(at.Token);
-        res.Value.RefreshToken.Should().NotBeNullOrEmpty();
-
-        _authz.Verify(x => x.DeleteAttemptsByEmailAsync("user@example.com", It.IsAny<CancellationToken>()), Times.Once);
-        _refreshRepo.Verify(x => x.RevokeSessionAsync(user.PersoId, at.SessionId, _now, It.IsAny<CancellationToken>()), Times.Once);
-        _refreshRepo.Verify(x => x.InsertAsync(It.Is<RefreshJwtTokenEntity>(r =>
-            r.Persoid == user.PersoId &&
-            r.SessionId == at.SessionId &&
-            r.AccessTokenJti == at.TokenJti &&
-            r.ExpiresRollingUtc <= r.ExpiresAbsoluteUtc &&
-            r.RevokedUtc == null &&
-            r.Status.Equals(TokenStatus.Active)
-        ), It.IsAny<CancellationToken>()), Times.Once);
-    }
-
-    [Fact]
-    public async Task Given_InsertCollision1062Once_When_Handle_Then_RetriesAndSucceeds()
-    {
-        var user = User();
-        _recaptcha.Setup(x => x.ValidateTokenAsync("ok")).ReturnsAsync(true);
+        var user = User(); // confirmed true
         _users.Setup(x => x.GetUserModelAsync(null, "user@example.com", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(user);
+             .ReturnsAsync(user);
 
-        var at = AT();
-        _jwt.Setup(x => x.CreateAccessToken(
-                user.PersoId, user.Email, It.IsAny<IReadOnlyList<string>>(),
-                "dev-1", "UA", null))
-            .Returns(at);
+        var expected = new IssuedAuthSession(
+            new AuthResult("at.jwt", user.PersoId, Guid.NewGuid(), "ws", RememberMe: false),
+            "rt"
+        );
 
-        // First RT collides, second succeeds
-        _jwt.SetupSequence(x => x.CreateRefreshToken())
-            .Returns("FIRST")
-            .Returns("SECOND");
+        _issuer.Setup(x => x.IssueAsync(user, false, "dev-1", "UA", It.IsAny<CancellationToken>()))
+               .ReturnsAsync(expected);
 
-        _refreshRepo.Setup(x => x.RevokeSessionAsync(user.PersoId, at.SessionId, _now, It.IsAny<CancellationToken>()))
-                    .ReturnsAsync(1);
-
-        // << change here: throw DuplicateKeyException first, then succeed >>
-        _refreshRepo.SetupSequence(x => x.InsertAsync(It.IsAny<RefreshJwtTokenEntity>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new DuplicateKeyException("dup", null)) // <-- Pass null here
-            .ReturnsAsync(1);
+        _authz.Setup(x => x.DeleteAttemptsByEmailAsync("user@example.com", It.IsAny<CancellationToken>()))
+              .Returns(Task.CompletedTask);
 
         var res = await SUT().Handle(Cmd(), CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
-        res.Value.RefreshToken.Should().Be("SECOND"); // assert retry used the 2nd token
+        res.Value.Should().NotBeNull();
+        res.Value!.RefreshToken.Should().Be("rt");
+        res.Value.Result.AccessToken.Should().Be("at.jwt");
+        res.Value.Result.PersoId.Should().Be(user.PersoId);
 
-        _refreshRepo.Verify(x => x.InsertAsync(It.IsAny<RefreshJwtTokenEntity>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
-        _jwt.Verify(x => x.CreateRefreshToken(), Times.Exactly(2));
+        _issuer.Verify(x => x.IssueAsync(user, false, "dev-1", "UA", It.IsAny<CancellationToken>()), Times.Once);
+        _authz.Verify(x => x.DeleteAttemptsByEmailAsync("user@example.com", It.IsAny<CancellationToken>()), Times.Once);
     }
-
-
     [Fact]
-    public async Task Given_AllowTestEmailsEnabled_And_WhitelistedEmail_When_Handle_Then_SkipsCaptcha()
+    public async Task Given_ChallengeRequired_And_NoToken_When_Handle_Then_HumanVerificationRequired()
     {
-        // 1. ARRANGE: Set up the mock to return the values your handler needs for this test case.
-        _configuration.Setup(c => c["ALLOW_TEST_EMAILS"]).Returns("true");
-        _configuration.Setup(c => c["TestEmailAddress"]).Returns("l@l.se");
+        var user = User(); // confirmed
+        _users.Setup(x => x.GetUserModelAsync(null, "user@example.com", It.IsAny<CancellationToken>()))
+              .ReturnsAsync(user);
 
-        // The rest of your setup...
-        _recaptcha.Setup(x => x.ValidateTokenAsync(It.IsAny<string>())).ReturnsAsync(false); // Would fail if evaluated
+        _challenge.Setup(x => x.ShouldRequireAsync("user@example.com", "1.2.3.4", "UA", It.IsAny<CancellationToken>()))
+                  .ReturnsAsync(true);
 
-        var testEmail = "l@l.se";
-        // Ensure the user object is created with the correct test email
-        var user = User(email: testEmail, id: Guid.NewGuid());
+        var res = await SUT().Handle(Cmd(humanToken: null, ip: "1.2.3.4", ua: "UA"), CancellationToken.None);
 
-        _users.Setup(x => x.GetUserModelAsync(null, testEmail, It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        res.IsSuccess.Should().BeFalse();
+        res.Error.Should().Be(UserErrors.HumanVerificationRequired);
 
-        var at = AT();
-        // Ensure this mock uses the correct user.Email from the object created above
-        _jwt.Setup(x => x.CreateAccessToken(user.PersoId, user.Email, It.IsAny<IReadOnlyList<string>>(), "dev-1", "UA", null)).Returns(at);
-        _jwt.Setup(x => x.CreateRefreshToken()).Returns("RT");
-        _refreshRepo.Setup(x => x.RevokeSessionAsync(user.PersoId, at.SessionId, _now, It.IsAny<CancellationToken>())).ReturnsAsync(1);
-        _refreshRepo.Setup(x => x.InsertAsync(It.IsAny<RefreshJwtTokenEntity>(), It.IsAny<CancellationToken>())).ReturnsAsync(1);
-
-        // 2. ACT
-        var res = await SUT().Handle(Cmd(email: testEmail), CancellationToken.None);
-
-        // 3. ASSERT
-        res.IsSuccess.Should().BeTrue();
-        _recaptcha.Verify(x => x.ValidateTokenAsync(It.IsAny<string>()), Times.Never); // Optional but good: verify it was never called
+        _turnstile.VerifyNoOtherCalls();
+        _issuer.VerifyNoOtherCalls();
+        _authz.VerifyNoOtherCalls();
     }
 
 }

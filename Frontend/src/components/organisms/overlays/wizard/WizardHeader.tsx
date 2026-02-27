@@ -1,6 +1,6 @@
 import React from "react";
 import { X } from "lucide-react";
-import { cn } from "@/utils/twMerge";
+import { cn } from "@/lib/utils";
 import { WizardMascot } from "@/components/atoms/animation/WizardMascot";
 import logo from "@/assets/Images/eBudgetLogo.png";
 type WizardHeaderProps = {

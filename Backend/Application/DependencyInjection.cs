@@ -5,7 +5,7 @@ using Backend.Application.Features.Wizard.Finalization.Processing.Processors;
 using Backend.Application.Options.Email;
 using Backend.Application.Options.Auth;
 using Backend.Application.Options.URL;
-using Backend.Application.Validators;
+using MediatR;
 using Backend.Application.Mappings;
 using Backend.Application.Features.Wizard.SaveStep;
 using Mapster;
@@ -17,12 +17,14 @@ using Backend.Application.Abstractions.Application.Services.Debts;
 using Backend.Application.Abstractions.Application.Services.Budget.Projections;
 using Backend.Application.Features.Wizard.Finalization.Abstractions;
 using Backend.Application.Features.Wizard.GetWizardData.Abstractions;
+using Backend.Application.Abstractions.Application.Services.Security;
 
 // services
 using Backend.Application.Services.Budget.Bootstrapper;
 using Backend.Application.Services.Budget.Compute;
 using Backend.Application.Services.Budget.Projections;
 using Backend.Application.Services.Debts;
+using Backend.Application.Services.Security;
 
 // Features
 using Backend.Application.Features.Wizard.Finalization.Orchestration;
@@ -30,6 +32,14 @@ using Backend.Application.Features.Wizard.Finalization.Targets;
 using Backend.Application.Features.Wizard.FinalizationPreview.Mapper;
 using Backend.Application.Features.Wizard.GetWizardData.Assemble;
 using Backend.Application.Features.Wizard.GetWizardData.Reduce;
+using Backend.Application.Features.Shared.Issuers.Auth;
+using Backend.Application.Features.Authentication.Register.Orchestrator;
+
+
+// Orchestrators
+using Backend.Application.Orchestrators.Email;
+using Backend.Application.Orchestrators.Email.Generators;
+using Backend.Application.Abstractions.Application.Orchestrators;
 
 namespace Backend.Application;
 
@@ -55,16 +65,25 @@ public static class DependencyInjection
         // MediatR: register handlers by assembly + add UoW behavior
         services.AddMediatR(cfg =>
         {
-            cfg.RegisterServicesFromAssemblies(
-                typeof(Backend.Application.Features.Authentication.Login.LoginCommandHandler).Assembly
-            // add more assemblies if you have handlers elsewhere
-            );
-            cfg.AddOpenBehavior(typeof(UnitOfWorkPipelineBehavior<,>)); // applies to all TRequest that match the constraint
+            cfg.RegisterServicesFromAssemblies(typeof(ApplicationAssemblyMarker).Assembly);
+
+            cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
+            cfg.AddOpenBehavior(typeof(UnitOfWorkPipelineBehavior<,>));
+        });
+
+        // Verification code generator (dev/test fixed code)
+        services.AddSingleton<FixedVerificationCodeGenerator>();
+        services.AddSingleton<RandomVerificationCodeGenerator>();
+        services.AddSingleton<IVerificationCodeGenerator>(sp =>
+        {
+            var env = sp.GetRequiredService<IHostEnvironment>();
+            return (env.IsDevelopment() || env.IsEnvironment("Test"))
+                ? sp.GetRequiredService<FixedVerificationCodeGenerator>()
+                : sp.GetRequiredService<RandomVerificationCodeGenerator>();
         });
 
         // Validators
-        services.AddValidatorsFromAssemblyContaining<UserValidator>();
-        services.AddValidatorsFromAssemblyContaining<IncomeValidator>();
+        services.AddValidatorsFromAssemblyContaining<ApplicationAssemblyMarker>();
 
         // Wizard Step Validators
         services.AddScoped<IWizardStepValidator, IncomeStepValidator>();
@@ -96,6 +115,14 @@ public static class DependencyInjection
         services.AddScoped<IBudgetMonthlyTotalsService, BudgetMonthlyTotalsService>();
         services.AddScoped<IBudgetMonthBootstrapper, BudgetMonthBootstrapper>();
         services.AddScoped<IBudgetDashboardProjector, BudgetDashboardProjector>();
+
+        // Security
+        services.AddSingleton<ISeedingGate, EnvSeedingGate>();
+        services.AddScoped<IHumanChallengePolicy, HumanChallengePolicy>();
+
+        //Issuers
+        services.AddScoped<IAuthSessionIssuer, AuthSessionIssuer>();
+
         // Calculators
         services.AddSingleton<IDebtPaymentCalculator, DebtPaymentCalculator>();
         // Wizard Step Data Assembler
@@ -103,6 +130,9 @@ public static class DependencyInjection
         // Wizard Row Reducer
         services.AddScoped<IWizardStepRowReducer, WizardStepRowReducer>();
 
+        // Orchestration
+        services.AddScoped<IVerificationCodeOrchestrator, VerificationCodeOrchestrator>();
+        services.AddScoped<IRegistrationOrchestrator, RegistrationOrchestrator>();
         return services;
     }
 }

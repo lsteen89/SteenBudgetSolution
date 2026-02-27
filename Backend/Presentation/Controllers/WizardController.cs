@@ -16,7 +16,7 @@ using Backend.Domain.Shared;
 
 namespace Backend.Presentation.Controllers
 {
-    [Authorize]
+    [Authorize(Policy = "EmailConfirmed")]
     [Route("api/wizard")]
     [ApiController]
     public class WizardController : ControllerBase

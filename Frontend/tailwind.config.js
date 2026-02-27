@@ -52,6 +52,30 @@ module.exports = {
 				darkBlueMenuColor: '#001F3F',
 				pastelGreen: '#ebf8ff',
 				pastelGreen1: '#d1fae5',
+
+				eb: {
+					shell: "rgb(var(--eb-shell) / <alpha-value>)",
+					shell2: "rgb(var(--eb-shell-2) / <alpha-value>)",
+					shell3: "rgb(var(--eb-shell-3) / <alpha-value>)",
+
+					surface: "rgb(var(--eb-surface) / <alpha-value>)",
+					surfaceAccent: "rgb(var(--eb-surface-accent) / <alpha-value>)",
+
+					stroke: "rgb(var(--eb-stroke) / <alpha-value>)",
+					strokeStrong: "rgb(var(--eb-stroke-strong) / <alpha-value>)",
+
+					text: "rgb(var(--eb-text) / <alpha-value>)",
+					accent: "rgb(var(--eb-accent) / <alpha-value>)",
+					accentSoft: "rgb(var(--eb-accent-soft) / <alpha-value>)",
+					danger: "rgb(var(--eb-danger) / <alpha-value>)",
+					shadow: "rgb(var(--eb-shadow) / <alpha-value>)",
+				},
+
+				boxShadow: {
+					eb:
+						"0 10px 30px rgb(var(--eb-shadow) / 0.10), 0 2px 10px rgb(var(--eb-shadow) / 0.06)",
+				},
+
 				wizard: {
 					shell: "rgb(var(--wizard-shell) / <alpha-value>)",
 					"shell-2": "rgb(var(--wizard-shell-2) / <alpha-value>)",

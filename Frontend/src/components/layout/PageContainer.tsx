@@ -1,61 +1,57 @@
-/**
- * PageContainer Component
- * 
- * This component serves as the primary layout wrapper for each page in the application.
- * It manages the overall page structure, including vertical and horizontal centering
- * of its child elements, and applies consistent padding across different screen sizes.
- * 
- * Props:
- * - `children` (React.ReactNode): The content to be rendered within the container.
- * - `noPadding` (boolean, optional): When set to `true`, removes the default vertical padding.
- * - `className` (string, optional): Additional Tailwind CSS classes to customize the container's styling.
- * - `centerChildren` (boolean, optional): Centers all child elements both vertically and horizontally when `true`.
- * 
- * Usage Example:
- * ```jsx
- * <PageContainer centerChildren={true}>
- *   <YourContent />
- * </PageContainer>
- * ```
- * 
- * Notes:
- * - The `relative` class is applied to enable absolute positioning of child elements relative to this container.
- * - Ideal for pages that require consistent padding and optional global centering of content.
- */
+import * as React from "react";
+import { cn } from "@/lib/utils";
 
-// PageContainer.tsx
-import React from 'react';
-import clsx from 'clsx';
+type PadY = "none" | "sm" | "md" | "lg";
 
-interface PageContainerProps {
-  children: React.ReactNode;
-  noPadding?: boolean; // Optional prop to disable padding
-  className?: string;   // Allow custom classes
-  centerChildren?: boolean; // Optional prop to center children
-}
-
-const PageContainer: React.FC<PageContainerProps> = ({
-  children,
-  noPadding = false,
-  className = "",
-  centerChildren = false,
-}) => {
-  const paddingClass = noPadding ? "py-0" : "py-10 sm:py-20";
-  const centerClass = centerChildren ? "flex flex-col justify-center items-center" : "flex flex-col";
-
-  return (
-    <main
-      className={clsx(
-        "page-container min-h-screen",
-        centerClass,
-        paddingClass,
-        className
-      )}
-      role="main"
-    >
-      {children}
-    </main>
-  );
+const padYMap: Record<PadY, string> = {
+  none: "py-0",
+  sm: "py-6 sm:py-10",
+  md: "py-10 sm:py-16",
+  lg: "py-10 sm:py-20",
 };
 
+export type PageContainerProps = React.ComponentPropsWithoutRef<"main"> & {
+  /** Center children both axes (rare). Prefer centering inside content instead. */
+  centerChildren?: boolean;
+
+  /** New API: explicit padding scale */
+  padY?: PadY;
+
+  /** @deprecated Use padY="none" */
+  noPadding?: boolean;
+};
+
+const PageContainer = React.forwardRef<HTMLElement, PageContainerProps>(
+  (
+    {
+      className,
+      centerChildren = false,
+      padY = "lg",
+      noPadding,
+      ...props
+    },
+    ref
+  ) => {
+    const pad = noPadding ? "none" : padY;
+
+    return (
+      <main
+        ref={ref}
+        role="main"
+        className={cn(
+          // keep your global background hook
+          "page-container w-full min-h-[100dvh] flex flex-col",
+          // your master text hue (optional but consistent with your manifesto)
+          "text-eb-text",
+          centerChildren && "items-center justify-center",
+          padYMap[pad],
+          className
+        )}
+        {...props}
+      />
+    );
+  }
+);
+
+PageContainer.displayName = "PageContainer";
 export default PageContainer;

@@ -10,7 +10,7 @@ import type { IncomeFormValues } from "@/types/Wizard/Step1_Income/IncomeFormVal
 import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
-import { cn } from "@/utils/twMerge";
+import { cn } from "@/lib/utils";
 import RowFrequencySelect from "@components/atoms/InputField/RowFrequencySelect";
 import { idFromPath } from "@/utils/idFromPath";
 

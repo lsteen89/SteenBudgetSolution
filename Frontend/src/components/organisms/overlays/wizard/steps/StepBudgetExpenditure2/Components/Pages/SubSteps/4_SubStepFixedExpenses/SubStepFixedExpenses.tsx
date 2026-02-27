@@ -19,7 +19,7 @@ import IcedCustomItemRow from "@components/organisms/overlays/wizard/SharedCompo
 import WizardTotalBar from "@components/organisms/overlays/wizard/SharedComponents/Sections/WizardTotalBar";
 import { sumMoney } from "@/utils/money/moneyMath";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
-import { cn } from "@/utils/twMerge";
+import { cn } from "@/lib/utils";
 
 type FormShape = { fixedExpenses: FixedExpensesSubForm };
 type SuggestedFieldName = Exclude<keyof FixedExpensesSubForm, "customExpenses">;

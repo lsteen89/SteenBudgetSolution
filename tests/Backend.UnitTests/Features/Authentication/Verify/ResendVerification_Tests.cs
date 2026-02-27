@@ -2,107 +2,141 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
-using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
-using Backend.Application.Features.Commands.Auth.ResendVerification;
-using Backend.Application.Abstractions.Infrastructure.RateLimiting;
-using Backend.Application.Abstractions.Infrastructure.Email;
+
+using Backend.Application.Abstractions.Application.Orchestrators;
 using Backend.Application.Abstractions.Infrastructure.Data;
-using Backend.Application.Abstractions.Infrastructure.System;
-using Backend.Application.Options.Auth;
-using Backend.Application.Options.URL;
-using Backend.Domain.Errors.User;
+using Backend.Domain.Entities.User;
 using Backend.Domain.Shared;
-using Backend.Settings.Email;
-using Microsoft.Extensions.Logging;
-using Backend.Domain.Entities.Auth;
+using Backend.Application.Features.Authentication.Register.ResendVerificationMail; // adjust
 
 namespace Backend.UnitTests.Features.Authentication.Verify;
 
-public class ResendVerification_Tests
+public sealed class ResendVerificationCommandHandlerTests
 {
     [Fact]
-    public async Task Given_TokenHasMoreThan5Min_When_Resend_Then_ReuseToken()
+    public async Task Given_UserNotFound_When_Resend_Then_SilentSuccess_And_NoOrchestratorCall()
     {
-        var now = DateTime.UtcNow;
-        var user = new Backend.Domain.Entities.User.UserModel { Id = 1, PersoId = Guid.NewGuid(), Email = "u@e.se", Password = "x", EmailConfirmed = false };
-        var users = new Mock<IUserRepository>(); users.Setup(r => r.GetUserModelAsync(null, "u@e.se", It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        var users = new Mock<IUserRepository>();
+        var ver = new Mock<IVerificationTokenRepository>();
+        users.Setup(r => r.GetUserModelAsync(null, "u@e.se", It.IsAny<CancellationToken>()))
+             .ReturnsAsync((UserModel?)null);
 
-        var tokens = new Mock<IVerificationTokenRepository>();
-        tokens.Setup(t => t.GetByUserAsync(user.PersoId, It.IsAny<CancellationToken>()))
-              .ReturnsAsync(new UserTokenModel { PersoId = user.PersoId, Token = Guid.NewGuid(), TokenExpiryDate = now.AddMinutes(10) });
+        var orch = new Mock<IVerificationCodeOrchestrator>();
 
-        var rl = new Mock<IEmailRateLimiter>();
-        rl.Setup(x => x.CheckAsync(user.PersoId, EmailKind.Verification, It.IsAny<CancellationToken>())).ReturnsAsync(new RateLimitDecision(true));
-        rl.Setup(x => x.MarkSentAsync(user.PersoId, EmailKind.Verification, It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-
-        var email = new Mock<IEmailService>(); email.Setup(e => e.SendEmailAsync(It.IsAny<IEmailComposer>(), It.IsAny<CancellationToken>())).ReturnsAsync(new EmailSendResult(true, null, null));
-        var clock = new Mock<ITimeProvider>(); clock.SetupGet(c => c.UtcNow).Returns(now);
-
-        var sut = new ResendVerificationCommandHandler(users.Object, tokens.Object, rl.Object, email.Object, clock.Object,
-            Options.Create(new VerificationTokenOptions { TtlHours = 24 }),
-            Options.Create(new AppUrls { VerifyUrl = "https://x" }),
-            Options.Create(new SmtpSettings { FromAddress = "noreply@x", FromName = "X" }),
-            Mock.Of<ILogger<ResendVerificationCommandHandler>>());
+        var sut = new ResendVerificationCommandHandler(
+            users.Object,
+            ver.Object,
+            orch.Object,
+            NullLogger<ResendVerificationCommandHandler>.Instance);
 
         var res = await sut.Handle(new ResendVerificationCommand("u@e.se"), CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
-        tokens.Verify(t => t.UpsertSingleActiveAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Never);
-        email.Verify(e => e.SendEmailAsync(It.IsAny<IEmailComposer>(), It.IsAny<CancellationToken>()), Times.Once);
+        orch.VerifyNoOtherCalls();
     }
 
     [Fact]
-    public async Task Given_TokenExpiringSoon_When_Resend_Then_MintNew()
+    public async Task Given_EmailAlreadyConfirmed_When_Resend_Then_SilentSuccess_And_NoOrchestratorCall()
     {
-        var now = DateTime.UtcNow;
-        var user = new Backend.Domain.Entities.User.UserModel { Id = 1, PersoId = Guid.NewGuid(), Email = "u@e.se", Password = "x", EmailConfirmed = false };
-        var users = new Mock<IUserRepository>(); users.Setup(r => r.GetUserModelAsync(null, "u@e.se", It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        var user = new UserModel
+        {
+            PersoId = Guid.NewGuid(),
+            Email = "u@e.se",
+            EmailConfirmed = true,
+            Password = "x"
+        };
 
-        var tokens = new Mock<IVerificationTokenRepository>();
-        tokens.Setup(t => t.GetByUserAsync(user.PersoId, It.IsAny<CancellationToken>()))
-              .ReturnsAsync(new UserTokenModel { PersoId = user.PersoId, Token = Guid.NewGuid(), TokenExpiryDate = now.AddMinutes(2) });
-        tokens.Setup(t => t.UpsertSingleActiveAsync(user.PersoId, It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>())).ReturnsAsync(1);
+        var users = new Mock<IUserRepository>();
+        var ver = new Mock<IVerificationTokenRepository>();
+        users.Setup(r => r.GetUserModelAsync(null, "u@e.se", It.IsAny<CancellationToken>()))
+             .ReturnsAsync(user);
 
-        var rl = new Mock<IEmailRateLimiter>(); rl.Setup(x => x.CheckAsync(user.PersoId, EmailKind.Verification, It.IsAny<CancellationToken>())).ReturnsAsync(new RateLimitDecision(true));
-        var email = new Mock<IEmailService>(); email.Setup(e => e.SendEmailAsync(It.IsAny<IEmailComposer>(), It.IsAny<CancellationToken>())).ReturnsAsync(new EmailSendResult(true, null, null));
-        var clock = new Mock<ITimeProvider>(); clock.SetupGet(c => c.UtcNow).Returns(now);
+        var orch = new Mock<IVerificationCodeOrchestrator>();
 
-        var sut = new ResendVerificationCommandHandler(users.Object, tokens.Object, rl.Object, email.Object, clock.Object,
-            Options.Create(new VerificationTokenOptions { TtlHours = 24 }),
-            Options.Create(new AppUrls { VerifyUrl = "https://x" }),
-            Options.Create(new SmtpSettings { FromAddress = "noreply@x", FromName = "X" }),
-            Mock.Of<Microsoft.Extensions.Logging.ILogger<ResendVerificationCommandHandler>>());
+        var sut = new ResendVerificationCommandHandler(
+            users.Object,
+            ver.Object,
+            orch.Object,
+            NullLogger<ResendVerificationCommandHandler>.Instance);
 
         var res = await sut.Handle(new ResendVerificationCommand("u@e.se"), CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
-        tokens.Verify(t => t.UpsertSingleActiveAsync(user.PersoId, It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Once);
+        orch.VerifyNoOtherCalls();
     }
 
     [Fact]
-    public async Task Given_RateLimited_When_Resend_Then_SilentSuccess_NoEmail()
+    public async Task Given_UserExists_NotConfirmed_When_Resend_Then_OrchestratorCalled_With_NormalizedEmail()
     {
-        var now = DateTime.UtcNow;
-        var user = new Backend.Domain.Entities.User.UserModel { Id = 1, PersoId = Guid.NewGuid(), Email = "u@e.se", Password = "x", EmailConfirmed = false };
-        var users = new Mock<IUserRepository>(); users.Setup(r => r.GetUserModelAsync(null, "u@e.se", It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        var user = new UserModel
+        {
+            PersoId = Guid.NewGuid(),
+            Email = "u@e.se",
+            EmailConfirmed = false,
+            Password = "x",
+            FirstName = "T",
+            LastName = "U",
+            Roles = "1",
+        };
 
-        var tokens = new Mock<IVerificationTokenRepository>();
-        var rl = new Mock<IEmailRateLimiter>(); rl.Setup(x => x.CheckAsync(user.PersoId, EmailKind.Verification, It.IsAny<CancellationToken>())).ReturnsAsync(new RateLimitDecision(false, "cooldown:60s"));
-        var email = new Mock<IEmailService>();
-        var clock = new Mock<ITimeProvider>(); clock.SetupGet(c => c.UtcNow).Returns(now);
+        var users = new Mock<IUserRepository>();
+        var ver = new Mock<IVerificationTokenRepository>(); // unused by handler, but ctor needs it
 
-        var sut = new ResendVerificationCommandHandler(users.Object, tokens.Object, rl.Object, email.Object, clock.Object,
-            Options.Create(new VerificationTokenOptions { TtlHours = 24 }),
-            Options.Create(new AppUrls { VerifyUrl = "https://x" }),
-            Options.Create(new SmtpSettings { FromAddress = "noreply@x", FromName = "X" }),
-            Mock.Of<Microsoft.Extensions.Logging.ILogger<ResendVerificationCommandHandler>>());
+        // handler normalizes input to lower+trim before calling repo
+        users.Setup(r => r.GetUserModelAsync(null, "u@e.se", It.IsAny<CancellationToken>()))
+             .ReturnsAsync(user);
 
-        var res = await sut.Handle(new ResendVerificationCommand("u@e.se"), CancellationToken.None);
+        var orch = new Mock<IVerificationCodeOrchestrator>();
+        orch.Setup(o => o.EnqueueForResendAsync(user.PersoId, "u@e.se", It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var sut = new ResendVerificationCommandHandler(
+            users.Object,
+            ver.Object,
+            orch.Object,
+            NullLogger<ResendVerificationCommandHandler>.Instance);
+
+        var res = await sut.Handle(new ResendVerificationCommand("  U@E.SE  "), CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
-        email.VerifyNoOtherCalls();
-        tokens.VerifyNoOtherCalls();
+        orch.Verify(o => o.EnqueueForResendAsync(user.PersoId, "u@e.se", It.IsAny<CancellationToken>()), Times.Once);
+        orch.VerifyNoOtherCalls();
     }
+
+    [Fact]
+    public async Task Given_UserExists_Confirmed_When_Resend_Then_SilentSuccess_And_NoOrchestratorCall()
+    {
+        var user = new UserModel
+        {
+            PersoId = Guid.NewGuid(),
+            Email = "u@e.se",
+            EmailConfirmed = true,
+            Password = "x",
+            FirstName = "T",
+            LastName = "U",
+            Roles = "1",
+        };
+
+        var users = new Mock<IUserRepository>();
+        var ver = new Mock<IVerificationTokenRepository>();
+        var orch = new Mock<IVerificationCodeOrchestrator>();
+
+        users.Setup(r => r.GetUserModelAsync(null, "u@e.se", It.IsAny<CancellationToken>()))
+             .ReturnsAsync(user);
+
+        var sut = new ResendVerificationCommandHandler(
+            users.Object,
+            ver.Object,
+            orch.Object,
+            NullLogger<ResendVerificationCommandHandler>.Instance);
+
+        var res = await sut.Handle(new ResendVerificationCommand("  U@E.SE  "), CancellationToken.None);
+
+        res.IsSuccess.Should().BeTrue();
+        orch.VerifyNoOtherCalls();
+    }
+
 }

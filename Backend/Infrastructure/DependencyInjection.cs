@@ -9,11 +9,16 @@ using Backend.Domain.Abstractions;
 // Application layer
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Application.Abstractions.Infrastructure.Email;
-
+using Backend.Application.Options.Verification;
 using Backend.Application.Abstractions.Infrastructure.RateLimiting;
 using Backend.Application.Abstractions.Infrastructure.Security;
 using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Application.Abstractions.Infrastructure.WebSockets;
+using Backend.Application.Abstractions.Infrastructure.Verification;
+using Backend.Application.Abstractions.Infrastructure.EmailOutbox;
+
+// Infra
+using Backend.Infrastructure.Email.Outbox;
 using Backend.Infrastructure.BackgroundServices;
 using Backend.Infrastructure.Data.Sql.Factories;
 using Backend.Infrastructure.Data.Sql.Interfaces.Factories;
@@ -27,12 +32,15 @@ using Backend.Infrastructure.Repositories.Budget.Core;
 using Backend.Infrastructure.Repositories.Email;
 using Backend.Infrastructure.Repositories.User;
 using Backend.Infrastructure.Security;
-using Backend.Settings;
-using Backend.Settings.Email;
 using Backend.Infrastructure.Data.Repositories;
 using Backend.Infrastructure.Repositories.Budget.BudgetDashboard;
 using Backend.Infrastructure.Repositories.Budget.Months;
 using Backend.Infrastructure.Data.Sql.Helpers.UnitOfWork;
+using Backend.Infrastructure.Verification;
+
+// Settings
+using Backend.Settings;
+using Backend.Settings.Email;
 
 namespace Backend.Infrastructure;
 
@@ -58,10 +66,12 @@ public static class DependencyInjection
         // Email settings (Smtp)
         services.Configure<SmtpSettings>(configuration.GetSection("Smtp"));
 
-        services.Configure<DatabaseSettings>(configuration.GetSection("DatabaseSettings"));
         #endregion
 
+        services.Configure<TurnstileOptions>(configuration.GetSection("Turnstile"));
+        services.Configure<VerificationCodeOptions>(configuration.GetSection("VerificationCode"));
 
+        services.AddHttpClient<ITurnstileService, TurnstileService>();
         // Caching
         if (isProduction)
         {
@@ -102,7 +112,6 @@ public static class DependencyInjection
         services.AddScoped<IExpenditureRepository, ExpenditureRepository>();
         services.AddScoped<IIncomeRepository, IncomeRepository>();
         services.AddScoped<ISavingsRepository, SavingsRepository>();
-        services.AddScoped<IIncomeRepository, IncomeRepository>();
 
         // Dashboard
         services.AddScoped<IBudgetDashboardRepository, BudgetDashboardRepository>();
@@ -112,12 +121,18 @@ public static class DependencyInjection
         // Wizard
         services.AddScoped<IWizardRepository, WizardRepository>();
 
+        // Email
+        services.AddScoped<IEmailVerificationCodeRepository, EmailVerificationCodeRepository>();
+        services.AddScoped<IEmailOutboxRepository, EmailOutboxRepository>();
+
         // User
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IUserAuthenticationRepository, UserAuthenticationRepository>();
 
         // Blacklist tokens
         services.AddScoped<ITokenBlacklistRepo, TokenBlacklistRepo>();
+
+        services.AddHostedService<EmailOutboxSenderHostedService>();
         // End of repositories
 
         // Recaptcha service
