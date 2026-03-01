@@ -7,7 +7,6 @@ import { toApiProblem } from "@/api/toApiProblem";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { useToast } from "@/ui/toast/toast";
 import { toUserMessage } from "@/utils/i18n/apiErrors/toUserMessage";
-console.log("toApiProblem ref", toApiProblem);
 
 import { useAuth } from "@/hooks/auth/useAuth";
 
@@ -46,11 +45,10 @@ export default function LoginPage() {
   const locale = useAppLocale();
 
   const [lastProblem, setLastProblem] = React.useState<ApiProblem | null>(null);
-
   const [rateLimitUntil, setRateLimitUntil] = React.useState<number | null>(
     null,
   );
-  const [tick, setTick] = React.useState(0); // forces re-render for countdown
+  const [tick, setTick] = React.useState(0);
 
   const blocked = rateLimitUntil !== null && Date.now() < rateLimitUntil;
   const secondsLeft = blocked
@@ -90,11 +88,7 @@ export default function LoginPage() {
 
   const shouldShowChallenge = challengeRequired || failCount >= 2;
   const humanToken = watch("HumanToken");
-  const emailValue = watch("email").trim();
   const [rootMessage, setRootMessage] = React.useState<string | null>(null);
-
-  if (isLoading) return null;
-  if (accessToken) return <Navigate to="/dashboard" replace />;
 
   const handleProblem = React.useCallback(
     (p: ApiProblem) => {
@@ -102,7 +96,6 @@ export default function LoginPage() {
         const secs = parseRetryAfterSeconds(p.retryAfter);
         if (secs) setRateLimitUntil(Date.now() + secs * 1000);
         toast.error(toUserMessage(p, locale), { id: "login:429" });
-
         setLastProblem(null);
         setRootMessage(null);
         return;
@@ -120,6 +113,9 @@ export default function LoginPage() {
     },
     [locale, toast],
   );
+
+  if (isLoading) return null;
+  if (accessToken) return <Navigate to="/dashboard" replace />;
 
   const onSubmit: SubmitHandler<LoginFormValues> = async (v) => {
     clearErrors();
