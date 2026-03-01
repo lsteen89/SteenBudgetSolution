@@ -153,18 +153,23 @@ docker compose --env-file .env.dev -f docker-compose.dev.yml ps
 
 cd Backend
 dotnet user-secrets init
+
 # DB (host → container via 127.0.0.1)
 dotnet user-secrets set "DatabaseSettings:ConnectionString" \
-"Server=127.0.0.1;Port=3306;Database=steenbudgetDEV;Uid=app;Pwd=apppwd;Connection Timeout=3;Default Command Timeout=30;SslMode=None;GuidFormat=Binary16"
+"Server=127.0.0.1;Port=3306;Database=steenbudgetDEV;Uid=app;Pwd=apppwd;SslMode=None;GuidFormat=Binary16"
 
-
-# JWT & misc
+# JWT (dev)
 dotnet user-secrets set "JwtSettings:SecretKey" "base64:REPLACE_ME"
-dotnet user-secrets set "RECAPTCHA_SECRET_KEY" "dev-secret"
-dotnet user-secrets set "WEBSOCKET_SECRET" "dev-secret"
-dotnet user-secrets set "AppUrls:FrontendBase" "http://localhost:5173"
-dotnet user-secrets set "AppUrls:VerifyUrl" "http://localhost:5173/verify-email?token={token}"
-dotnet user-secrets set "AppUrls:ResetPasswordUrl" "http://localhost:5173/reset-password?token={token}"
+dotnet user-secrets set "Jwt:Keys:dev" "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+dotnet user-secrets set "Jwt:ActiveKid" "dev"
+
+# WebSocket auth
+dotnet user-secrets set "WEBSOCKET_SECRET" "dev-ws-secret"
+
+# Turnstile (dev/test keys)
+dotnet user-secrets set "Turnstile:VerifyUrl" "https://challenges.cloudflare.com/turnstile/v0/siteverify"
+dotnet user-secrets set "Turnstile:SecretKey" "1x0000000000000000000000000000000AA"
+dotnet user-secrets set "Turnstile:Enabled" "true"
 
 ```
 

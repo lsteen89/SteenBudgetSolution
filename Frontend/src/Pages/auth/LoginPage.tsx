@@ -7,8 +7,7 @@ import { toApiProblem } from "@/api/toApiProblem";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { useToast } from "@/ui/toast/toast";
 import { toUserMessage } from "@/utils/i18n/apiErrors/toUserMessage";
-
-import { useCooldown } from "@/hooks/ui/useCooldown";
+console.log("toApiProblem ref", toApiProblem);
 
 import { useAuth } from "@/hooks/auth/useAuth";
 
@@ -29,30 +28,9 @@ import {
 import LoginBird from "@assets/Images/LoginBird.png";
 
 import type { ApiProblem } from "@/api/api.types";
-import type { LoginRes } from "@/api/Auth/auth"; // adjust import path to where LoginRes lives
 import { loginSchema } from "@/schemas/auth/login/login.schema";
 import type { LoginFormValues } from "@myTypes/User/Auth/loginForm.types";
 import type { UserLoginDto } from "@myTypes/User/Auth/userLoginForm";
-
-function shouldRequireChallenge(res: any): boolean {
-  const code = String(res?.errorCode ?? "");
-  return (
-    res?.requiresHumanVerification === true ||
-    code === "Auth.HumanVerificationRequired" ||
-    code === "HumanVerification.Required"
-  );
-}
-
-function resToProblem(res: Extract<LoginRes, { success: false }>): ApiProblem {
-  return {
-    message: res.message,
-    code: res.errorCode,
-    status: res.status,
-    retryAfter: res.retryAfter,
-    isNetworkError: false,
-    raw: res,
-  };
-}
 
 function parseRetryAfterSeconds(s?: string): number | null {
   if (!s) return null;
@@ -68,7 +46,6 @@ export default function LoginPage() {
   const locale = useAppLocale();
 
   const [lastProblem, setLastProblem] = React.useState<ApiProblem | null>(null);
-  const { remaining, isActive, start } = useCooldown(60);
 
   const [rateLimitUntil, setRateLimitUntil] = React.useState<number | null>(
     null,
@@ -145,11 +122,8 @@ export default function LoginPage() {
   );
 
   const onSubmit: SubmitHandler<LoginFormValues> = async (v) => {
-    // Clear stale UI FIRST (not after request)
     clearErrors();
     setRootMessage(null);
-    // Then clear token explicitly if you want
-    setValue("HumanToken", null, { shouldValidate: false });
     setLastProblem(null);
 
     if (blocked) {
@@ -162,31 +136,20 @@ export default function LoginPage() {
       return;
     }
 
-    // Honeypot => pretend invalid creds
+    // Honeypot => pretend invalid creds (and return early)
     if (v.honeypot?.trim()) {
-      setLastProblem({
+      const p: ApiProblem = {
         message: "Invalid",
         code: "Auth.InvalidCredentials",
         status: 401,
         isNetworkError: false,
         raw: null,
-      });
-      setRootMessage(
-        toUserMessage(
-          {
-            message: "Invalid",
-            code: "Auth.InvalidCredentials",
-            status: 401,
-            isNetworkError: false,
-            raw: null,
-          },
-          locale,
-        ),
-      );
-      return; // ✅ missing
+      };
+      handleProblem(p);
+      return;
     }
 
-    // Turnstile required but missing
+    // If challenge is visible, token must exist
     if (shouldShowChallenge && !v.HumanToken) {
       setError("HumanToken", {
         type: "turnstile",
@@ -205,54 +168,66 @@ export default function LoginPage() {
         HumanToken: shouldShowChallenge ? v.HumanToken : null,
       };
 
-      const res = await login(dto, v.rememberMe);
+      await login(dto, v.rememberMe);
 
-      if (res?.success) {
-        nav("/dashboard", { replace: true });
-        return;
-      }
-
-      // Normalize + show message consistently
-      const p = resToProblem(res);
-      handleProblem(p);
-
-      // STOP: do not escalate challenge on these (keeps UX calm)
-      if (
-        p.status === 429 ||
-        p.isNetworkError ||
-        (p.status ?? 0) >= 500 ||
-        p.code === "Verification.EmailNotConfirmed"
-      ) {
-        return;
-      }
-
-      // Escalate challenge only for "auth-ish" failures (invalid creds etc)
-      const nextFailCount = failCount + 1;
-      setFailCount(nextFailCount);
-
-      const serverWantsChallenge = shouldRequireChallenge(res);
-      if (serverWantsChallenge) setChallengeRequired(true);
-
-      const nextShowChallenge =
-        challengeRequired || serverWantsChallenge || nextFailCount >= 2;
-
-      if (nextShowChallenge) {
-        setValue("HumanToken", null, { shouldValidate: true });
-        turnstileRef.current?.reset();
-      }
+      nav("/dashboard", { replace: true });
     } catch (e) {
       const p = toApiProblem(e);
-      handleProblem(p);
+      console.log("LOGIN ERROR RAW:", e);
+      console.log("LOGIN PROBLEM:", p);
 
+      if (p.code === "Verification.EmailNotConfirmed") {
+        toast.info(
+          locale === "sv-SE"
+            ? "Du måste verifiera din e-post innan du kan logga in."
+            : "You need to verify your email before you can log in.",
+          { id: "login:not-confirmed" },
+        );
+        nav(`/email-confirmation?email=${encodeURIComponent(v.email.trim())}`, {
+          replace: true,
+        });
+        return;
+      }
+      console.log(
+        "status",
+        p.status,
+        "isNetworkError",
+        p.isNetworkError,
+        "code",
+        p.code,
+      );
+      handleProblem(p);
       // Don't escalate for rate limit / network / 5xx
       if (p.status === 429 || p.isNetworkError || (p.status ?? 0) >= 500)
         return;
 
+      // Server explicitly demands challenge: show it immediately
+      const serverWantsChallenge =
+        p.code === "Auth.HumanVerificationRequired" ||
+        p.code === "HumanVerification.Required" ||
+        p.code === "Auth.InvalidChallengeToken";
+
+      if (serverWantsChallenge) {
+        setChallengeRequired(true);
+        setValue("HumanToken", null, { shouldValidate: true });
+        turnstileRef.current?.reset();
+        setError("HumanToken", {
+          type: "turnstile",
+          message:
+            locale === "sv-SE"
+              ? "Verifiera att du är människa för att fortsätta."
+              : "Please verify you are human to continue.",
+        });
+        return;
+      }
+
+      // Otherwise: escalate after N auth-ish failures
       const nextFailCount = failCount + 1;
       setFailCount(nextFailCount);
 
       const nextShowChallenge = challengeRequired || nextFailCount >= 2;
       if (nextShowChallenge) {
+        setChallengeRequired(true);
         setValue("HumanToken", null, { shouldValidate: true });
         turnstileRef.current?.reset();
       }
@@ -289,6 +264,13 @@ export default function LoginPage() {
                 onSubmit={handleSubmit(onSubmit)}
                 className="mt-6 space-y-5"
               >
+                {rootMessage ? (
+                  <div className="rounded-2xl border border-eb-stroke/30 bg-eb-surface/70 px-4 py-3">
+                    <p className="text-sm font-semibold text-eb-text/85">
+                      {rootMessage}
+                    </p>
+                  </div>
+                ) : null}
                 <div className="grid gap-4">
                   <FormField
                     label="E-post"

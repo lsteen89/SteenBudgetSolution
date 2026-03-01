@@ -18,25 +18,20 @@ export function useAuth() {
   const currentRememberMe = useAuthStore((s) => s.rememberMe);
 
   const applyAuth = useCallback(
-    async (r: AuthResult) => {
-      const { accessToken, sessionId, persoId, wsMac, rememberMe } = r;
-
-      setAuthAction(accessToken, sessionId, persoId, wsMac ?? null, rememberMe);
-      api.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-
+    async (_r: AuthResult) => {
       try {
         const resp = await api.get<ApiEnvelope<UserDto>>("/api/users/me");
         const env = resp.data;
         if (env.isSuccess && env.data && !env.error) mergeUserAction(env.data);
       } catch {
-        // keep calm; /me failure shouldn't brick auth
+        /* ignore */
       }
     },
-    [setAuthAction, mergeUserAction],
+    [mergeUserAction],
   );
 
   const login = useCallback(
-    async (dto: UserLoginDto, rememberMe: boolean): Promise<LoginRes> => {
+    async (dto: UserLoginDto, rememberMe: boolean): Promise<AuthResult> => {
       const payload = {
         email: dto.email,
         password: dto.password,
@@ -44,11 +39,12 @@ export function useAuth() {
         HumanToken: dto.HumanToken, // null is fine
       } as const;
 
-      const res = await callLogin(payload);
-      if (!res.success) return res;
+      const auth = await callLogin(payload); // AuthResult or throws ApiProblem
+      // NOTE: callLogin currently already setsAuth() in the auth module.
+      // applyAuth still makes sense because it fetches /me and merges user.
+      await applyAuth(auth);
 
-      await applyAuth(res.data);
-      return res;
+      return auth;
     },
     [applyAuth],
   );
@@ -65,6 +61,6 @@ export function useAuth() {
     rememberMe: currentRememberMe,
     login,
     logout,
-    applyAuth, // <-- expose this for register flow
+    applyAuth,
   };
 }

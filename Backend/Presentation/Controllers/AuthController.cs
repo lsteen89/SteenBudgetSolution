@@ -166,16 +166,8 @@ namespace Backend.Presentation.Controllers
         [ProducesResponseType(typeof(ApiEnvelope<string>), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> ResendVerificationEmail([FromBody] ResendVerificationRequest request)
         {
-
-
             var command = new ResendVerificationCommand(request.Email);
             var result = await _mediator.Send(command);
-
-            if (result.IsFailure)
-            {
-                var envelope = ApiEnvelope<string>.Failure(result.Error.Code, result.Error.Description);
-                return BadRequest(envelope);
-            }
 
             var successEnvelope = ApiEnvelope<string>.Success(
                 "If an account with that email exists, a new verification code has been sent."

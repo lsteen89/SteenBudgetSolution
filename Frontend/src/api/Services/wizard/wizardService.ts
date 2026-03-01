@@ -1,11 +1,11 @@
-import { api } from '@/api/axios';
-import { StartWizardResponse } from '@/types/Wizard/Step0_Welcome/StartWizardResponse';
-import { CODE_DATA_VERSION } from '@/constants/wizardVersion';
-import { WizardData } from '@/stores/Wizard/wizardDataStore';
-import type { ApiEnvelope } from '@/api/api.types';
-import { isAxiosError } from 'axios';
-import type { BudgetDashboardDto } from '@myTypes/budget/BudgetDashboardDto';
-import { unwrapEnvelope } from '@/utils/api/apiHelpers';
+import type { ApiEnvelope } from "@/api/api.types";
+import { api } from "@/api/axios";
+import { unwrapEnvelope } from "@/api/envelope";
+import { CODE_DATA_VERSION } from "@/constants/wizardVersion";
+import { WizardData } from "@/stores/Wizard/wizardDataStore";
+import { StartWizardResponse } from "@/types/Wizard/Step0_Welcome/StartWizardResponse";
+import type { BudgetDashboardDto } from "@myTypes/budget/BudgetDashboardDto";
+import { isAxiosError } from "axios";
 
 export interface WizardProgressDto {
   majorStep: number;
@@ -21,14 +21,13 @@ export interface WizardDataResponseDto {
 
 /* ───── start wizard ───── */
 export async function startWizard(): Promise<StartWizardResponse> {
-  const response = await api.post<ApiEnvelope<StartWizardResponse>>(
-    '/api/wizard/start'
-  );
+  const response =
+    await api.post<ApiEnvelope<StartWizardResponse>>("/api/wizard/start");
 
   const env = response.data;
 
   if (!env.isSuccess || !env.data || env.error) {
-    console.error('startWizard failed:', env);
+    console.error("startWizard failed:", env);
     const msg =
       env.error?.message ??
       "API Contract Error: startWizard missing 'wizardSessionId'.";
@@ -38,8 +37,10 @@ export async function startWizard(): Promise<StartWizardResponse> {
   const payload = env.data;
 
   if (!payload.wizardSessionId) {
-    console.error('Invalid API response from startWizard:', env);
-    throw new Error("API Contract Error: startWizard missing 'wizardSessionId'.");
+    console.error("Invalid API response from startWizard:", env);
+    throw new Error(
+      "API Contract Error: startWizard missing 'wizardSessionId'.",
+    );
   }
 
   return payload;
@@ -52,42 +53,51 @@ export const saveWizardStep = async (
   step: number,
   subStep: number,
   stepData: unknown,
-  dataVersion: number = CODE_DATA_VERSION
+  dataVersion: number = CODE_DATA_VERSION,
 ) => {
   const rid = crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
   const snapshot = JSON.parse(JSON.stringify(stepData)); // freeze for logging
 
-  console.groupCollapsed('%c[API] saveWizardStep', 'color:#22c55e;font-weight:bold');
+  console.groupCollapsed(
+    "%c[API] saveWizardStep",
+    "color:#22c55e;font-weight:bold",
+  );
   console.log({ rid, sid, step, subStep, snapshot });
-  console.trace('[API] call stack rid=' + rid);
+  console.trace("[API] call stack rid=" + rid);
   console.groupEnd();
 
-  return api.put(
-    `/api/wizard/${sid}/steps/${step}/${subStep}`,
-    { stepData, dataVersion }
-  );
+  return api.put(`/api/wizard/${sid}/steps/${step}/${subStep}`, {
+    stepData,
+    dataVersion,
+  });
 };
 
 /* ───── get wizard data ───── */
 export const getWizardData = async (
-  sid: string
+  sid: string,
 ): Promise<WizardDataResponseDto | null> => {
   try {
     const res = await api.get<ApiEnvelope<WizardDataResponseDto | null>>(
-      `/api/wizard/${sid}`
+      `/api/wizard/${sid}`,
     );
 
     const env = res.data;
 
     if (!env.isSuccess) {
-      console.error('Failed to load wizard data (envelope failure):', env.error);
-      throw new Error(env.error?.message ?? 'Failed to load wizard data.');
+      console.error(
+        "Failed to load wizard data (envelope failure):",
+        env.error,
+      );
+      throw new Error(env.error?.message ?? "Failed to load wizard data.");
     }
 
     // Success; data may be null if nothing saved yet
     return env.data ?? null;
   } catch (error) {
-    if (isAxiosError<ApiEnvelope<WizardDataResponseDto | null>>(error) && error.response) {
+    if (
+      isAxiosError<ApiEnvelope<WizardDataResponseDto | null>>(error) &&
+      error.response
+    ) {
       const status = error.response.status;
 
       // Wizard session not found → treat as "no wizard"
@@ -96,12 +106,12 @@ export const getWizardData = async (
       }
 
       const env = error.response.data;
-      const msg = env?.error?.message ?? 'Failed to load wizard data.';
-      console.error('Failed to load wizard data (HTTP error):', status, env);
+      const msg = env?.error?.message ?? "Failed to load wizard data.";
+      console.error("Failed to load wizard data (HTTP error):", status, env);
       throw new Error(msg);
     }
 
-    throw new Error('Failed to load wizard data.');
+    throw new Error("Failed to load wizard data.");
   }
 };
 
@@ -113,10 +123,12 @@ export async function completeWizard(sessionId: string): Promise<void> {
 }
 
 /* ───── fetch finalization preview ───── */
-export async function fetchWizardFinalizationPreview(sessionId: string): Promise<BudgetDashboardDto> {
+export async function fetchWizardFinalizationPreview(
+  sessionId: string,
+): Promise<BudgetDashboardDto> {
   const res = await api.get<ApiEnvelope<BudgetDashboardDto>>(
-    `/api/wizard/${sessionId}/finalization-preview`
+    `/api/wizard/${sessionId}/finalization-preview`,
   );
 
-  return unwrapEnvelope(res.data);
+  return unwrapEnvelope(res, "Could not load finalization preview.");
 }
