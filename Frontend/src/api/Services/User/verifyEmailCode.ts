@@ -1,12 +1,10 @@
-import type { ApiEnvelope, ApiProblem } from "@/api/api.types";
+import type { ApiEnvelope } from "@/api/api.types";
 import { api } from "@/api/axios";
+import { unwrapEnvelope } from "@/api/envelope";
 import { toApiProblem } from "@/api/toApiProblem";
 import { isAxiosError } from "axios";
 
-export type VerifyEmailCodeRequest = {
-  email: string;
-  code: string;
-};
+export type VerifyEmailCodeRequest = { email: string; code: string };
 
 export async function verifyEmailCode(
   req: VerifyEmailCodeRequest,
@@ -16,21 +14,9 @@ export async function verifyEmailCode(
       "/api/auth/verify-email-code",
       req,
     );
-
-    const env = res.data;
-
-    if (!env.isSuccess || env.error) {
-      const p: ApiProblem = {
-        message: env.error?.message ?? "Verification failed.",
-        code: env.error?.code ?? "Unknown",
-        status: res.status,
-        raw: env,
-      };
-      throw p;
-    }
+    unwrapEnvelope(res, "Verification failed.");
   } catch (e) {
     if (isAxiosError(e)) throw toApiProblem(e);
-    if (typeof e === "object" && e && "message" in e) throw e;
-    throw toApiProblem(e);
+    throw e;
   }
 }

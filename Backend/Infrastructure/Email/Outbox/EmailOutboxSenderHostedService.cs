@@ -57,8 +57,15 @@ public sealed class EmailOutboxSenderHostedService : BackgroundService
 
                 if (string.IsNullOrWhiteSpace(fromAddress))
                 {
-                    _log.LogError("SMTP FromAddress is empty. Outbox sender will not send emails.");
-                    // Optional: mark all claimed as failed with config error + quick retry delay
+                    _log.LogError("SMTP FromAddress is empty. Marking {Count} outbox items failed.", batch.Count);
+
+                    foreach (var item in batch)
+                    {
+                        var attempts = item.Attempts + 1;
+                        var next = DateTime.UtcNow.AddMinutes(5);
+                        await MarkFailedAsync(item.Id, attempts, next, "SMTP FromAddress is empty", stoppingToken);
+                    }
+
                     continue;
                 }
 
@@ -69,6 +76,8 @@ public sealed class EmailOutboxSenderHostedService : BackgroundService
                 // 2) SEND (no tx) + 3) MARK status (short tx per item)
                 foreach (var item in batch)
                 {
+                    _log.LogInformation("Sending outbox email Id={Id} To={To} Kind={Kind} Attempt={Attempt}",
+                         item.Id, item.ToEmail, item.Kind, item.Attempts);
                     try
                     {
                         var composer = new OutboxEmailComposer(
@@ -86,6 +95,7 @@ public sealed class EmailOutboxSenderHostedService : BackgroundService
                         if (result.Success)
                         {
                             await MarkSentAsync(item.Id, result.ProviderId, stoppingToken);
+                            _log.LogInformation("Sent outbox email Id={Id} ProviderId={ProviderId}", item.Id, result.ProviderId);
                             continue;
                         }
 

@@ -180,44 +180,70 @@ builder.Services.AddRateLimiter(options =>
 
     // Set a global limiter using PartitionedRateLimiter.Create
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "global",
-            factory: key => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = builder.Environment.IsProduction() ? 10 : debugLimit,               // Allow 10 requests per minute
-                Window = TimeSpan.FromMinutes(1),
-                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                QueueLimit = 2
-            }));
+    RateLimitPartition.GetFixedWindowLimiter(
+        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        factory: _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = builder.Environment.IsProduction() ? 10 : debugLimit,               // Allow 10 requests per minute
+            Window = TimeSpan.FromMinutes(1),
+            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+            QueueLimit = 2
+        }));
 
     // Registration-specific rate limit policy
     options.AddPolicy("RegistrationPolicy", httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(httpContext.Connection.RemoteIpAddress!, key =>
-            new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 3,                 // Allow 3 requests
-                Window = TimeSpan.FromMinutes(2), // In a 2-minute window
-                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                QueueLimit = 0                   // No queueing
-            }));
+    RateLimitPartition.GetFixedWindowLimiter(
+        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        factory: _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 3,                 // Allow 3 requests
+            Window = TimeSpan.FromMinutes(2), // In a 2-minute window
+            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+            QueueLimit = 0                   // No queueing
+        }));
     // Login rate limit policy
     options.AddPolicy("LoginPolicy", httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(httpContext.Connection.RemoteIpAddress!, key =>
-            new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 5,                  // Allow 5 login attempts
-                Window = TimeSpan.FromMinutes(15), // Within a 15-minute window
-                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                QueueLimit = 0                    // No queuing for additional requests
-            }));
+    RateLimitPartition.GetFixedWindowLimiter(
+        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        factory: _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 5,                  // Allow 5 login attempts
+            Window = TimeSpan.FromMinutes(15), // Within a 15-minute window
+            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+            QueueLimit = 0                    // No queuing for additional requests
+        }));
     // Email sending rate limit policy
     // is used in the EmailController
     // Todo: Measure and adjust the rate limit for production
     options.AddPolicy("EmailSendingPolicy", httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(httpContext.Connection.RemoteIpAddress!, key =>
-            new FixedWindowRateLimiterOptions
+    RateLimitPartition.GetFixedWindowLimiter(
+        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        factory: _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 3,
+            Window = TimeSpan.FromMinutes(15),
+            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+            QueueLimit = 0
+        }));
+    // Verify email code policy (OTP brute force protection)
+    options.AddPolicy("VerifyEmailPolicy", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
             {
-                PermitLimit = 3,
+                PermitLimit = builder.Environment.IsProduction() ? 10 : debugLimit,
+                Window = TimeSpan.FromMinutes(5),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            }));
+
+    // Resend verification policy (email spam protection)
+    options.AddPolicy("ResendVerificationPolicy", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = builder.Environment.IsProduction() ? 3 : debugLimit,
                 Window = TimeSpan.FromMinutes(15),
                 QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
                 QueueLimit = 0

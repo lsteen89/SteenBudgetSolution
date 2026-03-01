@@ -1,75 +1,51 @@
 import type { ApiEnvelope } from "@/api/api.types";
 import type { AuthResult } from "@/api/auth.types.ts";
 import { api } from "@/api/axios";
+import { unwrapEnvelope } from "@/api/envelope";
+import { toApiProblem } from "@/api/toApiProblem";
 import { useAuthStore } from "@/stores/Auth/authStore";
 import { isAxiosError } from "axios";
 
 let logoutOnce: Promise<void> | null = null;
 let isLoggingOutFlag = false;
-
 export { isLoggingOutFlag as isLoggingOut };
 
 /* ───── silent refresh (NO BODY) ───── */
 export async function refreshToken(): Promise<string> {
   const { setAuth } = useAuthStore.getState();
 
-  const { data: envelope } =
-    await api.post<ApiEnvelope<AuthResult>>("/api/auth/refresh");
+  try {
+    const res = await api.post<ApiEnvelope<AuthResult>>("/api/auth/refresh");
+    const payload = unwrapEnvelope(res, "Refresh failed.");
 
-  if (!envelope.isSuccess || !envelope.data) {
-    // you can inspect envelope.error here if you want more nuance
-    throw new Error(envelope.error?.code ?? "refresh failed");
+    setAuth(
+      payload.accessToken,
+      payload.sessionId,
+      payload.persoId,
+      payload.wsMac ?? null,
+      payload.rememberMe ?? false,
+    );
+
+    api.defaults.headers.common.Authorization = `Bearer ${payload.accessToken}`;
+    return payload.accessToken;
+  } catch (e) {
+    if (isAxiosError(e)) throw toApiProblem(e);
+    throw e;
   }
-
-  const payload = envelope.data;
-
-  setAuth(
-    payload.accessToken,
-    payload.sessionId,
-    payload.persoId,
-    payload.wsMac ?? null,
-    payload.rememberMe ?? false,
-  );
-
-  api.defaults.headers.common.Authorization = `Bearer ${payload.accessToken}`;
-  return payload.accessToken;
 }
 
 /* ───── interactive login ───── */
-export type LoginRes =
-  | { success: true; data: AuthResult }
-  | {
-      success: false;
-      message: string;
-      errorCode?: string;
-      status?: number;
-      retryAfter?: string;
-    };
-
 export async function callLogin(dto: {
   email: string;
   password: string;
   HumanToken?: string | null;
   rememberMe?: boolean;
-}): Promise<LoginRes> {
+}): Promise<AuthResult> {
   try {
-    // BE returns ApiEnvelope<AuthResult>
-    const { data: envelope } = await api.post<ApiEnvelope<AuthResult>>(
-      "/api/auth/login",
-      dto,
-    );
+    const res = await api.post<ApiEnvelope<AuthResult>>("/api/auth/login", dto);
 
-    // Case: HTTP 200 but business failure is inside envelope
-    if (!envelope.isSuccess || !envelope.data || envelope.error) {
-      return {
-        success: false,
-        message: envelope.error?.message ?? "Login failed",
-        errorCode: envelope.error?.code,
-        status: 200,
-      };
-    }
-
-    const payload = envelope.data;
+    // Handles both: 200+error-envelope and normal success
+    const payload = unwrapEnvelope(res, "Login failed.");
 
     const { setAuth } = useAuthStore.getState();
     setAuth(
@@ -79,24 +55,12 @@ export async function callLogin(dto: {
       payload.wsMac ?? null,
       payload.rememberMe ?? false,
     );
+
     api.defaults.headers.common.Authorization = `Bearer ${payload.accessToken}`;
-
-    return { success: true, data: payload };
-  } catch (err) {
-    // Case: 4xx/5xx + envelope body
-    if (isAxiosError<ApiEnvelope<unknown>>(err)) {
-      const env = err.response?.data;
-      const retryAfter = String(err.response?.headers?.["retry-after"] ?? "");
-      return {
-        success: false,
-        message: env?.error?.message ?? "Login failed",
-        errorCode: env?.error?.code,
-        status: err.response?.status,
-        retryAfter: retryAfter || undefined,
-      };
-    }
-
-    return { success: false, message: "Network error" };
+    return payload;
+  } catch (e) {
+    if (isAxiosError(e)) throw toApiProblem(e);
+    throw e;
   }
 }
 
@@ -109,7 +73,6 @@ export async function callLogout(): Promise<void> {
     const tok = useAuthStore.getState().accessToken;
 
     logoutOnce = api
-
       .post(
         "/api/auth/logout",
         {},
