@@ -1,25 +1,24 @@
-import React, { useMemo, useState } from "react";
 import { motion } from "framer-motion";
+import React, { useMemo, useState } from "react";
 
-import OptionContainer from "@components/molecules/containers/OptionContainer";
-import useMediaQuery from "@/hooks/useMediaQuery";
-import { WizardStepHeader } from "@components/organisms/overlays/wizard/SharedComponents/Headers/WizardStepHeader";
-import { formatMoneyV2 } from "@/utils/money/moneyV2";
 import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
+import useMediaQuery from "@/hooks/useMediaQuery";
+import { formatMoneyV2 } from "@/utils/money/moneyV2";
+import { WizardStepHeader } from "@components/organisms/overlays/wizard/SharedComponents/Headers/WizardStepHeader";
 
-import type { BudgetDashboardDto } from "@/types/budget/BudgetDashboardDto";
-import { mapFinalizationPreviewToExpenseConfirm } from "./mapping/mapFinalizationPreviewToExpenseConfirm";
+import bird from "@/assets/Images/GuideBirdReward.png";
+import { WizardMascot } from "@/components/atoms/animation/WizardMascot";
+import SummaryDoughnut from "@/components/atoms/charts/SummaryDoughnut";
 import {
   WizardAccordion,
   WizardAccordionRoot,
 } from "@/components/organisms/overlays/wizard/SharedComponents/Accordion/WizardAccordion";
-import SummaryDoughnut from "@/components/atoms/charts/SummaryDoughnut";
+import { cn } from "@/lib/utils";
+import type { BudgetDashboardDto } from "@/types/budget/BudgetDashboardDto";
 import type { CategoryKey } from "@/utils/i18n/categories";
 import { asCategoryKey } from "@/utils/i18n/categories";
-import { cn } from "@/lib/utils";
-import bird from "@/assets/Images/GuideBirdReward.png";
-import { WizardMascot } from "@/components/atoms/animation/WizardMascot";
+import { mapFinalizationPreviewToExpenseConfirm } from "./mapping/mapFinalizationPreviewToExpenseConfirm";
 
 type Props = {
   preview?: BudgetDashboardDto;
@@ -75,7 +74,11 @@ const SubStepConfirmExpenditure: React.FC<Props> = ({ preview }) => {
     <div>
       <section className="mx-auto w-auto space-y-6 pb-safe sm:px-6 lg:px-12">
         <WizardStepHeader
-          stepPill={{ stepNumber: 2, majorLabel: "Utgifter", subLabel: "Sammanfattning" }}
+          stepPill={{
+            stepNumber: 2,
+            majorLabel: "Utgifter",
+            subLabel: "Sammanfattning",
+          }}
           title="Sammanfattning"
           subtitle="Bra jobbat! Du har nu kartlagt dina utgifter. Här är en översikt av din budget."
         />
@@ -90,7 +93,14 @@ const SubStepConfirmExpenditure: React.FC<Props> = ({ preview }) => {
               <div className="relative">
                 {/* Bird: always visible (mobile centered, desktop absolute left) */}
                 <div className="sm:hidden flex justify-center pointer-events-none select-none pb-2">
-                  <WizardMascot src={bird} size={120} showText={false} hello float tilt />
+                  <WizardMascot
+                    src={bird}
+                    size={120}
+                    showText={false}
+                    hello
+                    float
+                    tilt
+                  />
                 </div>
 
                 <div className="hidden sm:block pointer-events-none select-none absolute left-4 top-1/2 -translate-y-1/2">
@@ -132,10 +142,10 @@ const SubStepConfirmExpenditure: React.FC<Props> = ({ preview }) => {
           </motion.div>
         )}
 
-
         {vm.categories.length === 0 ? (
           <div className="rounded-2xl border border-wizard-stroke/20 bg-wizard-surface p-4 text-center text-sm text-wizard-text/70 shadow-sm shadow-black/5">
-            Inga utgifter hittades ännu. Gå tillbaka och fyll i åtminstone en kostnad.
+            Inga utgifter hittades ännu. Gå tillbaka och fyll i åtminstone en
+            kostnad.
           </div>
         ) : (
           <WizardAccordionRoot
@@ -175,7 +185,9 @@ const SubStepConfirmExpenditure: React.FC<Props> = ({ preview }) => {
                           border-b border-wizard-stroke/15
                         "
                       >
-                        <span className="truncate text-wizard-text/80">{x.title}</span>
+                        <span className="truncate text-wizard-text/80">
+                          {x.title}
+                        </span>
                         <span className="font-mono font-semibold text-wizard-text sm:text-right">
                           {money0(x.amount)}
                         </span>
@@ -193,23 +205,27 @@ const SubStepConfirmExpenditure: React.FC<Props> = ({ preview }) => {
           animate={{ opacity: 1 }}
           className="rounded-2xl border border-wizard-stroke/20 bg-wizard-shell p-4 text-sm text-wizard-text/70 shadow-sm shadow-black/5"
         >
-          Ser något inte helt rätt ut? Du kan gå tillbaka och justera siffrorna nu,
-          eller fortsätta och ändra dem senare. En budget är ett levande dokument som
-          du kan och bör anpassa över tid.
+          Ser något inte helt rätt ut? Du kan gå tillbaka och justera siffrorna
+          nu, eller fortsätta och ändra dem senare. En budget är ett levande
+          dokument som du kan och bör anpassa över tid.
         </motion.div>
 
         {/* Bottom summary (structured, calm) */}
         <div className="rounded-2xl border bg-wizard-shell/80 border-wizard-strokeStrong/25 p-5 shadow-sm shadow-black/5">
           <div className="flex flex-col gap-2">
             <div className="flex items-baseline justify-between gap-4">
-              <span className="text-sm font-semibold text-wizard-text/70">Inkomst</span>
-              <span className="text-lg font-extrabold money text-wizard-text">
+              <span className="text-sm font-semibold text-wizard-text/70">
+                Inkomst
+              </span>
+              <span className="text-lg font-extrabold text-wizard-text">
                 {money0(vm.incomeTotal)}
               </span>
             </div>
 
             <div className="flex items-baseline justify-between gap-4">
-              <span className="text-sm font-semibold text-wizard-text/70">Utgifter</span>
+              <span className="text-sm font-semibold text-wizard-text/70">
+                Utgifter
+              </span>
               <span className="text-lg font-extrabold text-wizard-text/80">
                 {money0(vm.grandTotal)}
               </span>
@@ -225,7 +241,9 @@ const SubStepConfirmExpenditure: React.FC<Props> = ({ preview }) => {
               <span
                 className={cn(
                   "text-xl font-extrabold",
-                  vm.remaining >= 0 ? "text-darkLimeGreen" : "text-wizard-warning"
+                  vm.remaining >= 0
+                    ? "text-darkLimeGreen"
+                    : "text-wizard-warning",
                 )}
               >
                 {money0(Math.abs(vm.remaining))}
@@ -234,7 +252,8 @@ const SubStepConfirmExpenditure: React.FC<Props> = ({ preview }) => {
 
             {vm.remaining < 0 ? (
               <p className="mt-1 text-xs text-wizard-warning/80">
-                Tips: Justera några kategorier eller gå tillbaka och kontrollera att allt är med.
+                Tips: Justera några kategorier eller gå tillbaka och kontrollera
+                att allt är med.
               </p>
             ) : null}
           </div>
