@@ -184,7 +184,7 @@ builder.Services.AddRateLimiter(options =>
         partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         factory: _ => new FixedWindowRateLimiterOptions
         {
-            PermitLimit = builder.Environment.IsProduction() ? 10 : debugLimit,               // Allow 10 requests per minute
+            PermitLimit = builder.Environment.IsProduction() ? 300 : debugLimit,               // Allow 300 requests per minute, proper ratelimit on sensitive points
             Window = TimeSpan.FromMinutes(1),
             QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
             QueueLimit = 2
@@ -212,6 +212,43 @@ builder.Services.AddRateLimiter(options =>
             QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
             QueueLimit = 0                    // No queuing for additional requests
         }));
+    options.AddPolicy("RefreshPolicy", httpContext =>
+    {
+        // Prefer sessionId if present (your client already has it sometimes)
+        var sid = httpContext.Request.Headers["X-Session-Id"].FirstOrDefault();
+        var key = !string.IsNullOrWhiteSpace(sid)
+            ? $"sid:{sid}"
+            : $"ip:{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
+
+        return RateLimitPartition.GetSlidingWindowLimiter(
+            partitionKey: key,
+            factory: _ => new SlidingWindowRateLimiterOptions
+            {
+                PermitLimit = builder.Environment.IsProduction() ? 30 : debugLimit,
+                Window = TimeSpan.FromMinutes(5),
+                SegmentsPerWindow = 5,      // smoother than fixed window
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            });
+    });
+    options.AddPolicy("LogoutPolicy", httpContext =>
+    {
+        // Prefer authenticated user if present, else IP
+        var userKey = httpContext.User?.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+        var key = !string.IsNullOrWhiteSpace(userKey)
+            ? $"u:{userKey}"
+            : $"ip:{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
+
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: key,
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = builder.Environment.IsProduction() ? 10 : debugLimit,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            });
+    });
     // Email sending rate limit policy
     // is used in the EmailController
     // Todo: Measure and adjust the rate limit for production
@@ -319,8 +356,7 @@ builder.Services.AddAuthentication(o =>
     o.DefaultAuthenticateScheme = "AccessScheme";
     o.DefaultChallengeScheme = "AccessScheme";
 })
-.AddJwtBearer("AccessScheme", _ => { })      // options come from AddOptions below
-.AddJwtBearer("RefreshScheme", _ => { });
+.AddJwtBearer("AccessScheme", _ => { });
 
 builder.Services.AddOptions<JwtBearerOptions>("AccessScheme")
   .Configure<IJwtKeyRing, JwtSettings>((o, ring, jwt) =>
@@ -354,27 +390,6 @@ builder.Services.AddOptions<JwtBearerOptions>("AccessScheme")
               if (jti != null && await blacklist.IsTokenBlacklistedAsync(jti))
                   ctx.Fail("revoked");
           }
-      };
-  });
-
-
-builder.Services.AddOptions<JwtBearerOptions>("RefreshScheme")
-  .Configure<IJwtKeyRing, JwtSettings>((o, ring, jwt) =>
-  {
-      o.MapInboundClaims = false;
-      o.TokenValidationParameters = new TokenValidationParameters
-      {
-          ValidIssuer = jwt.Issuer,
-          ValidAudience = jwt.Audience,
-          ValidateIssuer = true,
-          ValidateAudience = true,
-          ValidateIssuerSigningKey = true,
-          IssuerSigningKeyResolver = (token, st, kid, p) =>
-            kid is not null && ring.All.TryGetValue(kid, out var k)
-              ? new[] { k }
-              : ring.All.Values.ToArray(),
-          ValidAlgorithms = new[] { SecurityAlgorithms.HmacSha256 },
-          ValidateLifetime = false
       };
   });
 
@@ -422,6 +437,9 @@ else
     app.UseCors("DefaultCorsPolicy"); // Fallback for other environments
 }
 
+// Rate Limiting Middleware
+app.UseRateLimiter();
+
 // Global exception handling
 app.UseExceptionHandler(errorApp =>
 {
@@ -466,8 +484,7 @@ app.UseAuthorization();
 app.UseMiddleware<TokenBlacklistMiddleware>();
 app.UseMiddleware<ValidationExceptionMiddleware>();
 
-// Use Rate Limiting Middleware (if configured)
-app.UseRateLimiter();
+
 
 // Swagger configuration
 if (app.Environment.IsDevelopment())

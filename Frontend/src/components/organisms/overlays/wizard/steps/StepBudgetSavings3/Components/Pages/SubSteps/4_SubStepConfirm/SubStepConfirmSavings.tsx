@@ -1,22 +1,21 @@
-import React, { useCallback, useMemo, useState } from "react";
-import { motion } from "framer-motion";
-import OptionContainer from "@components/molecules/containers/OptionContainer";
-import { WizardStepHeader } from "@components/organisms/overlays/wizard/SharedComponents/Headers/WizardStepHeader";
+import { WizardMascot } from "@/components/atoms/animation/WizardMascot";
 import {
   WizardAccordion,
   WizardAccordionRoot,
 } from "@/components/organisms/overlays/wizard/SharedComponents/Accordion/WizardAccordion";
-import type { BudgetDashboardDto } from "@/types/budget/BudgetDashboardDto";
 import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
+import type { BudgetDashboardDto } from "@/types/budget/BudgetDashboardDto";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
-import { mapFinalizationPreviewToSavingsConfirm } from "./mapping/mapFinalizationPreviewToSavingsConfirm";
-import SavingsCoachCard from "./components/SavingsCoachCard";
-import GoalFeasibilityRow from "./components/GoalFeasibilityRow";
 import SavingsBird from "@assets/Images/SavingsBird.png";
-import WhatIfSavingsCard from "./components/WhatIfSavingsCard";
+import { WizardStepHeader } from "@components/organisms/overlays/wizard/SharedComponents/Headers/WizardStepHeader";
+import { motion } from "framer-motion";
 import { PiggyBank } from "lucide-react";
-import { WizardMascot } from "@/components/atoms/animation/WizardMascot";
+import { useCallback, useMemo, useState } from "react";
+import GoalFeasibilityRow from "./components/GoalFeasibilityRow";
+import SavingsCoachCard from "./components/SavingsCoachCard";
+import WhatIfSavingsCard from "./components/WhatIfSavingsCard";
+import { mapFinalizationPreviewToSavingsConfirm } from "./mapping/mapFinalizationPreviewToSavingsConfirm";
 
 type Props = { preview?: BudgetDashboardDto };
 
@@ -25,8 +24,9 @@ export default function SubStepConfirmSavings({ preview }: Props) {
   const locale = useAppLocale();
 
   const money0 = useCallback(
-    (v: number) => formatMoneyV2(v ?? 0, currency, locale, { fractionDigits: 0 }),
-    [currency, locale]
+    (v: number) =>
+      formatMoneyV2(v ?? 0, currency, locale, { fractionDigits: 0 }),
+    [currency, locale],
   );
 
   const [open, setOpen] = useState<string>("");
@@ -41,7 +41,11 @@ export default function SubStepConfirmSavings({ preview }: Props) {
       <div>
         <section className="w-auto mx-auto sm:px-6 lg:px-12 py-8 pb-safe text-wizard-text space-y-6">
           <WizardStepHeader
-            stepPill={{ stepNumber: 3, majorLabel: "Sparande", subLabel: "Sammanfattning" }}
+            stepPill={{
+              stepNumber: 3,
+              majorLabel: "Sparande",
+              subLabel: "Sammanfattning",
+            }}
             title="Sammanfattning"
             subtitle="Vi kunde inte visa förhandsvisningen just nu."
             helpTitle="Du kan fortfarande fortsätta"
@@ -77,7 +81,11 @@ export default function SubStepConfirmSavings({ preview }: Props) {
     <div>
       <section className="relative w-auto mx-auto sm:px-6 lg:px-12 py-8 pb-safe text-wizard-text space-y-6">
         <WizardStepHeader
-          stepPill={{ stepNumber: 3, majorLabel: "Sparande", subLabel: "Sammanfattning" }}
+          stepPill={{
+            stepNumber: 3,
+            majorLabel: "Sparande",
+            subLabel: "Sammanfattning",
+          }}
           title="Sparande"
           subtitle="Här är din plan för sparande — vanor och mål, sammanställt."
         />
@@ -94,7 +102,8 @@ export default function SubStepConfirmSavings({ preview }: Props) {
           >
             <PiggyBank className="mx-auto mb-3 h-8 w-8 text-wizard-text/55" />
             <p className="text-sm text-wizard-text/70">
-              Inget sparande hittades ännu. Det är helt okej — du kan fortsätta och justera senare.
+              Inget sparande hittades ännu. Det är helt okej — du kan fortsätta
+              och justera senare.
             </p>
           </div>
         ) : (
@@ -108,13 +117,20 @@ export default function SubStepConfirmSavings({ preview }: Props) {
 
             <SavingsCoachCard
               disposableAfterExpensesMonthly={vm.disposableAfterExpensesMonthly}
-              disposableAfterExpensesAndSavingsMonthly={vm.disposableAfterExpensesAndSavingsMonthly}
+              disposableAfterExpensesAndSavingsMonthly={
+                vm.disposableAfterExpensesAndSavingsMonthly
+              }
               totalSavingsMonthly={vm.totalSavingsMonthly}
               goalsCount={vm.goals.length}
             />
 
             {vm.goals.length > 0 && (
-              <WizardAccordionRoot type="single" collapsible value={open} onValueChange={setOpen}>
+              <WizardAccordionRoot
+                type="single"
+                collapsible
+                value={open}
+                onValueChange={setOpen}
+              >
                 <WizardAccordion
                   value="goals"
                   isActive={open === "goals"}
@@ -122,7 +138,10 @@ export default function SubStepConfirmSavings({ preview }: Props) {
                   mobileTotal="below"
                   title={
                     <span className="text-wizard-text text-base font-semibold">
-                      Mål <span className="text-wizard-text/50 font-semibold">({vm.goals.length})</span>
+                      Mål{" "}
+                      <span className="text-wizard-text/50 font-semibold">
+                        ({vm.goals.length})
+                      </span>
                     </span>
                   }
                   totalText={money0(vm.totalGoalSavingsMonthly)}
@@ -147,7 +166,8 @@ export default function SubStepConfirmSavings({ preview }: Props) {
 
                   <div className="mt-3 rounded-2xl bg-wizard-shell/40 border border-wizard-stroke/15 px-4 py-3">
                     <p className="text-xs text-wizard-text/65">
-                      Tips: Vi kan hjälpa dig med ett huvudmål för snabbare resultat.
+                      Tips: Vi kan hjälpa dig med ett huvudmål för snabbare
+                      resultat.
                     </p>
                   </div>
                 </WizardAccordion>
@@ -157,14 +177,18 @@ export default function SubStepConfirmSavings({ preview }: Props) {
         )}
 
         <WhatIfSavingsCard
-          maxMonthly={Math.max(0, vm.disposableAfterExpensesAndSavingsMonthly ?? 0) + 5000}
+          maxMonthly={
+            Math.max(0, vm.disposableAfterExpensesAndSavingsMonthly ?? 0) + 5000
+          }
           defaultMonthly={1000}
         />
 
         <FooterSummary
           incomeTotal={vm.incomeTotal}
           afterExpensesMonthly={vm.disposableAfterExpensesMonthly}
-          afterExpensesAndSavingsMonthly={vm.disposableAfterExpensesAndSavingsMonthly}
+          afterExpensesAndSavingsMonthly={
+            vm.disposableAfterExpensesAndSavingsMonthly
+          }
           money0={money0}
         />
       </section>
@@ -240,8 +264,12 @@ function TotalsCard({
               Sparvana
             </p>
             <p className="mt-1 text-base font-extrabold text-wizard-text">
-              <span className="text-darkLimeGreen">{money0(monthlySavingsHabit)}</span>{" "}
-              <span className="text-xs font-semibold text-wizard-text/55">/mån</span>
+              <span className="text-darkLimeGreen">
+                {money0(monthlySavingsHabit)}
+              </span>{" "}
+              <span className="text-xs font-semibold text-wizard-text/55">
+                /mån
+              </span>
             </p>
           </div>
 
@@ -258,8 +286,12 @@ function TotalsCard({
               Mål (totalt)
             </p>
             <p className="mt-1 text-base font-extrabold text-wizard-text">
-              <span className="text-darkLimeGreen">{money0(totalGoalSavingsMonthly)}</span>{" "}
-              <span className="text-xs font-semibold text-wizard-text/55">/mån</span>
+              <span className="text-darkLimeGreen">
+                {money0(totalGoalSavingsMonthly)}
+              </span>{" "}
+              <span className="text-xs font-semibold text-wizard-text/55">
+                /mån
+              </span>
             </p>
           </div>
         </div>
@@ -291,8 +323,6 @@ function FooterSummary({
         px-5 py-5 sm:px-6 sm:py-6
       "
     >
-
-
       <p className="text-[11px] font-semibold uppercase tracking-wider text-wizard-text/55">
         Din budget just nu (innan skulder)
       </p>
@@ -317,13 +347,12 @@ function FooterSummary({
 
           <span
             className={`
-              money text-xl font-extrabold
-              ${ok ? "text-wizard-text" : "text-wizard-warning"}
+               text-xl font-extrabold
+              ${ok ? "text-wizard-accent" : "text-wizard-warning"}
             `}
           >
             {money0(Math.abs(afterSavings))}
           </span>
-
         </div>
       </div>
     </div>
@@ -334,7 +363,9 @@ function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between">
       <span className="text-sm text-wizard-text/65">{label}</span>
-      <span className="font-semibold text-wizard-text tabular-nums">{value}</span>
+      <span className="font-semibold text-wizard-text tabular-nums">
+        {value}
+      </span>
     </div>
   );
 }

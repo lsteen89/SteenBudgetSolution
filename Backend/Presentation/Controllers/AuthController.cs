@@ -60,7 +60,8 @@ namespace Backend.Presentation.Controllers
 
         }
 
-        [Authorize(AuthenticationSchemes = "RefreshScheme")]
+        [EnableRateLimiting("LogoutPolicy")]
+        [Authorize(AuthenticationSchemes = "AccessScheme")]
         [HttpPost("logout")]
         public async Task<IActionResult> Logout([FromQuery] bool logoutAll = false, CancellationToken ct = default)
         {
@@ -78,7 +79,8 @@ namespace Backend.Presentation.Controllers
             return NoContent();
         }
 
-        [Authorize(AuthenticationSchemes = "RefreshScheme")]
+        [EnableRateLimiting("RefreshPolicy")]
+        [AllowAnonymous]
         [HttpPost("refresh")]
         [ProducesResponseType(typeof(ApiEnvelope<AuthResult>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiEnvelope<AuthResult>), StatusCodes.Status401Unauthorized)]

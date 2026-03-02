@@ -300,6 +300,24 @@ CREATE TABLE Savings (
     INDEX IX_Savings_BudgetId (BudgetId)
 ) ENGINE=InnoDB;
 
+-- SavingsMethod
+CREATE TABLE SavingsMethod (
+    Id        BINARY(16)         NOT NULL PRIMARY KEY,
+    SavingsId BINARY(16)         NOT NULL,
+    Method    VARCHAR(50)  NOT NULL,
+
+    -- Timestamps 
+    CreatedAt        DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt        DATETIME       NULL ON UPDATE CURRENT_TIMESTAMP,
+
+    -- User Tracking
+    CreatedByUserId BINARY(16) NOT NULL,
+    UpdatedByUserId BINARY(16) NULL,
+    CONSTRAINT FK_SavingsMethod_Savings
+        FOREIGN KEY (SavingsId) REFERENCES Savings(Id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 CREATE TABLE SavingsGoal (
     Id              BINARY(16)    NOT NULL PRIMARY KEY,
     SavingsId       BINARY(16)    NOT NULL,

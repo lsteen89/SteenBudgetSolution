@@ -1,8 +1,6 @@
-import React from "react";
-import { motion } from "framer-motion";
-import { ReceiptText } from "lucide-react";
-import { cn } from "@/lib/utils";
 import WizardCard from "@/components/organisms/overlays/wizard/SharedComponents/Cards/WizardCard";
+import { cn } from "@/lib/utils";
+import { ReceiptText } from "lucide-react";
 
 export default function DebtMinimumRealityCard({
   monthly,
@@ -15,8 +13,6 @@ export default function DebtMinimumRealityCard({
 
   return (
     <WizardCard>
-
-
       <div className="relative">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
@@ -33,10 +29,17 @@ export default function DebtMinimumRealityCard({
           <p className="text-sm text-wizard-text/70">Totalt minimum</p>
 
           <p className="font-mono text-2xl font-extrabold tabular-nums">
-            <span className={cn("money", hasValue ? "text-wizard-accent" : "text-wizard-text/60")}>
+            <span
+              className={cn(
+                "",
+                hasValue ? "text-wizard-accent" : "text-wizard-text/60",
+              )}
+            >
               {hasValue ? money0(monthly) : "—"}
             </span>
-            <span className="ml-2 text-sm font-semibold text-wizard-text/55">/mån</span>
+            <span className="ml-2 text-sm font-semibold text-wizard-text/55">
+              /mån
+            </span>
           </p>
         </div>
 
@@ -45,7 +48,7 @@ export default function DebtMinimumRealityCard({
             className={cn(
               "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
               "bg-wizard-surface-accent/50 border border-wizard-stroke/20",
-              "text-wizard-text/70"
+              "text-wizard-text/70",
             )}
           >
             Minimum = alltid
@@ -55,7 +58,7 @@ export default function DebtMinimumRealityCard({
             className={cn(
               "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
               "bg-wizard-surface-accent/50 border border-wizard-stroke/20",
-              "text-wizard-text/70"
+              "text-wizard-text/70",
             )}
           >
             Extra = valfritt
@@ -63,7 +66,8 @@ export default function DebtMinimumRealityCard({
         </div>
 
         <p className="mt-3 text-xs text-wizard-text/55">
-          Detta är din lägsta nivå. Extra betalningar kan minska skuldtiden rejält.
+          Detta är din lägsta nivå. Extra betalningar kan minska skuldtiden
+          rejält.
         </p>
       </div>
     </WizardCard>

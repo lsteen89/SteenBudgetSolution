@@ -1,9 +1,9 @@
-import React, { useCallback } from "react";
-import clsx from "clsx";
-import { formatMoneyV2 } from "@/utils/money/moneyV2";
-import type { CurrencyCode } from "@/utils/money/currency";
-import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import WizardCard from "@/components/organisms/overlays/wizard/SharedComponents/Cards/WizardCard";
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
+import type { CurrencyCode } from "@/utils/money/currency";
+import { formatMoneyV2 } from "@/utils/money/moneyV2";
+import clsx from "clsx";
+import React, { useCallback } from "react";
 import VerdictChip from "../organisms/overlays/wizard/steps/StepBudgetFinal5/Components/Pages/SubSteps/1_SubStepFinal/components/VerdictChip";
 
 interface FinalVerdictCardProps {
@@ -17,7 +17,8 @@ interface FinalVerdictCardProps {
 
 const DESCRIPTIONS: Record<"good" | "tight" | "bad", string> = {
   good: "Du går plus varje månad. Skapa budgeten — du kan finjustera efteråt.",
-  tight: "Det går ihop, men marginalen är liten. Skapa budgeten och justera vid behov.",
+  tight:
+    "Det går ihop, men marginalen är liten. Skapa budgeten och justera vid behov.",
   bad: "Du går minus varje månad. Skapa budgeten ändå — men vi markerar vad som bör justeras direkt.",
 };
 
@@ -55,9 +56,8 @@ const FinalVerdictCard: React.FC<FinalVerdictCardProps> = ({
   const fractionDigits = money?.fractionDigits ?? 0;
 
   const moneyFmt = useCallback(
-    (v: number) =>
-      formatMoneyV2(v ?? 0, currency, locale, { fractionDigits }),
-    [currency, locale, fractionDigits]
+    (v: number) => formatMoneyV2(v ?? 0, currency, locale, { fractionDigits }),
+    [currency, locale, fractionDigits],
   );
 
   const t = tone(kind);
@@ -87,15 +87,15 @@ const FinalVerdictCard: React.FC<FinalVerdictCardProps> = ({
             aria-hidden
             className={clsx(
               "pointer-events-none absolute -inset-x-2 -inset-y-2 rounded-3xl blur-2xl",
-              t.glow
+              t.glow,
             )}
           />
 
           <p
             className={clsx(
-              "relative money tabular-nums font-extrabold tracking-tight",
+              "relative tabular-nums font-extrabold tracking-tight",
               "text-3xl sm:text-4xl md:text-5xl",
-              t.amount
+              t.amount,
             )}
           >
             {moneyFmt(Math.abs(balance))}
@@ -108,7 +108,7 @@ const FinalVerdictCard: React.FC<FinalVerdictCardProps> = ({
                 "inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold",
                 "border bg-wizard-surface",
                 t.border,
-                "text-wizard-text/70"
+                "text-wizard-text/70",
               )}
             >
               {balance >= 0 ? "Överskott" : "Underskott"} per månad
