@@ -1,8 +1,12 @@
+import MainPageBird from "@assets/Images/MainPageBird.png";
+import {
+  BookOpenIcon,
+  ChartBarIcon,
+  ShieldCheckIcon,
+} from "@heroicons/react/24/outline";
+import "@styles/animations.css";
 import React from "react";
 import { Link } from "react-router-dom";
-import MainPageBird from "@assets/Images/MainPageBird.png";
-import "@styles/animations.css";
-import { BookOpenIcon, ChartBarIcon, ShieldCheckIcon } from "@heroicons/react/24/outline";
 
 const HomePage: React.FC = () => {
   return (
@@ -32,7 +36,8 @@ const HomePage: React.FC = () => {
             </h1>
 
             <p className="mt-4 text-base leading-relaxed text-eb-text/70 max-w-prose">
-              Planera månaden, följ upp och justera i lugn takt — utan kalkylblad.
+              Planera månaden, följ upp och justera i lugn takt — utan
+              kalkylblad.
             </p>
 
             <div className="mt-6 flex flex-col sm:flex-row gap-3">
@@ -94,7 +99,10 @@ const HomePage: React.FC = () => {
             <div className="mt-8 rounded-2xl bg-[rgb(var(--eb-shell)/0.35)] border border-eb-stroke/25 p-4">
               <p className="text-sm text-eb-text/60">
                 Vi säljer aldrig din data. Läs mer i{" "}
-                <Link to="/data-policy" className="underline text-eb-text/70 hover:text-eb-text">
+                <Link
+                  to="/data-policy"
+                  className="underline text-eb-text/70 hover:text-eb-text"
+                >
                   integritetspolicyn
                 </Link>
                 .

@@ -47,10 +47,12 @@ body {
     --radius: 0.5rem;
 
     /* Wizard overlay */
-    --wizard-overlay: radial-gradient(80% 70% at 50% 45%,
-        rgba(2, 6, 23, 0.28) 0%,
-        rgba(2, 6, 23, 0.52) 55%,
-        rgba(2, 6, 23, 0.64) 100%);
+    --wizard-overlay: radial-gradient(
+      80% 70% at 50% 45%,
+      rgba(2, 6, 23, 0.28) 0%,
+      rgba(2, 6, 23, 0.52) 55%,
+      rgba(2, 6, 23, 0.64) 100%
+    );
 
     /* Wizard tokens (RGB channels) */
     --wizard-shell: 224 240 255;
@@ -67,7 +69,6 @@ body {
     --wizard-text: 21 39 81;
     --wizard-muted: 21 39 81;
     /* <-- IMPORTANT: use text hue for muted, then opacity in Tailwind */
-
 
     --wizard-warning: 185 28 28;
 
@@ -137,10 +138,12 @@ body {
   border-radius: 9999px;
 
   /* cyan-ish eye color */
-  background: radial-gradient(circle at 35% 40%,
-      rgba(120, 240, 255, 0.70),
-      rgba(120, 240, 255, 0.22) 55%,
-      rgba(120, 240, 255, 0.00) 72%);
+  background: radial-gradient(
+    circle at 35% 40%,
+    rgba(120, 240, 255, 0.7),
+    rgba(120, 240, 255, 0.22) 55%,
+    rgba(120, 240, 255, 0) 72%
+  );
 
   filter: blur(0.6px);
   opacity: 0;
@@ -152,7 +155,7 @@ body {
 .kb-smoke--l {
   left: 40px;
   top: 34px;
-  animation-delay: 0.0s;
+  animation-delay: 0s;
 }
 
 .kb-smoke--r {
@@ -169,7 +172,7 @@ body {
   }
 
   15% {
-    opacity: 0.70;
+    opacity: 0.7;
   }
 
   65% {
@@ -200,60 +203,10 @@ body {
   @apply text-foreground;
 }
 
-
 @layer utilities {
-
   /* eBudget (global) */
   .bg-eb-overlay {
     background: var(--eb-overlay);
-  }
-
-  .bg-eb-shell {
-    background-color: rgb(var(--eb-shell) / 1);
-  }
-
-  .bg-eb-surface {
-    background-color: rgb(var(--eb-surface) / 1);
-  }
-
-  .bg-eb-surfaceAccent {
-    background-color: rgb(var(--eb-surface-accent) / 1);
-  }
-
-  .border-eb-stroke {
-    border-color: rgb(var(--eb-stroke) / 0.5);
-  }
-
-  .border-eb-strokeStrong {
-    border-color: rgb(var(--eb-stroke-strong) / 1);
-  }
-
-  .text-eb-text {
-    color: rgb(var(--eb-text) / 1);
-  }
-
-  .text-eb-muted {
-    color: rgb(var(--eb-muted) / 0.65);
-  }
-
-  .bg-eb-accent {
-    background-color: rgb(var(--eb-accent) / 1);
-  }
-
-  .bg-eb-accentSoft {
-    background-color: rgb(var(--eb-accent-soft) / 1);
-  }
-
-  .ring-eb-accent {
-    --tw-ring-color: rgb(var(--eb-accent) / 0.45);
-  }
-
-  .text-eb-danger {
-    color: rgb(var(--eb-danger) / 1);
-  }
-
-  .bg-eb-dangerSoft {
-    background-color: rgb(var(--eb-danger) / 0.10);
   }
 
   .ring-eb-danger {
@@ -262,7 +215,7 @@ body {
 
   .shadow-eb {
     box-shadow:
-      0 10px 30px rgb(var(--eb-shadow) / 0.10),
+      0 10px 30px rgb(var(--eb-shadow) / 0.1),
       0 2px 10px rgb(var(--eb-shadow) / 0.06);
   }
 
@@ -277,74 +230,6 @@ body {
   /* Wizard */
   .bg-wizard-overlay {
     background: var(--wizard-overlay);
-  }
-
-  .bg-wizard-shell {
-    background-color: rgb(var(--wizard-shell) / 1);
-  }
-
-  .bg-wizard-shell-2 {
-    background-color: rgb(var(--wizard-shell-2) / 1);
-  }
-
-  .bg-wizard-shell-3 {
-    background-color: rgb(var(--wizard-shell-3) / 1);
-  }
-
-  .border-wizard-shellBorder {
-    border-color: rgb(var(--wizard-shell-border) / 0.55);
-  }
-
-  .bg-wizard-surface {
-    background-color: rgb(var(--wizard-surface) / 1);
-  }
-
-  .bg-wizard-surfaceAccent {
-    background-color: rgb(var(--wizard-surface-accent) / 1);
-  }
-
-  .border-wizard-stroke {
-    border-color: rgb(var(--wizard-stroke) / 0.5);
-  }
-
-  .border-wizard-strokeStrong {
-    border-color: rgb(var(--wizard-stroke-strong) / 1);
-  }
-
-  .text-wizard-text {
-    color: rgb(var(--wizard-text) / 1);
-  }
-
-  .text-wizard-muted {
-    color: rgb(var(--wizard-text) / 0.65);
-  }
-
-  .text-wizard-mutedBlue {
-    color: rgb(var(--wizard-muted) / 1);
-  }
-
-  .text-wizard-accent {
-    color: rgb(var(--wizard-accent) / 1);
-  }
-
-  .bg-wizard-accent {
-    background-color: rgb(var(--wizard-accent) / 1);
-  }
-
-  .bg-wizard-accentSoft {
-    background-color: rgb(var(--wizard-accent-soft) / 1);
-  }
-
-  .ring-wizard-accent {
-    --tw-ring-color: rgb(var(--wizard-accent) / 0.45);
-  }
-
-  .text-wizard-warning {
-    color: rgb(var(--wizard-warning) / 1);
-  }
-
-  .bg-wizard-warningSoft {
-    background-color: rgb(var(--wizard-warning) / 0.1);
   }
 
   .ring-wizard-warning {
