@@ -26,37 +26,39 @@ namespace Backend.Infrastructure.Security
 
             var options = BuildOptions(expiryDate);
 
-            return new ICookieService.Cookie("RefreshToken", refreshToken, options);
+            return new ICookieService.Cookie("ebudget_rt", refreshToken, options);
         }
 
         public ICookieService.Cookie CreateDeleteCookie()
         {
             var options = BuildOptions(DateTimeOffset.UtcNow.AddDays(-1));
 
-            return new ICookieService.Cookie("RefreshToken", "", options);
+            return new ICookieService.Cookie("ebudget_rt", "", options);
         }
 
         /* ---------- private ---------- */
         private CookieOptions BuildOptions(DateTimeOffset? expiresUtc = null)
         {
+            var isDev = _env.IsDevelopment();
+
             var opt = new CookieOptions
             {
                 HttpOnly = true,
-                Secure = true, // Good practice: always true if possible (requires HTTPS)
-                SameSite = SameSiteMode.Strict,
-                Path = "/", // Todo: Maybe if "/" is too broad. "/api/auth" might be more specific if applicable.
+                Secure = !isDev, // dev can be false if you run http
+                SameSite = isDev ? SameSiteMode.Lax : SameSiteMode.Strict,
+                Path = "/",
             };
 
-            if (expiresUtc.HasValue)
-            {
-                opt.Expires = expiresUtc.Value;
-            }
+            if (expiresUtc.HasValue) opt.Expires = expiresUtc.Value;
 
             if (_env.IsProduction() &&
                 _ctx.HttpContext?.Request.Host.Host.EndsWith("ebudget.se") == true)
             {
                 opt.Domain = ".ebudget.se";
+                opt.Secure = true;
+                opt.SameSite = SameSiteMode.None; // IMPORTANT if frontend is on a different subdomain
             }
+
             return opt;
         }
     }
