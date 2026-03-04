@@ -27,7 +27,7 @@ interface WizardProgressProps {
 
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(n, max));
 
-const WizardProgress: React.FC<WizardProgressProps> = ({
+const WizardProgressComponent: React.FC<WizardProgressProps> = ({
   step,
   totalSteps,
   steps,
@@ -44,7 +44,6 @@ const WizardProgress: React.FC<WizardProgressProps> = ({
   if (totalSteps <= 1) return null;
 
   const current = clamp(step, 1, totalSteps);
-  const isLastStep = current === totalSteps;
   const reduceMotion = useReducedMotion();
   const insetPct = 50 / totalSteps;
   const trackSpanPct = 100 - insetPct * 2;
@@ -90,11 +89,11 @@ const WizardProgress: React.FC<WizardProgressProps> = ({
             initial={{ width: "0%" }}
             animate={{
               width: `${barWidthPct}%`,
-              scaleX: !isMuted && isLastStep ? [0.94, 1, 0.94] : 1,
+              scaleX: 1,
             }}
             transition={{
-              width: { duration: 0.4, ease: "easeInOut" },
-              scaleX: { duration: 3.0, repeat: isMuted ? 0 : Infinity, ease: "easeInOut" },
+              width: { duration: reduceMotion ? 0.18 : 0.3, ease: "easeOut" },
+              scaleX: { duration: 0 },
             }}
           />
         </>
@@ -186,4 +185,5 @@ const WizardProgress: React.FC<WizardProgressProps> = ({
   );
 };
 
+const WizardProgress = React.memo(WizardProgressComponent);
 export default WizardProgress;

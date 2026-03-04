@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useDeferredValue, useMemo } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { WizardStepHeader } from "@/components/organisms/overlays/wizard/SharedComponents/Headers/WizardStepHeader";
 import type { Step3FormValues } from "@/types/Wizard/Step3_Savings/Step3FormValues";
@@ -20,10 +20,12 @@ const SubStepGoals = React.forwardRef<SubStepGoalsApi, Props>(function SubStepGo
 
   const goals = useWatch({ control, name: "goals" }) ?? [];
   const monthlySavings = useWatch({ control, name: "habits.monthlySavings" }) ?? 0;
+  const deferredGoals = useDeferredValue(goals);
+  const deferredMonthlySavings = useDeferredValue(monthlySavings);
 
   const requiredTotal = useMemo(
-    () => goals.reduce((sum, g) => sum + requiredPerMonth(g), 0),
-    [goals]
+    () => deferredGoals.reduce((sum, g) => sum + requiredPerMonth(g), 0),
+    [deferredGoals]
   );
 
   const goalsCardRef = React.useRef<SavingsGoalsCardApi>(null);
@@ -48,7 +50,7 @@ const SubStepGoals = React.forwardRef<SubStepGoalsApi, Props>(function SubStepGo
         />
 
         <SavingsPlanSummaryCard
-          monthlySavings={monthlySavings}
+          monthlySavings={deferredMonthlySavings}
           requiredTotal={requiredTotal}
           goalsCount={goals.length}
           onGoToHabits={onGoToHabits}

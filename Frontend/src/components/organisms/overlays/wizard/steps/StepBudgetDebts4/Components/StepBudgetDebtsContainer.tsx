@@ -121,7 +121,7 @@ const StepBudgetDebtsContainer = forwardRef<
 
   /* 1) Hydrate slice once (API -> store) */
   const hasHydrated = useRef(false);
-  const { setDebts } = useWizardDataStore();
+  const setDebts = useWizardDataStore((state) => state.setDebts);
 
   useEffect(() => {
     if (!hasHydrated.current && initialData && Object.keys(initialData).length > 0) {
@@ -367,5 +367,4 @@ const StepBudgetDebtsContainer = forwardRef<
 
 StepBudgetDebtsContainer.displayName = "StepBudgetDebtsContainer";
 export default StepBudgetDebtsContainer;
-
 

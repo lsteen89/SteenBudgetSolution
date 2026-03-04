@@ -51,7 +51,7 @@ const SubStepFixedExpenses: React.FC = () => {
   const currency = useAppCurrency();
   const locale = useAppLocale();
 
-  const [openAccordion, setOpenAccordion] = useState<string | undefined>(undefined);
+  const [openAccordion, setOpenAccordion] = useState<string>("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { fields, append, remove } = useFieldArray({
@@ -159,7 +159,7 @@ const SubStepFixedExpenses: React.FC = () => {
           type="single"
           collapsible
           value={openAccordion}
-          onValueChange={setOpenAccordion}
+          onValueChange={(value) => setOpenAccordion(value ?? "")}
         >
           <WizardAccordion
             value="custom"

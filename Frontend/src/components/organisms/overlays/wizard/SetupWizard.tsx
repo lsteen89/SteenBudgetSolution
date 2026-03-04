@@ -1,3 +1,4 @@
+import { WizardPerformanceToggle } from "@/components/organisms/overlays/wizard/SharedComponents/Buttons/WizardPerformanceToggle";
 import { FINAL_SUMMARY_UNLOCK } from "@/components/organisms/overlays/wizard/SharedComponents/Const/wizardEntitlements";
 import WizardSummaryNavAssist from "@/components/organisms/overlays/wizard/SharedComponents/Nav/WizardSummaryNavAssist";
 import { usePerformanceMode } from "@/hooks/usePerformanceMode";
@@ -12,13 +13,17 @@ import {
 } from "lucide-react";
 import React, {
   lazy,
+  Profiler,
   Suspense,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
+  type ProfilerOnRenderCallback,
 } from "react";
+import { shallow } from "zustand/shallow";
+import { WizardPerformanceChip } from "./SharedComponents/Chips/WizardPerformanceChip";
 
 import type { StepBudgetDebtsRef } from "@/types/Wizard/Step3_Savings/StepBudgetDebtsRef";
 import type { StepBudgetSavingsRef } from "@/types/Wizard/Step3_Savings/StepBudgetSavingsRef";
@@ -60,7 +65,6 @@ import { BudgetGuideSkeleton } from "@/components/atoms/loading/BudgetGuideSkele
 import { useWizard, WizardProvider } from "@/context/WizardContext";
 import { useWizardDataStore } from "@/stores/Wizard/wizardDataStore";
 import { useWizardSessionStore } from "@/stores/Wizard/wizardSessionStore";
-import { useToast } from "@/ui/toast/toast";
 import ConfirmModal from "@components/atoms/modals/ConfirmModal";
 import AnimatedContent from "@components/atoms/wrappers/AnimatedContent";
 import WizardNavPair from "@components/organisms/overlays/wizard/SharedComponents/Buttons/WizardNavPair";
@@ -71,6 +75,7 @@ import useSaveWizardStep from "@hooks/wizard/useSaveWizardStep";
 import { useWizardFinalization } from "@hooks/wizard/useWizardFinalization";
 import useWizardInit from "@hooks/wizard/useWizardInit";
 import useWizardNavigation from "@hooks/wizard/useWizardNavigation";
+import { isWizardProfilerEnabled } from "@/utils/debug/wizardProfiler";
 import { WizardNavEventsProvider } from "./SharedComponents/Nav/WizardNavEvents";
 import DataTransparencySection from "./SharedComponents/Pages/DataTransparencySection";
 import { WizardHeader } from "./WizardHeader";
@@ -79,19 +84,64 @@ interface SetupWizardProps {
   onClose: () => void;
 }
 
+type WizardProfilerEvent = {
+  id: string;
+  phase: "mount" | "update" | "nested-update";
+  step: number;
+  actualDuration: number;
+  baseDuration: number;
+  startTime: number;
+  commitTime: number;
+};
+
+type WizardNavTraceEvent = {
+  direction: "next" | "prev";
+  step: number;
+  hasSubSteps: boolean;
+  currentSub: number;
+  totalSub: number;
+  hasNextSub: boolean;
+  hasPrevSub: boolean;
+  decision: "substep" | "major" | "blocked";
+  reason?: string;
+};
+
+type WizardValidationTraceEvent = {
+  step: number;
+  subStep: number;
+  durationMs: number;
+  keys: number;
+  ok: boolean;
+};
+
+type WizardSaveTraceEvent = {
+  step: number;
+  subStep: number;
+  durationMs: number;
+  phase: "api" | "flush";
+  ok: boolean;
+  direction: "forward" | "back";
+};
+
+const WIZARD_STEPS = [
+  { icon: Wallet, label: "Inkomster" },
+  { icon: Receipt, label: "Utgifter" },
+  { icon: PiggyBank, label: "Sparande" },
+  { icon: Landmark, label: "Skulder" },
+  { icon: CheckCircle, label: "Bekräfta" },
+];
+
 // =========================================================================
 // THE MIND OF GANDALF (The Main Component)
 // =========================================================================
 const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
   // All of the hooks and state management are safely kept here.
-  const perfMode = usePerformanceMode();
-  const isLowPerf = perfMode === "low";
+
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [showShakeAnimation, setShowShakeAnimation] = useState(false);
   const wizardSessionId = useWizardSessionStore(
     (state) => state.wizardSessionId,
   );
-  const { showToast } = useToast();
   const {
     loading: initLoading,
     failedAttempts,
@@ -107,6 +157,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
       savings: state.data.savings,
       debts: state.data.debts,
     }),
+    shallow,
   );
   const { handleSaveStepData } = useSaveWizardStep(wizardSessionId || "");
   const [transitionLoading, setTransitionLoading] = useState(false);
@@ -114,25 +165,24 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     {},
   );
   const [step, setStep] = useState(0);
-  const [isStepValid, setIsStepValid] = useState(true);
   const isDebugMode = import.meta.env.MODE === "development";
   const step1WrapperRef = useRef<WizardFormWrapperStep1Ref>(null);
   const StepBudgetExpenditureRef = useRef<StepBudgetExpenditureRef>(null);
   const step3Ref = useRef<StepBudgetSavingsRef>(null);
   const step4Ref = useRef<StepBudgetDebtsRef>(null);
   const step5Ref = useRef<StepBudgetFinalRef>(null);
-  const stepRefs: { [key: number]: React.RefObject<any> } = {
-    1: step1WrapperRef,
-    2: StepBudgetExpenditureRef,
-    3: step3Ref,
-    4: step4Ref,
-    5: step5Ref,
-  };
+  const stepRefs = useMemo<Record<number, React.RefObject<any>>>(
+    () => ({
+      1: step1WrapperRef,
+      2: StepBudgetExpenditureRef,
+      3: step3Ref,
+      4: step4Ref,
+      5: step5Ref,
+    }),
+    [],
+  );
   const { setShowSideIncome, setShowHouseholdMembers } =
     useBudgetInfoDisplayFlags();
-  const [subTick, setSubTick] = useState(0);
-  const { setIncome, setExpenditure, setSavings, setDebts } =
-    useWizardDataStore();
 
   const { finalizeWizard, isFinalizing, finalizationError } =
     useWizardFinalization();
@@ -148,28 +198,31 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
   const handleCancelCloseWizard = useCallback(() => {
     setConfirmModalOpen(false);
   }, []);
-  const triggerShakeAnimation = (duration = 1000) => {
+  const triggerShakeAnimation = useCallback((duration = 1000) => {
     setShowShakeAnimation(true);
     setTimeout(() => setShowShakeAnimation(false), duration);
-  };
-  const initialDataForStep = (stepNumber: number) => {
-    const stepStateData = currentStepState[stepNumber]?.data;
-    if (stepStateData && Object.keys(stepStateData).length > 0) {
-      return stepStateData;
-    }
-    switch (stepNumber) {
-      case 1:
-        return income || {};
-      case 2:
-        return expenditure || {};
-      case 3:
-        return savings || {};
-      case 4:
-        return debts || {};
-      default:
-        return {};
-    }
-  };
+  }, []);
+  const initialDataForStep = useCallback(
+    (stepNumber: number) => {
+      const stepStateData = currentStepState[stepNumber]?.data;
+      if (stepStateData && Object.keys(stepStateData).length > 0) {
+        return stepStateData;
+      }
+      switch (stepNumber) {
+        case 1:
+          return income || {};
+        case 2:
+          return expenditure || {};
+        case 3:
+          return savings || {};
+        case 4:
+          return debts || {};
+        default:
+          return {};
+      }
+    },
+    [currentStepState, debts, expenditure, income, savings],
+  );
 
   // --- Jump helper (major step + substep) ---
   const jumpTo = useCallback(
@@ -215,8 +268,12 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     (s) => s.maxMajorStepAllowed,
   );
 
-  const initialSubStepForStep = (stepNumber: number) =>
-    (currentStepState[stepNumber]?.subStep || initialSubStep) ?? 1;
+  const initialSubStepForStep = useCallback(
+    (stepNumber: number) => {
+      return (currentStepState[stepNumber]?.subStep || initialSubStep) ?? 1;
+    },
+    [currentStepState, initialSubStep],
+  );
   useEffect(() => {
     if (initialMajorStep !== null && initialMajorStep > 0)
       setStep(initialMajorStep);
@@ -231,7 +288,6 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
       setCurrentStepState,
       handleSaveStepData,
       triggerShakeAnimation,
-      isDebugMode,
       setShowSideIncome,
       setShowHouseholdMembers,
     });
@@ -241,25 +297,13 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     return typeof s === "number" ? s : (initialSubStep ?? 1);
   }, [currentStepState, step, initialSubStep]);
 
-  useEffect(() => {
-    setIsStepValid(step === 0);
-  }, [step]);
-
   const handleFinalizeSuccess = useCallback(() => {
     onClose();
   }, [onClose]);
 
-  const syncStoreWithCurrentStep = useCallback(() => {
-    const api = stepRefs[step]?.current;
-    const getData =
-      api && typeof api.getStepData === "function" ? api.getStepData : null;
-    if (!getData) return;
-    const data = getData();
-    if (step === 1) setIncome(data);
-    if (step === 2) setExpenditure(data);
-    if (step === 3) setSavings(data);
-    if (step === 4) setDebts(data);
-  }, [step, stepRefs, setIncome, setExpenditure, setSavings, setDebts]);
+  const setIsStepValid = useCallback((_isValid: boolean) => {
+    // Reserved for step-local validation wiring; intentionally no parent state write.
+  }, []);
 
   const handleSubStepChange = useCallback(
     (newSubStep: number) => {
@@ -267,15 +311,151 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
         ...prev,
         [step]: { ...prev[step], subStep: newSubStep },
       }));
-      syncStoreWithCurrentStep();
-      setSubTick((t) => t + 1);
     },
-    [step, syncStoreWithCurrentStep],
+    [step],
   );
 
-  const handleStepClick = (targetStep: number) => {
+  const handleStepClick = useCallback((targetStep: number) => {
     setStep(targetStep);
-  };
+  }, []);
+
+  const handlePrevNavigation = useCallback(() => {
+    const api = stepRefs[step]?.current;
+    const hasSubSteps =
+      !!api && typeof api.hasSubSteps === "function" && api.hasSubSteps();
+    const currentSub =
+      hasSubSteps && typeof api.getCurrentSubStep === "function"
+        ? (api.getCurrentSubStep() ?? 1)
+        : 1;
+    const totalSub =
+      hasSubSteps && typeof api.getTotalSubSteps === "function"
+        ? (api.getTotalSubSteps() ?? 1)
+        : 1;
+    const hasPrevSub =
+      hasSubSteps && typeof api.hasPrevSub === "function"
+        ? api.hasPrevSub()
+        : false;
+    const hasNextSub =
+      hasSubSteps && typeof api.hasNextSub === "function"
+        ? api.hasNextSub()
+        : false;
+
+    const emitTrace = (
+      decision: WizardNavTraceEvent["decision"],
+      reason?: string,
+    ) => {
+      if (!isWizardProfilerEnabled() || typeof window === "undefined") return;
+      window.dispatchEvent(
+        new CustomEvent<WizardNavTraceEvent>("wizard-nav-trace", {
+          detail: {
+            direction: "prev",
+            step,
+            hasSubSteps,
+            currentSub,
+            totalSub,
+            hasNextSub,
+            hasPrevSub,
+            decision,
+            reason,
+          },
+        }),
+      );
+    };
+
+    if (hasSubSteps && currentSub > 1 && !hasPrevSub) {
+      emitTrace(
+        "blocked",
+        "Invariant: expected previous substep but API reported none",
+      );
+      triggerShakeAnimation(450);
+      if (import.meta.env.DEV) {
+        console.warn("[wizard-nav] blocked unsafe prev major fallback", {
+          step,
+          currentSub,
+          totalSub,
+          hasPrevSub,
+        });
+      }
+      return;
+    }
+
+    if (hasSubSteps && hasPrevSub && typeof api.goPrevSub === "function") {
+      emitTrace("substep");
+      api.goPrevSub();
+      return;
+    }
+    emitTrace("major");
+    hookPrevStep();
+  }, [step, stepRefs, hookPrevStep, triggerShakeAnimation]);
+
+  const handleNextNavigation = useCallback(() => {
+    const api = stepRefs[step]?.current;
+    const hasSubSteps =
+      !!api && typeof api.hasSubSteps === "function" && api.hasSubSteps();
+    const currentSub =
+      hasSubSteps && typeof api.getCurrentSubStep === "function"
+        ? (api.getCurrentSubStep() ?? 1)
+        : 1;
+    const totalSub =
+      hasSubSteps && typeof api.getTotalSubSteps === "function"
+        ? (api.getTotalSubSteps() ?? 1)
+        : 1;
+    const hasPrevSub =
+      hasSubSteps && typeof api.hasPrevSub === "function"
+        ? api.hasPrevSub()
+        : false;
+    const hasNextSub =
+      hasSubSteps && typeof api.hasNextSub === "function"
+        ? api.hasNextSub()
+        : false;
+
+    const emitTrace = (
+      decision: WizardNavTraceEvent["decision"],
+      reason?: string,
+    ) => {
+      if (!isWizardProfilerEnabled() || typeof window === "undefined") return;
+      window.dispatchEvent(
+        new CustomEvent<WizardNavTraceEvent>("wizard-nav-trace", {
+          detail: {
+            direction: "next",
+            step,
+            hasSubSteps,
+            currentSub,
+            totalSub,
+            hasNextSub,
+            hasPrevSub,
+            decision,
+            reason,
+          },
+        }),
+      );
+    };
+
+    if (hasSubSteps && currentSub < totalSub && !hasNextSub) {
+      emitTrace(
+        "blocked",
+        "Invariant: expected next substep but API reported none",
+      );
+      triggerShakeAnimation(450);
+      if (import.meta.env.DEV) {
+        console.warn("[wizard-nav] blocked unsafe next major fallback", {
+          step,
+          currentSub,
+          totalSub,
+          hasNextSub,
+        });
+      }
+      return;
+    }
+
+    if (hasSubSteps && hasNextSub && typeof api.goNextSub === "function") {
+      emitTrace("substep");
+      api.goNextSub();
+      return;
+    }
+    emitTrace("major");
+    hookNextStep();
+  }, [step, stepRefs, hookNextStep, triggerShakeAnimation]);
 
   const subNav = useMemo(() => {
     const api = stepRefs[step]?.current;
@@ -295,15 +475,19 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
       hasPrevSub: false,
       hasNextSub: false,
     };
-  }, [step, subTick]);
+  }, [step, currentSub]);
 
   const isSaving = useMemo(() => {
     const api = stepRefs[step]?.current;
+    if (transitionLoading) return true;
     return api && typeof api.isSaving === "function" ? api.isSaving() : false;
-  }, [step, subTick]);
+  }, [step, currentSub, stepRefs, transitionLoading]);
 
   const isMobile = useMediaQuery("(max-width: 1367px)");
 
+  // To who ever is judging this:
+  // Yes, its insane.
+  // Bite me.
   return (
     <WizardProvider>
       <WizardContent
@@ -320,17 +504,14 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
         transitionLoading={transitionLoading}
         step={step}
         totalSteps={5}
-        steps={[
-          { icon: Wallet, label: "Inkomster" },
-          { icon: Receipt, label: "Utgifter" },
-          { icon: PiggyBank, label: "Sparande" },
-          { icon: Landmark, label: "Skulder" },
-          { icon: CheckCircle, label: "Bekräfta" },
-        ]}
+        steps={WIZARD_STEPS}
         handleStepClick={handleStepClick}
+        handlePrevNavigation={handlePrevNavigation}
+        handleNextNavigation={handleNextNavigation}
         isMobile={isMobile}
         wizardSessionId={wizardSessionId}
         isDebugMode={isDebugMode}
+        maxMajorStepAllowed={maxMajorStepAllowed}
         stepRefs={stepRefs}
         hookNextStep={hookNextStep}
         hookPrevStep={hookPrevStep}
@@ -344,13 +525,11 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
         step4Ref={step4Ref}
         subNav={subNav}
         isSaving={isSaving}
-        subTick={subTick}
         triggerShakeAnimation={triggerShakeAnimation}
         isFinalizing={isFinalizing}
         finalizeWizard={finalizeWizard}
         finalizationError={finalizationError}
         onFinalizeSuccess={handleFinalizeSuccess}
-        isLowPerf={isLowPerf}
         currentSub={currentSub}
         onEditIncome={onEditIncome}
         onEditExpenditure={onEditExpenditure}
@@ -367,11 +546,20 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
 // =========================================================================
 // THE BODY OF GANDALF (The Helper Component)
 // =========================================================================
-const WizardContent = (props: any) => {
+const WizardContent = React.memo((props: any) => {
   const { isActionBlocked } = useWizard();
-  const { isLowPerf } = props;
+  const perf = usePerformanceMode();
+  const isLowPerf = perf.mode === "low";
+  const profilerEnabled = isWizardProfilerEnabled();
   const [outermostScrollNode, setOutermostScrollNode] =
     useState<HTMLDivElement | null>(null);
+  const [profilerEvents, setProfilerEvents] = useState<WizardProfilerEvent[]>(
+    [],
+  );
+  const [validationEvents, setValidationEvents] = useState<
+    WizardValidationTraceEvent[]
+  >([]);
+  const [saveEvents, setSaveEvents] = useState<WizardSaveTraceEvent[]>([]);
   const outermostContainerPact = useCallback((node: HTMLDivElement | null) => {
     if (node !== null) {
       setOutermostScrollNode(node);
@@ -386,11 +574,81 @@ const WizardContent = (props: any) => {
 
   const muteGlobalStepper =
     props.step === 2 || props.step === 3 || props.step === 4;
+  const showBackdropEffects = !isLowPerf && !props.isMobile;
+  const goToSummary = useCallback(() => props.jumpTo(5, 1), [props.jumpTo]);
+  const onStepProfilerRender = useCallback<ProfilerOnRenderCallback>(
+    (id, phase, actualDuration, baseDuration, startTime, commitTime) => {
+      if (!isWizardProfilerEnabled() || typeof window === "undefined") return;
+      if (actualDuration <= 16) return;
+      window.dispatchEvent(
+        new CustomEvent("wizard-profiler", {
+          detail: {
+            id,
+            phase,
+            step: props.step,
+            actualDuration,
+            baseDuration,
+            startTime,
+            commitTime,
+          },
+        }),
+      );
+    },
+    [props.step],
+  );
+
+  useEffect(() => {
+    if (!profilerEnabled || typeof window === "undefined") return;
+    const onProfilerEvent = (event: Event) => {
+      const customEvent = event as CustomEvent<WizardProfilerEvent>;
+      if (!customEvent.detail) return;
+      setProfilerEvents((prev) => [customEvent.detail, ...prev].slice(0, 6));
+    };
+    window.addEventListener(
+      "wizard-profiler",
+      onProfilerEvent as EventListener,
+    );
+    return () =>
+      window.removeEventListener(
+        "wizard-profiler",
+        onProfilerEvent as EventListener,
+      );
+  }, [profilerEnabled]);
+
+  useEffect(() => {
+    if (!profilerEnabled || typeof window === "undefined") return;
+    const onValidationEvent = (event: Event) => {
+      const customEvent = event as CustomEvent<WizardValidationTraceEvent>;
+      if (!customEvent.detail) return;
+      setValidationEvents((prev) => [customEvent.detail, ...prev].slice(0, 10));
+    };
+    const onSaveEvent = (event: Event) => {
+      const customEvent = event as CustomEvent<WizardSaveTraceEvent>;
+      if (!customEvent.detail) return;
+      setSaveEvents((prev) => [customEvent.detail, ...prev].slice(0, 10));
+    };
+    window.addEventListener(
+      "wizard-validation-trace",
+      onValidationEvent as EventListener,
+    );
+    window.addEventListener("wizard-save-trace", onSaveEvent as EventListener);
+    return () => {
+      window.removeEventListener(
+        "wizard-validation-trace",
+        onValidationEvent as EventListener,
+      );
+      window.removeEventListener(
+        "wizard-save-trace",
+        onSaveEvent as EventListener,
+      );
+    };
+  }, [profilerEnabled]);
+
   useEffect(() => {
     if (outermostScrollNode) {
       outermostScrollNode.scrollTo({ top: 0, behavior: "auto" });
     }
-  }, [props.step, props.subTick, outermostScrollNode]);
+  }, [props.step, props.currentSub, outermostScrollNode]);
 
   return (
     <WizardNavEventsProvider>
@@ -405,7 +663,7 @@ const WizardContent = (props: any) => {
             "items-start py-3",
             // desktop: centered + more breathing room
             "md:items-center md:py-10",
-            !isLowPerf && "backdrop-blur-[2px] backdrop-saturate-50",
+            showBackdropEffects && "backdrop-blur-[2px] backdrop-saturate-50",
           )}
         >
           <motion.div
@@ -428,7 +686,30 @@ const WizardContent = (props: any) => {
               step={props.step}
               onClose={props.handleWizardClose}
               showBrand={props.step !== 0}
+              rightSlot={
+                props.step > 0 && !perf.isPhone ? (
+                  <WizardPerformanceChip
+                    mode={perf.mode}
+                    override={perf.override}
+                    onToggle={() =>
+                      perf.setOverride(perf.mode === "low" ? "normal" : "low")
+                    }
+                    onClearOverride={perf.clearOverride}
+                  />
+                ) : null
+              }
             />
+
+            {props.step === 0 && !perf.isPhone && (
+              <WizardPerformanceToggle
+                mode={perf.mode}
+                override={perf.override}
+                onSetLow={() => perf.setOverride("low")}
+                onSetNormal={() => perf.setOverride("normal")}
+                onClearOverride={perf.clearOverride}
+              />
+            )}
+            {/* Step 0: full explanatory card (not on phone) */}
             <div className="flex flex-col gap-4 md:gap-5">
               {props.step > 0 && (
                 <WizardProgress
@@ -449,7 +730,7 @@ const WizardContent = (props: any) => {
               <WizardSummaryNavAssist
                 step={props.step}
                 isMobile={props.isMobile}
-                onGoToSummary={() => props.jumpTo(5, 1)}
+                onGoToSummary={goToSummary}
                 onContinue={props.nextStep}
               />
               <div className="mt-4 md:mt-5">
@@ -461,144 +742,147 @@ const WizardContent = (props: any) => {
                                 I dont remember wtf goes here*/}
                 </>
               )}
-              <AnimatedContent
-                animationKey={String(props.step)}
-                triggerKey={`${props.step}-${props.subTick}`}
-                //className="mb-6 text-center text-red bg-white/5 rounded-lg p-4"
-                disableAnimation={isLowPerf}
+              <Profiler
+                id="wizard-step-content"
+                onRender={onStepProfilerRender}
               >
-                {/* <WizardStepContainer> */}
-                <Suspense
-                  fallback={
-                    <div className="flex w-full min-h-[300px] items-center justify-center rounded-lg bg-white/5">
-                      <BudgetGuideSkeleton />
-                    </div>
-                  }
+                <AnimatedContent
+                  animationKey={String(props.step)}
+                  triggerKey={`${props.step}-${props.currentSub}`}
+                  //className="mb-6 text-center text-red bg-white/5 rounded-lg p-4"
+                  disableAnimation={isLowPerf}
                 >
-                  {props.step === 0 ? (
-                    <StepWelcome
-                      connectionError={props.connectionError}
-                      failedAttempts={props.failedAttempts}
-                      loading={props.transitionLoading || props.initLoading}
-                      onRetry={props.initWizard}
-                    />
-                  ) : (
-                    <>
-                      {props.step === 1 &&
-                        (props.wizardSessionId || props.isDebugMode ? (
-                          <WizardFormWrapperStep1
-                            ref={props.stepRefs[1]}
-                            loading={props.initLoading}
-                            isSaving={props.transitionLoading}
-                            skeletonVariant="form"
-                          >
-                            <StepBudgetIncome
-                              onNext={props.hookNextStep}
-                              onPrev={props.hookPrevStep}
-                              loading={false}
-                              stepNumber={1}
-                            />
-                          </WizardFormWrapperStep1>
-                        ) : (
-                          <p>Tekniskt fel!</p>
-                        ))}
+                  {/* <WizardStepContainer> */}
+                  <Suspense
+                    fallback={
+                      <div className="flex w-full min-h-[300px] items-center justify-center rounded-lg bg-white/5">
+                        <BudgetGuideSkeleton />
+                      </div>
+                    }
+                  >
+                    {props.step === 0 ? (
+                      <StepWelcome
+                        connectionError={props.connectionError}
+                        failedAttempts={props.failedAttempts}
+                        loading={props.transitionLoading || props.initLoading}
+                        onRetry={props.initWizard}
+                      />
+                    ) : (
+                      <>
+                        {props.step === 1 &&
+                          (props.wizardSessionId || props.isDebugMode ? (
+                            <WizardFormWrapperStep1
+                              ref={props.stepRefs[1]}
+                              loading={props.initLoading}
+                              isSaving={props.transitionLoading}
+                              skeletonVariant="form"
+                            >
+                              <StepBudgetIncome
+                                onNext={props.hookNextStep}
+                                onPrev={props.hookPrevStep}
+                                loading={false}
+                                stepNumber={1}
+                              />
+                            </WizardFormWrapperStep1>
+                          ) : (
+                            <p>Tekniskt fel!</p>
+                          ))}
 
-                      {props.step === 2 && (
-                        <StepExpenditure
-                          ref={props.stepRefs[2]}
-                          setStepValid={props.setIsStepValid}
-                          wizardSessionId={props.wizardSessionId || ""}
-                          onSaveStepData={props.handleSaveStepData}
-                          stepNumber={2}
-                          initialData={props.initialDataForStep(2)}
-                          onNext={props.hookNextStep}
-                          onPrev={props.hookPrevStep}
-                          loading={props.transitionLoading || props.initLoading}
-                          initialSubStep={props.initialSubStepForStep(2)}
-                          onSubStepChange={props.handleSubStepChange}
-                          onValidationError={props.triggerShakeAnimation}
-                        />
-                      )}
+                        {props.step === 2 && (
+                          <StepExpenditure
+                            ref={props.stepRefs[2]}
+                            setStepValid={props.setIsStepValid}
+                            wizardSessionId={props.wizardSessionId || ""}
+                            onSaveStepData={props.handleSaveStepData}
+                            stepNumber={2}
+                            initialData={props.initialDataForStep(2)}
+                            onNext={props.hookNextStep}
+                            onPrev={props.hookPrevStep}
+                            loading={
+                              props.transitionLoading || props.initLoading
+                            }
+                            initialSubStep={props.initialSubStepForStep(2)}
+                            onSubStepChange={props.handleSubStepChange}
+                            onValidationError={props.triggerShakeAnimation}
+                          />
+                        )}
 
-                      {props.step === 3 && (
-                        <StepBudgetSavings
-                          ref={props.stepRefs[3]}
-                          onNext={props.hookNextStep}
-                          onPrev={props.hookPrevStep}
-                          loading={props.transitionLoading || props.initLoading}
-                          initialSubStep={props.initialSubStepForStep(3)}
-                          onSubStepChange={props.handleSubStepChange}
-                          wizardSessionId={props.wizardSessionId || ""}
-                          onSaveStepData={props.handleSaveStepData}
-                          stepNumber={3}
-                          initialData={props.initialDataForStep(3)}
-                          onValidationError={props.triggerShakeAnimation}
-                        />
-                      )}
+                        {props.step === 3 && (
+                          <StepBudgetSavings
+                            ref={props.stepRefs[3]}
+                            onNext={props.hookNextStep}
+                            onPrev={props.hookPrevStep}
+                            loading={
+                              props.transitionLoading || props.initLoading
+                            }
+                            initialSubStep={props.initialSubStepForStep(3)}
+                            onSubStepChange={props.handleSubStepChange}
+                            wizardSessionId={props.wizardSessionId || ""}
+                            onSaveStepData={props.handleSaveStepData}
+                            stepNumber={3}
+                            initialData={props.initialDataForStep(3)}
+                            onValidationError={props.triggerShakeAnimation}
+                          />
+                        )}
 
-                      {props.step === 4 && (
-                        <StepBudgetDebts
-                          ref={props.stepRefs[4]}
-                          onNext={props.hookNextStep}
-                          onPrev={props.hookPrevStep}
-                          loading={props.transitionLoading || props.initLoading}
-                          initialSubStep={props.initialSubStepForStep(4)}
-                          onSubStepChange={props.handleSubStepChange}
-                          wizardSessionId={props.wizardSessionId || ""}
-                          onSaveStepData={props.handleSaveStepData}
-                          stepNumber={4}
-                          initialData={props.initialDataForStep(4)}
-                          onValidationError={props.triggerShakeAnimation}
-                        />
-                      )}
+                        {props.step === 4 && (
+                          <StepBudgetDebts
+                            ref={props.stepRefs[4]}
+                            onNext={props.hookNextStep}
+                            onPrev={props.hookPrevStep}
+                            loading={
+                              props.transitionLoading || props.initLoading
+                            }
+                            initialSubStep={props.initialSubStepForStep(4)}
+                            onSubStepChange={props.handleSubStepChange}
+                            wizardSessionId={props.wizardSessionId || ""}
+                            onSaveStepData={props.handleSaveStepData}
+                            stepNumber={4}
+                            initialData={props.initialDataForStep(4)}
+                            onValidationError={props.triggerShakeAnimation}
+                          />
+                        )}
 
-                      {props.step === 5 && (
-                        <StepBudgetFinal
-                          ref={props.stepRefs[5]}
-                          onNext={props.hookNextStep}
-                          onPrev={props.hookPrevStep}
-                          loading={
-                            props.transitionLoading ||
-                            props.initLoading ||
-                            props.isFinalizing
-                          }
-                          initialSubStep={props.initialSubStepForStep(5)}
-                          onSubStepChange={props.handleSubStepChange}
-                          wizardSessionId={props.wizardSessionId || ""}
-                          onSaveStepData={props.handleSaveStepData}
-                          stepNumber={5}
-                          initialData={props.initialDataForStep(5)}
-                          onValidationError={props.triggerShakeAnimation}
-                          finalizeWizard={props.finalizeWizard}
-                          isFinalizing={props.isFinalizing}
-                          finalizationError={props.finalizationError}
-                          onFinalizeSuccess={props.onFinalizeSuccess}
-                          onEditSavingsHabit={props.onEditSavingsHabit}
-                          onEditSavingsGoals={props.onEditSavingsGoals}
-                          onEditIncome={props.onEditIncome}
-                          onEditExpenditure={props.onEditExpenditure}
-                          onEditDebts={props.onEditDebts}
-                        />
-                      )}
-                    </>
-                  )}
-                </Suspense>
-                {/* </WizardStepContainer> */}
-              </AnimatedContent>
+                        {props.step === 5 && (
+                          <StepBudgetFinal
+                            ref={props.stepRefs[5]}
+                            onNext={props.hookNextStep}
+                            onPrev={props.hookPrevStep}
+                            loading={
+                              props.transitionLoading ||
+                              props.initLoading ||
+                              props.isFinalizing
+                            }
+                            initialSubStep={props.initialSubStepForStep(5)}
+                            onSubStepChange={props.handleSubStepChange}
+                            wizardSessionId={props.wizardSessionId || ""}
+                            onSaveStepData={props.handleSaveStepData}
+                            stepNumber={5}
+                            initialData={props.initialDataForStep(5)}
+                            onValidationError={props.triggerShakeAnimation}
+                            finalizeWizard={props.finalizeWizard}
+                            isFinalizing={props.isFinalizing}
+                            finalizationError={props.finalizationError}
+                            onFinalizeSuccess={props.onFinalizeSuccess}
+                            onEditSavingsHabit={props.onEditSavingsHabit}
+                            onEditSavingsGoals={props.onEditSavingsGoals}
+                            onEditIncome={props.onEditIncome}
+                            onEditExpenditure={props.onEditExpenditure}
+                            onEditDebts={props.onEditDebts}
+                          />
+                        )}
+                      </>
+                    )}
+                  </Suspense>
+                  {/* </WizardStepContainer> */}
+                </AnimatedContent>
+              </Profiler>
               <div className="w-full max-w-4xl mx-auto">
                 <div className="my-6 w-full flex items-center justify-between">
                   <WizardNavPair
                     step={props.step}
-                    prevStep={
-                      props.subNav.hasPrevSub
-                        ? props.subNav.prevSub
-                        : props.hookPrevStep
-                    }
-                    nextStep={
-                      props.subNav.hasNextSub
-                        ? props.subNav.nextSub
-                        : props.hookNextStep
-                    }
+                    prevStep={props.handlePrevNavigation}
+                    nextStep={props.handleNextNavigation}
                     hasPrev={props.subNav.hasPrevSub || props.step > 0}
                     hasNext={
                       props.subNav.hasNextSub || props.step < props.totalSteps
@@ -635,9 +919,88 @@ const WizardContent = (props: any) => {
           onCancel={props.handleCancelCloseWizard}
           onConfirm={props.handleConfirmCloseWizard}
         />
+        {profilerEnabled &&
+          (profilerEvents.length > 0 ||
+            validationEvents.length > 0 ||
+            saveEvents.length > 0) && (
+            <div className="fixed bottom-4 left-0 z-[2100] w-[26rem] rounded-lg border border-wizard-stroke/40 bg-black/80 p-3 text-xs text-white/90 shadow-xl backdrop-blur-sm">
+              <div className="mb-2 font-semibold text-white">
+                Wizard debug timings
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="rounded border border-white/10 bg-white/5 p-2">
+                  <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-white/60">
+                    Render
+                  </div>
+                  <div className="space-y-1">
+                    {profilerEvents.slice(0, 3).map((event, index) => (
+                      <div
+                        key={`${event.commitTime}-${index}`}
+                        className="flex justify-between gap-2"
+                      >
+                        <span className="text-white/65">S{event.step}</span>
+                        <span className="text-amber-300">
+                          {event.actualDuration.toFixed(1)}ms
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="rounded border border-white/10 bg-white/5 p-2">
+                  <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-white/60">
+                    Validate
+                  </div>
+                  <div className="space-y-1">
+                    {validationEvents.slice(0, 3).map((event, index) => (
+                      <div
+                        key={`${event.step}-${event.subStep}-${event.durationMs}-${index}`}
+                        className="flex justify-between gap-2"
+                      >
+                        <span className="text-white/65">
+                          S{event.step}.{event.subStep}
+                        </span>
+                        <span
+                          className={clsx(
+                            event.ok ? "text-emerald-300" : "text-rose-300",
+                          )}
+                        >
+                          {event.durationMs.toFixed(1)}ms
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="rounded border border-white/10 bg-white/5 p-2">
+                  <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-white/60">
+                    Save
+                  </div>
+                  <div className="space-y-1">
+                    {saveEvents.slice(0, 3).map((event, index) => (
+                      <div
+                        key={`${event.step}-${event.subStep}-${event.phase}-${event.durationMs}-${index}`}
+                        className="flex justify-between gap-2"
+                      >
+                        <span className="text-white/65">
+                          {event.phase === "api" ? "API" : "FL"} S{event.step}.
+                          {event.subStep}
+                        </span>
+                        <span
+                          className={clsx(
+                            event.ok ? "text-cyan-300" : "text-rose-300",
+                          )}
+                        >
+                          {event.durationMs.toFixed(1)}ms
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
       </div>
     </WizardNavEventsProvider>
   );
-};
+});
 
 export default SetupWizard;

@@ -146,7 +146,7 @@ const StepBudgetExpenditureContainer = forwardRef<
   const hasHydrated = useRef(false);
 
   /* 1 ─── Hydrate slice once --------------------------------------- */
-  const { setExpenditure } = useWizardDataStore();
+  const setExpenditure = useWizardDataStore((state) => state.setExpenditure);
   useEffect(() => {
     // FIX 1: The magical ward. This spell now only runs if it has data
     // and has not been run before, breaking the hydration loop.
@@ -423,4 +423,3 @@ const StepBudgetExpenditureContainer = forwardRef<
 });
 
 export default StepBudgetExpenditureContainer;
-

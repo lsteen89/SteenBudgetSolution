@@ -26,9 +26,7 @@ interface WizardFormWrapperStep4Props {
 
 
 const WizardFormWrapperStep4 = forwardRef<WizardFormWrapperStep4Ref, WizardFormWrapperStep4Props>(({ children, onHydrationComplete }, ref) => {
-  const {
-    data: { debts },
-  } = useWizardDataStore();
+  const debts = useWizardDataStore((state) => state.data.debts);
 
   const defaults = ensureStep4Defaults(debts as Partial<Step4FormValues>);
 

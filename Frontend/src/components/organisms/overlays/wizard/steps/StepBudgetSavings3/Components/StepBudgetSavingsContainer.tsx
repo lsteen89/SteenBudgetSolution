@@ -128,7 +128,7 @@ const StepBudgetSavingsContainer = forwardRef<
   const subStepGoalsRef = useRef<SubStepGoalsApi>(null);
   /* 1) Hydrate slice once (from API -> store) */
   const hasHydrated = useRef(false);
-  const { setSavings } = useWizardDataStore();
+  const setSavings = useWizardDataStore((state) => state.setSavings);
 
   const { setValidationAttempted } = useWizard();
 
@@ -337,4 +337,3 @@ const StepBudgetSavingsContainer = forwardRef<
 
 StepBudgetSavingsContainer.displayName = "StepBudgetSavingsContainer";
 export default StepBudgetSavingsContainer;
-

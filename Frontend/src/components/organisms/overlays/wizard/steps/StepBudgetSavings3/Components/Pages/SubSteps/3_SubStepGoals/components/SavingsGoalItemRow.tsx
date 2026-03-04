@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { useMemo } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 
 import type { Step3FormValues } from "@/types/Wizard/Step3_Savings/Step3FormValues";
@@ -33,21 +33,51 @@ export default function SavingsGoalItemRow({ index }: Props) {
   const targetAmount = watch(`${base}.targetAmount`);
   const amountSaved = watch(`${base}.amountSaved`);
   const targetDateString = watch(`${base}.targetDate`);
+  const deferredTargetAmount = useDeferredValue(targetAmount);
+  const deferredAmountSaved = useDeferredValue(amountSaved);
+  const deferredTargetDateString = useDeferredValue(targetDateString);
+  const [isEditingGoal, setIsEditingGoal] = useState(false);
+  const blurTimerRef = useRef<number | null>(null);
+
+  const markEditingStart = useCallback(() => {
+    if (blurTimerRef.current != null) {
+      window.clearTimeout(blurTimerRef.current);
+      blurTimerRef.current = null;
+    }
+    setIsEditingGoal(true);
+  }, []);
+
+  const markEditingEnd = useCallback(() => {
+    if (blurTimerRef.current != null) {
+      window.clearTimeout(blurTimerRef.current);
+    }
+    blurTimerRef.current = window.setTimeout(() => {
+      setIsEditingGoal(false);
+    }, 120);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (blurTimerRef.current != null) {
+        window.clearTimeout(blurTimerRef.current);
+      }
+    };
+  }, []);
 
   const dateObject = useMemo(() => {
-    if (!targetDateString) return null;
-    const ymd = String(targetDateString).split("T")[0];
+    if (!deferredTargetDateString) return null;
+    const ymd = String(deferredTargetDateString).split("T")[0];
     const d = new Date(ymd);
     return Number.isNaN(d.getTime()) ? null : d;
-  }, [targetDateString]);
+  }, [deferredTargetDateString]);
 
   const monthly = calculateMonthlyContribution(
-    targetAmount,
-    amountSaved,
+    deferredTargetAmount,
+    deferredAmountSaved,
     dateObject,
   );
-  const progress = calcProgress(targetAmount, amountSaved);
-  const animatedMonthly = useAnimatedCounter(monthly ?? 0);
+  const progress = calcProgress(deferredTargetAmount, deferredAmountSaved);
+  const animatedMonthly = useAnimatedCounter(monthly ?? 0, 500, !isEditingGoal);
 
   const money0 = useMemo(
     () => (n: number) =>
@@ -79,7 +109,11 @@ export default function SavingsGoalItemRow({ index }: Props) {
                 placeholder="T.ex. Resa till Sicilien"
                 value={field.value ?? ""}
                 onChange={field.onChange}
-                onBlur={field.onBlur}
+                onFocus={markEditingStart}
+                onBlur={() => {
+                  field.onBlur();
+                  markEditingEnd();
+                }}
                 error={fieldState.error?.message}
                 touched={fieldState.isTouched}
                 showError={showErrors}
@@ -115,7 +149,11 @@ export default function SavingsGoalItemRow({ index }: Props) {
                         : null;
                   field.onChange(next);
                 }}
-                onBlur={field.onBlur}
+                onFocus={markEditingStart}
+                onBlur={() => {
+                  field.onBlur();
+                  markEditingEnd();
+                }}
                 error={fieldState.error?.message}
                 touched={fieldState.isTouched}
                 showError={showErrors}
@@ -153,7 +191,11 @@ export default function SavingsGoalItemRow({ index }: Props) {
                         : null;
                   field.onChange(next);
                 }}
-                onBlur={field.onBlur}
+                onFocus={markEditingStart}
+                onBlur={() => {
+                  field.onBlur();
+                  markEditingEnd();
+                }}
                 error={fieldState.error?.message}
                 touched={fieldState.isTouched}
                 showError={showErrors}
@@ -186,7 +228,11 @@ export default function SavingsGoalItemRow({ index }: Props) {
                   type="date"
                   value={dateValue}
                   onChange={field.onChange}
-                  onBlur={field.onBlur}
+                  onFocus={markEditingStart}
+                  onBlur={() => {
+                    field.onBlur();
+                    markEditingEnd();
+                  }}
                   error={fieldState.error?.message}
                   touched={fieldState.isTouched}
                   showError={showErrors}
@@ -201,7 +247,7 @@ export default function SavingsGoalItemRow({ index }: Props) {
       <div className="mt-6 space-y-2">
         <div className="h-2 w-full overflow-hidden rounded-full bg-wizard-stroke/15">
           <motion.div
-            layout
+            layout={!isEditingGoal}
             className="h-full rounded-full bg-wizard-accent"
             style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
             transition={{ type: "spring", stiffness: 120, damping: 22 }}

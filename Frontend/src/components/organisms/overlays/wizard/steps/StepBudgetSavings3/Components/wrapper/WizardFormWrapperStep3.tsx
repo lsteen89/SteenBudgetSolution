@@ -26,9 +26,7 @@ const WizardFormWrapperStep3 = forwardRef<
   WizardFormWrapperStep3Ref,
   WizardFormWrapperStep3Props
 >(({ children, onHydrationComplete }, ref) => {
-  const {
-    data: { savings },
-  } = useWizardDataStore();
+  const savings = useWizardDataStore((state) => state.data.savings);
 
   const { setWizardFlags } = useWizard();
   const hydratedFromStore = useRef(false);
@@ -37,7 +35,7 @@ const WizardFormWrapperStep3 = forwardRef<
     resolver: yupResolver(step3Schema as any),
     defaultValues: ensureStep3Defaults(savings as Partial<Step3FormValues>),
     mode: "onSubmit",
-    reValidateMode: "onChange",
+    reValidateMode: "onBlur",
     shouldUnregister: false,
     shouldFocusError: true,
   });

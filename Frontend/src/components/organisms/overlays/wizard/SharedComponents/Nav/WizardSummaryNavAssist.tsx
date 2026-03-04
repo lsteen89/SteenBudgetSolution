@@ -14,7 +14,7 @@ type Props = {
     className?: string;
 };
 
-export default function WizardSummaryNavAssist({
+function WizardSummaryNavAssistComponent({
     step,
     isMobile,
     onGoToSummary,
@@ -40,3 +40,6 @@ export default function WizardSummaryNavAssist({
         </>
     );
 }
+
+const WizardSummaryNavAssist = React.memo(WizardSummaryNavAssistComponent);
+export default WizardSummaryNavAssist;
