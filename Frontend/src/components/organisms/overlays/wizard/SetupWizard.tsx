@@ -65,6 +65,7 @@ import { BudgetGuideSkeleton } from "@/components/atoms/loading/BudgetGuideSkele
 import { useWizard, WizardProvider } from "@/context/WizardContext";
 import { useWizardDataStore } from "@/stores/Wizard/wizardDataStore";
 import { useWizardSessionStore } from "@/stores/Wizard/wizardSessionStore";
+import { isWizardProfilerEnabled } from "@/utils/profiling/wizardProfiler";
 import ConfirmModal from "@components/atoms/modals/ConfirmModal";
 import AnimatedContent from "@components/atoms/wrappers/AnimatedContent";
 import WizardNavPair from "@components/organisms/overlays/wizard/SharedComponents/Buttons/WizardNavPair";
@@ -75,7 +76,6 @@ import useSaveWizardStep from "@hooks/wizard/useSaveWizardStep";
 import { useWizardFinalization } from "@hooks/wizard/useWizardFinalization";
 import useWizardInit from "@hooks/wizard/useWizardInit";
 import useWizardNavigation from "@hooks/wizard/useWizardNavigation";
-import { isWizardProfilerEnabled } from "@/utils/debug/wizardProfiler";
 import { WizardNavEventsProvider } from "./SharedComponents/Nav/WizardNavEvents";
 import DataTransparencySection from "./SharedComponents/Pages/DataTransparencySection";
 import { WizardHeader } from "./WizardHeader";
