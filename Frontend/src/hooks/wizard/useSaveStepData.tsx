@@ -1,5 +1,6 @@
 import { useWizardSaveQueue } from "@/stores/Wizard/wizardSaveQueue";
 import { useToast } from "@/ui/toast/toast";
+import { isWizardProfilerEnabled } from "@/utils/debug/wizardProfiler";
 import { useCallback } from "react";
 import { FieldValues, Path, UseFormReturn } from "react-hook-form";
 import * as yup from "yup";
@@ -33,6 +34,13 @@ export function useSaveStepData<T extends FieldValues>({
   const { showToast } = useToast();
   const saveQueue = useWizardSaveQueue();
   const isDebugMode = import.meta.env.MODE !== "production";
+  const emitTrace = useCallback(
+    (name: string, detail: Record<string, unknown>) => {
+      if (!isWizardProfilerEnabled() || typeof window === "undefined") return;
+      window.dispatchEvent(new CustomEvent(name, { detail }));
+    },
+    [],
+  );
 
   const saveStepData = useCallback(
     async (
@@ -52,7 +60,15 @@ export function useSaveStepData<T extends FieldValues>({
         );
 
         if (sliceKeys.length > 0) {
+          const validationStart = performance.now();
           const ok = await methods.trigger(sliceKeys as Path<T>[]);
+          emitTrace("wizard-validation-trace", {
+            step: stepNumber,
+            subStep: stepLeaving,
+            durationMs: performance.now() - validationStart,
+            keys: sliceKeys.length,
+            ok,
+          });
           if (!ok) {
             console.warn("Validation failed, showing errors");
             const allErrors = methods.formState.errors as Record<
@@ -67,18 +83,7 @@ export function useSaveStepData<T extends FieldValues>({
         }
       }
 
-      const all = methods.getValues();
-      console.log(
-        "[SAVE] leaving:",
-        stepLeaving,
-        "going:",
-        stepGoing,
-        "major step:",
-        stepNumber,
-      );
-
       const part = getPartialDataForSubstep(stepLeaving, methods.getValues());
-      console.log("[SAVE] slice keys:", Object.keys(part));
 
       if (Object.keys(part).length === 0) {
         setCurrentStep(stepGoing);
@@ -87,17 +92,35 @@ export function useSaveStepData<T extends FieldValues>({
 
       try {
         // ✅ 1) Save current sub-step first
+        const saveStart = performance.now();
         const ok = await onSaveStepData(
           stepNumber,
           stepLeaving,
           part,
           goingBackwards,
         );
+        emitTrace("wizard-save-trace", {
+          step: stepNumber,
+          subStep: stepLeaving,
+          durationMs: performance.now() - saveStart,
+          phase: "api",
+          ok,
+          direction: goingBackwards ? "back" : "forward",
+        });
         if (!ok) throw new Error("API save returned false");
 
         // ✅ 2) Only after success: flush backlog
         if (!goingBackwards) {
+          const flushStart = performance.now();
           await saveQueue.flush();
+          emitTrace("wizard-save-trace", {
+            step: stepNumber,
+            subStep: stepLeaving,
+            durationMs: performance.now() - flushStart,
+            phase: "flush",
+            ok: true,
+            direction: "forward",
+          });
         }
       } catch (err) {
         console.error("Error saving step data:", err);
@@ -125,6 +148,7 @@ export function useSaveStepData<T extends FieldValues>({
       onError,
       saveQueue,
       getPartialDataForSubstep,
+      emitTrace,
     ], // <-- (2) Add to dependency array
   );
 

@@ -9,7 +9,6 @@ using Xunit;
 using Backend.Application.Abstractions.Application.Orchestrators;
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Application.Abstractions.Infrastructure.Verification;
-using Backend.Application.Abstractions.Infrastructure.Verification;
 using Backend.Application.Features.Authentication.Register.Orchestrator;
 using Backend.Application.Features.Authentication.Register.Shared.Models;
 using Backend.Domain.Entities.User;
@@ -38,6 +37,7 @@ public sealed class RegistrationOrchestratorTests
             password: "P@ssw0rd!",
             humanToken: "ok",
             honeypot: "bot",
+            locale: "sv-SE",
             remoteIp: null,
             trustedSeed: false,
             ct: CancellationToken.None);
@@ -65,6 +65,7 @@ public sealed class RegistrationOrchestratorTests
             "Linus", "Steen", "user@example.com", "P@ssw0rd!",
             humanToken: "bad",
             honeypot: "",
+            locale: "sv-SE",
             remoteIp: null,
             trustedSeed: false,
             ct: CancellationToken.None);
@@ -87,13 +88,13 @@ public sealed class RegistrationOrchestratorTests
 
         var r = await SUT().RegisterAsync(
             "Linus", "Steen", "user@example.com", "P@ssw0rd!",
-            "ok", "", null, trustedSeed: false, CancellationToken.None);
+            "ok", "", "sv-SE", null, trustedSeed: false, CancellationToken.None);
 
         r.IsFailure.Should().BeTrue();
         r.Error.Should().Be(UserErrors.EmailAlreadyExists);
 
         _users.Verify(x => x.CreateUserAsync(It.IsAny<UserModel>(), It.IsAny<CancellationToken>()), Times.Never);
-        _verification.Verify(x => x.EnqueueForNewUserAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _verification.Verify(x => x.EnqueueForNewUserAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -110,12 +111,12 @@ public sealed class RegistrationOrchestratorTests
 
         var r = await SUT().RegisterAsync(
             "Linus", "Steen", "user@example.com", "P@ssw0rd!",
-            "ok", "", null, trustedSeed: false, CancellationToken.None);
+            "ok", "", "sv-SE", null, trustedSeed: false, CancellationToken.None);
 
         r.IsFailure.Should().BeTrue();
         r.Error.Should().Be(UserErrors.RegistrationFailed);
 
-        _verification.Verify(x => x.EnqueueForNewUserAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _verification.Verify(x => x.EnqueueForNewUserAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -131,18 +132,25 @@ public sealed class RegistrationOrchestratorTests
         _users.Setup(x => x.CreateUserAsync(It.IsAny<UserModel>(), It.IsAny<CancellationToken>()))
               .Callback<UserModel, CancellationToken>((u, _) => created = u)
               .ReturnsAsync(true);
+        _users.Setup(x => x.UpsertUserSettingsAsync(
+                It.IsAny<Guid>(),
+                "sv-SE",
+                It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
 
         Guid enqPid = Guid.Empty;
         string? enqEmail = null;
-        _verification.Setup(x => x.EnqueueForNewUserAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-                     .Callback<Guid, string, CancellationToken>((pid, email, _) => { enqPid = pid; enqEmail = email; })
+        string? enqLocale = null;
+        _verification.Setup(x => x.EnqueueForNewUserAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+                     .Callback<Guid, string, string?, CancellationToken>((pid, email, locale, _) => { enqPid = pid; enqEmail = email; enqLocale = locale; })
                      .Returns(Task.CompletedTask);
 
         var r = await SUT().RegisterAsync(
             " Linus ", " Steen ", "USER@EXAMPLE.COM", "P@ssw0rd!",
-            "ok", "", null, trustedSeed: false, CancellationToken.None);
+            "ok", "", "sv-SE", null, trustedSeed: false, CancellationToken.None);
 
         r.IsSuccess.Should().BeTrue();
+        _users.Verify(x => x.UpsertUserSettingsAsync(created!.PersoId, "sv-SE", It.IsAny<CancellationToken>()), Times.Once);
         r.Value!.IsHoneypot.Should().BeFalse();
         r.Value.User.Should().NotBeNull();
 
@@ -155,6 +163,6 @@ public sealed class RegistrationOrchestratorTests
         enqPid.Should().Be(created.PersoId);
         enqEmail.Should().Be("user@example.com");
 
-        _verification.Verify(x => x.EnqueueForNewUserAsync(created.PersoId, "user@example.com", It.IsAny<CancellationToken>()), Times.Once);
+        _verification.Verify(x => x.EnqueueForNewUserAsync(created.PersoId, "user@example.com", "sv-SE", It.IsAny<CancellationToken>()), Times.Once);
     }
 }

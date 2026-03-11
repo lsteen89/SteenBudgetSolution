@@ -10,6 +10,8 @@ import {
   mockVerifyEmailCode,
   realVerifyEmailCodeWrapper,
 } from "@/api/Services/User/verifyEmailCode.wrapper";
+import ConfirmedRoute from "@/routes/ConfirmedRoute";
+import OnboardingRoute from "@/routes/OnboardingRoute";
 
 const isDebugMode = import.meta.env.DEV;
 
@@ -37,6 +39,11 @@ const EmailConfirmationPage = lazy(
 const AboutUs = lazy(() => import("@pages/info/AboutUs"));
 const Faq = lazy(() => import("@pages/info/Faq"));
 const NotFoundPage = lazy(() => import("@pages/info/NotFoundPage"));
+const EmailVerificationRecoveryPage = lazy(
+  () => import("@pages/auth/EmailVerificationRecoveryPage"),
+);
+const PasswordResetPage = lazy(() => import("@pages/auth/PasswordResetPage"));
+const ForgotPasswordPage = lazy(() => import("@pages/auth/ForgotPasswordPage"));
 
 // App (lazy)
 const Dashboard = lazy(() => import("@pages/dashboard/dashboardhome"));
@@ -57,20 +64,25 @@ export default function AppRoutes() {
           <Route path="/" element={withLazy(<HomePage />)} />
           <Route path="/login" element={withLazy(<LoginPage />)} />
           <Route path="/registration" element={withLazy(<Registration />)} />
-
-          <Route
-            path="/email-confirmation"
-            element={withLazy(
-              <EmailConfirmationPage
-                verifyEmailCode={
-                  isDebugMode ? mockVerifyEmailCode : realVerifyEmailCodeWrapper
-                }
-              />,
-            )}
-          />
           <Route path="/about-us" element={withLazy(<AboutUs />)} />
           <Route path="/faq" element={withLazy(<Faq />)} />
           <Route path="/how-it-works" element={withLazy(<HowItWorksPage />)} />
+          <Route
+            path="/forgot-password"
+            element={withLazy(<ForgotPasswordPage />)}
+          />
+          <Route
+            path="/reset-password"
+            element={withLazy(<PasswordResetPage />)}
+          />
+          <Route
+            path="/email-verification-recovery"
+            element={withLazy(<EmailVerificationRecoveryPage />)}
+          />
+          <Route
+            path="/forgot-password"
+            element={withLazy(<ForgotPasswordPage />)}
+          />
           {/* 404 keeps the public header */}
           <Route path="*" element={withLazy(<NotFoundPage />)} />
         </Route>
@@ -78,12 +90,28 @@ export default function AppRoutes() {
         {/* Protected chrome */}
         <Route element={<ProtectedRoute />}>
           <Route element={<AuthedLayout />}>
-            <Route path="/dashboard" element={withLazy(<Dashboard />)} />
-            <Route
-              path="/dashboard/breakdown"
-              element={withLazy(<DashboardBreakdownPage />)}
-            />
-            <Route path="/support" element={withLazy(<SupportPage />)} />
+            <Route element={<OnboardingRoute />}>
+              <Route
+                path="/email-confirmation"
+                element={withLazy(
+                  <EmailConfirmationPage
+                    verifyEmailCode={
+                      isDebugMode
+                        ? mockVerifyEmailCode
+                        : realVerifyEmailCodeWrapper
+                    }
+                  />,
+                )}
+              />
+            </Route>
+            <Route element={<ConfirmedRoute />}>
+              <Route path="/dashboard" element={withLazy(<Dashboard />)} />
+              <Route
+                path="/dashboard/breakdown"
+                element={withLazy(<DashboardBreakdownPage />)}
+              />
+              <Route path="/support" element={withLazy(<SupportPage />)} />
+            </Route>
           </Route>
         </Route>
       </Route>

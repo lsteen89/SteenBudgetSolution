@@ -1,6 +1,7 @@
 import { toApiProblem } from "@/api/toApiProblem";
 import { useBudgetDashboardMonthQuery } from "@/hooks/budget/useBudgetDashboardMonthQuery";
 import { useBudgetMonthsStatusQuery } from "@/hooks/budget/useBudgetMonthsStatusQuery";
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { useBudgetMonthStore } from "@/stores/Budget/budgetMonthStore";
 import type { CurrencyCode } from "@/utils/money/currency";
 import { useCallback, useEffect, useMemo } from "react";
@@ -10,6 +11,7 @@ type UseDashboardSummaryOptions = { enabled?: boolean };
 
 export const useDashboardSummary = (opts?: UseDashboardSummaryOptions) => {
   const enabled = opts?.enabled ?? true;
+  const locale = useAppLocale();
 
   const selectedYm = useBudgetMonthStore((s) => s.selectedYearMonth);
   const setSelectedYm = useBudgetMonthStore((s) => s.setSelectedYearMonth);
@@ -41,8 +43,10 @@ export const useDashboardSummary = (opts?: UseDashboardSummaryOptions) => {
 
   const data = useMemo(
     () =>
-      dashQ.data ? buildDashboardSummaryAggregate(dashQ.data, currency) : null,
-    [dashQ.data, currency],
+      dashQ.data
+        ? buildDashboardSummaryAggregate(dashQ.data, currency, locale)
+        : null,
+    [dashQ.data, currency, locale],
   );
 
   const refetchAll = useCallback(() => {

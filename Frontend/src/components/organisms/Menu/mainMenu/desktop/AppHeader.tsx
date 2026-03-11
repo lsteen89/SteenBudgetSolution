@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import HeaderFrame from "./HeaderFrame";
 import HeaderPillNav from "./HeaderPillNav";
@@ -9,10 +9,10 @@ export default function AppHeader() {
     () => [
       { label: "Dashboard", to: "/dashboard" },
       { label: "Breakdown", to: "/dashboard/breakdown" },
-      { label: "How it works", to: "/dashboard/how-it-works" },
+      { label: "How it works", to: "/how-it-works" },
       { label: "Support", to: "/support" },
     ],
-    []
+    [],
   );
 
   return (
@@ -28,7 +28,9 @@ export default function AppHeader() {
           eBudget
         </Link>
       }
-      center={<HeaderPillNav variant="app" items={items} ariaLabel="App navigation" />}
+      center={
+        <HeaderPillNav variant="app" items={items} ariaLabel="App navigation" />
+      }
       right={<HeaderRightActions mode="app" />}
     />
   );

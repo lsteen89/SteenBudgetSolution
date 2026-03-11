@@ -94,14 +94,17 @@ public sealed class ResendVerificationCommandHandlerTests
         _users.Setup(u => u.GetUserModelAsync(null, "user@example.com", It.IsAny<CancellationToken>()))
               .ReturnsAsync(User(id, "user@example.com", confirmed: false));
 
-        _orch.Setup(o => o.EnqueueForResendAsync(id, "user@example.com", It.IsAny<CancellationToken>()))
+        _users.Setup(r => r.GetUserLocaleAsync(id, It.IsAny<CancellationToken>()))
+             .ReturnsAsync("sv-SE");
+
+        _orch.Setup(o => o.EnqueueForResendAsync(id, "user@example.com", "sv-SE", It.IsAny<CancellationToken>()))
              .Returns(Task.CompletedTask);
 
         var res = await SUT().Handle(Cmd("user@example.com"), CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
 
-        _orch.Verify(o => o.EnqueueForResendAsync(id, "user@example.com", It.IsAny<CancellationToken>()), Times.Once);
+        _orch.Verify(o => o.EnqueueForResendAsync(id, "user@example.com", "sv-SE", It.IsAny<CancellationToken>()), Times.Once);
 
         // Handler should not talk to RL/email/tokens anymore:
         _rl.VerifyNoOtherCalls();
@@ -144,15 +147,17 @@ public sealed class ResendVerificationCommandHandlerTests
 
         _users.Setup(u => u.GetUserModelAsync(null, "user@example.com", It.IsAny<CancellationToken>()))
               .ReturnsAsync(User(id, "user@example.com", confirmed: false));
+        _users.Setup(u => u.GetUserLocaleAsync(id, It.IsAny<CancellationToken>()))
+              .ReturnsAsync("sv-SE");
 
-        _orch.Setup(o => o.EnqueueForResendAsync(id, "user@example.com", It.IsAny<CancellationToken>()))
+        _orch.Setup(o => o.EnqueueForResendAsync(id, "user@example.com", "sv-SE", It.IsAny<CancellationToken>()))
              .Returns(Task.CompletedTask);
 
         var res = await SUT().Handle(Cmd("USER@EXAMPLE.COM  "), CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
 
-        _orch.Verify(o => o.EnqueueForResendAsync(id, "user@example.com", It.IsAny<CancellationToken>()), Times.Once);
+        _orch.Verify(o => o.EnqueueForResendAsync(id, "user@example.com", "sv-SE", It.IsAny<CancellationToken>()), Times.Once);
         _tokens.VerifyNoOtherCalls(); // handler should not touch tokens
     }
 }

@@ -5,7 +5,6 @@ using System.IdentityModel.Tokens.Jwt;
 using MediatR;
 using Backend.Application.DTO.User;
 using Backend.Application.Features.Users.Queries.GetUserModel;
-using Microsoft.AspNetCore.Mvc.ApiExplorer;
 using Backend.Presentation.Shared;
 
 namespace Backend.Presentation.Controllers
@@ -31,9 +30,7 @@ namespace Backend.Presentation.Controllers
         [ProducesResponseType(typeof(ApiEnvelope<UserDto>), StatusCodes.Status404NotFound)]
         public async Task<ActionResult<ApiEnvelope<UserDto>>> GetMe(CancellationToken ct)
         {
-            var email =
-                User.FindFirstValue(ClaimTypes.Email)
-                ?? User.FindFirstValue(JwtRegisteredClaimNames.Email);
+            var email = User.FindFirstValue("email") ?? User.FindFirstValue(JwtRegisteredClaimNames.Email);
 
             if (string.IsNullOrWhiteSpace(email))
             {

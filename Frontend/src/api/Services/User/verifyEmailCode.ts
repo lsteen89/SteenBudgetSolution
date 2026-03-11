@@ -1,20 +1,21 @@
 import type { ApiEnvelope } from "@/api/api.types";
+import type { AuthResult } from "@/api/auth.types";
 import { api } from "@/api/axios";
 import { unwrapEnvelope } from "@/api/envelope";
 import { toApiProblem } from "@/api/toApiProblem";
 import { isAxiosError } from "axios";
 
-export type VerifyEmailCodeRequest = { email: string; code: string };
+export type VerifyEmailCodeRequest = { code: string };
 
 export async function verifyEmailCode(
   req: VerifyEmailCodeRequest,
-): Promise<void> {
+): Promise<AuthResult> {
   try {
-    const res = await api.post<ApiEnvelope<string>>(
+    const res = await api.post<ApiEnvelope<AuthResult>>(
       "/api/auth/verify-email-code",
       req,
     );
-    unwrapEnvelope(res, "Verification failed.");
+    return unwrapEnvelope(res, "Verification failed.");
   } catch (e) {
     if (isAxiosError(e)) throw toApiProblem(e);
     throw e;

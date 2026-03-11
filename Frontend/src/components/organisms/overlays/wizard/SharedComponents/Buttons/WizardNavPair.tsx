@@ -33,7 +33,7 @@ export interface WizardNavPairProps {
   hideNext?: boolean;
 }
 
-const WizardNavPair: React.FC<WizardNavPairProps> = ({
+const WizardNavPairComponent: React.FC<WizardNavPairProps> = ({
   step,
   prevStep,
   nextStep,
@@ -107,8 +107,6 @@ const WizardNavPair: React.FC<WizardNavPairProps> = ({
     handleNextClick();
   };
 
-  console.log("navpair: hidenext:" + hideNext);
-
   return (
     <>
       {hasPrev && !showStart && (
@@ -168,4 +166,5 @@ const WizardNavPair: React.FC<WizardNavPairProps> = ({
   );
 };
 
+const WizardNavPair = React.memo(WizardNavPairComponent);
 export default WizardNavPair;

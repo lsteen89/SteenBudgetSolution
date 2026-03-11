@@ -12,6 +12,8 @@ using Backend.Domain.Entities.User;
 using Backend.Domain.Errors.User;
 using Backend.Domain.Shared;
 using Backend.Application.Features.Authentication.Register.Orchestrator;
+using Backend.Application.Abstractions.Infrastructure.Data;
+using Backend.Domain.Entities.Email;
 
 namespace Backend.Tests.UnitTests.Features.Authentication.Register;
 
@@ -19,12 +21,13 @@ public sealed class RegisterAndIssueSessionHandlerTests
 {
     private readonly Mock<IRegistrationOrchestrator> _reg = new();
     private readonly Mock<IAuthSessionIssuer> _issuer = new();
+    private readonly Mock<IUserRepository> _userRepo = new();
 
     private readonly Mock<ISeedingGate> _seedingGate = new();
     public bool IsSeedingOperation { get; init; }
 
     private RegisterAndIssueSessionHandler SUT()
-        => new(_reg.Object, _issuer.Object, _seedingGate.Object);
+        => new(_reg.Object, _userRepo.Object, _issuer.Object, _seedingGate.Object);
 
     private static RegisterAndIssueSessionCommand Cmd(bool isSeeding = false)
         => new(
@@ -34,6 +37,7 @@ public sealed class RegisterAndIssueSessionHandlerTests
             Password: "P@ssw0rd!",
             HumanToken: "ok",
             Honeypot: "",
+            Locale: "sv-SE",
             RemoteIp: null,
             DeviceId: "dev",
             UserAgent: "ua"
@@ -50,10 +54,16 @@ public sealed class RegisterAndIssueSessionHandlerTests
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<string>(),
+                It.IsAny<string>(),
                 It.IsAny<string?>(),
                 It.IsAny<bool>(),
                 It.IsAny<CancellationToken>()))
            .ReturnsAsync(Result<RegistrationOutcome>.Failure(UserErrors.EmailAlreadyExists));
+
+        _userRepo.Setup(x => x.GetEmailRegistrationStateAsync(
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new EmailRegistrationState(false, false));
 
         var r = await SUT().Handle(Cmd(), CancellationToken.None);
 
@@ -67,10 +77,13 @@ public sealed class RegisterAndIssueSessionHandlerTests
     public async Task Given_HoneypotOutcome_When_Handle_Then_ReturnsSuccessNull_And_DoesNotIssue()
     {
         _seedingGate.Setup(x => x.IsTrustedSeed(false)).Returns(false);
-
+        _userRepo.Setup(x => x.GetEmailRegistrationStateAsync(
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new EmailRegistrationState(false, false));
         _reg.Setup(x => x.RegisterAsync(
                 It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
-                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(),
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(),
                 false,
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result<RegistrationOutcome>.Success(new RegistrationOutcome(true, null)));
@@ -82,7 +95,7 @@ public sealed class RegisterAndIssueSessionHandlerTests
 
         _reg.Verify(x => x.RegisterAsync(
             It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
-            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(),
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(),
             false,
             It.IsAny<CancellationToken>()), Times.Once);
 
@@ -93,7 +106,10 @@ public sealed class RegisterAndIssueSessionHandlerTests
     public async Task Given_UserCreated_When_Handle_Then_IssuesSession_And_ReturnsIssuedAuthSession()
     {
         _seedingGate.Setup(x => x.IsTrustedSeed(false)).Returns(false);
-
+        _userRepo.Setup(x => x.GetEmailRegistrationStateAsync(
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new EmailRegistrationState(false, false));
         var user = new UserModel
         {
             PersoId = Guid.NewGuid(),
@@ -107,7 +123,7 @@ public sealed class RegisterAndIssueSessionHandlerTests
 
         _reg.Setup(x => x.RegisterAsync(
                 It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
-                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(),
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(),
                 false,
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result<RegistrationOutcome>.Success(new RegistrationOutcome(false, user)));

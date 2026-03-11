@@ -1,4 +1,4 @@
-using Backend.Domain.Enums;
+using Backend.Domain.Common.Constants;
 using Backend.Domain.Shared;
 
 namespace Backend.Domain.Errors.Budget;

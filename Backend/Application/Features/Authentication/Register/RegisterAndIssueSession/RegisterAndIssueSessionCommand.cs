@@ -12,6 +12,7 @@ public sealed record RegisterAndIssueSessionCommand(
     string Password,
     string HumanToken,
     string Honeypot,
+    string Locale,
     string? RemoteIp,
     string DeviceId,
     string UserAgent

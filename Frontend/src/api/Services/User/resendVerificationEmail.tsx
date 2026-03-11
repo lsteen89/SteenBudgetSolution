@@ -6,13 +6,10 @@ import { isAxiosError } from "axios";
 
 export type ResendVerificationRequest = { email: string };
 
-export async function resendVerificationEmail(
-  req: ResendVerificationRequest,
-): Promise<string> {
+export async function resendVerificationEmail(): Promise<string> {
   try {
     const res = await api.post<ApiEnvelope<string>>(
       "/api/auth/resend-verification",
-      req,
     );
     return unwrapEnvelope(res, "Resend failed.");
   } catch (e) {

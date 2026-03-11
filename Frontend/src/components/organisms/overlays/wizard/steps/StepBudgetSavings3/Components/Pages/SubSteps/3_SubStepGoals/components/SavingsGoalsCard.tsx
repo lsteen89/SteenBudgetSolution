@@ -19,7 +19,7 @@ export type SavingsGoalsCardApi = {
 };
 
 const SavingsGoalsCard = React.forwardRef<SavingsGoalsCardApi>(function SavingsGoalsCard(_props, ref) {
-    const { control, getValues, setValue, clearErrors, trigger, resetField, setFocus } =
+    const { control, clearErrors, setFocus } =
         useFormContext<Step3FormValues>();
 
     const { errors } = useFormState({ control, name: "goals" });
@@ -37,12 +37,26 @@ const SavingsGoalsCard = React.forwardRef<SavingsGoalsCardApi>(function SavingsG
         activeModal,
         openModal,
         closeModal,
-        validationAttempted,
     } = useWizard();
 
     const isTemplateOpen = activeModal === "goalTemplate";
 
     const [open, setOpen] = React.useState<string>("");
+    const [showAllGoals, setShowAllGoals] = React.useState(false);
+    const deferredFields = React.useDeferredValue(fields);
+    const LARGE_LIST_THRESHOLD = 8;
+    const compactListMode = deferredFields.length > LARGE_LIST_THRESHOLD && !showAllGoals;
+    const openIndex = Number(open);
+    const visibleIndexSet = React.useMemo(() => {
+        if (!compactListMode) {
+            return new Set(deferredFields.map((_, index) => index));
+        }
+        const keep = new Set<number>([0, 1, 2]);
+        if (Number.isFinite(openIndex) && openIndex >= 0) {
+            keep.add(openIndex);
+        }
+        return keep;
+    }, [compactListMode, deferredFields, openIndex]);
 
     const openFirstErrorGoal = React.useCallback(() => {
         const idx = firstIndexWithError((errors as any)?.goals);
@@ -64,15 +78,6 @@ const SavingsGoalsCard = React.forwardRef<SavingsGoalsCardApi>(function SavingsG
 
     React.useImperativeHandle(ref, () => ({ openFirstErrorGoal }), [openFirstErrorGoal]);
 
-    const markGoalsDirty = React.useCallback(() => {
-
-        setValue("goals", getValues("goals"), {
-            shouldDirty: true,
-            shouldTouch: false,
-            shouldValidate: false,
-        });
-    }, [getValues, setValue]);
-
     const afterMutate = React.useCallback(
         (affectedIndex?: number) => {
             // clear schema + nested errors
@@ -80,12 +85,8 @@ const SavingsGoalsCard = React.forwardRef<SavingsGoalsCardApi>(function SavingsG
             if (typeof affectedIndex === "number") {
                 clearErrors(`goals.${affectedIndex}` as const);
             }
-
-            markGoalsDirty();
-
-
         },
-        [clearErrors, markGoalsDirty, trigger, validationAttempted]
+        [clearErrors]
     );
 
     const addFromTemplate = React.useCallback(
@@ -125,28 +126,15 @@ const SavingsGoalsCard = React.forwardRef<SavingsGoalsCardApi>(function SavingsG
         );
 
 
-        resetField(`goals.${newIndex}.name`, { defaultValue: "" });
-        resetField(`goals.${newIndex}.targetAmount`, { defaultValue: null });
-        resetField(`goals.${newIndex}.targetDate`, { defaultValue: "" });
-        resetField(`goals.${newIndex}.amountSaved`, { defaultValue: null });
-
         clearErrors([`goals.${newIndex}` as const, "goals"]);
 
         setOpen(String(newIndex));
         closeModal();
-
-
-
-        markGoalsDirty();
     }, [
         append,
         fields.length,
         closeModal,
-        resetField,
         clearErrors,
-        trigger,
-        validationAttempted,
-        markGoalsDirty,
     ]);
 
     const removeAt = React.useCallback(
@@ -168,7 +156,6 @@ const SavingsGoalsCard = React.forwardRef<SavingsGoalsCardApi>(function SavingsG
     );
 
     const isEmpty = fields.length === 0;
-    console.log("validationAttempted step3.goals", validationAttempted["step3.goals"]);
     return (
         <WizardCard>
             <GoalTemplateModal
@@ -220,7 +207,8 @@ const SavingsGoalsCard = React.forwardRef<SavingsGoalsCardApi>(function SavingsG
                             value={open}
                             onValueChange={(v) => setOpen(v ?? "")}
                         >
-                            {fields.map((f, index) => (
+                            {deferredFields.map((f, index) => (
+                                visibleIndexSet.has(index) ? (
                                 <motion.div
                                     id={`goal-${index}`}
                                     key={f.fieldId}
@@ -232,8 +220,21 @@ const SavingsGoalsCard = React.forwardRef<SavingsGoalsCardApi>(function SavingsG
                                 >
                                     <SavingsGoalItemAccordion index={index} onRemove={removeAt} />
                                 </motion.div>
+                                ) : null
                             ))}
                         </WizardAccordionRoot>
+                        {compactListMode && (
+                            <div className="rounded-xl border border-wizard-stroke/25 bg-wizard-surface/30 px-4 py-3 text-sm text-wizard-text/75">
+                                {deferredFields.length - visibleIndexSet.size} mål är tillfälligt komprimerade för bättre prestanda.
+                                <button
+                                    type="button"
+                                    onClick={() => setShowAllGoals(true)}
+                                    className="ml-2 font-semibold text-wizard-accent hover:underline"
+                                >
+                                    Visa alla mål
+                                </button>
+                            </div>
+                        )}
 
                         <div className="relative flex justify-center">
                             <div className="pointer-events-none absolute inset-0 grid place-items-center">

@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using MediatR;
+using System.Security.Claims;
+using Microsoft.IdentityModel.JsonWebTokens;
 // Mediator
 using Backend.Application.Features.Authentication.RefreshToken;
 using Backend.Application.Features.Commands.Auth.Logout;
@@ -18,8 +20,9 @@ using Backend.Application.Features.VerifyEmail;
 using Backend.Presentation.Shared; // For ApiResponse
 using Backend.Domain.Shared;      // For Result
 using Backend.Application.Features.Authentication.Register.RegisterAndIssueSession;
-using Backend.Domain.Enums; // For ErrorType
-
+using Backend.Application.Features.Authentication.ForgotPassword;
+using Backend.Application.Features.Authentication.ResetPassword;
+using Backend.Presentation.Constants; // For RateLimitPolicies
 
 namespace Backend.Presentation.Controllers
 {
@@ -39,7 +42,7 @@ namespace Backend.Presentation.Controllers
         #region Login, Register, Logout, Refresh
 
         [HttpPost("login")]
-        [EnableRateLimiting("LoginPolicy")]
+        [EnableRateLimiting(RateLimitPolicies.Login)]
         [ProducesResponseType(typeof(ApiEnvelope<AuthResult>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiEnvelope<AuthResult>), StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> Login([FromBody] UserLoginDto dto, CancellationToken ct)
@@ -60,8 +63,8 @@ namespace Backend.Presentation.Controllers
 
         }
 
-        [EnableRateLimiting("LogoutPolicy")]
-        [Authorize(AuthenticationSchemes = "AccessScheme")]
+        [EnableRateLimiting(RateLimitPolicies.Logout)]
+        [AllowAnonymous]
         [HttpPost("logout")]
         public async Task<IActionResult> Logout([FromQuery] bool logoutAll = false, CancellationToken ct = default)
         {
@@ -79,7 +82,7 @@ namespace Backend.Presentation.Controllers
             return NoContent();
         }
 
-        [EnableRateLimiting("RefreshPolicy")]
+        [EnableRateLimiting(RateLimitPolicies.Refresh)]
         [AllowAnonymous]
         [HttpPost("refresh")]
         [ProducesResponseType(typeof(ApiEnvelope<AuthResult>), StatusCodes.Status200OK)]
@@ -113,7 +116,7 @@ namespace Backend.Presentation.Controllers
             return Ok(ApiEnvelope<AuthResult>.Success(issued.Result));
         }
         [HttpPost("register")]
-        [EnableRateLimiting("RegistrationPolicy")]
+        [EnableRateLimiting(RateLimitPolicies.Registration)]
         [ProducesResponseType(typeof(ApiEnvelope<AuthResult?>), StatusCodes.Status201Created)]
         [ProducesResponseType(typeof(ApiEnvelope<AuthResult?>), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> Register([FromBody] UserCreationDto dto, CancellationToken ct)
@@ -127,6 +130,7 @@ namespace Backend.Presentation.Controllers
                 dto.Password,
                 dto.HumanToken,
                 dto.Honeypot ?? "",
+                dto.Locale,
                 RemoteIp: ip,
                 DeviceId: deviceId,
                 UserAgent: ua
@@ -148,34 +152,133 @@ namespace Backend.Presentation.Controllers
         #endregion
 
         #region verify email
-        [AllowAnonymous]
-        [EnableRateLimiting("VerifyEmailPolicy")]
+        [Authorize(Policy = "Onboarding")]
+        [EnableRateLimiting(RateLimitPolicies.VerifyEmail)]
         [HttpPost("verify-email-code")]
+        [ProducesResponseType(typeof(ApiEnvelope<AuthResult>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiEnvelope<AuthResult>), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> VerifyEmailCode([FromBody] VerifyEmailCodeRequest req, CancellationToken ct)
         {
-            var cmd = new VerifyEmailCodeCommand(req.Email, req.Code);
+            var email = User.FindFirstValue(JwtRegisteredClaimNames.Email)
+                ?? User.FindFirstValue(ClaimTypes.Email);
+
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                return Unauthorized(ApiEnvelope<AuthResult>.Failure(
+                    "Auth.InvalidToken",
+                    "Missing email claim."
+                ));
+            }
+
+            var (ip, ua, deviceId) = RequestMetadataHelper.ExtractMetadata(HttpContext);
+
+            var cmd = new VerifyEmailCodeCommand(
+                Email: email,
+                Code: req.Code,
+                DeviceId: deviceId ?? "unknown-device",
+                UserAgent: ua ?? "",
+                RememberMe: true
+            );
+
             var result = await _mediator.Send(cmd, ct);
 
-            return result.IsSuccess
-                ? Ok(ApiEnvelope<string>.Success("OK"))
-                : BadRequest(ApiEnvelope<string>.Failure(result.Error.Code, result.Error.Description));
+            if (result.IsFailure)
+                return BadRequest(ApiEnvelope<AuthResult>.Failure(result.Error.Code, result.Error.Description));
+
+            var issued = result.Value!;
+
+            var refreshCookie = _cookieService.CreateRefreshCookie(issued.RefreshToken, issued.Result.RememberMe);
+            Response.Cookies.Append(refreshCookie.Name, refreshCookie.Value, refreshCookie.Options);
+
+            return Ok(ApiEnvelope<AuthResult>.Success(issued.Result));
         }
 
-        [AllowAnonymous]
-        [EnableRateLimiting("ResendVerificationPolicy")]
+        [Authorize(Policy = "Onboarding")]
+        [EnableRateLimiting(RateLimitPolicies.ResendVerification)]
         [HttpPost("resend-verification")]
         [ProducesResponseType(typeof(ApiEnvelope<string>), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(ApiEnvelope<string>), StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> ResendVerificationEmail([FromBody] ResendVerificationRequest request)
+        [ProducesResponseType(typeof(ApiEnvelope<string>), StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> ResendVerificationEmail(CancellationToken ct)
         {
-            var command = new ResendVerificationCommand(request.Email);
-            var result = await _mediator.Send(command);
+            var email = User.FindFirstValue(JwtRegisteredClaimNames.Email)
+                ?? User.FindFirstValue(ClaimTypes.Email);
+
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                return Unauthorized(ApiEnvelope<string>.Failure(
+                    "Auth.InvalidToken",
+                    "Missing email claim."
+                ));
+            }
+
+            var command = new ResendVerificationCommand(email);
+            await _mediator.Send(command, ct);
 
             var successEnvelope = ApiEnvelope<string>.Success(
                 "If an account with that email exists, a new verification code has been sent."
             );
 
             return Ok(successEnvelope);
+        }
+        [AllowAnonymous]
+        [EnableRateLimiting(RateLimitPolicies.ResendVerification)]
+        [HttpPost("resend-verification-recovery")]
+        [ProducesResponseType(typeof(ApiEnvelope<string>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> ResendVerificationRecovery(
+        [FromBody] ResendVerificationRecoveryRequest request,
+        CancellationToken ct)
+        {
+            var command = new ResendVerificationCommand(request.Email);
+            await _mediator.Send(command, ct);
+
+            return Ok(ApiEnvelope<string>.Success(
+                "If an account with that email exists, a new verification code has been sent."
+            ));
+        }
+        #endregion
+        #region Password reset (initiate + complete)
+        [AllowAnonymous]
+        [EnableRateLimiting(RateLimitPolicies.ForgotPassword)]
+        [HttpPost("forgot-password")]
+        [ProducesResponseType(typeof(ApiEnvelope<string>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> ForgotPassword(
+            [FromBody] ForgotPasswordRequest request,
+            CancellationToken ct)
+        {
+            await _mediator.Send(new ForgotPasswordCommand(request.Email, request.Locale), ct);
+
+            return Ok(ApiEnvelope<string>.Success(
+                "If an account with that email exists, password reset instructions have been sent."
+            ));
+        }
+
+        [AllowAnonymous]
+        [EnableRateLimiting(RateLimitPolicies.ResetPassword)]
+        [HttpPost("reset-password")]
+        [ProducesResponseType(typeof(ApiEnvelope<string>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiEnvelope<string>), StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> ResetPassword(
+            [FromBody] ResetPasswordRequest request,
+            CancellationToken ct)
+        {
+            var result = await _mediator.Send(
+                new ResetPasswordCommand(
+                    request.Email,
+                    request.Code,
+                    request.NewPassword,
+                    request.ConfirmPassword
+                ),
+                ct);
+
+            if (result.IsFailure)
+                return BadRequest(ApiEnvelope<string>.Failure(
+                    result.Error.Code,
+                    result.Error.Description
+                ));
+
+            return Ok(ApiEnvelope<string>.Success(
+                "Your password has been reset successfully."
+            ));
         }
         #endregion
     }

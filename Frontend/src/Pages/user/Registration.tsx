@@ -4,6 +4,9 @@ import * as React from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 
+import { registrationDict } from "@/utils/i18n/pages/public/Registration.i18n";
+import { tDict } from "@/utils/i18n/translate";
+
 import type { ApiProblem } from "@/api/api.types";
 import Mascot from "@/components/atoms/animation/Mascot";
 import { SurfaceCard } from "@/components/atoms/cards/SurfaceCard";
@@ -22,6 +25,7 @@ import { useToast } from "@/ui/toast/toast";
 import { toUserMessage } from "@/utils/i18n/apiErrors/toUserMessage";
 import regbird from "@assets/Images/RegBirdV2.png";
 
+import { getPostAuthRedirect } from "@/utils/auth/getPostAuthRedirect";
 import { registerUser } from "@api/Services/User/registerUser";
 import { registrationSchema } from "@schemas/auth/registration/registration.schema";
 import type { RegistrationFormValues } from "types/User/Creation/registration.types";
@@ -56,6 +60,9 @@ export default function Registration() {
   const toast = useToast();
   const locale = useAppLocale();
 
+  const t = <K extends keyof typeof registrationDict.sv>(k: K) =>
+    tDict(k, locale, registrationDict);
+
   const { applyAuth } = useAuth();
 
   const humanToken = watch("humanToken");
@@ -74,6 +81,9 @@ export default function Registration() {
     turnstileRef.current?.reset();
   }, [clearHumanToken]);
 
+  const [existingUnconfirmedEmail, setExistingUnconfirmedEmail] =
+    React.useState<string | null>(null);
+
   const showErrors = submitCount > 0;
   const email = watch("email");
   const repeatEmail = watch("repeatEmail");
@@ -90,18 +100,13 @@ export default function Registration() {
 
   const onSubmit = async (data: RegistrationFormValues) => {
     try {
+      setExistingUnconfirmedEmail(null);
       const auth = await registerUser(data);
       await applyAuth(auth);
 
-      toast.success(
-        locale === "sv-SE"
-          ? "Klart! Vi skickar en kod till din e-post."
-          : "Done! We sent a code to your email.",
-      );
+      toast.success(t("toastCodeSent"));
 
-      navigate(
-        `/email-confirmation?email=${encodeURIComponent(data.email.trim())}`,
-      );
+      navigate(getPostAuthRedirect(auth.accessToken), { replace: true });
     } catch (err: any) {
       resetChallenge();
 
@@ -111,7 +116,7 @@ export default function Registration() {
       if (code === "Auth.InvalidChallengeToken") {
         setError("humanToken", {
           type: "server",
-          message: "Verifieringen misslyckades. Försök igen.",
+          message: "verifyFailed",
         });
         toast.error(toUserMessage(p, locale), { id: code });
         return;
@@ -122,11 +127,23 @@ export default function Registration() {
         return;
       }
 
+      if (p.code === "Registration.EmailExistsUnconfirmed") {
+        const email = data.email.trim();
+
+        setError("email", {
+          type: "server",
+          message: "emailExistsUnconfirmed", // <-- key
+        });
+
+        setExistingUnconfirmedEmail(email);
+        return;
+      }
+
       if (
         p.code === "Registration.EmailAlreadyExists" ||
-        p.code === "User.EmailAlreadyExists" // legacy
+        p.code === "User.EmailAlreadyExists"
       ) {
-        setError("email", { type: "server", message: "E-posten finns redan." });
+        setError("email", { type: "server", message: "emailExists" }); // <-- key
         return;
       }
 
@@ -152,10 +169,24 @@ export default function Registration() {
     },
     [setValue, clearErrors],
   );
-  console.log("MODE:", import.meta.env.MODE);
-  console.log("DEV/PROD:", import.meta.env.DEV, import.meta.env.PROD);
-  console.log("TURNSTILE:", import.meta.env.VITE_TURNSTILE_SITE_KEY);
+  React.useEffect(() => {
+    if (!existingUnconfirmedEmail) return;
 
+    if (email.trim() !== existingUnconfirmedEmail) {
+      setExistingUnconfirmedEmail(null);
+    }
+  }, [email, existingUnconfirmedEmail]);
+
+  const humanErr = showErrors ? errors.humanToken?.message : undefined;
+  const humanErrText =
+    humanErr && humanErr in registrationDict.sv
+      ? t(humanErr as keyof typeof registrationDict.sv)
+      : humanErr;
+
+  const errText = (msg?: string) =>
+    msg && msg in registrationDict.sv
+      ? t(msg as keyof typeof registrationDict.sv)
+      : msg;
   return (
     <>
       <PageContainer noPadding className="relative">
@@ -174,29 +205,30 @@ export default function Registration() {
             <div className="relative mx-auto w-full max-w-xl">
               <SurfaceCard className="p-6 sm:p-8">
                 <p className="text-xs font-semibold tracking-[0.22em] uppercase text-eb-text/50">
-                  Skapa konto
+                  {t("kicker")}
                 </p>
 
                 <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-eb-text">
-                  Skaffa <span className="text-eb-accent">eBudget</span>
+                  {t("titleA")}{" "}
+                  <span className="text-eb-accent">{t("titleBrand")}</span>
                 </h1>
 
                 <p className="mt-2 text-sm text-eb-text/65 max-w-prose">
-                  Börja enkelt. Du kan justera allt senare.
+                  {t("lead")}
                 </p>
 
                 <form
                   noValidate
-                  onSubmit={handleSubmit(onSubmit, (e) =>
-                    console.log("INVALID", e),
-                  )}
+                  onSubmit={handleSubmit(onSubmit)}
                   className="mt-6 space-y-5"
                 >
                   <div className="grid gap-4 sm:grid-cols-2">
                     <FormField
-                      label="Förnamn"
+                      label={t("firstName")}
                       htmlFor="firstName"
-                      error={showErrors ? errors.firstName?.message : undefined}
+                      error={errText(
+                        showErrors ? errors.firstName?.message : undefined,
+                      )}
                     >
                       <TextInput
                         id="firstName"
@@ -207,9 +239,11 @@ export default function Registration() {
                     </FormField>
 
                     <FormField
-                      label="Efternamn"
+                      label={t("lastName")}
                       htmlFor="lastName"
-                      error={showErrors ? errors.lastName?.message : undefined}
+                      error={errText(
+                        showErrors ? errors.lastName?.message : undefined,
+                      )}
                     >
                       <TextInput
                         id="lastName"
@@ -220,9 +254,11 @@ export default function Registration() {
                     </FormField>
 
                     <FormField
-                      label="E-post"
+                      label={t("email")}
                       htmlFor="email"
-                      error={showErrors ? errors.email?.message : undefined}
+                      error={errText(
+                        showErrors ? errors.email?.message : undefined,
+                      )}
                       className="sm:col-span-2"
                     >
                       <TextInput
@@ -235,7 +271,7 @@ export default function Registration() {
                     </FormField>
 
                     <FormField
-                      label="Upprepa e-post"
+                      label={t("repeatEmail")}
                       htmlFor="repeatEmail"
                       error={
                         showErrors ? errors.repeatEmail?.message : undefined
@@ -252,16 +288,16 @@ export default function Registration() {
                       <MatchHint
                         show={showEmailMatch}
                         ok={emailMatches}
-                        okText="E-post matchar"
-                        badText="E-post matchar inte"
+                        okText={t("emailOk")}
+                        badText={t("emailBad")}
                       />
                     </FormField>
 
                     <FormField
-                      label="Lösenord"
+                      label={t("pw")}
                       htmlFor="password"
                       error={showErrors ? errors.password?.message : undefined}
-                      hint="Minst 8 tecken rekommenderas."
+                      hint={t("pwHint")}
                       className="sm:col-span-2"
                     >
                       <TextInput
@@ -274,7 +310,7 @@ export default function Registration() {
                     </FormField>
 
                     <FormField
-                      label="Upprepa lösenord"
+                      label={t("repeatPw")}
                       htmlFor="repeatPassword"
                       error={
                         showErrors ? errors.repeatPassword?.message : undefined
@@ -291,8 +327,8 @@ export default function Registration() {
                       <MatchHint
                         show={showPwMatch}
                         ok={pwMatches}
-                        okText="Lösenord matchar"
-                        badText="Lösenord matchar inte"
+                        okText={t("pwOk")}
+                        badText={t("pwBad")}
                       />
                     </FormField>
                   </div>
@@ -312,14 +348,12 @@ export default function Registration() {
                         clearHumanToken();
                         setError("humanToken", {
                           type: "turnstile",
-                          message: "Turnstile kunde inte laddas.",
+                          message: t("turnstileLoadFail"),
                         });
                       }}
                     />
-                    {showErrors && errors.humanToken?.message ? (
-                      <p className="text-sm text-eb-danger">
-                        {errors.humanToken.message}
-                      </p>
+                    {humanErrText ? (
+                      <p className="text-sm text-eb-danger">{humanErrText}</p>
                     ) : null}
                   </div>
 
@@ -330,27 +364,50 @@ export default function Registration() {
                       aria-busy={isSubmitting}
                       className="w-full sm:w-auto"
                     >
-                      {isSubmitting ? "Skapar konto..." : "Skapa konto"}
+                      {isSubmitting ? t("submitBusy") : t("submitIdle")}
                     </CtaButton>
 
                     <SecondaryLink
                       to="/login"
                       className="w-full sm:w-auto justify-center"
                     >
-                      Jag har redan ett konto
+                      {t("alreadyHave")}
                     </SecondaryLink>
                   </div>
+                  {existingUnconfirmedEmail ? (
+                    <div className="rounded-2xl border border-eb-stroke/25 bg-eb-surface/70 px-4 py-4">
+                      <p className="text-sm font-semibold text-eb-text/85">
+                        {t("emailExistsUnconfirmed")}
+                      </p>
+
+                      <p className="mt-1 text-sm text-eb-text/60">
+                        {t("emailExistsUnconfirmedHelp")}
+                      </p>
+
+                      <div className="mt-4 flex flex-col sm:flex-row gap-3">
+                        <SecondaryLink
+                          to={`/email-verification-recovery?email=${encodeURIComponent(existingUnconfirmedEmail)}`}
+                          className="w-full sm:w-auto justify-center"
+                        >
+                          {t("continueVerification")}
+                        </SecondaryLink>
+
+                        <SecondaryLink
+                          to={`/forgot-password?email=${encodeURIComponent(existingUnconfirmedEmail)}`}
+                          className="w-full sm:w-auto justify-center"
+                        >
+                          {t("forgotPassword")}
+                        </SecondaryLink>
+                      </div>
+                    </div>
+                  ) : null}
 
                   <div className="rounded-2xl bg-[rgb(var(--eb-shell)/0.35)] border border-eb-stroke/25 px-4 py-3">
-                    <p className="text-sm text-eb-text/60">
-                      Vi säljer aldrig din data. Aldrig.
-                    </p>
+                    <p className="text-sm text-eb-text/60">{t("privacy")}</p>
                   </div>
                 </form>
                 <div className="mt-5 rounded-2xl bg-[rgb(var(--eb-shell)/0.35)] border border-eb-stroke/25 px-4 py-3">
-                  <p className="text-sm text-eb-text/60">
-                    Vi skickar en kod till din e-post.
-                  </p>
+                  <p className="text-sm text-eb-text/60">{t("codeInfo")} </p>
                 </div>
               </SurfaceCard>
 

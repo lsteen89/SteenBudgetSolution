@@ -7,14 +7,28 @@ import { useState, useEffect, useRef } from "react";
  * @param duration The duration of the animation in milliseconds.
  * @returns The current value of the animated number.
  */
-const useAnimatedCounter = (endValue: number, duration = 500): number => {
+const useAnimatedCounter = (
+  endValue: number,
+  duration = 500,
+  enabled = true,
+): number => {
   const [count, setCount] = useState(0);
   const animationFrameRef = useRef<number>();
   const previousValueRef = useRef(0);
 
   useEffect(() => {
-    const startValue = previousValueRef.current;
     const targetValue = endValue ?? 0; // Gracefully handle null/undefined
+
+    if (!enabled) {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      setCount(targetValue);
+      previousValueRef.current = targetValue;
+      return;
+    }
+
+    const startValue = previousValueRef.current;
     let startTime: number | null = null;
 
     const animate = (timestamp: number) => {
@@ -45,7 +59,7 @@ const useAnimatedCounter = (endValue: number, duration = 500): number => {
       // This ensures the next animation starts from the right place
       previousValueRef.current = targetValue; 
     };
-  }, [endValue, duration]);
+  }, [endValue, duration, enabled]);
 
   return Math.ceil(count);
 };

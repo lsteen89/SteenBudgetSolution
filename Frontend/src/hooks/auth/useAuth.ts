@@ -1,16 +1,16 @@
 import type { ApiEnvelope } from "@/api/api.types";
 import type { AuthResult } from "@/api/auth.types.ts";
 import { callLogin, callLogout } from "@/api/Auth/auth";
+import { applySession } from "@/api/Auth/session";
 import { api } from "@/api/axios";
 import { useAuthStore } from "@/stores/Auth/authStore";
 import type { UserLoginDto } from "@myTypes/User/Auth/userLoginForm";
 import type { UserDto } from "@myTypes/User/UserDto";
 import { useCallback } from "react";
 
-type LoginRes = Awaited<ReturnType<typeof callLogin>>;
+//type LoginRes = Awaited<ReturnType<typeof callLogin>>;
 
 export function useAuth() {
-  const setAuthAction = useAuthStore((s) => s.setAuth);
   const mergeUserAction = useAuthStore((s) => s.mergeUser);
   const currentAccessToken = useAuthStore((s) => s.accessToken);
   const currentUser = useAuthStore((s) => s.user);
@@ -18,39 +18,36 @@ export function useAuth() {
   const currentRememberMe = useAuthStore((s) => s.rememberMe);
 
   const applyAuth = useCallback(
-    async (_r: AuthResult) => {
+    async (r: AuthResult) => {
+      applySession(r);
+
       try {
         const resp = await api.get<ApiEnvelope<UserDto>>("/api/users/me");
         const env = resp.data;
         if (env.isSuccess && env.data && !env.error) mergeUserAction(env.data);
       } catch {
-        /* ignore */
+        // ignore
       }
     },
     [mergeUserAction],
   );
 
   const login = useCallback(
-    async (dto: UserLoginDto, rememberMe: boolean): Promise<AuthResult> => {
-      const payload = {
+    async (dto: UserLoginDto, rememberMe: boolean) => {
+      const auth = await callLogin({
         email: dto.email,
         password: dto.password,
         rememberMe,
-        HumanToken: dto.HumanToken, // null is fine
-      } as const;
-
-      const auth = await callLogin(payload); // AuthResult or throws ApiProblem
-      // NOTE: callLogin currently already setsAuth() in the auth module.
-      // applyAuth still makes sense because it fetches /me and merges user.
+        HumanToken: dto.HumanToken,
+      });
       await applyAuth(auth);
-
       return auth;
     },
     [applyAuth],
   );
 
-  const logout = useCallback(async () => {
-    await callLogout();
+  const logout = useCallback(async (mode: "user" | "silent" = "user") => {
+    await callLogout(mode);
   }, []);
 
   return {

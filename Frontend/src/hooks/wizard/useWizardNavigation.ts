@@ -1,7 +1,6 @@
 import { FINAL_SUMMARY_UNLOCK } from "@/components/organisms/overlays/wizard/SharedComponents/Const/wizardEntitlements";
 import { useWizardDataStore } from "@/stores/Wizard/wizardDataStore";
 import { useWizardSessionStore } from "@/stores/Wizard/wizardSessionStore";
-import { useToast } from "@/ui/toast/toast";
 import { handleStepValidation } from "@components/organisms/overlays/wizard/validation/handleStepValidation";
 import { useCallback } from "react";
 
@@ -22,10 +21,15 @@ interface UseWizardNavigationProps {
   ): Promise<boolean>;
   // 'setWizardData' is officially removed.
   triggerShakeAnimation(duration?: number): void;
-  isDebugMode: boolean;
   setShowSideIncome(v: boolean): void;
   setShowHouseholdMembers(v: boolean): void;
 }
+
+const SUMMARY_SUBSTEPS: Record<number, Set<number>> = {
+  2: new Set([8]), // Expenditure summary
+  3: new Set([4]), // Savings summary
+  //4: new Set([3]), // Debts currently sends data on summary
+};
 
 const getDefaultSubStepForEnter = (
   targetStep: number,
@@ -65,31 +69,14 @@ const useWizardNavigation = ({
   setCurrentStepState,
   handleSaveStepData,
   triggerShakeAnimation,
-  isDebugMode,
   setShowSideIncome,
   setShowHouseholdMembers,
 }: UseWizardNavigationProps) => {
-  const { showToast } = useToast();
-
   const setLastVisitedSubStep = useWizardDataStore(
     (state) => state.setLastVisitedSubStep,
   );
 
   const bumpEntitlement = useWizardSessionStore((s) => s.bumpEntitlement);
-
-  const SUMMARY_SUBSTEPS: Record<number, Set<number>> = {
-    2: new Set([8]), // Expenditure summary
-    3: new Set([4]), // Savings summary
-    //4: new Set([3]), // Debts currently sends data on summary
-  };
-  const FINAL_EDIT_TARGETS = {
-    income: { step: 1, sub: 1 },
-    expenditure: { step: 2, sub: 1 },
-    savingsHabit: { step: 3, sub: 2 },
-    savingsGoals: { step: 3, sub: 3 },
-    debts: { step: 4, sub: 2 },
-    debtsStrategy: { step: 4, sub: 3 },
-  } as const;
 
   function isSummarySubStep(step: number, sub: number) {
     return SUMMARY_SUBSTEPS[step]?.has(sub) ?? false;
@@ -107,16 +94,6 @@ const useWizardNavigation = ({
       }
       setTransitionLoading(true);
 
-      if (step === 0) {
-        setStep((prev) =>
-          direction === "next"
-            ? Math.min(prev + 1, totalSteps)
-            : Math.max(prev - 1, 0),
-        );
-        setTransitionLoading(false);
-        return;
-      }
-
       const ref = stepRefs[step];
       const api = ref?.current;
       if (!api) {
@@ -130,8 +107,6 @@ const useWizardNavigation = ({
       // validate / collect data
       let dataForSave: any = null;
       if (goingBack) {
-        console.log("[NAV api keys]", Object.keys(api));
-        console.log("[NAV has partial?]", typeof api.getPartialDataForSubStep);
         dataForSave = api.getStepData();
       } else {
         const isComplex = typeof api.hasSubSteps === "function";
@@ -156,11 +131,7 @@ const useWizardNavigation = ({
           return;
         }
       }
-      console.log("[NAV] useWizardNavigation called", {
-        stepNumber: step,
-        subStepNumber: currentSub,
-        dataToSave: dataForSave,
-      });
+
       // persist (skip summary)
       const skipPersist = !goingBack && isSummarySubStep(step, currentSub);
       let saveSuccess = true;
@@ -184,10 +155,6 @@ const useWizardNavigation = ({
           currentSub === FINAL_SUMMARY_UNLOCK.sub
         ) {
           bumpEntitlement(step, currentSub);
-          console.log(
-            "[ENTITLEMENT] final summary unlocked via",
-            FINAL_SUMMARY_UNLOCK,
-          );
         }
       }
 
@@ -231,10 +198,8 @@ const useWizardNavigation = ({
       setCurrentStepState,
       handleSaveStepData,
       triggerShakeAnimation,
-      isDebugMode,
       setShowSideIncome,
       setShowHouseholdMembers,
-      showToast,
       setStep,
       setLastVisitedSubStep,
       bumpEntitlement,

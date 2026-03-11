@@ -14,14 +14,15 @@ using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Application.Abstractions.Application.Orchestrators;
 using Backend.Domain.Entities.User;
 using Backend.Domain.Entities.Auth;
-using Backend.Infrastructure.Repositories.Email;
+using Backend.Application.Features.Authentication.Shared.Models;
 using Backend.Application.Abstractions.Infrastructure.Verification;
 using Backend.Application.Options.Verification;
 using Backend.Application.Orchestrators.Email;
 using Backend.Application.Features.VerifyEmail;
 using Backend.IntegrationTests.Shared;
-using Backend.Application.Features.Authentication.Register;
+using Backend.Application.Features.Shared.Issuers.Auth;
 using Backend.Application.Orchestrators.Email.Generators;
+using Backend.Domain.Entities.Email;
 
 
 namespace Backend.IntegrationTests.Auth.RegisterVerify;
@@ -40,7 +41,7 @@ public sealed class RegisterVerifyFlowTests
     private readonly Mock<ITurnstileService> _turnstile = new();
     private readonly Mock<IEmailRateLimiter> _rateLimiter = new();
     private readonly Mock<ITimeProvider> _clock = new();
-
+    private readonly Mock<IAuthSessionIssuer> _issuer = new();
     [Fact]
     public async Task Given_NewUser_When_Register_Then_CodeQueued_And_Verify_Then_EmailConfirmed_And_CodeDeleted()
     {
@@ -97,6 +98,7 @@ public sealed class RegisterVerifyFlowTests
             humanToken: "turnstile-ok",
             honeypot: "",               // empty = real user
             remoteIp: "127.0.0.1",
+            locale: "en-US",
             trustedSeed: false,          // if your interface includes it
             ct: CancellationToken.None
         );
@@ -136,20 +138,50 @@ public sealed class RegisterVerifyFlowTests
 
         var code = m.Value;
 
+        // Arrange issuer
+        _issuer.Setup(i => i.IssueAsync(
+                It.IsAny<UserModel>(),
+                true,
+                "device-1",
+                "ua",
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((UserModel u, bool remember, string deviceId, string userAgent, CancellationToken _) =>
+            {
+                var auth = new Backend.Application.DTO.Auth.AuthResult(
+                    AccessToken: "at",
+                    PersoId: u.PersoId,
+                    SessionId: Guid.NewGuid(),
+                    WsMac: "mac",
+                    RememberMe: remember);
+
+                return new IssuedAuthSession(auth, "rt");
+            });
+
         // ACT: verify
         var verify = new VerifyEmailCodeCommandHandler(
             users,
             codes,
             _clock.Object,
-            Options.Create(opt)
+            Options.Create(opt),
+            _issuer.Object
         );
 
-        var verRes = await verify.Handle(new VerifyEmailCodeCommand(created.Email, code), CancellationToken.None);
-        verRes.IsSuccess.Should().BeTrue();
+        var verRes = await verify.Handle(
+            new VerifyEmailCodeCommand(created.Email, code, "device-1", "ua", RememberMe: true),
+            CancellationToken.None);
 
-        // Assert: confirmed
-        var after = await users.GetUserModelAsync(persoid: created.PersoId, ct: CancellationToken.None);
-        after!.EmailConfirmed.Should().BeTrue();
+        verRes.IsSuccess.Should().BeTrue();
+        verRes.Value.Should().NotBeNull();
+        verRes.Value!.Result.PersoId.Should().Be(created.PersoId);
+        verRes.Value.Result.RememberMe.Should().BeTrue();
+        verRes.Value.RefreshToken.Should().Be("rt");
+
+        _issuer.Verify(i => i.IssueAsync(
+            It.Is<UserModel>(u => u.PersoId == created.PersoId && u.EmailConfirmed),
+            true,
+            "device-1",
+            "ua",
+            It.IsAny<CancellationToken>()), Times.Once);
 
         // Assert: code deleted
         await using (var conn = new MySqlConnection(_db.ConnectionString))
@@ -321,12 +353,63 @@ WHERE PersoId = @PersoId;";
                 "UPDATE Users SET EmailConfirmed = 1 WHERE PersoId = @id;", new { id = persoid });
             return rows == 1;
         }
+        public async Task<bool> UpdatePasswordAsync(Guid persoid, string passwordHash, CancellationToken ct)
+        {
+            await using var c = new MySqlConnection(_cs);
+            const string sql = """
+            UPDATE Users
+            SET Password = @Password,
+                LastUpdatedTime = CURRENT_TIMESTAMP;
+            WHERE PersoId = @PersoId;
+            """;
+
+            var rows = await c.ExecuteAsync(sql, new
+            {
+                PersoId = persoid,
+                Password = passwordHash,
+            });
+
+            return rows > 0;
+        }
         public async Task<bool> SetFirstTimeLoginAsync(Guid persoid, CancellationToken ct = default)
         {
             await using var c = new MySqlConnection(_cs);
             var rows = await c.ExecuteAsync(
                 "UPDATE Users SET FirstLogin = 0 WHERE PersoId = @id;", new { id = persoid });
             return rows == 1;
+        }
+        public async Task<bool> UpsertUserSettingsAsync(Guid persoid, string locale, CancellationToken ct = default)
+        {
+            await using var c = new MySqlConnection(_cs);
+            var rows = await c.ExecuteAsync(
+            "INSERT INTO UserSettings (PersoId, Locale) VALUES (@Persoid, @Locale) ON DUPLICATE KEY UPDATE Locale = VALUES(Locale), LastUpdatedTime = CURRENT_TIMESTAMP",
+            new { Persoid = persoid, Locale = locale });
+
+            return rows >= 1;
+        }
+        public async Task<string?> GetUserLocaleAsync(Guid persoid, CancellationToken ct = default)
+        {
+            await using var c = new MySqlConnection(_cs);
+            return await c.ExecuteScalarAsync<string>(
+                "SELECT Locale FROM UserSettings WHERE PersoId = @Persoid;", new { Persoid = persoid });
+        }
+        public async Task<EmailRegistrationState> GetEmailRegistrationStateAsync(
+            string email,
+            CancellationToken ct = default)
+        {
+            await using var c = new MySqlConnection(_cs);
+            const string sql = """
+        SELECT EmailConfirmed
+        FROM Users
+        WHERE Email = @Email
+        LIMIT 1;
+        """;
+
+            var result = await c.QuerySingleOrDefaultAsync<bool?>(sql, new { Email = email });
+
+            return result is null
+                ? new EmailRegistrationState(Exists: false, EmailConfirmed: false)
+                : new EmailRegistrationState(Exists: true, EmailConfirmed: result.Value);
         }
     }
 

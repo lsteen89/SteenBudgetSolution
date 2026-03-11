@@ -1,67 +1,58 @@
-import { PropsWithChildren, useEffect } from 'react';
-import { callLogout } from '@/api/Auth/auth';
-import { useAuthStore } from '@/stores/Auth/authStore';
+import { api, queueRefresh } from "@/api/axios";
+import { useProactiveRefresh } from "@/hooks/useProactiveRefresh";
+import { useAuthStore } from "@/stores/Auth/authStore";
 import LoadingScreen from "@components/molecules/feedback/LoadingScreen";
-import { useProactiveRefresh } from '@/hooks/useProactiveRefresh';
-import { queueRefresh } from '@/api/axios';
+import { PropsWithChildren, useEffect } from "react";
 
 export const AuthProvider = ({ children }: PropsWithChildren) => {
-  const appInitialized = useAuthStore(state => state.authProviderInitialized);
-  const setAppInitialized = useAuthStore(state => state.setAuthProviderInitialized);
-  const clearAuthStore = useAuthStore(state => state.clear);
+  const appInitialized = useAuthStore((state) => state.authProviderInitialized);
+  const setAppInitialized = useAuthStore(
+    (state) => state.setAuthProviderInitialized,
+  );
+  const clearAuthStore = useAuthStore((state) => state.clear);
 
   useEffect(() => {
     let isMounted = true;
 
     const initializeAuth = async () => {
-      // Ensure we start fresh if this effect re-runs, though with stable deps it shouldn't.
-      // However, onRehydrateStorage in store already sets authProviderInitialized to false.
-      // setAppInitialized(false); // Not strictly needed here due to onRehydrateStorage
-
       await useAuthStore.persist.rehydrate();
       if (!isMounted) return;
 
-      const { accessToken, sessionId, rememberMe: rehydratedRememberMe } = useAuthStore.getState();
-      const browserSessionMarker = sessionStorage.getItem('appSessionActive');
+      const { accessToken, sessionId, rememberMe } = useAuthStore.getState();
+      const browserSessionMarker = sessionStorage.getItem("appSessionActive");
 
-      if (!rehydratedRememberMe && accessToken && !browserSessionMarker) {
-        console.log('[AuthProvider] "Remember Me" false, AT found, but no session marker. Clearing local session.');
-        if (isMounted) {
-          clearAuthStore(); // clearAuthStore now sets authProviderInitialized to true
-          // setAppInitialized(true); // Not needed, clearAuthStore handles it
-        }
+      // if token exists, set axios header right away
+      if (accessToken)
+        api.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+
+      // enforce non-remember sessions
+      if (!rememberMe && accessToken && !browserSessionMarker) {
+        clearAuthStore();
+        setAppInitialized(true);
         return;
       }
 
-      if (accessToken && sessionId) {
+      // only refresh when rememberMe expects cookie-backed sessions
+      if (accessToken && rememberMe) {
         try {
-          console.log('[AuthProvider] Initial token/session exists, attempting refresh via queueRefresh...');
           await queueRefresh(true);
           if (!isMounted) return;
-          console.log('[AuthProvider] Initial refresh attempt processed.');
-
-          if (!useAuthStore.getState().rememberMe && useAuthStore.getState().accessToken) {
-            sessionStorage.setItem('appSessionActive', 'true');
-          }
         } catch (err) {
-          if (!isMounted) return;
-          console.error('[AuthProvider] Initial refresh via queueRefresh failed. Logging out.', err);
-          await callLogout(); // callLogout will trigger clearAuthStore, which sets authProviderInitialized to true
+          // no panic logout; just clear local session
+          clearAuthStore();
+          setAppInitialized(true);
           return;
         }
       }
 
-      if (isMounted) {
-        setAppInitialized(true); // All checks done, app is initialized
-      }
+      setAppInitialized(true);
     };
 
     initializeAuth();
-
     return () => {
       isMounted = false;
     };
-  }, [setAppInitialized, clearAuthStore]); // Stable dependencies
+  }, [setAppInitialized, clearAuthStore]);
 
   useProactiveRefresh();
 

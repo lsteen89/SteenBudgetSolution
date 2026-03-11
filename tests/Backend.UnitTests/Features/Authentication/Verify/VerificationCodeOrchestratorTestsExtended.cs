@@ -56,7 +56,7 @@ public sealed class VerificationCodeOrchestratorTestsExtended
         _rl.Setup(r => r.CheckAsync(id, EmailKind.Verification, It.IsAny<CancellationToken>()))
            .ReturnsAsync(new RateLimitDecision(false, "cooldown:60s"));
 
-        await SUT(now).EnqueueForResendAsync(id, "user@example.com", CancellationToken.None);
+        await SUT(now).EnqueueForResendAsync(id, "user@example.com", "sv-SE", CancellationToken.None);
 
         _codes.VerifyNoOtherCalls();
         _outbox.VerifyNoOtherCalls();
@@ -93,7 +93,7 @@ public sealed class VerificationCodeOrchestratorTestsExtended
         _rl.Setup(r => r.MarkSentAsync(id, EmailKind.Verification, new DateTimeOffset(now, TimeSpan.Zero), It.IsAny<CancellationToken>()))
            .Returns(Task.CompletedTask);
 
-        await SUT(now).EnqueueForNewUserAsync(id, "user@example.com", CancellationToken.None);
+        await SUT(now).EnqueueForNewUserAsync(id, "user@example.com", "sv-SE", CancellationToken.None);
 
         _codes.Verify(c => c.UpsertActiveForRegisterAsync(id, It.IsAny<byte[]>(), now.AddMinutes(15), now, It.IsAny<CancellationToken>()), Times.Once);
         _codes.Verify(c => c.UpsertActiveForResendAsync(It.IsAny<Guid>(), It.IsAny<byte[]>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -126,7 +126,7 @@ public sealed class VerificationCodeOrchestratorTestsExtended
         _outbox.Setup(o => o.EnqueueAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
                .ThrowsAsync(new Exception("db down"));
 
-        Func<Task> act = () => SUT(now).EnqueueForResendAsync(id, "user@example.com", CancellationToken.None);
+        Func<Task> act = () => SUT(now).EnqueueForResendAsync(id, "user@example.com", "sv-SE", CancellationToken.None);
 
         await act.Should().ThrowAsync<Exception>();
 
@@ -152,7 +152,7 @@ public sealed class VerificationCodeOrchestratorTestsExtended
                 It.IsAny<CancellationToken>()))
             .ThrowsAsync(new Exception("write fail"));
 
-        Func<Task> act = () => SUT(now).EnqueueForResendAsync(id, "user@example.com", CancellationToken.None);
+        Func<Task> act = () => SUT(now).EnqueueForResendAsync(id, "user@example.com", "sv-SE", CancellationToken.None);
 
         await act.Should().ThrowAsync<Exception>();
 
@@ -193,7 +193,7 @@ public sealed class VerificationCodeOrchestratorTestsExtended
         _rl.Setup(r => r.MarkSentAsync(id, EmailKind.Verification, new DateTimeOffset(now, TimeSpan.Zero), It.IsAny<CancellationToken>()))
            .Returns(Task.CompletedTask);
 
-        await SUT(now).EnqueueForResendAsync(id, "user@example.com", CancellationToken.None);
+        await SUT(now).EnqueueForResendAsync(id, "user@example.com", "sv-SE", CancellationToken.None);
 
         _codes.Verify(c => c.UpsertActiveForResendAsync(id, It.IsAny<byte[]>(), now.AddMinutes(15), now, It.IsAny<CancellationToken>()), Times.Once);
         _codes.Verify(c => c.UpsertActiveForRegisterAsync(It.IsAny<Guid>(), It.IsAny<byte[]>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Never);

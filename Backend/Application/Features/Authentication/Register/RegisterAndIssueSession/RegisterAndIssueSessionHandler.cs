@@ -5,6 +5,7 @@ using Backend.Application.Features.Authentication.Shared.Models;
 using Backend.Application.Features.Authentication.Register.Orchestrator;
 using Backend.Domain.Errors.User;
 using Backend.Application.Abstractions.Application.Services.Security;
+using Backend.Application.Abstractions.Infrastructure.Data;
 
 namespace Backend.Application.Features.Authentication.Register.RegisterAndIssueSession;
 
@@ -12,12 +13,14 @@ public sealed class RegisterAndIssueSessionHandler
     : IRequestHandler<RegisterAndIssueSessionCommand, Result<IssuedAuthSession?>>
 {
     private readonly IRegistrationOrchestrator _registration;
+    private readonly IUserRepository _userRepo;
     private readonly IAuthSessionIssuer _issuer;
     private readonly ISeedingGate _seedingGate;
 
-    public RegisterAndIssueSessionHandler(IRegistrationOrchestrator registration, IAuthSessionIssuer issuer, ISeedingGate seedingGate)
+    public RegisterAndIssueSessionHandler(IRegistrationOrchestrator registration, IUserRepository userRepo, IAuthSessionIssuer issuer, ISeedingGate seedingGate)
     {
         _registration = registration;
+        _userRepo = userRepo;
         _issuer = issuer;
         _seedingGate = seedingGate;
     }
@@ -29,9 +32,18 @@ public sealed class RegisterAndIssueSessionHandler
         if (cmd.IsSeedingOperation && !trustedSeed)
             return Result<IssuedAuthSession?>.Failure(UserErrors.SeedingNotAllowed);
 
+        var emailState = await _userRepo.GetEmailRegistrationStateAsync(cmd.Email, ct);
+        if (emailState.Exists)
+        {
+            if (!emailState.EmailConfirmed)
+                return Result<IssuedAuthSession?>.Failure(UserErrors.EmailExistsUnconfirmed);
+
+            return Result<IssuedAuthSession?>.Failure(UserErrors.EmailAlreadyExists);
+        }
+
         var reg = await _registration.RegisterAsync(
             cmd.FirstName, cmd.LastName, cmd.Email, cmd.Password,
-            cmd.HumanToken, cmd.Honeypot, cmd.RemoteIp,
+            cmd.HumanToken, cmd.Honeypot, cmd.Locale, cmd.RemoteIp,
             trustedSeed,
             ct);
 

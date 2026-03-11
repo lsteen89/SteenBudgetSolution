@@ -1,27 +1,26 @@
 // StepBudgetIncome.tsx
+import { Coins } from "lucide-react";
 import React, { useMemo } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
-import { Coins } from "lucide-react";
 
-import OptionContainer from "@components/molecules/containers/OptionContainer";
 import NumberInput from "@components/atoms/InputField/NumberInput";
 import RowFrequencySelect from "@components/atoms/InputField/RowFrequencySelect";
 import { WizardStepHeader } from "@components/organisms/overlays/wizard/SharedComponents/Headers/WizardStepHeader";
 
-import { setValueAsSvNumber } from "@/utils/forms/parseNumber";
 import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
-import { formatMoneyV2 } from "@/utils/money/moneyV2";
+import { setValueAsSvNumber } from "@/utils/forms/parseNumber";
 import { idFromPath } from "@/utils/idFromPath";
+import { formatMoneyV2 } from "@/utils/money/moneyV2";
 
 import type { IncomeFormValues } from "@/types/Wizard/Step1_Income/IncomeFormValues";
 import type { Frequency } from "@/types/common";
-import { toMonthly, sumArray } from "@/utils/wizard/wizardHelpers";
-import { usePulseOnIncrease } from "@hooks/effects/usePulseOnIncrease";
+import { safeMoney, sumMoney } from "@/utils/money/moneyMath";
+import { toMonthly } from "@/utils/wizard/wizardHelpers";
 import { WizardDecorationPulse } from "@components/atoms/feedback/DecorationPulse";
 import { WizardTotalPulse } from "@components/atoms/feedback/WizardTotalPulse";
 import WizardTotalBar from "@components/organisms/overlays/wizard/SharedComponents/Sections/WizardTotalBar";
-import { sumMoney, safeMoney } from "@/utils/money/moneyMath";
+import { usePulseOnIncrease } from "@hooks/effects/usePulseOnIncrease";
 
 import HouseholdMembersCard from "@components/organisms/overlays/wizard/steps/StepBudgetIncome1/Components/HouseholdMembersCard";
 import SideHustlesCard from "@components/organisms/overlays/wizard/steps/StepBudgetIncome1/Components/SideHustlesCard";
@@ -55,22 +54,20 @@ const StepBudgetIncome: React.FC<{
   const freqState = getFieldState("salaryFrequency", formState);
   const showErrors = formState.submitCount > 0;
 
-
-
   const monthlyMain = useMemo(() => {
     return safeMoney(toMonthly(netSalary, salaryFrequency ?? "monthly"));
   }, [netSalary, salaryFrequency]);
 
   const monthlyHousehold = useMemo(() => {
     const monthlyValues = household.map((m) =>
-      safeMoney(toMonthly(m?.income, m?.frequency ?? "monthly"))
+      safeMoney(toMonthly(m?.income, m?.frequency ?? "monthly")),
     );
     return monthlyValues.reduce((acc, v) => acc + v, 0);
   }, [household]);
 
   const monthlyHustles = useMemo(() => {
     const monthlyValues = hustles.map((h) =>
-      safeMoney(toMonthly(h?.income, h?.frequency ?? "monthly"))
+      safeMoney(toMonthly(h?.income, h?.frequency ?? "monthly")),
     );
     return monthlyValues.reduce((acc, v) => acc + v, 0);
   }, [hustles]);
@@ -90,12 +87,14 @@ const StepBudgetIncome: React.FC<{
     // Keep it simple; if you want parity later, use the same overlay skeleton style.
     return <div className="p-6 text-white/70">Loading…</div>;
   }
-  console.log("monthlyTotal:", safeTotal, "pulseKey:", pulseKey);
   return (
-
     <section className="w-full max-w-3xl mx-auto px-4 sm:px-6 lg:px-12 py-6 pb-safe">
       <WizardStepHeader
-        stepPill={{ stepNumber: 1, majorLabel: "Inkomster", subLabel: "Inkomster" }}
+        stepPill={{
+          stepNumber: 1,
+          majorLabel: "Inkomster",
+          subLabel: "Inkomster",
+        }}
         title=""
         subtitle="Ange din huvudinkomst. Lägg till andra inkomster om du vill."
         guardrails={[
@@ -116,7 +115,6 @@ const StepBudgetIncome: React.FC<{
         }
       />
 
-
       {/* Main income */}
       <div className="flex items-center justify-center gap-2 mb-4 text-white/80">
         <Coins className="w-5 h-5 text-darkLimeGreen" />
@@ -135,24 +133,37 @@ const StepBudgetIncome: React.FC<{
         />
 
         <div>
-          <label className="text-sm font-semibold text-wizard-text/80">Lönefrekvens</label>
+          <label className="text-sm font-semibold text-wizard-text/80">
+            Lönefrekvens
+          </label>
           <RowFrequencySelect
             id={idFromPath("salaryFrequency")}
             name="salaryFrequency"
             value={salaryFrequency ?? "monthly"}
             onChange={(v) => {
               if (v === "") return;
-              setValue("salaryFrequency", v, { shouldDirty: true, shouldValidate: true });
+              setValue("salaryFrequency", v, {
+                shouldDirty: true,
+                shouldValidate: true,
+              });
             }}
             options={FREQ_OPTIONS}
-            error={(freqState.isTouched || showErrors) ? freqState.error?.message : undefined}
+            error={
+              freqState.isTouched || showErrors
+                ? freqState.error?.message
+                : undefined
+            }
             touched={freqState.isTouched || showErrors}
           />
         </div>
 
         {monthlyMain > 0 && (
           <p className="text-center text-darkLimeGreen text-lg font-semibold mt-2">
-            ≈ {formatMoneyV2(monthlyMain, currency, locale, { fractionDigits: 0 })} / mån
+            ≈{" "}
+            {formatMoneyV2(monthlyMain, currency, locale, {
+              fractionDigits: 0,
+            })}{" "}
+            / mån
           </p>
         )}
       </div>
@@ -178,7 +189,6 @@ const StepBudgetIncome: React.FC<{
         />
       </WizardTotalPulse>
     </section>
-
   );
 };
 

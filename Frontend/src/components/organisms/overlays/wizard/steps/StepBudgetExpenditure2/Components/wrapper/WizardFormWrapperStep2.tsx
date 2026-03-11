@@ -31,9 +31,7 @@ const WizardFormWrapperStep2 = forwardRef<
   WizardFormWrapperStep2Props
 >(({ children, onHydrationComplete }, ref) => {
   /* 1.  Data from store */
-  const {
-    data: { expenditure },
-  } = useWizardDataStore();
+  const expenditure = useWizardDataStore((state) => state.data.expenditure);
 
   /* 2.  Build defaults **after** we have the slice */
   const defaults = ensureStep2Defaults(

@@ -1,0 +1,32 @@
+export const menuDict = {
+  sv: {
+    aboutUs: "Om oss",
+    faq: "Vanliga frågor",
+    homeAria: "Till startsidan",
+    navAria: "Primär navigation",
+    getStarted: "Skaffa eBudget",
+    login: "Logga in",
+    openApp: "Öppna appen",
+    languageLabel: "Språk",
+  },
+  en: {
+    aboutUs: "About us",
+    faq: "FAQ",
+    homeAria: "To home page",
+    navAria: "Primary navigation",
+    getStarted: "Get eBudget",
+    login: "Login",
+    openApp: "Open the app",
+    languageLabel: "Language",
+  },
+  et: {
+    aboutUs: "Meist",
+    faq: "KKK",
+    homeAria: "Avalehele",
+    navAria: "Peamine navigatsioon",
+    getStarted: "Hangi eBudget",
+    login: "Logi sisse",
+    openApp: "Ava rakendus",
+    languageLabel: "Keel",
+  },
+};

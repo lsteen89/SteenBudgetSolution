@@ -46,7 +46,8 @@ public sealed class ResendVerificationCommandHandler
 
         if (user is null || user.EmailConfirmed) return Result.Success(); // no enumeration
 
-        await _verificationOrchestrator.EnqueueForResendAsync(user.PersoId, emailNorm, ct);
+        var locale = await _users.GetUserLocaleAsync(user.PersoId, ct); // returns string? e.g. "et-EE"
+        await _verificationOrchestrator.EnqueueForResendAsync(user.PersoId, emailNorm, locale, ct);
 
         return Result.Success(); // always
     }

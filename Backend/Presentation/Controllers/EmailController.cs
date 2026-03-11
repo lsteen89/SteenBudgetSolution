@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Backend.Application.DTO.Email;
 using Backend.Domain.Errors.User;
 using Microsoft.AspNetCore.Authorization;
+using Backend.Presentation.Constants;
 
 [Authorize(Policy = "EmailConfirmed")]
 [ApiController]
@@ -22,7 +23,7 @@ public sealed class EmailController : ControllerBase
     }
 
     [HttpPost("contact")]
-    [EnableRateLimiting("EmailSendingPolicy")] // IP/global bucket
+    [EnableRateLimiting(RateLimitPolicies.EmailSending)] // IP/global bucket
     [ProducesResponseType(typeof(ApiEnvelope<string>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiEnvelope<string>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiEnvelope<string>), StatusCodes.Status429TooManyRequests)]

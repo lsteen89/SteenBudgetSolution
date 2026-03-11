@@ -1,5 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
-
+﻿
 namespace Backend.Application.DTO.User
 {
     public class UserCreationDto
@@ -10,6 +9,7 @@ namespace Backend.Application.DTO.User
         public required string Password { get; set; }
         public required string HumanToken { get; set; }
         public string? Honeypot { get; set; }
+        public string Locale { get; init; } = "sv-SE"; // default fallback
     }
 
 }

@@ -88,9 +88,11 @@ public sealed class ResendVerificationCommandHandlerTests
         // handler normalizes input to lower+trim before calling repo
         users.Setup(r => r.GetUserModelAsync(null, "u@e.se", It.IsAny<CancellationToken>()))
              .ReturnsAsync(user);
+        users.Setup(r => r.GetUserLocaleAsync(user.PersoId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync("sv-SE");
 
         var orch = new Mock<IVerificationCodeOrchestrator>();
-        orch.Setup(o => o.EnqueueForResendAsync(user.PersoId, "u@e.se", It.IsAny<CancellationToken>()))
+        orch.Setup(o => o.EnqueueForResendAsync(user.PersoId, "u@e.se", "sv-SE", It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         var sut = new ResendVerificationCommandHandler(
@@ -102,7 +104,7 @@ public sealed class ResendVerificationCommandHandlerTests
         var res = await sut.Handle(new ResendVerificationCommand("  U@E.SE  "), CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
-        orch.Verify(o => o.EnqueueForResendAsync(user.PersoId, "u@e.se", It.IsAny<CancellationToken>()), Times.Once);
+        orch.Verify(o => o.EnqueueForResendAsync(user.PersoId, "u@e.se", "sv-SE", It.IsAny<CancellationToken>()), Times.Once);
         orch.VerifyNoOtherCalls();
     }
 

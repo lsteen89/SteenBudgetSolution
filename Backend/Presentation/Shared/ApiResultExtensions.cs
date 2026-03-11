@@ -1,5 +1,5 @@
-using Backend.Domain.Enums;
 using Backend.Domain.Shared;
+using Backend.Domain.Common.Constants;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Backend.Presentation.Shared;

@@ -7,6 +7,9 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Backend.Settings.cookies;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Options;
 
 namespace Backend.IntegrationTests.TestHost;
 
@@ -33,14 +36,18 @@ public sealed class ApiFactory : WebApplicationFactory<Program>
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.UseEnvironment("IntegrationTests");
+        builder.UseEnvironment("Development"); // Use development settings (e.g. appsettings.Development.json)
 
         builder.ConfigureServices(services =>
         {
             // Capture emails
             services.RemoveAll<IEmailCapture>();
             services.AddSingleton<IEmailCapture, InMemoryEmailCapture>();
-
+            services.PostConfigure<CookieSettings>(o =>
+            {
+                o.Secure = false;
+                o.SameSite = SameSiteMode.Lax;
+            });
             // Replace email sender
             services.RemoveAll<IEmailService>();
             services.AddSingleton<IEmailService, InMemoryEmailService>();

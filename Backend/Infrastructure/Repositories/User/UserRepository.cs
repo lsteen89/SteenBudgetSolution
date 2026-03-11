@@ -3,6 +3,7 @@ using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Infrastructure.Data.BaseClass;
 using Microsoft.Extensions.Options;
 using Backend.Settings;
+using Backend.Domain.Entities.Email;
 
 namespace Backend.Infrastructure.Repositories.User;
 
@@ -17,6 +18,7 @@ public class UserRepository : SqlBase, IUserRepository
         const string sql = "SELECT EXISTS(SELECT 1 FROM Users WHERE Email = @Email)";
         return await ExecuteScalarAsync<bool>(sql, new { Email = email }, ct);
     }
+    #region User table
     public async Task<bool> CreateUserAsync(UserModel user, CancellationToken ct = default)
     {
         const string sql = @"
@@ -37,6 +39,7 @@ public class UserRepository : SqlBase, IUserRepository
         _logger.LogInformation("Insert completed. Rows affected: {Rows}", rows);
         return rows == 1;
     }
+
 
     public async Task<bool> ConfirmUserEmailAsync(Guid persoid, CancellationToken ct = default)
     {
@@ -62,4 +65,65 @@ public class UserRepository : SqlBase, IUserRepository
         var rows = await ExecuteAsync(sql, new { PersoId = persoid }, ct);
         return rows > 0;
     }
+    public async Task<bool> UpdatePasswordAsync(Guid persoid, string passwordHash, CancellationToken ct = default)
+    {
+        const string sql = """
+    UPDATE Users
+    SET Password = @Password,
+        LastUpdatedTime = CURRENT_TIMESTAMP
+    WHERE PersoId = @PersoId;
+    """;
+
+        var rows = await ExecuteAsync(sql, new
+        {
+            PersoId = persoid,
+            Password = passwordHash,
+        }, ct);
+
+        return rows > 0;
+    }
+    public async Task<EmailRegistrationState> GetEmailRegistrationStateAsync(
+    string email,
+    CancellationToken ct = default)
+    {
+        const string sql = """
+        SELECT EmailConfirmed
+        FROM Users
+        WHERE Email = @Email
+        LIMIT 1;
+        """;
+
+        var result = await QuerySingleOrDefaultAsync<bool?>(sql, new { Email = email }, ct);
+
+        return result is null
+            ? new EmailRegistrationState(Exists: false, EmailConfirmed: false)
+            : new EmailRegistrationState(Exists: true, EmailConfirmed: result.Value);
+    }
+    #endregion
+    #region UserSettings table
+    public async Task<bool> UpsertUserSettingsAsync(Guid persoid, string locale, CancellationToken ct = default)
+    {
+        const string sql = @"
+        INSERT INTO UserSettings (Persoid, Locale)
+        VALUES (@Persoid, @Locale)
+        ON DUPLICATE KEY UPDATE
+        Locale = VALUES(Locale),
+        LastUpdatedTime = CURRENT_TIMESTAMP;
+        ";
+
+        var rows = await ExecuteAsync(sql, new { Persoid = persoid, Locale = locale }, ct);
+        return rows >= 1;
+    }
+    public async Task<string?> GetUserLocaleAsync(Guid persoid, CancellationToken ct = default)
+    {
+        const string sql = @"
+        SELECT us.Locale
+        FROM UserSettings us
+        WHERE us.Persoid = @Persoid
+        LIMIT 1;
+        ";
+
+        return await ExecuteScalarAsync<string?>(sql, new { Persoid = persoid }, ct);
+    }
+    #endregion
 }
