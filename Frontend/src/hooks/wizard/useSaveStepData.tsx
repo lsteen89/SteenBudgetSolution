@@ -1,6 +1,6 @@
 import { useWizardSaveQueue } from "@/stores/Wizard/wizardSaveQueue";
 import { useToast } from "@/ui/toast/toast";
-import { isWizardProfilerEnabled } from "@/utils/debug/wizardProfiler";
+import { isWizardProfilerEnabled } from "@/utils/profiling/wizardProfiler";
 import { useCallback } from "react";
 import { FieldValues, Path, UseFormReturn } from "react-hook-form";
 import * as yup from "yup";
