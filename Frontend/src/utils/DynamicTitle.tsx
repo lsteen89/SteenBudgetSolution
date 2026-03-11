@@ -1,32 +1,40 @@
-import { useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
 
-const DynamicTitle = () => {
-  const location = useLocation();
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
+import { appTitlesDict } from "@/utils/i18n/appTitles/AppTitles.i18n";
+import { tDict } from "@/utils/i18n/translate";
 
-  useEffect(() => {
-    const titles: { [key: string]: string } = {
-      "/": "eBudget - Förenkla din budget",
-      "/registration": "eBudget - Registrering",
-      "/check-email": "eBudget - Kontrollera e-post",
-      "/email-confirmation": "eBudget - E-postbekräftelse",
-      "/about-us": "eBudget - Om oss",
-      "/forgotpassword": "eBudget - Glömt lösenord",
-      "/contact": "eBudget - Kontakta oss",
-      "/faq": "eBudget - Vanliga frågor",
-      "/login": "eBudget - Logga in",
-      "/reset-password": "eBudget - Återställ lösenord",
-      "/dashboard": "eBudget - Dashboard",
-      "/expenses": "eBudget - Utgifter",
-      "/dashboard/breakdown": "eBudget - Utgiftsöversikt",
-      "/how-it-works": "eBudget - Så fungerar det",
-    };
+type TitleKey = keyof typeof appTitlesDict.sv;
 
-    // Set the title or fallback to "eBudget"
-    document.title = titles[location.pathname] || "eBudget - Sida ej hittad";
-  }, [location]);
-
-  return null;
+const pathToKey: Record<string, TitleKey> = {
+  "/": "home",
+  "/registration": "registration",
+  "/check-email": "checkEmail",
+  "/email-confirmation": "emailConfirmation",
+  "/about-us": "aboutUs",
+  "/forgotpassword": "forgotPassword",
+  "/contact": "contact",
+  "/faq": "faq",
+  "/login": "login",
+  "/reset-password": "resetPassword",
+  "/dashboard": "dashboard",
+  "/expenses": "expenses",
+  "/dashboard/breakdown": "dashboardBreakdown",
+  "/how-it-works": "howItWorks",
+  "/email-verification-recovery": "emailConfirmationRecovery",
 };
 
-export default DynamicTitle;
+export default function DynamicTitle() {
+  const location = useLocation();
+  const locale = useAppLocale();
+
+  const t = <K extends TitleKey>(k: K) => tDict(k, locale, appTitlesDict);
+
+  useEffect(() => {
+    const key = pathToKey[location.pathname] ?? "notFound";
+    document.title = t(key);
+  }, [location.pathname, locale]);
+
+  return null;
+}

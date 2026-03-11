@@ -20,4 +20,8 @@ public interface IRefreshTokenRepository
     Task<bool> DeleteTokenAsync(string refreshToken, CancellationToken ct);
     // Used by the token blacklist service
     Task<bool> DoesAccessTokenJtiExistAsync(string accessTokenJti, CancellationToken ct);
+
+    // Logout
+    Task<int> RevokeBySessionIdAsync(Guid sessionId, DateTime nowUtc, CancellationToken ct);
+    Task<int> RevokeByRefreshTokenAsync(string refreshTokenRaw, DateTime nowUtc, CancellationToken ct);
 }

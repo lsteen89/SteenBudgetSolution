@@ -1,3 +1,5 @@
+import { getAppLocale } from "@/utils/i18n/locale";
+
 export type RegistrationFormValues = {
   firstName: string;
   lastName: string;
@@ -9,6 +11,8 @@ export type RegistrationFormValues = {
   honeypot: string;
 };
 
+export type AppLocale = "sv-SE" | "en-US" | "et-EE";
+
 export type RegistrationRequest = {
   firstName: string;
   lastName: string;
@@ -16,6 +20,7 @@ export type RegistrationRequest = {
   password: string;
   humanToken: string;
   honeypot: string;
+  locale: AppLocale;
 };
 
 export const toRegistrationRequest = (
@@ -27,4 +32,5 @@ export const toRegistrationRequest = (
   password: v.password,
   humanToken: v.humanToken,
   honeypot: v.honeypot ?? "",
+  locale: getAppLocale(),
 });

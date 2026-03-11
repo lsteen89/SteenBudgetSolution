@@ -1,0 +1,39 @@
+import type { ApiEnvelope } from "@/api/api.types";
+import { api } from "@/api/axios";
+import { unwrapEnvelope } from "@/api/envelope";
+import { toApiProblem } from "@/api/toApiProblem";
+import { isAxiosError } from "axios";
+
+export async function requestPasswordReset(dto: {
+  email: string;
+  locale?: string;
+}): Promise<string> {
+  try {
+    const res = await api.post<ApiEnvelope<string>>(
+      "/api/auth/forgot-password",
+      dto,
+    );
+    return unwrapEnvelope(res, "Password reset request failed.");
+  } catch (e) {
+    if (isAxiosError(e)) throw toApiProblem(e);
+    throw e;
+  }
+}
+
+export async function resetPassword(dto: {
+  email: string;
+  code: string;
+  newPassword: string;
+  confirmPassword: string;
+}): Promise<string> {
+  try {
+    const res = await api.post<ApiEnvelope<string>>(
+      "/api/auth/reset-password",
+      dto,
+    );
+    return unwrapEnvelope(res, "Password reset failed.");
+  } catch (e) {
+    if (isAxiosError(e)) throw toApiProblem(e);
+    throw e;
+  }
+}

@@ -187,17 +187,36 @@ public sealed class LoginCommandHandlerTests
         _authz.Verify(x => x.LockUserByEmailAsync("user@example.com", _now.AddMinutes(_lockout.Value.LockoutMinutes), It.IsAny<CancellationToken>()), Times.Once);
     }
 
-    // RED test by design (you asked for this) – make handler return EmailNotConfirmed to pass later.
     [Fact]
-    public async Task Given_EmailNotConfirmed_When_Handle_Then_EmailNotConfirmed_INTENTIONAL_FAIL()
+    public async Task Given_EmailNotConfirmed_And_ValidCredentials_When_Handle_Then_IssuesSession()
     {
         var user = User(confirmed: false);
-        _users.Setup(x => x.GetUserModelAsync(null, "user@example.com", It.IsAny<CancellationToken>())).ReturnsAsync(user);
+
+        _users.Setup(x => x.GetUserModelAsync(null, "user@example.com", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(user);
+
+        var issued = new IssuedAuthSession(
+            new AuthResult(
+                AccessToken: "mock-at",
+                PersoId: user.PersoId,
+                SessionId: Guid.NewGuid(),
+                WsMac: "mock-mac",
+                RememberMe: false),
+            RefreshToken: "mock-rt");
+
+        _issuer.Setup(x => x.IssueAsync(
+                user,
+                It.IsAny<bool>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(issued);
 
         var res = await SUT().Handle(Cmd(), CancellationToken.None);
 
-        res.IsSuccess.Should().BeFalse();
-        res.Error.Should().Be(UserErrors.EmailNotConfirmed);
+        res.IsSuccess.Should().BeTrue();
+        res.Value.Should().NotBeNull();
+        res.Value!.Result.AccessToken.Should().Be("mock-at");
     }
 
     [Fact]

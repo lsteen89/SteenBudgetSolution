@@ -205,5 +205,7 @@ public sealed class LogoutIntegrationTests
             Task.FromResult(Enumerable.Empty<Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity>());
         public Task<bool> DeleteTokenAsync(string refreshToken, CancellationToken ct) => Task.FromResult(true);
         public Task<bool> DoesAccessTokenJtiExistAsync(string accessTokenJti, CancellationToken ct) => Task.FromResult(false);
+        public Task<int> RevokeBySessionIdAsync(Guid sessionId, DateTime nowUtc, CancellationToken ct) => Task.FromResult(0);
+        public Task<int> RevokeByRefreshTokenAsync(string refreshTokenRaw, DateTime nowUtc, CancellationToken ct) => Task.FromResult(0);
     }
 }

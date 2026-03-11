@@ -1,12 +1,15 @@
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as React from "react";
 import { useForm, type SubmitHandler } from "react-hook-form";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 
 import { toApiProblem } from "@/api/toApiProblem";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { useToast } from "@/ui/toast/toast";
 import { toUserMessage } from "@/utils/i18n/apiErrors/toUserMessage";
+
+import { loginDict } from "@/utils/i18n/pages/public/Login.i18n";
+import { tDict } from "@/utils/i18n/translate";
 
 import { useAuth } from "@/hooks/auth/useAuth";
 
@@ -28,6 +31,7 @@ import LoginBird from "@assets/Images/LoginBird.png";
 
 import type { ApiProblem } from "@/api/api.types";
 import { loginSchema } from "@/schemas/auth/login/login.schema";
+import { getPostAuthRedirect } from "@/utils/auth/getPostAuthRedirect";
 import type { LoginFormValues } from "@myTypes/User/Auth/loginForm.types";
 import type { UserLoginDto } from "@myTypes/User/Auth/userLoginForm";
 
@@ -39,10 +43,15 @@ function parseRetryAfterSeconds(s?: string): number | null {
 
 export default function LoginPage() {
   const nav = useNavigate();
+  const [params] = useSearchParams();
+  const emailPrefill = (params.get("email") ?? "").trim();
+
   const { login, isLoading, accessToken } = useAuth();
 
   const toast = useToast();
   const locale = useAppLocale();
+  const t = <K extends keyof typeof loginDict.sv>(k: K) =>
+    tDict(k, locale, loginDict);
 
   const [lastProblem, setLastProblem] = React.useState<ApiProblem | null>(null);
   const [rateLimitUntil, setRateLimitUntil] = React.useState<number | null>(
@@ -78,7 +87,7 @@ export default function LoginPage() {
     mode: "onBlur",
     reValidateMode: "onChange",
     defaultValues: {
-      email: "",
+      email: emailPrefill,
       password: "",
       HumanToken: null,
       rememberMe: false,
@@ -88,7 +97,7 @@ export default function LoginPage() {
 
   const shouldShowChallenge = challengeRequired || failCount >= 2;
   const humanToken = watch("HumanToken");
-  const [rootMessage, setRootMessage] = React.useState<string | null>(null);
+  const [rootProblem, setRootProblem] = React.useState<ApiProblem | null>(null);
 
   const handleProblem = React.useCallback(
     (p: ApiProblem) => {
@@ -97,42 +106,48 @@ export default function LoginPage() {
         if (secs) setRateLimitUntil(Date.now() + secs * 1000);
         toast.error(toUserMessage(p, locale), { id: "login:429" });
         setLastProblem(null);
-        setRootMessage(null);
+        setRootProblem(p);
         return;
       }
 
       if (p.isNetworkError || (p.status ?? 0) >= 500) {
         toast.error(toUserMessage(p, locale), { id: "login:net" });
         setLastProblem(null);
-        setRootMessage(null);
+        setRootProblem(p);
         return;
       }
 
       setLastProblem(p);
-      setRootMessage(toUserMessage(p, locale));
+      setRootProblem(p);
     },
     [locale, toast],
   );
 
+  const buttonLabel = blocked
+    ? `${t("waitPrefix")} ${secondsLeft}${t("waitSuffix")}`
+    : isSubmitting
+      ? t("submitBusy")
+      : t("submitIdle");
+
   if (isLoading) return null;
-  if (accessToken) return <Navigate to="/dashboard" replace />;
+
+  if (accessToken) {
+    return <Navigate to={getPostAuthRedirect(accessToken)} replace />;
+  }
 
   const onSubmit: SubmitHandler<LoginFormValues> = async (v) => {
     clearErrors();
-    setRootMessage(null);
+    setRootProblem(null);
     setLastProblem(null);
 
     if (blocked) {
       toast.info(
-        locale === "sv-SE"
-          ? `För många försök. Försök igen om ${secondsLeft} sekunder.`
-          : `Too many attempts. Try again in ${secondsLeft} seconds.`,
+        `${t("blockedToastPrefix")} ${secondsLeft} ${t("blockedToastSuffix")}`,
         { id: "login:blocked" },
       );
       return;
     }
 
-    // Honeypot => pretend invalid creds (and return early)
     if (v.honeypot?.trim()) {
       const p: ApiProblem = {
         message: "Invalid",
@@ -145,14 +160,10 @@ export default function LoginPage() {
       return;
     }
 
-    // If challenge is visible, token must exist
     if (shouldShowChallenge && !v.HumanToken) {
       setError("HumanToken", {
         type: "turnstile",
-        message:
-          locale === "sv-SE"
-            ? "Verifiera att du är människa."
-            : "Please verify you are human.",
+        message: t("humanVerifyContinue"),
       });
       return;
     }
@@ -164,40 +175,18 @@ export default function LoginPage() {
         HumanToken: shouldShowChallenge ? v.HumanToken : null,
       };
 
-      await login(dto, v.rememberMe);
+      const auth = await login(dto, v.rememberMe);
 
-      nav("/dashboard", { replace: true });
+      nav(getPostAuthRedirect(auth.accessToken), { replace: true });
     } catch (e) {
       const p = toApiProblem(e);
-      console.log("LOGIN ERROR RAW:", e);
-      console.log("LOGIN PROBLEM:", p);
 
-      if (p.code === "Verification.EmailNotConfirmed") {
-        toast.info(
-          locale === "sv-SE"
-            ? "Du måste verifiera din e-post innan du kan logga in."
-            : "You need to verify your email before you can log in.",
-          { id: "login:not-confirmed" },
-        );
-        nav(`/email-confirmation?email=${encodeURIComponent(v.email.trim())}`, {
-          replace: true,
-        });
+      handleProblem(p);
+
+      if (p.status === 429 || p.isNetworkError || (p.status ?? 0) >= 500) {
         return;
       }
-      console.log(
-        "status",
-        p.status,
-        "isNetworkError",
-        p.isNetworkError,
-        "code",
-        p.code,
-      );
-      handleProblem(p);
-      // Don't escalate for rate limit / network / 5xx
-      if (p.status === 429 || p.isNetworkError || (p.status ?? 0) >= 500)
-        return;
 
-      // Server explicitly demands challenge: show it immediately
       const serverWantsChallenge =
         p.code === "Auth.HumanVerificationRequired" ||
         p.code === "HumanVerification.Required" ||
@@ -209,15 +198,11 @@ export default function LoginPage() {
         turnstileRef.current?.reset();
         setError("HumanToken", {
           type: "turnstile",
-          message:
-            locale === "sv-SE"
-              ? "Verifiera att du är människa för att fortsätta."
-              : "Please verify you are human to continue.",
+          message: t("humanVerify"),
         });
         return;
       }
 
-      // Otherwise: escalate after N auth-ish failures
       const nextFailCount = failCount + 1;
       setFailCount(nextFailCount);
 
@@ -245,31 +230,31 @@ export default function LoginPage() {
           <div className="relative mx-auto w-full max-w-xl">
             <SurfaceCard className="p-6 sm:p-8">
               <p className="text-xs font-semibold tracking-[0.22em] uppercase text-eb-text/50">
-                Logga in
+                {t("kicker")}
               </p>
 
               <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-eb-text">
-                Välkommen tillbaka
+                {t("title")}
               </h1>
 
               <p className="mt-2 text-sm text-eb-text/65 max-w-prose">
-                Logga in för att fortsätta.
+                {t("lead")}
               </p>
 
               <form
                 onSubmit={handleSubmit(onSubmit)}
                 className="mt-6 space-y-5"
               >
-                {rootMessage ? (
+                {rootProblem ? (
                   <div className="rounded-2xl border border-eb-stroke/30 bg-eb-surface/70 px-4 py-3">
                     <p className="text-sm font-semibold text-eb-text/85">
-                      {rootMessage}
+                      {toUserMessage(rootProblem, locale)}
                     </p>
                   </div>
                 ) : null}
                 <div className="grid gap-4">
                   <FormField
-                    label="E-post"
+                    label={t("email")}
                     htmlFor="email"
                     error={errors.email?.message}
                   >
@@ -282,7 +267,7 @@ export default function LoginPage() {
                   </FormField>
 
                   <FormField
-                    label="Lösenord"
+                    label={t("password")}
                     htmlFor="password"
                     error={errors.password?.message}
                   >
@@ -317,11 +302,10 @@ export default function LoginPage() {
                         htmlFor="rememberMe"
                         className="text-sm font-semibold text-eb-text/85"
                       >
-                        Kom ihåg mig
+                        {t("rememberTitle")}
                       </label>
                       <p className="text-sm text-eb-text/55">
-                        Håll mig inloggad på den här enheten i upp till 30
-                        dagar.
+                        {t("rememberBody")}
                       </p>
                     </div>
                   </div>
@@ -341,7 +325,7 @@ export default function LoginPage() {
                       onError={() =>
                         setError("HumanToken", {
                           type: "turnstile",
-                          message: "Turnstile kunde inte laddas.",
+                          message: t("turnstileLoadFail"),
                         })
                       }
                       className="rounded-2xl border border-eb-stroke/30 bg-eb-surface/70 px-3 py-3"
@@ -354,12 +338,11 @@ export default function LoginPage() {
                   </div>
                 ) : (
                   <p className="text-sm text-eb-text/50">
-                    Vi kan ibland be om en snabb verifiering för att skydda
-                    konton.
+                    {t("challengeHint")}
                   </p>
                 )}
 
-                <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+                <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:flex-wrap">
                   <CtaButton
                     type="submit"
                     disabled={
@@ -370,27 +353,21 @@ export default function LoginPage() {
                     aria-busy={isSubmitting}
                     className="w-full sm:w-auto"
                   >
-                    {blocked
-                      ? locale === "sv-SE"
-                        ? `Vänta ${secondsLeft}s`
-                        : `Wait ${secondsLeft}s`
-                      : isSubmitting
-                        ? "Loggar in..."
-                        : "Logga in"}
+                    {buttonLabel}
                   </CtaButton>
 
                   <SecondaryLink
-                    to="/register"
+                    to="/registration"
                     className="w-full sm:w-auto justify-center"
                   >
-                    Skapa konto
+                    {t("createAccount")}
                   </SecondaryLink>
 
                   <SecondaryLink
                     to="/forgot-password"
                     className="w-full sm:w-auto justify-center"
                   >
-                    Glömt lösenord?
+                    {t("forgotPassword")}
                   </SecondaryLink>
                 </div>
               </form>

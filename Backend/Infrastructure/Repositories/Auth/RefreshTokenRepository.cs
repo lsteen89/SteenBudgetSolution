@@ -5,6 +5,7 @@ using Dapper;
 using Backend.Domain.Shared;
 using Microsoft.Extensions.Options;
 using Backend.Settings;
+using Backend.Infrastructure.Security;
 
 namespace Backend.Infrastructure.Repositories.Auth.RefreshTokens;
 
@@ -110,6 +111,34 @@ public sealed class RefreshTokenRepository : SqlBase, IRefreshTokenRepository
            SET Status = @Revoked, RevokedUtc = @Now
          WHERE TokenId = @Id AND Status = @Active;
         """, new { Id = tokenId, Now = nowUtc, Active = (int)TokenStatus.Active, Revoked = (int)TokenStatus.Revoked }, ct);
+
+    public async Task<int> RevokeBySessionIdAsync(Guid sessionId, DateTime nowUtc, CancellationToken ct)
+    {
+        const string sql = @"
+UPDATE RefreshTokens
+SET
+  RevokedUtc = COALESCE(RevokedUtc, @NowUtc),
+  Status = @Status
+WHERE SessionId = @SessionId
+  AND RevokedUtc IS NULL;
+";
+        return await ExecuteAsync(sql, new { SessionId = sessionId, NowUtc = nowUtc, Status = (int)TokenStatus.Revoked }, ct);
+    }
+
+    public async Task<int> RevokeByRefreshTokenAsync(string refreshTokenRaw, DateTime nowUtc, CancellationToken ct)
+    {
+        var hashed = TokenGenerator.HashToken(refreshTokenRaw);
+
+        const string sql = @"
+UPDATE RefreshTokens
+SET
+  RevokedUtc = COALESCE(RevokedUtc, @NowUtc),
+  Status = @Status
+WHERE HashedToken = @HashedToken
+  AND RevokedUtc IS NULL;
+";
+        return await ExecuteAsync(sql, new { HashedToken = hashed, NowUtc = nowUtc, Status = (int)TokenStatus.Revoked }, ct);
+    }
 
     #region  Expired Tokens
     public async Task<IEnumerable<RefreshJwtTokenEntity>> GetExpiredTokensAsync(int batchSize = 1000, CancellationToken ct = default)

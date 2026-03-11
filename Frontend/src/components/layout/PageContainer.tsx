@@ -1,5 +1,5 @@
-import * as React from "react";
 import { cn } from "@/lib/utils";
+import * as React from "react";
 
 type PadY = "none" | "sm" | "md" | "lg";
 
@@ -11,14 +11,12 @@ const padYMap: Record<PadY, string> = {
 };
 
 export type PageContainerProps = React.ComponentPropsWithoutRef<"main"> & {
-  /** Center children both axes (rare). Prefer centering inside content instead. */
   centerChildren?: boolean;
-
-  /** New API: explicit padding scale */
   padY?: PadY;
-
-  /** @deprecated Use padY="none" */
   noPadding?: boolean;
+
+  /** Ensures the scroll/backdrop surface always has the app gradient */
+  withBackground?: boolean;
 };
 
 const PageContainer = React.forwardRef<HTMLElement, PageContainerProps>(
@@ -28,9 +26,10 @@ const PageContainer = React.forwardRef<HTMLElement, PageContainerProps>(
       centerChildren = false,
       padY = "lg",
       noPadding,
+      withBackground = true,
       ...props
     },
-    ref
+    ref,
   ) => {
     const pad = noPadding ? "none" : padY;
 
@@ -39,18 +38,23 @@ const PageContainer = React.forwardRef<HTMLElement, PageContainerProps>(
         ref={ref}
         role="main"
         className={cn(
-          // keep your global background hook
           "page-container w-full min-h-[100dvh] flex flex-col",
-          // your master text hue (optional but consistent with your manifesto)
           "text-eb-text",
+          withBackground &&
+            "bg-gradient-to-br from-customBlue1 to-customBlue2 bg-cover",
+
+          // IMPORTANT: do NOT put overflow scrolling here for blur pages
+          // Let the document scroll.
+          // If some page *must* scroll internally, it should opt-in explicitly.
+
           centerChildren && "items-center justify-center",
           padYMap[pad],
-          className
+          className,
         )}
         {...props}
       />
     );
-  }
+  },
 );
 
 PageContainer.displayName = "PageContainer";

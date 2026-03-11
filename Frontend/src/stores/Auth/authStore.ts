@@ -1,7 +1,11 @@
-import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import type { UserDto } from '@myTypes/User/UserDto';
-import { api } from '@/api/axios'; // Assuming this is your configured axios instance
+import { api } from "@/api/axios"; // Assuming this is your configured axios instance
+import type { UserDto } from "@myTypes/User/UserDto";
+import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
+
+type AuthEvent =
+  | { type: "session_expired"; at: number }
+  | { type: "server_logout"; at: number };
 
 // Define the AuthSlice interface with distinct readiness flags
 interface AuthSlice {
@@ -10,7 +14,7 @@ interface AuthSlice {
   persoId: string | null;
   wsMac: string | null;
   user: UserDto | null;
-  isLoading: boolean;            // For operational loading (e.g., login process)
+  isLoading: boolean; // For operational loading (e.g., login process)
   rememberMe: boolean;
 
   // AuthProvider readiness
@@ -24,7 +28,13 @@ interface AuthSlice {
   wsEnabled: boolean; // Retaining this from your original if it has a distinct purpose
 
   /* actions */
-  setAuth: (tok: string, sid: string, pid: string, mac: string | null, remember: boolean) => void;
+  setAuth: (
+    tok: string,
+    sid: string,
+    pid: string,
+    mac: string | null,
+    remember: boolean,
+  ) => void;
   mergeUser: (u: Partial<UserDto>) => void;
   setOpLoading: (isLoading: boolean) => void;
   setWsEnabledStatus: (isEnabled: boolean) => void; // Clarified name if 'wsEnabled' is a status
@@ -34,18 +44,23 @@ interface AuthSlice {
 
   /* derived */
   isTokenValid: () => boolean;
+
+  authEvent: AuthEvent | null;
+  setAuthEvent: (e: AuthEvent | null) => void;
 }
 
 // Persisted type should only include what needs to be saved to localStorage
-type Persisted = Pick<AuthSlice,
-  'accessToken' | 'sessionId' | 'persoId' | 'wsMac' | 'user' | 'rememberMe'>;
+type Persisted = Pick<
+  AuthSlice,
+  "accessToken" | "sessionId" | "persoId" | "wsMac" | "user" | "rememberMe"
+>;
 
 function getTokenExp(token: string): number | null {
   try {
-    const parts = token.split('.');
+    const parts = token.split(".");
     if (parts.length !== 3) return null;
     const payload = JSON.parse(atob(parts[1]));
-    return typeof payload.exp === 'number' ? payload.exp : null;
+    return typeof payload.exp === "number" ? payload.exp : null;
   } catch {
     return null;
   }
@@ -64,7 +79,8 @@ export const useAuthStore = create<AuthSlice>()(
       wsEnabled: false, // Assuming default
 
       authProviderInitialized: false, // For AuthProvider
-      setAuthProviderInitialized: (isInitialized) => set({ authProviderInitialized: isInitialized }),
+      setAuthProviderInitialized: (isInitialized) =>
+        set({ authProviderInitialized: isInitialized }),
 
       isWsReady: false, // For WebSocket
       setIsWsReady: (isReady) => set({ isWsReady: isReady }),
@@ -82,31 +98,30 @@ export const useAuthStore = create<AuthSlice>()(
           // isWsReady is set by useAuthWs
         });
         if (!remember) {
-          sessionStorage.setItem('appSessionActive', 'true');
+          sessionStorage.setItem("appSessionActive", "true");
         } else {
-          sessionStorage.removeItem('appSessionActive');
+          sessionStorage.removeItem("appSessionActive");
         }
       },
 
       mergeUser: (u) =>
-        set((state) =>
-          state.user
-            ? { user: { ...state.user, ...u } }
-            : { user: { ...(u as UserDto) } } // if you ever merge into null, optional
+        set(
+          (state) =>
+            state.user
+              ? { user: { ...state.user, ...u } }
+              : { user: { ...(u as UserDto) } }, // if you ever merge into null, optional
         ),
 
       markFirstLoginComplete: () =>
         set((state) =>
-          state.user
-            ? { user: { ...state.user, firstLogin: false } }
-            : state
+          state.user ? { user: { ...state.user, firstLogin: false } } : state,
         ),
 
       setOpLoading: (isLoading) => set({ isLoading: isLoading }),
       setWsEnabledStatus: (isEnabled) => set({ wsEnabled: isEnabled }),
 
       clear: () => {
-        console.log('[AuthStore] Clearing authentication state.');
+        console.log("[AuthStore] Clearing authentication state.");
         set({
           accessToken: null,
           sessionId: null,
@@ -116,10 +131,11 @@ export const useAuthStore = create<AuthSlice>()(
           isLoading: false,
           rememberMe: false,
           authProviderInitialized: true, // After clear, AuthProvider is "initialized" to show login/public state
-          isWsReady: false,              // WebSocket is no longer ready
-          wsEnabled: false,              // WebSocket should probably be disabled
+          isWsReady: false, // WebSocket is no longer ready
+          wsEnabled: false, // WebSocket should probably be disabled
+          authEvent: null,
         });
-        sessionStorage.removeItem('appSessionActive');
+        sessionStorage.removeItem("appSessionActive");
         if (api && api.defaults.headers.common.Authorization) {
           delete api.defaults.headers.common.Authorization;
         }
@@ -131,9 +147,11 @@ export const useAuthStore = create<AuthSlice>()(
         const exp = getTokenExp(token);
         return exp ? Date.now() < exp * 1000 : false;
       },
+      authEvent: null,
+      setAuthEvent: (e) => set({ authEvent: e }),
     }),
     {
-      name: 'auth',
+      name: "auth",
       partialize: (state): Persisted => ({
         accessToken: state.accessToken,
         sessionId: state.sessionId,
@@ -151,6 +169,6 @@ export const useAuthStore = create<AuthSlice>()(
           state.isLoading = false;
         }
       },
-    }
-  )
+    },
+  ),
 );

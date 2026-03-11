@@ -5,7 +5,7 @@ using Backend.Domain.Errors.User;
 using Backend.Application.Abstractions.Infrastructure.Verification;
 using Backend.Application.Abstractions.Application.Orchestrators;
 using Backend.Application.Features.Authentication.Register.Shared.Models;
-using Microsoft.Extensions.Logging;
+using Backend.Application.Validators.Locale;
 
 namespace Backend.Application.Features.Authentication.Register.Orchestrator;
 
@@ -35,6 +35,7 @@ public sealed class RegistrationOrchestrator : IRegistrationOrchestrator
         string password,
         string humanToken,
         string honeypot,
+        string locale,
         string? remoteIp,
         bool trustedSeed,
         CancellationToken ct)
@@ -56,6 +57,8 @@ public sealed class RegistrationOrchestrator : IRegistrationOrchestrator
         if (await _users.UserExistsAsync(emailNorm, ct))
             return Result<RegistrationOutcome>.Failure(UserErrors.EmailAlreadyExists);
 
+        var safeLocale = UserLocale.Normalize(locale);
+
         var user = new UserModel
         {
             PersoId = Guid.NewGuid(),
@@ -70,8 +73,12 @@ public sealed class RegistrationOrchestrator : IRegistrationOrchestrator
         var success = await _users.CreateUserAsync(user, ct);
         if (!success) return Result<RegistrationOutcome>.Failure(UserErrors.RegistrationFailed);
 
+
+        var settingsOk = await _users.UpsertUserSettingsAsync(user.PersoId, safeLocale, ct);
+        if (!settingsOk) return Result<RegistrationOutcome>.Failure(UserErrors.RegistrationFailed);
+
         if (!trustedSeed)
-            await _verification.EnqueueForNewUserAsync(user.PersoId, user.Email, ct);
+            await _verification.EnqueueForNewUserAsync(user.PersoId, user.Email, safeLocale, ct);
 
         return Result<RegistrationOutcome>.Success(new RegistrationOutcome(IsHoneypot: false, User: user));
     }

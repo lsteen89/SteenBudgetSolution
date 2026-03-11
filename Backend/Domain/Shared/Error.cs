@@ -1,4 +1,4 @@
-using Backend.Domain.Enums;
+using Backend.Domain.Common.Constants;
 
 namespace Backend.Domain.Shared;
 

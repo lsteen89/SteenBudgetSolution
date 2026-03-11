@@ -5,7 +5,7 @@ using Backend.Application.Features.Wizard.Finalization.Processing.Processors;
 using Backend.Application.Options.Email;
 using Backend.Application.Options.Auth;
 using Backend.Application.Options.URL;
-using MediatR;
+using Backend.Application.Features.Authentication.ResetPassword.Orchestrator;
 using Backend.Application.Mappings;
 using Backend.Application.Features.Wizard.SaveStep;
 using Mapster;
@@ -133,6 +133,7 @@ public static class DependencyInjection
         // Orchestration
         services.AddScoped<IVerificationCodeOrchestrator, VerificationCodeOrchestrator>();
         services.AddScoped<IRegistrationOrchestrator, RegistrationOrchestrator>();
+        services.AddScoped<IPasswordResetOrchestrator, PasswordResetOrchestrator>();
         return services;
     }
 }

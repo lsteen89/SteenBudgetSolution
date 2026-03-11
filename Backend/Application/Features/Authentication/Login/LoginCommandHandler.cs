@@ -78,8 +78,7 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, Result<I
             ? BCrypt.Net.BCrypt.Verify(c.Password, user.Password)
             : BCrypt.Net.BCrypt.Verify(c.Password, DummyHash);
 
-        var emailConfirmed = user?.EmailConfirmed ?? false;
-        var isValid = user is not null && passwordOk && emailConfirmed;
+        var isValid = user is not null && passwordOk;
 
         if (!isValid)
         {
@@ -89,10 +88,6 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, Result<I
                 var fails = await _authz.CountFailedAttemptsSinceAsync(emailNorm, since, ct);
                 if (fails >= _lockoutOpts.Value.MaxAttempts)
                     await _authz.LockUserByEmailAsync(emailNorm, now.AddMinutes(_lockoutOpts.Value.LockoutMinutes), ct);
-
-                if (!user.EmailConfirmed)
-                    return Result<IssuedAuthSession>.Failure(UserErrors.EmailNotConfirmed);
-                // This could be changed to a more generic error to further tighten security.
             }
 
             return Result<IssuedAuthSession>.Failure(UserErrors.InvalidCredentials);

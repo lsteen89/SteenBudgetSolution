@@ -1,52 +1,58 @@
-import React from "react";
-import { Link } from "react-router-dom";
-import AboutUsBird from "@assets/Images/GuideBirdHappy.png";
-import { ShieldCheck, Sparkles, TrendingUp } from "lucide-react";
-import { cn } from "@/lib/utils";
+import Mascot from "@/components/atoms/animation/Mascot";
+import { Pill } from "@/components/atoms/badges/Pill";
 import { CtaLink } from "@/components/atoms/buttons/CtaLink";
 import { SecondaryLink } from "@/components/atoms/buttons/SecondaryLink";
-import { SurfaceCard } from "@/components/atoms/cards/SurfaceCard";
-import PageContainer from "@components/layout/PageContainer";
-import ContentWrapperV2 from "@components/layout/ContentWrapperV2";
-import { Pill } from "@/components/atoms/badges/Pill";
 import { InfoCard } from "@/components/atoms/cards/InfoCard";
-import Mascot from "@/components/atoms/animation/Mascot";
+import { SurfaceCard } from "@/components/atoms/cards/SurfaceCard";
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
+import { aboutUsDict } from "@/utils/i18n/pages/public/AboutUs.i18n";
+import { tDict } from "@/utils/i18n/translate";
+import AboutUsBird from "@assets/Images/GuideBirdHappy.png";
+import ContentWrapperV2 from "@components/layout/ContentWrapperV2";
+import PageContainer from "@components/layout/PageContainer";
+import { ShieldCheck, Sparkles, TrendingUp } from "lucide-react";
 
 export default function AboutUs() {
+  const locale = useAppLocale();
+  const t = <K extends keyof typeof aboutUsDict.sv>(k: K) =>
+    tDict(k, locale, aboutUsDict);
+
   return (
     <PageContainer noPadding>
       <main className="relative w-full">
         {/* shell wash */}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[rgb(var(--eb-shell)/0.22)] to-transparent" />
 
-        <ContentWrapperV2 size="xl" className="relative pt-10 sm:pt-14 pb-12 sm:pb-16">
+        <ContentWrapperV2
+          size="xl"
+          className="relative pt-10 sm:pt-14 pb-12 sm:pb-16"
+        >
           {/* HERO */}
           <div className="grid gap-8 md:gap-6 lg:gap-10 md:grid-cols-[1.15fr_0.85fr] md:items-center">
             <SurfaceCard className="p-6 sm:p-8">
               <p className="text-xs font-semibold tracking-[0.22em] uppercase text-eb-text/50">
-                Vårt uppdrag
+                {t("missionKicker")}
               </p>
 
               <h1 className="mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight text-eb-text">
-                Budgetering ska kännas som ett{" "}
-                <span className="text-eb-accent">djupt andetag</span> — inte ett matteprov.
+                {t("heroTitleA")}{" "}
+                <span className="text-eb-accent">{t("heroTitleAccent")}</span>{" "}
+                {t("heroTitleB")}
               </h1>
 
               <p className="mt-4 text-base leading-relaxed text-eb-text/70 max-w-prose">
-                eBudget byggdes för att ersätta stressiga kalkylblad med en lugn, tydlig
-                månadsvy. Planera, följ upp och justera utan skuld eller krångel.
+                {t("heroBody")}
               </p>
 
               <div className="mt-6 flex flex-wrap gap-3">
-                <CtaLink to="/registration">Skaffa eBudget</CtaLink>
-                <SecondaryLink to="/how-it-works">Hur det fungerar</SecondaryLink>
+                <CtaLink to="/registration">{t("ctaGet")}</CtaLink>
+                <SecondaryLink to="/how-it-works">{t("ctaHow")}</SecondaryLink>
               </div>
 
               <div className="mt-7 rounded-2xl bg-[rgb(var(--eb-shell)/0.35)] border border-eb-stroke/25 px-4 py-3">
-                <p className="text-sm text-eb-text/60">Vi säljer aldrig din data. Aldrig.</p>
+                <p className="text-sm text-eb-text/60">{t("privacyLine")}</p>
               </div>
             </SurfaceCard>
-
 
             {/* MASCOT */}
             <div className="relative flex justify-center md:justify-start md:-ml-6 lg:-ml-10">
@@ -67,8 +73,8 @@ export default function AboutUs() {
                 <Mascot
                   src={AboutUsBird}
                   alt=""
-                  size={220}      // phones
-                  mdSize={400}    // md and up
+                  size={220} // phones
+                  mdSize={400} // md and up
                   float
                   shadow
                 />
@@ -78,46 +84,50 @@ export default function AboutUs() {
 
           {/* VALUES */}
           <div className="mt-10 sm:mt-12">
-            <h2 className="text-lg font-bold text-eb-text">Våra principer</h2>
+            <h2 className="text-lg font-bold text-eb-text">
+              {t("valuesTitle")}
+            </h2>
             <p className="mt-1 text-sm text-eb-text/65 max-w-prose">
-              Allt i eBudget är byggt för att minska friktion och öka kontroll.
+              {t("valuesLead")}
             </p>
 
             <div className="mt-5 grid gap-4 md:grid-cols-3">
               <InfoCard
                 icon={<ShieldCheck className="h-5 w-5 text-eb-accent" />}
-                title="Integritet först"
-                text="Din data är din. Vi säljer den inte, och vi bygger med minsta möjliga exponering."
+                title={t("v1Title")}
+                text={t("v1Text")}
               />
               <InfoCard
                 icon={<Sparkles className="h-5 w-5 text-eb-accent" />}
-                title="Enkelhet"
-                text="Tydliga steg, lugna vyer, och siffror som går att lita på — utan krusiduller."
+                title={t("v2Title")}
+                text={t("v2Text")}
               />
               <InfoCard
                 icon={<TrendingUp className="h-5 w-5 text-eb-accent" />}
-                title="Långsiktighet"
-                text="Från första sparmålet till större beslut. Byggt för att hålla över tid."
+                title={t("v3Title")}
+                text={t("v3Text")}
               />
             </div>
           </div>
 
           {/* BUILT LIKE A PRODUCT */}
           <SurfaceCard className="p-6 sm:p-8 mt-10 sm:mt-12">
-            <h2 className="text-lg font-bold text-eb-text">Byggd som en riktig produkt</h2>
+            <h2 className="text-lg font-bold text-eb-text">
+              {t("productTitle")}
+            </h2>
             <p className="mt-2 text-sm text-eb-text/65 max-w-prose">
-              Fokus på snabbhet, stabilitet och säkerhet — så att du kan lita på siffrorna varje månad.
+              {t("productLead")}
             </p>
 
             <div className="mt-5 flex flex-wrap gap-2">
-              <Pill>Snabbt på enkel hårdvara</Pill>
-              <Pill>Tydlig månadscykel</Pill>
-              <Pill>Trygga standarder</Pill>
-              <Pill>Inga dark patterns</Pill>
+              <Pill>{t("pill1")}</Pill>
+              <Pill>{t("pill2")}</Pill>
+              <Pill>{t("pill3")}</Pill>
+              <Pill>{t("pill4")}</Pill>
             </div>
 
             <div className="mt-6">
-              <CtaLink to="/registration">Kom igång</CtaLink>
+              <CtaLink to="/registration">{t("ctaStart")}</CtaLink>
             </div>
           </SurfaceCard>
         </ContentWrapperV2>
@@ -125,6 +135,3 @@ export default function AboutUs() {
     </PageContainer>
   );
 }
-
-
-

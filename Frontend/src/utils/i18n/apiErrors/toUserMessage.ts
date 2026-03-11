@@ -1,31 +1,33 @@
 import type { ApiProblem } from "@/api/api.types";
+import { apiErrorsDict } from "@/utils/i18n/apiErrors/apiErrors.i18n";
 import type { AppLocale } from "@/utils/i18n/locale";
+import { tDict } from "@/utils/i18n/translate";
 import { asAuthErrorCode, labelAuthError } from "./authErrors";
 
 const isDev = import.meta.env.MODE !== "production";
 
+function format(template: string, vars: Record<string, string>) {
+  return template.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? "");
+}
+
 export function toUserMessage(p: ApiProblem, locale: AppLocale): string {
+  const t = <K extends keyof typeof apiErrorsDict.sv>(k: K) =>
+    tDict(k, locale, apiErrorsDict);
+
   // Network / CORS / DNS / server down
   if (p.isNetworkError) {
-    return locale === "sv-SE"
-      ? "Kunde inte nå servern. Kontrollera anslutningen och försök igen."
-      : "Could not reach the server. Check your connection and try again.";
+    return t("network");
   }
 
   // Rate limit
   if (p.status === 429) {
-    const retryAfter =
-      p.retryAfter ?? (locale === "sv-SE" ? "en stund" : "a moment");
-    return locale === "sv-SE"
-      ? `För många försök. Vänta ${retryAfter} och försök igen.`
-      : `Too many attempts. Wait ${retryAfter} and try again.`;
+    const retryAfter = p.retryAfter ?? t("rateLimitFallback");
+    return format(t("rateLimit"), { retryAfter });
   }
 
   // Server errors: keep generic
   if ((p.status ?? 0) >= 500) {
-    return locale === "sv-SE"
-      ? "Serverfel. Försök igen om en stund."
-      : "Server error. Please try again in a moment.";
+    return t("server");
   }
 
   const code = asAuthErrorCode(p.code);

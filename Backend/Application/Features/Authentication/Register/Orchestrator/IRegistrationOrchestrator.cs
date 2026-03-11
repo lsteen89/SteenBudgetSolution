@@ -12,6 +12,7 @@ public interface IRegistrationOrchestrator
         string password,
         string humanToken,
         string honeypot,
+        string locale,
         string? remoteIp,
         bool trustedSeed,
         CancellationToken ct);

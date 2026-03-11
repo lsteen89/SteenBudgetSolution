@@ -128,7 +128,8 @@ public static class DependencyInjection
         // User
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IUserAuthenticationRepository, UserAuthenticationRepository>();
-
+        services.AddScoped<IPasswordResetRepository, PasswordResetRepository>();
+        services.AddScoped<IPasswordResetCodeService, PasswordResetCodeService>();
         // Blacklist tokens
         services.AddScoped<ITokenBlacklistRepo, TokenBlacklistRepo>();
 

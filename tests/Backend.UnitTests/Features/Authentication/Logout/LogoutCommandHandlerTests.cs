@@ -76,7 +76,7 @@ public sealed class LogoutHandlerTests
     }
 
     [Fact]
-    public async Task Given_ValidAT_And_LogoutAll_When_Handle_Then_BlacklistsAndRevokesAll_And_SendsWs()
+    public async Task Given_ValidAT_And_LogoutAll_When_Handle_Then_BlacklistsAndRevokesAll_And_ForcesWsLogout()
     {
         var persoid = Guid.NewGuid();
         var session = Guid.NewGuid();
@@ -90,13 +90,12 @@ public sealed class LogoutHandlerTests
         _refresh.Verify(r => r.RevokeAllForUserAsync(persoid, _now, It.IsAny<CancellationToken>()), Times.Once);
         _refresh.Verify(r => r.RevokeSessionAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Never);
 
-        _ws.Verify(w => w.SendMessageAsync(
-            It.Is<UserSessionKey>(k => k.Persoid == persoid && k.SessionId == session),
-            "LOGOUT"), Times.Once);
+        _ws.Verify(w => w.ForceLogoutAsync(persoid.ToString(), "LOGOUT"), Times.Once);
+        _ws.Verify(w => w.SendMessageAsync(It.IsAny<UserSessionKey>(), It.IsAny<string>()), Times.Never);
     }
 
     [Fact]
-    public async Task Given_BlacklistThrows_When_Handle_Then_StillRevokesAndSendsWs()
+    public async Task Given_BlacklistThrows_When_Handle_Then_StillRevokesAndForcesWsLogout()
     {
         var persoid = Guid.NewGuid();
         var session = Guid.NewGuid();
@@ -108,14 +107,15 @@ public sealed class LogoutHandlerTests
         var res = await SUT().Handle(Cmd(at, null, session, all: true), CancellationToken.None);
 
         res.Should().Be(Unit.Value);
+
         _refresh.Verify(r => r.RevokeAllForUserAsync(persoid, _now, It.IsAny<CancellationToken>()), Times.Once);
-        _ws.Verify(w => w.SendMessageAsync(
-            It.Is<UserSessionKey>(k => k.Persoid == persoid && k.SessionId == session),
-            "LOGOUT"), Times.Once);
+
+        _ws.Verify(w => w.ForceLogoutAsync(persoid.ToString(), "LOGOUT"), Times.Once);
+        _ws.Verify(w => w.SendMessageAsync(It.IsAny<UserSessionKey>(), It.IsAny<string>()), Times.Never);
     }
 
     [Fact]
-    public async Task Given_InvalidAT_When_Handle_Then_ReturnsUnit_NoBlacklist_NoRevokes_NoWs()
+    public async Task Given_InvalidAT_And_SessionIdPresent_When_Handle_Then_FallbackRevokesBySession_NoBlacklist_NoWs()
     {
         var at = "not-a-jwt";
         var session = Guid.NewGuid();
@@ -125,7 +125,12 @@ public sealed class LogoutHandlerTests
         res.Should().Be(Unit.Value);
 
         _jwt.Verify(j => j.BlacklistJwtTokenAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
-        _refresh.VerifyNoOtherCalls();
+
+        _refresh.Verify(r => r.RevokeBySessionIdAsync(session, _now, It.IsAny<CancellationToken>()), Times.Once);
+        _refresh.Verify(r => r.RevokeByRefreshTokenAsync(It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Never);
+        _refresh.Verify(r => r.RevokeAllForUserAsync(It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Never);
+        _refresh.Verify(r => r.RevokeSessionAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Never);
+
         _ws.VerifyNoOtherCalls();
     }
 

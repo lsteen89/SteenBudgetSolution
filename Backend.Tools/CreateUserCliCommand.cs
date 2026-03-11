@@ -37,6 +37,7 @@ public sealed class CreateUserCliCommand : Command
             Password: password,
             HumanToken: "",     // ignored in trusted seed
             Honeypot: "",       // ignored in trusted seed
+            Locale: "sv-SE",
             RemoteIp: null,
             DeviceId: "seed-cli",
             UserAgent: "backend.tools"

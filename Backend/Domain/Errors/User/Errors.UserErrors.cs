@@ -41,6 +41,11 @@ public static partial class UserErrors
     public static readonly Error VerificationLocked = new("Registration.VerificationLocked", "Too many failed verification attempts. Please try again later.");
     public static readonly Error VerificationExpired = new("Registration.VerificationExpired", "The verification code has expired. Please request a new one.");
     public static readonly Error SeedingNotAllowed = new("Registration", "Seeding not allowed,");
+    public static readonly Error EmailExistsUnconfirmed =
+    new(
+        "Registration.EmailExistsUnconfirmed",
+        "An account with this email already exists but has not been verified yet."
+    );
     // --- Rate Limiting Errors ---
     public static readonly Error RateLimitExceeded = new("RateLimit.Exceeded", "You have exceeded the allowed number of requests. Please try again later.");
 

@@ -35,17 +35,17 @@ public sealed class VerificationCodeOrchestrator : IVerificationCodeOrchestrator
         _opt = opt.Value;
     }
 
-    public async Task EnqueueForNewUserAsync(Guid persoId, string email, CancellationToken ct)
+    public async Task EnqueueForNewUserAsync(Guid persoId, string email, string? locale, CancellationToken ct)
     {
-        await EnqueueInternalAsync(persoId, email, isNewUser: true, ct);
+        await EnqueueInternalAsync(persoId, email, locale, isNewUser: true, ct);
     }
 
-    public async Task EnqueueForResendAsync(Guid persoId, string email, CancellationToken ct)
+    public async Task EnqueueForResendAsync(Guid persoId, string email, string? locale, CancellationToken ct)
     {
-        await EnqueueInternalAsync(persoId, email, isNewUser: false, ct);
+        await EnqueueInternalAsync(persoId, email, locale, isNewUser: false, ct);
     }
 
-    private async Task EnqueueInternalAsync(Guid persoId, string email, bool isNewUser, CancellationToken ct)
+    private async Task EnqueueInternalAsync(Guid persoId, string email, string? locale, bool isNewUser, CancellationToken ct)
     {
         var decision = await _rateLimiter.CheckAsync(persoId, EmailKind.Verification, ct);
         if (!decision.Allowed) return; // silent ignore (no enumeration)
@@ -63,9 +63,14 @@ public sealed class VerificationCodeOrchestrator : IVerificationCodeOrchestrator
             await _codes.UpsertActiveForResendAsync(persoId, hash, expires, now, ct);
 
         var composer = new VerificationCodeEmailComposer(
-            toEmail: email,
             code: code,
-            expiresAtUtc: expires);
+            expiresAtUtc: expires,
+            locale: locale,
+            loginUrl: "/login",
+            recoveryUrl: "/account-recovery", //Todo THIS IS WRONG! CHECK UP THE CORRECT URL FOR ACCOUNT RECOVERY
+            forgotPasswordUrl: "/forgot-password"
+        );
+
 
         await _outbox.EnqueueAsync(
             kind: "VerificationCode",

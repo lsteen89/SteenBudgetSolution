@@ -19,6 +19,19 @@ CREATE TABLE IF NOT EXISTS Users (
     LastUpdatedTime DATETIME
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS UserSettings (
+  Id INT AUTO_INCREMENT PRIMARY KEY,
+  Persoid BINARY(16) NOT NULL,
+  Locale VARCHAR(10) NOT NULL,
+  Currency CHAR(3) NOT NULL DEFAULT 'EUR',
+  CreatedTime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  LastUpdatedTime DATETIME NULL,
+  CONSTRAINT FK_UserSettings_Users
+    FOREIGN KEY (Persoid) REFERENCES Users(Persoid)
+    ON DELETE CASCADE,
+  UNIQUE KEY UQ_UserSettings_Persoid (Persoid)
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS ErrorLog (
     LogId INT AUTO_INCREMENT PRIMARY KEY,
     ErrorMessage TEXT,
@@ -364,6 +377,16 @@ CREATE TABLE Debt (
     INDEX IX_Debt_BudgetId_Status (BudgetId, Status)
 ) ENGINE=InnoDB;
 
+CREATE TABLE PasswordResetRequests (
+    Id BINARY(16) NOT NULL PRIMARY KEY,
+    Persoid BINARY(16) NOT NULL,
+    Email VARCHAR(320) NOT NULL,
+    CodeHash VARCHAR(255) NOT NULL,
+    ExpiresAtUtc DATETIME(6) NOT NULL,
+    UsedAtUtc DATETIME(6) NULL,
+    CreatedAtUtc DATETIME(6) NOT NULL,
+    InvalidatedAtUtc DATETIME(6) NULL
+);
 
 -- ##################################################################
 -- # SECTION 3: WIZARD TABLES

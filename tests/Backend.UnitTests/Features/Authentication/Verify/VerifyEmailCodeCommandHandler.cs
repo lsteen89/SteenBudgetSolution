@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.Extensions.Options;
 using Moq;
-using Xunit;
+using Backend.Application.DTO.Auth;
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Application.Abstractions.Infrastructure.Verification;
@@ -12,7 +12,10 @@ using Backend.Application.Features.VerifyEmail;
 using Backend.Application.Options.Verification;
 using Backend.Domain.Entities.User;
 using Backend.Domain.Errors.User;
+using Backend.Application.Features.Shared.Issuers.Auth;
 using Backend.Application.Common.Security;
+using Backend.Application.Features.Authentication.Shared.Models;
+
 
 namespace Backend.UnitTests.Features.Authentication.Verify;
 
@@ -21,7 +24,7 @@ public sealed class VerifyEmailCodeCommandHandlerTests
     private readonly Mock<IUserRepository> _users = new();
     private readonly Mock<IEmailVerificationCodeRepository> _codes = new();
     private readonly Mock<ITimeProvider> _clock = new();
-
+    private readonly Mock<IAuthSessionIssuer> _issuer = new();
     private static VerificationCodeOptions Opt(DateTime now) => new()
     {
         TtlMinutes = 15,
@@ -35,7 +38,7 @@ public sealed class VerifyEmailCodeCommandHandlerTests
     };
 
     private VerifyEmailCodeCommandHandler SUT(DateTime now)
-        => new(_users.Object, _codes.Object, _clock.Object, Options.Create(Opt(now)));
+        => new(_users.Object, _codes.Object, _clock.Object, Options.Create(Opt(now)), _issuer.Object);
 
     private static UserModel User(Guid persoId, string email, bool confirmed)
         => new()
@@ -82,7 +85,9 @@ public sealed class VerifyEmailCodeCommandHandlerTests
         _codes.Setup(r => r.GetByUserAsync(id, It.IsAny<CancellationToken>()))
               .ReturnsAsync(State(goodHash, now.AddMinutes(15), attempts: 0, lockedUntilUtc: null));
 
-        var res = await SUT(now).Handle(new VerifyEmailCodeCommand(email, "000000"), CancellationToken.None);
+        var res = await SUT(now).Handle(
+            new VerifyEmailCodeCommand(email, "000000", "device-1", "ua", RememberMe: true),
+            CancellationToken.None);
 
         res.IsSuccess.Should().BeFalse();
         res.Error.Should().Be(UserErrors.InvalidVerificationCode);
@@ -111,7 +116,9 @@ public sealed class VerifyEmailCodeCommandHandlerTests
         _codes.Setup(r => r.GetByUserAsync(id, It.IsAny<CancellationToken>()))
               .ReturnsAsync(State(goodHash, now.AddMinutes(opt.TtlMinutes), attempts: opt.MaxAttempts - 1, lockedUntilUtc: null));
 
-        var res = await SUT(now).Handle(new VerifyEmailCodeCommand(email, "000000"), CancellationToken.None);
+        var res = await SUT(now).Handle(
+            new VerifyEmailCodeCommand(email, "000000", "device-1", "ua", RememberMe: true),
+            CancellationToken.None);
 
         res.IsSuccess.Should().BeFalse();
         res.Error.Should().Be(UserErrors.InvalidVerificationCode);
@@ -137,7 +144,9 @@ public sealed class VerifyEmailCodeCommandHandlerTests
         _codes.Setup(r => r.GetByUserAsync(id, It.IsAny<CancellationToken>()))
               .ReturnsAsync(State(hash, now.AddMinutes(15), attempts: 2, lockedUntilUtc: now.AddMinutes(3)));
 
-        var res = await SUT(now).Handle(new VerifyEmailCodeCommand(email, "123456"), CancellationToken.None);
+        var res = await SUT(now).Handle(
+            new VerifyEmailCodeCommand(email, "000000", "device-1", "ua", RememberMe: true),
+            CancellationToken.None);
 
         res.IsSuccess.Should().BeFalse();
         res.Error.Should().Be(UserErrors.VerificationLocked);
@@ -164,7 +173,9 @@ public sealed class VerifyEmailCodeCommandHandlerTests
         _codes.Setup(r => r.GetByUserAsync(id, It.IsAny<CancellationToken>()))
               .ReturnsAsync(State(hash, now.AddSeconds(-1), attempts: 0, lockedUntilUtc: null));
 
-        var res = await SUT(now).Handle(new VerifyEmailCodeCommand(email, "123456"), CancellationToken.None);
+        var res = await SUT(now).Handle(
+            new VerifyEmailCodeCommand(email, "000000", "device-1", "ua", RememberMe: true),
+            CancellationToken.None);
 
         res.IsSuccess.Should().BeFalse();
         res.Error.Should().Be(UserErrors.VerificationExpired);
@@ -184,14 +195,24 @@ public sealed class VerifyEmailCodeCommandHandlerTests
         var email = "user@example.com";
         _users.Setup(r => r.GetUserModelAsync(null, email, It.IsAny<CancellationToken>()))
               .ReturnsAsync(User(id, email, confirmed: false));
-
+        _issuer.Setup(i => i.IssueAsync(
+                It.IsAny<UserModel>(),
+                true,
+                "device-1",
+                "ua",
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new IssuedAuthSession(
+                new AuthResult("at", id, Guid.NewGuid(), "mac", true),
+                "rt"));
         var secret = Convert.FromBase64String(Opt(now).CodeHmacKeyBase64);
         var hash = VerificationCode.Hash(id, "123456", secret);
 
         _codes.Setup(r => r.GetByUserAsync(id, It.IsAny<CancellationToken>()))
               .ReturnsAsync(State(hash, now.AddMinutes(15), attempts: 0, lockedUntilUtc: null));
 
-        var res = await SUT(now).Handle(new VerifyEmailCodeCommand(email, "123456"), CancellationToken.None);
+        var res = await SUT(now).Handle(
+            new VerifyEmailCodeCommand(email, "123456", "device-1", "ua", RememberMe: true),
+            CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
 
@@ -211,7 +232,9 @@ public sealed class VerifyEmailCodeCommandHandlerTests
         _users.Setup(r => r.GetUserModelAsync(null, email, It.IsAny<CancellationToken>()))
               .ReturnsAsync(User(id, email, confirmed: true));
 
-        var res = await SUT(now).Handle(new VerifyEmailCodeCommand(email, "123456"), CancellationToken.None);
+        var res = await SUT(now).Handle(
+            new VerifyEmailCodeCommand(email, "000000", "device-1", "ua", RememberMe: true),
+            CancellationToken.None);
 
         res.IsSuccess.Should().BeTrue();
 
@@ -224,11 +247,14 @@ public sealed class VerifyEmailCodeCommandHandlerTests
     {
         var now = new DateTime(2026, 2, 20, 10, 0, 0, DateTimeKind.Utc);
         _clock.SetupGet(x => x.UtcNow).Returns(now);
+        var email = "user@example.com";
 
-        _users.Setup(r => r.GetUserModelAsync(null, "user@example.com", It.IsAny<CancellationToken>()))
+        _users.Setup(r => r.GetUserModelAsync(null, email, It.IsAny<CancellationToken>()))
               .ReturnsAsync((UserModel?)null);
 
-        var res = await SUT(now).Handle(new VerifyEmailCodeCommand("user@example.com", "123456"), CancellationToken.None);
+        var res = await SUT(now).Handle(
+            new VerifyEmailCodeCommand(email, "000000", "device-1", "ua", RememberMe: true),
+            CancellationToken.None);
 
         res.IsSuccess.Should().BeFalse();
         res.Error.Should().Be(UserErrors.InvalidVerificationCode);
@@ -251,7 +277,9 @@ public sealed class VerifyEmailCodeCommandHandlerTests
         _codes.Setup(r => r.GetByUserAsync(id, It.IsAny<CancellationToken>()))
               .ReturnsAsync((EmailVerificationCodeState?)null);
 
-        var res = await SUT(now).Handle(new VerifyEmailCodeCommand(email, "123456"), CancellationToken.None);
+        var res = await SUT(now).Handle(
+            new VerifyEmailCodeCommand(email, "000000", "device-1", "ua", RememberMe: true),
+            CancellationToken.None);
 
         res.IsSuccess.Should().BeFalse();
         res.Error.Should().Be(UserErrors.InvalidVerificationCode);

@@ -16,8 +16,8 @@ import {
 } from "@/components/organisms/overlays/wizard/SharedComponents/Accordion/WizardAccordion";
 import { cn } from "@/lib/utils";
 import type { BudgetDashboardDto } from "@/types/budget/BudgetDashboardDto";
-import type { CategoryKey } from "@/utils/i18n/categories";
-import { asCategoryKey } from "@/utils/i18n/categories";
+import type { CategoryKey } from "@/utils/i18n/budget/categories";
+import { asCategoryKey } from "@/utils/i18n/budget/categories";
 import { mapFinalizationPreviewToExpenseConfirm } from "./mapping/mapFinalizationPreviewToExpenseConfirm";
 
 type Props = {

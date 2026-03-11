@@ -1,10 +1,11 @@
+import { callLogout, isLoggingOut, refreshToken } from "@/api/Auth/auth";
+import { applySession } from "@/api/Auth/session";
+import { useAuthStore } from "@/stores/Auth/authStore";
 import axios, {
   AxiosError,
   AxiosHeaders,
   type AxiosRequestHeaders,
-} from 'axios';
-import { useAuthStore } from '@/stores/Auth/authStore';
-import { refreshToken, callLogout, isLoggingOut } from '@/api/Auth/auth';
+} from "axios";
 
 /* ───────── helpers ───────── */
 
@@ -20,20 +21,26 @@ export const api = axios.create({
   withCredentials: true,
 });
 
-/* ───────── SINGLE REFRESH PROMISE ───────── */
 export let refreshInFlight: Promise<string> | null = null;
 let refreshDoneAt = 0;
 
-export async function queueRefresh(force = false) {
+/* ───────── SINGLE REFRESH PROMISE ───────── */
+export function queueRefresh(force = false): Promise<string> {
   const now = Date.now();
-  if (!force && now - refreshDoneAt < 5000 && refreshInFlight) {
+
+  if (!force && refreshInFlight && now - refreshDoneAt < 5000) {
     return refreshInFlight;
   }
 
-  refreshInFlight ??= refreshToken().finally(() => {
-    refreshDoneAt = Date.now();
-    refreshInFlight = null;
-  });
+  refreshInFlight ??= refreshToken()
+    .then((auth) => {
+      applySession(auth);
+      return auth.accessToken;
+    })
+    .finally(() => {
+      refreshDoneAt = Date.now();
+      refreshInFlight = null;
+    });
 
   return refreshInFlight;
 }
@@ -45,7 +52,7 @@ api.interceptors.request.use((cfg) => {
   const tok = useAuthStore.getState().accessToken;
   if (tok) {
     const h = ensureAxiosHeaders(cfg.headers);
-    h.set('Authorization', `Bearer ${tok}`);
+    h.set("Authorization", `Bearer ${tok}`);
     cfg.headers = h;
   }
   return cfg;
@@ -53,11 +60,7 @@ api.interceptors.request.use((cfg) => {
 
 /* response */
 api.interceptors.response.use(
-  (res) => {
-
-    // 204s are fine as-is; others return the raw envelope in res.data.
-    return res;
-  },
+  (res) => res,
   async (err: AxiosError) => {
     if (isLoggingOut) throw err;
 
@@ -65,23 +68,27 @@ api.interceptors.response.use(
     const url = err.config?.url;
     const alreadyRetried = (err.config as any)?._retry;
 
-    // Never attempt refresh for any /api/auth/* endpoint
-    if (status === 401 && !isAuthRoute(url) && !alreadyRetried) {
+    const hadToken = !!useAuthStore.getState().accessToken; // critical
+
+    if (status === 401 && hadToken && !isAuthRoute(url) && !alreadyRetried) {
       try {
         (err.config as any)._retry = true;
-        const tok = await queueRefresh();
 
+        const tok = await queueRefresh(true); // force refresh here; safer
         const h = ensureAxiosHeaders(err.config!.headers);
-        h.set('Authorization', `Bearer ${tok}`);
+        h.set("Authorization", `Bearer ${tok}`);
         err.config!.headers = h;
 
-        return api(err.config!); // replay once
+        return api(err.config!);
       } catch {
-        await callLogout(); // refresh failed → hard logout
+        const s = useAuthStore.getState();
+        if (!s.authEvent || s.authEvent.type !== "session_expired") {
+          s.setAuthEvent({ type: "session_expired", at: Date.now() });
+        }
+        await callLogout("silent");
       }
     }
 
-    // Just propagate the error; call sites know about ApiEnvelope now.
     return Promise.reject(err);
-  }
+  },
 );

@@ -1,66 +1,68 @@
 ﻿using Backend.Application.Abstractions.Infrastructure.Security;
 using Backend.Settings;
+using Backend.Settings.cookies;
+using Microsoft.Extensions.Options;
 
-namespace Backend.Infrastructure.Security
+namespace Backend.Infrastructure.Security;
+
+public sealed class CookieService : ICookieService
 {
-    public sealed class CookieService : ICookieService
+    private readonly CookieSettings _cookieSettings;
+    private readonly JwtSettings _jwtSettings;
+
+    public CookieService(
+        IOptions<CookieSettings> cookieOptions,
+        JwtSettings jwtSettings)
     {
-        private readonly IWebHostEnvironment _env;
-        private readonly IHttpContextAccessor _ctx;
-        private readonly JwtSettings _jwtSettings;
+        _cookieSettings = cookieOptions.Value;
+        _jwtSettings = jwtSettings;
 
-        public CookieService(IWebHostEnvironment env,
-                             IHttpContextAccessor ctx,
-                            JwtSettings jwtSettings)
-        {
-            _env = env;
-            _ctx = ctx;
-            _jwtSettings = jwtSettings;
-        }
-
-        public ICookieService.Cookie CreateRefreshCookie(string refreshToken, bool rememberMe)
-        {
-            DateTimeOffset? expiryDate = rememberMe
-                ? DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenExpiryDaysAbsolute)
-                : null;
-
-            var options = BuildOptions(expiryDate);
-
-            return new ICookieService.Cookie("ebudget_rt", refreshToken, options);
-        }
-
-        public ICookieService.Cookie CreateDeleteCookie()
-        {
-            var options = BuildOptions(DateTimeOffset.UtcNow.AddDays(-1));
-
-            return new ICookieService.Cookie("ebudget_rt", "", options);
-        }
-
-        /* ---------- private ---------- */
-        private CookieOptions BuildOptions(DateTimeOffset? expiresUtc = null)
-        {
-            var isDev = _env.IsDevelopment();
-
-            var opt = new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = !isDev, // dev can be false if you run http
-                SameSite = isDev ? SameSiteMode.Lax : SameSiteMode.Strict,
-                Path = "/",
-            };
-
-            if (expiresUtc.HasValue) opt.Expires = expiresUtc.Value;
-
-            if (_env.IsProduction() &&
-                _ctx.HttpContext?.Request.Host.Host.EndsWith("ebudget.se") == true)
-            {
-                opt.Domain = ".ebudget.se";
-                opt.Secure = true;
-                opt.SameSite = SameSiteMode.None; // IMPORTANT if frontend is on a different subdomain
-            }
-
-            return opt;
-        }
+        Console.WriteLine(
+    $"CookieSettings => Secure={_cookieSettings.Secure}, SameSite={_cookieSettings.SameSite}, Path={_cookieSettings.Path}, Domain={_cookieSettings.Domain}");
     }
 
+    public ICookieService.Cookie CreateRefreshCookie(string refreshToken, bool rememberMe)
+    {
+        DateTimeOffset? expiresUtc = rememberMe
+            ? DateTimeOffset.UtcNow.AddDays(_jwtSettings.RefreshTokenExpiryDaysAbsolute)
+            : _cookieSettings.SessionDays is int days
+                ? DateTimeOffset.UtcNow.AddDays(days)
+                : null;
+
+        var options = BuildOptions(expiresUtc);
+
+        return new ICookieService.Cookie(
+            _cookieSettings.RefreshCookieName,
+            refreshToken,
+            options);
+    }
+
+    public ICookieService.Cookie CreateDeleteCookie()
+    {
+        var options = BuildOptions(DateTimeOffset.UtcNow.AddDays(-1));
+
+        return new ICookieService.Cookie(
+            _cookieSettings.RefreshCookieName,
+            string.Empty,
+            options);
+    }
+
+    private CookieOptions BuildOptions(DateTimeOffset? expiresUtc = null)
+    {
+        var opt = new CookieOptions
+        {
+            HttpOnly = _cookieSettings.HttpOnly,
+            Secure = _cookieSettings.Secure,
+            SameSite = _cookieSettings.SameSite,
+            Path = _cookieSettings.Path
+        };
+
+        if (!string.IsNullOrWhiteSpace(_cookieSettings.Domain))
+            opt.Domain = _cookieSettings.Domain;
+
+        if (expiresUtc.HasValue)
+            opt.Expires = expiresUtc.Value;
+
+        return opt;
+    }
 }

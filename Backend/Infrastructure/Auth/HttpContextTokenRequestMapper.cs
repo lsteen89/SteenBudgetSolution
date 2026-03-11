@@ -1,5 +1,6 @@
 ﻿using Backend.Domain.Auth;
 using System.IdentityModel.Tokens.Jwt;
+using Backend.Settings.cookies;
 
 public sealed record RefreshRequestDto(string? AccessToken, string? RefreshCookie);
 namespace Backend.Infrastructure.Auth
@@ -7,7 +8,7 @@ namespace Backend.Infrastructure.Auth
     public static class HttpContextTokenRequestMapper
     {
         private const string SessionHeader = "X-Session-Id";
-        private const string RefreshCookie = "ebudget_rt";
+        private const string RefreshCookie = CookieNames.RefreshToken;
 
         public static RefreshRequestDto MapRefresh(this HttpContext ctx)
         {

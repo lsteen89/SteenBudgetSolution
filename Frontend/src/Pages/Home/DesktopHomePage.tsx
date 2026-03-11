@@ -8,7 +8,14 @@ import "@styles/animations.css";
 import React from "react";
 import { Link } from "react-router-dom";
 
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
+import { homeDict } from "@/utils/i18n/pages/public/HomePage.i18n";
+import { tDict } from "@/utils/i18n/translate";
+
 const HomePage: React.FC = () => {
+  const locale = useAppLocale();
+  const t = (k: keyof typeof homeDict.sv) => tDict(k, locale, homeDict);
+
   return (
     <main className="relative">
       {/* subtle shell wash */}
@@ -27,17 +34,16 @@ const HomePage: React.FC = () => {
             ].join(" ")}
           >
             <p className="text-xs font-semibold tracking-[0.22em] uppercase text-eb-text/50">
-              Calm budgeting
+              {t("heroKicker")}
             </p>
 
             <h1 className="mt-3 text-3xl sm:text-4xl font-extrabold tracking-tight">
-              Ta kontroll över din ekonomi med{" "}
-              <span className="text-eb-accent">eBudget</span>
+              {t("heroTitleA")}{" "}
+              <span className="text-eb-accent">{t("heroTitleBrand")}</span>
             </h1>
 
             <p className="mt-4 text-base leading-relaxed text-eb-text/70 max-w-prose">
-              Planera månaden, följ upp och justera i lugn takt — utan
-              kalkylblad.
+              {t("heroBody")}
             </p>
 
             <div className="mt-6 flex flex-col sm:flex-row gap-3">
@@ -52,7 +58,7 @@ const HomePage: React.FC = () => {
                   "focus-visible:outline-none focus-visible:ring-4 ring-eb-accent/40",
                 ].join(" ")}
               >
-                Skaffa eBudget
+                {t("ctaPrimary")}
               </Link>
 
               <Link
@@ -66,7 +72,7 @@ const HomePage: React.FC = () => {
                   "focus-visible:outline-none focus-visible:ring-4 ring-eb-accent/40",
                 ].join(" ")}
               >
-                Vanliga frågor
+                {t("ctaSecondary")}
               </Link>
             </div>
 
@@ -74,36 +80,36 @@ const HomePage: React.FC = () => {
               <li className="flex items-start gap-3">
                 <BookOpenIcon className="h-5 w-5 text-eb-accent shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-semibold">Enkel planering</p>
-                  <p className="text-sm text-eb-text/60">Kom igång snabbt.</p>
+                  <p className="font-semibold">{t("f1Title")}</p>
+                  <p className="text-sm text-eb-text/60">{t("f1Body")}</p>
                 </div>
               </li>
 
               <li className="flex items-start gap-3">
                 <ChartBarIcon className="h-5 w-5 text-eb-accent shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-semibold">Tydlig översikt</p>
-                  <p className="text-sm text-eb-text/60">Se läget direkt.</p>
+                  <p className="font-semibold">{t("f2Title")}</p>
+                  <p className="text-sm text-eb-text/60">{t("f2Body")}</p>
                 </div>
               </li>
 
               <li className="flex items-start gap-3">
                 <ShieldCheckIcon className="h-5 w-5 text-eb-accent shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-semibold">Säkerhet först</p>
-                  <p className="text-sm text-eb-text/60">Alltid skyddat.</p>
+                  <p className="font-semibold">{t("f3Title")}</p>
+                  <p className="text-sm text-eb-text/60">{t("f3Body")}</p>
                 </div>
               </li>
             </ul>
 
             <div className="mt-8 rounded-2xl bg-[rgb(var(--eb-shell)/0.35)] border border-eb-stroke/25 p-4">
               <p className="text-sm text-eb-text/60">
-                Vi säljer aldrig din data. Läs mer i{" "}
+                {t("privacyA")}{" "}
                 <Link
                   to="/data-policy"
                   className="underline text-eb-text/70 hover:text-eb-text"
                 >
-                  integritetspolicyn
+                  {t("privacyLink")}
                 </Link>
                 .
               </p>

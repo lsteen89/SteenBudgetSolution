@@ -1,7 +1,7 @@
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as React from "react";
 import { Controller, useForm } from "react-hook-form";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import * as yup from "yup";
 
 import Mascot from "@/components/atoms/animation/Mascot";
@@ -11,25 +11,24 @@ import { FormField } from "@/components/atoms/forms/FormField";
 import ContentWrapperV2 from "@/components/layout/ContentWrapperV2";
 import PageContainer from "@/components/layout/PageContainer";
 
+import { emailConfirmDict } from "@/utils/i18n/pages/public/EmailConfirmation.i18n";
+import { tDict } from "@/utils/i18n/translate";
+
 import type { ApiProblem } from "@/api/api.types";
-import { refreshToken } from "@/api/Auth/auth";
 import { resendVerificationEmail } from "@/api/Services/User/resendVerificationEmail";
 import type { VerifyEmailCodeFn } from "@/api/Services/User/verifyEmailCode.wrapper";
 
 import { OtpCodeInput } from "@/components/atoms/forms/OtpCodeInput";
+import { useAuth } from "@/hooks/auth/useAuth";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { useCooldown } from "@/hooks/ui/useCooldown";
+import { cn } from "@/lib/utils";
 import { useToast } from "@/ui/toast/toast";
 import { toUserMessage } from "@/utils/i18n/apiErrors/toUserMessage";
 import regbird from "@assets/Images/RegBirdV2.png";
 
-async function fakeVerifyEmailCode(_email: string, _code: string) {
-  await new Promise((r) => setTimeout(r, 450));
-  // throw { message: "invalid", code: "Registration.InvalidVerificationCode", status: 400 } satisfies ApiProblem;
-}
-async function fakeResendCode(_email: string) {
-  await new Promise((r) => setTimeout(r, 350));
-}
+import { useAuthStore } from "@/stores/Auth/authStore";
+import { readJwtEmail } from "@/utils/auth/jwt";
 
 type FormValues = { code: string };
 
@@ -37,22 +36,34 @@ type Props = {
   verifyEmailCode: VerifyEmailCodeFn;
 };
 
-const schema: yup.ObjectSchema<FormValues> = yup
-  .object({
-    code: yup
-      .string()
-      .required("Skriv in koden.")
-      .matches(/^\d{6}$/, "Koden måste vara 6 siffror."),
-  })
-  .required();
-
 export default function EmailConfirmationPage({ verifyEmailCode }: Props) {
   const navigate = useNavigate();
-  const [params] = useSearchParams();
-  const email = (params.get("email") ?? "").trim();
+
+  const location = useLocation();
+  const accessToken = useAuthStore((s) => s.accessToken);
+
+  const email = readJwtEmail(accessToken) ?? "";
+
+  const { applyAuth } = useAuth();
 
   const toast = useToast();
   const locale = useAppLocale();
+
+  const t = <K extends keyof typeof emailConfirmDict.sv>(k: K) =>
+    tDict(k, locale, emailConfirmDict);
+
+  const schema: yup.ObjectSchema<FormValues> = React.useMemo(
+    () =>
+      yup
+        .object({
+          code: yup
+            .string()
+            .required(t("yupRequired"))
+            .matches(/^\d{6}$/, t("yupFormat")),
+        })
+        .required(),
+    [locale],
+  );
 
   const { remaining, isActive, start } = useCooldown(60); // starts at 60s (initial send)
   const [resendLoading, setResendLoading] = React.useState(false);
@@ -71,50 +82,30 @@ export default function EmailConfirmationPage({ verifyEmailCode }: Props) {
   });
 
   React.useEffect(() => {
-    // If user navigates here without email, send them away
-    if (!email) return;
+    if (!email) {
+      navigate("/login", { replace: true });
+      return;
+    }
+
     start(60);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [email]);
+  }, [email, navigate, start]);
 
   const onSubmit = async (v: FormValues) => {
     if (!email) {
-      toast.error(
-        locale === "sv-SE"
-          ? "E-post saknas i länken."
-          : "Email missing in link.",
-      );
+      toast.error(t("toastMissingEmail"));
       return;
     }
 
     try {
-      await verifyEmailCode({ email, code: v.code });
+      const auth = await verifyEmailCode({ code: v.code });
 
-      // Attempt to upgrade session (works if refresh cookie exists)
-      try {
-        await refreshToken();
+      await applyAuth(auth);
 
-        toast.success(
-          locale === "sv-SE"
-            ? "E-post verifierad! Du är inloggad."
-            : "Email verified! You're signed in.",
-          { id: "verify-ok" },
-        );
-
-        navigate("/dashboard", { replace: true });
-        return;
-      } catch {
-        // No refresh cookie / expired / blocked → user must log in
-      }
-
-      toast.success(
-        locale === "sv-SE"
-          ? "E-post verifierad! Logga in för att fortsätta."
-          : "Email verified! Please log in to continue.",
-        { id: "verify-ok" },
-      );
-
-      navigate("/login", { replace: true });
+      toast.success(t("toastVerified"), { id: "verify-ok" });
+      const from = new URLSearchParams(location.search).get("from");
+      navigate(from ? decodeURIComponent(from) : "/dashboard", {
+        replace: true,
+      });
     } catch (e: any) {
       const p = e as ApiProblem;
       const msg = toUserMessage(p, locale);
@@ -125,16 +116,16 @@ export default function EmailConfirmationPage({ verifyEmailCode }: Props) {
   };
 
   const onResend = async () => {
-    if (!email || isActive || resendLoading) return;
+    if (isActive || resendLoading) return;
 
     try {
       setResendLoading(true);
 
-      const msg = await resendVerificationEmail({ email });
+      const msg = await resendVerificationEmail();
 
       start(60);
-      toast.success(msg, { id: "resend-ok" }); // use BE’s generic message (no enumeration)
-    } catch (e: any) {
+      toast.success(msg, { id: "resend-ok" });
+    } catch (e: unknown) {
       const p = e as ApiProblem;
       toast.error(toUserMessage(p, locale), { id: p.code ?? "resend-fail" });
     } finally {
@@ -160,21 +151,21 @@ export default function EmailConfirmationPage({ verifyEmailCode }: Props) {
         <div className="relative mx-auto w-full max-w-xl">
           <SurfaceCard className="p-6 sm:p-8">
             <p className="text-xs font-semibold tracking-[0.22em] uppercase text-eb-text/50">
-              Verifiera e-post
+              {t("kicker")}
             </p>
 
             <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-eb-text">
-              Skriv in koden
+              {t("title")}
             </h1>
 
             <p className="mt-2 text-sm text-eb-text/65 max-w-prose">
               {email ? (
                 <>
-                  Vi skickade en 6-siffrig kod till{" "}
+                  {t("bodyWithEmailA")}{" "}
                   <span className="font-semibold">{email}</span>.
                 </>
               ) : (
-                "E-post saknas i länken. Gå tillbaka och registrera igen."
+                t("bodyMissing")
               )}
             </p>
 
@@ -184,7 +175,7 @@ export default function EmailConfirmationPage({ verifyEmailCode }: Props) {
               className="mt-6 space-y-5"
             >
               <FormField
-                label="Kod"
+                label={t("codeLabel")}
                 htmlFor="code"
                 error={showErrors ? errors.code?.message : undefined}
               >
@@ -201,14 +192,12 @@ export default function EmailConfirmationPage({ verifyEmailCode }: Props) {
                       onComplete={() => {
                         if (!isSubmitting) void handleSubmit(onSubmit)();
                       }}
-                      aria-label="Verification code"
+                      aria-label={t("otpAria")}
                     />
                   )}
                 />
               </FormField>
-              <p className="text-xs text-eb-text/50">
-                Skriv koden — du kan även klistra in alla 6 siffror.
-              </p>
+              <p className="text-xs text-eb-text/50">{t("helper")}</p>
 
               <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
                 <CtaButton
@@ -217,7 +206,7 @@ export default function EmailConfirmationPage({ verifyEmailCode }: Props) {
                   aria-busy={isSubmitting}
                   className="w-full sm:w-auto"
                 >
-                  {isSubmitting ? "Verifierar..." : "Verifiera"}
+                  {isSubmitting ? t("submitBusy") : t("submitIdle")}
                 </CtaButton>
 
                 {/* Resend: countdown -> link */}
@@ -235,19 +224,17 @@ export default function EmailConfirmationPage({ verifyEmailCode }: Props) {
                       )}
                     >
                       {isActive
-                        ? `Skicka ny kod om ${remaining}s`
+                        ? `${t("resendCountdownPrefix")} ${remaining}${t("resendCountdownSuffix")}`
                         : resendLoading
-                          ? "Skickar…"
-                          : "Skicka ny kod"}
+                          ? t("resendBusy")
+                          : t("resendIdle")}
                     </button>
                   ) : null}
                 </div>
               </div>
 
               <div className="rounded-2xl bg-[rgb(var(--eb-shell)/0.35)] border border-eb-stroke/25 px-4 py-3">
-                <p className="text-sm text-eb-text/60">
-                  Kod giltig en begränsad tid. Om du fastnar: skicka en ny.
-                </p>
+                <p className="text-sm text-eb-text/60">{t("info")}</p>
               </div>
             </form>
           </SurfaceCard>
@@ -289,8 +276,4 @@ export default function EmailConfirmationPage({ verifyEmailCode }: Props) {
       </ContentWrapperV2>
     </PageContainer>
   );
-}
-
-function cn(...xs: Array<string | false | null | undefined>) {
-  return xs.filter(Boolean).join(" ");
 }

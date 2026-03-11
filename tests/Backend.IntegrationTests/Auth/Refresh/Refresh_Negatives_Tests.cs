@@ -18,6 +18,7 @@ using Backend.Domain.Shared;
 using Backend.IntegrationTests.Shared;
 using Backend.Infrastructure.Security;
 using Backend.Settings;
+using Backend.Domain.Entities.Email;
 
 
 namespace Backend.IntegrationTests.Auth.Refresh;
@@ -208,6 +209,8 @@ public sealed class Refresh_Negatives_Tests
             Task.FromResult(Enumerable.Empty<Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity>());
         public Task<bool> DeleteTokenAsync(string refreshToken, CancellationToken ct) => Task.FromResult(true);
         public Task<bool> DoesAccessTokenJtiExistAsync(string accessTokenJti, CancellationToken ct) => Task.FromResult(false);
+        public Task<int> RevokeBySessionIdAsync(Guid sessionId, DateTime nowUtc, CancellationToken ct) => Task.FromResult(0);
+        public Task<int> RevokeByRefreshTokenAsync(string refreshTokenRaw, DateTime Utc, CancellationToken ct) => Task.FromResult(0);
     }
 
     private sealed class SqlUserRepo : IUserRepository
@@ -230,5 +233,11 @@ public sealed class Refresh_Negatives_Tests
         public Task<bool> CreateUserAsync(Backend.Domain.Entities.User.UserModel user, CancellationToken ct) => Task.FromResult(true);
         public Task<bool> ConfirmUserEmailAsync(Guid persoid, CancellationToken ct) => Task.FromResult(true);
         public Task<bool> SetFirstTimeLoginAsync(Guid persoid, CancellationToken ct = default) => Task.FromResult(true);
+        public Task<bool> UpsertUserSettingsAsync(Guid persoId, string locale, CancellationToken ct = default) => Task.FromResult(true);
+        public Task<string?> GetUserLocaleAsync(Guid persoid, CancellationToken ct = default) => Task.FromResult<string?>(null);
+        public Task<bool> UpdatePasswordAsync(Guid persoId, string passwordHash, CancellationToken ct) => Task.FromResult(true);
+        public Task<EmailRegistrationState> GetEmailRegistrationStateAsync(
+            string email,
+            CancellationToken ct = default) => Task.FromResult<EmailRegistrationState>(null);
     }
 }

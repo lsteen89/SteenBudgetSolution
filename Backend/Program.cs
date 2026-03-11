@@ -40,12 +40,14 @@ using Backend.Infrastructure.Auth;
 using Backend.Application.Abstractions.Infrastructure.Email;
 using Backend.Infrastructure.Email;
 using Backend.Infrastructure.Email.Postmark;
+using Backend.Infrastructure.RateLimiting;
 // Presentation layer
 using Backend.Presentation.Middleware;
 
 // Settings
 using Backend.Settings;
 using Backend.Settings.Email;
+using Backend.Settings.cookies;
 
 #endregion
 
@@ -97,6 +99,13 @@ builder.Services.Configure<PostmarkOptions>(builder.Configuration.GetSection("Po
 // Security
 builder.Services.Configure<HumanChallengeOptions>(
     builder.Configuration.GetSection("Auth:HumanChallenge"));
+
+// Cookies
+builder.Services
+.AddOptions<CookieSettings>()
+.Bind(builder.Configuration.GetSection(CookieSettings.SectionName))
+.Validate(s => !string.IsNullOrWhiteSpace(s.RefreshCookieName), "RefreshCookieName is required")
+.ValidateOnStart();
 
 // Add JsonOptions to use camelCase for JSON properties
 builder.Services.AddControllers()
@@ -174,134 +183,8 @@ builder.Services
 
 #region Rate Limiter Configuration
 // Add rate limiting services
-builder.Services.AddRateLimiter(options =>
-{
-    int debugLimit = 1000;
+builder.Services.AddAppRateLimiting(builder.Environment);
 
-    // Set a global limiter using PartitionedRateLimiter.Create
-    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
-    RateLimitPartition.GetFixedWindowLimiter(
-        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-        factory: _ => new FixedWindowRateLimiterOptions
-        {
-            PermitLimit = builder.Environment.IsProduction() ? 300 : debugLimit,               // Allow 300 requests per minute, proper ratelimit on sensitive points
-            Window = TimeSpan.FromMinutes(1),
-            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-            QueueLimit = 2
-        }));
-
-    // Registration-specific rate limit policy
-    options.AddPolicy("RegistrationPolicy", httpContext =>
-    RateLimitPartition.GetFixedWindowLimiter(
-        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-        factory: _ => new FixedWindowRateLimiterOptions
-        {
-            PermitLimit = 3,                 // Allow 3 requests
-            Window = TimeSpan.FromMinutes(2), // In a 2-minute window
-            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-            QueueLimit = 0                   // No queueing
-        }));
-    // Login rate limit policy
-    options.AddPolicy("LoginPolicy", httpContext =>
-    RateLimitPartition.GetFixedWindowLimiter(
-        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-        factory: _ => new FixedWindowRateLimiterOptions
-        {
-            PermitLimit = 5,                  // Allow 5 login attempts
-            Window = TimeSpan.FromMinutes(15), // Within a 15-minute window
-            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-            QueueLimit = 0                    // No queuing for additional requests
-        }));
-    options.AddPolicy("RefreshPolicy", httpContext =>
-    {
-        // Prefer sessionId if present (your client already has it sometimes)
-        var sid = httpContext.Request.Headers["X-Session-Id"].FirstOrDefault();
-        var key = !string.IsNullOrWhiteSpace(sid)
-            ? $"sid:{sid}"
-            : $"ip:{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
-
-        return RateLimitPartition.GetSlidingWindowLimiter(
-            partitionKey: key,
-            factory: _ => new SlidingWindowRateLimiterOptions
-            {
-                PermitLimit = builder.Environment.IsProduction() ? 30 : debugLimit,
-                Window = TimeSpan.FromMinutes(5),
-                SegmentsPerWindow = 5,      // smoother than fixed window
-                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                QueueLimit = 0
-            });
-    });
-    options.AddPolicy("LogoutPolicy", httpContext =>
-    {
-        // Prefer authenticated user if present, else IP
-        var userKey = httpContext.User?.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
-        var key = !string.IsNullOrWhiteSpace(userKey)
-            ? $"u:{userKey}"
-            : $"ip:{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}";
-
-        return RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: key,
-            factory: _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = builder.Environment.IsProduction() ? 10 : debugLimit,
-                Window = TimeSpan.FromMinutes(1),
-                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                QueueLimit = 0
-            });
-    });
-    // Email sending rate limit policy
-    // is used in the EmailController
-    // Todo: Measure and adjust the rate limit for production
-    options.AddPolicy("EmailSendingPolicy", httpContext =>
-    RateLimitPartition.GetFixedWindowLimiter(
-        partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-        factory: _ => new FixedWindowRateLimiterOptions
-        {
-            PermitLimit = 3,
-            Window = TimeSpan.FromMinutes(15),
-            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-            QueueLimit = 0
-        }));
-    // Verify email code policy (OTP brute force protection)
-    options.AddPolicy("VerifyEmailPolicy", httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-            factory: _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = builder.Environment.IsProduction() ? 10 : debugLimit,
-                Window = TimeSpan.FromMinutes(5),
-                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                QueueLimit = 0
-            }));
-
-    // Resend verification policy (email spam protection)
-    options.AddPolicy("ResendVerificationPolicy", httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-            factory: _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = builder.Environment.IsProduction() ? 3 : debugLimit,
-                Window = TimeSpan.FromMinutes(15),
-                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                QueueLimit = 0
-            }));
-
-    // Log rate-limiting rejections
-    options.OnRejected = (context, cancellationToken) =>
-    {
-        var policyName = context.HttpContext.GetEndpoint()?.Metadata.GetMetadata<EnableRateLimitingAttribute>()?.PolicyName ?? "Global";
-        var ipAddress = context.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-
-        var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-        logger.LogWarning("Rate limit exceeded: Policy={Policy}, IP={IP}, Endpoint={Endpoint}",
-            policyName, ipAddress, context.HttpContext.Request.Path);
-
-        context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
-        return new ValueTask(context.HttpContext.Response.WriteAsync(
-            "Rate limit exceeded. Please try again later.", cancellationToken));
-    };
-
-});
 #endregion
 #region Email DI Service Configuration
 var provider = builder.Configuration["Email:Provider"] ?? "Smtp";
@@ -407,7 +290,19 @@ builder.Services.AddAuthorization(options =>
         policy.RequireAuthenticatedUser();
         policy.RequireClaim(EbClaims.EmailConfirmed, "true");
     });
+    options.AddPolicy("Onboarding", policy =>
+    {
+        policy.AddAuthenticationSchemes("AccessScheme");
+        policy.RequireAuthenticatedUser();
+        // explicitly require email_confirmed = false OR missing
+        policy.RequireAssertion(ctx =>
+        {
+            var v = ctx.User.FindFirst(EbClaims.EmailConfirmed)?.Value;
+            return v is null || v.Equals("false", StringComparison.OrdinalIgnoreCase);
+        });
+    });
 });
+
 
 // Add HttpContextAccessor
 builder.Services.AddHttpContextAccessor();
@@ -422,6 +317,7 @@ builder.Services
 
 // Build the app after service registration
 var app = builder.Build();
+
 app.UseRouting();
 // Apply CORS based on the environment
 if (builder.Environment.IsDevelopment())

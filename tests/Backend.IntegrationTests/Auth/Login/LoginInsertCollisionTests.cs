@@ -15,8 +15,12 @@ using Backend.Domain.Shared;
 using Backend.Settings;
 using Backend.IntegrationTests.Shared;
 using Backend.Domain.Entities.User;
-using Microsoft.Extensions.Configuration;
+using Backend.Domain.Entities.Email;
+
+
+
 namespace Backend.IntegrationTests.Auth.Login;
+
 
 [Collection("it:db")]
 public sealed class LoginInsertCollisionTests
@@ -156,6 +160,10 @@ public sealed class LoginInsertCollisionTests
         public Task<bool> CreateUserAsync(UserModel user, CancellationToken ct) => Task.FromResult(true);
         public Task<bool> ConfirmUserEmailAsync(Guid persoid, CancellationToken ct) => Task.FromResult(true);
         public Task<bool> SetFirstTimeLoginAsync(Guid persoid, CancellationToken ct = default) => Task.FromResult(true);
+        public Task<bool> UpsertUserSettingsAsync(Guid persoId, string locale, CancellationToken ct = default) => Task.FromResult(true);
+        public Task<string?> GetUserLocaleAsync(Guid persoid, CancellationToken ct = default) => Task.FromResult<string?>(null);
+        public Task<bool> UpdatePasswordAsync(Guid persoId, string passwordHash, CancellationToken ct) => Task.FromResult(true);
+        public Task<EmailRegistrationState> GetEmailRegistrationStateAsync(string email, CancellationToken ct = default) => Task.FromResult<EmailRegistrationState>(null);
     }
 
     private sealed class SqlRefreshRepo : IRefreshTokenRepository
@@ -213,6 +221,8 @@ public sealed class LoginInsertCollisionTests
         public Task<IEnumerable<Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity>> GetExpiredTokensAsync(int batchSize = 1000, CancellationToken ct = default) => Task.FromResult<IEnumerable<Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity>>(Array.Empty<Backend.Infrastructure.Entities.Tokens.RefreshJwtTokenEntity>());
         public Task<bool> DeleteTokenAsync(string refreshToken, CancellationToken ct) => Task.FromResult(true);
         public Task<bool> DoesAccessTokenJtiExistAsync(string accessTokenJti, CancellationToken ct) => Task.FromResult(false);
+        public Task<int> RevokeBySessionIdAsync(Guid sessionId, DateTime nowUtc, CancellationToken ct) => Task.FromResult(0);
+        public Task<int> RevokeByRefreshTokenAsync(string refreshTokenRaw, DateTime nowUtc, CancellationToken ct) => Task.FromResult(0);
     }
     private sealed class CollisionOnceRefreshRepo : IRefreshTokenRepository
     {
@@ -284,5 +294,7 @@ public sealed class LoginInsertCollisionTests
 
         public Task<bool> DoesAccessTokenJtiExistAsync(string accessTokenJti, CancellationToken ct)
             => _inner.DoesAccessTokenJtiExistAsync(accessTokenJti, ct);
+        public Task<int> RevokeBySessionIdAsync(Guid sessionId, DateTime nowUtc, CancellationToken ct) => Task.FromResult(0);
+        public Task<int> RevokeByRefreshTokenAsync(string refreshTokenRaw, DateTime nowUtc, CancellationToken ct) => Task.FromResult(0);
     }
 }
