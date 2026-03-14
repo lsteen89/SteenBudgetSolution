@@ -62,10 +62,6 @@ const Dashboard: React.FC = () => {
     );
   }, [auth.isLoading, auth.user, location.search, location.pathname, navigate]);
 
-  useEffect(() => {
-    if (firstLogin === true) setIsWizardOpen(false);
-  }, [firstLogin]);
-
   if (auth.isLoading) {
     return (
       <CenteredContainer>

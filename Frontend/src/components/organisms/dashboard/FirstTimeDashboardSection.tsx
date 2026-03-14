@@ -12,6 +12,7 @@ import DashboardBird from "@assets/Images/GuideBird.png";
 import RichBird from "@assets/Images/RichBird.png";
 
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
+import { appRoutes } from "@/routes/appRoutes";
 import { firstTimeDashDict } from "@/utils/i18n/pages/private/dashboard/FirstTimeDashboard.i18n";
 import { tDict } from "@/utils/i18n/translate";
 
@@ -53,20 +54,15 @@ export default function FirstTimeDashboardSection({
 
   return (
     <div className="relative mx-auto w-full max-w-6xl">
-      {/* background decoration to make glass visible */}
       <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden rounded-[3rem]">
-        {/* soft top blob */}
         <div className="absolute -top-32 left-1/2 h-[420px] w-[720px] -translate-x-1/2 rounded-full bg-eb-shell/55 blur-3xl" />
-        {/* side blob */}
         <div className="absolute top-24 -right-40 h-[520px] w-[520px] rounded-full bg-eb-shell/35 blur-3xl" />
-        {/* optional: tiny noise so blur reads more (keep subtle) */}
         <div className="absolute inset-0 opacity-[0.06] [background-image:radial-gradient(#000_1px,transparent_1px)] [background-size:18px_18px]" />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.4fr,0.6fr]">
-        {/* Main intro card */}
         <SurfaceCard className="p-6 sm:p-8">
-          <p className="text-xs font-semibold tracking-[0.22em] uppercase text-eb-text/50">
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-eb-text/50">
             {t("kicker")}
           </p>
 
@@ -75,7 +71,7 @@ export default function FirstTimeDashboardSection({
             <span className="text-eb-accent"> {t("titleAccent")}</span>
           </h1>
 
-          <p className="mt-2 text-sm text-eb-text/65 max-w-prose">
+          <p className="mt-2 max-w-prose text-sm text-eb-text/65">
             {t("lead")}
           </p>
 
@@ -101,7 +97,7 @@ export default function FirstTimeDashboardSection({
             ))}
           </div>
 
-          <div className="mt-6 flex flex-col sm:flex-row gap-3 sm:items-center">
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
             <CtaButton
               onClick={primaryCta.onClick}
               className="w-full sm:w-auto"
@@ -110,7 +106,7 @@ export default function FirstTimeDashboardSection({
             </CtaButton>
 
             <SecondaryLink
-              to="/how-it-works"
+              to={appRoutes.dashboardHowItWorks}
               className="w-full sm:w-auto justify-center"
             >
               {t("quickGuide")}
@@ -120,7 +116,7 @@ export default function FirstTimeDashboardSection({
           <button
             type="button"
             onClick={() => setShowWhy((v) => !v)}
-            className="mt-5 w-full inline-flex items-center justify-between gap-2 rounded-2xl border border-eb-stroke/25 bg-[rgb(var(--eb-shell)/0.25)] px-4 py-3 text-sm font-semibold text-eb-text/70 hover:bg-[rgb(var(--eb-shell)/0.35)] transition"
+            className="mt-5 inline-flex w-full items-center justify-between gap-2 rounded-2xl border border-eb-stroke/25 bg-[rgb(var(--eb-shell)/0.25)] px-4 py-3 text-sm font-semibold text-eb-text/70 transition hover:bg-[rgb(var(--eb-shell)/0.35)]"
             aria-expanded={showWhy}
           >
             <span>{t("whyAsk")}</span>
@@ -132,7 +128,7 @@ export default function FirstTimeDashboardSection({
           </button>
 
           {showWhy && (
-            <div className="mt-3 rounded-2xl border border-eb-stroke/25 bg-[rgb(var(--eb-shell)/0.25)] p-4 text-sm text-eb-text/65 leading-relaxed">
+            <div className="mt-3 rounded-2xl border border-eb-stroke/25 bg-[rgb(var(--eb-shell)/0.25)] p-4 text-sm leading-relaxed text-eb-text/65">
               {t("whyText")}
             </div>
           )}
@@ -145,7 +141,6 @@ export default function FirstTimeDashboardSection({
           </div>
         </SurfaceCard>
 
-        {/* Side column: guide bird + 2–3 small cards */}
         <div className="space-y-4">
           <SurfaceCard className="p-6">
             <div className="flex items-center justify-between gap-4">
@@ -196,7 +191,6 @@ export default function FirstTimeDashboardSection({
               </div>
             </div>
 
-            {/* Secondary CTA inside card = visually quieter */}
             <button
               type="button"
               onClick={onStartWizard}

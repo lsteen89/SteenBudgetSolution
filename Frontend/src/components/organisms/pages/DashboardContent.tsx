@@ -1,9 +1,9 @@
-import React from "react";
+import ReturningDashboardSection from "@/components/organisms/dashboard/returning/ReturningDashboardSection";
 import DashboardHomeSkeleton from "@components/organisms/dashboard/DashboardHomeSkeleton";
 import FirstTimeDashboardSection from "@components/organisms/dashboard/FirstTimeDashboardSection";
-import ReturningDashboardSection from "@/components/organisms/dashboard/returning/ReturningDashboardSection";
-import DashboardErrorState from "../dashboard/DashboardErrorState";
 import { useDashboardSummary } from "@hooks/dashboard/useDashboardSummary";
+import React from "react";
+import DashboardErrorState from "../dashboard/DashboardErrorState";
 
 export interface DashboardContentProps {
   isFirstTimeLogin: boolean;
@@ -27,7 +27,9 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
 
   // First login: intro page (wizard does NOT auto open)
   if (isFirstTimeLogin) {
-    return <FirstTimeDashboardSection onStartWizard={() => setIsWizardOpen(true)} />;
+    return (
+      <FirstTimeDashboardSection onStartWizard={() => setIsWizardOpen(true)} />
+    );
   }
 
   // While wizard is open, do not render dashboard content at all
@@ -38,7 +40,9 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
 
   // No budget yet => same intro
   if (isError && isNotFound(error)) {
-    return <FirstTimeDashboardSection onStartWizard={() => setIsWizardOpen(true)} />;
+    return (
+      <FirstTimeDashboardSection onStartWizard={() => setIsWizardOpen(true)} />
+    );
   }
 
   if (isError) {
@@ -47,13 +51,19 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
         title="Kunde inte ladda din dashboard"
         message={error?.message ?? "Försök igen om en stund."}
         onRetry={refetch}
-        details={import.meta.env.MODE === "development" ? JSON.stringify(error, null, 2) : undefined}
+        details={
+          import.meta.env.MODE === "development"
+            ? JSON.stringify(error, null, 2)
+            : undefined
+        }
       />
     );
   }
 
   if (!data) {
-    return <FirstTimeDashboardSection onStartWizard={() => setIsWizardOpen(true)} />;
+    return (
+      <FirstTimeDashboardSection onStartWizard={() => setIsWizardOpen(true)} />
+    );
   }
 
   return (

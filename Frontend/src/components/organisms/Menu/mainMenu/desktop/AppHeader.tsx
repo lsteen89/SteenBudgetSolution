@@ -1,4 +1,5 @@
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
+import { appRoutes } from "@/routes/appRoutes";
 import { appMenuDict } from "@/utils/i18n/menu/AppMenu.i18n";
 import { tDict } from "@/utils/i18n/translate";
 import { useMemo } from "react";
@@ -14,10 +15,10 @@ export default function AppHeader() {
 
   const items = useMemo(
     () => [
-      { label: t("dashboard"), to: "/dashboard" },
-      { label: t("breakdown"), to: "/dashboard/breakdown" },
-      { label: t("howItWorks"), to: "/how-it-works" },
-      { label: t("support"), to: "/support" },
+      { label: t("dashboard"), to: appRoutes.dashboard, end: true },
+      { label: t("breakdown"), to: appRoutes.dashboardBreakdown, end: true },
+      { label: t("howItWorks"), to: appRoutes.dashboardHowItWorks, end: true },
+      { label: t("support"), to: appRoutes.support, end: true },
     ],
     [locale],
   );
@@ -27,9 +28,8 @@ export default function AppHeader() {
       variant="app"
       left={
         <Link
-          to="/dashboard"
-          className="rounded-2xl px-2 py-1 font-extrabold tracking-tight text-eb-text
-                     hover:text-eb-text/90 focus-visible:outline-none focus-visible:ring-4 ring-eb-accent/35"
+          to={appRoutes.dashboard}
+          className="rounded-2xl px-2 py-1 font-extrabold tracking-tight text-eb-text hover:text-eb-text/90 focus-visible:outline-none focus-visible:ring-4 ring-eb-accent/35"
           aria-label={t("toDashboard")}
         >
           eBudget
