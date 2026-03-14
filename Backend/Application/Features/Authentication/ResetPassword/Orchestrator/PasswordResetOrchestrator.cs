@@ -7,6 +7,7 @@ using Backend.Domain.Shared;
 using Backend.Infrastructure.Email.Composers.Auth;
 using Backend.Domain.Common.Constants;
 using Backend.Application.Abstractions.Application.Orchestrators;
+using Backend.Application.Abstractions.Application.Services.Security;
 
 
 
@@ -18,6 +19,7 @@ public sealed class PasswordResetOrchestrator : IPasswordResetOrchestrator
     private readonly IPasswordResetRepository _passwordResets;
     private readonly IPasswordResetCodeService _codes;
     private readonly IEmailOutboxRepository _emailOutbox;
+    private readonly IPasswordService _passwordService;
     private readonly IRefreshTokenRepository _refreshTokens;
     private readonly ITimeProvider _clock;
     private readonly ILogger<PasswordResetOrchestrator> _log;
@@ -27,6 +29,7 @@ public sealed class PasswordResetOrchestrator : IPasswordResetOrchestrator
         IPasswordResetRepository passwordResets,
         IPasswordResetCodeService codes,
         IEmailOutboxRepository emailOutbox,
+            IPasswordService passwordService,
         IRefreshTokenRepository refreshTokens,
         ITimeProvider clock,
         ILogger<PasswordResetOrchestrator> log)
@@ -35,6 +38,7 @@ public sealed class PasswordResetOrchestrator : IPasswordResetOrchestrator
         _passwordResets = passwordResets;
         _codes = codes;
         _emailOutbox = emailOutbox;
+        _passwordService = passwordService;
         _refreshTokens = refreshTokens;
         _clock = clock;
         _log = log;
@@ -130,7 +134,7 @@ public sealed class PasswordResetOrchestrator : IPasswordResetOrchestrator
             ));
         }
 
-        var newPasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+        var newPasswordHash = _passwordService.Hash(newPassword);
 
         var updated = await _users.UpdatePasswordAsync(user.PersoId, newPasswordHash, ct);
         if (!updated)

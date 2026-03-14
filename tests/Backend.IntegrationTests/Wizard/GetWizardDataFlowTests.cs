@@ -16,33 +16,32 @@ using Backend.Application.Features.Wizard.GetWizardData;
 using Backend.Application.Features.Wizard.GetWizardData.Assemble;
 using Backend.Application.Features.Wizard.GetWizardData.Reduce;
 
-using Backend.Application.DTO.Wizard;
-using Backend.Application.Models.Wizard;
+using Backend.Application.Abstractions.Application.Services.Security; // IPasswordService
 
 namespace Backend.IntegrationTests.Wizard;
 
 [Collection("it:db")]
-public sealed class GetWizardDataFlowTests
+public sealed class GetWizardDataFlowTests : IntegrationTestBase
 {
-    private readonly MariaDbFixture _db;
-    public GetWizardDataFlowTests(MariaDbFixture db) => _db = db;
+
+    public GetWizardDataFlowTests(MariaDbFixture db) : base(db) { }
 
     private static readonly JsonSerializerOptions Camel = new(JsonSerializerDefaults.Web);
 
     [Fact]
     public async Task NoRows_Returns_Null()
     {
-        await _db.ResetAsync();
+        await Db.ResetAsync();
         var persoId = Guid.NewGuid();
         var sessionId = Guid.NewGuid();
 
-        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await using var conn = new MySqlConnection(Db.ConnectionString);
         await conn.OpenAsync();
 
         await SeedUserAsync(conn, persoId);
         await SeedSessionAsync(conn, sessionId, persoId, currentStep: 1);
 
-        var repo = new TestWizardRepository(_db.ConnectionString);
+        var repo = new TestWizardRepository(Db.ConnectionString);
         var reducer = new WizardStepRowReducer();
         var assembler = new WizardStepDataAssembler();
         var sut = new GetWizardDataQueryHandler(repo, reducer, assembler);
@@ -57,11 +56,11 @@ public sealed class GetWizardDataFlowTests
     [Fact]
     public async Task Aggregates_Latest_Per_Substep_And_Merges_Multipart()
     {
-        await _db.ResetAsync();
+        await Db.ResetAsync();
         var persoId = Guid.NewGuid();
         var sessionId = Guid.NewGuid();
 
-        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await using var conn = new MySqlConnection(Db.ConnectionString);
         await conn.OpenAsync();
 
         await SeedUserAsync(conn, persoId);
@@ -89,7 +88,7 @@ public sealed class GetWizardDataFlowTests
             json: """{"habits":{"monthlySavings":250}}""",
             ver: 1, updatedUtc: DateTime.UtcNow.AddMinutes(-10));
 
-        var repo = new TestWizardRepository(_db.ConnectionString);
+        var repo = new TestWizardRepository(Db.ConnectionString);
         var reducer = new WizardStepRowReducer();
         var assembler = new WizardStepDataAssembler();
         var sut = new GetWizardDataQueryHandler(repo, reducer, assembler);
@@ -119,9 +118,9 @@ public sealed class GetWizardDataFlowTests
 
     // ----------------- helpers -----------------
 
-    private static async Task SeedUserAsync(MySqlConnection conn, Guid persoId)
+    private async Task SeedUserAsync(MySqlConnection conn, Guid persoId)
     {
-        var pwd = BCrypt.Net.BCrypt.HashPassword("dummy");
+        var pwd = PasswordService.Hash("dummy");
         await conn.ExecuteAsync("""
             INSERT INTO Users
                 (Persoid, Firstname, Lastname, Email, EmailConfirmed, Password, Roles, Locked, FirstLogin, CreatedBy)

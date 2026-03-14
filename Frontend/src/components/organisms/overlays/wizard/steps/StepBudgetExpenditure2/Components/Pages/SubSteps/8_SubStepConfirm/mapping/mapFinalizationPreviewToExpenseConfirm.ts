@@ -2,13 +2,13 @@ import type { BudgetDashboardDto } from "@/types/budget/BudgetDashboardDto";
 import type { WizardExpenseConfirmPreview } from "@/types/Wizard/Step2_Expenditure/WizardExpenseConfirmPreview";
 import { mapPreviewIncome } from "@/utils/wizardPreview/mapPreviewIncome";
 
+import type { AppLocale } from "@/types/i18n/appLocale";
 import {
   asCategoryKey,
   labelCategory,
   type CategoryKey,
 } from "@/utils/i18n/budget/categories";
 import { labelLedgerItem } from "@/utils/i18n/budget/ledgerItems";
-import type { AppLocale } from "@/utils/i18n/locale";
 
 type ItemVm = { title: string; amount: number };
 

@@ -100,30 +100,67 @@ public class UserRepository : SqlBase, IUserRepository
             : new EmailRegistrationState(Exists: true, EmailConfirmed: result.Value);
     }
     #endregion
+
     #region UserSettings table
-    public async Task<bool> UpsertUserSettingsAsync(Guid persoid, string locale, CancellationToken ct = default)
+    public async Task<bool> UpsertUserPreferencesAsync(
+        Guid persoid,
+        string locale,
+        string currency,
+        CancellationToken ct = default)
     {
         const string sql = @"
-        INSERT INTO UserSettings (Persoid, Locale)
-        VALUES (@Persoid, @Locale)
-        ON DUPLICATE KEY UPDATE
+    INSERT INTO UserSettings (Persoid, Locale, Currency)
+    VALUES (@Persoid, @Locale, @Currency)
+    ON DUPLICATE KEY UPDATE
         Locale = VALUES(Locale),
+        Currency = VALUES(Currency),
         LastUpdatedTime = CURRENT_TIMESTAMP;
-        ";
+    ";
 
-        var rows = await ExecuteAsync(sql, new { Persoid = persoid, Locale = locale }, ct);
+        var rows = await ExecuteAsync(sql, new
+        {
+            Persoid = persoid,
+            Locale = locale,
+            Currency = currency
+        }, ct);
+
         return rows >= 1;
     }
-    public async Task<string?> GetUserLocaleAsync(Guid persoid, CancellationToken ct = default)
+    public async Task<UserPreferencesReadModel?> GetUserPreferencesAsync(Guid persoid, CancellationToken ct = default)
     {
         const string sql = @"
-        SELECT us.Locale
+        SELECT
+            us.Locale,
+            us.Currency
         FROM UserSettings us
         WHERE us.Persoid = @Persoid
         LIMIT 1;
         ";
 
-        return await ExecuteScalarAsync<string?>(sql, new { Persoid = persoid }, ct);
+        return await QuerySingleOrDefaultAsync<UserPreferencesReadModel?>(sql, new { Persoid = persoid }, ct);
+    }
+    public async Task<bool> UpdateUserProfileAsync(
+    Guid persoId,
+    string firstName,
+    string lastName,
+    CancellationToken ct = default)
+    {
+        const string sql = @"
+    UPDATE Users
+    SET
+        FirstName = @FirstName,
+        LastName = @LastName
+    WHERE Persoid = @Persoid;
+    ";
+
+        var rows = await ExecuteAsync(sql, new
+        {
+            Persoid = persoId,
+            FirstName = firstName,
+            LastName = lastName
+        }, ct);
+
+        return rows >= 1;
     }
     #endregion
 }

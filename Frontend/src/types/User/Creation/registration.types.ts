@@ -1,4 +1,5 @@
-import { getAppLocale } from "@/utils/i18n/locale";
+import type { AppLocale } from "@/types/i18n/appLocale";
+import { getAppLocale } from "@/utils/i18n/appLocaleStore";
 
 export type RegistrationFormValues = {
   firstName: string;
@@ -10,8 +11,6 @@ export type RegistrationFormValues = {
   humanToken: string;
   honeypot: string;
 };
-
-export type AppLocale = "sv-SE" | "en-US" | "et-EE";
 
 export type RegistrationRequest = {
   firstName: string;

@@ -1,6 +1,6 @@
 import type { ApiProblem } from "@/api/api.types";
+import type { AppLocale } from "@/types/i18n/appLocale";
 import { apiErrorsDict } from "@/utils/i18n/apiErrors/apiErrors.i18n";
-import type { AppLocale } from "@/utils/i18n/locale";
 import { tDict } from "@/utils/i18n/translate";
 import { asAuthErrorCode, labelAuthError } from "./authErrors";
 

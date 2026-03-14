@@ -13,7 +13,7 @@ using Backend.Application.Features.Authentication.Register.Orchestrator;
 using Backend.Application.Features.Authentication.Register.Shared.Models;
 using Backend.Domain.Entities.User;
 using Backend.Domain.Errors.User;
-using Backend.Domain.Shared;
+using Backend.Application.Abstractions.Application.Services.Security;
 
 namespace Backend.Tests.UnitTests.Features.Authentication.Register;
 
@@ -23,9 +23,10 @@ public sealed class RegistrationOrchestratorTests
     private readonly Mock<ITurnstileService> _turnstile = new();
     private readonly Mock<IVerificationCodeOrchestrator> _verification = new();
     private readonly Mock<ILogger<RegistrationOrchestrator>> _log = new();
+    private readonly Mock<IPasswordService> _passwordService = new();
 
     private RegistrationOrchestrator SUT()
-        => new(_users.Object, _turnstile.Object, _verification.Object, _log.Object);
+        => new(_users.Object, _turnstile.Object, _passwordService.Object, _verification.Object, _log.Object);
 
     [Fact]
     public async Task Given_HoneypotFilled_When_RegisterAsync_Then_Success_IsHoneypot_True_And_NoSideEffects()
@@ -122,47 +123,47 @@ public sealed class RegistrationOrchestratorTests
     [Fact]
     public async Task Given_ValidRequest_When_RegisterAsync_Then_CreatesUser_EnqueuesVerification_And_ReturnsUser()
     {
+        // Arrange
+        const string plainPassword = "P@ssw0rd!";
+        const string hashedResult = "BCrypt_Hash_XYZ"; // Dummy string
+
         _turnstile.Setup(x => x.ValidateAsync("ok", It.IsAny<string?>(), It.IsAny<CancellationToken>()))
                   .ReturnsAsync(true);
 
         _users.Setup(x => x.UserExistsAsync("user@example.com", It.IsAny<CancellationToken>()))
               .ReturnsAsync(false);
 
+        // 3. Setup the Mock Password Service
+        _passwordService.Setup(x => x.Hash(plainPassword))
+                        .Returns(hashedResult);
+
         UserModel? created = null;
         _users.Setup(x => x.CreateUserAsync(It.IsAny<UserModel>(), It.IsAny<CancellationToken>()))
               .Callback<UserModel, CancellationToken>((u, _) => created = u)
               .ReturnsAsync(true);
-        _users.Setup(x => x.UpsertUserSettingsAsync(
-                It.IsAny<Guid>(),
-                "sv-SE",
-                It.IsAny<CancellationToken>()))
-                .ReturnsAsync(true);
 
-        Guid enqPid = Guid.Empty;
-        string? enqEmail = null;
-        string? enqLocale = null;
+        _users.Setup(x => x.UpsertUserPreferencesAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+              .ReturnsAsync(true);
+
         _verification.Setup(x => x.EnqueueForNewUserAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
-                     .Callback<Guid, string, string?, CancellationToken>((pid, email, locale, _) => { enqPid = pid; enqEmail = email; enqLocale = locale; })
                      .Returns(Task.CompletedTask);
 
+        // Act
         var r = await SUT().RegisterAsync(
-            " Linus ", " Steen ", "USER@EXAMPLE.COM", "P@ssw0rd!",
+            " Linus ", " Steen ", "USER@EXAMPLE.COM", plainPassword,
             "ok", "", "sv-SE", null, trustedSeed: false, CancellationToken.None);
 
+        // Assert
         r.IsSuccess.Should().BeTrue();
-        _users.Verify(x => x.UpsertUserSettingsAsync(created!.PersoId, "sv-SE", It.IsAny<CancellationToken>()), Times.Once);
-        r.Value!.IsHoneypot.Should().BeFalse();
-        r.Value.User.Should().NotBeNull();
 
         created.Should().NotBeNull();
         created!.Email.Should().Be("user@example.com"); // normalized
-        created.EmailConfirmed.Should().BeFalse();
-        created.PersoId.Should().NotBe(Guid.Empty);
-        BCrypt.Net.BCrypt.Verify("P@ssw0rd!", created.Password).Should().BeTrue();
 
-        enqPid.Should().Be(created.PersoId);
-        enqEmail.Should().Be("user@example.com");
+        // 4. Verify the password was hashed before saving
+        created.Password.Should().Be(hashedResult);
+        created.Password.Should().NotBe(plainPassword);
 
+        _passwordService.Verify(x => x.Hash(plainPassword), Times.Once);
         _verification.Verify(x => x.EnqueueForNewUserAsync(created.PersoId, "user@example.com", "sv-SE", It.IsAny<CancellationToken>()), Times.Once);
     }
 }

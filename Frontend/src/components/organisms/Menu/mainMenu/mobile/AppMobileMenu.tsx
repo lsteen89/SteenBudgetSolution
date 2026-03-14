@@ -1,22 +1,28 @@
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/lib/utils";
+import { appMenuDict } from "@/utils/i18n/menu/AppMenu.i18n";
+import { tDict } from "@/utils/i18n/translate";
 import { useAuth } from "@hooks/auth/useAuth";
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-
 import MobileHeaderFrame, { NavItem } from "./MobileHeaderFrame";
 
-export default function AppMobileMenu() {
+export default function AppMobileHeader() {
   const auth = useAuth();
   const navigate = useNavigate();
 
+  const locale = useAppLocale();
+  const t = <K extends keyof typeof appMenuDict.sv>(k: K) =>
+    tDict(k, locale, appMenuDict);
+
   const items: NavItem[] = useMemo(
     () => [
-      { label: "Dashboard", to: "/dashboard", tone: "primary" },
-      { label: "Support", to: "/support" },
-      { label: "Breakdown", to: "/dashboard/breakdown" },
-      { label: "How it works", to: "/how-it-works" },
+      { label: t("dashboard"), to: "/dashboard", tone: "primary" },
+      { label: t("breakdown"), to: "/dashboard/breakdown" },
+      { label: t("howItWorks"), to: "/how-it-works" },
+      { label: t("support"), to: "/support" },
     ],
-    [],
+    [locale],
   );
 
   const onLogout = async () => {
@@ -35,14 +41,14 @@ export default function AppMobileMenu() {
         "focus-visible:outline-none focus-visible:ring-4 ring-eb-accent/35",
       )}
     >
-      Logga ut
+      {t("logout")}
     </button>
   );
 
   return (
     <MobileHeaderFrame
       brandTo="/dashboard"
-      brandAriaLabel="Öppna dashboard"
+      brandAriaLabel={t("openDashboard")}
       items={items}
       footer={footer}
     />

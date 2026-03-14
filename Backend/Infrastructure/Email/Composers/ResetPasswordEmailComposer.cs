@@ -1,5 +1,5 @@
 using System.Globalization;
-using Backend.Application.Validators.Locale;
+using Backend.Domain.Common;
 
 namespace Backend.Infrastructure.Email.Composers.Auth;
 
@@ -15,7 +15,7 @@ public sealed class ResetPasswordEmailComposer
         string loginUrl,
         string forgotPasswordUrl)
     {
-        var safe = UserLocale.Normalize(locale); // "sv-SE" | "en-US" | "et-EE"
+        var safe = UserPreferenceDefaults.NormalizeLocaleOrDefault(locale); // "sv-SE" | "en-US" | "et-EE"
         var expLocal = expiresAtUtc.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
 
         (Subject, BodyHtml) = safe switch

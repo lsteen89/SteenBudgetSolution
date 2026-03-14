@@ -1,3 +1,4 @@
+import { hydrateCurrentAuthenticatedState } from "@/api/Auth/hydrateAuth";
 import { api, queueRefresh } from "@/api/axios";
 import { useProactiveRefresh } from "@/hooks/useProactiveRefresh";
 import { useAuthStore } from "@/stores/Auth/authStore";
@@ -18,37 +19,40 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
       await useAuthStore.persist.rehydrate();
       if (!isMounted) return;
 
-      const { accessToken, sessionId, rememberMe } = useAuthStore.getState();
+      const { accessToken, rememberMe } = useAuthStore.getState();
       const browserSessionMarker = sessionStorage.getItem("appSessionActive");
 
-      // if token exists, set axios header right away
-      if (accessToken)
+      if (accessToken) {
         api.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+      }
 
-      // enforce non-remember sessions
+      // Non-remembered session must die when browser session marker is gone
       if (!rememberMe && accessToken && !browserSessionMarker) {
         clearAuthStore();
         setAppInitialized(true);
         return;
       }
 
-      // only refresh when rememberMe expects cookie-backed sessions
-      if (accessToken && rememberMe) {
-        try {
+      try {
+        if (accessToken && rememberMe) {
+          // Cookie-backed session: refresh token + hydrate user/preferences
           await queueRefresh(true);
-          if (!isMounted) return;
-        } catch (err) {
-          // no panic logout; just clear local session
-          clearAuthStore();
-          setAppInitialized(true);
-          return;
+        } else if (accessToken) {
+          // Token already present and still in active browser session:
+          // hydrate user/preferences without forcing refresh
+          await hydrateCurrentAuthenticatedState();
         }
+      } catch {
+        clearAuthStore();
+        setAppInitialized(true);
+        return;
       }
 
       setAppInitialized(true);
     };
 
     initializeAuth();
+
     return () => {
       isMounted = false;
     };
@@ -58,3 +62,4 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
 
   return appInitialized ? <>{children}</> : <LoadingScreen />;
 };
+// The AuthProvider component is responsible for initializing the authentication state of the application.

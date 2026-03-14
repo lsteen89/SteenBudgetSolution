@@ -30,30 +30,37 @@ const withLazy = (el: React.ReactNode) => (
 );
 
 // Public (lazy)
-const HomePage = lazy(() => import("@pages/Home/HomePage"));
-const LoginPage = lazy(() => import("@pages/auth/LoginPage"));
-const Registration = lazy(() => import("@pages/user/Registration"));
+const HomePage = lazy(() => import("@/Pages/public/Home/HomePage"));
+const LoginPage = lazy(() => import("@/Pages/public/auth/LoginPage"));
+const Registration = lazy(() => import("@/Pages/public/user/Registration"));
 const EmailConfirmationPage = lazy(
-  () => import("@pages/auth/EmailConfirmationPage"),
+  () => import("@/Pages/public/auth/EmailConfirmationPage"),
 );
-const AboutUs = lazy(() => import("@pages/info/AboutUs"));
-const Faq = lazy(() => import("@pages/info/Faq"));
-const NotFoundPage = lazy(() => import("@pages/info/NotFoundPage"));
+const AboutUs = lazy(() => import("@/Pages/public/info/AboutUs"));
+const Faq = lazy(() => import("@/Pages/public/info/Faq"));
+const NotFoundPage = lazy(() => import("@/Pages/public/info/NotFoundPage"));
 const EmailVerificationRecoveryPage = lazy(
-  () => import("@pages/auth/EmailVerificationRecoveryPage"),
+  () => import("@/Pages/public/auth/EmailVerificationRecoveryPage"),
 );
-const PasswordResetPage = lazy(() => import("@pages/auth/PasswordResetPage"));
-const ForgotPasswordPage = lazy(() => import("@pages/auth/ForgotPasswordPage"));
+const PasswordResetPage = lazy(
+  () => import("@/Pages/public/auth/PasswordResetPage"),
+);
+const ForgotPasswordPage = lazy(
+  () => import("@/Pages/public/auth/ForgotPasswordPage"),
+);
 
 // App (lazy)
-const Dashboard = lazy(() => import("@pages/dashboard/dashboardhome"));
+const Dashboard = lazy(() => import("@/Pages/private/dashboard/dashboardhome"));
 const DashboardBreakdownPage = lazy(
-  () => import("@pages/dashboard/DashboardBreakdownPage"),
+  () => import("@/Pages/private/dashboard/DashboardBreakdownPage"),
 );
-const HowItWorksPage = lazy(() => import("@/Pages/info/HowItWorksPage"));
+const HowItWorksPage = lazy(() => import("@/Pages/public/info/HowItWorksPage"));
+const SettingsPage = lazy(
+  () => import("@/Pages/private/settings/SettingsPage"),
+);
 
 // Support (protected)
-const SupportPage = lazy(() => import("@pages/info/Contact"));
+const SupportPage = lazy(() => import("@/Pages/public/info/Contact"));
 
 export default function AppRoutes() {
   return (
@@ -111,6 +118,7 @@ export default function AppRoutes() {
                 element={withLazy(<DashboardBreakdownPage />)}
               />
               <Route path="/support" element={withLazy(<SupportPage />)} />
+              <Route path="/settings" element={withLazy(<SettingsPage />)} />
             </Route>
           </Route>
         </Route>

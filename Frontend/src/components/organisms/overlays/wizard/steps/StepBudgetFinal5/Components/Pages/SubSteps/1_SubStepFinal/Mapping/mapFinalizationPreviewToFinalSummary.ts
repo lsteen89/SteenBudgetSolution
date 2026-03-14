@@ -1,6 +1,6 @@
 import type { BudgetDashboardDto } from "@/types/budget/BudgetDashboardDto";
+import type { AppLocale } from "@/types/i18n/appLocale";
 import { asCategoryKey, labelCategory } from "@/utils/i18n/budget/categories";
-import type { AppLocale } from "@/utils/i18n/locale";
 import { CurrencyCode } from "@/utils/money/currency";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
 

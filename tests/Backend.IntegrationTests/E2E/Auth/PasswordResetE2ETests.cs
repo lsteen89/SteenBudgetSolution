@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Backend.Application.DTO.Email;
 using System.Security.Cryptography;
 using System.Text;
+using Backend.Application.DTO.User;
 
 
 

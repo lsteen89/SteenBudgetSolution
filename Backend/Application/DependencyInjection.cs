@@ -119,6 +119,7 @@ public static class DependencyInjection
         // Security
         services.AddSingleton<ISeedingGate, EnvSeedingGate>();
         services.AddScoped<IHumanChallengePolicy, HumanChallengePolicy>();
+        services.AddScoped<IPasswordService, BcryptPasswordService>();
 
         //Issuers
         services.AddScoped<IAuthSessionIssuer, AuthSessionIssuer>();

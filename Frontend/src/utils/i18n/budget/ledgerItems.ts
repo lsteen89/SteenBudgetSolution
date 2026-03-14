@@ -1,4 +1,4 @@
-import type { AppLocale } from "@/utils/i18n/locale";
+import type { AppLocale } from "@/types/i18n/appLocale";
 import { tDict } from "@/utils/i18n/translate";
 
 const sv: Record<string, string> = {

@@ -10,7 +10,7 @@ import { validateContactForm } from "@utils/validation/contactValidation";
 import { validateField } from "@utils/validation/fieldValidator";
 import React, { useRef, useState } from "react";
 import ReCAPTCHA from "react-google-recaptcha";
-import { EmailSubmissionDto } from "../../types/User/Email/emailForm";
+import { EmailSubmissionDto } from "../../../types/User/Email/emailForm";
 
 /* Toast */
 

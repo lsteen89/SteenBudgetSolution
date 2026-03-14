@@ -15,7 +15,7 @@ using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Application.Options.Auth;
 using Backend.Application.Options.URL;
 using Backend.Domain.Entities.Auth;
-using Backend.Domain.Errors.User;
+using Backend.Application.DTO.User.Models;
 using Backend.Settings.Email;
 using Backend.Application.Features.Authentication.Register.ResendVerificationMail;
 using Backend.Application.Abstractions.Application.Orchestrators;
@@ -94,8 +94,8 @@ public sealed class ResendVerificationCommandHandlerTests
         _users.Setup(u => u.GetUserModelAsync(null, "user@example.com", It.IsAny<CancellationToken>()))
               .ReturnsAsync(User(id, "user@example.com", confirmed: false));
 
-        _users.Setup(r => r.GetUserLocaleAsync(id, It.IsAny<CancellationToken>()))
-             .ReturnsAsync("sv-SE");
+        _users.Setup(r => r.GetUserPreferencesAsync(id, It.IsAny<CancellationToken>()))
+             .ReturnsAsync(new UserPreferencesReadModel { Locale = "sv-SE", Currency = "SEK" });
 
         _orch.Setup(o => o.EnqueueForResendAsync(id, "user@example.com", "sv-SE", It.IsAny<CancellationToken>()))
              .Returns(Task.CompletedTask);
@@ -147,8 +147,8 @@ public sealed class ResendVerificationCommandHandlerTests
 
         _users.Setup(u => u.GetUserModelAsync(null, "user@example.com", It.IsAny<CancellationToken>()))
               .ReturnsAsync(User(id, "user@example.com", confirmed: false));
-        _users.Setup(u => u.GetUserLocaleAsync(id, It.IsAny<CancellationToken>()))
-              .ReturnsAsync("sv-SE");
+        _users.Setup(u => u.GetUserPreferencesAsync(id, It.IsAny<CancellationToken>()))
+              .ReturnsAsync(new UserPreferencesReadModel { Locale = "sv-SE", Currency = "SEK" });
 
         _orch.Setup(o => o.EnqueueForResendAsync(id, "user@example.com", "sv-SE", It.IsAny<CancellationToken>()))
              .Returns(Task.CompletedTask);

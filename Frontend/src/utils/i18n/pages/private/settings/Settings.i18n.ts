@@ -1,0 +1,101 @@
+export const settingsDict = {
+  sv: {
+    kicker: "Kontoinställningar",
+    title: "Inställningar",
+    lead: "Uppdatera profil, språk och valuta. Du kan ändra detta senare också.",
+
+    profileTitle: "Profil",
+    profileBody: "Grundläggande information om ditt konto.",
+    firstName: "Förnamn",
+    lastName: "Efternamn",
+    email: "E-post",
+    emailHint: "Byte av e-post sker i ett separat flöde.",
+    saveSuccess: "Profil uppdaterad",
+    saveError:
+      "Något gick fel vid uppdatering av profilen. Försök igen senare.",
+    saving: "Sparar...",
+
+    prefsTitle: "Preferenser",
+    prefsBody: "Välj hur eBudget ska visas.",
+    language: "Språk",
+    currency: "Valuta",
+    save: "Spara ändringar",
+    reset: "Återställ",
+    currentPassword: "Nuvarande lösenord",
+    newPassword: "Nytt lösenord",
+    repeatNewPassword: "Upprepa nytt lösenord",
+    passwordSaveSuccess: "Lösenord uppdaterat",
+
+    securityTitle: "Säkerhet",
+    securityBody: "Hantera lösenord och inloggningsrelaterade inställningar.",
+    changePassword: "Byt lösenord",
+
+    overviewTitle: "Kontöversikt",
+    overviewBody: "En liten sammanfattning av dina nuvarande kontouppgifter.",
+  },
+  en: {
+    kicker: "Account settings",
+    title: "Settings",
+    lead: "Update your profile, language and currency. You can change these later too.",
+
+    profileTitle: "Profile",
+    profileBody: "Basic information about your account.",
+    firstName: "First name",
+    lastName: "Last name",
+    email: "Email",
+    emailHint: "Email change comes in a separate flow.",
+    saveSuccess: "Profile updated",
+    saveError:
+      "Something went wrong when updating the profile. Please try again later.",
+
+    prefsTitle: "Preferences",
+    prefsBody: "Choose how eBudget is displayed.",
+    language: "Language",
+    currency: "Currency",
+    save: "Save changes",
+    reset: "Reset",
+    currentPassword: "Current password",
+    newPassword: "New password",
+    repeatNewPassword: "Repeat new password",
+    passwordSaveSuccess: "Password updated",
+
+    securityTitle: "Security",
+    securityBody: "Manage password and sign-in related settings.",
+    changePassword: "Change password",
+
+    overviewTitle: "Account overview",
+    overviewBody: "A small summary of your current account details.",
+  },
+  et: {
+    kicker: "Konto seaded",
+    title: "Seaded",
+    lead: "Uuenda profiili, keelt ja valuutat. Saad neid hiljem muuta.",
+
+    profileTitle: "Profiil",
+    profileBody: "Sinu konto põhiteave.",
+    firstName: "Eesnimi",
+    lastName: "Perekonnanimi",
+    email: "E-post",
+    emailHint: "E-posti muutmine toimub eraldi voos.",
+    saveSuccess: "Profiil uuendatud",
+    saveError: "Profiili uuendamisel tekkis viga. Palun proovi hiljem uuesti.",
+
+    prefsTitle: "Eelistused",
+    prefsBody: "Vali, kuidas eBudget kuvatakse.",
+    language: "Keel",
+    currency: "Valuuta",
+    save: "Salvesta muudatused",
+    reset: "Lähtesta",
+
+    currentPassword: "Praegune parool",
+    newPassword: "Uus parool",
+    repeatNewPassword: "Korda uut parooli",
+    passwordSaveSuccess: "Parool uuendatud",
+    securityTitle: "Turvalisus",
+    securityBody: "Halda parooli ja sisselogimise seadeid.",
+    changePassword: "Muuda parooli",
+
+    overviewTitle: "Konto ülevaade",
+    overviewBody: "Lühike kokkuvõte sinu konto andmetest.",
+  },
+};

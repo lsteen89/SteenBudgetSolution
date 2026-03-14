@@ -3,8 +3,8 @@ using System.IdentityModel.Tokens.Jwt;
 
 namespace Backend.Common.Utilities
 {
-        public static class ClaimsPrincipalExtensions
-        {
+    public static class ClaimsPrincipalExtensions
+    {
         /// <summary>
         /// Gets the user's Persoid (User ID) from the 'sub' (Subject) claim.
         /// </summary>
@@ -36,9 +36,8 @@ namespace Backend.Common.Utilities
             if (user == null)
                 return null;
 
-            return user.FindFirstValue(JwtRegisteredClaimNames.Email);
+            return user.FindFirstValue("email") ?? user.FindFirstValue(JwtRegisteredClaimNames.Email);
         }
-
 
         public static Guid? GetSessionIdClaim(this ClaimsPrincipal user)
         {

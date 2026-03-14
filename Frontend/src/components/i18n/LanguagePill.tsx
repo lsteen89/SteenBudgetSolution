@@ -1,9 +1,7 @@
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/lib/utils";
-import {
-  getAppLocale,
-  setAppLocale,
-  type AppLocale,
-} from "@/utils/i18n/locale";
+import type { AppLocale } from "@/types/i18n/appLocale";
+import { setAppLocale } from "@/utils/i18n/appLocaleStore";
 import { Check } from "lucide-react";
 import * as React from "react";
 
@@ -25,7 +23,7 @@ export function LanguagePill({
   fullWidth?: boolean;
 }) {
   const [open, setOpen] = React.useState(false);
-  const locale = getAppLocale();
+  const locale = useAppLocale();
   const current = OPTIONS.find((o) => o.value === locale) ?? OPTIONS[0];
 
   const ref = React.useRef<HTMLDivElement | null>(null);

@@ -5,7 +5,8 @@ using Backend.Domain.Errors.User;
 using Backend.Application.Abstractions.Infrastructure.Verification;
 using Backend.Application.Abstractions.Application.Orchestrators;
 using Backend.Application.Features.Authentication.Register.Shared.Models;
-using Backend.Application.Validators.Locale;
+using Backend.Domain.Common;
+using Backend.Application.Abstractions.Application.Services.Security;
 
 namespace Backend.Application.Features.Authentication.Register.Orchestrator;
 
@@ -13,17 +14,20 @@ public sealed class RegistrationOrchestrator : IRegistrationOrchestrator
 {
     private readonly IUserRepository _users;
     private readonly ITurnstileService _turnstile;
+    private readonly IPasswordService _passwordService;
     private readonly IVerificationCodeOrchestrator _verification;
     private readonly ILogger<RegistrationOrchestrator> _log;
 
     public RegistrationOrchestrator(
         IUserRepository users,
         ITurnstileService turnstile,
+            IPasswordService passwordService,
         IVerificationCodeOrchestrator verification,
         ILogger<RegistrationOrchestrator> log)
     {
         _users = users;
         _turnstile = turnstile;
+        _passwordService = passwordService;
         _verification = verification;
         _log = log;
     }
@@ -57,7 +61,9 @@ public sealed class RegistrationOrchestrator : IRegistrationOrchestrator
         if (await _users.UserExistsAsync(emailNorm, ct))
             return Result<RegistrationOutcome>.Failure(UserErrors.EmailAlreadyExists);
 
-        var safeLocale = UserLocale.Normalize(locale);
+        var safeLocale = UserPreferenceDefaults.NormalizeLocaleOrDefault(locale);
+        var safeCurrency = UserPreferenceDefaults.GetDefaultCurrencyForLocale(safeLocale);
+
 
         var user = new UserModel
         {
@@ -65,7 +71,7 @@ public sealed class RegistrationOrchestrator : IRegistrationOrchestrator
             FirstName = firstName.Trim(),
             LastName = lastName.Trim(),
             Email = emailNorm,
-            Password = BCrypt.Net.BCrypt.HashPassword(password),
+            Password = _passwordService.Hash(password),
             Roles = "1",
             EmailConfirmed = trustedSeed
         };
@@ -74,7 +80,12 @@ public sealed class RegistrationOrchestrator : IRegistrationOrchestrator
         if (!success) return Result<RegistrationOutcome>.Failure(UserErrors.RegistrationFailed);
 
 
-        var settingsOk = await _users.UpsertUserSettingsAsync(user.PersoId, safeLocale, ct);
+        var settingsOk = await _users.UpsertUserPreferencesAsync(
+            user.PersoId,
+            safeLocale,
+            safeCurrency,
+            ct
+        );
         if (!settingsOk) return Result<RegistrationOutcome>.Failure(UserErrors.RegistrationFailed);
 
         if (!trustedSeed)

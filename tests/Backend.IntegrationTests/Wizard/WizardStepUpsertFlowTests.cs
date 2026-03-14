@@ -7,19 +7,21 @@ using Backend.IntegrationTests.Shared;
 namespace Backend.IntegrationTests.Wizard;
 
 [Collection("it:db")]
-public sealed class WizardStepUpsertFlowTests
+public sealed class WizardStepUpsertFlowTests : IntegrationTestBase
 {
-    private readonly MariaDbFixture _db;
-    public WizardStepUpsertFlowTests(MariaDbFixture db) => _db = db;
+    public WizardStepUpsertFlowTests(MariaDbFixture db) : base(db)
+    {
+
+    }
 
     [Fact]
     public async Task Insert_Then_Update_SameStep_Increments_Version_And_Replaces_Data()
     {
-        await _db.ResetAsync();
+        await Db.ResetAsync();
         var persoId = Guid.NewGuid();
         var sessionId = Guid.NewGuid();
 
-        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await using var conn = new MySqlConnection(Db.ConnectionString);
         await conn.OpenAsync();
 
         // parent user + session
@@ -57,9 +59,9 @@ public sealed class WizardStepUpsertFlowTests
     [Fact]
     public async Task Insert_Step_For_Missing_Session_Should_Fail_FK()
     {
-        await _db.ResetAsync();
+        await Db.ResetAsync();
 
-        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await using var conn = new MySqlConnection(Db.ConnectionString);
         await conn.OpenAsync();
 
         var missingSession = Guid.NewGuid();
@@ -74,9 +76,9 @@ public sealed class WizardStepUpsertFlowTests
 
     // ---------- helpers ----------
 
-    private static async Task SeedUserAsync(MySqlConnection conn, Guid persoId)
+    private async Task SeedUserAsync(MySqlConnection conn, Guid persoId)
     {
-        var pwd = BCrypt.Net.BCrypt.HashPassword("dummy");
+        var pwd = PasswordService.Hash("dummy");
         await conn.ExecuteAsync("""
             INSERT INTO Users
                 (Persoid, Firstname, Lastname, Email, EmailConfirmed, Password, Roles, Locked, FirstLogin, CreatedBy)

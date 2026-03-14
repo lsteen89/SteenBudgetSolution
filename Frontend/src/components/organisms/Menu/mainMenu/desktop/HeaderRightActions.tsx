@@ -21,8 +21,15 @@ export default function HeaderRightActions({
   if (mode === "app") {
     return (
       <div className="flex items-center gap-2">
-        <LanguagePill />
-        <AccountMenu />
+        <AccountMenu
+          labels={{
+            button: t("menuButton"),
+            dashboard: t("dashboard"),
+            settings: t("settings"),
+            support: t("support"),
+            logout: t("logout"),
+          }}
+        />
       </div>
     );
   }
@@ -38,7 +45,7 @@ export default function HeaderRightActions({
           to="/login"
           variant="secondary"
           size="sm"
-          className="backdrop-blur" // keep if you really want blur for secondary
+          className="backdrop-blur"
         >
           {t("login")}
         </ActionLink>
@@ -53,7 +60,15 @@ export default function HeaderRightActions({
         {t("openApp")}
       </ActionLink>
       <LanguagePill />
-      <AccountMenu />
+      <AccountMenu
+        labels={{
+          button: t("menuButton"),
+          dashboard: t("dashboard"),
+          settings: t("settings"),
+          support: t("support"),
+          logout: t("logout"),
+        }}
+      />
     </div>
   );
 }

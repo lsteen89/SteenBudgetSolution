@@ -1,5 +1,9 @@
 export const menuDict = {
   sv: {
+    dashboard: "Dashboard",
+    account: "Konto",
+    support: "Support",
+    konto: "Konto",
     aboutUs: "Om oss",
     faq: "Vanliga frågor",
     homeAria: "Till startsidan",
@@ -8,8 +12,14 @@ export const menuDict = {
     login: "Logga in",
     openApp: "Öppna appen",
     languageLabel: "Språk",
+    menuButton: "Konto",
+    settings: "Inställningar",
+    logout: "Logga ut",
   },
   en: {
+    dashboard: "Dashboard",
+    account: "Account",
+    support: "Support",
     aboutUs: "About us",
     faq: "FAQ",
     homeAria: "To home page",
@@ -18,8 +28,14 @@ export const menuDict = {
     login: "Login",
     openApp: "Open the app",
     languageLabel: "Language",
+    menuButton: "Account",
+    settings: "Settings",
+    logout: "Log out",
   },
   et: {
+    dashboard: "Töölaud",
+    account: "Konto",
+    support: "Tugi",
     aboutUs: "Meist",
     faq: "KKK",
     homeAria: "Avalehele",
@@ -28,5 +44,8 @@ export const menuDict = {
     login: "Logi sisse",
     openApp: "Ava rakendus",
     languageLabel: "Keel",
+    menuButton: "Konto",
+    settings: "Seaded",
+    logout: "Logi välja",
   },
 };

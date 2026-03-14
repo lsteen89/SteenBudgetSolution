@@ -17,24 +17,26 @@ using Backend.IntegrationTests.Shared;
 namespace Backend.IntegrationTests.Wizard;
 
 [Collection("it:db")]
-public sealed class StartWizardConcurrencyTests
+public sealed class StartWizardConcurrencyTests : IntegrationTestBase
 {
-    private readonly MariaDbFixture _db;
-    public StartWizardConcurrencyTests(MariaDbFixture db) => _db = db;
+    public StartWizardConcurrencyTests(MariaDbFixture db) : base(db)
+    {
+
+    }
 
     [Fact]
     public async Task Given_TwoConcurrentStarts_When_SameUser_Then_ExactlyOneRowAndSameSession()
     {
-        await _db.ResetAsync();
+        await Db.ResetAsync();
         var persoId = Guid.NewGuid();
 
-        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await using var conn = new MySqlConnection(Db.ConnectionString);
         await conn.OpenAsync();
 
         // FK parent
         await SeedUserAsync(conn, persoId);
 
-        var repo = BuildRepoMockForConcurrency(_db.ConnectionString);
+        var repo = BuildRepoMockForConcurrency(Db.ConnectionString);
         var log = new Mock<ILogger<StartWizardCommandHandler>>();
         var sut = new StartWizardCommandHandler(repo.Object, log.Object);
 
@@ -56,9 +58,9 @@ public sealed class StartWizardConcurrencyTests
 
     // ---------- helpers ----------
 
-    private static async Task SeedUserAsync(MySqlConnection conn, Guid persoId)
+    private async Task SeedUserAsync(MySqlConnection conn, Guid persoId)
     {
-        var pwd = BCrypt.Net.BCrypt.HashPassword("dummy");
+        var pwd = PasswordService.Hash("dummy");
         await conn.ExecuteAsync("""
             INSERT INTO Users
                 (Persoid, Firstname, Lastname, Email, EmailConfirmed, Password, Roles, Locked, FirstLogin, CreatedBy)

@@ -226,9 +226,10 @@ public sealed class RefreshConcurrencyTests
         public Task<bool> CreateUserAsync(Backend.Domain.Entities.User.UserModel user, CancellationToken ct) => Task.FromResult(true);
         public Task<bool> ConfirmUserEmailAsync(Guid persoid, CancellationToken ct) => Task.FromResult(true);
         public Task<bool> SetFirstTimeLoginAsync(Guid persoid, CancellationToken ct) => Task.FromResult(true);
-        public Task<bool> UpsertUserSettingsAsync(Guid persoId, string locale, CancellationToken ct = default) => Task.FromResult(true);
-        public Task<string?> GetUserLocaleAsync(Guid persoid, CancellationToken ct = default) => Task.FromResult<string?>(null);
+        public Task<bool> UpsertUserPreferencesAsync(Guid persoId, string locale, string currency, CancellationToken ct = default) => Task.FromResult(true);
+        public Task<UserPreferencesReadModel?> GetUserPreferencesAsync(Guid persoid, CancellationToken ct = default) => Task.FromResult<UserPreferencesReadModel?>(null);
         public Task<bool> UpdatePasswordAsync(Guid persoId, string passwordHash, CancellationToken ct) => Task.FromResult(true);
         public Task<EmailRegistrationState> GetEmailRegistrationStateAsync(string email, CancellationToken ct = default) => Task.FromResult<EmailRegistrationState>(null);
+        public Task<bool> UpdateUserProfileAsync(Guid persoId, string firstName, string lastName, CancellationToken ct = default) => Task.FromResult(true);
     }
 }

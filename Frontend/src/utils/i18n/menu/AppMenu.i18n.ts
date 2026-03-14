@@ -1,0 +1,32 @@
+export const appMenuDict = {
+  sv: {
+    dashboard: "Dashboard",
+    breakdown: "Översikt",
+    howItWorks: "Hur det fungerar",
+    support: "Support",
+    openDashboard: "Öppna dashboard",
+    toDashboard: "Till dashboard",
+    appNavAria: "App-navigering",
+    logout: "Logga ut",
+  },
+  en: {
+    dashboard: "Dashboard",
+    breakdown: "Breakdown",
+    howItWorks: "How it works",
+    support: "Support",
+    openDashboard: "Open dashboard",
+    toDashboard: "Back to dashboard",
+    appNavAria: "App navigation",
+    logout: "Log out",
+  },
+  et: {
+    dashboard: "Töölaud",
+    breakdown: "Ülevaade",
+    howItWorks: "Kuidas see töötab",
+    support: "Tugi",
+    openDashboard: "Ava töölaud",
+    toDashboard: "Töölaud",
+    appNavAria: "Rakenduse navigeerimine",
+    logout: "Logi välja",
+  },
+};

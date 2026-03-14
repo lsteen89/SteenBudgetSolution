@@ -11,6 +11,10 @@ import GoalBird from "@assets/Images/GoalBird.png";
 import DashboardBird from "@assets/Images/GuideBird.png";
 import RichBird from "@assets/Images/RichBird.png";
 
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
+import { firstTimeDashDict } from "@/utils/i18n/pages/private/dashboard/FirstTimeDashboard.i18n";
+import { tDict } from "@/utils/i18n/translate";
+
 export interface FirstTimeDashboardSectionProps {
   onStartWizard: () => void;
   canResumeWizard?: boolean;
@@ -32,10 +36,20 @@ export default function FirstTimeDashboardSection({
 }: FirstTimeDashboardSectionProps) {
   const [showWhy, setShowWhy] = React.useState(false);
 
+  const locale = useAppLocale();
+  const t = <K extends keyof typeof firstTimeDashDict.sv>(k: K) =>
+    tDict(k, locale, firstTimeDashDict);
+
   const primaryCta =
     canResumeWizard && onResumeWizard
-      ? { label: "Fortsätt där du slutade", onClick: onResumeWizard }
-      : { label: "Skapa budget (3–5 min)", onClick: onStartWizard };
+      ? { label: t("ctaResume"), onClick: onResumeWizard }
+      : { label: t("ctaStart"), onClick: onStartWizard };
+
+  const steps = [
+    { step: t("step1"), title: t("step1Title") },
+    { step: t("step2"), title: t("step2Title") },
+    { step: t("step3"), title: t("step3Title") },
+  ];
 
   return (
     <div className="relative mx-auto w-full max-w-6xl">
@@ -53,30 +67,26 @@ export default function FirstTimeDashboardSection({
         {/* Main intro card */}
         <SurfaceCard className="p-6 sm:p-8">
           <p className="text-xs font-semibold tracking-[0.22em] uppercase text-eb-text/50">
-            Första gången här
+            {t("kicker")}
           </p>
 
           <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-eb-text">
-            Bygg din första budget med{" "}
-            <span className="text-eb-accent">lugn</span>
+            {t("titleA")}
+            <span className="text-eb-accent"> {t("titleAccent")}</span>
           </h1>
 
           <p className="mt-2 text-sm text-eb-text/65 max-w-prose">
-            Du matar in några siffror. Vi räknar ut vad som faktiskt finns kvar.
+            {t("lead")}
           </p>
 
           <div className="mt-4 flex flex-wrap gap-2">
-            <Pill>3–5 min</Pill>
-            <Pill>Privat</Pill>
-            <Pill>Ändra allt senare</Pill>
+            <Pill>{t("pillTime")}</Pill>
+            <Pill>{t("pillPrivate")}</Pill>
+            <Pill>{t("pillAdjust")}</Pill>
           </div>
 
           <div className="mt-6 grid gap-2 sm:grid-cols-3">
-            {[
-              { step: "Steg 1", title: "Inkomster" },
-              { step: "Steg 2", title: "Utgifter" },
-              { step: "Steg 3", title: "Sparande & skulder" },
-            ].map((x) => (
+            {steps.map((x) => (
               <div
                 key={x.step}
                 className="rounded-2xl border border-eb-stroke/25 bg-[rgb(var(--eb-shell)/0.25)] px-4 py-3"
@@ -103,7 +113,7 @@ export default function FirstTimeDashboardSection({
               to="/how-it-works"
               className="w-full sm:w-auto justify-center"
             >
-              Se snabbguide
+              {t("quickGuide")}
             </SecondaryLink>
           </div>
 
@@ -113,7 +123,7 @@ export default function FirstTimeDashboardSection({
             className="mt-5 w-full inline-flex items-center justify-between gap-2 rounded-2xl border border-eb-stroke/25 bg-[rgb(var(--eb-shell)/0.25)] px-4 py-3 text-sm font-semibold text-eb-text/70 hover:bg-[rgb(var(--eb-shell)/0.35)] transition"
             aria-expanded={showWhy}
           >
-            <span>Varför frågar vi?</span>
+            <span>{t("whyAsk")}</span>
             <ChevronDown
               className={`h-4 w-4 transition-transform ${
                 showWhy ? "rotate-180" : ""
@@ -123,18 +133,14 @@ export default function FirstTimeDashboardSection({
 
           {showWhy && (
             <div className="mt-3 rounded-2xl border border-eb-stroke/25 bg-[rgb(var(--eb-shell)/0.25)] p-4 text-sm text-eb-text/65 leading-relaxed">
-              Vi frågar om inkomst, fasta utgifter och mål för att kunna räkna
-              ut en realistisk månad. Du kan justera allt senare — det viktiga
-              är att komma igång.
+              {t("whyText")}
             </div>
           )}
 
           <div className="mt-6 rounded-2xl border border-eb-stroke/25 bg-[rgb(var(--eb-shell)/0.25)] px-4 py-3">
             <div className="flex items-start gap-2">
               <CheckCircle2 className="mt-0.5 h-4 w-4 text-eb-accent" />
-              <p className="text-sm text-eb-text/65">
-                Vi säljer aldrig din data. Aldrig.
-              </p>
+              <p className="text-sm text-eb-text/65">{t("privacy")}</p>
             </div>
           </div>
         </SurfaceCard>
@@ -147,10 +153,10 @@ export default function FirstTimeDashboardSection({
                 <Mascot src={DashboardBird} alt="" size={90} float shadow />
               </div>
               <div>
-                <p className="text-sm font-semibold text-eb-text">Din guide</p>
-                <p className="mt-1 text-sm text-eb-text/60">
-                  Jag hjälper dig hålla det enkelt.
+                <p className="text-sm font-semibold text-eb-text">
+                  {t("guideTitle")}
                 </p>
+                <p className="mt-1 text-sm text-eb-text/60">{t("guideBody")}</p>
               </div>
             </div>
           </SurfaceCard>
@@ -165,10 +171,10 @@ export default function FirstTimeDashboardSection({
               />
               <div>
                 <p className="text-sm font-semibold text-eb-text">
-                  Få koll på verkligheten
+                  {t("realityTitle")}
                 </p>
                 <p className="mt-1 text-sm text-eb-text/60">
-                  Vi visar vad som finns kvar efter fasta utgifter.
+                  {t("realityBody")}
                 </p>
               </div>
             </div>
@@ -184,11 +190,9 @@ export default function FirstTimeDashboardSection({
               />
               <div>
                 <p className="text-sm font-semibold text-eb-text">
-                  Sätt en plan som håller
+                  {t("planTitle")}
                 </p>
-                <p className="mt-1 text-sm text-eb-text/60">
-                  Välj fokus: buffert, skulder eller sparande.
-                </p>
+                <p className="mt-1 text-sm text-eb-text/60">{t("planBody")}</p>
               </div>
             </div>
 
@@ -198,7 +202,7 @@ export default function FirstTimeDashboardSection({
               onClick={onStartWizard}
               className="mt-4 inline-flex text-sm font-semibold text-eb-accent hover:opacity-90"
             >
-              Starta guiden →
+              {t("startGuideInline")}
             </button>
           </SurfaceCard>
 
@@ -212,10 +216,10 @@ export default function FirstTimeDashboardSection({
               />
               <div>
                 <p className="text-sm font-semibold text-eb-text">
-                  Bygg buffert utan stress
+                  {t("bufferTitle")}
                 </p>
                 <p className="mt-1 text-sm text-eb-text/60">
-                  Små steg som gör oväntade kostnader hanterbara.
+                  {t("bufferBody")}
                 </p>
               </div>
             </div>

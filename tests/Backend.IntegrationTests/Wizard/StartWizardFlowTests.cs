@@ -16,10 +16,12 @@ using Backend.IntegrationTests.Shared;                      // MariaDbFixture
 namespace Backend.IntegrationTests.Wizard;
 
 [Collection("it:db")]
-public sealed class StartWizardFlowTests
+public sealed class StartWizardFlowTests : IntegrationTestBase
 {
-    private readonly MariaDbFixture _db;
-    public StartWizardFlowTests(MariaDbFixture db) => _db = db;
+    public StartWizardFlowTests(MariaDbFixture db) : base(db)
+    {
+
+    }
 
     private static StartWizardCommandHandler SUT(IWizardRepository repo, Mock<ILogger<StartWizardCommandHandler>> log)
         => new(repo, log.Object);
@@ -27,13 +29,13 @@ public sealed class StartWizardFlowTests
     [Fact]
     public async Task Given_NoExistingSession_When_Start_Then_Create_And_Reuse_On_Subsequent_Calls()
     {
-        await _db.ResetAsync();
+        await Db.ResetAsync();
         var persoId = Guid.NewGuid();
-        using var conn = new MySqlConnection(_db.ConnectionString);
+        using var conn = new MySqlConnection(Db.ConnectionString);
         await SeedUserAsync(conn, persoId);
         await conn.ExecuteAsync("DELETE FROM WizardSession WHERE Persoid=@p;", new { p = persoId });
 
-        var repo = BuildRepoMock(_db.ConnectionString);
+        var repo = BuildRepoMock(Db.ConnectionString);
         var log = new Mock<ILogger<StartWizardCommandHandler>>();
         var sut = SUT(repo.Object, log);
 
@@ -69,11 +71,11 @@ public sealed class StartWizardFlowTests
     [Fact]
     public async Task Given_ExistingSession_When_Start_Then_Return_Existing_Without_Insert()
     {
-        await _db.ResetAsync();
+        await Db.ResetAsync();
         var persoId = Guid.NewGuid();
         var existingSession = Guid.NewGuid();
 
-        await using (var conn = new MySqlConnection(_db.ConnectionString))
+        await using (var conn = new MySqlConnection(Db.ConnectionString))
         {
             await SeedUserAsync(conn, persoId);
             await conn.ExecuteAsync("""
@@ -82,7 +84,7 @@ public sealed class StartWizardFlowTests
             """, new { sid = existingSession, pid = persoId });
         }
 
-        var repo = BuildRepoMock(_db.ConnectionString);
+        var repo = BuildRepoMock(Db.ConnectionString);
         var log = new Mock<ILogger<StartWizardCommandHandler>>();
         var sut = SUT(repo.Object, log);
 
@@ -92,7 +94,7 @@ public sealed class StartWizardFlowTests
         res.Value.WizardSessionId.Should().Be(existingSession);
 
         // Still exactly one row
-        await using (var conn = new MySqlConnection(_db.ConnectionString))
+        await using (var conn = new MySqlConnection(Db.ConnectionString))
         {
             var count = await conn.ExecuteScalarAsync<long>(
                 "SELECT COUNT(*) FROM WizardSession WHERE Persoid=@p;", new { p = persoId });
@@ -145,9 +147,9 @@ public sealed class StartWizardFlowTests
 
         return repo;
     }
-    private static async Task SeedUserAsync(MySqlConnection conn, Guid persoId)
+    private async Task SeedUserAsync(MySqlConnection conn, Guid persoId)
     {
-        var pwd = BCrypt.Net.BCrypt.HashPassword("dummy");
+        var pwd = PasswordService.Hash("dummy");
         await conn.ExecuteAsync("""
             INSERT INTO Users
                 (Persoid, Firstname, Lastname, Email, EmailConfirmed, Password, Roles, Locked, FirstLogin, CreatedBy)

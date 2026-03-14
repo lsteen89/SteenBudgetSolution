@@ -11,15 +11,20 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@hooks/auth/useAuth";
 
-type Props = {
-  className?: string;
-  buttonLabel?: string; // "Konto"
+type Labels = {
+  button: string;
+  dashboard: string;
+  settings: string;
+  support: string;
+  logout: string;
 };
 
-export default function AccountMenu({
-  className,
-  buttonLabel = "Konto",
-}: Props) {
+type Props = {
+  className?: string;
+  labels: Labels;
+};
+
+export default function AccountMenu({ className, labels }: Props) {
   const auth = useAuth();
   const navigate = useNavigate();
   const isAuthed = !!auth?.authenticated;
@@ -45,7 +50,7 @@ export default function AccountMenu({
             className,
           )}
         >
-          {buttonLabel}
+          {labels.button}
         </button>
       </DropdownMenuTrigger>
 
@@ -61,21 +66,21 @@ export default function AccountMenu({
         <DropdownMenuItem asChild className="rounded-xl">
           <Link to="/dashboard" className="flex items-center gap-2">
             <LayoutDashboard className="h-4 w-4" />
-            Dashboard
+            {labels.dashboard}
           </Link>
         </DropdownMenuItem>
 
         <DropdownMenuItem asChild className="rounded-xl">
-          <Link to="/account" className="flex items-center gap-2">
+          <Link to="/settings" className="flex items-center gap-2">
             <User className="h-4 w-4" />
-            Konto
+            {labels.settings}
           </Link>
         </DropdownMenuItem>
 
         <DropdownMenuItem asChild className="rounded-xl">
           <Link to="/support" className="flex items-center gap-2">
             <LifeBuoy className="h-4 w-4" />
-            Support
+            {labels.support}
           </Link>
         </DropdownMenuItem>
 

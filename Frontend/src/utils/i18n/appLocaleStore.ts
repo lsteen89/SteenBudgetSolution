@@ -1,11 +1,11 @@
-export type AppLocale = "sv-SE" | "en-US" | "et-EE";
+import {
+  DEFAULT_APP_LOCALE,
+  isAppLocale,
+  type AppLocale,
+} from "@/types/i18n/appLocale";
 
 const KEY = "eb_locale";
 const COOKIE_KEY = "eb_locale";
-
-function isAppLocale(x: string): x is AppLocale {
-  return x === "sv-SE" || x === "en-US" || x === "et-EE";
-}
 
 function readCookie(name: string): string | null {
   if (typeof document === "undefined") return null;
@@ -26,34 +26,41 @@ function detectFromNavigator(): AppLocale {
 
   if (lower.startsWith("et")) return "et-EE";
   if (lower.startsWith("en")) return "en-US";
-  return "sv-SE";
+  return DEFAULT_APP_LOCALE;
 }
 
-// simple in-memory + subscription (no library needed)
 let currentLocale: AppLocale | null = null;
 const listeners = new Set<() => void>();
 
 export function getAppLocale(): AppLocale {
   if (currentLocale) return currentLocale;
 
-  // 1) localStorage
   if (typeof window !== "undefined") {
     const raw = window.localStorage.getItem(KEY);
-    if (raw && isAppLocale(raw)) return (currentLocale = raw);
+    if (raw && isAppLocale(raw)) {
+      currentLocale = raw;
+      return currentLocale;
+    }
   }
 
-  // 2) cookie fallback (optional)
-  const c = readCookie(COOKIE_KEY);
-  if (c && isAppLocale(c)) return (currentLocale = c);
+  const cookieValue = readCookie(COOKIE_KEY);
+  if (cookieValue && isAppLocale(cookieValue)) {
+    currentLocale = cookieValue;
+    return currentLocale;
+  }
 
-  // 3) navigator default
-  return (currentLocale = detectFromNavigator());
+  currentLocale = detectFromNavigator();
+  return currentLocale;
 }
 
 export function setAppLocale(next: AppLocale) {
   currentLocale = next;
-  if (typeof window !== "undefined") window.localStorage.setItem(KEY, next);
-  writeCookie(COOKIE_KEY, next); // keep or remove depending on BE needs
+
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(KEY, next);
+  }
+
+  writeCookie(COOKIE_KEY, next);
   listeners.forEach((fn) => fn());
 }
 

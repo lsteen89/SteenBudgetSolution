@@ -18,23 +18,27 @@ using Backend.Application.Models.Wizard;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
+using Backend.Application.Abstractions.Application.Services.Security; // IPasswordService   
 using Backend.Application.Common.Behaviors;
 
 namespace Backend.IntegrationTests.Wizard;
 
 [Collection("it:db")]
-public sealed class SaveWizardStep_Sanitizes_CustomExpensesTests
+public sealed class SaveWizardStep_Sanitizes_CustomExpensesTests : IntegrationTestBase
 {
-    private readonly MariaDbFixture _db;
-    public SaveWizardStep_Sanitizes_CustomExpensesTests(MariaDbFixture db) => _db = db;
+
+    public SaveWizardStep_Sanitizes_CustomExpensesTests(MariaDbFixture db) : base(db)
+    {
+
+    }
     [Fact]
     public async Task SaveStep1_Drops_Empty_IncomeItem_Rows()
     {
-        await _db.ResetAsync();
+        await Db.ResetAsync();
         var persoId = Guid.NewGuid();
         var sessionId = Guid.NewGuid();
 
-        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await using var conn = new MySqlConnection(Db.ConnectionString);
         await conn.OpenAsync();
 
         await SeedUserAsync(conn, persoId);
@@ -87,11 +91,11 @@ public sealed class SaveWizardStep_Sanitizes_CustomExpensesTests
     [Fact]
     public async Task SaveStep1_Fails_When_Partial_IncomeRow_Is_Sent()
     {
-        await _db.ResetAsync();
+        await Db.ResetAsync();
         var persoId = Guid.NewGuid();
         var sessionId = Guid.NewGuid();
 
-        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await using var conn = new MySqlConnection(Db.ConnectionString);
         await conn.OpenAsync();
 
         await SeedUserAsync(conn, persoId);
@@ -122,11 +126,11 @@ public sealed class SaveWizardStep_Sanitizes_CustomExpensesTests
     [Fact]
     public async Task SaveStep2_Drops_Empty_CustomExpenses_Rows()
     {
-        await _db.ResetAsync();
+        await Db.ResetAsync();
         var persoId = Guid.NewGuid();
         var sessionId = Guid.NewGuid();
 
-        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await using var conn = new MySqlConnection(Db.ConnectionString);
         await conn.OpenAsync();
 
         await SeedUserAsync(conn, persoId);
@@ -172,11 +176,11 @@ public sealed class SaveWizardStep_Sanitizes_CustomExpensesTests
     [Fact]
     public async Task SaveStep2_Drops_Empty_CustomSubscriptions_Rows()
     {
-        await _db.ResetAsync();
+        await Db.ResetAsync();
         var persoId = Guid.NewGuid();
         var sessionId = Guid.NewGuid();
 
-        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await using var conn = new MySqlConnection(Db.ConnectionString);
         await conn.OpenAsync();
 
         await SeedUserAsync(conn, persoId);
@@ -227,11 +231,11 @@ public sealed class SaveWizardStep_Sanitizes_CustomExpensesTests
     [Fact]
     public async Task SaveStep2_Fails_When_Partial_CustomSubscriptionRow_Is_Sent()
     {
-        await _db.ResetAsync();
+        await Db.ResetAsync();
         var persoId = Guid.NewGuid();
         var sessionId = Guid.NewGuid();
 
-        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await using var conn = new MySqlConnection(Db.ConnectionString);
         await conn.OpenAsync();
 
         await SeedUserAsync(conn, persoId);
@@ -277,7 +281,7 @@ public sealed class SaveWizardStep_Sanitizes_CustomExpensesTests
 
         services.AddSingleton(Options.Create(new DatabaseSettings
         {
-            ConnectionString = _db.ConnectionString,
+            ConnectionString = Db.ConnectionString,
             DefaultCommandTimeoutSeconds = 30
         }));
 
@@ -305,9 +309,9 @@ public sealed class SaveWizardStep_Sanitizes_CustomExpensesTests
     }
 
     // ----------------- seed helpers (reuse from your other test file) -----------------
-    private static async Task SeedUserAsync(MySqlConnection conn, Guid persoId)
+    private async Task SeedUserAsync(MySqlConnection conn, Guid persoId)
     {
-        var pwd = BCrypt.Net.BCrypt.HashPassword("dummy");
+        var pwd = PasswordService.Hash("dummy");
         await conn.ExecuteAsync("""
             INSERT INTO Users
                 (Persoid, Firstname, Lastname, Email, EmailConfirmed, Password, Roles, Locked, FirstLogin, CreatedBy)
