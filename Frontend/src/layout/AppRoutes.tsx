@@ -61,7 +61,7 @@ const SettingsPage = lazy(
 );
 
 // Protected support
-const SupportPage = lazy(() => import("@/Pages/public/info/Contact"));
+const SupportPage = lazy(() => import("@/Pages/private/support/SupportPage"));
 
 export default function AppRoutes() {
   return (
@@ -126,11 +126,11 @@ export default function AppRoutes() {
                 element={withLazy(<HowItWorksPage />)}
               />
               <Route
-                path={appRoutes.support}
+                path={appRoutes.dashboardSupport}
                 element={withLazy(<SupportPage />)}
               />
               <Route
-                path={appRoutes.settings}
+                path={appRoutes.dashboardSettings}
                 element={withLazy(<SettingsPage />)}
               />
             </Route>

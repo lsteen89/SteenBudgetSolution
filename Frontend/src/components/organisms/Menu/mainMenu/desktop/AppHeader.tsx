@@ -18,7 +18,7 @@ export default function AppHeader() {
       { label: t("dashboard"), to: appRoutes.dashboard, end: true },
       { label: t("breakdown"), to: appRoutes.dashboardBreakdown, end: true },
       { label: t("howItWorks"), to: appRoutes.dashboardHowItWorks, end: true },
-      { label: t("support"), to: appRoutes.support, end: true },
+      { label: t("support"), to: appRoutes.dashboardSupport, end: true },
     ],
     [locale],
   );
@@ -32,7 +32,7 @@ export default function AppHeader() {
           className="rounded-2xl px-2 py-1 font-extrabold tracking-tight text-eb-text hover:text-eb-text/90 focus-visible:outline-none focus-visible:ring-4 ring-eb-accent/35"
           aria-label={t("toDashboard")}
         >
-          eBudget
+          e<span className="font-bold text-eb-accent">B</span>udget
         </Link>
       }
       center={

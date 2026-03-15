@@ -21,7 +21,7 @@ export default function AppMobileHeader() {
       { label: t("dashboard"), to: appRoutes.dashboard, tone: "primary" },
       { label: t("breakdown"), to: appRoutes.dashboardBreakdown },
       { label: t("howItWorks"), to: appRoutes.dashboardHowItWorks },
-      { label: t("support"), to: appRoutes.support },
+      { label: t("support"), to: appRoutes.dashboardSupport },
     ],
     [locale],
   );

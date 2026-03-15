@@ -13,6 +13,6 @@ export const appRoutes = {
   dashboard: "/dashboard",
   dashboardBreakdown: "/dashboard/breakdown",
   dashboardHowItWorks: "/dashboard/how-it-works",
-  support: "/support",
-  settings: "/settings",
+  dashboardSupport: "/dashboard/support",
+  dashboardSettings: "/dashboard/settings",
 } as const;
