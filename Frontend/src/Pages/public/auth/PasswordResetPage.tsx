@@ -17,6 +17,7 @@ import PageContainer from "@components/layout/PageContainer";
 
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { useToast } from "@/ui/toast/toast";
+import { toUserSuccessMessage } from "@/utils/i18n/apiErrors/apiSuccessMessages";
 import { toUserMessage } from "@/utils/i18n/apiErrors/toUserMessage";
 import { passwordResetDict } from "@/utils/i18n/pages/public/PasswordReset.i18n";
 import { tDict } from "@/utils/i18n/translate";
@@ -58,14 +59,16 @@ export default function PasswordResetPage() {
 
   const onSubmit = async (data: ResetPasswordFormValues) => {
     try {
-      await resetPassword({
+      const info = await resetPassword({
         email: data.email,
         code: data.code,
         newPassword: data.newPassword,
       });
 
       setSubmitted(true);
-      toast.success(t("toastSuccess"), { id: "password-reset-success" });
+      toast.success(toUserSuccessMessage(info, locale), {
+        id: "password-reset-success",
+      });
     } catch (err: unknown) {
       const p = err as ApiProblem;
 

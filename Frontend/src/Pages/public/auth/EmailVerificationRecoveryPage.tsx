@@ -18,6 +18,7 @@ import type { ApiProblem } from "@/api/api.types";
 import { resendVerificationRecovery } from "@/api/Services/User/resendVerificationRecovery";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { useToast } from "@/ui/toast/toast";
+import { toUserSuccessMessage } from "@/utils/i18n/apiErrors/apiSuccessMessages";
 import { toUserMessage } from "@/utils/i18n/apiErrors/toUserMessage";
 import { recoveryDict } from "@/utils/i18n/pages/public/EmailVerificationRecovery.i18n";
 import { tDict } from "@/utils/i18n/translate";
@@ -71,9 +72,9 @@ export default function EmailVerificationRecoveryPage() {
     try {
       const email = values.email.trim();
 
-      await resendVerificationRecovery({ email });
+      const info = await resendVerificationRecovery({ email });
 
-      toast.success(t("toastRecoverySent"), {
+      toast.success(toUserSuccessMessage(info, locale), {
         id: "verification-recovery-ok",
       });
 

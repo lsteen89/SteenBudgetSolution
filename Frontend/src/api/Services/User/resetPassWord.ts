@@ -1,19 +1,19 @@
-import type { ApiEnvelope } from "@/api/api.types";
+import type { ApiEnvelope, ApiInfoDto } from "@/api/api.types";
 import { api } from "@/api/axios";
-import { unwrapEnvelope } from "@/api/envelope";
+import { unwrapEnvelopeInfo } from "@/api/envelope";
 import { toApiProblem } from "@/api/toApiProblem";
 import { isAxiosError } from "axios";
 
 export async function requestPasswordReset(dto: {
   email: string;
   locale?: string;
-}): Promise<string> {
+}): Promise<ApiInfoDto | null> {
   try {
-    const res = await api.post<ApiEnvelope<string>>(
+    const res = await api.post<ApiEnvelope<null>>(
       "/api/auth/forgot-password",
       dto,
     );
-    return unwrapEnvelope(res, "Password reset request failed.");
+    return unwrapEnvelopeInfo(res, "Password reset request failed.");
   } catch (e) {
     if (isAxiosError(e)) throw toApiProblem(e);
     throw e;
@@ -25,13 +25,13 @@ export async function resetPassword(dto: {
   code: string;
   newPassword: string;
   confirmPassword: string;
-}): Promise<string> {
+}): Promise<ApiInfoDto | null> {
   try {
-    const res = await api.post<ApiEnvelope<string>>(
+    const res = await api.post<ApiEnvelope<null>>(
       "/api/auth/reset-password",
       dto,
     );
-    return unwrapEnvelope(res, "Password reset failed.");
+    return unwrapEnvelopeInfo(res, "Password reset failed.");
   } catch (e) {
     if (isAxiosError(e)) throw toApiProblem(e);
     throw e;

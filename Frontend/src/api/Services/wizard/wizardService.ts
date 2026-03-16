@@ -1,6 +1,6 @@
 import type { ApiEnvelope } from "@/api/api.types";
 import { api } from "@/api/axios";
-import { unwrapEnvelope } from "@/api/envelope";
+import { unwrapEnvelopeData } from "@/api/envelope";
 import { CODE_DATA_VERSION } from "@/constants/wizardVersion";
 import { WizardData } from "@/stores/Wizard/wizardDataStore";
 import { StartWizardResponse } from "@/types/Wizard/Step0_Welcome/StartWizardResponse";
@@ -23,21 +23,13 @@ export interface WizardDataResponseDto {
 export async function startWizard(): Promise<StartWizardResponse> {
   const response =
     await api.post<ApiEnvelope<StartWizardResponse>>("/api/wizard/start");
-
-  const env = response.data;
-
-  if (!env.isSuccess || !env.data || env.error) {
-    console.error("startWizard failed:", env);
-    const msg =
-      env.error?.message ??
-      "API Contract Error: startWizard missing 'wizardSessionId'.";
-    throw new Error(msg);
-  }
-
-  const payload = env.data;
+  const payload = unwrapEnvelopeData(
+    response,
+    "API Contract Error: startWizard missing 'wizardSessionId'.",
+  );
 
   if (!payload.wizardSessionId) {
-    console.error("Invalid API response from startWizard:", env);
+    console.error("Invalid API response from startWizard:", response.data);
     throw new Error(
       "API Contract Error: startWizard missing 'wizardSessionId'.",
     );
@@ -130,5 +122,5 @@ export async function fetchWizardFinalizationPreview(
     `/api/wizard/${sessionId}/finalization-preview`,
   );
 
-  return unwrapEnvelope(res, "Could not load finalization preview.");
+  return unwrapEnvelopeData(res, "Could not load finalization preview.");
 }

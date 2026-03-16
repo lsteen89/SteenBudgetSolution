@@ -1,5 +1,6 @@
 import type { ApiEnvelope } from "@/api/api.types";
 import { api } from "@/api/axios";
+import { unwrapEnvelopeData, unwrapEnvelopeResult } from "@/api/envelope";
 import type { UserDto } from "@/types/User/UserDto";
 import type {
   ChangePasswordRequest,
@@ -13,13 +14,7 @@ export async function getMyPreferences(): Promise<UserPreferencesDto> {
   const resp = await api.get<ApiEnvelope<UserPreferencesDto>>(
     "/api/users/preferences",
   );
-
-  const env = resp.data;
-  if (!env.isSuccess || !env.data || env.error) {
-    throw new Error("Failed to load user preferences.");
-  }
-
-  return env.data;
+  return unwrapEnvelopeData(resp, "Failed to load user preferences.");
 }
 
 export async function updatePreferences(
@@ -29,13 +24,7 @@ export async function updatePreferences(
     "/api/users/preferences",
     payload,
   );
-
-  const env = resp.data;
-  if (!env.isSuccess || !env.data || env.error) {
-    throw new Error("Failed to update user preferences.");
-  }
-
-  return env.data;
+  return unwrapEnvelopeData(resp, "Failed to update user preferences.");
 }
 
 export async function changePassword(
@@ -45,11 +34,7 @@ export async function changePassword(
     "/api/users/password",
     payload,
   );
-
-  const env = resp.data;
-  if (!env.isSuccess || env.error) {
-    throw new Error("Failed to update password.");
-  }
+  unwrapEnvelopeResult(resp, "Failed to update password.");
 }
 
 export async function updateProfile(
@@ -59,11 +44,5 @@ export async function updateProfile(
     "/api/users/profile",
     payload,
   );
-
-  const env = resp.data;
-  if (!env.isSuccess || !env.data || env.error) {
-    throw new Error("Failed to update profile.");
-  }
-
-  return env.data;
+  return unwrapEnvelopeData(resp, "Failed to update profile.");
 }

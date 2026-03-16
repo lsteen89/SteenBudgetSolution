@@ -17,6 +17,7 @@ import PageContainer from "@components/layout/PageContainer";
 
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { useToast } from "@/ui/toast/toast";
+import { toUserSuccessMessage } from "@/utils/i18n/apiErrors/apiSuccessMessages";
 import { toUserMessage } from "@/utils/i18n/apiErrors/toUserMessage";
 import { forgotPasswordDict } from "@/utils/i18n/pages/public/ForgotPassword.i18n";
 import { tDict } from "@/utils/i18n/translate";
@@ -54,13 +55,15 @@ export default function ForgotPasswordPage() {
 
   const onSubmit = async (data: ForgotPasswordFormValues) => {
     try {
-      await requestPasswordReset({
+      const info = await requestPasswordReset({
         email: data.email,
         locale,
       });
 
       setSubmitted(true);
-      toast.success(t("toastSuccess"), { id: "forgot-password-sent" });
+      toast.success(toUserSuccessMessage(info, locale), {
+        id: "forgot-password-sent",
+      });
     } catch (err: unknown) {
       const p = err as ApiProblem;
 

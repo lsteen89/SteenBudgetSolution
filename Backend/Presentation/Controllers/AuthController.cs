@@ -196,7 +196,7 @@ namespace Backend.Presentation.Controllers
         [Authorize(Policy = "Onboarding")]
         [EnableRateLimiting(RateLimitPolicies.ResendVerification)]
         [HttpPost("resend-verification")]
-        [ProducesResponseType(typeof(ApiEnvelope<string>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiEnvelope<object?>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiEnvelope<string>), StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> ResendVerificationEmail(CancellationToken ct)
         {
@@ -214,7 +214,8 @@ namespace Backend.Presentation.Controllers
             var command = new ResendVerificationCommand(email);
             await _mediator.Send(command, ct);
 
-            var successEnvelope = ApiEnvelope<string>.Success(
+            var successEnvelope = ApiEnvelope.Success(
+                "Verification.ResendAccepted",
                 "If an account with that email exists, a new verification code has been sent."
             );
 
@@ -223,7 +224,7 @@ namespace Backend.Presentation.Controllers
         [AllowAnonymous]
         [EnableRateLimiting(RateLimitPolicies.ResendVerification)]
         [HttpPost("resend-verification-recovery")]
-        [ProducesResponseType(typeof(ApiEnvelope<string>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiEnvelope<object?>), StatusCodes.Status200OK)]
         public async Task<IActionResult> ResendVerificationRecovery(
         [FromBody] ResendVerificationRecoveryRequest request,
         CancellationToken ct)
@@ -231,7 +232,8 @@ namespace Backend.Presentation.Controllers
             var command = new ResendVerificationCommand(request.Email);
             await _mediator.Send(command, ct);
 
-            return Ok(ApiEnvelope<string>.Success(
+            return Ok(ApiEnvelope.Success(
+                "Verification.ResendAccepted",
                 "If an account with that email exists, a new verification code has been sent."
             ));
         }
@@ -240,14 +242,15 @@ namespace Backend.Presentation.Controllers
         [AllowAnonymous]
         [EnableRateLimiting(RateLimitPolicies.ForgotPassword)]
         [HttpPost("forgot-password")]
-        [ProducesResponseType(typeof(ApiEnvelope<string>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiEnvelope<object?>), StatusCodes.Status200OK)]
         public async Task<IActionResult> ForgotPassword(
             [FromBody] ForgotPasswordRequest request,
             CancellationToken ct)
         {
             await _mediator.Send(new ForgotPasswordCommand(request.Email, request.Locale), ct);
 
-            return Ok(ApiEnvelope<string>.Success(
+            return Ok(ApiEnvelope.Success(
+                "PasswordReset.RequestAccepted",
                 "If an account with that email exists, password reset instructions have been sent."
             ));
         }
@@ -255,7 +258,7 @@ namespace Backend.Presentation.Controllers
         [AllowAnonymous]
         [EnableRateLimiting(RateLimitPolicies.ResetPassword)]
         [HttpPost("reset-password")]
-        [ProducesResponseType(typeof(ApiEnvelope<string>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiEnvelope<object?>), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiEnvelope<string>), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> ResetPassword(
             [FromBody] ResetPasswordRequest request,
@@ -276,7 +279,8 @@ namespace Backend.Presentation.Controllers
                     result.Error.Description
                 ));
 
-            return Ok(ApiEnvelope<string>.Success(
+            return Ok(ApiEnvelope.Success(
+                "PasswordReset.Completed",
                 "Your password has been reset successfully."
             ));
         }

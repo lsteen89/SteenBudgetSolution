@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { buildContactSupportSchema } from "@/schemas/support/support.schema";
 import { useAuthStore } from "@/stores/Auth/authStore";
 import { useToast } from "@/ui/toast/toast";
+import { toUserSuccessMessage } from "@/utils/i18n/apiErrors/apiSuccessMessages";
 import { toUserMessage } from "@/utils/i18n/apiErrors/toUserMessage";
 import { yupResolver } from "@hookform/resolvers/yup";
 import React from "react";
@@ -75,13 +76,13 @@ export function SupportContactForm({ t }: SupportContactFormProps) {
 
   const onSubmit = async (data: ContactSupportFormValues) => {
     try {
-      await sendSupportMessage({
+      const info = await sendSupportMessage({
         category: data.category,
         subject: data.subject.trim(),
         body: data.body.trim(),
       });
 
-      toast.success(t("sentToast"));
+      toast.success(toUserSuccessMessage(info, locale));
       reset(defaultValues);
     } catch (err) {
       const problem = err as ApiProblem;

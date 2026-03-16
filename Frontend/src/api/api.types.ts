@@ -3,10 +3,16 @@ export type ApiErrorDto = {
   message: string;
 };
 
+export type ApiInfoDto = {
+  code: string;
+  message: string;
+};
+
 export type ApiEnvelope<T> = {
   data: T | null;
   isSuccess: boolean;
   error: ApiErrorDto | null;
+  info: ApiInfoDto | null;
 };
 
 // Normalized FE error used everywhere (stores + UI)

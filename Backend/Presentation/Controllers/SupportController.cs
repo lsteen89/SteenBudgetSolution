@@ -24,7 +24,7 @@ public sealed class SupportController : ControllerBase
 
     [HttpPost]
     [EnableRateLimiting(RateLimitPolicies.SupportMessageSending)]
-    [ProducesResponseType(typeof(ApiEnvelope<string>), StatusCodes.Status202Accepted)]
+    [ProducesResponseType(typeof(ApiEnvelope<object?>), StatusCodes.Status202Accepted)]
     [ProducesResponseType(typeof(ApiEnvelope<string>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiEnvelope<string>), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ApiEnvelope<string>), StatusCodes.Status429TooManyRequests)]
@@ -60,6 +60,9 @@ public sealed class SupportController : ControllerBase
             ));
         }
 
-        return Accepted(ApiEnvelope<string>.Success("Support message queued."));
+        return Accepted(ApiEnvelope.Success(
+            "Support.MessageQueued",
+            "Support message queued."
+        ));
     }
 }

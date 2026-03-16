@@ -24,6 +24,7 @@ import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { useCooldown } from "@/hooks/ui/useCooldown";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/ui/toast/toast";
+import { toUserSuccessMessage } from "@/utils/i18n/apiErrors/apiSuccessMessages";
 import { toUserMessage } from "@/utils/i18n/apiErrors/toUserMessage";
 import regbird from "@assets/Images/RegBirdV2.png";
 
@@ -121,10 +122,10 @@ export default function EmailConfirmationPage({ verifyEmailCode }: Props) {
     try {
       setResendLoading(true);
 
-      const msg = await resendVerificationEmail();
+      const info = await resendVerificationEmail();
 
       start(60);
-      toast.success(msg, { id: "resend-ok" });
+      toast.success(toUserSuccessMessage(info, locale), { id: "resend-ok" });
     } catch (e: unknown) {
       const p = e as ApiProblem;
       toast.error(toUserMessage(p, locale), { id: p.code ?? "resend-fail" });

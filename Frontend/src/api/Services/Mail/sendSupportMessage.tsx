@@ -1,19 +1,19 @@
-import type { ApiEnvelope } from "@/api/api.types";
+import type { ApiEnvelope, ApiInfoDto } from "@/api/api.types";
 import { api } from "@/api/axios";
-import { unwrapEnvelope } from "@/api/envelope";
+import { unwrapEnvelopeInfo } from "@/api/envelope";
 import { toApiProblem } from "@/api/toApiProblem";
 import type { SendSupportMessageDto } from "@/types/User/Email/SendSupportMessageDto";
 import { isAxiosError } from "axios";
 
 export async function sendSupportMessage(
   dto: SendSupportMessageDto,
-): Promise<string> {
+): Promise<ApiInfoDto | null> {
   try {
-    const res = await api.post<ApiEnvelope<string>>(
+    const res = await api.post<ApiEnvelope<null>>(
       "/api/support/messages",
       dto,
     );
-    return unwrapEnvelope(res, "Support request failed.");
+    return unwrapEnvelopeInfo(res, "Support request failed.");
   } catch (e) {
     if (isAxiosError(e)) throw toApiProblem(e);
     throw e;
