@@ -83,11 +83,13 @@ public sealed class PasswordResetOrchestrator : IPasswordResetOrchestrator
         await _passwordResets.CreateAsync(reset, ct);
 
         await _emailOutbox.EnqueueAsync(
-            kind: "password-reset",
-            toEmail: emailNorm,
-            subject: emailContent.Subject,
-            bodyHtml: emailContent.BodyHtml,
-            nowUtc: nowUtc,
+            new EnqueueEmailOutboxRequest(
+                Kind: "password-reset",
+                ToEmail: emailNorm,
+                Subject: emailContent.Subject,
+                BodyHtml: emailContent.BodyHtml,
+                NowUtc: nowUtc
+            ),
             ct: ct
         );
     }

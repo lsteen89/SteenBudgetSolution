@@ -7,7 +7,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Options;
 using Moq;
 using MySqlConnector;
-using Xunit;
+using Backend.Domain.Entities.User;
 
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Application.Abstractions.Infrastructure.Security;

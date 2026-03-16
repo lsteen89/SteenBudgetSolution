@@ -475,7 +475,7 @@ WHERE PersoId = @PersoId;";
         private readonly string _cs;
         public SqlEmailOutbox(string cs) => _cs = cs;
 
-        public async Task EnqueueAsync(string kind, string toEmail, string subject, string bodyHtml, DateTime nowUtc, CancellationToken ct)
+        public async Task EnqueueAsync(EnqueueEmailOutboxRequest request, CancellationToken ct)
         {
             const string sql = @"
 INSERT INTO EmailOutbox
@@ -486,11 +486,11 @@ VALUES
             await using var conn = new MySqlConnection(_cs);
             await conn.ExecuteAsync(new CommandDefinition(sql, new
             {
-                Kind = kind,
-                ToEmail = toEmail,
-                Subject = subject,
-                BodyHtml = bodyHtml,
-                NowUtc = nowUtc
+                Kind = request.Kind,
+                ToEmail = request.ToEmail,
+                Subject = request.Subject,
+                BodyHtml = request.BodyHtml,
+                NowUtc = request.NowUtc
             }, cancellationToken: ct));
         }
 
@@ -498,7 +498,7 @@ VALUES
             => Task.FromResult<IReadOnlyList<EmailOutboxItem>>(Array.Empty<EmailOutboxItem>());
 
         public Task MarkSentAsync(long id, string? providerId, DateTime nowUtc, CancellationToken ct) => Task.CompletedTask;
-        public Task MarkFailedAsync(long id, int attempts, DateTime nextAttemptAtUtc, string error, DateTime nowUtc, CancellationToken ct) => Task.CompletedTask;
+        public Task MarkFailedAsync(MarkEmailOutboxFailedRequest request, CancellationToken ct) => Task.CompletedTask;
     }
 
 }

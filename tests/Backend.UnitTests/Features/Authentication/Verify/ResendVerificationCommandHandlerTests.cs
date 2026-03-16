@@ -15,7 +15,7 @@ using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Application.Options.Auth;
 using Backend.Application.Options.URL;
 using Backend.Domain.Entities.Auth;
-using Backend.Application.DTO.User.Models;
+using Backend.Domain.Entities.User;
 using Backend.Settings.Email;
 using Backend.Application.Features.Authentication.Register.ResendVerificationMail;
 using Backend.Application.Abstractions.Application.Orchestrators;

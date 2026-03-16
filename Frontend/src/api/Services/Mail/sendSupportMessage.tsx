@@ -9,7 +9,10 @@ export async function sendSupportMessage(
   dto: SendSupportMessageDto,
 ): Promise<string> {
   try {
-    const res = await api.post<ApiEnvelope<string>>("/api/email/contact", dto);
+    const res = await api.post<ApiEnvelope<string>>(
+      "/api/support/messages",
+      dto,
+    );
     return unwrapEnvelope(res, "Support request failed.");
   } catch (e) {
     if (isAxiosError(e)) throw toApiProblem(e);

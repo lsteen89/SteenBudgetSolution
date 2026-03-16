@@ -9,7 +9,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Options;
 using Moq;
 using MySqlConnector;
-using Xunit;
+using Backend.Domain.Entities.User;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 

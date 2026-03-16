@@ -74,19 +74,10 @@ export function SupportContactForm({ t }: SupportContactFormProps) {
     t("catOther");
 
   const onSubmit = async (data: ContactSupportFormValues) => {
-    if (!user?.firstName || !user?.lastName || !user?.email) {
-      toast.error("Missing account details. Please sign in again.", {
-        id: "Support.MissingUser",
-      });
-      return;
-    }
-
     try {
       await sendSupportMessage({
-        firstName: user.firstName.trim(),
-        lastName: user.lastName.trim(),
-        senderEmail: user.email.trim(),
-        subject: `[${selectedCategoryLabel}] ${data.subject.trim()}`,
+        category: data.category,
+        subject: data.subject.trim(),
         body: data.body.trim(),
       });
 
