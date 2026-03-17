@@ -10,8 +10,7 @@ using Dapper;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Backend.Presentation.Shared;
 using Backend.Application.DTO.Auth;
-using Backend.Application.Constants;
-using System.IdentityModel.Tokens.Jwt;
+using MySqlConnector;
 using Backend.Application.DTO.User;
 
 namespace Backend.IntegrationTests.E2E.Auth;
@@ -145,7 +144,7 @@ public sealed class RegisterE2ETests
     }
 
     [Fact]
-    public async Task Anonymous_can_call_resend_verification_recovery()
+    public async Task Anonymous_can_call_resend_verification_recovery_for_unknown_email_and_get_generic_success()
     {
         await _db.ResetAsync();
 
@@ -164,10 +163,63 @@ public sealed class RegisterE2ETests
         if (resend.StatusCode != HttpStatusCode.OK)
             throw new Exception($"Recovery resend failed: {(int)resend.StatusCode} {resend.StatusCode}\n{body}");
 
-        var envelope = await resend.Content.ReadFromJsonAsync<ApiEnvelope<string>>();
+        var envelope = await resend.Content.ReadFromJsonAsync<ApiEnvelope<object?>>();
         envelope.Should().NotBeNull();
         envelope!.IsSuccess.Should().BeTrue();
-        envelope.Data.Should().NotBeNullOrWhiteSpace();
+        envelope.Error.Should().BeNull();
+
+        envelope.Info.Should().NotBeNull();
+        envelope.Info!.Code.Should().Be("Verification.ResendAccepted");
+        envelope.Info.Message.Should().NotBeNullOrWhiteSpace();
+    }
+    [Fact]
+    public async Task Anonymous_can_call_resend_verification_recovery_for_existing_unverified_user()
+    {
+        await _db.ResetAsync();
+
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false
+        });
+
+        var email = $"recovery_{Guid.NewGuid():N}@test.local";
+        var password = "Password123!Aa";
+
+        await AuthE2eHelper.RegisterUserAsync(
+            client,
+            _db.ConnectionString,
+            email,
+            password,
+            verifyEmail: false);
+
+        client.DefaultRequestHeaders.Authorization = null;
+
+        var resend = await client.PostAsJsonAsync(
+            "/api/auth/resend-verification-recovery",
+            new ResendVerificationRecoveryRequest(email));
+
+        var body = await resend.Content.ReadAsStringAsync();
+        if (resend.StatusCode != HttpStatusCode.OK)
+            throw new Exception($"Recovery resend failed: {(int)resend.StatusCode} {resend.StatusCode}\n{body}");
+
+        var envelope = await resend.Content.ReadFromJsonAsync<ApiEnvelope<object?>>();
+        envelope.Should().NotBeNull();
+        envelope!.IsSuccess.Should().BeTrue();
+        envelope.Info.Should().NotBeNull();
+        envelope.Info!.Code.Should().Be("Verification.ResendAccepted");
+
+        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await conn.OpenAsync();
+
+        var queued = await conn.ExecuteScalarAsync<long>(
+            """
+        SELECT COUNT(*)
+        FROM EmailOutbox
+        WHERE ToEmail = @to AND Kind = 'VerificationCode';
+        """,
+            new { to = email });
+
+        queued.Should().BeGreaterThan(1);
     }
 
     private static async Task<CapturedEmail> WaitForEmailAsync(IEmailCapture capture, string to, TimeSpan timeout)

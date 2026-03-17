@@ -52,12 +52,14 @@ public class UserRepository : SqlBase, IUserRepository
         if (persoid is null && string.IsNullOrWhiteSpace(email))
             throw new ArgumentException("Either PersoId or Email must be provided.");
 
-        const string byId = "SELECT * FROM Users WHERE PersoId  = @PersoId  LIMIT 1;";
-        const string byEmail = "SELECT * FROM Users WHERE Email = @Email    LIMIT 1;";
+        const string byId = "SELECT * FROM Users WHERE PersoId = @PersoId LIMIT 1;";
+        const string byEmail = "SELECT * FROM Users WHERE Email = @Email LIMIT 1;";
 
-        return persoid is not null
-            ? QueryFirstOrDefaultAsync<UserModel>(byId, new { PersoId = persoid }, ct)
-            : QueryFirstOrDefaultAsync<UserModel>(byEmail, new { Email = email!.Trim() }, ct);
+        if (persoid is not null)
+            return QueryFirstOrDefaultAsync<UserModel>(byId, new { PersoId = persoid }, ct);
+
+        var normalizedEmail = email!.Trim();
+        return QueryFirstOrDefaultAsync<UserModel>(byEmail, new { Email = normalizedEmail }, ct);
     }
     public async Task<bool> SetFirstTimeLoginAsync(Guid persoid, CancellationToken ct = default)
     {

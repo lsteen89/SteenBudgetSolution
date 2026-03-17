@@ -102,56 +102,7 @@ public sealed class SupportMessageE2ETests
         var email = $"support_confirmed_{Guid.NewGuid():N}@test.local";
         var password = "Password123!Aa";
 
-        var reg = await client.PostAsJsonAsync("/api/auth/register", new RegisterRequest(
-            firstName: "Test",
-            lastName: "User",
-            email: email,
-            password: password,
-            humanToken: "test-token",
-            honeypot: ""
-        ));
-
-        reg.StatusCode.Should().Be(HttpStatusCode.Created);
-
-        var regEnvelope = await reg.Content.ReadFromJsonAsync<ApiEnvelope<AuthResult?>>();
-        regEnvelope.Should().NotBeNull();
-        regEnvelope!.Data.Should().NotBeNull();
-        regEnvelope.Data!.AccessToken.Should().NotBeNullOrWhiteSpace();
-
-        client.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", regEnvelope.Data.AccessToken);
-
-        await using (var conn = new MySqlConnection(_db.ConnectionString))
-        {
-            var bodyHtml = await conn.ExecuteScalarAsync<string>(
-                """
-                SELECT BodyHtml
-                FROM EmailOutbox
-                WHERE ToEmail = @to AND Kind = 'VerificationCode'
-                ORDER BY Id DESC
-                LIMIT 1;
-                """,
-                new { to = email });
-
-            var code = E2eTestHelpers.Extract6DigitCode(bodyHtml);
-
-            var verify = await client.PostAsJsonAsync(
-                "/api/auth/verify-email-code",
-                new VerifyEmailCodeRequest(code));
-
-            var verifyBody = await verify.Content.ReadAsStringAsync();
-            if (verify.StatusCode != HttpStatusCode.OK)
-                throw new Exception($"Verify failed: {(int)verify.StatusCode} {verify.StatusCode}\n{verifyBody}");
-
-            var verifyEnvelope = await verify.Content.ReadFromJsonAsync<ApiEnvelope<AuthResult>>();
-            verifyEnvelope.Should().NotBeNull();
-            verifyEnvelope!.IsSuccess.Should().BeTrue();
-            verifyEnvelope.Data.Should().NotBeNull();
-            verifyEnvelope.Data!.AccessToken.Should().NotBeNullOrWhiteSpace();
-
-            client.DefaultRequestHeaders.Authorization =
-                new AuthenticationHeaderValue("Bearer", verifyEnvelope.Data.AccessToken);
-        }
+        await AuthE2eHelper.RegisterUserAsync(client, _db.ConnectionString, email, password);
 
         var response = await client.PostAsJsonAsync("/api/support/messages", new
         {
@@ -164,10 +115,12 @@ public sealed class SupportMessageE2ETests
         if (response.StatusCode != HttpStatusCode.Accepted)
             throw new Exception($"Support message failed: {(int)response.StatusCode} {response.StatusCode}\n{responseBody}");
 
-        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<string>>();
+        var envelope = await response.Content.ReadFromJsonAsync<ApiEnvelope<object?>>();
         envelope.Should().NotBeNull();
         envelope!.IsSuccess.Should().BeTrue();
-        envelope.Data.Should().NotBeNullOrWhiteSpace();
+        envelope.Data.Should().BeNull();
+        envelope.Info.Should().NotBeNull();
+        envelope.Info!.Code.Should().Be("Support.MessageQueued");
 
         await using var assertConn = new MySqlConnection(_db.ConnectionString);
         await assertConn.OpenAsync();
@@ -203,53 +156,7 @@ public sealed class SupportMessageE2ETests
         var email = $"support_ratelimit_{Guid.NewGuid():N}@test.local";
         var password = "Password123!Aa";
 
-        var reg = await client.PostAsJsonAsync("/api/auth/register", new RegisterRequest(
-            firstName: "Test",
-            lastName: "User",
-            email: email,
-            password: password,
-            humanToken: "test-token",
-            honeypot: ""
-        ));
-
-        reg.StatusCode.Should().Be(HttpStatusCode.Created);
-
-        var regEnvelope = await reg.Content.ReadFromJsonAsync<ApiEnvelope<AuthResult?>>();
-        regEnvelope.Should().NotBeNull();
-        regEnvelope!.Data.Should().NotBeNull();
-        regEnvelope.Data!.AccessToken.Should().NotBeNullOrWhiteSpace();
-
-        client.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", regEnvelope.Data.AccessToken);
-
-        await using (var conn = new MySqlConnection(_db.ConnectionString))
-        {
-            var bodyHtml = await conn.ExecuteScalarAsync<string>(
-                """
-                SELECT BodyHtml
-                FROM EmailOutbox
-                WHERE ToEmail = @to AND Kind = 'VerificationCode'
-                ORDER BY Id DESC
-                LIMIT 1;
-                """,
-                new { to = email });
-
-            var code = E2eTestHelpers.Extract6DigitCode(bodyHtml);
-
-            var verify = await client.PostAsJsonAsync(
-                "/api/auth/verify-email-code",
-                new VerifyEmailCodeRequest(code));
-
-            verify.StatusCode.Should().Be(HttpStatusCode.OK);
-
-            var verifyEnvelope = await verify.Content.ReadFromJsonAsync<ApiEnvelope<AuthResult>>();
-            verifyEnvelope.Should().NotBeNull();
-            verifyEnvelope!.Data.Should().NotBeNull();
-            verifyEnvelope.Data!.AccessToken.Should().NotBeNullOrWhiteSpace();
-
-            client.DefaultRequestHeaders.Authorization =
-                new AuthenticationHeaderValue("Bearer", verifyEnvelope.Data.AccessToken);
-        }
+        await AuthE2eHelper.RegisterUserAsync(client, _db.ConnectionString, email, password);
 
         async Task<HttpResponseMessage> SendAsync(int i) =>
             await client.PostAsJsonAsync("/api/support/messages", new

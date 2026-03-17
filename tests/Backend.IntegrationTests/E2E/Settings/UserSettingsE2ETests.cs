@@ -234,81 +234,18 @@ public sealed class UserSettingsE2ETests
         var email = $"user_{Guid.NewGuid():N}@test.local";
         var password = "Password123!Aa";
 
-        var regReq = new RegisterRequest(
-            firstName: "Test",
-            lastName: "User",
-            email: email,
-            password: password,
-            humanToken: "test-token",
-            honeypot: ""
-        );
-
-        var reg = await client.PostAsJsonAsync("/api/auth/register", regReq);
-        var regBody = await reg.Content.ReadAsStringAsync();
-
-        if (reg.StatusCode != HttpStatusCode.Created)
-            throw new Exception($"Register failed: {(int)reg.StatusCode} {reg.StatusCode}\n{regBody}");
-
-        var regEnvelope = await reg.Content.ReadFromJsonAsync<ApiEnvelope<AuthResult>>();
-        regEnvelope.Should().NotBeNull();
-        regEnvelope!.IsSuccess.Should().BeTrue();
-        regEnvelope.Data.Should().NotBeNull();
-        regEnvelope.Data!.AccessToken.Should().NotBeNullOrWhiteSpace();
-        regEnvelope.Data.PersoId.Should().NotBe(Guid.Empty);
-
-        client.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", regEnvelope.Data.AccessToken);
-
-        await using var conn = new MySqlConnection(_db.ConnectionString);
-        await conn.OpenAsync();
-
-        var bodyHtml = await conn.ExecuteScalarAsync<string>(
-            """
-            SELECT BodyHtml
-            FROM EmailOutbox
-            WHERE ToEmail=@to AND Kind='VerificationCode'
-            ORDER BY Id DESC
-            LIMIT 1;
-            """,
-            new { to = email });
-
-        bodyHtml.Should().NotBeNullOrWhiteSpace();
-
-        var code = E2eTestHelpers.Extract6DigitCode(bodyHtml!);
-
-        var verify = await client.PostAsJsonAsync(
-            "/api/auth/verify-email-code",
-            new VerifyEmailCodeRequest(code));
-
-        var verifyBody = await verify.Content.ReadAsStringAsync();
-        if (verify.StatusCode != HttpStatusCode.OK)
-            throw new Exception($"Verify failed: {(int)verify.StatusCode} {verify.StatusCode}\n{verifyBody}");
-
-        client.DefaultRequestHeaders.Authorization = null;
-
-        var login = await client.PostAsJsonAsync("/api/auth/login", new LoginRequest(
-            Email: email,
-            Password: password,
-            HumanToken: null,
-            RememberMe: false
-        ));
-
-        var loginBody = await login.Content.ReadAsStringAsync();
-        if (login.StatusCode != HttpStatusCode.OK)
-            throw new Exception($"Login failed: {(int)login.StatusCode} {login.StatusCode}\n{loginBody}");
-
-        var loginEnvelope = await login.Content.ReadFromJsonAsync<ApiEnvelope<AuthResult>>();
-        loginEnvelope.Should().NotBeNull();
-        loginEnvelope!.IsSuccess.Should().BeTrue();
-        loginEnvelope.Data.Should().NotBeNull();
-        loginEnvelope.Data!.AccessToken.Should().NotBeNullOrWhiteSpace();
+        var verified = await AuthE2eHelper.RegisterUserAsync(
+            client,
+            _db.ConnectionString,
+            email,
+            password);
 
         return new AuthenticatedUserContext(
             client,
             email,
             password,
-            loginEnvelope.Data.AccessToken,
-            regEnvelope.Data.PersoId
+            verified.VerifiedAccessToken,
+            verified.PersoId
         );
     }
 

@@ -1,18 +1,8 @@
 using MediatR;
 using Backend.Domain.Shared;
-using Backend.Domain.Errors.User;
 using Backend.Application.Abstractions.Infrastructure.Data;
-using Backend.Application.Abstractions.Infrastructure.Email;
-using Backend.Application.Abstractions.Infrastructure.System;
-using Backend.Application.Abstractions.Infrastructure.RateLimiting;
-using Backend.Application.Options.Auth;
-using Microsoft.Extensions.Options;
-using Backend.Application.Options.URL;
-using Backend.Settings.Email;
 using Backend.Application.Common.Behaviors;
-using Backend.Application.Abstractions.Infrastructure.Verification;
 using Backend.Application.Abstractions.Application.Orchestrators;
-using Backend.Application.Orchestrators.Email;
 
 namespace Backend.Application.Features.Authentication.Register.ResendVerificationMail;
 
@@ -46,8 +36,14 @@ public sealed class ResendVerificationCommandHandler
 
         if (user is null || user.EmailConfirmed) return Result.Success(); // no enumeration
 
-        var preferences = await _users.GetUserPreferencesAsync(user.PersoId, ct); // returns UserPreferences object
-        await _verificationOrchestrator.EnqueueForResendAsync(user.PersoId, emailNorm, preferences.Locale, ct);
+        var preferences = await _users.GetUserPreferencesAsync(user.PersoId, ct);
+        var locale = preferences?.Locale ?? "sv-SE";
+
+        await _verificationOrchestrator.EnqueueForResendAsync(
+            user.PersoId,
+            emailNorm,
+            locale,
+            ct);
 
         return Result.Success(); // always
     }
