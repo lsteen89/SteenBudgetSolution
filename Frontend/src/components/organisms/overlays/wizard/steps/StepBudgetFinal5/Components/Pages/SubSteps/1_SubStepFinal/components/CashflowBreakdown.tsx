@@ -1,5 +1,8 @@
 import knightBird from "@/assets/Images/KnightBird.png";
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/lib/utils";
+import { tDict } from "@/utils/i18n/translate";
+import { cashflowBreakdownDict } from "@/utils/i18n/wizard/stepFinal/CashflowBreakdown.i18n";
 
 function KnightBirdStamp() {
   return (
@@ -41,20 +44,17 @@ function CashflowBreakdown({
   };
   money0: (n: number) => string;
 }) {
+  const locale = useAppLocale();
+
+  const t = <K extends keyof typeof cashflowBreakdownDict.sv>(k: K) =>
+    tDict(k, locale, cashflowBreakdownDict);
+
   const rows = [
-    { label: "Inkomst", value: ui.totalIncome, tone: "pos" as const },
-    { label: "Utgifter", value: -ui.totalExpenditure, tone: "neg" as const },
-    {
-      label: "Sparande (vanor)",
-      value: -ui.habitSavingsMonthly,
-      tone: "neg" as const,
-    },
-    { label: "Mål", value: -ui.goalSavingsMonthly, tone: "neg" as const },
-    {
-      label: "Skulder (minimi)",
-      value: -ui.totalDebtPayments,
-      tone: "neg" as const,
-    },
+    { label: t("income"), value: ui.totalIncome },
+    { label: t("expenses"), value: -ui.totalExpenditure },
+    { label: t("savingsHabits"), value: -ui.habitSavingsMonthly },
+    { label: t("goals"), value: -ui.goalSavingsMonthly },
+    { label: t("debtsMinimum"), value: -ui.totalDebtPayments },
   ];
 
   const isOk = ui.finalBalance >= 0;
@@ -70,27 +70,29 @@ function CashflowBreakdown({
     >
       <KnightBirdStamp />
 
-      <h3 className="text-sm font-semibold text-wizard-text">Per månad</h3>
+      <h3 className="text-sm font-semibold text-wizard-text">{t("title")}</h3>
 
       <div className="relative z-10 mt-3 space-y-2">
-        {rows.map((r) => {
-          const isNeg = r.value < 0;
+        {rows.map((row) => {
+          const isNeg = row.value < 0;
 
           return (
             <div
-              key={r.label}
+              key={row.label}
               className="flex items-baseline justify-between gap-4"
             >
-              <span className="text-sm text-wizard-text/70">{r.label}</span>
+              <span className="text-sm text-wizard-text/70">{row.label}</span>
 
               <span className="flex items-baseline gap-2 font-mono tabular-nums">
                 <span className="text-xs font-semibold text-wizard-text/55">
                   {isNeg ? "−" : "+"}
                 </span>
                 <span className="font-semibold text-wizard-text/90">
-                  {money0(Math.abs(r.value))}
+                  {money0(Math.abs(row.value))}
                 </span>
-                <span className="text-xs text-wizard-text/55">/mån</span>
+                <span className="text-xs text-wizard-text/55">
+                  {t("perMonthSuffix")}
+                </span>
               </span>
             </div>
           );
@@ -98,7 +100,7 @@ function CashflowBreakdown({
 
         <div className="mt-3 pt-3 border-t border-wizard-stroke/20 flex items-baseline justify-between gap-4">
           <span className="text-sm font-semibold text-wizard-text/80">
-            {isOk ? "Kvar" : "Underskott"}
+            {isOk ? t("remaining") : t("deficit")}
           </span>
 
           <span className="flex items-baseline gap-2 font-mono tabular-nums">
@@ -113,7 +115,7 @@ function CashflowBreakdown({
 
             <span
               className={cn(
-                " text-xl font-extrabold",
+                "text-xl font-extrabold",
                 isOk ? "text-wizard-accent" : "text-wizard-warning",
               )}
             >
@@ -121,7 +123,7 @@ function CashflowBreakdown({
             </span>
 
             <span className="text-sm font-semibold text-wizard-text/55">
-              /mån
+              {t("perMonthSuffix")}
             </span>
           </span>
         </div>

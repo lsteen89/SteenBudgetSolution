@@ -1,31 +1,35 @@
+import { CreditCard } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
-import { useFormContext, useFieldArray, useWatch } from "react-hook-form";
-import { CreditCard, PlusCircle } from "lucide-react";
+import { useFieldArray, useFormContext, useWatch } from "react-hook-form";
 
-import OptionContainer from "@components/molecules/containers/OptionContainer";
 import { Separator } from "@/components/ui/separator";
 
-import { idFromPath } from "@/utils/idFromPath";
 import type { SubscriptionsSubForm } from "@/types/Wizard/Step2_Expenditure/SubscriptionsFormValues";
+import { idFromPath } from "@/utils/idFromPath";
 
 import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
+import { setValueAsLocalizedNumber } from "@/utils/forms/parseNumber";
+import { tDict } from "@/utils/i18n/translate";
+import { subStepSubscriptionsDict } from "@/utils/i18n/wizard/stepExpenditure/SubStepSubscriptions.i18n";
 import NumberInput from "@components/atoms/InputField/NumberInput";
-import { setValueAsSvNumber } from "@/utils/forms/parseNumber";
 
-import { WizardStepHeader } from "@components/organisms/overlays/wizard/SharedComponents/Headers/WizardStepHeader";
 import {
   WizardAccordion,
   WizardAccordionRoot,
 } from "@components/organisms/overlays/wizard/SharedComponents/Accordion/WizardAccordion";
+import { WizardStepHeader } from "@components/organisms/overlays/wizard/SharedComponents/Headers/WizardStepHeader";
 import IcedCustomItemRow from "@components/organisms/overlays/wizard/SharedComponents/InputRows/IcedCustomItemRow";
 
-import WizardTotalBar from "@components/organisms/overlays/wizard/SharedComponents/Sections/WizardTotalBar";
 import { sumMoney } from "@/utils/money/moneyMath";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
+import WizardTotalBar from "@components/organisms/overlays/wizard/SharedComponents/Sections/WizardTotalBar";
 
 type FormShape = { subscriptions: SubscriptionsSubForm };
-type SuggestedFieldName = Exclude<keyof SubscriptionsSubForm, "customSubscriptions">;
+type SuggestedFieldName = Exclude<
+  keyof SubscriptionsSubForm,
+  "customSubscriptions"
+>;
 
 type SuggestedField = {
   name: SuggestedFieldName;
@@ -34,45 +38,31 @@ type SuggestedField = {
   helpText: string;
 };
 
-const SUGGESTED_FIELDS: SuggestedField[] = [
-  {
-    name: "netflix",
-    label: "Netflix",
-    placeholder: "t.ex. 149",
-    helpText: "Månadskostnad för Netflix.",
-  },
-  {
-    name: "spotify",
-    label: "Spotify",
-    placeholder: "t.ex. 119",
-    helpText: "Månadskostnad för Spotify.",
-  },
-  {
-    name: "hbomax",
-    label: "HBO Max",
-    placeholder: "t.ex. 109",
-    helpText: "Månadskostnad för HBO Max.",
-  },
-  {
-    name: "viaplay",
-    label: "Viaplay",
-    placeholder: "t.ex. 149",
-    helpText: "Månadskostnad för Viaplay.",
-  },
-  {
-    name: "disneyPlus",
-    label: "Disney+",
-    placeholder: "t.ex. 89",
-    helpText: "Månadskostnad för Disney+.",
-  },
-];
-
 const SubStepSubscriptions: React.FC = () => {
   const { control, setFocus, clearErrors, getFieldState, formState, register } =
     useFormContext<FormShape>();
 
   const currency = useAppCurrency();
   const locale = useAppLocale();
+  const dictLocale = locale.startsWith("sv")
+    ? "sv"
+    : locale.startsWith("et")
+      ? "et"
+      : "en";
+  const t = <K extends keyof typeof subStepSubscriptionsDict.sv>(k: K) =>
+    tDict(k, locale, subStepSubscriptionsDict);
+  type SuggestedField = {
+    name: SuggestedFieldName;
+    label: string;
+    placeholder: string;
+  };
+  const SUGGESTED_FIELDS: SuggestedField[] = [
+    { name: "netflix", label: "Netflix", placeholder: "e.g. 15" },
+    { name: "spotify", label: "Spotify", placeholder: "e.g. 12" },
+    { name: "hbomax", label: "HBO Max", placeholder: "e.g. 11" },
+    { name: "viaplay", label: "Viaplay", placeholder: "e.g. 15" },
+    { name: "disneyPlus", label: "Disney+", placeholder: "e.g. 9" },
+  ];
 
   const [openAccordion, setOpenAccordion] = useState<string>("custom");
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -97,11 +87,14 @@ const SubStepSubscriptions: React.FC = () => {
 
   const suggestedTotal = useMemo(
     () => sumMoney(netflix, spotify, hbomax, viaplay, disneyPlus),
-    [netflix, spotify, hbomax, viaplay, disneyPlus]
+    [netflix, spotify, hbomax, viaplay, disneyPlus],
   );
 
   const customTotal = useMemo(() => {
-    return customSubscriptions.reduce((acc, item) => acc + sumMoney(item?.cost), 0);
+    return customSubscriptions.reduce(
+      (acc, item) => acc + sumMoney(item?.cost),
+      0,
+    );
   }, [customSubscriptions]);
 
   const total = suggestedTotal + customTotal;
@@ -117,20 +110,21 @@ const SubStepSubscriptions: React.FC = () => {
     append({ name: "", cost: null });
     setTimeout(
       () => setFocus(`subscriptions.customSubscriptions.${fields.length}.name`),
-      0
+      0,
     );
   };
 
   // Open accordion if custom array has errors
   useEffect(() => {
-    if (formState.errors.subscriptions?.customSubscriptions) setOpenAccordion("custom");
+    if (formState.errors.subscriptions?.customSubscriptions)
+      setOpenAccordion("custom");
   }, [formState.errors.subscriptions?.customSubscriptions]);
 
   // Clear stale errors when empty & clean
   useEffect(() => {
     const items = customSubscriptions ?? [];
     const hasIncomplete = items.some(
-      (item) => item && (item.cost ?? null) !== null && !item.name?.trim()
+      (item) => item && (item.cost ?? null) !== null && !item.name?.trim(),
     );
     if (items.length === 0 && !hasIncomplete) {
       clearErrors("subscriptions.customSubscriptions");
@@ -144,18 +138,22 @@ const SubStepSubscriptions: React.FC = () => {
     <div>
       <section className="w-auto mx-auto sm:px-6 lg:px-12 py-8 pb-safe">
         <WizardStepHeader
-          stepPill={{ stepNumber: 2, majorLabel: "Utgifter", subLabel: "Prenumerationer" }}
-          title="Prenumerationer"
-          subtitle="Lägg in streaming och andra prenumerationer du betalar varje månad."
+          stepPill={{
+            stepNumber: 2,
+            majorLabel: t("pillMajor"),
+            subLabel: t("pillSub"),
+          }}
+          title={t("title")}
+          subtitle={t("subtitle")}
           guardrails={[
-            { emphasis: "Räkningar", to: "annat steg", detail: "(internet/telefoni)" },
-            { emphasis: "Spontanköp", to: "kommer senare", detail: "(mat/nöjen)" },
+            {
+              emphasis: t("guardrailBillsEmphasis"),
+              to: t("guardrailBillsTo"),
+              detail: t("guardrailBillsDetail"),
+            },
           ]}
-          helpTitle="Vad räknas som prenumerationer?"
-          helpItems={[
-            "Streaming, musik, appar och digitala medlemskap.",
-            "Om du är osäker: lägg in det som en egen prenumeration så blir det rätt i totalen.",
-          ]}
+          helpTitle={t("helpTitle")}
+          helpItems={[t("help1"), t("help2")]}
         />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -170,7 +168,7 @@ const SubStepSubscriptions: React.FC = () => {
                 locale={locale}
                 placeholder={field.placeholder}
                 error={err(path)}
-                {...register(path, { setValueAs: setValueAsSvNumber })}
+                {...register(path, { setValueAs: setValueAsLocalizedNumber })}
               />
             );
           })}
@@ -184,19 +182,21 @@ const SubStepSubscriptions: React.FC = () => {
           value={openAccordion}
           onValueChange={setOpenAccordion}
         >
-          <span id={idFromPath("subscriptions.customSubscriptions")} className="block h-0" />
+          <span
+            id={idFromPath("subscriptions.customSubscriptions")}
+            className="block h-0"
+          />
 
           <WizardAccordion
             value="custom"
             icon={<CreditCard className="h-5 w-5 text-wizard-accent" />}
-            title="Egna prenumerationer"
-            subtitle="Lägg till dina egna tjänster och månadskostnader."
-            totalText={customTotalText}
-            totalSuffix="/mån"
+            title={t("customTitle")}
+            subtitle={t("customSubtitle")}
+            totalSuffix={t("totalSuffix")}
+            addLabel={t("addLabel")}
             variant="shell"
             count={fields.length}
             onAdd={handleAddSubscription}
-            addLabel="Lägg till prenumeration"
             addPlacement="inside"
           >
             <div className="space-y-3 pt-2">
@@ -212,13 +212,14 @@ const SubStepSubscriptions: React.FC = () => {
                     remove(index);
                     setDeletingId(null);
                   }}
-                  namePlaceholder="Namn (t.ex. iCloud)"
-                  amountPlaceholder="Belopp"
+                  namePlaceholder={t("namePlaceholder")}
+                  amountPlaceholder={t("amountPlaceholder")}
                 />
               ))}
             </div>
 
-            {typeof formState.errors.subscriptions?.customSubscriptions?.message === "string" && (
+            {typeof formState.errors.subscriptions?.customSubscriptions
+              ?.message === "string" && (
               <p className="mt-2 text-center text-sm font-semibold text-wizard-warning">
                 {formState.errors.subscriptions.customSubscriptions.message}
               </p>
@@ -226,15 +227,14 @@ const SubStepSubscriptions: React.FC = () => {
           </WizardAccordion>
         </WizardAccordionRoot>
 
-
         <div className="pt-6">
           <WizardTotalBar
-            title="Totalt prenumerationer"
-            subtitle="Summa för prenumerationer per månad"
+            title={t("totalTitle")}
+            subtitle={t("totalSubtitle")}
+            suffix={t("totalSuffix")}
             value={total}
             currency={currency}
             locale={locale}
-            suffix="/mån"
             tone="accent"
           />
         </div>

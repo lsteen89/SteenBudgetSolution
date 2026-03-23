@@ -23,6 +23,7 @@ using Backend.IntegrationTests.Shared;
 using Backend.Application.Features.Shared.Issuers.Auth;
 using Backend.Application.Orchestrators.Email.Generators;
 using Backend.Domain.Entities.Email;
+using Backend.Application.Abstractions.Application.Services.Security;
 
 
 namespace Backend.IntegrationTests.Auth.RegisterVerify;
@@ -39,6 +40,7 @@ public sealed class RegisterVerifyFlowTests
 
 
     private readonly Mock<ITurnstileService> _turnstile = new();
+    private readonly Mock<IPasswordService> _passwordService = new();
     private readonly Mock<IEmailRateLimiter> _rateLimiter = new();
     private readonly Mock<ITimeProvider> _clock = new();
     private readonly Mock<IAuthSessionIssuer> _issuer = new();
@@ -71,6 +73,9 @@ public sealed class RegisterVerifyFlowTests
         _turnstile.Setup(x => x.ValidateAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
                   .ReturnsAsync(true);
 
+        _passwordService.Setup(p => p.Hash(It.IsAny<string>()))
+                        .Returns<string>(pwd => Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(pwd)));
+
         _rateLimiter.Setup(r => r.CheckAsync(It.IsAny<Guid>(), EmailKind.Verification, It.IsAny<CancellationToken>()))
                     .ReturnsAsync(new RateLimitDecision(true));
 
@@ -85,6 +90,7 @@ public sealed class RegisterVerifyFlowTests
         var regOrc = new RegistrationOrchestrator(
             users,
             _turnstile.Object,
+_passwordService.Object,
             verificationOrc,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<RegistrationOrchestrator>.Instance
         );
@@ -378,20 +384,20 @@ WHERE PersoId = @PersoId;";
                 "UPDATE Users SET FirstLogin = 0 WHERE PersoId = @id;", new { id = persoid });
             return rows == 1;
         }
-        public async Task<bool> UpsertUserSettingsAsync(Guid persoid, string locale, CancellationToken ct = default)
+        public async Task<bool> UpsertUserPreferencesAsync(Guid persoid, string locale, string currency, CancellationToken ct = default)
         {
             await using var c = new MySqlConnection(_cs);
             var rows = await c.ExecuteAsync(
-            "INSERT INTO UserSettings (PersoId, Locale) VALUES (@Persoid, @Locale) ON DUPLICATE KEY UPDATE Locale = VALUES(Locale), LastUpdatedTime = CURRENT_TIMESTAMP",
-            new { Persoid = persoid, Locale = locale });
+            "INSERT INTO UserSettings (PersoId, Locale, Currency) VALUES (@Persoid, @Locale, @Currency) ON DUPLICATE KEY UPDATE Locale = VALUES(Locale), Currency = VALUES(Currency), LastUpdatedTime = CURRENT_TIMESTAMP",
+            new { Persoid = persoid, Locale = locale, Currency = currency });
 
             return rows >= 1;
         }
-        public async Task<string?> GetUserLocaleAsync(Guid persoid, CancellationToken ct = default)
+        public async Task<UserPreferencesReadModel?> GetUserPreferencesAsync(Guid persoid, CancellationToken ct = default)
         {
             await using var c = new MySqlConnection(_cs);
-            return await c.ExecuteScalarAsync<string>(
-                "SELECT Locale FROM UserSettings WHERE PersoId = @Persoid;", new { Persoid = persoid });
+            return await c.QuerySingleOrDefaultAsync<UserPreferencesReadModel>(
+                "SELECT Locale, Currency FROM UserSettings WHERE PersoId = @Persoid;", new { Persoid = persoid });
         }
         public async Task<EmailRegistrationState> GetEmailRegistrationStateAsync(
             string email,
@@ -410,6 +416,10 @@ WHERE PersoId = @PersoId;";
             return result is null
                 ? new EmailRegistrationState(Exists: false, EmailConfirmed: false)
                 : new EmailRegistrationState(Exists: true, EmailConfirmed: result.Value);
+        }
+        public Task<bool> UpdateUserProfileAsync(Guid persoId, string firstName, string lastName, CancellationToken ct = default)
+        {
+            return Task.FromResult(true);
         }
     }
 
@@ -465,7 +475,7 @@ WHERE PersoId = @PersoId;";
         private readonly string _cs;
         public SqlEmailOutbox(string cs) => _cs = cs;
 
-        public async Task EnqueueAsync(string kind, string toEmail, string subject, string bodyHtml, DateTime nowUtc, CancellationToken ct)
+        public async Task EnqueueAsync(EnqueueEmailOutboxRequest request, CancellationToken ct)
         {
             const string sql = @"
 INSERT INTO EmailOutbox
@@ -476,11 +486,11 @@ VALUES
             await using var conn = new MySqlConnection(_cs);
             await conn.ExecuteAsync(new CommandDefinition(sql, new
             {
-                Kind = kind,
-                ToEmail = toEmail,
-                Subject = subject,
-                BodyHtml = bodyHtml,
-                NowUtc = nowUtc
+                Kind = request.Kind,
+                ToEmail = request.ToEmail,
+                Subject = request.Subject,
+                BodyHtml = request.BodyHtml,
+                NowUtc = request.NowUtc
             }, cancellationToken: ct));
         }
 
@@ -488,7 +498,7 @@ VALUES
             => Task.FromResult<IReadOnlyList<EmailOutboxItem>>(Array.Empty<EmailOutboxItem>());
 
         public Task MarkSentAsync(long id, string? providerId, DateTime nowUtc, CancellationToken ct) => Task.CompletedTask;
-        public Task MarkFailedAsync(long id, int attempts, DateTime nextAttemptAtUtc, string error, DateTime nowUtc, CancellationToken ct) => Task.CompletedTask;
+        public Task MarkFailedAsync(MarkEmailOutboxFailedRequest request, CancellationToken ct) => Task.CompletedTask;
     }
 
 }

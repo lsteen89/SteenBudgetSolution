@@ -12,14 +12,14 @@ using Backend.Application.Abstractions.Infrastructure.Data; // IWizardRepository
 using Backend.Application.Features.Wizard.SaveStep;
 using Backend.Domain.Shared;
 using Backend.IntegrationTests.Shared;
+using Backend.Application.Abstractions.Application.Services.Security; // IPasswordService
 
 namespace Backend.IntegrationTests.Wizard;
 
 [Collection("it:db")]
-public sealed class SaveWizardStepFlowTests
+public sealed class SaveWizardStepFlowTests : IntegrationTestBase
 {
-    private readonly MariaDbFixture _db;
-    public SaveWizardStepFlowTests(MariaDbFixture db) => _db = db;
+    public SaveWizardStepFlowTests(MariaDbFixture db) : base(db) { }
 
     private sealed class FakeValidator : IWizardStepValidator
     {
@@ -34,11 +34,11 @@ public sealed class SaveWizardStepFlowTests
     {
         var mockLogger = Mock.Of<ILogger<SaveWizardStepCommandHandler>>();
 
-        await _db.ResetAsync();
+        await Db.ResetAsync();
         var persoId = Guid.NewGuid();
         var sessionId = Guid.NewGuid();
 
-        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await using var conn = new MySqlConnection(Db.ConnectionString);
         await conn.OpenAsync();
 
         // FK: user + session
@@ -49,7 +49,7 @@ public sealed class SaveWizardStepFlowTests
         """, new { sid = sessionId, pid = persoId });
 
         // Build repo mock that runs real SQL for UpsertStepDataAsync only
-        var repo = BuildRepoMockForUpsert(_db.ConnectionString);
+        var repo = BuildRepoMockForUpsert(Db.ConnectionString);
 
         // First save (insert)
         var json1 = """{"income":[{"name":"salary","amount":1000}]}""";
@@ -79,13 +79,13 @@ public sealed class SaveWizardStepFlowTests
     }
 
     [Fact]
-    public async Task Missing_Validator_Does_Not_Write_To_DB()
+    public async Task Missing_Validator_Does_Not_Write_ToDb()
     {
-        await _db.ResetAsync();
+        await Db.ResetAsync();
         var persoId = Guid.NewGuid();
         var sessionId = Guid.NewGuid();
 
-        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await using var conn = new MySqlConnection(Db.ConnectionString);
         await conn.OpenAsync();
 
         await SeedUserAsync(conn, persoId);
@@ -94,7 +94,7 @@ public sealed class SaveWizardStepFlowTests
             VALUES (@sid, @pid, 0, UTC_TIMESTAMP(), UTC_TIMESTAMP());
         """, new { sid = sessionId, pid = persoId });
 
-        var repo = BuildRepoMockForUpsert(_db.ConnectionString);
+        var repo = BuildRepoMockForUpsert(Db.ConnectionString);
         var mockLogger = Mock.Of<ILogger<SaveWizardStepCommandHandler>>();
         var handler = new SaveWizardStepCommandHandler(repo.Object, Array.Empty<IWizardStepValidator>(), mockLogger);
 
@@ -109,9 +109,9 @@ public sealed class SaveWizardStepFlowTests
 
     // ---------- Helpers ----------
 
-    private static async Task SeedUserAsync(MySqlConnection conn, Guid persoId)
+    private async Task SeedUserAsync(MySqlConnection conn, Guid persoId)
     {
-        var pwd = BCrypt.Net.BCrypt.HashPassword("dummy");
+        var pwd = PasswordService.Hash("dummy");
         await conn.ExecuteAsync("""
             INSERT INTO Users
                 (Persoid, Firstname, Lastname, Email, EmailConfirmed, Password, Roles, Locked, FirstLogin, CreatedBy)

@@ -1,7 +1,7 @@
-import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import { saveWizardStep } from '@api/Services/wizard/wizardService';
-import { useWizardSessionStore } from '@/stores/Wizard/wizardSessionStore';
+import { useWizardSessionStore } from "@/stores/Wizard/wizardSessionStore";
+import { saveWizardStep } from "@api/Services/wizard/wizardService";
+import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
 
 export interface QueueItem {
   sessionId: string;
@@ -24,7 +24,8 @@ interface WizardSaveQueue {
   removeByKey: (step: number, sub: number) => void;
 }
 
-const keyOf = (i: QueueItem) => `${i.sessionId}:${i.stepNumber}:${i.subStepNumber}`;
+const keyOf = (i: QueueItem) =>
+  `${i.sessionId}:${i.stepNumber}:${i.subStepNumber}`;
 
 export const useWizardSaveQueue = create<WizardSaveQueue>()(
   persist(
@@ -69,7 +70,9 @@ export const useWizardSaveQueue = create<WizardSaveQueue>()(
 
       removeByKey: (step, sub) =>
         set((s) => ({
-          queue: s.queue.filter(qi => !(qi.stepNumber === step && qi.subStepNumber === sub)),
+          queue: s.queue.filter(
+            (qi) => !(qi.stepNumber === step && qi.subStepNumber === sub),
+          ),
         })),
 
       flush: async () => {
@@ -77,7 +80,8 @@ export const useWizardSaveQueue = create<WizardSaveQueue>()(
         if (!sessionId) return;
 
         // ✅ only flush items belonging to THIS session
-        const getQueueForSession = () => get().queue.filter(qi => qi.sessionId === sessionId);
+        const getQueueForSession = () =>
+          get().queue.filter((qi) => qi.sessionId === sessionId);
 
         let q = getQueueForSession();
         let i = 0;
@@ -105,29 +109,32 @@ export const useWizardSaveQueue = create<WizardSaveQueue>()(
                     qi.sessionId === sessionId &&
                     qi.stepNumber === stepNumber &&
                     qi.subStepNumber === subStepNumber
-                  )
+                  ),
               ),
             }));
 
             q = getQueueForSession(); // re-read
           } catch (e) {
-            console.warn("[WSQ] Flush failed, stopping", {
-              sessionId,
-              stepNumber,
-              subStepNumber,
-            }, e);
+            console.warn(
+              "[WSQ] Flush failed, stopping",
+              {
+                sessionId,
+                stepNumber,
+                subStepNumber,
+              },
+              e,
+            );
             break;
           }
         }
       },
 
-
       clearQueue: () => set({ queue: [] }),
     }),
     {
-      name: 'wizard-save-queue',
+      name: "wizard-save-queue",
       storage: createJSONStorage(() => sessionStorage),
       partialize: (state) => ({ queue: state.queue }),
-    }
-  )
+    },
+  ),
 );

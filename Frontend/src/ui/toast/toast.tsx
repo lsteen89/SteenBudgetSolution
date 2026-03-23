@@ -1,4 +1,7 @@
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/lib/utils";
+import { tDict } from "@/utils/i18n/translate";
+import { toastUiDict } from "@/utils/i18n/ui/Toast.i18n";
 import { AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
 import * as React from "react";
 import { createPortal } from "react-dom";
@@ -59,6 +62,9 @@ function accentFor(v: ToastVariant) {
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = React.useState<ToastItem[]>([]);
+  const locale = useAppLocale();
+  const t = <K extends keyof typeof toastUiDict.sv>(k: K) =>
+    tDict(k, locale, toastUiDict);
 
   const dismiss = React.useCallback((id: string) => {
     setItems((xs) => xs.filter((x) => x.id !== id));
@@ -102,7 +108,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={api}>
       {children}
-      <Toaster items={items} onDismiss={dismiss} />
+      <Toaster items={items} onDismiss={dismiss} t={t} />
     </ToastContext.Provider>
   );
 }
@@ -110,9 +116,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 function Toaster({
   items,
   onDismiss,
+  t,
 }: {
   items: ToastItem[];
   onDismiss: (id: string) => void;
+  t: <K extends keyof typeof toastUiDict.sv>(k: K) => string;
 }) {
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => setMounted(true), []);
@@ -131,8 +139,8 @@ function Toaster({
       aria-live="polite"
       aria-relevant="additions text"
     >
-      {items.map((t) => (
-        <ToastCard key={t.id} item={t} onDismiss={onDismiss} />
+      {items.map((item) => (
+        <ToastCard key={item.id} item={item} onDismiss={onDismiss} t={t} />
       ))}
     </div>
   );
@@ -143,11 +151,20 @@ function Toaster({
 function ToastCard({
   item,
   onDismiss,
+  t,
 }: {
   item: ToastItem;
   onDismiss: (id: string) => void;
+  t: <K extends keyof typeof toastUiDict.sv>(k: K) => string;
 }) {
   const Icon = iconFor(item.variant);
+
+  const title =
+    item.variant === "success"
+      ? t("titleSuccess")
+      : item.variant === "error"
+        ? t("titleError")
+        : t("titleInfo");
 
   return (
     <div className="pointer-events-auto">
@@ -168,13 +185,7 @@ function ToastCard({
           <Icon className="mt-0.5 h-5 w-5 shrink-0" />
 
           <div className="min-w-0 flex-1">
-            <div className="text-sm font-semibold text-eb-text">
-              {item.variant === "success"
-                ? "Klart"
-                : item.variant === "error"
-                  ? "Något gick fel"
-                  : "Info"}
-            </div>
+            <div className="text-sm font-semibold text-eb-text">{title}</div>
             <div className="mt-0.5 text-sm text-eb-text/70 break-words">
               {item.message}
             </div>
@@ -190,7 +201,7 @@ function ToastCard({
               "hover:bg-[rgb(var(--eb-shell)/0.45)]",
               "focus-visible:outline-none focus-visible:ring-4 ring-eb-stroke/40",
             )}
-            aria-label="Stäng"
+            aria-label={t("close")}
           >
             <X className="h-4 w-4" />
           </button>

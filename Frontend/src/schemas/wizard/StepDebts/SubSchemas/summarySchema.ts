@@ -1,7 +1,6 @@
 import * as yup from "yup";
 
-const validStrategies = ["Snowball", "Avalanche", "NoAction"] as const;
-// or include "Unknown" if you want to allow it through forms (usually you don't)
+const validStrategies = ["avalanche", "snowball", "noAction"] as const;
 
 export const summaryPageSchema = yup.object({
   repaymentStrategy: yup

@@ -10,28 +10,28 @@ using Xunit;
 using Backend.Application.Abstractions.Infrastructure.Data; // IWizardRepository
 using Backend.Application.Features.Wizard.AuthorizeSession;  // AuthorizeWizardSessionQueryHandler
 using Backend.IntegrationTests.Shared;
+using Backend.Application.Abstractions.Application.Services.Security; // IPasswordService   
 
 namespace Backend.IntegrationTests.Wizard;
 
 [Collection("it:db")]
-public sealed class AuthorizeWizardSessionFlowTests
+public sealed class AuthorizeWizardSessionFlowTests : IntegrationTestBase
 {
-    private readonly MariaDbFixture _db;
-    public AuthorizeWizardSessionFlowTests(MariaDbFixture db) => _db = db;
+    public AuthorizeWizardSessionFlowTests(MariaDbFixture db) : base(db) { }
 
     [Fact]
     public async Task ReturnsTrue_When_UserOwnsSession()
     {
-        await _db.ResetAsync();
+        await Db.ResetAsync();
         var persoId = Guid.NewGuid();
         var sessionId = Guid.NewGuid();
 
-        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await using var conn = new MySqlConnection(Db.ConnectionString);
         await conn.OpenAsync();
         await SeedUserAsync(conn, persoId);
         await SeedSessionAsync(conn, sessionId, persoId);
 
-        var repo = BuildRepoForOwnership(_db.ConnectionString);
+        var repo = BuildRepoForOwnership(Db.ConnectionString);
         var sut = new AuthorizeWizardSessionQueryHandler(repo.Object);
 
         var ok = await sut.Handle(new AuthorizeWizardSessionQuery(persoId, sessionId), CancellationToken.None);
@@ -41,18 +41,18 @@ public sealed class AuthorizeWizardSessionFlowTests
     [Fact]
     public async Task ReturnsFalse_When_OtherUserOwnsSession()
     {
-        await _db.ResetAsync();
+        await Db.ResetAsync();
         var owner = Guid.NewGuid();
         var other = Guid.NewGuid();
         var sessionId = Guid.NewGuid();
 
-        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await using var conn = new MySqlConnection(Db.ConnectionString);
         await conn.OpenAsync();
         await SeedUserAsync(conn, owner);
         await SeedUserAsync(conn, other);
         await SeedSessionAsync(conn, sessionId, owner);
 
-        var repo = BuildRepoForOwnership(_db.ConnectionString);
+        var repo = BuildRepoForOwnership(Db.ConnectionString);
         var sut = new AuthorizeWizardSessionQueryHandler(repo.Object);
 
         var ok = await sut.Handle(new AuthorizeWizardSessionQuery(other, sessionId), CancellationToken.None);
@@ -62,14 +62,14 @@ public sealed class AuthorizeWizardSessionFlowTests
     [Fact]
     public async Task ReturnsFalse_When_PersoIdMissing_Or_SessionMissing()
     {
-        await _db.ResetAsync();
+        await Db.ResetAsync();
         var someUser = Guid.NewGuid();
 
-        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await using var conn = new MySqlConnection(Db.ConnectionString);
         await conn.OpenAsync();
         await SeedUserAsync(conn, someUser);
 
-        var repo = BuildRepoForOwnership(_db.ConnectionString);
+        var repo = BuildRepoForOwnership(Db.ConnectionString);
         var sut = new AuthorizeWizardSessionQueryHandler(repo.Object);
 
         (await sut.Handle(new AuthorizeWizardSessionQuery(null, Guid.NewGuid()), CancellationToken.None)).Should().BeFalse();
@@ -79,9 +79,9 @@ public sealed class AuthorizeWizardSessionFlowTests
 
     // --- Helpers ---
 
-    private static async Task SeedUserAsync(MySqlConnection conn, Guid persoId)
+    private async Task SeedUserAsync(MySqlConnection conn, Guid persoId)
     {
-        var pwd = BCrypt.Net.BCrypt.HashPassword("dummy");
+        var pwd = PasswordService.Hash("dummy");
         await conn.ExecuteAsync("""
             INSERT INTO Users
                 (Persoid, Firstname, Lastname, Email, EmailConfirmed, Password, Roles, Locked, FirstLogin, CreatedBy)

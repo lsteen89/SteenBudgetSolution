@@ -20,8 +20,13 @@ public sealed class DebtsStepValidator : IWizardStepValidator
     {
         try
         {
-            var dto = JsonSerializer.Deserialize<DebtsFormValues>(stepData.ToString()!, JsonHelper.Camel);
+            var json = stepData switch
+            {
+                JsonElement je => je.GetRawText(),
+                _ => stepData.ToString() ?? string.Empty
+            };
 
+            var dto = JsonSerializer.Deserialize<DebtsFormValues>(json, JsonHelper.Camel);
 
             if (dto is null)
             {
@@ -30,9 +35,8 @@ public sealed class DebtsStepValidator : IWizardStepValidator
 
             _validator.ValidateAndThrow(dto);
 
-            // Re-serialize normalized, camel-cased data as the value to persist
-            var json = JsonHelper.SerializeSparse(dto);
-            return Result<string>.Success(json);
+            var normalizedJson = JsonHelper.SerializeSparse(dto);
+            return Result<string>.Success(normalizedJson);
         }
         catch (ValidationException ex)
         {

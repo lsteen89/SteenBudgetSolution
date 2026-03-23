@@ -1,26 +1,24 @@
-import React, { useMemo, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { Pencil } from "lucide-react";
+import React, { useMemo, useRef, useState } from "react";
+
 import RangeSlider from "@/components/atoms/InputField/RangeSlider";
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
+import { tDict } from "@/utils/i18n/translate";
+import { editableSavingsInputDict } from "@/utils/i18n/wizard/stepSavings/EditableSavingsInput.i18n";
+import { renderEmphasis } from "@/utils/ui/renderEmphasis";
 
 interface EditableSavingsInputProps {
   id?: string;
   value: number | null;
-
-  /** Slider track max (soft cap). MUST be finite. */
   softMax: number;
-
-  /** Typing max (hard cap). If omitted, typing is unlimited. */
   hardMax?: number;
   onBlur?: () => void;
   onChange: (n: number | null) => void;
   ariaLabelledBy?: string;
   hintText?: string;
   step?: number;
-
-  /** Format number for display (currency/locale). */
   formatValue?: (n: number) => string;
-
   markers?: { value: number; label?: string; className?: string }[];
   sliderValueLabel?: string;
 }
@@ -28,15 +26,18 @@ interface EditableSavingsInputProps {
 function clamp(n: number, min: number, max?: number) {
   if (!Number.isFinite(n)) return min;
   const lo = Math.max(n, min);
-  return typeof max === "number" && Number.isFinite(max) ? Math.min(lo, max) : lo;
+  return typeof max === "number" && Number.isFinite(max)
+    ? Math.min(lo, max)
+    : lo;
 }
 
-function parseSvInt(raw: string): number | null {
+function parseWholeNumber(raw: string): number | null {
   const s = (raw ?? "").trim();
   if (!s) return null;
-  // allow spaces and separators, keep digits + minus
-  const digits = s.replace(/[^\d-]/g, "");
-  if (!digits || digits === "-") return null;
+
+  const digits = s.replace(/[^\d]/g, "");
+  if (!digits) return null;
+
   const n = Number(digits);
   return Number.isFinite(n) ? n : null;
 }
@@ -49,15 +50,22 @@ const EditableSavingsInput: React.FC<EditableSavingsInputProps> = ({
   onBlur,
   onChange,
   ariaLabelledBy,
-  hintText = "Klicka för att redigera eller ange ett exakt belopp",
+  hintText,
   step = 100,
   formatValue,
   markers = [],
   sliderValueLabel,
 }) => {
+  const locale = useAppLocale();
+  const t = <K extends keyof typeof editableSavingsInputDict.sv>(k: K) =>
+    tDict(k, locale, editableSavingsInputDict);
+
   const [editing, setEditing] = useState(false);
   const [showHint, setShowHint] = useState(true);
   const inputRef = useRef<HTMLInputElement | null>(null);
+
+  const resolvedHintText = hintText ?? t("hintText");
+  const scaleHint = renderEmphasis(t("scaleHint"));
 
   const sliderMax = useMemo(() => {
     const n = Number(softMax);
@@ -65,10 +73,13 @@ const EditableSavingsInput: React.FC<EditableSavingsInputProps> = ({
     return Math.round(n);
   }, [softMax]);
 
-  //const sliderValue = useMemo(() => clamp(value ?? 0, 0, sliderMax), [value, sliderMax]);
   const sliderValue = clamp(value ?? 0, 0, sliderMax);
+
   const displayText = useMemo(() => {
-    const v = Math.round(Number.isFinite(value ?? 0) ? value ?? 0 : 0);
+    const v =
+      typeof value === "number" && Number.isFinite(value)
+        ? Math.round(value)
+        : 0;
 
     try {
       return formatValue ? formatValue(v) : v.toLocaleString("sv-SE");
@@ -77,13 +88,13 @@ const EditableSavingsInput: React.FC<EditableSavingsInputProps> = ({
     }
   }, [value, formatValue]);
 
-
   const commit = () => {
     const rawText = inputRef.current?.value ?? "";
-    const parsed = parseSvInt(rawText);
+    const parsed = parseWholeNumber(rawText);
 
     if (parsed === null) {
       onChange(null);
+      onBlur?.();
       setEditing(false);
       return;
     }
@@ -93,6 +104,7 @@ const EditableSavingsInput: React.FC<EditableSavingsInputProps> = ({
     onBlur?.();
     setEditing(false);
   };
+
   const cancel = () => setEditing(false);
 
   return (
@@ -102,16 +114,17 @@ const EditableSavingsInput: React.FC<EditableSavingsInputProps> = ({
         max={sliderMax}
         step={step}
         value={sliderValue}
-        onChange={(n) => onChange(clamp(n, 0, sliderMax))}
+        onChange={(n) => onChange(Math.round(clamp(n, 0, sliderMax)))}
         aria-labelledby={ariaLabelledBy}
         showValueLabel
         formatValueLabel={(n: number) =>
-          formatValue ? formatValue(Math.round(n)) : Math.round(n).toLocaleString("sv-SE")
+          formatValue
+            ? formatValue(Math.round(n))
+            : Math.round(n).toLocaleString("sv-SE")
         }
         markers={markers}
         valueLabel={sliderValueLabel}
       />
-
 
       <div className="flex flex-col items-center">
         <AnimatePresence mode="wait" initial={false}>
@@ -121,11 +134,18 @@ const EditableSavingsInput: React.FC<EditableSavingsInputProps> = ({
               ref={inputRef}
               type="text"
               inputMode="numeric"
+              pattern="[0-9\\s]*"
               autoComplete="off"
               spellCheck={false}
-              aria-label="Redigera månatligt sparbelopp"
-              placeholder="0"
+              aria-label={t("ariaEditAmount")}
+              placeholder={t("placeholder")}
               defaultValue={value === null ? "" : String(Math.round(value))}
+              onChange={(e) => {
+                const cleaned = e.target.value.replace(/[^\d\s]/g, "");
+                if (cleaned !== e.target.value) {
+                  e.target.value = cleaned;
+                }
+              }}
               onBlur={commit}
               onKeyDown={(e) => {
                 if (e.key === "Enter") commit();
@@ -150,7 +170,9 @@ const EditableSavingsInput: React.FC<EditableSavingsInputProps> = ({
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.96, opacity: 0 }}
             >
-              <span className="text-3xl leading-none font-bold tabular-nums">{displayText}</span>
+              <span className="text-3xl leading-none font-bold tabular-nums">
+                {displayText}
+              </span>
               <Pencil className="w-6 h-6 opacity-60 group-hover:opacity-100 transition-opacity text-wizard-text" />
             </motion.button>
           )}
@@ -164,12 +186,10 @@ const EditableSavingsInput: React.FC<EditableSavingsInputProps> = ({
             animate={{ opacity: 1 }}
             transition={{ delay: 0.25 }}
           >
-
-            {hintText}
-            <p className="text-[11px] text-wizard-text/40">
-              Skalan visar upp till ca <b>70%</b> av inkomsten (för att hålla den användbar).
+            {resolvedHintText}
+            <p className="text-[11px] text-wizard-text/40 italic leading-snug">
+              {scaleHint}
             </p>
-
           </motion.div>
         )}
       </div>

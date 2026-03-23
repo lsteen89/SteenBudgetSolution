@@ -13,6 +13,8 @@ using Backend.Application.Features.Shared.Issuers.Auth;
 
 namespace Backend.Application.Features.Authentication.Login;
 
+// This is starting to get heavy. 9 DI dependencies. Consider refactoring if it grows more.
+// Ill leave it for now since most of these are abstractions and the handler is still reasonably focused on its task.
 public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, Result<IssuedAuthSession>>
 {
     private const string DummyHash = "$2a$12$3v7iZz9K0wKQ9M3m8v6sUe7A1QWJ0rj3i4n0eQ9yHvsb8yT2t5m8a"; // precomputed bcrypt of "dummy"
@@ -22,6 +24,7 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, Result<I
     private readonly IHumanChallengePolicy _humanChallengePolicy;
     private readonly ITurnstileService _turnstile;
     private readonly IAuthSessionIssuer _issuer;
+    private readonly IPasswordService _passwordService;
     private readonly ITimeProvider _clock;
     private readonly ILogger<LoginCommandHandler> _log;
     public LoginCommandHandler(
@@ -31,12 +34,13 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, Result<I
         IHumanChallengePolicy humanChallengePolicy,
         ITurnstileService turnstile,
         IAuthSessionIssuer issuer,
+        IPasswordService passwordService,
         ITimeProvider clock,
         ILogger<LoginCommandHandler> log
     )
     {
         _authz = authz; _lockoutOpts = lockoutOpts; _users = users;
-        _humanChallengePolicy = humanChallengePolicy; _turnstile = turnstile; _issuer = issuer;
+        _humanChallengePolicy = humanChallengePolicy; _turnstile = turnstile; _issuer = issuer; _passwordService = passwordService;
         _clock = clock; _log = log;
     }
 
@@ -75,8 +79,8 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, Result<I
         // 4) Credentials (timing-safe)
         var since = now.AddMinutes(-_lockoutOpts.Value.WindowMinutes);
         bool passwordOk = user is not null && !string.IsNullOrEmpty(user.Password)
-            ? BCrypt.Net.BCrypt.Verify(c.Password, user.Password)
-            : BCrypt.Net.BCrypt.Verify(c.Password, DummyHash);
+            ? _passwordService.Verify(c.Password, user.Password)
+            : _passwordService.Verify(c.Password, DummyHash);
 
         var isValid = user is not null && passwordOk;
 

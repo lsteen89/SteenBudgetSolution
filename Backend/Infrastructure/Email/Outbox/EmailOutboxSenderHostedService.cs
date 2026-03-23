@@ -63,7 +63,15 @@ public sealed class EmailOutboxSenderHostedService : BackgroundService
                     {
                         var attempts = item.Attempts + 1;
                         var next = DateTime.UtcNow.AddMinutes(5);
-                        await MarkFailedAsync(item.Id, attempts, next, "SMTP FromAddress is empty", stoppingToken);
+                        await MarkFailedAsync(
+                            new MarkEmailOutboxFailedRequest(
+                                Id: item.Id,
+                                Attempts: attempts,
+                                NextAttemptAtUtc: next,
+                                Error: "SMTP FromAddress is not configured",
+                                now
+                            ), stoppingToken
+                        );
                     }
 
                     continue;
@@ -103,18 +111,29 @@ public sealed class EmailOutboxSenderHostedService : BackgroundService
                         var next = DateTime.UtcNow.AddMinutes(Math.Min(30d, Math.Pow(2d, attempts)));
 
                         await MarkFailedAsync(
-                            item.Id,
-                            attempts,
-                            next,
-                            result.Error ?? "Unknown email error",
-                            stoppingToken);
+                            new MarkEmailOutboxFailedRequest(
+                                Id: item.Id,
+                                Attempts: attempts,
+                                NextAttemptAtUtc: next,
+                                Error: result.Error ?? "Unknown email error",
+                                now
+                            ), stoppingToken
+                        );
                     }
                     catch (Exception ex)
                     {
                         var attempts = item.Attempts + 1;
                         var next = DateTime.UtcNow.AddMinutes(Math.Min(30d, Math.Pow(2d, attempts)));
 
-                        await MarkFailedAsync(item.Id, attempts, next, ex.Message, stoppingToken);
+                        await MarkFailedAsync(
+                            new MarkEmailOutboxFailedRequest(
+                                Id: item.Id,
+                                Attempts: attempts,
+                                NextAttemptAtUtc: next,
+                                Error: ex.Message,
+                                now
+                            ), stoppingToken
+                        );
                     }
                 }
             }
@@ -178,7 +197,7 @@ public sealed class EmailOutboxSenderHostedService : BackgroundService
         }
     }
 
-    private async Task MarkFailedAsync(long id, int attempts, DateTime nextAttemptAtUtc, string error, CancellationToken ct)
+    private async Task MarkFailedAsync(MarkEmailOutboxFailedRequest request, CancellationToken ct)
     {
         await using var scope = _scopeFactory.CreateAsyncScope();
         var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
@@ -187,7 +206,7 @@ public sealed class EmailOutboxSenderHostedService : BackgroundService
         await uow.BeginTransactionAsync(ct);
         try
         {
-            await outbox.MarkFailedAsync(id, attempts, nextAttemptAtUtc, error, DateTime.UtcNow, ct);
+            await outbox.MarkFailedAsync(request, ct);
             await uow.CommitAsync(ct);
         }
         catch

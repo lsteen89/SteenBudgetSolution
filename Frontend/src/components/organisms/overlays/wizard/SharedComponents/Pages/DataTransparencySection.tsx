@@ -1,13 +1,19 @@
-import React from "react";
-import { ShieldCheck } from "lucide-react";
-import { Link } from "react-router-dom";
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/utils/cn";
+import { tDict } from "@/utils/i18n/translate";
+import { wizardDataTransparencyDict } from "@/utils/i18n/wizard/components/DataTransparencySection";
+import { ShieldCheck } from "lucide-react";
+import React from "react";
+import { Link } from "react-router-dom";
 
 type Props = {
   className?: string;
 };
 
 const DataTransparencySection: React.FC<Props> = ({ className }) => {
+  const locale = useAppLocale();
+  const t = <K extends keyof typeof wizardDataTransparencyDict.sv>(k: K) =>
+    tDict(k, locale, wizardDataTransparencyDict);
   return (
     <div
       className={cn(
@@ -16,7 +22,7 @@ const DataTransparencySection: React.FC<Props> = ({ className }) => {
         "border border-wizard-stroke/12",
         "shadow-[0_6px_18px_rgba(2,6,23,0.06)]",
         "before:absolute before:inset-0 before:rounded-2xl before:pointer-events-none",
-        "before:ring-1 before:ring-white/25"
+        "before:ring-1 before:ring-white/25",
       )}
     >
       <div className="flex items-start gap-3">
@@ -25,17 +31,15 @@ const DataTransparencySection: React.FC<Props> = ({ className }) => {
         </span>
 
         <p className="text-sm leading-relaxed text-wizard-muted">
-          Vi använder uppgifterna för att ge dig en bättre upplevelse och delar aldrig din data med tredje part.
-          {" "}
-          Läs mer i vår{" "}
+          {t("text")}{" "}
           <Link
             to="/data-policy"
             className={cn(
               "underline underline-offset-2",
-              "text-wizard-text hover:text-wizard-brand transition"
+              "text-wizard-text hover:text-wizard-brand transition",
             )}
           >
-            dataskyddspolicy
+            {t("link")}
           </Link>
           .
         </p>

@@ -1,4 +1,5 @@
-namespace Backend.Application.DTO.Auth;
+namespace Backend.Application.DTO.User;
+
 
 public sealed record ForgotPasswordRequest(string Email, string? Locale);
 public sealed record ResetPasswordRequest(

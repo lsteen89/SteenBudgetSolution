@@ -73,12 +73,16 @@ public sealed class VerificationCodeOrchestrator : IVerificationCodeOrchestrator
 
 
         await _outbox.EnqueueAsync(
-            kind: "VerificationCode",
-            toEmail: email,
-            subject: composer.Subject,
-            bodyHtml: composer.BodyHtml,
-            nowUtc: now,
-            ct: ct);
+            new EnqueueEmailOutboxRequest(
+                Kind: "VerificationCode",
+                ToEmail: email,
+                Subject: composer.Subject,
+                BodyHtml: composer.BodyHtml,
+                NowUtc: now
+            ),
+            ct: ct
+        );
+
 
         await _rateLimiter.MarkSentAsync(persoId, EmailKind.Verification, now, ct);
         await _codes.MarkSentAsync(persoId, now, ct);

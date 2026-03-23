@@ -25,15 +25,17 @@ export const useDashboardSummary = (opts?: UseDashboardSummaryOptions) => {
   const monthsPending = (monthsQ as any).isPending ?? monthsQ.isLoading;
   const dashPending = (dashQ as any).isPending ?? dashQ.isLoading;
 
-  const isPending = monthsPending || dashPending;
-  const isError = monthsQ.isError || dashQ.isError;
-  const isSuccess = monthsQ.isSuccess && dashQ.isSuccess;
+  const isPending = !enabled ? false : monthsPending || dashPending;
+  const isError = !enabled ? false : monthsQ.isError || dashQ.isError;
+  const isSuccess = !enabled ? false : monthsQ.isSuccess && dashQ.isSuccess;
 
-  const error = monthsQ.isError
-    ? toApiProblem(monthsQ.error)
-    : dashQ.isError
-      ? toApiProblem(dashQ.error)
-      : null;
+  const error = !enabled
+    ? null
+    : monthsQ.isError
+      ? toApiProblem(monthsQ.error)
+      : dashQ.isError
+        ? toApiProblem(dashQ.error)
+        : null;
 
   useEffect(() => {
     if (!enabled) return; // <— important
@@ -43,10 +45,12 @@ export const useDashboardSummary = (opts?: UseDashboardSummaryOptions) => {
 
   const data = useMemo(
     () =>
-      dashQ.data
-        ? buildDashboardSummaryAggregate(dashQ.data, currency, locale)
-        : null,
-    [dashQ.data, currency, locale],
+      !enabled
+        ? null
+        : dashQ.data
+          ? buildDashboardSummaryAggregate(dashQ.data, currency, locale)
+          : null,
+    [enabled, dashQ.data, currency, locale],
   );
 
   const refetchAll = useCallback(() => {

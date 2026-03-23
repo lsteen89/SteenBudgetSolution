@@ -7,6 +7,7 @@ import {
 import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import type { BudgetDashboardDto } from "@/types/budget/BudgetDashboardDto";
+import type { AppLocale } from "@/types/i18n/appLocale";
 import {
   asCategoryKey,
   labelCategory,
@@ -14,7 +15,6 @@ import {
 } from "@/utils/i18n/budget/categories";
 import { labelLedgerItem } from "@/utils/i18n/budget/ledgerItems";
 import { tLedger } from "@/utils/i18n/budget/ledgerText";
-import type { AppLocale } from "@/utils/i18n/locale";
 import type { CurrencyCode } from "@/utils/money/currency";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
 import { AnimatePresence, motion } from "framer-motion";

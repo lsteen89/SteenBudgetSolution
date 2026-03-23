@@ -10,10 +10,10 @@ public static class ApiResultExtensions
     {
         if (result.IsSuccess)
         {
-            return new OkObjectResult(ApiEnvelope<TValue>.Success(result.Value!));
+            return new OkObjectResult(ApiEnvelope.Success(result.Value!));
         }
 
-        var envelope = ApiEnvelope<TValue>.Failure(result.Error.Code, result.Error.Description);
+        var envelope = ApiEnvelope.Failure<TValue>(result.Error.Code, result.Error.Description);
 
         return result.Error.Type switch
         {
@@ -32,7 +32,7 @@ public static class ApiResultExtensions
             return new NoContentResult();
         }
 
-        var envelope = ApiEnvelope<object?>.Failure(result.Error.Code, result.Error.Description);
+        var envelope = ApiEnvelope.Failure<object?>(result.Error.Code, result.Error.Description);
 
         return result.Error.Type switch
         {

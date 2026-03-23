@@ -88,8 +88,8 @@ public sealed class ResendVerificationCommandHandlerTests
         // handler normalizes input to lower+trim before calling repo
         users.Setup(r => r.GetUserModelAsync(null, "u@e.se", It.IsAny<CancellationToken>()))
              .ReturnsAsync(user);
-        users.Setup(r => r.GetUserLocaleAsync(user.PersoId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync("sv-SE");
+        users.Setup(r => r.GetUserPreferencesAsync(user.PersoId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new UserPreferencesReadModel { Locale = "sv-SE", Currency = "SEK" });
 
         var orch = new Mock<IVerificationCodeOrchestrator>();
         orch.Setup(o => o.EnqueueForResendAsync(user.PersoId, "u@e.se", "sv-SE", It.IsAny<CancellationToken>()))

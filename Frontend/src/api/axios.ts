@@ -1,11 +1,11 @@
 import { callLogout, isLoggingOut, refreshToken } from "@/api/Auth/auth";
-import { applySession } from "@/api/Auth/session";
 import { useAuthStore } from "@/stores/Auth/authStore";
 import axios, {
   AxiosError,
   AxiosHeaders,
   type AxiosRequestHeaders,
 } from "axios";
+import { hydrateAuthenticatedState } from "./Auth/hydrateAuth";
 
 /* ───────── helpers ───────── */
 
@@ -33,8 +33,8 @@ export function queueRefresh(force = false): Promise<string> {
   }
 
   refreshInFlight ??= refreshToken()
-    .then((auth) => {
-      applySession(auth);
+    .then(async (auth) => {
+      await hydrateAuthenticatedState(auth);
       return auth.accessToken;
     })
     .finally(() => {

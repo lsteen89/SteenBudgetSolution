@@ -1,4 +1,7 @@
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import type { PerformanceMode } from "@/hooks/usePerformanceMode";
+import { tDict } from "@/utils/i18n/translate";
+import { wizardPerformanceDict } from "@/utils/i18n/wizard/components/WizardPerformanceToggle";
 import clsx from "clsx";
 import * as React from "react";
 
@@ -18,6 +21,9 @@ export function WizardPerformanceToggle({
   onClearOverride,
 }: Props) {
   const id = React.useId();
+  const locale = useAppLocale();
+  const t = <K extends keyof typeof wizardPerformanceDict.sv>(k: K) =>
+    tDict(k, locale, wizardPerformanceDict);
 
   const checked = mode === "low";
   const isAuto = override === null;
@@ -27,24 +33,23 @@ export function WizardPerformanceToggle({
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <div id={id} className="text-sm font-semibold text-wizard-text">
-            sparläge
+            {t("title")}
           </div>
-          <p className="mt-1 text-xs text-wizard-text/70">
-            Minskar animationer och visuella effekter för att göra guiden
-            mjukare.
-          </p>
+          <p className="mt-1 text-xs text-wizard-text/70">{t("description")}</p>
 
           {/* optional: tiny “state” line, helps users understand */}
           <div className="mt-2 text-[11px] text-wizard-text/55">
             {isAuto ? "Auto" : "Manuell"} •{" "}
-            <span className="text-wizard-text/80">{checked ? "På" : "Av"}</span>
+            <span className="text-wizard-text/80">
+              {checked ? t("on") : t("off")}
+            </span>
             {!isAuto && (
               <button
                 type="button"
                 onClick={onClearOverride}
                 className="ml-2 underline underline-offset-2 hover:text-wizard-text/80"
               >
-                återställ
+                {t("reset")}
               </button>
             )}
           </div>

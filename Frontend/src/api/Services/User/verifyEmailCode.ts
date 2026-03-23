@@ -1,7 +1,7 @@
 import type { ApiEnvelope } from "@/api/api.types";
 import type { AuthResult } from "@/api/auth.types";
 import { api } from "@/api/axios";
-import { unwrapEnvelope } from "@/api/envelope";
+import { unwrapEnvelopeData } from "@/api/envelope";
 import { toApiProblem } from "@/api/toApiProblem";
 import { isAxiosError } from "axios";
 
@@ -15,7 +15,7 @@ export async function verifyEmailCode(
       "/api/auth/verify-email-code",
       req,
     );
-    return unwrapEnvelope(res, "Verification failed.");
+    return unwrapEnvelopeData(res, "Verification failed.");
   } catch (e) {
     if (isAxiosError(e)) throw toApiProblem(e);
     throw e;

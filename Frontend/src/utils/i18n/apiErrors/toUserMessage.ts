@@ -1,8 +1,8 @@
 import type { ApiProblem } from "@/api/api.types";
+import type { AppLocale } from "@/types/i18n/appLocale";
 import { apiErrorsDict } from "@/utils/i18n/apiErrors/apiErrors.i18n";
-import type { AppLocale } from "@/utils/i18n/locale";
 import { tDict } from "@/utils/i18n/translate";
-import { asAuthErrorCode, labelAuthError } from "./authErrors";
+import { asApiErrorCode, labelApiError } from "./apiErrorCodes";
 
 const isDev = import.meta.env.MODE !== "production";
 
@@ -30,8 +30,8 @@ export function toUserMessage(p: ApiProblem, locale: AppLocale): string {
     return t("server");
   }
 
-  const code = asAuthErrorCode(p.code);
-  const mapped = labelAuthError(code, locale);
+  const code = asApiErrorCode(p.code);
+  const mapped = labelApiError(code, locale);
 
   // Only show BE message in dev *when unknown*
   if (code === "Unknown" && isDev && p.message) return p.message;

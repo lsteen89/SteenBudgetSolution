@@ -1,44 +1,104 @@
-import type { DebtTemplate } from "@/types/modal/debts";
+import type { AppLocale } from "@/types/i18n/appLocale";
+import type { DebtTemplate, DebtTemplateId } from "@/types/modal/debts";
 
-export const debtTemplates: DebtTemplate[] = [
-    {
-        name: "Kreditkort",
-        type: "revolving",
-        balance: 15_000,
-        apr: 19.95,
-        monthlyFee: 0,
-        minPayment: 500,
+type DebtTemplateDef = {
+  id: DebtTemplateId;
+  type: DebtTemplate["type"];
+  balance: number;
+  apr: number;
+  termMonths?: number | null;
+  monthlyFee?: number | null;
+  minPayment?: number | null;
+  label: {
+    sv: string;
+    en: string;
+    et: string;
+  };
+};
+
+const DEBT_TEMPLATE_DEFS: DebtTemplateDef[] = [
+  {
+    id: "credit_card",
+    type: "revolving",
+    balance: 25_000,
+    apr: 18.9,
+    minPayment: 750,
+    monthlyFee: 0,
+    label: {
+      sv: "Kreditkort",
+      en: "Credit card",
+      et: "Krediitkaart",
     },
-    {
-        name: "Bolån",
-        type: "bank_loan",
-        balance: 2_500_000,
-        apr: 4.25,
-        monthlyFee: 0,
-        termMonths: 360,
+  },
+  {
+    id: "mortgage",
+    type: "bank_loan",
+    balance: 1_500_000,
+    apr: 4.2,
+    termMonths: 360,
+    monthlyFee: 0,
+    label: {
+      sv: "Bolån",
+      en: "Mortgage",
+      et: "Kodulaen",
     },
-    {
-        name: "Billån",
-        type: "installment",
-        balance: 220_000,
-        apr: 6.95,
-        monthlyFee: 0,
-        termMonths: 84,
+  },
+  {
+    id: "car_loan",
+    type: "bank_loan",
+    balance: 180_000,
+    apr: 6.5,
+    termMonths: 84,
+    monthlyFee: 45,
+    label: {
+      sv: "Billån",
+      en: "Car loan",
+      et: "Autolaen",
     },
-    {
-        name: "Privatlån",
-        type: "bank_loan",
-        balance: 80_000,
-        apr: 9.9,
-        monthlyFee: 0,
-        termMonths: 60,
+  },
+  {
+    id: "personal_loan",
+    type: "private",
+    balance: 120_000,
+    apr: 8.9,
+    termMonths: 120,
+    monthlyFee: 35,
+    label: {
+      sv: "Privatlån",
+      en: "Personal loan",
+      et: "Tarbimislaen",
     },
-    {
-        name: "Avbetalning",
-        type: "installment",
-        balance: 25_000,
-        apr: 12.9,
-        monthlyFee: 39,
-        termMonths: 24,
+  },
+  {
+    id: "installment",
+    type: "installment",
+    balance: 18_000,
+    apr: 0,
+    termMonths: 24,
+    monthlyFee: 29,
+    label: {
+      sv: "Avbetalning",
+      en: "Installment plan",
+      et: "Järelmaks",
     },
+  },
 ];
+
+export function getDebtTemplates(locale: AppLocale): DebtTemplate[] {
+  const lang = locale.startsWith("sv")
+    ? "sv"
+    : locale.startsWith("et")
+      ? "et"
+      : "en";
+
+  return DEBT_TEMPLATE_DEFS.map((template) => ({
+    id: template.id,
+    name: template.label[lang],
+    type: template.type,
+    balance: template.balance,
+    apr: template.apr,
+    termMonths: template.termMonths ?? null,
+    monthlyFee: template.monthlyFee ?? null,
+    minPayment: template.minPayment ?? null,
+  }));
+}

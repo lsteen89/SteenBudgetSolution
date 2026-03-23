@@ -1,40 +1,46 @@
-import React, {
-  useState,
+import WizardOverlayShell from "@/components/organisms/overlays/wizard/SharedComponents/shells/WizardOverlayShell";
+import WizardSkeleton from "@/components/organisms/overlays/wizard/SharedComponents/Skeletons/WizardSkeleton";
+import { useWizard } from "@/context/WizardContext";
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
+import { useWizardDataStore } from "@/stores/Wizard/wizardDataStore";
+import type { Step4FormValues } from "@/types/Wizard/Step4_Debt/Step4FormValues";
+import { tDict } from "@/utils/i18n/translate";
+import { ensureStep4Defaults } from "@/utils/wizard/ensureStep4Defaults";
+import AnimatedContent from "@components/atoms/wrappers/AnimatedContent";
+import StepCarousel from "@components/molecules/progress/StepCarousel";
+import WizardProgress from "@components/organisms/overlays/wizard/SharedComponents/Menu/WizardProgress";
+import useMediaQuery from "@hooks/useMediaQuery";
+import { useSaveStepData } from "@hooks/wizard/useSaveStepData";
+import {
   forwardRef,
-  useImperativeHandle,
-  useRef,
-  useEffect,
-  useCallback,
   lazy,
   Suspense,
-  useMemo,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
 } from "react";
-import type { UseFormReturn, FieldErrors } from "react-hook-form";
-import WizardSkeleton from "@/components/organisms/overlays/wizard/SharedComponents/Skeletons/WizardSkeleton";
-import { WizardOverlaySkeleton } from "@/components/organisms/overlays/wizard/SharedComponents/Skeletons/WizardOverlaySkeleton";
-import AnimatedContent from "@components/atoms/wrappers/AnimatedContent";
-import type { Step4FormValues } from "@/types/Wizard/Step4_Debt/Step4FormValues";
-import { ensureStep4Defaults } from "@/utils/wizard/ensureStep4Defaults";
-import { useSaveStepData } from "@hooks/wizard/useSaveStepData";
-import { useWizardDataStore } from "@/stores/Wizard/wizardDataStore";
-import useMediaQuery from "@hooks/useMediaQuery";
-import WizardOverlayShell from "@/components/organisms/overlays/wizard/SharedComponents/shells/WizardOverlayShell";
-import WizardProgress from "@components/organisms/overlays/wizard/SharedComponents/Menu/WizardProgress";
-import StepCarousel from "@components/molecules/progress/StepCarousel";
-import { Skeleton } from "@/components/ui/Skeleton";
-import { useWizard } from "@/context/WizardContext";
+import type { FieldErrors, UseFormReturn } from "react-hook-form";
 
 import WizardFormWrapperStep4, {
   WizardFormWrapperStep4Ref,
 } from "./wrapper/WizardFormWrapperStep4";
 
-import { Info, CreditCard, ShieldCheck } from "lucide-react";
+import { CreditCard, Info, ShieldCheck } from "lucide-react";
 import { SubStepDebtsApi } from "./Pages/SubSteps/2_SubStepDebts/SubStepDebts";
 
 /* ───────────────── Lazy substeps ───────────────── */
-const SubStepGatekeeper = lazy(() => import("./Pages/SubSteps/1_SubStepGatekeeper/SubStepGatekeeper"));
-const SubStepDebts = lazy(() => import("./Pages/SubSteps/2_SubStepDebts/SubStepDebts"));
-const SubStepConfirm = lazy(() => import("./Pages/SubSteps/3_SubStepConfirm/Components/SubStepConfirmDebtsConnected"));
+const SubStepGatekeeper = lazy(
+  () => import("./Pages/SubSteps/1_SubStepGatekeeper/SubStepGatekeeper"),
+);
+const SubStepDebts = lazy(
+  () => import("./Pages/SubSteps/2_SubStepDebts/SubStepDebts"),
+);
+const SubStepConfirm = lazy(
+  () =>
+    import("./Pages/SubSteps/3_SubStepConfirm/Components/SubStepConfirmDebtsConnected"),
+);
 
 /* ───────────────── Preload helper ───────────────── */
 const preload = (fn: () => Promise<any>) => {
@@ -48,7 +54,8 @@ const preload = (fn: () => Promise<any>) => {
 const debtLoaders: Record<number, () => Promise<any>> = {
   1: () => import("./Pages/SubSteps/1_SubStepGatekeeper/SubStepGatekeeper"),
   2: () => import("./Pages/SubSteps/2_SubStepDebts/SubStepDebts"),
-  3: () => import("./Pages/SubSteps/3_SubStepConfirm/Components/SubStepConfirmDebtsConnected"),
+  3: () =>
+    import("./Pages/SubSteps/3_SubStepConfirm/Components/SubStepConfirmDebtsConnected"),
 };
 
 /* ───────────────── Types ───────────────── */
@@ -74,7 +81,7 @@ interface StepBudgetDebtsContainerProps {
     step: number,
     subStep: number,
     data: any,
-    goingBackwards: boolean
+    goingBackwards: boolean,
   ) => Promise<boolean>;
   stepNumber: number;
   initialData?: Partial<Step4FormValues>;
@@ -86,7 +93,10 @@ interface StepBudgetDebtsContainerProps {
   onValidationError?: () => void;
 }
 
-function getDebtsPartialData(subStep: number, allData: Step4FormValues): Partial<Step4FormValues> {
+function getDebtsPartialData(
+  subStep: number,
+  allData: Step4FormValues,
+): Partial<Step4FormValues> {
   switch (subStep) {
     case 1:
       return { intro: allData.intro };
@@ -119,12 +129,21 @@ const StepBudgetDebtsContainer = forwardRef<
   const isMobile = useMediaQuery("(max-width: 1367px)");
   const totalSteps = 3;
 
+  const locale = useAppLocale();
+
+  const t = <K extends keyof typeof stepBudgetDebtsContainerDict.sv>(k: K) =>
+    tDict(k, locale, stepBudgetDebtsContainerDict);
+
   /* 1) Hydrate slice once (API -> store) */
   const hasHydrated = useRef(false);
   const setDebts = useWizardDataStore((state) => state.setDebts);
 
   useEffect(() => {
-    if (!hasHydrated.current && initialData && Object.keys(initialData).length > 0) {
+    if (
+      !hasHydrated.current &&
+      initialData &&
+      Object.keys(initialData).length > 0
+    ) {
       const complete = ensureStep4Defaults(initialData);
       setDebts(complete);
       hasHydrated.current = true;
@@ -134,7 +153,8 @@ const StepBudgetDebtsContainer = forwardRef<
   /* 2) Local state */
   const [isSaving, setIsSaving] = useState(false);
   const [currentSub, setCurrentSub] = useState(initialSubStep || 1);
-  const [formMethods, setFormMethods] = useState<UseFormReturn<Step4FormValues> | null>(null);
+  const [formMethods, setFormMethods] =
+    useState<UseFormReturn<Step4FormValues> | null>(null);
   const [isFormHydrated, setIsFormHydrated] = useState(false);
   const subStepDebtsRef = useRef<SubStepDebtsApi>(null);
   // Track skip so "Prev" from confirm can jump to intro if they skipped debts earlier
@@ -144,12 +164,15 @@ const StepBudgetDebtsContainer = forwardRef<
   const { setValidationAttempted } = useWizard();
   /* 3) Capture RHF methods once */
   const hasSetMethods = useRef(false);
-  const handleFormWrapperRef = useCallback((instance: WizardFormWrapperStep4Ref | null) => {
-    if (instance && !hasSetMethods.current) {
-      setFormMethods(instance.getMethods());
-      hasSetMethods.current = true;
-    }
-  }, []);
+  const handleFormWrapperRef = useCallback(
+    (instance: WizardFormWrapperStep4Ref | null) => {
+      if (instance && !hasSetMethods.current) {
+        setFormMethods(instance.getMethods());
+        hasSetMethods.current = true;
+      }
+    },
+    [],
+  );
 
   /* 4) Save hook */
   const { saveStepData } = useSaveStepData<Step4FormValues>({
@@ -185,7 +208,6 @@ const StepBudgetDebtsContainer = forwardRef<
     if (!ok && !goingBack) {
       if (currentSub === 2) {
         setValidationAttempted("step4.debts", true);
-
 
         queueMicrotask(() => subStepDebtsRef.current?.openFirstErrorDebt());
         // or requestAnimationFrame(() => subStepDebtsRef.current?.openFirstErrorDebt());
@@ -283,21 +305,18 @@ const StepBudgetDebtsContainer = forwardRef<
   }));
 
   /* 10) Render helpers */
-  const steps = useMemo(
-    () => [
-      { icon: Info, label: "Intro" },
-      { icon: CreditCard, label: "Skulder" },
-      { icon: ShieldCheck, label: "Bekräfta" },
-    ],
-    []
-  );
+  const steps = [
+    { icon: Info, label: t("stepIntro") },
+    { icon: CreditCard, label: t("stepDebts") },
+    { icon: ShieldCheck, label: t("stepConfirm") },
+  ];
 
   const renderSubStep = () => {
     switch (currentSub) {
       case 1:
         return <SubStepGatekeeper />;
       case 2:
-        return <SubStepDebts ref={subStepDebtsRef} />
+        return <SubStepDebts ref={subStepDebtsRef} />;
       case 3:
         return <SubStepConfirm onContinue={next} />;
       default:
@@ -312,10 +331,8 @@ const StepBudgetDebtsContainer = forwardRef<
       onHydrationComplete={handleFormHydration}
     >
       <WizardOverlayShell className="h-full">
-
         <form className="relative flex flex-col h-full">
           {/* Overlay saving skeleton (does NOT affect layout) */}
-
 
           {/* Shared width frame for progress + content */}
           <div className="mx-auto w-full max-w-4xl px-4 sm:px-6 flex flex-col h-full">
@@ -335,7 +352,6 @@ const StepBudgetDebtsContainer = forwardRef<
                 )}
               </div>
             </div>
-
 
             {/* Content area */}
             <div className="flex-1 min-h-0">
@@ -359,7 +375,6 @@ const StepBudgetDebtsContainer = forwardRef<
             </div>
           </div>
         </form>
-
       </WizardOverlayShell>
     </WizardFormWrapperStep4>
   );
@@ -368,3 +383,22 @@ const StepBudgetDebtsContainer = forwardRef<
 StepBudgetDebtsContainer.displayName = "StepBudgetDebtsContainer";
 export default StepBudgetDebtsContainer;
 
+export const stepBudgetDebtsContainerDict = {
+  sv: {
+    stepIntro: "Intro",
+    stepDebts: "Skulder",
+    stepConfirm: "Bekräfta",
+  },
+
+  en: {
+    stepIntro: "Intro",
+    stepDebts: "Debts",
+    stepConfirm: "Confirm",
+  },
+
+  et: {
+    stepIntro: "Sissejuhatus",
+    stepDebts: "Võlad",
+    stepConfirm: "Kinnita",
+  },
+} as const;

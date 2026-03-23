@@ -1,5 +1,5 @@
 using System.Globalization;
-using Backend.Application.Validators.Locale;
+using Backend.Domain.Common;
 
 public sealed class VerificationCodeEmailComposer
 {
@@ -11,7 +11,7 @@ public sealed class VerificationCodeEmailComposer
       string forgotPasswordUrl,
       string recoveryUrl)
   {
-    var safeLocale = UserLocale.Normalize(locale); // "sv-SE" | "en-US" | "et-EE"
+    var safeLocale = UserPreferenceDefaults.NormalizeLocaleOrDefault(locale); // "sv-SE" | "en-US" | "et-EE"
     var expiresUtcText = expiresAtUtc.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
 
     (Subject, BodyHtml) = safeLocale switch

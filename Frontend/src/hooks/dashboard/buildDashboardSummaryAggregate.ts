@@ -8,8 +8,8 @@ import type {
   DashboardSummaryAggregate,
 } from "./dashboardSummary.types";
 
+import type { AppLocale } from "@/types/i18n/appLocale";
 import { labelLedgerItem } from "@/utils/i18n/budget/ledgerItems";
-import type { AppLocale } from "@/utils/i18n/locale";
 import { incomeToBreakdownItems } from "./dashboardBreakdown.mapper";
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;

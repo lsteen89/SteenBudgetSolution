@@ -1,6 +1,6 @@
 import type { ApiEnvelope } from "@/api/api.types";
 import { api } from "@/api/axios";
-import { unwrapEnvelope } from "@/api/envelope";
+import { unwrapEnvelopeData } from "@/api/envelope";
 import type { BudgetMonthsStatusDto } from "@myTypes//budget/BudgetMonthsStatusDto";
 import type { BudgetDashboardMonthDto } from "@myTypes/budget/BudgetDashboardMonthDto";
 
@@ -9,7 +9,7 @@ export async function fetchBudgetMonthsStatus(): Promise<BudgetMonthsStatusDto> 
     "/api/budgets/months/status",
   );
 
-  return unwrapEnvelope(res, "Could not load budget months status.");
+  return unwrapEnvelopeData(res, "Could not load budget months status.");
 }
 
 export type StartBudgetMonthRequestDto = {
@@ -28,7 +28,7 @@ export async function startBudgetMonth(
     req,
   );
 
-  return unwrapEnvelope(res, "Could not start budget month.");
+  return unwrapEnvelopeData(res, "Could not start budget month.");
 }
 
 export async function fetchBudgetDashboardMonth(
@@ -39,5 +39,5 @@ export async function fetchBudgetDashboardMonth(
     `/api/budgets/dashboard${qs}`,
   );
 
-  return unwrapEnvelope(res, "Could not load budget dashboard.");
+  return unwrapEnvelopeData(res, "Could not load budget dashboard.");
 }

@@ -1,13 +1,8 @@
-export type GoalTemplateName =
-    | "Buffert"
-    | "Ny bil"
-    | "Kontantinsats"
-    | "Resa till solen";
+export type GoalTemplateId = "sun_trip" | "buffer" | "new_car" | "down_payment";
 
 export type GoalTemplate = {
-    name: GoalTemplateName;
-    targetAmount: number;
-
-    /** Optional preset date (YYYY-MM-DD). UI can ignore it. */
-    targetDate?: string;
+  id: GoalTemplateId;
+  name: string;
+  targetAmount: number;
+  targetDate?: string;
 };

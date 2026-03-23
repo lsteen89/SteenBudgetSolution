@@ -14,7 +14,7 @@ public sealed class EmailOutboxRepository : SqlBase, IEmailOutboxRepository
         IOptions<DatabaseSettings> db)
         : base(unitOfWork, logger, db) { }
 
-    public async Task EnqueueAsync(string kind, string toEmail, string subject, string bodyHtml, DateTime nowUtc, CancellationToken ct)
+    public async Task EnqueueAsync(EnqueueEmailOutboxRequest request, CancellationToken ct)
     {
         const string sql = @"
 INSERT INTO EmailOutbox
@@ -24,11 +24,11 @@ VALUES
 ";
         await ExecuteAsync(sql, new
         {
-            Kind = kind,
-            ToEmail = toEmail.Trim(),
-            Subject = subject,
-            BodyHtml = bodyHtml,
-            NowUtc = nowUtc
+            Kind = request.Kind,
+            ToEmail = request.ToEmail.Trim(),
+            Subject = request.Subject,
+            BodyHtml = request.BodyHtml,
+            NowUtc = request.NowUtc
         }, ct);
     }
 
@@ -94,7 +94,7 @@ WHERE Id = @Id;
         await ExecuteAsync(sql, new { Id = id, ProviderId = providerId, NowUtc = nowUtc }, ct);
     }
 
-    public async Task MarkFailedAsync(long id, int attempts, DateTime nextAttemptAtUtc, string error, DateTime nowUtc, CancellationToken ct)
+    public async Task MarkFailedAsync(MarkEmailOutboxFailedRequest request, CancellationToken ct)
     {
         const string sql = @"
 UPDATE EmailOutbox
@@ -107,11 +107,11 @@ WHERE Id = @Id;
 ";
         await ExecuteAsync(sql, new
         {
-            Id = id,
-            Attempts = attempts,
-            NextAttemptAtUtc = nextAttemptAtUtc,
-            Error = error,
-            NowUtc = nowUtc
+            Id = request.Id,
+            Attempts = request.Attempts,
+            NextAttemptAtUtc = request.NextAttemptAtUtc,
+            Error = request.Error,
+            NowUtc = request.NowUtc
         }, ct);
     }
 }

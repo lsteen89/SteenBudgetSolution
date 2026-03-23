@@ -1,5 +1,23 @@
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import type { PerformanceMode } from "@/hooks/usePerformanceMode";
+import { tDict } from "@/utils/i18n/translate";
 import clsx from "clsx";
+
+const perfChipDict = {
+  sv: {
+    label: "Sparläge",
+    auto: "Auto",
+    manual: "Manuell",
+    reset: "Återställ",
+  },
+  en: { label: "Performance", auto: "Auto", manual: "Manual", reset: "Reset" },
+  et: {
+    label: "Säästurežiim",
+    auto: "Automaatne",
+    manual: "Käsitsi",
+    reset: "Lähtesta",
+  },
+} as const;
 
 type Props = {
   mode: PerformanceMode;
@@ -14,15 +32,22 @@ export function WizardPerformanceChip({
   onToggle,
   onClearOverride,
 }: Props) {
+  const locale = useAppLocale();
+  const t = <K extends keyof typeof perfChipDict.sv>(k: K) =>
+    tDict(k, locale, perfChipDict);
+
   const checked = mode === "low";
   const isAuto = override === null;
 
   return (
     <div className="flex items-center gap-2 rounded-full border border-wizard-stroke/25 bg-wizard-surface/30 px-2.5 py-1 md:px-3">
-      <span className="text-xs font-semibold text-wizard-text">sparläge</span>
+      <span className="text-xs font-semibold text-wizard-text">
+        {t("label")}
+      </span>
+
       <span className="hidden lg:inline text-[11px] text-wizard-text/55">
         <span className="text-wizard-text/80">
-          {isAuto ? "Auto" : "Manuell"}
+          {isAuto ? t("auto") : t("manual")}
         </span>
       </span>
 
@@ -32,7 +57,7 @@ export function WizardPerformanceChip({
           onClick={onClearOverride}
           className="text-[11px] underline underline-offset-2 text-wizard-text/55 hover:text-wizard-text/80"
         >
-          återställ
+          {t("reset")}
         </button>
       )}
 

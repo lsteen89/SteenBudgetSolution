@@ -7,5 +7,6 @@ public enum RepaymentStrategy
 {
     Unknown = 0,
     Snowball = 1,
-    Avalanche = 2
+    Avalanche = 2,
+    NoAction = 3
 }

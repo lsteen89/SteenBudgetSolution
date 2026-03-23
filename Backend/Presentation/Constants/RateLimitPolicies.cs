@@ -6,7 +6,7 @@ public static class RateLimitPolicies
     public const string Login = "LoginPolicy";
     public const string Refresh = "RefreshPolicy";
     public const string Logout = "LogoutPolicy";
-    public const string EmailSending = "EmailSendingPolicy";
+    public const string SupportMessageSending = "SupportMessageSending";
     public const string VerifyEmail = "VerifyEmailPolicy";
     public const string ResendVerification = "ResendVerificationPolicy";
     public const string ForgotPassword = "ForgotPasswordPolicy";

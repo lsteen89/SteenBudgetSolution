@@ -9,6 +9,7 @@ internal static class RepaymentStrategyParsing
         {
             "snowball" => RepaymentStrategy.Snowball,
             "avalanche" => RepaymentStrategy.Avalanche,
+            "noaction" => RepaymentStrategy.NoAction,
             _ => RepaymentStrategy.Unknown
         };
 }

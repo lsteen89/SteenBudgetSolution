@@ -1,11 +1,27 @@
 import { completeWizard } from "@/api/Services/wizard/wizardService";
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { useAuthStore } from "@/stores/Auth/authStore";
 import { useWizardDataStore } from "@/stores/Wizard/wizardDataStore";
 import { useWizardSessionStore } from "@/stores/Wizard/wizardSessionStore";
 import { useToast } from "@/ui/toast/toast";
+import { tDict } from "@/utils/i18n/translate";
 import axios from "axios";
 import { useState } from "react";
-//import { useBudgetDashboardStore } from '@/stores/Budget/budgetDashboardStore';
+
+const wizardFinalizationDict = {
+  sv: {
+    success: "Budget färdigställd!",
+    unexpectedError: "Ett oväntat fel inträffade under slutförandet.",
+  },
+  en: {
+    success: "Budget created successfully!",
+    unexpectedError: "An unexpected error occurred while finalizing.",
+  },
+  et: {
+    success: "Eelarve on edukalt loodud!",
+    unexpectedError: "Lõpetamisel ilmnes ootamatu viga.",
+  },
+} as const;
 
 /** Handles the POST /Wizard/{id}/complete flow */
 export const useWizardFinalization = () => {
@@ -14,6 +30,10 @@ export const useWizardFinalization = () => {
 
   const wizardSessionId = useWizardSessionStore((s) => s.wizardSessionId);
   const { showToast } = useToast();
+  const locale = useAppLocale();
+
+  const t = <K extends keyof typeof wizardFinalizationDict.sv>(k: K) =>
+    tDict(k, locale, wizardFinalizationDict);
 
   const finalizeWizard = async (): Promise<boolean> => {
     if (!wizardSessionId) return false;
@@ -28,15 +48,14 @@ export const useWizardFinalization = () => {
       useWizardDataStore.getState().reset();
       useWizardSessionStore.getState().clear?.();
 
-      //await useBudgetDashboardStore.getState().loadDashboard();
-
-      showToast("Budget färdigställd!", "success");
+      showToast(t("success"), "success");
       return true;
     } catch (err) {
       const msg =
         axios.isAxiosError(err) && err.response?.data?.message
           ? err.response.data.message
-          : "Ett oväntat fel inträffade under slutförandet.";
+          : t("unexpectedError");
+
       setError(msg);
       showToast(msg, "error");
       return false;

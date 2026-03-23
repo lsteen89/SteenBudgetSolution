@@ -8,6 +8,7 @@ export interface RowNumberInputProps {
   value?: string | number;
   onChange?: (e: ChangeEvent<HTMLInputElement>) => void;
   onBlur?: (e: FocusEvent<HTMLInputElement>) => void;
+  onFocus?: (e: FocusEvent<HTMLInputElement>) => void;
 
   placeholder?: string;
   error?: string;
@@ -33,6 +34,7 @@ const RowNumberInput = forwardRef<HTMLInputElement, RowNumberInputProps>(
       value,
       onChange,
       onBlur,
+      onFocus,
       placeholder = "0",
       error,
       touched,
@@ -63,7 +65,6 @@ const RowNumberInput = forwardRef<HTMLInputElement, RowNumberInputProps>(
       : onChange;
 
     const baseInput = cn(
-      // Control spec
       "w-full h-11 rounded-xl px-4",
       "bg-wizard-surface border text-wizard-text",
       "placeholder:text-wizard-text/35",
@@ -83,12 +84,13 @@ const RowNumberInput = forwardRef<HTMLInputElement, RowNumberInputProps>(
             ref={ref}
             type="text"
             inputMode="decimal"
-            pattern="[0-9.,\s]*"
+            pattern="[0-9.,\\s]*"
             name={name}
             id={id || name}
             placeholder={placeholder}
             onChange={handleChange}
             onBlur={onBlur}
+            onFocus={onFocus}
             {...(isControlled ? { value } : {})}
             className={cn(baseInput, inputClassName)}
           />

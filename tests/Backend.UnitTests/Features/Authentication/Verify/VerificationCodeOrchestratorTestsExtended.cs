@@ -74,10 +74,16 @@ public sealed class VerificationCodeOrchestratorTestsExtended
            .ReturnsAsync(new RateLimitDecision(true));
 
         string? body = null;
-        _outbox.Setup(o => o.EnqueueAsync("VerificationCode", "user@example.com",
-                It.IsAny<string>(), It.IsAny<string>(), now, It.IsAny<CancellationToken>()))
-              .Callback<string, string, string, string, DateTime, CancellationToken>((_, _, _, html, _, _) => body = html)
-              .Returns(Task.CompletedTask);
+
+        _outbox.Setup(o => o.EnqueueAsync(
+                It.Is<EnqueueEmailOutboxRequest>(r =>
+                    r.Kind == "VerificationCode" &&
+                    r.ToEmail == "user@example.com" &&
+                    r.NowUtc == now),
+                It.IsAny<CancellationToken>()))
+            .Callback<EnqueueEmailOutboxRequest, CancellationToken>((r, _) => body = r.BodyHtml)
+            .Returns(Task.CompletedTask);
+
 
         _codes.Setup(c => c.UpsertActiveForRegisterAsync(
                 id,
@@ -123,8 +129,10 @@ public sealed class VerificationCodeOrchestratorTestsExtended
                 It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
-        _outbox.Setup(o => o.EnqueueAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
-               .ThrowsAsync(new Exception("db down"));
+        _outbox.Setup(o => o.EnqueueAsync(
+            It.IsAny<EnqueueEmailOutboxRequest>(),
+            CancellationToken.None
+        )).ThrowsAsync(new Exception("db down"));
 
         Func<Task> act = () => SUT(now).EnqueueForResendAsync(id, "user@example.com", "sv-SE", CancellationToken.None);
 
@@ -179,12 +187,11 @@ public sealed class VerificationCodeOrchestratorTestsExtended
             .Returns(Task.CompletedTask);
 
         _outbox.Setup(o => o.EnqueueAsync(
-                "VerificationCode",
-                "user@example.com",
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                now,
-                It.IsAny<CancellationToken>()))
+            It.Is<EnqueueEmailOutboxRequest>(r =>
+                r.Kind == "VerificationCode" &&
+                r.ToEmail == "user@example.com" &&
+                r.NowUtc == now),
+            It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
         _codes.Setup(c => c.MarkSentAsync(id, now, It.IsAny<CancellationToken>()))
@@ -198,7 +205,15 @@ public sealed class VerificationCodeOrchestratorTestsExtended
         _codes.Verify(c => c.UpsertActiveForResendAsync(id, It.IsAny<byte[]>(), now.AddMinutes(15), now, It.IsAny<CancellationToken>()), Times.Once);
         _codes.Verify(c => c.UpsertActiveForRegisterAsync(It.IsAny<Guid>(), It.IsAny<byte[]>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()), Times.Never);
 
-        _outbox.Verify(o => o.EnqueueAsync("VerificationCode", "user@example.com", It.IsAny<string>(), It.IsAny<string>(), now, It.IsAny<CancellationToken>()), Times.Once);
+        _outbox.Verify(o => o.EnqueueAsync(
+            It.Is<EnqueueEmailOutboxRequest>(r =>
+                r.Kind == "VerificationCode" &&
+                r.ToEmail == "user@example.com" &&
+                r.NowUtc == now &&
+                !string.IsNullOrWhiteSpace(r.Subject) &&
+                !string.IsNullOrWhiteSpace(r.BodyHtml)),
+            It.IsAny<CancellationToken>()),
+            Times.Once);
         _rl.Verify(r => r.MarkSentAsync(id, EmailKind.Verification, new DateTimeOffset(now, TimeSpan.Zero), It.IsAny<CancellationToken>()), Times.Once);
         _codes.Verify(c => c.MarkSentAsync(id, now, It.IsAny<CancellationToken>()), Times.Once);
     }

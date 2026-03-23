@@ -16,6 +16,7 @@ export const appTitlesDict = {
     howItWorks: "eBudget - Så fungerar det",
     emailConfirmationRecovery: "eBudget - Återställ e-postverifiering",
     notFound: "eBudget - Sida ej hittad",
+    settings: "eBudget - Inställningar",
   },
   en: {
     home: "eBudget - Simplify your budget",
@@ -34,6 +35,7 @@ export const appTitlesDict = {
     howItWorks: "eBudget - How it works",
     emailConfirmationRecovery: "eBudget - Email verification recovery",
     notFound: "eBudget - Page not found",
+    settings: "eBudget - Settings",
   },
   et: {
     home: "eBudget - Tee eelarve lihtsaks",
@@ -52,5 +54,6 @@ export const appTitlesDict = {
     howItWorks: "eBudget - Kuidas see töötab",
     emailConfirmationRecovery: "eBudget - E-posti kinnituse taastamine",
     notFound: "eBudget - Lehte ei leitud",
+    settings: "eBudget - Seaded",
   },
 };

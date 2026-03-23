@@ -12,17 +12,15 @@ import SubmitButton from "@components/atoms/buttons/SubmitButton";
 import type { BudgetDashboardDto } from "@/types/budget/BudgetDashboardDto";
 
 import FinalVerdictCard from "@/components/pures/FinalVerdictCard";
-
-// Reuse confirm content
-// Expenditure confirm “page” component
-
-// Local UI mapper for final verdict (tiny)
 import { mapFinalizationPreviewToFinalSummary } from "./Mapping/mapFinalizationPreviewToFinalSummary";
 
 import WizardCard from "@/components/organisms/overlays/wizard/SharedComponents/Cards/WizardCard";
 import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
+import { tDict } from "@/utils/i18n/translate";
+import { subStepFinalDict } from "@/utils/i18n/wizard/stepFinal/SubStepFinal.i18n";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
+
 import CashflowBreakdown from "./components/CashflowBreakdown";
 import HealthChips from "./components/HealthChips";
 import DebtsReceiptPanel from "./components/Panel/DebtsReceiptPanel";
@@ -61,10 +59,13 @@ export default function SubStepFinal({
   const locale = useAppLocale();
   const [open, setOpen] = useState<string>("");
 
+  const t = <K extends keyof typeof subStepFinalDict.sv>(k: K) =>
+    tDict(k, locale, subStepFinalDict);
+
   const vm = useMemo(() => {
     if (!preview) return null;
     return mapFinalizationPreviewToFinalSummary(preview, locale, currency);
-  }, [preview, locale]);
+  }, [preview, locale, currency]);
 
   const money0 = useCallback(
     (v: number) =>
@@ -79,6 +80,27 @@ export default function SubStepFinal({
     requestAnimationFrame(() => onFinalizeSuccess());
   }, [onFinalize, fire, onFinalizeSuccess]);
 
+  const incomeMeta = t("sectionIncomeMetaTemplate")
+    .replace("{sideHustles}", String(preview?.income?.sideHustles?.length ?? 0))
+    .replace(
+      "{households}",
+      String(preview?.income?.householdMembers?.length ?? 0),
+    );
+
+  const expenditureMeta = t("sectionExpenditureMetaTemplate").replace(
+    "{count}",
+    String(preview?.expenditure?.byCategory?.length ?? 0),
+  );
+
+  const savingsMeta = t("sectionSavingsMetaTemplate")
+    .replace("{habit}", money0(vm?.habitSavingsMonthly ?? 0))
+    .replace("{goals}", String(preview?.savings?.goals?.length ?? 0));
+
+  const debtsMeta = t("sectionDebtsMetaTemplate").replace(
+    "{count}",
+    String(preview?.debt?.debts?.length ?? 0),
+  );
+
   if (!preview || !vm) {
     return (
       <div>
@@ -86,16 +108,13 @@ export default function SubStepFinal({
           <WizardStepHeader
             stepPill={{
               stepNumber: 5,
-              majorLabel: "Bekräfta",
-              subLabel: "Sammanfattning",
+              majorLabel: t("pillMajor"),
+              subLabel: t("pillSub"),
             }}
-            title="Sammanfattning"
-            subtitle="Vi kunde inte visa förhandsvisningen just nu."
-            helpTitle="Du kan fortfarande slutföra"
-            helpItems={[
-              "Slutför guiden ändå — allt kan justeras efteråt.",
-              "Om du vill se siffrorna: gå tillbaka och försök igen.",
-            ]}
+            title={t("titleSummary")}
+            subtitle={t("subtitlePreviewMissing")}
+            helpTitle={t("helpTitleCanFinish")}
+            helpItems={[t("help1"), t("help2")]}
           />
 
           {finalizationError && (
@@ -105,6 +124,8 @@ export default function SubStepFinal({
           <FinalizeCta
             isFinalizing={isFinalizing}
             onFinalize={handleFinalizeClick}
+            label={t("createBudget")}
+            hint={t("finalizeHint")}
           />
         </section>
       </div>
@@ -117,11 +138,11 @@ export default function SubStepFinal({
         <WizardStepHeader
           stepPill={{
             stepNumber: 5,
-            majorLabel: "Bekräfta",
-            subLabel: "Sammanfattning",
+            majorLabel: t("pillMajor"),
+            subLabel: t("pillSub"),
           }}
-          title="Sammanfattning"
-          subtitle="En sista koll innan du skapar budgeten."
+          title={t("titleSummary")}
+          subtitle={t("subtitleMain")}
         />
 
         <div className="space-y-4">
@@ -148,22 +169,21 @@ export default function SubStepFinal({
             isActive={open === "income"}
             title={
               <span className="text-wizard-text/90 text-base font-semibold">
-                Inkomster
+                {t("sectionIncome")}
               </span>
             }
             subtitle={
               <div className="text-xs text-wizard-text/60">
-                Kontrollera källor och total
+                {t("sectionIncomeSubtitle")}
               </div>
             }
             meta={
               <div className="text-[11px] text-wizard-text/55 mt-0.5">
-                {preview.income?.sideHustles?.length ?? 0} sidoinkomster •{" "}
-                {preview.income?.householdMembers?.length ?? 0} hushåll
+                {incomeMeta}
               </div>
             }
             totalText={money0(vm.totalIncome)}
-            totalSuffix="/mån"
+            totalSuffix={t("perMonthSuffix")}
           >
             <IncomeReceiptPanel
               preview={preview}
@@ -177,21 +197,21 @@ export default function SubStepFinal({
             isActive={open === "expenditure"}
             title={
               <span className="text-wizard-text text-base font-semibold">
-                Utgifter
+                {t("sectionExpenditure")}
               </span>
             }
             subtitle={
               <div className="text-xs text-wizard-text/60">
-                Kontrollera kategorier och total
+                {t("sectionExpenditureSubtitle")}
               </div>
             }
             meta={
               <div className="mt-0.5 text-[11px] text-wizard-text/50">
-                {preview.expenditure?.byCategory?.length ?? 0} kategorier
+                {expenditureMeta}
               </div>
             }
             totalText={money0(vm.totalExpenditure)}
-            totalSuffix="/mån"
+            totalSuffix={t("perMonthSuffix")}
           >
             <ExpensesReceiptPanel
               preview={preview}
@@ -205,20 +225,21 @@ export default function SubStepFinal({
             isActive={open === "savings"}
             title={
               <span className="text-wizard-text text-base font-semibold">
-                Sparande
+                {t("sectionSavings")}
               </span>
             }
             subtitle={
-              <div className="text-xs text-wizard-text/60">Vanor och mål</div>
+              <div className="text-xs text-wizard-text/60">
+                {t("sectionSavingsSubtitle")}
+              </div>
             }
             meta={
               <div className="mt-0.5 text-[11px] text-wizard-text/50">
-                {money0(vm.habitSavingsMonthly)} vanor •{" "}
-                {preview.savings?.goals?.length ?? 0} mål
+                {savingsMeta}
               </div>
             }
             totalText={money0(vm.totalSavings)}
-            totalSuffix="/mån"
+            totalSuffix={t("perMonthSuffix")}
           >
             <SavingsReceiptPanel
               preview={preview}
@@ -233,22 +254,21 @@ export default function SubStepFinal({
             isActive={open === "debts"}
             title={
               <span className="text-wizard-text text-base font-semibold">
-                Skulder
+                {t("sectionDebts")}
               </span>
             }
             subtitle={
               <div className="text-xs text-wizard-text/60">
-                Minimibetalningar
+                {t("sectionDebtsSubtitle")}
               </div>
             }
             meta={
               <div className="mt-0.5 text-[11px] text-wizard-text/50">
-                {preview.debt?.debts?.length ?? 0} skulder
-                {/* strategy label can live inside panel */}
+                {debtsMeta}
               </div>
             }
             totalText={money0(vm.totalDebtPayments)}
-            totalSuffix="/mån"
+            totalSuffix={t("perMonthSuffix")}
           >
             <DebtsReceiptPanel
               preview={preview}
@@ -265,29 +285,34 @@ export default function SubStepFinal({
         <FinalizeCta
           isFinalizing={isFinalizing}
           onFinalize={handleFinalizeClick}
+          label={t("createBudget")}
+          hint={t("finalizeHint")}
         />
       </section>
     </div>
   );
 }
 
-function FinalizeCta(props: { isFinalizing: boolean; onFinalize: () => void }) {
-  const { isFinalizing, onFinalize } = props;
+function FinalizeCta(props: {
+  isFinalizing: boolean;
+  onFinalize: () => void;
+  label: string;
+  hint: string;
+}) {
+  const { isFinalizing, onFinalize, label, hint } = props;
+
   return (
     <div className="flex justify-center pt-2">
       <div className="w-full max-w-xl">
         <SubmitButton
           isSubmitting={isFinalizing}
-          label="Skapa budgeten"
+          label={label}
           size="large"
           className="bg-darkLimeGreen text-darkBlueMenuColor w-full"
           enhanceOnHover
           onClick={onFinalize}
         />
-        <p className="mt-2 text-center text-xs text-wizard-text/55">
-          Kom ihåg: Du kan alltid justera din budget i efterhand, en budget är
-          ett levande dokument.
-        </p>
+        <p className="mt-2 text-center text-xs text-wizard-text/55">{hint}</p>
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import type { AppLocale } from "@/utils/i18n/locale";
+import type { AppLocale } from "@/types/i18n/appLocale";
 // 1) Define the shape (keys) once
 type LedgerText = {
   show: string;

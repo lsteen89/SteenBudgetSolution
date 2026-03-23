@@ -1,6 +1,8 @@
 import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/lib/utils";
+import { tDict } from "@/utils/i18n/translate";
+import { goalFeasibilityRowDict } from "@/utils/i18n/wizard/stepSavings/GoalFeasibilityRow.i18n";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
 import { useMemo } from "react";
 
@@ -13,6 +15,7 @@ type Props = {
 
 const num = (v: unknown) =>
   typeof v === "number" && Number.isFinite(v) ? v : 0;
+
 const ceilMonths = (remaining: number, monthly: number) =>
   monthly > 0 ? Math.max(0, Math.ceil(remaining / monthly)) : null;
 
@@ -24,6 +27,10 @@ export default function GoalFeasibilityRow({
 }: Props) {
   const currency = useAppCurrency();
   const locale = useAppLocale();
+
+  const t = <K extends keyof typeof goalFeasibilityRowDict.sv>(k: K) =>
+    tDict(k, locale, goalFeasibilityRowDict);
+
   const money0 = (v: number) =>
     formatMoneyV2(num(v), currency, locale, { fractionDigits: 0 });
 
@@ -40,26 +47,36 @@ export default function GoalFeasibilityRow({
   const statusLine = useMemo(() => {
     if (target <= 0) {
       return contrib > 0
-        ? "Du sparar mot målet, men målbelopp saknas."
-        : "Sätt en månadstakt för att göra målet konkret.";
+        ? t("statusNoTargetWithContribution")
+        : t("statusNoTargetNoContribution");
     }
 
-    if (remaining === 0) return "Målet är redan uppnått.";
+    if (remaining === 0) return t("statusDone");
 
-    if (contrib <= 0) return `Sätt en månadstakt för att nå ${money0(target)}.`;
+    if (contrib <= 0) {
+      return t("statusNoContributionTemplate").replace(
+        "{amount}",
+        money0(target),
+      );
+    }
 
-    // Normal case
-    if (etaMonths === 1)
-      return "Takt ser bra ut — målet kan nås inom ~1 månad.";
-    if (etaMonths != null && etaMonths <= 12)
-      return `Takt ser bra ut — ~${etaMonths} månader kvar.`;
-    if (etaMonths != null && etaMonths <= 36)
-      return `Det här är långsiktigt — ~${etaMonths} månader kvar.`;
+    if (etaMonths === 1) return t("statusOneMonth");
+
+    if (etaMonths != null && etaMonths <= 12) {
+      return t("statusMonthsLeftTemplate").replace(
+        "{months}",
+        String(etaMonths),
+      );
+    }
+
+    if (etaMonths != null && etaMonths <= 36) {
+      return t("statusLongTermTemplate").replace("{months}", String(etaMonths));
+    }
 
     return etaMonths != null
-      ? `Det här tar tid med nuvarande takt — ~${etaMonths} månader.`
+      ? t("statusSlowTemplate").replace("{months}", String(etaMonths))
       : "—";
-  }, [target, remaining, contrib, etaMonths, money0]);
+  }, [target, remaining, contrib, etaMonths, money0, t]);
 
   const tone =
     target > 0 && remaining === 0
@@ -72,6 +89,22 @@ export default function GoalFeasibilityRow({
             ? "ok"
             : "slow";
 
+  const chipText =
+    tone === "done"
+      ? t("chipDone")
+      : tone === "missing"
+        ? t("chipMissing")
+        : tone === "good"
+          ? t("chipGood")
+          : tone === "ok"
+            ? t("chipOk")
+            : t("chipSlow");
+
+  const etaShort =
+    etaMonths != null
+      ? t("etaShortTemplate").replace("{months}", String(etaMonths))
+      : null;
+
   return (
     <div className="py-2">
       <div
@@ -83,7 +116,6 @@ export default function GoalFeasibilityRow({
           "transition-colors hover:border-wizard-stroke/30",
         )}
       >
-        {/* Left */}
         <div className="min-w-0">
           <div className="flex items-start justify-between gap-2 min-w-0">
             <div className="min-w-0">
@@ -91,11 +123,10 @@ export default function GoalFeasibilityRow({
                 {title}
               </p>
 
-              {/* status chip: show on mobile too (not just md) */}
               <span
                 className={cn(
                   "mt-1 inline-flex shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold",
-                  "sm:hidden", // mobile only
+                  "sm:hidden",
                   tone === "done" &&
                     "border-wizard-accent/20 bg-wizard-accent/10 text-wizard-accent",
                   tone === "missing" &&
@@ -108,19 +139,10 @@ export default function GoalFeasibilityRow({
                     "border-wizard-stroke/25 bg-wizard-shell/35 text-wizard-text/70",
                 )}
               >
-                {tone === "done"
-                  ? "Klart"
-                  : tone === "missing"
-                    ? "Saknas"
-                    : tone === "good"
-                      ? "Bra takt"
-                      : tone === "ok"
-                        ? "Långsiktigt"
-                        : "Tar tid"}
+                {chipText}
               </span>
             </div>
 
-            {/* Contribution pill: mobile placement */}
             <div className="shrink-0 sm:hidden">
               <div
                 className={cn(
@@ -133,7 +155,7 @@ export default function GoalFeasibilityRow({
                   {contrib > 0 ? money0(contrib) : "—"}
                 </span>
                 <span className="ml-1 text-xs font-semibold text-wizard-text/60">
-                  /mån
+                  {t("perMonthSuffix")}
                 </span>
               </div>
             </div>
@@ -142,14 +164,14 @@ export default function GoalFeasibilityRow({
           <p className="mt-1 text-xs text-wizard-text/60 leading-snug flex flex-wrap gap-x-2 gap-y-1">
             {target > 0 ? (
               <>
-                Kvar:{" "}
+                {t("remainingLabel")}:{" "}
                 <span className="font-semibold text-wizard-text/80 tabular-nums">
                   {money0(remaining)}
                 </span>
                 {saved > 0 ? (
                   <>
                     <span className="text-wizard-text/35">·</span>
-                    Sparat:{" "}
+                    {t("savedLabel")}:{" "}
                     <span className="font-semibold text-wizard-text/80 tabular-nums">
                       {money0(saved)}
                     </span>
@@ -159,13 +181,13 @@ export default function GoalFeasibilityRow({
                   <>
                     <span className="text-wizard-text/35"> • </span>
                     <span className="sm:hidden font-semibold text-wizard-text/70">
-                      ~{etaMonths} mån
+                      {etaShort}
                     </span>
                   </>
                 ) : null}
               </>
             ) : (
-              "Målbelopp saknas"
+              t("targetMissing")
             )}
           </p>
 
@@ -174,7 +196,6 @@ export default function GoalFeasibilityRow({
           </p>
         </div>
 
-        {/* Right */}
         <div className="hidden sm:block shrink-0 text-right">
           <div
             className={cn(
@@ -187,11 +208,10 @@ export default function GoalFeasibilityRow({
               {contrib > 0 ? money0(contrib) : "—"}
             </span>
             <span className="ml-1 text-xs font-semibold text-wizard-text/60">
-              /mån
+              {t("perMonthSuffix")}
             </span>
           </div>
 
-          {/* ETA */}
           <div className="mt-1 hidden sm:block">
             {etaMonths != null && contrib > 0 && target > 0 && remaining > 0 ? (
               <span
@@ -201,7 +221,7 @@ export default function GoalFeasibilityRow({
                   "text-wizard-text/60",
                 )}
               >
-                ~{etaMonths} mån
+                {etaShort}
               </span>
             ) : (
               <span className="block h-[18px]" aria-hidden />

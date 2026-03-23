@@ -1,7 +1,7 @@
 import type { ApiEnvelope } from "@/api/api.types";
 import type { AuthResult } from "@/api/auth.types.ts";
 import { api } from "@/api/axios";
-import { unwrapEnvelope } from "@/api/envelope";
+import { unwrapEnvelopeData } from "@/api/envelope";
 import { toApiProblem } from "@/api/toApiProblem";
 import { useAuthStore } from "@/stores/Auth/authStore";
 import { isAxiosError } from "axios";
@@ -16,7 +16,7 @@ export { isLoggingOutFlag as isLoggingOut };
 export async function refreshToken(): Promise<AuthResult> {
   try {
     const res = await api.post<ApiEnvelope<AuthResult>>("/api/auth/refresh");
-    return unwrapEnvelope(res, "Refresh failed.");
+    return unwrapEnvelopeData(res, "Refresh failed.");
   } catch (e) {
     if (isAxiosError(e)) throw toApiProblem(e);
     throw e;
@@ -32,7 +32,7 @@ export async function callLogin(dto: {
 }): Promise<AuthResult> {
   try {
     const res = await api.post<ApiEnvelope<AuthResult>>("/api/auth/login", dto);
-    return unwrapEnvelope(res, "Login failed.");
+    return unwrapEnvelopeData(res, "Login failed.");
   } catch (e) {
     if (isAxiosError(e)) throw toApiProblem(e);
     throw e;
