@@ -1,15 +1,15 @@
 import type { BudgetDashboardDto } from "@/types/budget/BudgetDashboardDto";
 import type { AppLocale } from "@/types/i18n/appLocale";
 import { asCategoryKey, labelCategory } from "@/utils/i18n/budget/categories";
-import { CurrencyCode } from "@/utils/money/currency";
+import { tDict } from "@/utils/i18n/translate";
+import { finalSummaryDict } from "@/utils/i18n/wizard/stepFinal/finalSummaryDict.i18n";
+import type { CurrencyCode } from "@/utils/money/currency";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
 
 const kr = (n: number) => Math.round(n * 100) / 100;
 
 export type SummaryRow = { id: string; label: string; value: number };
-
 export type VerdictKind = "good" | "tight" | "bad";
-
 export type HealthChip = { label: string; tone: "neutral" | "good" | "warn" };
 
 export type CoachAction =
@@ -52,8 +52,12 @@ export function mapFinalizationPreviewToFinalSummary(
   locale: AppLocale,
   currency: CurrencyCode,
 ): FinalSummaryVm {
+  const t = <K extends keyof typeof finalSummaryDict.sv>(k: K) =>
+    tDict(k, locale, finalSummaryDict);
+
   const money0 = (v: number) =>
     formatMoneyV2(v ?? 0, currency, locale, { fractionDigits: 0 });
+
   const income = dto.income?.totalIncomeMonthly ?? 0;
   const expenses = dto.expenditure?.totalExpensesMonthly ?? 0;
 
@@ -65,7 +69,6 @@ export function mapFinalizationPreviewToFinalSummary(
   const totalSavings = kr(habitSavings + goalSavings);
 
   const debtPaymentsFromDto = dto.debt?.totalMonthlyPayments ?? 0;
-
   const debtPaymentsFromItems = kr(
     (dto.debt?.debts ?? []).reduce(
       (sum, d) => sum + (d.monthlyPayment ?? 0),
@@ -76,8 +79,6 @@ export function mapFinalizationPreviewToFinalSummary(
   const debtPayments =
     debtPaymentsFromDto > 0 ? debtPaymentsFromDto : debtPaymentsFromItems;
 
-  const strategy = dto.debt?.repaymentStrategy ?? null;
-  // Prefer BE computed.
   const finalBalance =
     dto.finalBalanceWithCarryMonthly ??
     kr(income - expenses - totalSavings - debtPayments);
@@ -88,7 +89,7 @@ export function mapFinalizationPreviewToFinalSummary(
       return {
         id: key,
         label: labelCategory(key, locale),
-        value: -(c.totalMonthlyAmount ?? 0), // negative for your grid
+        value: -(c.totalMonthlyAmount ?? 0),
       };
     },
   );
@@ -96,28 +97,28 @@ export function mapFinalizationPreviewToFinalSummary(
   const incomeRows: SummaryRow[] = [
     {
       id: "salary",
-      label: "Lön (netto)",
+      label: t("salaryNet"),
       value: dto.income?.netSalaryMonthly ?? 0,
     },
 
     ...(dto.income?.sideHustles ?? []).map((s: any) => ({
       id: `side-${s.id ?? s.name}`,
-      label: s.name ?? "Sidoinkomst",
+      label: s.name ?? t("sideIncome"),
       value: s.amountMonthly ?? 0,
     })),
 
     ...(dto.income?.householdMembers ?? []).map((m: any) => ({
       id: `member-${m.id ?? m.name}`,
-      label: m.name ?? "Hushållsmedlem",
+      label: m.name ?? t("householdMember"),
       value: m.amountMonthly ?? 0,
     })),
   ].filter((r) => (r.value ?? 0) !== 0);
 
   const breakdownRows: SummaryRow[] = [
-    { id: "income", label: "Inkomster", value: income },
-    { id: "expenses", label: "Utgifter", value: -expenses },
-    { id: "savings", label: "Sparande", value: -totalSavings },
-    { id: "debts", label: "Skulder (minimi)", value: -debtPayments },
+    { id: "income", label: t("rowIncome"), value: income },
+    { id: "expenses", label: t("rowExpenses"), value: -expenses },
+    { id: "savings", label: t("rowSavings"), value: -totalSavings },
+    { id: "debts", label: t("rowDebtsMinimum"), value: -debtPayments },
   ].filter((r) => r.value !== 0);
 
   const habitSavingsMonthly = dto.savings?.monthlySavings ?? 0;
@@ -141,55 +142,61 @@ export function mapFinalizationPreviewToFinalSummary(
     verdictKind === "good"
       ? {
           kind: "good",
-          title: "Tryggt",
-          detail: `Du har ett överskott på ${money0(finalBalance)} per månad. Skapa budgeten — du kan finjustera efteråt.`,
+          title: t("verdictGoodTitle"),
+          detail: t("verdictGoodDetail").replace(
+            "{amount}",
+            money0(finalBalance),
+          ),
         }
       : verdictKind === "tight"
         ? {
             kind: "tight",
-            title: "Tight",
-            detail: `Det går ihop, men marginalen är liten. Skapa budgeten och justera vid behov.`,
+            title: t("verdictTightTitle"),
+            detail: t("verdictTightDetail"),
           }
         : {
             kind: "bad",
-            title: "Ohållbart",
-            detail: `Du går minus varje månad. Skapa budgeten ändå — men vi markerar vad som bör justeras direkt.`,
+            title: t("verdictBadTitle"),
+            detail: t("verdictBadDetail"),
           };
 
   const healthChips: HealthChip[] = [
     {
-      label: `Spargrad ${(savingsRate * 100).toFixed(0)}%`,
+      label: t("savingsRate").replace(
+        "{percent}",
+        (savingsRate * 100).toFixed(0),
+      ),
       tone:
         savingsRate >= 0.15 ? "good" : savingsRate >= 0.05 ? "neutral" : "warn",
     },
     highestAprDebt?.apr
       ? {
-          label: `Hög ränta: ${highestAprDebt.name} (${Number(highestAprDebt.apr).toFixed(1)}%)`,
+          label: t("highInterest")
+            .replace("{name}", String(highestAprDebt.name))
+            .replace("{apr}", Number(highestAprDebt.apr).toFixed(1)),
           tone: Number(highestAprDebt.apr) >= 18 ? "warn" : "neutral",
         }
-      : { label: "Inga räntor hittades", tone: "neutral" },
-  ].filter(Boolean as any);
+      : { label: t("noInterestFound"), tone: "neutral" },
+  ];
 
   const coach: CoachAction =
     verdictKind === "bad"
       ? {
           kind: "fix",
-          title: "En enkel fix nu",
-          detail: "Sänk sparandet eller justera utgifter så att du går plus.",
+          title: t("coachFixTitle"),
+          detail: t("coachFixDetail"),
           actionKey: "savings",
         }
       : verdictKind === "tight"
         ? {
             kind: "suggest",
-            title: "Gör planen enklare",
-            detail:
-              "Välj ett huvudmål och låt resten vänta tills du har mer marginal.",
+            title: t("coachSuggestTightTitle"),
+            detail: t("coachSuggestTightDetail"),
           }
         : {
             kind: "suggest",
-            title: "Bra läge",
-            detail:
-              "Vill du att överskottet går till buffert eller extra amortering?",
+            title: t("coachSuggestGoodTitle"),
+            detail: t("coachSuggestGoodDetail"),
           };
 
   return {
@@ -209,12 +216,15 @@ export function mapFinalizationPreviewToFinalSummary(
     coach,
 
     pillarDescriptions: {
-      income: "Från lön, sidoinkomster och andra källor i hushållet.",
-      expenditure: "Dina största utgifter syns i sammanställningen ovan.",
+      income: t("pillarIncome"),
+      expenditure: t("pillarExpenditure"),
       savings: dto.savings?.goals?.length
-        ? `Du sparar mot ${dto.savings.goals.length} mål.`
-        : "Du har inga sparmål registrerade.",
-      debts: "Skuldbetalningar baseras på dina angivna lån och villkor.",
+        ? t("pillarSavingsWithGoals").replace(
+            "{count}",
+            String(dto.savings.goals.length),
+          )
+        : t("pillarSavingsNoGoals"),
+      debts: t("pillarDebts"),
     },
   };
 }

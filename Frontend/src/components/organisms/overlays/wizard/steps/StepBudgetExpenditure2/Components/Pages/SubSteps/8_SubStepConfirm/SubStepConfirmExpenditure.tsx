@@ -18,6 +18,8 @@ import { cn } from "@/lib/utils";
 import type { BudgetDashboardDto } from "@/types/budget/BudgetDashboardDto";
 import type { CategoryKey } from "@/utils/i18n/budget/categories";
 import { asCategoryKey } from "@/utils/i18n/budget/categories";
+import { tDict } from "@/utils/i18n/translate";
+import { confirmExpenditureDict } from "@/utils/i18n/wizard/stepExpenditure/confirmExpenditureDict.i18n";
 import { mapFinalizationPreviewToExpenseConfirm } from "./mapping/mapFinalizationPreviewToExpenseConfirm";
 
 type Props = {
@@ -30,6 +32,8 @@ const SubStepConfirmExpenditure: React.FC<Props> = ({ preview }) => {
 
   const currency = useAppCurrency();
   const locale = useAppLocale();
+  const t = <K extends keyof typeof confirmExpenditureDict.sv>(k: K) =>
+    tDict(k, locale, confirmExpenditureDict);
 
   const money0 = (v: number) =>
     formatMoneyV2(v ?? 0, currency, locale, { fractionDigits: 0 });
@@ -47,17 +51,14 @@ const SubStepConfirmExpenditure: React.FC<Props> = ({ preview }) => {
       <div>
         <section className="mx-auto w-auto space-y-6 py-8 pb-safe text-wizard-text sm:px-6 lg:px-12">
           <WizardStepHeader
-            title="Sammanfattning"
-            subtitle="Vi kunde inte visa förhandsvisningen just nu."
-            helpTitle="Du kan fortfarande fortsätta"
-            helpItems={[
-              "Slutför guiden ändå — allt kan justeras efteråt.",
-              "Om du vill se siffrorna: gå tillbaka och försök igen.",
-            ]}
+            title={t("title")}
+            subtitle={t("missingPreviewSubtitle")}
+            helpTitle={t("missingPreviewHelpTitle")}
+            helpItems={[t("missingPreviewHelp1"), t("missingPreviewHelp2")]}
           />
 
           <div className="rounded-2xl border border-wizard-stroke/20 bg-wizard-surface p-4 text-sm text-wizard-text/70 shadow-sm shadow-black/5">
-            Förhandsvisningen saknas. Du kan fortfarande gå vidare.
+            {t("missingPreviewNote")}
           </div>
         </section>
       </div>
@@ -76,11 +77,11 @@ const SubStepConfirmExpenditure: React.FC<Props> = ({ preview }) => {
         <WizardStepHeader
           stepPill={{
             stepNumber: 2,
-            majorLabel: "Utgifter",
-            subLabel: "Sammanfattning",
+            majorLabel: t("stepMajor"),
+            subLabel: t("stepSub"),
           }}
-          title="Sammanfattning"
-          subtitle="Bra jobbat! Du har nu kartlagt dina utgifter. Här är en översikt av din budget."
+          title={t("title")}
+          subtitle={t("lead")}
         />
 
         {vm.categories.length > 0 && (
@@ -119,7 +120,6 @@ const SubStepConfirmExpenditure: React.FC<Props> = ({ preview }) => {
                 {isDesktop && (
                   <div className="flex justify-center">
                     <div className="w-full max-w-[560px]">
-                      {/* Key change: cap height with clamp; keep it square */}
                       <div className="mx-auto aspect-square h-[clamp(260px,40vh,420px)]">
                         <SummaryDoughnut
                           slices={slices}
@@ -135,7 +135,7 @@ const SubStepConfirmExpenditure: React.FC<Props> = ({ preview }) => {
 
               {isDesktop && (
                 <p className="mt-2 text-center text-xs text-wizard-text/65">
-                  Klicka på en del för att öppna detaljer
+                  {t("donutHint")}
                 </p>
               )}
             </div>
@@ -144,8 +144,7 @@ const SubStepConfirmExpenditure: React.FC<Props> = ({ preview }) => {
 
         {vm.categories.length === 0 ? (
           <div className="rounded-2xl border border-wizard-stroke/20 bg-wizard-surface p-4 text-center text-sm text-wizard-text/70 shadow-sm shadow-black/5">
-            Inga utgifter hittades ännu. Gå tillbaka och fyll i åtminstone en
-            kostnad.
+            {t("empty")}
           </div>
         ) : (
           <WizardAccordionRoot
@@ -164,7 +163,7 @@ const SubStepConfirmExpenditure: React.FC<Props> = ({ preview }) => {
                   isActive={openCategory === c.key}
                   title={c.title}
                   totalText={`${money0(c.total)} (${pct} %)`}
-                  totalSuffix="/mån"
+                  totalSuffix={t("perMonth")}
                   variant="shell"
                   subtitle={
                     <div className="h-2 w-full rounded-full bg-wizard-stroke/15">
@@ -205,9 +204,7 @@ const SubStepConfirmExpenditure: React.FC<Props> = ({ preview }) => {
           animate={{ opacity: 1 }}
           className="rounded-2xl border border-wizard-stroke/20 bg-wizard-shell p-4 text-sm text-wizard-text/70 shadow-sm shadow-black/5"
         >
-          Ser något inte helt rätt ut? Du kan gå tillbaka och justera siffrorna
-          nu, eller fortsätta och ändra dem senare. En budget är ett levande
-          dokument som du kan och bör anpassa över tid.
+          {t("advice")}
         </motion.div>
 
         {/* Bottom summary (structured, calm) */}
@@ -215,7 +212,7 @@ const SubStepConfirmExpenditure: React.FC<Props> = ({ preview }) => {
           <div className="flex flex-col gap-2">
             <div className="flex items-baseline justify-between gap-4">
               <span className="text-sm font-semibold text-wizard-text/70">
-                Inkomst
+                {t("income")}
               </span>
               <span className="text-lg font-extrabold text-wizard-text">
                 {money0(vm.incomeTotal)}
@@ -224,7 +221,7 @@ const SubStepConfirmExpenditure: React.FC<Props> = ({ preview }) => {
 
             <div className="flex items-baseline justify-between gap-4">
               <span className="text-sm font-semibold text-wizard-text/70">
-                Utgifter
+                {t("expenses")}
               </span>
               <span className="text-lg font-extrabold text-wizard-text/80">
                 {money0(vm.grandTotal)}
@@ -235,7 +232,7 @@ const SubStepConfirmExpenditure: React.FC<Props> = ({ preview }) => {
 
             <div className="flex items-baseline justify-between gap-4">
               <span className="text-sm font-semibold text-wizard-text/70">
-                {vm.remaining >= 0 ? "Kvar efter utgifter" : "Underskott"}
+                {vm.remaining >= 0 ? t("remaining") : t("deficit")}
               </span>
 
               <span
@@ -252,8 +249,7 @@ const SubStepConfirmExpenditure: React.FC<Props> = ({ preview }) => {
 
             {vm.remaining < 0 ? (
               <p className="mt-1 text-xs text-wizard-warning/80">
-                Tips: Justera några kategorier eller gå tillbaka och kontrollera
-                att allt är med.
+                {t("deficitHint")}
               </p>
             ) : null}
           </div>

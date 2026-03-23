@@ -33,7 +33,8 @@ import type { WizardFormWrapperStep1Ref } from "@components/organisms/overlays/w
 
 // Lazy components:
 const StepWelcome = lazy(
-  () => import("@components/organisms/overlays/wizard/steps/StepWelcome"),
+  () =>
+    import("@/components/organisms/overlays/wizard/steps/StepWelcome/StepWelcome"),
 );
 const WizardFormWrapperStep1 = lazy(
   () =>
@@ -63,8 +64,12 @@ const StepBudgetFinal = lazy(
 import { WizardDivider } from "@/components/atoms/dividers/WizardDividerProps";
 import { BudgetGuideSkeleton } from "@/components/atoms/loading/BudgetGuideSkeleton";
 import { useWizard, WizardProvider } from "@/context/WizardContext";
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
+import { useWizardCurrencyBridge } from "@/hooks/wizard/useWizardCurrencyBridge";
 import { useWizardDataStore } from "@/stores/Wizard/wizardDataStore";
+import { useWizardSaveQueue } from "@/stores/Wizard/wizardSaveQueue";
 import { useWizardSessionStore } from "@/stores/Wizard/wizardSessionStore";
+import { tDict } from "@/utils/i18n/translate";
 import { isWizardProfilerEnabled } from "@/utils/profiling/wizardProfiler";
 import ConfirmModal from "@components/atoms/modals/ConfirmModal";
 import AnimatedContent from "@components/atoms/wrappers/AnimatedContent";
@@ -76,6 +81,7 @@ import useSaveWizardStep from "@hooks/wizard/useSaveWizardStep";
 import { useWizardFinalization } from "@hooks/wizard/useWizardFinalization";
 import useWizardInit from "@hooks/wizard/useWizardInit";
 import useWizardNavigation from "@hooks/wizard/useWizardNavigation";
+import { WizardInitErrorCard } from "./SharedComponents/Cards/WizardInitErrorCard";
 import { WizardNavEventsProvider } from "./SharedComponents/Nav/WizardNavEvents";
 import DataTransparencySection from "./SharedComponents/Pages/DataTransparencySection";
 import { WizardHeader } from "./WizardHeader";
@@ -123,19 +129,103 @@ type WizardSaveTraceEvent = {
   direction: "forward" | "back";
 };
 
-const WIZARD_STEPS = [
-  { icon: Wallet, label: "Inkomster" },
-  { icon: Receipt, label: "Utgifter" },
-  { icon: PiggyBank, label: "Sparande" },
-  { icon: Landmark, label: "Skulder" },
-  { icon: CheckCircle, label: "Bekräfta" },
-];
+const setupWizardDict = {
+  sv: {
+    stepIncome: "Inkomster",
+    stepExpenses: "Utgifter",
+    stepSavings: "Sparande",
+    stepDebts: "Skulder",
+    stepConfirm: "Bekräfta",
+    summary: "Sammanfattning",
 
+    pendingQueue:
+      "Du har ändringar som väntar på att skickas. Vi försöker automatiskt igen när anslutningen är tillbaka.",
+
+    technicalError: "Tekniskt fel!",
+
+    confirmTitle: "Är du säker?",
+    confirmBody:
+      "Om du väljer att avsluta nu så sparas den data du angett i nuvarande form inte",
+  },
+  en: {
+    stepIncome: "Income",
+    stepExpenses: "Expenses",
+    stepSavings: "Savings",
+    stepDebts: "Debts",
+    stepConfirm: "Confirm",
+    summary: "Summary",
+
+    pendingQueue:
+      "You have changes waiting to be sent. We'll automatically try again when you're back online.",
+
+    technicalError: "Technical error!",
+
+    confirmTitle: "Are you sure?",
+    confirmBody:
+      "If you exit now, the data you entered in its current state will not be saved.",
+  },
+  et: {
+    stepIncome: "Sissetulekud",
+    stepExpenses: "Kulud",
+    stepSavings: "Säästud",
+    stepDebts: "Võlad",
+    stepConfirm: "Kinnita",
+    summary: "Kokkuvõte",
+
+    pendingQueue:
+      "Sul on ootel muudatusi, mis vajavad saatmist. Proovime automaatselt uuesti, kui ühendus taastub.",
+
+    technicalError: "Tehniline viga!",
+
+    confirmTitle: "Kas oled kindel?",
+    confirmBody:
+      "Kui lõpetad nüüd, siis sinu sisestatud andmeid praegusel kujul ei salvestata.",
+  },
+} as const;
+const WIZARD_STEPS = [
+  { icon: Wallet, labelKey: "stepIncome" },
+  { icon: Receipt, labelKey: "stepExpenses" },
+  { icon: PiggyBank, labelKey: "stepSavings" },
+  { icon: Landmark, labelKey: "stepDebts" },
+  { icon: CheckCircle, labelKey: "stepConfirm" },
+] as const;
+
+export function useWizardQueueFlush() {
+  const flush = useWizardSaveQueue((s) => s.flush);
+
+  useEffect(() => {
+    const onOnline = () => void flush();
+    const onFocus = () => {
+      if (navigator.onLine) void flush();
+    };
+
+    window.addEventListener("online", onOnline);
+    window.addEventListener("focus", onFocus);
+
+    return () => {
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [flush]);
+}
 // =========================================================================
 // THE MIND OF GANDALF (The Main Component)
 // =========================================================================
 const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
   // All of the hooks and state management are safely kept here.
+
+  const locale = useAppLocale();
+  const t = <K extends keyof typeof setupWizardDict.sv>(k: K) =>
+    tDict(k, locale, setupWizardDict);
+
+  const resolvedSteps = useMemo(
+    () =>
+      WIZARD_STEPS.map((s) => ({
+        icon: s.icon,
+        label: t(s.labelKey),
+      })),
+    [t],
+  );
 
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [showShakeAnimation, setShowShakeAnimation] = useState(false);
@@ -145,7 +235,7 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
   const {
     loading: initLoading,
     failedAttempts,
-    connectionError,
+    initError,
     initWizard,
     initialMajorStep,
     initialSubStep,
@@ -181,8 +271,19 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
     }),
     [],
   );
+
+  // This is legacy crap, you can probably delete this pretty easy.
+  // Its a reminder how i used to do though.
+  // But then again, doing it now seems like a waste of time.
   const { setShowSideIncome, setShowHouseholdMembers } =
     useBudgetInfoDisplayFlags();
+
+  // Locale + Currency
+  const { currency, isPersistingPreferences, handleCurrencyChange } =
+    useWizardCurrencyBridge();
+
+  const pendingQueueCount = useWizardSaveQueue((s) => s.queue.length);
+  const hasPendingQueue = pendingQueueCount > 0;
 
   const { finalizeWizard, isFinalizing, finalizationError } =
     useWizardFinalization();
@@ -498,13 +599,13 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
         handleCancelCloseWizard={handleCancelCloseWizard}
         showShakeAnimation={showShakeAnimation}
         initLoading={initLoading}
-        connectionError={connectionError}
+        connectioinitErrornError={initError}
         failedAttempts={failedAttempts}
         initWizard={initWizard}
         transitionLoading={transitionLoading}
         step={step}
         totalSteps={5}
-        steps={WIZARD_STEPS}
+        steps={resolvedSteps}
         handleStepClick={handleStepClick}
         handlePrevNavigation={handlePrevNavigation}
         handleNextNavigation={handleNextNavigation}
@@ -538,6 +639,11 @@ const SetupWizard: React.FC<SetupWizardProps> = ({ onClose }) => {
         onEditDebts={onEditDebts}
         jumpTo={jumpTo}
         nextStep={hookNextStep}
+        currency={currency}
+        isPersistingPreferences={isPersistingPreferences}
+        onCurrencyChange={handleCurrencyChange}
+        hasPendingQueue={hasPendingQueue}
+        initError={initError}
       />
     </WizardProvider>
   );
@@ -565,6 +671,9 @@ const WizardContent = React.memo((props: any) => {
       setOutermostScrollNode(node);
     }
   }, []);
+  const locale = useAppLocale();
+  const t = <K extends keyof typeof setupWizardDict.sv>(k: K) =>
+    tDict(k, locale, setupWizardDict);
 
   const finalUnlocked = useWizardSessionStore(
     (s) =>
@@ -659,9 +768,7 @@ const WizardContent = React.memo((props: any) => {
         <div
           className={clsx(
             "min-h-screen flex justify-center bg-wizard-overlay",
-            // mobile: top aligned, tight padding
-            "items-start py-3",
-            // desktop: centered + more breathing room
+            props.step === 0 ? "items-start py-2" : "items-start py-3",
             "md:items-center md:py-10",
             showBackdropEffects && "backdrop-blur-[2px] backdrop-saturate-50",
           )}
@@ -674,7 +781,7 @@ const WizardContent = React.memo((props: any) => {
             transition={isLowPerf ? { duration: 0.12 } : { duration: 0.25 }}
             className={clsx(
               "rounded-3xl w-11/12 max-w-6xl relative overflow-hidden",
-              "p-4 md:p-6",
+              props.step === 0 ? "p-3 md:p-5" : "p-4 md:p-6",
               "bg-gradient-to-b from-wizard-shell/95 to-wizard-shell/85",
               "border border-wizard-shellBorder/20",
               "shadow-[0_20px_60px_rgba(2,6,23,0.22)]",
@@ -724,7 +831,7 @@ const WizardContent = React.memo((props: any) => {
                   size={muteGlobalStepper ? "tiny" : "default"}
                   maxClickableStep={props.maxMajorStepAllowed}
                   highlightFinal={finalUnlocked}
-                  finalLabel="Sammanfattning"
+                  finalLabel={t("summary")}
                 />
               )}
               <WizardSummaryNavAssist
@@ -733,9 +840,26 @@ const WizardContent = React.memo((props: any) => {
                 onGoToSummary={goToSummary}
                 onContinue={props.nextStep}
               />
-              <div className="mt-4 md:mt-5">
-                <WizardDivider variant="strong" />
-              </div>
+              {props.step > 0 && (
+                <div className="mt-4 md:mt-5">
+                  <WizardDivider variant="strong" />
+                </div>
+              )}
+              {props.hasPendingQueue && (
+                <div className="mx-auto w-full max-w-5xl px-4 pt-3">
+                  <div
+                    className={clsx(
+                      "rounded-2xl border px-4 py-3 text-sm",
+                      "border-amber-300/40 bg-amber-50 text-amber-900",
+                      "shadow-[0_6px_18px_rgba(21,39,81,0.06)]",
+                    )}
+                    role="status"
+                    aria-live="polite"
+                  >
+                    {t("pendingQueue")}
+                  </div>
+                </div>
+              )}
               {muteGlobalStepper && (
                 <>
                   {/* put the Step-2 sub stepper here (inside StepExpenditure ideally) 
@@ -760,12 +884,17 @@ const WizardContent = React.memo((props: any) => {
                       </div>
                     }
                   >
-                    {props.step === 0 ? (
-                      <StepWelcome
-                        connectionError={props.connectionError}
+                    {props.step === 0 && props.initError ? (
+                      <WizardInitErrorCard
                         failedAttempts={props.failedAttempts}
-                        loading={props.transitionLoading || props.initLoading}
                         onRetry={props.initWizard}
+                      />
+                    ) : props.step === 0 ? (
+                      <StepWelcome
+                        loading={props.transitionLoading || props.initLoading}
+                        currency={props.currency}
+                        isPersistingPreferences={props.isPersistingPreferences}
+                        onCurrencyChange={props.onCurrencyChange}
                       />
                     ) : (
                       <>
@@ -785,7 +914,7 @@ const WizardContent = React.memo((props: any) => {
                               />
                             </WizardFormWrapperStep1>
                           ) : (
-                            <p>Tekniskt fel!</p>
+                            <p>{t("technicalError")}</p>
                           ))}
 
                         {props.step === 2 && (
@@ -878,7 +1007,12 @@ const WizardContent = React.memo((props: any) => {
                 </AnimatedContent>
               </Profiler>
               <div className="w-full max-w-4xl mx-auto">
-                <div className="my-6 w-full flex items-center justify-between">
+                <div
+                  className={clsx(
+                    "w-full flex items-center justify-between",
+                    props.step === 0 ? "mt-3 mb-2" : "my-6",
+                  )}
+                >
                   <WizardNavPair
                     step={props.step}
                     prevStep={props.handlePrevNavigation}
@@ -897,6 +1031,7 @@ const WizardContent = React.memo((props: any) => {
                     isSaving={props.isSaving}
                     isActionBlocked={isActionBlocked}
                     hideNext={props.step === 2 && props.currentSub === 1}
+                    initError={props.initError}
                   />
                 </div>
 
@@ -914,8 +1049,8 @@ const WizardContent = React.memo((props: any) => {
         </div>
         <ConfirmModal
           isOpen={props.confirmModalOpen}
-          title="Är du säker?"
-          description="Om du väljer att avsluta nu så sparas den data du angett i nuvarande form inte"
+          title={t("confirmTitle")}
+          description={t("confirmBody")}
           onCancel={props.handleCancelCloseWizard}
           onConfirm={props.handleConfirmCloseWizard}
         />

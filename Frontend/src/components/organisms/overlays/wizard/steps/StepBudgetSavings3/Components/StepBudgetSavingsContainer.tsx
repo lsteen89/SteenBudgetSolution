@@ -1,44 +1,52 @@
-import React, {
-  useState,
-  forwardRef,
-  useImperativeHandle,
-  useRef,
-  useEffect,
-  useCallback,
-  lazy,
-  Suspense,
-  useMemo,
-} from "react";
-import type { UseFormReturn, FieldErrors } from "react-hook-form";
 import WizardSkeleton from "@/components/organisms/overlays/wizard/SharedComponents/Skeletons/WizardSkeleton";
 import AnimatedContent from "@components/atoms/wrappers/AnimatedContent";
+import {
+  forwardRef,
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
+import type { FieldErrors, UseFormReturn } from "react-hook-form";
 
+import { useWizardDataStore } from "@/stores/Wizard/wizardDataStore";
 import type { Step3FormValues } from "@/types/Wizard/Step3_Savings/Step3FormValues";
 import { ensureStep3Defaults } from "@/utils/wizard/ensureStep3Defaults";
-import { useSaveStepData } from "@hooks/wizard/useSaveStepData";
-import { useWizardDataStore } from "@/stores/Wizard/wizardDataStore";
 import useMediaQuery from "@hooks/useMediaQuery";
+import { useSaveStepData } from "@hooks/wizard/useSaveStepData";
 
-import WizardProgress from "@components/organisms/overlays/wizard/SharedComponents/Menu/WizardProgress";
 import StepCarousel from "@components/molecules/progress/StepCarousel";
-import { Skeleton } from "@/components/ui/Skeleton";
+import WizardProgress from "@components/organisms/overlays/wizard/SharedComponents/Menu/WizardProgress";
 import type { SubStepGoalsApi } from "./Pages/SubSteps/3_SubStepGoals/SubStepGoals";
 import WizardFormWrapperStep3, {
   WizardFormWrapperStep3Ref,
 } from "./wrapper/WizardFormWrapperStep3";
 
 // Icons
-import { Info, PiggyBank, Target, ShieldCheck } from "lucide-react";
-import { WizardOverlaySkeleton } from "../../../SharedComponents/Skeletons/WizardOverlaySkeleton";
-import WizardOverlayShell from "../../../SharedComponents/shells/WizardOverlayShell";
-import { useWizard } from "@/context/WizardContext";
 import { WizardDivider } from "@/components/atoms/dividers/WizardDividerProps";
-
+import { useWizard } from "@/context/WizardContext";
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
+import { tDict } from "@/utils/i18n/translate";
+import { stepBudgetSavingsContainerDict } from "@/utils/i18n/wizard/stepSavings/StepBudgetSavingsContainer.i18n";
+import { Info, PiggyBank, ShieldCheck, Target } from "lucide-react";
+import WizardOverlayShell from "../../../SharedComponents/shells/WizardOverlayShell";
 /* ───────────────── Lazy substeps ───────────────── */
-const SubStepIntro = lazy(() => import("./Pages/SubSteps/1_SubStepIntro/SubStepIntro"));
-const SubStepHabits = lazy(() => import("./Pages/SubSteps/2_SubStepHabits/SubStepHabits"));
-const SubStepGoals = lazy(() => import("./Pages/SubSteps/3_SubStepGoals/SubStepGoals"));
-const SubStepConfirm = lazy(() => import("./Pages/SubSteps/4_SubStepConfirm/components/SubStepConfirmSavingsConnected"));
+const SubStepIntro = lazy(
+  () => import("./Pages/SubSteps/1_SubStepIntro/SubStepIntro"),
+);
+const SubStepHabits = lazy(
+  () => import("./Pages/SubSteps/2_SubStepHabits/SubStepHabits"),
+);
+const SubStepGoals = lazy(
+  () => import("./Pages/SubSteps/3_SubStepGoals/SubStepGoals"),
+);
+const SubStepConfirm = lazy(
+  () =>
+    import("./Pages/SubSteps/4_SubStepConfirm/components/SubStepConfirmSavingsConnected"),
+);
 
 /* ───────────────── Preload helper ───────────────── */
 const preload = (fn: () => Promise<any>) => {
@@ -53,7 +61,8 @@ const savingsLoaders: Record<number, () => Promise<any>> = {
   1: () => import("./Pages/SubSteps/1_SubStepIntro/SubStepIntro"),
   2: () => import("./Pages/SubSteps/2_SubStepHabits/SubStepHabits"),
   3: () => import("./Pages/SubSteps/3_SubStepGoals/SubStepGoals"),
-  4: () => import("./Pages/SubSteps/4_SubStepConfirm/components/SubStepConfirmSavingsConnected"),
+  4: () =>
+    import("./Pages/SubSteps/4_SubStepConfirm/components/SubStepConfirmSavingsConnected"),
 };
 
 /* ───────────────── Types ───────────────── */
@@ -79,7 +88,7 @@ interface StepBudgetSavingsContainerProps {
     step: number,
     subStep: number,
     data: any,
-    goingBackwards: boolean
+    goingBackwards: boolean,
   ) => Promise<boolean>;
   stepNumber: number;
   initialData?: Partial<Step3FormValues>;
@@ -93,7 +102,7 @@ interface StepBudgetSavingsContainerProps {
 
 function getSavingsPartialData(
   subStep: number,
-  allData: Step3FormValues
+  allData: Step3FormValues,
 ): Partial<Step3FormValues> {
   switch (subStep) {
     case 1:
@@ -123,6 +132,10 @@ const StepBudgetSavingsContainer = forwardRef<
     onSubStepChange,
   } = props;
 
+  const locale = useAppLocale();
+
+  const t = <K extends keyof typeof stepBudgetSavingsContainerDict.sv>(k: K) =>
+    tDict(k, locale, stepBudgetSavingsContainerDict);
   const isMobile = useMediaQuery("(max-width: 1367px)");
   const totalSteps = 4;
   const subStepGoalsRef = useRef<SubStepGoalsApi>(null);
@@ -135,19 +148,23 @@ const StepBudgetSavingsContainer = forwardRef<
   /* 2) Local state */
   const [isSaving, setIsSaving] = useState(false);
   const [currentSub, setCurrentSub] = useState(initialSubStep || 1);
-  const [formMethods, setFormMethods] = useState<UseFormReturn<Step3FormValues> | null>(null);
+  const [formMethods, setFormMethods] =
+    useState<UseFormReturn<Step3FormValues> | null>(null);
   const [isFormHydrated, setIsFormHydrated] = useState(false);
 
   const handleFormHydration = () => setIsFormHydrated(true);
 
   /* 3) Capture RHF methods from wrapper once */
   const hasSetMethods = useRef(false);
-  const handleFormWrapperRef = useCallback((instance: WizardFormWrapperStep3Ref | null) => {
-    if (instance && !hasSetMethods.current) {
-      setFormMethods(instance.getMethods());
-      hasSetMethods.current = true;
-    }
-  }, []);
+  const handleFormWrapperRef = useCallback(
+    (instance: WizardFormWrapperStep3Ref | null) => {
+      if (instance && !hasSetMethods.current) {
+        setFormMethods(instance.getMethods());
+        hasSetMethods.current = true;
+      }
+    },
+    [],
+  );
 
   /* 4) Save hook */
   const { saveStepData } = useSaveStepData<Step3FormValues>({
@@ -183,7 +200,6 @@ const StepBudgetSavingsContainer = forwardRef<
     if (!ok && !goingBack) {
       if (currentSub === 3) {
         setValidationAttempted("step3.goals", true);
-
 
         queueMicrotask(() => subStepGoalsRef.current?.openFirstErrorGoal());
       }
@@ -252,15 +268,12 @@ const StepBudgetSavingsContainer = forwardRef<
   }));
 
   /* 11) Render helpers */
-  const steps = useMemo(
-    () => [
-      { icon: Info, label: "Intro" },
-      { icon: PiggyBank, label: "Vanor" },
-      { icon: Target, label: "Mål" },
-      { icon: ShieldCheck, label: "Bekräfta" },
-    ],
-    []
-  );
+  const steps = [
+    { icon: Info, label: t("stepIntro") },
+    { icon: PiggyBank, label: t("stepHabits") },
+    { icon: Target, label: t("stepGoals") },
+    { icon: ShieldCheck, label: t("stepConfirm") },
+  ];
 
   const renderSubStep = () => {
     switch (currentSub) {
@@ -269,7 +282,9 @@ const StepBudgetSavingsContainer = forwardRef<
       case 2:
         return <SubStepHabits />;
       case 3:
-        return <SubStepGoals ref={subStepGoalsRef} onGoToHabits={() => goToSub(2)} />;
+        return (
+          <SubStepGoals ref={subStepGoalsRef} onGoToHabits={() => goToSub(2)} />
+        );
       case 4:
         return <SubStepConfirm />;
       default:
@@ -284,9 +299,7 @@ const StepBudgetSavingsContainer = forwardRef<
       onHydrationComplete={handleFormHydration}
     >
       <WizardOverlayShell className="h-full">
-
         <form className="relative flex flex-col h-full">
-
           {/* Shared width frame */}
           <div className="mx-auto w-full max-w-4xl px-4 sm:px-6 lg:px-10 xl:px-14 flex flex-col h-full">
             {/* Header navigation */}

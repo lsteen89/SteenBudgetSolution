@@ -1,6 +1,8 @@
 import { Slider } from "@/components/ui/slider";
 import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
+import { tDict } from "@/utils/i18n/translate";
+import { whatIfSavingsCardDict } from "@/utils/i18n/wizard/stepSavings/WhatIfSavingsCard.i18n";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
 import { TrendingUp } from "lucide-react";
 import React, { useMemo, useState } from "react";
@@ -28,6 +30,10 @@ export default function WhatIfSavingsCard({
 }: Props) {
   const currency = useAppCurrency();
   const locale = useAppLocale();
+
+  const t = <K extends keyof typeof whatIfSavingsCardDict.sv>(k: K) =>
+    tDict(k, locale, whatIfSavingsCardDict);
+
   const money0 = (v: number) =>
     formatMoneyV2(v ?? 0, currency, locale, { fractionDigits: 0 });
 
@@ -47,6 +53,15 @@ export default function WhatIfSavingsCard({
   const future = result.fv;
   const gain = Math.max(0, future - deposit);
 
+  const scenarioText = t("scenarioTextTemplate")
+    .replace("{deposit}", money0(deposit))
+    .replace("{gain}", money0(gain));
+
+  const totalAfterYearsText = t("totalValueAfterYearsTemplate").replace(
+    "{years}",
+    String(years),
+  );
+
   return (
     <div
       className="
@@ -58,7 +73,6 @@ export default function WhatIfSavingsCard({
         overflow-hidden
       "
     >
-      {/* Header */}
       <div className="flex items-start gap-3">
         <div
           className="
@@ -71,62 +85,60 @@ export default function WhatIfSavingsCard({
         </div>
 
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-wizard-text">
-            Vad händer om du sparar lite extra?
-          </p>
+          <p className="text-sm font-semibold text-wizard-text">{t("title")}</p>
 
           <p className="mt-1 text-xs text-wizard-text/60 leading-relaxed">
-            Justera belopp, tid och avkastning och se ett scenario direkt.
+            {t("subtitle")}
           </p>
 
-          {/* Summary pill */}
           <div className="mt-3 inline-flex flex-wrap items-center gap-2">
             <span className="rounded-full bg-wizard-surface border border-wizard-stroke/20 px-3 py-1.5 shadow-sm shadow-black/5">
               <span className="text-xs font-semibold text-wizard-text/60">
-                +{" "}
+                {t("summaryPerMonthPrefix")}{" "}
               </span>
-              <span className="money font-extrabold text-wizard-accent tabular-nums">
+              <span className=" font-extrabold text-wizard-accent tabular-nums">
                 {money0(clampedMonthly)}
               </span>
               <span className="text-xs font-semibold text-wizard-text/60">
                 {" "}
-                /mån
+                {t("summaryPerMonthSuffix")}
               </span>
             </span>
 
             <span className="rounded-full bg-wizard-surface border border-wizard-stroke/20 px-3 py-1.5 shadow-sm shadow-black/5">
               <span className="text-xs font-semibold text-wizard-text/60">
-                i{" "}
+                {t("summaryYearsPrefix")}
+                {t("summaryYearsPrefix") ? " " : ""}
               </span>
               <span className="font-extrabold text-wizard-text tabular-nums">
                 {years}
               </span>
               <span className="text-xs font-semibold text-wizard-text/60">
                 {" "}
-                år
+                {t("summaryYearsSuffix")}
               </span>
             </span>
 
             <span className="rounded-full bg-wizard-surface border border-wizard-stroke/20 px-3 py-1.5 shadow-sm shadow-black/5">
               <span className="text-xs font-semibold text-wizard-text/60">
-                med{" "}
+                {t("summaryRatePrefix")}
+                {t("summaryRatePrefix") ? " " : ""}
               </span>
               <span className="font-extrabold text-wizard-text tabular-nums">
                 {rate}%
               </span>
               <span className="text-xs font-semibold text-wizard-text/60">
                 {" "}
-                avkastning
+                {t("summaryRateSuffix")}
               </span>
             </span>
           </div>
         </div>
       </div>
 
-      {/* Controls */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <ControlCard
-          title="Per månad"
+          title={t("controlMonthly")}
           value={
             <span className="text-darkLimeGreen tabular-nums">
               {money0(clampedMonthly)}
@@ -147,7 +159,7 @@ export default function WhatIfSavingsCard({
         </ControlCard>
 
         <ControlCard
-          title="År"
+          title={t("controlYears")}
           value={<span className="tabular-nums">{years}</span>}
         >
           <Slider
@@ -164,7 +176,7 @@ export default function WhatIfSavingsCard({
         </ControlCard>
 
         <ControlCard
-          title="Förväntad avkastning"
+          title={t("controlRate")}
           value={<span className="tabular-nums">{rate}%</span>}
         >
           <Slider
@@ -181,7 +193,6 @@ export default function WhatIfSavingsCard({
         </ControlCard>
       </div>
 
-      {/* Result */}
       <div
         className="
           rounded-3xl
@@ -191,26 +202,17 @@ export default function WhatIfSavingsCard({
         "
       >
         <p className="text-[11px] font-semibold uppercase tracking-wider text-wizard-text/55">
-          Scenario
+          {t("scenarioTitle")}
         </p>
 
         <div className="mt-2 flex items-end justify-between gap-4">
           <div className="min-w-0">
             <p className="text-sm text-wizard-text/70 leading-snug">
-              Du sätter in{" "}
-              <span className="font-semibold text-wizard-text tabular-nums">
-                {money0(deposit)}
-              </span>{" "}
-              och får{" "}
-              <span className="font-extrabold text-wizard-accent tabular-nums">
-                +{money0(gain)}
-              </span>{" "}
-              i avkastning.
+              {scenarioText}
             </p>
 
             <p className="mt-2 text-xs text-wizard-text/55">
-              Totalt värde efter <span className="font-semibold">{years}</span>{" "}
-              år
+              {totalAfterYearsText}
             </p>
           </div>
 
@@ -229,13 +231,11 @@ export default function WhatIfSavingsCard({
         </div>
       </div>
 
-      {/* Disclaimer */}
       <div className="rounded-2xl bg-wizard-shell/40 border border-wizard-stroke/15 px-4 py-3">
         <p className="text-xs text-wizard-text/60 leading-relaxed">
-          Antagande: månadssparande i slutet av varje månad. Avkastning är ett
-          scenario, inte en garanti.
+          {t("disclaimer")}
           <span className="text-wizard-text/35"> • </span>
-          Du kan alltid justera ditt sparande senare.
+          {t("disclaimerFollowup")}
         </p>
       </div>
     </div>

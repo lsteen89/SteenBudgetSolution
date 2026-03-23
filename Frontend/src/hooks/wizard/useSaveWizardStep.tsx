@@ -1,15 +1,18 @@
 import { CODE_DATA_VERSION } from "@/constants/wizardVersion";
+import { useWizardSaveQueue } from "@/stores/Wizard/wizardSaveQueue";
 import { useToast } from "@/ui/toast/toast";
 import { saveWizardStep } from "@api/Services/wizard/wizardService";
 import { isAxiosError } from "axios";
 import { useCallback } from "react";
 
 type Options = {
-  onValidationError?: (message: string) => void; // <-- new
+  onValidationError?: (message: string) => void;
+  onQueuedOffline?: () => void;
 };
 
 const useSaveWizardStep = (wizardSessionId: string, opts?: Options) => {
   const { showToast } = useToast();
+  const enqueue = useWizardSaveQueue((s) => s.enqueue);
 
   const handleSaveStepData = useCallback(
     async (
@@ -24,15 +27,10 @@ const useSaveWizardStep = (wizardSessionId: string, opts?: Options) => {
         showToast("Ett anslutningsfel uppstod. Ladda om sidan.", "error");
         return false;
       }
+
       if (stepNumber == null) return false;
 
       try {
-        console.log("[HS] handleSaveStepData called", {
-          stepNumber,
-          subStepNumber,
-          dataToSave,
-        });
-        console.trace("[HS] trace");
         await saveWizardStep(
           wizardSessionId,
           stepNumber,
@@ -42,7 +40,6 @@ const useSaveWizardStep = (wizardSessionId: string, opts?: Options) => {
         );
         return true;
       } catch (error: any) {
-        // If server sent our envelope, Axios error was annotated in axios-wizard: (err as any).errorCode
         if (isAxiosError(error)) {
           const code =
             (error as any)?.errorCode ?? error.response?.data?.error?.code;
@@ -51,24 +48,38 @@ const useSaveWizardStep = (wizardSessionId: string, opts?: Options) => {
             error.message ??
             "Ogiltigt formulär";
 
-          // --- Validation: show inline only, no toast ---
           if (code === "Validation.Failed" || error.response?.status === 400) {
             opts?.onValidationError?.(message);
             return false;
           }
 
-          // Non-validation errors → toast
           if (!error.response) {
-            showToast("Nätverksfel. Kontrollera din anslutning.", "error");
-            return false;
+            enqueue({
+              stepNumber,
+              subStepNumber,
+              data: dataToSave,
+              goingBackwards,
+            });
+
+            opts?.onQueuedOffline?.();
+            return true;
           }
+
           if (error.response.status === 401 || error.response.status === 403) {
             showToast("Din session har gått ut. Logga in igen.", "error");
             return false;
           }
+
           if (error.code === "ECONNABORTED") {
-            showToast("Begäran tog för lång tid. Försök igen.", "error");
-            return false;
+            enqueue({
+              stepNumber,
+              subStepNumber,
+              data: dataToSave,
+              goingBackwards,
+            });
+
+            opts?.onQueuedOffline?.();
+            return true;
           }
 
           showToast(message || "Ett fel uppstod vid sparande.", "error");
@@ -79,7 +90,7 @@ const useSaveWizardStep = (wizardSessionId: string, opts?: Options) => {
         return false;
       }
     },
-    [wizardSessionId, showToast, opts],
+    [wizardSessionId, showToast, enqueue, opts],
   );
 
   return { handleSaveStepData };

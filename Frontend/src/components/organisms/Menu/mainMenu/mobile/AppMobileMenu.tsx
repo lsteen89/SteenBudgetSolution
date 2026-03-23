@@ -20,6 +20,7 @@ export default function AppMobileHeader() {
       { label: t("dashboard"), to: "/dashboard", tone: "primary" },
       { label: t("breakdown"), to: "/dashboard/breakdown" },
       { label: t("howItWorks"), to: "/how-it-works" },
+
       { label: t("support"), to: "/support" },
     ],
     [locale],

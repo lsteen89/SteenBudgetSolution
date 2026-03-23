@@ -1,0 +1,32 @@
+export const wizardExpenditureStepsDict = {
+  sv: {
+    overview: "Översikt",
+    housing: "Boende",
+    food: "Matkostnader",
+    fixed: "Fasta utgifter",
+    transport: "Transport",
+    clothing: "Kläder",
+    subs: "Prenumerationer",
+    confirm: "Bekräfta",
+  },
+  en: {
+    overview: "Overview",
+    housing: "Housing",
+    food: "Food",
+    fixed: "Bills",
+    transport: "Transport",
+    clothing: "Clothing",
+    subs: "Subscriptions",
+    confirm: "Confirm",
+  },
+  et: {
+    overview: "Ülevaade",
+    housing: "Eluase",
+    food: "Toit",
+    fixed: "Püsikulud",
+    transport: "Transport",
+    clothing: "Riided",
+    subs: "Tellimused",
+    confirm: "Kinnita",
+  },
+} as const;

@@ -1,16 +1,19 @@
+import { Car } from "lucide-react";
 import React, { useMemo, useState } from "react";
 import { useFormContext } from "react-hook-form";
-import { Car } from "lucide-react";
 
-import NumberInput from "@components/atoms/InputField/NumberInput";
-import { setValueAsSvNumber } from "@/utils/forms/parseNumber";
 import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
+import { setValueAsLocalizedNumber } from "@/utils/forms/parseNumber";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
+import NumberInput from "@components/atoms/InputField/NumberInput";
 
 import type { TransportFormShape } from "@/types/Wizard/Step2_Expenditure/TransportFormValues";
-import { WizardCardAccordion } from "@components/organisms/overlays/wizard/SharedComponents/Accordion/WizardCardAccordion";
 import { sumMoney } from "@/utils/money/moneyMath";
+import { WizardCardAccordion } from "@components/organisms/overlays/wizard/SharedComponents/Accordion/WizardCardAccordion";
+
+import { tDict } from "@/utils/i18n/translate";
+import { transportCostsCardDict } from "@/utils/i18n/wizard/stepExpenditure/TransportCostsCard.i18n";
 
 type FieldPath =
   | "transport.fuelOrCharging"
@@ -19,74 +22,89 @@ type FieldPath =
   | "transport.otherCarCosts"
   | "transport.publicTransit";
 
-const FIELDS: Array<{
+type FieldDef = {
   path: FieldPath;
   label: string;
   placeholder: string;
   helpText?: string;
-}> = [
-    { path: "transport.fuelOrCharging", label: "Bränsle / laddning", placeholder: "t.ex. 1 500" },
-    { path: "transport.carInsurance", label: "Bilförsäkring", placeholder: "t.ex. 500" },
-    {
-      path: "transport.parkingFee",
-      label: "Parkering",
-      placeholder: "t.ex. 900",
-      helpText: "P-plats/garage och återkommande parkeringsavgifter.",
-    },
-    {
-      path: "transport.otherCarCosts",
-      label: "Övriga bilkostnader",
-      placeholder: "t.ex. 600",
-      helpText: "Service/underhåll, trängselskatt, vägtullar och liknande.",
-    },
-    {
-      path: "transport.publicTransit",
-      label: "Kollektivtrafik",
-      placeholder: "t.ex. 990",
-      helpText: "SL/Västtrafik/periodkort och återkommande resor.",
-    },
-  ];
-
-const sum = (n?: number | null) => (typeof n === "number" && !Number.isNaN(n) ? n : 0);
+};
 
 export const TransportCostsCard: React.FC = () => {
-  const { watch, register, getFieldState, formState } = useFormContext<TransportFormShape>();
+  const { watch, register, getFieldState, formState } =
+    useFormContext<TransportFormShape>();
   const [isOpen, setIsOpen] = useState(false);
 
   const currency = useAppCurrency();
   const locale = useAppLocale();
+  const t = <K extends keyof typeof transportCostsCardDict.sv>(k: K) =>
+    tDict(k, locale, transportCostsCardDict);
 
   const v = watch("transport");
 
   const total = useMemo(() => {
     if (!v) return 0;
-
     return sumMoney(
       v.fuelOrCharging,
       v.carInsurance,
       v.parkingFee,
       v.otherCarCosts,
-      v.publicTransit
+      v.publicTransit,
     );
   }, [v]);
 
-
-  const err = (path: FieldPath) => getFieldState(path, formState).error?.message;
+  const err = (path: FieldPath) =>
+    getFieldState(path, formState).error?.message;
 
   const totalText =
-    !isOpen && total > 0 ? formatMoneyV2(total, currency, locale, { fractionDigits: 0 }) : undefined;
+    !isOpen && total > 0
+      ? formatMoneyV2(total, currency, locale, { fractionDigits: 0 })
+      : undefined;
+
+  const fields: FieldDef[] = useMemo(
+    () => [
+      {
+        path: "transport.fuelOrCharging",
+        label: t("fuelLabel"),
+        placeholder: t("fuelPlaceholder"),
+      },
+      {
+        path: "transport.carInsurance",
+        label: t("insuranceLabel"),
+        placeholder: t("insurancePlaceholder"),
+      },
+      {
+        path: "transport.parkingFee",
+        label: t("parkingLabel"),
+        placeholder: t("parkingPlaceholder"),
+        helpText: t("parkingHelp"),
+      },
+      {
+        path: "transport.otherCarCosts",
+        label: t("otherCarLabel"),
+        placeholder: t("otherCarPlaceholder"),
+        helpText: t("otherCarHelp"),
+      },
+      {
+        path: "transport.publicTransit",
+        label: t("transitLabel"),
+        placeholder: t("transitPlaceholder"),
+        helpText: t("transitHelp"),
+      },
+    ],
+    [t],
+  );
 
   return (
     <WizardCardAccordion
-      title="Transport"
+      title={t("title")}
       icon={<Car className="w-6 h-6 text-wizard-text flex-shrink-0" />}
       isOpen={isOpen}
       onToggle={() => setIsOpen((p) => !p)}
       totalText={totalText}
-      totalSuffix="/mån"
+      totalSuffix={t("totalSuffix")}
     >
       <div className="grid grid-cols-1 gap-4">
-        {FIELDS.map((field) => (
+        {fields.map((field) => (
           <NumberInput
             key={field.path}
             label={field.label}
@@ -94,7 +112,7 @@ export const TransportCostsCard: React.FC = () => {
             locale={locale}
             placeholder={field.placeholder}
             error={err(field.path)}
-            {...register(field.path, { setValueAs: setValueAsSvNumber })}
+            {...register(field.path, { setValueAs: setValueAsLocalizedNumber })}
           />
         ))}
       </div>

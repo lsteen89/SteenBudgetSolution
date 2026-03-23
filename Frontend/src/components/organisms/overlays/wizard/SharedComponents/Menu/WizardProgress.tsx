@@ -1,6 +1,6 @@
-import React from "react";
-import { motion, useReducedMotion } from "framer-motion";
 import clsx from "clsx";
+import { motion, useReducedMotion } from "framer-motion";
+import React from "react";
 
 interface WizardStep {
   icon: React.ComponentType<{ size: string | number | undefined }>;
@@ -10,7 +10,7 @@ interface WizardStep {
 interface WizardProgressProps {
   step: number;
   totalSteps: number;
-  steps: WizardStep[];
+  steps: readonly WizardStep[];
   onStepClick: (step: number) => void;
   isDebugMode?: boolean;
 
@@ -21,11 +21,12 @@ interface WizardProgressProps {
   progressTone?: "accent" | "muted";
   maxClickableStep?: number; // From BE
 
-  highlightFinal?: boolean;     // final summary unlocked
-  finalLabel?: string;          // e.g. "Sammanfattning"
+  highlightFinal?: boolean; // final summary unlocked
+  finalLabel?: string; // e.g. "Sammanfattning"
 }
 
-const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(n, max));
+const clamp = (n: number, min: number, max: number) =>
+  Math.max(min, Math.min(n, max));
 
 const WizardProgressComponent: React.FC<WizardProgressProps> = ({
   step,
@@ -66,8 +67,8 @@ const WizardProgressComponent: React.FC<WizardProgressProps> = ({
     progressTone === "muted" ? "bg-wizard-stroke/70" : "bg-wizard-accent";
 
   const completedClass = "bg-wizard-accent text-white shadow-sm";
-  const futureClass = "bg-wizard-surface border border-wizard-stroke/60 text-wizard-text/45";
-
+  const futureClass =
+    "bg-wizard-surface border border-wizard-stroke/60 text-wizard-text/45";
 
   const activeClass = isMuted
     ? "bg-wizard-surface border border-wizard-stroke/60 text-wizard-text/70"
@@ -84,7 +85,11 @@ const WizardProgressComponent: React.FC<WizardProgressProps> = ({
           />
 
           <motion.div
-            className={clsx("absolute h-[2px] overflow-hidden", trackTop, progressClass)}
+            className={clsx(
+              "absolute h-[2px] overflow-hidden",
+              trackTop,
+              progressClass,
+            )}
             style={{ left: `${insetPct}%` }}
             initial={{ width: "0%" }}
             animate={{
@@ -108,20 +113,25 @@ const WizardProgressComponent: React.FC<WizardProgressProps> = ({
           const stepIndex = index + 1;
           const completed = stepIndex < current;
           const active = stepIndex === current;
-          const highlightBox = isTiny ? "w-10 h-10" : isCompact ? "w-11 h-11" : "w-12 h-12";
+          const highlightBox = isTiny
+            ? "w-10 h-10"
+            : isCompact
+              ? "w-11 h-11"
+              : "w-12 h-12";
           const highlightIcon = isTiny ? 20 : isCompact ? 22 : 28;
           const isFinal = stepIndex === totalSteps;
           const highlight = !!highlightFinal && isFinal && !active; // don’t fight active styling
 
-          const dimThis =
-            isMuted && !active && !highlight; // keep final + active crisp
+          const dimThis = isMuted && !active && !highlight; // keep final + active crisp
 
           const canClick = isDebugMode
             ? true
             : typeof maxClickableStep === "number"
               ? stepIndex <= maxClickableStep
               : completed;
-          const handleClick = () => { if (canClick) onStepClick(stepIndex); };
+          const handleClick = () => {
+            if (canClick) onStepClick(stepIndex);
+          };
 
           const Icon = item.icon;
 
@@ -136,10 +146,12 @@ const WizardProgressComponent: React.FC<WizardProgressProps> = ({
             clsx(
               "flex items-center justify-center rounded-full transition-all duration-200",
               highlight ? highlightBox : iconBox,
-              active && "scale-[1.18] ring-2 ring-wizard-accent/60 ring-offset-2 ring-offset-transparent",
+              active &&
+                "scale-[1.18] ring-2 ring-wizard-accent/60 ring-offset-2 ring-offset-transparent",
               highlight && "bg-wizard-surface border-2 border-wizard-accent",
               highlight && "shadow-[0_14px_38px_rgba(2,6,23,0.18)]",
-              highlight && "ring-2 ring-wizard-accent/35 ring-offset-2 ring-offset-transparent"
+              highlight &&
+                "ring-2 ring-wizard-accent/35 ring-offset-2 ring-offset-transparent",
             );
 
           return (
@@ -152,7 +164,7 @@ const WizardProgressComponent: React.FC<WizardProgressProps> = ({
                 "flex flex-col items-center min-w-0 rounded-xl",
                 dimThis && "opacity-55",
                 canClick ? "cursor-pointer" : "cursor-default",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wizard-accent/35"
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wizard-accent/35",
               )}
               aria-current={active ? "step" : undefined}
               aria-label={item.label}
@@ -162,7 +174,7 @@ const WizardProgressComponent: React.FC<WizardProgressProps> = ({
                   boxClassFor(active, highlight),
                   completed && completedClass,
                   !completed && !active && futureClass,
-                  active && activeClass
+                  active && activeClass,
                 )}
               >
                 <Icon size={iconSizeFor(active, highlight)} />
@@ -171,7 +183,11 @@ const WizardProgressComponent: React.FC<WizardProgressProps> = ({
               <span
                 className={clsx(
                   "mt-2 text-xs sm:text-sm text-center truncate max-w-full",
-                  active ? "font-semibold text-wizard-text" : isMuted ? "font-medium text-wizard-text/50" : "font-medium text-wizard-text/65"
+                  active
+                    ? "font-semibold text-wizard-text"
+                    : isMuted
+                      ? "font-medium text-wizard-text/50"
+                      : "font-medium text-wizard-text/65",
                 )}
                 title={item.label}
               >

@@ -1,76 +1,84 @@
-// TODO 
+// TODO
 // CREATE SKELETON FOR THE SUBSTEPS TO AVOID LOADINGSCREEN JANKINESS
 
-import React, {
-  useState,
+import {
   forwardRef,
-  useImperativeHandle,
-  useRef,
-  useEffect,
-  useCallback,
   lazy,
   Suspense,
-} from 'react';
-import {
-  FormProvider,
-  FieldErrors,
-  UseFormReturn,
-} from 'react-hook-form';
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
+import { FieldErrors, UseFormReturn } from "react-hook-form";
 
-import { Step2FormValues } from '@/schemas/wizard/StepExpenditures/step2Schema';
+import WizardSkeleton from "@/components/organisms/overlays/wizard/SharedComponents/Skeletons/WizardSkeleton";
+import { Step2FormValues } from "@/schemas/wizard/StepExpenditures/step2Schema";
+import AnimatedContent from "@components/atoms/wrappers/AnimatedContent";
+import StepCarousel from "@components/molecules/progress/StepCarousel";
+import WizardProgress from "@components/organisms/overlays/wizard/SharedComponents/Menu/WizardProgress";
+import type { ItemKey } from "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/1_SubStepWelcome/ExpenditureOverviewMainText";
 import WizardFormWrapperStep2, {
   WizardFormWrapperStep2Ref,
-} from './wrapper/WizardFormWrapperStep2';
-import WizardSkeleton from "@/components/organisms/overlays/wizard/SharedComponents/Skeletons/WizardSkeleton";
+} from "./wrapper/WizardFormWrapperStep2";
 /*Substeps for major step 2  (lazy)*/
-const ExpenditureOverviewMainText = lazy(() =>
-  import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/1_SubStepWelcome/ExpenditureOverviewMainText')
+const ExpenditureOverviewMainText = lazy(
+  () =>
+    import("@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/1_SubStepWelcome/ExpenditureOverviewMainText"),
 );
-const SubStepHousing = lazy(() =>
-  import('@/components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/2_SubStepHousing/SubStepHousing')
+const SubStepHousing = lazy(
+  () =>
+    import("@/components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/2_SubStepHousing/SubStepHousing"),
 );
-const SubStepFood = lazy(() =>
-  import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/3_SubStepFood/SubStepFood')
+const SubStepFood = lazy(
+  () =>
+    import("@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/3_SubStepFood/SubStepFood"),
 );
-const SubStepFixedExp = lazy(() =>
-  import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/4_SubStepFixedExpenses/SubStepFixedExpenses')
+const SubStepFixedExp = lazy(
+  () =>
+    import("@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/4_SubStepFixedExpenses/SubStepFixedExpenses"),
 );
-const SubStepTransport = lazy(() =>
-  import('@/components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/5_SubStepTransport/SubStepTransport')
+const SubStepTransport = lazy(
+  () =>
+    import("@/components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/5_SubStepTransport/SubStepTransport"),
 );
-const SubStepClothing = lazy(() =>
-  import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/6_SubStepClothing/SubStepClothing')
+const SubStepClothing = lazy(
+  () =>
+    import("@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/6_SubStepClothing/SubStepClothing"),
 );
-const SubStepSubscriptions = lazy(() =>
-  import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/7_SubStepSubscriptions/SubStepSubscriptions')
+const SubStepSubscriptions = lazy(
+  () =>
+    import("@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/7_SubStepSubscriptions/SubStepSubscriptions"),
 );
-const SubStepConfirmConnected = lazy(() =>
-  import("@/components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/8_SubStepConfirm/components/SubStepConfirmExpenditureConnected")
+const SubStepConfirmConnected = lazy(
+  () =>
+    import("@/components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/8_SubStepConfirm/components/SubStepConfirmExpenditureConnected"),
 );
-import type { ItemKey } from "@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/1_SubStepWelcome/ExpenditureOverviewMainText";
-import LoadingScreen from '@components/molecules/feedback/LoadingScreen';
-import { Skeleton } from '@/components/ui/Skeleton';
-import AnimatedContent from '@components/atoms/wrappers/AnimatedContent';
-import StepButton from '@components/molecules/buttons/StepButton';
-import WizardProgress from '@components/organisms/overlays/wizard/SharedComponents/Menu/WizardProgress';
-import StepCarousel from '@components/molecules/progress/StepCarousel';
-import WizardNavPair from '@components/organisms/overlays/wizard/SharedComponents/Buttons/WizardNavPair';
 
-import useMediaQuery from '@hooks/useMediaQuery';
-import { useSaveStepData } from '@hooks/wizard/useSaveStepData';
 import { ensureStep2Defaults } from "@/utils/wizard/ensureStep2Defaults";
+import useMediaQuery from "@hooks/useMediaQuery";
+import { useSaveStepData } from "@hooks/wizard/useSaveStepData";
 
 import {
-  Info, Home, FileText, Utensils, Car,
-  Shirt, CreditCard, ShieldCheck,
-} from 'lucide-react';
+  Car,
+  CreditCard,
+  FileText,
+  Home,
+  Info,
+  ShieldCheck,
+  Shirt,
+  Utensils,
+} from "lucide-react";
 
-import { useWizardDataStore } from '@/stores/Wizard/wizardDataStore';
-import { WizardOverlaySkeleton } from '../../../SharedComponents/Skeletons/WizardOverlaySkeleton';
-import WizardOverlayShell from '../../../SharedComponents/shells/WizardOverlayShell';
-import { useWizardSessionStore } from '@/stores/Wizard/wizardSessionStore';
-import { useStepEntitlement } from '@/hooks/wizard/useStepEntitlement';
-import { WizardDivider } from '@/components/atoms/dividers/WizardDividerProps';
+import { WizardDivider } from "@/components/atoms/dividers/WizardDividerProps";
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
+import { useStepEntitlement } from "@/hooks/wizard/useStepEntitlement";
+import { useWizardDataStore } from "@/stores/Wizard/wizardDataStore";
+import { useWizardSessionStore } from "@/stores/Wizard/wizardSessionStore";
+import { tDict } from "@/utils/i18n/translate";
+import { wizardExpenditureStepsDict } from "@/utils/i18n/wizard/stepExpenditure/ExpenditureSteps.i18n";
+import WizardOverlayShell from "../../../SharedComponents/shells/WizardOverlayShell";
 
 /* ------------------------------------------------------------------ */
 /* INTERFACES                              */
@@ -96,7 +104,7 @@ interface StepBudgetExpenditureContainerProps {
     step: number,
     subStep: number,
     data: any,
-    goingBackwards: boolean
+    goingBackwards: boolean,
   ) => Promise<boolean>;
   stepNumber: number;
   initialData?: Partial<Step2FormValues>; // fetched from API
@@ -110,17 +118,24 @@ interface StepBudgetExpenditureContainerProps {
 
 function getExpenditurePartialData(
   subStep: number,
-  allData: Step2FormValues
+  allData: Step2FormValues,
 ): Partial<Step2FormValues> {
   switch (subStep) {
-    case 2: return { housing: allData.housing };
-    case 3: return { food: allData.food };
-    case 4: return { fixedExpenses: allData.fixedExpenses };
-    case 5: return { transport: allData.transport };
-    case 6: return { clothing: allData.clothing };
-    case 7: return { subscriptions: allData.subscriptions };
+    case 2:
+      return { housing: allData.housing };
+    case 3:
+      return { food: allData.food };
+    case 4:
+      return { fixedExpenses: allData.fixedExpenses };
+    case 5:
+      return { transport: allData.transport };
+    case 6:
+      return { clothing: allData.clothing };
+    case 7:
+      return { subscriptions: allData.subscriptions };
     // case 8 is the confirm step, no data to slice
-    default: return {};
+    default:
+      return {};
   }
 }
 
@@ -141,7 +156,11 @@ const StepBudgetExpenditureContainer = forwardRef<
     initialSubStep,
   } = props;
 
-  const isMobile = useMediaQuery('(max-width: 1367px)');
+  const locale = useAppLocale();
+  const t = <K extends keyof typeof wizardExpenditureStepsDict.sv>(k: K) =>
+    tDict(k, locale, wizardExpenditureStepsDict);
+
+  const isMobile = useMediaQuery("(max-width: 1367px)");
 
   const hasHydrated = useRef(false);
 
@@ -150,7 +169,11 @@ const StepBudgetExpenditureContainer = forwardRef<
   useEffect(() => {
     // FIX 1: The magical ward. This spell now only runs if it has data
     // and has not been run before, breaking the hydration loop.
-    if (initialData && Object.keys(initialData).length > 0 && !hasHydrated.current) {
+    if (
+      initialData &&
+      Object.keys(initialData).length > 0 &&
+      !hasHydrated.current
+    ) {
       setExpenditure(initialData as any);
       hasHydrated.current = true;
     }
@@ -177,7 +200,7 @@ const StepBudgetExpenditureContainer = forwardRef<
         hasSetMethods.current = true;
       }
     },
-    []
+    [],
   );
 
   /* 3 ─── save-hook (methods may be null on first render) ----------- */
@@ -227,25 +250,17 @@ const StepBudgetExpenditureContainer = forwardRef<
     }
   };
 
-
-
-
-
   /* 5 ─── progress click handlers ---------------------------------- */
 
   const maxSubStepByMajor = useWizardSessionStore((s) => s.maxSubStepByMajor);
 
-  const maxClickableStep =
-    Math.max(1, maxSubStepByMajor?.[2] ?? 1);
-
-
+  const maxClickableStep = Math.max(1, maxSubStepByMajor?.[2] ?? 1);
 
   const clickCarousel = (z: number) => goToSub(z + 1);
 
   const clickProgress = (dest: number) => {
     if (dest <= maxClickableStep) goToSub(dest);
   };
-
 
   const canPick = (key: ItemKey) => subMap[key] <= maxClickableStep;
 
@@ -262,7 +277,7 @@ const StepBudgetExpenditureContainer = forwardRef<
   useEffect(() => {
     if (isFormHydrated) {
       console.log(
-        `HAWK 1C: Sub-step state is now ${currentSub}. Notifying parent.`
+        `HAWK 1C: Sub-step state is now ${currentSub}. Notifying parent.`,
       );
       props.onSubStepChange?.(currentSub);
     }
@@ -270,7 +285,6 @@ const StepBudgetExpenditureContainer = forwardRef<
     // breaking the notification loop.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentSub, isFormHydrated]);
-
 
   /* 7 ─── imperative API ------------------------------------------- */
   useImperativeHandle(ref, () => ({
@@ -297,17 +311,16 @@ const StepBudgetExpenditureContainer = forwardRef<
     prenumerationer: 7,
   };
 
-
   /* 8 ─── render helpers ------------------------------------------- */
   const steps = [
-    { icon: Info, label: 'Översikt' },
-    { icon: Home, label: 'Boende' },
-    { icon: Utensils, label: 'Matkostnader' },
-    { icon: FileText, label: 'Fasta utgifter' },
-    { icon: Car, label: 'Transport' },
-    { icon: Shirt, label: 'Kläder' },
-    { icon: CreditCard, label: 'Prenumerationer' },
-    { icon: ShieldCheck, label: 'Bekräfta' },
+    { icon: Info, label: t("overview") },
+    { icon: Home, label: t("housing") },
+    { icon: Utensils, label: t("food") },
+    { icon: FileText, label: t("fixed") },
+    { icon: Car, label: t("transport") },
+    { icon: Shirt, label: t("clothing") },
+    { icon: CreditCard, label: t("subs") },
+    { icon: ShieldCheck, label: t("confirm") },
   ];
 
   const renderSubStep = () => {
@@ -320,19 +333,27 @@ const StepBudgetExpenditureContainer = forwardRef<
             canPick={canPick}
           />
         );
-      case 2: return <SubStepHousing />;
-      case 3: return <SubStepFood />;
-      case 4: return <SubStepFixedExp />;
-      case 5: return <SubStepTransport />;
-      case 6: return <SubStepClothing />;
-      case 7: return <SubStepSubscriptions />;
-      case 8: return <SubStepConfirmConnected />;
-      default: return <div>All sub-steps complete!</div>;
+      case 2:
+        return <SubStepHousing />;
+      case 3:
+        return <SubStepFood />;
+      case 4:
+        return <SubStepFixedExp />;
+      case 5:
+        return <SubStepTransport />;
+      case 6:
+        return <SubStepClothing />;
+      case 7:
+        return <SubStepSubscriptions />;
+      case 8:
+        return <SubStepConfirmConnected />;
+      default:
+        return <div>All sub-steps complete!</div>;
     }
   };
 
   const preload = (fn: () => Promise<any>) => {
-    if (typeof (window as any).requestIdleCallback === 'function') {
+    if (typeof (window as any).requestIdleCallback === "function") {
       (window as any).requestIdleCallback(() => fn());
     } else {
       setTimeout(() => fn(), 200);
@@ -340,14 +361,22 @@ const StepBudgetExpenditureContainer = forwardRef<
   };
 
   const substepLoaders: Record<number, () => Promise<any>> = {
-    1: () => import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/1_SubStepWelcome/ExpenditureOverviewMainText'),
-    2: () => import('@/components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/2_SubStepHousing/SubStepHousing'),
-    3: () => import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/3_SubStepFood/SubStepFood'),
-    4: () => import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/4_SubStepFixedExpenses/SubStepFixedExpenses'),
-    5: () => import('@/components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/5_SubStepTransport/SubStepTransport'),
-    6: () => import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/6_SubStepClothing/SubStepClothing'),
-    7: () => import('@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/7_SubStepSubscriptions/SubStepSubscriptions'),
-    8: () => import('@/components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/8_SubStepConfirm/components/SubStepConfirmExpenditureConnected'),
+    1: () =>
+      import("@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/1_SubStepWelcome/ExpenditureOverviewMainText"),
+    2: () =>
+      import("@/components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/2_SubStepHousing/SubStepHousing"),
+    3: () =>
+      import("@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/3_SubStepFood/SubStepFood"),
+    4: () =>
+      import("@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/4_SubStepFixedExpenses/SubStepFixedExpenses"),
+    5: () =>
+      import("@/components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/5_SubStepTransport/SubStepTransport"),
+    6: () =>
+      import("@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/6_SubStepClothing/SubStepClothing"),
+    7: () =>
+      import("@components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/7_SubStepSubscriptions/SubStepSubscriptions"),
+    8: () =>
+      import("@/components/organisms/overlays/wizard/steps/StepBudgetExpenditure2/Components/Pages/SubSteps/8_SubStepConfirm/components/SubStepConfirmExpenditureConnected"),
   };
   useEffect(() => {
     const next = Math.min(currentSub + 1, 8);
@@ -357,7 +386,6 @@ const StepBudgetExpenditureContainer = forwardRef<
   const suspenseVariant =
     currentSub === 1 ? "intro" : currentSub === totalSteps ? "confirm" : "form";
 
-
   /* 9 ─── JSX ------------------------------------------------------- */
   return (
     <WizardFormWrapperStep2
@@ -366,7 +394,6 @@ const StepBudgetExpenditureContainer = forwardRef<
     >
       <WizardOverlayShell className="h-full">
         <form className="relative flex flex-col h-full">
-
           {/* Shared width frame */}
           <div className="mx-auto w-full max-w-4xl px-4 sm:px-6 lg:px-10 xl:px-14 flex flex-col h-full">
             {/* Header navigation */}
@@ -390,10 +417,7 @@ const StepBudgetExpenditureContainer = forwardRef<
                 )}
               </div>
               <WizardDivider variant="subtle" className="mt-4" />
-
-
             </div>
-
 
             {/* Content */}
             <div className="flex-1 min-h-0">

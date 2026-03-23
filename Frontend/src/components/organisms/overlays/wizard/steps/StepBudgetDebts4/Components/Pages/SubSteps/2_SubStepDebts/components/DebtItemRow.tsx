@@ -4,34 +4,48 @@ import { useWizard } from "@/context/WizardContext";
 import type { Step4FormValues } from "@/types/Wizard/Step4_Debt/Step4FormValues";
 import { idFromPath } from "@/utils/idFromPath";
 
-import { setValueAsSvNumber } from "@/utils/forms/parseNumber";
+import { setValueAsLocalizedNumber } from "@/utils/forms/parseNumber";
 import RowNumberInput from "@components/atoms/InputField/RowNumberInput";
 import RowTextInput from "@components/atoms/InputField/RowTextInput";
 
 import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/lib/utils";
+import { tDict } from "@/utils/i18n/translate";
+import { debtItemRowDict } from "@/utils/i18n/wizard/stepDebt/DebtItemRow.i18n";
 import { formatMoneyPartsV2 } from "@/utils/money/moneyV2";
 
 type Props = { index: number };
+
+type DebtType =
+  | "installment"
+  | "revolving"
+  | "private"
+  | "bank_loan"
+  | "mortgage"
+  | "car_loan";
 
 export default function DebtItemRow({ index }: Props) {
   const { control } = useFormContext<Step4FormValues>();
 
   const currency = useAppCurrency();
   const locale = useAppLocale();
-  const currencyLabel = formatMoneyPartsV2(0, currency, { locale }).currency;
+  const t = <K extends keyof typeof debtItemRowDict.sv>(k: K) =>
+    tDict(k, locale, debtItemRowDict);
 
+  const currencyLabel = formatMoneyPartsV2(0, currency, { locale }).currency;
   const base = `debts.${index}` as const;
 
   const { validationAttempted } = useWizard();
   const showErrors = validationAttempted["step4.debts"] === true;
 
-  const type = useWatch({ control, name: `${base}.type` }) as
-    | "installment"
-    | "revolving"
-    | "private"
-    | "bank_loan";
+  const type = useWatch({ control, name: `${base}.type` }) as DebtType;
+
+  const isAmortizedLike =
+    type === "installment" ||
+    type === "bank_loan" ||
+    type === "mortgage" ||
+    type === "car_loan";
 
   const selectClass =
     "w-full h-11 rounded-xl px-3 bg-wizard-surface border border-wizard-stroke/25 " +
@@ -43,11 +57,10 @@ export default function DebtItemRow({ index }: Props) {
 
   return (
     <div className="grid grid-cols-1 gap-y-4">
-      {/* A) Name + Type */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         <div className="md:col-span-2">
           <label htmlFor={idFromPath(`${base}.name`)} className={labelClass}>
-            Skuldens namn
+            {t("debtNameLabel")}
           </label>
 
           <Controller
@@ -56,7 +69,7 @@ export default function DebtItemRow({ index }: Props) {
             render={({ field, fieldState }) => (
               <RowTextInput
                 id={idFromPath(`${base}.name`)}
-                placeholder="SBAB Bolån, Amex…"
+                placeholder={t("debtNamePlaceholder")}
                 value={field.value ?? ""}
                 onChange={field.onChange}
                 onBlur={field.onBlur}
@@ -70,7 +83,7 @@ export default function DebtItemRow({ index }: Props) {
 
         <div className="md:col-span-2">
           <label htmlFor={idFromPath(`${base}.type`)} className={labelClass}>
-            Typ
+            {t("typeLabel")}
           </label>
 
           <Controller
@@ -83,24 +96,33 @@ export default function DebtItemRow({ index }: Props) {
                 className={selectClass}
               >
                 <option value="bank_loan">
-                  Banklån (Bolån, Billån, Privatlån)
+                  {t("typeBankLoan")} — {t("typeBankLoanHint")}
                 </option>
-                <option value="revolving">Kreditkort / Kontokredit</option>
+                <option value="mortgage">
+                  {t("typeMortgage")} — {t("typeMortgageHint")}
+                </option>
+                <option value="car_loan">
+                  {t("typeCarLoan")} — {t("typeCarLoanHint")}
+                </option>
+                <option value="revolving">
+                  {t("typeRevolving")} — {t("typeRevolvingHint")}
+                </option>
                 <option value="installment">
-                  Avbetalning (Klarna, Snabblån)
+                  {t("typeInstallment")} — {t("typeInstallmentHint")}
                 </option>
-                <option value="private">Privat lån (Familj, Vänner)</option>
+                <option value="private">
+                  {t("typePrivate")} — {t("typePrivateHint")}
+                </option>
               </select>
             )}
           />
         </div>
       </div>
 
-      {/* B) Balance + APR (2-up on mobile) */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor={idFromPath(`${base}.balance`)} className={labelClass}>
-            Restbelopp ({currencyLabel})
+            {t("balanceLabel")} ({currencyLabel})
           </label>
 
           <Controller
@@ -109,10 +131,10 @@ export default function DebtItemRow({ index }: Props) {
             render={({ field, fieldState }) => (
               <RowNumberInput
                 id={idFromPath(`${base}.balance`)}
-                placeholder="25 000"
+                placeholder={t("balancePlaceholder")}
                 value={field.value ?? ""}
                 onChange={(e) => {
-                  const parsed = setValueAsSvNumber(e.target.value);
+                  const parsed = setValueAsLocalizedNumber(e.target.value);
                   const next =
                     parsed === null
                       ? null
@@ -134,7 +156,7 @@ export default function DebtItemRow({ index }: Props) {
 
         <div>
           <label htmlFor={idFromPath(`${base}.apr`)} className={labelClass}>
-            Ränta (%)
+            {t("aprLabel")}
           </label>
 
           <Controller
@@ -143,12 +165,12 @@ export default function DebtItemRow({ index }: Props) {
             render={({ field, fieldState }) => (
               <RowNumberInput
                 id={idFromPath(`${base}.apr`)}
-                placeholder="8.5"
-                value={field.value ?? ""} // keep as string during typing
-                onChange={field.onChange} // ✅ don’t parse here
+                placeholder={t("aprPlaceholder")}
+                value={field.value ?? ""}
+                onChange={field.onChange}
                 onBlur={(e) => {
                   field.onBlur();
-                  const parsed = setValueAsSvNumber(e.target.value);
+                  const parsed = setValueAsLocalizedNumber(e.target.value);
                   field.onChange(
                     parsed === null
                       ? null
@@ -166,10 +188,7 @@ export default function DebtItemRow({ index }: Props) {
         </div>
       </div>
 
-      {/* C) Conditional section (soft panel so it feels intentional) */}
-      {type === "installment" ||
-      type === "bank_loan" ||
-      type === "revolving" ? (
+      {isAmortizedLike || type === "revolving" ? (
         <div
           className={cn(
             "mt-1 rounded-2xl border border-wizard-stroke/20",
@@ -179,17 +198,17 @@ export default function DebtItemRow({ index }: Props) {
           )}
         >
           <p className="text-[11px] font-semibold text-wizard-text/60 uppercase tracking-wide">
-            Extra uppgifter
+            {t("extraDetails")}
           </p>
 
           <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {(type === "installment" || type === "bank_loan") && (
+            {isAmortizedLike && (
               <div>
                 <label
                   htmlFor={idFromPath(`${base}.termMonths`)}
                   className={labelClass}
                 >
-                  Löptid (mån)
+                  {t("termMonthsLabel")}
                 </label>
 
                 <Controller
@@ -198,10 +217,12 @@ export default function DebtItemRow({ index }: Props) {
                   render={({ field, fieldState }) => (
                     <RowNumberInput
                       id={idFromPath(`${base}.termMonths`)}
-                      placeholder="36"
+                      placeholder={t("termMonthsPlaceholder")}
                       value={field.value ?? ""}
                       onChange={(e) => {
-                        const parsed = setValueAsSvNumber(e.target.value);
+                        const parsed = setValueAsLocalizedNumber(
+                          e.target.value,
+                        );
                         const next =
                           parsed === null
                             ? null
@@ -220,13 +241,13 @@ export default function DebtItemRow({ index }: Props) {
               </div>
             )}
 
-            {(type === "installment" || type === "bank_loan") && (
+            {isAmortizedLike && (
               <div>
                 <label
                   htmlFor={idFromPath(`${base}.monthlyFee`)}
                   className={labelClass}
                 >
-                  Månadsavgift ({currencyLabel})
+                  {t("monthlyFeeLabel")} ({currencyLabel})
                 </label>
 
                 <Controller
@@ -235,10 +256,12 @@ export default function DebtItemRow({ index }: Props) {
                   render={({ field, fieldState }) => (
                     <RowNumberInput
                       id={idFromPath(`${base}.monthlyFee`)}
-                      placeholder="29"
+                      placeholder={t("monthlyFeePlaceholder")}
                       value={field.value ?? ""}
                       onChange={(e) => {
-                        const parsed = setValueAsSvNumber(e.target.value);
+                        const parsed = setValueAsLocalizedNumber(
+                          e.target.value,
+                        );
                         const next =
                           parsed === null
                             ? null
@@ -265,7 +288,7 @@ export default function DebtItemRow({ index }: Props) {
                   htmlFor={idFromPath(`${base}.minPayment`)}
                   className={labelClass}
                 >
-                  Minsta betalning ({currencyLabel})
+                  {t("minPaymentLabel")} ({currencyLabel})
                 </label>
 
                 <Controller
@@ -274,10 +297,12 @@ export default function DebtItemRow({ index }: Props) {
                   render={({ field, fieldState }) => (
                     <RowNumberInput
                       id={idFromPath(`${base}.minPayment`)}
-                      placeholder="500"
+                      placeholder={t("minPaymentPlaceholder")}
                       value={field.value ?? ""}
                       onChange={(e) => {
-                        const parsed = setValueAsSvNumber(e.target.value);
+                        const parsed = setValueAsLocalizedNumber(
+                          e.target.value,
+                        );
                         const next =
                           parsed === null
                             ? null

@@ -4,6 +4,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/lib/utils";
 import { ChevronDown, PlusCircle } from "lucide-react";
 import React from "react";
@@ -35,10 +36,58 @@ type Props = {
   onAdd?: () => void;
   addPlacement?: "inside" | "header";
 
-  /** ✅ New: control mobile total placement */
+  /*control mobile total placement */
   mobileTotal?: "hidden" | "inline" | "below";
 };
 
+function AccordionDetailsToggleLabel() {
+  const locale = useAppLocale();
+  const dictLocale = locale.startsWith("sv")
+    ? "sv"
+    : locale.startsWith("et")
+      ? "et"
+      : "en";
+
+  const labels =
+    dictLocale === "sv"
+      ? { show: "Visa detaljer", hide: "Dölj detaljer" }
+      : dictLocale === "et"
+        ? { show: "Näita üksikasju", hide: "Peida üksikasjad" }
+        : { show: "Show details", hide: "Hide details" };
+
+  return (
+    <>
+      <span className="group-data-[state=closed]:inline group-data-[state=open]:hidden">
+        {labels.show}
+      </span>
+      <span className="group-data-[state=open]:inline group-data-[state=closed]:hidden">
+        {labels.hide}
+      </span>
+    </>
+  );
+}
+const ui = {
+  sv: {
+    addRowHint: "Lägg till en rad",
+    add: "Lägg till",
+  },
+  en: {
+    addRowHint: "Add a row",
+    add: "Add",
+  },
+  et: {
+    addRowHint: "Lisa rida",
+    add: "Lisa",
+  },
+} as const;
+
+function pickUi(locale: string) {
+  return locale.startsWith("sv")
+    ? ui.sv
+    : locale.startsWith("et")
+      ? ui.et
+      : ui.en;
+}
 export const WizardAccordion: React.FC<Props> = ({
   value,
   title,
@@ -60,8 +109,10 @@ export const WizardAccordion: React.FC<Props> = ({
   addPlacement = "inside",
   mobileTotal = "inline",
 }) => {
+  const locale = useAppLocale();
   const isInset = variant === "inset";
-  const addText = addLabel ?? "Lägg till";
+  const L = pickUi(locale);
+  const addText = addLabel ?? L.add;
 
   const headerAction: React.ReactNode =
     actions ??
@@ -143,7 +194,7 @@ export const WizardAccordion: React.FC<Props> = ({
               triggerClassName,
             )}
           >
-            {/* ✅ Mobile-first: two rows */}
+            {/* Mobile-first: two rows */}
             <div className="w-full min-w-0">
               {/* Row 1 */}
               <div className="flex items-center gap-3 min-w-0">
@@ -174,7 +225,7 @@ export const WizardAccordion: React.FC<Props> = ({
                         isInset ? "bg-wizard-shell/35" : "bg-wizard-surface/70",
                       )}
                     >
-                      {count} st
+                      {count}
                     </span>
                   ) : null}
 
@@ -208,12 +259,7 @@ export const WizardAccordion: React.FC<Props> = ({
                     subtitle
                   ) : (
                     <>
-                      <span className="group-data-[state=closed]:inline group-data-[state=open]:hidden">
-                        Visa detaljer
-                      </span>
-                      <span className="group-data-[state=open]:inline group-data-[state=closed]:hidden">
-                        Dölj detaljer
-                      </span>
+                      <AccordionDetailsToggleLabel />
                     </>
                   )}
                   {meta ? (
@@ -225,7 +271,7 @@ export const WizardAccordion: React.FC<Props> = ({
 
                 <div className="flex-1" />
 
-                {/* ✅ Mobile total placement (no duplication) */}
+                {/* Mobile total placement (no duplication) */}
                 {totalText && mobileTotal === "inline" ? (
                   <div
                     className={cn(
@@ -292,7 +338,7 @@ export const WizardAccordion: React.FC<Props> = ({
           {onAdd && addPlacement === "inside" ? (
             <div className="flex items-center justify-between gap-3">
               <div className="text-xs font-semibold text-wizard-text/70">
-                Lägg till en rad
+                {L.addRowHint}
               </div>
               <button
                 type="button"
@@ -303,7 +349,7 @@ export const WizardAccordion: React.FC<Props> = ({
                   "bg-wizard-accent-soft text-wizard-text",
                   "border border-wizard-stroke/30",
                   "shadow-[0_6px_14px_rgba(2,6,23,0.06)]",
-                  "hover:bg-wizard-accent hover:text-wizard-accent-foreground hover:border-wizard-accent/40",
+                  "hover:bg-darkLimeGreen hover:text-wizard-accent-foreground hover:border-wizard-accent/40",
                   "active:translate-y-[1px]",
                   "transition-colors",
                   "focus:outline-none focus-visible:ring-2 focus-visible:ring-wizard-accent/25",

@@ -1,6 +1,19 @@
-import React from "react";
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/lib/utils";
-import { Mountain, Footprints, CircleSlash, CheckCircle2 } from "lucide-react";
+import { tDict } from "@/utils/i18n/translate";
+import { CheckCircle2, CircleSlash, Footprints, Mountain } from "lucide-react";
+
+const pathCardDict = {
+  sv: {
+    suggests: "Föreslår:",
+  },
+  en: {
+    suggests: "Suggests:",
+  },
+  et: {
+    suggests: "Soovitab:",
+  },
+} as const;
 
 interface Props {
   selected: boolean;
@@ -36,6 +49,11 @@ export default function PathCard({
   tip,
   onSelect,
 }: Props) {
+  const locale = useAppLocale();
+
+  const t = <K extends keyof typeof pathCardDict.sv>(k: K) =>
+    tDict(k, locale, pathCardDict);
+
   return (
     <button
       type="button"
@@ -50,16 +68,14 @@ export default function PathCard({
         selected
           ? "bg-wizard-shell/75 border-wizard-stroke/55 ring-1 ring-wizard-stroke/35"
           : "bg-wizard-shell/65 border-wizard-stroke/30 hover:border-wizard-stroke/45 hover:bg-wizard-shell/75",
-        "active:translate-y-[1px]"
+        "active:translate-y-[1px]",
       )}
     >
-      {/* top sheen */}
       <div
         aria-hidden
         className="absolute inset-x-0 top-0 h-[2px] bg-[linear-gradient(to_right,rgba(255,255,255,0.55),rgba(255,255,255,0.18),rgba(255,255,255,0))]"
       />
 
-      {/* selection check */}
       {selected && (
         <div className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-wizard-surface border border-wizard-stroke/25 shadow-sm">
           <CheckCircle2 className="h-5 w-5 text-wizard-accent" />
@@ -72,7 +88,7 @@ export default function PathCard({
             className={cn(
               "grid h-12 w-12 place-items-center rounded-2xl",
               "bg-wizard-surface border border-wizard-stroke/20",
-              "shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]"
+              "shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]",
             )}
           >
             {Icons[icon]}
@@ -95,9 +111,7 @@ export default function PathCard({
               </p>
             )}
 
-            <p className="mt-2 text-sm text-wizard-text/65">
-              {subtitle}
-            </p>
+            <p className="mt-2 text-sm text-wizard-text/65">{subtitle}</p>
           </div>
         </div>
 
@@ -107,20 +121,18 @@ export default function PathCard({
               className={cn(
                 "inline-flex items-center rounded-full px-3 py-1",
                 "bg-wizard-surface border border-wizard-stroke/20",
-                "text-xs font-semibold text-wizard-text/65"
+                "text-xs font-semibold text-wizard-text/65",
               )}
             >
-              Föreslår:
-              <span className="ml-1 text-wizard-text font-semibold">{targetChip}</span>
+              {t("suggests")}
+              <span className="ml-1 text-wizard-text font-semibold">
+                {targetChip}
+              </span>
             </span>
           </div>
         )}
 
-        {tip && (
-          <p className="mt-3 text-xs text-wizard-text/60">
-            {tip}
-          </p>
-        )}
+        {tip && <p className="mt-3 text-xs text-wizard-text/60">{tip}</p>}
       </div>
     </button>
   );

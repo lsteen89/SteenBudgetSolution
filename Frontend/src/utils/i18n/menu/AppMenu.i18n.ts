@@ -4,6 +4,7 @@ export const appMenuDict = {
     breakdown: "Översikt",
     howItWorks: "Hur det fungerar",
     support: "Support",
+    settings: "Inställningar",
     openDashboard: "Öppna dashboard",
     toDashboard: "Till dashboard",
     appNavAria: "App-navigering",
@@ -17,6 +18,7 @@ export const appMenuDict = {
     openDashboard: "Open dashboard",
     toDashboard: "Back to dashboard",
     appNavAria: "App navigation",
+    settings: "Settings",
     logout: "Log out",
   },
   et: {
@@ -27,6 +29,7 @@ export const appMenuDict = {
     openDashboard: "Ava töölaud",
     toDashboard: "Töölaud",
     appNavAria: "Rakenduse navigeerimine",
+    settings: "Seaded",
     logout: "Logi välja",
   },
 };

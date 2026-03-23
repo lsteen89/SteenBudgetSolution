@@ -1,34 +1,38 @@
-import React, { useMemo } from "react";
-import { useFormContext, useController } from "react-hook-form";
 import { motion, useReducedMotion } from "framer-motion";
+import React from "react";
+import { useController, useFormContext } from "react-hook-form";
 
-import { WizardStepHeader } from "@components/organisms/overlays/wizard/SharedComponents/Headers/WizardStepHeader";
 import { WizardRadioCardGroup } from "@components/organisms/overlays/wizard/SharedComponents/Buttons/WizardRadioCardGroup";
+import { WizardStepHeader } from "@components/organisms/overlays/wizard/SharedComponents/Headers/WizardStepHeader";
 
-import BirdIllustration from "@assets/Images/bird_freedom.png";
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import type { Step3FormValues } from "@/types/Wizard/Step3_Savings/Step3FormValues";
+import { tDict } from "@/utils/i18n/translate";
+import { subStepIntroDict } from "@/utils/i18n/wizard/stepSavings/SubStepIntro.i18n";
 import { idFromPath } from "@/utils/idFromPath";
+import BirdIllustration from "@assets/Images/bird_freedom.png";
 
 type Habit = "regular" | "sometimes" | "start" | "no";
 
 const SubStepIntro: React.FC = () => {
   const { control } = useFormContext<Step3FormValues>();
   const reduceMotion = useReducedMotion();
+  const locale = useAppLocale();
+
+  const t = <K extends keyof typeof subStepIntroDict.sv>(k: K) =>
+    tDict(k, locale, subStepIntroDict);
 
   const { field, fieldState } = useController({
     control,
     name: "intro.savingHabit",
   });
 
-  const options = useMemo(
-    () => [
-      { value: "regular" as const, label: "Ja, jag sparar regelbundet." },
-      { value: "sometimes" as const, label: "Jag sparar ibland." },
-      { value: "start" as const, label: "Nej, men jag vill börja." },
-      { value: "no" as const, label: "Nej, det gör jag inte." },
-    ],
-    []
-  );
+  const options = [
+    { value: "regular" as const, label: t("optionRegular") },
+    { value: "sometimes" as const, label: t("optionSometimes") },
+    { value: "start" as const, label: t("optionStart") },
+    { value: "no" as const, label: t("optionNo") },
+  ];
 
   const selected = (field.value ?? null) as Habit | null;
   const showSkipHint = selected === "start" || selected === "no";
@@ -47,26 +51,33 @@ const SubStepIntro: React.FC = () => {
             md:-top-8 md:right-6 md:h-28 md:w-28
           "
           initial={{ opacity: 0, y: -8, scale: 0.98 }}
-          animate={reduceMotion ? { opacity: 0.8 } : { opacity: 0.8, y: [0, -6, 0] }}
+          animate={
+            reduceMotion ? { opacity: 0.8 } : { opacity: 0.8, y: [0, -6, 0] }
+          }
           transition={
             reduceMotion
               ? { duration: 0.2 }
-              : { duration: 5, repeat: Infinity, repeatType: "mirror", ease: "easeInOut" }
+              : {
+                  duration: 5,
+                  repeat: Infinity,
+                  repeatType: "mirror",
+                  ease: "easeInOut",
+                }
           }
         />
 
         <WizardStepHeader
-          stepPill={{ stepNumber: 3, majorLabel: "Sparande", subLabel: "Intro" }}
-          title="Din resa mot ekonomisk frihet börjar här"
-          subtitle="Att spara pengar är ett kraftfullt steg mot nya möjligheter. Hur ser dina sparvanor ut idag?"
-          helpTitle="Varför frågar vi?"
-          helpItems={[
-            "Vi anpassar nästa steg efter din nivå.",
-            "Om du inte sparar idag fokuserar vi direkt på mål som hjälper dig igång.",
-          ]}
+          stepPill={{
+            stepNumber: 3,
+            majorLabel: t("pillMajor"),
+            subLabel: t("pillSub"),
+          }}
+          title={t("title")}
+          subtitle={t("subtitle")}
+          helpTitle={t("helpTitle")}
+          helpItems={[t("help1"), t("help2")]}
         />
 
-        {/* Surface container (white on blue rule) */}
         <div
           id={idFromPath("intro.savingHabit")}
           className="
@@ -92,9 +103,7 @@ const SubStepIntro: React.FC = () => {
                 text-center
               "
             >
-              <p className="text-sm text-wizard-text/70">
-                Ingen fara. Vi hoppar över vanor och fokuserar direkt på dina mål.
-              </p>
+              <p className="text-sm text-wizard-text/70">{t("skipHint")}</p>
             </div>
           ) : null}
         </div>

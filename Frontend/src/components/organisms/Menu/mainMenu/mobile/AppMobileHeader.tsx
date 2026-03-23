@@ -11,16 +11,18 @@ import MobileHeaderFrame, { NavItem } from "./MobileHeaderFrame";
 export default function AppMobileHeader() {
   const auth = useAuth();
   const navigate = useNavigate();
-
   const locale = useAppLocale();
-  const t = <K extends keyof typeof appMenuDict.sv>(k: K) =>
-    tDict(k, locale, appMenuDict);
+
+  const t = <K extends keyof typeof appMenuDict.sv>(key: K) =>
+    tDict(key, locale, appMenuDict);
+
+  const isAuthed = !!auth?.authenticated;
+  if (!isAuthed) return null;
 
   const items: NavItem[] = useMemo(
     () => [
       { label: t("dashboard"), to: appRoutes.dashboard, tone: "primary" },
-      { label: t("breakdown"), to: appRoutes.dashboardBreakdown },
-      { label: t("howItWorks"), to: appRoutes.dashboardHowItWorks },
+      { label: t("settings"), to: appRoutes.dashboardSettings },
       { label: t("support"), to: appRoutes.dashboardSupport },
     ],
     [locale],
@@ -36,8 +38,8 @@ export default function AppMobileHeader() {
       type="button"
       onClick={onLogout}
       className={cn(
-        "h-11 w-full rounded-xl px-3 font-semibold",
-        "border border-eb-stroke/30 bg-eb-surface",
+        "w-full h-11 rounded-xl px-3 font-semibold",
+        "bg-eb-surface border border-eb-stroke/30",
         "text-[rgb(239_68_68/0.95)] hover:bg-[rgb(239_68_68/0.08)]",
         "focus-visible:outline-none focus-visible:ring-4 ring-eb-accent/35",
       )}

@@ -13,6 +13,12 @@ import type { DebtTemplate } from "@/types/modal/debts";
 import { WizardAccordionRoot } from "@/components/organisms/overlays/wizard/SharedComponents/Accordion/WizardAccordion";
 import DebtItemAccordion from "./DebtItemAccordion";
 
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
+import { tDict } from "@/utils/i18n/translate";
+import { debtsCardDict } from "@/utils/i18n/wizard/stepDebt/DebtsCard.i18n";
+
+type FormDebtItem = NonNullable<Step4FormValues["debts"]>[number];
+
 export type DebtsCardApi = {
   openFirstErrorDebt: () => void;
 };
@@ -23,6 +29,10 @@ const DebtsCard = React.forwardRef<DebtsCardApi>(
       useFormContext<Step4FormValues>();
 
     const { errors } = useFormState({ control, name: "debts" });
+    const locale = useAppLocale();
+
+    const t = <K extends keyof typeof debtsCardDict.sv>(k: K) =>
+      tDict(k, locale, debtsCardDict);
 
     const openFirstErrorDebt = React.useCallback(() => {
       const idx = firstIndexWithError((errors as any)?.debts);
@@ -53,13 +63,8 @@ const DebtsCard = React.forwardRef<DebtsCardApi>(
       shouldUnregister: false,
     });
 
-    const {
-      debtsHaveBeenSet,
-      activeModal,
-      openModal,
-      closeModal,
-      validationAttempted,
-    } = useWizard();
+    const { debtsHaveBeenSet, activeModal, openModal, closeModal } =
+      useWizard();
 
     const isTemplateOpen = activeModal === "debtTemplate";
 
@@ -75,7 +80,6 @@ const DebtsCard = React.forwardRef<DebtsCardApi>(
 
     const afterMutate = React.useCallback(
       (affectedIndex?: number) => {
-        // ✅ nuke schema + nested errors
         clearErrors("debts");
         if (typeof affectedIndex === "number") {
           clearErrors(`debts.${affectedIndex}` as const);
@@ -83,42 +87,43 @@ const DebtsCard = React.forwardRef<DebtsCardApi>(
 
         markDebtsDirty();
       },
-      [clearErrors, markDebtsDirty, validationAttempted],
+      [clearErrors, markDebtsDirty],
     );
 
     const addFromTemplate = React.useCallback(
-      (t: DebtTemplate) => {
+      (template: DebtTemplate) => {
         const newIndex = fields.length;
 
         append(
           {
             id: crypto.randomUUID(),
-            name: t.name,
-            type: t.type,
-            balance: t.balance ?? null,
-            apr: t.apr ?? null,
-            termMonths: t.termMonths ?? null,
-            monthlyFee: t.monthlyFee ?? null,
-            minPayment: t.minPayment ?? null,
+            name: template.name,
+            type: template.type,
+            balance: template.balance ?? null,
+            apr: template.apr ?? null,
+            termMonths: template.termMonths ?? null,
+            monthlyFee: template.monthlyFee ?? null,
+            minPayment: template.minPayment ?? null,
           },
-          { shouldFocus: false }, // ✅ prevent auto-focus -> touched
+          { shouldFocus: false },
         );
 
-        // ✅ ensure new subtree starts "clean" (belt + suspenders)
-        resetField(`debts.${newIndex}.name`, { defaultValue: t.name });
-        resetField(`debts.${newIndex}.type`, { defaultValue: t.type });
+        resetField(`debts.${newIndex}.name`, { defaultValue: template.name });
+        resetField(`debts.${newIndex}.type`, { defaultValue: template.type });
         resetField(`debts.${newIndex}.balance`, {
-          defaultValue: t.balance ?? null,
+          defaultValue: template.balance ?? null,
         });
-        resetField(`debts.${newIndex}.apr`, { defaultValue: t.apr ?? null });
+        resetField(`debts.${newIndex}.apr`, {
+          defaultValue: template.apr ?? null,
+        });
         resetField(`debts.${newIndex}.termMonths`, {
-          defaultValue: t.termMonths ?? null,
+          defaultValue: template.termMonths ?? null,
         });
         resetField(`debts.${newIndex}.monthlyFee`, {
-          defaultValue: t.monthlyFee ?? null,
+          defaultValue: template.monthlyFee ?? null,
         });
         resetField(`debts.${newIndex}.minPayment`, {
-          defaultValue: t.minPayment ?? null,
+          defaultValue: template.minPayment ?? null,
         });
 
         setOpen(String(newIndex));
@@ -145,7 +150,6 @@ const DebtsCard = React.forwardRef<DebtsCardApi>(
         { shouldFocus: false },
       );
 
-      // ✅ hard reset touched/dirty/error state for the new subtree
       resetField(`debts.${newIndex}.name`, { defaultValue: "" });
       resetField(`debts.${newIndex}.type`, { defaultValue: "bank_loan" });
       resetField(`debts.${newIndex}.balance`, { defaultValue: null });
@@ -166,7 +170,6 @@ const DebtsCard = React.forwardRef<DebtsCardApi>(
       closeModal,
       resetField,
       clearErrors,
-      validationAttempted,
       markDebtsDirty,
     ]);
 
@@ -174,7 +177,6 @@ const DebtsCard = React.forwardRef<DebtsCardApi>(
       (index: number) => {
         remove(index);
 
-        // keep accordion state sane after removal
         setOpen((cur) => {
           if (!cur) return "";
           const curIdx = Number(cur);
@@ -211,15 +213,13 @@ const DebtsCard = React.forwardRef<DebtsCardApi>(
               <CreditCard size={48} className="mx-auto text-darkLimeGreen" />
 
               <h4 className="mt-4 text-xl font-semibold text-wizard-text">
-                {debtsHaveBeenSet
-                  ? "Inga aktiva skulder"
-                  : "Lägg till dina skulder"}
+                {debtsHaveBeenSet ? t("emptyUsedTitle") : t("emptyFirstTitle")}
               </h4>
 
               <p className="mt-2 max-w-md mx-auto text-wizard-text/60">
                 {debtsHaveBeenSet
-                  ? "Vill du lägga till en skuld?"
-                  : "Välj en mall (bolån, kreditkort, avbetalning) eller börja från noll."}
+                  ? t("emptyUsedSubtitle")
+                  : t("emptyFirstSubtitle")}
               </p>
 
               <button
@@ -236,14 +236,12 @@ const DebtsCard = React.forwardRef<DebtsCardApi>(
               "
               >
                 <PlusCircle size={20} className="text-wizard-text/75" />
-                {debtsHaveBeenSet
-                  ? "Lägg till skuld"
-                  : "Lägg till första skulden"}
+                {debtsHaveBeenSet ? t("addDebt") : t("addFirstDebt")}
               </button>
 
               {!debtsHaveBeenSet && (
                 <p className="mt-4 text-sm text-wizard-text/50">
-                  Har du inga skulder? Svara “Nej” i intro så hoppar vi över.
+                  {t("emptyFooter")}
                 </p>
               )}
             </motion.div>
@@ -285,7 +283,7 @@ const DebtsCard = React.forwardRef<DebtsCardApi>(
                 "
                 >
                   <PlusCircle size={20} className="text-wizard-text/75" />
-                  Lägg till skuld
+                  {t("addDebt")}
                 </button>
               </div>
             </motion.div>
@@ -295,7 +293,9 @@ const DebtsCard = React.forwardRef<DebtsCardApi>(
     );
   },
 );
+
 export default DebtsCard;
+
 function hasAnyError(x: unknown): boolean {
   if (!x) return false;
   if (typeof x !== "object") return true;

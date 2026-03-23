@@ -15,7 +15,7 @@ type UserPreferencesState = {
 
 export const useUserPreferencesStore = create<UserPreferencesState>((set) => ({
   locale: "sv-SE",
-  currency: "EUR",
+  currency: "SEK",
   initialized: false,
 
   setPreferences: ({ locale, currency }) =>

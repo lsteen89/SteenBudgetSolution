@@ -5,7 +5,8 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useShallow } from "zustand/react/shallow";
 
 const AUTH_BYPASS =
-  import.meta.env.DEV && import.meta.env.VITE_AUTH_BYPASS === "true";
+  import.meta.env.DEV &&
+  String(import.meta.env.VITE_AUTH_BYPASS).toLowerCase() === "true";
 
 export default function ConfirmedRoute() {
   const location = useLocation();

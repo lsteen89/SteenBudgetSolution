@@ -1,27 +1,31 @@
+import { useAnimationControls, useReducedMotion } from "framer-motion";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
-import { useAnimationControls, useReducedMotion } from "framer-motion";
 
-import OptionContainer from "@components/molecules/containers/OptionContainer";
+import type { TransportFormShape } from "@/types/Wizard/Step2_Expenditure/TransportFormValues";
 import { WizardStepHeader } from "@components/organisms/overlays/wizard/SharedComponents/Headers/WizardStepHeader";
 import { TransportCostsCard } from "./components/TransportCostsCard";
-import type { TransportFormShape } from "@/types/Wizard/Step2_Expenditure/TransportFormValues";
 
-import WizardTotalBar from "@components/organisms/overlays/wizard/SharedComponents/Sections/WizardTotalBar";
 import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { sumMoneyDeep } from "@/utils/money/moneyMath";
+import WizardTotalBar from "@components/organisms/overlays/wizard/SharedComponents/Sections/WizardTotalBar";
 
 import { WizardMascot } from "@/components/atoms/animation/WizardMascot";
 import { useWizardNavEvents } from "@/components/organisms/overlays/wizard/SharedComponents/Nav/WizardNavEvents";
 
 import carBird from "@/assets/Images/CarBird.png";
 
+import { tDict } from "@/utils/i18n/translate";
+import { subStepTransportDict } from "@/utils/i18n/wizard/stepExpenditure/SubStepTransport.i18n";
+
 const SubStepTransport: React.FC = () => {
   const { control } = useFormContext<TransportFormShape>();
 
   const currency = useAppCurrency();
   const locale = useAppLocale();
+  const t = <K extends keyof typeof subStepTransportDict.sv>(k: K) =>
+    tDict(k, locale, subStepTransportDict);
 
   const transport = useWatch({ control, name: "transport" });
   const total = useMemo(() => sumMoneyDeep(transport), [transport]);
@@ -67,7 +71,7 @@ const SubStepTransport: React.FC = () => {
       if (reduce) return;
       controls.start({
         x: 8,
-        opacity: 0.55,      // <-- starts to disappear
+        opacity: 0.55,
         rotate: 1,
         transition: { duration: 0.18, ease: "easeOut" },
       });
@@ -89,12 +93,14 @@ const SubStepTransport: React.FC = () => {
         x: 220,
         opacity: 0,
         rotate: 6,
-        transition: { duration: 0.30, ease: [0.2, 0.9, 0.2, 1] },
+        transition: { duration: 0.3, ease: [0.2, 0.9, 0.2, 1] },
       });
     });
 
     return () => {
-      off1(); off2(); off3();
+      off1();
+      off2();
+      off3();
     };
   }, [nav, controls, reduce]);
 
@@ -102,42 +108,43 @@ const SubStepTransport: React.FC = () => {
     <div className="p-4">
       <section className="w-auto mx-auto sm:px-6 lg:px-12 py-8 pb-safe">
         <WizardStepHeader
-          stepPill={{ stepNumber: 2, majorLabel: "Utgifter", subLabel: "Transport" }}
+          stepPill={{
+            stepNumber: 2,
+            majorLabel: t("pillMajor"),
+            subLabel: t("pillSub"),
+          }}
           title=""
-          subtitle="Ange dina kostnader för transport, bil och kollektivtrafik."
+          subtitle={t("subtitle")}
           guardrails={[
-            { emphasis: "Billån & leasing", to: "Skulder" },
-            { emphasis: "Här fyller du i", to: "driftkostnader" },
+            { emphasis: t("guardLoansEmphasis"), to: t("guardLoansTo") },
+            { emphasis: t("guardHereEmphasis"), to: t("guardHereTo") },
           ]}
-          helpTitle="Vanliga transportkostnader"
+          helpTitle={t("helpTitle")}
           helpItems={[
-            "Bränsle/laddning",
-            "Bilförsäkring",
-            "Parkering",
-            "Service/underhåll, trängselskatt, vägtullar",
-            "Kollektivtrafik (periodkort m.m.)",
+            t("help1"),
+            t("help2"),
+            t("help3"),
+            t("help4"),
+            t("help5"),
           ]}
         />
 
-        {/* Wrap this area so we can anchor the bird */}
         <div className="relative">
           <TransportCostsCard />
-
-          {/* Bird: corner sticker (desktop), watermark-ish on mobile */}
-
         </div>
 
         <div className="pt-6 relative">
           <WizardTotalBar
-            title="Totalt"
-            subtitle="Summa för alla transportkostnader per månad"
+            title={t("totalTitle")}
+            subtitle={t("totalSubtitle")}
             value={total}
             currency={currency}
             locale={locale}
-            suffix="/mån"
+            suffix={t("totalSuffix")}
             subtitleClassName="hidden sm:block"
             tone="accent"
           />
+
           <WizardMascot
             src={carBird}
             controls={controls}

@@ -1,156 +1,161 @@
-import React, { useMemo, useState, useEffect } from "react";
-import { useFormContext, useFieldArray, Controller } from "react-hook-form";
-import { Users, Plus } from "lucide-react";
 import get from "lodash/get";
+import { Plus, Users } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import { Controller, useFieldArray, useFormContext } from "react-hook-form";
 
 import { WizardCardAccordion } from "@components/organisms/overlays/wizard/SharedComponents/Accordion/WizardCardAccordion";
 import IcedCustomItemRow from "@components/organisms/overlays/wizard/SharedComponents/InputRows/IcedCustomItemRow";
-import { WizardCardDialog } from "@components/organisms/overlays/wizard/SharedComponents/Cards/WizardCardDialog";
 
-import type { IncomeFormValues } from "@/types/Wizard/Step1_Income/IncomeFormValues";
 import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
+import type { IncomeFormValues } from "@/types/Wizard/Step1_Income/IncomeFormValues";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
 
-import RowFrequencySelect from "@components/atoms/InputField/RowFrequencySelect";
 import { cn } from "@/lib/utils";
 import { idFromPath } from "@/utils/idFromPath";
+import RowFrequencySelect from "@components/atoms/InputField/RowFrequencySelect";
+
+import { tDict } from "@/utils/i18n/translate";
+import { wizardIncomeExtrasDict } from "@/utils/i18n/wizard/stepIncome/IncomeExtras.i18n";
 
 type Props = { monthlyTotal: number };
 
 const HouseholdMembersCard: React.FC<Props> = ({ monthlyTotal }) => {
-    const { control, formState } = useFormContext<IncomeFormValues>();
-    const { submitCount, errors } = formState;
+  const { control, formState } = useFormContext<IncomeFormValues>();
+  const { submitCount, errors } = formState;
 
-    const { fields, append, remove } = useFieldArray({
-        control,
-        name: "householdMembers",
-        keyName: "fieldId",
-        shouldUnregister: false,
-    });
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "householdMembers",
+    keyName: "fieldId",
+    shouldUnregister: false,
+  });
 
-    const [open, setOpen] = useState(false);
-    const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-    const hasErrorsInside = !!get(errors, "householdMembers");
-    useEffect(() => {
-        if (submitCount > 0 && hasErrorsInside) setOpen(true);
-    }, [submitCount, hasErrorsInside]);
+  const hasErrorsInside = !!get(errors, "householdMembers");
+  useEffect(() => {
+    if (submitCount > 0 && hasErrorsInside) setOpen(true);
+  }, [submitCount, hasErrorsInside]);
 
-    const currency = useAppCurrency();
-    const locale = useAppLocale();
-    const idx = fields.length;
-    const totalText = useMemo(() => {
-        return !open && monthlyTotal > 0
-            ? formatMoneyV2(monthlyTotal, currency, locale, { fractionDigits: 0 })
-            : undefined;
-    }, [open, monthlyTotal, currency, locale]);
+  const currency = useAppCurrency();
+  const locale = useAppLocale();
+  const t = <K extends keyof typeof wizardIncomeExtrasDict.sv>(k: K) =>
+    tDict(k, locale, wizardIncomeExtrasDict);
 
-    return (
-        <WizardCardAccordion
-            title="Hushållsmedlemmar"
-            icon={
-                <div className="h-9 w-9 rounded-full bg-wizard-accent-soft grid place-items-center">
-                    <Users className="w-5 h-5 text-wizard-accent" />
-                </div>
-            }
-            isOpen={open}
-            onToggle={() => setOpen((p) => !p)}
-            totalText={totalText}
-            totalSuffix="/mån"
-            variant="inset"
+  const idx = fields.length;
+
+  const totalText = useMemo(
+    () =>
+      !open && monthlyTotal > 0
+        ? formatMoneyV2(monthlyTotal, currency, locale, { fractionDigits: 2 })
+        : undefined,
+    [open, monthlyTotal, currency, locale],
+  );
+
+  return (
+    <WizardCardAccordion
+      title={t("householdTitle")}
+      icon={
+        <div className="h-9 w-9 rounded-full bg-wizard-accent-soft grid place-items-center">
+          <Users className="w-5 h-5 text-wizard-accent" />
+        </div>
+      }
+      isOpen={open}
+      onToggle={() => setOpen((p) => !p)}
+      totalText={totalText}
+      totalSuffix={t("totalSuffix")}
+      variant="inset"
+    >
+      <div className="space-y-4">
+        <div
+          className={cn(
+            "pb-3 border-b border-wizard-stroke/20",
+            "flex flex-col gap-2",
+            "sm:flex-row sm:items-start sm:justify-between sm:gap-3",
+          )}
         >
-            <div className="space-y-4">
-                {/* Fold header strip */}
-                {/* Fold header strip */}
-                <div
-                    className={cn(
-                        "pb-3 border-b border-wizard-stroke/20",
-                        "flex flex-col gap-2",
-                        "sm:flex-row sm:items-start sm:justify-between sm:gap-3"
-                    )}
-                >
-                    <div className="min-w-0">
-                        <div
-                            className={cn(
-                                "text-sm font-semibold text-wizard-text leading-tight",
-                                "break-words [hyphens:auto]"
-                            )}
-                            lang="sv"
-                        >
-                            Personer
-                        </div>
-                        <div className={cn("text-xs text-wizard-text/60", "line-clamp-2")}>
-                            Lägg till hushållets inkomster och frekvens
-                        </div>
-                    </div>
-
-                    <button
-                        type="button"
-                        onClick={() => {
-                            append({ name: "", income: null, frequency: null });
-                            setOpen(true);
-                            requestAnimationFrame(() => {
-                                document.getElementById(idFromPath(`householdMembers.${idx}.name`))?.focus();
-                            });
-                        }}
-                        className={cn(
-                            "h-10 px-3 rounded-xl inline-flex items-center justify-center gap-2",
-                            "w-full sm:w-auto shrink-0",
-                            "bg-wizard-surface/80 hover:bg-wizard-surface",
-                            "border border-wizard-stroke/35 hover:border-wizard-stroke/35",
-                            "text-wizard-text/80 hover:text-wizard-text",
-                            "transition-colors",
-                            "focus:outline-none focus-visible:ring-2 focus-visible:ring-wizard-accent/30"
-                        )}
-                    >
-                        <Plus className="w-4 h-4" />
-                        <span className="whitespace-nowrap">Lägg till</span>
-                    </button>
-                </div>
-
-                {/* Rows */}
-                <div className="space-y-3">
-                    {fields.map((item, index) => (
-                        <IcedCustomItemRow
-                            key={item.fieldId}
-                            fieldId={item.fieldId}
-                            basePath="householdMembers"
-                            index={index}
-                            nameKey="name"
-                            amountKey="income"
-                            namePlaceholder="Namn (t.ex. Partner)"
-                            amountPlaceholder="Belopp"
-                            isDeleting={item.fieldId === deletingId}
-                            onStartDelete={() => setDeletingId(item.fieldId)}
-                            onRemove={() => {
-                                remove(index);
-                                setDeletingId(null);
-                            }}
-                            rightSlot={
-                                <Controller
-                                    name={`householdMembers.${index}.frequency`}
-                                    control={control}
-                                    render={({ field, fieldState }) => {
-                                        const touched = fieldState.isTouched || submitCount > 0;
-
-                                        return (
-                                            <RowFrequencySelect
-                                                value={field.value ?? ""}
-                                                onChange={(v) => field.onChange(v === "" ? null : v)}
-                                                touched={touched}
-                                                error={fieldState.error?.message}
-                                            />
-                                        );
-                                    }}
-                                />
-                            }
-                        />
-                    ))}
-                </div>
+          <div className="min-w-0">
+            <div
+              className={cn(
+                "text-sm font-semibold text-wizard-text leading-tight",
+                "break-words [hyphens:auto]",
+              )}
+            >
+              {t("householdHeaderTitle")}
             </div>
-        </WizardCardAccordion>
-    );
+            <div className={cn("text-xs text-wizard-text/60", "line-clamp-2")}>
+              {t("householdHeaderBody")}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              append({ name: "", income: null, frequency: null });
+              setOpen(true);
+              requestAnimationFrame(() => {
+                document
+                  .getElementById(idFromPath(`householdMembers.${idx}.name`))
+                  ?.focus();
+              });
+            }}
+            className={cn(
+              "h-10 px-3 rounded-xl inline-flex items-center justify-center gap-2",
+              "w-full sm:w-auto shrink-0",
+              "bg-wizard-surface/80 hover:bg-wizard-surface",
+              "border border-wizard-stroke/35 hover:border-wizard-stroke/35",
+              "text-wizard-text/80 hover:text-wizard-text",
+              "transition-colors",
+              "focus:outline-none focus-visible:ring-2 focus-visible:ring-wizard-accent/30",
+            )}
+          >
+            <Plus className="w-4 h-4" />
+            <span className="whitespace-nowrap">{t("add")}</span>
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          {fields.map((item, index) => (
+            <IcedCustomItemRow
+              key={item.fieldId}
+              fieldId={item.fieldId}
+              basePath="householdMembers"
+              index={index}
+              nameKey="name"
+              amountKey="income"
+              namePlaceholder={t("householdNamePlaceholder")}
+              amountPlaceholder={t("amountPlaceholder")}
+              isDeleting={item.fieldId === deletingId}
+              onStartDelete={() => setDeletingId(item.fieldId)}
+              onRemove={() => {
+                remove(index);
+                setDeletingId(null);
+              }}
+              rightSlot={
+                <Controller
+                  name={`householdMembers.${index}.frequency`}
+                  control={control}
+                  render={({ field, fieldState }) => {
+                    const touched = fieldState.isTouched || submitCount > 0;
+                    return (
+                      <RowFrequencySelect
+                        value={field.value ?? ""}
+                        onChange={(v) => field.onChange(v === "" ? null : v)}
+                        touched={touched}
+                        error={fieldState.error?.message}
+                      />
+                    );
+                  }}
+                />
+              }
+            />
+          ))}
+        </div>
+      </div>
+    </WizardCardAccordion>
+  );
 };
 
 export default HouseholdMembersCard;
