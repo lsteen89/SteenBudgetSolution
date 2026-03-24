@@ -12,7 +12,7 @@ import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { appRoutes } from "@/routes/appRoutes";
 import { useAuthStore } from "@/stores/Auth/authStore";
 import { toUserMessage } from "@/utils/i18n/apiErrors/toUserMessage";
-import { breakdownDict } from "@/utils/i18n/pages/private/dashboard/BreakdownPage.i18n";
+import { breakdownDict } from "@/utils/i18n/pages/private/dashboard/pages/BreakdownPage.i18n";
 import { tDict } from "@/utils/i18n/translate";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
 import ContentWrapper from "@components/layout/ContentWrapper";

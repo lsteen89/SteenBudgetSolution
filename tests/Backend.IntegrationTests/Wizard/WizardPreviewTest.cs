@@ -8,6 +8,8 @@ using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
 
+using Backend.Infrastructure.Repositories.User;
+
 using Backend.Application.Abstractions.Application.Services.Debts;
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Application.Abstractions.Infrastructure.System;
@@ -105,11 +107,11 @@ public sealed class WizardPreviewTest
 
         var wizardRepo = new WizardRepository(uow, NullLogger<WizardRepository>.Instance, dbOpts);
         IWizardStepOrchestrator orchestrator = new WizardStepOrchestrator(wizardRepo, processors);
-
         // preview pipeline
         var previewBuilder = new WizardPreviewReadModelBuilder(time);
         var debtCalc = new DebtPaymentCalculator();
         var projector = new BudgetDashboardProjector(debtCalc);
+        var userRepo = new UserRepository(uow, NullLogger<UserRepository>.Instance, dbOpts);
         var previewHandler = new GetWizardFinalizationPreviewQueryHandler(orchestrator, previewBuilder, projector);
 
         // ACT 1: preview
@@ -160,7 +162,11 @@ public sealed class WizardPreviewTest
         // ACT 3: live dashboard
         ITimeProvider clock = new FakeTimeProvider(fixedNow);
         var monthHandler = new GetBudgetDashboardMonthQueryHandler(
-            monthsRepo, dashRepo, projector, clock);
+            monthsRepo,
+            dashRepo,
+            userRepo,
+            projector,
+            clock);
 
         var monthRes = await monthHandler.Handle(new GetBudgetDashboardMonthQuery(persoid, ym), CancellationToken.None);
         monthRes.IsSuccess.Should().BeTrue();

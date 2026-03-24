@@ -1,25 +1,81 @@
+import type { AppLocale } from "@/types/i18n/appLocale";
 import { calculateMonthlyContribution } from "@/utils/budget/financialCalculations";
 import { parseIsoDateLocal } from "@/utils/dates/parseIsoDateLocal";
 import { asCategoryKey, labelCategory } from "@/utils/i18n/budget/categories";
+import { labelLedgerItem } from "@/utils/i18n/budget/ledgerItems";
 import type { CurrencyCode } from "@/utils/money/currency";
 import type { BudgetDashboardMonthDto } from "@myTypes//budget/BudgetDashboardMonthDto";
+
+import { incomeToBreakdownItems } from "./dashboardBreakdown.mapper";
+import { getHeaderLifecycleState } from "./dashboardHeaderState";
 import type {
   BreakdownItem,
+  BudgetPeriodStatus,
+  DashboardPeriodHeaderSummary,
   DashboardSummaryAggregate,
 } from "./dashboardSummary.types";
-
-import type { AppLocale } from "@/types/i18n/appLocale";
-import { labelLedgerItem } from "@/utils/i18n/budget/ledgerItems";
-import { incomeToBreakdownItems } from "./dashboardBreakdown.mapper";
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 const num0 = (v: unknown) =>
   typeof v === "number" && Number.isFinite(v) ? v : 0;
-// "YYYY-MM" -> Swedish month label
+
 function ymLabel(ym: string, locale: AppLocale) {
   const [y, m] = ym.split("-").map(Number);
   const d = new Date(y, (m ?? 1) - 1, 1);
   return d.toLocaleDateString(locale, { year: "numeric", month: "long" });
+}
+
+function shiftYearMonth(ym: string, delta: number): string {
+  const [year, month] = ym.split("-").map(Number);
+  const date = new Date(year, (month ?? 1) - 1 + delta, 1);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  return `${y}-${m}`;
+}
+
+// Temporary FE-only helper until BE sends real period range / status metadata.
+// TODO: Replace with real period lifecycle data from months/status endpoint.
+function buildHeaderSummary(
+  yearMonth: string,
+  status: BudgetPeriodStatus,
+  locale: AppLocale,
+): DashboardPeriodHeaderSummary {
+  const previousYm = shiftYearMonth(yearMonth, -1);
+  const nextYm = shiftYearMonth(yearMonth, 1);
+
+  const canAdvancePeriod = false;
+
+  return {
+    periodKey: yearMonth,
+    periodLabel: ymLabel(yearMonth, locale),
+    periodDateRangeLabel: "25 Feb – 24 Mar", // temporary until BE provides real date range
+    periodStatus: status,
+
+    previousPeriodLabel: ymLabel(previousYm, locale),
+    nextPeriodLabel: ymLabel(nextYm, locale),
+
+    canGoPrevious: true,
+    canGoNext: false,
+
+    canAdvancePeriod,
+    advanceButtonLabel: canAdvancePeriod
+      ? `Close ${ymLabel(yearMonth, locale)} and start ${ymLabel(nextYm, locale)}`
+      : null,
+
+    lifecycleState: getHeaderLifecycleState({
+      periodStatus: status,
+      canAdvancePeriod,
+      daysUntilEligible: status === "open" ? 10 : null,
+      daysSinceEligible: null,
+    }),
+
+    noticeText:
+      status === "closed"
+        ? "This period is closed and shown as a locked snapshot."
+        : null,
+
+    closeEligibleAt: null,
+  };
 }
 
 export function buildDashboardSummaryAggregate(
@@ -27,7 +83,11 @@ export function buildDashboardSummaryAggregate(
   currency: CurrencyCode,
   locale: AppLocale,
 ): DashboardSummaryAggregate {
-  const monthLabel = ymLabel(dto.month.yearMonth, locale);
+  const header = buildHeaderSummary(
+    dto.month.yearMonth,
+    dto.month.status as BudgetPeriodStatus,
+    locale,
+  );
 
   // CLOSED MONTH: no detail objects, only snapshotTotals.
   if (dto.month.status === "closed" && dto.snapshotTotals) {
@@ -35,11 +95,10 @@ export function buildDashboardSummaryAggregate(
 
     return {
       summary: {
-        monthLabel,
+        header,
         remainingToSpend: finalBalance,
-        currency: currency,
+        currency,
 
-        // these "extras" aren't available without goals data → keep harmless defaults
         emergencyFundAmount: 0,
         emergencyFundMonths: 0,
         goalsProgressPercent: 0,
@@ -203,9 +262,9 @@ export function buildDashboardSummaryAggregate(
 
   return {
     summary: {
-      monthLabel,
+      header,
       remainingToSpend,
-      currency: currency,
+      currency,
 
       emergencyFundAmount,
       emergencyFundMonths,

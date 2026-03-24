@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
+using Backend.Infrastructure.Repositories.User;
 using Backend.Application.Abstractions.Application.Services.Debts;
 using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Application.Features.Budgets.Dashboard.GetBudgetDashboardMonth;
@@ -284,11 +284,11 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
         var uow = new UnitOfWork(opts, NullLogger<UnitOfWork>.Instance);
         var monthsRepo = new BudgetMonthRepository(uow, NullLogger<BudgetMonthRepository>.Instance, opts);
         var dashRepo = new BudgetDashboardRepository(uow, NullLogger<BudgetDashboardRepository>.Instance, opts, clock);
-
+        var userRepo = new UserRepository(uow, NullLogger<UserRepository>.Instance, opts);
 
         var projector = new BudgetDashboardProjector(debtCalc);
 
-        return new GetBudgetDashboardMonthQueryHandler(monthsRepo, dashRepo, projector, clock);
+        return new GetBudgetDashboardMonthQueryHandler(monthsRepo, dashRepo, userRepo, projector, clock);
     }
 
     // ---- helpers ----

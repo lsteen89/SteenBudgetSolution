@@ -1,8 +1,6 @@
 import { toApiProblem } from "@/api/toApiProblem";
 import { useBudgetDashboardMonthQuery } from "@/hooks/budget/useBudgetDashboardMonthQuery";
 import { useBudgetMonthsStatusQuery } from "@/hooks/budget/useBudgetMonthsStatusQuery";
-import type { DashboardSummaryAggregate } from "@/hooks/dashboard/dashboardSummary.types";
-import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { useBudgetMonthStore } from "@/stores/Budget/budgetMonthStore";
 import type { CurrencyCode } from "@/utils/money/currency";
@@ -14,7 +12,6 @@ type UseDashboardSummaryOptions = { enabled?: boolean };
 export const useDashboardSummary = (opts?: UseDashboardSummaryOptions) => {
   const enabled = opts?.enabled ?? true;
   const locale = useAppLocale();
-  const appCurrency = useAppCurrency();
 
   const selectedYm = useBudgetMonthStore((s) => s.selectedYearMonth);
   const setSelectedYm = useBudgetMonthStore((s) => s.setSelectedYearMonth);
@@ -22,7 +19,8 @@ export const useDashboardSummary = (opts?: UseDashboardSummaryOptions) => {
   const monthsQ = useBudgetMonthsStatusQuery({ enabled });
   const dashQ = useBudgetDashboardMonthQuery(selectedYm, { enabled });
 
-  const currency: CurrencyCode = dashQ.data?.currencyCode ?? appCurrency;
+  // currency from BE (hardcoded there for now)
+  const currency: CurrencyCode = dashQ.data?.currencyCode ?? "SEK";
 
   const monthsPending = (monthsQ as any).isPending ?? monthsQ.isLoading;
   const dashPending = (dashQ as any).isPending ?? dashQ.isLoading;
@@ -40,12 +38,12 @@ export const useDashboardSummary = (opts?: UseDashboardSummaryOptions) => {
         : null;
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled) return; // <— important
     const ym = dashQ.data?.month?.yearMonth;
     if (ym && selectedYm == null) setSelectedYm(ym);
   }, [enabled, dashQ.data?.month?.yearMonth, selectedYm, setSelectedYm]);
 
-  const data = useMemo<DashboardSummaryAggregate | null>(
+  const data = useMemo(
     () =>
       !enabled
         ? null

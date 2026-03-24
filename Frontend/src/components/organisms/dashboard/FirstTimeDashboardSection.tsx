@@ -13,7 +13,7 @@ import RichBird from "@assets/Images/RichBird.png";
 
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { appRoutes } from "@/routes/appRoutes";
-import { firstTimeDashDict } from "@/utils/i18n/pages/private/dashboard/FirstTimeDashboard.i18n";
+import { firstTimeDashDict } from "@/utils/i18n/pages/private/dashboard/pages/FirstTimeDashboard.i18n";
 import { tDict } from "@/utils/i18n/translate";
 
 export interface FirstTimeDashboardSectionProps {

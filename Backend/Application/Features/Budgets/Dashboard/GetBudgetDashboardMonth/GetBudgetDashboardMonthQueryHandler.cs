@@ -8,6 +8,8 @@ using Backend.Domain.Shared;
 using Backend.Application.Features.Budgets.Months.Helpers;
 using Backend.Domain.Errors.Budget;
 using Backend.Application.DTO.Budget.Months;
+using Backend.Application.Helpers.Currency;
+using Backend.Infrastructure.Repositories;
 
 namespace Backend.Application.Features.Budgets.Dashboard.GetBudgetDashboardMonth;
 
@@ -16,25 +18,30 @@ public sealed class GetBudgetDashboardMonthQueryHandler
 {
     private readonly IBudgetMonthRepository _months;
     private readonly IBudgetDashboardRepository _dashRepo;
+    private readonly IUserRepository _users;
     private readonly IBudgetDashboardProjector _projector;
     private readonly ITimeProvider _clock;
 
     public GetBudgetDashboardMonthQueryHandler(
         IBudgetMonthRepository months,
         IBudgetDashboardRepository dashRepo,
+        IUserRepository users,
         IBudgetDashboardProjector projector,
         ITimeProvider clock)
     {
         _months = months;
         _dashRepo = dashRepo;
+        _users = users;
         _projector = projector;
         _clock = clock;
     }
 
     public async Task<Result<BudgetDashboardMonthDto?>> Handle(GetBudgetDashboardMonthQuery q, CancellationToken ct)
     {
-        const string currencyCode = "SEK"; // hardcoded for now, extend later
+        var prefs = await _users.GetUserPreferencesAsync(q.Persoid, ct);
 
+        // SEK fallback
+        var currencyCode = CurrencyHelper.NormalizeCurrencyOrDefault(prefs?.Currency, "SEK");
         // Find budget
         var budgetId = await _months.GetBudgetIdByPersoidAsync(q.Persoid, ct);
         if (budgetId is null) return Result<BudgetDashboardMonthDto?>.Success(null);

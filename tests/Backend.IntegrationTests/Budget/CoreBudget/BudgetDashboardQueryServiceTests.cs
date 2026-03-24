@@ -7,7 +7,8 @@ using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Application.Features.Budgets.Dashboard.GetBudgetDashboardMonth;
 using Backend.Application.Services.Budget.Projections;
 using Backend.Application.Services.Debts;
-using Backend.Domain.Errors;
+using MySqlConnector;
+using Dapper;
 using Backend.Infrastructure.Repositories.Budget.BudgetDashboard;
 using Backend.Infrastructure.Repositories.Budget.Months;
 using Backend.IntegrationTests.Shared;
@@ -19,6 +20,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Backend.IntegrationTests.Shared.Seeds.Budget;
 using Backend.Domain.Errors.Budget;
+using Backend.Infrastructure.Repositories.User;
 
 namespace Backend.IntegrationTests.Budget.CoreBudget;
 
@@ -67,6 +69,7 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
         var dto = result.Value!;
         dto.Month.YearMonth.Should().Be(ym);
         dto.Month.Status.Should().Be("open");
+        dto.CurrencyCode.Should().Be("SEK");
         dto.SnapshotTotals.Should().BeNull();
         dto.LiveDashboard.Should().NotBeNull();
 
@@ -174,6 +177,7 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
         var dto = result.Value!;
         dto.Month.YearMonth.Should().Be(ym);
         dto.Month.Status.Should().Be("closed");
+        dto.CurrencyCode.Should().Be("SEK");
 
         dto.LiveDashboard.Should().BeNull();
         dto.SnapshotTotals.Should().NotBeNull();
@@ -214,7 +218,45 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
         result.IsFailure.Should().BeTrue();
         result.Error.Should().Be(BudgetMonth.MonthNotFound);
     }
+    [Fact]
+    public async Task Handle_WhenUserPreferenceCurrencyIsUsd_ReturnsUsdCurrencyCode()
+    {
+        await _db.ResetAsync();
 
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var persoid = seed.Persoid;
+        var budgetId = seed.BudgetId;
+
+        var ym = "2026-01";
+        await BudgetMonthSeeds.SeedOpenMonthAsync(
+            _db.ConnectionString,
+            budgetId,
+            ym,
+            carryOverMode: "none",
+            carryOverAmount: null,
+            createdByUserId: persoid
+        );
+
+        await SetUserCurrencyAsync(_db.ConnectionString, persoid, "USD");
+
+        var clock = new FakeTimeProvider(new DateTime(2026, 01, 15, 12, 0, 0, DateTimeKind.Utc));
+        var sut = BuildSut(_db.ConnectionString, clock, debtCalc: new DebtPaymentCalculator());
+
+        var result = await sut.Handle(
+            new GetBudgetDashboardMonthQuery(persoid, YearMonth: ym),
+            CancellationToken.None);
+
+        using var _ = new AssertionScope();
+
+        result.IsFailure.Should().BeFalse();
+        result.Value.Should().NotBeNull();
+
+        var dto = result.Value!;
+        dto.CurrencyCode.Should().Be("USD");
+        dto.Month.YearMonth.Should().Be(ym);
+        dto.Month.Status.Should().Be("open");
+        dto.LiveDashboard.Should().NotBeNull();
+    }
     // -------------------------
     // SUT factory
     // -------------------------
@@ -226,8 +268,10 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
         var months = new BudgetMonthRepository(uow, NullLogger<BudgetMonthRepository>.Instance, opts);
         var dashRepo = new BudgetDashboardRepository(uow, NullLogger<BudgetDashboardRepository>.Instance, opts, clock);
         var projector = new BudgetDashboardProjector(debtCalc);
+        var users = new UserRepository(uow, NullLogger<UserRepository>.Instance, opts);
 
-        return new GetBudgetDashboardMonthQueryHandler(months, dashRepo, projector, clock);
+
+        return new GetBudgetDashboardMonthQueryHandler(months, dashRepo, users, projector, clock);
     }
 
     private static decimal Amortize(decimal principal, decimal annualRatePercent, int months)
@@ -265,5 +309,23 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
             SeenTypes = SeenTypes.Concat(new[] { input.Type }).ToArray();
             return _constant;
         }
+    }
+    private static async Task SetUserCurrencyAsync(string cs, Guid persoid, string currency)
+    {
+        await using var conn = new MySqlConnection(cs);
+        await conn.OpenAsync();
+
+        const string sql = """
+        INSERT INTO UserSettings (Persoid, Locale, Currency)
+        VALUES (@Persoid, 'en-US', @Currency)
+        ON DUPLICATE KEY UPDATE
+            Currency = VALUES(Currency);
+        """;
+
+        await conn.ExecuteAsync(sql, new
+        {
+            Persoid = persoid,
+            Currency = currency
+        });
     }
 }

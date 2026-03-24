@@ -1,7 +1,7 @@
 import ReturningDashboardSection from "@/components/organisms/dashboard/returning/ReturningDashboardSection";
+import { useDashboardSummary } from "@/hooks/dashboard/useDashboardSummary";
 import DashboardHomeSkeleton from "@components/organisms/dashboard/DashboardHomeSkeleton";
 import FirstTimeDashboardSection from "@components/organisms/dashboard/FirstTimeDashboardSection";
-import { useDashboardSummary } from "@hooks/dashboard/useDashboardSummary";
 import React from "react";
 import DashboardErrorState from "../dashboard/DashboardErrorState";
 
