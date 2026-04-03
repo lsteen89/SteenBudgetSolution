@@ -122,6 +122,7 @@ public sealed class WizardPreviewReadModelBuilder : IWizardPreviewReadModelBuild
 
         return new BudgetDashboardReadModel(
             BudgetId: Guid.Empty,
+            BudgetMonthId: null,
             Totals: totals,
             Categories: categories,
             RecurringExpenses: recurring,
@@ -184,8 +185,7 @@ public sealed class WizardPreviewReadModelBuilder : IWizardPreviewReadModelBuild
                 TargetAmount: g.TargetAmount,
                 TargetDate: g.TargetDate,
                 AmountSaved: g.AmountSaved,
-                    SavingsGoalContribution.ComputeMonthlyContribution(
-                        g.TargetAmount, g.AmountSaved, g.TargetDate, now)
+                MonthlyContribution: g.MonthlyContribution
                 )).ToList();
 
 

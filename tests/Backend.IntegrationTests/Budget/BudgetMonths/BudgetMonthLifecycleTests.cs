@@ -7,18 +7,18 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using MySqlConnector;
-using Xunit;
+using Backend.Application.Services.Budget.Materializer;
 
 using Backend.IntegrationTests.Shared;
 using Backend.IntegrationTests.Shared.Seeds;
 using Backend.Settings;
 
-using Backend.Infrastructure.Data;
+using Backend.Infrastructure.Repositories.Budget.Months.Seed;
 using Backend.Infrastructure.Repositories.Budget.Months;
 using Backend.Infrastructure.Repositories.Budget.BudgetDashboard;
 
 using Backend.Application.Abstractions.Application.Services.Budget;
-using Backend.Application.Services.Budget;
+using Backend.Infrastructure.Repositories.Budget.Months.Materializer;
 using Backend.Application.Abstractions.Application.Services.Debts;
 using Backend.Application.Services.Debts;
 
@@ -66,13 +66,39 @@ public sealed class BudgetMonthLifecycleTests
         ITimeProvider time = new FakeTimeProvider(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
 
         var monthsRepo = new BudgetMonthRepository(uow, NullLogger<BudgetMonthRepository>.Instance, dbOpts);
-        var dashRepo = new BudgetDashboardRepository(uow, NullLogger<BudgetDashboardRepository>.Instance, dbOpts, time);
+        var dashRepo = new BudgetMonthDashboardRepository(uow, NullLogger<BudgetMonthDashboardRepository>.Instance, dbOpts, time);
 
         IDebtPaymentCalculator calc = new DebtPaymentCalculator();
         IBudgetMonthlyTotalsService totalsSvc = new BudgetMonthlyTotalsService(dashRepo, calc);
         var closeSnapshot = new BudgetMonthCloseSnapshotService(totalsSvc);
 
+        var seedSource = new BudgetMonthSeedSourceRepository(
+            uow,
+            NullLogger<BudgetMonthSeedSourceRepository>.Instance,
+            dbOpts);
 
+        var materializationRepo = new BudgetMonthMaterializationRepository(
+            uow,
+            NullLogger<BudgetMonthMaterializationRepository>.Instance,
+            dbOpts);
+
+        var materializer = new BudgetMonthMaterializer(seedSource, materializationRepo, time);
+
+        var openMonth = await monthsRepo.GetByBudgetIdAndYearMonthAsync(
+            budgetId,
+            "2025-12",
+            CancellationToken.None);
+
+        openMonth.Should().NotBeNull();
+
+        var materialized = await uow.InTx(CancellationToken.None, () =>
+            materializer.MaterializeIfMissingAsync(
+                budgetId,
+                openMonth!.Id,
+                persoid,
+                CancellationToken.None));
+
+        materialized.IsSuccess.Should().BeTrue();
 
         var handler = new StartBudgetMonthCommandHandler(
             months: monthsRepo,
@@ -85,7 +111,7 @@ public sealed class BudgetMonthLifecycleTests
             TargetYearMonth: "2026-01",
             ClosePreviousOpenMonth: true,
             CarryOverMode: BudgetMonthCarryOverModes.None,
-            CarryOverAmount: 0m,
+            CarryOverAmount: null,
             CreateSkippedMonths: true);
 
         var result = await uow.InTx(CancellationToken.None, () =>
@@ -119,14 +145,19 @@ public sealed class BudgetMonthLifecycleTests
         var closed = rows.Single(x => x.YearMonth == "2025-12");
         closed.SnapshotTotalIncomeMonthly.Should().Be(32500m);
         closed.SnapshotTotalExpensesMonthly.Should().Be(12000m);
-        closed.SnapshotTotalSavingsMonthly.Should().Be(5833.33m);
+        closed.SnapshotTotalSavingsMonthly.Should().Be(2500.00m);
 
         var expectedInstallment = Amortize(5000m, 0.5m, 24) + 10m;
         var expectedDebtPayments = 320m + expectedInstallment;
 
         closed.SnapshotTotalDebtPaymentsMonthly.Should().Be(expectedDebtPayments);
 
-        var expectedFinal = 32500m - 12000m - 5833.33m - expectedDebtPayments + 0m;
+        var expectedFinal =
+            closed.SnapshotTotalIncomeMonthly!.Value
+            - closed.SnapshotTotalExpensesMonthly!.Value
+            - closed.SnapshotTotalSavingsMonthly!.Value
+            - closed.SnapshotTotalDebtPaymentsMonthly!.Value;
+
         closed.SnapshotFinalBalanceMonthly.Should().Be(expectedFinal);
 
         var open = rows.Single(x => x.YearMonth == "2026-01");
@@ -159,7 +190,7 @@ public sealed class BudgetMonthLifecycleTests
         ITimeProvider time = new FakeTimeProvider(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
 
         var monthsRepo = new BudgetMonthRepository(uow, NullLogger<BudgetMonthRepository>.Instance, dbOpts);
-        var dashRepo = new BudgetDashboardRepository(uow, NullLogger<BudgetDashboardRepository>.Instance, dbOpts, time);
+        var dashRepo = new BudgetMonthDashboardRepository(uow, NullLogger<BudgetMonthDashboardRepository>.Instance, dbOpts, time);
 
         IDebtPaymentCalculator calc = new DebtPaymentCalculator();
         IBudgetMonthlyTotalsService totalsSvc = new BudgetMonthlyTotalsService(dashRepo, calc);
@@ -173,7 +204,7 @@ public sealed class BudgetMonthLifecycleTests
             TargetYearMonth: "2026-01",
             ClosePreviousOpenMonth: true,
             CarryOverMode: BudgetMonthCarryOverModes.None,
-            CarryOverAmount: 0m,
+            CarryOverAmount: null,
             CreateSkippedMonths: true);
 
         var result = await uow.InTx(CancellationToken.None, () =>
@@ -223,7 +254,7 @@ public sealed class BudgetMonthLifecycleTests
         ITimeProvider time = new FakeTimeProvider(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
 
         var monthsRepo = new BudgetMonthRepository(uow, NullLogger<BudgetMonthRepository>.Instance, dbOpts);
-        var dashRepo = new BudgetDashboardRepository(uow, NullLogger<BudgetDashboardRepository>.Instance, dbOpts, time);
+        var dashRepo = new BudgetMonthDashboardRepository(uow, NullLogger<BudgetMonthDashboardRepository>.Instance, dbOpts, time);
 
         IDebtPaymentCalculator calc = new DebtPaymentCalculator();
         IBudgetMonthlyTotalsService totalsSvc = new BudgetMonthlyTotalsService(dashRepo, calc);
@@ -237,7 +268,7 @@ public sealed class BudgetMonthLifecycleTests
             TargetYearMonth: "2026-01",
             ClosePreviousOpenMonth: true,
             CarryOverMode: BudgetMonthCarryOverModes.None,
-            CarryOverAmount: 0m,
+            CarryOverAmount: null,
             CreateSkippedMonths: true);
 
         (await uow.InTx(CancellationToken.None, () =>
@@ -269,6 +300,65 @@ public sealed class BudgetMonthLifecycleTests
         ", new { bid = budgetId });
 
         openYm.Should().Be("2026-01");
+    }
+    [Fact]
+    public async Task BaselineSavingsGoalContribution_IsReadCorrectly()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+        var persoid = seed.Persoid;
+        var userId = seed.UserId;
+        var budgetId = seed.BudgetId;
+
+        await using (var conn = new MySqlConnection(_db.ConnectionString))
+        {
+            await conn.OpenAsync();
+
+            var savingsId = Guid.NewGuid();
+
+            await conn.ExecuteAsync("""
+            INSERT INTO Savings
+            (Id, BudgetId, MonthlySavings, CreatedAt, CreatedByUserId)
+            VALUES
+            (@Id, @BudgetId, 2500, UTC_TIMESTAMP(), @UserId);
+        """, new
+            {
+                Id = savingsId,
+                BudgetId = budgetId,
+                UserId = userId
+            });
+
+            await conn.ExecuteAsync("""
+            INSERT INTO SavingsGoal
+            (Id, SavingsId, Name, TargetAmount, TargetDate, AmountSaved, MonthlyContribution, CreatedAt, CreatedByUserId)
+            VALUES
+            (@Id, @SavingsId, 'Emergency fund', 50000, '2026-12-31', 10000, 750, UTC_TIMESTAMP(), @UserId);
+        """, new
+            {
+                Id = Guid.NewGuid(),
+                SavingsId = savingsId,
+                UserId = userId
+            });
+        }
+
+        var dbOpts = DbOptions(_db.ConnectionString);
+        ITimeProvider time = new FakeTimeProvider(new DateTime(2026, 01, 07, 8, 0, 0, DateTimeKind.Utc));
+        var uow = new UnitOfWork(dbOpts, NullLogger<UnitOfWork>.Instance);
+
+        var repo = new BudgetDashboardRepository(
+            uow,
+            NullLogger<BudgetDashboardRepository>.Instance,
+            dbOpts,
+            time);
+
+        var data = await repo.GetDashboardDataAsync(persoid, CancellationToken.None);
+
+        data.Should().NotBeNull();
+        data!.Savings.Should().NotBeNull();
+
+        var goal = data.Savings!.Goals.Single(g => g.Name == "Emergency fund");
+        goal.MonthlyContribution.Should().Be(750m);
     }
 
     private static decimal Amortize(decimal principal, decimal annualRatePercent, int months)

@@ -44,6 +44,14 @@ public sealed partial class BudgetDashboardRepository
             FROM Savings s
             WHERE s.BudgetId = b.Id
             LIMIT 1
+        ), 0)
+        +
+        COALESCE((
+            SELECT SUM(g.MonthlyContribution)
+            FROM SavingsGoal g
+            INNER JOIN Savings s ON s.Id = g.SavingsId
+            WHERE s.BudgetId = b.Id
+            AND g.Status = 'active'
         ), 0) AS TotalSavingsMonthly,
 
         COALESCE((
@@ -78,10 +86,14 @@ public sealed partial class BudgetDashboardRepository
         g.Name,
         g.TargetAmount,
         g.TargetDate,
-        g.AmountSaved
+        g.AmountSaved,
+        g.MonthlyContribution
     FROM Savings s
-    LEFT JOIN SavingsGoal g ON g.SavingsId = s.Id
-    WHERE s.BudgetId = @BudgetId;
+    LEFT JOIN SavingsGoal g
+        ON g.SavingsId = s.Id
+    AND g.Status = 'active'
+    WHERE s.BudgetId = @BudgetId
+    ORDER BY g.CreatedAt, g.Id;
     ";
 
     private const string DebtsSql = @"

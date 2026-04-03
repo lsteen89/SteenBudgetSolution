@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import React from "react";
 
+import { SecondaryButton } from "@/components/atoms/buttons/SecondaryButton";
 import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/lib/utils";
@@ -47,7 +48,7 @@ export type ReturningHeaderProps = {
   advanceButtonLabel?: string | null;
   onAdvancePeriod?: () => void;
 
-  onOpenWizard: () => void;
+  onOpenPeriodEditor: () => void;
 };
 
 function StatusBadge({
@@ -147,7 +148,7 @@ const ReturningHeader: React.FC<ReturningHeaderProps> = ({
   canAdvancePeriod,
   advanceButtonLabel,
   onAdvancePeriod,
-  onOpenWizard,
+  onOpenPeriodEditor,
 }) => {
   const locale = useAppLocale();
   const appCurrency = useAppCurrency();
@@ -245,13 +246,12 @@ const ReturningHeader: React.FC<ReturningHeaderProps> = ({
           )}
 
           {periodStatus === "open" && (
-            <button
-              type="button"
-              onClick={onOpenWizard}
-              className="inline-flex h-11 items-center justify-center rounded-2xl border border-eb-stroke/30 bg-eb-surface/80 px-5 font-semibold text-eb-text/80 transition hover:bg-[rgb(var(--eb-shell)/0.45)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-eb-accent/25"
+            <SecondaryButton
+              onClick={onOpenPeriodEditor}
+              className="h-11 rounded-2xl px-5"
             >
-              {t("adjustPlan")}
-            </button>
+              {t("editThisPeriod")}
+            </SecondaryButton>
           )}
         </div>
       </div>

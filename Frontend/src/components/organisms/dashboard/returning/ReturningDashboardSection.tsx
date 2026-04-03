@@ -1,24 +1,23 @@
 import type { DashboardSummary } from "@/hooks/dashboard/dashboardSummary.types";
 import React from "react";
 
-import BudgetOverviewCard from "./BudgetOverviewCard";
-import GoalsCard from "./GoalsCard";
+import BudgetOverviewCard from "./cards/BudgetOverviewCard";
+import EditPeriodCard from "./cards/EditPeriodCard";
+import GoalsCard from "./cards/GoalsCard";
+import RecurringExpensesCard from "./cards/RecurringExpensesCard";
+import SubscriptionsCard from "./cards/SubscriptionsCard";
 import KpiRow from "./KpiRow";
-import NextStepsCards from "./NextStepsCards";
-import RecurringExpensesCard from "./RecurringExpensesCard";
 import ReturningHeader from "./ReturningHeader";
-import SubscriptionsCard from "./SubscriptionsCard";
 
 export interface ReturningDashboardSectionProps {
-  onOpenWizard: () => void;
+  onOpenPeriodEditor: () => void;
   onAdvancePeriod?: () => void;
   onGoPreviousPeriod?: () => void;
   onGoNextPeriod?: () => void;
   summary: DashboardSummary;
 }
-
 const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({
-  onOpenWizard,
+  onOpenPeriodEditor,
   onAdvancePeriod,
   onGoPreviousPeriod,
   onGoNextPeriod,
@@ -44,7 +43,7 @@ const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({
           canAdvancePeriod={summary.header.canAdvancePeriod}
           advanceButtonLabel={summary.header.advanceButtonLabel}
           onAdvancePeriod={onAdvancePeriod}
-          onOpenWizard={onOpenWizard}
+          onOpenPeriodEditor={onOpenPeriodEditor}
         />
 
         <KpiRow
@@ -88,11 +87,16 @@ const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({
             description={summary.pillarDescriptions.savings}
             goalsProgressPercent={summary.goalsProgressPercent}
           />
-          <NextStepsCards onOpenWizard={onOpenWizard} />
+
+          <EditPeriodCard
+            periodLabel={summary.header.periodLabel}
+            remainingToSpend={summary.remainingToSpend}
+            currency={summary.currency}
+            onOpenPeriodEditor={onOpenPeriodEditor}
+          />
         </div>
       </div>
     </div>
   );
 };
-
 export default ReturningDashboardSection;

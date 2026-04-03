@@ -165,56 +165,6 @@ CREATE TABLE Budget (
     INDEX IX_Budget_Persoid (Persoid)
 ) ENGINE=InnoDB;
 
--- =========================
--- BudgetMonth
--- =========================
-CREATE TABLE BudgetMonth (
-    Id                      BINARY(16)    NOT NULL PRIMARY KEY,
-    BudgetId                BINARY(16)    NOT NULL,
-
-    YearMonth               CHAR(7)       NOT NULL, -- "YYYY-MM"
-    Status                  VARCHAR(10)   NOT NULL DEFAULT 'open',   -- open|closed|skipped
-
-    OpenedAt                DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    ClosedAt                DATETIME      NULL,
-
-    CarryOverMode           VARCHAR(10)   NOT NULL DEFAULT 'none',   -- none|full|custom
-    CarryOverAmount         DECIMAL(18,2) NULL,
-
-    SnapshotTotalIncomeMonthly         DECIMAL(18,2) NULL,
-    SnapshotTotalExpensesMonthly       DECIMAL(18,2) NULL,
-    SnapshotTotalSavingsMonthly        DECIMAL(18,2) NULL,
-    SnapshotTotalDebtPaymentsMonthly   DECIMAL(18,2) NULL,
-    SnapshotFinalBalanceMonthly        DECIMAL(18,2) NULL,
-
-    CreatedAt               DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UpdatedAt               DATETIME      NULL ON UPDATE CURRENT_TIMESTAMP,
-    CreatedByUserId         BINARY(16)    NOT NULL,
-    UpdatedByUserId         BINARY(16)    NULL,
-
-    CONSTRAINT FK_BudgetMonth_Budget
-        FOREIGN KEY (BudgetId) REFERENCES Budget(Id) ON DELETE CASCADE,
-
-    CONSTRAINT CK_BudgetMonth_YearMonth
-        CHECK (YearMonth REGEXP '^[0-9]{4}-(0[1-9]|1[0-2])$'),
-
-    CONSTRAINT CK_BudgetMonth_Status
-        CHECK (Status IN ('open','closed','skipped')),
-
-    CONSTRAINT CK_BudgetMonth_CarryOverMode
-        CHECK (CarryOverMode IN ('none','full','custom')),
-
-    CONSTRAINT CK_BudgetMonth_CarryOverAmount_CustomOnly
-        CHECK (
-            (CarryOverMode = 'none'   AND (CarryOverAmount IS NULL OR CarryOverAmount = 0))
-        OR (CarryOverMode = 'full'   AND CarryOverAmount IS NOT NULL)
-        OR (CarryOverMode = 'custom' AND CarryOverAmount IS NOT NULL AND CarryOverAmount >= 0)
-        ),
-
-    UNIQUE KEY UX_BudgetMonth_BudgetId_YearMonth (BudgetId, YearMonth),
-    KEY IX_BudgetMonth_BudgetId_Status (BudgetId, Status)
-) ENGINE=InnoDB;
-
 CREATE TABLE Income (
     Id               BINARY(16)    NOT NULL PRIMARY KEY,
     BudgetId         BINARY(16)    NOT NULL,
@@ -332,18 +282,25 @@ CREATE TABLE SavingsMethod (
 ) ENGINE=InnoDB;
 
 CREATE TABLE SavingsGoal (
-    Id              BINARY(16)    NOT NULL PRIMARY KEY,
-    SavingsId       BINARY(16)    NOT NULL,
-    Name            VARCHAR(255)  NULL,
-    TargetAmount    DECIMAL(18,2) NULL,
-    TargetDate      DATE          NULL,
-    AmountSaved     DECIMAL(18,2) NULL,
-    CreatedAt       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UpdatedAt       DATETIME      NULL ON UPDATE CURRENT_TIMESTAMP,
-    CreatedByUserId BINARY(16)    NOT NULL,
-    UpdatedByUserId BINARY(16)    NULL,
+    Id                  BINARY(16)    NOT NULL PRIMARY KEY,
+    SavingsId           BINARY(16)    NOT NULL,
+    Name                VARCHAR(255)  NULL,
+    TargetAmount        DECIMAL(18,2) NULL,
+    TargetDate          DATE          NULL,
+    AmountSaved         DECIMAL(18,2) NULL,
+    MonthlyContribution DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+    OpenedAt            DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    Status              VARCHAR(20)   NOT NULL DEFAULT 'active',
+    ClosedAt            DATETIME      NULL,
+    ClosedReason        VARCHAR(100)  NULL,
+    CreatedAt           DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt           DATETIME      NULL ON UPDATE CURRENT_TIMESTAMP,
+    CreatedByUserId     BINARY(16)    NOT NULL,
+    UpdatedByUserId     BINARY(16)    NULL,
+    
     CONSTRAINT FK_SavingsGoal_Savings FOREIGN KEY (SavingsId) REFERENCES Savings(Id) ON DELETE CASCADE,
-    INDEX IX_SavingsGoal_SavingsId (SavingsId)
+    CONSTRAINT CK_SavingsGoal_Status CHECK (Status IN ('active','closed')),
+    INDEX IX_SavingsGoal_SavingsId_Status (SavingsId, Status)
 ) ENGINE=InnoDB;
 
 -- =========================

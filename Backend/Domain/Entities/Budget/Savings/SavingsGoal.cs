@@ -12,6 +12,7 @@ namespace Backend.Domain.Entities.Budget.Savings
         public decimal? AmountSaved { get; set; } // The amount saved towards this goal 
 
         public Guid SavingsId { get; set; }
+        public decimal MonthlyContribution { get; set; }
         public Savings Savings { get; set; } = null!;
         public DateTime CreatedAt { get; set; } // The date and time when the SavingsGoal was created
         public DateTime? UpdatedAt { get; set; } // The date and time when the SavingsGoal was last updated

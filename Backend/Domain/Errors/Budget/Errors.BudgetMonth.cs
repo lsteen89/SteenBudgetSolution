@@ -30,5 +30,18 @@ public static partial class BudgetMonth
 
     public static readonly Error SnapshotMissing =
         new("BudgetMonth.SnapshotMissing", "Closed month snapshot is missing.", ErrorType.Conflict);
+
+    public static readonly Error CarryAmountMustBeNullUnlessCustom =
+        new("BudgetMonth.CarryAmountMustBeNullUnlessCustom",
+            "Carry over amount must be empty unless carry over mode is custom.");
+
+    public static readonly Error CustomCarryAmountRequired =
+        new("BudgetMonth.CustomCarryAmountRequired",
+            "Carry over amount is required when carry over mode is custom.");
+
+    public static readonly Error CustomCarryAmountMustBeNonNegative =
+        new("BudgetMonth.CustomCarryAmountMustBeNonNegative",
+            "Carry over amount must be zero or greater.");
+
 }
 

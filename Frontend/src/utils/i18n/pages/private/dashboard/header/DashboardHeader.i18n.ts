@@ -15,7 +15,7 @@ export const dashboardHeaderDict = {
     previous: "Föregående",
     next: "Nästa",
     nextLockedHint: "Den här perioden är inte tillgänglig än",
-    adjustPlan: "Justera plan",
+    editThisPeriod: "Redigera perioden",
   },
   en: {
     topHint: "This period at a glance",
@@ -33,7 +33,7 @@ export const dashboardHeaderDict = {
     previous: "Previous",
     next: "Next",
     nextLockedHint: "This period is not available yet",
-    adjustPlan: "Adjust plan",
+    editThisPeriod: "Edit this period",
   },
   et: {
     topHint: "Selle perioodi ülevaade",
@@ -51,6 +51,6 @@ export const dashboardHeaderDict = {
     previous: "Eelmine",
     next: "Järgmine",
     nextLockedHint: "See periood ei ole veel saadaval",
-    adjustPlan: "Muuda plaani",
+    editThisPeriod: "Muuda perioodi",
   },
 } as const;

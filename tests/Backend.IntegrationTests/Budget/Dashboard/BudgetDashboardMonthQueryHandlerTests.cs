@@ -20,6 +20,16 @@ using Microsoft.Extensions.Options;
 using MySqlConnector;
 using Backend.IntegrationTests.Shared.Seeds.Budget;
 using Backend.Infrastructure.Data.Sql.Helpers.UnitOfWork;
+using Backend.Application.BudgetMonths.Services;
+using Backend.Infrastructure.Repositories.Budget.Months.Seed;
+using Backend.Infrastructure.Repositories.Budget.Months.Materializer;
+using Backend.Application.Abstractions.Infrastructure.Data;
+using Backend.Application.Abstractions.Application.Services.Budget;
+using Backend.Application.Abstractions.Application.Services.Budget.Projections;
+using MediatR;
+using Microsoft.Extensions.DependencyInjection;
+using Backend.Application.Common.Behaviors;
+using Backend.Application.Services.Budget.Materializer;
 
 namespace Backend.IntegrationTests.Budget.Dashboard;
 
@@ -51,10 +61,15 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
             createdByUserId: userId,
             openedAtUtc: openedAt);
 
-        var handler = BuildHandler(_db.ConnectionString, debtCalc: new DebtPaymentCalculator(),
-            clockUtcNow: new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+        var clock = new FakeTimeProvider(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
 
-        var result = await handler.Handle(new GetBudgetDashboardMonthQuery(persoid, "2026-01"), CancellationToken.None);
+        await using var sp = BuildServiceProvider(_db.ConnectionString, clock, new DebtPaymentCalculator());
+        await using var scope = sp.CreateAsyncScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+        var result = await mediator.Send(
+            new GetBudgetDashboardMonthQuery(persoid, "2026-01"),
+            CancellationToken.None);
 
         result.IsFailure.Should().BeFalse();
         result.Value.Should().NotBeNull();
@@ -107,10 +122,15 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
             totalDebtPayments: 500m,
             finalBalance: 17500m);
 
-        var handler = BuildHandler(_db.ConnectionString, debtCalc: new DebtPaymentCalculator(),
-            clockUtcNow: new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+        var clock = new FakeTimeProvider(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
 
-        var result = await handler.Handle(new GetBudgetDashboardMonthQuery(persoid, "2025-12"), CancellationToken.None);
+        await using var sp = BuildServiceProvider(_db.ConnectionString, clock, new DebtPaymentCalculator());
+        await using var scope = sp.CreateAsyncScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+        var result = await mediator.Send(
+            new GetBudgetDashboardMonthQuery(persoid, "2025-12"),
+            CancellationToken.None);
 
         result.IsFailure.Should().BeFalse();
         result.Value.Should().NotBeNull();
@@ -137,17 +157,21 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
         var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
         var persoid = seed.Persoid;
 
-        var handler = BuildHandler(_db.ConnectionString, debtCalc: new DebtPaymentCalculator(),
-            clockUtcNow: new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+        var clock = new FakeTimeProvider(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
 
-        var result = await handler.Handle(new GetBudgetDashboardMonthQuery(persoid, "2026-1"), CancellationToken.None);
+        await using var sp = BuildServiceProvider(_db.ConnectionString, clock, new DebtPaymentCalculator());
+        await using var scope = sp.CreateAsyncScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+        var result = await mediator.Send(
+            new GetBudgetDashboardMonthQuery(persoid, "2026-1"),
+            CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
-        result.Error!.Code.Should().Be(BudgetMonth.InvalidYearMonth.Code);
+        result.Error.Code.Should().Be(BudgetMonth.InvalidYearMonth.Code);
     }
-
     [Fact]
-    public async Task WhenYearMonthIsNull_PicksOpenMonthIfExists()
+    public async Task WhenYearMonthIsNull_PicksCurrentYearMonth_AndEnsuresIt()
     {
         await _db.ResetAsync();
 
@@ -156,6 +180,7 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
         var userId = seed.UserId;
         var budgetId = seed.BudgetId;
 
+        // Existing open month in the past should not win anymore
         await BudgetMonthDsl.InsertOpenAsync(
             cs: _db.ConnectionString,
             budgetId: budgetId,
@@ -163,13 +188,19 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
             openedAtUtc: new DateTime(2025, 12, 15, 08, 00, 00, DateTimeKind.Utc),
             createdByUserId: userId);
 
-        var handler = BuildHandler(_db.ConnectionString, debtCalc: new DebtPaymentCalculator(),
-            clockUtcNow: new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+        var clock = new FakeTimeProvider(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
 
-        var result = await handler.Handle(new GetBudgetDashboardMonthQuery(persoid, null), CancellationToken.None);
+        await using var sp = BuildServiceProvider(_db.ConnectionString, clock, new DebtPaymentCalculator());
+        await using var scope = sp.CreateAsyncScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+        var result = await mediator.Send(
+            new GetBudgetDashboardMonthQuery(persoid, null),
+            CancellationToken.None);
 
         result.IsFailure.Should().BeFalse();
-        result.Value!.Month.YearMonth.Should().Be("2025-12");
+        result.Value.Should().NotBeNull();
+        result.Value!.Month.YearMonth.Should().Be("2026-01");
         result.Value!.Month.Status.Should().Be("open");
         result.Value!.LiveDashboard.Should().NotBeNull();
     }
@@ -192,11 +223,15 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
             createdByUserId: userId);
 
         var spy = new SpyDebtPaymentCalculator(constant: 123m);
+        var clock = new FakeTimeProvider(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
 
-        var handler = BuildHandler(_db.ConnectionString, debtCalc: spy,
-            clockUtcNow: new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+        await using var sp = BuildServiceProvider(_db.ConnectionString, clock, spy);
+        await using var scope = sp.CreateAsyncScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
 
-        var result = await handler.Handle(new GetBudgetDashboardMonthQuery(persoid, "2026-01"), CancellationToken.None);
+        var result = await mediator.Send(
+            new GetBudgetDashboardMonthQuery(persoid, "2026-01"),
+            CancellationToken.None);
 
         result.IsFailure.Should().BeFalse();
 
@@ -205,7 +240,7 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
 
         var live = result.Value!.LiveDashboard!;
         live.Debt.Debts.Should().HaveCount(2);
-        live.Debt.Debts.All(d => d.MonthlyPayment == 123m).Should().BeTrue();
+        live.Debt.Debts.Should().OnlyContain(d => d.MonthlyPayment == 123m);
         live.Debt.TotalMonthlyPayments.Should().Be(246m);
     }
     [Fact]
@@ -230,6 +265,7 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
         var targetDate = now.AddMonths(10);
         var targetAmount = 50_000m;
         var amountSaved = 10_000m;
+        var monthlyContribution = 200m;
 
         // Insert a goal into DB so repo must compute MonthlyContribution
         await using (var conn = new MySqlConnection(_db.ConnectionString))
@@ -243,54 +279,141 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
 
             await conn.ExecuteAsync(@"
             INSERT INTO SavingsGoal
-            (Id, SavingsId, Name, TargetAmount, TargetDate, AmountSaved, CreatedAt, CreatedByUserId)
+            (Id, SavingsId, Name, TargetAmount, TargetDate, AmountSaved, MonthlyContribution, CreatedAt, CreatedByUserId)
             VALUES
-            (UUID_TO_BIN(UUID()), @sid, 'TestGoal', @ta, @td, @as, UTC_TIMESTAMP(), @uid);
-        ", new { sid = savingsId, ta = targetAmount, td = targetDate, @as = amountSaved, uid = userId });
+            (UUID_TO_BIN(UUID()), @sid, 'TestGoal', @ta, @td, @as, @mc, UTC_TIMESTAMP(), @uid);
+        ", new
+            {
+                sid = savingsId,
+                ta = targetAmount,
+                td = targetDate,
+                @as = amountSaved,
+                mc = monthlyContribution,
+                uid = userId
+            });
         }
 
-        var handler = BuildHandler(_db.ConnectionString, new DebtPaymentCalculator(), now);
+        var clock = new FakeTimeProvider(now);
 
-        var result = await handler.Handle(new GetBudgetDashboardMonthQuery(persoid, "2026-01"), CancellationToken.None);
+        await using var sp = BuildServiceProvider(_db.ConnectionString, clock, new DebtPaymentCalculator());
+        await using var scope = sp.CreateAsyncScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+        var result = await mediator.Send(
+            new GetBudgetDashboardMonthQuery(persoid, "2026-01"),
+            CancellationToken.None);
         result.IsFailure.Should().BeFalse();
 
         var live = result.Value!.LiveDashboard!;
         live.Savings.Should().NotBeNull();
 
         var goal = live.Savings!.Goals.Single(g => g.Name == "TestGoal");
-        goal.MonthlyContribution.Should().BeGreaterThan(0m);
+        goal.MonthlyContribution.Should().Be(monthlyContribution);
 
         var habit = live.Savings.MonthlySavings;
         var goals = live.Savings.Goals.Sum(g => g.MonthlyContribution);
         var totalSavings = habit + goals;
 
-        live.DisposableAfterExpensesAndSavingsWithCarryMonthly
-            .Should().Be(live.Income.TotalIncomeMonthly - live.Expenditure.TotalExpensesMonthly - totalSavings + live.CarryOverAmountMonthly);
+        live.CarryOverAmountMonthly.Should().Be(0m);
 
         live.DisposableAfterExpensesAndSavingsWithCarryMonthly
-            .Should().Be(live.Income.TotalIncomeMonthly - live.Expenditure.TotalExpensesMonthly - totalSavings);
+            .Should().Be(
+                live.Income.TotalIncomeMonthly
+                - live.Expenditure.TotalExpensesMonthly
+                - totalSavings
+                + live.CarryOverAmountMonthly);
 
         totalSavings.Should().Be(MoneyRound.Kr(totalSavings));
     }
-
-
-    // -------------------------
-    // SUT factory
-    // -------------------------
-    private static GetBudgetDashboardMonthQueryHandler BuildHandler(string cs, IDebtPaymentCalculator debtCalc, DateTime clockUtcNow)
+    [Fact]
+    public async Task OpenMonthDashboard_UsesMonthContribution_NotBaselineContribution()
     {
-        var opts = DbOptions(cs);
-        ITimeProvider clock = new FakeTimeProvider(clockUtcNow);
-        var uow = new UnitOfWork(opts, NullLogger<UnitOfWork>.Instance);
-        var monthsRepo = new BudgetMonthRepository(uow, NullLogger<BudgetMonthRepository>.Instance, opts);
-        var dashRepo = new BudgetDashboardRepository(uow, NullLogger<BudgetDashboardRepository>.Instance, opts, clock);
-        var userRepo = new UserRepository(uow, NullLogger<UserRepository>.Instance, opts);
+        await _db.ResetAsync();
 
-        var projector = new BudgetDashboardProjector(debtCalc);
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+        var persoid = seed.Persoid;
+        var userId = seed.UserId;
+        var budgetId = seed.BudgetId;
 
-        return new GetBudgetDashboardMonthQueryHandler(monthsRepo, dashRepo, userRepo, projector, clock);
+        Guid budgetMonthId;
+
+        await using (var conn = new MySqlConnection(_db.ConnectionString))
+        {
+            await conn.OpenAsync();
+
+            var savingsId = Guid.NewGuid();
+            var baselineGoalId = Guid.NewGuid();
+
+            await conn.ExecuteAsync("""
+            INSERT INTO Savings
+            (Id, BudgetId, MonthlySavings, CreatedAt, CreatedByUserId)
+            VALUES
+            (@Id, @BudgetId, 2500, UTC_TIMESTAMP(), @UserId);
+        """, new
+            {
+                Id = savingsId,
+                BudgetId = budgetId,
+                UserId = userId
+            });
+
+            await conn.ExecuteAsync("""
+            INSERT INTO SavingsGoal
+            (Id, SavingsId, Name, TargetAmount, TargetDate, AmountSaved, MonthlyContribution, CreatedAt, CreatedByUserId)
+            VALUES
+            (@Id, @SavingsId, 'Emergency fund', 50000, '2026-12-31', 10000, 500, UTC_TIMESTAMP(), @UserId);
+        """, new
+            {
+                Id = baselineGoalId,
+                SavingsId = savingsId,
+                UserId = userId
+            });
+        }
+
+        var clock = new FakeTimeProvider(new DateTime(2026, 02, 07, 8, 0, 0, DateTimeKind.Utc));
+        await using (var sp = BuildServiceProvider(_db.ConnectionString, clock, new DebtPaymentCalculator()))
+        await using (var scope = sp.CreateAsyncScope())
+        {
+            var lifecycle = scope.ServiceProvider.GetRequiredService<IBudgetMonthLifecycleService>();
+            var uow = (UnitOfWork)scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+            var ensure = await uow.InTx(CancellationToken.None, () =>
+                lifecycle.EnsureAccessibleMonthAsync(persoid, persoid, "2026-02", CancellationToken.None));
+
+            ensure.IsSuccess.Should().BeTrue();
+            budgetMonthId = ensure.Value!.BudgetMonthId;
+        }
+
+        await using (var conn = new MySqlConnection(_db.ConnectionString))
+        {
+            await conn.OpenAsync();
+
+            await conn.ExecuteAsync(@"
+            UPDATE BudgetMonthSavingsGoal g
+            INNER JOIN BudgetMonthSavings s ON s.Id = g.BudgetMonthSavingsId
+            SET g.MonthlyContribution = 900
+            WHERE s.BudgetMonthId = @BudgetMonthId
+              AND g.Name = 'Emergency fund';
+        ", new { BudgetMonthId = budgetMonthId });
+        }
+
+        await using var sp2 = BuildServiceProvider(_db.ConnectionString, clock, new DebtPaymentCalculator());
+        await using var scope2 = sp2.CreateAsyncScope();
+        var mediator = scope2.ServiceProvider.GetRequiredService<IMediator>();
+
+        var result = await mediator.Send(
+            new GetBudgetDashboardMonthQuery(persoid, "2026-02"),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        var live = result.Value!.LiveDashboard!;
+        var goal = live.Savings!.Goals.Single(g => g.Name == "Emergency fund");
+
+        goal.MonthlyContribution.Should().Be(900m);
+        goal.MonthlyContribution.Should().NotBe(500m);
+
+        var totalSavings = live.Savings.MonthlySavings + live.Savings.Goals.Sum(g => g.MonthlyContribution);
+        totalSavings.Should().Be(3400m); // 2500 + 900
     }
-
     // ---- helpers ----
 
     private static async Task InsertClosedMonthWithSnapshotAsync(
@@ -365,5 +488,66 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
             SeenTypes = SeenTypes.Concat(new[] { input.Type }).ToArray();
             return _constant;
         }
+    }
+    private static ServiceProvider BuildServiceProvider(
+        string cs,
+        ITimeProvider clock,
+        IDebtPaymentCalculator debtCalc)
+    {
+        var services = new ServiceCollection();
+        var opts = DbOptions(cs);
+
+        services.AddLogging();
+
+        services.AddSingleton<IOptions<DatabaseSettings>>(opts);
+
+        services.AddScoped<IUnitOfWork>(_ =>
+            new UnitOfWork(opts, NullLogger<UnitOfWork>.Instance));
+
+        services.AddScoped<IBudgetMonthRepository>(sp =>
+            new BudgetMonthRepository(
+                (UnitOfWork)sp.GetRequiredService<IUnitOfWork>(),
+                NullLogger<BudgetMonthRepository>.Instance,
+                opts));
+
+        services.AddScoped<IBudgetMonthDashboardRepository>(sp =>
+            new BudgetMonthDashboardRepository(
+                (UnitOfWork)sp.GetRequiredService<IUnitOfWork>(),
+                NullLogger<BudgetMonthDashboardRepository>.Instance,
+                opts,
+                clock));
+
+        services.AddScoped<IUserRepository>(sp =>
+            new UserRepository(
+                (UnitOfWork)sp.GetRequiredService<IUnitOfWork>(),
+                NullLogger<UserRepository>.Instance,
+                opts));
+
+        services.AddScoped<IBudgetMonthSeedSourceRepository>(sp =>
+            new BudgetMonthSeedSourceRepository(
+                (UnitOfWork)sp.GetRequiredService<IUnitOfWork>(),
+                NullLogger<BudgetMonthSeedSourceRepository>.Instance,
+                opts));
+
+        services.AddScoped<IBudgetMonthMaterializationRepository>(sp =>
+            new BudgetMonthMaterializationRepository(
+                (UnitOfWork)sp.GetRequiredService<IUnitOfWork>(),
+                NullLogger<BudgetMonthMaterializationRepository>.Instance,
+                opts));
+
+        services.AddSingleton<ITimeProvider>(clock);
+        services.AddSingleton<IDebtPaymentCalculator>(debtCalc);
+
+        services.AddScoped<IBudgetMonthMaterializer, BudgetMonthMaterializer>();
+        services.AddScoped<IBudgetMonthLifecycleService, BudgetMonthLifecycleService>();
+        services.AddScoped<IBudgetDashboardProjector>(_ => new BudgetDashboardProjector(debtCalc));
+
+        services.AddMediatR(cfg =>
+        {
+            cfg.RegisterServicesFromAssembly(typeof(GetBudgetDashboardMonthQueryHandler).Assembly);
+            cfg.AddOpenBehavior(typeof(UnitOfWorkPipelineBehavior<,>));
+        });
+
+        return services.BuildServiceProvider();
     }
 }

@@ -1,8 +1,9 @@
+import EditPeriodDrawer from "@/components/organisms/dashboard/editPeriod/EditPeriodDrawer";
 import ReturningDashboardSection from "@/components/organisms/dashboard/returning/ReturningDashboardSection";
 import { useDashboardSummary } from "@/hooks/dashboard/useDashboardSummary";
 import DashboardHomeSkeleton from "@components/organisms/dashboard/DashboardHomeSkeleton";
 import FirstTimeDashboardSection from "@components/organisms/dashboard/FirstTimeDashboardSection";
-import React from "react";
+import React, { useState } from "react";
 import DashboardErrorState from "../dashboard/DashboardErrorState";
 
 export interface DashboardContentProps {
@@ -19,26 +20,24 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
   isWizardOpen,
   setIsWizardOpen,
 }) => {
+  const [isPeriodEditorOpen, setIsPeriodEditorOpen] = useState(false);
+
   const shouldFetchDashboard = !isFirstTimeLogin && !isWizardOpen;
-  console.log("isFirstTimeLogin", isFirstTimeLogin);
+
   const { data, isPending, isError, error, refetch } = useDashboardSummary({
     enabled: shouldFetchDashboard,
   });
 
-  // First login: intro page (wizard does NOT auto open)
   if (isFirstTimeLogin) {
     return (
       <FirstTimeDashboardSection onStartWizard={() => setIsWizardOpen(true)} />
     );
   }
 
-  // While wizard is open, do not render dashboard content at all
-  // (your wizard overlay should be rendered by parent based on isWizardOpen)
   if (isWizardOpen) return null;
 
   if (isPending) return <DashboardHomeSkeleton />;
 
-  // No budget yet => same intro
   if (isError && isNotFound(error)) {
     return (
       <FirstTimeDashboardSection onStartWizard={() => setIsWizardOpen(true)} />
@@ -67,10 +66,26 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
   }
 
   return (
-    <ReturningDashboardSection
-      summary={data.summary}
-      onOpenWizard={() => setIsWizardOpen(true)}
-    />
+    <>
+      <ReturningDashboardSection
+        summary={data.summary}
+        onOpenPeriodEditor={() => setIsPeriodEditorOpen(true)}
+      />
+
+      <EditPeriodDrawer
+        open={isPeriodEditorOpen}
+        periodLabel={data.summary.header.periodLabel}
+        periodDateRangeLabel={data.summary.header.periodDateRangeLabel}
+        onClose={() => {
+          console.log("onClose called");
+          setIsPeriodEditorOpen(false);
+        }}
+        onSave={async () => {
+          setIsPeriodEditorOpen(false);
+          await refetch();
+        }}
+      />
+    </>
   );
 };
 

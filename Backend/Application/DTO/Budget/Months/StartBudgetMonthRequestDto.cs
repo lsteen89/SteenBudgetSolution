@@ -4,6 +4,6 @@ public sealed record StartBudgetMonthRequestDto(
     string TargetYearMonth,
     bool ClosePreviousOpenMonth,
     string CarryOverMode,     // none|full|custom
-    decimal CarryOverAmount,
+    decimal? CarryOverAmount,
     bool CreateSkippedMonths
 );

@@ -101,4 +101,12 @@ public sealed partial class BudgetMonthRepository : SqlBase, IBudgetMonthReposit
     {
         return await ExecuteScalarAsync<bool>(ExistsAnyMonths, new { BudgetId = budgetId }, ct);
     }
+    public Task<BudgetMonthLookupRm?> GetByBudgetIdAndYearMonthAsync(
+    Guid budgetId,
+    string yearMonth,
+    CancellationToken ct)
+    => QuerySingleOrDefaultAsync<BudgetMonthLookupRm>(
+        GetBudgetMonthLookupByBudgetIdAndYearMonth,
+        new { BudgetId = budgetId, YearMonth = yearMonth },
+        ct);
 }

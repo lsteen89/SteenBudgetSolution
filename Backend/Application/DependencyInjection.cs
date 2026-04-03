@@ -25,6 +25,8 @@ using Backend.Application.Services.Budget.Compute;
 using Backend.Application.Services.Budget.Projections;
 using Backend.Application.Services.Debts;
 using Backend.Application.Services.Security;
+using Backend.Application.BudgetMonths.Services;
+using Backend.Application.Services.Budget.Materializer;
 
 // Features
 using Backend.Application.Features.Wizard.Finalization.Orchestration;
@@ -110,12 +112,15 @@ public static class DependencyInjection
         services.AddScoped<IWizardPreviewReadModelBuilder, WizardPreviewReadModelBuilder>();
 
         #endregion
+        #region budget
         // Budget Services;
         services.AddScoped<IBudgetMonthCloseSnapshotService, BudgetMonthCloseSnapshotService>();
         services.AddScoped<IBudgetMonthlyTotalsService, BudgetMonthlyTotalsService>();
         services.AddScoped<IBudgetMonthBootstrapper, BudgetMonthBootstrapper>();
         services.AddScoped<IBudgetDashboardProjector, BudgetDashboardProjector>();
-
+        services.AddScoped<IBudgetMonthLifecycleService, BudgetMonthLifecycleService>();
+        services.AddScoped<IBudgetMonthMaterializer, BudgetMonthMaterializer>();
+        #endregion
         // Security
         services.AddSingleton<ISeedingGate, EnvSeedingGate>();
         services.AddScoped<IHumanChallengePolicy, HumanChallengePolicy>();

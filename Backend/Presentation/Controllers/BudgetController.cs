@@ -11,7 +11,6 @@ using MediatR;
 using Backend.Application.Features.Budgets.Dashboard;
 using Backend.Application.Features.Budgets.Months.GetBudgetMonthsStatus;
 using Backend.Application.Features.Budgets.Months.StartBudgetMonth;
-using Backend.Application.Features.Budgets.Months.EnsureFirstBudgetMonth;
 
 using Backend.Presentation.Shared; // For ApiResponse
 using Backend.Application.DTO.Budget.Months;
@@ -42,11 +41,6 @@ public sealed class BudgetController : ControllerBase
         CancellationToken ct)
     {
         // Only allowed automation: create current open month if user has zero months.
-        await _mediator.Send(new EnsureFirstBudgetMonthCommand(
-            Persoid: _currentUser.Persoid,
-            ActorPersoid: _currentUser.Persoid
-        ), ct);
-
         var result = await _mediator.Send(
             new GetBudgetDashboardMonthQuery(_currentUser.Persoid, yearMonth),
             ct);

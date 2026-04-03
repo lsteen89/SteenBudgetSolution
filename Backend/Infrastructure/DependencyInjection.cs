@@ -29,6 +29,8 @@ using Backend.Infrastructure.Repositories.Auth;
 using Backend.Infrastructure.Repositories.Auth.RefreshTokens;
 using Backend.Infrastructure.Repositories.Auth.VerificationTokens;
 using Backend.Infrastructure.Repositories.Budget.Core;
+using Backend.Infrastructure.Repositories.Budget.Months.Materializer;
+using Backend.Infrastructure.Repositories.Budget.Months.Seed;
 using Backend.Infrastructure.Repositories.Email;
 using Backend.Infrastructure.Repositories.User;
 using Backend.Infrastructure.Security;
@@ -105,9 +107,10 @@ public static class DependencyInjection
         // Contexts
         services.AddScoped<ICurrentUserContext, HttpCurrentUserContext>();
 
-        // Repositories
+        #region Repos
         // Budget
         services.AddScoped<IBudgetRepository, BudgetRepository>();
+        services.AddScoped<IBudgetMonthDashboardRepository, BudgetMonthDashboardRepository>();
         services.AddScoped<IDebtsRepository, DebtsRepository>();
         services.AddScoped<IExpenditureRepository, ExpenditureRepository>();
         services.AddScoped<IIncomeRepository, IncomeRepository>();
@@ -117,7 +120,9 @@ public static class DependencyInjection
         services.AddScoped<IBudgetDashboardRepository, BudgetDashboardRepository>();
         // Budget Months
         services.AddScoped<IBudgetMonthRepository, BudgetMonthRepository>();
-
+        services.AddScoped<IBudgetMonthRepository, BudgetMonthRepository>();
+        services.AddScoped<IBudgetMonthSeedSourceRepository, BudgetMonthSeedSourceRepository>();
+        services.AddScoped<IBudgetMonthMaterializationRepository, BudgetMonthMaterializationRepository>();
         // Wizard
         services.AddScoped<IWizardRepository, WizardRepository>();
 
@@ -133,8 +138,10 @@ public static class DependencyInjection
         // Blacklist tokens
         services.AddScoped<ITokenBlacklistRepo, TokenBlacklistRepo>();
 
+        #endregion
+
         services.AddHostedService<EmailOutboxSenderHostedService>();
-        // End of repositories
+
 
         // Section for email services
         services.AddScoped<IEmailRateLimitRepository, EmailRateLimitRepository>();
