@@ -56,47 +56,127 @@ var host = Host.CreateDefaultBuilder(args)
             ?? throw new InvalidOperationException("WEBSOCKET_SECRET missing");
     });
 
+        services.AddScoped<BudgetTimelineSeeder>();
+
         // optional: if you still want concrete injection
         services.AddSingleton(sp => sp.GetRequiredService<IOptions<WebSocketSettings>>().Value);
     })
 
     .Build();
 
-var emailOpt = new Option<string>("--email") { IsRequired = true };
-var passOpt = new Option<string>("--password") { IsRequired = true };
-var firstOpt = new Option<string>("--first", () => "Seeded");
-var lastOpt = new Option<string>("--last", () => "User");
-var suppress = new Option<bool>("--suppress-notify", () => true);
+var root = new RootCommand("Admin tools: user seeding");
+root.AddCommand(CreateSeedCommand(
+    name: "seed-user",
+    description: "Seed a user only.",
+    includeBudget: false));
+root.AddCommand(CreateSeedCommand(
+    name: "seed-user-budget",
+    description: "Seed a user together with baseline budget data and a 3-month demo timeline.",
+    includeBudget: true));
 
-var cmd = new RootCommand("Admin tools: user seeding");
-cmd.SetHandler(async (string email, string password, string first, string last, bool sup) =>
+return await root.InvokeAsync(args);
+
+Command CreateSeedCommand(string name, string description, bool includeBudget)
 {
-    await using var scope = host.Services.CreateAsyncScope();
-    var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+    var emailOpt = new Option<string>("--email") { IsRequired = true };
+    var passOpt = new Option<string>("--password") { IsRequired = true };
+    var firstOpt = new Option<string>("--first", () => "Seeded");
+    var lastOpt = new Option<string>("--last", () => "User");
+    var suppress = new Option<bool>("--suppress-notify", () => true);
 
+    var command = new Command(name, description);
+    command.AddOption(emailOpt);
+    command.AddOption(passOpt);
+    command.AddOption(firstOpt);
+    command.AddOption(lastOpt);
+    command.AddOption(suppress);
 
-    var cmd = new RegisterAndIssueSessionCommand(
-        FirstName: first,
-        LastName: last,
-        Email: email,
-        Password: password,
-        HumanToken: "",     // ignored in trusted seed
-        Honeypot: "",       // ignored in trusted seed
-        Locale: "sv-SE",
-        RemoteIp: null,
-        DeviceId: "seed-cli",
-        UserAgent: "backend.tools"
-    )
-    { IsSeedingOperation = true };
+    command.SetHandler(async (string email, string password, string first, string last, bool sup) =>
+    {
+        _ = sup;
 
-    var result = await mediator.Send(cmd);
-    Console.WriteLine(result.IsSuccess ? "OK" : result.Error.ToString());
-}, emailOpt, passOpt, firstOpt, lastOpt, suppress);
+        await using var scope = host.Services.CreateAsyncScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+        var users = scope.ServiceProvider.GetRequiredService<IUserRepository>();
 
-cmd.AddOption(emailOpt);
-cmd.AddOption(passOpt);
-cmd.AddOption(firstOpt);
-cmd.AddOption(lastOpt);
-cmd.AddOption(suppress);
+        var registerCmd = new RegisterAndIssueSessionCommand(
+            FirstName: first,
+            LastName: last,
+            Email: email,
+            Password: password,
+            HumanToken: "",     // ignored in trusted seed
+            Honeypot: "",       // ignored in trusted seed
+            Locale: "sv-SE",
+            RemoteIp: null,
+            DeviceId: "seed-cli",
+            UserAgent: "backend.tools"
+        )
+        { IsSeedingOperation = true };
 
-return await cmd.InvokeAsync(args);
+        var result = await mediator.Send(registerCmd);
+        if (result.IsSuccess)
+        {
+            Console.WriteLine("OK");
+        }
+        else
+        {
+            Console.WriteLine(result.Error.ToString());
+            if (!includeBudget)
+                return;
+        }
+
+        if (!includeBudget)
+            return;
+
+        var user = await users.GetUserModelAsync(email: email, ct: CancellationToken.None);
+        if (user is null)
+            throw new InvalidOperationException($"Could not resolve user by email: {email}");
+
+        if (!result.IsSuccess)
+            Console.WriteLine("Continuing with budget seeding using existing user account...");
+
+        await RunInTransactionAsync(
+            uow,
+            async () =>
+            {
+                if (!await users.SetFirstTimeLoginAsync(user.PersoId, CancellationToken.None))
+                    throw new InvalidOperationException($"Could not set FirstLogin = 0 for user: {email}");
+            },
+            CancellationToken.None);
+
+        var monthSeeder = scope.ServiceProvider.GetRequiredService<BudgetTimelineSeeder>();
+        await monthSeeder.SeedThreeMonthTimelineAsync(user.PersoId, CancellationToken.None);
+
+        Console.WriteLine("Seeded full budget: baseline + timeline (2 closed months + 1 open month).");
+        Console.WriteLine("Set Users.FirstLogin = 0 so the dashboard skips the setup wizard.");
+    }, emailOpt, passOpt, firstOpt, lastOpt, suppress);
+
+    return command;
+}
+
+static async Task RunInTransactionAsync(IUnitOfWork uow, Func<Task> action, CancellationToken ct)
+{
+    var startedTransaction = false;
+
+    try
+    {
+        if (!uow.IsInTransaction)
+        {
+            await uow.BeginTransactionAsync(ct);
+            startedTransaction = true;
+        }
+
+        await action();
+
+        if (startedTransaction)
+            await uow.CommitAsync(ct);
+    }
+    catch
+    {
+        if (startedTransaction && uow.IsInTransaction)
+            await uow.RollbackAsync(ct);
+
+        throw;
+    }
+}
