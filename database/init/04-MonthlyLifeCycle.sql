@@ -285,25 +285,25 @@ CREATE TABLE BudgetMonthDebt (
 ) ENGINE=InnoDB;
 
 CREATE TABLE BudgetMonthChangeEvent (
-    Id                      BINARY(16)    NOT NULL PRIMARY KEY,
-    BudgetMonthId           BINARY(16)    NOT NULL,
+    Id                  BINARY(16)    NOT NULL PRIMARY KEY,
+    BudgetMonthId       BINARY(16)    NOT NULL,
 
-    EntityType              VARCHAR(50)   NOT NULL, -- ExpenseItem|SavingsGoal|Debt|...
-    EntityId                BINARY(16)    NOT NULL,
-    SourceEntityId          BINARY(16)    NULL,
+    EntityType          VARCHAR(50)   NOT NULL,   -- expense-item | debt | savings-goal
+    EntityId            BINARY(16)    NOT NULL,
+    SourceEntityId      BINARY(16)    NULL,
 
-    ChangeType              VARCHAR(20)   NOT NULL, -- created|updated|deleted|restored
-    FieldName               VARCHAR(100)  NULL,
+    ChangeType          VARCHAR(20)   NOT NULL,   -- created | updated | deleted | restored
 
-    OldValueText            TEXT          NULL,
-    NewValueText            TEXT          NULL,
+    ChangeSetJson       JSON          NULL,       
+    MetadataJson        JSON          NULL,       -- optional, can omit for now
 
-    ChangedAt               DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    ChangedByUserId         BINARY(16)    NOT NULL,
+    ChangedAt           DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ChangedByUserId     BINARY(16)    NOT NULL,
 
     CONSTRAINT FK_BudgetMonthChangeEvent_BudgetMonth
         FOREIGN KEY (BudgetMonthId) REFERENCES BudgetMonth(Id) ON DELETE CASCADE,
 
     INDEX IX_BudgetMonthChangeEvent_BudgetMonthId (BudgetMonthId),
-    INDEX IX_BudgetMonthChangeEvent_EntityType_EntityId (EntityType, EntityId)
+    INDEX IX_BudgetMonthChangeEvent_EntityType_EntityId (EntityType, EntityId),
+    INDEX IX_BudgetMonthChangeEvent_ChangedAt (ChangedAt)
 ) ENGINE=InnoDB;

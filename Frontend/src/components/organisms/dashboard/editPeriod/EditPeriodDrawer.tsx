@@ -1,8 +1,15 @@
 import { cn } from "@/lib/utils";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import EditPeriodFooter from "./EditPeriodFooter";
 import EditPeriodHeader from "./EditPeriodHeader";
 import EditPeriodSection from "./EditPeriodSection";
+
+import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
+import { editPeriodDrawerDict } from "@/utils/i18n/pages/private/dashboard/cards/period/editPeriodDrawer.i18n";
+import { tDict } from "@/utils/i18n/translate";
+import type { CurrencyCode } from "@/utils/money/currency";
+import { formatMoneyV2 } from "@/utils/money/moneyV2";
 
 type EditPeriodDrawerProps = {
   open: boolean;
@@ -23,13 +30,18 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
 }) => {
   const rootRef = useRef<HTMLDivElement | null>(null);
 
+  const locale = useAppLocale();
+  const currency = useAppCurrency();
+
+  const t = <K extends keyof typeof editPeriodDrawerDict.sv>(key: K) =>
+    tDict(key, locale, editPeriodDrawerDict);
+
   useEffect(() => {
     if (!open) return;
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
-    // Make sure the drawer overlay actually owns keyboard focus
     requestAnimationFrame(() => {
       rootRef.current?.focus();
     });
@@ -38,6 +50,24 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
       document.body.style.overflow = previousOverflow;
     };
   }, [open]);
+
+  const recurringRows = useMemo(
+    () => [
+      { label: t("rent"), value: 1250 },
+      { label: t("electricity"), value: 95 },
+      { label: t("insurance"), value: 42 },
+    ],
+    [locale],
+  );
+
+  const subscriptionRows = useMemo(
+    () => [
+      { label: t("spotify"), value: 12 },
+      { label: t("netflix"), value: 15 },
+      { label: t("icloud"), value: 3 },
+    ],
+    [locale],
+  );
 
   return (
     <div
@@ -57,7 +87,7 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
     >
       <button
         type="button"
-        aria-label="Close period editor"
+        aria-label={t("closePeriodEditor")}
         onClick={onClose}
         className={cn(
           "absolute inset-0 z-0 bg-[radial-gradient(circle_at_top,rgba(21,39,81,0.18),rgba(21,39,81,0.52))] transition-opacity duration-300",
@@ -69,7 +99,10 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
         <div
           role="dialog"
           aria-modal="true"
-          aria-label={`Edit ${periodLabel}`}
+          aria-label={t("editPeriodAriaLabel").replace(
+            "{periodLabel}",
+            periodLabel,
+          )}
           className={cn(
             "pointer-events-auto flex h-full w-full flex-col bg-eb-surface shadow-[0_16px_60px_rgba(21,39,81,0.16)] transition-transform duration-300",
             "sm:max-w-[560px]",
@@ -86,24 +119,38 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
           <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6">
             <div className="space-y-4 pb-6">
               <EditPeriodSection
-                title="Recurring expenses"
-                description="Update fixed monthly costs for this open period."
+                title={t("recurringExpensesTitle")}
+                description={t("recurringExpensesDescription")}
               >
                 <div className="space-y-3">
-                  <PlaceholderRow label="Rent" value="1 250 €" />
-                  <PlaceholderRow label="Electricity" value="95 €" />
-                  <PlaceholderRow label="Insurance" value="42 €" />
+                  {recurringRows.map((row) => (
+                    <PlaceholderRow
+                      key={row.label}
+                      label={row.label}
+                      value={row.value}
+                      locale={locale}
+                      currency={currency}
+                      metaText={t("placeholderRowMeta")}
+                    />
+                  ))}
                 </div>
               </EditPeriodSection>
 
               <EditPeriodSection
-                title="Subscriptions"
-                description="Adjust active subscriptions for this period."
+                title={t("subscriptionsTitle")}
+                description={t("subscriptionsDescription")}
               >
                 <div className="space-y-3">
-                  <PlaceholderRow label="Spotify" value="12 €" />
-                  <PlaceholderRow label="Netflix" value="15 €" />
-                  <PlaceholderRow label="iCloud" value="3 €" />
+                  {subscriptionRows.map((row) => (
+                    <PlaceholderRow
+                      key={row.label}
+                      label={row.label}
+                      value={row.value}
+                      locale={locale}
+                      currency={currency}
+                      metaText={t("placeholderRowMeta")}
+                    />
+                  ))}
                 </div>
               </EditPeriodSection>
             </div>
@@ -113,7 +160,7 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
             onCancel={onClose}
             onSave={onSave ?? onClose}
             isSaving={isSaving}
-            summaryText="Changes apply to this open period only."
+            summaryText={t("summaryText")}
           />
         </div>
       </div>
@@ -123,18 +170,29 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
 
 type PlaceholderRowProps = {
   label: string;
-  value: string;
+  value: number;
+  locale: string;
+  currency: CurrencyCode;
+  metaText: string;
 };
 
-const PlaceholderRow: React.FC<PlaceholderRowProps> = ({ label, value }) => {
+const PlaceholderRow: React.FC<PlaceholderRowProps> = ({
+  label,
+  value,
+  locale,
+  currency,
+  metaText,
+}) => {
   return (
     <div className="flex items-center justify-between gap-4 rounded-2xl border border-eb-stroke/25 bg-eb-surface px-4 py-3">
       <div className="min-w-0">
         <div className="text-sm font-semibold text-eb-text">{label}</div>
-        <div className="text-xs text-eb-text/50">Placeholder row</div>
+        <div className="text-xs text-eb-text/50">{metaText}</div>
       </div>
 
-      <div className="shrink-0 text-sm font-bold text-eb-text">{value}</div>
+      <div className="shrink-0 text-sm font-bold tabular-nums text-eb-text">
+        {formatMoneyV2(value, currency, locale, { fractionDigits: 2 })}
+      </div>
     </div>
   );
 };

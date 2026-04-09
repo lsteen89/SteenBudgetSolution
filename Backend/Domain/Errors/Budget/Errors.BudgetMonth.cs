@@ -42,6 +42,7 @@ public static partial class BudgetMonth
     public static readonly Error CustomCarryAmountMustBeNonNegative =
         new("BudgetMonth.CustomCarryAmountMustBeNonNegative",
             "Carry over amount must be zero or greater.");
-
+    public static readonly Error NotFound =
+        new("BudgetMonth.NotFound", "The specified budget month was not found.", ErrorType.NotFound);
 }
 

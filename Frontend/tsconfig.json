@@ -1,80 +1,44 @@
 {
   "compilerOptions": {
-    "types": [
-      "vite/client",
-      "node"
-    ],
-    "target": "es6",
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
+    "types": ["vite/client", "node"],
+    "target": "ES2020",
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
     "forceConsistentCasingInFileNames": true,
-    "module": "esnext",
-    "moduleResolution": "node",
+
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
+
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
+
     "outDir": "./dist",
     "rootDir": "./src",
-    "baseUrl": "./src",
+
     "paths": {
-      "@/*": [
-        "*"
-      ],
-      "@utils/*": [
-        "utils/*"
-      ],
-      "@pages/*": [
-        "Pages/*"
-      ],
-      "@components/*": [
-        "components/*"
-      ],
-      "@assets/*": [
-        "assets/*"
-      ],
-      "@hooks/*": [
-        "hooks/*"
-      ],
-      "@api/*": [
-        "api/*"
-      ],
-      "@myTypes/*": [
-        "types/*"
-      ],
-      "@mocks/*": [
-        "__mocks__/*"
-      ],
-      "@context/*": [
-        "context/*"
-      ],
-      "@routes/*": [
-        "routes/*"
-      ],
-      "@styles/*": [
-        "styles/*"
-      ],
-      "@schemas/*": [
-        "schemas/*"
-      ],
-      "@stores/*": [
-        "stores/*"
-      ],
-      "@translations/*": [
-        "translations/*"
-      ],
+      "@/*": ["./src/*"],
+      "@utils/*": ["./src/utils/*"],
+      "@pages/*": ["./src/Pages/*"],
+      "@components/*": ["./src/components/*"],
+      "@assets/*": ["./src/assets/*"],
+      "@hooks/*": ["./src/hooks/*"],
+      "@api/*": ["./src/api/*"],
+      "@myTypes/*": ["./src/types/*"],
+      "@mocks/*": ["./src/__mocks__/*"],
+      "@context/*": ["./src/context/*"],
+      "@routes/*": ["./src/routes/*"],
+      "@styles/*": ["./src/styles/*"],
+      "@schemas/*": ["./src/schemas/*"],
+      "@stores/*": ["./src/stores/*"],
+      "@translations/*": ["./src/translations/*"]
     }
   },
-  "include": [
-    "src/**/*",
-    "vite.config.ts"
-  ]
+  "include": ["src/**/*", "vite.config.ts"]
 }

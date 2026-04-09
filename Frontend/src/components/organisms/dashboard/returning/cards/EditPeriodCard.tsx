@@ -9,10 +9,10 @@ import WrenchBird from "@/assets/Images/WrenchBird.png";
 import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/lib/utils";
+import { editPeriodCardDict } from "@/utils/i18n/pages/private/dashboard/cards/period/EditPeriodCard.i18n";
 import { tDict } from "@/utils/i18n/translate";
 import type { CurrencyCode } from "@/utils/money/currency";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
-import { editPeriodCardDict } from "@utils/i18n/pages/private/dashboard/cards/EditPeriodCard.i18n";
 
 type EditPeriodCardProps = {
   periodLabel: string;
