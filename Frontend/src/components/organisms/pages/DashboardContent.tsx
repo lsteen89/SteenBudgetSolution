@@ -24,7 +24,16 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
 
   const shouldFetchDashboard = !isFirstTimeLogin && !isWizardOpen;
 
-  const { data, isPending, isError, error, refetch } = useDashboardSummary({
+  const {
+    data,
+    isPending,
+    isFetching,
+    isError,
+    error,
+    refetch,
+    goToPreviousMonth,
+    goToNextMonth,
+  } = useDashboardSummary({
     enabled: shouldFetchDashboard,
   });
 
@@ -70,6 +79,9 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
       <ReturningDashboardSection
         summary={data.summary}
         onOpenPeriodEditor={() => setIsPeriodEditorOpen(true)}
+        onGoPreviousPeriod={goToPreviousMonth}
+        onGoNextPeriod={goToNextMonth}
+        isSwitchingMonth={isFetching && !isPending}
       />
 
       <EditPeriodDrawer
@@ -77,7 +89,6 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
         periodLabel={data.summary.header.periodLabel}
         periodDateRangeLabel={data.summary.header.periodDateRangeLabel}
         onClose={() => {
-          console.log("onClose called");
           setIsPeriodEditorOpen(false);
         }}
         onSave={async () => {

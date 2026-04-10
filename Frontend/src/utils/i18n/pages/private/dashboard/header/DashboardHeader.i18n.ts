@@ -16,6 +16,9 @@ export const dashboardHeaderDict = {
     next: "Nästa",
     nextLockedHint: "Den här perioden är inte tillgänglig än",
     editThisPeriod: "Redigera perioden",
+    closedReadOnly:
+      "Den här perioden är stängd och visas som en låst ögonblicksbild.",
+    loadingPeriod: "Laddar period...",
   },
   en: {
     topHint: "This period at a glance",
@@ -34,6 +37,8 @@ export const dashboardHeaderDict = {
     next: "Next",
     nextLockedHint: "This period is not available yet",
     editThisPeriod: "Edit this period",
+    closedReadOnly: "This period is closed and shown as a locked snapshot.",
+    loadingPeriod: "Loading period...",
   },
   et: {
     topHint: "Selle perioodi ülevaade",
@@ -52,5 +57,8 @@ export const dashboardHeaderDict = {
     next: "Järgmine",
     nextLockedHint: "See periood ei ole veel saadaval",
     editThisPeriod: "Muuda perioodi",
+    closedReadOnly:
+      "See periood on suletud ja kuvatakse lukustatud hetktõmmisena.",
+    loadingPeriod: "Laadib perioodi...",
   },
 } as const;

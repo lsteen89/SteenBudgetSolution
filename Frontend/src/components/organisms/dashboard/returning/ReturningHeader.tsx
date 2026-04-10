@@ -6,10 +6,12 @@ import {
 import {
   ChevronLeft,
   ChevronRight,
+  LoaderCircle,
   Lock,
   SkipForward,
   Sparkles,
 } from "lucide-react";
+
 import React from "react";
 
 import { SecondaryButton } from "@/components/atoms/buttons/SecondaryButton";
@@ -37,6 +39,7 @@ export type ReturningHeaderProps = {
   canGoNext?: boolean;
   onGoPrevious?: () => void;
   onGoNext?: () => void;
+  isSwitchingMonth?: boolean;
 
   remainingToSpend: number;
   currency?: CurrencyCode;
@@ -115,7 +118,7 @@ function LifecycleNotice({
 }
 
 const navButtonClass =
-  "inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-eb-stroke/25 bg-eb-surface/80 px-3 text-sm font-medium text-eb-text/75 transition hover:bg-eb-surface focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-eb-accent/25 disabled:pointer-events-none disabled:opacity-40";
+  "inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-eb-stroke/25 bg-eb-surface/80 px-3 text-sm font-medium text-eb-text/75 transition-[transform,background-color,opacity,box-shadow] duration-150 hover:bg-eb-surface active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-eb-accent/25 disabled:pointer-events-none disabled:opacity-40";
 
 function getHeaderTitle(
   periodLabel: string,
@@ -141,6 +144,7 @@ const ReturningHeader: React.FC<ReturningHeaderProps> = ({
   canGoNext = false,
   onGoPrevious,
   onGoNext,
+  isSwitchingMonth = false,
   remainingToSpend,
   currency,
   lifecycleState,
@@ -245,13 +249,18 @@ const ReturningHeader: React.FC<ReturningHeaderProps> = ({
             </button>
           )}
 
-          {periodStatus === "open" && (
+          {periodStatus === "open" ? (
             <SecondaryButton
               onClick={onOpenPeriodEditor}
               className="h-11 rounded-2xl px-5"
             >
               {t("editThisPeriod")}
             </SecondaryButton>
+          ) : (
+            <div className="inline-flex h-11 items-center justify-center rounded-2xl border border-eb-stroke/25 bg-eb-surface/70 px-5 text-sm font-medium text-eb-text/60">
+              <Lock className="mr-2 h-4 w-4" />
+              {t("closedReadOnly")}
+            </div>
           )}
         </div>
       </div>
@@ -262,7 +271,7 @@ const ReturningHeader: React.FC<ReturningHeaderProps> = ({
             <button
               type="button"
               onClick={onGoPrevious}
-              disabled={!canGoPrevious}
+              disabled={!canGoPrevious || isSwitchingMonth}
               className={navButtonClass}
             >
               <ChevronLeft className="h-4 w-4" />
@@ -271,10 +280,21 @@ const ReturningHeader: React.FC<ReturningHeaderProps> = ({
               </span>
             </button>
 
-            <div className="flex min-w-0 flex-wrap items-center gap-2 rounded-2xl border border-eb-stroke/25 bg-eb-surface/90 px-3 py-2">
+            <div
+              className={cn(
+                "flex min-w-0 flex-wrap items-center gap-2 rounded-2xl border border-eb-stroke/25 bg-eb-surface/90 px-3 py-2",
+                isSwitchingMonth && "opacity-70",
+              )}
+            >
               <span className="text-sm font-bold text-eb-text">
                 {periodLabel}
               </span>
+              {isSwitchingMonth && (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-eb-stroke/20 bg-[rgb(var(--eb-shell)/0.42)] px-2 py-1 text-xs font-medium text-eb-text/55">
+                  <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                  {t("loadingPeriod")}
+                </span>
+              )}
               <StatusBadge
                 status={periodStatus}
                 openLabel={t("open")}
@@ -287,8 +307,24 @@ const ReturningHeader: React.FC<ReturningHeaderProps> = ({
               <button
                 type="button"
                 onClick={onGoNext}
+                disabled={isSwitchingMonth}
                 className={navButtonClass}
                 aria-label={nextPeriodLabel ?? t("next")}
+              >
+                <span className="hidden sm:inline">
+                  {nextPeriodLabel ?? t("next")}
+                </span>
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            ) : isSwitchingMonth ? (
+              <button
+                type="button"
+                disabled
+                className={cn(
+                  navButtonClass,
+                  "border-eb-stroke/30 bg-eb-surface/75 text-eb-text/45 cursor-wait opacity-100",
+                )}
+                aria-label={t("next")}
               >
                 <span className="hidden sm:inline">
                   {nextPeriodLabel ?? t("next")}

@@ -3,8 +3,11 @@ import { calculateMonthlyContribution } from "@/utils/budget/financialCalculatio
 import { parseIsoDateLocal } from "@/utils/dates/parseIsoDateLocal";
 import { asCategoryKey, labelCategory } from "@/utils/i18n/budget/categories";
 import { labelLedgerItem } from "@/utils/i18n/budget/ledgerItems";
+import { tDict } from "@/utils/i18n/translate";
 import type { CurrencyCode } from "@/utils/money/currency";
 import type { BudgetDashboardMonthDto } from "@myTypes//budget/BudgetDashboardMonthDto";
+
+import { dashboardSummaryDict } from "@/utils/i18n/pages/private/dashboard/pages/dashboardSummaryDict.i18n";
 
 import { incomeToBreakdownItems } from "./dashboardBreakdown.mapper";
 import { getHeaderLifecycleState } from "./dashboardHeaderState";
@@ -25,197 +28,282 @@ function ymLabel(ym: string, locale: AppLocale) {
   return d.toLocaleDateString(locale, { year: "numeric", month: "long" });
 }
 
-function shiftYearMonth(ym: string, delta: number): string {
-  const [year, month] = ym.split("-").map(Number);
-  const date = new Date(year, (month ?? 1) - 1 + delta, 1);
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  return `${y}-${m}`;
+function getSummaryT(locale: AppLocale) {
+  return <K extends keyof typeof dashboardSummaryDict.sv>(key: K) =>
+    tDict(key, locale, dashboardSummaryDict);
 }
 
-// Temporary FE-only helper until BE sends real period range / status metadata.
-// TODO: Replace with real period lifecycle data from months/status endpoint.
 function buildHeaderSummary(
   yearMonth: string,
   status: BudgetPeriodStatus,
   locale: AppLocale,
 ): DashboardPeriodHeaderSummary {
-  const previousYm = shiftYearMonth(yearMonth, -1);
-  const nextYm = shiftYearMonth(yearMonth, 1);
-
-  const canAdvancePeriod = false;
+  const t = getSummaryT(locale);
 
   return {
     periodKey: yearMonth,
     periodLabel: ymLabel(yearMonth, locale),
-    periodDateRangeLabel: "25 Feb – 24 Mar", // temporary until BE provides real date range
+    periodDateRangeLabel: "", // TODO: backend period range metadata
     periodStatus: status,
 
-    previousPeriodLabel: ymLabel(previousYm, locale),
-    nextPeriodLabel: ymLabel(nextYm, locale),
+    previousPeriodLabel: null,
+    nextPeriodLabel: null,
 
-    canGoPrevious: true,
+    canGoPrevious: false,
     canGoNext: false,
 
-    canAdvancePeriod,
-    advanceButtonLabel: canAdvancePeriod
-      ? `Close ${ymLabel(yearMonth, locale)} and start ${ymLabel(nextYm, locale)}`
-      : null,
+    canAdvancePeriod: false, // TODO: backend lifecycle metadata
+    advanceButtonLabel: null,
 
     lifecycleState: getHeaderLifecycleState({
       periodStatus: status,
-      canAdvancePeriod,
-      daysUntilEligible: status === "open" ? 10 : null,
+      canAdvancePeriod: false,
+      daysUntilEligible: null,
       daysSinceEligible: null,
     }),
 
-    noticeText:
+    noticeText: null /*
       status === "closed"
-        ? "This period is closed and shown as a locked snapshot."
-        : null,
+        ? t("closedNotice")
+        : status === "skipped"
+          ? t("skippedNotice")
+          : null,*/,
 
     closeEligibleAt: null,
   };
 }
 
-export function buildDashboardSummaryAggregate(
-  dto: BudgetDashboardMonthDto,
-  currency: CurrencyCode,
-  locale: AppLocale,
-): DashboardSummaryAggregate {
-  const header = buildHeaderSummary(
-    dto.month.yearMonth,
-    dto.month.status as BudgetPeriodStatus,
-    locale,
-  );
-
-  // CLOSED MONTH: no detail objects, only snapshotTotals.
-  if (dto.month.status === "closed" && dto.snapshotTotals) {
-    const finalBalance = dto.snapshotTotals.finalBalanceMonthly;
-
-    return {
-      summary: {
-        header,
-        remainingToSpend: finalBalance,
-        currency,
-
-        emergencyFundAmount: 0,
-        emergencyFundMonths: 0,
-        goalsProgressPercent: 0,
-
-        totalIncome: dto.snapshotTotals.totalIncomeMonthly,
-        totalExpenditure: dto.snapshotTotals.totalExpensesMonthly,
-
-        habitSavings: 0,
-        goalSavings: 0,
-        totalSavings: dto.snapshotTotals.totalSavingsMonthly,
-
-        totalDebtPayments: dto.snapshotTotals.totalDebtPaymentsMonthly,
-        finalBalance,
-
-        subscriptionsTotal: 0,
-        subscriptionsCount: 0,
-        subscriptions: [],
-
-        pillarDescriptions: {
-          income: "Stängd månad (snapshot).",
-          expenditure: "Stängd månad (snapshot).",
-          savings: "Stängd månad (snapshot).",
-          debts: "Stängd månad (snapshot).",
-        },
-
-        recurringExpenses: [],
-      },
-      breakdown: {
-        incomeItems: [],
-        expenseCategoryItems: [],
-        savingsItems: [],
-        debtItems: [],
-      },
-    };
+function requireLiveDashboard(dto: BudgetDashboardMonthDto) {
+  if (!dto.liveDashboard) {
+    throw new Error(
+      `Month ${dto.month.yearMonth} is open but liveDashboard is missing.`,
+    );
   }
 
-  // OPEN MONTH: liveDashboard exists
-  const dashboard = dto.liveDashboard!;
-  const totalIncome = num0(dashboard.income?.totalIncomeMonthly);
-  const totalExpenditure = num0(dashboard.expenditure?.totalExpensesMonthly);
+  return dto.liveDashboard;
+}
 
-  const habitSavings = num0(dashboard.savings?.monthlySavings);
-
-  const goals = dashboard.savings?.goals ?? [];
-  const goalSavings = goals.reduce((acc, g) => {
-    if (g.targetAmount == null || !g.targetDate) return acc;
-    return (
-      acc +
-      calculateMonthlyContribution(
-        g.targetAmount,
-        g.amountSaved ?? 0,
-        parseIsoDateLocal(g.targetDate),
-      )
+function requireSnapshotTotals(dto: BudgetDashboardMonthDto) {
+  if (!dto.snapshotTotals) {
+    throw new Error(
+      `Month ${dto.month.yearMonth} is closed but snapshotTotals is missing.`,
     );
-  }, 0);
+  }
 
-  const totalSavings = habitSavings + goalSavings;
+  return dto.snapshotTotals;
+}
 
-  const debts = dashboard.debt?.debts ?? [];
-  const totalDebtPayments = debts.reduce(
-    (acc, d) => acc + num0(d.monthlyPayment),
-    0,
-  );
+function getGoalsProgressPercent(
+  goals: Array<{ targetAmount?: number | null; amountSaved?: number | null }>,
+) {
+  const totalTarget = goals.reduce((acc, g) => acc + num0(g.targetAmount), 0);
+  const totalSaved = goals.reduce((acc, g) => acc + num0(g.amountSaved), 0);
 
-  const finalBalance = num0(dashboard.finalBalanceWithCarryMonthly);
-  const remainingToSpend = finalBalance;
+  return totalTarget > 0 ? (totalSaved / totalTarget) * 100 : 0;
+}
 
-  const emergencyFundGoal = goals[0];
-  const emergencyFundAmount = emergencyFundGoal?.amountSaved ?? 0;
-  const emergencyFundMonths =
-    totalExpenditure > 0 ? emergencyFundAmount / totalExpenditure : 0;
+function buildPillarDescriptions(
+  dto: BudgetDashboardMonthDto,
+  locale: AppLocale,
+) {
+  const t = <K extends keyof typeof dashboardSummaryDict.sv>(key: K) =>
+    tDict(key, locale, dashboardSummaryDict);
 
-  const totalTarget = goals.reduce((acc, g) => acc + (g.targetAmount ?? 0), 0);
-  const totalSaved = goals.reduce((acc, g) => acc + (g.amountSaved ?? 0), 0);
-  const goalsProgressPercent =
-    totalTarget > 0 ? (totalSaved / totalTarget) * 100 : 0;
-
+  const dashboard = requireLiveDashboard(dto);
   const categories = dashboard.expenditure?.byCategory ?? [];
+  const goals = dashboard.savings?.goals ?? [];
+  const totalDebtBalance = num0(dashboard.debt?.totalDebtBalance);
+
   const top3Names = [...categories]
-    .sort((a, b) => b.totalMonthlyAmount - a.totalMonthlyAmount)
+    .sort((a, b) => num0(b.totalMonthlyAmount) - num0(a.totalMonthlyAmount))
     .slice(0, 3)
     .map((c) =>
       labelCategory(asCategoryKey(c.categoryKey ?? c.categoryName), locale),
     )
     .join(", ");
 
-  const pillarDescriptions = {
-    income: "Från lön, sidoinkomster och andra källor i hushållet.",
+  return {
+    income: t("pillarIncomeDescription"),
     expenditure: top3Names
-      ? `Dina största utgifter är ${top3Names}.`
-      : "Du har inte lagt till några utgiftskategorier ännu.",
+      ? t("pillarExpenditureTop3").replace("{names}", top3Names)
+      : t("pillarExpenditureEmpty"),
     savings: goals.length
-      ? `Du sparar mot ${goals.length} mål.`
-      : "Du har inte lagt upp några sparmål ännu.",
+      ? t("pillarSavingsGoals").replace("{count}", String(goals.length))
+      : t("pillarSavingsEmpty"),
     debts:
-      (dashboard.debt?.totalDebtBalance ?? 0) > 0
-        ? `Totalt skuldsaldo: ${dashboard.debt!.totalDebtBalance.toLocaleString(locale)} kr.`
-        : "Du har inga registrerade skulder just nu.",
+      totalDebtBalance > 0
+        ? t("pillarDebtsTotalBalance").replace(
+            "{amount}",
+            totalDebtBalance.toLocaleString(locale),
+          )
+        : t("pillarDebtsEmpty"),
   };
+}
+
+function buildClosedMonthAggregate(
+  dto: BudgetDashboardMonthDto,
+  locale: AppLocale,
+): DashboardSummaryAggregate {
+  const t = <K extends keyof typeof dashboardSummaryDict.sv>(key: K) =>
+    tDict(key, locale, dashboardSummaryDict);
+
+  const snapshot = requireSnapshotTotals(dto);
+  const currency = dto.currencyCode as CurrencyCode;
+
+  const header = buildHeaderSummary(dto.month.yearMonth, "closed", locale);
+
+  return {
+    summary: {
+      header,
+      remainingToSpend: num0(snapshot.finalBalanceMonthly),
+      currency,
+
+      emergencyFundAmount: 0,
+      emergencyFundMonths: 0,
+      goalsProgressPercent: 0,
+
+      totalIncome: num0(snapshot.totalIncomeMonthly),
+      totalExpenditure: num0(snapshot.totalExpensesMonthly),
+
+      habitSavings: 0,
+      goalSavings: 0,
+      totalSavings: num0(snapshot.totalSavingsMonthly),
+
+      totalDebtPayments: num0(snapshot.totalDebtPaymentsMonthly),
+      finalBalance: num0(snapshot.finalBalanceMonthly),
+
+      subscriptionsTotal: 0,
+      subscriptionsCount: 0,
+      subscriptions: [],
+
+      pillarDescriptions: {
+        income: t("snapshotMonth"),
+        expenditure: t("snapshotMonth"),
+        savings: t("snapshotMonth"),
+        debts: t("snapshotMonth"),
+      },
+
+      recurringExpenses: [],
+    },
+    breakdown: {
+      incomeItems: [],
+      expenseCategoryItems: [],
+      savingsItems: [],
+      debtItems: [],
+    },
+  };
+}
+
+function buildSkippedMonthAggregate(
+  dto: BudgetDashboardMonthDto,
+  locale: AppLocale,
+): DashboardSummaryAggregate {
+  const t = <K extends keyof typeof dashboardSummaryDict.sv>(key: K) =>
+    tDict(key, locale, dashboardSummaryDict);
+
+  const currency = dto.currencyCode as CurrencyCode;
+
+  const header = buildHeaderSummary(dto.month.yearMonth, "skipped", locale);
+
+  return {
+    summary: {
+      header,
+      remainingToSpend: 0,
+      currency,
+
+      emergencyFundAmount: 0,
+      emergencyFundMonths: 0,
+      goalsProgressPercent: 0,
+
+      totalIncome: 0,
+      totalExpenditure: 0,
+
+      habitSavings: 0,
+      goalSavings: 0,
+      totalSavings: 0,
+
+      totalDebtPayments: 0,
+      finalBalance: 0,
+
+      subscriptionsTotal: 0,
+      subscriptionsCount: 0,
+      subscriptions: [],
+
+      pillarDescriptions: {
+        income: t("skippedMonth"),
+        expenditure: t("skippedMonth"),
+        savings: t("skippedMonth"),
+        debts: t("skippedMonth"),
+      },
+
+      recurringExpenses: [],
+    },
+    breakdown: {
+      incomeItems: [],
+      expenseCategoryItems: [],
+      savingsItems: [],
+      debtItems: [],
+    },
+  };
+}
+
+function buildOpenMonthAggregate(
+  dto: BudgetDashboardMonthDto,
+  locale: AppLocale,
+): DashboardSummaryAggregate {
+  const t = <K extends keyof typeof dashboardSummaryDict.sv>(key: K) =>
+    tDict(key, locale, dashboardSummaryDict);
+
+  const dashboard = requireLiveDashboard(dto);
+  const currency = dto.currencyCode as CurrencyCode;
+
+  const header = buildHeaderSummary(dto.month.yearMonth, "open", locale);
+
+  const totalIncome = num0(dashboard.income?.totalIncomeMonthly);
+  const totalExpenditure = num0(dashboard.expenditure?.totalExpensesMonthly);
+  const finalBalance = num0(dashboard.finalBalanceWithCarryMonthly);
+
+  const goals = dashboard.savings?.goals ?? [];
+  const debts = dashboard.debt?.debts ?? [];
+  const categories = dashboard.expenditure?.byCategory ?? [];
+
+  const habitSavings = num0(dashboard.savings?.monthlySavings);
+
+  const goalSavings = round2(
+    goals.reduce((acc, g) => {
+      if (g.targetAmount == null || !g.targetDate) return acc;
+
+      return (
+        acc +
+        calculateMonthlyContribution(
+          g.targetAmount,
+          g.amountSaved ?? 0,
+          parseIsoDateLocal(g.targetDate),
+        )
+      );
+    }, 0),
+  );
+
+  const totalSavings = round2(habitSavings + goalSavings);
+
+  const totalDebtPayments = round2(
+    debts.reduce((acc, d) => acc + num0(d.monthlyPayment), 0),
+  );
 
   const recurringExpenses =
     dashboard.recurringExpenses?.map((r) => {
       const categoryKey = asCategoryKey(r.categoryKey ?? r.categoryName);
+
       return {
         id: r.id,
         nameKey: r.name,
         nameLabel: labelLedgerItem(r.name, locale),
         categoryKey,
         categoryLabel: labelCategory(categoryKey, locale),
-        amountMonthly: r.amountMonthly,
+        amountMonthly: num0(r.amountMonthly),
       };
     }) ?? [];
 
-  const subscriptionsTotal = round2(
-    dashboard.subscriptions?.totalMonthlyAmount ?? 0,
-  );
-  const subscriptionsCount = dashboard.subscriptions?.count ?? 0;
   const subscriptions =
     dashboard.subscriptions?.items?.map((s) => ({
       id: s.id,
@@ -223,7 +311,7 @@ export function buildDashboardSummaryAggregate(
       nameLabel: s.name,
       categoryKey: "subscription" as const,
       categoryLabel: labelCategory("subscription", locale),
-      amountMonthly: s.amountMonthly,
+      amountMonthly: num0(s.amountMonthly),
     })) ?? [];
 
   const incomeItems: BreakdownItem[] = dashboard.income
@@ -232,43 +320,47 @@ export function buildDashboardSummaryAggregate(
 
   const expenseCategoryItems: BreakdownItem[] = categories.map((c) => {
     const key = asCategoryKey(c.categoryKey ?? c.categoryName);
+
     return {
       key: `expense:${key}`,
       label: labelCategory(key, locale),
-      amount: c.totalMonthlyAmount,
+      amount: num0(c.totalMonthlyAmount),
     };
   });
 
   const savingsItems: BreakdownItem[] = [
-    { key: "savings:habit", label: "Månadssparande", amount: habitSavings },
-    {
-      key: "savings:goals",
-      label: "Målsparande per månad",
-      amount: goalSavings,
-    },
+    { key: "savings:habit", label: t("monthlySavings"), amount: habitSavings },
+    { key: "savings:goals", label: t("goalSavings"), amount: goalSavings },
   ].filter((x) => x.amount !== 0);
 
   const debtItems: BreakdownItem[] = debts
     .map((d) => ({
       key: `debt:${d.id}`,
       label: d.name,
-      amount: d.monthlyPayment ?? 0,
+      amount: num0(d.monthlyPayment),
       meta:
         d.balance != null
-          ? `Saldo: ${d.balance.toLocaleString("sv-SE")} kr`
+          ? t("debtBalance").replace(
+              "{amount}",
+              d.balance.toLocaleString(locale),
+            )
           : undefined,
     }))
     .filter((x) => x.amount !== 0);
 
+  const emergencyFundAmount = num0(goals[0]?.amountSaved);
+  const emergencyFundMonths =
+    totalExpenditure > 0 ? emergencyFundAmount / totalExpenditure : 0;
+
   return {
     summary: {
       header,
-      remainingToSpend,
+      remainingToSpend: finalBalance,
       currency,
 
       emergencyFundAmount,
       emergencyFundMonths,
-      goalsProgressPercent,
+      goalsProgressPercent: getGoalsProgressPercent(goals),
 
       totalIncome,
       totalExpenditure,
@@ -280,11 +372,13 @@ export function buildDashboardSummaryAggregate(
       totalDebtPayments,
       finalBalance,
 
-      subscriptionsTotal,
-      subscriptionsCount,
+      subscriptionsTotal: round2(
+        num0(dashboard.subscriptions?.totalMonthlyAmount),
+      ),
+      subscriptionsCount: dashboard.subscriptions?.count ?? 0,
       subscriptions,
 
-      pillarDescriptions,
+      pillarDescriptions: buildPillarDescriptions(dto, locale),
       recurringExpenses,
     },
     breakdown: {
@@ -294,4 +388,22 @@ export function buildDashboardSummaryAggregate(
       debtItems,
     },
   };
+}
+
+export function buildDashboardSummaryAggregate(
+  dto: BudgetDashboardMonthDto,
+  locale: AppLocale,
+): DashboardSummaryAggregate {
+  switch (dto.month.status) {
+    case "open":
+      return buildOpenMonthAggregate(dto, locale);
+    case "closed":
+      return buildClosedMonthAggregate(dto, locale);
+    case "skipped":
+      return buildSkippedMonthAggregate(dto, locale);
+    default:
+      throw new Error(
+        `Unsupported dashboard month status: ${dto.month.status}`,
+      );
+  }
 }
