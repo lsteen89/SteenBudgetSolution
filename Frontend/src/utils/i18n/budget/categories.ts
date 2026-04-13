@@ -60,6 +60,11 @@ const KNOWN: readonly CategoryKey[] = [
 
 export function asCategoryKey(raw: unknown): CategoryKey {
   const s = String(raw ?? "").trim();
+
+  if (s === "fixed_expense") {
+    return "fixed";
+  }
+
   return (KNOWN as readonly string[]).includes(s)
     ? (s as CategoryKey)
     : "other";

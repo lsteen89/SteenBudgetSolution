@@ -73,13 +73,22 @@ public sealed class DeleteBudgetMonthExpenseItemCommandHandler
 
         var changeSetJson = JsonSerializer.Serialize(new
         {
-            before = new
+            deletedEntity = new
             {
-                existing.IsDeleted
+                existing.Id,
+                existing.SourceExpenseItemId,
+                existing.Name,
+                existing.CategoryId,
+                existing.AmountMonthly,
+                existing.IsActive
             },
-            after = new
+            flags = new
             {
-                IsDeleted = true
+                isDeleted = new
+                {
+                    oldValue = false,
+                    newValue = true
+                }
             }
         });
 

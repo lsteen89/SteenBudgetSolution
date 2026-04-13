@@ -5,7 +5,7 @@ import { asCategoryKey, labelCategory } from "@/utils/i18n/budget/categories";
 import { labelLedgerItem } from "@/utils/i18n/budget/ledgerItems";
 import { tDict } from "@/utils/i18n/translate";
 import type { CurrencyCode } from "@/utils/money/currency";
-import type { BudgetDashboardMonthDto } from "@myTypes//budget/BudgetDashboardMonthDto";
+import type { BudgetDashboardMonthDto } from "@myTypes/budget/BudgetDashboardMonthDto";
 
 import { dashboardSummaryDict } from "@/utils/i18n/pages/private/dashboard/pages/dashboardSummaryDict.i18n";
 

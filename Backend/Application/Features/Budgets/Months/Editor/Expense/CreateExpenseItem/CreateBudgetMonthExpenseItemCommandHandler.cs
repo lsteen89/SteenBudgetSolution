@@ -74,8 +74,9 @@ public sealed class CreateBudgetMonthExpenseItemCommandHandler
 
         var changeSetJson = JsonSerializer.Serialize(new
         {
-            created = new
+            createdEntity = new
             {
+                Id = id,
                 CategoryId = cmd.CategoryId,
                 Name = trimmedName,
                 AmountMonthly = cmd.AmountMonthly,

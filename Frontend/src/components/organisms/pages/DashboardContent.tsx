@@ -74,11 +74,16 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
     );
   }
 
+  const yearMonth = data.summary.header.periodKey;
+
   return (
     <>
       <ReturningDashboardSection
         summary={data.summary}
-        onOpenPeriodEditor={() => setIsPeriodEditorOpen(true)}
+        onOpenPeriodEditor={() => {
+          if (!yearMonth) return;
+          setIsPeriodEditorOpen(true);
+        }}
         onGoPreviousPeriod={goToPreviousMonth}
         onGoNextPeriod={goToNextMonth}
         isSwitchingMonth={isFetching && !isPending}
@@ -86,14 +91,11 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
 
       <EditPeriodDrawer
         open={isPeriodEditorOpen}
+        yearMonth={yearMonth}
         periodLabel={data.summary.header.periodLabel}
         periodDateRangeLabel={data.summary.header.periodDateRangeLabel}
         onClose={() => {
           setIsPeriodEditorOpen(false);
-        }}
-        onSave={async () => {
-          setIsPeriodEditorOpen(false);
-          await refetch();
         }}
       />
     </>

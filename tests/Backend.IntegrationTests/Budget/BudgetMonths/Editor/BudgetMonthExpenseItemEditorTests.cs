@@ -542,8 +542,9 @@ public sealed class BudgetMonthExpenseItemEditorTests
 
         rows.Should().Contain(x => x.ChangeType == "updated" && x.ChangeSetJson!.Contains("before"));
         rows.Should().Contain(x => x.ChangeType == "updated" && x.ChangeSetJson!.Contains("after"));
-        rows.Should().Contain(x => x.ChangeType == "created" && x.ChangeSetJson!.Contains("created"));
-        rows.Should().Contain(x => x.ChangeType == "deleted" && x.ChangeSetJson!.Contains("IsDeleted"));
+        rows.Should().Contain(x => x.ChangeType == "created" && x.ChangeSetJson!.Contains("createdEntity"));
+        rows.Should().Contain(x => x.ChangeType == "deleted" && x.ChangeSetJson!.Contains("deletedEntity"));
+        rows.Should().Contain(x => x.ChangeType == "deleted" && x.ChangeSetJson!.Contains("isDeleted"));
     }
     [Fact]
     public async Task PatchExpenseItem_WhenMonthClosed_Fails()

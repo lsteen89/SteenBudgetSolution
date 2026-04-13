@@ -2,6 +2,7 @@ import { CtaButton } from "@/components/atoms/buttons/CtaButton";
 import React from "react";
 
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
+import { cn } from "@/lib/utils";
 import { editPeriodFooterDict } from "@/utils/i18n/pages/private/dashboard/cards/period/editPeriodFooter.i18n";
 import { tDict } from "@/utils/i18n/translate";
 
@@ -9,6 +10,7 @@ type EditPeriodFooterProps = {
   onCancel: () => void;
   onSave: () => void;
   isSaving?: boolean;
+  isDisabled?: boolean;
   summaryText?: string;
 };
 
@@ -16,6 +18,7 @@ const EditPeriodFooter: React.FC<EditPeriodFooterProps> = ({
   onCancel,
   onSave,
   isSaving = false,
+  isDisabled = false,
   summaryText,
 }) => {
   const locale = useAppLocale();
@@ -34,15 +37,19 @@ const EditPeriodFooter: React.FC<EditPeriodFooterProps> = ({
           <button
             type="button"
             onClick={onCancel}
-            className="inline-flex h-11 items-center justify-center rounded-2xl border border-eb-stroke/30 bg-eb-surface px-4 font-semibold text-eb-text/75 transition hover:bg-[rgb(var(--eb-shell)/0.45)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-eb-accent/25"
+            disabled={isSaving}
+            className="inline-flex h-11 items-center justify-center rounded-2xl border border-eb-stroke/30 bg-eb-surface px-4 font-semibold text-eb-text/75 transition hover:bg-[rgb(var(--eb-shell)/0.45)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-eb-accent/25 disabled:opacity-60"
           >
             {t("cancel")}
           </button>
 
           <CtaButton
             onClick={onSave}
-            disabled={isSaving}
-            className="h-11 rounded-2xl px-5"
+            disabled={isSaving || isDisabled}
+            className={cn(
+              "h-11 rounded-2xl px-5",
+              (isSaving || isDisabled) && "cursor-not-allowed opacity-50",
+            )}
           >
             {isSaving ? t("saving") : t("save")}
           </CtaButton>

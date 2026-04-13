@@ -14,7 +14,6 @@ import {
 
 import React from "react";
 
-import { SecondaryButton } from "@/components/atoms/buttons/SecondaryButton";
 import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/lib/utils";
@@ -156,7 +155,7 @@ const ReturningHeader: React.FC<ReturningHeaderProps> = ({
 }) => {
   const locale = useAppLocale();
   const appCurrency = useAppCurrency();
-
+  const displayedPeriodRangeLabel = periodDateRangeLabel || periodLabel;
   const t = <K extends keyof typeof dashboardHeaderDict.sv>(key: K) =>
     tDict(key, locale, dashboardHeaderDict);
 
@@ -200,6 +199,10 @@ const ReturningHeader: React.FC<ReturningHeaderProps> = ({
           <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-eb-text sm:text-3xl">
             {title}
           </h1>
+
+          <div className="mt-2 inline-flex items-center rounded-full border border-eb-stroke/25 bg-[rgb(var(--eb-shell)/0.35)] px-3 py-1 text-xs font-semibold text-eb-text/65 sm:text-sm">
+            {displayedPeriodRangeLabel}
+          </div>
 
           <p className="mt-2 text-sm text-eb-text/65 sm:text-base">
             {remainingToSpend < 0 ? (
@@ -250,12 +253,9 @@ const ReturningHeader: React.FC<ReturningHeaderProps> = ({
           )}
 
           {periodStatus === "open" ? (
-            <SecondaryButton
-              onClick={onOpenPeriodEditor}
-              className="h-11 rounded-2xl px-5"
-            >
-              {t("editThisPeriod")}
-            </SecondaryButton>
+            <div className="inline-flex h-11 items-center justify-center rounded-2xl border border-eb-stroke/25 bg-eb-surface/70 px-5 text-sm font-medium text-eb-text/60">
+              {displayedPeriodRangeLabel}
+            </div>
           ) : (
             <div className="inline-flex h-11 items-center justify-center rounded-2xl border border-eb-stroke/25 bg-eb-surface/70 px-5 text-sm font-medium text-eb-text/60">
               <Lock className="mr-2 h-4 w-4" />
@@ -363,12 +363,6 @@ const ReturningHeader: React.FC<ReturningHeaderProps> = ({
                 </TooltipContent>
               </Tooltip>
             )}
-          </div>
-
-          <div className="xl:pl-5 xl:border-l xl:border-eb-stroke/25 flex items-center">
-            <div className="text-sm font-medium text-eb-text/60">
-              {periodDateRangeLabel}
-            </div>
           </div>
         </div>
 

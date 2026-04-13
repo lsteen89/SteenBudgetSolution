@@ -5,6 +5,7 @@ using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Application.DTO.Budget.Months;
 using Backend.Application.Features.Budgets.Months.StartBudgetMonth;
 using MediatR;
+using System.Text.Json;
 
 public sealed class BudgetTimelineSeeder
 {
@@ -182,7 +183,7 @@ public sealed class BudgetTimelineSeeder
         if (count > 0)
             return;
 
-                var incomeId = Guid.NewGuid();
+        var incomeId = Guid.NewGuid();
 
         await ExecuteAsync(
             @"INSERT INTO Income (Id, BudgetId, NetSalaryMonthly, SalaryFrequency, CreatedByUserId)
@@ -190,10 +191,10 @@ public sealed class BudgetTimelineSeeder
             new Dictionary<string, object?>
             {
                 ["IncomeId"] = incomeId,
-                                ["BudgetId"] = budgetId,
+                ["BudgetId"] = budgetId,
                 ["NetSalaryMonthly"] = 32000m,
                 ["SalaryFrequency"] = 3,
-                                ["Persoid"] = persoid
+                ["Persoid"] = persoid
             },
             ct);
 
@@ -202,12 +203,12 @@ public sealed class BudgetTimelineSeeder
                             VALUES (@Id, @IncomeId, @Name, @IncomeMonthly, @Frequency, @Persoid);",
             new Dictionary<string, object?>
             {
-                                ["Id"] = Guid.NewGuid(),
+                ["Id"] = Guid.NewGuid(),
                 ["IncomeId"] = incomeId,
                 ["Name"] = "Freelance",
                 ["IncomeMonthly"] = 2500m,
                 ["Frequency"] = 3,
-                                ["Persoid"] = persoid
+                ["Persoid"] = persoid
             },
             ct);
 
@@ -216,12 +217,12 @@ public sealed class BudgetTimelineSeeder
                             VALUES (@Id, @IncomeId, @Name, @IncomeMonthly, @Frequency, @Persoid);",
             new Dictionary<string, object?>
             {
-                                ["Id"] = Guid.NewGuid(),
+                ["Id"] = Guid.NewGuid(),
                 ["IncomeId"] = incomeId,
                 ["Name"] = "Partner contribution",
                 ["IncomeMonthly"] = 1800m,
                 ["Frequency"] = 3,
-                                ["Persoid"] = persoid
+                ["Persoid"] = persoid
             },
             ct);
     }
@@ -257,12 +258,12 @@ public sealed class BudgetTimelineSeeder
               );",
             new Dictionary<string, object?>
             {
-                                ["Id"] = Guid.NewGuid(),
-                                ["BudgetId"] = budgetId,
+                ["Id"] = Guid.NewGuid(),
+                ["BudgetId"] = budgetId,
                 ["CategoryId"] = categoryId,
                 ["Name"] = name,
                 ["Amount"] = amount,
-                                ["Persoid"] = persoid
+                ["Persoid"] = persoid
             },
             ct);
     }
@@ -277,7 +278,7 @@ public sealed class BudgetTimelineSeeder
         if (count > 0)
             return;
 
-                var savingsId = Guid.NewGuid();
+        var savingsId = Guid.NewGuid();
 
         await ExecuteAsync(
             @"INSERT INTO Savings (Id, BudgetId, MonthlySavings, CreatedByUserId)
@@ -285,9 +286,9 @@ public sealed class BudgetTimelineSeeder
             new Dictionary<string, object?>
             {
                 ["SavingsId"] = savingsId,
-                                ["BudgetId"] = budgetId,
+                ["BudgetId"] = budgetId,
                 ["MonthlySavings"] = 3000m,
-                                ["Persoid"] = persoid
+                ["Persoid"] = persoid
             },
             ct);
 
@@ -298,14 +299,14 @@ public sealed class BudgetTimelineSeeder
                             (@GoalId, @SavingsId, @Name, @TargetAmount, @TargetDate, @AmountSaved, @MonthlyContribution, @Persoid);",
             new Dictionary<string, object?>
             {
-                                ["GoalId"] = Guid.NewGuid(),
+                ["GoalId"] = Guid.NewGuid(),
                 ["SavingsId"] = savingsId,
                 ["Name"] = "Emergency Fund",
                 ["TargetAmount"] = 100000m,
                 ["TargetDate"] = DateTime.UtcNow.AddYears(2).Date,
                 ["AmountSaved"] = 40000m,
                 ["MonthlyContribution"] = 1500m,
-                                ["Persoid"] = persoid
+                ["Persoid"] = persoid
             },
             ct);
     }
@@ -328,9 +329,9 @@ public sealed class BudgetTimelineSeeder
                             (@LoanId, @BudgetId, 'Student Loan', 'installment', @LoanBalance, @LoanApr, @LoanFee, @LoanMinPayment, @LoanTermMonths, @Persoid);",
             new Dictionary<string, object?>
             {
-                                ["CardId"] = Guid.NewGuid(),
-                                ["LoanId"] = Guid.NewGuid(),
-                                ["BudgetId"] = budgetId,
+                ["CardId"] = Guid.NewGuid(),
+                ["LoanId"] = Guid.NewGuid(),
+                ["BudgetId"] = budgetId,
                 ["CardBalance"] = 18500m,
                 ["CardApr"] = 19.9m,
                 ["CardFee"] = 25m,
@@ -468,23 +469,25 @@ public sealed class BudgetTimelineSeeder
             },
             ct);
 
-        await ExecuteAsync(
-            @"INSERT INTO BudgetMonthChangeEvent
-                (Id, BudgetMonthId, EntityType, EntityId, SourceEntityId, ChangeType, FieldName, OldValueText, NewValueText, ChangedByUserId)
-              VALUES
-                                (@Id, @BudgetMonthId, 'ExpenseItem', @EntityId, @SourceEntityId,
-                                 'updated', 'AmountMonthly', @OldValueText, @NewValueText, @ChangedByUserId);",
-            new Dictionary<string, object?>
+        await InsertBudgetMonthChangeEventAsync(
+            budgetMonthId: budgetMonthId,
+            entityType: "ExpenseItem",
+            entityId: entityId,
+            sourceEntityId: sourceEntityId,
+            changeType: "updated",
+            changeSet: new
             {
-                                ["Id"] = Guid.NewGuid(),
-                                ["BudgetMonthId"] = budgetMonthId,
-                ["EntityId"] = entityId,
-                ["SourceEntityId"] = sourceEntityId,
-                ["OldValueText"] = oldAmount.ToString("0.00", CultureInfo.InvariantCulture),
-                ["NewValueText"] = newAmount.ToString("0.00", CultureInfo.InvariantCulture),
-                                ["ChangedByUserId"] = actorPersoid
+                fields = new
+                {
+                    amountMonthly = new
+                    {
+                        oldValue = oldAmount,
+                        newValue = newAmount
+                    }
+                }
             },
-            ct);
+            changedByUserId: actorPersoid,
+            ct: ct);
     }
 
     private async Task<int> QueryIntAsync(string sql, IReadOnlyDictionary<string, object?> parameters, CancellationToken ct)
@@ -545,5 +548,64 @@ public sealed class BudgetTimelineSeeder
         p.ParameterName = "@" + name;
         p.Value = value ?? DBNull.Value;
         cmd.Parameters.Add(p);
+    }
+
+
+    private Task InsertBudgetMonthChangeEventAsync(
+        Guid budgetMonthId,
+        string entityType,
+        Guid entityId,
+        Guid? sourceEntityId,
+        string changeType,
+        object? changeSet,
+        Guid changedByUserId,
+        CancellationToken ct,
+        object? metadata = null,
+        DateTime? changedAtUtc = null)
+    {
+        const string sql = @"
+    INSERT INTO BudgetMonthChangeEvent
+    (
+        Id,
+        BudgetMonthId,
+        EntityType,
+        EntityId,
+        SourceEntityId,
+        ChangeType,
+        ChangeSetJson,
+        MetadataJson,
+        ChangedAt,
+        ChangedByUserId
+    )
+    VALUES
+    (
+        @Id,
+        @BudgetMonthId,
+        @EntityType,
+        @EntityId,
+        @SourceEntityId,
+        @ChangeType,
+        @ChangeSetJson,
+        @MetadataJson,
+        @ChangedAt,
+        @ChangedByUserId
+    );";
+
+        return ExecuteAsync(
+            sql,
+            new Dictionary<string, object?>
+            {
+                ["Id"] = Guid.NewGuid(),
+                ["BudgetMonthId"] = budgetMonthId,
+                ["EntityType"] = entityType,
+                ["EntityId"] = entityId,
+                ["SourceEntityId"] = sourceEntityId,
+                ["ChangeType"] = changeType,
+                ["ChangeSetJson"] = changeSet is null ? null : JsonSerializer.Serialize(changeSet),
+                ["MetadataJson"] = metadata is null ? null : JsonSerializer.Serialize(metadata),
+                ["ChangedAt"] = changedAtUtc ?? DateTime.UtcNow,
+                ["ChangedByUserId"] = changedByUserId
+            },
+            ct);
     }
 }

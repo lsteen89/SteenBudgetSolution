@@ -92,6 +92,9 @@ body {
     /* Muted: same hue, use opacity in CSS/Tailwind */
     --eb-muted: var(--wizard-text);
 
+    --eb-danger: var(--wizard-warning);
+    --eb-alert: var(--wizard-warning);
+
     --eb-accent: var(--wizard-accent);
     --eb-accent-soft: var(--wizard-accent-soft);
     --eb-accent-foreground: var(--wizard-accent-foreground);

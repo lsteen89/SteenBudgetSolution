@@ -1,40 +1,70 @@
+import { useExpenseCategories } from "@/hooks/budget/useExpenseCategories";
+import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/lib/utils";
-import React, { useEffect, useMemo, useRef } from "react";
+import type { KnownExpenseCategoryCode } from "@/types/budget/ExpenseCategoryDto";
+import { useToast } from "@/ui/toast/toast";
+import { canEditMonth } from "@/utils/budget/periodEditor/canShowUpdateDefault";
+import { editPeriodDrawerDict } from "@/utils/i18n/pages/private/dashboard/cards/period/editPeriodDrawer.i18n";
+import { tDict } from "@/utils/i18n/translate";
+import { formatMoneyV2 } from "@/utils/money/moneyV2";
+import {
+  useBudgetMonthEditor,
+  usePatchBudgetMonthExpenseItemsBulk,
+} from "@hooks/budget/editPeriod/useMonthEditor";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import EditPeriodFooter from "./EditPeriodFooter";
 import EditPeriodHeader from "./EditPeriodHeader";
 import EditPeriodSection from "./EditPeriodSection";
-
-import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
-import { useAppLocale } from "@/hooks/i18n/useAppLocale";
-import { editPeriodDrawerDict } from "@/utils/i18n/pages/private/dashboard/cards/period/editPeriodDrawer.i18n";
-import { tDict } from "@/utils/i18n/translate";
-import type { CurrencyCode } from "@/utils/money/currency";
-import { formatMoneyV2 } from "@/utils/money/moneyV2";
+import PeriodQuickAdjustRow from "./PeriodQuickAdjustRow";
 
 type EditPeriodDrawerProps = {
   open: boolean;
+  yearMonth: string;
   periodLabel: string;
   periodDateRangeLabel: string;
   onClose: () => void;
-  onSave?: () => void;
-  isSaving?: boolean;
+};
+
+type ExpenseDraft = {
+  amountMonthly: number;
+  isActive: boolean;
+};
+
+const categoryLabelKeys: Record<
+  KnownExpenseCategoryCode,
+  keyof typeof editPeriodDrawerDict.sv
+> = {
+  housing: "categoryHousing",
+  food: "categoryFood",
+  transport: "categoryTransport",
+  clothing: "categoryClothing",
+  fixed: "categoryFixedExpense",
+  subscription: "categorySubscription",
+  other: "categoryOther",
 };
 
 const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
   open,
+  yearMonth,
   periodLabel,
   periodDateRangeLabel,
   onClose,
-  onSave,
-  isSaving = false,
 }) => {
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   const locale = useAppLocale();
   const currency = useAppCurrency();
+  const toast = useToast();
 
   const t = <K extends keyof typeof editPeriodDrawerDict.sv>(key: K) =>
     tDict(key, locale, editPeriodDrawerDict);
+
+  const editorQuery = useBudgetMonthEditor(yearMonth, open);
+  const categoriesQuery = useExpenseCategories({ enabled: open });
+  const bulkPatchMutation = usePatchBudgetMonthExpenseItemsBulk(yearMonth);
+
+  const [drafts, setDrafts] = useState<Record<string, ExpenseDraft>>({});
 
   useEffect(() => {
     if (!open) return;
@@ -51,23 +81,175 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
     };
   }, [open]);
 
-  const recurringRows = useMemo(
-    () => [
-      { label: t("rent"), value: 1250 },
-      { label: t("electricity"), value: 95 },
-      { label: t("insurance"), value: 42 },
-    ],
-    [locale],
+  const editor = editorQuery.data;
+  const month = editor?.month ?? null;
+  const readOnly = month ? !canEditMonth(month.isEditable, month.status) : true;
+  const categories = categoriesQuery.data ?? [];
+
+  useEffect(() => {
+    if (!open || !editor?.expenseItems) return;
+
+    const nextDrafts = Object.fromEntries(
+      editor.expenseItems
+        .filter((x) => !x.isDeleted)
+        .map((x) => [
+          x.id,
+          {
+            amountMonthly: x.amountMonthly,
+            isActive: x.isActive,
+          },
+        ]),
+    );
+
+    setDrafts(nextDrafts);
+  }, [editor, open]);
+
+  const categoriesById = useMemo(
+    () => new Map(categories.map((category) => [category.id, category])),
+    [categories],
   );
 
-  const subscriptionRows = useMemo(
-    () => [
-      { label: t("spotify"), value: 12 },
-      { label: t("netflix"), value: 15 },
-      { label: t("icloud"), value: 3 },
-    ],
-    [locale],
+  const visibleRows = useMemo(() => {
+    return (editor?.expenseItems ?? []).filter((x) => !x.isDeleted);
+  }, [editor]);
+
+  const subscriptionCategoryId = useMemo(
+    () =>
+      categories.find((category) => category.code === "subscription")?.id ??
+      null,
+    [categories],
   );
+
+  const quickAdjustRows = useMemo(() => {
+    return visibleRows.filter((row) => {
+      const category = categoriesById.get(row.categoryId);
+      if (!category) return false;
+
+      return (
+        category.code !== "subscription" &&
+        category.code !== "housing" &&
+        category.code !== "fixed"
+      );
+    });
+  }, [visibleRows, categoriesById]);
+
+  const subscriptionRows = useMemo(() => {
+    if (!subscriptionCategoryId) return [];
+
+    return visibleRows.filter(
+      (row) => row.categoryId === subscriptionCategoryId,
+    );
+  }, [subscriptionCategoryId, visibleRows]);
+
+  const getCategoryLabel = (categoryId: string) => {
+    const category = categoriesById.get(categoryId);
+    if (!category) return t("categoryOther");
+
+    const translationKey =
+      categoryLabelKeys[category.code as KnownExpenseCategoryCode];
+
+    return translationKey ? t(translationKey) : category.name;
+  };
+
+  const handleAmountChange = (rowId: string, amountMonthly: number) => {
+    setDrafts((prev) => ({
+      ...prev,
+      [rowId]: {
+        ...(prev[rowId] ?? { amountMonthly: 0, isActive: true }),
+        amountMonthly,
+      },
+    }));
+  };
+
+  const handleActiveChange = (rowId: string, isActive: boolean) => {
+    setDrafts((prev) => ({
+      ...prev,
+      [rowId]: {
+        ...(prev[rowId] ?? { amountMonthly: 0, isActive }),
+        isActive,
+      },
+    }));
+  };
+
+  const changedRows = useMemo(() => {
+    return visibleRows.filter((row) => {
+      const draft = drafts[row.id];
+      if (!draft) return false;
+
+      return (
+        row.amountMonthly !== draft.amountMonthly ||
+        row.isActive !== draft.isActive
+      );
+    });
+  }, [visibleRows, drafts]);
+
+  const hasChanges = changedRows.length > 0;
+  const originalEditableTotal = useMemo(() => {
+    return [...quickAdjustRows, ...subscriptionRows].reduce((sum, row) => {
+      return sum + (row.isActive ? row.amountMonthly : 0);
+    }, 0);
+  }, [quickAdjustRows, subscriptionRows]);
+
+  const draftEditableTotal = useMemo(() => {
+    return [...quickAdjustRows, ...subscriptionRows].reduce((sum, row) => {
+      const draft = drafts[row.id] ?? {
+        amountMonthly: row.amountMonthly,
+        isActive: row.isActive,
+      };
+
+      return sum + (draft.isActive ? draft.amountMonthly : 0);
+    }, 0);
+  }, [quickAdjustRows, subscriptionRows, drafts]);
+
+  const editableDelta = originalEditableTotal - draftEditableTotal;
+
+  const handleSaveAll = async () => {
+    if (readOnly || !editor) {
+      onClose();
+      return;
+    }
+
+    if (!hasChanges) {
+      return;
+    }
+
+    await bulkPatchMutation.mutateAsync(
+      changedRows.map((row) => {
+        const draft = drafts[row.id];
+
+        return {
+          monthExpenseItemId: row.id,
+          payload: {
+            name: row.name,
+            categoryId: row.categoryId,
+            amountMonthly: draft.amountMonthly,
+            isActive: draft.isActive,
+            updateDefault: false,
+          },
+        };
+      }),
+    );
+
+    toast.success(t("saveSuccess"));
+    onClose();
+  };
+
+  const footerSummaryText = useMemo(() => {
+    if (readOnly) return t("footerSummaryReadOnly");
+    if (!hasChanges) return t("footerSummaryNoChanges");
+
+    const sign = editableDelta >= 0 ? "+" : "−";
+    const formattedDelta = formatMoneyV2(
+      Math.abs(editableDelta),
+      currency,
+      locale,
+      { fractionDigits: 2 },
+    );
+
+    return t("footerSummaryLiveResult")
+      .replace("{sign}", sign)
+      .replace("{amount}", formattedDelta);
+  }, [readOnly, hasChanges, editableDelta, currency, locale, t]);
 
   return (
     <div
@@ -117,81 +299,112 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
           />
 
           <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6">
-            <div className="space-y-4 pb-6">
-              <EditPeriodSection
-                title={t("recurringExpensesTitle")}
-                description={t("recurringExpensesDescription")}
-              >
-                <div className="space-y-3">
-                  {recurringRows.map((row) => (
-                    <PlaceholderRow
-                      key={row.label}
-                      label={row.label}
-                      value={row.value}
-                      locale={locale}
-                      currency={currency}
-                      metaText={t("placeholderRowMeta")}
-                    />
-                  ))}
-                </div>
-              </EditPeriodSection>
+            {editorQuery.isLoading || categoriesQuery.isLoading ? (
+              <div className="rounded-2xl border border-eb-stroke/25 bg-[rgb(var(--eb-shell)/0.32)] p-4 text-sm text-eb-text/65">
+                {t("loadingEditor")}
+              </div>
+            ) : editorQuery.isError ? (
+              <div className="rounded-2xl border border-eb-stroke/25 bg-[rgb(var(--eb-shell)/0.32)] p-4 text-sm text-eb-text/65">
+                {t("loadMonthError")}
+              </div>
+            ) : categoriesQuery.isError ? (
+              <div className="rounded-2xl border border-eb-stroke/25 bg-[rgb(var(--eb-shell)/0.32)] p-4 text-sm text-eb-text/65">
+                {t("loadCategoriesError")}
+              </div>
+            ) : (
+              <div className="space-y-4 pb-6">
+                {readOnly ? (
+                  <div className="rounded-2xl border border-eb-stroke/25 bg-[rgb(var(--eb-shell)/0.32)] p-4 text-sm text-eb-text/65">
+                    {t("monthClosedReadOnly")}
+                  </div>
+                ) : null}
 
-              <EditPeriodSection
-                title={t("subscriptionsTitle")}
-                description={t("subscriptionsDescription")}
-              >
-                <div className="space-y-3">
-                  {subscriptionRows.map((row) => (
-                    <PlaceholderRow
-                      key={row.label}
-                      label={row.label}
-                      value={row.value}
-                      locale={locale}
-                      currency={currency}
-                      metaText={t("placeholderRowMeta")}
-                    />
-                  ))}
-                </div>
-              </EditPeriodSection>
-            </div>
+                <EditPeriodSection
+                  title={t("recurringExpensesTitle")}
+                  description={t("recurringExpensesDescription")}
+                >
+                  <div className="space-y-3">
+                    {quickAdjustRows.length === 0 ? (
+                      <div className="rounded-2xl border border-eb-stroke/20 bg-eb-surface p-4 text-sm text-eb-text/60">
+                        {t("noEditableExpenses")}
+                      </div>
+                    ) : (
+                      quickAdjustRows.map((row) => {
+                        const draft = drafts[row.id] ?? {
+                          amountMonthly: row.amountMonthly,
+                          isActive: row.isActive,
+                        };
+
+                        return (
+                          <PeriodQuickAdjustRow
+                            key={row.id}
+                            row={row}
+                            currency={currency}
+                            readOnly={readOnly}
+                            categoryLabel={getCategoryLabel(row.categoryId)}
+                            amountMonthly={draft.amountMonthly}
+                            isActive={draft.isActive}
+                            showActiveToggle={false}
+                            onAmountChange={(value) =>
+                              handleAmountChange(row.id, value)
+                            }
+                          />
+                        );
+                      })
+                    )}
+                  </div>
+                </EditPeriodSection>
+
+                <EditPeriodSection
+                  title={t("subscriptionsTitle")}
+                  description={t("subscriptionsDescription")}
+                >
+                  <div className="space-y-3">
+                    {subscriptionRows.length === 0 ? (
+                      <div className="rounded-2xl border border-eb-stroke/20 bg-eb-surface p-4 text-sm text-eb-text/60">
+                        {t("noSubscriptions")}
+                      </div>
+                    ) : (
+                      subscriptionRows.map((row) => {
+                        const draft = drafts[row.id] ?? {
+                          amountMonthly: row.amountMonthly,
+                          isActive: row.isActive,
+                        };
+
+                        return (
+                          <PeriodQuickAdjustRow
+                            key={row.id}
+                            row={row}
+                            currency={currency}
+                            readOnly={readOnly}
+                            categoryLabel={getCategoryLabel(row.categoryId)}
+                            amountMonthly={draft.amountMonthly}
+                            isActive={draft.isActive}
+                            showActiveToggle
+                            onAmountChange={(value) =>
+                              handleAmountChange(row.id, value)
+                            }
+                            onActiveChange={(value) =>
+                              handleActiveChange(row.id, value)
+                            }
+                          />
+                        );
+                      })
+                    )}
+                  </div>
+                </EditPeriodSection>
+              </div>
+            )}
           </div>
 
           <EditPeriodFooter
             onCancel={onClose}
-            onSave={onSave ?? onClose}
-            isSaving={isSaving}
-            summaryText={t("summaryText")}
+            onSave={handleSaveAll}
+            isSaving={bulkPatchMutation.isPending}
+            isDisabled={readOnly || !hasChanges}
+            summaryText={footerSummaryText}
           />
         </div>
-      </div>
-    </div>
-  );
-};
-
-type PlaceholderRowProps = {
-  label: string;
-  value: number;
-  locale: string;
-  currency: CurrencyCode;
-  metaText: string;
-};
-
-const PlaceholderRow: React.FC<PlaceholderRowProps> = ({
-  label,
-  value,
-  locale,
-  currency,
-  metaText,
-}) => {
-  return (
-    <div className="flex items-center justify-between gap-4 rounded-2xl border border-eb-stroke/25 bg-eb-surface px-4 py-3">
-      <div className="min-w-0">
-        <div className="text-sm font-semibold text-eb-text">{label}</div>
-        <div className="text-xs text-eb-text/50">{metaText}</div>
-      </div>
-
-      <div className="shrink-0 text-sm font-bold tabular-nums text-eb-text">
-        {formatMoneyV2(value, currency, locale, { fractionDigits: 2 })}
       </div>
     </div>
   );

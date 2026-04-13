@@ -39,6 +39,7 @@ using Backend.Infrastructure.Repositories.User;
 using Backend.Infrastructure.Security;
 using Backend.Infrastructure.Data.Repositories;
 using Backend.Infrastructure.Repositories.Budget.BudgetDashboard;
+using Backend.Infrastructure.Repositories.Budget.ExpenseCategories;
 using Backend.Infrastructure.Repositories.Budget.Months;
 using Backend.Infrastructure.Data.Sql.Helpers.UnitOfWork;
 using Backend.Infrastructure.Verification;
@@ -120,6 +121,7 @@ public static class DependencyInjection
 
         // Dashboard
         services.AddScoped<IBudgetDashboardRepository, BudgetDashboardRepository>();
+        services.AddScoped<IExpenseCategoryReadRepository, ExpenseCategoryReadRepository>();
         // Budget Months
         services.AddScoped<IBudgetMonthRepository, BudgetMonthRepository>();
         services.AddScoped<IBudgetMonthRepository, BudgetMonthRepository>();
