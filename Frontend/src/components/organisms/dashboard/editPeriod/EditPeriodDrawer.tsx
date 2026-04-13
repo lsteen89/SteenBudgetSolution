@@ -2,9 +2,9 @@ import { useExpenseCategories } from "@/hooks/budget/useExpenseCategories";
 import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/lib/utils";
-import type { KnownExpenseCategoryCode } from "@/types/budget/ExpenseCategoryDto";
 import { useToast } from "@/ui/toast/toast";
 import { canEditMonth } from "@/utils/budget/periodEditor/canShowUpdateDefault";
+import { asCategoryKey, labelCategory } from "@/utils/i18n/budget/categories";
 import { editPeriodDrawerDict } from "@/utils/i18n/pages/private/dashboard/cards/period/editPeriodDrawer.i18n";
 import { tDict } from "@/utils/i18n/translate";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
@@ -13,6 +13,7 @@ import {
   usePatchBudgetMonthExpenseItemsBulk,
 } from "@hooks/budget/editPeriod/useMonthEditor";
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import EditPeriodFooter from "./EditPeriodFooter";
 import EditPeriodHeader from "./EditPeriodHeader";
 import EditPeriodSection from "./EditPeriodSection";
@@ -31,19 +32,6 @@ type ExpenseDraft = {
   isActive: boolean;
 };
 
-const categoryLabelKeys: Record<
-  KnownExpenseCategoryCode,
-  keyof typeof editPeriodDrawerDict.sv
-> = {
-  housing: "categoryHousing",
-  food: "categoryFood",
-  transport: "categoryTransport",
-  clothing: "categoryClothing",
-  fixed: "categoryFixedExpense",
-  subscription: "categorySubscription",
-  other: "categoryOther",
-};
-
 const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
   open,
   yearMonth,
@@ -56,6 +44,7 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
   const locale = useAppLocale();
   const currency = useAppCurrency();
   const toast = useToast();
+  const navigate = useNavigate();
 
   const t = <K extends keyof typeof editPeriodDrawerDict.sv>(key: K) =>
     tDict(key, locale, editPeriodDrawerDict);
@@ -113,42 +102,35 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
     return (editor?.expenseItems ?? []).filter((x) => !x.isDeleted);
   }, [editor]);
 
-  const subscriptionCategoryId = useMemo(
-    () =>
-      categories.find((category) => category.code === "subscription")?.id ??
-      null,
-    [categories],
-  );
-
   const quickAdjustRows = useMemo(() => {
     return visibleRows.filter((row) => {
       const category = categoriesById.get(row.categoryId);
       if (!category) return false;
 
+      const categoryKey = asCategoryKey(category.code);
+
       return (
-        category.code !== "subscription" &&
-        category.code !== "housing" &&
-        category.code !== "fixed"
+        categoryKey !== "subscription" &&
+        categoryKey !== "housing" &&
+        categoryKey !== "fixed"
       );
     });
   }, [visibleRows, categoriesById]);
 
   const subscriptionRows = useMemo(() => {
-    if (!subscriptionCategoryId) return [];
+    return visibleRows.filter((row) => {
+      const category = categoriesById.get(row.categoryId);
+      if (!category) return false;
 
-    return visibleRows.filter(
-      (row) => row.categoryId === subscriptionCategoryId,
-    );
-  }, [subscriptionCategoryId, visibleRows]);
+      return asCategoryKey(category.code) === "subscription";
+    });
+  }, [visibleRows, categoriesById]);
 
   const getCategoryLabel = (categoryId: string) => {
     const category = categoriesById.get(categoryId);
-    if (!category) return t("categoryOther");
+    if (!category) return labelCategory("other", locale);
 
-    const translationKey =
-      categoryLabelKeys[category.code as KnownExpenseCategoryCode];
-
-    return translationKey ? t(translationKey) : category.name;
+    return labelCategory(asCategoryKey(category.code), locale);
   };
 
   const handleAmountChange = (rowId: string, amountMonthly: number) => {
@@ -400,6 +382,10 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
           <EditPeriodFooter
             onCancel={onClose}
             onSave={handleSaveAll}
+            onOpenPlanning={() => {
+              onClose();
+              navigate("/dashboard/planering");
+            }}
             isSaving={bulkPatchMutation.isPending}
             isDisabled={readOnly || !hasChanges}
             summaryText={footerSummaryText}

@@ -59,24 +59,24 @@ const PeriodQuickAdjustRow: React.FC<PeriodQuickAdjustRowProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-semibold text-eb-text">
-          {row.name}
+    <div className="rounded-2xl border border-eb-stroke/25 bg-eb-surface px-4 py-3">
+      <div className="flex flex-col gap-3">
+        <div className="min-w-0">
+          <div className="truncate text-sm font-semibold text-eb-text">
+            {row.name}
+          </div>
+
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <span className="text-xs text-eb-text/55">{categoryLabel}</span>
+
+            {row.isMonthOnly ? (
+              <span className="rounded-full bg-[rgb(var(--eb-shell)/0.7)] px-2 py-1 text-[11px] font-semibold text-eb-text/65">
+                {t("monthOnly")}
+              </span>
+            ) : null}
+          </div>
         </div>
 
-        <div className="mt-1 flex flex-wrap items-center gap-2">
-          <span className="text-xs text-eb-text/55">{categoryLabel}</span>
-
-          {row.isMonthOnly ? (
-            <span className="rounded-full bg-[rgb(var(--eb-shell)/0.7)] px-2 py-1 text-[11px] font-semibold text-eb-text/65">
-              {t("monthOnly")}
-            </span>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between gap-3 sm:justify-end">
         {showActiveToggle ? (
           <label className="flex shrink-0 items-center gap-2 text-xs font-medium text-eb-text/65">
             <input
@@ -86,12 +86,11 @@ const PeriodQuickAdjustRow: React.FC<PeriodQuickAdjustRowProps> = ({
               disabled={readOnly}
               className="h-4 w-4 rounded border-eb-stroke/40"
             />
-            <span className="hidden sm:inline">{t("activeInThisMonth")}</span>
-            <span className="sm:hidden">{t("activeShort")}</span>
+            <span>{t("activeInThisMonth")}</span>
           </label>
         ) : null}
 
-        <div className="w-[132px] shrink-0">
+        <div className="w-full sm:w-[132px] sm:self-end">
           <label className="sr-only" htmlFor={`amount-${row.id}`}>
             {t("amountPlaceholder")}
           </label>
