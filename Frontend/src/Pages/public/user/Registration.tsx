@@ -25,10 +25,10 @@ import { useToast } from "@/ui/toast/toast";
 import { toUserMessage } from "@/utils/i18n/apiErrors/toUserMessage";
 import regbird from "@assets/Images/RegBirdV2.png";
 
+import type { RegistrationFormValues } from "@/types/User/Creation/registration.types";
 import { getPostAuthRedirect } from "@/utils/auth/getPostAuthRedirect";
 import { registerUser } from "@api/Services/User/registerUser";
 import { registrationSchema } from "@schemas/auth/registration/registration.schema";
-import type { RegistrationFormValues } from "types/User/Creation/registration.types";
 
 export default function Registration() {
   const navigate = useNavigate();

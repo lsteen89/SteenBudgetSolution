@@ -73,37 +73,37 @@ const Dashboard: React.FC = () => {
   if (!auth.user) return null;
 
   return (
-    <PageContainer noPadding className="relative">
-      {/* decorative blobs (same recipe as Registration) */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-56 overflow-hidden">
-        <div className="absolute -top-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-[rgb(var(--eb-shell)/0.45)] blur-2xl" />
-        <div className="absolute -top-24 left-[10%] h-56 w-56 rounded-full bg-[rgb(var(--eb-shell)/0.30)] blur-2xl" />
-        <div className="absolute -top-24 right-[10%] h-64 w-64 rounded-full bg-[rgb(var(--eb-shell)/0.30)] blur-2xl" />
-      </div>
+    <TooltipProvider delayDuration={150}>
+      <PageContainer noPadding className="relative">
+        {/* decorative blobs (same recipe as Registration) */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-56 overflow-hidden">
+          <div className="absolute -top-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-[rgb(var(--eb-shell)/0.45)] blur-2xl" />
+          <div className="absolute -top-24 left-[10%] h-56 w-56 rounded-full bg-[rgb(var(--eb-shell)/0.30)] blur-2xl" />
+          <div className="absolute -top-24 right-[10%] h-64 w-64 rounded-full bg-[rgb(var(--eb-shell)/0.30)] blur-2xl" />
+        </div>
 
-      <ContentWrapperV2
-        size="xl"
-        className="relative pt-10 sm:pt-14 pb-12 sm:pb-16"
-      >
-        <DashboardContent
-          isFirstTimeLogin={firstLogin === true}
-          isWizardOpen={isWizardOpen}
-          setIsWizardOpen={setIsWizardOpen}
-        />
-      </ContentWrapperV2>
+        <ContentWrapperV2
+          size="xl"
+          className="relative pt-10 sm:pt-14 pb-12 sm:pb-16"
+        >
+          <DashboardContent
+            isFirstTimeLogin={firstLogin === true}
+            isWizardOpen={isWizardOpen}
+            setIsWizardOpen={setIsWizardOpen}
+          />
+        </ContentWrapperV2>
 
-      <AnimatePresence>
-        {isWizardOpen && (
-          <motion.div
-            key="setupWizard"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.25 }}
-            className="z-[9999]"
-          >
-            <Suspense fallback={<LoadingScreen />}>
-              <TooltipProvider>
+        <AnimatePresence>
+          {isWizardOpen && (
+            <motion.div
+              key="setupWizard"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              className="z-[9999]"
+            >
+              <Suspense fallback={<LoadingScreen />}>
                 <SetupWizard
                   onClose={() => {
                     setIsWizardOpen(false);
@@ -112,12 +112,12 @@ const Dashboard: React.FC = () => {
                     clearWizardSession();
                   }}
                 />
-              </TooltipProvider>
-            </Suspense>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </PageContainer>
+              </Suspense>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </PageContainer>
+    </TooltipProvider>
   );
 };
 

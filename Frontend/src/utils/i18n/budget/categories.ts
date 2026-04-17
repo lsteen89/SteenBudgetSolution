@@ -1,15 +1,7 @@
+import type { KnownExpenseCategoryCode } from "@/types/budget/categoryKeys";
 import type { AppLocale } from "@/types/i18n/appLocale";
 
-export type CategoryKey =
-  | "housing"
-  | "food"
-  | "transport"
-  | "clothing"
-  | "fixed"
-  | "subscription"
-  | "other";
-
-const sv: Record<CategoryKey, string> = {
+const sv: Record<KnownExpenseCategoryCode, string> = {
   housing: "Boende",
   food: "Mat",
   transport: "Transport",
@@ -19,7 +11,7 @@ const sv: Record<CategoryKey, string> = {
   other: "Övrigt",
 };
 
-const en: Record<CategoryKey, string> = {
+const en: Record<KnownExpenseCategoryCode, string> = {
   housing: "Housing",
   food: "Food",
   transport: "Transport",
@@ -28,7 +20,8 @@ const en: Record<CategoryKey, string> = {
   subscription: "Subscriptions",
   other: "Other",
 };
-const et: Record<CategoryKey, string> = {
+
+const et: Record<KnownExpenseCategoryCode, string> = {
   housing: "Eluase",
   food: "Toit",
   transport: "Transport",
@@ -38,8 +31,11 @@ const et: Record<CategoryKey, string> = {
   other: "Muu",
 };
 
-export function labelCategory(key: CategoryKey, locale: AppLocale) {
-  const maps: Record<AppLocale, Record<CategoryKey, string>> = {
+export function labelCategory(
+  key: KnownExpenseCategoryCode,
+  locale: AppLocale,
+) {
+  const maps: Record<AppLocale, Record<KnownExpenseCategoryCode, string>> = {
     "sv-SE": sv,
     "en-US": en,
     "et-EE": et,
@@ -48,7 +44,7 @@ export function labelCategory(key: CategoryKey, locale: AppLocale) {
   return (maps[locale] || en)[key];
 }
 
-const KNOWN: readonly CategoryKey[] = [
+const KNOWN: readonly KnownExpenseCategoryCode[] = [
   "housing",
   "food",
   "transport",
@@ -58,9 +54,16 @@ const KNOWN: readonly CategoryKey[] = [
   "other",
 ] as const;
 
-export function asCategoryKey(raw: unknown): CategoryKey {
-  const s = String(raw ?? "").trim();
+export function asCategoryKey(raw: unknown): KnownExpenseCategoryCode {
+  const s = String(raw ?? "")
+    .trim()
+    .toLowerCase();
+
+  if (s === "fixed_expense" || s === "fixedexpense") {
+    return "fixed";
+  }
+
   return (KNOWN as readonly string[]).includes(s)
-    ? (s as CategoryKey)
+    ? (s as KnownExpenseCategoryCode)
     : "other";
 }

@@ -74,7 +74,7 @@ public sealed partial class BudgetMonthRepository
     (
         @Id, @BudgetId, @YearMonth, @Status,
         @NowUtc, @NowUtc,
-        'none', 0.00,
+        'none', NULL,
         @NowUtc, NULL, @UserId, NULL
     )
     ON DUPLICATE KEY UPDATE
@@ -133,6 +133,15 @@ public sealed partial class BudgetMonthRepository
             LIMIT 1
         );
     """;
-
+    private const string GetBudgetMonthLookupByBudgetIdAndYearMonth = @"
+    SELECT
+        bm.Id,
+        bm.BudgetId,
+        bm.YearMonth,
+        bm.Status
+    FROM BudgetMonth bm
+    WHERE bm.BudgetId = @BudgetId
+      AND bm.YearMonth = @YearMonth
+    LIMIT 1;";
 
 }

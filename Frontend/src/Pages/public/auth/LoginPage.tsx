@@ -245,13 +245,6 @@ export default function LoginPage() {
                 onSubmit={handleSubmit(onSubmit)}
                 className="mt-6 space-y-5"
               >
-                {rootProblem ? (
-                  <div className="rounded-2xl border border-eb-stroke/30 bg-eb-surface/70 px-4 py-3">
-                    <p className="text-sm font-semibold text-eb-text/85">
-                      {toUserMessage(rootProblem, locale)}
-                    </p>
-                  </div>
-                ) : null}
                 <div className="grid gap-4">
                   <FormField
                     label={t("email")}
@@ -310,6 +303,17 @@ export default function LoginPage() {
                     </div>
                   </div>
                 </div>
+                {rootProblem ? (
+                  <div
+                    role="alert"
+                    aria-live="polite"
+                    className="rounded-2xl border border-eb-alert/30 bg-eb-alert/10 px-4 py-3"
+                  >
+                    <p className="text-sm font-semibold text-eb-alert">
+                      {toUserMessage(rootProblem, locale)}
+                    </p>
+                  </div>
+                ) : null}
 
                 {shouldShowChallenge ? (
                   <div className="space-y-2">

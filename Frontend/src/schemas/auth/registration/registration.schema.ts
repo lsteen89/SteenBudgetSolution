@@ -1,4 +1,4 @@
-import type { RegistrationFormValues } from "types/User/Creation/registration.types";
+import type { RegistrationFormValues } from "@/types/User/Creation/registration.types";
 import * as yup from "yup";
 
 export const registrationSchema: yup.ObjectSchema<RegistrationFormValues> = yup

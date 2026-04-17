@@ -221,6 +221,9 @@ A small CLI (`Backend.Tools`) can seed a user in **dev**.
 
 - Seeding is guarded by `ALLOW_SEEDING=true`
 - TURNSTILE is bypassed for seeding
+- Use `seed-user` to create a user only
+- Use `seed-user-budget` to create a user, seed a full demo timeline (2 closed months + 1 open month),
+  and set `Users.FirstLogin = 0` so the dashboard skips the setup wizard
 
 ### Option A: Seed via Docker (recommended)
 
@@ -247,7 +250,40 @@ If needed, set it in `seed-users.environment`:
 ```yml
 DATABASESETTINGS__CONNECTIONSTRING: "Server=db;Port=3306;Database=steenbudgetDEV;Uid=app;Pwd=apppwd;GuidFormat=Binary16"
 ALLOW_SEEDING: "true"
-"
+```
+
+Seed user + full budget timeline in Docker:
+
+```bash
+docker compose --env-file .env.dev -f docker-compose.dev.yml --profile seed run --rm seed-users-with-budget
+
+```
+
+Override values:
+
+```bash
+docker compose --env-file .env.dev -f docker-compose.dev.yml --profile seed run --rm \
+  -e SEED_EMAIL=jane@doe.se -e SEED_PASSWORD=ChangeMe123 \
+  -e SEED_FIRST=Jane -e SEED_LAST=Doe \
+  seed-users-with-budget
+
+```
+
+Alternative (run `Backend.Tools` directly inside the seed container):
+
+```bash
+docker compose --env-file .env.dev -f docker-compose.dev.yml --profile seed run --rm \
+  --entrypoint bash seed-users -lc '
+set -e
+export NUGET_PACKAGES=/tmp/nuget-packages
+dotnet run --project /src/Backend.Tools/Backend.Tools.csproj -- \
+  seed-user-budget \
+  --email "$SEED_EMAIL" \
+  --password "$SEED_PASSWORD" \
+  --first "$SEED_FIRST" \
+  --last "$SEED_LAST"
+'
+
 ```
 
 ### Option B: Seed locally (host)
@@ -257,7 +293,16 @@ Set connection string via env (or user-secrets):
 ```bash
 cd Backend.Tools
 ALLOW_SEEDING=true DATABASESETTINGS__CONNECTIONSTRING="Server=127.0.0.1;Port=3306;Database=steenbudgetDEV;Uid=app;Pwd=apppwd;SslMode=None;GuidFormat=Binary16" \
-dotnet run -- --email jane@doe.se --password 'ChangeMe123' --first Jane --last Doe
+dotnet run -- seed-user --email jane@doe.se --password 'ChangeMe123' --first Jane --last Doe
+
+```
+
+Seed user + full month timeline:
+
+```bash
+cd Backend.Tools
+ALLOW_SEEDING=true DATABASESETTINGS__CONNECTIONSTRING="Server=127.0.0.1;Port=3306;Database=steenbudgetDEV;Uid=app;Pwd=apppwd;SslMode=None;GuidFormat=Binary16" \
+dotnet run -- seed-user-budget --email jane@doe.se --password 'ChangeMe123' --first Jane --last Doe
 
 ```
 

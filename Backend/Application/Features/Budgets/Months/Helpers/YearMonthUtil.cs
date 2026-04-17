@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace Backend.Application.Features.Budgets.Months.Helpers;
 
@@ -14,6 +15,11 @@ public static class YearMonthUtil
 
         return (year, month);
     }
+    private static readonly Regex YearMonthRegex =
+    new(@"^\d{4}-(0[1-9]|1[0-2])$", RegexOptions.Compiled);
+
+    public static bool IsValid(string? value)
+        => !string.IsNullOrWhiteSpace(value) && YearMonthRegex.IsMatch(value);
 
     public static bool TryParse(string? yearMonth, out int year, out int month)
     {

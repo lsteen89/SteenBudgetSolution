@@ -67,6 +67,14 @@ public abstract class SqlBase
             flags: CommandFlags.Buffered, cancellationToken: ct);
         return await conn.QuerySingleOrDefaultAsync<T>(cmd);
     }
+    protected async Task<T> QuerySingleAsync<T>(string sql, object? param = null, CancellationToken ct = default)
+    {
+        var conn = await _uow.GetOpenConnectionAsync(ct);
+        var cmd = new CommandDefinition(
+            sql, param, Transaction, _cmdTimeout, CommandType.Text,
+            flags: CommandFlags.Buffered, cancellationToken: ct);
+        return await conn.QuerySingleAsync<T>(cmd);
+    }
 
     protected async Task<List<T>> QueryAsync<T>(string sql, object? param = null, CancellationToken ct = default)
     {

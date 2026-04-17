@@ -7,18 +7,20 @@ namespace Backend.Application.Services.Budget.Compute;
 
 public sealed class BudgetMonthlyTotalsService : IBudgetMonthlyTotalsService
 {
-    private readonly IBudgetDashboardRepository _repo;
+    private readonly IBudgetMonthDashboardRepository _repo;
     private readonly IDebtPaymentCalculator _calc;
 
-    public BudgetMonthlyTotalsService(IBudgetDashboardRepository repo, IDebtPaymentCalculator calc)
+    public BudgetMonthlyTotalsService(
+        IBudgetMonthDashboardRepository repo,
+        IDebtPaymentCalculator calc)
     {
         _repo = repo;
         _calc = calc;
     }
 
-    public async Task<MonthlyTotalsResult?> ComputeAsync(Guid persoid, CancellationToken ct)
+    public async Task<MonthlyTotalsResult?> ComputeAsync(Guid budgetMonthId, CancellationToken ct)
     {
-        var data = await _repo.GetDashboardDataAsync(persoid, ct);
+        var data = await _repo.GetDashboardDataForMonthAsync(budgetMonthId, ct);
         if (data is null) return null;
 
         var totalIncome =
@@ -39,6 +41,7 @@ public sealed class BudgetMonthlyTotalsService : IBudgetMonthlyTotalsService
         );
 
         return new MonthlyTotalsResult(
+            BudgetMonthId: budgetMonthId,
             BudgetId: data.BudgetId,
             TotalIncome: totalIncome,
             TotalExpenses: totalExpenses,

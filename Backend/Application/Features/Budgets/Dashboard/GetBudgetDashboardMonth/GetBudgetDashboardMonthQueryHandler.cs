@@ -1,69 +1,64 @@
-using Backend.Application.Abstractions.Application.Services.Debts;
+using Backend.Application.Abstractions.Application.Services.Budget;
+using Backend.Application.Abstractions.Application.Services.Budget.Projections;
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Application.Abstractions.Messaging;
 using Backend.Application.DTO.Budget.Dashboard;
-using Backend.Application.Abstractions.Application.Services.Budget.Projections;
-using Backend.Domain.Shared;
-using Backend.Application.Features.Budgets.Months.Helpers;
-using Backend.Domain.Errors.Budget;
 using Backend.Application.DTO.Budget.Months;
+using Backend.Application.Helpers.Currency;
+using Backend.Domain.Shared;
 
 namespace Backend.Application.Features.Budgets.Dashboard.GetBudgetDashboardMonth;
 
 public sealed class GetBudgetDashboardMonthQueryHandler
     : IQueryHandler<GetBudgetDashboardMonthQuery, Result<BudgetDashboardMonthDto?>>
 {
+    private readonly IBudgetMonthLifecycleService _lifecycleService;
     private readonly IBudgetMonthRepository _months;
-    private readonly IBudgetDashboardRepository _dashRepo;
+    private readonly IBudgetMonthDashboardRepository _monthDashRepo;
+    private readonly IUserRepository _users;
     private readonly IBudgetDashboardProjector _projector;
-    private readonly ITimeProvider _clock;
 
     public GetBudgetDashboardMonthQueryHandler(
+        IBudgetMonthLifecycleService lifecycleService,
         IBudgetMonthRepository months,
-        IBudgetDashboardRepository dashRepo,
-        IBudgetDashboardProjector projector,
-        ITimeProvider clock)
+        IBudgetMonthDashboardRepository monthDashRepo,
+        IUserRepository users,
+        IBudgetDashboardProjector projector)
     {
+        _lifecycleService = lifecycleService;
         _months = months;
-        _dashRepo = dashRepo;
+        _monthDashRepo = monthDashRepo;
+        _users = users;
         _projector = projector;
-        _clock = clock;
     }
 
-    public async Task<Result<BudgetDashboardMonthDto?>> Handle(GetBudgetDashboardMonthQuery q, CancellationToken ct)
+    public async Task<Result<BudgetDashboardMonthDto?>> Handle(
+        GetBudgetDashboardMonthQuery q,
+        CancellationToken ct)
     {
-        const string currencyCode = "SEK"; // hardcoded for now, extend later
+        var prefs = await _users.GetUserPreferencesAsync(q.Persoid, ct);
+        var currencyCode = CurrencyHelper.NormalizeCurrencyOrDefault(prefs?.Currency, "SEK");
 
-        // Find budget
-        var budgetId = await _months.GetBudgetIdByPersoidAsync(q.Persoid, ct);
-        if (budgetId is null) return Result<BudgetDashboardMonthDto?>.Success(null);
+        var ensured = await _lifecycleService.EnsureAccessibleMonthAsync(
+            q.Persoid,
+            q.Persoid,
+            q.YearMonth,
+            ct);
 
-        var now = _clock.UtcNow;
-        var currentYm = YearMonthUtil.CurrentYearMonth(now);
+        if (ensured.IsFailure || ensured.Value is null)
+            return Result<BudgetDashboardMonthDto?>.Failure(ensured.Error);
 
-        // Decide target YM
-        string targetYm;
-        if (!string.IsNullOrWhiteSpace(q.YearMonth))
-        {
-            if (!YearMonthUtil.TryParse(q.YearMonth!, out _, out _))
-                return Result<BudgetDashboardMonthDto?>.Failure(BudgetMonth.InvalidYearMonth);
+        var month = await _months.GetMonthAsync(
+            ensured.Value.BudgetId,
+            ensured.Value.YearMonth,
+            ct);
 
-            targetYm = YearMonthUtil.Normalize(q.YearMonth!);
-        }
-        else
-        {
-            var open = (await _months.GetOpenMonthsAsync(budgetId.Value, ct))
-                .OrderByDescending(x => x.OpenedAt)
-                .FirstOrDefault();
-
-            targetYm = open?.YearMonth ?? currentYm;
-        }
-
-        // Load month row (must include snapshot columns)
-        var month = await _months.GetMonthAsync(budgetId.Value, targetYm, ct);
         if (month is null)
-            return Result<BudgetDashboardMonthDto?>.Failure(BudgetMonth.MonthNotFound);
+        {
+            return Result<BudgetDashboardMonthDto?>.Failure(
+                new Error("BudgetMonth.NotFound", "Requested budget month could not be loaded."));
+        }
 
         var meta = new BudgetMonthMetaDto(
             YearMonth: month.YearMonth,
@@ -75,7 +70,10 @@ public sealed class GetBudgetDashboardMonthQueryHandler
         if (month.Status == BudgetMonthStatuses.Closed)
         {
             if (month.SnapshotFinalBalanceMonthly is null)
-                return Result<BudgetDashboardMonthDto?>.Failure(BudgetMonth.SnapshotMissing);
+            {
+                return Result<BudgetDashboardMonthDto?>.Failure(
+                    new Error("BudgetMonth.SnapshotMissing", "Snapshot totals are missing for closed month."));
+            }
 
             var snap = new BudgetMonthSnapshotTotalsDto(
                 TotalIncomeMonthly: month.SnapshotTotalIncomeMonthly!.Value,
@@ -85,24 +83,21 @@ public sealed class GetBudgetDashboardMonthQueryHandler
                 FinalBalanceMonthly: month.SnapshotFinalBalanceMonthly!.Value
             );
 
-            return Result<BudgetDashboardMonthDto?>.Success(new(meta, currencyCode, null, snap));
+            return Result<BudgetDashboardMonthDto?>.Success(new BudgetDashboardMonthDto(
+                CurrencyCode: currencyCode,
+                Month: meta,
+                LiveDashboard: null,
+                SnapshotTotals: snap
+            ));
         }
 
-        // Open => live dashboard + carryOver affects disposable
-        var data = await _dashRepo.GetDashboardDataAsync(q.Persoid, ct);
-        if (data is null) return Result<BudgetDashboardMonthDto?>.Success(null);
+        var data = await _monthDashRepo.GetDashboardDataForMonthAsync(month.Id, ct);
+        if (data is null)
+            return Result<BudgetDashboardMonthDto?>.Success(null);
 
         var carry = month.CarryOverAmount ?? 0m;
         var live = _projector.Project(data, carry);
 
-        // You ONLY have derived properties in BudgetDashboardDto.
-        // So to include carryOver, we must return carry in metadata and FE adds it,
-        // OR we introduce explicit fields for "DisposableAfter..." with carry applied.
-        //
-        // Recommendation: add explicit totals for FE and include carry-applied numbers.
-        //
-        // For now: we keep live dashboard unchanged and rely on Month.CarryOverAmount.
-        // (If you want BE to provide carry-applied disposable, add fields to dto below.)
         return Result<BudgetDashboardMonthDto?>.Success(new BudgetDashboardMonthDto(
             CurrencyCode: currencyCode,
             Month: meta,

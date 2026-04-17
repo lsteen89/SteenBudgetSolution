@@ -45,8 +45,20 @@ public sealed class StartBudgetMonthCommandHandler
         if (req.CarryOverMode is not (BudgetMonthCarryOverModes.None or BudgetMonthCarryOverModes.Full or BudgetMonthCarryOverModes.Custom))
             return Result<BudgetMonthsStatusDto?>.Failure(BudgetMonth.InvalidCarryMode);
 
-        if (req.CarryOverMode == BudgetMonthCarryOverModes.None && req.CarryOverAmount != 0m)
-            return Result<BudgetMonthsStatusDto?>.Failure(BudgetMonth.InvalidCarryAmount);
+        if (req.CarryOverMode is BudgetMonthCarryOverModes.None or BudgetMonthCarryOverModes.Full)
+        {
+            if (req.CarryOverAmount is not null)
+                return Result<BudgetMonthsStatusDto?>.Failure(BudgetMonth.CarryAmountMustBeNullUnlessCustom);
+        }
+
+        if (req.CarryOverMode == BudgetMonthCarryOverModes.Custom)
+        {
+            if (req.CarryOverAmount is null)
+                return Result<BudgetMonthsStatusDto?>.Failure(BudgetMonth.CustomCarryAmountRequired);
+
+            if (req.CarryOverAmount < 0m)
+                return Result<BudgetMonthsStatusDto?>.Failure(BudgetMonth.CustomCarryAmountMustBeNonNegative);
+        }
 
         var budgetId = await _months.GetBudgetIdByPersoidAsync(cmd.Persoid, ct);
         if (budgetId is null) return Result<BudgetMonthsStatusDto?>.Success(null);
@@ -87,7 +99,7 @@ public sealed class StartBudgetMonthCommandHandler
 
         if (req.ClosePreviousOpenMonth && open is not null && open.YearMonth != targetYm)
         {
-            var snap = await _closeSnapshot.ComputeAsync(cmd.Persoid, open.CarryOverAmount ?? 0m, ct);
+            var snap = await _closeSnapshot.ComputeAsync(open.Id, open.CarryOverAmount ?? 0m, ct);
             if (snap is null) return Result<BudgetMonthsStatusDto?>.Success(null);
 
             previousFinalBalance = snap.FinalBalance;
@@ -128,7 +140,7 @@ public sealed class StartBudgetMonthCommandHandler
         {
             BudgetMonthCarryOverModes.None => null,
             BudgetMonthCarryOverModes.Custom => req.CarryOverAmount,
-            BudgetMonthCarryOverModes.Full => previousFinalBalance,
+            BudgetMonthCarryOverModes.Full => null,
             _ => null
         };
 

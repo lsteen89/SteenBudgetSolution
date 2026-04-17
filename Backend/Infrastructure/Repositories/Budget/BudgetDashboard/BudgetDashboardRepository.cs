@@ -31,7 +31,7 @@ public sealed partial class BudgetDashboardRepository : SqlBase, IBudgetDashboar
 
         if (budgetId is null) return null;
 
-        var totalsRow = await QuerySingleOrDefaultAsync<TotalsRow>(
+        var totalsRow = await QuerySingleOrDefaultAsync<DashboardTotalsRow>(
             TotalsSql, new { BudgetId = budgetId.Value }, ct);
 
         if (totalsRow is null) return null;
@@ -47,7 +47,7 @@ public sealed partial class BudgetDashboardRepository : SqlBase, IBudgetDashboar
         var debts = await QueryAsync<DashboardDebtRm>(
             DebtsSql, new { BudgetId = budgetId.Value }, ct);
 
-        var savingsRows = await QueryAsync<SavingsRow>(
+        var savingsRows = await QueryAsync<DashboardSavingsRow>(
             SavingsSql, new { BudgetId = budgetId.Value }, ct);
 
         DashboardSavingsRm? savings = null;
@@ -64,12 +64,7 @@ public sealed partial class BudgetDashboardRepository : SqlBase, IBudgetDashboar
                     r.TargetAmount,
                     r.TargetDate,
                     r.AmountSaved,
-                    SavingsGoalContribution.ComputeMonthlyContribution(
-                        r.TargetAmount,
-                        r.AmountSaved,
-                        r.TargetDate,
-                        now
-                    )
+                    r.MonthlyContribution
                 ))
                 .ToList();
 
@@ -107,10 +102,10 @@ public sealed partial class BudgetDashboardRepository : SqlBase, IBudgetDashboar
 
         if (totalsRow.IncomeId.HasValue)
         {
-            var sideRows = await QueryAsync<IncomeItemRow>(
+            var sideRows = await QueryAsync<DashboardIncomeItemRow>(
                 SideHustlesSql, new { IncomeId = totalsRow.IncomeId.Value }, ct);
 
-            var memberRows = await QueryAsync<IncomeItemRow>(
+            var memberRows = await QueryAsync<DashboardIncomeItemRow>(
                 HouseholdMembersSql, new { IncomeId = totalsRow.IncomeId.Value }, ct);
 
             sideHustles = sideRows.Select(x => new DashboardIncomeItemRm(x.Id, x.Name, x.AmountMonthly)).ToArray();
@@ -126,6 +121,7 @@ public sealed partial class BudgetDashboardRepository : SqlBase, IBudgetDashboar
 
         return new BudgetDashboardReadModel(
             BudgetId: budgetId.Value,
+            BudgetMonthId: null,
             Totals: totals,
             Categories: categories,
             RecurringExpenses: recurring,

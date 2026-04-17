@@ -6,7 +6,9 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
-using Xunit;
+using Microsoft.Extensions.DependencyInjection;
+using Backend.Application.BudgetMonths.Services;
+using Backend.Infrastructure.Repositories.User;
 
 using Backend.Application.Abstractions.Application.Services.Debts;
 using Backend.Application.Abstractions.Infrastructure.Data;
@@ -14,7 +16,7 @@ using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Application.Features.Budgets.Dashboard.GetBudgetDashboardMonth;
 using Backend.Application.Features.Wizard.Finalization;
 using Backend.Application.Features.Wizard.Finalization.Abstractions;
-using Backend.Application.Features.Wizard.Finalization.Processing;
+using Backend.Application.Abstractions.Application.Services.Budget;
 using Backend.Application.Features.Wizard.Finalization.Processing.Processors;
 using Backend.Application.Features.Wizard.Finalization.Targets;
 using Backend.Application.Services.Budget.Projections;
@@ -34,6 +36,13 @@ using Backend.Application.Features.Wizard.FinalizationPreview;
 using Backend.Domain.Abstractions;
 using Backend.IntegrationTests.Shared.Wizard;
 using Backend.Infrastructure.Data.Sql.Helpers.UnitOfWork;
+using Backend.Infrastructure.Repositories.Budget.Months.Seed;
+using Backend.Infrastructure.Repositories.Budget.Months.Materializer;
+using Backend.Application.Services.Budget.Materializer;
+using Backend.Application.Abstractions.Application.Services.Budget.Projections;
+using MediatR;
+using Backend.Application.Common.Behaviors;
+
 namespace Backend.IntegrationTests.Wizard;
 
 [Collection("it:db")]
@@ -92,7 +101,10 @@ public sealed class WizardPreviewTest
         var budgetRepo = new BudgetRepository(uow, NullLogger<BudgetRepository>.Instance, currentUser, dbOpts);
         var debtRepo = new DebtsRepository(uow, NullLogger<DebtsRepository>.Instance, currentUser, dbOpts);
         var savingsRepo = new SavingsRepository(uow, NullLogger<SavingsRepository>.Instance, currentUser, dbOpts);
-
+        var seedSource = new BudgetMonthSeedSourceRepository(uow, NullLogger<BudgetMonthSeedSourceRepository>.Instance, dbOpts);
+        var materializationRepo = new BudgetMonthMaterializationRepository(uow, NullLogger<BudgetMonthMaterializationRepository>.Instance, dbOpts);
+        var materializer = new BudgetMonthMaterializer(seedSource, materializationRepo, time);
+        var lifeCyle = new BudgetMonthLifecycleService(monthsRepo, materializer, time);
         // new processors: only logger, they apply to target
         var processors = new IWizardStepProcessor[]
         {
@@ -105,11 +117,11 @@ public sealed class WizardPreviewTest
 
         var wizardRepo = new WizardRepository(uow, NullLogger<WizardRepository>.Instance, dbOpts);
         IWizardStepOrchestrator orchestrator = new WizardStepOrchestrator(wizardRepo, processors);
-
         // preview pipeline
         var previewBuilder = new WizardPreviewReadModelBuilder(time);
         var debtCalc = new DebtPaymentCalculator();
         var projector = new BudgetDashboardProjector(debtCalc);
+        var userRepo = new UserRepository(uow, NullLogger<UserRepository>.Instance, dbOpts);
         var previewHandler = new GetWizardFinalizationPreviewQueryHandler(orchestrator, previewBuilder, projector);
 
         // ACT 1: preview
@@ -159,10 +171,15 @@ public sealed class WizardPreviewTest
 
         // ACT 3: live dashboard
         ITimeProvider clock = new FakeTimeProvider(fixedNow);
-        var monthHandler = new GetBudgetDashboardMonthQueryHandler(
-            monthsRepo, dashRepo, projector, clock);
 
-        var monthRes = await monthHandler.Handle(new GetBudgetDashboardMonthQuery(persoid, ym), CancellationToken.None);
+        await using var sp = BuildServiceProvider(_db.ConnectionString, clock, new DebtPaymentCalculator());
+        await using var scope = sp.CreateAsyncScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+        var monthRes = await mediator.Send(
+            new GetBudgetDashboardMonthQuery(persoid, ym),
+            CancellationToken.None);
+
         monthRes.IsSuccess.Should().BeTrue();
         var live = monthRes.Value!.LiveDashboard!;
 
@@ -193,5 +210,66 @@ public sealed class WizardPreviewTest
             .Select(x => (x.CategoryName, x.TotalMonthlyAmount))
             .Should().BeEquivalentTo(
                 live.Expenditure.ByCategory.Select(x => (x.CategoryName, x.TotalMonthlyAmount)));
+    }
+    private static ServiceProvider BuildServiceProvider(
+    string cs,
+    ITimeProvider clock,
+    IDebtPaymentCalculator debtCalc)
+    {
+        var services = new ServiceCollection();
+        var opts = DbOptions(cs);
+
+        services.AddLogging();
+
+        services.AddSingleton<IOptions<DatabaseSettings>>(opts);
+
+        services.AddScoped<IUnitOfWork>(_ =>
+            new UnitOfWork(opts, NullLogger<UnitOfWork>.Instance));
+
+        services.AddScoped<IBudgetMonthRepository>(sp =>
+            new BudgetMonthRepository(
+                (UnitOfWork)sp.GetRequiredService<IUnitOfWork>(),
+                NullLogger<BudgetMonthRepository>.Instance,
+                opts));
+
+        services.AddScoped<IBudgetMonthDashboardRepository>(sp =>
+            new BudgetMonthDashboardRepository(
+                (UnitOfWork)sp.GetRequiredService<IUnitOfWork>(),
+                NullLogger<BudgetMonthDashboardRepository>.Instance,
+                opts,
+                clock));
+
+        services.AddScoped<IUserRepository>(sp =>
+            new UserRepository(
+                (UnitOfWork)sp.GetRequiredService<IUnitOfWork>(),
+                NullLogger<UserRepository>.Instance,
+                opts));
+
+        services.AddScoped<IBudgetMonthSeedSourceRepository>(sp =>
+            new BudgetMonthSeedSourceRepository(
+                (UnitOfWork)sp.GetRequiredService<IUnitOfWork>(),
+                NullLogger<BudgetMonthSeedSourceRepository>.Instance,
+                opts));
+
+        services.AddScoped<IBudgetMonthMaterializationRepository>(sp =>
+            new BudgetMonthMaterializationRepository(
+                (UnitOfWork)sp.GetRequiredService<IUnitOfWork>(),
+                NullLogger<BudgetMonthMaterializationRepository>.Instance,
+                opts));
+
+        services.AddSingleton<ITimeProvider>(clock);
+        services.AddSingleton<IDebtPaymentCalculator>(debtCalc);
+
+        services.AddScoped<IBudgetMonthMaterializer, BudgetMonthMaterializer>();
+        services.AddScoped<IBudgetMonthLifecycleService, BudgetMonthLifecycleService>();
+        services.AddScoped<IBudgetDashboardProjector>(_ => new BudgetDashboardProjector(debtCalc));
+
+        services.AddMediatR(cfg =>
+        {
+            cfg.RegisterServicesFromAssembly(typeof(GetBudgetDashboardMonthQueryHandler).Assembly);
+            cfg.AddOpenBehavior(typeof(UnitOfWorkPipelineBehavior<,>));
+        });
+
+        return services.BuildServiceProvider();
     }
 }

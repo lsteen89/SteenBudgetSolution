@@ -29,8 +29,8 @@ namespace Backend.Infrastructure.Repositories.Budget.Core
 
         // SavingsGoal table stores specific savings goals.
         const string insertGoalSql = @"
-                INSERT INTO SavingsGoal (Id, SavingsId, Name, TargetAmount, TargetDate, AmountSaved, CreatedByUserId)
-                VALUES (@Id, @SavingsId, @Name, @TargetAmount, @TargetDate, @AmountSaved, @CreatedByUserId);";
+                INSERT INTO SavingsGoal (Id, SavingsId, Name, TargetAmount, TargetDate, AmountSaved, MonthlyContribution, CreatedByUserId)
+                VALUES (@Id, @SavingsId, @Name, @TargetAmount, @TargetDate, @AmountSaved, @MonthlyContribution, @CreatedByUserId);";
 
         #endregion
 

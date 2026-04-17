@@ -6,7 +6,7 @@ using Backend.Application.Services.Budget.Compute;
 using FluentAssertions;
 using Xunit;
 
-namespace Backend.UnitTests.BudgetMonths;
+namespace Backend.UnitTests.Features.BudgetMonths;
 
 public sealed class BudgetMonthCloseSnapshotServiceTests
 {
@@ -15,6 +15,7 @@ public sealed class BudgetMonthCloseSnapshotServiceTests
     {
         var totals = new FakeTotalsService(new MonthlyTotalsResult(
             BudgetId: Guid.NewGuid(),
+            BudgetMonthId: Guid.NewGuid(),
             TotalIncome: 1000m,
             TotalExpenses: 200m,
             TotalSavings: 100m,

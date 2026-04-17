@@ -65,12 +65,28 @@ export const API_ERROR_CODES = [
   "BudgetMonth.InvalidYearMonth",
   "BudgetMonth.InvalidCarryMode",
   "BudgetMonth.InvalidCarryAmount",
+  "BudgetMonth.CarryAmountMustBeNullUnlessCustom",
+  "BudgetMonth.CustomCarryAmountRequired",
+  "BudgetMonth.CustomCarryAmountMustBeNonNegative",
   "BudgetMonth.OpenMonthExists",
   "BudgetMonth.MonthIsClosed",
   "BudgetMonth.InvalidTargetMonth",
+  "BudgetMonth.NotFound",
   "BudgetMonth.MonthNotFound",
   "BudgetMonth.SnapshotMissing",
+  "BudgetMonth.EnsureFailed",
+  "BudgetMonthExpenseItem.NotFound",
+  "BudgetMonthExpenseItem.RowDeleted",
+  "BudgetMonthExpenseItem.CannotUpdateDefaultForMonthOnlyRow",
+  "BudgetMonthExpenseItem.SourceDefaultNotFound",
+  "BudgetMonthExpenseItem.InvalidCategory",
   "BUDGET_NOT_FOUND",
+  "BUDGET_MONTH_EDITOR_NOT_FOUND",
+  "BUDGET_MONTH_EXPENSE_ITEM_PATCH_FAILED",
+  "BUDGET_MONTH_EXPENSE_ITEM_CREATE_FAILED",
+  "BUDGET_MONTH_EXPENSE_ITEM_DELETE_FAILED",
+  "EXPENSE_CATEGORY_NOT_REGISTERED",
+  "EXPENSE_CATEGORIES_LOAD_FAILED",
 
   // Wizard
   "Wizard.SessionNotFound",
@@ -188,15 +204,46 @@ const sv = {
     "Ogiltigt overforingslage. Kontrollera valet och forsok igen.",
   "BudgetMonth.InvalidCarryAmount":
     "Ogiltigt overforingsbelopp. Kontrollera beloppet och forsok igen.",
+  "BudgetMonth.CarryAmountMustBeNullUnlessCustom":
+    "Overforingsbeloppet maste vara tomt om laget inte ar anpassat.",
+  "BudgetMonth.CustomCarryAmountRequired":
+    "Ange ett overforingsbelopp nar anpassat lage ar valt.",
+  "BudgetMonth.CustomCarryAmountMustBeNonNegative":
+    "Overforingsbeloppet maste vara noll eller storre.",
   "BudgetMonth.OpenMonthExists":
     "Det finns redan en oppen manad som maste stangas forst.",
   "BudgetMonth.MonthIsClosed": "Den har manaden ar redan stangd.",
   "BudgetMonth.InvalidTargetMonth":
     "Malmanaden kan inte ligga fore den oppna manaden.",
+  "BudgetMonth.NotFound": "Den valda budgetmanaden kunde inte hittas.",
   "BudgetMonth.MonthNotFound": "Den valda budgetmanaden kunde inte hittas.",
   "BudgetMonth.SnapshotMissing":
     "Stangd manadsdata saknas. Forsok igen eller kontakta support.",
+  "BudgetMonth.EnsureFailed":
+    "Kunde inte forbereda den valda budgetmanaden. Forsok igen.",
+  "BudgetMonthExpenseItem.NotFound":
+    "Utgiftsposten kunde inte hittas for den valda manaden.",
+  "BudgetMonthExpenseItem.RowDeleted":
+    "Utgiftsposten ar redan borttagen.",
+  "BudgetMonthExpenseItem.CannotUpdateDefaultForMonthOnlyRow":
+    "Poster som bara finns i den har manaden kan inte uppdatera standardbudgeten.",
+  "BudgetMonthExpenseItem.SourceDefaultNotFound":
+    "Den kopplade standardposten kunde inte hittas.",
+  "BudgetMonthExpenseItem.InvalidCategory":
+    "Den valda kategorin ar inte giltig for den har budgeten.",
   BUDGET_NOT_FOUND: "Ingen budget hittades for det har kontot.",
+  BUDGET_MONTH_EDITOR_NOT_FOUND:
+    "Kunde inte ladda budgetmanadens redigeringsvy.",
+  BUDGET_MONTH_EXPENSE_ITEM_PATCH_FAILED:
+    "Kunde inte uppdatera utgiftsposten for manaden.",
+  BUDGET_MONTH_EXPENSE_ITEM_CREATE_FAILED:
+    "Kunde inte skapa utgiftsposten for manaden.",
+  BUDGET_MONTH_EXPENSE_ITEM_DELETE_FAILED:
+    "Kunde inte ta bort utgiftsposten for manaden.",
+  EXPENSE_CATEGORY_NOT_REGISTERED:
+    "En utgiftskategori ar inte korrekt registrerad. Kontakta support.",
+  EXPENSE_CATEGORIES_LOAD_FAILED:
+    "Kunde inte ladda utgiftskategorierna.",
 
   "Wizard.SessionNotFound": "Guidesessionen kunde inte hittas.",
   "Wizard.NoData": "Ingen guideinformation hittades.",
@@ -324,15 +371,45 @@ const en = {
     "Invalid carry-over mode. Check the selection and try again.",
   "BudgetMonth.InvalidCarryAmount":
     "Invalid carry-over amount. Check the amount and try again.",
+  "BudgetMonth.CarryAmountMustBeNullUnlessCustom":
+    "Carry-over amount must be empty unless custom mode is selected.",
+  "BudgetMonth.CustomCarryAmountRequired":
+    "Enter a carry-over amount when custom mode is selected.",
+  "BudgetMonth.CustomCarryAmountMustBeNonNegative":
+    "Carry-over amount must be zero or greater.",
   "BudgetMonth.OpenMonthExists":
     "An open month already exists and must be closed first.",
   "BudgetMonth.MonthIsClosed": "This month is already closed.",
   "BudgetMonth.InvalidTargetMonth":
     "The target month cannot be before the current open month.",
+  "BudgetMonth.NotFound": "The selected budget month was not found.",
   "BudgetMonth.MonthNotFound": "The selected budget month was not found.",
   "BudgetMonth.SnapshotMissing":
     "The closed-month snapshot is missing. Please try again or contact support.",
+  "BudgetMonth.EnsureFailed":
+    "Could not prepare the requested budget month. Please try again.",
+  "BudgetMonthExpenseItem.NotFound":
+    "The expense item was not found for the selected month.",
+  "BudgetMonthExpenseItem.RowDeleted":
+    "The expense item has already been deleted.",
+  "BudgetMonthExpenseItem.CannotUpdateDefaultForMonthOnlyRow":
+    "Month-only expense items cannot update the default budget data.",
+  "BudgetMonthExpenseItem.SourceDefaultNotFound":
+    "The linked default expense item could not be found.",
+  "BudgetMonthExpenseItem.InvalidCategory":
+    "The selected category is not valid for this budget.",
   BUDGET_NOT_FOUND: "No budget was found for this account.",
+  BUDGET_MONTH_EDITOR_NOT_FOUND:
+    "Could not load the budget month editor.",
+  BUDGET_MONTH_EXPENSE_ITEM_PATCH_FAILED:
+    "Could not update the month expense item.",
+  BUDGET_MONTH_EXPENSE_ITEM_CREATE_FAILED:
+    "Could not create the month expense item.",
+  BUDGET_MONTH_EXPENSE_ITEM_DELETE_FAILED:
+    "Could not delete the month expense item.",
+  EXPENSE_CATEGORY_NOT_REGISTERED:
+    "An expense category is not registered correctly. Please contact support.",
+  EXPENSE_CATEGORIES_LOAD_FAILED: "Could not load expense categories.",
 
   "Wizard.SessionNotFound": "The wizard session was not found.",
   "Wizard.NoData": "No wizard data was found.",
@@ -456,15 +533,46 @@ const et = {
     "Vigane ulekande reziim. Kontrolli valikut ja proovi uuesti.",
   "BudgetMonth.InvalidCarryAmount":
     "Vigane ulekande summa. Kontrolli summat ja proovi uuesti.",
+  "BudgetMonth.CarryAmountMustBeNullUnlessCustom":
+    "Ulekande summa peab olema tuhi, kui valitud pole kohandatud reziim.",
+  "BudgetMonth.CustomCarryAmountRequired":
+    "Sisesta ulekande summa, kui valitud on kohandatud reziim.",
+  "BudgetMonth.CustomCarryAmountMustBeNonNegative":
+    "Ulekande summa peab olema null voi suurem.",
   "BudgetMonth.OpenMonthExists":
     "Juba on olemas avatud kuu, mis tuleb enne sulgeda.",
   "BudgetMonth.MonthIsClosed": "See kuu on juba suletud.",
   "BudgetMonth.InvalidTargetMonth":
     "Sihtkuu ei saa olla enne praegust avatud kuud.",
+  "BudgetMonth.NotFound": "Valitud eelarvekuud ei leitud.",
   "BudgetMonth.MonthNotFound": "Valitud eelarvekuud ei leitud.",
   "BudgetMonth.SnapshotMissing":
     "Suletud kuu toommis puudub. Proovi uuesti voi vota toega uhendust.",
+  "BudgetMonth.EnsureFailed":
+    "Soovitud eelarvekuu ettevalmistamine ebaonnestus. Proovi uuesti.",
+  "BudgetMonthExpenseItem.NotFound":
+    "Valitud kuu kulu rida ei leitud.",
+  "BudgetMonthExpenseItem.RowDeleted":
+    "Kulu rida on juba kustutatud.",
+  "BudgetMonthExpenseItem.CannotUpdateDefaultForMonthOnlyRow":
+    "Ainult selle kuu read ei saa vaikeeelarvet uuendada.",
+  "BudgetMonthExpenseItem.SourceDefaultNotFound":
+    "Seotud vaike kulu rida ei leitud.",
+  "BudgetMonthExpenseItem.InvalidCategory":
+    "Valitud kategooria ei sobi selle eelarvega.",
   BUDGET_NOT_FOUND: "Selle konto jaoks ei leitud eelarvet.",
+  BUDGET_MONTH_EDITOR_NOT_FOUND:
+    "Eelarvekuu muutjat ei saanud laadida.",
+  BUDGET_MONTH_EXPENSE_ITEM_PATCH_FAILED:
+    "Kuu kulu rea uuendamine ebaonnestus.",
+  BUDGET_MONTH_EXPENSE_ITEM_CREATE_FAILED:
+    "Kuu kulu rea loomine ebaonnestus.",
+  BUDGET_MONTH_EXPENSE_ITEM_DELETE_FAILED:
+    "Kuu kulu rea kustutamine ebaonnestus.",
+  EXPENSE_CATEGORY_NOT_REGISTERED:
+    "Uks kulukategooria ei ole korrektselt registreeritud. Vota toega uhendust.",
+  EXPENSE_CATEGORIES_LOAD_FAILED:
+    "Kulukategooriate laadimine ebaonnestus.",
 
   "Wizard.SessionNotFound": "Viisardi sessiooni ei leitud.",
   "Wizard.NoData": "Viisardi andmeid ei leitud.",

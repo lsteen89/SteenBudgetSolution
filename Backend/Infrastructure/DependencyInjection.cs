@@ -29,15 +29,20 @@ using Backend.Infrastructure.Repositories.Auth;
 using Backend.Infrastructure.Repositories.Auth.RefreshTokens;
 using Backend.Infrastructure.Repositories.Auth.VerificationTokens;
 using Backend.Infrastructure.Repositories.Budget.Core;
+using Backend.Infrastructure.Repositories.Budget.Months.Editor;
+using Backend.Infrastructure.Repositories.Budget.Months.Editor.ChangeEvent;
+using Backend.Infrastructure.Repositories.Budget.Months.Editor.Expense;
+using Backend.Infrastructure.Repositories.Budget.Months.Materializer;
+using Backend.Infrastructure.Repositories.Budget.Months.Seed;
 using Backend.Infrastructure.Repositories.Email;
 using Backend.Infrastructure.Repositories.User;
 using Backend.Infrastructure.Security;
 using Backend.Infrastructure.Data.Repositories;
 using Backend.Infrastructure.Repositories.Budget.BudgetDashboard;
+using Backend.Infrastructure.Repositories.Budget.ExpenseCategories;
 using Backend.Infrastructure.Repositories.Budget.Months;
 using Backend.Infrastructure.Data.Sql.Helpers.UnitOfWork;
 using Backend.Infrastructure.Verification;
-
 // Settings
 using Backend.Settings;
 using Backend.Settings.Email;
@@ -105,9 +110,10 @@ public static class DependencyInjection
         // Contexts
         services.AddScoped<ICurrentUserContext, HttpCurrentUserContext>();
 
-        // Repositories
+        #region Repos
         // Budget
         services.AddScoped<IBudgetRepository, BudgetRepository>();
+        services.AddScoped<IBudgetMonthDashboardRepository, BudgetMonthDashboardRepository>();
         services.AddScoped<IDebtsRepository, DebtsRepository>();
         services.AddScoped<IExpenditureRepository, ExpenditureRepository>();
         services.AddScoped<IIncomeRepository, IncomeRepository>();
@@ -115,9 +121,16 @@ public static class DependencyInjection
 
         // Dashboard
         services.AddScoped<IBudgetDashboardRepository, BudgetDashboardRepository>();
+        services.AddScoped<IExpenseCategoryReadRepository, ExpenseCategoryReadRepository>();
         // Budget Months
         services.AddScoped<IBudgetMonthRepository, BudgetMonthRepository>();
-
+        services.AddScoped<IBudgetMonthRepository, BudgetMonthRepository>();
+        services.AddScoped<IBudgetMonthSeedSourceRepository, BudgetMonthSeedSourceRepository>();
+        services.AddScoped<IBudgetMonthMaterializationRepository, BudgetMonthMaterializationRepository>();
+        // Editor
+        services.AddScoped<IBudgetMonthEditorRepository, BudgetMonthEditorRepository>();
+        services.AddScoped<IBudgetMonthExpenseItemMutationRepository, BudgetMonthExpenseItemMutationRepository>();
+        services.AddScoped<IBudgetMonthChangeEventRepository, BudgetMonthChangeEventRepository>();
         // Wizard
         services.AddScoped<IWizardRepository, WizardRepository>();
 
@@ -133,8 +146,10 @@ public static class DependencyInjection
         // Blacklist tokens
         services.AddScoped<ITokenBlacklistRepo, TokenBlacklistRepo>();
 
+        #endregion
+
         services.AddHostedService<EmailOutboxSenderHostedService>();
-        // End of repositories
+
 
         // Section for email services
         services.AddScoped<IEmailRateLimitRepository, EmailRateLimitRepository>();

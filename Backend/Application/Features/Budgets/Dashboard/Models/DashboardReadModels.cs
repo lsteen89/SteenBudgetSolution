@@ -45,7 +45,8 @@ public sealed record DashboardSavingsGoalRm(
     decimal? TargetAmount,
     DateTime? TargetDate,
     decimal? AmountSaved,
-    decimal MonthlyContribution // Todo: Implement this field 
+    decimal MonthlyContribution
+
 );
 
 public sealed record DashboardSavingsRm(
@@ -81,6 +82,7 @@ public sealed record DashboardDebtOverviewRm(
 
 public sealed record BudgetDashboardReadModel(
     Guid BudgetId,
+    Guid? BudgetMonthId,
     DashboardTotalsRm Totals,
     IReadOnlyList<DashboardCategoryRm> Categories,
     IReadOnlyList<DashboardRecurringExpenseRm> RecurringExpenses,

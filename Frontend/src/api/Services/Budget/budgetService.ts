@@ -1,7 +1,8 @@
 import type { ApiEnvelope } from "@/api/api.types";
 import { api } from "@/api/axios";
 import { unwrapEnvelopeData } from "@/api/envelope";
-import type { BudgetMonthsStatusDto } from "@myTypes//budget/BudgetMonthsStatusDto";
+import type { ExpenseCategoryDto } from "@/types/budget/ExpenseCategoryDto";
+import type { BudgetMonthsStatusDto } from "@/types/budget/BudgetMonthsStatusDto";
 import type { BudgetDashboardMonthDto } from "@myTypes/budget/BudgetDashboardMonthDto";
 
 export async function fetchBudgetMonthsStatus(): Promise<BudgetMonthsStatusDto> {
@@ -40,4 +41,12 @@ export async function fetchBudgetDashboardMonth(
   );
 
   return unwrapEnvelopeData(res, "Could not load budget dashboard.");
+}
+
+export async function fetchExpenseCategories(): Promise<ExpenseCategoryDto[]> {
+  const res = await api.get<ApiEnvelope<ExpenseCategoryDto[]>>(
+    "/api/budgets/expense-categories",
+  );
+
+  return unwrapEnvelopeData(res, "Could not load expense categories.");
 }
