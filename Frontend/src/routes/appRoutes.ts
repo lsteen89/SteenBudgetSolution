@@ -15,4 +15,6 @@ export const appRoutes = {
   dashboardHowItWorks: "/dashboard/how-it-works",
   dashboardSupport: "/dashboard/support",
   dashboardSettings: "/dashboard/settings",
+
+  expenses: "/dashboard/expenses",
 } as const;

@@ -2,7 +2,7 @@ using Backend.Domain.Shared;
 using MediatR;
 using Backend.Application.Common.Behaviors;
 
-namespace Backend.Application.Features.Budgets.Months.Editor.Expense.DeleteExpenseItem.DeleteExpenseItem;
+namespace Backend.Application.Features.Budgets.Months.Editor.Expense.DeleteExpenseItem;
 
 public sealed record DeleteBudgetMonthExpenseItemCommand(
     Guid Persoid,

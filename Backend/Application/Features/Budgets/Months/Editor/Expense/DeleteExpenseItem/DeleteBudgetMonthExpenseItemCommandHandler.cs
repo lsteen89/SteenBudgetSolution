@@ -6,7 +6,7 @@ using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Domain.Errors.Budget;
 using Backend.Application.Features.Budgets.Months.Editor.Models.ChangeLog;
 
-namespace Backend.Application.Features.Budgets.Months.Editor.Expense.DeleteExpenseItem.DeleteExpenseItem;
+namespace Backend.Application.Features.Budgets.Months.Editor.Expense.DeleteExpenseItem;
 
 public sealed class DeleteBudgetMonthExpenseItemCommandHandler
     : IRequestHandler<DeleteBudgetMonthExpenseItemCommand, Result>

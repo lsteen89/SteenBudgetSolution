@@ -5,7 +5,7 @@ using Backend.Application.DTO.Budget.Months.Editor;
 using Backend.Presentation.Shared;
 using Microsoft.AspNetCore.Mvc;
 using Backend.Application.Features.Budgets.Months.Editor.Expense.PatchExpenseItem;
-using Backend.Application.Features.Budgets.Months.Editor.Expense.DeleteExpenseItem.DeleteExpenseItem;
+using Backend.Application.Features.Budgets.Months.Editor.Expense.DeleteExpenseItem;
 
 
 namespace Backend.Presentation.Controllers;

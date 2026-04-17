@@ -6,7 +6,7 @@ using Backend.Application.Services.Budget.Compute;
 using FluentAssertions;
 using Xunit;
 
-namespace Backend.UnitTests.BudgetMonths;
+namespace Backend.UnitTests.Features.BudgetMonths;
 
 public sealed class BudgetMonthCloseSnapshotServiceTests
 {

@@ -59,6 +59,9 @@ const DashboardBreakdownPage = lazy(
 const SettingsPage = lazy(
   () => import("@/Pages/private/settings/SettingsPage"),
 );
+const ExpensesEditorPage = lazy(
+  () => import("@/Pages/private/expenses/ExpensesEditorPage"),
+);
 
 // Protected support
 const SupportPage = lazy(() => import("@/Pages/private/support/SupportPage"));
@@ -132,6 +135,10 @@ export default function AppRoutes() {
               <Route
                 path={appRoutes.dashboardSettings}
                 element={withLazy(<SettingsPage />)}
+              />
+              <Route
+                path={appRoutes.expenses}
+                element={withLazy(<ExpensesEditorPage />)}
               />
             </Route>
           </Route>

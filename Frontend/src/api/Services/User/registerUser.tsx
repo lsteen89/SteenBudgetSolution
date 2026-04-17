@@ -1,13 +1,13 @@
 import type { ApiEnvelope, ApiProblem } from "@/api/api.types";
 import { api } from "@/api/axios";
 import { toApiProblem } from "@/api/toApiProblem";
+import type { AuthResult } from "@/types/User/Auth/AuthResult";
 import type {
   RegistrationFormValues,
   RegistrationRequest,
 } from "@/types/User/Creation/registration.types";
 import { toRegistrationRequest } from "@/types/User/Creation/registration.types";
 import { isAxiosError } from "axios";
-import type { AuthResult } from "types/User/Auth/AuthResult";
 
 export const registerUser = async (
   form: RegistrationFormValues,

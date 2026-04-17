@@ -2,11 +2,17 @@ import { useExpenseCategories } from "@/hooks/budget/useExpenseCategories";
 import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/lib/utils";
+import {
+  buildBulkPatchExpenseItemsSchema,
+  type ExpenseItemSchemaMessages,
+} from "@/schemas/dashboard/monthEditor/expenseItem.schemas";
 import { useToast } from "@/ui/toast/toast";
 import { canEditMonth } from "@/utils/budget/periodEditor/canShowUpdateDefault";
 import { asCategoryKey, labelCategory } from "@/utils/i18n/budget/categories";
 import { editPeriodDrawerDict } from "@/utils/i18n/pages/private/dashboard/cards/period/editPeriodDrawer.i18n";
+import { expenseItemSchemaDict } from "@/utils/i18n/pages/private/expenses/ExpenseItemSchema.i18n";
 import { tDict } from "@/utils/i18n/translate";
+import { parseMoneyInput } from "@/utils/money/moneyInput";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
 import {
   useBudgetMonthEditor,
@@ -14,6 +20,7 @@ import {
 } from "@hooks/budget/editPeriod/useMonthEditor";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { ZodError } from "zod";
 import EditPeriodFooter from "./EditPeriodFooter";
 import EditPeriodHeader from "./EditPeriodHeader";
 import EditPeriodSection from "./EditPeriodSection";
@@ -28,7 +35,7 @@ type EditPeriodDrawerProps = {
 };
 
 type ExpenseDraft = {
-  amountMonthly: number;
+  amountMonthly: string;
   isActive: boolean;
 };
 
@@ -48,12 +55,31 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
 
   const t = <K extends keyof typeof editPeriodDrawerDict.sv>(key: K) =>
     tDict(key, locale, editPeriodDrawerDict);
+  const tSchema = <K extends keyof typeof expenseItemSchemaDict.sv>(key: K) =>
+    tDict(key, locale, expenseItemSchemaDict);
 
   const editorQuery = useBudgetMonthEditor(yearMonth, open);
   const categoriesQuery = useExpenseCategories({ enabled: open });
   const bulkPatchMutation = usePatchBudgetMonthExpenseItemsBulk(yearMonth);
 
   const [drafts, setDrafts] = useState<Record<string, ExpenseDraft>>({});
+  const schemaMessages = useMemo<ExpenseItemSchemaMessages>(
+    () => ({
+      invalidId: tSchema("invalidId"),
+      nameRequired: tSchema("nameRequired"),
+      nameTooLong: tSchema("nameTooLong"),
+      categoryRequired: tSchema("categoryRequired"),
+      amountRequired: tSchema("amountRequired"),
+      amountInvalid: tSchema("amountInvalid"),
+      amountNegative: tSchema("amountNegative"),
+      atLeastOneItem: tSchema("atLeastOneItem"),
+    }),
+    [locale],
+  );
+  const bulkPatchExpenseItemsSchema = useMemo(
+    () => buildBulkPatchExpenseItemsSchema(schemaMessages),
+    [schemaMessages],
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -84,7 +110,7 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
         .map((x) => [
           x.id,
           {
-            amountMonthly: x.amountMonthly,
+            amountMonthly: String(x.amountMonthly),
             isActive: x.isActive,
           },
         ]),
@@ -133,11 +159,11 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
     return labelCategory(asCategoryKey(category.code), locale);
   };
 
-  const handleAmountChange = (rowId: string, amountMonthly: number) => {
+  const handleAmountChange = (rowId: string, amountMonthly: string) => {
     setDrafts((prev) => ({
       ...prev,
       [rowId]: {
-        ...(prev[rowId] ?? { amountMonthly: 0, isActive: true }),
+        ...(prev[rowId] ?? { amountMonthly: "", isActive: true }),
         amountMonthly,
       },
     }));
@@ -147,25 +173,87 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
     setDrafts((prev) => ({
       ...prev,
       [rowId]: {
-        ...(prev[rowId] ?? { amountMonthly: 0, isActive }),
+        ...(prev[rowId] ?? { amountMonthly: "", isActive }),
         isActive,
       },
     }));
   };
+
+  const hasActiveToggleForRow = React.useCallback(
+    (row: (typeof visibleRows)[number]) => {
+      const category = categoriesById.get(row.categoryId);
+      if (!category) return false;
+
+      return asCategoryKey(category.code) === "subscription";
+    },
+    [categoriesById],
+  );
+
+  const getDraftAmountError = React.useCallback(
+    (value: string): string | undefined => {
+      if (value.trim() === "") {
+        return t("amountRequired");
+      }
+
+      const parsed = parseMoneyInput(value, {
+        allowNegative: false,
+        maxDecimals: 2,
+      });
+
+      if (parsed === null) {
+        return t("amountInvalid");
+      }
+
+      return undefined;
+    },
+    [t],
+  );
+
+  const draftErrorsByRowId = useMemo(() => {
+    return Object.fromEntries(
+      visibleRows.map((row) => {
+        const draft = drafts[row.id] ?? {
+          amountMonthly: String(row.amountMonthly),
+          isActive: row.isActive,
+        };
+
+        const disabledByInactiveToggle =
+          hasActiveToggleForRow(row) && !draft.isActive;
+
+        if (disabledByInactiveToggle) {
+          return [row.id, undefined];
+        }
+
+        return [row.id, getDraftAmountError(draft.amountMonthly)];
+      }),
+    ) as Record<string, string | undefined>;
+  }, [visibleRows, drafts, getDraftAmountError, hasActiveToggleForRow]);
+
+  const hasValidationErrors = useMemo(() => {
+    return Object.values(draftErrorsByRowId).some(Boolean);
+  }, [draftErrorsByRowId]);
 
   const changedRows = useMemo(() => {
     return visibleRows.filter((row) => {
       const draft = drafts[row.id];
       if (!draft) return false;
 
+      const parsedDraftAmount = parseMoneyInput(draft.amountMonthly, {
+        allowNegative: false,
+        maxDecimals: 2,
+      });
+
+      if (parsedDraftAmount === null) return true;
+
       return (
-        row.amountMonthly !== draft.amountMonthly ||
+        row.amountMonthly !== parsedDraftAmount ||
         row.isActive !== draft.isActive
       );
     });
   }, [visibleRows, drafts]);
 
   const hasChanges = changedRows.length > 0;
+
   const originalEditableTotal = useMemo(() => {
     return [...quickAdjustRows, ...subscriptionRows].reduce((sum, row) => {
       return sum + (row.isActive ? row.amountMonthly : 0);
@@ -175,11 +263,17 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
   const draftEditableTotal = useMemo(() => {
     return [...quickAdjustRows, ...subscriptionRows].reduce((sum, row) => {
       const draft = drafts[row.id] ?? {
-        amountMonthly: row.amountMonthly,
+        amountMonthly: String(row.amountMonthly),
         isActive: row.isActive,
       };
 
-      return sum + (draft.isActive ? draft.amountMonthly : 0);
+      const parsedAmount =
+        parseMoneyInput(draft.amountMonthly, {
+          allowNegative: false,
+          maxDecimals: 2,
+        }) ?? 0;
+
+      return sum + (draft.isActive ? parsedAmount : 0);
     }, 0);
   }, [quickAdjustRows, subscriptionRows, drafts]);
 
@@ -195,9 +289,17 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
       return;
     }
 
-    await bulkPatchMutation.mutateAsync(
-      changedRows.map((row) => {
-        const draft = drafts[row.id];
+    if (hasValidationErrors) {
+      toast.error(t("fixValidationErrors"));
+      return;
+    }
+
+    try {
+      const rawPayload = changedRows.map((row) => {
+        const draft = drafts[row.id] ?? {
+          amountMonthly: String(row.amountMonthly),
+          isActive: row.isActive,
+        };
 
         return {
           monthExpenseItemId: row.id,
@@ -209,11 +311,22 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
             updateDefault: false,
           },
         };
-      }),
-    );
+      });
 
-    toast.success(t("saveSuccess"));
-    onClose();
+      const payload = bulkPatchExpenseItemsSchema.parse(rawPayload);
+
+      await bulkPatchMutation.mutateAsync(payload);
+
+      toast.success(t("saveSuccess"));
+      onClose();
+    } catch (error) {
+      if (error instanceof ZodError) {
+        toast.error(t("fixValidationErrors"));
+        return;
+      }
+
+      throw error;
+    }
   };
 
   const footerSummaryText = useMemo(() => {
@@ -313,7 +426,7 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
                     ) : (
                       quickAdjustRows.map((row) => {
                         const draft = drafts[row.id] ?? {
-                          amountMonthly: row.amountMonthly,
+                          amountMonthly: String(row.amountMonthly),
                           isActive: row.isActive,
                         };
 
@@ -330,6 +443,7 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
                             onAmountChange={(value) =>
                               handleAmountChange(row.id, value)
                             }
+                            error={draftErrorsByRowId[row.id]}
                           />
                         );
                       })
@@ -349,7 +463,7 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
                     ) : (
                       subscriptionRows.map((row) => {
                         const draft = drafts[row.id] ?? {
-                          amountMonthly: row.amountMonthly,
+                          amountMonthly: String(row.amountMonthly),
                           isActive: row.isActive,
                         };
 
@@ -369,6 +483,7 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
                             onActiveChange={(value) =>
                               handleActiveChange(row.id, value)
                             }
+                            error={draftErrorsByRowId[row.id]}
                           />
                         );
                       })
@@ -384,10 +499,10 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
             onSave={handleSaveAll}
             onOpenPlanning={() => {
               onClose();
-              navigate("/dashboard/planering");
+              navigate("/dashboard/expenses");
             }}
             isSaving={bulkPatchMutation.isPending}
-            isDisabled={readOnly || !hasChanges}
+            isDisabled={readOnly || !hasChanges || hasValidationErrors}
             summaryText={footerSummaryText}
           />
         </div>

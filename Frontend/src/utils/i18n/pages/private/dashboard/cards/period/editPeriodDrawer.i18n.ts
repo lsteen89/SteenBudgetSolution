@@ -36,6 +36,10 @@ export const editPeriodDrawerDict = {
       "Det finns inga rörliga kostnader att snabbjustera denna månad.",
     noSubscriptions: "Det finns inga abonnemang att justera denna månad.",
     footerSummaryLiveResult: "Nytt resultat: {sign}{amount}",
+    amountRequired: "Belopp krävs",
+    amountInvalid: "Ogiltigt belopp",
+    categoryRequired: "Kategori krävs",
+    fixValidationErrors: "Rätta valideringsfel innan du sparar",
   },
 
   en: {
@@ -74,6 +78,10 @@ export const editPeriodDrawerDict = {
       "There are no variable expenses to quick adjust this month.",
     noSubscriptions: "There are no subscriptions to adjust this month.",
     footerSummaryLiveResult: "New result: {sign}{amount}",
+    amountRequired: "Amount is required",
+    amountInvalid: "Invalid amount",
+    categoryRequired: "Category is required",
+    fixValidationErrors: "Fix validation errors before saving",
   },
 
   et: {
@@ -113,5 +121,9 @@ export const editPeriodDrawerDict = {
       "Sellel kuul ei ole muutuvaid kulusid, mida kiiresti kohandada.",
     noSubscriptions: "Sellel kuul ei ole tellimusi, mida kohandada.",
     footerSummaryLiveResult: "Uus tulemus: {sign}{amount}",
+    amountRequired: "Summa on nõutud",
+    amountInvalid: "Vigane summa",
+    categoryRequired: "Kategooria on nõutud",
+    fixValidationErrors: "Paranda validerimisvead enne salvestamist",
   },
 } as const;
