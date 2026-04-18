@@ -1,0 +1,32 @@
+export const expenseItemSchemaDict = {
+  sv: {
+    invalidId: "Ogiltigt id",
+    nameRequired: "Namn krävs",
+    nameTooLong: "Namnet är för långt",
+    categoryRequired: "Kategori krävs",
+    amountRequired: "Belopp krävs",
+    amountInvalid: "Ange ett giltigt belopp med högst 2 decimaler",
+    amountNegative: "Belopp kan inte vara negativt",
+    atLeastOneItem: "Minst en post krävs",
+  },
+  en: {
+    invalidId: "Invalid id",
+    nameRequired: "Name is required",
+    nameTooLong: "Name is too long",
+    categoryRequired: "Category is required",
+    amountRequired: "Amount is required",
+    amountInvalid: "Enter a valid amount with up to 2 decimals",
+    amountNegative: "Amount cannot be negative",
+    atLeastOneItem: "At least one item is required",
+  },
+  et: {
+    invalidId: "Vigane id",
+    nameRequired: "Nimi on kohustuslik",
+    nameTooLong: "Nimi on liiga pikk",
+    categoryRequired: "Kategooria on kohustuslik",
+    amountRequired: "Summa on kohustuslik",
+    amountInvalid: "Sisesta korrektne summa kuni kahe komakohaga",
+    amountNegative: "Summa ei saa olla negatiivne",
+    atLeastOneItem: "Vähemalt üks rida on kohustuslik",
+  },
+} as const;
