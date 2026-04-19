@@ -5,10 +5,12 @@ import { create } from "zustand";
 type UserPreferencesState = {
   locale: AppLocale;
   currency: CurrencyCode;
+  budgetPeriodCloseDay: number | null;
   initialized: boolean;
   setPreferences: (payload: {
     locale: AppLocale;
     currency: CurrencyCode;
+    budgetPeriodCloseDay?: number | null;
   }) => void;
   reset: () => void;
 };
@@ -16,12 +18,14 @@ type UserPreferencesState = {
 export const useUserPreferencesStore = create<UserPreferencesState>((set) => ({
   locale: "sv-SE",
   currency: "SEK",
+  budgetPeriodCloseDay: null,
   initialized: false,
 
-  setPreferences: ({ locale, currency }) =>
+  setPreferences: ({ locale, currency, budgetPeriodCloseDay = null }) =>
     set({
       locale,
       currency,
+      budgetPeriodCloseDay,
       initialized: true,
     }),
 
@@ -29,6 +33,7 @@ export const useUserPreferencesStore = create<UserPreferencesState>((set) => ({
     set({
       locale: "sv-SE",
       currency: "SEK",
+      budgetPeriodCloseDay: null,
       initialized: false,
     }),
 }));

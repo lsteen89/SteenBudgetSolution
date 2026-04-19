@@ -7,3 +7,7 @@ export type SettingsFormValues = {
   locale: AppLocale;
   currency: CurrencyCode;
 };
+
+export type BudgetSettingsFormValues = {
+  budgetPeriodCloseDay: number | null;
+};

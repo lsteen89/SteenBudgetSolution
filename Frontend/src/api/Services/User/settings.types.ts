@@ -5,11 +5,13 @@ import type { UserDto } from "@/types/User/UserDto";
 export type UserPreferencesDto = {
   locale: AppLocale;
   currency: CurrencyCode;
+  budgetPeriodCloseDay?: number | null;
 };
 
 export type UpdatePreferencesRequest = {
   locale: AppLocale;
   currency: CurrencyCode;
+  budgetPeriodCloseDay?: number | null;
 };
 
 export type UpdateProfileRequest = {

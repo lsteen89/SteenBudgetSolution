@@ -1,4 +1,7 @@
-import type { SettingsFormValues } from "@/types/User/Settings/settings.types";
+import type {
+  BudgetSettingsFormValues,
+  SettingsFormValues,
+} from "@/types/User/Settings/settings.types";
 import * as yup from "yup";
 
 export const settingsSchema: yup.ObjectSchema<SettingsFormValues> = yup
@@ -15,3 +18,23 @@ export const settingsSchema: yup.ObjectSchema<SettingsFormValues> = yup
       .required(),
   })
   .required();
+
+type BudgetSettingsSchemaT = (
+  key: "budgetPeriodCloseDayRequired" | "budgetPeriodCloseDayInvalid",
+) => string;
+
+export function buildBudgetSettingsSchema(
+  t: BudgetSettingsSchemaT,
+): yup.ObjectSchema<BudgetSettingsFormValues> {
+  return yup
+    .object({
+      budgetPeriodCloseDay: yup
+        .number()
+        .nullable()
+        .required(t("budgetPeriodCloseDayRequired"))
+        .integer(t("budgetPeriodCloseDayInvalid"))
+        .min(1, t("budgetPeriodCloseDayInvalid"))
+        .max(28, t("budgetPeriodCloseDayInvalid")),
+    })
+    .required();
+}
