@@ -39,6 +39,25 @@ internal static class WizardSeeds
         Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
     };
 
+    public static IncomeDataDto CreateIncomePayload(
+        string? incomePaymentDayType = null,
+        int? incomePaymentDay = null,
+        decimal netSalary = 30000m,
+        Frequency salaryFrequency = Frequency.Monthly)
+    {
+        return new IncomeDataDto
+        {
+            NetSalary = netSalary,
+            SalaryFrequency = salaryFrequency,
+            IncomePaymentDayType = incomePaymentDayType,
+            IncomePaymentDay = incomePaymentDay,
+            ShowHouseholdMembers = false,
+            ShowSideIncome = false,
+            SideHustles = new(),
+            HouseholdMembers = new()
+        };
+    }
+
     public static async Task SeedSessionAsync(string cs, Guid sessionId, Guid persoid)
     {
         await using var conn = new MySqlConnection(cs);
@@ -48,17 +67,27 @@ internal static class WizardSeeds
         """, new { sid = sessionId, pid = persoid });
     }
 
-    public static async Task SeedIncomeAndExpenditureAsync(string cs, Guid sessionId)
+    public static async Task SeedIncomeStepAsync(string cs, Guid sessionId, IncomeDataDto? income = null)
     {
-        var income = new IncomeDataDto
-        {
-            NetSalary = 30000m,
-            SalaryFrequency = Frequency.Monthly,
-            ShowHouseholdMembers = false,
-            ShowSideIncome = false,
-            SideHustles = new(),
-            HouseholdMembers = new()
-        };
+        var incomeJson = JsonSerializer.Serialize(
+            income ?? CreateIncomePayload(),
+            JsonHelper.Camel);
+
+        await using var conn = new MySqlConnection(cs);
+        await conn.ExecuteAsync("""
+            INSERT INTO WizardStepData
+                (WizardSessionId, StepNumber, SubStep, StepData, DataVersion, CreatedBy, CreatedTime, UpdatedAt)
+            VALUES
+                (@sid, 1, 0, @income, 1, 'it', UTC_TIMESTAMP(), UTC_TIMESTAMP());
+        """, new { sid = sessionId, income = incomeJson });
+    }
+
+    public static async Task SeedIncomeAndExpenditureAsync(
+        string cs,
+        Guid sessionId,
+        IncomeDataDto? income = null)
+    {
+        var resolvedIncome = income ?? CreateIncomePayload();
 
         var exp = new ExpenditureDataDto
         {
@@ -116,7 +145,7 @@ internal static class WizardSeeds
         };
 
         // Ensure enums serialized as strings (camelCase) with your production helper.
-        var incomeJson = JsonSerializer.Serialize(income, JsonHelper.Camel);
+        var incomeJson = JsonSerializer.Serialize(resolvedIncome, JsonHelper.Camel);
 
         // Expenditure doesn't have enums (mostly), normal camel is fine.
         var expJson = JsonSerializer.Serialize(exp, JsonOpts);
@@ -133,9 +162,7 @@ internal static class WizardSeeds
 
     public static async Task SeedIncomeAndBrokenExpenditureAsync(string cs, Guid sessionId)
     {
-        var incomeJson = """
-            {"netSalary":30000,"salaryFrequency":"monthly","showHouseholdMembers":false,"showSideIncome":false,"sideHustles":[],"householdMembers":[]}
-            """;
+        var incomeJson = JsonSerializer.Serialize(CreateIncomePayload(), JsonHelper.Camel);
 
         await using var conn = new MySqlConnection(cs);
         await conn.ExecuteAsync("""

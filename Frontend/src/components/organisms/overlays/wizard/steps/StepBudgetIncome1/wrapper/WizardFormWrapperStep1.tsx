@@ -46,6 +46,8 @@ const WizardFormWrapperStep1 = forwardRef<WizardFormWrapperStep1Ref, Props>(
       defaultValues: {
         ...incomeStepData,
         salaryFrequency: incomeStepData.salaryFrequency ?? "monthly",
+        incomePaymentDayType: incomeStepData.incomePaymentDayType ?? null,
+        incomePaymentDay: incomeStepData.incomePaymentDay ?? null,
       },
       mode: "onBlur",
       reValidateMode: "onChange",
@@ -77,6 +79,8 @@ const WizardFormWrapperStep1 = forwardRef<WizardFormWrapperStep1Ref, Props>(
         storeData &&
         Object.keys(storeData).length > 0 &&
         (storeData.netSalary !== undefined ||
+          storeData.incomePaymentDayType !== undefined ||
+          storeData.incomePaymentDay !== undefined ||
           (storeData.householdMembers && storeData.householdMembers.length > 0) ||
           (storeData.sideHustles && storeData.sideHustles.length > 0));
 

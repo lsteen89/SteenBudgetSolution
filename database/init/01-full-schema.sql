@@ -170,6 +170,8 @@ CREATE TABLE Income (
     BudgetId         BINARY(16)    NOT NULL,
     NetSalaryMonthly DECIMAL(18,2) NOT NULL DEFAULT 0,
     SalaryFrequency  INT           NOT NULL,
+    IncomePaymentDayType VARCHAR(30) NOT NULL DEFAULT 'dayOfMonth',
+    IncomePaymentDay TINYINT NULL,
     CreatedAt        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UpdatedAt        DATETIME      NULL ON UPDATE CURRENT_TIMESTAMP,
     CreatedByUserId  BINARY(16)    NOT NULL,

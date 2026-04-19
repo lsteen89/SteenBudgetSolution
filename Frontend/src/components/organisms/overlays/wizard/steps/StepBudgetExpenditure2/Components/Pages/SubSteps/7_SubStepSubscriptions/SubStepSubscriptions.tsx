@@ -22,7 +22,6 @@ import { WizardStepHeader } from "@components/organisms/overlays/wizard/SharedCo
 import IcedCustomItemRow from "@components/organisms/overlays/wizard/SharedComponents/InputRows/IcedCustomItemRow";
 
 import { sumMoney } from "@/utils/money/moneyMath";
-import { formatMoneyV2 } from "@/utils/money/moneyV2";
 import WizardTotalBar from "@components/organisms/overlays/wizard/SharedComponents/Sections/WizardTotalBar";
 
 type FormShape = { subscriptions: SubscriptionsSubForm };
@@ -31,24 +30,13 @@ type SuggestedFieldName = Exclude<
   "customSubscriptions"
 >;
 
-type SuggestedField = {
-  name: SuggestedFieldName;
-  label: string;
-  placeholder: string;
-  helpText: string;
-};
-
 const SubStepSubscriptions: React.FC = () => {
   const { control, setFocus, clearErrors, getFieldState, formState, register } =
     useFormContext<FormShape>();
 
   const currency = useAppCurrency();
   const locale = useAppLocale();
-  const dictLocale = locale.startsWith("sv")
-    ? "sv"
-    : locale.startsWith("et")
-      ? "et"
-      : "en";
+
   const t = <K extends keyof typeof subStepSubscriptionsDict.sv>(k: K) =>
     tDict(k, locale, subStepSubscriptionsDict);
   type SuggestedField = {
@@ -56,13 +44,47 @@ const SubStepSubscriptions: React.FC = () => {
     label: string;
     placeholder: string;
   };
-  const SUGGESTED_FIELDS: SuggestedField[] = [
-    { name: "netflix", label: "Netflix", placeholder: "e.g. 15" },
-    { name: "spotify", label: "Spotify", placeholder: "e.g. 12" },
-    { name: "hbomax", label: "HBO Max", placeholder: "e.g. 11" },
-    { name: "viaplay", label: "Viaplay", placeholder: "e.g. 15" },
-    { name: "disneyPlus", label: "Disney+", placeholder: "e.g. 9" },
-  ];
+  const SUGGESTED_FIELDS = useMemo<SuggestedField[]>(() => {
+    const isSv = locale.startsWith("sv");
+    const isSek = currency === "SEK";
+
+    const example = (eurExample: string, sekExample: string) =>
+      isSek
+        ? isSv
+          ? `T.ex. ${sekExample}kr`
+          : `e.g. ${sekExample} SEK`
+        : isSv
+          ? `T.ex. ${eurExample}`
+          : `e.g. ${eurExample}`;
+
+    return [
+      {
+        name: "netflix",
+        label: "Netflix",
+        placeholder: example("15", "179"),
+      },
+      {
+        name: "spotify",
+        label: "Spotify",
+        placeholder: example("12", "149"),
+      },
+      {
+        name: "hbomax",
+        label: "HBO Max",
+        placeholder: example("11", "129"),
+      },
+      {
+        name: "viaplay",
+        label: "Viaplay",
+        placeholder: example("15", "199"),
+      },
+      {
+        name: "disneyPlus",
+        label: "Disney+",
+        placeholder: example("9", "119"),
+      },
+    ];
+  }, [currency, locale]);
 
   const [openAccordion, setOpenAccordion] = useState<string>("custom");
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -98,12 +120,6 @@ const SubStepSubscriptions: React.FC = () => {
   }, [customSubscriptions]);
 
   const total = suggestedTotal + customTotal;
-
-  const customTotalText = useMemo(() => {
-    return customTotal > 0
-      ? formatMoneyV2(customTotal, currency, locale, { fractionDigits: 0 })
-      : undefined;
-  }, [customTotal, currency, locale]);
 
   const handleAddSubscription = () => {
     setOpenAccordion("custom");

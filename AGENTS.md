@@ -173,7 +173,8 @@ You must never run:
 - `git reset`
 - `git checkout` to discard work
 
-You may inspect git status or diffs if needed, but do not alter repository history.
+You may inspect git status, diffs, and logs if needed, but do not alter repository history or discard existing work.
+Do not create branches unless explicitly instructed.
 
 ### 4.4 Commit message output
 
@@ -565,3 +566,75 @@ If the task is ambiguous:
 If a decision affects architecture, security, financial correctness, or many files, be conservative.
 
 The human developer values understanding and control more than maximum automation.
+
+## 14. Skills
+
+Skills may be used when relevant, but they are subordinate to repository rules and specialized instruction files.
+
+- For frontend UI, layout refinement, motion, typography, premium styling, and design-system work, prefer the `frontend-design` skill.
+- Skills must never override scope control, architecture, repository conventions, product tone, security, or maintainability rules defined in this repository.
+
+## 15. Skill Usage Rule
+
+Skills may refine how a task is approached, but they must never override repository rules.
+
+Rules:
+
+- `AGENTS.md` always wins
+- specialized backend/frontend instruction files refine work inside their area only
+- skills are optional guidance layers, not authority layers
+- if a skill conflicts with repository safety, architecture, scope, maintainability, or product rules, ignore the conflicting part of the skill
+
+Do not use a skill to justify:
+
+- broader scope
+- visual overreach
+- architecture changes
+- dependency churn
+- framework changes
+- speculative refactors
+
+## 16. Dependency and Configuration Discipline
+
+Do not casually modify:
+
+- package versions
+- NuGet package references
+- lockfiles
+- tsconfig / vite / eslint / prettier / build config
+- Docker configuration
+- environment configuration
+- CI/CD configuration
+
+Only change these when the task explicitly requires it or the change is directly necessary for the requested implementation.
+
+Do not introduce version churn as incidental cleanup.
+Do not upgrade dependencies opportunistically.
+
+## 17. Secrets and Environment Safety
+
+Never hardcode secrets, tokens, passwords, API keys, connection strings, or private credentials into source files.
+
+When working with configuration:
+
+- prefer existing environment/configuration patterns
+- preserve current configuration conventions
+- do not commit sample secrets as real values
+- do not log sensitive values
+- do not weaken secret handling for convenience
+
+If a task appears to require a secret value that is not available, state that clearly instead of inventing or embedding one.
+
+## 18. Validation Honesty
+
+If validation cannot be completed, say so clearly.
+
+Report:
+
+- what was attempted
+- what could not be run
+- why it could not be run
+- what remains unverified
+
+Do not imply code is validated when it was not actually validated.
+Do not hide build/test failures behind partial success language.

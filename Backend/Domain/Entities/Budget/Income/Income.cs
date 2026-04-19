@@ -15,6 +15,8 @@ namespace Backend.Domain.Entities.Budget.Income
 
         public decimal NetSalaryMonthly { get; set; }
         public Frequency SalaryFrequency { get; set; } // original user freq retained
+        public string IncomePaymentDayType { get; set; } = "dayOfMonth";
+        public int? IncomePaymentDay { get; set; }
 
         public ICollection<SideHustle> SideHustles { get; set; } = new List<SideHustle>();
         public ICollection<HouseholdMember> HouseholdMembers { get; set; } = new List<HouseholdMember>();

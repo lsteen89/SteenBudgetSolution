@@ -1,0 +1,41 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/.codex/hooks/session-logger/log-session-start.sh\"",
+            "statusMessage": "Logging session start",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/.codex/hooks/session-logger/log-prompt.sh\"",
+            "statusMessage": "Logging prompt",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/.codex/hooks/secrets-scanner/scan-secrets.sh\"",
+            "statusMessage": "Scanning modified files for secrets",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

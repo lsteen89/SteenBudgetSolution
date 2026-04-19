@@ -35,6 +35,12 @@ public sealed record IncomeFormValues
     [JsonPropertyName("salaryFrequency")]
     public Frequency SalaryFrequency { get; init; }
 
+    [JsonPropertyName("incomePaymentDayType")]
+    public string? IncomePaymentDayType { get; init; }
+
+    [JsonPropertyName("incomePaymentDay")]
+    public int? IncomePaymentDay { get; init; }
+
     [JsonPropertyName("householdMembers")]
     public List<IncomeItem> HouseholdMembers { get; init; } = new();
 
@@ -298,4 +304,3 @@ public sealed class DebtItem
 }
 
 #endregion
-

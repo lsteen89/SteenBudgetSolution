@@ -14,7 +14,9 @@ namespace Backend.Application.Mappings.Budget
                 Id = Guid.NewGuid(),
                 BudgetId = budgetId,
                 SalaryFrequency = src.SalaryFrequency,
-                NetSalaryMonthly = FrequencyConversion.ToMonthly(src.NetSalary, src.SalaryFrequency)
+                NetSalaryMonthly = FrequencyConversion.ToMonthly(src.NetSalary, src.SalaryFrequency),
+                IncomePaymentDayType = src.IncomePaymentDayType ?? "lastDayOfMonth",
+                IncomePaymentDay = src.IncomePaymentDay
             };
 
             if (src.SideHustles?.Count > 0)

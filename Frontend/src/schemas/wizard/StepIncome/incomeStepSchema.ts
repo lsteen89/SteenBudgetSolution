@@ -2,6 +2,10 @@ import {
   nameNullable,
   svMoneyNullable,
 } from "@/schemas/helpers/wizard/wizardHelpers";
+import {
+  INCOME_PAYMENT_DAY_TYPES,
+  type IncomePaymentDayType,
+} from "@/types/Wizard/Step1_Income/IncomeFormValues";
 import { Frequency, VALID_FREQUENCIES } from "@/types/common";
 import * as yup from "yup";
 
@@ -89,6 +93,65 @@ export const incomeStepSchema = yup.object({
     .oneOf(VALID_FREQUENCIES, "Ogiltig frekvens vald.")
     .required("Välj frekvens."),
 
+  incomePaymentDayType: yup
+    .mixed<IncomePaymentDayType | null>()
+    .oneOf([...INCOME_PAYMENT_DAY_TYPES, null]),
+
+  incomePaymentDay: yup
+    .number()
+    .transform((value, originalValue) =>
+      originalValue === "" || originalValue === null || originalValue === undefined
+        ? null
+        : value,
+    )
+    .nullable(),
+
   householdMembers: yup.array(incomeItemSchema).ensure(),
   sideHustles: yup.array(incomeItemSchema).ensure(),
-});
+})
+  .test(
+    "income-payment-day-combination",
+    "Ogiltigt löneutbetalningsdatum.",
+    function (value) {
+      const paymentDayType = value?.incomePaymentDayType ?? null;
+      const paymentDay = value?.incomePaymentDay ?? null;
+
+      if (paymentDayType === null && paymentDay === null) {
+        return true;
+      }
+
+      if (paymentDayType === "dayOfMonth") {
+        if (paymentDay === null) {
+          return this.createError({
+            path: "incomePaymentDay",
+            message: "Välj en dag i månaden.",
+          });
+        }
+
+        if (!Number.isInteger(paymentDay) || paymentDay < 1 || paymentDay > 28) {
+          return this.createError({
+            path: "incomePaymentDay",
+            message: "Välj en dag mellan 1 och 28.",
+          });
+        }
+
+        return true;
+      }
+
+      if (paymentDayType === "lastDayOfMonth") {
+        if (paymentDay !== null) {
+          return this.createError({
+            path: "incomePaymentDay",
+            message: "Dag i månaden ska vara tomt när sista dagen är vald.",
+          });
+        }
+
+        return true;
+      }
+
+      return this.createError({
+        path: "incomePaymentDayType",
+        message: "Välj när du vanligtvis får lön.",
+      });
+    },
+  );

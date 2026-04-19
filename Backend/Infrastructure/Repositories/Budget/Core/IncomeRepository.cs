@@ -21,8 +21,22 @@ public class IncomeRepository : SqlBase, IIncomeRepository
     {
         // SQL queries are now private constants within the repository
         const string insertIncomeSql = @"
-            INSERT INTO Income (Id, BudgetId, NetSalaryMonthly, SalaryFrequency, CreatedByUserId)
-            VALUES (@Id, @BudgetId, @NetSalaryMonthly, @SalaryFrequency, @CreatedByUserId);";
+            INSERT INTO Income (
+                Id,
+                BudgetId,
+                NetSalaryMonthly,
+                SalaryFrequency,
+                IncomePaymentDayType,
+                IncomePaymentDay,
+                CreatedByUserId)
+            VALUES (
+                @Id,
+                @BudgetId,
+                @NetSalaryMonthly,
+                @SalaryFrequency,
+                @IncomePaymentDayType,
+                @IncomePaymentDay,
+                @CreatedByUserId);";
 
         const string insertSideSql = @"
             INSERT INTO IncomeSideHustle (Id, IncomeId, Name, IncomeMonthly, Frequency, CreatedByUserId)
