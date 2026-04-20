@@ -13,6 +13,7 @@ import { Controller, useForm } from "react-hook-form";
 
 import {
   changePassword,
+  updateSalaryPaymentTiming,
   updatePreferences,
   updateProfile,
 } from "@/api/Services/User/settings";
@@ -23,6 +24,7 @@ import { FormField } from "@/components/atoms/forms/FormField";
 import { TextInput } from "@/components/atoms/InputField/TextInputv2";
 import ContentWrapperV2 from "@/components/layout/ContentWrapperV2";
 import PageContainer from "@/components/layout/PageContainer";
+import { useBudgetDashboardMonthQuery } from "@/hooks/budget/useBudgetDashboardMonthQuery";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/lib/utils";
 import { changePasswordSchema } from "@/schemas/settings/changePasswordSchema";
@@ -31,10 +33,12 @@ import {
   settingsSchema,
 } from "@/schemas/settings/settingsSchema";
 import { useAuthStore } from "@/stores/Auth/authStore";
+import { useBudgetMonthStore } from "@/stores/Budget/budgetMonthStore";
 import { useUserPreferencesStore } from "@/stores/UserPreferences/userPreferencesStore";
 import type { ChangePasswordFormValues } from "@/types/User/Settings/passwordSettings.types";
 import type {
   BudgetSettingsFormValues,
+  IncomePaymentDayType,
   SettingsFormValues,
 } from "@/types/User/Settings/settings.types";
 import { setAppLocale } from "@/utils/i18n/appLocaleStore";
@@ -43,17 +47,64 @@ import { tDict } from "@/utils/i18n/translate";
 
 type SettingsTabKey = "account" | "budget" | "security";
 
-const BUDGET_PERIOD_CLOSE_DAY_OPTIONS = Array.from(
-  { length: 28 },
-  (_, index) => index + 1,
-);
+const PAYMENT_DAY_OPTIONS = Array.from({ length: 28 }, (_, index) => index + 1);
 
-function normalizeBudgetPeriodCloseDay(
+function normalizeIncomePaymentDay(
   value: number | null | undefined,
 ): number | null {
   if (typeof value !== "number" || !Number.isInteger(value)) return null;
   if (value < 1 || value > 28) return null;
   return value;
+}
+
+function normalizeIncomePaymentDayType(
+  value: IncomePaymentDayType | null | undefined,
+): IncomePaymentDayType | null {
+  if (value === "dayOfMonth" || value === "lastDayOfMonth") {
+    return value;
+  }
+
+  return null;
+}
+
+function buildBudgetSettingsFormValues(
+  incomePaymentDayType: IncomePaymentDayType | null | undefined,
+  incomePaymentDay: number | null | undefined,
+): BudgetSettingsFormValues {
+  const normalizedType = normalizeIncomePaymentDayType(incomePaymentDayType);
+  const normalizedDay = normalizeIncomePaymentDay(incomePaymentDay);
+
+  if (normalizedType === "lastDayOfMonth") {
+    return {
+      incomePaymentDayType: "lastDayOfMonth",
+      incomePaymentDay: null,
+      updateCurrentAndFuture: false,
+    };
+  }
+
+  if (normalizedDay !== null) {
+    return {
+      incomePaymentDayType: "dayOfMonth",
+      incomePaymentDay: normalizedDay,
+      updateCurrentAndFuture: false,
+    };
+  }
+
+  return {
+    incomePaymentDayType: normalizedType ?? "dayOfMonth",
+    incomePaymentDay: null,
+    updateCurrentAndFuture: false,
+  };
+}
+
+function matchesBudgetSettings(
+  current: BudgetSettingsFormValues,
+  next: BudgetSettingsFormValues,
+): boolean {
+  return (
+    current.incomePaymentDayType === next.incomePaymentDayType &&
+    current.incomePaymentDay === next.incomePaymentDay
+  );
 }
 
 export default function SettingsPage() {
@@ -66,10 +117,8 @@ export default function SettingsPage() {
 
   const prefsLocale = useUserPreferencesStore((s) => s.locale);
   const prefsCurrency = useUserPreferencesStore((s) => s.currency);
-  const prefsBudgetPeriodCloseDay = useUserPreferencesStore(
-    (s) => s.budgetPeriodCloseDay,
-  );
   const setPreferences = useUserPreferencesStore((s) => s.setPreferences);
+  const selectedYearMonth = useBudgetMonthStore((s) => s.selectedYearMonth);
 
   const toast = useToast();
 
@@ -81,8 +130,15 @@ export default function SettingsPage() {
     "et-EE": "Eesti",
   } as const;
 
-  const savedBudgetPeriodCloseDay = normalizeBudgetPeriodCloseDay(
-    prefsBudgetPeriodCloseDay,
+  const dashboardMonthQuery = useBudgetDashboardMonthQuery(selectedYearMonth);
+  const dashboardIncome = dashboardMonthQuery.data?.liveDashboard?.income ?? null;
+  const savedBudgetSettings = React.useMemo(
+    () =>
+      buildBudgetSettingsFormValues(
+        dashboardIncome?.incomePaymentDayType,
+        dashboardIncome?.incomePaymentDay,
+      ),
+    [dashboardIncome?.incomePaymentDayType, dashboardIncome?.incomePaymentDay],
   );
 
   const tabs = [
@@ -116,6 +172,9 @@ export default function SettingsPage() {
     control: budgetControl,
     handleSubmit: handleSubmitBudget,
     reset: resetBudget,
+    watch: watchBudget,
+    setValue: setBudgetValue,
+    clearErrors: clearBudgetErrors,
     formState: {
       errors: budgetErrors,
       isSubmitting: isSubmittingBudget,
@@ -126,9 +185,7 @@ export default function SettingsPage() {
     resolver: yupResolver(budgetSettingsSchema),
     mode: "onBlur",
     reValidateMode: "onChange",
-    defaultValues: {
-      budgetPeriodCloseDay: savedBudgetPeriodCloseDay,
-    },
+    defaultValues: savedBudgetSettings,
   });
 
   const tWithLocale = <K extends keyof typeof settingsDict.sv>(
@@ -164,10 +221,8 @@ export default function SettingsPage() {
   }, [user, prefsLocale, prefsCurrency, reset]);
 
   React.useEffect(() => {
-    resetBudget({
-      budgetPeriodCloseDay: savedBudgetPeriodCloseDay,
-    });
-  }, [savedBudgetPeriodCloseDay, resetBudget]);
+    resetBudget(savedBudgetSettings);
+  }, [savedBudgetSettings, resetBudget]);
 
   const onSubmit = async (values: SettingsFormValues) => {
     const [updatedUser, updatedPreferences] = await Promise.all([
@@ -178,7 +233,6 @@ export default function SettingsPage() {
       updatePreferences({
         locale: values.locale,
         currency: values.currency,
-        budgetPeriodCloseDay: savedBudgetPeriodCloseDay,
       }),
     ]);
 
@@ -190,24 +244,44 @@ export default function SettingsPage() {
   };
 
   const onSubmitBudget = async (values: BudgetSettingsFormValues) => {
-    const budgetPeriodCloseDay = normalizeBudgetPeriodCloseDay(
-      values.budgetPeriodCloseDay,
-    );
+    const incomePaymentDay =
+      values.incomePaymentDayType === "dayOfMonth"
+        ? normalizeIncomePaymentDay(values.incomePaymentDay)
+        : null;
 
-    if (budgetPeriodCloseDay === null) {
+    if (
+      values.incomePaymentDayType === "dayOfMonth" &&
+      incomePaymentDay === null
+    ) {
       return;
     }
 
-    const updatedPreferences = await updatePreferences({
-      locale: prefsLocale,
-      currency: prefsCurrency,
-      budgetPeriodCloseDay,
+    await updateSalaryPaymentTiming({
+      incomePaymentDayType: values.incomePaymentDayType,
+      incomePaymentDay,
+      updateCurrentAndFuture: values.updateCurrentAndFuture,
     });
 
-    setPreferences(updatedPreferences);
-    setAppLocale(updatedPreferences.locale);
+    const refreshedDashboard = await dashboardMonthQuery.refetch();
+    const refreshedBudgetSettings = buildBudgetSettingsFormValues(
+      refreshedDashboard.data?.liveDashboard?.income?.incomePaymentDayType,
+      refreshedDashboard.data?.liveDashboard?.income?.incomePaymentDay,
+    );
 
-    toast.success(tWithLocale("budgetSaveSuccess", updatedPreferences.locale));
+    if (
+      !matchesBudgetSettings(refreshedBudgetSettings, {
+        incomePaymentDayType: values.incomePaymentDayType,
+        incomePaymentDay,
+        updateCurrentAndFuture: values.updateCurrentAndFuture,
+      })
+    ) {
+      resetBudget(refreshedBudgetSettings);
+      toast.error(t("budgetSaveError"));
+      return;
+    }
+
+    resetBudget(refreshedBudgetSettings);
+    toast.success(t("budgetSaveSuccess"));
   };
 
   const onSubmitPassword = async (values: ChangePasswordFormValues) => {
@@ -235,12 +309,17 @@ export default function SettingsPage() {
   };
 
   const onResetBudget = () => {
-    resetBudget({
-      budgetPeriodCloseDay: savedBudgetPeriodCloseDay,
-    });
+    resetBudget(savedBudgetSettings);
   };
 
   const showBudgetErrors = budgetSubmitCount > 0;
+  const selectedIncomePaymentDayType = watchBudget("incomePaymentDayType");
+  const showIncomePaymentDayField =
+    selectedIncomePaymentDayType === "dayOfMonth";
+  const salaryPaymentDaySummary =
+    savedBudgetSettings.incomePaymentDayType === "lastDayOfMonth"
+      ? t("lastDayOfMonth")
+      : savedBudgetSettings.incomePaymentDay ?? t("notSet");
 
   return (
     <PageContainer noPadding className="relative">
@@ -458,60 +537,148 @@ export default function SettingsPage() {
                         <p className="text-sm text-eb-text/60">
                           {t("budgetBody")}
                         </p>
+                        <p className="mt-2 text-sm text-eb-text/55">
+                          {t("budgetCurrentMonthNotice")}
+                        </p>
                       </div>
                     </div>
 
                     <div className="mt-5 grid gap-4 sm:max-w-xs">
                       <FormField
-                        label={t("budgetPeriodCloseDay")}
-                        htmlFor="budgetPeriodCloseDay"
+                        label={t("salaryPaymentRule")}
+                        htmlFor="incomePaymentDayType"
                         error={
                           showBudgetErrors
-                            ? budgetErrors.budgetPeriodCloseDay?.message
+                            ? budgetErrors.incomePaymentDayType?.message
                             : undefined
                         }
                       >
                         <Controller
-                          name="budgetPeriodCloseDay"
+                          name="incomePaymentDayType"
                           control={budgetControl}
                           render={({ field }) => (
                             <select
-                              id="budgetPeriodCloseDay"
+                              id="incomePaymentDayType"
                               aria-invalid={
                                 showBudgetErrors &&
-                                !!budgetErrors.budgetPeriodCloseDay
+                                !!budgetErrors.incomePaymentDayType
                               }
                               className={cn(
                                 "h-11 w-full rounded-2xl border border-eb-stroke/30 bg-eb-surface px-4 text-sm text-eb-text",
                                 "focus-visible:outline-none focus-visible:ring-4 ring-eb-accent/30",
                               )}
-                              value={field.value ?? ""}
+                              value={field.value}
                               onChange={(event) => {
-                                const nextValue = event.target.value;
-                                field.onChange(
-                                  nextValue === "" ? null : Number(nextValue),
-                                );
+                                const nextValue = event.target
+                                  .value as IncomePaymentDayType;
+
+                                field.onChange(nextValue);
+
+                                if (nextValue === "lastDayOfMonth") {
+                                  setBudgetValue("incomePaymentDay", null, {
+                                    shouldDirty: true,
+                                    shouldValidate: true,
+                                  });
+                                  clearBudgetErrors("incomePaymentDay");
+                                }
                               }}
                               onBlur={field.onBlur}
                               name={field.name}
                               ref={field.ref}
                             >
-                              <option value="">
-                                {t("budgetPeriodCloseDayPlaceholder")}
+                              <option value="dayOfMonth">
+                                {t("specificDayOfMonth")}
                               </option>
-                              {BUDGET_PERIOD_CLOSE_DAY_OPTIONS.map((day) => (
-                                <option key={day} value={day}>
-                                  {day}
-                                </option>
-                              ))}
+                              <option value="lastDayOfMonth">
+                                {t("lastDayOfMonth")}
+                              </option>
                             </select>
                           )}
                         />
                       </FormField>
 
-                      <p className="text-sm text-eb-text/60">
-                        {t("budgetPeriodCloseDayHint")}
-                      </p>
+                      {showIncomePaymentDayField ? (
+                        <FormField
+                          label={t("salaryPaymentDay")}
+                          htmlFor="incomePaymentDay"
+                          error={
+                            showBudgetErrors
+                              ? budgetErrors.incomePaymentDay?.message
+                              : undefined
+                          }
+                        >
+                          <Controller
+                            name="incomePaymentDay"
+                            control={budgetControl}
+                            render={({ field }) => (
+                              <select
+                                id="incomePaymentDay"
+                                aria-invalid={
+                                  showBudgetErrors &&
+                                  !!budgetErrors.incomePaymentDay
+                                }
+                                className={cn(
+                                  "h-11 w-full rounded-2xl border border-eb-stroke/30 bg-eb-surface px-4 text-sm text-eb-text",
+                                  "focus-visible:outline-none focus-visible:ring-4 ring-eb-accent/30",
+                                )}
+                                value={field.value ?? ""}
+                                onChange={(event) => {
+                                  const nextValue = event.target.value;
+                                  field.onChange(
+                                    nextValue === "" ? null : Number(nextValue),
+                                  );
+                                }}
+                                onBlur={field.onBlur}
+                                name={field.name}
+                                ref={field.ref}
+                              >
+                                <option value="">
+                                  {t("salaryPaymentDayPlaceholder")}
+                                </option>
+                                {PAYMENT_DAY_OPTIONS.map((day) => (
+                                  <option key={day} value={day}>
+                                    {day}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+                          />
+                        </FormField>
+                      ) : null}
+                    </div>
+
+                    <div className="mt-5 rounded-2xl border border-eb-stroke/25 bg-eb-surface/70 px-4 py-3">
+                      <Controller
+                        name="updateCurrentAndFuture"
+                        control={budgetControl}
+                        render={({ field }) => (
+                          <div className="flex items-start gap-3">
+                            <input
+                              id="updateCurrentAndFuture"
+                              type="checkbox"
+                              className="mt-1 h-4 w-4 rounded border-eb-stroke/40 text-eb-accent focus:outline-none focus:ring-2 focus:ring-eb-accent/35"
+                              checked={field.value}
+                              onChange={(event) =>
+                                field.onChange(event.target.checked)
+                              }
+                              onBlur={field.onBlur}
+                              name={field.name}
+                              ref={field.ref}
+                            />
+                            <div>
+                              <label
+                                htmlFor="updateCurrentAndFuture"
+                                className="text-sm font-semibold text-eb-text/85"
+                              >
+                                {t("updateCurrentAndFutureLabel")}
+                              </label>
+                              <p className="text-sm text-eb-text/55">
+                                {t("updateCurrentAndFutureHelp")}
+                              </p>
+                            </div>
+                          </div>
+                        )}
+                      />
                     </div>
 
                     <div className="mt-6 flex flex-wrap gap-3">
@@ -649,11 +816,9 @@ export default function SettingsPage() {
                   <dd className="font-medium text-eb-text">{prefsCurrency}</dd>
                 </div>
                 <div className="flex items-center justify-between gap-3">
-                  <dt className="text-eb-text/60">
-                    {t("budgetPeriodCloseDay")}
-                  </dt>
+                  <dt className="text-eb-text/60">{t("salaryPaymentDay")}</dt>
                   <dd className="font-medium text-eb-text">
-                    {savedBudgetPeriodCloseDay ?? t("notSet")}
+                    {salaryPaymentDaySummary}
                   </dd>
                 </div>
               </dl>

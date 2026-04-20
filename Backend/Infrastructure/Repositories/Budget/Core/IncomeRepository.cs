@@ -10,6 +10,14 @@ namespace Backend.Infrastructure.Repositories.Budget.Core;
 public class IncomeRepository : SqlBase, IIncomeRepository
 {
     private readonly ICurrentUserContext _currentUser;
+    private const string UpdateIncomePaymentTimingSql = @"
+        UPDATE Income
+        SET
+            IncomePaymentDayType = @IncomePaymentDayType,
+            IncomePaymentDay = @IncomePaymentDay,
+            UpdatedAt = @NowUtc,
+            UpdatedByUserId = @ActorPersoid
+        WHERE BudgetId = @BudgetId;";
 
     public IncomeRepository(IUnitOfWork unitOfWork, ILogger<IncomeRepository> logger, ICurrentUserContext currentUser, IOptions<DatabaseSettings> db)
         : base(unitOfWork, logger, db)
@@ -81,4 +89,20 @@ public class IncomeRepository : SqlBase, IIncomeRepository
             await ExecuteAsync(insertMemberSql, income.HouseholdMembers, ct);
         }
     }
+
+    public Task<int> UpdatePaymentTimingAsync(
+        Guid budgetId,
+        string incomePaymentDayType,
+        int? incomePaymentDay,
+        Guid actorPersoid,
+        DateTime nowUtc,
+        CancellationToken ct)
+        => ExecuteAsync(UpdateIncomePaymentTimingSql, new
+        {
+            BudgetId = budgetId,
+            IncomePaymentDayType = incomePaymentDayType,
+            IncomePaymentDay = incomePaymentDay,
+            ActorPersoid = actorPersoid,
+            NowUtc = nowUtc
+        }, ct);
 }

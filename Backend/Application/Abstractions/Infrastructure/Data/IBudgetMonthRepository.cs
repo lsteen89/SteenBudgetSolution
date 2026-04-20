@@ -49,4 +49,12 @@ public interface IBudgetMonthRepository
         Guid userId,
         DateTime nowUtc,
         CancellationToken ct);
+
+    Task<int> UpdateBudgetMonthIncomePaymentTimingAsync(
+        Guid budgetMonthId,
+        string incomePaymentDayType,
+        int? incomePaymentDay,
+        Guid actorPersoid,
+        DateTime nowUtc,
+        CancellationToken ct);
 }

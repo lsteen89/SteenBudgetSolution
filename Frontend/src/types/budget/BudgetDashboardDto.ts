@@ -1,3 +1,5 @@
+import type { IncomePaymentDayType } from "@/types/User/Settings/settings.types";
+
 export interface DashboardIncomeItemDto {
     id: string;
     name: string;
@@ -6,7 +8,7 @@ export interface DashboardIncomeItemDto {
 
 export interface IncomeOverviewDto {
     netSalaryMonthly: number;
-    incomePaymentDayType: string;
+    incomePaymentDayType: IncomePaymentDayType | null;
     incomePaymentDay: number | null;
     sideHustleMonthly: number;
     householdMembersMonthly: number;

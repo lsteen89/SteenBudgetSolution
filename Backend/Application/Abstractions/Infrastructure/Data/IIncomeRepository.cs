@@ -1,11 +1,16 @@
 using Backend.Domain.Entities.Budget.Income;
-using System.Data;
-using System.Threading.Tasks;
 
 namespace Backend.Application.Abstractions.Infrastructure.Data
 {
     public interface IIncomeRepository
     {
         Task AddAsync(Income income, Guid budgetId, CancellationToken ct);
+        Task<int> UpdatePaymentTimingAsync(
+            Guid budgetId,
+            string incomePaymentDayType,
+            int? incomePaymentDay,
+            Guid actorPersoid,
+            DateTime nowUtc,
+            CancellationToken ct);
     }
 }

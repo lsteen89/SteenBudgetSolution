@@ -9,6 +9,8 @@ using Backend.Presentation.Shared;
 using Backend.Application.Features.Users.GetUserPreferences.Queries;
 using Backend.Application.DTO.User.Models;
 using Backend.Common.Utilities;
+using Backend.Application.DTO.Budget.Income;
+using Backend.Application.Features.Budgets.Income.UpdateSalaryPaymentTiming;
 using Backend.Application.Features.Users.UpdateUserPreferences.Commands;
 
 namespace Backend.Presentation.Controllers
@@ -120,6 +122,39 @@ namespace Backend.Presentation.Controllers
             }
 
             return Ok(ApiEnvelope<UserPreferencesDto>.Success(result.Value!));
+        }
+        [HttpPut("salary-payment-timing")]
+        [ProducesResponseType(typeof(ApiEnvelope<SalaryPaymentTimingDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiEnvelope<SalaryPaymentTimingDto>), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ApiEnvelope<SalaryPaymentTimingDto>), StatusCodes.Status401Unauthorized)]
+        public async Task<ActionResult<ApiEnvelope<SalaryPaymentTimingDto>>> UpdateSalaryPaymentTiming(
+        [FromBody] UpdateSalaryPaymentTimingRequestDto request,
+        CancellationToken ct)
+        {
+            var email = ClaimsPrincipalExtensions.GetEmail(User);
+
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                var env = ApiEnvelope<SalaryPaymentTimingDto>.Failure(
+                    "Auth.EmailMissing",
+                    "No email claim found in token."
+                );
+                return Unauthorized(env);
+            }
+
+            var result = await _mediator.Send(
+                new UpdateSalaryPaymentTimingCommand(email, request),
+                ct);
+
+            if (result.IsFailure)
+            {
+                var env = ApiEnvelope<SalaryPaymentTimingDto>.Failure(
+                    result.Error!.Code,
+                    result.Error.Message);
+                return BadRequest(env);
+            }
+
+            return Ok(ApiEnvelope<SalaryPaymentTimingDto>.Success(result.Value!));
         }
         [HttpPut("profile")]
         [ProducesResponseType(typeof(ApiEnvelope<UserDto>), StatusCodes.Status200OK)]

@@ -35,16 +35,25 @@ export const settingsDict = {
     securityBody: "Hantera lösenord och inloggningsrelaterade inställningar.",
     changePassword: "Byt lösenord",
 
-    budgetTitle: "Budgetperiod",
+    budgetTitle: "Löneutbetalning",
     budgetBody:
-      "Välj vilken dag i månaden som markerar slutet på din budgetperiod. Från och med den dagen kan du stänga den nuvarande budgeten och starta en ny månad.",
-    budgetPeriodCloseDay: "Stängningsdag för budgetperiod",
-    budgetPeriodCloseDayHint:
-      "Välj en dag mellan 1 och 28 för att undvika ogiltiga datum i kortare månader.",
-    budgetPeriodCloseDayPlaceholder: "Välj dag",
-    budgetPeriodCloseDayRequired: "Välj en dag mellan 1 och 28.",
-    budgetPeriodCloseDayInvalid: "Välj en dag mellan 1 och 28.",
-    budgetSaveSuccess: "Budgetinställningen uppdaterad",
+      "Det här är när din lön vanligtvis betalas ut. Tre dagar före detta datum kan du påbörja en ny budgetmånad.",
+    budgetCurrentMonthNotice:
+      "Ändringar här påverkar din aktuella budgetmånad. Redan stängda månader ändras inte.",
+    salaryPaymentRule: "Löneutbetalningsregel",
+    salaryPaymentDay: "Löneutbetalningsdag",
+    specificDayOfMonth: "Specifik dag i månaden",
+    lastDayOfMonth: "Sista dagen i månaden",
+    salaryPaymentDayPlaceholder: "Välj dag",
+    updateCurrentAndFutureLabel: "Använd även för kommande månader",
+    updateCurrentAndFutureHelp:
+      "Detta uppdaterar den aktuella månaden och din vanliga löneutbetalning framåt.",
+    incomePaymentDayTypeRequired: "Välj när din lön vanligtvis betalas ut.",
+    incomePaymentDayRequired: "Välj en dag mellan 1 och 28.",
+    incomePaymentDayInvalid: "Välj en dag mellan 1 och 28.",
+    budgetSaveSuccess: "Löneutbetalningen uppdaterad",
+    budgetSaveError:
+      "Löneutbetalningen kunde inte sparas. Försök igen senare.",
     notSet: "Inte angivet",
 
     overviewTitle: "Kontöversikt",
@@ -85,16 +94,26 @@ export const settingsDict = {
     securityBody: "Manage password and sign-in related settings.",
     changePassword: "Change password",
 
-    budgetTitle: "Budget period",
+    budgetTitle: "Salary payment schedule",
     budgetBody:
-      "Choose the day of the month that marks the end of your budget period. On and after this day, you can close the current budget and start a new month.",
-    budgetPeriodCloseDay: "Budget period close day",
-    budgetPeriodCloseDayHint:
-      "Choose a day between 1 and 28 to avoid invalid dates in shorter months.",
-    budgetPeriodCloseDayPlaceholder: "Select a day",
-    budgetPeriodCloseDayRequired: "Choose a day between 1 and 28.",
-    budgetPeriodCloseDayInvalid: "Choose a day between 1 and 28.",
-    budgetSaveSuccess: "Budget setting updated",
+      "This is when your salary is usually paid. Three days before this date, you can begin a new budget month.",
+    budgetCurrentMonthNotice:
+      "Changes here affect your current budget month. Closed months are not changed.",
+    salaryPaymentRule: "Salary payment rule",
+    salaryPaymentDay: "Salary payment day",
+    specificDayOfMonth: "Specific day of month",
+    lastDayOfMonth: "Last day of month",
+    salaryPaymentDayPlaceholder: "Select a day",
+    updateCurrentAndFutureLabel: "Use this for future months too",
+    updateCurrentAndFutureHelp:
+      "This updates the current month and your default salary payment timing going forward.",
+    incomePaymentDayTypeRequired:
+      "Choose when your salary is usually paid.",
+    incomePaymentDayRequired: "Choose a day between 1 and 28.",
+    incomePaymentDayInvalid: "Choose a day between 1 and 28.",
+    budgetSaveSuccess: "Salary payment schedule updated",
+    budgetSaveError:
+      "Salary payment schedule could not be saved. Please try again later.",
     notSet: "Not set",
 
     overviewTitle: "Account overview",
@@ -133,16 +152,26 @@ export const settingsDict = {
     securityBody: "Halda parooli ja sisselogimise seadeid.",
     changePassword: "Muuda parooli",
 
-    budgetTitle: "Eelarveperiood",
+    budgetTitle: "Palgapäeva ajastus",
     budgetBody:
-      "Vali kuu päev, mis märgib sinu eelarveperioodi lõppu. Alates sellest päevast saad praeguse eelarve sulgeda ja uue kuu alustada.",
-    budgetPeriodCloseDay: "Eelarveperioodi sulgemispäev",
-    budgetPeriodCloseDayHint:
-      "Vali päev vahemikus 1 kuni 28, et vältida lühemates kuudes vigaseid kuupäevi.",
-    budgetPeriodCloseDayPlaceholder: "Vali päev",
-    budgetPeriodCloseDayRequired: "Vali päev vahemikus 1 kuni 28.",
-    budgetPeriodCloseDayInvalid: "Vali päev vahemikus 1 kuni 28.",
-    budgetSaveSuccess: "Eelarve seade uuendatud",
+      "See on aeg, millal sinu palk tavaliselt laekub. Kolm päeva enne seda kuupäeva saad alustada uut eelarvekuud.",
+    budgetCurrentMonthNotice:
+      "Siinsed muudatused mõjutavad sinu praegust eelarvekuud. Juba suletud kuid ei muudeta.",
+    salaryPaymentRule: "Palga väljamakse reegel",
+    salaryPaymentDay: "Palgapäev",
+    specificDayOfMonth: "Kindel päev kuus",
+    lastDayOfMonth: "Kuu viimane päev",
+    salaryPaymentDayPlaceholder: "Vali päev",
+    updateCurrentAndFutureLabel: "Kasuta seda ka tulevaste kuude jaoks",
+    updateCurrentAndFutureHelp:
+      "See uuendab praegust kuud ja sinu tavapärast palgapäeva edaspidi.",
+    incomePaymentDayTypeRequired:
+      "Vali, millal sinu palk tavaliselt laekub.",
+    incomePaymentDayRequired: "Vali päev vahemikus 1 kuni 28.",
+    incomePaymentDayInvalid: "Vali päev vahemikus 1 kuni 28.",
+    budgetSaveSuccess: "Palgapäeva ajastus uuendatud",
+    budgetSaveError:
+      "Palgapäeva ajastust ei saanud salvestada. Proovi hiljem uuesti.",
     notSet: "Määramata",
 
     overviewTitle: "Konto ülevaade",

@@ -36,7 +36,6 @@ export function useWizardCurrencyBridge() {
         const updated = await updatePreferences({
           locale: current.locale,
           currency: nextCurrency,
-          budgetPeriodCloseDay: current.budgetPeriodCloseDay,
         });
 
         setPreferences(updated);
