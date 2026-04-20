@@ -21,6 +21,13 @@ export const wizardIncomeDict = {
     amountLabel: "Belopp",
     amountPlaceholder: "t.ex. 30 000",
     salaryFrequencyLabel: "Lönefrekvens",
+    paymentTimingLabel: "När får du vanligtvis lön?",
+    paymentTimingHelper:
+      "Vi använder detta för att föreslå när din budgetmånad bör sluta. Du kan ändra det senare.",
+    paymentTimingOptionDayOfMonth: "Specifik dag",
+    paymentTimingOptionLastDay: "Sista dagen i månaden",
+    paymentTimingDayLabel: "Dag i månaden",
+    paymentTimingDayPlaceholder: "Välj dag",
     approxSuffix: "/ mån",
 
     totalTitle: "Total månadsinkomst",
@@ -56,6 +63,13 @@ export const wizardIncomeDict = {
     amountLabel: "Amount",
     amountPlaceholder: "e.g. 3,000",
     salaryFrequencyLabel: "Pay frequency",
+    paymentTimingLabel: "When do you usually get paid?",
+    paymentTimingHelper:
+      "We use this to suggest when your budget month should end. You can change it later.",
+    paymentTimingOptionDayOfMonth: "Specific day",
+    paymentTimingOptionLastDay: "Last day of the month",
+    paymentTimingDayLabel: "Day of month",
+    paymentTimingDayPlaceholder: "Select day",
     approxSuffix: "/ mo",
 
     totalTitle: "Total monthly income",
@@ -92,6 +106,13 @@ export const wizardIncomeDict = {
     amountLabel: "Summa",
     amountPlaceholder: "nt 2 000",
     salaryFrequencyLabel: "Palga sagedus",
+    paymentTimingLabel: "Millal sa tavaliselt palka saad?",
+    paymentTimingHelper:
+      "Kasutame seda, et soovitada, millal sinu eelarvekuu võiks lõppeda. Saad seda hiljem muuta.",
+    paymentTimingOptionDayOfMonth: "Kindel kuupäev",
+    paymentTimingOptionLastDay: "Kuu viimane päev",
+    paymentTimingDayLabel: "Kuupäev kuus",
+    paymentTimingDayPlaceholder: "Vali päev",
     approxSuffix: "/ kuu",
 
     totalTitle: "Kogu kuusissetulek",

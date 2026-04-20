@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { tDict } from "@/utils/i18n/translate";
 import { goalFeasibilityRowDict } from "@/utils/i18n/wizard/stepSavings/GoalFeasibilityRow.i18n";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
+import { Star } from "lucide-react";
 import { useMemo } from "react";
 
 type Props = {
@@ -11,6 +12,7 @@ type Props = {
   monthlyContribution: number;
   targetAmount?: number;
   amountSaved?: number;
+  isFavorite?: boolean;
 };
 
 const num = (v: unknown) =>
@@ -24,6 +26,7 @@ export default function GoalFeasibilityRow({
   monthlyContribution,
   targetAmount,
   amountSaved,
+  isFavorite,
 }: Props) {
   const currency = useAppCurrency();
   const locale = useAppLocale();
@@ -89,17 +92,6 @@ export default function GoalFeasibilityRow({
             ? "ok"
             : "slow";
 
-  const chipText =
-    tone === "done"
-      ? t("chipDone")
-      : tone === "missing"
-        ? t("chipMissing")
-        : tone === "good"
-          ? t("chipGood")
-          : tone === "ok"
-            ? t("chipOk")
-            : t("chipSlow");
-
   const etaShort =
     etaMonths != null
       ? t("etaShortTemplate").replace("{months}", String(etaMonths))
@@ -109,123 +101,103 @@ export default function GoalFeasibilityRow({
     <div className="py-2">
       <div
         className={cn(
-          "flex flex-col gap-2 rounded-2xl px-4 py-3",
-          "sm:flex-row sm:items-start sm:justify-between sm:gap-3",
-          "bg-wizard-surface border border-wizard-stroke/20",
-          "shadow-[0_6px_14px_rgba(2,6,23,0.06)]",
+          "rounded-2xl border bg-wizard-surface",
+          "border-wizard-stroke/20 shadow-[0_6px_14px_rgba(2,6,23,0.06)]",
+          "px-3 py-2.5 sm:px-4 sm:py-3",
           "transition-colors hover:border-wizard-stroke/30",
         )}
       >
-        <div className="min-w-0">
-          <div className="flex items-start justify-between gap-2 min-w-0">
-            <div className="min-w-0">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex min-w-0 items-center gap-2">
               <p className="truncate text-sm font-semibold text-wizard-text">
                 {title}
               </p>
 
-              <span
-                className={cn(
-                  "mt-1 inline-flex shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold",
-                  "sm:hidden",
-                  tone === "done" &&
-                    "border-wizard-accent/20 bg-wizard-accent/10 text-wizard-accent",
-                  tone === "missing" &&
-                    "border-wizard-warning/25 bg-wizard-warning/10 text-wizard-warning",
-                  tone === "good" &&
-                    "border-wizard-accent/20 bg-wizard-accent/10 text-wizard-text",
-                  tone === "ok" &&
-                    "border-wizard-stroke/25 bg-wizard-shell/45 text-wizard-text/80",
-                  tone === "slow" &&
-                    "border-wizard-stroke/25 bg-wizard-shell/35 text-wizard-text/70",
-                )}
-              >
-                {chipText}
+              {isFavorite ? (
+                <>
+                  <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full border border-yellow-500/25 bg-yellow-500/10 text-yellow-700 sm:hidden">
+                    <Star className="h-3 w-3 fill-current" />
+                  </span>
+
+                  <span className="hidden sm:inline-flex items-center gap-1 rounded-full border border-yellow-500/30 bg-yellow-500/10 px-2 py-0.5 text-[11px] font-semibold text-yellow-700">
+                    <Star className="h-3.5 w-3.5 fill-current" />
+                    {t("favoriteGoal")}
+                  </span>
+                </>
+              ) : null}
+            </div>
+
+            <p
+              className={cn(
+                "mt-1 text-xs leading-snug sm:mt-2 sm:text-sm",
+                tone === "done" && "text-wizard-accent",
+                tone === "missing" && "text-wizard-warning",
+                tone === "good" && "text-wizard-text/75",
+                tone === "ok" && "text-wizard-text/70",
+                tone === "slow" && "text-wizard-text/65",
+              )}
+            >
+              {statusLine}
+            </p>
+
+            <p className="mt-2 hidden flex-wrap gap-x-2 gap-y-1 text-xs leading-snug text-wizard-text/60 sm:flex">
+              {target > 0 ? (
+                <>
+                  {t("remainingLabel")}:{" "}
+                  <span className="tabular-nums font-semibold text-wizard-text/80">
+                    {money0(remaining)}
+                  </span>
+                  {saved > 0 ? (
+                    <>
+                      <span className="text-wizard-text/35">•</span>
+                      {t("savedLabel")}:{" "}
+                      <span className="tabular-nums font-semibold text-wizard-text/80">
+                        {money0(saved)}
+                      </span>
+                    </>
+                  ) : null}
+                </>
+              ) : (
+                t("targetMissing")
+              )}
+            </p>
+          </div>
+
+          <div className="shrink-0">
+            <div
+              className={cn(
+                "inline-flex items-baseline rounded-full border",
+                "bg-wizard-shell/55 border-wizard-stroke/20",
+                "shadow-[0_6px_14px_rgba(2,6,23,0.06)]",
+                "px-2.5 py-1 sm:px-3 sm:py-1.5",
+              )}
+            >
+              <span className="tabular-nums text-sm font-semibold text-wizard-accent sm:text-base">
+                {contrib > 0 ? money0(contrib) : "—"}
+              </span>
+              <span className="ml-1 text-[11px] font-semibold text-wizard-text/60 sm:text-xs">
+                {t("perMonthSuffix")}
               </span>
             </div>
 
-            <div className="shrink-0 sm:hidden">
-              <div
-                className={cn(
-                  "inline-flex items-baseline rounded-full px-3 py-1.5",
-                  "bg-wizard-shell/55 border border-wizard-stroke/20",
-                  "shadow-[0_6px_14px_rgba(2,6,23,0.06)]",
-                )}
-              >
-                <span className="tabular-nums font-semibold text-wizard-accent">
-                  {contrib > 0 ? money0(contrib) : "—"}
+            <div className="mt-1 hidden sm:block text-right">
+              {etaMonths != null &&
+              contrib > 0 &&
+              target > 0 &&
+              remaining > 0 ? (
+                <span
+                  className={cn(
+                    "inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                    "border border-wizard-stroke/20 bg-wizard-surface text-wizard-text/60",
+                  )}
+                >
+                  {etaShort}
                 </span>
-                <span className="ml-1 text-xs font-semibold text-wizard-text/60">
-                  {t("perMonthSuffix")}
-                </span>
-              </div>
+              ) : (
+                <span className="block h-[18px]" aria-hidden />
+              )}
             </div>
-          </div>
-
-          <p className="mt-1 text-xs text-wizard-text/60 leading-snug flex flex-wrap gap-x-2 gap-y-1">
-            {target > 0 ? (
-              <>
-                {t("remainingLabel")}:{" "}
-                <span className="font-semibold text-wizard-text/80 tabular-nums">
-                  {money0(remaining)}
-                </span>
-                {saved > 0 ? (
-                  <>
-                    <span className="text-wizard-text/35">·</span>
-                    {t("savedLabel")}:{" "}
-                    <span className="font-semibold text-wizard-text/80 tabular-nums">
-                      {money0(saved)}
-                    </span>
-                  </>
-                ) : null}
-                {etaMonths != null && contrib > 0 && remaining > 0 ? (
-                  <>
-                    <span className="text-wizard-text/35"> • </span>
-                    <span className="sm:hidden font-semibold text-wizard-text/70">
-                      {etaShort}
-                    </span>
-                  </>
-                ) : null}
-              </>
-            ) : (
-              t("targetMissing")
-            )}
-          </p>
-
-          <p className="mt-2 text-sm text-wizard-text/70 leading-snug">
-            {statusLine}
-          </p>
-        </div>
-
-        <div className="hidden sm:block shrink-0 text-right">
-          <div
-            className={cn(
-              "inline-flex items-baseline rounded-full px-3 py-1.5",
-              "bg-wizard-shell/55 border border-wizard-stroke/20",
-              "shadow-[0_6px_14px_rgba(2,6,23,0.06)]",
-            )}
-          >
-            <span className="tabular-nums font-semibold text-wizard-accent">
-              {contrib > 0 ? money0(contrib) : "—"}
-            </span>
-            <span className="ml-1 text-xs font-semibold text-wizard-text/60">
-              {t("perMonthSuffix")}
-            </span>
-          </div>
-
-          <div className="mt-1 hidden sm:block">
-            {etaMonths != null && contrib > 0 && target > 0 && remaining > 0 ? (
-              <span
-                className={cn(
-                  "inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold",
-                  "border border-wizard-stroke/20 bg-wizard-surface",
-                  "text-wizard-text/60",
-                )}
-              >
-                {etaShort}
-              </span>
-            ) : (
-              <span className="block h-[18px]" aria-hidden />
-            )}
           </div>
         </div>
       </div>

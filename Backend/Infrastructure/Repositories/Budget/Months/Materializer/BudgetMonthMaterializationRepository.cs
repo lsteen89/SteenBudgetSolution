@@ -35,6 +35,8 @@ public sealed partial class BudgetMonthMaterializationRepository : SqlBase, IBud
         Guid? sourceIncomeId,
         decimal netSalaryMonthly,
         int salaryFrequency,
+        string incomePaymentDayType,
+        int? incomePaymentDay,
         Guid actorPersoid,
         DateTime nowUtc,
         CancellationToken ct)
@@ -47,6 +49,8 @@ public sealed partial class BudgetMonthMaterializationRepository : SqlBase, IBud
                 SourceIncomeId = sourceIncomeId,
                 NetSalaryMonthly = netSalaryMonthly,
                 SalaryFrequency = salaryFrequency,
+                IncomePaymentDayType = incomePaymentDayType,
+                IncomePaymentDay = incomePaymentDay,
                 ActorPersoid = actorPersoid,
                 NowUtc = nowUtc
             },

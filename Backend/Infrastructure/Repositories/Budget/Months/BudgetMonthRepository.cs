@@ -94,6 +94,23 @@ public sealed partial class BudgetMonthRepository : SqlBase, IBudgetMonthReposit
             NowUtc = nowUtc,
             UserId = userId
         }, ct);
+
+    public Task<int> UpdateBudgetMonthIncomePaymentTimingAsync(
+        Guid budgetMonthId,
+        string incomePaymentDayType,
+        int? incomePaymentDay,
+        Guid actorPersoid,
+        DateTime nowUtc,
+        CancellationToken ct)
+        => ExecuteAsync(UpdateBudgetMonthIncomePaymentTiming, new
+        {
+            BudgetMonthId = budgetMonthId,
+            IncomePaymentDayType = incomePaymentDayType,
+            IncomePaymentDay = incomePaymentDay,
+            ActorPersoid = actorPersoid,
+            NowUtc = nowUtc
+        }, ct);
+
     public Task<BudgetMonthDetailsRm?> GetMonthAsync(Guid budgetId, string yearMonth, CancellationToken ct)
         => QuerySingleOrDefaultAsync<BudgetMonthDetailsRm>(GetMonth, new { BudgetId = budgetId, YearMonth = yearMonth }, ct);
 

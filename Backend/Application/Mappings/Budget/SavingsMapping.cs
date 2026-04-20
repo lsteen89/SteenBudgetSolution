@@ -61,7 +61,8 @@ namespace Backend.Application.Mappings.Budget
             Name = dto.Name,
             TargetAmount = dto.TargetAmount,
             AmountSaved = dto.AmountSaved,
-            TargetDate = dto.TargetDate
+            TargetDate = dto.TargetDate,
+            IsFavorite = dto.IsFavorite
         };
     }
 }

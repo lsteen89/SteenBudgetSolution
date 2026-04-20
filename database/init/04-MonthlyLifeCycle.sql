@@ -58,6 +58,9 @@ CREATE TABLE BudgetMonthIncome (
     NetSalaryMonthly        DECIMAL(18,2) NOT NULL DEFAULT 0,
     SalaryFrequency         INT           NOT NULL,
 
+    IncomePaymentDayType    VARCHAR(30) NOT NULL DEFAULT 'dayOfMonth',
+    IncomePaymentDay        TINYINT NULL,
+
     IsOverride              TINYINT(1)    NOT NULL DEFAULT 0,
     IsDeleted               TINYINT(1)    NOT NULL DEFAULT 0,
 

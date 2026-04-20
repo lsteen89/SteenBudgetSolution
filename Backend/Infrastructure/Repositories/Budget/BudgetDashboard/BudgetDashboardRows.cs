@@ -3,6 +3,8 @@ namespace Backend.Infrastructure.Repositories.Budget.BudgetDashboard;
 internal sealed record DashboardTotalsRow(
     Guid? IncomeId,
     decimal NetSalaryMonthly,
+    string IncomePaymentDayType,
+    int? IncomePaymentDay,
     decimal SideHustleMonthly,
     decimal HouseholdMembersMonthly,
     decimal TotalExpensesMonthly,

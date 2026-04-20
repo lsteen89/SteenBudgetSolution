@@ -3,6 +3,8 @@ using FluentValidation;
 
 public sealed class IncomeValidator : AbstractValidator<IncomeFormValues>
 {
+    private static readonly string[] ValidIncomePaymentDayTypes = ["dayOfMonth", "lastDayOfMonth"];
+
     public IncomeValidator()
     {
         RuleFor(x => x.NetSalary)
@@ -17,6 +19,49 @@ public sealed class IncomeValidator : AbstractValidator<IncomeFormValues>
 
         RuleForEach(x => x.SideHustles)
             .SetValidator(new IncomeItemValidator());
+
+        RuleFor(x => x)
+            .Custom((x, ctx) =>
+            {
+                var paymentDayType = x.IncomePaymentDayType;
+                var paymentDay = x.IncomePaymentDay;
+
+                if (paymentDayType is null && paymentDay is null)
+                    return;
+
+                if (paymentDayType is null)
+                {
+                    ctx.AddFailure(nameof(x.IncomePaymentDayType), "Välj när du vanligtvis får lön.");
+                    return;
+                }
+
+                if (!ValidIncomePaymentDayTypes.Contains(paymentDayType))
+                {
+                    ctx.AddFailure(nameof(x.IncomePaymentDayType), "Ogiltigt löneutbetalningsdatum.");
+                    return;
+                }
+
+                if (paymentDayType == "dayOfMonth")
+                {
+                    if (!paymentDay.HasValue)
+                    {
+                        ctx.AddFailure(nameof(x.IncomePaymentDay), "Välj en dag i månaden.");
+                        return;
+                    }
+
+                    if (paymentDay is < 1 or > 28)
+                    {
+                        ctx.AddFailure(nameof(x.IncomePaymentDay), "Välj en dag mellan 1 och 28.");
+                    }
+
+                    return;
+                }
+
+                if (paymentDay.HasValue)
+                {
+                    ctx.AddFailure(nameof(x.IncomePaymentDay), "Dag i månaden ska vara tomt när sista dagen är vald.");
+                }
+            });
 
         RuleFor(x => x.HouseholdMembers)
             .Must(HaveUniqueIds)

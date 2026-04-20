@@ -1,7 +1,10 @@
 import React from "react";
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/utils/cn";
+import { tDict } from "@/utils/i18n/translate";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
 import type { CurrencyCode } from "@/utils/money/currency";
+import { summaryGridDict } from "./SummaryGrid.i18n";
 
 interface Row { id: string; label: string; value: number; }
 
@@ -75,7 +78,11 @@ export const SummaryGrid: React.FC<Props> = ({
   locale = "sv-SE",
   money,
 }) => {
+  const appLocale = useAppLocale();
   const fractionDigits = money?.fractionDigits ?? 0;
+  const resolvedLocale = locale ?? appLocale;
+  const t = <K extends keyof typeof summaryGridDict.sv>(k: K) =>
+    tDict(k, appLocale, summaryGridDict);
 
   return (
     <div className="w-full mb-4 bg-slate-800/50 rounded-2xl shadow-2xl p-6 md:p-8 border border-white/10">
@@ -87,17 +94,17 @@ export const SummaryGrid: React.FC<Props> = ({
         {!!topRows?.length && (
           <>
             <p className="text-xs uppercase tracking-wider text-white/50 mt-2">
-              Beräkning
+              {t("calculation")}
             </p>
             <Section
               rows={topRows}
               currency={currency}
-              locale={locale}
+              locale={resolvedLocale}
               fractionDigits={fractionDigits}
             />
             <hr className="col-span-full my-4 border-white/20" />
             <p className="text-xs uppercase tracking-wider text-white/50">
-              Utgifter per kategori
+              {t("expensesPerCategory")}
             </p>
           </>
         )}
@@ -105,7 +112,7 @@ export const SummaryGrid: React.FC<Props> = ({
         <Section
           rows={rows}
           currency={currency}
-          locale={locale}
+          locale={resolvedLocale}
           fractionDigits={fractionDigits}
         />
 
@@ -120,7 +127,7 @@ export const SummaryGrid: React.FC<Props> = ({
                   (resultValue ?? 0) < 0 ? "text-red-500" : "text-green-500",
                 )}
               >
-                {formatMoneyV2(resultValue ?? 0, currency, locale, { fractionDigits })}
+                {formatMoneyV2(resultValue ?? 0, currency, resolvedLocale, { fractionDigits })}
               </span>
             </div>
           </>

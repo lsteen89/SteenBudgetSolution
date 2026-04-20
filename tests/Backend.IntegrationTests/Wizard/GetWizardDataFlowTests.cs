@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Dapper;
 using FluentAssertions;
+using FluentValidation;
 using Moq;
 using MySqlConnector;
 using Backend.Domain.Entities.Wizard;
@@ -15,6 +16,13 @@ using Backend.Application.Abstractions.Infrastructure.Data; // IWizardRepository
 using Backend.Application.Features.Wizard.GetWizardData;
 using Backend.Application.Features.Wizard.GetWizardData.Assemble;
 using Backend.Application.Features.Wizard.GetWizardData.Reduce;
+using Backend.Application.Features.Wizard.SaveStep;
+using Backend.Application.Models.Wizard;
+using Backend.Infrastructure.Data.Repositories;
+using Backend.Infrastructure.Data.Sql.Helpers.UnitOfWork;
+using Backend.Settings;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 using Backend.Application.Abstractions.Application.Services.Security; // IPasswordService
 
@@ -27,6 +35,9 @@ public sealed class GetWizardDataFlowTests : IntegrationTestBase
     public GetWizardDataFlowTests(MariaDbFixture db) : base(db) { }
 
     private static readonly JsonSerializerOptions Camel = new(JsonSerializerDefaults.Web);
+
+    private static IOptions<DatabaseSettings> DbOptions(string cs) =>
+        Options.Create(new DatabaseSettings { ConnectionString = cs });
 
     [Fact]
     public async Task NoRows_Returns_Null()
@@ -113,6 +124,64 @@ public sealed class GetWizardDataFlowTests : IntegrationTestBase
         exp.Housing.RunningCosts!.Electricity.Should().Be(200);
 
         dto.WizardData!.Savings!.Habits!.MonthlySavings.Should().Be(250);
+    }
+
+    [Fact]
+    public async Task SaveWizardStep_WithIncomePaymentDayFields_PersistsAndReturnsThem()
+    {
+        await Db.ResetAsync();
+        var persoId = Guid.NewGuid();
+        var sessionId = Guid.NewGuid();
+
+        await using var conn = new MySqlConnection(Db.ConnectionString);
+        await conn.OpenAsync();
+
+        await SeedUserAsync(conn, persoId);
+        await SeedSessionAsync(conn, sessionId, persoId, currentStep: 1);
+
+        var payload = """
+        {
+          "netSalary": 30000,
+          "salaryFrequency": "Monthly",
+          "incomePaymentDayType": "dayOfMonth",
+          "incomePaymentDay": 21,
+          "householdMembers": [],
+          "sideHustles": []
+        }
+        """;
+
+        var dbOpts = DbOptions(Db.ConnectionString);
+        var uow = new UnitOfWork(dbOpts, NullLogger<UnitOfWork>.Instance);
+        var repo = new WizardRepository(uow, NullLogger<WizardRepository>.Instance, dbOpts);
+        var validator = new IncomeStepValidator(new IncomeValidator());
+        var saveHandler = new SaveWizardStepCommandHandler(
+            repo,
+            new[] { validator },
+            NullLogger<SaveWizardStepCommandHandler>.Instance);
+
+        await uow.BeginTransactionAsync(CancellationToken.None);
+        var saveResult = await saveHandler.Handle(
+            new SaveWizardStepCommand(sessionId, 1, 0, payload, 1),
+            CancellationToken.None);
+
+        if (saveResult.IsSuccess) await uow.CommitAsync(CancellationToken.None);
+        else await uow.RollbackAsync(CancellationToken.None);
+
+        saveResult.IsSuccess.Should().BeTrue();
+
+        var reducer = new WizardStepRowReducer();
+        var assembler = new WizardStepDataAssembler();
+        var getHandler = new GetWizardDataQueryHandler(repo, reducer, assembler);
+
+        var getResult = await getHandler.Handle(new GetWizardDataQuery(sessionId), CancellationToken.None);
+
+        getResult.IsSuccess.Should().BeTrue();
+        getResult.Value.Should().NotBeNull();
+
+        var income = getResult.Value!.WizardData!.Income!;
+        income.IncomePaymentDayType.Should().Be("dayOfMonth");
+        income.IncomePaymentDay.Should().Be(21);
+        income.NetSalary.Should().Be(30000m);
     }
 
 

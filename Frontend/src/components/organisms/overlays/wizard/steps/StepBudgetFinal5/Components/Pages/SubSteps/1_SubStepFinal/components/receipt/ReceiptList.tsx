@@ -9,7 +9,7 @@ export type ReceiptRow = {
 
 export default function ReceiptList({
     title,
-    unit = "kr/mån",
+    unit,
     rows,
     footer,
 }: {
@@ -34,9 +34,11 @@ export default function ReceiptList({
                 <h4 className="text-sm font-semibold text-wizard-text/90 truncate">
                     {title}
                 </h4>
-                <span className="shrink-0 text-[11px] font-semibold text-wizard-text/55">
-                    {unit}
-                </span>
+                {unit ? (
+                    <span className="shrink-0 text-[11px] font-semibold text-wizard-text/55">
+                        {unit}
+                    </span>
+                ) : null}
             </div>
 
             {/* rows */}

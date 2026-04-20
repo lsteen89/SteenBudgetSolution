@@ -7,6 +7,8 @@ namespace Backend.Application.Features.Budgets.Dashboard;
 public sealed record DashboardTotalsRm(
     Guid? IncomeId,
     decimal NetSalaryMonthly,
+    string IncomePaymentDayType,
+    int? IncomePaymentDay,
     decimal SideHustleMonthly,
     decimal HouseholdMembersMonthly,
     decimal TotalExpensesMonthly,
@@ -45,7 +47,8 @@ public sealed record DashboardSavingsGoalRm(
     decimal? TargetAmount,
     DateTime? TargetDate,
     decimal? AmountSaved,
-    decimal MonthlyContribution
+    decimal MonthlyContribution,
+    bool IsFavorite = false
 
 );
 

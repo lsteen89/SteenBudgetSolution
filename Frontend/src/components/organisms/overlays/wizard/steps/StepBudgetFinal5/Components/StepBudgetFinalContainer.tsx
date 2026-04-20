@@ -7,11 +7,11 @@ import { Step5FormValues } from '@/types/Wizard/Step5_Final/Step5FormValues';
 import { StepBudgetFinalRef } from '@/types/Wizard/Step5_Final/StepBudgetFinalRef';
 import WizardProgress from '@components/organisms/overlays/wizard/SharedComponents/Menu/WizardProgress';
 import StepCarousel from '@components/molecules/progress/StepCarousel';
-import SubStepFinal from './Pages/SubSteps/1_SubStepFinal/SubStepFinal';
-import LoadingScreen from '@components/molecules/feedback/LoadingScreen';
-import { Skeleton } from '@/components/ui/Skeleton';
 import { ShieldCheck } from 'lucide-react';
 import SubStepFinalConnected from './Pages/SubSteps/1_SubStepFinal/components/SubStepFinalConnected';
+import { useAppLocale } from '@/hooks/i18n/useAppLocale';
+import { tDict } from '@/utils/i18n/translate';
+import { stepBudgetFinalContainerDict } from './StepBudgetFinalContainer.i18n';
 
 export interface StepBudgetFinalContainerRef extends StepBudgetFinalRef {
   markAllTouched(): void;
@@ -48,12 +48,16 @@ interface StepBudgetFinalContainerProps {
 }
 
 const StepBudgetFinalContainer = forwardRef<StepBudgetFinalContainerRef, StepBudgetFinalContainerProps>((props, ref) => {
-  const { onNext, onPrev, loading: parentLoading, initialSubStep } = props;
+  const { onNext, onPrev, initialSubStep } = props;
   const isMobile = useMediaQuery('(max-width: 1367px)');
+  const locale = useAppLocale();
   const [currentSub, setCurrentSub] = useState(initialSubStep || 1);
   const wrapperRef = useRef<WizardFormWrapperStep5Ref>(null);
 
-  const steps = [{ label: 'Slutför budget', icon: ShieldCheck }];
+  const t = <K extends keyof typeof stepBudgetFinalContainerDict.sv>(k: K) =>
+    tDict(k, locale, stepBudgetFinalContainerDict);
+
+  const steps = [{ label: t('stepLabel'), icon: ShieldCheck }];
   const totalSteps = 1;
 
   const next = () => {

@@ -1,18 +1,24 @@
 import React, { useMemo } from "react";
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import ReceiptList, { type ReceiptRow } from "../receipt/ReceiptList";
 import type { BudgetDashboardDto } from "@/types/budget/BudgetDashboardDto";
+import { tDict } from "@/utils/i18n/translate";
 import { ReceiptFooter } from "../receipt/ReceiptFooter";
+import { finalReceiptPanelsDict } from "./FinalReceiptPanels.i18n";
 
 type Strategy = "avalanche" | "snowball" | "noAction" | "unknown";
 
-function strategyLabel(s: Strategy) {
+function strategyLabel(
+    s: Strategy,
+    t: <K extends keyof typeof finalReceiptPanelsDict.sv>(k: K) => string,
+) {
     switch (s) {
         case "avalanche":
-            return "Lavinen (hög ränta först)";
+            return t("strategyAvalanche");
         case "snowball":
-            return "Snöbollen (minsta skuld först)";
+            return t("strategySnowball");
         case "noAction":
-            return "Ingen preferens";
+            return t("strategyNoAction");
         default:
             return "—";
     }
@@ -37,6 +43,21 @@ export default function DebtsReceiptPanel({
     money0: (n: number) => string;
     onEdit?: () => void;
 }) {
+    const locale = useAppLocale();
+    const t = <K extends keyof typeof finalReceiptPanelsDict.sv>(k: K) =>
+        tDict(k, locale, finalReceiptPanelsDict);
+
+    const debtCountLabel = (count: number) =>
+        t(count === 1 ? "debtsCountOne" : "debtsCountOther").replace(
+            "{count}",
+            String(count),
+        );
+
+    const missingDebtCountLabel = (count: number) =>
+        t(
+            count === 1 ? "missingDebtCountOne" : "missingDebtCountOther",
+        ).replace("{count}", String(count));
+
     const vm = useMemo(() => {
         const debts = preview.debt?.debts ?? [];
         const count = debts.length;
@@ -61,16 +82,16 @@ export default function DebtsReceiptPanel({
 
         const rows: ReceiptRow[] = [
             {
-                left: "Minimibetalningar",
+                left: t("debtsMinimumPayments"),
                 right: money0(total),
-                rightSub: "/mån",
+                rightSub: t("perMonthSuffix"),
             },
             {
-                left: "Strategi",
-                right: strategyLabel(strategy),
+                left: t("debtsStrategy"),
+                right: strategyLabel(strategy, t),
             },
             ...top.map((d: any) => {
-                const name = d.name ?? "Skuld";
+                const name = d.name ?? t("debtsDebtFallback");
                 const bal = d.balance ?? 0;
                 const apr = d.apr != null ? `${Number(d.apr).toFixed(1)}%` : "—";
                 const pay = d.monthlyPayment != null ? money0(d.monthlyPayment) : "—";
@@ -78,7 +99,7 @@ export default function DebtsReceiptPanel({
                 return {
                     left: name,
                     right: pay,
-                    rightSub: d.monthlyPayment != null ? "/mån" : undefined,
+                    rightSub: d.monthlyPayment != null ? t("perMonthSuffix") : undefined,
                     sub: `${money0(bal)} • ${apr}`,
                 };
             }),
@@ -86,32 +107,32 @@ export default function DebtsReceiptPanel({
 
         if (missing > 0) {
             rows.push({
-                left: "Saknad uppgift",
-                right: `${missing} skuld${missing > 1 ? "er" : ""}`,
-                sub: "Vissa fält saknas (ränta/betalning/saldo).",
+                left: t("debtsMissingDataLabel"),
+                right: missingDebtCountLabel(missing),
+                sub: t("debtsMissingDataDetail"),
             });
         }
 
         return { rows, count, total };
-    }, [preview, money0]);
+    }, [preview, money0, missingDebtCountLabel, t]);
 
     return (
         <div className="space-y-3">
             <ReceiptList
-                title="Skulder"
-                unit="" // ✅ because list contains mixed units (strategy isn’t /mån)
+                title={t("debtsTitle")}
+                unit=""
                 rows={vm.rows}
                 footer={
                     <ReceiptFooter
-                        leftSummary={`${vm.count} skulder`}
+                        leftSummary={debtCountLabel(vm.count)}
                         rightSummary={
                             <>
                                 {money0(vm.total)}{" "}
-                                <span className="text-xs font-semibold text-wizard-text/55">/mån</span>
+                                <span className="text-xs font-semibold text-wizard-text/55">{t("perMonthSuffix")}</span>
                             </>
                         }
-                        hint="Minimibetalningar är en uppskattning. Du kan justera senare."
-                        editLabel="Ändra skulder"
+                        hint={t("debtsHint")}
+                        editLabel={t("debtsEdit")}
                         onEdit={onEdit}
                     />
                 }

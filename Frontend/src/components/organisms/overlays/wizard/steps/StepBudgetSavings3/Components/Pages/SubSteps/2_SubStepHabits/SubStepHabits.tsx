@@ -55,7 +55,7 @@ const SubStepHabits: React.FC = () => {
     { value: "auto", label: t("optionAuto") },
     { value: "manual", label: t("optionManual") },
     { value: "invest", label: t("optionInvest") },
-    { value: "prefer_not", label: t("optionPreferNot") },
+    { value: "preferNot", label: t("optionPreferNot") },
   ];
 
   const monthlySavingsRaw = useWatch({

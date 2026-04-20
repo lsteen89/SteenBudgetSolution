@@ -1,4 +1,4 @@
-import { Info, Target, Trash2, TrendingUp } from "lucide-react";
+import { Info, Star, Trash2 } from "lucide-react";
 import React from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 
@@ -20,14 +20,23 @@ import SavingsGoalItemRow from "./SavingsGoalItemRow";
 
 type Props = {
   index: number;
+  isFavorite: boolean;
+  onFavoriteClick: (index: number) => void;
   onRemove: (index: number) => void;
+  mobileTotal?: "hidden" | "inline" | "below";
 };
 
 function safeNum(n: unknown): number {
   return typeof n === "number" && Number.isFinite(n) ? n : 0;
 }
 
-export default function SavingsGoalItemAccordion({ index, onRemove }: Props) {
+export default function SavingsGoalItemAccordion({
+  index,
+  isFavorite,
+  onFavoriteClick,
+  onRemove,
+  mobileTotal = "inline",
+}: Props) {
   const { control } = useFormContext<Step3FormValues>();
   const currency = useAppCurrency();
   const locale = useAppLocale();
@@ -48,8 +57,8 @@ export default function SavingsGoalItemAccordion({ index, onRemove }: Props) {
     "{index}",
     String(index + 1),
   );
-  const name = goal?.name?.trim() || fallbackName;
 
+  const name = goal?.name?.trim() || fallbackName;
   const targetAmount = safeNum(goal?.targetAmount);
   const amountSaved = safeNum(goal?.amountSaved);
 
@@ -76,75 +85,45 @@ export default function SavingsGoalItemAccordion({ index, onRemove }: Props) {
       : "—";
 
   const title = (
-    <div className="min-w-0">
+    <div className="min-w-0 pr-1 sm:pr-2">
       <div className="flex min-w-0 items-center gap-2">
-        <span className="min-w-0 truncate text-wizard-text font-semibold">
+        <span className="min-w-0 truncate text-[15px] font-semibold text-wizard-text sm:text-base">
           {name}
         </span>
 
         {incomplete ? (
-          <span
-            className={cn(
-              "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold",
-              "border border-wizard-warning/25 bg-wizard-warning/10 text-wizard-warning",
-            )}
-          >
-            {t("missingInfo")}
-          </span>
+          <>
+            <span
+              aria-hidden="true"
+              className="h-2 w-2 shrink-0 rounded-full bg-wizard-warning sm:hidden"
+            />
+            <span
+              className={cn(
+                "hidden shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold sm:inline-flex",
+                "border border-wizard-warning/25 bg-wizard-warning/10 text-wizard-warning",
+              )}
+            >
+              {t("missingInfo")}
+            </span>
+          </>
         ) : null}
       </div>
 
-      <div className="mt-1">
-        <div className="flex items-center gap-2 text-[12px] text-wizard-text/65 sm:hidden">
-          <div className="inline-flex items-center gap-1">
-            <TrendingUp className="h-3.5 w-3.5 text-wizard-text/40" />
-            <span className="tabular-nums font-semibold text-wizard-text/80">
-              {progress}%
-            </span>
-          </div>
-
-          <span className="text-wizard-text/35">•</span>
-
-          <div className="inline-flex items-center gap-1 min-w-0">
-            <Target className="h-3.5 w-3.5 text-wizard-text/40" />
-            <span className="tabular-nums font-semibold text-wizard-text/80 truncate">
-              {money0(targetAmount)}
-            </span>
-          </div>
-        </div>
-
-        <div className="hidden sm:block text-xs text-wizard-text/65">
-          {t("targetLabel")}:{" "}
-          <span className="tabular-nums font-semibold text-wizard-text/80">
-            {money0(targetAmount)}
-          </span>
-          <span className="text-wizard-text/35"> • </span>
-          {t("savedLabel")}:{" "}
-          <span className="tabular-nums font-semibold text-wizard-text/80">
-            {money0(amountSaved)}
-          </span>
-          <span className="text-wizard-text/35"> • </span>
-          {t("completeLabel")}:{" "}
-          <span className="tabular-nums font-semibold text-wizard-text/80">
-            {progress}%
-          </span>
-        </div>
-      </div>
-
-      <div className="mt-2 sm:hidden">
-        <div
-          className={cn(
-            "inline-flex items-baseline gap-1 rounded-full px-3 py-1",
-            "bg-wizard-surface border border-wizard-stroke/20 shadow-sm shadow-black/5",
-          )}
-        >
-          <span className="money text-sm font-extrabold text-wizard-accent">
-            {totalText}
-          </span>
-          <span className="text-[11px] font-semibold text-wizard-text/55">
-            {t("mobilePerMonthSuffix")}
-          </span>
-        </div>
+      <div className="mt-1 hidden text-xs text-wizard-text/65 sm:block">
+        {t("targetLabel")}:{" "}
+        <span className="tabular-nums font-semibold text-wizard-text/80">
+          {money0(targetAmount)}
+        </span>
+        <span className="text-wizard-text/35"> • </span>
+        {t("savedLabel")}:{" "}
+        <span className="tabular-nums font-semibold text-wizard-text/80">
+          {money0(amountSaved)}
+        </span>
+        <span className="text-wizard-text/35"> • </span>
+        {t("completeLabel")}:{" "}
+        <span className="tabular-nums font-semibold text-wizard-text/80">
+          {progress}%
+        </span>
       </div>
     </div>
   );
@@ -155,43 +134,67 @@ export default function SavingsGoalItemAccordion({ index, onRemove }: Props) {
       title={title}
       subtitle={undefined}
       totalText={totalText}
-      totalSuffix={t("desktopPerMonthSuffix")}
+      totalSuffix={t("mobilePerMonthSuffix")}
+      mobileTotal={mobileTotal}
       variant="shell"
       actions={
-        <div
-          role="button"
-          tabIndex={0}
-          aria-label={t("removeGoalAria")}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onRemove(index);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
+        <div className="flex items-center gap-1 sm:gap-2">
+          <button
+            type="button"
+            aria-label={
+              isFavorite ? t("favoriteSelectedAria") : t("markFavoriteAria")
+            }
+            aria-pressed={isFavorite}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onFavoriteClick(index);
+            }}
+            className={cn(
+              "grid h-8 w-8 place-items-center rounded-lg",
+              "border shadow-sm shadow-black/5",
+              "transition-colors select-none",
+              "focus:outline-none focus-visible:ring-2 focus-visible:ring-wizard-stroke/45",
+              isFavorite
+                ? "border-amber-400/50 bg-amber-400/15 text-amber-600"
+                : cn(
+                    "bg-wizard-surface border-wizard-stroke/20 text-wizard-text/60",
+                    "hover:border-amber-400/35 hover:bg-amber-400/10 hover:text-amber-600",
+                  ),
+            )}
+          >
+            <Star
+              size={14}
+              className={cn(isFavorite ? "fill-current" : "fill-transparent")}
+            />
+          </button>
+
+          <button
+            type="button"
+            aria-label={t("removeGoalAria")}
+            onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
               onRemove(index);
-            }
-          }}
-          className={cn(
-            "grid h-9 w-9 place-items-center rounded-xl",
-            "bg-wizard-surface border border-wizard-stroke/20",
-            "text-wizard-text/60 shadow-sm shadow-black/5",
-            "transition-colors cursor-pointer select-none",
-            "hover:border-wizard-warning/30 hover:bg-wizard-warning/10 hover:text-wizard-warning",
-            "focus:outline-none focus-visible:ring-2 focus-visible:ring-wizard-stroke/45",
-          )}
-        >
-          <Trash2 size={16} />
+            }}
+            className={cn(
+              "grid h-8 w-8 place-items-center rounded-lg",
+              "bg-wizard-surface border border-wizard-stroke/20",
+              "text-wizard-text/60 shadow-sm shadow-black/5",
+              "transition-colors cursor-pointer select-none",
+              "hover:border-wizard-warning/30 hover:bg-wizard-warning/10 hover:text-wizard-warning",
+              "focus:outline-none focus-visible:ring-2 focus-visible:ring-wizard-stroke/45",
+            )}
+          >
+            <Trash2 size={14} />
+          </button>
         </div>
       }
-      className="sm:[&_.wizard-accordion-total]:flex [&_.wizard-accordion-total]:hidden"
     >
       <SavingsGoalItemRow index={index} />
 
       <div className="mt-4 flex items-center gap-2 text-xs text-wizard-text/65">
-        <Info size={14} className="text-wizard-text/45" />
+        <Info size={14} className="shrink-0 text-wizard-text/45" />
         <span>{t("helpText")}</span>
       </div>
     </WizardAccordion>

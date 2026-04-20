@@ -17,6 +17,7 @@ using Moq;
 using MySqlConnector;
 using Dapper;
 using Backend.Infrastructure.Data.Sql.Helpers.UnitOfWork;
+using IncomeDataDto = Backend.Application.DTO.Budget.Income.IncomeData;
 
 namespace Backend.IntegrationTests.Wizard;
 
@@ -78,6 +79,11 @@ public sealed class FinalizeWizardFlowTests
         UnitOfWork Uow,
         SqlWizardRepositoryForTests WizardRepo,
         FinalizeWizardCommandHandler Sut
+    );
+
+    private sealed record PersistedIncomeRow(
+        string IncomePaymentDayType,
+        sbyte? IncomePaymentDay
     );
 
     private SutBundle BuildSut(Guid userId, bool simulateDeleteFailure = false)
@@ -170,6 +176,201 @@ public sealed class FinalizeWizardFlowTests
             n.Contains("Netflix", StringComparison.OrdinalIgnoreCase) ||
             n.Contains("spotify", StringComparison.OrdinalIgnoreCase) ||
             n.Contains("Extra Cloud", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task FinalizeWizard_WithIncomePaymentDay_DayOfMonth_PersistsToIncome()
+    {
+        await _db.ResetAsync();
+
+        var userId = Guid.NewGuid();
+        var sessionId = Guid.NewGuid();
+
+        await DbSeeds.SeedDefaultExpenseCategoriesAsync(_db.ConnectionString);
+        await UserTestSeeds.SeedUserAsync(_db.ConnectionString, userId);
+
+        await WizardSeeds.SeedSessionAsync(_db.ConnectionString, sessionId, userId);
+        await WizardSeeds.SeedIncomeAndExpenditureAsync(
+            _db.ConnectionString,
+            sessionId,
+            WizardSeeds.CreateIncomePayload(
+                incomePaymentDayType: "dayOfMonth",
+                incomePaymentDay: 21));
+
+        var bundle = BuildSut(userId);
+
+        await bundle.Uow.BeginTransactionAsync(CancellationToken.None);
+        var res = await bundle.Sut.Handle(new FinalizeWizardCommand(sessionId, userId), CancellationToken.None);
+
+        if (res.IsSuccess) await bundle.Uow.CommitAsync(CancellationToken.None);
+        else await bundle.Uow.RollbackAsync(CancellationToken.None);
+
+        res.IsSuccess.Should().BeTrue(res.IsFailure ? $"{res.Error.Code} - {res.Error.Description}" : "");
+
+        await using var conn = new MySqlConnection(_db.ConnectionString);
+        var income = await conn.QuerySingleAsync<PersistedIncomeRow>(
+            """
+            SELECT IncomePaymentDayType, IncomePaymentDay
+            FROM Income
+            LIMIT 1;
+            """);
+
+        income.IncomePaymentDayType.Should().Be("dayOfMonth");
+        ((int?)income.IncomePaymentDay).Should().Be(21);
+    }
+
+    [Fact]
+    public async Task FinalizeWizard_WithIncomePaymentDay_LastDayOfMonth_PersistsNullDay()
+    {
+        await _db.ResetAsync();
+
+        var userId = Guid.NewGuid();
+        var sessionId = Guid.NewGuid();
+
+        await DbSeeds.SeedDefaultExpenseCategoriesAsync(_db.ConnectionString);
+        await UserTestSeeds.SeedUserAsync(_db.ConnectionString, userId);
+
+        await WizardSeeds.SeedSessionAsync(_db.ConnectionString, sessionId, userId);
+        await WizardSeeds.SeedIncomeAndExpenditureAsync(
+            _db.ConnectionString,
+            sessionId,
+            WizardSeeds.CreateIncomePayload(
+                incomePaymentDayType: "lastDayOfMonth",
+                incomePaymentDay: null));
+
+        var bundle = BuildSut(userId);
+
+        await bundle.Uow.BeginTransactionAsync(CancellationToken.None);
+        var res = await bundle.Sut.Handle(new FinalizeWizardCommand(sessionId, userId), CancellationToken.None);
+
+        if (res.IsSuccess) await bundle.Uow.CommitAsync(CancellationToken.None);
+        else await bundle.Uow.RollbackAsync(CancellationToken.None);
+
+        res.IsSuccess.Should().BeTrue(res.IsFailure ? $"{res.Error.Code} - {res.Error.Description}" : "");
+
+        await using var conn = new MySqlConnection(_db.ConnectionString);
+        var income = await conn.QuerySingleAsync<PersistedIncomeRow>(
+            """
+            SELECT IncomePaymentDayType, IncomePaymentDay
+            FROM Income
+            LIMIT 1;
+            """);
+
+        income.IncomePaymentDayType.Should().Be("lastDayOfMonth");
+        income.IncomePaymentDay.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task FinalizeWizard_WithIncomePaymentDayTypeDayOfMonth_AndMissingDay_Fails()
+    {
+        await _db.ResetAsync();
+
+        var userId = Guid.NewGuid();
+        var sessionId = Guid.NewGuid();
+
+        await DbSeeds.SeedDefaultExpenseCategoriesAsync(_db.ConnectionString);
+        await UserTestSeeds.SeedUserAsync(_db.ConnectionString, userId);
+
+        await WizardSeeds.SeedSessionAsync(_db.ConnectionString, sessionId, userId);
+        await WizardSeeds.SeedIncomeStepAsync(
+            _db.ConnectionString,
+            sessionId,
+            WizardSeeds.CreateIncomePayload(
+                incomePaymentDayType: "dayOfMonth",
+                incomePaymentDay: null));
+
+        var bundle = BuildSut(userId);
+
+        await bundle.Uow.BeginTransactionAsync(CancellationToken.None);
+        var res = await bundle.Sut.Handle(new FinalizeWizardCommand(sessionId, userId), CancellationToken.None);
+
+        if (res.IsSuccess) await bundle.Uow.CommitAsync(CancellationToken.None);
+        else await bundle.Uow.RollbackAsync(CancellationToken.None);
+
+        res.IsFailure.Should().BeTrue();
+        res.Error.Code.Should().Be("Income.InvalidPaymentDay");
+
+        await using var conn = new MySqlConnection(_db.ConnectionString);
+        (await conn.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM Budget;")).Should().Be(0);
+        (await conn.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM Income;")).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task FinalizeWizard_WithIncomePaymentDayTypeLastDayOfMonth_AndDayPresent_Fails()
+    {
+        await _db.ResetAsync();
+
+        var userId = Guid.NewGuid();
+        var sessionId = Guid.NewGuid();
+
+        await DbSeeds.SeedDefaultExpenseCategoriesAsync(_db.ConnectionString);
+        await UserTestSeeds.SeedUserAsync(_db.ConnectionString, userId);
+
+        await WizardSeeds.SeedSessionAsync(_db.ConnectionString, sessionId, userId);
+        await WizardSeeds.SeedIncomeStepAsync(
+            _db.ConnectionString,
+            sessionId,
+            WizardSeeds.CreateIncomePayload(
+                incomePaymentDayType: "lastDayOfMonth",
+                incomePaymentDay: 21));
+
+        var bundle = BuildSut(userId);
+
+        await bundle.Uow.BeginTransactionAsync(CancellationToken.None);
+        var res = await bundle.Sut.Handle(new FinalizeWizardCommand(sessionId, userId), CancellationToken.None);
+
+        if (res.IsSuccess) await bundle.Uow.CommitAsync(CancellationToken.None);
+        else await bundle.Uow.RollbackAsync(CancellationToken.None);
+
+        res.IsFailure.Should().BeTrue();
+        res.Error.Code.Should().Be("Income.InvalidPaymentDay");
+
+        await using var conn = new MySqlConnection(_db.ConnectionString);
+        (await conn.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM Budget;")).Should().Be(0);
+        (await conn.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM Income;")).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task FinalizeWizard_WithUnknownIncomePaymentDayType_Fails()
+    {
+        await _db.ResetAsync();
+
+        var userId = Guid.NewGuid();
+        var sessionId = Guid.NewGuid();
+
+        await DbSeeds.SeedDefaultExpenseCategoriesAsync(_db.ConnectionString);
+        await UserTestSeeds.SeedUserAsync(_db.ConnectionString, userId);
+
+        await WizardSeeds.SeedSessionAsync(_db.ConnectionString, sessionId, userId);
+        await WizardSeeds.SeedIncomeStepAsync(
+            _db.ConnectionString,
+            sessionId,
+            new IncomeDataDto
+            {
+                NetSalary = 30000m,
+                SalaryFrequency = Backend.Domain.Enums.Frequency.Monthly,
+                IncomePaymentDayType = "paydayMagic",
+                IncomePaymentDay = 12,
+                ShowHouseholdMembers = false,
+                ShowSideIncome = false,
+                SideHustles = new(),
+                HouseholdMembers = new()
+            });
+
+        var bundle = BuildSut(userId);
+
+        await bundle.Uow.BeginTransactionAsync(CancellationToken.None);
+        var res = await bundle.Sut.Handle(new FinalizeWizardCommand(sessionId, userId), CancellationToken.None);
+
+        if (res.IsSuccess) await bundle.Uow.CommitAsync(CancellationToken.None);
+        else await bundle.Uow.RollbackAsync(CancellationToken.None);
+
+        res.IsFailure.Should().BeTrue();
+        res.Error.Code.Should().Be("Income.InvalidPaymentDayType");
+
+        await using var conn = new MySqlConnection(_db.ConnectionString);
+        (await conn.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM Budget;")).Should().Be(0);
+        (await conn.ExecuteScalarAsync<long>("SELECT COUNT(*) FROM Income;")).Should().Be(0);
     }
 
     [Fact]

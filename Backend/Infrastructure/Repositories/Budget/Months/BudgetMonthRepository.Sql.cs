@@ -104,6 +104,15 @@ public sealed partial class BudgetMonthRepository
     WHERE Id = @BudgetMonthId
     AND Status = 'open';";
 
+    private const string UpdateBudgetMonthIncomePaymentTiming = @"
+    UPDATE BudgetMonthIncome
+    SET
+        IncomePaymentDayType = @IncomePaymentDayType,
+        IncomePaymentDay = @IncomePaymentDay,
+        UpdatedAt = @NowUtc,
+        UpdatedByUserId = @ActorPersoid
+    WHERE BudgetMonthId = @BudgetMonthId;";
+
     private const string GetMonth = @"
     SELECT
         bm.Id,

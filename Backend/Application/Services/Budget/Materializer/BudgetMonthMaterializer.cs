@@ -8,6 +8,9 @@ namespace Backend.Application.Services.Budget.Materializer;
 
 public sealed class BudgetMonthMaterializer : IBudgetMonthMaterializer
 {
+    private const string DayOfMonth = "dayOfMonth";
+    private const string LastDayOfMonth = "lastDayOfMonth";
+
     private readonly IBudgetMonthSeedSourceRepository _seedSource;
     private readonly IBudgetMonthMaterializationRepository _materializationRepo;
     private readonly ITimeProvider _clock;
@@ -44,12 +47,20 @@ public sealed class BudgetMonthMaterializer : IBudgetMonthMaterializer
 
         if (!hasIncome)
         {
+            var incomePaymentDayType = NormalizeIncomePaymentDayType(
+                baselineIncome?.IncomePaymentDayType);
+            var incomePaymentDay = NormalizeIncomePaymentDay(
+                incomePaymentDayType,
+                baselineIncome?.IncomePaymentDay);
+
             await _materializationRepo.InsertBudgetMonthIncomeIdempotentAsync(
                 id: Guid.NewGuid(),
                 budgetMonthId: budgetMonthId,
                 sourceIncomeId: baselineIncome?.Id,
                 netSalaryMonthly: baselineIncome?.NetSalaryMonthly ?? 0m,
                 salaryFrequency: baselineIncome?.SalaryFrequency ?? 1,
+                incomePaymentDayType: incomePaymentDayType,
+                incomePaymentDay: incomePaymentDay,
                 actorPersoid: actorPersoid,
                 nowUtc: now,
                 ct: ct);
@@ -212,5 +223,27 @@ public sealed class BudgetMonthMaterializer : IBudgetMonthMaterializer
         }
 
         return Result<bool>.Success(didMaterializeAnything);
+    }
+
+    private static string NormalizeIncomePaymentDayType(string? incomePaymentDayType)
+    {
+        var normalized = incomePaymentDayType?.Trim();
+
+        return normalized switch
+        {
+            LastDayOfMonth => LastDayOfMonth,
+            DayOfMonth => DayOfMonth,
+            _ => DayOfMonth
+        };
+    }
+
+    private static int? NormalizeIncomePaymentDay(string incomePaymentDayType, int? incomePaymentDay)
+    {
+        if (incomePaymentDayType != DayOfMonth)
+            return null;
+
+        return incomePaymentDay is >= 1 and <= 28
+            ? incomePaymentDay
+            : null;
     }
 }

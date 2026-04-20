@@ -20,7 +20,7 @@ The goal is to produce frontend work that is:
 - consistent with the product
 
 This product is a budgeting application.
-It must not feel noisy, gimmicky, childish, chaotic, or “AI-generated”.
+It must not feel noisy, gimmicky, childish, chaotic, theatrical, or “AI-generated”.
 
 ---
 
@@ -44,6 +44,7 @@ That means:
 - hierarchy beats decoration
 - trust beats trendiness
 - usability beats cleverness
+- consistency beats novelty
 
 Premium does **not** mean flashy.
 Premium means controlled, refined, and well-crafted.
@@ -85,12 +86,93 @@ Avoid:
 - over-animated interactions
 - cluttered cards
 - visual noise
+- “agency demo” behavior inside product screens
 
 ---
 
-## 3. Core Frontend Rules
+## 3. Existing Palette, Tokens, and Theme Rules
 
-### 3.1 Respect existing architecture
+The repository already has an established visual system.
+Agents must respect it.
+
+### 3.1 Existing tokens are the source of truth
+
+Use the existing token system before inventing new styling.
+
+Important existing sources include:
+
+- shadcn tokens (`--background`, `--foreground`, `--card`, `--border`, etc.)
+- eBudget tokens (`--eb-*`)
+- wizard tokens (`--wizard-*`)
+- existing utility classes such as:
+  - `shadow-eb`
+  - `money`
+  - `money-muted`
+  - `bg-wizard-overlay`
+  - `ring-eb-danger`
+
+Do **not** introduce a parallel color system without a strong reason.
+
+### 3.2 Respect the established eBudget palette
+
+The application already uses a branded blue-based shell/surface system and existing gradients.
+Do not randomly replace that with another visual language.
+
+Prefer existing palette semantics:
+
+- `--eb-shell`, `--eb-shell-2`, `--eb-shell-3`
+- `--eb-surface`, `--eb-surface-accent`
+- `--eb-stroke`, `--eb-stroke-strong`
+- `--eb-text`, `--eb-muted`
+- `--eb-accent`, `--eb-accent-soft`
+- `--eb-danger`
+- `--eb-shadow`
+
+The palette should feel cohesive across screens.
+Do not inject random new accent colors just to make something “look designed”.
+
+### 3.3 Do not fight the global background
+
+The `body` already uses a branded gradient background.
+
+Do not override global application background behavior casually.
+Do not introduce full-screen competing backgrounds unless the page truly requires a special shell.
+
+By default:
+
+- let the existing app shell and gradient do their job
+- build refined surfaces on top of it
+- use cards, sections, overlays, and panels to create clarity
+
+### 3.4 Typography must respect reality
+
+The app already uses `font-inter` globally.
+
+Do **not** follow any external skill rule that bans Inter or demands random font swaps.
+For this repository:
+
+- default to the existing font system
+- improve hierarchy through size, weight, spacing, rhythm, and contrast
+- only introduce different fonts if the user explicitly asks for branding or marketing work
+
+Typography should feel refined through usage, not through random replacement.
+
+### 3.5 Wizard styling is contextual
+
+Wizard tokens and wizard overlays should be used only where they make sense:
+
+- onboarding
+- wizard flows
+- modal-like guided experiences
+- branded overlay states
+
+Do not spread wizard-specific styling across unrelated application UI unless the screen is clearly part of that experience.
+
+---
+
+## 4. Core Frontend Rules
+
+### 4.1 Respect existing architecture
 
 Before building anything:
 
@@ -103,7 +185,7 @@ Before building anything:
 
 Do not introduce a totally different design system inside one feature.
 
-### 3.2 Prefer small reusable components
+### 4.2 Prefer small reusable components
 
 Favor:
 
@@ -120,7 +202,7 @@ Avoid:
 - abstracting too early
 - “smart” generic UI helpers with unclear ownership
 
-### 3.3 Financial UI must stay readable
+### 4.3 Financial UI must stay readable
 
 Money is the main content.
 
@@ -136,7 +218,7 @@ Prioritize:
 
 Do not bury numbers under decoration.
 
-### 3.4 Read-only vs editable must be visually obvious
+### 4.4 Read-only vs editable must be visually obvious
 
 This app has budget month lifecycle rules.
 
@@ -151,13 +233,42 @@ Never imply editing is available when it is not.
 
 ---
 
-## 4. Visual Quality Standard
+## 5. Visual Quality Standard
 
 Every UI implementation should show deliberate design thinking.
 
 Agents must not output default-looking, generic, template-like layouts.
 
-### 4.1 Typography
+Distinctive in this repository means:
+
+- stronger hierarchy than average
+- more intentional spacing than average
+- more refined typography than average
+- better interaction polish than average
+- cleaner visual rhythm than average
+- less clutter than average
+
+The memorable thing should be:
+
+- calm confidence
+- elegant information display
+- premium restraint
+
+Not visual chaos.
+
+### 5.1 Avoid generic frontend defaults
+
+Avoid output such as:
+
+- weak typography hierarchy
+- random gray borders on everything
+- muddy shadows
+- overcrowded card grids
+- repetitive template dashboards
+- decorative gradients without purpose
+- generic SaaS UI patterns with no product character
+
+### 5.2 Typography
 
 Typography is one of the main quality levers.
 
@@ -169,8 +280,7 @@ Prefer:
 - deliberate weight usage
 - restrained uppercase usage
 - clean numeric emphasis
-
-Use fluid sizing when appropriate, but do not overdo it.
+- strong title/value/label separation
 
 Avoid:
 
@@ -180,7 +290,7 @@ Avoid:
 - tiny low-contrast helper text
 - typography used as decoration without function
 
-### 4.2 Layout and spacing
+### 5.3 Layout and spacing
 
 Spacing must feel intentional.
 
@@ -201,17 +311,17 @@ Avoid:
 - too many nested containers
 - “dashboard soup”
 
-### 4.3 Color
+### 5.4 Color
 
 Use restrained palettes.
 
 Default direction:
 
-- neutral base
-- soft surface contrast
+- neutral/light surface treatment on top of the existing shell
 - strong readable text
 - one or two controlled accents
 - semantic colors only where meaningful
+- existing brand tokens first
 
 Avoid:
 
@@ -219,8 +329,9 @@ Avoid:
 - muddy low-contrast text
 - loud gradients as default
 - overuse of bright colors for non-critical UI
+- inventing new palette semantics when existing tokens already solve the problem
 
-### 4.4 Surfaces
+### 5.5 Surfaces
 
 Prefer surfaces that feel refined:
 
@@ -237,14 +348,16 @@ Avoid:
 - fake “premium” effects without purpose
 - too many competing card treatments
 
+When possible, use the repository’s existing surface/shadow language instead of inventing new ones.
+
 ---
 
-## 5. Motion Rules
+## 6. Motion Rules
 
 Motion should improve clarity and feel polished.
 It must never damage performance or trust.
 
-### 5.1 Motion philosophy
+### 6.1 Motion philosophy
 
 Use motion to support:
 
@@ -257,7 +370,7 @@ Use motion to support:
 
 Avoid motion that feels decorative for its own sake.
 
-### 5.2 Preferred motion style
+### 6.2 Preferred motion style
 
 Default motion should be:
 
@@ -282,8 +395,10 @@ Bad examples:
 - long theatrical intros
 - scroll hijacking inside product UI
 - flashy cursor gimmicks in application screens
+- magnetic buttons
+- cinematic app-shell transitions
 
-### 5.3 Performance rules
+### 6.3 Performance rules
 
 Animate only:
 
@@ -307,9 +422,22 @@ Respect:
 - touch devices
 - low-noise interactions for financial workflows
 
+### 6.4 Motion quality standard
+
+When transitions are used, prefer motion that feels refined rather than default.
+
+Prefer:
+
+- subtle custom easing when it improves feel
+- short-to-medium durations
+- grouped reveals only when they improve hierarchy
+- polished overlay and modal entry/exit
+
+Do not add motion simply because it is available.
+
 ---
 
-## 6. Premium UI Does Not Mean Marketing-Site Behavior
+## 7. Premium UI Does Not Mean Marketing-Site Behavior
 
 This is important.
 
@@ -324,7 +452,8 @@ That means avoid by default:
 - giant reveal sequences
 - magnetic buttons
 - decorative 3D effects
-- mega-menu theatrics
+- over-styled glass overlays
+- dramatic asymmetrical experiments in core workflows
 
 Those can be appropriate for:
 
@@ -346,11 +475,11 @@ If the user explicitly asks for a landing page or promotional site, those techni
 
 ---
 
-## 7. Frontend Design Modes
+## 8. Frontend Design Modes
 
 When the user asks for UI work, choose one of these modes consciously.
 
-### 7.1 Application UI mode (default)
+### 8.1 Application UI mode (default)
 
 Use for:
 
@@ -371,7 +500,7 @@ Priorities:
 - restrained polish
 - compositional cleanliness
 
-### 7.2 Marketing / landing page mode
+### 8.2 Marketing / landing page mode
 
 Use only when explicitly appropriate.
 
@@ -385,7 +514,7 @@ Priorities:
 
 Still keep performance and accessibility in check.
 
-### 7.3 Component refinement mode
+### 8.3 Component refinement mode
 
 Use when improving existing screens/components.
 
@@ -398,11 +527,35 @@ Priorities:
 - improve interaction quality
 - avoid unnecessary rewrites
 
+### 8.4 Visual escalation rule
+
+Agents may increase visual expressiveness only when the feature context supports it.
+
+Allowed stronger visual exploration:
+
+- landing pages
+- marketing surfaces
+- onboarding splash sections
+- empty states where brand expression adds value
+- isolated promotional modules
+
+Default restraint required for:
+
+- dashboards
+- budgeting summaries
+- month editors
+- forms
+- settings
+- transaction or expense workflows
+- read-only financial views
+
+For application UI, always bias toward clarity, trust, and maintainability over visual novelty.
+
 ---
 
-## 8. Frontend Implementation Guidance
+## 9. Frontend Implementation Guidance
 
-### 8.1 React / TypeScript
+### 9.1 React / TypeScript
 
 Write React that is:
 
@@ -427,7 +580,7 @@ Avoid:
 - unclear prop contracts
 - premature abstraction
 
-### 8.2 Tailwind usage
+### 9.2 Tailwind usage
 
 Tailwind should be used with discipline.
 
@@ -445,7 +598,7 @@ Avoid:
 - inconsistent spacing scales
 - one-off styling chaos
 
-### 8.3 Existing UI primitives first
+### 9.3 Existing UI primitives first
 
 Before inventing new primitives:
 
@@ -456,7 +609,7 @@ Before inventing new primitives:
 
 Reuse before inventing.
 
-### 8.4 Empty, loading, and error states are mandatory
+### 9.4 Empty, loading, and error states are mandatory
 
 Do not build only the happy path.
 
@@ -469,32 +622,41 @@ Every relevant UI should consider:
 - read-only state
 - disabled state
 
----
+### 9.5 Use the existing token language in implementation
 
-## 9. What “Distinctive” Means In This Repo
+When styling UI, prefer implementation that composes with existing tokens and utilities.
 
-Distinctive does **not** mean weird.
+Examples of good direction:
 
-In this repository, distinctive means:
+- existing semantic text/surface classes
+- eBudget token-backed colors
+- established shadows such as `shadow-eb`
+- money-related utility styles where appropriate
+- existing border/ring semantics
 
-- stronger hierarchy than average
-- more intentional spacing than average
-- more refined typography than average
-- better interaction polish than average
-- cleaner visual rhythm than average
-- less clutter than average
-
-The memorable thing should be:
-
-- calm confidence
-- elegant information display
-- premium restraint
-
-Not visual chaos.
+Avoid “special snowflake” styling that bypasses the current visual system unless a real design need exists.
 
 ---
 
-## 10. When Asked To “Make It Better”
+## 10. Anti-Generic Rule
+
+Do not output frontend that looks like a generic AI-generated dashboard.
+
+Before finalizing, check:
+
+- does the hierarchy feel deliberate?
+- does the spacing feel calm and consistent?
+- are surfaces refined instead of default?
+- are money values clearly prioritized?
+- does the interaction design feel polished but restrained?
+- does this fit a financial product rather than a startup template?
+- does it work with the existing eBudget palette and shell?
+
+If not, refine the implementation before finishing.
+
+---
+
+## 11. When Asked To “Make It Better”
 
 If the user asks to improve or polish UI, default to this order:
 
@@ -510,7 +672,7 @@ Do not jump straight to adding effects.
 
 ---
 
-## 11. Delivery Standard
+## 12. Delivery Standard
 
 When producing frontend code, aim for:
 

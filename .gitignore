@@ -405,3 +405,4 @@ Agent/instruction.txt
 Backend.Tools/bin/**/login.json
 Backend.Tools/bin/**/refresh.json
 reports/
+logs/

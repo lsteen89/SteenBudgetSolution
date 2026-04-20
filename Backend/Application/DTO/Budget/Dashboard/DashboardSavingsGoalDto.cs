@@ -8,4 +8,5 @@ public sealed class DashboardSavingsGoalDto
     public DateTime? TargetDate { get; init; }
     public decimal? AmountSaved { get; init; }
     public decimal MonthlyContribution { get; init; }
+    public bool IsFavorite { get; init; }
 }

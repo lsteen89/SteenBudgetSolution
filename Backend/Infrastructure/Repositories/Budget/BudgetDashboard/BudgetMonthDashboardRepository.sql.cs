@@ -28,6 +28,8 @@ public sealed partial class BudgetMonthDashboardRepository
     SELECT
         bmi.Id AS IncomeId,
         COALESCE(bmi.NetSalaryMonthly, 0) AS NetSalaryMonthly,
+        COALESCE(bmi.IncomePaymentDayType, 'dayOfMonth') AS IncomePaymentDayType,
+        CAST(bmi.IncomePaymentDay AS SIGNED) AS IncomePaymentDay,
 
         COALESCE((
             SELECT SUM(ish.IncomeMonthly)

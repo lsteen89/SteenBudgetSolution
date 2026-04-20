@@ -1,7 +1,6 @@
 ﻿using System.Text.Json.Serialization;
-using Backend.Domain.Enums;
-using System.Runtime.Serialization;
 using Backend.Domain.Entities.Budget.Debt;
+using Backend.Domain.Enums;
 
 namespace Backend.Application.Models.Wizard;
 
@@ -34,6 +33,12 @@ public sealed record IncomeFormValues
 
     [JsonPropertyName("salaryFrequency")]
     public Frequency SalaryFrequency { get; init; }
+
+    [JsonPropertyName("incomePaymentDayType")]
+    public string? IncomePaymentDayType { get; init; }
+
+    [JsonPropertyName("incomePaymentDay")]
+    public int? IncomePaymentDay { get; init; }
 
     [JsonPropertyName("householdMembers")]
     public List<IncomeItem> HouseholdMembers { get; init; } = new();
@@ -224,19 +229,14 @@ public sealed class SavingHabits
     public List<SavingMethod>? SavingMethods { get; set; }
 }
 
-[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum SavingMethod
 {
-    [EnumMember(Value = "auto")]
     Auto,
 
-    [EnumMember(Value = "manual")]
     Manual,
 
-    [EnumMember(Value = "invest")]
     Invest,
 
-    [EnumMember(Value = "prefer_not")]
     PreferNot,
 }
 
@@ -298,4 +298,3 @@ public sealed class DebtItem
 }
 
 #endregion
-

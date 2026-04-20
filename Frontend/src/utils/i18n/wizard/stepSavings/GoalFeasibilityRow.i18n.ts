@@ -2,6 +2,7 @@ export const goalFeasibilityRowDict = {
   sv: {
     perMonthSuffix: "/mån",
     etaShortTemplate: "~{months} mån",
+    favoriteGoal: "Favoritmål",
 
     remainingLabel: "Kvar",
     savedLabel: "Sparat",
@@ -31,6 +32,7 @@ export const goalFeasibilityRowDict = {
   en: {
     perMonthSuffix: "/mo",
     etaShortTemplate: "~{months} mo",
+    favoriteGoal: "Favorite goal",
 
     remainingLabel: "Remaining",
     savedLabel: "Saved",
@@ -61,6 +63,7 @@ export const goalFeasibilityRowDict = {
   et: {
     perMonthSuffix: "/kuu",
     etaShortTemplate: "~{months} kuud",
+    favoriteGoal: "Lemmikeesmärk",
 
     remainingLabel: "Jäänud",
     savedLabel: "Säästetud",

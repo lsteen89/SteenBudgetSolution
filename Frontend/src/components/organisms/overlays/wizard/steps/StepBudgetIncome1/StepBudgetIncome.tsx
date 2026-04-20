@@ -5,6 +5,7 @@ import { useFormContext, useWatch } from "react-hook-form";
 import NumberInput from "@components/atoms/InputField/NumberInput";
 import RowFrequencySelect from "@components/atoms/InputField/RowFrequencySelect";
 import { WizardStepHeader } from "@components/organisms/overlays/wizard/SharedComponents/Headers/WizardStepHeader";
+import IncomePaymentTimingSection from "@components/organisms/overlays/wizard/steps/StepBudgetIncome1/Components/IncomePaymentTimingSection";
 
 import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
@@ -167,6 +168,8 @@ const StepBudgetIncome: React.FC<{
             touched={freqState.isTouched || showErrors}
           />
         </div>
+
+        <IncomePaymentTimingSection />
 
         {monthlyMain > 0 && (
           <p className="text-center text-darkLimeGreen text-lg font-semibold mt-2">

@@ -7,6 +7,8 @@ namespace Backend.Application.DTO.Budget.Income
     {
         public decimal? NetSalary { get; set; }
         public Frequency SalaryFrequency { get; set; }
+        public string? IncomePaymentDayType { get; set; }
+        public int? IncomePaymentDay { get; set; }
         public bool? ShowHouseholdMembers { get; set; }
         public bool? ShowSideIncome { get; set; }
         public List<SideHustleDto> SideHustles { get; set; } = new();

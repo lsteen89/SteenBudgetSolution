@@ -6,8 +6,16 @@ public static class IncomeSanitizer
 {
     public static IncomeFormValues Sanitize(IncomeFormValues dto)
     {
+        var normalizedPaymentDayType = string.IsNullOrWhiteSpace(dto.IncomePaymentDayType)
+            ? null
+            : dto.IncomePaymentDayType.Trim();
+
         return dto with
         {
+            IncomePaymentDayType = normalizedPaymentDayType,
+            IncomePaymentDay = normalizedPaymentDayType == "lastDayOfMonth"
+                ? null
+                : dto.IncomePaymentDay,
             HouseholdMembers = RowSanitizer.DropEmpty(
                 dto.HouseholdMembers,
                 IsEmptyRow,

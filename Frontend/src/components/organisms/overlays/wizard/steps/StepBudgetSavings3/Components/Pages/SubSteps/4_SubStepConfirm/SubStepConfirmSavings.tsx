@@ -160,6 +160,7 @@ export default function SubStepConfirmSavings({ preview }: Props) {
                         monthlyContribution={g.monthlyContribution}
                         targetAmount={g.targetAmount}
                         amountSaved={g.amountSaved}
+                        isFavorite={g.isFavorite}
                       />
                     ))}
                   </div>

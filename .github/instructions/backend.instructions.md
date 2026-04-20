@@ -138,6 +138,27 @@ Do not guess.
 
 If logic spans multiple layers, trace it end-to-end before changing anything.
 
+## 3.1 Money and numeric types
+
+Financial values must use safe numeric types.
+
+Rules:
+
+- use `decimal` for money and financial calculations
+- do not use `float` or `double` for currency-like values
+- do not introduce rounding implicitly
+- when rounding is required, do it explicitly and intentionally
+- preserve existing precision/scale expectations in storage and calculations
+
+Be especially careful when changing:
+
+- totals
+- installment calculations
+- savings contributions
+- debt payments
+- snapshot values
+- carry-over logic
+
 ---
 
 ## 4. Data Access Rules
@@ -197,6 +218,19 @@ Do not accidentally read baseline data when month-specific data is authoritative
 
 Do not accidentally mutate data that should be treated as historical or snapshot-based.
 
+### 4.5 Parameterize everything
+
+SQL must be parameterized.
+
+Do not:
+
+- concatenate user input into SQL
+- build `IN` clauses unsafely
+- interpolate identifiers or values casually
+- depend on implicit conversions when parameter types can be explicit
+
+Prefer parameterized queries that are easy to inspect and safe to review.
+
 ---
 
 ## 5. Transaction and Request Pipeline Discipline
@@ -237,6 +271,28 @@ Prefer:
 
 Do not hide writes inside read handlers.
 Do not add side effects to query flows unless there is an established, intentional pattern.
+
+## 5.4 Preserve idempotency where the workflow requires it
+
+Some backend operations may be retried because of:
+
+- network retries
+- UI retries
+- duplicate submissions
+- race conditions
+- multi-step lifecycle flows
+
+For operations such as:
+
+- month creation
+- bootstrap flows
+- close/open transitions
+- finalization steps
+- materialization routines
+
+inspect whether the existing behavior is intentionally idempotent.
+
+Do not accidentally turn a safe repeatable operation into a duplicate-producing mutation.
 
 ---
 
@@ -422,6 +478,16 @@ If a test fails:
 
 Do not simply bend tests to pass.
 
+### 10.5 Prefer real-flow tests for risky backend behavior
+
+For financial logic, repository behavior, lifecycle transitions, and transaction-sensitive code:
+
+- prefer integration tests over mock-heavy tests
+- validate real SQL behavior when query correctness matters
+- validate real handler/repository interaction when business invariants matter
+
+Use mocks/fakes where appropriate, but do not replace meaningful end-to-end backend validation with shallow tests.
+
 ---
 
 ## 11. Implementation Style
@@ -460,6 +526,16 @@ Avoid names that hide intent.
 A reader should be able to understand a handler or repository method without chasing ten layers of indirection.
 
 Do not extract trivial logic into helpers just to make a file shorter.
+
+## 11.4 CancellationToken discipline
+
+When modifying async backend flows:
+
+- accept and pass `CancellationToken` through the full call chain where the surrounding codebase already supports it
+- do not drop the token when calling repositories, handlers, or external services
+- match existing repository and handler signatures
+
+Do not introduce new async methods that ignore established cancellation patterns without reason.
 
 ---
 

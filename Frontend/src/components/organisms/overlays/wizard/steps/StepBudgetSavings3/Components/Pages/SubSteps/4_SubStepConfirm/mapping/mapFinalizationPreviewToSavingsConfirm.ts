@@ -1,5 +1,6 @@
 import type { BudgetDashboardDto } from "@/types/budget/BudgetDashboardDto";
 import type { AppLocale } from "@/types/i18n/appLocale";
+import { getEffectiveGoalMonthlyContribution } from "@/utils/budget/financialCalculations";
 import { formatShortDate } from "@/utils/dates/parseIsoDateLocal";
 import {
   mapPreviewIncome,
@@ -10,6 +11,7 @@ type GoalVm = {
   id: string;
   title: string;
   monthlyContribution: number;
+  isFavorite: boolean;
   targetAmount?: number;
   amountSaved?: number;
   targetDateLabel?: string;
@@ -34,6 +36,8 @@ export function mapFinalizationPreviewToSavingsConfirm(
   const income = mapPreviewIncome(preview);
   const s = preview.savings;
 
+  const monthlySavingsHabit = num(s?.monthlySavings);
+
   const goals = (s?.goals ?? [])
     .map((g) => {
       const title = (g.name ?? "").trim() || "Namnlöst mål";
@@ -41,10 +45,18 @@ export function mapFinalizationPreviewToSavingsConfirm(
         ? formatShortDate(g.targetDate, locale)
         : undefined;
 
+      const monthlyContribution = getEffectiveGoalMonthlyContribution({
+        monthlyContribution: g.monthlyContribution,
+        targetAmount: g.targetAmount,
+        amountSaved: g.amountSaved,
+        targetDate: g.targetDate,
+      });
+
       return {
         id: g.id,
         title,
-        monthlyContribution: num(g.monthlyContribution),
+        monthlyContribution,
+        isFavorite: Boolean(g.isFavorite),
         targetAmount: g.targetAmount ?? undefined,
         amountSaved: g.amountSaved ?? undefined,
         targetDateLabel,
@@ -63,11 +75,31 @@ export function mapFinalizationPreviewToSavingsConfirm(
         a.title.localeCompare(b.title),
     );
 
+  const computedGoalSavingsMonthly = goals.reduce(
+    (sum, g) => sum + num(g.monthlyContribution),
+    0,
+  );
+
+  const backendGoalSavingsMonthly = num(s?.totalGoalSavingsMonthly);
+  const totalGoalSavingsMonthly =
+    backendGoalSavingsMonthly > 0
+      ? backendGoalSavingsMonthly
+      : computedGoalSavingsMonthly;
+
+  const backendTotalSavingsMonthly = num(s?.totalSavingsMonthly);
+  const computedTotalSavingsMonthly =
+    monthlySavingsHabit + totalGoalSavingsMonthly;
+
+  const totalSavingsMonthly =
+    backendTotalSavingsMonthly > 0
+      ? backendTotalSavingsMonthly
+      : computedTotalSavingsMonthly;
+
   return {
     ...income,
-    monthlySavingsHabit: num(s?.monthlySavings),
-    totalGoalSavingsMonthly: num(s?.totalGoalSavingsMonthly),
-    totalSavingsMonthly: num(s?.totalSavingsMonthly),
+    monthlySavingsHabit,
+    totalGoalSavingsMonthly,
+    totalSavingsMonthly,
     goals,
     disposableAfterExpensesMonthly: num(
       preview.disposableAfterExpensesWithCarryMonthly,

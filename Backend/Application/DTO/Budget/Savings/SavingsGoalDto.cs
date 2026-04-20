@@ -9,5 +9,6 @@ namespace Backend.Application.DTO.Budget.Savings
         public decimal? TargetAmount { get; set; }
         public DateTime? TargetDate { get; set; }
         public decimal? AmountSaved { get; set; }
+        public bool IsFavorite { get; set; }
     }
 }

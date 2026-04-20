@@ -3,7 +3,7 @@ import ReturningDashboardSection from "@/components/organisms/dashboard/returnin
 import { useDashboardSummary } from "@/hooks/dashboard/useDashboardSummary";
 import DashboardHomeSkeleton from "@components/organisms/dashboard/DashboardHomeSkeleton";
 import FirstTimeDashboardSection from "@components/organisms/dashboard/FirstTimeDashboardSection";
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import DashboardErrorState from "../dashboard/DashboardErrorState";
 
 export interface DashboardContentProps {
@@ -21,6 +21,13 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
   setIsWizardOpen,
 }) => {
   const [isPeriodEditorOpen, setIsPeriodEditorOpen] = useState(false);
+  const [hasStartedWizardThisSession, setHasStartedWizardThisSession] =
+    useState(false);
+
+  const openWizard = useCallback(() => {
+    setHasStartedWizardThisSession(true);
+    setIsWizardOpen(true);
+  }, [setIsWizardOpen]);
 
   const shouldFetchDashboard = !isFirstTimeLogin && !isWizardOpen;
 
@@ -37,9 +44,15 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
     enabled: shouldFetchDashboard,
   });
 
+  const shouldShowResume = hasStartedWizardThisSession || isWizardOpen;
+
   if (isFirstTimeLogin) {
     return (
-      <FirstTimeDashboardSection onStartWizard={() => setIsWizardOpen(true)} />
+      <FirstTimeDashboardSection
+        onStartWizard={openWizard}
+        canResumeWizard={shouldShowResume}
+        onResumeWizard={openWizard}
+      />
     );
   }
 
@@ -49,7 +62,11 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
 
   if (isError && isNotFound(error)) {
     return (
-      <FirstTimeDashboardSection onStartWizard={() => setIsWizardOpen(true)} />
+      <FirstTimeDashboardSection
+        onStartWizard={openWizard}
+        canResumeWizard={shouldShowResume}
+        onResumeWizard={openWizard}
+      />
     );
   }
 
@@ -70,7 +87,11 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
 
   if (!data) {
     return (
-      <FirstTimeDashboardSection onStartWizard={() => setIsWizardOpen(true)} />
+      <FirstTimeDashboardSection
+        onStartWizard={openWizard}
+        canResumeWizard={shouldShowResume}
+        onResumeWizard={openWizard}
+      />
     );
   }
 
