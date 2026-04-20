@@ -1,4 +1,4 @@
-export const SAVING_METHODS = ["auto", "manual", "invest", "prefer_not"] as const;
+export const SAVING_METHODS = ["auto", "manual", "invest", "preferNot"] as const;
 export type SavingMethod = (typeof SAVING_METHODS)[number];
 
 export interface SavingsGoal {
@@ -7,6 +7,7 @@ export interface SavingsGoal {
     targetAmount: number | null;
     targetDate: string | null;
     amountSaved: number | null;
+    isFavorite: boolean;
 }
 
 export interface SavingsIntro {
@@ -23,6 +24,4 @@ export interface SavingsFormValues {
     habits: SavingHabits;
     goals: SavingsGoal[];
 }
-
-
 

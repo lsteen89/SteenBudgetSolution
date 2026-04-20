@@ -10,6 +10,8 @@ export const savingsGoalItemAccordionDict = {
     savedLabel: "Sparat",
     completeLabel: "Klart",
 
+    markFavoriteAria: "Markera som favoritmål",
+    favoriteSelectedAria: "Favoritmål valt",
     removeGoalAria: "Ta bort mål",
     helpText: "Du kan alltid justera målet senare.",
   },
@@ -25,6 +27,8 @@ export const savingsGoalItemAccordionDict = {
     savedLabel: "Saved",
     completeLabel: "Complete",
 
+    markFavoriteAria: "Mark as favorite goal",
+    favoriteSelectedAria: "Favorite goal selected",
     removeGoalAria: "Remove goal",
     helpText: "You can always adjust the goal later.",
   },
@@ -40,6 +44,8 @@ export const savingsGoalItemAccordionDict = {
     savedLabel: "Säästetud",
     completeLabel: "Valmis",
 
+    markFavoriteAria: "Märgi lemmikeesmärgiks",
+    favoriteSelectedAria: "Lemmikeesmärk valitud",
     removeGoalAria: "Eemalda eesmärk",
     helpText: "Saad eesmärki hiljem alati muuta.",
   },

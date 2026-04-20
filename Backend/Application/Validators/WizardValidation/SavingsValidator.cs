@@ -38,12 +38,12 @@ namespace Backend.Application.Validators.WizardValidation
                     .IsInEnum()
                     .WithMessage("Invalid saving method.");
 
-                // ✅ prefer_not must be exclusive
+                // preferNot must be exclusive.
                 RuleFor(h => h.SavingMethods!)
                     .Must(list =>
                         !list.Contains(SavingMethod.PreferNot) || list.Count == 1
                     )
-                    .WithMessage("'prefer_not' cannot be combined with other methods.");
+                    .WithMessage("'preferNot' cannot be combined with other methods.");
 
                 // ✅ optional: prevent duplicates (nice-to-have)
                 RuleFor(h => h.SavingMethods!)
@@ -83,7 +83,8 @@ namespace Backend.Application.Validators.WizardValidation
                 .NotNull().WithMessage("Goal amount is required.")
                 .GreaterThan(0).WithMessage("Goal amount must be greater than 0.")
                 .LessThanOrEqualTo(MaxTarget).WithMessage($"Goal amount must be <= {MaxTarget:N0}.")
-                .Must(BeWholeKrona).WithMessage("Goal amount must be a whole number (no decimals).");
+                .Must(HaveAtMostTwoDecimals)
+                    .WithMessage("Target amount can have at most 2 decimal places.");
 
             // TargetDate: >= today, <= today+40y
             RuleFor(g => g.TargetDate)
@@ -95,7 +96,8 @@ namespace Backend.Application.Validators.WizardValidation
             RuleFor(g => g.AmountSaved)
                 .GreaterThanOrEqualTo(0).WithMessage("Amount saved must be 0 or greater.")
                 .LessThanOrEqualTo(MaxSaved).WithMessage($"Amount saved must be <= {MaxSaved:N0}.")
-                .Must(v => v == null || BeWholeKrona(v)).WithMessage("Amount saved must be a whole number (no decimals).")
+                .Must(v => v == null || HaveAtMostTwoDecimals(v.Value))
+                .WithMessage("Amount saved can have at most 2 decimal places.")
                 .When(g => g.AmountSaved.HasValue);
 
             // AmountSaved <= TargetAmount (when both exist)
@@ -108,6 +110,11 @@ namespace Backend.Application.Validators.WizardValidation
                 })
                 .WithMessage("Amount saved cannot be greater than target amount.");
         }
+        private static bool HaveAtMostTwoDecimals(decimal value) =>
+            decimal.Round(value, 2) == value;
+
+        private static bool HaveAtMostTwoDecimals(decimal? value) =>
+            !value.HasValue || HaveAtMostTwoDecimals(value.Value);
 
         private static bool BeWholeKrona(decimal? v) =>
             v.HasValue && v.Value == decimal.Truncate(v.Value);
@@ -151,7 +158,11 @@ namespace Backend.Application.Validators.WizardValidation
                 RuleFor(x => x.Goals)
                     .Must(goals => goals!.Select(g => g.Id).Distinct().Count() == goals!.Count())
                     .WithMessage("Found duplicate goal IDs. Please ensure all goals have a unique ID.");
+                RuleFor(x => x.Goals)
+                    .Must(goals => goals!.Count(g => g.IsFavorite) <= 1)
+                    .WithMessage("Only one savings goal can be marked as favorite.");
             });
         }
     }
+
 }

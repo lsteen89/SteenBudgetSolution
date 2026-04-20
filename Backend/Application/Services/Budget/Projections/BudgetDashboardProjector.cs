@@ -104,7 +104,8 @@ public sealed class BudgetDashboardProjector : IBudgetDashboardProjector
                 TargetAmount = g.TargetAmount,
                 TargetDate = g.TargetDate,
                 AmountSaved = g.AmountSaved,
-                MonthlyContribution = MoneyRound.Kr(g.MonthlyContribution)
+                MonthlyContribution = MoneyRound.Kr(g.MonthlyContribution),
+                IsFavorite = g.IsFavorite
             }).ToList()
         };
     }
@@ -126,6 +127,8 @@ public sealed class BudgetDashboardProjector : IBudgetDashboardProjector
         new()
         {
             NetSalaryMonthly = data.Totals.NetSalaryMonthly,
+            IncomePaymentDayType = data.Totals.IncomePaymentDayType,
+            IncomePaymentDay = data.Totals.IncomePaymentDay,
             SideHustleMonthly = data.Totals.SideHustleMonthly,
             HouseholdMembersMonthly = data.Totals.HouseholdMembersMonthly,
             SideHustles = data.SideHustles.Select(x => new DashboardIncomeItemDto

@@ -48,8 +48,10 @@ const BUDGET_PERIOD_CLOSE_DAY_OPTIONS = Array.from(
   (_, index) => index + 1,
 );
 
-function normalizeBudgetPeriodCloseDay(value: number | null | undefined) {
-  if (!Number.isInteger(value)) return null;
+function normalizeBudgetPeriodCloseDay(
+  value: number | null | undefined,
+): number | null {
+  if (typeof value !== "number" || !Number.isInteger(value)) return null;
   if (value < 1 || value > 28) return null;
   return value;
 }
@@ -604,7 +606,9 @@ export default function SettingsPage() {
                         type="submit"
                         disabled={isSubmittingPassword || !isDirtyPassword}
                       >
-                        {isSubmittingPassword ? t("saving") : t("changePassword")}
+                        {isSubmittingPassword
+                          ? t("saving")
+                          : t("changePassword")}
                       </SecondaryButton>
                     </div>
                   </SurfaceCard>

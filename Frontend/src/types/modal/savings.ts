@@ -4,5 +4,5 @@ export type GoalTemplate = {
   id: GoalTemplateId;
   name: string;
   targetAmount: number;
-  targetDate?: string;
+  targetDate: string | null;
 };

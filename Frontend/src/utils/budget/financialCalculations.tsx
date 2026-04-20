@@ -37,6 +37,43 @@ export const calculateMonthlyContribution = (
   return Math.ceil(remaining / Math.max(months, 1));
 };
 
+export type GoalContributionInput = {
+  monthlyContribution?: number | null;
+  targetAmount?: number | null;
+  amountSaved?: number | null;
+  targetDate?: string | Date | null;
+};
+
+function parseGoalTargetDate(
+  targetDate?: string | Date | null,
+): Date | null {
+  if (!targetDate) return null;
+
+  const date =
+    targetDate instanceof Date
+      ? new Date(targetDate)
+      : new Date(String(targetDate).split("T")[0]);
+
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+export function getEffectiveGoalMonthlyContribution({
+  monthlyContribution,
+  targetAmount,
+  amountSaved,
+  targetDate,
+}: GoalContributionInput): number {
+  if (typeof monthlyContribution === "number" && Number.isFinite(monthlyContribution) && monthlyContribution > 0) {
+    return monthlyContribution;
+  }
+
+  return calculateMonthlyContribution(
+    targetAmount ?? null,
+    amountSaved ?? null,
+    parseGoalTargetDate(targetDate),
+  );
+}
+
 /**
  * Calculates the total of all monthly contributions for a list of goals.
  */

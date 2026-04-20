@@ -28,6 +28,13 @@ public sealed class SavingsStepProcessor : IWizardStepProcessor
             var dto = JsonSerializer.Deserialize<SavingsData>(stepData, JsonHelper.Camel);
             ArgumentNullException.ThrowIfNull(dto, nameof(stepData));
 
+            if (dto.Goals is not null && dto.Goals.Count(g => g.IsFavorite) > 1)
+            {
+                return Result.Failure(new Error(
+                    "Savings.InvalidData",
+                    "Only one savings goal can be marked as favorite."));
+            }
+
             // processor is now pure: validate + forward typed DTO
             return await savingsTarget.ApplySavingsAsync(dto, ct);
 
@@ -49,5 +56,4 @@ public sealed class SavingsStepProcessor : IWizardStepProcessor
         }
     }
 }
-
 

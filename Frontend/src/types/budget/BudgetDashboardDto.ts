@@ -6,6 +6,8 @@ export interface DashboardIncomeItemDto {
 
 export interface IncomeOverviewDto {
     netSalaryMonthly: number;
+    incomePaymentDayType: string;
+    incomePaymentDay: number | null;
     sideHustleMonthly: number;
     householdMembersMonthly: number;
     totalIncomeMonthly: number;
@@ -53,6 +55,7 @@ export interface DashboardSavingsGoalDto {
     targetDate?: string | null;   // ISO date string from BE
     amountSaved?: number | null;
     monthlyContribution: number;
+    isFavorite?: boolean;
 }
 
 export interface SavingsOverviewDto {
@@ -94,4 +97,3 @@ export interface BudgetDashboardDto {
     recurringExpenses: DashboardRecurringExpenseDto[];
     subscriptions: SubscriptionsOverviewDto;
 }
-

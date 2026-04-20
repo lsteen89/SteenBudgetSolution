@@ -8,12 +8,12 @@ export function ReceiptFooter({
     onEdit,
     extraRight,
 }: {
-    leftSummary?: React.ReactNode;      // e.g. "6 kategorier"
-    rightSummary?: React.ReactNode;     // e.g. "25 586 /mån"
-    hint?: React.ReactNode;            // e.g. "Stämmer det här ungefär?"
-    editLabel?: string;                // e.g. "Ändra utgifter"
+    leftSummary?: React.ReactNode;
+    rightSummary?: React.ReactNode;
+    hint?: React.ReactNode;
+    editLabel?: string;
     onEdit?: () => void;
-    extraRight?: React.ReactNode;      // optional: "Visa alla mål (5)"
+    extraRight?: React.ReactNode;
 }) {
     return (
         <div className="space-y-3">
@@ -68,7 +68,7 @@ export function ReceiptFooter({
                 focus:outline-none focus-visible:ring-2 focus-visible:ring-wizard-accent/35
               "
                         >
-                            {editLabel ?? "Ändra"}
+                            {editLabel}
                         </button>
                     ) : null}
                 </div>

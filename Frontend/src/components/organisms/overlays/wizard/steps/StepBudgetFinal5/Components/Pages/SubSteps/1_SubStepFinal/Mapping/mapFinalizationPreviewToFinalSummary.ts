@@ -1,5 +1,6 @@
 import type { BudgetDashboardDto } from "@/types/budget/BudgetDashboardDto";
 import type { AppLocale } from "@/types/i18n/appLocale";
+import { getEffectiveGoalMonthlyContribution } from "@/utils/budget/financialCalculations";
 import { asCategoryKey, labelCategory } from "@/utils/i18n/budget/categories";
 import { tDict } from "@/utils/i18n/translate";
 import { finalSummaryDict } from "@/utils/i18n/wizard/stepFinal/finalSummaryDict.i18n";
@@ -63,7 +64,14 @@ export function mapFinalizationPreviewToFinalSummary(
 
   const habitSavings = dto.savings?.monthlySavings ?? 0;
   const goalSavings = (dto.savings?.goals ?? []).reduce(
-    (acc, g: any) => acc + (g.monthlyContribution ?? 0),
+    (acc, g: any) =>
+      acc +
+      getEffectiveGoalMonthlyContribution({
+        monthlyContribution: g.monthlyContribution,
+        targetAmount: g.targetAmount,
+        amountSaved: g.amountSaved,
+        targetDate: g.targetDate,
+      }),
     0,
   );
   const totalSavings = kr(habitSavings + goalSavings);
@@ -123,7 +131,14 @@ export function mapFinalizationPreviewToFinalSummary(
 
   const habitSavingsMonthly = dto.savings?.monthlySavings ?? 0;
   const goalSavingsMonthly = (dto.savings?.goals ?? []).reduce(
-    (a, g: any) => a + (g.monthlyContribution ?? 0),
+    (a, g: any) =>
+      a +
+      getEffectiveGoalMonthlyContribution({
+        monthlyContribution: g.monthlyContribution,
+        targetAmount: g.targetAmount,
+        amountSaved: g.amountSaved,
+        targetDate: g.targetDate,
+      }),
     0,
   );
 

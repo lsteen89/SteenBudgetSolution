@@ -13,6 +13,7 @@ export function ensureStep3Defaults(
     targetAmount: g?.targetAmount ?? null,
     targetDate: toYMD(g?.targetDate),
     amountSaved: g?.amountSaved ?? null,
+    isFavorite: g?.isFavorite ?? false,
   }));
 
   return {

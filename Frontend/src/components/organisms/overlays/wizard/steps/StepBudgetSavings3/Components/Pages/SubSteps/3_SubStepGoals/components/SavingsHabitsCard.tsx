@@ -101,7 +101,7 @@ export default function SavingsHabitsCard<TMethod extends string>({
 
   const selectedSummary = useMemo(() => {
     if (!savingMethods?.length) return t("summaryNotSpecified");
-    if ((savingMethods as string[]).includes("prefer_not"))
+    if ((savingMethods as string[]).includes("preferNot"))
       return t("summaryPreferNot");
     if (savingMethods.length === 1) return t("summaryOneSelected");
     return t("summaryManySelected").replace(
@@ -109,6 +109,13 @@ export default function SavingsHabitsCard<TMethod extends string>({
       String(savingMethods.length),
     );
   }, [savingMethods, t]);
+
+  console.log("SavingsHabitsCard render", {
+    monthlySavings,
+    savingMethods,
+    monthlySavingsError,
+    savingMethodsError,
+  });
 
   const [methodsOpen, setMethodsOpen] = useState<string>(
     methodsDefaultCollapsed ? "" : "",
@@ -124,27 +131,17 @@ export default function SavingsHabitsCard<TMethod extends string>({
     setMethodsOpen("methods");
   }, [shouldAutoOpen]);
 
-  const monthlySavingsNum =
-    typeof monthlySavings === "number" ? monthlySavings : 0;
-
-  useEffect(() => {
-    if (monthlySavingsNum <= 0 && (savingMethods?.length ?? 0) > 0) {
-      methods.field.onChange([]);
-    }
-  }, [monthlySavingsNum, savingMethods, methods.field]);
-
   const toggleMethod = (value: TMethod) => {
     const current = Array.isArray(savingMethods) ? [...savingMethods] : [];
-
-    if (value === ("prefer_not" as TMethod)) {
-      const next = current.includes("prefer_not" as TMethod)
+    if (value === ("preferNot" as TMethod)) {
+      const next = current.includes("preferNot" as TMethod)
         ? []
-        : ["prefer_not" as TMethod];
+        : ["preferNot" as TMethod];
       methods.field.onChange(next);
       return;
     }
 
-    const filtered = current.filter((v) => v !== ("prefer_not" as TMethod));
+    const filtered = current.filter((v) => v !== ("preferNot" as TMethod));
     const idx = filtered.indexOf(value);
     const next =
       idx > -1 ? filtered.filter((v) => v !== value) : [...filtered, value];
@@ -171,6 +168,10 @@ export default function SavingsHabitsCard<TMethod extends string>({
             formatValue={money0}
             onChange={(v) => {
               monthly.field.onChange(v);
+
+              if ((v ?? 0) <= 0 && (savingMethods?.length ?? 0) > 0) {
+                methods.field.onChange([]);
+              }
             }}
             onBlur={monthly.field.onBlur}
             ariaLabelledBy={monthlyLabelId}

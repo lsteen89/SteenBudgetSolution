@@ -1,9 +1,11 @@
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import type { BudgetDashboardDto } from "@/types/budget/BudgetDashboardDto";
 import { asCategoryKey, labelCategory } from "@/utils/i18n/budget/categories";
+import { tDict } from "@/utils/i18n/translate";
 import { useMemo } from "react";
 import { ReceiptFooter } from "../receipt/ReceiptFooter";
 import ReceiptList, { type ReceiptRow } from "../receipt/ReceiptList";
+import { finalReceiptPanelsDict } from "./FinalReceiptPanels.i18n";
 
 export default function ExpensesReceiptPanel({
   preview,
@@ -15,6 +17,21 @@ export default function ExpensesReceiptPanel({
   onEdit?: () => void;
 }) {
   const locale = useAppLocale();
+  const t = <K extends keyof typeof finalReceiptPanelsDict.sv>(k: K) =>
+    tDict(k, locale, finalReceiptPanelsDict);
+
+  const categoryCountLabel = (count: number) =>
+    t(count === 1 ? "expensesCountOne" : "expensesCountOther").replace(
+      "{count}",
+      String(count),
+    );
+
+  const otherCategoryCountLabel = (count: number) =>
+    t(
+      count === 1
+        ? "expensesOtherCategoriesOne"
+        : "expensesOtherCategoriesOther",
+    ).replace("{count}", String(count));
 
   const { rows, total, count } = useMemo(() => {
     const cats = preview.expenditure?.byCategory ?? [];
@@ -53,31 +70,32 @@ export default function ExpensesReceiptPanel({
       rows.push({
         left: labelCategory("other", locale),
         right: money0(other),
-        sub: `${sorted.length - 6} kategorier`,
+        sub: otherCategoryCountLabel(sorted.length - 6),
       });
     }
 
     return { rows, total, count: sorted.length };
-  }, [preview, money0, locale]);
+  }, [preview, money0, locale, otherCategoryCountLabel]);
 
   return (
     <div className="space-y-3">
       <ReceiptList
-        title="Toppkategorier"
+        title={t("expensesTitle")}
+        unit={t("perMonthSuffix")}
         rows={rows}
         footer={
           <ReceiptFooter
-            leftSummary={`${count} kategorier`}
+            leftSummary={categoryCountLabel(count)}
             rightSummary={
               <>
                 {money0(total)}{" "}
                 <span className="text-xs font-semibold text-wizard-text/55">
-                  /mån
+                  {t("perMonthSuffix")}
                 </span>
               </>
             }
-            hint="Stämmer det här ungefär? Du kan justera efteråt."
-            editLabel="Ändra utgifter"
+            hint={t("expensesHint")}
+            editLabel={t("expensesEdit")}
             onEdit={onEdit}
           />
         }

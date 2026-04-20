@@ -1,7 +1,13 @@
+import { cn } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
-import { PiggyBank, PlusCircle } from "lucide-react";
+import { Info, PiggyBank, PlusCircle } from "lucide-react";
 import React from "react";
-import { useFieldArray, useFormContext, useFormState } from "react-hook-form";
+import {
+  useFieldArray,
+  useFormContext,
+  useFormState,
+  useWatch,
+} from "react-hook-form";
 
 import { GoalTemplateModal } from "@/components/organisms/modals/GoalTemplateModal";
 import { WizardAccordionRoot } from "@/components/organisms/overlays/wizard/SharedComponents/Accordion/WizardAccordion";
@@ -21,7 +27,7 @@ export type SavingsGoalsCardApi = {
 
 const SavingsGoalsCard = React.forwardRef<SavingsGoalsCardApi>(
   function SavingsGoalsCard(_props, ref) {
-    const { control, clearErrors, setFocus } =
+    const { control, clearErrors, getValues, setFocus, setValue } =
       useFormContext<Step3FormValues>();
     const { errors } = useFormState({ control, name: "goals" });
     const locale = useAppLocale();
@@ -35,6 +41,7 @@ const SavingsGoalsCard = React.forwardRef<SavingsGoalsCardApi>(
       keyName: "fieldId",
       shouldUnregister: false,
     });
+    const goals = useWatch({ control, name: "goals" }) ?? [];
 
     const { goalsHaveBeenSet, activeModal, openModal, closeModal } =
       useWizard();
@@ -104,6 +111,7 @@ const SavingsGoalsCard = React.forwardRef<SavingsGoalsCardApi>(
             targetAmount: tGoal.targetAmount,
             targetDate: tGoal.targetDate ?? "",
             amountSaved: null,
+            isFavorite: false,
           },
           { shouldFocus: false },
         );
@@ -125,6 +133,7 @@ const SavingsGoalsCard = React.forwardRef<SavingsGoalsCardApi>(
           targetAmount: null,
           targetDate: "",
           amountSaved: null,
+          isFavorite: false,
         },
         { shouldFocus: false },
       );
@@ -152,7 +161,27 @@ const SavingsGoalsCard = React.forwardRef<SavingsGoalsCardApi>(
       [remove, afterMutate],
     );
 
+    const setFavoriteAt = React.useCallback(
+      (index: number) => {
+        const currentGoals = getValues("goals") ?? [];
+        const shouldUnset = Boolean(currentGoals[index]?.isFavorite);
+
+        const nextGoals = currentGoals.map((goal, goalIndex) => ({
+          ...goal,
+          isFavorite: shouldUnset ? false : goalIndex === index,
+        }));
+
+        setValue("goals", nextGoals, {
+          shouldDirty: true,
+          shouldTouch: true,
+          shouldValidate: false,
+        });
+      },
+      [getValues, setValue],
+    );
+
     const isEmpty = fields.length === 0;
+    const hasFavoriteGoal = goals.some((goal) => Boolean(goal?.isFavorite));
     const compactedCount = deferredFields.length - visibleIndexSet.size;
 
     return (
@@ -183,7 +212,6 @@ const SavingsGoalsCard = React.forwardRef<SavingsGoalsCardApi>(
                   ? t("emptyUsedSubtitle")
                   : t("emptyFirstSubtitle")}
               </p>
-
               <button
                 type="button"
                 onClick={() => openModal("goalTemplate")}
@@ -220,7 +248,10 @@ const SavingsGoalsCard = React.forwardRef<SavingsGoalsCardApi>(
                     >
                       <SavingsGoalItemAccordion
                         index={index}
+                        isFavorite={Boolean(goals[index]?.isFavorite)}
+                        onFavoriteClick={setFavoriteAt}
                         onRemove={removeAt}
+                        mobileTotal="hidden"
                       />
                     </motion.div>
                   ) : null,
@@ -242,7 +273,38 @@ const SavingsGoalsCard = React.forwardRef<SavingsGoalsCardApi>(
                   </button>
                 </div>
               )}
+              <div
+                className={cn(
+                  "rounded-2xl border px-4 py-3",
+                  hasFavoriteGoal
+                    ? "border-wizard-accent bg-wizard-accent/10"
+                    : "border-wizard-stroke/25 bg-wizard-surface/40",
+                )}
+              >
+                <div className="flex items-start gap-3">
+                  <div
+                    className={cn(
+                      "mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-xl border bg-white/80",
+                      hasFavoriteGoal
+                        ? "border-wizard-accent bg-wizard-accent/10"
+                        : "border-wizard-stroke/25 text-wizard-text/55",
+                    )}
+                  >
+                    <Info size={15} />
+                  </div>
 
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-wizard-text">
+                      {t("favoriteHintTitle")}
+                    </p>
+                    <p className="mt-1 text-sm text-wizard-text/65">
+                      {hasFavoriteGoal
+                        ? t("favoriteHintActive")
+                        : t("favoriteHintBody")}
+                    </p>
+                  </div>
+                </div>
+              </div>
               <div className="relative flex justify-center">
                 <div className="pointer-events-none absolute inset-0 grid place-items-center">
                   <div className="h-10 w-44 rounded-full bg-wizard-accent/10 blur-2xl" />

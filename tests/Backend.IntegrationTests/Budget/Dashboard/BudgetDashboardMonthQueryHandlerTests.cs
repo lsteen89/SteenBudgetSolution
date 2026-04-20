@@ -100,6 +100,89 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
     }
 
     [Fact]
+    public async Task Dashboard_OpenMonth_ReturnsIncomePaymentTiming_FromBudgetMonthIncome()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+        var persoid = seed.Persoid;
+        var budgetId = seed.BudgetId;
+
+        await InsertBaselineIncomeAsync(
+            _db.ConnectionString,
+            budgetId,
+            persoid,
+            incomePaymentDayType: "dayOfMonth",
+            incomePaymentDay: 12);
+
+        var clock = new FakeTimeProvider(new DateTime(2026, 02, 07, 08, 00, 00, DateTimeKind.Utc));
+
+        await using var sp = BuildServiceProvider(_db.ConnectionString, clock, new DebtPaymentCalculator());
+        await using var scope = sp.CreateAsyncScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+        var result = await mediator.Send(
+            new GetBudgetDashboardMonthQuery(persoid, "2026-02"),
+            CancellationToken.None);
+
+        result.IsFailure.Should().BeFalse();
+        result.Value.Should().NotBeNull();
+
+        var income = result.Value!.LiveDashboard!.Income;
+        income.IncomePaymentDayType.Should().Be("dayOfMonth");
+        income.IncomePaymentDay.Should().Be(12);
+    }
+
+    [Fact]
+    public async Task Dashboard_DoesNotDependOnBaselineIncomeTiming_AfterMonthMaterialization()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+        var persoid = seed.Persoid;
+        var budgetId = seed.BudgetId;
+
+        await InsertBaselineIncomeAsync(
+            _db.ConnectionString,
+            budgetId,
+            persoid,
+            incomePaymentDayType: "dayOfMonth",
+            incomePaymentDay: 12);
+
+        var clock = new FakeTimeProvider(new DateTime(2026, 02, 07, 08, 00, 00, DateTimeKind.Utc));
+
+        await using var sp = BuildServiceProvider(_db.ConnectionString, clock, new DebtPaymentCalculator());
+        await using var scope = sp.CreateAsyncScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+        var first = await mediator.Send(
+            new GetBudgetDashboardMonthQuery(persoid, "2026-02"),
+            CancellationToken.None);
+
+        first.IsFailure.Should().BeFalse();
+        first.Value.Should().NotBeNull();
+        first.Value!.LiveDashboard!.Income.IncomePaymentDay.Should().Be(12);
+
+        await UpdateBaselineIncomeTimingAsync(
+            _db.ConnectionString,
+            budgetId,
+            persoid,
+            incomePaymentDayType: "dayOfMonth",
+            incomePaymentDay: 18);
+
+        var second = await mediator.Send(
+            new GetBudgetDashboardMonthQuery(persoid, "2026-02"),
+            CancellationToken.None);
+
+        second.IsFailure.Should().BeFalse();
+        second.Value.Should().NotBeNull();
+
+        var income = second.Value!.LiveDashboard!.Income;
+        income.IncomePaymentDayType.Should().Be("dayOfMonth");
+        income.IncomePaymentDay.Should().Be(12);
+    }
+
+    [Fact]
     public async Task ClosedMonth_ReturnsSnapshotTotals_AndNoLiveDashboard()
     {
         await _db.ResetAsync();
@@ -489,6 +572,84 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
             return _constant;
         }
     }
+
+    private static async Task<Guid> InsertBaselineIncomeAsync(
+        string cs,
+        Guid budgetId,
+        Guid actorPersoid,
+        string incomePaymentDayType,
+        int? incomePaymentDay,
+        decimal netSalaryMonthly = 30000m,
+        int salaryFrequency = 0)
+    {
+        await using var conn = new MySqlConnection(cs);
+        await conn.OpenAsync();
+
+        var incomeId = Guid.NewGuid();
+
+        await conn.ExecuteAsync("""
+        INSERT INTO Income
+        (
+            Id,
+            BudgetId,
+            NetSalaryMonthly,
+            SalaryFrequency,
+            IncomePaymentDayType,
+            IncomePaymentDay,
+            CreatedAt,
+            CreatedByUserId
+        )
+        VALUES
+        (
+            @Id,
+            @BudgetId,
+            @NetSalaryMonthly,
+            @SalaryFrequency,
+            @IncomePaymentDayType,
+            @IncomePaymentDay,
+            UTC_TIMESTAMP(),
+            @ActorPersoid
+        );
+    """, new
+        {
+            Id = incomeId,
+            BudgetId = budgetId,
+            NetSalaryMonthly = netSalaryMonthly,
+            SalaryFrequency = salaryFrequency,
+            IncomePaymentDayType = incomePaymentDayType,
+            IncomePaymentDay = incomePaymentDay,
+            ActorPersoid = actorPersoid
+        });
+
+        return incomeId;
+    }
+
+    private static async Task UpdateBaselineIncomeTimingAsync(
+        string cs,
+        Guid budgetId,
+        Guid actorPersoid,
+        string incomePaymentDayType,
+        int? incomePaymentDay)
+    {
+        await using var conn = new MySqlConnection(cs);
+        await conn.OpenAsync();
+
+        await conn.ExecuteAsync(@"
+        UPDATE Income
+        SET
+            IncomePaymentDayType = @IncomePaymentDayType,
+            IncomePaymentDay = @IncomePaymentDay,
+            UpdatedByUserId = @ActorPersoid
+        WHERE BudgetId = @BudgetId;
+    ", new
+        {
+            BudgetId = budgetId,
+            IncomePaymentDayType = incomePaymentDayType,
+            IncomePaymentDay = incomePaymentDay,
+            ActorPersoid = actorPersoid
+        });
+    }
+
     private static ServiceProvider BuildServiceProvider(
         string cs,
         ITimeProvider clock,

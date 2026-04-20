@@ -117,6 +117,8 @@ public sealed partial class BudgetMonthDashboardRepository : SqlBase, IBudgetMon
         var totals = new DashboardTotalsRm(
             totalsRow.IncomeId,
             totalsRow.NetSalaryMonthly,
+            totalsRow.IncomePaymentDayType,
+            totalsRow.IncomePaymentDay,
             totalsRow.SideHustleMonthly,
             totalsRow.HouseholdMembersMonthly,
             totalsRow.TotalExpensesMonthly,

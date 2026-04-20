@@ -5,9 +5,11 @@ public sealed partial class BudgetMonthSeedSourceRepository
 {
     private const string GetIncomeSql = @"
     SELECT
-        i.Id                 AS Id,
-        i.NetSalaryMonthly   AS NetSalaryMonthly,
-        i.SalaryFrequency    AS SalaryFrequency
+        i.Id                   AS Id,
+        i.NetSalaryMonthly     AS NetSalaryMonthly,
+        i.SalaryFrequency      AS SalaryFrequency,
+        i.IncomePaymentDayType AS IncomePaymentDayType,
+        CAST(i.IncomePaymentDay AS SIGNED) AS IncomePaymentDay
     FROM Income i
     WHERE i.BudgetId = @BudgetId
     LIMIT 1;";

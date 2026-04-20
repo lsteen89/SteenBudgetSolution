@@ -22,20 +22,14 @@ namespace Backend.Common.Utilities
 
         static JsonHelper()
         {
-            Camel.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false));
-            CamelSparse.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false));
+            Camel.Converters.Add(
+                new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false));
+
+            CamelSparse.Converters.Add(
+                new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false));
         }
 
         public static string SerializeSparse<T>(T value) =>
             JsonSerializer.Serialize(value, CamelSparse);
-
-        /*
-        public static readonly JsonSerializerOptions Camel = new()
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-            Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
-        };
-        */
     }
 }

@@ -3,6 +3,8 @@ namespace Backend.Application.DTO.Budget.Dashboard;
 public sealed class IncomeOverviewDto
 {
     public decimal NetSalaryMonthly { get; init; }
+    public string IncomePaymentDayType { get; init; } = "dayOfMonth";
+    public int? IncomePaymentDay { get; init; }
 
     public decimal SideHustleMonthly { get; init; }
     public decimal HouseholdMembersMonthly { get; init; }

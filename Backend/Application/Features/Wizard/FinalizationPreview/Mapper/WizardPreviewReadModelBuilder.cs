@@ -113,6 +113,8 @@ public sealed class WizardPreviewReadModelBuilder : IWizardPreviewReadModelBuild
         var totals = new DashboardTotalsRm(
             IncomeId: income?.Id,
             NetSalaryMonthly: netSalaryMonthly,
+            IncomePaymentDayType: income?.IncomePaymentDayType ?? "dayOfMonth",
+            IncomePaymentDay: income?.IncomePaymentDay,
             SideHustleMonthly: sideHustleMonthly,
             HouseholdMembersMonthly: householdMembersMonthly,
             TotalExpensesMonthly: totalExpensesMonthly,
@@ -185,7 +187,8 @@ public sealed class WizardPreviewReadModelBuilder : IWizardPreviewReadModelBuild
                 TargetAmount: g.TargetAmount,
                 TargetDate: g.TargetDate,
                 AmountSaved: g.AmountSaved,
-                MonthlyContribution: g.MonthlyContribution
+                MonthlyContribution: g.MonthlyContribution,
+                IsFavorite: g.IsFavorite
                 )).ToList();
 
 

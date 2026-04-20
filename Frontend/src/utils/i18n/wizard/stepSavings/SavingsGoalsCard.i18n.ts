@@ -18,6 +18,12 @@ export const savingsGoalsCardDict = {
     showAllGoals: "Visa alla mål",
 
     addGoalShort: "Lägg till mål",
+
+    favoriteHintTitle: "Prioritera ett mål",
+    favoriteHintBody:
+      "Stjärnmarkera ett mål nu så hjälper vi dig fokusera på det när budgeten är klar. Tryck på stjärnan igen för att ta bort markeringen.",
+    favoriteHintActive:
+      "Du har markerat ett prioriterat mål. Vi använder det senare för att hjälpa dig fokusera rätt. Tryck på stjärnan igen om du vill ta bort markeringen.",
   },
 
   en: {
@@ -39,6 +45,12 @@ export const savingsGoalsCardDict = {
     showAllGoals: "Show all goals",
 
     addGoalShort: "Add goal",
+
+    favoriteHintTitle: "Prioritize one goal",
+    favoriteHintBody:
+      "Star one goal now and we’ll help you focus on it when your budget setup is finished. Tap the star again to remove it.",
+    favoriteHintActive:
+      "You’ve marked one prioritized goal. We’ll use it later to help you focus on the right thing. Tap the star again if you want to remove it.",
   },
 
   et: {
@@ -60,5 +72,11 @@ export const savingsGoalsCardDict = {
     showAllGoals: "Näita kõiki eesmärke",
 
     addGoalShort: "Lisa eesmärk",
+
+    favoriteHintTitle: "Sea üks eesmärk prioriteediks",
+    favoriteHintBody:
+      "Märgi üks eesmärk tärniga ja aitame sul sellele keskenduda pärast eelarve seadistamise lõpetamist. Vajuta tärnile uuesti, et märgistus eemaldada.",
+    favoriteHintActive:
+      "Oled märkinud ühe prioriteetse eesmärgi. Kasutame seda hiljem, et aidata sul õigesti keskenduda. Vajuta tärnile uuesti, kui soovid märgistuse eemaldada.",
   },
 } as const;

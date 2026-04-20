@@ -1,3 +1,7 @@
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
+import { tDict } from "@/utils/i18n/translate";
+import { coachBlockDict } from "./CoachBlock.i18n";
+
 type CoachKey = "expenditure" | "savings" | "debts";
 
 type Coach =
@@ -6,9 +10,12 @@ type Coach =
     | { kind: "fix"; title: string; detail: string; actionKey: CoachKey };
 
 function CoachBlock({ coach, onOpen }: { coach: Coach; onOpen: (key: CoachKey) => void }) {
+    const locale = useAppLocale();
     if (coach.kind === "none") return null;
 
     const isFix = coach.kind === "fix";
+    const t = <K extends keyof typeof coachBlockDict.sv>(k: K) =>
+        tDict(k, locale, coachBlockDict);
 
     return (
         <div className={`rounded-2xl p-4 sm:p-6 border ${isFix ? "border-rose-500/20 bg-rose-500/10" : "border-white/15 bg-white/[0.06]"}`}>
@@ -18,7 +25,7 @@ function CoachBlock({ coach, onOpen }: { coach: Coach; onOpen: (key: CoachKey) =
             {coach.kind === "fix" && (
                 <div className="mt-3">
                     <button type="button" onClick={() => onOpen(coach.actionKey)} className="text-sm font-semibold text-white/85 hover:text-white underline underline-offset-4">
-                        Justera nu
+                        {t("adjustNow")}
                     </button>
                 </div>
             )}

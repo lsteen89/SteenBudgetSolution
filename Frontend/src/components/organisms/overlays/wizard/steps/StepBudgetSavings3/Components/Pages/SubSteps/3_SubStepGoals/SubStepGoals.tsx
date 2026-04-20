@@ -1,7 +1,7 @@
 import { WizardStepHeader } from "@/components/organisms/overlays/wizard/SharedComponents/Headers/WizardStepHeader";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import type { Step3FormValues } from "@/types/Wizard/Step3_Savings/Step3FormValues";
-import { requiredPerMonth } from "@/utils/budget/savingCalculations";
+import { getEffectiveGoalMonthlyContribution } from "@/utils/budget/financialCalculations";
 import { tDict } from "@/utils/i18n/translate";
 import { subStepGoalsDict } from "@/utils/i18n/wizard/stepSavings/SubStepGoals.i18n";
 import React, { useDeferredValue, useMemo } from "react";
@@ -32,7 +32,17 @@ const SubStepGoals = React.forwardRef<SubStepGoalsApi, Props>(
     const deferredMonthlySavings = useDeferredValue(monthlySavings);
 
     const requiredTotal = useMemo(
-      () => deferredGoals.reduce((sum, g) => sum + requiredPerMonth(g), 0),
+      () =>
+        deferredGoals.reduce(
+          (sum, g) =>
+            sum +
+            getEffectiveGoalMonthlyContribution({
+              targetAmount: g?.targetAmount,
+              amountSaved: g?.amountSaved,
+              targetDate: g?.targetDate,
+            }),
+          0,
+        ),
       [deferredGoals],
     );
 

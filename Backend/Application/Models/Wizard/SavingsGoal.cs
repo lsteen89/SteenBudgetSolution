@@ -17,7 +17,9 @@ public sealed class SavingsGoal
     [JsonPropertyName("targetDate")]
     public DateTime? TargetDate { get; init; }
 
-
     [JsonPropertyName("amountSaved")]
     public decimal? AmountSaved { get; init; }
+
+    [JsonPropertyName("isFavorite")]
+    public bool IsFavorite { get; init; }
 }

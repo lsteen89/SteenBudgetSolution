@@ -15,6 +15,8 @@ public interface IBudgetMonthMaterializationRepository
         Guid? sourceIncomeId,
         decimal netSalaryMonthly,
         int salaryFrequency,
+        string incomePaymentDayType,
+        int? incomePaymentDay,
         Guid actorPersoid,
         DateTime nowUtc,
         CancellationToken ct);

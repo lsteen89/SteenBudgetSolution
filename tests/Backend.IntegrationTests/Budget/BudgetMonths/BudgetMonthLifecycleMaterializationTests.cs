@@ -74,6 +74,49 @@ public sealed class BudgetMonthLifecycleMaterializationTests
         var expenseCount = await CountBudgetMonthExpenseRowsAsync(_db.ConnectionString, result.Value.BudgetMonthId);
         expenseCount.Should().BeGreaterThan(0);
     }
+
+    [Fact]
+    public async Task Materializer_CopiesIncomePaymentTiming_FromBaselineIncome_ToBudgetMonthIncome()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+        var persoid = seed.Persoid;
+        var budgetId = seed.BudgetId;
+
+        var incomeId = await InsertBaselineIncomeAsync(
+            _db.ConnectionString,
+            budgetId,
+            persoid,
+            incomePaymentDayType: "dayOfMonth",
+            incomePaymentDay: 12);
+
+        var clock = new FakeTimeProvider(new DateTime(2026, 02, 07, 08, 00, 00, DateTimeKind.Utc));
+
+        await using var sp = BuildServiceProvider(_db.ConnectionString, clock);
+        await using var scope = sp.CreateAsyncScope();
+
+        var lifecycle = scope.ServiceProvider.GetRequiredService<IBudgetMonthLifecycleService>();
+        var uow = (UnitOfWork)scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+        var result = await uow.InTx(CancellationToken.None, () =>
+            lifecycle.EnsureAccessibleMonthAsync(
+                persoid,
+                persoid,
+                "2026-02",
+                CancellationToken.None));
+
+        result.IsFailure.Should().BeFalse();
+
+        var income = await GetBudgetMonthIncomeTimingAsync(
+            _db.ConnectionString,
+            result.Value!.BudgetMonthId);
+
+        income.Should().NotBeNull();
+        income!.SourceIncomeId.Should().Be(incomeId);
+        income.IncomePaymentDayType.Should().Be("dayOfMonth");
+        income.IncomePaymentDay.Should().Be(12);
+    }
     [Fact]
     public async Task EnsureAccessibleMonthAsync_WhenBaselineSavingsExists_SeedsBudgetMonthSavings()
     {
@@ -106,6 +149,101 @@ public sealed class BudgetMonthLifecycleMaterializationTests
         savings.Should().NotBeNull();
         savings!.SourceSavingsId.Should().NotBeNull();
         savings.MonthlySavings.Should().BeGreaterThan(0m);
+    }
+
+    [Fact]
+    public async Task NewMonthMaterialization_UsesCurrentBaselineIncomeTiming()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+        var persoid = seed.Persoid;
+        var budgetId = seed.BudgetId;
+
+        await InsertBaselineIncomeAsync(
+            _db.ConnectionString,
+            budgetId,
+            persoid,
+            incomePaymentDayType: "dayOfMonth",
+            incomePaymentDay: 12);
+
+        var clock = new FakeTimeProvider(new DateTime(2026, 02, 07, 08, 00, 00, DateTimeKind.Utc));
+
+        await using var sp = BuildServiceProvider(_db.ConnectionString, clock);
+        await using var scope = sp.CreateAsyncScope();
+
+        var lifecycle = scope.ServiceProvider.GetRequiredService<IBudgetMonthLifecycleService>();
+        var uow = (UnitOfWork)scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+        var first = await uow.InTx(CancellationToken.None, () =>
+            lifecycle.EnsureAccessibleMonthAsync(
+                persoid,
+                persoid,
+                "2026-02",
+                CancellationToken.None));
+
+        first.IsFailure.Should().BeFalse();
+
+        await UpdateBaselineIncomeTimingAsync(
+            _db.ConnectionString,
+            budgetId,
+            persoid,
+            incomePaymentDayType: "dayOfMonth",
+            incomePaymentDay: 18);
+
+        var second = await uow.InTx(CancellationToken.None, () =>
+            lifecycle.EnsureAccessibleMonthAsync(
+                persoid,
+                persoid,
+                "2026-03",
+                CancellationToken.None));
+
+        second.IsFailure.Should().BeFalse();
+
+        var income = await GetBudgetMonthIncomeTimingAsync(
+            _db.ConnectionString,
+            second.Value!.BudgetMonthId);
+
+        income.Should().NotBeNull();
+        income!.IncomePaymentDayType.Should().Be("dayOfMonth");
+        income.IncomePaymentDay.Should().Be(18);
+    }
+
+    [Fact]
+    public async Task ExistingRows_AreHandledSafely_ByMigration()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+        var budgetId = seed.BudgetId;
+        var userId = seed.UserId;
+
+        await BudgetMonthDsl.InsertAsync(
+            cs: _db.ConnectionString,
+            budgetId: budgetId,
+            yearMonth: "2026-02",
+            status: "open",
+            openedAtUtc: new DateTime(2026, 02, 01, 8, 0, 0, DateTimeKind.Utc),
+            createdByUserId: userId,
+            closedAtUtc: null,
+            carryOverMode: "none",
+            carryOverAmount: null);
+
+        var budgetMonthId = await GetBudgetMonthIdAsync(_db.ConnectionString, budgetId, "2026-02");
+        budgetMonthId.Should().NotBeNull();
+
+        await InsertLegacyBudgetMonthIncomeRowAsync(
+            _db.ConnectionString,
+            budgetMonthId!.Value,
+            userId);
+
+        var income = await GetBudgetMonthIncomeTimingAsync(
+            _db.ConnectionString,
+            budgetMonthId.Value);
+
+        income.Should().NotBeNull();
+        income!.IncomePaymentDayType.Should().Be("dayOfMonth");
+        income.IncomePaymentDay.Should().BeNull();
     }
     [Fact]
     public async Task EnsureAccessibleMonthAsync_WhenBaselineSavingsMissing_CreatesZeroedBudgetMonthSavingsRoot()
@@ -726,7 +864,166 @@ public sealed class BudgetMonthLifecycleMaterializationTests
             ActorPersoid = actorPersoid
         });
     }
+    private sealed record BudgetMonthIncomeTimingRow(
+        Guid? SourceIncomeId,
+        string IncomePaymentDayType,
+        sbyte? IncomePaymentDay);
+
     private sealed record BudgetMonthSavingsRow(Guid? SourceSavingsId, decimal MonthlySavings);
+
+    private static async Task<Guid> InsertBaselineIncomeAsync(
+        string cs,
+        Guid budgetId,
+        Guid actorPersoid,
+        string incomePaymentDayType,
+        int? incomePaymentDay,
+        decimal netSalaryMonthly = 30000m,
+        int salaryFrequency = 0)
+    {
+        await using var conn = new MySqlConnection(cs);
+        await conn.OpenAsync();
+
+        var incomeId = Guid.NewGuid();
+
+        await conn.ExecuteAsync("""
+        INSERT INTO Income
+        (
+            Id,
+            BudgetId,
+            NetSalaryMonthly,
+            SalaryFrequency,
+            IncomePaymentDayType,
+            IncomePaymentDay,
+            CreatedAt,
+            CreatedByUserId
+        )
+        VALUES
+        (
+            @Id,
+            @BudgetId,
+            @NetSalaryMonthly,
+            @SalaryFrequency,
+            @IncomePaymentDayType,
+            @IncomePaymentDay,
+            UTC_TIMESTAMP(),
+            @ActorPersoid
+        );
+    """, new
+        {
+            Id = incomeId,
+            BudgetId = budgetId,
+            NetSalaryMonthly = netSalaryMonthly,
+            SalaryFrequency = salaryFrequency,
+            IncomePaymentDayType = incomePaymentDayType,
+            IncomePaymentDay = incomePaymentDay,
+            ActorPersoid = actorPersoid
+        });
+
+        return incomeId;
+    }
+
+    private static async Task UpdateBaselineIncomeTimingAsync(
+        string cs,
+        Guid budgetId,
+        Guid actorPersoid,
+        string incomePaymentDayType,
+        int? incomePaymentDay)
+    {
+        await using var conn = new MySqlConnection(cs);
+        await conn.OpenAsync();
+
+        await conn.ExecuteAsync(@"
+        UPDATE Income
+        SET
+            IncomePaymentDayType = @IncomePaymentDayType,
+            IncomePaymentDay = @IncomePaymentDay,
+            UpdatedByUserId = @ActorPersoid
+        WHERE BudgetId = @BudgetId;
+    ", new
+        {
+            BudgetId = budgetId,
+            IncomePaymentDayType = incomePaymentDayType,
+            IncomePaymentDay = incomePaymentDay,
+            ActorPersoid = actorPersoid
+        });
+    }
+
+    private static async Task<Guid?> GetBudgetMonthIdAsync(string cs, Guid budgetId, string yearMonth)
+    {
+        await using var conn = new MySqlConnection(cs);
+        await conn.OpenAsync();
+
+        return await conn.ExecuteScalarAsync<Guid?>(@"
+        SELECT Id
+        FROM BudgetMonth
+        WHERE BudgetId = @BudgetId
+          AND YearMonth = @YearMonth
+        LIMIT 1;
+    ", new
+        {
+            BudgetId = budgetId,
+            YearMonth = yearMonth
+        });
+    }
+
+    private static async Task InsertLegacyBudgetMonthIncomeRowAsync(
+        string cs,
+        Guid budgetMonthId,
+        Guid actorPersoid)
+    {
+        await using var conn = new MySqlConnection(cs);
+        await conn.OpenAsync();
+
+        await conn.ExecuteAsync("""
+        INSERT INTO BudgetMonthIncome
+        (
+            Id,
+            BudgetMonthId,
+            SourceIncomeId,
+            NetSalaryMonthly,
+            SalaryFrequency,
+            IsOverride,
+            IsDeleted,
+            CreatedAt,
+            CreatedByUserId
+        )
+        VALUES
+        (
+            @Id,
+            @BudgetMonthId,
+            NULL,
+            30000,
+            0,
+            0,
+            0,
+            UTC_TIMESTAMP(),
+            @ActorPersoid
+        );
+    """, new
+        {
+            Id = Guid.NewGuid(),
+            BudgetMonthId = budgetMonthId,
+            ActorPersoid = actorPersoid
+        });
+    }
+
+    private static async Task<BudgetMonthIncomeTimingRow?> GetBudgetMonthIncomeTimingAsync(
+        string cs,
+        Guid budgetMonthId)
+    {
+        await using var conn = new MySqlConnection(cs);
+        await conn.OpenAsync();
+
+        return await conn.QuerySingleOrDefaultAsync<BudgetMonthIncomeTimingRow>(@"
+        SELECT
+            SourceIncomeId,
+            IncomePaymentDayType,
+            IncomePaymentDay
+        FROM BudgetMonthIncome
+        WHERE BudgetMonthId = @BudgetMonthId
+        LIMIT 1;
+    ", new { BudgetMonthId = budgetMonthId });
+    }
 
     private static async Task<BudgetMonthSavingsRow?> GetBudgetMonthSavingsAsync(string cs, Guid budgetMonthId)
     {

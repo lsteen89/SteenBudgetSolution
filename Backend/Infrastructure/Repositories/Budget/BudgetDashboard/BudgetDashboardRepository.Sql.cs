@@ -17,6 +17,8 @@ public sealed partial class BudgetDashboardRepository
     SELECT
         i.Id AS IncomeId,
         COALESCE(i.NetSalaryMonthly, 0) AS NetSalaryMonthly,
+        COALESCE(i.IncomePaymentDayType, 'dayOfMonth') AS IncomePaymentDayType,
+        CAST(i.IncomePaymentDay AS SIGNED) AS IncomePaymentDay,
 
         COALESCE((
             SELECT SUM(ish.IncomeMonthly)

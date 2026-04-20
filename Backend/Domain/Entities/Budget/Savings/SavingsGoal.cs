@@ -10,6 +10,7 @@ namespace Backend.Domain.Entities.Budget.Savings
         public decimal? TargetAmount { get; set; }
         public DateTime? TargetDate { get; set; }
         public decimal? AmountSaved { get; set; } // The amount saved towards this goal 
+        public bool IsFavorite { get; set; }
 
         public Guid SavingsId { get; set; }
         public decimal MonthlyContribution { get; set; }
