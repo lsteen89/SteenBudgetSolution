@@ -3,6 +3,9 @@ export const dashboardSummaryDict = {
     closedNotice:
       "Den här perioden är stängd och visas som en låst ögonblicksbild.",
     skippedNotice: "Den här perioden är överhoppad.",
+    closeMonthCta: "Stäng månaden",
+    closeMonthEligibleNotice: "Den här månaden är redo att stängas.",
+    closeMonthOverdueNotice: "Nästa budgetmånad är redo att starta.",
 
     pillarIncomeDescription:
       "Inkomster från lön, extra inkomster och andra hushållskällor.",
@@ -23,6 +26,9 @@ export const dashboardSummaryDict = {
   en: {
     closedNotice: "This period is closed and shown as a locked snapshot.",
     skippedNotice: "This period is skipped.",
+    closeMonthCta: "Close Month",
+    closeMonthEligibleNotice: "This month is ready to close.",
+    closeMonthOverdueNotice: "Your next budget month is ready to start.",
 
     pillarIncomeDescription:
       "Income from salary, side income and other household sources.",
@@ -44,6 +50,9 @@ export const dashboardSummaryDict = {
     closedNotice:
       "See periood on suletud ja kuvatakse lukustatud hetktõmmisena.",
     skippedNotice: "See periood on vahele jäetud.",
+    closeMonthCta: "Sulge kuu",
+    closeMonthEligibleNotice: "See kuu on sulgemiseks valmis.",
+    closeMonthOverdueNotice: "Järgmine eelarvekuu on alustamiseks valmis.",
 
     pillarIncomeDescription:
       "Sissetulek palgast, lisatulust ja teistest leibkonna allikatest.",

@@ -230,6 +230,11 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
         dto.SnapshotTotals.TotalSavingsMonthly.Should().Be(2500m);
         dto.SnapshotTotals.TotalDebtPaymentsMonthly.Should().Be(500m);
         dto.SnapshotTotals.FinalBalanceMonthly.Should().Be(17500m);
+
+        dto.Month.IsCloseWindowOpen.Should().BeFalse();
+        dto.Month.IsOverdueForClose.Should().BeFalse();
+        dto.Month.CloseWindowOpensAtUtc.Should().BeNull();
+        dto.Month.CloseEligibleAtUtc.Should().BeNull();
     }
 
     [Fact]
@@ -497,8 +502,69 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
         var totalSavings = live.Savings.MonthlySavings + live.Savings.Goals.Sum(g => g.MonthlyContribution);
         totalSavings.Should().Be(3400m); // 2500 + 900
     }
-    // ---- helpers ----
+    [Fact]
+    public async Task Handle_WhenOpenMonthInCloseWindow_ReturnsCloseWindowMetadata()
+    {
+        await _db.ResetAsync();
 
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var persoid = seed.Persoid;
+        var budgetId = seed.BudgetId;
+
+        await SetIncomePaymentTimingAsync(
+            _db.ConnectionString,
+            budgetId,
+            incomePaymentDayType: "dayOfMonth",
+            incomePaymentDay: 25);
+
+        var clock = new FakeTimeProvider(new DateTime(2026, 04, 23, 12, 0, 0, DateTimeKind.Utc));
+
+        await using var sp = BuildServiceProvider(_db.ConnectionString, clock, new DebtPaymentCalculator());
+        await using var scope = sp.CreateAsyncScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+        var result = await mediator.Send(
+            new GetBudgetDashboardMonthQuery(persoid, "2026-04"),
+            CancellationToken.None);
+
+        result.IsFailure.Should().BeFalse();
+        result.Value.Should().NotBeNull();
+
+        var dto = result.Value!;
+        dto.Month.Status.Should().Be("open");
+        dto.Month.IsCloseWindowOpen.Should().BeTrue();
+        dto.Month.IsOverdueForClose.Should().BeFalse();
+        dto.Month.CloseWindowOpensAtUtc.Should().Be(new DateTime(2026, 04, 22, 0, 0, 0, DateTimeKind.Utc));
+        dto.Month.CloseEligibleAtUtc.Should().Be(new DateTime(2026, 04, 25, 0, 0, 0, DateTimeKind.Utc));
+    }
+
+    // ---- helpers ----
+    private static async Task SetIncomePaymentTimingAsync(
+        string cs,
+        Guid budgetId,
+        string incomePaymentDayType,
+        int? incomePaymentDay)
+    {
+        await using var conn = new MySqlConnection(cs);
+        await conn.OpenAsync();
+
+        const string sql = """
+    UPDATE Income
+    SET
+        IncomePaymentDayType = @IncomePaymentDayType,
+        IncomePaymentDay = @IncomePaymentDay
+    WHERE BudgetId = @BudgetId;
+    """;
+
+        var affected = await conn.ExecuteAsync(sql, new
+        {
+            BudgetId = budgetId,
+            IncomePaymentDayType = incomePaymentDayType,
+            IncomePaymentDay = incomePaymentDay
+        });
+
+        affected.Should().BeGreaterThan(0);
+    }
     private static async Task InsertClosedMonthWithSnapshotAsync(
         string cs,
         Guid budgetId,

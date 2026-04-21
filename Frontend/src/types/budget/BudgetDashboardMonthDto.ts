@@ -10,6 +10,10 @@ export interface BudgetDashboardMonthDto {
         status: BudgetMonthStatus;
         carryOverMode: CarryOverMode;
         carryOverAmount: number | null;
+        isCloseWindowOpen: boolean;
+        closeWindowOpensAtUtc: string | null;
+        closeEligibleAtUtc: string | null;
+        isOverdueForClose: boolean;
     };
 
     liveDashboard: BudgetDashboardDto | null;

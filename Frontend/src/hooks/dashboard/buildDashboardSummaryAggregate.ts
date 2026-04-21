@@ -10,10 +10,9 @@ import type { BudgetDashboardMonthDto } from "@myTypes/budget/BudgetDashboardMon
 import { dashboardSummaryDict } from "@/utils/i18n/pages/private/dashboard/pages/dashboardSummaryDict.i18n";
 
 import { incomeToBreakdownItems } from "./dashboardBreakdown.mapper";
-import { getHeaderLifecycleState } from "./dashboardHeaderState";
+import { resolvePeriodAdvanceUiState } from "./resolvePeriodAdvanceUiState";
 import type {
   BreakdownItem,
-  BudgetPeriodStatus,
   DashboardPeriodHeaderSummary,
   DashboardSummaryAggregate,
 } from "./dashboardSummary.types";
@@ -28,23 +27,17 @@ function ymLabel(ym: string, locale: AppLocale) {
   return d.toLocaleDateString(locale, { year: "numeric", month: "long" });
 }
 
-function getSummaryT(locale: AppLocale) {
-  return <K extends keyof typeof dashboardSummaryDict.sv>(key: K) =>
-    tDict(key, locale, dashboardSummaryDict);
-}
-
 function buildHeaderSummary(
-  yearMonth: string,
-  status: BudgetPeriodStatus,
+  month: BudgetDashboardMonthDto["month"],
   locale: AppLocale,
 ): DashboardPeriodHeaderSummary {
-  const t = getSummaryT(locale);
+  const uiState = resolvePeriodAdvanceUiState(month, locale);
 
   return {
-    periodKey: yearMonth,
-    periodLabel: ymLabel(yearMonth, locale),
+    periodKey: month.yearMonth,
+    periodLabel: ymLabel(month.yearMonth, locale),
     periodDateRangeLabel: "", // TODO: backend period range metadata
-    periodStatus: status,
+    periodStatus: month.status,
 
     previousPeriodLabel: null,
     nextPeriodLabel: null,
@@ -52,24 +45,11 @@ function buildHeaderSummary(
     canGoPrevious: false,
     canGoNext: false,
 
-    canAdvancePeriod: false, // TODO: backend lifecycle metadata
-    advanceButtonLabel: null,
-
-    lifecycleState: getHeaderLifecycleState({
-      periodStatus: status,
-      canAdvancePeriod: false,
-      daysUntilEligible: null,
-      daysSinceEligible: null,
-    }),
-
-    noticeText: null /*
-      status === "closed"
-        ? t("closedNotice")
-        : status === "skipped"
-          ? t("skippedNotice")
-          : null,*/,
-
-    closeEligibleAt: null,
+    canAdvancePeriod: uiState.canAdvancePeriod,
+    advanceButtonLabel: uiState.advanceButtonLabel,
+    lifecycleState: uiState.lifecycleState,
+    noticeText: uiState.noticeText,
+    closeEligibleAt: month.closeEligibleAtUtc,
   };
 }
 
@@ -150,7 +130,7 @@ function buildClosedMonthAggregate(
   const snapshot = requireSnapshotTotals(dto);
   const currency = dto.currencyCode as CurrencyCode;
 
-  const header = buildHeaderSummary(dto.month.yearMonth, "closed", locale);
+  const header = buildHeaderSummary(dto.month, locale);
 
   return {
     summary: {
@@ -203,7 +183,7 @@ function buildSkippedMonthAggregate(
 
   const currency = dto.currencyCode as CurrencyCode;
 
-  const header = buildHeaderSummary(dto.month.yearMonth, "skipped", locale);
+  const header = buildHeaderSummary(dto.month, locale);
 
   return {
     summary: {
@@ -257,7 +237,7 @@ function buildOpenMonthAggregate(
   const dashboard = requireLiveDashboard(dto);
   const currency = dto.currencyCode as CurrencyCode;
 
-  const header = buildHeaderSummary(dto.month.yearMonth, "open", locale);
+  const header = buildHeaderSummary(dto.month, locale);
 
   const totalIncome = num0(dashboard.income?.totalIncomeMonthly);
   const totalExpenditure = num0(dashboard.expenditure?.totalExpensesMonthly);

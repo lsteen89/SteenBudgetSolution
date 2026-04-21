@@ -849,7 +849,8 @@ public sealed class BudgetMonthExpenseItemEditorTests
             monthsRepo,
             monthDashRepo,
             users,
-            projector);
+            projector,
+            time);
 
         return new Sut
         {

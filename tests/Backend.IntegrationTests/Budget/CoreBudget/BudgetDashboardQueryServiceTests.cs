@@ -430,7 +430,8 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
             months,
             dashRepo,
             users,
-            projector);
+            projector,
+            clock);
     }
 
     private static decimal Amortize(decimal principal, decimal annualRatePercent, int months)
@@ -468,6 +469,32 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
             SeenTypes = SeenTypes.Concat(new[] { input.Type }).ToArray();
             return _constant;
         }
+    }
+    private static async Task SetIncomePaymentTimingAsync(
+    string cs,
+    Guid budgetId,
+    string incomePaymentDayType,
+    int? incomePaymentDay)
+    {
+        await using var conn = new MySqlConnection(cs);
+        await conn.OpenAsync();
+
+        const string sql = """
+    UPDATE Income
+    SET
+        IncomePaymentDayType = @IncomePaymentDayType,
+        IncomePaymentDay = @IncomePaymentDay
+    WHERE BudgetId = @BudgetId;
+    """;
+
+        var affected = await conn.ExecuteAsync(sql, new
+        {
+            BudgetId = budgetId,
+            IncomePaymentDayType = incomePaymentDayType,
+            IncomePaymentDay = incomePaymentDay
+        });
+
+        affected.Should().BeGreaterThan(0);
     }
     private static async Task SetUserCurrencyAsync(string cs, Guid persoid, string currency)
     {

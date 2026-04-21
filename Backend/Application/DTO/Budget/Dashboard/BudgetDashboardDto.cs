@@ -21,7 +21,11 @@ public sealed record BudgetMonthMetaDto(
     string YearMonth,
     string Status,
     string CarryOverMode,
-    decimal? CarryOverAmount
+    decimal? CarryOverAmount,
+    bool IsCloseWindowOpen,
+    DateTime? CloseWindowOpensAtUtc,
+    DateTime? CloseEligibleAtUtc,
+    bool IsOverdueForClose
 );
 
 public sealed record BudgetMonthSnapshotTotalsDto(
@@ -38,5 +42,4 @@ public sealed record BudgetDashboardMonthDto(
     BudgetDashboardDto? LiveDashboard,                 // present when open
     BudgetMonthSnapshotTotalsDto? SnapshotTotals       // present when closed
 );
-
 

@@ -5,6 +5,7 @@ using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Application.Abstractions.Messaging;
 using Backend.Application.DTO.Budget.Dashboard;
 using Backend.Application.DTO.Budget.Months;
+using Backend.Application.Features.Budgets.Months.Shared.CloseWindow;
 using Backend.Application.Helpers.Currency;
 using Backend.Domain.Shared;
 
@@ -18,19 +19,22 @@ public sealed class GetBudgetDashboardMonthQueryHandler
     private readonly IBudgetMonthDashboardRepository _monthDashRepo;
     private readonly IUserRepository _users;
     private readonly IBudgetDashboardProjector _projector;
+    private readonly ITimeProvider _clock;
 
     public GetBudgetDashboardMonthQueryHandler(
         IBudgetMonthLifecycleService lifecycleService,
         IBudgetMonthRepository months,
         IBudgetMonthDashboardRepository monthDashRepo,
         IUserRepository users,
-        IBudgetDashboardProjector projector)
+        IBudgetDashboardProjector projector,
+        ITimeProvider clock)
     {
         _lifecycleService = lifecycleService;
         _months = months;
         _monthDashRepo = monthDashRepo;
         _users = users;
         _projector = projector;
+        _clock = clock;
     }
 
     public async Task<Result<BudgetDashboardMonthDto?>> Handle(
@@ -64,8 +68,22 @@ public sealed class GetBudgetDashboardMonthQueryHandler
             YearMonth: month.YearMonth,
             Status: month.Status,
             CarryOverMode: month.CarryOverMode,
-            CarryOverAmount: month.CarryOverAmount
+            CarryOverAmount: month.CarryOverAmount,
+            IsCloseWindowOpen: false,
+            CloseWindowOpensAtUtc: null,
+            CloseEligibleAtUtc: null,
+            IsOverdueForClose: false
         );
+
+        if (month.Status == BudgetMonthStatuses.Skipped)
+        {
+            return Result<BudgetDashboardMonthDto?>.Success(new BudgetDashboardMonthDto(
+                CurrencyCode: currencyCode,
+                Month: meta,
+                LiveDashboard: null,
+                SnapshotTotals: null
+            ));
+        }
 
         if (month.Status == BudgetMonthStatuses.Closed)
         {
@@ -91,9 +109,24 @@ public sealed class GetBudgetDashboardMonthQueryHandler
             ));
         }
 
+        // Only open months reach here.
         var data = await _monthDashRepo.GetDashboardDataForMonthAsync(month.Id, ct);
         if (data is null)
             return Result<BudgetDashboardMonthDto?>.Success(null);
+
+        var closeWindow = BudgetMonthCloseWindowCalculator.Calculate(
+            month.YearMonth,
+            data.Totals.IncomePaymentDayType,
+            data.Totals.IncomePaymentDay,
+            _clock.UtcNow);
+
+        meta = meta with
+        {
+            IsCloseWindowOpen = closeWindow.IsCloseWindowOpen,
+            CloseWindowOpensAtUtc = closeWindow.CloseWindowOpensAtUtc,
+            CloseEligibleAtUtc = closeWindow.CloseEligibleAtUtc,
+            IsOverdueForClose = closeWindow.IsOverdueForClose
+        };
 
         var carry = month.CarryOverAmount ?? 0m;
         var live = _projector.Project(data, carry);
