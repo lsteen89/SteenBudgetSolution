@@ -42,7 +42,31 @@ public static partial class BudgetMonth
     public static readonly Error CustomCarryAmountMustBeNonNegative =
         new("BudgetMonth.CustomCarryAmountMustBeNonNegative",
             "Carry over amount must be zero or greater.");
+
+    public static readonly Error InvalidCloseCarryMode =
+        new("BudgetMonth.InvalidCloseCarryMode", "CarryOverMode must be none|full.", ErrorType.Validation);
+
+    public static readonly Error MonthMustBeOpenToClose =
+        new("BudgetMonth.MonthMustBeOpenToClose", "Only open months can be closed.", ErrorType.Conflict);
+
+    public static readonly Error MonthNotEligibleToClose =
+        new("BudgetMonth.MonthNotEligibleToClose", "This budget month is not eligible to close yet.", ErrorType.Conflict);
+
+    public static readonly Error MonthDataUnavailable =
+        new("BudgetMonth.MonthDataUnavailable", "Budget month data could not be loaded for closing.", ErrorType.Conflict);
+
+    public static readonly Error NextMonthMustBeOpen =
+        new("BudgetMonth.NextMonthMustBeOpen", "The next budget month must be open to apply carry-over settings.", ErrorType.Conflict);
+
+    public static readonly Error NextMonthEnsureFailed =
+        new("BudgetMonth.NextMonthEnsureFailed", "The next budget month could not be created or loaded.", ErrorType.Conflict);
+
+    public static readonly Error NextMonthCarryOverUpdateFailed =
+        new("BudgetMonth.NextMonthCarryOverUpdateFailed", "Could not update next month carry-over settings.", ErrorType.Conflict);
+
+    public static readonly Error CloseResultUnavailable =
+        new("BudgetMonth.CloseResultUnavailable", "Closed month result data could not be loaded.", ErrorType.Conflict);
+
     public static readonly Error NotFound =
         new("BudgetMonth.NotFound", "The specified budget month was not found.", ErrorType.NotFound);
 }
-

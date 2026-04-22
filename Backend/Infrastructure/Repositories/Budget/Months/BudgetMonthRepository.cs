@@ -87,6 +87,22 @@ public sealed partial class BudgetMonthRepository : SqlBase, IBudgetMonthReposit
             SnapshotFinalBalanceMonthly = finalBalance
         }, ct);
 
+    public Task<int> UpdateCarryOverSettingsAsync(
+        Guid budgetMonthId,
+        string carryOverMode,
+        decimal? carryOverAmount,
+        Guid userId,
+        DateTime nowUtc,
+        CancellationToken ct)
+        => ExecuteAsync(UpdateCarryOverSettings, new
+        {
+            BudgetMonthId = budgetMonthId,
+            CarryOverMode = carryOverMode,
+            CarryOverAmount = carryOverAmount,
+            NowUtc = nowUtc,
+            UserId = userId
+        }, ct);
+
     public Task<int> MarkMonthSkippedAsync(Guid budgetMonthId, Guid userId, DateTime nowUtc, CancellationToken ct)
         => ExecuteAsync(MarkMonthSkipped, new
         {
