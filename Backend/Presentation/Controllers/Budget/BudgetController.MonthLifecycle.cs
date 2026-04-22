@@ -57,7 +57,7 @@ public sealed partial class BudgetController
         return Ok(ApiEnvelope<BudgetMonthsStatusDto>.Success(result.Value));
     }
 
-    [HttpPost("/api/budget/months/{yearMonth}/close")]
+    [HttpPost("months/{yearMonth}/close")]
     [ProducesResponseType(typeof(ApiEnvelope<CloseBudgetMonthResultDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiEnvelope<CloseBudgetMonthResultDto>>> CloseMonth(
         [FromRoute] string yearMonth,

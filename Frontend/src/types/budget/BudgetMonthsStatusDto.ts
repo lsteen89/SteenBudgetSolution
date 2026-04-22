@@ -1,4 +1,5 @@
 export type BudgetMonthStatus = "open" | "closed" | "skipped";
+export type CarryOverMode = "none" | "full" | "custom";
 
 export type BudgetMonthListItemDto = {
   yearMonth: string;

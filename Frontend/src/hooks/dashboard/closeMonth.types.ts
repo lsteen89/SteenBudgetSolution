@@ -1,20 +1,7 @@
-import type { DashboardSummary } from "./dashboardSummary.types";
-
 export type CloseMonthReviewStateId =
   | "balanced"
   | "positiveRemaining"
   | "negativeRemaining";
-
-export type RequestCloseMonthInput = {
-  yearMonth: string;
-  summary: DashboardSummary;
-  reviewState: CloseMonthReviewState;
-  options?: CloseMonthPendingOptions;
-};
-
-export type RequestCloseMonthHandler = (
-  input: RequestCloseMonthInput,
-) => Promise<void> | void;
 
 export type CloseMonthReviewState =
   | {

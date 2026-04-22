@@ -39,7 +39,7 @@ export const closeMonthReviewModalDict = {
     confirm: "Lås {month}",
     cancel: "Avbryt",
     emergencyFundFallback: "Nödfond",
-    closeMonthComingSoonToast: "Månadsstängning kommer snart.",
+    closeMonthSuccessToast: "{month} visas nu efter att månaden låsts.",
   },
 
   en: {
@@ -84,7 +84,7 @@ export const closeMonthReviewModalDict = {
     confirm: "Lock {month}",
     cancel: "Cancel",
     emergencyFundFallback: "Emergency fund",
-    closeMonthComingSoonToast: "Month closing is coming soon.",
+    closeMonthSuccessToast: "Month closed. You're now viewing {month}.",
   },
 
   et: {
@@ -128,6 +128,6 @@ export const closeMonthReviewModalDict = {
     confirm: "Lukusta {month}",
     cancel: "Tühista",
     emergencyFundFallback: "Hädaabifond",
-    closeMonthComingSoonToast: "Kuu sulgemine jõuab peagi kasutusse.",
+    closeMonthSuccessToast: "Kuu on suletud. Nüüd kuvame kuud {month}.",
   },
 } as const;

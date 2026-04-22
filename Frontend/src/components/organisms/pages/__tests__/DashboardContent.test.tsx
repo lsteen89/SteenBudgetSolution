@@ -5,6 +5,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import DashboardContent from "../DashboardContent";
 
 const mockUseDashboardSummary = vi.fn();
+const mockMutateAsync = vi.fn();
+const mockSetSelectedYearMonth = vi.fn();
 const mockToast = {
   success: vi.fn(),
   error: vi.fn(),
@@ -18,6 +20,13 @@ vi.mock("@/hooks/dashboard/useDashboardSummary", () => ({
   useDashboardSummary: (...args: unknown[]) => mockUseDashboardSummary(...args),
 }));
 
+vi.mock("@/hooks/budget/useCloseBudgetMonthMutation", () => ({
+  useCloseBudgetMonthMutation: () => ({
+    mutateAsync: mockMutateAsync,
+    isPending: false,
+  }),
+}));
+
 vi.mock("@/hooks/i18n/useAppLocale", () => ({
   useAppLocale: () => "en",
 }));
@@ -28,6 +37,25 @@ vi.mock("@/hooks/i18n/useAppCurrency", () => ({
 
 vi.mock("@/ui/toast/toast", () => ({
   useToast: () => mockToast,
+}));
+
+vi.mock("@/stores/Budget/budgetMonthStore", () => ({
+  useBudgetMonthStore: (
+    selector: (state: {
+      selectedYearMonth: string | null;
+      setSelectedYearMonth: (value: string | null) => void;
+      snoozeUntil: number | null;
+      snooze24h: () => void;
+      isSnoozed: () => boolean;
+    }) => unknown,
+  ) =>
+    selector({
+      selectedYearMonth: "2026-04",
+      setSelectedYearMonth: mockSetSelectedYearMonth,
+      snoozeUntil: null,
+      snooze24h: vi.fn(),
+      isSnoozed: () => false,
+    }),
 }));
 
 vi.mock("@/components/organisms/dashboard/editPeriod/EditPeriodDrawer", () => ({
@@ -100,6 +128,8 @@ const readyResult = {
 describe("DashboardContent", () => {
   beforeEach(() => {
     mockUseDashboardSummary.mockReset();
+    mockMutateAsync.mockReset();
+    mockSetSelectedYearMonth.mockReset();
     mockToast.success.mockReset();
     mockToast.error.mockReset();
     mockToast.info.mockReset();
@@ -128,38 +158,6 @@ describe("DashboardContent", () => {
     ).toBeInTheDocument();
   });
 
-  it("confirming without a backend boundary shows an info toast instead of faking success", () => {
-    mockUseDashboardSummary.mockReturnValue(readyResult);
-
-    render(
-      <MemoryRouter>
-        <DashboardContent
-          isFirstTimeLogin={false}
-          isWizardOpen={false}
-          setIsWizardOpen={vi.fn()}
-        />
-      </MemoryRouter>,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: /close month/i }));
-    fireEvent.click(
-      screen.getByRole("button", { name: /close april 2026 anyway/i }),
-    );
-
-    expect(mockToast.info).toHaveBeenCalledWith(
-      "Month closing will be enabled soon.",
-      expect.objectContaining({
-        id: "dashboard:close-month:2026-04:coming-soon",
-      }),
-    );
-
-    expect(mockToast.success).not.toHaveBeenCalled();
-
-    expect(
-      screen.getByRole("heading", { name: "Ready to lock in April 2026?" }),
-    ).toBeInTheDocument();
-  });
-
   it("review action closes the modal and opens the existing editor flow", () => {
     mockUseDashboardSummary.mockReturnValue(readyResult);
 
@@ -174,9 +172,7 @@ describe("DashboardContent", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: /close month/i }));
-    fireEvent.click(
-      screen.getByRole("button", { name: /review income & expenses/i }),
-    );
+    fireEvent.click(screen.getAllByRole("button", { name: /^edit$/i })[0]);
 
     expect(
       screen.queryByRole("heading", { name: "Ready to lock in April 2026?" }),
@@ -185,10 +181,13 @@ describe("DashboardContent", () => {
     expect(screen.getByText("Edit drawer open")).toBeInTheDocument();
   });
 
-  it("calls the provided close-month boundary with yearMonth, summary, and reviewState, then closes the modal", async () => {
+  it("submits carryOverMode none by default, advances to the returned month, and closes the modal", async () => {
     mockUseDashboardSummary.mockReturnValue(readyResult);
-
-    const onRequestCloseMonth = vi.fn().mockResolvedValue(undefined);
+    mockMutateAsync.mockResolvedValue({
+      nextMonth: {
+        yearMonth: "2026-05",
+      },
+    });
 
     render(
       <MemoryRouter>
@@ -196,38 +195,104 @@ describe("DashboardContent", () => {
           isFirstTimeLogin={false}
           isWizardOpen={false}
           setIsWizardOpen={vi.fn()}
-          onRequestCloseMonth={onRequestCloseMonth}
+        />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /close month/i }));
+    fireEvent.click(screen.getByRole("button", { name: /lock april 2026/i }));
+
+    await waitFor(() => {
+      expect(mockMutateAsync).toHaveBeenCalledWith({
+        yearMonth: "2026-04",
+        request: {
+          carryOverMode: "none",
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(mockSetSelectedYearMonth).toHaveBeenCalledWith("2026-05");
+      expect(mockToast.success).toHaveBeenCalledWith(
+        "Month closed. You're now viewing May 2026.",
+        expect.objectContaining({
+          id: "dashboard:close-month:2026-04:success",
+        }),
+      );
+      expect(
+        screen.queryByRole("heading", { name: "Ready to lock in April 2026?" }),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  it("maps a carry-over choice to carryOverMode full", async () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+    mockMutateAsync.mockResolvedValue({
+      nextMonth: {
+        yearMonth: "2026-05",
+      },
+    });
+
+    render(
+      <MemoryRouter>
+        <DashboardContent
+          isFirstTimeLogin={false}
+          isWizardOpen={false}
+          setIsWizardOpen={vi.fn()}
         />
       </MemoryRouter>,
     );
 
     fireEvent.click(screen.getByRole("button", { name: /close month/i }));
     fireEvent.click(
-      screen.getByRole("button", { name: /close april 2026 anyway/i }),
+      screen.getByRole("button", { name: /carry over to may 2026/i }),
     );
+    fireEvent.click(screen.getByRole("button", { name: /lock april 2026/i }));
 
     await waitFor(() => {
-      expect(onRequestCloseMonth).toHaveBeenCalledWith({
+      expect(mockMutateAsync).toHaveBeenCalledWith({
         yearMonth: "2026-04",
-        summary: expect.objectContaining({
-          header: expect.objectContaining({
-            periodKey: "2026-04",
-            periodLabel: "April 2026",
-          }),
-        }),
-        reviewState: expect.objectContaining({
-          state: "positiveRemaining",
-          normalizedRemainingToSpend: 245,
-        }),
+        request: {
+          carryOverMode: "full",
+        },
       });
     });
+  });
 
-    await waitFor(() => {
-      expect(
-        screen.queryByRole("heading", { name: "Ready to lock in April 2026?" }),
-      ).not.toBeInTheDocument();
+  it("shows an error toast and keeps the modal open when closing fails", async () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+    mockMutateAsync.mockRejectedValue({
+      message: "Close failed.",
+      code: "Unknown",
+      status: 400,
+      isNetworkError: false,
     });
 
-    expect(mockToast.info).not.toHaveBeenCalled();
+    render(
+      <MemoryRouter>
+        <DashboardContent
+          isFirstTimeLogin={false}
+          isWizardOpen={false}
+          setIsWizardOpen={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /close month/i }));
+    fireEvent.click(screen.getByRole("button", { name: /lock april 2026/i }));
+
+    await waitFor(() => {
+      expect(mockToast.error).toHaveBeenCalledWith(
+        "Close failed.",
+        expect.objectContaining({
+          id: "dashboard:close-month:2026-04:error",
+        }),
+      );
+    });
+
+    expect(mockSetSelectedYearMonth).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("heading", { name: "Ready to lock in April 2026?" }),
+    ).toBeInTheDocument();
   });
 });
