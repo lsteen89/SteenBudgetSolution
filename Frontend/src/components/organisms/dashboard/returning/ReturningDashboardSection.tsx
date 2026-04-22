@@ -12,7 +12,7 @@ import ReturningHeader from "./ReturningHeader";
 
 export interface ReturningDashboardSectionProps {
   onOpenPeriodEditor: () => void;
-  onAdvancePeriod?: () => void;
+  onCloseMonth?: () => void;
   onGoPreviousPeriod?: () => void;
   onGoNextPeriod?: () => void;
   isSwitchingMonth?: boolean;
@@ -21,7 +21,7 @@ export interface ReturningDashboardSectionProps {
 
 const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({
   onOpenPeriodEditor,
-  onAdvancePeriod,
+  onCloseMonth,
   onGoPreviousPeriod,
   onGoNextPeriod,
   isSwitchingMonth = false,
@@ -49,10 +49,9 @@ const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({
         currency={summary.currency}
         lifecycleState={summary.header.lifecycleState}
         noticeText={summary.header.noticeText}
-        canAdvancePeriod={summary.header.canAdvancePeriod}
-        advanceButtonLabel={summary.header.advanceButtonLabel}
-        onAdvancePeriod={onAdvancePeriod}
-        onOpenPeriodEditor={onOpenPeriodEditor}
+        canCloseMonth={summary.header.canCloseMonth}
+        closeMonthButtonLabel={summary.header.closeMonthButtonLabel}
+        onCloseMonth={onCloseMonth}
       />
 
       <div

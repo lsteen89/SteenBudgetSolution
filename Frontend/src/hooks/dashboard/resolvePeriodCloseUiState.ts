@@ -9,15 +9,18 @@ import type {
   HeaderLifecycleState,
 } from "./dashboardSummary.types";
 
-type PeriodAdvanceUiState = Pick<
+type PeriodCloseUiState = Pick<
   DashboardPeriodHeaderSummary,
-  "lifecycleState" | "canAdvancePeriod" | "advanceButtonLabel" | "noticeText"
+  "lifecycleState" | "canCloseMonth" | "closeMonthButtonLabel" | "noticeText"
 >;
 
-export function resolvePeriodAdvanceUiState(
+const THREE_DAYS_IN_MS = 3 * 24 * 60 * 60 * 1000;
+
+export function resolvePeriodCloseUiState(
   month: BudgetDashboardMonthDto["month"],
   locale: AppLocale,
-): PeriodAdvanceUiState {
+  now: Date = new Date(),
+): PeriodCloseUiState {
   const t = <K extends keyof typeof dashboardSummaryDict.sv>(key: K) =>
     tDict(key, locale, dashboardSummaryDict);
 
@@ -43,19 +46,39 @@ export function resolvePeriodAdvanceUiState(
     );
   }
 
+  if (isUpcoming(month.closeWindowOpensAtUtc, now)) {
+    return buildState(
+      "upcoming",
+      false,
+      null,
+      t("closeMonthUpcomingNotice"),
+    );
+  }
+
   return buildState("normal", false, null, null);
+}
+
+function isUpcoming(closeWindowOpensAtUtc: string | null, now: Date) {
+  if (!closeWindowOpensAtUtc) {
+    return false;
+  }
+
+  const openTime = new Date(closeWindowOpensAtUtc);
+  const timeUntilOpen = openTime.getTime() - now.getTime();
+
+  return timeUntilOpen >= 0 && timeUntilOpen <= THREE_DAYS_IN_MS;
 }
 
 function buildState(
   lifecycleState: HeaderLifecycleState,
-  canAdvancePeriod: boolean,
-  advanceButtonLabel: string | null,
+  canCloseMonth: boolean,
+  closeMonthButtonLabel: string | null,
   noticeText: string | null,
-): PeriodAdvanceUiState {
+): PeriodCloseUiState {
   return {
     lifecycleState,
-    canAdvancePeriod,
-    advanceButtonLabel,
+    canCloseMonth,
+    closeMonthButtonLabel,
     noticeText,
   };
 }

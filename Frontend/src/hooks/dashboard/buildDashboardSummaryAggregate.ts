@@ -10,7 +10,7 @@ import type { BudgetDashboardMonthDto } from "@myTypes/budget/BudgetDashboardMon
 import { dashboardSummaryDict } from "@/utils/i18n/pages/private/dashboard/pages/dashboardSummaryDict.i18n";
 
 import { incomeToBreakdownItems } from "./dashboardBreakdown.mapper";
-import { resolvePeriodAdvanceUiState } from "./resolvePeriodAdvanceUiState";
+import { resolvePeriodCloseUiState } from "./resolvePeriodCloseUiState";
 import type {
   BreakdownItem,
   DashboardPeriodHeaderSummary,
@@ -31,7 +31,7 @@ function buildHeaderSummary(
   month: BudgetDashboardMonthDto["month"],
   locale: AppLocale,
 ): DashboardPeriodHeaderSummary {
-  const uiState = resolvePeriodAdvanceUiState(month, locale);
+  const uiState = resolvePeriodCloseUiState(month, locale);
 
   return {
     periodKey: month.yearMonth,
@@ -45,11 +45,12 @@ function buildHeaderSummary(
     canGoPrevious: false,
     canGoNext: false,
 
-    canAdvancePeriod: uiState.canAdvancePeriod,
-    advanceButtonLabel: uiState.advanceButtonLabel,
+    canCloseMonth: uiState.canCloseMonth,
+    closeMonthButtonLabel: uiState.closeMonthButtonLabel,
     lifecycleState: uiState.lifecycleState,
     noticeText: uiState.noticeText,
     closeEligibleAt: month.closeEligibleAtUtc,
+    closeWindowOpensAt: month.closeWindowOpensAtUtc,
   };
 }
 

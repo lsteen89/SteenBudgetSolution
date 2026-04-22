@@ -4,8 +4,11 @@ export const dashboardSummaryDict = {
       "Den här perioden är stängd och visas som en låst ögonblicksbild.",
     skippedNotice: "Den här perioden är överhoppad.",
     closeMonthCta: "Stäng månaden",
-    closeMonthEligibleNotice: "Den här månaden är redo att stängas.",
-    closeMonthOverdueNotice: "Nästa budgetmånad är redo att starta.",
+    closeMonthUpcomingNotice: "Stängning blir tillgänglig snart.",
+    closeMonthEligibleNotice:
+      "Den här månaden är redo för genomgång och stängning.",
+    closeMonthOverdueNotice:
+      "Den här månaden är fortfarande öppen och redo att stängas.",
 
     pillarIncomeDescription:
       "Inkomster från lön, extra inkomster och andra hushållskällor.",
@@ -27,8 +30,9 @@ export const dashboardSummaryDict = {
     closedNotice: "This period is closed and shown as a locked snapshot.",
     skippedNotice: "This period is skipped.",
     closeMonthCta: "Close Month",
-    closeMonthEligibleNotice: "This month is ready to close.",
-    closeMonthOverdueNotice: "Your next budget month is ready to start.",
+    closeMonthUpcomingNotice: "Closing becomes available soon.",
+    closeMonthEligibleNotice: "This month is ready for review and close.",
+    closeMonthOverdueNotice: "This month is still open and ready to close.",
 
     pillarIncomeDescription:
       "Income from salary, side income and other household sources.",
@@ -51,8 +55,10 @@ export const dashboardSummaryDict = {
       "See periood on suletud ja kuvatakse lukustatud hetktõmmisena.",
     skippedNotice: "See periood on vahele jäetud.",
     closeMonthCta: "Sulge kuu",
-    closeMonthEligibleNotice: "See kuu on sulgemiseks valmis.",
-    closeMonthOverdueNotice: "Järgmine eelarvekuu on alustamiseks valmis.",
+    closeMonthUpcomingNotice: "Sulgemine muutub peagi kättesaadavaks.",
+    closeMonthEligibleNotice: "See kuu on ülevaatuseks ja sulgemiseks valmis.",
+    closeMonthOverdueNotice:
+      "See kuu on endiselt avatud ja sulgemiseks valmis.",
 
     pillarIncomeDescription:
       "Sissetulek palgast, lisatulust ja teistest leibkonna allikatest.",

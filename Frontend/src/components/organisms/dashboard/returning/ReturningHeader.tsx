@@ -27,6 +27,8 @@ import type {
   HeaderLifecycleState,
 } from "@/hooks/dashboard/dashboardSummary.types";
 
+import styles from "./ReturningHeader.module.css";
+
 export type ReturningHeaderProps = {
   periodLabel: string;
   periodDateRangeLabel: string;
@@ -46,11 +48,9 @@ export type ReturningHeaderProps = {
   lifecycleState: HeaderLifecycleState;
   noticeText?: string | null;
 
-  canAdvancePeriod: boolean;
-  advanceButtonLabel?: string | null;
-  onAdvancePeriod?: () => void;
-
-  onOpenPeriodEditor: () => void;
+  canCloseMonth: boolean;
+  closeMonthButtonLabel?: string | null;
+  onCloseMonth?: () => void;
 };
 
 function StatusBadge({
@@ -108,7 +108,7 @@ function LifecycleNotice({
         lifecycleState === "eligible" &&
           "border-emerald-500/25 bg-emerald-500/10 text-eb-text/85",
         lifecycleState === "overdue" &&
-          "border-red-400/25 bg-red-500/10 text-eb-text/90",
+          "border-amber-400/30 bg-amber-400/10 text-eb-text/90",
       )}
     >
       {noticeText}
@@ -123,11 +123,9 @@ function getHeaderTitle(
   periodLabel: string,
   periodStatus: BudgetPeriodStatus,
   remainingToSpend: number,
-  canAdvancePeriod: boolean,
   t: <K extends keyof typeof dashboardHeaderDict.sv>(key: K) => string,
 ) {
   if (periodStatus === "closed") return periodLabel;
-  if (canAdvancePeriod) return t("titleReady");
   if (remainingToSpend < 0) return t("titleNegative");
   if (remainingToSpend > 0) return t("titlePositive");
   return periodLabel;
@@ -148,10 +146,9 @@ const ReturningHeader: React.FC<ReturningHeaderProps> = ({
   currency,
   lifecycleState,
   noticeText,
-  canAdvancePeriod,
-  advanceButtonLabel,
-  onAdvancePeriod,
-  onOpenPeriodEditor,
+  canCloseMonth,
+  closeMonthButtonLabel,
+  onCloseMonth,
 }) => {
   const locale = useAppLocale();
   const appCurrency = useAppCurrency();
@@ -173,19 +170,14 @@ const ReturningHeader: React.FC<ReturningHeaderProps> = ({
   const remainingToneClass =
     remainingToSpend < 0 ? "text-red-500" : "text-eb-text";
 
-  const showAdvanceCta =
+  const showCloseAction =
     periodStatus === "open" &&
-    canAdvancePeriod &&
-    !!advanceButtonLabel &&
-    !!onAdvancePeriod;
+    canCloseMonth &&
+    !!closeMonthButtonLabel;
+  const showReadyToCloseBadge =
+    lifecycleState === "eligible" || lifecycleState === "overdue";
 
-  const title = getHeaderTitle(
-    periodLabel,
-    periodStatus,
-    remainingToSpend,
-    canAdvancePeriod,
-    t,
-  );
+  const title = getHeaderTitle(periodLabel, periodStatus, remainingToSpend, t);
 
   return (
     <div className="space-y-4">
@@ -236,22 +228,6 @@ const ReturningHeader: React.FC<ReturningHeaderProps> = ({
         </div>
 
         <div className="flex flex-wrap gap-3">
-          {showAdvanceCta && (
-            <button
-              type="button"
-              onClick={onAdvancePeriod}
-              className={cn(
-                "inline-flex h-11 items-center justify-center rounded-2xl px-5 font-semibold text-white shadow-sm transition",
-                lifecycleState === "overdue"
-                  ? "bg-red-500 hover:bg-red-600 focus-visible:ring-red-500/25"
-                  : "bg-eb-accent hover:opacity-90 focus-visible:ring-eb-accent/25",
-                "focus-visible:outline-none focus-visible:ring-4",
-              )}
-            >
-              {advanceButtonLabel}
-            </button>
-          )}
-
           {periodStatus === "open" ? (
             <div className="inline-flex h-11 items-center justify-center rounded-2xl border border-eb-stroke/25 bg-eb-surface/70 px-5 text-sm font-medium text-eb-text/60">
               {displayedPeriodRangeLabel}
@@ -301,9 +277,35 @@ const ReturningHeader: React.FC<ReturningHeaderProps> = ({
                 closedLabel={t("closed")}
                 skippedLabel={t("skipped")}
               />
+              {showReadyToCloseBadge && (
+                <span className="inline-flex items-center rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-700">
+                  {t("readyToClose")}
+                </span>
+              )}
             </div>
 
-            {canGoNext ? (
+            {showCloseAction ? (
+              <button
+                type="button"
+                onClick={onCloseMonth}
+                disabled={isSwitchingMonth || !onCloseMonth}
+                className={cn(
+                  navButtonClass,
+                  styles.closeCtaSheen,
+                  "relative overflow-hidden border-emerald-600/20 bg-emerald-600 px-4 text-white shadow-[0_12px_28px_rgba(5,150,105,0.22)] hover:bg-emerald-500 focus-visible:ring-emerald-500/25 disabled:cursor-default disabled:opacity-100",
+                  !onCloseMonth &&
+                    "border-emerald-600/15 bg-emerald-600/90 text-white/95",
+                  isSwitchingMonth && "disabled:cursor-wait disabled:opacity-70",
+                )}
+              >
+                <span className="relative z-10 hidden sm:inline">
+                  {closeMonthButtonLabel}
+                </span>
+                <span className="relative z-10 sm:hidden">
+                  {t("closeMonthShort")}
+                </span>
+              </button>
+            ) : canGoNext ? (
               <button
                 type="button"
                 onClick={onGoNext}

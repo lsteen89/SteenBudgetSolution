@@ -28,13 +28,14 @@ export interface DashboardPeriodHeaderSummary {
   canGoPrevious: boolean;
   canGoNext: boolean;
 
-  canAdvancePeriod: boolean;
-  advanceButtonLabel?: string | null;
+  canCloseMonth: boolean;
+  closeMonthButtonLabel?: string | null;
 
   lifecycleState: HeaderLifecycleState;
   noticeText?: string | null;
 
   closeEligibleAt?: string | null;
+  closeWindowOpensAt?: string | null;
 }
 
 export interface DashboardSummary {
