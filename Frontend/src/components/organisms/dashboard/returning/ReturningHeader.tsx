@@ -11,9 +11,13 @@ import {
   SkipForward,
   Sparkles,
 } from "lucide-react";
-
 import React from "react";
 
+import { CtaButton } from "@/components/atoms/buttons/CtaButton";
+import type {
+  BudgetPeriodStatus,
+  HeaderLifecycleState,
+} from "@/hooks/dashboard/dashboardSummary.types";
 import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/lib/utils";
@@ -22,12 +26,83 @@ import { tDict } from "@/utils/i18n/translate";
 import type { CurrencyCode } from "@/utils/money/currency";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
 
-import type {
-  BudgetPeriodStatus,
-  HeaderLifecycleState,
-} from "@/hooks/dashboard/dashboardSummary.types";
-
 import styles from "./ReturningHeader.module.css";
+
+type HeaderTKey = keyof typeof dashboardHeaderDict.sv;
+type HeaderT = <K extends HeaderTKey>(key: K) => string;
+
+type ReturningHeaderStatusTone = "open" | "overdue" | "closed" | "skipped";
+type ReturningHeaderPrimaryAction = "close" | "next" | "lockedNext";
+type ReturningHeaderMicrocopyKey =
+  | "readyToFinalize"
+  | "actionRequired"
+  | "closingOpensSoon";
+
+type ReturningHeaderViewModel = {
+  statusTone: ReturningHeaderStatusTone;
+  statusLabelKey: "open" | "overdue" | "closed" | "skipped";
+  primaryAction: ReturningHeaderPrimaryAction;
+  showCloseSheen: boolean;
+  microcopyKey?: ReturningHeaderMicrocopyKey;
+  microcopyText?: string | null;
+  showPreviewNextMonth: boolean;
+};
+
+function buildReturningHeaderViewModel({
+  periodStatus,
+  lifecycleState,
+  canGoNext,
+  canCloseMonth,
+  closeMonthButtonLabel,
+  noticeText,
+  canPreviewNextMonth = false,
+}: {
+  periodStatus: BudgetPeriodStatus;
+  lifecycleState: HeaderLifecycleState;
+  canGoNext: boolean;
+  canCloseMonth: boolean;
+  closeMonthButtonLabel?: string | null;
+  noticeText?: string | null;
+  canPreviewNextMonth?: boolean;
+}): ReturningHeaderViewModel {
+  const showCloseAction =
+    periodStatus === "open" && canCloseMonth && !!closeMonthButtonLabel;
+
+  const statusTone: ReturningHeaderStatusTone =
+    periodStatus === "closed"
+      ? "closed"
+      : periodStatus === "skipped"
+        ? "skipped"
+        : lifecycleState === "overdue"
+          ? "overdue"
+          : "open";
+
+  const primaryAction: ReturningHeaderPrimaryAction = showCloseAction
+    ? "close"
+    : canGoNext
+      ? "next"
+      : "lockedNext";
+
+  const microcopyKey = showCloseAction
+    ? lifecycleState === "overdue"
+      ? "actionRequired"
+      : lifecycleState === "eligible"
+        ? "readyToFinalize"
+        : undefined
+    : lifecycleState === "upcoming"
+      ? "closingOpensSoon"
+      : undefined;
+
+  return {
+    statusTone,
+    statusLabelKey: statusTone,
+    primaryAction,
+    showCloseSheen: showCloseAction && lifecycleState === "overdue",
+    microcopyKey,
+    microcopyText: noticeText ?? null,
+    showPreviewNextMonth: showCloseAction && canPreviewNextMonth,
+  };
+}
 
 export type ReturningHeaderProps = {
   periodLabel: string;
@@ -51,70 +126,11 @@ export type ReturningHeaderProps = {
   canCloseMonth: boolean;
   closeMonthButtonLabel?: string | null;
   onCloseMonth?: () => void;
+
+  canPreviewNextMonth?: boolean;
+  onPreviewNextMonth?: () => void;
+  previewNextMonthLabel?: string | null;
 };
-
-function StatusBadge({
-  status,
-  openLabel,
-  closedLabel,
-  skippedLabel,
-}: {
-  status: BudgetPeriodStatus;
-  openLabel: string;
-  closedLabel: string;
-  skippedLabel: string;
-}) {
-  if (status === "open") {
-    return (
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-        <span className="h-2 w-2 rounded-full bg-emerald-500" />
-        {openLabel}
-      </span>
-    );
-  }
-
-  if (status === "closed") {
-    return (
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-eb-stroke/30 bg-eb-text/5 px-2.5 py-1 text-xs font-semibold text-eb-text/65">
-        <Lock className="h-3.5 w-3.5" />
-        {closedLabel}
-      </span>
-    );
-  }
-
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-eb-stroke/30 bg-[rgb(var(--eb-shell)/0.55)] px-2.5 py-1 text-xs font-semibold text-eb-text/70">
-      <SkipForward className="h-3.5 w-3.5" />
-      {skippedLabel}
-    </span>
-  );
-}
-
-function LifecycleNotice({
-  lifecycleState,
-  noticeText,
-}: {
-  lifecycleState: HeaderLifecycleState;
-  noticeText?: string | null;
-}) {
-  if (!noticeText) return null;
-
-  return (
-    <div
-      className={cn(
-        "rounded-2xl border px-4 py-3 text-sm",
-        lifecycleState === "upcoming" &&
-          "border-eb-stroke/30 bg-[rgb(var(--eb-shell)/0.45)] text-eb-text/75",
-        lifecycleState === "eligible" &&
-          "border-emerald-500/25 bg-emerald-500/10 text-eb-text/85",
-        lifecycleState === "overdue" &&
-          "border-amber-400/30 bg-amber-400/10 text-eb-text/90",
-      )}
-    >
-      {noticeText}
-    </div>
-  );
-}
 
 const navButtonClass =
   "inline-flex h-10 items-center justify-center gap-2 rounded-2xl border border-eb-stroke/25 bg-eb-surface/80 px-3 text-sm font-medium text-eb-text/75 transition-[transform,background-color,opacity,box-shadow] duration-150 hover:bg-eb-surface active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-eb-accent/25 disabled:pointer-events-none disabled:opacity-40";
@@ -123,12 +139,285 @@ function getHeaderTitle(
   periodLabel: string,
   periodStatus: BudgetPeriodStatus,
   remainingToSpend: number,
-  t: <K extends keyof typeof dashboardHeaderDict.sv>(key: K) => string,
+  t: HeaderT,
 ) {
   if (periodStatus === "closed") return periodLabel;
   if (remainingToSpend < 0) return t("titleNegative");
   if (remainingToSpend > 0) return t("titlePositive");
   return periodLabel;
+}
+
+function InlinePeriodState({
+  tone,
+  label,
+}: {
+  tone: "open" | "overdue" | "closed" | "skipped";
+  label: string;
+}) {
+  if (tone === "closed") {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-eb-text/55">
+        <Lock className="h-3.5 w-3.5" />
+        {label}
+      </span>
+    );
+  }
+
+  if (tone === "skipped") {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-eb-text/55">
+        <SkipForward className="h-3.5 w-3.5" />
+        {label}
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 text-xs font-semibold",
+        tone === "overdue" ? "text-amber-700" : "text-emerald-700",
+      )}
+    >
+      <span
+        className={cn(
+          "h-2 w-2 rounded-full",
+          tone === "overdue" ? "bg-amber-500" : "bg-emerald-500",
+        )}
+      />
+      {label}
+    </span>
+  );
+}
+
+function HeaderMetaPill({
+  periodStatus,
+  displayedPeriodRangeLabel,
+  t,
+}: {
+  periodStatus: BudgetPeriodStatus;
+  displayedPeriodRangeLabel: string;
+  t: HeaderT;
+}) {
+  if (periodStatus === "open") {
+    return (
+      <div className="inline-flex h-11 items-center justify-center rounded-2xl border border-eb-stroke/25 bg-eb-surface/70 px-5 text-sm font-medium text-eb-text/60">
+        {displayedPeriodRangeLabel}
+      </div>
+    );
+  }
+
+  return (
+    <div className="inline-flex h-11 items-center justify-center rounded-2xl border border-eb-stroke/25 bg-eb-surface/70 px-5 text-sm font-medium text-eb-text/60">
+      <Lock className="mr-2 h-4 w-4" />
+      {t("closedReadOnly")}
+    </div>
+  );
+}
+
+function HeaderActionSlot({
+  vm,
+  nextPeriodLabel,
+  onGoNext,
+  isSwitchingMonth,
+  closeMonthButtonLabel,
+  onCloseMonth,
+  onPreviewNextMonth,
+  previewNextMonthLabel,
+  t,
+}: {
+  vm: ReturningHeaderViewModel;
+  nextPeriodLabel?: string | null;
+  onGoNext?: () => void;
+  isSwitchingMonth: boolean;
+  closeMonthButtonLabel?: string | null;
+  onCloseMonth?: () => void;
+  onPreviewNextMonth?: () => void;
+  previewNextMonthLabel?: string | null;
+  t: HeaderT;
+}) {
+  const microcopy =
+    vm.microcopyText ?? (vm.microcopyKey ? t(vm.microcopyKey) : null);
+
+  return (
+    <div className="flex min-w-[180px] flex-col items-start xl:items-end">
+      {vm.primaryAction === "close" ? (
+        <CtaButton
+          onClick={onCloseMonth}
+          disabled={isSwitchingMonth || !onCloseMonth}
+          className={cn(
+            "min-w-[180px]",
+            vm.showCloseSheen && styles.closeCtaSheen,
+            isSwitchingMonth && "cursor-wait opacity-70",
+          )}
+        >
+          <span className="relative z-10">{closeMonthButtonLabel}</span>
+        </CtaButton>
+      ) : vm.primaryAction === "next" ? (
+        <button
+          type="button"
+          onClick={onGoNext}
+          disabled={isSwitchingMonth || !onGoNext}
+          className={cn(navButtonClass, "h-11 min-w-[180px] justify-center")}
+          aria-label={nextPeriodLabel ?? t("next")}
+        >
+          <span>{nextPeriodLabel ?? t("next")}</span>
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      ) : (
+        <Tooltip delayDuration={150}>
+          <TooltipTrigger asChild>
+            <span tabIndex={0} className="inline-flex">
+              <button
+                type="button"
+                disabled
+                aria-label={t("nextLockedHint")}
+                className={cn(
+                  navButtonClass,
+                  "h-11 min-w-[180px] justify-center border-eb-stroke/30 bg-eb-surface/75 text-eb-text/45 opacity-100",
+                )}
+              >
+                <span>{nextPeriodLabel ?? t("next")}</span>
+                <span className="inline-flex items-center justify-center rounded-full border border-eb-stroke/25 bg-[rgb(var(--eb-shell)/0.45)] p-1">
+                  <Lock className="h-3.5 w-3.5 opacity-80" />
+                </span>
+              </button>
+            </span>
+          </TooltipTrigger>
+
+          <TooltipContent className="max-w-[260px] text-sm">
+            {t("nextLockedHint")}
+          </TooltipContent>
+        </Tooltip>
+      )}
+
+      {microcopy && (
+        <div
+          className={cn(
+            "mt-1 px-1 text-xs",
+            vm.statusTone === "overdue" ? "text-amber-700" : "text-eb-text/45",
+          )}
+        >
+          {microcopy}
+        </div>
+      )}
+
+      {vm.showPreviewNextMonth && onPreviewNextMonth && (
+        <button
+          type="button"
+          onClick={onPreviewNextMonth}
+          className="mt-1 rounded-md px-1 text-xs font-medium text-eb-text/55 transition-colors hover:text-eb-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-eb-accent/25"
+        >
+          {previewNextMonthLabel ?? t("previewNextMonth")}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function PeriodNavigator({
+  periodLabel,
+  periodStatus,
+  previousPeriodLabel,
+  nextPeriodLabel,
+  canGoPrevious,
+  canGoNext,
+  onGoPrevious,
+  onGoNext,
+  isSwitchingMonth,
+  lifecycleState,
+  noticeText,
+  canCloseMonth,
+  closeMonthButtonLabel,
+  onCloseMonth,
+  canPreviewNextMonth,
+  onPreviewNextMonth,
+  previewNextMonthLabel,
+  t,
+}: {
+  periodLabel: string;
+  periodStatus: BudgetPeriodStatus;
+  previousPeriodLabel?: string | null;
+  nextPeriodLabel?: string | null;
+  canGoPrevious: boolean;
+  canGoNext: boolean;
+  onGoPrevious?: () => void;
+  onGoNext?: () => void;
+  isSwitchingMonth: boolean;
+  lifecycleState: HeaderLifecycleState;
+  noticeText?: string | null;
+  canCloseMonth: boolean;
+  closeMonthButtonLabel?: string | null;
+  onCloseMonth?: () => void;
+  canPreviewNextMonth?: boolean;
+  onPreviewNextMonth?: () => void;
+  previewNextMonthLabel?: string | null;
+  t: HeaderT;
+}) {
+  const headerVm = buildReturningHeaderViewModel({
+    periodStatus,
+    lifecycleState,
+    canGoNext,
+    canCloseMonth,
+    closeMonthButtonLabel,
+    noticeText,
+    canPreviewNextMonth,
+  });
+
+  return (
+    <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] xl:items-start">
+      <div className="flex justify-start">
+        <button
+          type="button"
+          onClick={onGoPrevious}
+          disabled={!canGoPrevious || isSwitchingMonth}
+          className={cn(navButtonClass, "h-11")}
+        >
+          <ChevronLeft className="h-4 w-4" />
+          <span className="hidden sm:inline">
+            {previousPeriodLabel ?? t("previous")}
+          </span>
+        </button>
+      </div>
+
+      <div className="flex justify-center">
+        <div
+          className={cn(
+            "flex min-w-0 max-w-full flex-wrap items-center justify-center gap-2 rounded-2xl border border-eb-stroke/25 bg-eb-surface/90 px-4 py-2.5 text-center",
+            isSwitchingMonth && "opacity-70",
+          )}
+        >
+          <span className="text-sm font-bold text-eb-text">{periodLabel}</span>
+
+          {isSwitchingMonth ? (
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-eb-text/55">
+              <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+              {t("loadingPeriod")}
+            </span>
+          ) : (
+            <InlinePeriodState
+              tone={headerVm.statusTone}
+              label={t(headerVm.statusLabelKey)}
+            />
+          )}
+        </div>
+      </div>
+
+      <div className="flex justify-start xl:justify-end">
+        <HeaderActionSlot
+          vm={headerVm}
+          nextPeriodLabel={nextPeriodLabel}
+          onGoNext={onGoNext}
+          isSwitchingMonth={isSwitchingMonth}
+          closeMonthButtonLabel={closeMonthButtonLabel}
+          onCloseMonth={onCloseMonth}
+          onPreviewNextMonth={onPreviewNextMonth}
+          previewNextMonthLabel={previewNextMonthLabel}
+          t={t}
+        />
+      </div>
+    </div>
+  );
 }
 
 const ReturningHeader: React.FC<ReturningHeaderProps> = ({
@@ -149,33 +438,33 @@ const ReturningHeader: React.FC<ReturningHeaderProps> = ({
   canCloseMonth,
   closeMonthButtonLabel,
   onCloseMonth,
+  canPreviewNextMonth = false,
+  onPreviewNextMonth,
+  previewNextMonthLabel,
 }) => {
   const locale = useAppLocale();
   const appCurrency = useAppCurrency();
+
   const displayedPeriodRangeLabel = periodDateRangeLabel || periodLabel;
-  const t = <K extends keyof typeof dashboardHeaderDict.sv>(key: K) =>
-    tDict(key, locale, dashboardHeaderDict);
+
+  const t: HeaderT = (key) => tDict(key, locale, dashboardHeaderDict);
 
   const effectiveCurrency = currency ?? appCurrency;
+
   const remainingLabel = formatMoneyV2(
     remainingToSpend,
     effectiveCurrency,
     locale,
   );
+
   const negativeRemainingLabel = formatMoneyV2(
     Math.abs(remainingToSpend),
     effectiveCurrency,
     locale,
   );
+
   const remainingToneClass =
     remainingToSpend < 0 ? "text-red-500" : "text-eb-text";
-
-  const showCloseAction =
-    periodStatus === "open" &&
-    canCloseMonth &&
-    !!closeMonthButtonLabel;
-  const showReadyToCloseBadge =
-    lifecycleState === "eligible" || lifecycleState === "overdue";
 
   const title = getHeaderTitle(periodLabel, periodStatus, remainingToSpend, t);
 
@@ -228,154 +517,35 @@ const ReturningHeader: React.FC<ReturningHeaderProps> = ({
         </div>
 
         <div className="flex flex-wrap gap-3">
-          {periodStatus === "open" ? (
-            <div className="inline-flex h-11 items-center justify-center rounded-2xl border border-eb-stroke/25 bg-eb-surface/70 px-5 text-sm font-medium text-eb-text/60">
-              {displayedPeriodRangeLabel}
-            </div>
-          ) : (
-            <div className="inline-flex h-11 items-center justify-center rounded-2xl border border-eb-stroke/25 bg-eb-surface/70 px-5 text-sm font-medium text-eb-text/60">
-              <Lock className="mr-2 h-4 w-4" />
-              {t("closedReadOnly")}
-            </div>
-          )}
+          <HeaderMetaPill
+            periodStatus={periodStatus}
+            displayedPeriodRangeLabel={displayedPeriodRangeLabel}
+            t={t}
+          />
         </div>
       </div>
 
       <div className="rounded-2xl border border-eb-stroke/25 bg-[rgb(var(--eb-shell)/0.35)] p-4 sm:p-5">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-stretch xl:justify-between">
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 rounded-2xl bg-[rgb(var(--eb-shell)/0.28)] p-1.5">
-            <button
-              type="button"
-              onClick={onGoPrevious}
-              disabled={!canGoPrevious || isSwitchingMonth}
-              className={navButtonClass}
-            >
-              <ChevronLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">
-                {previousPeriodLabel ?? t("previous")}
-              </span>
-            </button>
-
-            <div
-              className={cn(
-                "flex min-w-0 flex-wrap items-center gap-2 rounded-2xl border border-eb-stroke/25 bg-eb-surface/90 px-3 py-2",
-                isSwitchingMonth && "opacity-70",
-              )}
-            >
-              <span className="text-sm font-bold text-eb-text">
-                {periodLabel}
-              </span>
-              {isSwitchingMonth && (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-eb-stroke/20 bg-[rgb(var(--eb-shell)/0.42)] px-2 py-1 text-xs font-medium text-eb-text/55">
-                  <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
-                  {t("loadingPeriod")}
-                </span>
-              )}
-              <StatusBadge
-                status={periodStatus}
-                openLabel={t("open")}
-                closedLabel={t("closed")}
-                skippedLabel={t("skipped")}
-              />
-              {showReadyToCloseBadge && (
-                <span className="inline-flex items-center rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-700">
-                  {t("readyToClose")}
-                </span>
-              )}
-            </div>
-
-            {showCloseAction ? (
-              <button
-                type="button"
-                onClick={onCloseMonth}
-                disabled={isSwitchingMonth || !onCloseMonth}
-                className={cn(
-                  navButtonClass,
-                  styles.closeCtaSheen,
-                  "relative overflow-hidden border-emerald-600/20 bg-emerald-600 px-4 text-white shadow-[0_12px_28px_rgba(5,150,105,0.22)] hover:bg-emerald-500 focus-visible:ring-emerald-500/25 disabled:cursor-default disabled:opacity-100",
-                  !onCloseMonth &&
-                    "border-emerald-600/15 bg-emerald-600/90 text-white/95",
-                  isSwitchingMonth && "disabled:cursor-wait disabled:opacity-70",
-                )}
-              >
-                <span className="relative z-10 hidden sm:inline">
-                  {closeMonthButtonLabel}
-                </span>
-                <span className="relative z-10 sm:hidden">
-                  {t("closeMonthShort")}
-                </span>
-              </button>
-            ) : canGoNext ? (
-              <button
-                type="button"
-                onClick={onGoNext}
-                disabled={isSwitchingMonth}
-                className={navButtonClass}
-                aria-label={nextPeriodLabel ?? t("next")}
-              >
-                <span className="hidden sm:inline">
-                  {nextPeriodLabel ?? t("next")}
-                </span>
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            ) : isSwitchingMonth ? (
-              <button
-                type="button"
-                disabled
-                className={cn(
-                  navButtonClass,
-                  "border-eb-stroke/30 bg-eb-surface/75 text-eb-text/45 cursor-wait opacity-100",
-                )}
-                aria-label={t("next")}
-              >
-                <span className="hidden sm:inline">
-                  {nextPeriodLabel ?? t("next")}
-                </span>
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            ) : (
-              <Tooltip delayDuration={150}>
-                <TooltipTrigger asChild>
-                  <span tabIndex={0} className="inline-flex">
-                    <button
-                      type="button"
-                      disabled
-                      aria-label={t("nextLockedHint")}
-                      className={cn(
-                        navButtonClass,
-                        "border-eb-stroke/30 bg-eb-surface/75 text-eb-text/45",
-                        "shadow-[0_1px_0_rgba(255,255,255,0.35)]",
-                        "cursor-not-allowed opacity-100",
-                        "hover:bg-eb-surface/75",
-                        "relative",
-                      )}
-                    >
-                      <span className="hidden sm:inline">
-                        {nextPeriodLabel ?? t("next")}
-                      </span>
-                      <span className="inline-flex items-center justify-center rounded-full border border-eb-stroke/25 bg-[rgb(var(--eb-shell)/0.45)] p-1">
-                        <Lock className="h-3.5 w-3.5 opacity-80" />
-                      </span>
-                    </button>
-                  </span>
-                </TooltipTrigger>
-
-                <TooltipContent className="max-w-[260px] text-sm">
-                  {t("nextLockedHint")}
-                </TooltipContent>
-              </Tooltip>
-            )}
-          </div>
-        </div>
-
-        {noticeText && (
-          <div className="mt-3">
-            <LifecycleNotice
-              lifecycleState={lifecycleState}
-              noticeText={noticeText}
-            />
-          </div>
-        )}
+        <PeriodNavigator
+          periodLabel={periodLabel}
+          periodStatus={periodStatus}
+          previousPeriodLabel={previousPeriodLabel}
+          nextPeriodLabel={nextPeriodLabel}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          onGoPrevious={onGoPrevious}
+          onGoNext={onGoNext}
+          isSwitchingMonth={isSwitchingMonth}
+          lifecycleState={lifecycleState}
+          noticeText={noticeText}
+          canCloseMonth={canCloseMonth}
+          closeMonthButtonLabel={closeMonthButtonLabel}
+          onCloseMonth={onCloseMonth}
+          canPreviewNextMonth={canPreviewNextMonth}
+          onPreviewNextMonth={onPreviewNextMonth}
+          previewNextMonthLabel={previewNextMonthLabel}
+          t={t}
+        />
       </div>
     </div>
   );

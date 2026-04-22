@@ -15,6 +15,7 @@ type PeriodCloseUiState = Pick<
 >;
 
 const THREE_DAYS_IN_MS = 3 * 24 * 60 * 60 * 1000;
+const ONE_DAY_IN_MS = 24 * 60 * 60 * 1000;
 
 export function resolvePeriodCloseUiState(
   month: BudgetDashboardMonthDto["month"],
@@ -51,11 +52,32 @@ export function resolvePeriodCloseUiState(
       "upcoming",
       false,
       null,
-      t("closeMonthUpcomingNotice"),
+      formatUpcomingCloseNotice(month.closeWindowOpensAtUtc, locale, now, t),
     );
   }
 
   return buildState("normal", false, null, null);
+}
+
+function formatUpcomingCloseNotice(
+  closeWindowOpensAtUtc: string | null,
+  locale: AppLocale,
+  now: Date,
+  t: <K extends keyof typeof dashboardSummaryDict.sv>(key: K) => string,
+) {
+  if (!closeWindowOpensAtUtc) {
+    return t("closeMonthUpcomingNotice");
+  }
+
+  const openTime = new Date(closeWindowOpensAtUtc);
+  const msUntilOpen = openTime.getTime() - now.getTime();
+  const daysUntilOpen = Math.max(1, Math.ceil(msUntilOpen / ONE_DAY_IN_MS));
+
+  const relative = new Intl.RelativeTimeFormat(locale, {
+    numeric: "auto",
+  }).format(daysUntilOpen, "day");
+
+  return `${t("closeMonthUpcomingPrefix")} ${relative}.`;
 }
 
 function isUpcoming(closeWindowOpensAtUtc: string | null, now: Date) {

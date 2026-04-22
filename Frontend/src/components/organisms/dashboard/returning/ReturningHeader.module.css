@@ -1,11 +1,17 @@
+.closeCtaSheen {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
 .closeCtaSheen::after {
   content: "";
   position: absolute;
-  top: -20%;
-  bottom: -20%;
+  inset-block: -20%;
   left: -35%;
   width: 38%;
   pointer-events: none;
+  border-radius: inherit;
   background: linear-gradient(
     115deg,
     rgba(255, 255, 255, 0) 0%,
@@ -26,5 +32,11 @@
 
   100% {
     transform: skewX(-18deg) translateX(520%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .closeCtaSheen::after {
+    animation: none;
   }
 }
