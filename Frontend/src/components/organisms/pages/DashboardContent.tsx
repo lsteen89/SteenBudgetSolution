@@ -1,5 +1,7 @@
+import CloseMonthReviewModal from "@/components/organisms/dashboard/closeMonth/CloseMonthReviewModal";
 import EditPeriodDrawer from "@/components/organisms/dashboard/editPeriod/EditPeriodDrawer";
 import ReturningDashboardSection from "@/components/organisms/dashboard/returning/ReturningDashboardSection";
+import { useCloseMonthReviewController } from "@/hooks/dashboard/useCloseMonthReviewController";
 import { useDashboardSummary } from "@/hooks/dashboard/useDashboardSummary";
 import DashboardHomeSkeleton from "@components/organisms/dashboard/DashboardHomeSkeleton";
 import FirstTimeDashboardSection from "@components/organisms/dashboard/FirstTimeDashboardSection";
@@ -95,26 +97,71 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
     );
   }
 
-  const yearMonth = data.summary.header.periodKey;
+  const summary = data.summary;
+  const yearMonth = summary.header.periodKey;
+
+  function handleOpenPeriodEditor() {
+    if (!yearMonth) return;
+    setIsPeriodEditorOpen(true);
+  }
+
+  const closeMonthReview = useCloseMonthReviewController({
+    yearMonth,
+    summary,
+    onOpenPeriodEditor: handleOpenPeriodEditor,
+  });
+
+  const reviewItems = [
+    {
+      id: "income",
+      label: "Income",
+      amount: summary.totalIncome,
+      onEdit: closeMonthReview.reviewMonth,
+    },
+    {
+      id: "expenses",
+      label: "Expenses",
+      amount: summary.totalExpenditure,
+      onEdit: closeMonthReview.reviewMonth,
+    },
+    {
+      id: "savings-debt",
+      label: "Savings & Debt",
+      amount: summary.totalSavings + summary.totalDebtPayments,
+      onEdit: closeMonthReview.reviewMonth,
+    },
+  ];
 
   return (
     <>
       <ReturningDashboardSection
-        summary={data.summary}
-        onOpenPeriodEditor={() => {
-          if (!yearMonth) return;
-          setIsPeriodEditorOpen(true);
-        }}
+        summary={summary}
+        onOpenPeriodEditor={handleOpenPeriodEditor}
+        onCloseMonth={closeMonthReview.open}
         onGoPreviousPeriod={goToPreviousMonth}
         onGoNextPeriod={goToNextMonth}
         isSwitchingMonth={isFetching && !isPending}
       />
 
+      <CloseMonthReviewModal
+        open={closeMonthReview.isOpen}
+        periodLabel={summary.header.periodLabel}
+        nextPeriodLabel={closeMonthReview.nextPeriodLabel}
+        currency={summary.currency}
+        reviewState={closeMonthReview.reviewState}
+        reviewItems={reviewItems}
+        surplusResolutionStatus={closeMonthReview.surplusResolutionStatus}
+        isSubmitting={closeMonthReview.isSubmitting}
+        onClose={closeMonthReview.close}
+        onConfirm={closeMonthReview.confirm}
+        onResolveToCarryOver={closeMonthReview.resolveToCarryOver}
+      />
+
       <EditPeriodDrawer
         open={isPeriodEditorOpen}
         yearMonth={yearMonth}
-        periodLabel={data.summary.header.periodLabel}
-        periodDateRangeLabel={data.summary.header.periodDateRangeLabel}
+        periodLabel={summary.header.periodLabel}
+        periodDateRangeLabel={summary.header.periodDateRangeLabel}
         onClose={() => {
           setIsPeriodEditorOpen(false);
         }}

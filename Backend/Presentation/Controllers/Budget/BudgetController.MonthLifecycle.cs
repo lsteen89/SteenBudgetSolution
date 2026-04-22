@@ -1,4 +1,5 @@
 using Backend.Application.DTO.Budget.Months;
+using Backend.Application.Features.Budgets.Months.CloseBudgetMonth;
 using Backend.Application.Features.Budgets.Months.GetBudgetMonthsStatus;
 using Backend.Application.Features.Budgets.Months.StartBudgetMonth;
 using Backend.Presentation.Shared;
@@ -54,5 +55,30 @@ public sealed partial class BudgetController
         }
 
         return Ok(ApiEnvelope<BudgetMonthsStatusDto>.Success(result.Value));
+    }
+
+    [HttpPost("months/{yearMonth}/close")]
+    [ProducesResponseType(typeof(ApiEnvelope<CloseBudgetMonthResultDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiEnvelope<CloseBudgetMonthResultDto>>> CloseMonth(
+        [FromRoute] string yearMonth,
+        [FromBody] CloseBudgetMonthRequestDto req,
+        CancellationToken ct)
+    {
+        var result = await _mediator.Send(new CloseBudgetMonthCommand(
+            Persoid: _currentUser.Persoid,
+            ActorPersoid: _currentUser.Persoid,
+            YearMonth: yearMonth,
+            Request: req
+        ), ct);
+
+        if (result.IsFailure)
+        {
+            return Ok(ApiEnvelope<CloseBudgetMonthResultDto>.Failure(
+                code: result.Error!.Code,
+                message: result.Error.Message
+            ));
+        }
+
+        return Ok(ApiEnvelope<CloseBudgetMonthResultDto>.Success(result.Value!));
     }
 }

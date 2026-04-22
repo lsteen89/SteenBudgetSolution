@@ -44,6 +44,14 @@ public interface IBudgetMonthRepository
         decimal finalBalance,
         CancellationToken ct);
 
+    Task<int> UpdateCarryOverSettingsAsync(
+        Guid budgetMonthId,
+        string carryOverMode,
+        decimal? carryOverAmount,
+        Guid userId,
+        DateTime nowUtc,
+        CancellationToken ct);
+
     Task<int> MarkMonthSkippedAsync(
         Guid budgetMonthId,
         Guid userId,

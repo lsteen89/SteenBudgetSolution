@@ -1,7 +1,7 @@
 import type {
   BudgetPeriodStatus,
   HeaderLifecycleState,
-} from "@/hooks/dashboard/dashboardSummary.types";
+} from "@/hooks/dashboard/dashboardSummary.types.ts";
 
 type GetHeaderLifecycleStateInput = {
   periodStatus: BudgetPeriodStatus;

@@ -6,12 +6,20 @@ type Options = {
   enabled?: boolean;
 };
 
+export function budgetDashboardMonthQueryKey(yearMonth?: string | null) {
+  if (yearMonth === undefined) {
+    return ["budgetDashboardMonth"] as const;
+  }
+
+  return ["budgetDashboardMonth", yearMonth ?? null] as const;
+}
+
 export function useBudgetDashboardMonthQuery(
   yearMonth: string | null,
   opts?: Options,
 ) {
   return useQuery({
-    queryKey: ["budgetDashboardMonth", yearMonth ?? null],
+    queryKey: budgetDashboardMonthQueryKey(yearMonth),
     queryFn: () => fetchBudgetDashboardMonth(yearMonth ?? undefined),
     enabled: opts?.enabled ?? true,
     staleTime: 10_000,

@@ -4,6 +4,7 @@ import {
   getBudgetMonthEditor,
   patchBudgetMonthExpenseItem,
 } from "@/api/Services/Budget/editor/monthEditor.api";
+import { budgetDashboardMonthQueryKey } from "@/hooks/budget/useBudgetDashboardMonthQuery";
 import type {
   CreateBudgetMonthExpenseItemRequestDto,
   PatchBudgetMonthExpenseItemRequestDto,
@@ -12,7 +13,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export const monthEditorQueryKeys = {
   editor: (yearMonth: string) => ["budget", "month-editor", yearMonth] as const,
-  dashboard: (yearMonth: string) => ["budget", "dashboard", yearMonth] as const,
 };
 
 export function useBudgetMonthEditor(
@@ -49,7 +49,7 @@ export function usePatchBudgetMonthExpenseItem(yearMonth: string) {
           queryKey: monthEditorQueryKeys.editor(yearMonth),
         }),
         queryClient.invalidateQueries({
-          queryKey: monthEditorQueryKeys.dashboard(yearMonth),
+          queryKey: budgetDashboardMonthQueryKey(yearMonth),
         }),
       ]);
     },
@@ -82,7 +82,7 @@ export function usePatchBudgetMonthExpenseItemsBulk(yearMonth: string) {
           queryKey: monthEditorQueryKeys.editor(yearMonth),
         }),
         queryClient.invalidateQueries({
-          queryKey: monthEditorQueryKeys.dashboard(yearMonth),
+          queryKey: budgetDashboardMonthQueryKey(yearMonth),
         }),
       ]);
     },
@@ -101,7 +101,7 @@ export function useCreateBudgetMonthExpenseItem(yearMonth: string) {
           queryKey: monthEditorQueryKeys.editor(yearMonth),
         }),
         queryClient.invalidateQueries({
-          queryKey: monthEditorQueryKeys.dashboard(yearMonth),
+          queryKey: budgetDashboardMonthQueryKey(yearMonth),
         }),
       ]);
     },
@@ -120,7 +120,7 @@ export function useDeleteBudgetMonthExpenseItem(yearMonth: string) {
           queryKey: monthEditorQueryKeys.editor(yearMonth),
         }),
         queryClient.invalidateQueries({
-          queryKey: monthEditorQueryKeys.dashboard(yearMonth),
+          queryKey: budgetDashboardMonthQueryKey(yearMonth),
         }),
       ]);
     },

@@ -1,8 +1,11 @@
 import type { ApiEnvelope } from "@/api/api.types";
 import { api } from "@/api/axios";
 import { unwrapEnvelopeData } from "@/api/envelope";
+import type {
+  BudgetMonthStatus,
+  BudgetMonthsStatusDto,
+} from "@/types/budget/BudgetMonthsStatusDto";
 import type { ExpenseCategoryDto } from "@/types/budget/ExpenseCategoryDto";
-import type { BudgetMonthsStatusDto } from "@/types/budget/BudgetMonthsStatusDto";
 import type { BudgetDashboardMonthDto } from "@myTypes/budget/BudgetDashboardMonthDto";
 
 export async function fetchBudgetMonthsStatus(): Promise<BudgetMonthsStatusDto> {
@@ -30,6 +33,43 @@ export async function startBudgetMonth(
   );
 
   return unwrapEnvelopeData(res, "Could not start budget month.");
+}
+
+export type CloseBudgetMonthCarryOverMode = "none" | "full";
+
+export type CloseBudgetMonthRequestDto = {
+  carryOverMode: CloseBudgetMonthCarryOverMode;
+};
+
+export type CloseBudgetMonthClosedMonthDto = {
+  yearMonth: string;
+  status: BudgetMonthStatus;
+  closedAtUtc: string | null;
+};
+
+export type CloseBudgetMonthNextMonthDto = {
+  yearMonth: string;
+  status: BudgetMonthStatus;
+  carryOverMode: CloseBudgetMonthCarryOverMode;
+  carryOverAmount: number | null;
+};
+
+export type CloseBudgetMonthResultDto = {
+  closedMonth: CloseBudgetMonthClosedMonthDto;
+  snapshotTotals: NonNullable<BudgetDashboardMonthDto["snapshotTotals"]>;
+  nextMonth: CloseBudgetMonthNextMonthDto;
+};
+
+export async function closeBudgetMonth(
+  yearMonth: string,
+  req: CloseBudgetMonthRequestDto,
+): Promise<CloseBudgetMonthResultDto> {
+  const res = await api.post<ApiEnvelope<CloseBudgetMonthResultDto>>(
+    `/api/budgets/months/${encodeURIComponent(yearMonth)}/close`,
+    req,
+  );
+
+  return unwrapEnvelopeData(res, "Could not close budget month.");
 }
 
 export async function fetchBudgetDashboardMonth(

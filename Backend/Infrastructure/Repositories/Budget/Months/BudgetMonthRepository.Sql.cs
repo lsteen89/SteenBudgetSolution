@@ -95,6 +95,16 @@ public sealed partial class BudgetMonthRepository
     WHERE Id = @BudgetMonthId
     AND Status = 'open';";
 
+    private const string UpdateCarryOverSettings = @"
+    UPDATE BudgetMonth
+    SET
+        CarryOverMode  = @CarryOverMode,
+        CarryOverAmount = @CarryOverAmount,
+        UpdatedAt      = @NowUtc,
+        UpdatedByUserId = @UserId
+    WHERE Id = @BudgetMonthId
+      AND Status = 'open';";
+
     private const string MarkMonthSkipped = @"
     UPDATE BudgetMonth
     SET
