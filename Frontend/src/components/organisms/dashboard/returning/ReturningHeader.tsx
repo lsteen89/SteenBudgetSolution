@@ -244,6 +244,7 @@ function HeaderActionSlot({
       {vm.primaryAction === "close" ? (
         <CtaButton
           onClick={onCloseMonth}
+          data-testid="close-month-cta"
           disabled={isSwitchingMonth || !onCloseMonth}
           className={cn(
             "min-w-[180px]",
@@ -387,7 +388,12 @@ function PeriodNavigator({
             isSwitchingMonth && "opacity-70",
           )}
         >
-          <span className="text-sm font-bold text-eb-text">{periodLabel}</span>
+          <span
+            data-testid="active-month-label"
+            className="text-sm font-bold text-eb-text"
+          >
+            {periodLabel}
+          </span>
 
           {isSwitchingMonth ? (
             <span className="inline-flex items-center gap-1.5 text-xs font-medium text-eb-text/55">
@@ -395,10 +401,12 @@ function PeriodNavigator({
               {t("loadingPeriod")}
             </span>
           ) : (
-            <InlinePeriodState
-              tone={headerVm.statusTone}
-              label={t(headerVm.statusLabelKey)}
-            />
+            <span data-testid="month-status-badge">
+              <InlinePeriodState
+                tone={headerVm.statusTone}
+                label={t(headerVm.statusLabelKey)}
+              />
+            </span>
           )}
         </div>
       </div>

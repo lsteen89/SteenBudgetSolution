@@ -308,6 +308,124 @@ dotnet run -- seed-user-budget --email jane@doe.se --password 'ChangeMe123' --fi
 
 ---
 
+## E2E testing with Playwright
+
+The frontend uses Playwright for end-to-end browser testing.
+
+### What it covers right now
+
+Current E2E coverage is intentionally small and focused:
+
+- app boot / smoke verification
+- seeded user login
+- foundation for dashboard and close-month flows
+
+This is not meant to replace backend integration tests. The browser suite verifies critical user flows, while backend/database tests verify snapshot math, carry-over behavior, and transactional correctness.
+
+### Test structure
+
+Playwright tests live in:
+
+```text
+Frontend/e2e/
+```
+
+The suite is split into two logical projects:
+
+- **smoke** — tiny fast checks intended for PR validation
+- **full** — broader scenario coverage
+
+### Configuration
+
+Playwright is configured in:
+
+```text
+Frontend/playwright.config.ts
+```
+
+Key behavior:
+
+- runs against the local frontend dev server
+- uses Chromium
+- keeps traces, screenshots, and video only when helpful for failures
+- generates an HTML report after execution
+
+Playwright supports projects, web server orchestration, reporters, traces, screenshots, and videos directly through the config file. ([Playwright][4])
+
+### Prerequisites
+
+Before running E2E tests, make sure:
+
+1. the E2E database is running
+2. the backend is running against the E2E database
+3. seed data has been created if the test depends on a seeded user or budget
+
+### Common commands
+
+Run all E2E tests:
+
+```bash
+npm run test:e2e
+```
+
+Run only smoke tests:
+
+```bash
+npm run test:e2e:smoke
+```
+
+Run the fuller suite:
+
+```bash
+npm run test:e2e:full
+```
+
+Run tests in headed mode:
+
+```bash
+npm run test:e2e:headed
+```
+
+Open the HTML report:
+
+```bash
+npm run test:e2e:report
+```
+
+Playwright’s CLI supports running tests and opening the HTML report directly. ([Playwright][5])
+
+### Generated artifacts
+
+The following folders are generated during test runs and should not be committed:
+
+- `Frontend/playwright-report/`
+- `Frontend/test-results/`
+- `test-results/`
+
+The HTML reporter writes a report folder, and test artifacts such as video are typically stored in the test output directory. ([Playwright][1])
+
+### Current testing approach
+
+The current approach is deliberate:
+
+- keep PR smoke coverage very small and reliable
+- grow scenario coverage only around critical flows
+- avoid flaky “test everything in the browser” patterns
+
+Recommended browser focus:
+
+- app boots
+- login works
+- dashboard loads
+- close-month flow works end-to-end
+
+Recommended backend/database focus:
+
+- month closing snapshots
+- carry-over math
+- next-month creation
+- rollback safety
+
 ## 🧰 DB access (GUI)
 
 Recommended: **TablePlus**
@@ -419,3 +537,7 @@ graph TD
 ## License
 
 [MIT License](LICENSE)
+
+```
+
+```

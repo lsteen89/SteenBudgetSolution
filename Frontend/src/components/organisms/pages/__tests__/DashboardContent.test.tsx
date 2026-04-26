@@ -125,6 +125,17 @@ const readyResult = {
   goToNextMonth: vi.fn(),
 };
 
+const pendingResult = {
+  data: null,
+  isPending: true,
+  isFetching: true,
+  isError: false,
+  error: null,
+  refetch: vi.fn(),
+  goToPreviousMonth: vi.fn(),
+  goToNextMonth: vi.fn(),
+};
+
 describe("DashboardContent", () => {
   beforeEach(() => {
     mockUseDashboardSummary.mockReset();
@@ -293,6 +304,38 @@ describe("DashboardContent", () => {
     expect(mockSetSelectedYearMonth).not.toHaveBeenCalled();
     expect(
       screen.getByRole("heading", { name: "Ready to lock in April 2026?" }),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps hook ordering stable when dashboard data loads after a pending render", () => {
+    mockUseDashboardSummary
+      .mockReturnValueOnce(pendingResult)
+      .mockReturnValueOnce(readyResult);
+
+    const { rerender } = render(
+      <MemoryRouter>
+        <DashboardContent
+          isFirstTimeLogin={false}
+          isWizardOpen={false}
+          setIsWizardOpen={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId("dashboard-home-skeleton")).toBeInTheDocument();
+
+    rerender(
+      <MemoryRouter>
+        <DashboardContent
+          isFirstTimeLogin={false}
+          isWizardOpen={false}
+          setIsWizardOpen={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByRole("button", { name: /close month/i }),
     ).toBeInTheDocument();
   });
 });
