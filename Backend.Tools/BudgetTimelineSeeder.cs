@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Text.Json;
 using Backend.Application.Abstractions.Application.Services.Budget;
 using Backend.Application.Abstractions.Infrastructure.Data;
+using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Application.DTO.Budget.Months;
 using Backend.Application.Features.Budgets.Months.StartBudgetMonth;
 using MediatR;
@@ -12,18 +13,28 @@ public sealed class BudgetTimelineSeeder
     private readonly IUnitOfWork _uow;
     private readonly IMediator _mediator;
     private readonly IBudgetMonthLifecycleService _monthLifecycle;
+    private readonly IBudgetMonthCloseSnapshotService _closeSnapshot;
+    private readonly ITimeProvider _clock;
 
     public BudgetTimelineSeeder(
         IUnitOfWork uow,
         IMediator mediator,
-        IBudgetMonthLifecycleService monthLifecycle)
+        IBudgetMonthLifecycleService monthLifecycle,
+        IBudgetMonthCloseSnapshotService closeSnapshot,
+        ITimeProvider clock)
     {
         _uow = uow;
         _mediator = mediator;
         _monthLifecycle = monthLifecycle;
+        _closeSnapshot = closeSnapshot;
+        _clock = clock;
     }
 
-    public async Task SeedThreeMonthTimelineAsync(Guid persoid, CancellationToken ct)
+    public async Task SeedThreeMonthTimelineAsync(
+        Guid persoid,
+        string openYearMonth,
+        CancellationToken ct,
+        decimal? openMonthTargetFinalBalance = null)
     {
         Guid budgetId = Guid.Empty;
 
@@ -35,7 +46,7 @@ public sealed class BudgetTimelineSeeder
             },
             ct);
 
-        var anchor = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var anchor = ParseYearMonthStartUtc(openYearMonth);
         var oldestYm = anchor.AddMonths(-2).ToString("yyyy-MM", CultureInfo.InvariantCulture);
         var middleYm = anchor.AddMonths(-1).ToString("yyyy-MM", CultureInfo.InvariantCulture);
         var openYm = anchor.ToString("yyyy-MM", CultureInfo.InvariantCulture);
@@ -82,6 +93,16 @@ public sealed class BudgetTimelineSeeder
             {
                 var open = await EnsureMaterializedMonthAsync(persoid, openYm, ct);
                 await ApplyMonthScenarioAsync(open.BudgetMonthId, persoid, openYm, BudgetTimelineScenarioData.Open, ct);
+
+                if (openMonthTargetFinalBalance.HasValue)
+                {
+                    await AdjustOpenMonthFinalBalanceAsync(
+                        open.BudgetMonthId,
+                        persoid,
+                        openMonthTargetFinalBalance.Value,
+                        ParseYearMonthStartUtc(openYm).AddDays(4).AddHours(17),
+                        ct);
+                }
             },
             ct);
     }
@@ -301,7 +322,7 @@ public sealed class BudgetTimelineSeeder
 
         var savingsId = Guid.NewGuid();
         var savings = BudgetTimelineBaselineData.Savings;
-        var anchor = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var anchor = new DateTime(_clock.UtcNow.Year, _clock.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
 
         await ExecuteAsync(
             @"INSERT INTO Savings (Id, BudgetId, MonthlySavings, CreatedByUserId)
@@ -542,6 +563,52 @@ public sealed class BudgetTimelineSeeder
                 change.MonthlyFee,
                 NextChangedAtUtc(),
                 ct);
+        }
+    }
+
+    private async Task AdjustOpenMonthFinalBalanceAsync(
+        Guid budgetMonthId,
+        Guid actorPersoid,
+        decimal targetFinalBalance,
+        DateTime changedAtUtc,
+        CancellationToken ct)
+    {
+        var snapshot = await _closeSnapshot.ComputeAsync(budgetMonthId, carryOverAmount: 0m, ct);
+        if (snapshot is null)
+        {
+            throw new InvalidOperationException(
+                $"Could not compute E2E final balance for month {budgetMonthId}.");
+        }
+
+        var adjustmentExpense = Math.Round(
+            snapshot.FinalBalance - targetFinalBalance,
+            2,
+            MidpointRounding.AwayFromZero);
+
+        if (adjustmentExpense < 0m)
+        {
+            throw new InvalidOperationException(
+                $"E2E target balance {targetFinalBalance} is above current final balance {snapshot.FinalBalance}; seed adjustment only supports adding expenses.");
+        }
+
+        if (adjustmentExpense > 0m)
+        {
+            await CreateMonthExpenseAsync(
+                budgetMonthId,
+                actorPersoid,
+                BudgetTimelineBaselineData.FixedExpenseCategoryId,
+                "E2E Balance Adjustment",
+                adjustmentExpense,
+                isActive: true,
+                changedAtUtc,
+                ct);
+        }
+
+        var updatedSnapshot = await _closeSnapshot.ComputeAsync(budgetMonthId, carryOverAmount: 0m, ct);
+        if (updatedSnapshot is null || Math.Abs(updatedSnapshot.FinalBalance - targetFinalBalance) > 0.01m)
+        {
+            throw new InvalidOperationException(
+                $"E2E final balance adjustment failed. Target={targetFinalBalance}, Actual={updatedSnapshot?.FinalBalance}.");
         }
     }
 
