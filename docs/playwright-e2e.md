@@ -48,7 +48,13 @@ Examples:
 
 - app boot
 
+- backend health
+
 - login
+
+- dashboard load
+
+- balanced close-month
 
 ### full
 
@@ -117,6 +123,28 @@ npx playwright test
 The Playwright global setup automatically runs `Backend.Tools seed-e2e`, so you should not manually seed before every test run.
 
 Port `5173` must be free because Playwright starts its own frontend dev server and the backend Development CORS policy allows `http://localhost:5173`.
+
+## CI smoke
+
+GitHub Actions runs the Playwright smoke subset in `.github/workflows/cicd.yml`.
+
+The CI job:
+
+- starts a MariaDB 11.4 service
+- prepares `steenbudgetE2E` with `Backend.Tools seed-e2e`
+- starts the backend on `http://localhost:5001`
+- lets Playwright global setup reset and reseed the E2E database again immediately before tests
+- starts the frontend on `http://localhost:5173`
+- runs `npm run test:e2e:smoke`
+
+The CI smoke subset is intentionally small and currently includes:
+
+- backend health
+- seeded login
+- seeded dashboard load
+- balanced close-month
+
+Surplus and deficit close-month flows are kept out of CI smoke until they are promoted to tagged smoke tests.
 
 ## E2E seed data
 

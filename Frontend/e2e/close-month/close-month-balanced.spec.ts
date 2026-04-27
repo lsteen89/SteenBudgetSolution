@@ -14,7 +14,7 @@ function waitForCloseResponse(page: Page) {
   });
 }
 
-test("balanced month can be closed and next month becomes active", async ({
+test("balanced month can be closed and next month becomes active @smoke", async ({
   page,
 }) => {
   await login(page, e2eUsers.closeBalanced);
