@@ -148,6 +148,48 @@ public sealed class CloseBudgetMonthCommandHandlerTests
     }
 
     [Fact]
+    public async Task RejectsWhenMonthIsSkipped()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+
+        await BudgetMonthDsl.InsertAsync(
+            cs: _db.ConnectionString,
+            budgetId: seed.BudgetId,
+            yearMonth: "2026-04",
+            status: BudgetMonthStatuses.Skipped,
+            openedAtUtc: new DateTime(2026, 04, 01, 9, 0, 0, DateTimeKind.Utc),
+            createdByUserId: seed.UserId,
+            closedAtUtc: null,
+            carryOverMode: BudgetMonthCarryOverModes.None,
+            carryOverAmount: null);
+
+        var sut = CreateSut(new FakeTimeProvider(new DateTime(2026, 04, 23, 12, 0, 0, DateTimeKind.Utc)));
+
+        var result = await sut.Handler.Handle(
+            new CloseBudgetMonthCommand(
+                seed.Persoid,
+                seed.UserId,
+                "2026-04",
+                new CloseBudgetMonthRequestDto(BudgetMonthCarryOverModes.None)),
+            CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be(Backend.Domain.Errors.Budget.BudgetMonth.MonthMustBeOpenToClose.Code);
+
+        var month = await GetMonthRowAsync(seed.BudgetId, "2026-04");
+        month.Should().NotBeNull();
+        month!.Status.Should().Be(BudgetMonthStatuses.Skipped);
+        month.ClosedAt.Should().BeNull();
+        month.SnapshotTotalIncomeMonthly.Should().BeNull();
+        month.SnapshotTotalExpensesMonthly.Should().BeNull();
+        month.SnapshotTotalSavingsMonthly.Should().BeNull();
+        month.SnapshotTotalDebtPaymentsMonthly.Should().BeNull();
+        month.SnapshotFinalBalanceMonthly.Should().BeNull();
+    }
+
+    [Fact]
     public async Task RejectsWhenCloseWindowIsNotOpen()
     {
         await _db.ResetAsync();
@@ -283,6 +325,62 @@ public sealed class CloseBudgetMonthCommandHandlerTests
     }
 
     [Fact]
+    public async Task RejectsAndRollsBack_WhenNextMonthAlreadyExistsButIsClosed()
+    {
+        await _db.ResetAsync();
+
+        var seed = await SeedClosableOpenMonthAsync("2026-04");
+
+        await BudgetMonthDsl.InsertAsync(
+            cs: _db.ConnectionString,
+            budgetId: seed.BudgetId,
+            yearMonth: "2026-05",
+            status: BudgetMonthStatuses.Closed,
+            openedAtUtc: new DateTime(2026, 05, 01, 9, 0, 0, DateTimeKind.Utc),
+            createdByUserId: seed.UserId,
+            closedAtUtc: new DateTime(2026, 05, 31, 9, 0, 0, DateTimeKind.Utc),
+            carryOverMode: BudgetMonthCarryOverModes.None,
+            carryOverAmount: null);
+
+        var sut = CreateSut(new FakeTimeProvider(new DateTime(2026, 04, 23, 12, 0, 0, DateTimeKind.Utc)));
+        var behavior = new UnitOfWorkPipelineBehavior<CloseBudgetMonthCommand, Backend.Domain.Shared.Result<CloseBudgetMonthResultDto>>(
+            sut.Uow,
+            NullLogger<UnitOfWorkPipelineBehavior<CloseBudgetMonthCommand, Backend.Domain.Shared.Result<CloseBudgetMonthResultDto>>>.Instance);
+
+        var command = new CloseBudgetMonthCommand(
+            seed.Persoid,
+            seed.UserId,
+            "2026-04",
+            new CloseBudgetMonthRequestDto(BudgetMonthCarryOverModes.Full));
+
+        var result = await behavior.Handle(
+            command,
+            () => sut.Handler.Handle(command, CancellationToken.None),
+            CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be(Backend.Domain.Errors.Budget.BudgetMonth.NextMonthMustBeOpen.Code);
+
+        var currentMonth = await GetMonthRowAsync(seed.BudgetId, "2026-04");
+        currentMonth.Should().NotBeNull();
+        currentMonth!.Status.Should().Be(BudgetMonthStatuses.Open);
+        currentMonth.ClosedAt.Should().BeNull();
+        currentMonth.SnapshotTotalIncomeMonthly.Should().BeNull();
+        currentMonth.SnapshotTotalExpensesMonthly.Should().BeNull();
+        currentMonth.SnapshotTotalSavingsMonthly.Should().BeNull();
+        currentMonth.SnapshotTotalDebtPaymentsMonthly.Should().BeNull();
+        currentMonth.SnapshotFinalBalanceMonthly.Should().BeNull();
+
+        (await CountMonthsForYearMonthAsync(seed.BudgetId, "2026-05")).Should().Be(1);
+
+        var nextMonth = await GetMonthRowAsync(seed.BudgetId, "2026-05");
+        nextMonth.Should().NotBeNull();
+        nextMonth!.Status.Should().Be(BudgetMonthStatuses.Closed);
+        nextMonth.CarryOverMode.Should().Be(BudgetMonthCarryOverModes.None);
+        nextMonth.CarryOverAmount.Should().BeNull();
+    }
+
+    [Fact]
     public async Task ReturnsExpectedCloseResultDto()
     {
         await _db.ResetAsync();
@@ -363,6 +461,40 @@ public sealed class CloseBudgetMonthCommandHandlerTests
         var nextMonth = await GetMonthRowAsync(seed.BudgetId, "2026-05");
         nextMonth.Should().BeNull();
     }
+
+    [Fact]
+    public async Task ClosesMonth_WhenFinalBalanceIsNegative()
+    {
+        await _db.ResetAsync();
+
+        var seed = await SeedClosableOpenMonthAsync("2026-04");
+        await InsertExpenseItemAsync(seed.BudgetId, seed.UserId, "Unexpected bill", 50000m);
+
+        var sut = CreateSut(new FakeTimeProvider(new DateTime(2026, 04, 23, 12, 0, 0, DateTimeKind.Utc)));
+
+        var result = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.Handler.Handle(
+                new CloseBudgetMonthCommand(
+                    seed.Persoid,
+                    seed.UserId,
+                    "2026-04",
+                    new CloseBudgetMonthRequestDto(BudgetMonthCarryOverModes.None)),
+                CancellationToken.None));
+
+        result.IsSuccess.Should().BeTrue();
+
+        var closedMonth = await GetMonthRowAsync(seed.BudgetId, "2026-04");
+        closedMonth.Should().NotBeNull();
+        closedMonth!.Status.Should().Be(BudgetMonthStatuses.Closed);
+        closedMonth.SnapshotTotalExpensesMonthly.Should().Be(62000m);
+        closedMonth.SnapshotFinalBalanceMonthly.Should().BeLessThan(0m);
+        result.Value!.SnapshotTotals.FinalBalanceMonthly.Should().Be(closedMonth.SnapshotFinalBalanceMonthly!.Value);
+
+        var nextMonth = await GetMonthRowAsync(seed.BudgetId, "2026-05");
+        nextMonth.Should().NotBeNull();
+        nextMonth!.Status.Should().Be(BudgetMonthStatuses.Open);
+    }
+
     [Fact]
     public async Task RejectsInvalidCarryOverMode()
     {
@@ -528,6 +660,31 @@ public sealed class CloseBudgetMonthCommandHandlerTests
                 budgetId,
                 incomePaymentDayType,
                 incomePaymentDay
+            });
+    }
+
+    private async Task InsertExpenseItemAsync(
+        Guid budgetId,
+        Guid userId,
+        string name,
+        decimal amountMonthly)
+    {
+        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await conn.OpenAsync();
+
+        await conn.ExecuteAsync(
+            """
+            INSERT INTO ExpenseItem
+                (Id, BudgetId, CategoryId, Name, AmountMonthly, CreatedAt, CreatedByUserId)
+            VALUES
+                (UUID_TO_BIN(UUID()), @budgetId, UNHEX(REPLACE('f9f68c35-2f9b-4a8c-9faa-6f5212d3e6d2','-','')), @name, @amountMonthly, UTC_TIMESTAMP(), @userId);
+            """,
+            new
+            {
+                budgetId,
+                userId,
+                name,
+                amountMonthly
             });
     }
 
