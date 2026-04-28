@@ -10,6 +10,7 @@ using Backend.IntegrationTests.Shared;
 using Backend.IntegrationTests.Shared.Seeds;
 using Backend.IntegrationTests.Shared.Seeds.Budget;
 using Backend.Infrastructure.Data.Sql.Helpers.UnitOfWork;
+using Backend.Infrastructure.Repositories.Budget.Audit;
 using Backend.Infrastructure.Repositories.Budget.Months;
 using Backend.Settings;
 using Dapper;
@@ -174,6 +175,7 @@ public sealed class StartBudgetMonthCommandHandlerTests
         var calc = new DebtPaymentCalculator();
         var totalsSvc = new BudgetMonthlyTotalsService(monthDashRepo, calc);
         var closeSnapshot = new BudgetMonthCloseSnapshotService(totalsSvc);
+        var auditWriter = new BudgetAuditWriter(uow, NullLogger<BudgetAuditWriter>.Instance, dbOpts);
 
         // materialize first
         var seedSource = new BudgetMonthSeedSourceRepository(uow, NullLogger<BudgetMonthSeedSourceRepository>.Instance, dbOpts);
@@ -213,6 +215,7 @@ public sealed class StartBudgetMonthCommandHandlerTests
             months: monthsRepo,
             closeSnapshot: closeSnapshot,
             totals: totalsSvc,
+            audit: auditWriter,
             time: clock,
             log: NullLogger<StartBudgetMonthCommandHandler>.Instance);
 

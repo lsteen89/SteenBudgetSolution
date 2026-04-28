@@ -14,6 +14,7 @@ using Backend.IntegrationTests.Shared.Seeds;
 using Backend.Settings;
 
 using Backend.Infrastructure.Repositories.Budget.Months.Seed;
+using Backend.Infrastructure.Repositories.Budget.Audit;
 using Backend.Infrastructure.Repositories.Budget.Months;
 using Backend.Infrastructure.Repositories.Budget.BudgetDashboard;
 
@@ -71,6 +72,7 @@ public sealed class BudgetMonthLifecycleTests
         IDebtPaymentCalculator calc = new DebtPaymentCalculator();
         IBudgetMonthlyTotalsService totalsSvc = new BudgetMonthlyTotalsService(dashRepo, calc);
         var closeSnapshot = new BudgetMonthCloseSnapshotService(totalsSvc);
+        var auditWriter = new BudgetAuditWriter(uow, NullLogger<BudgetAuditWriter>.Instance, dbOpts);
 
         var seedSource = new BudgetMonthSeedSourceRepository(
             uow,
@@ -104,6 +106,7 @@ public sealed class BudgetMonthLifecycleTests
             months: monthsRepo,
             closeSnapshot: closeSnapshot,
             totals: totalsSvc,
+            audit: auditWriter,
             time: time,
             log: NullLogger<StartBudgetMonthCommandHandler>.Instance);
 
@@ -195,10 +198,11 @@ public sealed class BudgetMonthLifecycleTests
         IDebtPaymentCalculator calc = new DebtPaymentCalculator();
         IBudgetMonthlyTotalsService totalsSvc = new BudgetMonthlyTotalsService(dashRepo, calc);
         var closeSnapshot = new BudgetMonthCloseSnapshotService(totalsSvc);
+        var auditWriter = new BudgetAuditWriter(uow, NullLogger<BudgetAuditWriter>.Instance, dbOpts);
 
 
         var handler = new StartBudgetMonthCommandHandler(
-            monthsRepo, closeSnapshot, totalsSvc, time, NullLogger<StartBudgetMonthCommandHandler>.Instance);
+            monthsRepo, closeSnapshot, totalsSvc, auditWriter, time, NullLogger<StartBudgetMonthCommandHandler>.Instance);
 
         var req = new StartBudgetMonthRequestDto(
             TargetYearMonth: "2026-01",
@@ -259,10 +263,11 @@ public sealed class BudgetMonthLifecycleTests
         IDebtPaymentCalculator calc = new DebtPaymentCalculator();
         IBudgetMonthlyTotalsService totalsSvc = new BudgetMonthlyTotalsService(dashRepo, calc);
         var closeSnapshot = new BudgetMonthCloseSnapshotService(totalsSvc);
+        var auditWriter = new BudgetAuditWriter(uow, NullLogger<BudgetAuditWriter>.Instance, dbOpts);
 
 
         var handler = new StartBudgetMonthCommandHandler(
-            monthsRepo, closeSnapshot, totalsSvc, time, NullLogger<StartBudgetMonthCommandHandler>.Instance);
+            monthsRepo, closeSnapshot, totalsSvc, auditWriter, time, NullLogger<StartBudgetMonthCommandHandler>.Instance);
 
         var req = new StartBudgetMonthRequestDto(
             TargetYearMonth: "2026-01",

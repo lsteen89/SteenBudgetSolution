@@ -1,4 +1,5 @@
 using Backend.Application.Abstractions.Infrastructure.Data;
+using Backend.Application.Features.Budgets.Income.Models;
 using Backend.Infrastructure.Data.BaseClass;
 using Backend.Domain.Abstractions;
 using Backend.Domain.Entities.Budget.Income;
@@ -10,6 +11,15 @@ namespace Backend.Infrastructure.Repositories.Budget.Core;
 public class IncomeRepository : SqlBase, IIncomeRepository
 {
     private readonly ICurrentUserContext _currentUser;
+    private const string GetIncomePaymentTimingSql = @"
+        SELECT
+            Id,
+            IncomePaymentDayType,
+            CAST(IncomePaymentDay AS SIGNED) AS IncomePaymentDay
+        FROM Income
+        WHERE BudgetId = @BudgetId
+        LIMIT 1;";
+
     private const string UpdateIncomePaymentTimingSql = @"
         UPDATE Income
         SET
@@ -89,6 +99,12 @@ public class IncomeRepository : SqlBase, IIncomeRepository
             await ExecuteAsync(insertMemberSql, income.HouseholdMembers, ct);
         }
     }
+
+    public Task<IncomePaymentTimingReadModel?> GetPaymentTimingAsync(Guid budgetId, CancellationToken ct)
+        => QuerySingleOrDefaultAsync<IncomePaymentTimingReadModel>(
+            GetIncomePaymentTimingSql,
+            new { BudgetId = budgetId },
+            ct);
 
     public Task<int> UpdatePaymentTimingAsync(
         Guid budgetId,

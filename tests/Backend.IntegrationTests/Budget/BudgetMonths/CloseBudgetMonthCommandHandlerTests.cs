@@ -10,6 +10,7 @@ using Backend.Application.Features.Budgets.Months.CloseBudgetMonth;
 using Backend.Application.Services.Budget.Compute;
 using Backend.Application.Services.Budget.Materializer;
 using Backend.Application.Services.Debts;
+using Backend.Infrastructure.Repositories.Budget.Audit;
 using Backend.Infrastructure.Data.Sql.Helpers.UnitOfWork;
 using Backend.Infrastructure.Repositories.Budget.BudgetDashboard;
 using Backend.Infrastructure.Repositories.Budget.Months;
@@ -24,6 +25,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using MySqlConnector;
+using System.Text.Json;
 
 namespace Backend.IntegrationTests.Budget.BudgetMonths;
 
@@ -235,6 +237,65 @@ public sealed class CloseBudgetMonthCommandHandlerTests
         var nextMonth = await GetMonthRowAsync(seed.BudgetId, "2026-05");
         nextMonth.Should().NotBeNull();
         nextMonth!.Status.Should().Be(BudgetMonthStatuses.Open);
+    }
+
+    [Fact]
+    public async Task CloseMonth_WithFullCarryOver_WritesLifecycleAuditRows()
+    {
+        await _db.ResetAsync();
+
+        var seed = await SeedClosableOpenMonthAsync("2026-04");
+        var sut = CreateSut(new FakeTimeProvider(new DateTime(2026, 04, 23, 12, 0, 0, DateTimeKind.Utc)));
+
+        var result = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.Handler.Handle(
+                new CloseBudgetMonthCommand(
+                    seed.Persoid,
+                    seed.UserId,
+                    "2026-04",
+                    new CloseBudgetMonthRequestDto(BudgetMonthCarryOverModes.Full)),
+                CancellationToken.None));
+
+        result.IsSuccess.Should().BeTrue();
+
+        var closedMonth = await GetMonthRowAsync(seed.BudgetId, "2026-04");
+        var nextMonth = await GetMonthRowAsync(seed.BudgetId, "2026-05");
+
+        closedMonth.Should().NotBeNull();
+        nextMonth.Should().NotBeNull();
+
+        var auditRows = await GetLifecycleAuditRowsAsync(closedMonth!.Id, nextMonth!.Id);
+
+        auditRows.Should().HaveCount(3);
+        var closedEvent = auditRows.Should().ContainSingle(x =>
+            x.BudgetMonthId == closedMonth.Id &&
+            x.EventType == "closed" &&
+            x.RelatedBudgetMonthId == null).Subject;
+
+        var nextCreated = auditRows.Should().ContainSingle(x =>
+            x.BudgetMonthId == nextMonth.Id &&
+            x.EventType == "next-month-created" &&
+            x.RelatedBudgetMonthId == closedMonth.Id).Subject;
+
+        var carryOver = auditRows.Should().ContainSingle(x =>
+            x.BudgetMonthId == nextMonth.Id &&
+            x.EventType == "carry-over-applied" &&
+            x.RelatedBudgetMonthId == closedMonth.Id).Subject;
+
+        carryOver.CarryOverMode.Should().Be(BudgetMonthCarryOverModes.Full);
+        carryOver.CarryOverAmount.Should().Be(closedMonth.SnapshotFinalBalanceMonthly);
+        auditRows.Should().OnlyContain(x => x.OccurredByUserId == seed.UserId);
+
+        using var closedMetadata = JsonDocument.Parse(closedEvent.MetadataJson!);
+        closedMetadata.RootElement.GetProperty("YearMonth").GetString().Should().Be("2026-04");
+        closedMetadata.RootElement.GetProperty("FinalBalance").GetDecimal().Should().Be(closedMonth.SnapshotFinalBalanceMonthly);
+
+        using var nextMetadata = JsonDocument.Parse(nextCreated.MetadataJson!);
+        nextMetadata.RootElement.GetProperty("sourceYearMonth").GetString().Should().Be("2026-04");
+        nextMetadata.RootElement.GetProperty("targetYearMonth").GetString().Should().Be("2026-05");
+
+        using var carryOverMetadata = JsonDocument.Parse(carryOver.MetadataJson!);
+        carryOverMetadata.RootElement.GetProperty("FinalBalance").GetDecimal().Should().Be(closedMonth.SnapshotFinalBalanceMonthly);
     }
 
     [Fact]
@@ -545,6 +606,10 @@ public sealed class CloseBudgetMonthCommandHandlerTests
         IDebtPaymentCalculator debtCalculator = new DebtPaymentCalculator();
         IBudgetMonthlyTotalsService totals = new BudgetMonthlyTotalsService(monthDashRepo, debtCalculator);
         var closeSnapshot = new BudgetMonthCloseSnapshotService(totals);
+        var auditWriter = new BudgetAuditWriter(
+            uow,
+            NullLogger<BudgetAuditWriter>.Instance,
+            dbOpts);
 
         var handler = new CloseBudgetMonthCommandHandler(
             months,
@@ -552,6 +617,7 @@ public sealed class CloseBudgetMonthCommandHandlerTests
             monthDashRepo,
             materializer,
             closeSnapshot,
+            auditWriter,
             clock);
 
         UnitOfWorkPipelineBehavior<CloseBudgetMonthCommand, Backend.Domain.Shared.Result<CloseBudgetMonthResultDto>>? behavior = null;
@@ -605,6 +671,7 @@ public sealed class CloseBudgetMonthCommandHandlerTests
         return await conn.QuerySingleOrDefaultAsync<BudgetMonthRow>(
             """
             SELECT
+                Id,
                 YearMonth,
                 Status,
                 ClosedAt,
@@ -621,6 +688,34 @@ public sealed class CloseBudgetMonthCommandHandlerTests
             LIMIT 1;
             """,
             new { budgetId, yearMonth });
+    }
+
+    private async Task<IReadOnlyList<BudgetMonthLifecycleEventDbRow>> GetLifecycleAuditRowsAsync(
+        Guid currentMonthId,
+        Guid nextMonthId)
+    {
+        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await conn.OpenAsync();
+
+        var rows = await conn.QueryAsync<BudgetMonthLifecycleEventDbRow>(
+            """
+            SELECT
+                Id,
+                BudgetMonthId,
+                EventType,
+                RelatedBudgetMonthId,
+                CarryOverMode,
+                CarryOverAmount,
+                MetadataJson,
+                OccurredAt,
+                OccurredByUserId
+            FROM BudgetMonthLifecycleEvent
+            WHERE BudgetMonthId IN @budgetMonthIds
+            ORDER BY OccurredAt, Id;
+            """,
+            new { budgetMonthIds = new[] { currentMonthId, nextMonthId } });
+
+        return rows.ToList();
     }
 
     private async Task<int> CountMonthsForYearMonthAsync(Guid budgetId, string yearMonth)
@@ -715,6 +810,9 @@ public sealed class CloseBudgetMonthCommandHandlerTests
         public Task<Backend.Application.Features.Budgets.Months.Models.BudgetMonthDetailsRm?> GetMonthAsync(Guid budgetId, string yearMonth, CancellationToken ct)
             => _inner.GetMonthAsync(budgetId, yearMonth, ct);
 
+        public Task<Backend.Application.Features.Budgets.Income.Models.IncomePaymentTimingReadModel?> GetBudgetMonthIncomePaymentTimingAsync(Guid budgetMonthId, CancellationToken ct)
+            => _inner.GetBudgetMonthIncomePaymentTimingAsync(budgetMonthId, ct);
+
         public Task<bool> HasAnyMonthsAsync(Guid budgetId, CancellationToken ct)
             => _inner.HasAnyMonthsAsync(budgetId, ct);
 
@@ -766,6 +864,7 @@ public sealed class CloseBudgetMonthCommandHandlerTests
 
     private sealed class BudgetMonthRow
     {
+        public Guid Id { get; init; }
         public string YearMonth { get; init; } = string.Empty;
         public string Status { get; init; } = string.Empty;
         public DateTime? ClosedAt { get; init; }
@@ -777,4 +876,15 @@ public sealed class CloseBudgetMonthCommandHandlerTests
         public decimal? SnapshotTotalDebtPaymentsMonthly { get; init; }
         public decimal? SnapshotFinalBalanceMonthly { get; init; }
     }
+
+    private sealed record BudgetMonthLifecycleEventDbRow(
+        Guid Id,
+        Guid BudgetMonthId,
+        string EventType,
+        Guid? RelatedBudgetMonthId,
+        string? CarryOverMode,
+        decimal? CarryOverAmount,
+        string? MetadataJson,
+        DateTime OccurredAt,
+        Guid OccurredByUserId);
 }

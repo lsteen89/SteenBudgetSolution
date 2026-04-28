@@ -1,4 +1,5 @@
 using Backend.Application.DTO.Budget.Months;
+using Backend.Application.Features.Budgets.Income.Models;
 using Backend.Application.Features.Budgets.Months.Models;
 
 namespace Backend.Application.Abstractions.Infrastructure.Data;
@@ -12,6 +13,7 @@ public interface IBudgetMonthRepository
 
     Task<BudgetMonthLookupRm?> GetByBudgetIdAndYearMonthAsync(Guid budgetId, string yearMonth, CancellationToken ct);
     Task<BudgetMonthDetailsRm?> GetMonthAsync(Guid budgetId, string yearMonth, CancellationToken ct);
+    Task<IncomePaymentTimingReadModel?> GetBudgetMonthIncomePaymentTimingAsync(Guid budgetMonthId, CancellationToken ct);
 
     Task<bool> HasAnyMonthsAsync(Guid budgetId, CancellationToken ct);
 

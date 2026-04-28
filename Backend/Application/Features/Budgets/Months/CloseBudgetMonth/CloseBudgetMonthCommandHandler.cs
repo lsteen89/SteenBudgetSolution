@@ -1,9 +1,12 @@
+using System.Text.Json;
 using Backend.Application.Abstractions.Application.Services.Budget;
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Application.Abstractions.Messaging;
 using Backend.Application.DTO.Budget.Dashboard;
 using Backend.Application.DTO.Budget.Months;
+using Backend.Application.Features.Budgets.Audit;
+using Backend.Application.Features.Budgets.Audit.Models;
 using Backend.Application.Features.Budgets.Months.Helpers;
 using Backend.Application.Features.Budgets.Months.Shared.CloseWindow;
 using Backend.Domain.Errors.Budget;
@@ -20,6 +23,7 @@ public sealed class CloseBudgetMonthCommandHandler
     private readonly IBudgetMonthDashboardRepository _dashboard;
     private readonly IBudgetMonthMaterializer _materializer;
     private readonly IBudgetMonthCloseSnapshotService _closeSnapshot;
+    private readonly IBudgetAuditWriter _audit;
     private readonly ITimeProvider _clock;
 
     public CloseBudgetMonthCommandHandler(
@@ -28,6 +32,7 @@ public sealed class CloseBudgetMonthCommandHandler
         IBudgetMonthDashboardRepository dashboard,
         IBudgetMonthMaterializer materializer,
         IBudgetMonthCloseSnapshotService closeSnapshot,
+        IBudgetAuditWriter audit,
         ITimeProvider clock)
     {
         _months = months;
@@ -35,6 +40,7 @@ public sealed class CloseBudgetMonthCommandHandler
         _dashboard = dashboard;
         _materializer = materializer;
         _closeSnapshot = closeSnapshot;
+        _audit = audit;
         _clock = clock;
     }
 
@@ -96,11 +102,32 @@ public sealed class CloseBudgetMonthCommandHandler
         if (closeCurrentMonthResult.IsFailure)
             return Result<CloseBudgetMonthResultDto>.Failure(closeCurrentMonthResult.Error);
 
+        await WriteLifecycleAsync(
+            budgetMonthId: currentMonth.Id,
+            eventType: BudgetMonthLifecycleEventTypes.Closed,
+            relatedBudgetMonthId: null,
+            carryOverMode: null,
+            carryOverAmount: null,
+            metadataJson: JsonSerializer.Serialize(new
+            {
+                currentMonth.YearMonth,
+                snapshot.TotalIncome,
+                snapshot.TotalExpenses,
+                snapshot.TotalSavings,
+                snapshot.TotalDebtPayments,
+                snapshot.FinalBalance
+            }),
+            actorPersoid: cmd.ActorPersoid,
+            occurredAt: nowUtc,
+            ct: ct);
+
         var nextYearMonth = GetNextYearMonth(requestedYearMonth);
 
         var nextMonthResult = await EnsureAndConfigureNextMonthAsync(
             cmd,
             budgetId.Value,
+            currentMonth,
+            snapshot,
             nextYearMonth,
             carryOverMode,
             nowUtc,
@@ -226,6 +253,8 @@ public sealed class CloseBudgetMonthCommandHandler
     private async Task<Result<BudgetMonthDetailsRm>> EnsureAndConfigureNextMonthAsync(
         CloseBudgetMonthCommand cmd,
         Guid budgetId,
+        BudgetMonthDetailsRm currentMonth,
+        BudgetMonthCloseSnapshot snapshot,
         string nextYearMonth,
         string carryOverMode,
         DateTime nowUtc,
@@ -252,6 +281,24 @@ public sealed class CloseBudgetMonthCommandHandler
         if (nextMonth.Status != BudgetMonthStatuses.Open)
             return Result<BudgetMonthDetailsRm>.Failure(BudgetMonth.NextMonthMustBeOpen);
 
+        if (ensuredNext.Value.WasCreated)
+        {
+            await WriteLifecycleAsync(
+                budgetMonthId: nextMonth.Id,
+                eventType: BudgetMonthLifecycleEventTypes.NextMonthCreated,
+                relatedBudgetMonthId: currentMonth.Id,
+                carryOverMode: null,
+                carryOverAmount: null,
+                metadataJson: JsonSerializer.Serialize(new
+                {
+                    sourceYearMonth = currentMonth.YearMonth,
+                    targetYearMonth = nextYearMonth
+                }),
+                actorPersoid: cmd.ActorPersoid,
+                occurredAt: nowUtc,
+                ct: ct);
+        }
+
         var updatedCarryOverRows = await _months.UpdateCarryOverSettingsAsync(
             budgetMonthId: nextMonth.Id,
             carryOverMode: carryOverMode,
@@ -262,6 +309,29 @@ public sealed class CloseBudgetMonthCommandHandler
 
         if (updatedCarryOverRows == 0)
             return Result<BudgetMonthDetailsRm>.Failure(BudgetMonth.NextMonthCarryOverUpdateFailed);
+
+        if (carryOverMode != BudgetMonthCarryOverModes.None)
+        {
+            var carryOverAmount = carryOverMode == BudgetMonthCarryOverModes.Full
+                ? snapshot.FinalBalance
+                : nextMonth.CarryOverAmount;
+
+            await WriteLifecycleAsync(
+                budgetMonthId: nextMonth.Id,
+                eventType: BudgetMonthLifecycleEventTypes.CarryOverApplied,
+                relatedBudgetMonthId: currentMonth.Id,
+                carryOverMode: carryOverMode,
+                carryOverAmount: carryOverAmount,
+                metadataJson: JsonSerializer.Serialize(new
+                {
+                    sourceYearMonth = currentMonth.YearMonth,
+                    targetYearMonth = nextYearMonth,
+                    snapshot.FinalBalance
+                }),
+                actorPersoid: cmd.ActorPersoid,
+                occurredAt: nowUtc,
+                ct: ct);
+        }
 
         var updatedNextMonth = await _months.GetMonthAsync(budgetId, nextYearMonth, ct);
         if (updatedNextMonth is null)
@@ -314,4 +384,27 @@ public sealed class CloseBudgetMonthCommandHandler
         var nextMonth = new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Utc).AddMonths(1);
         return nextMonth.ToString("yyyy-MM");
     }
+
+    private Task WriteLifecycleAsync(
+        Guid budgetMonthId,
+        string eventType,
+        Guid? relatedBudgetMonthId,
+        string? carryOverMode,
+        decimal? carryOverAmount,
+        string? metadataJson,
+        Guid actorPersoid,
+        DateTime occurredAt,
+        CancellationToken ct)
+        => _audit.WriteLifecycleAsync(
+            new BudgetMonthLifecycleEventWriteModel(
+                Id: Guid.NewGuid(),
+                BudgetMonthId: budgetMonthId,
+                EventType: eventType,
+                RelatedBudgetMonthId: relatedBudgetMonthId,
+                CarryOverMode: carryOverMode,
+                CarryOverAmount: carryOverAmount,
+                MetadataJson: metadataJson,
+                OccurredAt: occurredAt,
+                OccurredByUserId: actorPersoid),
+            ct);
 }

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Backend.Application.Abstractions.Messaging;
 using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Application.DTO.Budget.Months;
@@ -5,6 +6,8 @@ using Backend.Application.Abstractions.Application.Services.Budget;
 using Backend.Domain.Shared;
 using Backend.Domain.Errors.Budget;
 using Backend.Application.Abstractions.Infrastructure.Data;
+using Backend.Application.Features.Budgets.Audit;
+using Backend.Application.Features.Budgets.Audit.Models;
 using Backend.Application.Features.Budgets.Months.Models;
 using Backend.Application.Features.Budgets.Months.Helpers;
 
@@ -16,6 +19,7 @@ public sealed class StartBudgetMonthCommandHandler
     private readonly IBudgetMonthRepository _months;
     private readonly IBudgetMonthCloseSnapshotService _closeSnapshot;
     private readonly IBudgetMonthlyTotalsService _totals;
+    private readonly IBudgetAuditWriter _audit;
     private readonly ITimeProvider _time;
     private readonly ILogger<StartBudgetMonthCommandHandler> _log;
 
@@ -23,12 +27,14 @@ public sealed class StartBudgetMonthCommandHandler
         IBudgetMonthRepository months,
         IBudgetMonthCloseSnapshotService closeSnapshot,
         IBudgetMonthlyTotalsService totals,
+        IBudgetAuditWriter audit,
         ITimeProvider time,
         ILogger<StartBudgetMonthCommandHandler> log)
     {
         _months = months;
         _closeSnapshot = closeSnapshot;
         _totals = totals;
+        _audit = audit;
         _time = time;
         _log = log;
     }
@@ -74,7 +80,20 @@ public sealed class StartBudgetMonthCommandHandler
             foreach (var m in openMonths.Where(x => x.Id != keep.Id))
             {
                 _log.LogWarning("Multiple open months detected. Marking skipped. MonthId={MonthId} YM={YM}", m.Id, m.YearMonth);
-                await _months.MarkMonthSkippedAsync(m.Id, cmd.ActorPersoid, now, ct);
+                var skippedRows = await _months.MarkMonthSkippedAsync(m.Id, cmd.ActorPersoid, now, ct);
+                if (skippedRows > 0)
+                {
+                    await WriteLifecycleAsync(
+                        m.Id,
+                        BudgetMonthLifecycleEventTypes.Skipped,
+                        relatedBudgetMonthId: keep.Id,
+                        carryOverMode: null,
+                        carryOverAmount: null,
+                        metadataJson: JsonSerializer.Serialize(new { m.YearMonth, reason = "multiple-open-months" }),
+                        cmd.ActorPersoid,
+                        now,
+                        ct);
+                }
             }
 
             openMonths = new List<BudgetMonthListRm> { keep };
@@ -104,7 +123,7 @@ public sealed class StartBudgetMonthCommandHandler
 
             previousFinalBalance = snap.FinalBalance;
 
-            await _months.CloseOpenMonthWithSnapshotAsync(
+            var closedRows = await _months.CloseOpenMonthWithSnapshotAsync(
                 budgetMonthId: open.Id,
                 userId: cmd.ActorPersoid,
                 nowUtc: now,
@@ -114,6 +133,28 @@ public sealed class StartBudgetMonthCommandHandler
                 totalDebtPayments: snap.TotalDebtPayments,
                 finalBalance: snap.FinalBalance,
                 ct: ct);
+
+            if (closedRows > 0)
+            {
+                await WriteLifecycleAsync(
+                    open.Id,
+                    BudgetMonthLifecycleEventTypes.Closed,
+                    relatedBudgetMonthId: null,
+                    carryOverMode: null,
+                    carryOverAmount: null,
+                    metadataJson: JsonSerializer.Serialize(new
+                    {
+                        open.YearMonth,
+                        snap.TotalIncome,
+                        snap.TotalExpenses,
+                        snap.TotalSavings,
+                        snap.TotalDebtPayments,
+                        snap.FinalBalance
+                    }),
+                    cmd.ActorPersoid,
+                    now,
+                    ct);
+            }
         }
 
         // Create skipped placeholders if target is ahead of the previous open month
@@ -124,13 +165,31 @@ public sealed class StartBudgetMonthCommandHandler
             {
                 foreach (var ym in YearMonthUtil.IntermediateMonths(open.YearMonth, targetYm))
                 {
+                    var existingSkippedMonth = await _months.GetMonthAsync(budgetId.Value, ym, ct);
+                    if (existingSkippedMonth is not null)
+                    {
+                        continue;
+                    }
+
+                    var skippedMonthId = Guid.NewGuid();
                     await _months.InsertSkippedMonthIdempotentAsync(
-                        id: Guid.NewGuid(),
+                        id: skippedMonthId,
                         budgetId: budgetId.Value,
                         yearMonth: ym,
                         userId: cmd.ActorPersoid,
                         nowUtc: now,
                         ct: ct);
+
+                    await WriteLifecycleAsync(
+                        skippedMonthId,
+                        BudgetMonthLifecycleEventTypes.Skipped,
+                        relatedBudgetMonthId: open.Id,
+                        carryOverMode: null,
+                        carryOverAmount: null,
+                        metadataJson: JsonSerializer.Serialize(new { yearMonth = ym, reason = "gap-placeholder" }),
+                        cmd.ActorPersoid,
+                        now,
+                        ct);
                 }
             }
         }
@@ -144,8 +203,9 @@ public sealed class StartBudgetMonthCommandHandler
             _ => null
         };
 
+        var targetMonthId = existingTarget?.Id ?? Guid.NewGuid();
         await _months.InsertOpenMonthIdempotentAsync(
-            id: Guid.NewGuid(),
+            id: targetMonthId,
             budgetId: budgetId.Value,
             yearMonth: targetYm,
             carryOverMode: req.CarryOverMode,
@@ -153,6 +213,38 @@ public sealed class StartBudgetMonthCommandHandler
             userId: cmd.ActorPersoid,
             nowUtc: now,
             ct: ct);
+
+        if (existingTarget is null)
+        {
+            await WriteLifecycleAsync(
+                targetMonthId,
+                BudgetMonthLifecycleEventTypes.Opened,
+                relatedBudgetMonthId: open?.Id,
+                carryOverMode: null,
+                carryOverAmount: null,
+                metadataJson: JsonSerializer.Serialize(new { yearMonth = targetYm }),
+                cmd.ActorPersoid,
+                now,
+                ct);
+
+            if (req.CarryOverMode != BudgetMonthCarryOverModes.None)
+            {
+                var appliedCarryOverAmount = req.CarryOverMode == BudgetMonthCarryOverModes.Full
+                    ? previousFinalBalance
+                    : req.CarryOverAmount;
+
+                await WriteLifecycleAsync(
+                    targetMonthId,
+                    BudgetMonthLifecycleEventTypes.CarryOverApplied,
+                    relatedBudgetMonthId: open?.Id,
+                    carryOverMode: req.CarryOverMode,
+                    carryOverAmount: appliedCarryOverAmount,
+                    metadataJson: JsonSerializer.Serialize(new { yearMonth = targetYm, previousFinalBalance }),
+                    cmd.ActorPersoid,
+                    now,
+                    ct);
+            }
+        }
 
         // Return updated status
         var months = await _months.GetMonthsAsync(budgetId.Value, ct);
@@ -190,4 +282,27 @@ public sealed class StartBudgetMonthCommandHandler
         if (openYm != currentYm) return BudgetMonthSuggestedActions.PromptStartCurrent;
         return BudgetMonthSuggestedActions.None;
     }
+
+    private Task WriteLifecycleAsync(
+        Guid budgetMonthId,
+        string eventType,
+        Guid? relatedBudgetMonthId,
+        string? carryOverMode,
+        decimal? carryOverAmount,
+        string? metadataJson,
+        Guid actorPersoid,
+        DateTime occurredAt,
+        CancellationToken ct)
+        => _audit.WriteLifecycleAsync(
+            new BudgetMonthLifecycleEventWriteModel(
+                Id: Guid.NewGuid(),
+                BudgetMonthId: budgetMonthId,
+                EventType: eventType,
+                RelatedBudgetMonthId: relatedBudgetMonthId,
+                CarryOverMode: carryOverMode,
+                CarryOverAmount: carryOverAmount,
+                MetadataJson: metadataJson,
+                OccurredAt: occurredAt,
+                OccurredByUserId: actorPersoid),
+            ct);
 }

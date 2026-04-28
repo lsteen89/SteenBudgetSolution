@@ -10,6 +10,7 @@ using Backend.Domain.Abstractions;
 using Backend.Domain.Shared;
 using Backend.Infrastructure.Data.Sql.Helpers.UnitOfWork;
 using Backend.Infrastructure.Repositories.Budget.Core;
+using Backend.Infrastructure.Repositories.Budget.Audit;
 using Backend.Infrastructure.Repositories.Budget.Months;
 using Backend.Infrastructure.Repositories.Budget.Months.Materializer;
 using Backend.Infrastructure.Repositories.Budget.Months.Seed;
@@ -23,6 +24,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using MySqlConnector;
 using System.Data.Common;
+using System.Text.Json;
 
 namespace Backend.IntegrationTests.Budget.Income;
 
@@ -102,6 +104,48 @@ public sealed class UpdateSalaryPaymentTimingCommandHandlerTests
 
         monthAfter.Should().Be(("dayOfMonth", 12));
         baselineAfter.Should().Be(("dayOfMonth", 12));
+
+        var auditRows = await GetConfigAuditRowsAsync(seed.BudgetId);
+        auditRows.Should().ContainSingle();
+
+        var audit = auditRows.Single();
+        audit.BudgetId.Should().Be(seed.BudgetId);
+        audit.EntityType.Should().Be("salary-payment-timing");
+        audit.ChangeType.Should().Be("updated");
+        audit.EntityId.Should().NotBeNull();
+        audit.ChangedByUserId.Should().Be(seed.Persoid);
+        audit.BeforeJson.Should().Contain("dayOfMonth");
+        audit.BeforeJson.Should().Contain("25");
+        audit.AfterJson.Should().Contain("12");
+        audit.MetadataJson.Should().Contain("updateCurrentAndFuture");
+
+        using var before = JsonDocument.Parse(audit.BeforeJson!);
+        before.RootElement
+            .GetProperty("currentMonth")
+            .GetProperty("IncomePaymentDay")
+            .GetInt32()
+            .Should()
+            .Be(25);
+        before.RootElement
+            .GetProperty("baseline")
+            .GetProperty("IncomePaymentDay")
+            .GetInt32()
+            .Should()
+            .Be(25);
+
+        using var after = JsonDocument.Parse(audit.AfterJson!);
+        after.RootElement
+            .GetProperty("currentMonth")
+            .GetProperty("IncomePaymentDay")
+            .GetInt32()
+            .Should()
+            .Be(12);
+        after.RootElement
+            .GetProperty("baseline")
+            .GetProperty("IncomePaymentDay")
+            .GetInt32()
+            .Should()
+            .Be(12);
     }
 
     [Fact]
@@ -280,6 +324,10 @@ public sealed class UpdateSalaryPaymentTimingCommandHandlerTests
             NullLogger<IncomeRepository>.Instance,
             currentUser,
             dbOpts);
+        var auditWriter = new BudgetAuditWriter(
+            uow,
+            NullLogger<BudgetAuditWriter>.Instance,
+            dbOpts);
 
         IIncomeRepository incomeRepository = useThrowingIncomeRepository
             ? new ThrowingIncomeRepository()
@@ -290,6 +338,7 @@ public sealed class UpdateSalaryPaymentTimingCommandHandlerTests
             months,
             lifecycle,
             incomeRepository,
+            auditWriter,
             clock);
 
         UnitOfWorkPipelineBehavior<UpdateSalaryPaymentTimingCommand, Result<SalaryPaymentTimingDto>>? behavior = null;
@@ -356,6 +405,33 @@ public sealed class UpdateSalaryPaymentTimingCommandHandlerTests
             new { budgetMonthId });
     }
 
+    private async Task<IReadOnlyList<BudgetConfigChangeEventDbRow>> GetConfigAuditRowsAsync(Guid budgetId)
+    {
+        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await conn.OpenAsync();
+
+        var rows = await conn.QueryAsync<BudgetConfigChangeEventDbRow>(
+            """
+            SELECT
+                Id,
+                BudgetId,
+                EntityType,
+                EntityId,
+                ChangeType,
+                BeforeJson,
+                AfterJson,
+                MetadataJson,
+                ChangedAt,
+                ChangedByUserId
+            FROM BudgetConfigChangeEvent
+            WHERE BudgetId = @budgetId
+            ORDER BY ChangedAt, Id;
+            """,
+            new { budgetId });
+
+        return rows.ToList();
+    }
+
     private sealed class FakeTimeProvider : ITimeProvider
     {
         public FakeTimeProvider(DateTime utcNow) => UtcNow = utcNow;
@@ -368,10 +444,28 @@ public sealed class UpdateSalaryPaymentTimingCommandHandlerTests
         public string UserName { get; init; } = "it@test.local";
     }
 
+    private sealed record BudgetConfigChangeEventDbRow(
+        Guid Id,
+        Guid BudgetId,
+        string EntityType,
+        Guid? EntityId,
+        string ChangeType,
+        string? BeforeJson,
+        string? AfterJson,
+        string? MetadataJson,
+        DateTime ChangedAt,
+        Guid ChangedByUserId);
+
     private sealed class ThrowingIncomeRepository : IIncomeRepository
     {
         public Task AddAsync(Backend.Domain.Entities.Budget.Income.Income income, Guid budgetId, CancellationToken ct)
             => Task.CompletedTask;
+
+        public Task<Backend.Application.Features.Budgets.Income.Models.IncomePaymentTimingReadModel?> GetPaymentTimingAsync(
+            Guid budgetId,
+            CancellationToken ct)
+            => Task.FromResult<Backend.Application.Features.Budgets.Income.Models.IncomePaymentTimingReadModel?>(
+                new(Guid.NewGuid(), "dayOfMonth", 25));
 
         public Task<int> UpdatePaymentTimingAsync(
             Guid budgetId,
