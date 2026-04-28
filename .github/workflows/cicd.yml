@@ -1,314 +1,316 @@
-  # .github/workflows/cicd.yml
-  name: CI-CD (Pi, multi-arch)
+# .github/workflows/cicd.yml
+name: CI-CD (Pi, multi-arch)
 
-  on:
-    push:
-      branches: [ master ]
-      paths:
-        - "Backend/**"
-        - "Backend.Tools/**"
-        - "Frontend/**"
-        - "database/**"
-        - "caddy/**"
-        - "docker-compose.yml"
-        - ".github/workflows/cicd.yml"
-    pull_request:
-      branches: [ master ]
-      paths:
-        - "Backend/**"
-        - "Backend.Tools/**"
-        - "Frontend/**"
-        - "database/**"
-        - ".github/workflows/cicd.yml"
-    workflow_dispatch:
+on:
+  push:
+    branches: [master]
+    paths:
+      - "Backend/**"
+      - "Backend.Tools/**"
+      - "Frontend/**"
+      - "database/**"
+      - "caddy/**"
+      - "docker-compose.yml"
+      - ".github/workflows/cicd.yml"
+  pull_request:
+    branches: [master]
+    paths:
+      - "Backend/**"
+      - "Backend.Tools/**"
+      - "Frontend/**"
+      - "database/**"
+      - ".github/workflows/cicd.yml"
+  workflow_dispatch:
 
-  # Avoid overlapping prod deploys
-  concurrency:
-    group: ${{ github.event_name == 'pull_request' && format('ci-pr-{0}', github.event.pull_request.number) || 'production-pi' }}
-    cancel-in-progress: false
+# Avoid overlapping prod deploys
+concurrency:
+  group: ${{ github.event_name == 'pull_request' && format('ci-pr-{0}', github.event.pull_request.number) || 'production-pi' }}
+  cancel-in-progress: false
 
-  env:
-    IMAGE: ghcr.io/${{ github.repository_owner }}/steenbudget-backend
-    CADDY_IMAGE: ghcr.io/${{ github.repository_owner }}/caddy-cloudflare
-    CADDY_VERSION: "2.9.1"
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/steenbudget-backend
+  CADDY_IMAGE: ghcr.io/${{ github.repository_owner }}/caddy-cloudflare
+  CADDY_VERSION: "2.9.1"
 
-  jobs:
-    # Detect whether caddy/** changed (to decide if we build Caddy)
-    changes:
-      runs-on: ubuntu-latest
-      outputs:
-        caddy: ${{ steps.filter.outputs.caddy }}
-      steps:
-        - uses: actions/checkout@v4
-        - id: filter
-          uses: dorny/paths-filter@v3
-          with:
-            filters: |
-              caddy:
-                - 'caddy/**'
-    test:
-      name: Run Unit Tests
-      runs-on: ubuntu-latest
-      steps:
-        - name: Checkout code
-          uses: actions/checkout@v4
+jobs:
+  # Detect whether caddy/** changed (to decide if we build Caddy)
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      caddy: ${{ steps.filter.outputs.caddy }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            caddy:
+              - 'caddy/**'
+  test:
+    name: Run Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-        - name: Setup .NET
-          uses: actions/setup-dotnet@v4
-          with:
-            dotnet-version: '8.0.x' 
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
 
-        - name: Run unit tests
-          run: dotnet test --filter "TestCategory=Unit" --verbosity normal
+      - name: Run unit tests
+        run: dotnet test --filter "TestCategory=Unit" --verbosity normal
 
-    integration-tests:
-      name: Run Integration Tests (Testcontainers)
-      runs-on: ubuntu-latest
-      needs: test
-      timeout-minutes: 20
+  integration-tests:
+    name: Run Integration Tests (Testcontainers)
+    runs-on: ubuntu-latest
+    needs: test
+    timeout-minutes: 20
 
-      env:
-        DOTNET_CLI_TELEMETRY_OPTOUT: 1
-        DOTNET_ROLL_FORWARD: LatestMajor
-        # Optional: if GH runners ever block reaper health checks, this relaxes TC pre-checks
-        # TESTCONTAINERS_CHECKS_DISABLE: true
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+      DOTNET_ROLL_FORWARD: LatestMajor
+      # Optional: if GH runners ever block reaper health checks, this relaxes TC pre-checks
+      # TESTCONTAINERS_CHECKS_DISABLE: true
 
-      steps:
-        - uses: actions/checkout@v4
+    steps:
+      - uses: actions/checkout@v4
 
-        - uses: actions/setup-dotnet@v4
-          with:
-            dotnet-version: '8.0.x'
-            cache: true
-            cache-dependency-path: |
-              **/*.csproj
-              **/Directory.Packages.props
-              **/nuget.config
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            **/Directory.Packages.props
+            **/nuget.config
 
-        - name: Restore
-          run: dotnet restore
+      - name: Restore
+        run: dotnet restore
 
-        - name: Run integration tests (MariaDB via Testcontainers)
-          run: dotnet test --filter "TestCategory=Integration" --verbosity normal
+      - name: Run integration tests (MariaDB via Testcontainers)
+        run: dotnet test --filter "TestCategory=Integration" --verbosity normal
 
-        - name: Docker diagnostics on failure
-          if: failure()
-          run: |
-            echo "== docker ps -a ==" && docker ps -a || true
-            echo "== docker images ==" && docker images || true
-            echo "== docker system df ==" && docker system df || true
-            echo "== guess MariaDB container logs =="
-            docker ps -a --format '{{.ID}} {{.Image}} {{.Names}}' | grep -i maria || true
-            cid=$(docker ps -aq --filter "ancestor=mariadb:11.4" | head -n1)
-            if [ -n "$cid" ]; then docker logs "$cid" || true; fi
+      - name: Docker diagnostics on failure
+        if: failure()
+        run: |
+          echo "== docker ps -a ==" && docker ps -a || true
+          echo "== docker images ==" && docker images || true
+          echo "== docker system df ==" && docker system df || true
+          echo "== guess MariaDB container logs =="
+          docker ps -a --format '{{.ID}} {{.Image}} {{.Names}}' | grep -i maria || true
+          cid=$(docker ps -aq --filter "ancestor=mariadb:11.4" | head -n1)
+          if [ -n "$cid" ]; then docker logs "$cid" || true; fi
 
-    playwright-smoke:
-      name: Run Playwright Smoke
-      runs-on: ubuntu-latest
-      needs: test
-      timeout-minutes: 20
+  playwright-smoke:
+    name: Run Playwright Smoke
+    runs-on: ubuntu-latest
+    needs: test
+    timeout-minutes: 20
 
-      services:
-        mariadb:
-          image: mariadb:11.4.2
-          env:
-            MARIADB_ROOT_PASSWORD: devrootpassword
-            MARIADB_DATABASE: steenbudgetDEV
-            MARIADB_USER: app
-            MARIADB_PASSWORD: apppwd
-          ports:
-            - 3306:3306
-          options: >-
-            --health-cmd "mariadb-admin ping -uroot -pdevrootpassword --silent"
-            --health-interval 10s
-            --health-timeout 5s
-            --health-retries 20
+    services:
+      mariadb:
+        image: mariadb:11.4.2
+        env:
+          MARIADB_ROOT_PASSWORD: devrootpassword
+          MARIADB_DATABASE: steenbudgetE2E
+          MARIADB_USER: app
+          MARIADB_PASSWORD: apppwd
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mariadb-admin ping -uroot -pdevrootpassword --silent"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 20
 
-      env:
-        DOTNET_CLI_TELEMETRY_OPTOUT: 1
-        DOTNET_ENVIRONMENT: Development
-        ALLOW_SEEDING: "true"
-        E2E_DATABASE_NAME: steenbudgetE2E
-        MARIADB_ROOT_PASSWORD: devrootpassword
-        MARIADB_USER: app
-        MARIADB_PASSWORD: apppwd
-        DATABASESETTINGS__CONNECTIONSTRING: "Server=127.0.0.1;Port=3306;Database=steenbudgetE2E;Uid=app;Pwd=apppwd;SslMode=None;GuidFormat=Binary16"
-        E2E_DATABASESETTINGS__CONNECTIONSTRING: "Server=127.0.0.1;Port=3306;Database=steenbudgetE2E;Uid=root;Pwd=devrootpassword;SslMode=None;GuidFormat=Binary16"
-        Jwt__ActiveKid: dev
-        Jwt__Keys__dev: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
-        WEBSOCKET_SECRET: dev-ws-secret
-        SEED_CLOCK_UTC: "2026-04-26T12:00:00Z"
-        VITE_APP_API_URL: "http://localhost:5001"
-        VITE_TURNSTILE_SITE_KEY: 1x00000000000000000000AA
-        VITE_USE_MOCK: "false"
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+      DOTNET_ENVIRONMENT: Development
+      ALLOW_SEEDING: "true"
+      E2E_DATABASE_NAME: steenbudgetE2E
+      MARIADB_ROOT_PASSWORD: devrootpassword
+      MARIADB_USER: app
+      MARIADB_PASSWORD: apppwd
+      DATABASESETTINGS__CONNECTIONSTRING: "Server=127.0.0.1;Port=3306;Database=steenbudgetE2E;Uid=app;Pwd=apppwd;SslMode=None;GuidFormat=Binary16"
+      E2E_DATABASESETTINGS__CONNECTIONSTRING: "Server=127.0.0.1;Port=3306;Database=steenbudgetE2E;Uid=root;Pwd=devrootpassword;SslMode=None;GuidFormat=Binary16"
+      Jwt__ActiveKid: dev
+      Jwt__Keys__dev: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      WEBSOCKET_SECRET: dev-ws-secret
+      SEED_CLOCK_UTC: "2026-04-26T12:00:00Z"
+      VITE_APP_API_URL: "http://localhost:5001"
+      VITE_TURNSTILE_SITE_KEY: 1x00000000000000000000AA
+      VITE_USE_MOCK: "false"
 
-      steps:
-        - uses: actions/checkout@v4
+    steps:
+      - uses: actions/checkout@v4
 
-        - uses: actions/setup-dotnet@v4
-          with:
-            dotnet-version: '8.0.x'
-            cache: true
-            cache-dependency-path: |
-              **/*.csproj
-              **/Directory.Packages.props
-              **/nuget.config
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            **/Directory.Packages.props
+            **/nuget.config
 
-        - uses: actions/setup-node@v4
-          with:
-            node-version: 20
-            cache: npm
-            cache-dependency-path: Frontend/package-lock.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: Frontend/package-lock.json
 
-        - name: Restore backend tools
-          run: dotnet restore Backend.Tools/Backend.Tools.csproj
+      - name: Restore backend tools
+        run: dotnet restore Backend.Tools/Backend.Tools.csproj
 
-        - name: Build backend and E2E tools
-          run: dotnet build Backend.Tools/Backend.Tools.csproj --no-restore
+      - name: Build backend and E2E tools
+        run: |
+          dotnet build Backend/Backend.csproj --no-restore
+          dotnet build Backend.Tools/Backend.Tools.csproj --no-restore
 
-        - name: Prepare E2E database
-          run: dotnet run --project Backend.Tools/Backend.Tools.csproj --no-build -- seed-e2e
+      - name: Prepare E2E database
+        run: dotnet run --project Backend.Tools/Backend.Tools.csproj --no-build -- seed-e2e
 
-        - name: Install frontend dependencies
-          working-directory: Frontend
-          run: npm ci
+      - name: Install frontend dependencies
+        working-directory: Frontend
+        run: npm ci
 
-        - name: Install Playwright Chromium
-          working-directory: Frontend
-          run: npx playwright install --with-deps chromium
+      - name: Install Playwright Chromium
+        working-directory: Frontend
+        run: npx playwright install --with-deps chromium
 
-        - name: Start backend
-          run: |
-            dotnet run --project Backend/Backend.csproj --no-build --urls http://localhost:5001 > backend-e2e.log 2>&1 &
-            echo $! > backend-e2e.pid
+      - name: Start backend
+        run: |
+          dotnet run --project Backend/Backend.csproj --no-build --urls http://localhost:5001 > backend-e2e.log 2>&1 &
+          echo $! > backend-e2e.pid
 
-            for attempt in {1..60}; do
-              if curl --fail --silent --show-error http://localhost:5001/api-docs/index.html > /dev/null; then
-                echo "Backend is ready."
-                exit 0
-              fi
+          for attempt in {1..60}; do
+            if curl --fail --silent --show-error http://localhost:5001/api-docs/index.html > /dev/null; then
+              echo "Backend is ready."
+              exit 0
+            fi
 
-              if ! kill -0 "$(cat backend-e2e.pid)" 2>/dev/null; then
-                echo "Backend exited before becoming ready."
-                cat backend-e2e.log
-                exit 1
-              fi
+            if ! kill -0 "$(cat backend-e2e.pid)" 2>/dev/null; then
+              echo "Backend exited before becoming ready."
+              cat backend-e2e.log
+              exit 1
+            fi
 
-              sleep 2
-            done
+            sleep 2
+          done
 
-            echo "Backend did not become ready in time."
-            cat backend-e2e.log
-            exit 1
+          echo "Backend did not become ready in time."
+          cat backend-e2e.log
+          exit 1
 
-        - name: Run Playwright smoke
-          working-directory: Frontend
-          run: npm run test:e2e:smoke
+      - name: Run Playwright smoke
+        working-directory: Frontend
+        run: npm run test:e2e:smoke
 
-        - name: Upload Playwright artifacts
-          if: failure()
-          uses: actions/upload-artifact@v4
-          with:
-            name: playwright-smoke-artifacts
-            path: |
-              Frontend/playwright-report/
-              Frontend/test-results/
-              backend-e2e.log
-            if-no-files-found: ignore
-            retention-days: 7
+      - name: Upload Playwright artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-smoke-artifacts
+          path: |
+            Frontend/playwright-report/
+            Frontend/test-results/
+            backend-e2e.log
+          if-no-files-found: ignore
+          retention-days: 7
 
-    build:
-      name: Build Artifacts
-      runs-on: ubuntu-latest
-      needs: [changes, test, integration-tests, playwright-smoke]
-      if: github.event_name != 'pull_request'
-      permissions:
-        contents: read
-        packages: write
-      environment: production-pi
-      steps:
-        - uses: actions/checkout@v4
+  build:
+    name: Build Artifacts
+    runs-on: ubuntu-latest
+    needs: [changes, test, integration-tests, playwright-smoke]
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      packages: write
+    environment: production-pi
+    steps:
+      - uses: actions/checkout@v4
 
-        - uses: docker/setup-qemu-action@v3
-        - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
 
-        - name: Login to GHCR
-          uses: docker/login-action@v3
-          with:
-            registry: ghcr.io
-            username: ${{ github.repository_owner}}     
-            password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner}}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-        - name: Build & push backend (linux/amd64, linux/arm64)
-          run: |
-            docker buildx build \
-              --platform linux/amd64,linux/arm64 \
-              -t $IMAGE:${{ github.sha }} \
-              -t $IMAGE:latest \
-              -f Backend/Dockerfile \
-              --label org.opencontainers.image.source=https://github.com/${{ github.repository }} \
-              --push .
+      - name: Build & push backend (linux/amd64, linux/arm64)
+        run: |
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            -t $IMAGE:${{ github.sha }} \
+            -t $IMAGE:latest \
+            -f Backend/Dockerfile \
+            --label org.opencontainers.image.source=https://github.com/${{ github.repository }} \
+            --push .
 
-        # Build Caddy only if caddy/** changed (arm64 only, with cache)
-        - name: Build & push Caddy (Cloudflare DNS, arm64 only, cached)
-          if: needs.changes.outputs.caddy == 'true'
-          run: |
-            docker buildx build \
-              --platform linux/arm64 \
-              --cache-from type=gha \
-              --cache-to type=gha,mode=max \
-              -t $CADDY_IMAGE:${CADDY_VERSION} \
-              -t $CADDY_IMAGE:latest \
-              -f caddy/Dockerfile \
-              --build-arg CADDY_VERSION=${CADDY_VERSION} \
-              --push caddy
+      # Build Caddy only if caddy/** changed (arm64 only, with cache)
+      - name: Build & push Caddy (Cloudflare DNS, arm64 only, cached)
+        if: needs.changes.outputs.caddy == 'true'
+        run: |
+          docker buildx build \
+            --platform linux/arm64 \
+            --cache-from type=gha \
+            --cache-to type=gha,mode=max \
+            -t $CADDY_IMAGE:${CADDY_VERSION} \
+            -t $CADDY_IMAGE:latest \
+            -f caddy/Dockerfile \
+            --build-arg CADDY_VERSION=${CADDY_VERSION} \
+            --push caddy
 
-        - name: Setup Node
-          uses: actions/setup-node@v4
-          with:
-            node-version: 20
-            cache: npm
-            cache-dependency-path: Frontend/package-lock.json
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: Frontend/package-lock.json
 
-        - name: Build and archive frontend
-          working-directory: Frontend
-          env:
-            VITE_APP_API_URL: ${{ vars.VITE_APP_API_URL }}
-            VITE_APP_RECAPTCHA_SITE_KEY: ${{ vars.VITE_APP_RECAPTCHA_SITE_KEY }}
-          run: |
-            npm ci
-            npm run build
-            printf '{"git_sha":"%s","built_at":"%s"}\n' "${GITHUB_SHA}" "$(date -u +%FT%TZ)" > dist/build-meta.json
-            tar czf dist.tar.gz -C dist .
+      - name: Build and archive frontend
+        working-directory: Frontend
+        env:
+          VITE_APP_API_URL: ${{ vars.VITE_APP_API_URL }}
+          VITE_APP_RECAPTCHA_SITE_KEY: ${{ vars.VITE_APP_RECAPTCHA_SITE_KEY }}
+        run: |
+          npm ci
+          npm run build
+          printf '{"git_sha":"%s","built_at":"%s"}\n' "${GITHUB_SHA}" "$(date -u +%FT%TZ)" > dist/build-meta.json
+          tar czf dist.tar.gz -C dist .
 
-        - name: Upload frontend artifact
-          uses: actions/upload-artifact@v4
-          with:
-            name: frontend-dist
-            path: Frontend/dist.tar.gz
-            retention-days: 3
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: Frontend/dist.tar.gz
+          retention-days: 3
 
-    deploy:
-        name: Deploy to Production
-        runs-on: [self-hosted, pi, deploy]
-        needs: build
-        if: github.event_name != 'pull_request'
-        environment: production-pi
-        steps:
-        - name: Download frontend artifact
-          uses: actions/download-artifact@v4
-          with:
-            name: frontend-dist
-            # optional but nice: put it somewhere explicit
-            path: .
+  deploy:
+    name: Deploy to Production
+    runs-on: [self-hosted, pi, deploy]
+    needs: build
+    if: github.event_name != 'pull_request'
+    environment: production-pi
+    steps:
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          # optional but nice: put it somewhere explicit
+          path: .
 
-        - name: Stream artifact to forced-command deploy script
-          env:
-            PI4_DEPLOY_HOST: deploy@192.168.50.61
-          run: |
-            set -euo pipefail
-            ART=dist.tar.gz
-            test -f "$ART" || { echo "$ART missing"; ls -la; exit 1; }
-            ssh -T -p 2222 -i /home/runner/.ssh/deploy_pi3 \
-              -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new \
-              "$PI4_DEPLOY_HOST" < "$ART"
+      - name: Stream artifact to forced-command deploy script
+        env:
+          PI4_DEPLOY_HOST: deploy@192.168.50.61
+        run: |
+          set -euo pipefail
+          ART=dist.tar.gz
+          test -f "$ART" || { echo "$ART missing"; ls -la; exit 1; }
+          ssh -T -p 2222 -i /home/runner/.ssh/deploy_pi3 \
+            -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new \
+            "$PI4_DEPLOY_HOST" < "$ART"
