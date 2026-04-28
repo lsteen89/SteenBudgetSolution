@@ -69,4 +69,7 @@ public static partial class BudgetMonth
 
     public static readonly Error NotFound =
         new("BudgetMonth.NotFound", "The specified budget month was not found.", ErrorType.NotFound);
+
+    public static readonly Error CarryOverRequiresPreviousMonth =
+        new("BudgetMonth.CarryOverRequiresPreviousMonth", "Carry over cannot be applied without a previous month to carry over from.", ErrorType.Validation);
 }

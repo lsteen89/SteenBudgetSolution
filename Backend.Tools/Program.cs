@@ -185,7 +185,6 @@ void ConfigureServices(IServiceCollection services, IConfiguration config)
     {
         var cs =
             config["DatabaseSettings:ConnectionString"] ??
-            config["DATABASESETTINGS__CONNECTIONSTRING"] ??
             config["ConnectionStrings:Default"];
 
         if (string.IsNullOrWhiteSpace(cs))
