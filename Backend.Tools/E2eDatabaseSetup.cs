@@ -11,12 +11,11 @@ public sealed class E2eDatabaseSetup
     {
         _configuration = configuration;
     }
-
     public async Task ResetAsync(CancellationToken ct)
     {
-        var connectionString = ResolveConnectionString(_configuration);
-        var builder = new MySqlConnectionStringBuilder(connectionString);
-        var databaseName = ResolveDatabaseName(_configuration, builder);
+        var appConnectionString = ResolveAppConnectionString(_configuration);
+        var appBuilder = new MySqlConnectionStringBuilder(appConnectionString);
+        var databaseName = ResolveDatabaseName(_configuration, appBuilder);
 
         if (!databaseName.Contains("e2e", StringComparison.OrdinalIgnoreCase))
         {
@@ -24,51 +23,54 @@ public sealed class E2eDatabaseSetup
                 $"Refusing to reset non-E2E database '{databaseName}'. Set E2E_DATABASE_NAME to a database name containing 'e2e'.");
         }
 
-        builder.Database = databaseName;
+        var adminConnectionString = TryResolveAdminConnectionString(_configuration);
+        if (!string.IsNullOrWhiteSpace(adminConnectionString))
+        {
+            var adminBuilder = new MySqlConnectionStringBuilder(adminConnectionString);
+            await RecreateDatabaseAsync(adminBuilder, databaseName, ct);
+        }
 
-        await EnsureDatabaseExistsAsync(builder, databaseName, ct);
-        await using var connection = new MySqlConnection(builder.ConnectionString);
+        appBuilder.Database = databaseName;
+
+        await using var connection = new MySqlConnection(appBuilder.ConnectionString);
         await connection.OpenAsync(ct);
 
-        var tables = await GetTablesAsync(connection, databaseName, ct);
-        if (tables.Count == 0)
+        await ExecuteSchemaAsync(connection, ct);
+        Console.WriteLine($"Recreated E2E database schema in {databaseName}.");
+    }
+    private async Task RecreateDatabaseAsync(
+    MySqlConnectionStringBuilder adminBuilder,
+    string databaseName,
+    CancellationToken ct)
+    {
+        var bootstrapBuilder = new MySqlConnectionStringBuilder(adminBuilder.ConnectionString)
         {
-            await ExecuteSchemaAsync(connection, ct);
-            Console.WriteLine($"Created E2E database schema in {databaseName}.");
-        }
-        else
-        {
-            await TruncateTablesAsync(connection, tables, ct);
-            Console.WriteLine($"Reset E2E database {databaseName} by truncating {tables.Count} table(s).");
-        }
+            Database = string.Empty
+        };
+
+        await using var connection = new MySqlConnection(bootstrapBuilder.ConnectionString);
+        await connection.OpenAsync(ct);
+
+        await ExecuteNonQueryAsync(
+            connection,
+            $"DROP DATABASE IF EXISTS {QuoteIdentifier(databaseName)};",
+            ct);
+
+        await ExecuteNonQueryAsync(
+            connection,
+            $"CREATE DATABASE {QuoteIdentifier(databaseName)} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;",
+            ct);
+
+        await GrantAppUserIfConfiguredAsync(connection, databaseName, ct);
     }
 
     public static string ResolveE2eConnectionString(IConfiguration configuration)
     {
-        var connectionString = ResolveConnectionString(configuration);
+        var connectionString = ResolveAppConnectionString(configuration);
         var builder = new MySqlConnectionStringBuilder(connectionString);
         builder.Database = ResolveDatabaseName(configuration, builder);
         return builder.ConnectionString;
     }
-
-    private static string ResolveConnectionString(IConfiguration configuration)
-    {
-        var connectionString =
-            configuration["E2E_DATABASESETTINGS__CONNECTIONSTRING"]
-            ?? configuration["E2E_DATABASE_CONNECTIONSTRING"]
-            ?? configuration["DatabaseSettings:ConnectionString"]
-            ?? configuration["DATABASESETTINGS__CONNECTIONSTRING"]
-            ?? configuration["ConnectionStrings:Default"];
-
-        if (string.IsNullOrWhiteSpace(connectionString))
-        {
-            throw new InvalidOperationException(
-                "E2E DB connection string missing. Provide DATABASESETTINGS__CONNECTIONSTRING or E2E_DATABASE_CONNECTIONSTRING.");
-        }
-
-        return connectionString;
-    }
-
     private static string ResolveDatabaseName(IConfiguration configuration, MySqlConnectionStringBuilder builder)
     {
         return configuration["E2E_DATABASE_NAME"]
@@ -76,16 +78,16 @@ public sealed class E2eDatabaseSetup
     }
 
     private async Task EnsureDatabaseExistsAsync(
-        MySqlConnectionStringBuilder targetBuilder,
+        MySqlConnectionStringBuilder adminBuilder,
         string databaseName,
         CancellationToken ct)
     {
-        var adminBuilder = new MySqlConnectionStringBuilder(targetBuilder.ConnectionString)
+        var bootstrapBuilder = new MySqlConnectionStringBuilder(adminBuilder.ConnectionString)
         {
             Database = string.Empty
         };
 
-        await using var connection = new MySqlConnection(adminBuilder.ConnectionString);
+        await using var connection = new MySqlConnection(bootstrapBuilder.ConnectionString);
         await connection.OpenAsync(ct);
 
         await ExecuteNonQueryAsync(
@@ -243,5 +245,25 @@ public sealed class E2eDatabaseSetup
     private static string QuoteString(string value)
     {
         return $"'{value.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("'", "''", StringComparison.Ordinal)}'";
+    }
+    private static string? TryResolveAdminConnectionString(IConfiguration configuration)
+    {
+        return configuration["E2E_DATABASESETTINGS:CONNECTIONSTRING"]
+            ?? configuration["E2E_DATABASE_CONNECTIONSTRING"];
+    }
+
+    private static string ResolveAppConnectionString(IConfiguration configuration)
+    {
+        var connectionString =
+            configuration["DatabaseSettings:ConnectionString"]
+            ?? configuration["ConnectionStrings:Default"];
+
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException(
+                "Missing app connection string. Provide DATABASESETTINGS__CONNECTIONSTRING or DatabaseSettings:ConnectionString.");
+        }
+
+        return connectionString;
     }
 }

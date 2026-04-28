@@ -100,6 +100,9 @@ public sealed class StartBudgetMonthCommandHandler
         }
 
         var open = openMonths.SingleOrDefault();
+        if (open is null && req.CarryOverMode != BudgetMonthCarryOverModes.None)
+            return Result<BudgetMonthsStatusDto?>.Failure(BudgetMonth.CarryOverRequiresPreviousMonth);
+
         if (open is not null)
         {
             var targetDiff = YearMonthUtil.MonthsBetween(open.YearMonth, targetYm);
@@ -160,6 +163,8 @@ public sealed class StartBudgetMonthCommandHandler
         // Create skipped placeholders if target is ahead of the previous open month
         if (req.CreateSkippedMonths && open is not null)
         {
+
+
             var diff = YearMonthUtil.MonthsBetween(open.YearMonth, targetYm);
             if (diff > 1)
             {
@@ -227,7 +232,7 @@ public sealed class StartBudgetMonthCommandHandler
                 now,
                 ct);
 
-            if (req.CarryOverMode != BudgetMonthCarryOverModes.None)
+            if (existingTarget is null && open is not null && req.CarryOverMode != BudgetMonthCarryOverModes.None)
             {
                 var appliedCarryOverAmount = req.CarryOverMode == BudgetMonthCarryOverModes.Full
                     ? previousFinalBalance
@@ -236,7 +241,7 @@ public sealed class StartBudgetMonthCommandHandler
                 await WriteLifecycleAsync(
                     targetMonthId,
                     BudgetMonthLifecycleEventTypes.CarryOverApplied,
-                    relatedBudgetMonthId: open?.Id,
+                    relatedBudgetMonthId: open.Id,
                     carryOverMode: req.CarryOverMode,
                     carryOverAmount: appliedCarryOverAmount,
                     metadataJson: JsonSerializer.Serialize(new { yearMonth = targetYm, previousFinalBalance }),

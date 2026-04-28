@@ -154,12 +154,12 @@ It is intentionally separate from the Docker-first local dev seed flow and the s
 
 Seeded users:
 
-| Email | Password | Purpose |
-| --- | --- | --- |
-| `e2e-login@local.test` | `ChangeMe123!` | Plain login-capable user |
-| `e2e-close-balanced@local.test` | `ChangeMe123!` | Dashboard-ready user; `2026-04` closes directly from a balanced modal |
-| `e2e-close-surplus-full@local.test` | `ChangeMe123!` | Dashboard-ready user; `2026-04` starts with surplus and resolves via carry-over before close |
-| `e2e-close-deficit@local.test` | `ChangeMe123!` | Dashboard-ready user; `2026-04` starts negative and closes directly when business rules allow it |
+| Email                               | Password       | Purpose                                                                                          |
+| ----------------------------------- | -------------- | ------------------------------------------------------------------------------------------------ |
+| `e2e-login@local.test`              | `ChangeMe123!` | Plain login-capable user                                                                         |
+| `e2e-close-balanced@local.test`     | `ChangeMe123!` | Dashboard-ready user; `2026-04` closes directly from a balanced modal                            |
+| `e2e-close-surplus-full@local.test` | `ChangeMe123!` | Dashboard-ready user; `2026-04` starts with surplus and resolves via carry-over before close     |
+| `e2e-close-deficit@local.test`      | `ChangeMe123!` | Dashboard-ready user; `2026-04` starts negative and closes directly when business rules allow it |
 
 All close-month E2E users have:
 

@@ -1,6 +1,6 @@
+import dotenv from "dotenv";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
-import dotenv from "dotenv";
 
 function requiredEnv(name: string): string {
   const value = process.env[name];
@@ -15,21 +15,38 @@ async function globalSetup() {
   const frontendRoot = path.resolve(__dirname, "..");
   const repoRoot = path.resolve(frontendRoot, "..");
 
-  dotenv.config({ path: path.join(repoRoot, ".env.dev") });
+  dotenv.config({ path: path.join(repoRoot, ".env.e2e"), override: true });
 
-  const databaseName = process.env.E2E_DATABASE_NAME ?? "steenbudgetE2E";
+  const databaseName =
+    process.env.E2E_DATABASE_NAME ??
+    process.env.MARIADB_DATABASE ??
+    "steenbudgetE2E";
   const host = process.env.E2E_DB_HOST ?? "127.0.0.1";
-  const port = process.env.E2E_DB_PORT ?? "3306";
-  const rootPassword = requiredEnv("MARIADB_ROOT_PASSWORD");
+  const port = process.env.E2E_DB_PORT ?? "3307";
 
-  const connectionString =
+  const rootPassword = requiredEnv("MARIADB_ROOT_PASSWORD");
+  const appUser = process.env.MARIADB_USER ?? "app";
+  const appPassword = requiredEnv("MARIADB_PASSWORD");
+
+  const adminConnectionString =
     process.env.E2E_DATABASESETTINGS__CONNECTIONSTRING ??
     [
       `Server=${host}`,
       `Port=${port}`,
-      `Database=${databaseName}`,
       "Uid=root",
       `Pwd=${rootPassword}`,
+      "SslMode=None",
+      "GuidFormat=Binary16",
+    ].join(";");
+
+  const appConnectionString =
+    process.env.DATABASESETTINGS__CONNECTIONSTRING ??
+    [
+      `Server=${host}`,
+      `Port=${port}`,
+      `Database=${databaseName}`,
+      `Uid=${appUser}`,
+      `Pwd=${appPassword}`,
       "SslMode=None",
       "GuidFormat=Binary16",
     ].join(";");
@@ -48,9 +65,10 @@ async function globalSetup() {
       env: {
         ...process.env,
         ALLOW_SEEDING: "true",
-        DATABASESETTINGS__CONNECTIONSTRING: connectionString,
         DOTNET_ENVIRONMENT: "Development",
         E2E_DATABASE_NAME: databaseName,
+        E2E_DATABASESETTINGS__CONNECTIONSTRING: adminConnectionString,
+        DATABASESETTINGS__CONNECTIONSTRING: appConnectionString,
         Jwt__ActiveKid: process.env.Jwt__ActiveKid ?? "dev",
         Jwt__Keys__dev:
           process.env.Jwt__Keys__dev ??

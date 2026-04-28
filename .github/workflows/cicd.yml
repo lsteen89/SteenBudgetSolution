@@ -102,45 +102,46 @@ jobs:
           cid=$(docker ps -aq --filter "ancestor=mariadb:11.4" | head -n1)
           if [ -n "$cid" ]; then docker logs "$cid" || true; fi
 
-  playwright-smoke:
-    name: Run Playwright Smoke
-    runs-on: ubuntu-latest
-    needs: test
-    timeout-minutes: 20
+    playwright-smoke:
+      name: Run Playwright Smoke
+      runs-on: ubuntu-latest
+      needs: test
+      timeout-minutes: 20
 
-    services:
-      mariadb:
-        image: mariadb:11.4.2
-        env:
-          MARIADB_ROOT_PASSWORD: devrootpassword
-          MARIADB_DATABASE: steenbudgetE2E
-          MARIADB_USER: app
-          MARIADB_PASSWORD: apppwd
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd "mariadb-admin ping -uroot -pdevrootpassword --silent"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 20
+      services:
+        mariadb:
+          image: mariadb:11.4.2
+          env:
+            MARIADB_ROOT_PASSWORD: ci-e2e-root-only
+            MARIADB_DATABASE: steenbudgetE2E
+            MARIADB_USER: app
+            MARIADB_PASSWORD: ci-e2e-app-only
+          ports:
+            - 3306:3306
+          options: >-
+            --health-cmd "mariadb-admin ping -uroot -pci-e2e-root-only --silent"
+            --health-interval 10s
+            --health-timeout 5s
+            --health-retries 20
 
-    env:
-      DOTNET_CLI_TELEMETRY_OPTOUT: 1
-      DOTNET_ENVIRONMENT: Development
-      ALLOW_SEEDING: "true"
-      E2E_DATABASE_NAME: steenbudgetE2E
-      MARIADB_ROOT_PASSWORD: devrootpassword
-      MARIADB_USER: app
-      MARIADB_PASSWORD: apppwd
-      DATABASESETTINGS__CONNECTIONSTRING: "Server=127.0.0.1;Port=3306;Database=steenbudgetE2E;Uid=app;Pwd=apppwd;SslMode=None;GuidFormat=Binary16"
-      E2E_DATABASESETTINGS__CONNECTIONSTRING: "Server=127.0.0.1;Port=3306;Database=steenbudgetE2E;Uid=root;Pwd=devrootpassword;SslMode=None;GuidFormat=Binary16"
-      Jwt__ActiveKid: dev
-      Jwt__Keys__dev: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
-      WEBSOCKET_SECRET: dev-ws-secret
-      SEED_CLOCK_UTC: "2026-04-26T12:00:00Z"
-      VITE_APP_API_URL: "http://localhost:5001"
-      VITE_TURNSTILE_SITE_KEY: 1x00000000000000000000AA
-      VITE_USE_MOCK: "false"
+      env:
+        DOTNET_CLI_TELEMETRY_OPTOUT: 1
+        DOTNET_ENVIRONMENT: Development
+        ALLOW_SEEDING: "true"
+        E2E_DATABASE_NAME: steenbudgetE2E
+        MARIADB_ROOT_PASSWORD: ci-e2e-root-only
+        MARIADB_DATABASE: steenbudgetE2E
+        MARIADB_USER: app
+        MARIADB_PASSWORD: ci-e2e-app-only
+        DATABASESETTINGS__CONNECTIONSTRING: "Server=127.0.0.1;Port=3306;Database=steenbudgetE2E;Uid=app;Pwd=ci-e2e-app-only;SslMode=None;GuidFormat=Binary16"
+        E2E_DATABASESETTINGS__CONNECTIONSTRING: "Server=127.0.0.1;Port=3306;Uid=root;Pwd=ci-e2e-root-only;SslMode=None;GuidFormat=Binary16"
+        Jwt__ActiveKid: dev
+        Jwt__Keys__dev: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+        WEBSOCKET_SECRET: dev-ws-secret
+        SEED_CLOCK_UTC: "2026-04-26T12:00:00Z"
+        VITE_APP_API_URL: "http://localhost:5001"
+        VITE_TURNSTILE_SITE_KEY: 1x00000000000000000000AA
+        VITE_USE_MOCK: "false"
 
     steps:
       - uses: actions/checkout@v4
@@ -167,9 +168,6 @@ jobs:
         run: |
           dotnet build Backend/Backend.csproj --no-restore
           dotnet build Backend.Tools/Backend.Tools.csproj --no-restore
-
-      - name: Prepare E2E database
-        run: dotnet run --project Backend.Tools/Backend.Tools.csproj --no-build -- seed-e2e
 
       - name: Install frontend dependencies
         working-directory: Frontend
