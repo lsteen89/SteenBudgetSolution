@@ -3,6 +3,7 @@ using Backend.Domain.Shared;
 using MediatR;
 using Backend.Application.Abstractions.Application.Services.Budget;
 using Backend.Application.Abstractions.Infrastructure.Data;
+using Backend.Application.Features.Budgets.Audit;
 using Backend.Domain.Errors.Budget;
 using Backend.Application.Features.Budgets.Months.Editor.Models.ChangeLog;
 
@@ -96,10 +97,10 @@ public sealed class DeleteBudgetMonthExpenseItemCommandHandler
             new BudgetMonthChangeEventWriteModel(
                 Id: Guid.NewGuid(),
                 BudgetMonthId: ensured.Value.BudgetMonthId,
-                EntityType: "expense-item",
+                EntityType: BudgetAuditEntityTypes.ExpenseItem,
                 EntityId: existing.Id,
                 SourceEntityId: existing.SourceExpenseItemId,
-                ChangeType: "deleted",
+                ChangeType: BudgetAuditChangeTypes.Deleted,
                 ChangeSetJson: changeSetJson,
                 ChangedByUserId: cmd.Persoid,
                 ChangedAt: now),

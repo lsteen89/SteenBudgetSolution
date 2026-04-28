@@ -1,7 +1,11 @@
+using System.Text.Json;
 using Backend.Application.Abstractions.Application.Services.Budget;
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Application.DTO.Budget.Income;
+using Backend.Application.Features.Budgets.Audit;
+using Backend.Application.Features.Budgets.Audit.Models;
+using Backend.Application.Features.Budgets.Income.Models;
 using Backend.Domain.Errors.Budget;
 using Backend.Domain.Shared;
 
@@ -14,6 +18,7 @@ public sealed class UpdateSalaryPaymentTimingCommandHandler
     private readonly IBudgetMonthRepository _budgetMonths;
     private readonly IBudgetMonthLifecycleService _lifecycle;
     private readonly IIncomeRepository _incomeRepository;
+    private readonly IBudgetAuditWriter _audit;
     private readonly ITimeProvider _clock;
 
     public UpdateSalaryPaymentTimingCommandHandler(
@@ -21,12 +26,14 @@ public sealed class UpdateSalaryPaymentTimingCommandHandler
         IBudgetMonthRepository budgetMonths,
         IBudgetMonthLifecycleService lifecycle,
         IIncomeRepository incomeRepository,
+        IBudgetAuditWriter audit,
         ITimeProvider clock)
     {
         _users = users;
         _budgetMonths = budgetMonths;
         _lifecycle = lifecycle;
         _incomeRepository = incomeRepository;
+        _audit = audit;
         _clock = clock;
     }
 
@@ -71,9 +78,31 @@ public sealed class UpdateSalaryPaymentTimingCommandHandler
         }
 
         var nowUtc = _clock.UtcNow;
+        var incomePaymentDayType = command.Request.IncomePaymentDayType!.Trim();
+
+        var monthBefore = await _budgetMonths.GetBudgetMonthIncomePaymentTimingAsync(
+            ensured.Value.BudgetMonthId,
+            ct);
+
+        if (monthBefore is null)
+        {
+            return Result<SalaryPaymentTimingDto>.Failure(
+                IncomePaymentErrors.BudgetMonthIncomeNotFound);
+        }
+
+        var baselineBefore = command.Request.UpdateCurrentAndFuture
+            ? await _incomeRepository.GetPaymentTimingAsync(ensured.Value.BudgetId, ct)
+            : null;
+
+        if (command.Request.UpdateCurrentAndFuture && baselineBefore is null)
+        {
+            return Result<SalaryPaymentTimingDto>.Failure(
+                IncomePaymentErrors.BaselineIncomeNotFound);
+        }
+
         var monthRows = await _budgetMonths.UpdateBudgetMonthIncomePaymentTimingAsync(
             ensured.Value.BudgetMonthId,
-            command.Request.IncomePaymentDayType!.Trim(),
+            incomePaymentDayType,
             command.Request.IncomePaymentDay,
             user.PersoId,
             nowUtc,
@@ -89,7 +118,7 @@ public sealed class UpdateSalaryPaymentTimingCommandHandler
         {
             var baselineRows = await _incomeRepository.UpdatePaymentTimingAsync(
                 ensured.Value.BudgetId,
-                command.Request.IncomePaymentDayType!.Trim(),
+                incomePaymentDayType,
                 command.Request.IncomePaymentDay,
                 user.PersoId,
                 nowUtc,
@@ -102,9 +131,21 @@ public sealed class UpdateSalaryPaymentTimingCommandHandler
             }
         }
 
+        await WriteSalaryPaymentTimingAuditAsync(
+            ensured.Value.BudgetId,
+            ensured.Value.BudgetMonthId,
+            command.Request.UpdateCurrentAndFuture,
+            monthBefore,
+            baselineBefore,
+            incomePaymentDayType,
+            command.Request.IncomePaymentDay,
+            user.PersoId,
+            nowUtc,
+            ct);
+
         return Result<SalaryPaymentTimingDto>.Success(
             new SalaryPaymentTimingDto(
-                command.Request.IncomePaymentDayType!.Trim(),
+                incomePaymentDayType,
                 command.Request.IncomePaymentDay,
                 command.Request.UpdateCurrentAndFuture));
     }
@@ -146,5 +187,74 @@ public sealed class UpdateSalaryPaymentTimingCommandHandler
         }
 
         return null;
+    }
+
+    private Task WriteSalaryPaymentTimingAuditAsync(
+        Guid budgetId,
+        Guid budgetMonthId,
+        bool updateCurrentAndFuture,
+        IncomePaymentTimingReadModel monthBefore,
+        IncomePaymentTimingReadModel? baselineBefore,
+        string incomePaymentDayType,
+        int? incomePaymentDay,
+        Guid actorPersoid,
+        DateTime changedAt,
+        CancellationToken ct)
+    {
+        var beforeJson = JsonSerializer.Serialize(new
+        {
+            currentMonth = new
+            {
+                budgetMonthId,
+                monthBefore.IncomePaymentDayType,
+                monthBefore.IncomePaymentDay
+            },
+            baseline = baselineBefore is null
+                ? null
+                : new
+                {
+                    baselineBefore.Id,
+                    baselineBefore.IncomePaymentDayType,
+                    baselineBefore.IncomePaymentDay
+                }
+        });
+
+        var afterJson = JsonSerializer.Serialize(new
+        {
+            currentMonth = new
+            {
+                budgetMonthId,
+                IncomePaymentDayType = incomePaymentDayType,
+                IncomePaymentDay = incomePaymentDay
+            },
+            baseline = updateCurrentAndFuture && baselineBefore is not null
+                ? new
+                {
+                    baselineBefore.Id,
+                    IncomePaymentDayType = incomePaymentDayType,
+                    IncomePaymentDay = incomePaymentDay
+                }
+                : null
+        });
+
+        var metadataJson = JsonSerializer.Serialize(new
+        {
+            budgetMonthId,
+            updateCurrentAndFuture
+        });
+
+        return _audit.WriteConfigChangeAsync(
+            new BudgetConfigChangeEventWriteModel(
+                Id: Guid.NewGuid(),
+                BudgetId: budgetId,
+                EntityType: BudgetAuditEntityTypes.SalaryPaymentTiming,
+                EntityId: baselineBefore?.Id ?? monthBefore.Id,
+                ChangeType: BudgetAuditChangeTypes.Updated,
+                BeforeJson: beforeJson,
+                AfterJson: afterJson,
+                MetadataJson: metadataJson,
+                ChangedAt: changedAt,
+                ChangedByUserId: actorPersoid),
+            ct);
     }
 }

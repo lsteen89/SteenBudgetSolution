@@ -123,6 +123,15 @@ public sealed partial class BudgetMonthRepository
         UpdatedByUserId = @ActorPersoid
     WHERE BudgetMonthId = @BudgetMonthId;";
 
+    private const string GetBudgetMonthIncomePaymentTiming = @"
+    SELECT
+        Id,
+        IncomePaymentDayType,
+        CAST(IncomePaymentDay AS SIGNED) AS IncomePaymentDay
+    FROM BudgetMonthIncome
+    WHERE BudgetMonthId = @BudgetMonthId
+    LIMIT 1;";
+
     private const string GetMonth = @"
     SELECT
         bm.Id,

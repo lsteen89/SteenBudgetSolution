@@ -143,8 +143,8 @@ export function useCloseMonthReviewController({
       toast.success(
         t("closeMonthSuccessToast").replace(
           "{month}",
-          getPeriodLabel(result.closedMonth.yearMonth, locale) ||
-            result.closedMonth.yearMonth,
+          getPeriodLabel(result.nextMonth.yearMonth, locale) ||
+            result.nextMonth.yearMonth,
         ),
         {
           id: `dashboard:close-month:${yearMonth}:success`,

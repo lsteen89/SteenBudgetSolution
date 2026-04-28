@@ -390,6 +390,7 @@ instructions.txt
 # Docker
 .env
 docker-compose.dev.yml
+docker-compose.e2e.yml
 .env.dev
 Agent/instruction.txt
 
@@ -406,3 +407,11 @@ Backend.Tools/bin/**/login.json
 Backend.Tools/bin/**/refresh.json
 reports/
 logs/
+
+# Playwright artifacts
+Frontend/playwright-report/
+Frontend/test-results/
+test-results/
+
+# Optional, if you add auth state later
+Frontend/playwright/.auth/

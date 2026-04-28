@@ -217,96 +217,220 @@ npm run dev
 
 ## 🧪 Dev seeding (users)
 
-A small CLI (`Backend.Tools`) can seed a user in **dev**.
+A small CLI (`Backend.Tools`) can seed deterministic local-only users and budget data in **dev**.
+The primary supported flow is Docker Compose against the Docker dev database.
+For the full reset-and-seed checklist, see [Local Seeding Playbook](docs/local-seeding-playbook.md).
 
 - Seeding is guarded by `ALLOW_SEEDING=true`
 - TURNSTILE is bypassed for seeding
-- Use `seed-user` to create a user only
-- Use `seed-user-budget` to create a user, seed a full demo timeline (2 closed months + 1 open month),
-  and set `Users.FirstLogin = 0` so the dashboard skips the setup wizard
+- Use the Docker Compose `seed-users` service to create fixed demo users only
+- Use the Docker Compose `seed-users-with-budget` service to create fixed budget demo users with baseline data,
+  2 closed months, 1 open month, and `Users.FirstLogin = 0` so the dashboard skips the setup wizard
 
-### Option A: Seed via Docker (recommended)
+### Docker reset + seed flow
 
 Run from repo root:
 
 ```bash
+docker compose --env-file .env.dev -f docker-compose.dev.yml down -v
+docker compose --env-file .env.dev -f docker-compose.dev.yml up -d
 docker compose --env-file .env.dev -f docker-compose.dev.yml --profile seed run --rm seed-users
-
-```
-
-Override values:
-
-```bash
-docker compose --env-file .env.dev -f docker-compose.dev.yml --profile seed run --rm \
-  -e SEED_EMAIL=jane@doe.se -e SEED_PASSWORD=ChangeMe123 \
-  -e SEED_FIRST=Jane -e SEED_LAST=Doe \
-  seed-users
-
-```
-
-**Important:** the seeder must use a Docker-internal connection string (`Server=db;...`).  
-If needed, set it in `seed-users.environment`:
-
-```yml
-DATABASESETTINGS__CONNECTIONSTRING: "Server=db;Port=3306;Database=steenbudgetDEV;Uid=app;Pwd=apppwd;GuidFormat=Binary16"
-ALLOW_SEEDING: "true"
-```
-
-Seed user + full budget timeline in Docker:
-
-```bash
 docker compose --env-file .env.dev -f docker-compose.dev.yml --profile seed run --rm seed-users-with-budget
 
 ```
 
-Override values:
+The seed containers use the Docker-internal connection string already set in `docker-compose.dev.yml`:
 
-```bash
-docker compose --env-file .env.dev -f docker-compose.dev.yml --profile seed run --rm \
-  -e SEED_EMAIL=jane@doe.se -e SEED_PASSWORD=ChangeMe123 \
-  -e SEED_FIRST=Jane -e SEED_LAST=Doe \
-  seed-users-with-budget
-
+```yml
+DATABASESETTINGS__CONNECTIONSTRING: "Server=db;Port=3306;Database=steenbudgetDEV;Uid=app;Pwd=apppwd;SslMode=None;GuidFormat=Binary16"
+ALLOW_SEEDING: "true"
 ```
 
-Alternative (run `Backend.Tools` directly inside the seed container):
+### Seeded local accounts
 
-```bash
-docker compose --env-file .env.dev -f docker-compose.dev.yml --profile seed run --rm \
-  --entrypoint bash seed-users -lc '
-set -e
-export NUGET_PACKAGES=/tmp/nuget-packages
-dotnet run --project /src/Backend.Tools/Backend.Tools.csproj -- \
-  seed-user-budget \
-  --email "$SEED_EMAIL" \
-  --password "$SEED_PASSWORD" \
-  --first "$SEED_FIRST" \
-  --last "$SEED_LAST"
-'
+- `demo1@local.test` / `ChangeMe123!`: plain seeded user for login/auth smoke testing
+- `demo2@local.test` / `ChangeMe123!`: second plain seeded user for multi-user sanity checks
+- `budgetdemo@local.test` / `ChangeMe123!`: budget demo user with baseline income, expenses, savings, debt, and month data
+- `closemonth@local.test` / `ChangeMe123!`: budget demo user intended for close-month-related local testing
 
-```
+Budget demo users get a fixed 3-month timeline:
 
-### Option B: Seed locally (host)
+- `2026-02`: closed baseline month
+- `2026-03`: closed month with changed income/expense/savings/debt data
+- `2026-04`: open month with dashboard data and changes useful for close-month work
 
-Set connection string via env (or user-secrets):
+### Direct Backend.Tools commands
+
+Docker Compose is preferred. For local tool debugging, the underlying commands are:
 
 ```bash
 cd Backend.Tools
 ALLOW_SEEDING=true DATABASESETTINGS__CONNECTIONSTRING="Server=127.0.0.1;Port=3306;Database=steenbudgetDEV;Uid=app;Pwd=apppwd;SslMode=None;GuidFormat=Binary16" \
-dotnet run -- seed-user --email jane@doe.se --password 'ChangeMe123' --first Jane --last Doe
+dotnet run -- seed-users
 
 ```
-
-Seed user + full month timeline:
 
 ```bash
 cd Backend.Tools
 ALLOW_SEEDING=true DATABASESETTINGS__CONNECTIONSTRING="Server=127.0.0.1;Port=3306;Database=steenbudgetDEV;Uid=app;Pwd=apppwd;SslMode=None;GuidFormat=Binary16" \
-dotnet run -- seed-user-budget --email jane@doe.se --password 'ChangeMe123' --first Jane --last Doe
+dotnet run -- seed-users-with-budget
 
 ```
 
 ---
+
+## E2E testing with Playwright
+
+The frontend uses Playwright for end-to-end browser testing.
+
+### What it covers right now
+
+Current E2E coverage is intentionally small and focused:
+
+- app boot / smoke verification
+- seeded user login
+- foundation for dashboard and close-month flows
+
+This is not meant to replace backend integration tests. The browser suite verifies critical user flows, while backend/database tests verify snapshot math, carry-over behavior, and transactional correctness.
+
+### Test structure
+
+Playwright tests live in:
+
+```text
+Frontend/e2e/
+```
+
+The suite is split into two logical projects:
+
+- **smoke** — tiny fast checks intended for PR validation
+- **full** — broader scenario coverage
+
+### Configuration
+
+Playwright is configured in:
+
+```text
+Frontend/playwright.config.ts
+```
+
+Key behavior:
+
+- runs against the local frontend dev server
+- uses Chromium
+- keeps traces, screenshots, and video only when helpful for failures
+- generates an HTML report after execution
+
+Playwright supports projects, web server orchestration, reporters, traces, screenshots, and videos directly through the config file. ([Playwright][4])
+
+### Prerequisites
+
+Before running E2E tests, make sure:
+
+1. the MariaDB dev container is running
+2. the backend is running against the dedicated `steenbudgetE2E` database
+3. Playwright can run its global setup
+
+### Common commands
+
+Start the database from the repository root:
+
+```bash
+docker compose --env-file .env.dev -f docker-compose.dev.yml up -d db
+```
+
+Start the backend against the E2E database:
+
+```bash
+cd Backend
+DOTNET_ENVIRONMENT=Development \
+DATABASESETTINGS__CONNECTIONSTRING="Server=127.0.0.1;Port=3306;Database=steenbudgetE2E;Uid=app;Pwd=apppwd;SslMode=None;GuidFormat=Binary16" \
+DOTNET_USE_POLLING_FILE_WATCHER=true \
+dotnet watch run --urls http://localhost:5001
+```
+
+From `Frontend/`, Playwright resets and seeds `steenbudgetE2E` automatically through global setup:
+
+Run all E2E tests:
+
+```bash
+npm run test:e2e
+```
+
+Run only smoke tests:
+
+```bash
+npm run test:e2e:smoke
+```
+
+Run the fuller suite:
+
+```bash
+npm run test:e2e:full
+```
+
+Run tests in headed mode:
+
+```bash
+npm run test:e2e:headed
+```
+
+Open the HTML report:
+
+```bash
+npm run test:e2e:report
+```
+
+Playwright’s CLI supports running tests and opening the HTML report directly. ([Playwright][5])
+
+Port `5173` must be free because Playwright starts its own frontend dev server and the backend Development CORS policy allows `http://localhost:5173`.
+
+### E2E seed accounts
+
+The Playwright seed is separate from the Docker-first local dev seed flow and does not use the shared `steenbudgetDEV` demo users.
+
+| Email | Password | Purpose |
+| --- | --- | --- |
+| `e2e-login@local.test` | `ChangeMe123!` | Login smoke user |
+| `e2e-close-balanced@local.test` | `ChangeMe123!` | Balanced close-month flow |
+| `e2e-close-surplus-full@local.test` | `ChangeMe123!` | Surplus close-month flow; resolve with carry-over |
+| `e2e-close-deficit@local.test` | `ChangeMe123!` | Deficit close-month flow |
+
+The close-month users all use deterministic open month `2026-04`.
+
+`Backend.Tools seed-e2e` creates `steenbudgetE2E` from `database/init` when needed. On later runs it truncates E2E tables and reseeds the fixed accounts; it does not run Docker volume teardown and does not reset `steenbudgetDEV`.
+
+### Generated artifacts
+
+The following folders are generated during test runs and should not be committed:
+
+- `Frontend/playwright-report/`
+- `Frontend/test-results/`
+- `test-results/`
+
+The HTML reporter writes a report folder, and test artifacts such as video are typically stored in the test output directory. ([Playwright][1])
+
+### Current testing approach
+
+The current approach is deliberate:
+
+- keep PR smoke coverage very small and reliable
+- grow scenario coverage only around critical flows
+- avoid flaky “test everything in the browser” patterns
+
+Recommended browser focus:
+
+- app boots
+- login works
+- dashboard loads
+- close-month flow works end-to-end
+
+Recommended backend/database focus:
+
+- month closing snapshots
+- carry-over math
+- next-month creation
+- rollback safety
 
 ## 🧰 DB access (GUI)
 
@@ -419,3 +543,7 @@ graph TD
 ## License
 
 [MIT License](LICENSE)
+
+```
+
+```

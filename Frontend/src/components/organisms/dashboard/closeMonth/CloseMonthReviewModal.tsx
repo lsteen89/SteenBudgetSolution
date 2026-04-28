@@ -110,7 +110,10 @@ export default function CloseMonthReviewModal({
       open={open}
       onOpenChange={(nextOpen) => !nextOpen && !isSubmitting && onClose()}
     >
-      <DialogContent className="w-[min(760px,calc(100vw-1.5rem))] border-eb-stroke/20 bg-eb-surface p-0 shadow-[0_28px_80px_rgba(21,39,81,0.18)]">
+      <DialogContent
+        data-testid="close-month-modal"
+        className="w-[min(760px,calc(100vw-1.5rem))] border-eb-stroke/20 bg-eb-surface p-0 shadow-[0_28px_80px_rgba(21,39,81,0.18)]"
+      >
         <div className="rounded-2xl bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(244,248,255,0.96))]">
           <div className="border-b border-eb-stroke/15 px-6 py-6 sm:px-7">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-eb-text/45">
@@ -165,6 +168,7 @@ export default function CloseMonthReviewModal({
                   {onResolveToEmergencyFund ? (
                     <button
                       type="button"
+                      data-testid="resolve-emergency-fund"
                       onClick={() => void onResolveToEmergencyFund()}
                       disabled={resolvingEmergencyFund || resolvingCarryOver}
                       className={cn(
@@ -191,6 +195,7 @@ export default function CloseMonthReviewModal({
                   {onResolveToCarryOver ? (
                     <button
                       type="button"
+                      data-testid="resolve-carry-over"
                       onClick={() => void onResolveToCarryOver()}
                       disabled={resolvingEmergencyFund || resolvingCarryOver}
                       className={cn(
@@ -311,6 +316,7 @@ export default function CloseMonthReviewModal({
 
                 <CtaButton
                   type="button"
+                  data-testid="confirm-close-month"
                   onClick={() => void onConfirm()}
                   disabled={isSubmitting}
                   className="bg-eb-accent hover:bg-eb-accent"

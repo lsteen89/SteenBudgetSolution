@@ -4,6 +4,7 @@ using MediatR;
 using Backend.Application.Abstractions.Application.Services.Budget;
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Application.DTO.Budget.Months.Editor.Expense;
+using Backend.Application.Features.Budgets.Audit;
 using Backend.Domain.Errors.Budget;
 using Backend.Application.Features.Budgets.Months.Editor.Models.ChangeLog;
 using Backend.Application.Features.Budgets.Months.Editor.Models.Expense;
@@ -89,10 +90,10 @@ public sealed class CreateBudgetMonthExpenseItemCommandHandler
             new BudgetMonthChangeEventWriteModel(
                 Id: Guid.NewGuid(),
                 BudgetMonthId: ensured.Value.BudgetMonthId,
-                EntityType: "expense-item",
+                EntityType: BudgetAuditEntityTypes.ExpenseItem,
                 EntityId: id,
                 SourceEntityId: null,
-                ChangeType: "created",
+                ChangeType: BudgetAuditChangeTypes.Created,
                 ChangeSetJson: changeSetJson,
                 ChangedByUserId: cmd.Persoid,
                 ChangedAt: now),

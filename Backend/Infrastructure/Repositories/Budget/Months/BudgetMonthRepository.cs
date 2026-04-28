@@ -1,5 +1,6 @@
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Application.DTO.Budget.Months;
+using Backend.Application.Features.Budgets.Income.Models;
 using Backend.Application.Features.Budgets.Months.Models;
 using Backend.Infrastructure.Data.BaseClass;
 using Backend.Settings;
@@ -129,6 +130,14 @@ public sealed partial class BudgetMonthRepository : SqlBase, IBudgetMonthReposit
 
     public Task<BudgetMonthDetailsRm?> GetMonthAsync(Guid budgetId, string yearMonth, CancellationToken ct)
         => QuerySingleOrDefaultAsync<BudgetMonthDetailsRm>(GetMonth, new { BudgetId = budgetId, YearMonth = yearMonth }, ct);
+
+    public Task<IncomePaymentTimingReadModel?> GetBudgetMonthIncomePaymentTimingAsync(
+        Guid budgetMonthId,
+        CancellationToken ct)
+        => QuerySingleOrDefaultAsync<IncomePaymentTimingReadModel>(
+            GetBudgetMonthIncomePaymentTiming,
+            new { BudgetMonthId = budgetMonthId },
+            ct);
 
     public async Task<bool> HasAnyMonthsAsync(Guid budgetId, CancellationToken ct)
     {

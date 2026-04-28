@@ -28,6 +28,7 @@ using Backend.Infrastructure.Implementations;
 using Backend.Infrastructure.Repositories.Auth;
 using Backend.Infrastructure.Repositories.Auth.RefreshTokens;
 using Backend.Infrastructure.Repositories.Auth.VerificationTokens;
+using Backend.Infrastructure.Repositories.Budget.Audit;
 using Backend.Infrastructure.Repositories.Budget.Core;
 using Backend.Infrastructure.Repositories.Budget.Months.Editor;
 using Backend.Infrastructure.Repositories.Budget.Months.Editor.ChangeEvent;
@@ -131,6 +132,7 @@ public static class DependencyInjection
         services.AddScoped<IBudgetMonthEditorRepository, BudgetMonthEditorRepository>();
         services.AddScoped<IBudgetMonthExpenseItemMutationRepository, BudgetMonthExpenseItemMutationRepository>();
         services.AddScoped<IBudgetMonthChangeEventRepository, BudgetMonthChangeEventRepository>();
+        services.AddScoped<IBudgetAuditWriter, BudgetAuditWriter>();
         // Wizard
         services.AddScoped<IWizardRepository, WizardRepository>();
 

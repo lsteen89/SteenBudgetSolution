@@ -78,3 +78,4 @@ public sealed class BudgetMonthCloseWindowCalculatorTests
         result.Should().Be(BudgetMonthCloseWindowInfo.Unavailable());
     }
 }
+
