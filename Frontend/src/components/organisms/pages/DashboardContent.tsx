@@ -1,9 +1,13 @@
 import CloseMonthReviewModal from "@/components/organisms/dashboard/closeMonth/CloseMonthReviewModal";
 import EditPeriodDrawer from "@/components/organisms/dashboard/editPeriod/EditPeriodDrawer";
+import ClosedMonthRecapSection from "@/components/organisms/dashboard/recap/ClosedMonthRecapSection";
+import SkippedMonthState from "@/components/organisms/dashboard/recap/SkippedMonthState";
 import ReturningDashboardSection from "@/components/organisms/dashboard/returning/ReturningDashboardSection";
+import { useBudgetMonthRecapQuery } from "@/hooks/budget/useBudgetMonthRecapQuery";
 import { useCloseMonthReviewController } from "@/hooks/dashboard/useCloseMonthReviewController";
 import { useDashboardSummary } from "@/hooks/dashboard/useDashboardSummary";
 import type { DashboardSummary } from "@/hooks/dashboard/dashboardSummary.types";
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import DashboardHomeSkeleton from "@components/organisms/dashboard/DashboardHomeSkeleton";
 import FirstTimeDashboardSection from "@components/organisms/dashboard/FirstTimeDashboardSection";
 import React, { useCallback, useState } from "react";
@@ -34,8 +38,14 @@ function LoadedDashboardContent({
   goToNextMonth,
 }: LoadedDashboardContentProps) {
   const [isPeriodEditorOpen, setIsPeriodEditorOpen] = useState(false);
+  const locale = useAppLocale();
 
   const yearMonth = summary.header.periodKey;
+  const isClosedMonth = summary.header.periodStatus === "closed";
+  const isSkippedMonth = summary.header.periodStatus === "skipped";
+  const recapQuery = useBudgetMonthRecapQuery(yearMonth, {
+    enabled: isClosedMonth,
+  });
 
   function handleOpenPeriodEditor() {
     if (!yearMonth) return;
@@ -68,6 +78,41 @@ function LoadedDashboardContent({
       onEdit: closeMonthReview.reviewMonth,
     },
   ];
+
+  if (isClosedMonth) {
+    return (
+      <ClosedMonthRecapSection
+        recap={recapQuery.data}
+        currency={summary.currency}
+        locale={locale}
+        isLoading={recapQuery.isPending}
+        errorMessage={recapQuery.error?.message}
+        onRetry={() => void recapQuery.refetch()}
+        previousPeriodLabel={summary.header.previousPeriodLabel}
+        nextPeriodLabel={summary.header.nextPeriodLabel}
+        canGoPrevious={summary.header.canGoPrevious}
+        canGoNext={summary.header.canGoNext}
+        onGoPrevious={goToPreviousMonth}
+        onGoNext={goToNextMonth}
+        isSwitchingMonth={isFetching && !isPending}
+      />
+    );
+  }
+
+  if (isSkippedMonth) {
+    return (
+      <SkippedMonthState
+        periodLabel={summary.header.periodLabel}
+        previousPeriodLabel={summary.header.previousPeriodLabel}
+        nextPeriodLabel={summary.header.nextPeriodLabel}
+        canGoPrevious={summary.header.canGoPrevious}
+        canGoNext={summary.header.canGoNext}
+        onGoPrevious={goToPreviousMonth}
+        onGoNext={goToNextMonth}
+        isSwitchingMonth={isFetching && !isPending}
+      />
+    );
+  }
 
   return (
     <>

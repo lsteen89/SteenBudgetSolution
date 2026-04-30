@@ -257,6 +257,7 @@ function HeaderActionSlot({
       ) : vm.primaryAction === "next" ? (
         <button
           type="button"
+          data-testid="month-nav-next"
           onClick={onGoNext}
           disabled={isSwitchingMonth || !onGoNext}
           className={cn(navButtonClass, "h-11 min-w-[180px] justify-center")}
@@ -370,6 +371,7 @@ function PeriodNavigator({
       <div className="flex justify-start">
         <button
           type="button"
+          data-testid="month-nav-previous"
           onClick={onGoPrevious}
           disabled={!canGoPrevious || isSwitchingMonth}
           className={cn(navButtonClass, "h-11")}

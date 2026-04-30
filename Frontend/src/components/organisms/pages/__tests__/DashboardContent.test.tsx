@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import DashboardContent from "../DashboardContent";
 
 const mockUseDashboardSummary = vi.fn();
+const mockUseBudgetMonthRecapQuery = vi.fn();
 const mockMutateAsync = vi.fn();
 const mockSetSelectedYearMonth = vi.fn();
 const mockToast = {
@@ -18,6 +19,11 @@ const mockToast = {
 
 vi.mock("@/hooks/dashboard/useDashboardSummary", () => ({
   useDashboardSummary: (...args: unknown[]) => mockUseDashboardSummary(...args),
+}));
+
+vi.mock("@/hooks/budget/useBudgetMonthRecapQuery", () => ({
+  useBudgetMonthRecapQuery: (...args: unknown[]) =>
+    mockUseBudgetMonthRecapQuery(...args),
 }));
 
 vi.mock("@/hooks/budget/useCloseBudgetMonthMutation", () => ({
@@ -63,13 +69,16 @@ vi.mock("@/components/organisms/dashboard/editPeriod/EditPeriodDrawer", () => ({
     open ? <div>Edit drawer open</div> : null,
 }));
 
-function buildSummary(remainingToSpend: number) {
+function buildSummary(
+  remainingToSpend: number,
+  status: "open" | "closed" | "skipped" = "open",
+) {
   return {
     header: {
       periodKey: "2026-04",
       periodLabel: "April 2026",
       periodDateRangeLabel: "",
-      periodStatus: "open" as const,
+      periodStatus: status,
       previousPeriodLabel: "March 2026",
       nextPeriodLabel: null,
       canGoPrevious: true,
@@ -139,6 +148,13 @@ const pendingResult = {
 describe("DashboardContent", () => {
   beforeEach(() => {
     mockUseDashboardSummary.mockReset();
+    mockUseBudgetMonthRecapQuery.mockReset();
+    mockUseBudgetMonthRecapQuery.mockReturnValue({
+      data: null,
+      isPending: false,
+      error: null,
+      refetch: vi.fn(),
+    });
     mockMutateAsync.mockReset();
     mockSetSelectedYearMonth.mockReset();
     mockToast.success.mockReset();
@@ -337,5 +353,84 @@ describe("DashboardContent", () => {
     expect(
       screen.getByRole("button", { name: /close month/i }),
     ).toBeInTheDocument();
+  });
+
+  it("renders the closed month recap shell from the recap endpoint data", () => {
+    mockUseDashboardSummary.mockReturnValue({
+      ...readyResult,
+      data: {
+        ...readyResult.data,
+        summary: buildSummary(245, "closed"),
+      },
+    });
+    mockUseBudgetMonthRecapQuery.mockReturnValue({
+      data: {
+        month: {
+          yearMonth: "2026-04",
+          status: "closed",
+          openedAtUtc: "2026-04-01T08:00:00Z",
+          closedAtUtc: "2026-04-30T20:00:00Z",
+          carryOverMode: "custom",
+          carryOverAmount: 500,
+        },
+        snapshotTotals: {
+          totalIncomeMonthly: 10000,
+          totalExpensesMonthly: 4000,
+          totalSavingsMonthly: 1000,
+          totalDebtPaymentsMonthly: 500,
+          finalBalanceMonthly: 4500,
+        },
+        comparison: {
+          previousComparableYearMonth: "2026-03",
+          hasPreviousComparableMonth: true,
+        },
+      },
+      isPending: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    render(
+      <MemoryRouter>
+        <DashboardContent
+          isFirstTimeLogin={false}
+          isWizardOpen={false}
+          setIsWizardOpen={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId("closed-month-recap")).toBeInTheDocument();
+    expect(mockUseBudgetMonthRecapQuery).toHaveBeenCalledWith("2026-04", {
+      enabled: true,
+    });
+    expect(screen.queryByRole("button", { name: /close month/i })).toBeNull();
+    expect(screen.queryByText("Edit drawer open")).toBeNull();
+  });
+
+  it("renders the skipped month shell without requesting recap data", () => {
+    mockUseDashboardSummary.mockReturnValue({
+      ...readyResult,
+      data: {
+        ...readyResult.data,
+        summary: buildSummary(0, "skipped"),
+      },
+    });
+
+    render(
+      <MemoryRouter>
+        <DashboardContent
+          isFirstTimeLogin={false}
+          isWizardOpen={false}
+          setIsWizardOpen={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId("skipped-month-state")).toBeInTheDocument();
+    expect(mockUseBudgetMonthRecapQuery).toHaveBeenCalledWith("2026-04", {
+      enabled: false,
+    });
+    expect(screen.queryByRole("button", { name: /close month/i })).toBeNull();
   });
 });
