@@ -13,6 +13,7 @@ public interface IBudgetMonthRepository
 
     Task<BudgetMonthLookupRm?> GetByBudgetIdAndYearMonthAsync(Guid budgetId, string yearMonth, CancellationToken ct);
     Task<BudgetMonthDetailsRm?> GetMonthAsync(Guid budgetId, string yearMonth, CancellationToken ct);
+    Task<string?> GetPreviousComparableYearMonthAsync(Guid budgetId, string yearMonth, CancellationToken ct);
     Task<IncomePaymentTimingReadModel?> GetBudgetMonthIncomePaymentTimingAsync(Guid budgetMonthId, CancellationToken ct);
 
     Task<bool> HasAnyMonthsAsync(Guid budgetId, CancellationToken ct);

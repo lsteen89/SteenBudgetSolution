@@ -810,6 +810,9 @@ public sealed class CloseBudgetMonthCommandHandlerTests
         public Task<Backend.Application.Features.Budgets.Months.Models.BudgetMonthDetailsRm?> GetMonthAsync(Guid budgetId, string yearMonth, CancellationToken ct)
             => _inner.GetMonthAsync(budgetId, yearMonth, ct);
 
+        public Task<string?> GetPreviousComparableYearMonthAsync(Guid budgetId, string yearMonth, CancellationToken ct)
+            => _inner.GetPreviousComparableYearMonthAsync(budgetId, yearMonth, ct);
+
         public Task<Backend.Application.Features.Budgets.Income.Models.IncomePaymentTimingReadModel?> GetBudgetMonthIncomePaymentTimingAsync(Guid budgetMonthId, CancellationToken ct)
             => _inner.GetBudgetMonthIncomePaymentTimingAsync(budgetMonthId, ct);
 

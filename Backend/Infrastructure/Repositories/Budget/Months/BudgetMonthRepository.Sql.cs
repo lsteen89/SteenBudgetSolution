@@ -153,6 +153,16 @@ public sealed partial class BudgetMonthRepository
     AND bm.YearMonth = @YearMonth
     LIMIT 1;";
 
+    private const string GetPreviousComparableYearMonth = @"
+    SELECT
+        bm.YearMonth
+    FROM BudgetMonth bm
+    WHERE bm.BudgetId = @BudgetId
+      AND bm.YearMonth < @YearMonth
+      AND bm.Status = 'closed'
+    ORDER BY bm.YearMonth DESC
+    LIMIT 1;";
+
     const string ExistsAnyMonths = """
         SELECT EXISTS(
             SELECT 1
