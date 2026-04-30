@@ -47,7 +47,7 @@ public sealed class BudgetTimelineSeeder
             ct);
 
         var anchor = ParseYearMonthStartUtc(openYearMonth);
-        var oldestYm = anchor.AddMonths(-2).ToString("yyyy-MM", CultureInfo.InvariantCulture);
+        var oldestYm = anchor.AddMonths(-3).ToString("yyyy-MM", CultureInfo.InvariantCulture);
         var middleYm = anchor.AddMonths(-1).ToString("yyyy-MM", CultureInfo.InvariantCulture);
         var openYm = anchor.ToString("yyyy-MM", CultureInfo.InvariantCulture);
 
@@ -71,7 +71,8 @@ public sealed class BudgetTimelineSeeder
             middleYm,
             closePreviousOpenMonth: true,
             carryOverMode: BudgetMonthCarryOverModes.Full,
-            ct);
+            ct,
+            createSkippedMonths: true);
 
         await RunInTransactionAsync(
             async () =>
@@ -411,14 +412,15 @@ public sealed class BudgetTimelineSeeder
         string targetYearMonth,
         bool closePreviousOpenMonth,
         string carryOverMode,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool createSkippedMonths = false)
     {
         var request = new StartBudgetMonthRequestDto(
             TargetYearMonth: targetYearMonth,
             ClosePreviousOpenMonth: closePreviousOpenMonth,
             CarryOverMode: carryOverMode,
             CarryOverAmount: null,
-            CreateSkippedMonths: false);
+            CreateSkippedMonths: createSkippedMonths);
 
         var result = await _mediator.Send(
             new StartBudgetMonthCommand(persoid, persoid, request),
