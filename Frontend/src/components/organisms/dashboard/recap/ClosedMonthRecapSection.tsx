@@ -20,6 +20,7 @@ import {
   ReceiptText,
   Scale,
   TrendingDown,
+  TrendingUp,
   WalletCards,
   type LucideIcon,
 } from "lucide-react";
@@ -42,6 +43,10 @@ type ClosedMonthRecapSectionProps = {
 
 type RecapTKey = keyof typeof closedMonthRecapDict.sv;
 type RecapT = <K extends RecapTKey>(key: K) => string;
+type ComparisonMetricKey = keyof NonNullable<
+  BudgetMonthRecapDto["comparison"]["summary"]
+>;
+type ComparisonTone = "positive" | "attention" | "neutral";
 
 const totalCards: Array<{
   key: keyof BudgetMonthRecapDto["snapshotTotals"];
@@ -81,6 +86,18 @@ const totalCards: Array<{
   },
 ] as const;
 
+const comparisonRows: Array<{
+  key: ComparisonMetricKey;
+  labelKey: RecapTKey;
+  Icon: LucideIcon;
+}> = [
+  { key: "income", labelKey: "income", Icon: WalletCards },
+  { key: "expenses", labelKey: "expenses", Icon: ReceiptText },
+  { key: "savings", labelKey: "savings", Icon: PiggyBank },
+  { key: "debtPayments", labelKey: "debtPayments", Icon: Landmark },
+  { key: "finalBalance", labelKey: "finalBalance", Icon: Scale },
+] as const;
+
 function replaceToken(value: string, token: string, replacement: string) {
   return value.replace(`{${token}}`, replacement);
 }
@@ -113,6 +130,73 @@ function formatSnapshotMoney(
   locale: string,
 ) {
   return formatMoneyV2(value, currency, locale);
+}
+
+function formatSignedMoney(
+  value: number,
+  currency: CurrencyCode,
+  locale: string,
+) {
+  if (value === 0) return formatSnapshotMoney(0, currency, locale);
+
+  const sign = value > 0 ? "+" : "-";
+  return `${sign}${formatSnapshotMoney(Math.abs(value), currency, locale)}`;
+}
+
+function formatSignedPercent(value: number, locale: string) {
+  if (value === 0) return "0%";
+
+  const sign = value > 0 ? "+" : "-";
+  const formatted = Math.abs(value).toLocaleString(locale, {
+    maximumFractionDigits: 1,
+  });
+
+  return `${sign}${formatted}%`;
+}
+
+function comparisonTone(
+  key: ComparisonMetricKey,
+  deltaAmount: number,
+): ComparisonTone {
+  if (deltaAmount === 0) return "neutral";
+
+  if (key === "expenses") {
+    return deltaAmount > 0 ? "attention" : "positive";
+  }
+
+  if (key === "savings" || key === "finalBalance") {
+    return deltaAmount > 0 ? "positive" : "attention";
+  }
+
+  if (key === "debtPayments") {
+    return deltaAmount > 0 ? "neutral" : "positive";
+  }
+
+  return deltaAmount > 0 ? "positive" : "attention";
+}
+
+function toneClasses(tone: ComparisonTone) {
+  if (tone === "positive") {
+    return {
+      row: "border-emerald-200 bg-emerald-50/65",
+      icon: "bg-emerald-100 text-emerald-700",
+      value: "text-emerald-800",
+    };
+  }
+
+  if (tone === "attention") {
+    return {
+      row: "border-amber-200 bg-amber-50/70",
+      icon: "bg-amber-100 text-amber-700",
+      value: "text-amber-800",
+    };
+  }
+
+  return {
+    row: "border-eb-stroke/25 bg-white/75",
+    icon: "bg-eb-accentSoft/55 text-eb-accent",
+    value: "text-eb-text",
+  };
 }
 
 function carryOverLabel(
@@ -253,6 +337,115 @@ function KpiCard({
   );
 }
 
+function ComparisonSummaryBlock({
+  recap,
+  currency,
+  locale,
+  t,
+}: {
+  recap: BudgetMonthRecapDto;
+  currency: CurrencyCode;
+  locale: AppLocale;
+  t: RecapT;
+}) {
+  const previousComparable = recap.comparison.hasPreviousComparableMonth
+    ? recap.comparison.previousComparableYearMonth
+    : null;
+  const summary = recap.comparison.summary;
+  const previousMonthLabel = previousComparable
+    ? formatYearMonth(previousComparable, locale)
+    : null;
+
+  return (
+    <article
+      aria-label={t("comparisonLabel")}
+      data-testid="closed-month-comparison"
+      className="mt-4 rounded-2xl border border-eb-stroke/25 bg-white/80 p-5 shadow-sm"
+    >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-start gap-3">
+          <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-eb-accentSoft/60 text-eb-accent">
+            <TrendingUp className="h-4 w-4" />
+          </span>
+          <div>
+            <h2 className="text-base font-extrabold text-eb-text">
+              {t("comparisonTitle")}
+            </h2>
+            <p className="mt-1 text-sm font-medium leading-6 text-eb-text/60">
+              {previousMonthLabel
+                ? replaceToken(t("previousComparable"), "month", previousMonthLabel)
+                : t("noPreviousComparable")}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {summary ? (
+        <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-5">
+          {comparisonRows.map(({ key, labelKey, Icon }) => {
+            const metric = summary[key];
+            const label = t(labelKey);
+            const tone = comparisonTone(key, metric.deltaAmount);
+            const classes = toneClasses(tone);
+
+            return (
+              <section
+                key={key}
+                aria-label={replaceToken(t("comparisonMetricLabel"), "label", label)}
+                data-testid={`closed-month-comparison-${key}`}
+                data-tone={tone}
+                className={cn(
+                  "min-h-[132px] rounded-xl border p-4 transition",
+                  classes.row,
+                )}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wide text-eb-text/50">
+                      {label}
+                    </p>
+                    <p className="mt-1 text-xs font-semibold text-eb-text/45">
+                      {t("previousValue")}
+                    </p>
+                  </div>
+                  <span
+                    className={cn(
+                      "inline-flex h-8 w-8 items-center justify-center rounded-lg",
+                      classes.icon,
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                  </span>
+                </div>
+
+                <p className="mt-4 text-xs font-semibold text-eb-text/50">
+                  {formatSnapshotMoney(metric.previousValue, currency, locale)}
+                </p>
+                <p
+                  className={cn(
+                    "mt-1 text-lg font-extrabold tracking-normal",
+                    classes.value,
+                  )}
+                >
+                  {formatSignedMoney(metric.deltaAmount, currency, locale)}
+                </p>
+                {metric.deltaPercent != null ? (
+                  <p
+                    data-testid={`closed-month-comparison-${key}-percent`}
+                    className={cn("mt-1 text-xs font-bold", classes.value)}
+                  >
+                    {formatSignedPercent(metric.deltaPercent, locale)}
+                  </p>
+                ) : null}
+              </section>
+            );
+          })}
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
 export default function ClosedMonthRecapSection({
   recap,
   currency,
@@ -309,9 +502,6 @@ export default function ClosedMonthRecapSection({
   const closedAtLabel = formatDateTime(recap.month.closedAtUtc, locale);
   const finalBalance = recap.snapshotTotals.finalBalanceMonthly;
   const hasDeficit = finalBalance < 0;
-  const previousComparable = recap.comparison.hasPreviousComparableMonth
-    ? recap.comparison.previousComparableYearMonth
-    : null;
 
   return (
     <section
@@ -408,6 +598,13 @@ export default function ClosedMonthRecapSection({
             })}
           </div>
 
+          <ComparisonSummaryBlock
+            recap={recap}
+            currency={currency}
+            locale={locale}
+            t={t}
+          />
+
           <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.7fr)]">
             <article
               aria-label={t("carryOverOutcomeLabel")}
@@ -468,7 +665,7 @@ export default function ClosedMonthRecapSection({
               </article>
             ) : (
               <article
-                aria-label={t("comparisonLabel")}
+                aria-label={t("snapshotContextLabel")}
                 className="rounded-2xl border border-eb-stroke/25 bg-white/75 p-5 shadow-sm"
               >
                 <div className="flex items-start gap-3">
@@ -480,13 +677,7 @@ export default function ClosedMonthRecapSection({
                       {t("snapshotContextTitle")}
                     </h2>
                     <p className="mt-2 text-sm font-medium leading-6 text-eb-text/60">
-                      {previousComparable
-                        ? replaceToken(
-                            t("previousComparable"),
-                            "month",
-                            formatYearMonth(previousComparable, locale),
-                          )
-                        : t("noPreviousComparable")}
+                      {t("snapshotContextBody")}
                     </p>
                   </div>
                 </div>

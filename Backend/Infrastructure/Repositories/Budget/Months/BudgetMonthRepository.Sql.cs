@@ -160,6 +160,11 @@ public sealed partial class BudgetMonthRepository
     WHERE bm.BudgetId = @BudgetId
       AND bm.YearMonth < @YearMonth
       AND bm.Status = 'closed'
+      AND bm.SnapshotTotalIncomeMonthly IS NOT NULL
+      AND bm.SnapshotTotalExpensesMonthly IS NOT NULL
+      AND bm.SnapshotTotalSavingsMonthly IS NOT NULL
+      AND bm.SnapshotTotalDebtPaymentsMonthly IS NOT NULL
+      AND bm.SnapshotFinalBalanceMonthly IS NOT NULL
     ORDER BY bm.YearMonth DESC
     LIMIT 1;";
 

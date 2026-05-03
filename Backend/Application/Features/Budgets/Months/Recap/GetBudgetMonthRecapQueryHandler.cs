@@ -3,6 +3,7 @@ using Backend.Application.Abstractions.Messaging;
 using Backend.Application.DTO.Budget.Months;
 using Backend.Application.DTO.Budget.Months.Recap;
 using Backend.Application.Features.Budgets.Months.Helpers;
+using Backend.Application.Features.Budgets.Months.Models;
 using Backend.Domain.Errors.Budget;
 using Backend.Domain.Shared;
 
@@ -50,6 +51,10 @@ public sealed class GetBudgetMonthRecapQueryHandler
             budgetId.Value,
             month.YearMonth,
             ct);
+        var previousComparableMonth = previousComparableYearMonth is null
+            ? null
+            : await _months.GetMonthAsync(budgetId.Value, previousComparableYearMonth, ct);
+        var comparisonSummary = BuildComparisonSummary(month, previousComparableMonth);
 
         return Result<BudgetMonthRecapDto?>.Success(new BudgetMonthRecapDto(
             Month: new BudgetMonthRecapMetaDto(
@@ -66,7 +71,53 @@ public sealed class GetBudgetMonthRecapQueryHandler
                 TotalDebtPaymentsMonthly: month.SnapshotTotalDebtPaymentsMonthly.Value,
                 FinalBalanceMonthly: month.SnapshotFinalBalanceMonthly.Value),
             Comparison: new BudgetMonthRecapComparisonMetaDto(
-                PreviousComparableYearMonth: previousComparableYearMonth,
-                HasPreviousComparableMonth: previousComparableYearMonth is not null)));
+                PreviousComparableYearMonth: comparisonSummary is null ? null : previousComparableYearMonth,
+                HasPreviousComparableMonth: comparisonSummary is not null,
+                Summary: comparisonSummary)));
+    }
+
+    private static BudgetMonthRecapComparisonSummaryDto? BuildComparisonSummary(
+        BudgetMonthDetailsRm current,
+        BudgetMonthDetailsRm? previous)
+    {
+        if (previous is null ||
+            previous.SnapshotTotalIncomeMonthly is null ||
+            previous.SnapshotTotalExpensesMonthly is null ||
+            previous.SnapshotTotalSavingsMonthly is null ||
+            previous.SnapshotTotalDebtPaymentsMonthly is null ||
+            previous.SnapshotFinalBalanceMonthly is null)
+        {
+            return null;
+        }
+
+        return new BudgetMonthRecapComparisonSummaryDto(
+            Income: BuildMetric(
+                current.SnapshotTotalIncomeMonthly!.Value,
+                previous.SnapshotTotalIncomeMonthly.Value),
+            Expenses: BuildMetric(
+                current.SnapshotTotalExpensesMonthly!.Value,
+                previous.SnapshotTotalExpensesMonthly.Value),
+            Savings: BuildMetric(
+                current.SnapshotTotalSavingsMonthly!.Value,
+                previous.SnapshotTotalSavingsMonthly.Value),
+            DebtPayments: BuildMetric(
+                current.SnapshotTotalDebtPaymentsMonthly!.Value,
+                previous.SnapshotTotalDebtPaymentsMonthly.Value),
+            FinalBalance: BuildMetric(
+                current.SnapshotFinalBalanceMonthly!.Value,
+                previous.SnapshotFinalBalanceMonthly.Value));
+    }
+
+    private static BudgetMonthRecapMetricComparisonDto BuildMetric(decimal current, decimal previous)
+    {
+        var deltaAmount = current - previous;
+        var deltaPercent = previous > 0
+            ? deltaAmount / previous * 100m
+            : (decimal?)null;
+
+        return new BudgetMonthRecapMetricComparisonDto(
+            PreviousValue: previous,
+            DeltaAmount: deltaAmount,
+            DeltaPercent: deltaPercent);
     }
 }

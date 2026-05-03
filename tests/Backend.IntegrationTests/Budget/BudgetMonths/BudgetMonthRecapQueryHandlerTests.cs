@@ -77,7 +77,19 @@ public sealed class BudgetMonthRecapQueryHandlerTests
         var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
 
         await InsertClosedMonthWithSnapshotAsync(seed.BudgetId, "2026-01", seed.UserId);
-        await InsertClosedMonthWithSnapshotAsync(seed.BudgetId, "2026-02", seed.UserId);
+        await InsertClosedMonthWithSnapshotAsync(
+            budgetId: seed.BudgetId,
+            yearMonth: "2026-02",
+            createdByUserId: seed.UserId,
+            openedAtUtc: new DateTime(2026, 02, 01, 08, 00, 00, DateTimeKind.Utc),
+            closedAtUtc: new DateTime(2026, 02, 28, 20, 00, 00, DateTimeKind.Utc),
+            carryOverMode: BudgetMonthCarryOverModes.None,
+            carryOverAmount: null,
+            totalIncome: 1000m,
+            totalExpenses: 200m,
+            totalSavings: 300m,
+            totalDebtPayments: 400m,
+            finalBalance: 100m);
 
         await BudgetMonthDsl.InsertAsync(
             cs: _db.ConnectionString,
@@ -90,7 +102,19 @@ public sealed class BudgetMonthRecapQueryHandlerTests
             carryOverMode: BudgetMonthCarryOverModes.None,
             carryOverAmount: null);
 
-        await InsertClosedMonthWithSnapshotAsync(seed.BudgetId, "2026-04", seed.UserId);
+        await InsertClosedMonthWithSnapshotAsync(
+            budgetId: seed.BudgetId,
+            yearMonth: "2026-04",
+            createdByUserId: seed.UserId,
+            openedAtUtc: new DateTime(2026, 04, 01, 08, 00, 00, DateTimeKind.Utc),
+            closedAtUtc: new DateTime(2026, 04, 30, 20, 00, 00, DateTimeKind.Utc),
+            carryOverMode: BudgetMonthCarryOverModes.None,
+            carryOverAmount: null,
+            totalIncome: 1100m,
+            totalExpenses: 250m,
+            totalSavings: 250m,
+            totalDebtPayments: 400m,
+            finalBalance: 50m);
 
         var handler = CreateHandler();
 
@@ -101,6 +125,18 @@ public sealed class BudgetMonthRecapQueryHandlerTests
         result.IsSuccess.Should().BeTrue();
         result.Value!.Comparison.PreviousComparableYearMonth.Should().Be("2026-02");
         result.Value.Comparison.HasPreviousComparableMonth.Should().BeTrue();
+        result.Value.Comparison.Summary.Should().NotBeNull();
+        result.Value.Comparison.Summary!.Income.PreviousValue.Should().Be(1000m);
+        result.Value.Comparison.Summary.Income.DeltaAmount.Should().Be(100m);
+        result.Value.Comparison.Summary.Income.DeltaPercent.Should().Be(10m);
+        result.Value.Comparison.Summary.Expenses.DeltaAmount.Should().Be(50m);
+        result.Value.Comparison.Summary.Expenses.DeltaPercent.Should().Be(25m);
+        result.Value.Comparison.Summary.Savings.DeltaAmount.Should().Be(-50m);
+        result.Value.Comparison.Summary.Savings.DeltaPercent.Should().BeApproximately(-16.666666666666666666666666667m, 0.0001m);
+        result.Value.Comparison.Summary.DebtPayments.DeltaAmount.Should().Be(0m);
+        result.Value.Comparison.Summary.DebtPayments.DeltaPercent.Should().Be(0m);
+        result.Value.Comparison.Summary.FinalBalance.DeltaAmount.Should().Be(-50m);
+        result.Value.Comparison.Summary.FinalBalance.DeltaPercent.Should().Be(-50m);
     }
 
     [Fact]
@@ -121,6 +157,57 @@ public sealed class BudgetMonthRecapQueryHandlerTests
         result.IsSuccess.Should().BeTrue();
         result.Value!.Comparison.PreviousComparableYearMonth.Should().BeNull();
         result.Value.Comparison.HasPreviousComparableMonth.Should().BeFalse();
+        result.Value.Comparison.Summary.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ClosedMonth_ComparisonPercentIsNull_WhenPreviousValueIsZero()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+
+        await InsertClosedMonthWithSnapshotAsync(
+            budgetId: seed.BudgetId,
+            yearMonth: "2026-03",
+            createdByUserId: seed.UserId,
+            openedAtUtc: new DateTime(2026, 03, 01, 08, 00, 00, DateTimeKind.Utc),
+            closedAtUtc: new DateTime(2026, 03, 31, 20, 00, 00, DateTimeKind.Utc),
+            carryOverMode: BudgetMonthCarryOverModes.None,
+            carryOverAmount: null,
+            totalIncome: 0m,
+            totalExpenses: 0m,
+            totalSavings: 0m,
+            totalDebtPayments: 0m,
+            finalBalance: 0m);
+        await InsertClosedMonthWithSnapshotAsync(
+            budgetId: seed.BudgetId,
+            yearMonth: "2026-04",
+            createdByUserId: seed.UserId,
+            openedAtUtc: new DateTime(2026, 04, 01, 08, 00, 00, DateTimeKind.Utc),
+            closedAtUtc: new DateTime(2026, 04, 30, 20, 00, 00, DateTimeKind.Utc),
+            carryOverMode: BudgetMonthCarryOverModes.None,
+            carryOverAmount: null,
+            totalIncome: 100m,
+            totalExpenses: 50m,
+            totalSavings: 25m,
+            totalDebtPayments: 10m,
+            finalBalance: 15m);
+
+        var handler = CreateHandler();
+
+        var result = await handler.Handle(
+            new GetBudgetMonthRecapQuery(seed.Persoid, "2026-04"),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Comparison.Summary.Should().NotBeNull();
+        result.Value.Comparison.Summary!.Income.DeltaAmount.Should().Be(100m);
+        result.Value.Comparison.Summary.Income.DeltaPercent.Should().BeNull();
+        result.Value.Comparison.Summary.Expenses.DeltaPercent.Should().BeNull();
+        result.Value.Comparison.Summary.Savings.DeltaPercent.Should().BeNull();
+        result.Value.Comparison.Summary.DebtPayments.DeltaPercent.Should().BeNull();
+        result.Value.Comparison.Summary.FinalBalance.DeltaPercent.Should().BeNull();
     }
 
     [Fact]

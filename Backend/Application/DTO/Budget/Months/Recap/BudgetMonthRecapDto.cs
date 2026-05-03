@@ -22,4 +22,17 @@ public sealed record BudgetMonthRecapSnapshotTotalsDto(
 
 public sealed record BudgetMonthRecapComparisonMetaDto(
     string? PreviousComparableYearMonth,
-    bool HasPreviousComparableMonth);
+    bool HasPreviousComparableMonth,
+    BudgetMonthRecapComparisonSummaryDto? Summary);
+
+public sealed record BudgetMonthRecapComparisonSummaryDto(
+    BudgetMonthRecapMetricComparisonDto Income,
+    BudgetMonthRecapMetricComparisonDto Expenses,
+    BudgetMonthRecapMetricComparisonDto Savings,
+    BudgetMonthRecapMetricComparisonDto DebtPayments,
+    BudgetMonthRecapMetricComparisonDto FinalBalance);
+
+public sealed record BudgetMonthRecapMetricComparisonDto(
+    decimal PreviousValue,
+    decimal DeltaAmount,
+    decimal? DeltaPercent);

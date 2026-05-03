@@ -20,6 +20,21 @@ export type BudgetMonthRecapSnapshotTotalsDto = {
 export type BudgetMonthRecapComparisonMetaDto = {
   previousComparableYearMonth: string | null;
   hasPreviousComparableMonth: boolean;
+  summary: BudgetMonthRecapComparisonSummaryDto | null;
+};
+
+export type BudgetMonthRecapComparisonSummaryDto = {
+  income: BudgetMonthRecapMetricComparisonDto;
+  expenses: BudgetMonthRecapMetricComparisonDto;
+  savings: BudgetMonthRecapMetricComparisonDto;
+  debtPayments: BudgetMonthRecapMetricComparisonDto;
+  finalBalance: BudgetMonthRecapMetricComparisonDto;
+};
+
+export type BudgetMonthRecapMetricComparisonDto = {
+  previousValue: number;
+  deltaAmount: number;
+  deltaPercent: number | null;
 };
 
 export type BudgetMonthRecapDto = {

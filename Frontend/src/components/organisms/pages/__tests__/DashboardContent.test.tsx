@@ -389,6 +389,33 @@ describe("DashboardContent", () => {
         comparison: {
           previousComparableYearMonth: "2026-03",
           hasPreviousComparableMonth: true,
+          summary: {
+            income: {
+              previousValue: 9000,
+              deltaAmount: 1000,
+              deltaPercent: 11.1111111111,
+            },
+            expenses: {
+              previousValue: 4500,
+              deltaAmount: -500,
+              deltaPercent: -11.1111111111,
+            },
+            savings: {
+              previousValue: 1200,
+              deltaAmount: -200,
+              deltaPercent: -16.6666666667,
+            },
+            debtPayments: {
+              previousValue: 400,
+              deltaAmount: 100,
+              deltaPercent: 25,
+            },
+            finalBalance: {
+              previousValue: 2900,
+              deltaAmount: 1600,
+              deltaPercent: 55.1724137931,
+            },
+          },
         },
       },
       isPending: false,
@@ -443,10 +470,117 @@ describe("DashboardContent", () => {
     expect(
       within(carryOverCard).getByTestId("closed-month-carry-over"),
     ).toHaveTextContent(/500/);
+    const comparison = screen.getByTestId("closed-month-comparison");
+    expect(comparison).toHaveTextContent(/previous closed month: march 2026/i);
+    expect(screen.getByTestId("closed-month-comparison-income")).toHaveTextContent(
+      /\+.*1,000/,
+    );
+    expect(
+      screen.getByTestId("closed-month-comparison-income-percent"),
+    ).toHaveTextContent(/\+11.1%/);
+    expect(screen.getByTestId("closed-month-comparison-expenses")).toHaveAttribute(
+      "data-tone",
+      "positive",
+    );
+    expect(screen.getByTestId("closed-month-comparison-savings")).toHaveAttribute(
+      "data-tone",
+      "attention",
+    );
+    expect(
+      screen.getByTestId("closed-month-comparison-finalBalance"),
+    ).toHaveAttribute("data-tone", "positive");
     expect(screen.queryByRole("button", { name: /close month/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /add expense/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /^edit$/i })).toBeNull();
     expect(screen.queryByText("Edit drawer open")).toBeNull();
+  });
+
+  it("renders comparison tones and hides percent when previous value is zero", () => {
+    mockUseDashboardSummary.mockReturnValue({
+      ...readyResult,
+      data: {
+        ...readyResult.data,
+        summary: buildSummary(245, "closed"),
+      },
+    });
+    mockUseBudgetMonthRecapQuery.mockReturnValue({
+      data: {
+        month: {
+          yearMonth: "2026-04",
+          status: "closed",
+          openedAtUtc: "2026-04-01T08:00:00Z",
+          closedAtUtc: "2026-04-30T20:00:00Z",
+          carryOverMode: "none",
+          carryOverAmount: null,
+        },
+        snapshotTotals: {
+          totalIncomeMonthly: 10000,
+          totalExpensesMonthly: 4000,
+          totalSavingsMonthly: 1000,
+          totalDebtPaymentsMonthly: 500,
+          finalBalanceMonthly: 4500,
+        },
+        comparison: {
+          previousComparableYearMonth: "2026-03",
+          hasPreviousComparableMonth: true,
+          summary: {
+            income: {
+              previousValue: 10000,
+              deltaAmount: 0,
+              deltaPercent: 0,
+            },
+            expenses: {
+              previousValue: 0,
+              deltaAmount: 4000,
+              deltaPercent: null,
+            },
+            savings: {
+              previousValue: 1500,
+              deltaAmount: -500,
+              deltaPercent: -33.3333333333,
+            },
+            debtPayments: {
+              previousValue: 750,
+              deltaAmount: -250,
+              deltaPercent: -33.3333333333,
+            },
+            finalBalance: {
+              previousValue: 4000,
+              deltaAmount: 500,
+              deltaPercent: 12.5,
+            },
+          },
+        },
+      },
+      isPending: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    render(
+      <MemoryRouter>
+        <DashboardContent
+          isFirstTimeLogin={false}
+          isWizardOpen={false}
+          setIsWizardOpen={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByTestId("closed-month-comparison-expenses")).toHaveAttribute(
+      "data-tone",
+      "attention",
+    );
+    expect(
+      screen.queryByTestId("closed-month-comparison-expenses-percent"),
+    ).toBeNull();
+    expect(screen.getByTestId("closed-month-comparison-savings")).toHaveAttribute(
+      "data-tone",
+      "attention",
+    );
+    expect(
+      screen.getByTestId("closed-month-comparison-finalBalance"),
+    ).toHaveAttribute("data-tone", "positive");
   });
 
   it("shows calm deficit guidance when a closed month snapshot ends negative", () => {
@@ -477,6 +611,7 @@ describe("DashboardContent", () => {
         comparison: {
           previousComparableYearMonth: null,
           hasPreviousComparableMonth: false,
+          summary: null,
         },
       },
       isPending: false,
@@ -500,6 +635,12 @@ describe("DashboardContent", () => {
     expect(
       screen.getByRole("article", { name: /deficit guidance/i }),
     ).toHaveTextContent(/closed with a deficit/i);
+    expect(screen.getByTestId("closed-month-comparison")).toHaveTextContent(
+      /no previous closed month/i,
+    );
+    expect(
+      screen.queryByTestId("closed-month-comparison-income-percent"),
+    ).toBeNull();
     expect(screen.getByTestId("closed-month-carry-over")).toHaveTextContent(
       "No carry-over applied",
     );

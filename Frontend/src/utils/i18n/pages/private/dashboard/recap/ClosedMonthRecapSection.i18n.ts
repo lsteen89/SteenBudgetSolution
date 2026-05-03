@@ -38,7 +38,13 @@ export const closedMonthRecapDict = {
     deficitBody:
       "Granska återkommande kostnader och rörliga utgifter när du planerar nästa månad.",
     comparisonLabel: "Stängningsjämförelse",
+    comparisonTitle: "Jämfört med föregående stängda månad",
+    comparisonMetricLabel: "{label} månadsjämförelse",
+    previousValue: "Föregående",
+    snapshotContextLabel: "Ögonblicksbildens sammanhang",
     snapshotContextTitle: "Ögonblicksbildens sammanhang",
+    snapshotContextBody:
+      "Totalsummorna ovan kommer från den låsta ögonblicksbilden vid stängning.",
     previousComparable: "Föregående stängda månad: {month}.",
     noPreviousComparable:
       "Det finns ingen tidigare stängd månad att jämföra med ännu.",
@@ -84,7 +90,13 @@ export const closedMonthRecapDict = {
     deficitBody:
       "Review recurring costs and variable spending as you plan the next month.",
     comparisonLabel: "Closing comparison",
+    comparisonTitle: "Compared with the previous closed month",
+    comparisonMetricLabel: "{label} month comparison",
+    previousValue: "Previous",
+    snapshotContextLabel: "Snapshot context",
     snapshotContextTitle: "Snapshot context",
+    snapshotContextBody:
+      "The totals above come from the locked snapshot recorded at close.",
     previousComparable: "Previous closed month: {month}.",
     noPreviousComparable:
       "No previous closed month is available for comparison yet.",
@@ -130,7 +142,13 @@ export const closedMonthRecapDict = {
     deficitBody:
       "Vaata järgmise kuu planeerimisel üle korduvad kulud ja muutuvad väljaminekud.",
     comparisonLabel: "Sulgemise võrdlus",
+    comparisonTitle: "Võrdlus eelmise suletud kuuga",
+    comparisonMetricLabel: "{label} kuu võrdlus",
+    previousValue: "Eelmine",
+    snapshotContextLabel: "Ülevaate taust",
     snapshotContextTitle: "Ülevaate taust",
+    snapshotContextBody:
+      "Ülal olevad kogusummad tulevad sulgemisel lukustatud ülevaatest.",
     previousComparable: "Eelmine suletud kuu: {month}.",
     noPreviousComparable: "Varasemat suletud kuud võrdluseks veel ei ole.",
     futureVisualsLabel: "Tulevased visuaalsed ülevaated",
