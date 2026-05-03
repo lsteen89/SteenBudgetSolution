@@ -103,6 +103,7 @@ function LoadedDashboardContent({
     return (
       <SkippedMonthState
         periodLabel={summary.header.periodLabel}
+        locale={locale}
         previousPeriodLabel={summary.header.previousPeriodLabel}
         nextPeriodLabel={summary.header.nextPeriodLabel}
         canGoPrevious={summary.header.canGoPrevious}

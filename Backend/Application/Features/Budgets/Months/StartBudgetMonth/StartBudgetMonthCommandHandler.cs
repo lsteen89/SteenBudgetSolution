@@ -74,30 +74,7 @@ public sealed class StartBudgetMonthCommandHandler
         var openMonths = await _months.GetOpenMonthsAsync(budgetId.Value, ct);
 
         if (openMonths.Count > 1)
-        {
-            var keep = openMonths.OrderByDescending(x => x.OpenedAt).First();
-
-            foreach (var m in openMonths.Where(x => x.Id != keep.Id))
-            {
-                _log.LogWarning("Multiple open months detected. Marking skipped. MonthId={MonthId} YM={YM}", m.Id, m.YearMonth);
-                var skippedRows = await _months.MarkMonthSkippedAsync(m.Id, cmd.ActorPersoid, now, ct);
-                if (skippedRows > 0)
-                {
-                    await WriteLifecycleAsync(
-                        m.Id,
-                        BudgetMonthLifecycleEventTypes.Skipped,
-                        relatedBudgetMonthId: keep.Id,
-                        carryOverMode: null,
-                        carryOverAmount: null,
-                        metadataJson: JsonSerializer.Serialize(new { m.YearMonth, reason = "multiple-open-months" }),
-                        cmd.ActorPersoid,
-                        now,
-                        ct);
-                }
-            }
-
-            openMonths = new List<BudgetMonthListRm> { keep };
-        }
+            return Result<BudgetMonthsStatusDto?>.Failure(BudgetMonth.OpenMonthExists);
 
         var open = openMonths.SingleOrDefault();
         if (open is null && req.CarryOverMode != BudgetMonthCarryOverModes.None)

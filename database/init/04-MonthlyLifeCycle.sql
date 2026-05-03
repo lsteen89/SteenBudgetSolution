@@ -26,6 +26,9 @@ CREATE TABLE BudgetMonth (
     UpdatedAt               DATETIME      NULL ON UPDATE CURRENT_TIMESTAMP,
     CreatedByUserId         BINARY(16)    NOT NULL,
     UpdatedByUserId         BINARY(16)    NULL,
+    OpenBudgetId            BINARY(16)    GENERATED ALWAYS AS (
+        CASE WHEN Status = 'open' THEN BudgetId ELSE NULL END
+    ) STORED,
 
     CONSTRAINT FK_BudgetMonth_Budget
         FOREIGN KEY (BudgetId) REFERENCES Budget(Id) ON DELETE CASCADE,
@@ -46,6 +49,7 @@ CREATE TABLE BudgetMonth (
         ),
 
     UNIQUE KEY UX_BudgetMonth_BudgetId_YearMonth (BudgetId, YearMonth),
+    UNIQUE KEY UX_BudgetMonth_OneOpenPerBudget (OpenBudgetId),
     KEY IX_BudgetMonth_BudgetId_Status (BudgetId, Status)
 ) ENGINE=InnoDB;
 

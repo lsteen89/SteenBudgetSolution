@@ -259,7 +259,7 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
         result.Error.Code.Should().Be(BudgetMonth.InvalidYearMonth.Code);
     }
     [Fact]
-    public async Task WhenYearMonthIsNull_PicksCurrentYearMonth_AndEnsuresIt()
+    public async Task WhenYearMonthIsNull_UsesExistingOpenMonth()
     {
         await _db.ResetAsync();
 
@@ -268,7 +268,6 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
         var userId = seed.UserId;
         var budgetId = seed.BudgetId;
 
-        // Existing open month in the past should not win anymore
         await BudgetMonthDsl.InsertOpenAsync(
             cs: _db.ConnectionString,
             budgetId: budgetId,
@@ -288,9 +287,11 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
 
         result.IsFailure.Should().BeFalse();
         result.Value.Should().NotBeNull();
-        result.Value!.Month.YearMonth.Should().Be("2026-01");
+        result.Value!.Month.YearMonth.Should().Be("2025-12");
         result.Value!.Month.Status.Should().Be("open");
         result.Value!.LiveDashboard.Should().NotBeNull();
+        (await CountMonthsForYearMonthAsync(_db.ConnectionString, budgetId, "2026-01"))
+            .Should().Be(0);
     }
 
     [Fact]
@@ -538,7 +539,78 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
         dto.Month.CloseEligibleAtUtc.Should().Be(new DateTime(2026, 04, 25, 0, 0, 0, DateTimeKind.Utc));
     }
 
+    [Fact]
+    public async Task Handle_WhenNoYearMonthAndOlderOpenMonthExists_DoesNotCreateCurrentMonth()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var persoid = seed.Persoid;
+        var userId = seed.UserId;
+        var budgetId = seed.BudgetId;
+
+        await BudgetMonthDsl.InsertOpenAsync(
+            cs: _db.ConnectionString,
+            budgetId: budgetId,
+            ym: "2026-04",
+            openedAtUtc: new DateTime(2026, 04, 01, 10, 00, 00, DateTimeKind.Utc),
+            createdByUserId: userId);
+
+        var clock = new FakeTimeProvider(new DateTime(2026, 05, 01, 08, 0, 0, DateTimeKind.Utc));
+
+        await using var sp = BuildServiceProvider(_db.ConnectionString, clock, new DebtPaymentCalculator());
+        await using var scope = sp.CreateAsyncScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+        var result = await mediator.Send(
+            new GetBudgetDashboardMonthQuery(persoid, null),
+            CancellationToken.None);
+
+        result.IsFailure.Should().BeFalse();
+        result.Value.Should().NotBeNull();
+
+        result.Value!.Month.YearMonth.Should().Be("2026-04");
+        result.Value.Month.Status.Should().Be("open");
+
+        (await CountMonthsForYearMonthAsync(_db.ConnectionString, budgetId, "2026-05"))
+            .Should().Be(0);
+        (await CountOpenMonthsAsync(_db.ConnectionString, budgetId)).Should().Be(1);
+    }
+
     // ---- helpers ----
+    private static async Task<int> CountOpenMonthsAsync(string cs, Guid budgetId)
+    {
+        await using var conn = new MySqlConnection(cs);
+        await conn.OpenAsync();
+
+        return await conn.ExecuteScalarAsync<int>(
+            """
+            SELECT COUNT(*)
+            FROM BudgetMonth
+            WHERE BudgetId = @budgetId
+              AND Status = 'open';
+            """,
+            new { budgetId });
+    }
+
+    private static async Task<int> CountMonthsForYearMonthAsync(
+        string cs,
+        Guid budgetId,
+        string yearMonth)
+    {
+        await using var conn = new MySqlConnection(cs);
+        await conn.OpenAsync();
+
+        return await conn.ExecuteScalarAsync<int>(
+            """
+            SELECT COUNT(*)
+            FROM BudgetMonth
+            WHERE BudgetId = @budgetId
+              AND YearMonth = @yearMonth;
+            """,
+            new { budgetId, yearMonth });
+    }
+
     private static async Task SetIncomePaymentTimingAsync(
         string cs,
         Guid budgetId,

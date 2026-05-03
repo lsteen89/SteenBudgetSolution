@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -404,8 +410,99 @@ describe("DashboardContent", () => {
     expect(mockUseBudgetMonthRecapQuery).toHaveBeenCalledWith("2026-04", {
       enabled: true,
     });
+    expect(
+      screen.getByRole("heading", { name: /april 2026/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Closed")).toBeInTheDocument();
+    expect(screen.getByTestId("closed-month-summary")).toHaveTextContent(
+      /frozen snapshot/i,
+    );
+
+    const incomeCard = screen.getByRole("article", {
+      name: /income snapshot total/i,
+    });
+    expect(incomeCard).toHaveTextContent("Income");
+    expect(incomeCard).not.toHaveTextContent(/carry-over/i);
+    expect(
+      screen.getByRole("article", { name: /expenses snapshot total/i }),
+    ).toHaveTextContent("Expenses");
+    expect(
+      screen.getByRole("article", { name: /savings snapshot total/i }),
+    ).toHaveTextContent("Savings");
+    expect(
+      screen.getByRole("article", { name: /debt payments snapshot total/i }),
+    ).toHaveTextContent("Debt payments");
+    expect(
+      screen.getByRole("article", { name: /final balance snapshot total/i }),
+    ).toHaveTextContent("Final balance");
+
+    const carryOverCard = screen.getByRole("article", {
+      name: /carry-over outcome/i,
+    });
+    expect(within(carryOverCard).getByText("Carry-over")).toBeInTheDocument();
+    expect(
+      within(carryOverCard).getByTestId("closed-month-carry-over"),
+    ).toHaveTextContent(/500/);
     expect(screen.queryByRole("button", { name: /close month/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /add expense/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^edit$/i })).toBeNull();
     expect(screen.queryByText("Edit drawer open")).toBeNull();
+  });
+
+  it("shows calm deficit guidance when a closed month snapshot ends negative", () => {
+    mockUseDashboardSummary.mockReturnValue({
+      ...readyResult,
+      data: {
+        ...readyResult.data,
+        summary: buildSummary(-750, "closed"),
+      },
+    });
+    mockUseBudgetMonthRecapQuery.mockReturnValue({
+      data: {
+        month: {
+          yearMonth: "2026-04",
+          status: "closed",
+          openedAtUtc: "2026-04-01T08:00:00Z",
+          closedAtUtc: "2026-04-30T20:00:00Z",
+          carryOverMode: "none",
+          carryOverAmount: null,
+        },
+        snapshotTotals: {
+          totalIncomeMonthly: 10000,
+          totalExpensesMonthly: 12000,
+          totalSavingsMonthly: 1000,
+          totalDebtPaymentsMonthly: 500,
+          finalBalanceMonthly: -3500,
+        },
+        comparison: {
+          previousComparableYearMonth: null,
+          hasPreviousComparableMonth: false,
+        },
+      },
+      isPending: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    render(
+      <MemoryRouter>
+        <DashboardContent
+          isFirstTimeLogin={false}
+          isWizardOpen={false}
+          setIsWizardOpen={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByRole("article", { name: /final balance snapshot total/i }),
+    ).toHaveTextContent("-");
+    expect(
+      screen.getByRole("article", { name: /deficit guidance/i }),
+    ).toHaveTextContent(/closed with a deficit/i);
+    expect(screen.getByTestId("closed-month-carry-over")).toHaveTextContent(
+      "No carry-over applied",
+    );
   });
 
   it("renders the skipped month shell without requesting recap data", () => {
@@ -428,6 +525,13 @@ describe("DashboardContent", () => {
     );
 
     expect(screen.getByTestId("skipped-month-state")).toBeInTheDocument();
+    expect(screen.getByTestId("month-status-badge")).toHaveTextContent(
+      "Skipped",
+    );
+    expect(
+      screen.getByRole("heading", { name: "This month was skipped" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/cannot be edited/i)).toBeInTheDocument();
     expect(mockUseBudgetMonthRecapQuery).toHaveBeenCalledWith("2026-04", {
       enabled: false,
     });

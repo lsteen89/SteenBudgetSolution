@@ -4,6 +4,7 @@ using Backend.Domain.Shared;
 using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Application.Features.Budgets.Months.Helpers;
 using Backend.Application.DTO.Budget.Months;
+using Backend.Domain.Errors.Budget;
 namespace Backend.Application.BudgetMonths.Services;
 
 public sealed class BudgetMonthLifecycleService : IBudgetMonthLifecycleService
@@ -38,40 +39,44 @@ public sealed class BudgetMonthLifecycleService : IBudgetMonthLifecycleService
         var now = _clock.UtcNow;
         var currentYm = YearMonthUtil.CurrentYearMonth(now);
 
-        var targetYm = string.IsNullOrWhiteSpace(requestedYearMonth)
-            ? currentYm
+        var requestedYm = string.IsNullOrWhiteSpace(requestedYearMonth)
+            ? null
             : requestedYearMonth.Trim();
+
+        var targetYm = requestedYm ?? currentYm;
 
         if (!YearMonthUtil.IsValid(targetYm))
         {
             return Result<EnsureBudgetMonthLifecycleResult>.Failure(
                 new Error("BudgetMonth.InvalidYearMonth", "YearMonth must be in format YYYY-MM."));
         }
-        var hasAnyMonths = await _repo.HasAnyMonthsAsync(budgetId.Value, ct);
-        var wasBootstrapped = false;
+        var openMonths = await _repo.GetOpenMonthsAsync(budgetId.Value, ct);
 
-        if (!hasAnyMonths)
+        if (openMonths.Count > 1)
         {
-            await _repo.InsertOpenMonthIdempotentAsync(
-                id: Guid.NewGuid(),
-                budgetId: budgetId.Value,
-                yearMonth: currentYm,
-                carryOverMode: BudgetMonthCarryOverModes.None,
-                carryOverAmount: null,
-                userId: actorPersoid,
-                nowUtc: now,
-                ct: ct);
+            return Result<EnsureBudgetMonthLifecycleResult>.Failure(BudgetMonth.OpenMonthExists);
+        }
 
-            wasBootstrapped = true;
+        var openMonth = openMonths.SingleOrDefault();
+
+        if (requestedYm is null && openMonth is not null)
+        {
+            targetYm = openMonth.YearMonth;
         }
 
 
 
         var existing = await _repo.GetByBudgetIdAndYearMonthAsync(budgetId.Value, targetYm, ct);
         var wasCreated = false;
+        var wasBootstrapped = false;
 
         if (existing is null)
         {
+            if (openMonth is not null)
+            {
+                return Result<EnsureBudgetMonthLifecycleResult>.Failure(BudgetMonth.OpenMonthExists);
+            }
+
             await _repo.InsertOpenMonthIdempotentAsync(
                 id: Guid.NewGuid(),
                 budgetId: budgetId.Value,
@@ -83,6 +88,7 @@ public sealed class BudgetMonthLifecycleService : IBudgetMonthLifecycleService
                 ct: ct);
 
             wasCreated = true;
+            wasBootstrapped = requestedYm is null;
 
             existing = await _repo.GetByBudgetIdAndYearMonthAsync(budgetId.Value, targetYm, ct);
             if (existing is null)

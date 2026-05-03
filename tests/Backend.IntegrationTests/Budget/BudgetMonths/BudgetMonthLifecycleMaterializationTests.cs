@@ -58,14 +58,51 @@ public sealed class BudgetMonthLifecycleMaterializationTests
             lifecycle.EnsureAccessibleMonthAsync(
                 persoid,
                 persoid,
-                "2026-02",
+                requestedYearMonth: null,
                 CancellationToken.None));
 
         result.IsFailure.Should().BeFalse();
         result.Value.Should().NotBeNull();
         result.Value!.YearMonth.Should().Be("2026-02");
         result.Value.WasBootstrapped.Should().BeTrue();
-        result.Value.WasCreated.Should().BeFalse();
+        result.Value.WasCreated.Should().BeTrue();
+        result.Value.WasMaterialized.Should().BeTrue();
+
+        var budgetMonthIncomeId = await GetBudgetMonthIncomeIdAsync(_db.ConnectionString, result.Value.BudgetMonthId);
+        budgetMonthIncomeId.Should().NotBeNull();
+
+        var expenseCount = await CountBudgetMonthExpenseRowsAsync(_db.ConnectionString, result.Value.BudgetMonthId);
+        expenseCount.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public async Task EnsureAccessibleMonthAsync_WhenExplicitMonthRequested_CreatesRequestedMonth_AndMaterializesChildRows()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var persoid = seed.Persoid;
+
+        var clock = new FakeTimeProvider(new DateTime(2026, 02, 07, 08, 00, 00, DateTimeKind.Utc));
+
+        await using var sp = BuildServiceProvider(_db.ConnectionString, clock);
+        await using var scope = sp.CreateAsyncScope();
+
+        var lifecycle = scope.ServiceProvider.GetRequiredService<IBudgetMonthLifecycleService>();
+        var uow = (UnitOfWork)scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+        var result = await uow.InTx(CancellationToken.None, () =>
+            lifecycle.EnsureAccessibleMonthAsync(
+                persoid,
+                persoid,
+                "2026-02",
+                CancellationToken.None));
+
+        result.IsFailure.Should().BeFalse();
+        result.Value.Should().NotBeNull();
+        result.Value!.YearMonth.Should().Be("2026-02");
+        result.Value.WasBootstrapped.Should().BeFalse();
+        result.Value.WasCreated.Should().BeTrue();
         result.Value.WasMaterialized.Should().BeTrue();
 
         var budgetMonthIncomeId = await GetBudgetMonthIncomeIdAsync(_db.ConnectionString, result.Value.BudgetMonthId);
@@ -190,6 +227,12 @@ public sealed class BudgetMonthLifecycleMaterializationTests
             persoid,
             incomePaymentDayType: "dayOfMonth",
             incomePaymentDay: 18);
+
+        await MarkBudgetMonthClosedAsync(
+            _db.ConnectionString,
+            first.Value!.BudgetMonthId,
+            closedAtUtc: new DateTime(2026, 02, 28, 12, 00, 00, DateTimeKind.Utc),
+            userId: persoid);
 
         var second = await uow.InTx(CancellationToken.None, () =>
             lifecycle.EnsureAccessibleMonthAsync(
@@ -945,6 +988,30 @@ public sealed class BudgetMonthLifecycleMaterializationTests
             IncomePaymentDayType = incomePaymentDayType,
             IncomePaymentDay = incomePaymentDay,
             ActorPersoid = actorPersoid
+        });
+    }
+
+    private static async Task MarkBudgetMonthClosedAsync(
+        string cs,
+        Guid budgetMonthId,
+        DateTime closedAtUtc,
+        Guid userId)
+    {
+        await using var conn = new MySqlConnection(cs);
+        await conn.OpenAsync();
+
+        await conn.ExecuteAsync("""
+        UPDATE BudgetMonth
+        SET
+            Status = 'closed',
+            ClosedAt = @ClosedAtUtc,
+            UpdatedByUserId = @UserId
+        WHERE Id = @BudgetMonthId;
+    """, new
+        {
+            BudgetMonthId = budgetMonthId,
+            ClosedAtUtc = closedAtUtc,
+            UserId = userId
         });
     }
 

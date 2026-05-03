@@ -159,7 +159,7 @@ public sealed class BudgetMonthLifecycleServiceTests
         res.Value.Should().NotBeNull();
         res.Value!.YearMonth.Should().Be("2026-01");
         res.Value.WasBootstrapped.Should().BeTrue();
-        res.Value.WasCreated.Should().BeFalse(); // bootstrapped current month, then resolved it
+        res.Value.WasCreated.Should().BeTrue();
 
         (await CountMonthsAsync(_db.ConnectionString, budgetId)).Should().Be(1);
         (await CountOpenMonthsAsync(_db.ConnectionString, budgetId)).Should().Be(1);
@@ -171,7 +171,7 @@ public sealed class BudgetMonthLifecycleServiceTests
     }
 
     [Fact]
-    public async Task EnsureAccessibleMonth_WhenRequestedMonthMissing_CreatesRequestedMonth()
+    public async Task EnsureAccessibleMonth_WhenRequestedMonthMissingAndAnotherMonthIsOpen_ReturnsOpenMonthExists()
     {
         await _db.ResetAsync();
 
@@ -200,13 +200,50 @@ public sealed class BudgetMonthLifecycleServiceTests
             ct: CancellationToken.None);
         await uow.CommitAsync(CancellationToken.None);
 
+        res.IsFailure.Should().BeTrue();
+        res.Error.Code.Should().Be("BudgetMonth.OpenMonthExists");
+
+        (await CountMonthsAsync(_db.ConnectionString, budgetId)).Should().Be(1);
+        (await CountOpenMonthsAsync(_db.ConnectionString, budgetId)).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task EnsureAccessibleMonth_WhenNoRequestedMonthAndOlderOpenMonthExists_UsesExistingOpenMonth()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+        var persoid = seed.Persoid;
+        var userId = seed.UserId;
+        var budgetId = seed.BudgetId;
+
+        await BudgetMonthDsl.InsertOpenAsync(
+            cs: _db.ConnectionString,
+            budgetId: budgetId,
+            ym: "2026-04",
+            openedAtUtc: new DateTime(2026, 04, 01, 10, 00, 00, DateTimeKind.Utc),
+            createdByUserId: userId);
+
+        ITimeProvider clock = new FakeTimeProvider(new DateTime(2026, 05, 01, 08, 00, 00, DateTimeKind.Utc));
+        var service = BuildService(_db.ConnectionString, clock, out var uow);
+
+        await uow.BeginTransactionAsync(CancellationToken.None);
+        var res = await service.EnsureAccessibleMonthAsync(
+            persoid,
+            persoid,
+            requestedYearMonth: null,
+            ct: CancellationToken.None);
+        await uow.CommitAsync(CancellationToken.None);
+
         res.IsFailure.Should().BeFalse();
         res.Value.Should().NotBeNull();
         res.Value!.YearMonth.Should().Be("2026-04");
+        res.Value.WasCreated.Should().BeFalse();
         res.Value.WasBootstrapped.Should().BeFalse();
-        res.Value.WasCreated.Should().BeTrue();
 
-        (await CountMonthsAsync(_db.ConnectionString, budgetId)).Should().Be(2);
+        (await CountMonthsAsync(_db.ConnectionString, budgetId)).Should().Be(1);
+        (await CountOpenMonthsAsync(_db.ConnectionString, budgetId)).Should().Be(1);
+        (await GetOpenYearMonthAsync(_db.ConnectionString, budgetId)).Should().Be("2026-04");
     }
 
     [Fact]
@@ -246,7 +283,7 @@ public sealed class BudgetMonthLifecycleServiceTests
         (await CountMonthsAsync(_db.ConnectionString, budgetId)).Should().Be(1);
     }
     [Fact]
-    public async Task EnsureAccessibleMonth_WhenZeroMonthsAndExplicitFutureMonth_CreatesBootstrapAndRequestedMonth()
+    public async Task EnsureAccessibleMonth_WhenZeroMonthsAndExplicitFutureMonth_CreatesOnlyRequestedMonth()
     {
         await _db.ResetAsync();
 
@@ -268,10 +305,12 @@ public sealed class BudgetMonthLifecycleServiceTests
         res.IsFailure.Should().BeFalse();
         res.Value.Should().NotBeNull();
         res.Value!.YearMonth.Should().Be("2026-04");
-        res.Value.WasBootstrapped.Should().BeTrue();
+        res.Value.WasBootstrapped.Should().BeFalse();
         res.Value.WasCreated.Should().BeTrue();
 
-        (await CountMonthsAsync(_db.ConnectionString, budgetId)).Should().Be(2);
+        (await CountMonthsAsync(_db.ConnectionString, budgetId)).Should().Be(1);
+        (await CountOpenMonthsAsync(_db.ConnectionString, budgetId)).Should().Be(1);
+        (await GetOpenYearMonthAsync(_db.ConnectionString, budgetId)).Should().Be("2026-04");
     }
 
     [Fact]
