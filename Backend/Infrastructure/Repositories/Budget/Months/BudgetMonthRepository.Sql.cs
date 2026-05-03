@@ -168,6 +168,19 @@ public sealed partial class BudgetMonthRepository
     ORDER BY bm.YearMonth DESC
     LIMIT 1;";
 
+    private const string GetExpenseCategoryTotals = @"
+    SELECT
+        c.Id AS CategoryId,
+        c.Name AS CategoryName,
+        COALESCE(SUM(e.AmountMonthly), 0) AS TotalMonthlyAmount
+    FROM BudgetMonthExpenseItem e
+    JOIN ExpenseCategory c ON c.Id = e.CategoryId
+    WHERE e.BudgetMonthId = @BudgetMonthId
+      AND e.IsDeleted = 0
+      AND e.IsActive = 1
+    GROUP BY c.Id, c.Name
+    ORDER BY c.Name;";
+
     const string ExistsAnyMonths = """
         SELECT EXISTS(
             SELECT 1

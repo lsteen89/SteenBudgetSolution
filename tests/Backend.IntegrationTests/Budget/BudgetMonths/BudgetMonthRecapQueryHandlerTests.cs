@@ -1,5 +1,6 @@
 using Backend.Application.DTO.Budget.Months;
 using Backend.Application.Features.Budgets.Months.Recap;
+using Backend.Domain.Entities.Budget.Expenses;
 using Backend.Domain.Errors.Budget;
 using Backend.Infrastructure.Data.Sql.Helpers.UnitOfWork;
 using Backend.Infrastructure.Repositories.Budget.Months;
@@ -67,6 +68,7 @@ public sealed class BudgetMonthRecapQueryHandlerTests
         dto.SnapshotTotals.TotalSavingsMonthly.Should().Be(303m);
         dto.SnapshotTotals.TotalDebtPaymentsMonthly.Should().Be(404m);
         dto.SnapshotTotals.FinalBalanceMonthly.Should().Be(-808m);
+        dto.ExpenseCategories.Should().BeEmpty();
     }
 
     [Fact]
@@ -115,6 +117,12 @@ public sealed class BudgetMonthRecapQueryHandlerTests
             totalSavings: 250m,
             totalDebtPayments: 400m,
             finalBalance: 50m);
+        await InsertMonthExpenseItemAsync(seed.BudgetId, "2026-02", seed.UserId, ExpenseCategories.Food, "Groceries", 100m);
+        await InsertMonthExpenseItemAsync(seed.BudgetId, "2026-02", seed.UserId, ExpenseCategories.Transport, "Transit", 200m);
+        await InsertMonthExpenseItemAsync(seed.BudgetId, "2026-02", seed.UserId, ExpenseCategories.Other, "Old one-off", 90m);
+        await InsertMonthExpenseItemAsync(seed.BudgetId, "2026-04", seed.UserId, ExpenseCategories.Food, "Groceries", 350m);
+        await InsertMonthExpenseItemAsync(seed.BudgetId, "2026-04", seed.UserId, ExpenseCategories.Transport, "Transit", 50m);
+        await InsertMonthExpenseItemAsync(seed.BudgetId, "2026-04", seed.UserId, ExpenseCategories.Housing, "Rent", 700m);
 
         var handler = CreateHandler();
 
@@ -137,6 +145,27 @@ public sealed class BudgetMonthRecapQueryHandlerTests
         result.Value.Comparison.Summary.DebtPayments.DeltaPercent.Should().Be(0m);
         result.Value.Comparison.Summary.FinalBalance.DeltaAmount.Should().Be(-50m);
         result.Value.Comparison.Summary.FinalBalance.DeltaPercent.Should().Be(-50m);
+
+        result.Value.ExpenseCategories.Select(x => x.CategoryName)
+            .Should().Equal("Housing", "Food", "Transport", "Other");
+
+        var housing = result.Value.ExpenseCategories[0];
+        housing.CurrentAmount.Should().Be(700m);
+        housing.PreviousAmount.Should().Be(0m);
+        housing.DeltaAmount.Should().Be(700m);
+        housing.DeltaPercent.Should().BeNull();
+
+        var food = result.Value.ExpenseCategories[1];
+        food.CurrentAmount.Should().Be(350m);
+        food.PreviousAmount.Should().Be(100m);
+        food.DeltaAmount.Should().Be(250m);
+        food.DeltaPercent.Should().Be(250m);
+
+        var other = result.Value.ExpenseCategories[3];
+        other.CurrentAmount.Should().Be(0m);
+        other.PreviousAmount.Should().Be(90m);
+        other.DeltaAmount.Should().Be(-90m);
+        other.DeltaPercent.Should().Be(-100m);
     }
 
     [Fact]
@@ -147,6 +176,8 @@ public sealed class BudgetMonthRecapQueryHandlerTests
         var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
 
         await InsertClosedMonthWithSnapshotAsync(seed.BudgetId, "2026-04", seed.UserId);
+        await InsertMonthExpenseItemAsync(seed.BudgetId, "2026-04", seed.UserId, ExpenseCategories.Food, "Groceries", 250m);
+        await InsertMonthExpenseItemAsync(seed.BudgetId, "2026-04", seed.UserId, ExpenseCategories.Housing, "Rent", 900m);
 
         var handler = CreateHandler();
 
@@ -158,6 +189,11 @@ public sealed class BudgetMonthRecapQueryHandlerTests
         result.Value!.Comparison.PreviousComparableYearMonth.Should().BeNull();
         result.Value.Comparison.HasPreviousComparableMonth.Should().BeFalse();
         result.Value.Comparison.Summary.Should().BeNull();
+        result.Value.ExpenseCategories.Select(x => x.CategoryName).Should().Equal("Housing", "Food");
+        result.Value.ExpenseCategories.Should().OnlyContain(x =>
+            x.PreviousAmount == null &&
+            x.DeltaAmount == null &&
+            x.DeltaPercent == null);
     }
 
     [Fact]
@@ -363,5 +399,70 @@ public sealed class BudgetMonthRecapQueryHandlerTests
             FinalBalance = finalBalance,
             CreatedByUserId = createdByUserId
         });
+    }
+
+    private async Task InsertMonthExpenseItemAsync(
+        Guid budgetId,
+        string yearMonth,
+        Guid createdByUserId,
+        Guid categoryId,
+        string name,
+        decimal amountMonthly)
+    {
+        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await conn.OpenAsync();
+        await DbSeeds.EnsureDefaultExpenseCategoriesAsync(conn);
+
+        var budgetMonthId = await conn.QuerySingleAsync<Guid>(
+            """
+            SELECT Id
+            FROM BudgetMonth
+            WHERE BudgetId = @BudgetId
+              AND YearMonth = @YearMonth
+            LIMIT 1;
+            """,
+            new { BudgetId = budgetId, YearMonth = yearMonth });
+
+        await conn.ExecuteAsync(
+            """
+            INSERT INTO BudgetMonthExpenseItem
+            (
+                Id,
+                BudgetMonthId,
+                SourceExpenseItemId,
+                CategoryId,
+                Name,
+                AmountMonthly,
+                IsActive,
+                IsOverride,
+                IsDeleted,
+                SortOrder,
+                CreatedAt,
+                CreatedByUserId
+            )
+            VALUES
+            (
+                UUID_TO_BIN(UUID()),
+                @BudgetMonthId,
+                NULL,
+                @CategoryId,
+                @Name,
+                @AmountMonthly,
+                1,
+                0,
+                0,
+                0,
+                UTC_TIMESTAMP(),
+                @CreatedByUserId
+            );
+            """,
+            new
+            {
+                BudgetMonthId = budgetMonthId,
+                CategoryId = categoryId,
+                Name = name,
+                AmountMonthly = amountMonthly,
+                CreatedByUserId = createdByUserId
+            });
     }
 }

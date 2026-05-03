@@ -2,6 +2,7 @@ import DashboardErrorState from "@/components/organisms/dashboard/DashboardError
 import { cn } from "@/lib/utils";
 import type { BudgetMonthRecapDto } from "@/types/budget/BudgetMonthRecapDto";
 import type { AppLocale } from "@/types/i18n/appLocale";
+import { labelLedgerItem } from "@/utils/i18n/budget/ledgerItems";
 import { closedMonthRecapDict } from "@/utils/i18n/pages/private/dashboard/recap/ClosedMonthRecapSection.i18n";
 import { tDict } from "@/utils/i18n/translate";
 import type { CurrencyCode } from "@/utils/money/currency";
@@ -47,6 +48,7 @@ type ComparisonMetricKey = keyof NonNullable<
   BudgetMonthRecapDto["comparison"]["summary"]
 >;
 type ComparisonTone = "positive" | "attention" | "neutral";
+type ExpenseCategoryTone = ComparisonTone;
 
 const totalCards: Array<{
   key: keyof BudgetMonthRecapDto["snapshotTotals"];
@@ -197,6 +199,12 @@ function toneClasses(tone: ComparisonTone) {
     icon: "bg-eb-accentSoft/55 text-eb-accent",
     value: "text-eb-text",
   };
+}
+
+function expenseCategoryTone(deltaAmount: number | null): ExpenseCategoryTone {
+  if (deltaAmount == null || deltaAmount === 0) return "neutral";
+
+  return deltaAmount > 0 ? "attention" : "positive";
 }
 
 function carryOverLabel(
@@ -446,6 +454,119 @@ function ComparisonSummaryBlock({
   );
 }
 
+function ExpenseCategoryBreakdownBlock({
+  recap,
+  currency,
+  locale,
+  t,
+}: {
+  recap: BudgetMonthRecapDto;
+  currency: CurrencyCode;
+  locale: AppLocale;
+  t: RecapT;
+}) {
+  const hasPreviousComparableMonth = recap.comparison.hasPreviousComparableMonth;
+
+  return (
+    <article
+      aria-label={t("expenseCategoryBreakdownLabel")}
+      data-testid="closed-month-expense-categories"
+      className="mt-4 rounded-2xl border border-eb-stroke/25 bg-white/80 p-5 shadow-sm"
+    >
+      <div className="flex items-start gap-3">
+        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-700">
+          <ReceiptText className="h-4 w-4" />
+        </span>
+        <div>
+          <h2 className="text-base font-extrabold text-eb-text">
+            {t("expenseCategoryBreakdownTitle")}
+          </h2>
+          <p className="mt-1 text-sm font-medium leading-6 text-eb-text/60">
+            {hasPreviousComparableMonth
+              ? t("expenseCategoryBreakdownBody")
+              : t("expenseCategoryNoPrevious")}
+          </p>
+        </div>
+      </div>
+
+      {recap.expenseCategories.length > 0 ? (
+        <div className="mt-4 divide-y divide-eb-stroke/20 overflow-hidden rounded-xl border border-eb-stroke/25 bg-eb-shell/25">
+          {recap.expenseCategories.map((category) => {
+            const tone = expenseCategoryTone(category.deltaAmount);
+            const classes = toneClasses(tone);
+            const categoryLabel = labelLedgerItem(category.categoryName, locale);
+
+            return (
+              <section
+                key={category.categoryId}
+                aria-label={replaceToken(
+                  t("expenseCategoryRowLabel"),
+                  "category",
+                  categoryLabel,
+                )}
+                data-testid={`closed-month-expense-category-${category.categoryId}`}
+                data-tone={tone}
+                className="grid grid-cols-1 gap-3 bg-white/65 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-extrabold text-eb-text">
+                    {categoryLabel}
+                  </p>
+                  {hasPreviousComparableMonth && category.previousAmount != null ? (
+                    <p className="mt-1 text-xs font-semibold text-eb-text/50">
+                      {replaceToken(
+                        t("expenseCategoryPreviousValue"),
+                        "amount",
+                        formatSnapshotMoney(
+                          category.previousAmount,
+                          currency,
+                          locale,
+                        ),
+                      )}
+                    </p>
+                  ) : null}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                  <span className="rounded-lg border border-eb-stroke/20 bg-white/80 px-3 py-1.5 text-sm font-extrabold text-eb-text">
+                    {formatSnapshotMoney(category.currentAmount, currency, locale)}
+                  </span>
+                  {category.deltaAmount != null ? (
+                    <span
+                      className={cn(
+                        "rounded-lg border px-3 py-1.5 text-sm font-extrabold",
+                        classes.row,
+                        classes.value,
+                      )}
+                    >
+                      {formatSignedMoney(category.deltaAmount, currency, locale)}
+                      {category.deltaPercent != null ? (
+                        <span
+                          data-testid={`closed-month-expense-category-${category.categoryId}-percent`}
+                          className="ml-1"
+                        >
+                          ({formatSignedPercent(category.deltaPercent, locale)})
+                        </span>
+                      ) : null}
+                    </span>
+                  ) : null}
+                </div>
+              </section>
+            );
+          })}
+        </div>
+      ) : (
+        <div
+          data-testid="closed-month-expense-categories-empty"
+          className="mt-4 rounded-xl border border-dashed border-eb-stroke/35 bg-eb-shell/35 px-4 py-5 text-sm font-semibold text-eb-text/60"
+        >
+          {t("expenseCategoryEmpty")}
+        </div>
+      )}
+    </article>
+  );
+}
+
 export default function ClosedMonthRecapSection({
   recap,
   currency,
@@ -599,6 +720,13 @@ export default function ClosedMonthRecapSection({
           </div>
 
           <ComparisonSummaryBlock
+            recap={recap}
+            currency={currency}
+            locale={locale}
+            t={t}
+          />
+
+          <ExpenseCategoryBreakdownBlock
             recap={recap}
             currency={currency}
             locale={locale}

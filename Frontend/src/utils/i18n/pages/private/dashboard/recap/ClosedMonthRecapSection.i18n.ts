@@ -48,6 +48,16 @@ export const closedMonthRecapDict = {
     previousComparable: "Föregående stängda månad: {month}.",
     noPreviousComparable:
       "Det finns ingen tidigare stängd månad att jämföra med ännu.",
+    expenseCategoryBreakdownLabel: "Utgiftskategorier",
+    expenseCategoryBreakdownTitle: "Vad ändrades i utgifterna?",
+    expenseCategoryBreakdownBody:
+      "Kategorier sorterade efter störst förändring sedan föregående stängda månad.",
+    expenseCategoryNoPrevious:
+      "Ingen tidigare månad finns för kategorijämförelse. Aktuella kategorisummor visas.",
+    expenseCategoryEmpty:
+      "Den här stängda månaden har inga aktiva utgiftskategorier.",
+    expenseCategoryRowLabel: "{category} utgiftskategori",
+    expenseCategoryPreviousValue: "Föregående {amount}",
     futureVisualsLabel: "Framtida visuella översikter",
     futureVisuals: "Visuell översikt",
   },
@@ -100,6 +110,16 @@ export const closedMonthRecapDict = {
     previousComparable: "Previous closed month: {month}.",
     noPreviousComparable:
       "No previous closed month is available for comparison yet.",
+    expenseCategoryBreakdownLabel: "Expense categories",
+    expenseCategoryBreakdownTitle: "What changed inside expenses?",
+    expenseCategoryBreakdownBody:
+      "Categories are sorted by the largest movement since the previous closed month.",
+    expenseCategoryNoPrevious:
+      "No previous month is available for category comparison. Current category totals are shown.",
+    expenseCategoryEmpty:
+      "This closed month has no active expense categories.",
+    expenseCategoryRowLabel: "{category} expense category",
+    expenseCategoryPreviousValue: "Previous {amount}",
     futureVisualsLabel: "Future recap visuals",
     futureVisuals: "Visual recap",
   },
@@ -151,6 +171,15 @@ export const closedMonthRecapDict = {
       "Ülal olevad kogusummad tulevad sulgemisel lukustatud ülevaatest.",
     previousComparable: "Eelmine suletud kuu: {month}.",
     noPreviousComparable: "Varasemat suletud kuud võrdluseks veel ei ole.",
+    expenseCategoryBreakdownLabel: "Kulude kategooriad",
+    expenseCategoryBreakdownTitle: "Mis kuludes muutus?",
+    expenseCategoryBreakdownBody:
+      "Kategooriad on järjestatud suurima muutuse järgi võrreldes eelmise suletud kuuga.",
+    expenseCategoryNoPrevious:
+      "Varasemat kuud kategooriate võrdluseks ei ole. Kuvatakse praegused kategooriasummad.",
+    expenseCategoryEmpty: "Sellel suletud kuul ei ole aktiivseid kulukategooriaid.",
+    expenseCategoryRowLabel: "{category} kulukategooria",
+    expenseCategoryPreviousValue: "Eelmine {amount}",
     futureVisualsLabel: "Tulevased visuaalsed ülevaated",
     futureVisuals: "Visuaalne ülevaade",
   },

@@ -417,6 +417,32 @@ describe("DashboardContent", () => {
             },
           },
         },
+        expenseCategories: [
+          {
+            categoryId: "food",
+            categoryName: "Food",
+            currentAmount: 1800,
+            previousAmount: 1500,
+            deltaAmount: 300,
+            deltaPercent: 20,
+          },
+          {
+            categoryId: "transport",
+            categoryName: "Transport",
+            currentAmount: 250,
+            previousAmount: 500,
+            deltaAmount: -250,
+            deltaPercent: -50,
+          },
+          {
+            categoryId: "fixed",
+            categoryName: "FixedExpense",
+            currentAmount: 100,
+            previousAmount: 0,
+            deltaAmount: 100,
+            deltaPercent: null,
+          },
+        ],
       },
       isPending: false,
       error: null,
@@ -489,6 +515,25 @@ describe("DashboardContent", () => {
     expect(
       screen.getByTestId("closed-month-comparison-finalBalance"),
     ).toHaveAttribute("data-tone", "positive");
+    const expenseCategories = screen.getByTestId(
+      "closed-month-expense-categories",
+    );
+    expect(expenseCategories).toHaveTextContent(/what changed inside expenses/i);
+    expect(screen.getByTestId("closed-month-expense-category-food")).toHaveAttribute(
+      "data-tone",
+      "attention",
+    );
+    expect(
+      screen.getByTestId("closed-month-expense-category-food-percent"),
+    ).toHaveTextContent(/\+20%/);
+    expect(
+      screen.getByTestId("closed-month-expense-category-transport"),
+    ).toHaveAttribute("data-tone", "positive");
+    expect(expenseCategories).toHaveTextContent("Bills & essentials");
+    expect(expenseCategories).not.toHaveTextContent("FixedExpense");
+    expect(
+      screen.queryByTestId("closed-month-expense-category-fixed-percent"),
+    ).toBeNull();
     expect(screen.queryByRole("button", { name: /close month/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /add expense/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /^edit$/i })).toBeNull();
@@ -551,6 +596,16 @@ describe("DashboardContent", () => {
             },
           },
         },
+        expenseCategories: [
+          {
+            categoryId: "expenses-zero-previous",
+            categoryName: "Utilities",
+            currentAmount: 4000,
+            previousAmount: 0,
+            deltaAmount: 4000,
+            deltaPercent: null,
+          },
+        ],
       },
       isPending: false,
       error: null,
@@ -581,6 +636,11 @@ describe("DashboardContent", () => {
     expect(
       screen.getByTestId("closed-month-comparison-finalBalance"),
     ).toHaveAttribute("data-tone", "positive");
+    expect(
+      screen.queryByTestId(
+        "closed-month-expense-category-expenses-zero-previous-percent",
+      ),
+    ).toBeNull();
   });
 
   it("shows calm deficit guidance when a closed month snapshot ends negative", () => {
@@ -613,6 +673,16 @@ describe("DashboardContent", () => {
           hasPreviousComparableMonth: false,
           summary: null,
         },
+        expenseCategories: [
+          {
+            categoryId: "food",
+            categoryName: "Food",
+            currentAmount: 900,
+            previousAmount: null,
+            deltaAmount: null,
+            deltaPercent: null,
+          },
+        ],
       },
       isPending: false,
       error: null,
@@ -641,6 +711,12 @@ describe("DashboardContent", () => {
     expect(
       screen.queryByTestId("closed-month-comparison-income-percent"),
     ).toBeNull();
+    expect(screen.getByTestId("closed-month-expense-categories")).toHaveTextContent(
+      /no previous month is available/i,
+    );
+    expect(screen.getByTestId("closed-month-expense-category-food")).toHaveTextContent(
+      /900/,
+    );
     expect(screen.getByTestId("closed-month-carry-over")).toHaveTextContent(
       "No carry-over applied",
     );

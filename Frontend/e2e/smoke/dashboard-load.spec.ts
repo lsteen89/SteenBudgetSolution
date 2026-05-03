@@ -23,6 +23,8 @@ const recapText = {
     /final balance snapshot total|slutsaldo i ögonblicksbild|lõppsaldo salvestatud kogusumma/i,
   comparisonArticle:
     /closing comparison|stängningsjämförelse|sulgemise võrdlus/i,
+  expenseCategoriesArticle:
+    /expense categories|utgiftskategorier|kulude kategooriad/i,
   carryOver: /Carry-over|No carry-over|Överföring|Ingen överföring|Ülekanne|Ülekannet/i,
   carryOverArticle:
     /carry-over outcome|överföringsresultat|ülekande tulemus/i,
@@ -77,6 +79,9 @@ test("seeded closed month renders recap shell @smoke", async ({ page }) => {
   ).toContainText(recapText.carryOver);
   await expect(
     recap.getByRole("article", { name: recapText.comparisonArticle }),
+  ).toBeVisible();
+  await expect(
+    recap.getByRole("article", { name: recapText.expenseCategoriesArticle }),
   ).toBeVisible();
   await expect(page.getByTestId("close-month-cta")).toHaveCount(0);
   await expect(recap.getByRole("button", { name: recapText.edit })).toHaveCount(

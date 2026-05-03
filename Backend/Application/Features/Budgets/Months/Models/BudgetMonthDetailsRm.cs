@@ -16,3 +16,8 @@ public sealed record BudgetMonthDetailsRm(
     decimal? SnapshotTotalDebtPaymentsMonthly,
     decimal? SnapshotFinalBalanceMonthly
 );
+
+public sealed record BudgetMonthExpenseCategoryTotalRm(
+    Guid CategoryId,
+    string CategoryName,
+    decimal TotalMonthlyAmount);

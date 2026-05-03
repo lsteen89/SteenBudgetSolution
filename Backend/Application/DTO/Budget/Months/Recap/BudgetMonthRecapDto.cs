@@ -3,7 +3,8 @@ namespace Backend.Application.DTO.Budget.Months.Recap;
 public sealed record BudgetMonthRecapDto(
     BudgetMonthRecapMetaDto Month,
     BudgetMonthRecapSnapshotTotalsDto SnapshotTotals,
-    BudgetMonthRecapComparisonMetaDto Comparison);
+    BudgetMonthRecapComparisonMetaDto Comparison,
+    IReadOnlyList<BudgetMonthRecapExpenseCategoryDto> ExpenseCategories);
 
 public sealed record BudgetMonthRecapMetaDto(
     string YearMonth,
@@ -35,4 +36,12 @@ public sealed record BudgetMonthRecapComparisonSummaryDto(
 public sealed record BudgetMonthRecapMetricComparisonDto(
     decimal PreviousValue,
     decimal DeltaAmount,
+    decimal? DeltaPercent);
+
+public sealed record BudgetMonthRecapExpenseCategoryDto(
+    string CategoryId,
+    string CategoryName,
+    decimal CurrentAmount,
+    decimal? PreviousAmount,
+    decimal? DeltaAmount,
     decimal? DeltaPercent);

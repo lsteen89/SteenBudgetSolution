@@ -137,6 +137,14 @@ public sealed partial class BudgetMonthRepository : SqlBase, IBudgetMonthReposit
             new { BudgetId = budgetId, YearMonth = yearMonth },
             ct);
 
+    public async Task<IReadOnlyList<BudgetMonthExpenseCategoryTotalRm>> GetExpenseCategoryTotalsAsync(
+        Guid budgetMonthId,
+        CancellationToken ct)
+        => await QueryAsync<BudgetMonthExpenseCategoryTotalRm>(
+            GetExpenseCategoryTotals,
+            new { BudgetMonthId = budgetMonthId },
+            ct);
+
     public Task<IncomePaymentTimingReadModel?> GetBudgetMonthIncomePaymentTimingAsync(
         Guid budgetMonthId,
         CancellationToken ct)

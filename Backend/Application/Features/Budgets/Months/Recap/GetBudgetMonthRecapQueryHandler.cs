@@ -55,6 +55,14 @@ public sealed class GetBudgetMonthRecapQueryHandler
             ? null
             : await _months.GetMonthAsync(budgetId.Value, previousComparableYearMonth, ct);
         var comparisonSummary = BuildComparisonSummary(month, previousComparableMonth);
+        var currentCategoryTotals = await _months.GetExpenseCategoryTotalsAsync(month.Id, ct);
+        var previousCategoryTotals = previousComparableMonth is null
+            ? Array.Empty<BudgetMonthExpenseCategoryTotalRm>()
+            : await _months.GetExpenseCategoryTotalsAsync(previousComparableMonth.Id, ct);
+        var expenseCategories = BuildExpenseCategoryBreakdown(
+            currentCategoryTotals,
+            previousCategoryTotals,
+            previousComparableMonth is not null);
 
         return Result<BudgetMonthRecapDto?>.Success(new BudgetMonthRecapDto(
             Month: new BudgetMonthRecapMetaDto(
@@ -73,7 +81,8 @@ public sealed class GetBudgetMonthRecapQueryHandler
             Comparison: new BudgetMonthRecapComparisonMetaDto(
                 PreviousComparableYearMonth: comparisonSummary is null ? null : previousComparableYearMonth,
                 HasPreviousComparableMonth: comparisonSummary is not null,
-                Summary: comparisonSummary)));
+                Summary: comparisonSummary),
+            ExpenseCategories: expenseCategories));
     }
 
     private static BudgetMonthRecapComparisonSummaryDto? BuildComparisonSummary(
@@ -119,5 +128,53 @@ public sealed class GetBudgetMonthRecapQueryHandler
             PreviousValue: previous,
             DeltaAmount: deltaAmount,
             DeltaPercent: deltaPercent);
+    }
+
+    private static IReadOnlyList<BudgetMonthRecapExpenseCategoryDto> BuildExpenseCategoryBreakdown(
+        IReadOnlyList<BudgetMonthExpenseCategoryTotalRm> currentTotals,
+        IReadOnlyList<BudgetMonthExpenseCategoryTotalRm> previousTotals,
+        bool hasPreviousComparableMonth)
+    {
+        var currentByCategory = currentTotals.ToDictionary(x => x.CategoryId);
+        var previousByCategory = previousTotals.ToDictionary(x => x.CategoryId);
+        var categoryIds = currentByCategory.Keys
+            .Union(previousByCategory.Keys)
+            .ToArray();
+
+        var rows = categoryIds.Select(categoryId =>
+        {
+            currentByCategory.TryGetValue(categoryId, out var current);
+            previousByCategory.TryGetValue(categoryId, out var previous);
+
+            var currentAmount = current?.TotalMonthlyAmount ?? 0m;
+            var previousAmount = hasPreviousComparableMonth
+                ? previous?.TotalMonthlyAmount ?? 0m
+                : (decimal?)null;
+            var deltaAmount = previousAmount is null
+                ? (decimal?)null
+                : currentAmount - previousAmount.Value;
+            var deltaPercent = previousAmount is > 0m && deltaAmount is not null
+                ? deltaAmount.Value / previousAmount.Value * 100m
+                : (decimal?)null;
+
+            return new BudgetMonthRecapExpenseCategoryDto(
+                CategoryId: categoryId.ToString(),
+                CategoryName: current?.CategoryName ?? previous?.CategoryName ?? categoryId.ToString(),
+                CurrentAmount: currentAmount,
+                PreviousAmount: previousAmount,
+                DeltaAmount: deltaAmount,
+                DeltaPercent: deltaPercent);
+        });
+
+        return hasPreviousComparableMonth
+            ? rows
+                .OrderByDescending(x => Math.Abs(x.DeltaAmount ?? 0m))
+                .ThenByDescending(x => x.CurrentAmount)
+                .ThenBy(x => x.CategoryName)
+                .ToArray()
+            : rows
+                .OrderByDescending(x => x.CurrentAmount)
+                .ThenBy(x => x.CategoryName)
+                .ToArray();
     }
 }

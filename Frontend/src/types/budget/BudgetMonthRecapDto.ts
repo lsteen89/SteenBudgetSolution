@@ -37,8 +37,18 @@ export type BudgetMonthRecapMetricComparisonDto = {
   deltaPercent: number | null;
 };
 
+export type BudgetMonthRecapExpenseCategoryDto = {
+  categoryId: string;
+  categoryName: string;
+  currentAmount: number;
+  previousAmount: number | null;
+  deltaAmount: number | null;
+  deltaPercent: number | null;
+};
+
 export type BudgetMonthRecapDto = {
   month: BudgetMonthRecapMetaDto;
   snapshotTotals: BudgetMonthRecapSnapshotTotalsDto;
   comparison: BudgetMonthRecapComparisonMetaDto;
+  expenseCategories: BudgetMonthRecapExpenseCategoryDto[];
 };
