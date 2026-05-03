@@ -1,6 +1,9 @@
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/lib/utils";
-import type { BudgetMonthExpenseItemEditorRowDto } from "@/types/budget/BudgetMonthsStatusDto";
+import type {
+  BudgetMonthExpenseItemEditorRowDto,
+  SubscriptionLifecycleStatus,
+} from "@/types/budget/BudgetMonthsStatusDto";
 import { labelLedgerItem } from "@/utils/i18n/budget/ledgerItems";
 import { periodQuickAdjustRowDict } from "@/utils/i18n/pages/private/dashboard/cards/period/PeriodQuickAdjustRow.i18n";
 import { tDict } from "@/utils/i18n/translate";
@@ -17,10 +20,25 @@ type PeriodQuickAdjustRowProps = {
   amountMonthly: string;
   isActive: boolean;
   showActiveToggle: boolean;
+  showLifecycleControl?: boolean;
+  subscriptionLifecycleStatus?: SubscriptionLifecycleStatus;
   onAmountChange: (value: string) => void;
   onActiveChange?: (value: boolean) => void;
+  onSubscriptionLifecycleChange?: (value: SubscriptionLifecycleStatus) => void;
   error?: string;
 };
+
+const lifecycleOptions: Array<{
+  value: SubscriptionLifecycleStatus;
+  labelKey:
+    | "subscriptionActive"
+    | "subscriptionPaused"
+    | "subscriptionCancelled";
+}> = [
+  { value: "active", labelKey: "subscriptionActive" },
+  { value: "paused", labelKey: "subscriptionPaused" },
+  { value: "cancelled", labelKey: "subscriptionCancelled" },
+];
 
 const PeriodQuickAdjustRow: React.FC<PeriodQuickAdjustRowProps> = ({
   row,
@@ -30,8 +48,11 @@ const PeriodQuickAdjustRow: React.FC<PeriodQuickAdjustRowProps> = ({
   amountMonthly,
   isActive,
   showActiveToggle,
+  showLifecycleControl = false,
+  subscriptionLifecycleStatus = "active",
   onAmountChange,
   onActiveChange,
+  onSubscriptionLifecycleChange,
   error,
 }) => {
   const locale = useAppLocale();
@@ -65,8 +86,20 @@ const PeriodQuickAdjustRow: React.FC<PeriodQuickAdjustRowProps> = ({
     onAmountChange(cleaned);
   };
 
+  const isLifecycleNonCounting =
+    showLifecycleControl && subscriptionLifecycleStatus !== "active";
+
   return (
-    <div className="rounded-2xl border border-eb-stroke/20 bg-eb-surface px-4 py-3">
+    <div
+      data-testid={`period-expense-row-${row.id}`}
+      data-subscription-lifecycle={showLifecycleControl ? subscriptionLifecycleStatus : undefined}
+      className={cn(
+        "rounded-2xl border px-4 py-3 transition-colors",
+        isLifecycleNonCounting
+          ? "border-amber-200/70 bg-amber-50/50"
+          : "border-eb-stroke/20 bg-eb-surface",
+      )}
+    >
       <div className="flex flex-col gap-3">
         <div className="min-w-0">
           <div
@@ -100,6 +133,51 @@ const PeriodQuickAdjustRow: React.FC<PeriodQuickAdjustRowProps> = ({
           </label>
         ) : null}
 
+        {showLifecycleControl ? (
+          <div className="space-y-2">
+            <div className="text-xs font-bold uppercase tracking-wide text-eb-text/45">
+              {t("subscriptionStatus")}
+            </div>
+            <div
+              role="radiogroup"
+              aria-label={t("subscriptionStatus")}
+              className="grid grid-cols-3 gap-1 rounded-2xl border border-eb-stroke/25 bg-[rgb(var(--eb-shell)/0.42)] p-1"
+            >
+              {lifecycleOptions.map((option) => {
+                const selected = subscriptionLifecycleStatus === option.value;
+
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    disabled={readOnly}
+                    onClick={() => onSubscriptionLifecycleChange?.(option.value)}
+                    className={cn(
+                      "min-h-9 rounded-xl px-2 text-xs font-extrabold transition",
+                      "focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-eb-accent/20",
+                      "disabled:cursor-not-allowed disabled:opacity-60",
+                      selected
+                        ? option.value === "active"
+                          ? "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200"
+                          : "bg-white text-eb-text shadow-sm ring-1 ring-eb-stroke/25"
+                        : "text-eb-text/55 hover:bg-white/70",
+                    )}
+                  >
+                    {t(option.labelKey)}
+                  </button>
+                );
+              })}
+            </div>
+            {isLifecycleNonCounting ? (
+              <div className="rounded-xl border border-amber-200/70 bg-white/65 px-3 py-2 text-xs font-semibold text-amber-800">
+                {t("notCountedThisMonth")}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
         <div className="w-full sm:w-[156px] sm:self-end">
           <label className="sr-only" htmlFor={inputId}>
             {t("amountPlaceholder")}
@@ -112,7 +190,11 @@ const PeriodQuickAdjustRow: React.FC<PeriodQuickAdjustRowProps> = ({
               inputMode="decimal"
               value={amountMonthly}
               onChange={(e) => handleAmountChange(e.target.value)}
-              disabled={readOnly || (showActiveToggle && !isActive)}
+              disabled={
+                readOnly ||
+                (showActiveToggle && !isActive) ||
+                isLifecycleNonCounting
+              }
               aria-invalid={error ? "true" : "false"}
               className={cn(
                 "h-12 w-full rounded-2xl border px-4 pr-12 text-right text-base font-bold tabular-nums",

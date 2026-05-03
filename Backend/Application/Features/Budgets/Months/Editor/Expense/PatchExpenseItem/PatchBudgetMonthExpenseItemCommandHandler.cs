@@ -3,6 +3,8 @@ using Backend.Domain.Shared;
 using MediatR;
 using Backend.Application.Abstractions.Application.Services.Budget;
 using Backend.Application.Abstractions.Infrastructure.Data;
+using Backend.Application.Constants;
+using Backend.Application.DTO.Budget.Months;
 using Backend.Application.DTO.Budget.Months.Editor.Expense;
 using Backend.Application.Features.Budgets.Audit;
 using Backend.Domain.Errors.Budget;
@@ -73,6 +75,17 @@ public sealed class PatchBudgetMonthExpenseItemCommandHandler
         var mergedCategoryId = cmd.CategoryId ?? existing.CategoryId;
         var mergedAmountMonthly = cmd.AmountMonthly ?? existing.AmountMonthly;
         var mergedIsActive = cmd.IsActive ?? existing.IsActive;
+        var lifecycleValidation = ValidateRequestedLifecycleStatus(
+            cmd.SubscriptionLifecycleStatus,
+            mergedCategoryId);
+        if (lifecycleValidation is not null)
+            return Result<BudgetMonthExpenseItemEditorRowDto?>.Failure(lifecycleValidation);
+
+        var mergedSubscriptionLifecycleStatus = MergeLifecycleStatus(
+            existing.CategoryId,
+            existing.SubscriptionLifecycleStatus,
+            mergedCategoryId,
+            cmd.SubscriptionLifecycleStatus);
         var now = _timeProvider.GetUtcNow().UtcDateTime;
 
         if (cmd.UpdateDefault)
@@ -94,6 +107,7 @@ public sealed class PatchBudgetMonthExpenseItemCommandHandler
                 CategoryId: mergedCategoryId,
                 Name: mergedName,
                 AmountMonthly: mergedAmountMonthly,
+                SubscriptionLifecycleStatus: mergedSubscriptionLifecycleStatus,
                 IsActive: mergedIsActive,
                 ActorPersoid: cmd.Persoid,
                 UtcNow: now),
@@ -124,6 +138,7 @@ public sealed class PatchBudgetMonthExpenseItemCommandHandler
                 existing.Name,
                 existing.CategoryId,
                 existing.AmountMonthly,
+                existing.SubscriptionLifecycleStatus,
                 existing.IsActive
             },
             after = new
@@ -131,6 +146,7 @@ public sealed class PatchBudgetMonthExpenseItemCommandHandler
                 Name = mergedName,
                 CategoryId = mergedCategoryId,
                 AmountMonthly = mergedAmountMonthly,
+                SubscriptionLifecycleStatus = mergedSubscriptionLifecycleStatus,
                 IsActive = mergedIsActive
             },
             cmd.UpdateDefault,
@@ -157,9 +173,47 @@ public sealed class PatchBudgetMonthExpenseItemCommandHandler
                 CategoryId: mergedCategoryId,
                 Name: mergedName,
                 AmountMonthly: mergedAmountMonthly,
+                SubscriptionLifecycleStatus: mergedSubscriptionLifecycleStatus,
                 IsActive: mergedIsActive,
                 IsDeleted: existing.IsDeleted,
                 IsMonthOnly: existing.SourceExpenseItemId is null,
                 CanUpdateDefault: existing.SourceExpenseItemId is not null));
+    }
+
+    private static string? MergeLifecycleStatus(
+        Guid existingCategoryId,
+        string? existingLifecycleStatus,
+        Guid mergedCategoryId,
+        string? requestedLifecycleStatus)
+    {
+        if (mergedCategoryId != ExpenseCategoryIds.Subscription)
+            return null;
+
+        if (requestedLifecycleStatus is not null)
+            return requestedLifecycleStatus;
+
+        if (existingCategoryId == ExpenseCategoryIds.Subscription &&
+            BudgetMonthSubscriptionLifecycleStatuses.IsSupported(existingLifecycleStatus))
+        {
+            return existingLifecycleStatus;
+        }
+
+        return BudgetMonthSubscriptionLifecycleStatuses.Active;
+    }
+
+    private static Error? ValidateRequestedLifecycleStatus(
+        string? requestedLifecycleStatus,
+        Guid mergedCategoryId)
+    {
+        if (requestedLifecycleStatus is null)
+            return null;
+
+        if (!BudgetMonthSubscriptionLifecycleStatuses.IsSupported(requestedLifecycleStatus))
+            return BudgetMonthExpenseItemErrors.InvalidSubscriptionLifecycleStatus;
+
+        if (mergedCategoryId != ExpenseCategoryIds.Subscription)
+            return BudgetMonthExpenseItemErrors.SubscriptionLifecycleRequiresSubscriptionCategory;
+
+        return null;
     }
 }

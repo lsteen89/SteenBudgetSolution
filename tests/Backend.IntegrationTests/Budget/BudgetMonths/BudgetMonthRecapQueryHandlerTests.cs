@@ -69,6 +69,12 @@ public sealed class BudgetMonthRecapQueryHandlerTests
         dto.SnapshotTotals.TotalDebtPaymentsMonthly.Should().Be(404m);
         dto.SnapshotTotals.FinalBalanceMonthly.Should().Be(-808m);
         dto.ExpenseCategories.Should().BeEmpty();
+        dto.SubscriptionInsight.Active.Should().BeEmpty();
+        dto.SubscriptionInsight.New.Should().BeEmpty();
+        dto.SubscriptionInsight.Removed.Should().BeEmpty();
+        dto.SubscriptionInsight.Paused.Should().BeEmpty();
+        dto.SubscriptionInsight.Cancelled.Should().BeEmpty();
+        dto.SubscriptionInsight.HasPreviousComparableMonth.Should().BeFalse();
     }
 
     [Fact]
@@ -194,6 +200,407 @@ public sealed class BudgetMonthRecapQueryHandlerTests
             x.PreviousAmount == null &&
             x.DeltaAmount == null &&
             x.DeltaPercent == null);
+    }
+
+    [Fact]
+    public async Task ClosedMonth_ReturnsActiveSubscriptionsForCurrentClosedMonth()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+
+        await InsertClosedMonthWithSnapshotAsync(seed.BudgetId, "2026-04", seed.UserId);
+        await InsertMonthExpenseItemAsync(
+            seed.BudgetId,
+            "2026-04",
+            seed.UserId,
+            ExpenseCategories.Subscription,
+            "Spotify",
+            109m);
+
+        var result = await CreateHandler().Handle(
+            new GetBudgetMonthRecapQuery(seed.Persoid, "2026-04"),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.SubscriptionInsight.Active.Should().ContainSingle(x =>
+            x.Name == "Spotify" &&
+            x.AmountMonthly == 109m &&
+            x.IdentityKey == "name:SPOTIFY" &&
+            x.SourceExpenseItemId == null);
+    }
+
+    [Fact]
+    public async Task ClosedMonth_DerivesNewSubscriptions_WhenCurrentSubscriptionMissingInPreviousComparableMonth()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+
+        await InsertClosedMonthWithSnapshotAsync(seed.BudgetId, "2026-03", seed.UserId);
+        await InsertClosedMonthWithSnapshotAsync(seed.BudgetId, "2026-04", seed.UserId);
+        await InsertMonthExpenseItemAsync(
+            seed.BudgetId,
+            "2026-04",
+            seed.UserId,
+            ExpenseCategories.Subscription,
+            "Notion",
+            80m);
+
+        var result = await CreateHandler().Handle(
+            new GetBudgetMonthRecapQuery(seed.Persoid, "2026-04"),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.SubscriptionInsight.HasPreviousComparableMonth.Should().BeTrue();
+        result.Value.SubscriptionInsight.New.Should().ContainSingle(x => x.Name == "Notion");
+        result.Value.SubscriptionInsight.Active.Should().BeEmpty();
+        result.Value.SubscriptionInsight.Removed.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ClosedMonth_DerivesRemovedSubscriptions_WhenPreviousSubscriptionMissingInCurrentMonth()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+
+        await InsertClosedMonthWithSnapshotAsync(seed.BudgetId, "2026-03", seed.UserId);
+        await InsertClosedMonthWithSnapshotAsync(seed.BudgetId, "2026-04", seed.UserId);
+        await InsertMonthExpenseItemAsync(
+            seed.BudgetId,
+            "2026-03",
+            seed.UserId,
+            ExpenseCategories.Subscription,
+            "HBO",
+            119m);
+
+        var result = await CreateHandler().Handle(
+            new GetBudgetMonthRecapQuery(seed.Persoid, "2026-04"),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.SubscriptionInsight.Removed.Should().ContainSingle(x => x.Name == "HBO");
+        result.Value.SubscriptionInsight.Active.Should().BeEmpty();
+        result.Value.SubscriptionInsight.New.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ClosedMonth_DerivesStillActiveSubscriptions_WhenIdentityExistsInBothMonths()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+        var sourceExpenseItemId = Guid.NewGuid();
+
+        await InsertCoreExpenseItemAsync(
+            seed.BudgetId,
+            seed.UserId,
+            ExpenseCategories.Subscription,
+            "Netflix",
+            129m,
+            sourceExpenseItemId);
+        await InsertClosedMonthWithSnapshotAsync(seed.BudgetId, "2026-03", seed.UserId);
+        await InsertClosedMonthWithSnapshotAsync(seed.BudgetId, "2026-04", seed.UserId);
+        await InsertMonthExpenseItemAsync(
+            seed.BudgetId,
+            "2026-03",
+            seed.UserId,
+            ExpenseCategories.Subscription,
+            "Netflix",
+            129m,
+            sourceExpenseItemId);
+        await InsertMonthExpenseItemAsync(
+            seed.BudgetId,
+            "2026-04",
+            seed.UserId,
+            ExpenseCategories.Subscription,
+            "Netflix Premium",
+            149m,
+            sourceExpenseItemId);
+
+        var result = await CreateHandler().Handle(
+            new GetBudgetMonthRecapQuery(seed.Persoid, "2026-04"),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.SubscriptionInsight.Active.Should().ContainSingle(x =>
+            x.Name == "Netflix Premium" &&
+            x.AmountMonthly == 149m &&
+            x.IdentityKey == $"source:{sourceExpenseItemId:D}" &&
+            x.SourceExpenseItemId == sourceExpenseItemId.ToString());
+        result.Value.SubscriptionInsight.New.Should().BeEmpty();
+        result.Value.SubscriptionInsight.Removed.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ClosedMonth_SubscriptionComparison_SkipsSkippedMonths()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+
+        await InsertClosedMonthWithSnapshotAsync(seed.BudgetId, "2026-02", seed.UserId);
+        await BudgetMonthDsl.InsertAsync(
+            cs: _db.ConnectionString,
+            budgetId: seed.BudgetId,
+            yearMonth: "2026-03",
+            status: BudgetMonthStatuses.Skipped,
+            openedAtUtc: new DateTime(2026, 03, 01, 08, 00, 00, DateTimeKind.Utc),
+            createdByUserId: seed.UserId,
+            closedAtUtc: new DateTime(2026, 03, 31, 20, 00, 00, DateTimeKind.Utc),
+            carryOverMode: BudgetMonthCarryOverModes.None,
+            carryOverAmount: null);
+        await InsertClosedMonthWithSnapshotAsync(seed.BudgetId, "2026-04", seed.UserId);
+        await InsertMonthExpenseItemAsync(
+            seed.BudgetId,
+            "2026-02",
+            seed.UserId,
+            ExpenseCategories.Subscription,
+            "Audible",
+            99m);
+        await InsertMonthExpenseItemAsync(
+            seed.BudgetId,
+            "2026-04",
+            seed.UserId,
+            ExpenseCategories.Subscription,
+            "Audible",
+            99m);
+
+        var result = await CreateHandler().Handle(
+            new GetBudgetMonthRecapQuery(seed.Persoid, "2026-04"),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Comparison.PreviousComparableYearMonth.Should().Be("2026-02");
+        result.Value.SubscriptionInsight.Active.Should().ContainSingle(x => x.Name == "Audible");
+        result.Value.SubscriptionInsight.New.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ClosedMonth_NoPreviousComparableMonth_DoesNotClassifyCurrentSubscriptionsAsNew()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+
+        await InsertClosedMonthWithSnapshotAsync(seed.BudgetId, "2026-04", seed.UserId);
+        await InsertMonthExpenseItemAsync(
+            seed.BudgetId,
+            "2026-04",
+            seed.UserId,
+            ExpenseCategories.Subscription,
+            "Dropbox",
+            120m);
+
+        var result = await CreateHandler().Handle(
+            new GetBudgetMonthRecapQuery(seed.Persoid, "2026-04"),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.SubscriptionInsight.HasPreviousComparableMonth.Should().BeFalse();
+        result.Value.SubscriptionInsight.Active.Should().ContainSingle(x => x.Name == "Dropbox");
+        result.Value.SubscriptionInsight.New.Should().BeEmpty();
+        result.Value.SubscriptionInsight.Removed.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ClosedMonth_SubscriptionsUseMonthlyRows_NotCurrentCoreExpenseRows()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+
+        await InsertClosedMonthWithSnapshotAsync(seed.BudgetId, "2026-04", seed.UserId);
+        await InsertCoreExpenseItemAsync(
+            seed.BudgetId,
+            seed.UserId,
+            ExpenseCategories.Subscription,
+            "Current plan only",
+            499m);
+
+        var result = await CreateHandler().Handle(
+            new GetBudgetMonthRecapQuery(seed.Persoid, "2026-04"),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.SubscriptionInsight.Active.Should().BeEmpty();
+        result.Value.SubscriptionInsight.New.Should().BeEmpty();
+        result.Value.SubscriptionInsight.Removed.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ClosedMonth_SubscriptionsIncludeCurrentNonDeletedRowsAndExcludeDeletedRows()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+
+        await InsertClosedMonthWithSnapshotAsync(seed.BudgetId, "2026-04", seed.UserId);
+        await InsertMonthExpenseItemAsync(
+            seed.BudgetId,
+            "2026-04",
+            seed.UserId,
+            ExpenseCategories.Subscription,
+            "Active subscription",
+            50m);
+        await InsertMonthExpenseItemAsync(
+            seed.BudgetId,
+            "2026-04",
+            seed.UserId,
+            ExpenseCategories.Subscription,
+            "Inactive subscription",
+            75m,
+            isActive: false);
+        await InsertMonthExpenseItemAsync(
+            seed.BudgetId,
+            "2026-04",
+            seed.UserId,
+            ExpenseCategories.Subscription,
+            "Deleted subscription",
+            90m,
+            isDeleted: true);
+
+        var result = await CreateHandler().Handle(
+            new GetBudgetMonthRecapQuery(seed.Persoid, "2026-04"),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.SubscriptionInsight.Active.Select(x => x.Name)
+            .Should().Equal("Active subscription", "Inactive subscription");
+    }
+
+    [Fact]
+    public async Task ClosedMonth_PausedSubscriptions_AreExcludedFromActiveExpenseAggregationAndIncludedInPausedInsight()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+
+        await InsertClosedMonthWithSnapshotAsync(seed.BudgetId, "2026-04", seed.UserId);
+        await InsertMonthExpenseItemAsync(
+            seed.BudgetId,
+            "2026-04",
+            seed.UserId,
+            ExpenseCategories.Subscription,
+            "Paused Netflix",
+            129m,
+            subscriptionLifecycleStatus: BudgetMonthSubscriptionLifecycleStatuses.Paused);
+
+        var result = await CreateHandler().Handle(
+            new GetBudgetMonthRecapQuery(seed.Persoid, "2026-04"),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.ExpenseCategories.Should().BeEmpty();
+        result.Value.SubscriptionInsight.Active.Should().BeEmpty();
+        result.Value.SubscriptionInsight.New.Should().BeEmpty();
+        result.Value.SubscriptionInsight.Paused.Should().ContainSingle(x =>
+            x.Name == "Paused Netflix" &&
+            x.AmountMonthly == 129m);
+    }
+
+    [Fact]
+    public async Task ClosedMonth_CancelledSubscriptions_AreExcludedFromActiveExpenseAggregationAndIncludedInCancelledInsight()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+
+        await InsertClosedMonthWithSnapshotAsync(seed.BudgetId, "2026-04", seed.UserId);
+        await InsertMonthExpenseItemAsync(
+            seed.BudgetId,
+            "2026-04",
+            seed.UserId,
+            ExpenseCategories.Subscription,
+            "Cancelled HBO",
+            99m,
+            subscriptionLifecycleStatus: BudgetMonthSubscriptionLifecycleStatuses.Cancelled);
+
+        var result = await CreateHandler().Handle(
+            new GetBudgetMonthRecapQuery(seed.Persoid, "2026-04"),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.ExpenseCategories.Should().BeEmpty();
+        result.Value.SubscriptionInsight.Active.Should().BeEmpty();
+        result.Value.SubscriptionInsight.New.Should().BeEmpty();
+        result.Value.SubscriptionInsight.Removed.Should().BeEmpty();
+        result.Value.SubscriptionInsight.Cancelled.Should().ContainSingle(x =>
+            x.Name == "Cancelled HBO" &&
+            x.AmountMonthly == 99m);
+    }
+
+    [Fact]
+    public async Task ClosedMonth_CancelledCurrentSubscription_IsNotClassifiedAsRemoved()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+        var sourceExpenseItemId = Guid.NewGuid();
+
+        await InsertCoreExpenseItemAsync(
+            seed.BudgetId,
+            seed.UserId,
+            ExpenseCategories.Subscription,
+            "HBO",
+            99m,
+            sourceExpenseItemId);
+        await InsertClosedMonthWithSnapshotAsync(seed.BudgetId, "2026-03", seed.UserId);
+        await InsertClosedMonthWithSnapshotAsync(seed.BudgetId, "2026-04", seed.UserId);
+        await InsertMonthExpenseItemAsync(
+            seed.BudgetId,
+            "2026-03",
+            seed.UserId,
+            ExpenseCategories.Subscription,
+            "HBO",
+            99m,
+            sourceExpenseItemId);
+        await InsertMonthExpenseItemAsync(
+            seed.BudgetId,
+            "2026-04",
+            seed.UserId,
+            ExpenseCategories.Subscription,
+            "HBO",
+            99m,
+            sourceExpenseItemId,
+            subscriptionLifecycleStatus: BudgetMonthSubscriptionLifecycleStatuses.Cancelled);
+
+        var result = await CreateHandler().Handle(
+            new GetBudgetMonthRecapQuery(seed.Persoid, "2026-04"),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.SubscriptionInsight.Cancelled.Should().ContainSingle(x => x.Name == "HBO");
+        result.Value.SubscriptionInsight.Removed.Should().BeEmpty();
+        result.Value.SubscriptionInsight.Active.Should().BeEmpty();
+        result.Value.SubscriptionInsight.New.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ClosedMonth_NonSubscriptionRows_AreNotAffectedBySubscriptionLifecycleFilter()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+
+        await InsertClosedMonthWithSnapshotAsync(seed.BudgetId, "2026-04", seed.UserId);
+        await InsertMonthExpenseItemAsync(
+            seed.BudgetId,
+            "2026-04",
+            seed.UserId,
+            ExpenseCategories.Food,
+            "Groceries",
+            250m);
+
+        var result = await CreateHandler().Handle(
+            new GetBudgetMonthRecapQuery(seed.Persoid, "2026-04"),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.ExpenseCategories.Should().ContainSingle(x =>
+            x.CategoryName == "Food" &&
+            x.CurrentAmount == 250m);
     }
 
     [Fact]
@@ -407,7 +814,11 @@ public sealed class BudgetMonthRecapQueryHandlerTests
         Guid createdByUserId,
         Guid categoryId,
         string name,
-        decimal amountMonthly)
+        decimal amountMonthly,
+        Guid? sourceExpenseItemId = null,
+        string? subscriptionLifecycleStatus = null,
+        bool isActive = true,
+        bool isDeleted = false)
     {
         await using var conn = new MySqlConnection(_db.ConnectionString);
         await conn.OpenAsync();
@@ -433,6 +844,7 @@ public sealed class BudgetMonthRecapQueryHandlerTests
                 CategoryId,
                 Name,
                 AmountMonthly,
+                SubscriptionLifecycleStatus,
                 IsActive,
                 IsOverride,
                 IsDeleted,
@@ -444,13 +856,14 @@ public sealed class BudgetMonthRecapQueryHandlerTests
             (
                 UUID_TO_BIN(UUID()),
                 @BudgetMonthId,
-                NULL,
+                @SourceExpenseItemId,
                 @CategoryId,
                 @Name,
                 @AmountMonthly,
-                1,
+                @SubscriptionLifecycleStatus,
+                @IsActive,
                 0,
-                0,
+                @IsDeleted,
                 0,
                 UTC_TIMESTAMP(),
                 @CreatedByUserId
@@ -459,10 +872,44 @@ public sealed class BudgetMonthRecapQueryHandlerTests
             new
             {
                 BudgetMonthId = budgetMonthId,
+                SourceExpenseItemId = sourceExpenseItemId,
                 CategoryId = categoryId,
                 Name = name,
                 AmountMonthly = amountMonthly,
+                SubscriptionLifecycleStatus = subscriptionLifecycleStatus,
+                IsActive = isActive,
+                IsDeleted = isDeleted,
                 CreatedByUserId = createdByUserId
+            });
+    }
+
+    private async Task InsertCoreExpenseItemAsync(
+        Guid budgetId,
+        Guid userId,
+        Guid categoryId,
+        string name,
+        decimal amountMonthly,
+        Guid? id = null)
+    {
+        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await conn.OpenAsync();
+        await DbSeeds.EnsureDefaultExpenseCategoriesAsync(conn);
+
+        await conn.ExecuteAsync(
+            """
+            INSERT INTO ExpenseItem
+                (Id, BudgetId, CategoryId, Name, AmountMonthly, CreatedAt, CreatedByUserId)
+            VALUES
+                (@Id, @BudgetId, @CategoryId, @Name, @AmountMonthly, UTC_TIMESTAMP(), @UserId);
+            """,
+            new
+            {
+                Id = id ?? Guid.NewGuid(),
+                BudgetId = budgetId,
+                CategoryId = categoryId,
+                Name = name,
+                AmountMonthly = amountMonthly,
+                UserId = userId
             });
     }
 }

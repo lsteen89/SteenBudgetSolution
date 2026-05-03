@@ -157,6 +157,7 @@ CREATE TABLE BudgetMonthExpenseItem (
     CategoryId              BINARY(16)    NOT NULL,
     Name                    VARCHAR(255)  NOT NULL,
     AmountMonthly           DECIMAL(18,2) NOT NULL DEFAULT 0,
+    SubscriptionLifecycleStatus VARCHAR(20) NULL,
 
     IsActive                TINYINT(1)    NOT NULL DEFAULT 1,
     IsOverride              TINYINT(1)    NOT NULL DEFAULT 0,
@@ -177,6 +178,12 @@ CREATE TABLE BudgetMonthExpenseItem (
 
     CONSTRAINT FK_BudgetMonthExpenseItem_Category
         FOREIGN KEY (CategoryId) REFERENCES ExpenseCategory(Id) ON DELETE RESTRICT,
+
+    CONSTRAINT CK_BudgetMonthExpenseItem_SubscriptionLifecycleStatus
+        CHECK (
+            SubscriptionLifecycleStatus IS NULL
+            OR SubscriptionLifecycleStatus IN ('active', 'paused', 'cancelled')
+        ),
 
     INDEX IX_BudgetMonthExpenseItem_BudgetMonthId (BudgetMonthId),
     INDEX IX_BudgetMonthExpenseItem_SourceExpenseItemId (SourceExpenseItemId),

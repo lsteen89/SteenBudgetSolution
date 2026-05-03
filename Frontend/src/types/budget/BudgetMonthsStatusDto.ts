@@ -1,5 +1,6 @@
 export type BudgetMonthStatus = "open" | "closed" | "skipped";
 export type CarryOverMode = "none" | "full" | "custom";
+export type SubscriptionLifecycleStatus = "active" | "paused" | "cancelled";
 
 export type BudgetMonthListItemDto = {
   yearMonth: string;
@@ -31,6 +32,7 @@ export type BudgetMonthExpenseItemEditorRowDto = {
   categoryId: string;
   name: string;
   amountMonthly: number;
+  subscriptionLifecycleStatus: SubscriptionLifecycleStatus | null;
   isActive: boolean;
   isDeleted: boolean;
   isMonthOnly: boolean;
@@ -47,6 +49,7 @@ export type PatchBudgetMonthExpenseItemRequestDto = {
   categoryId: string;
   amountMonthly: number;
   isActive: boolean;
+  subscriptionLifecycleStatus?: SubscriptionLifecycleStatus | null;
   updateDefault: boolean;
 };
 

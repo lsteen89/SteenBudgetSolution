@@ -4,7 +4,8 @@ public sealed record BudgetMonthRecapDto(
     BudgetMonthRecapMetaDto Month,
     BudgetMonthRecapSnapshotTotalsDto SnapshotTotals,
     BudgetMonthRecapComparisonMetaDto Comparison,
-    IReadOnlyList<BudgetMonthRecapExpenseCategoryDto> ExpenseCategories);
+    IReadOnlyList<BudgetMonthRecapExpenseCategoryDto> ExpenseCategories,
+    BudgetMonthRecapSubscriptionInsightDto SubscriptionInsight);
 
 public sealed record BudgetMonthRecapMetaDto(
     string YearMonth,
@@ -45,3 +46,17 @@ public sealed record BudgetMonthRecapExpenseCategoryDto(
     decimal? PreviousAmount,
     decimal? DeltaAmount,
     decimal? DeltaPercent);
+
+public sealed record BudgetMonthRecapSubscriptionInsightDto(
+    IReadOnlyList<BudgetMonthRecapSubscriptionItemDto> Active,
+    IReadOnlyList<BudgetMonthRecapSubscriptionItemDto> New,
+    IReadOnlyList<BudgetMonthRecapSubscriptionItemDto> Removed,
+    IReadOnlyList<BudgetMonthRecapSubscriptionItemDto> Paused,
+    IReadOnlyList<BudgetMonthRecapSubscriptionItemDto> Cancelled,
+    bool HasPreviousComparableMonth);
+
+public sealed record BudgetMonthRecapSubscriptionItemDto(
+    string IdentityKey,
+    string Name,
+    decimal AmountMonthly,
+    string? SourceExpenseItemId);

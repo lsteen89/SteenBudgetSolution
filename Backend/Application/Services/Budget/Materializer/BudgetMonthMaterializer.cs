@@ -2,6 +2,8 @@ using Backend.Application.Abstractions.Application.Services.Budget;
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Domain.Shared;
 using Backend.Application.Abstractions.Infrastructure.System;
+using Backend.Application.Constants;
+using Backend.Application.DTO.Budget.Months;
 using Backend.Application.Features.Budgets.Months.Models.Insert;
 
 namespace Backend.Application.Services.Budget.Materializer;
@@ -128,6 +130,7 @@ public sealed class BudgetMonthMaterializer : IBudgetMonthMaterializer
                     CategoryId: x.CategoryId,
                     Name: x.Name,
                     AmountMonthly: x.AmountMonthly,
+                    SubscriptionLifecycleStatus: GetDefaultSubscriptionLifecycleStatus(x.CategoryId),
                     SortOrder: x.SortOrder))
                 .ToList();
 
@@ -246,4 +249,9 @@ public sealed class BudgetMonthMaterializer : IBudgetMonthMaterializer
             ? incomePaymentDay
             : null;
     }
+
+    private static string? GetDefaultSubscriptionLifecycleStatus(Guid categoryId)
+        => categoryId == ExpenseCategoryIds.Subscription
+            ? BudgetMonthSubscriptionLifecycleStatuses.Active
+            : null;
 }

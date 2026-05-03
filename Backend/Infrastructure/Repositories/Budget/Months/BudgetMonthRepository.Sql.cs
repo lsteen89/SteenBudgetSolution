@@ -178,8 +178,26 @@ public sealed partial class BudgetMonthRepository
     WHERE e.BudgetMonthId = @BudgetMonthId
       AND e.IsDeleted = 0
       AND e.IsActive = 1
+      AND (
+          e.SubscriptionLifecycleStatus IS NULL
+          OR e.SubscriptionLifecycleStatus = @ActiveSubscriptionLifecycleStatus
+      )
     GROUP BY c.Id, c.Name
     ORDER BY c.Name;";
+
+    private const string GetSubscriptions = @"
+    SELECT
+        e.Id,
+        e.SourceExpenseItemId,
+        e.Name,
+        e.AmountMonthly,
+        e.SubscriptionLifecycleStatus
+    FROM BudgetMonthExpenseItem e
+    JOIN ExpenseCategory c ON c.Id = e.CategoryId
+    WHERE e.BudgetMonthId = @BudgetMonthId
+      AND c.Name = 'Subscription'
+      AND e.IsDeleted = 0
+    ORDER BY e.Name, e.Id;";
 
     const string ExistsAnyMonths = """
         SELECT EXISTS(

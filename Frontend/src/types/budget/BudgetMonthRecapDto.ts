@@ -46,9 +46,26 @@ export type BudgetMonthRecapExpenseCategoryDto = {
   deltaPercent: number | null;
 };
 
+export type BudgetMonthRecapSubscriptionInsightDto = {
+  active: BudgetMonthRecapSubscriptionItemDto[];
+  new: BudgetMonthRecapSubscriptionItemDto[];
+  removed: BudgetMonthRecapSubscriptionItemDto[];
+  paused: BudgetMonthRecapSubscriptionItemDto[];
+  cancelled: BudgetMonthRecapSubscriptionItemDto[];
+  hasPreviousComparableMonth: boolean;
+};
+
+export type BudgetMonthRecapSubscriptionItemDto = {
+  identityKey: string;
+  name: string;
+  amountMonthly: number;
+  sourceExpenseItemId: string | null;
+};
+
 export type BudgetMonthRecapDto = {
   month: BudgetMonthRecapMetaDto;
   snapshotTotals: BudgetMonthRecapSnapshotTotalsDto;
   comparison: BudgetMonthRecapComparisonMetaDto;
   expenseCategories: BudgetMonthRecapExpenseCategoryDto[];
+  subscriptionInsight: BudgetMonthRecapSubscriptionInsightDto;
 };

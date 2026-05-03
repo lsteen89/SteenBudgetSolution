@@ -53,6 +53,10 @@ public sealed partial class BudgetMonthDashboardRepository
             WHERE e.BudgetMonthId = bm.Id
             AND e.IsDeleted = 0
             AND e.IsActive = 1
+            AND (
+                e.SubscriptionLifecycleStatus IS NULL
+                OR e.SubscriptionLifecycleStatus = @ActiveSubscriptionLifecycleStatus
+            )
         ), 0) AS TotalExpensesMonthly,
 
         COALESCE((
@@ -98,6 +102,10 @@ public sealed partial class BudgetMonthDashboardRepository
     WHERE e.BudgetMonthId = @BudgetMonthId
     AND e.IsDeleted = 0
     AND e.IsActive = 1
+    AND (
+        e.SubscriptionLifecycleStatus IS NULL
+        OR e.SubscriptionLifecycleStatus = @ActiveSubscriptionLifecycleStatus
+    )
     GROUP BY c.Id, c.Name
     ORDER BY c.Name;";
 
@@ -147,6 +155,10 @@ public sealed partial class BudgetMonthDashboardRepository
     WHERE e.BudgetMonthId = @BudgetMonthId
     AND e.IsDeleted = 0
     AND e.IsActive = 1
+    AND (
+        e.SubscriptionLifecycleStatus IS NULL
+        OR e.SubscriptionLifecycleStatus = @ActiveSubscriptionLifecycleStatus
+    )
     AND e.AmountMonthly > 0
     AND e.CategoryId <> @SubscriptionCategoryId
     ORDER BY e.AmountMonthly DESC
@@ -161,6 +173,10 @@ public sealed partial class BudgetMonthDashboardRepository
     WHERE e.BudgetMonthId = @BudgetMonthId
     AND e.IsDeleted = 0
     AND e.IsActive = 1
+    AND (
+        e.SubscriptionLifecycleStatus IS NULL
+        OR e.SubscriptionLifecycleStatus = @ActiveSubscriptionLifecycleStatus
+    )
     AND e.AmountMonthly > 0
     AND e.CategoryId = @SubscriptionCategoryId
     ORDER BY e.AmountMonthly DESC, e.Name ASC;";
@@ -171,6 +187,10 @@ public sealed partial class BudgetMonthDashboardRepository
     WHERE e.BudgetMonthId = @BudgetMonthId
     AND e.IsDeleted = 0
     AND e.IsActive = 1
+    AND (
+        e.SubscriptionLifecycleStatus IS NULL
+        OR e.SubscriptionLifecycleStatus = @ActiveSubscriptionLifecycleStatus
+    )
     AND e.AmountMonthly > 0
     AND e.CategoryId = @SubscriptionCategoryId;";
 

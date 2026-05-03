@@ -63,6 +63,14 @@ public sealed class GetBudgetMonthRecapQueryHandler
             currentCategoryTotals,
             previousCategoryTotals,
             previousComparableMonth is not null);
+        var currentSubscriptions = await _months.GetSubscriptionsAsync(month.Id, ct);
+        var previousSubscriptions = previousComparableMonth is null
+            ? Array.Empty<BudgetMonthSubscriptionRm>()
+            : await _months.GetSubscriptionsAsync(previousComparableMonth.Id, ct);
+        var subscriptionInsight = BuildSubscriptionInsight(
+            currentSubscriptions,
+            previousSubscriptions,
+            previousComparableMonth is not null);
 
         return Result<BudgetMonthRecapDto?>.Success(new BudgetMonthRecapDto(
             Month: new BudgetMonthRecapMetaDto(
@@ -82,7 +90,8 @@ public sealed class GetBudgetMonthRecapQueryHandler
                 PreviousComparableYearMonth: comparisonSummary is null ? null : previousComparableYearMonth,
                 HasPreviousComparableMonth: comparisonSummary is not null,
                 Summary: comparisonSummary),
-            ExpenseCategories: expenseCategories));
+            ExpenseCategories: expenseCategories,
+            SubscriptionInsight: subscriptionInsight));
     }
 
     private static BudgetMonthRecapComparisonSummaryDto? BuildComparisonSummary(
@@ -177,4 +186,113 @@ public sealed class GetBudgetMonthRecapQueryHandler
                 .ThenBy(x => x.CategoryName)
                 .ToArray();
     }
+
+    private static BudgetMonthRecapSubscriptionInsightDto BuildSubscriptionInsight(
+        IReadOnlyList<BudgetMonthSubscriptionRm> currentSubscriptions,
+        IReadOnlyList<BudgetMonthSubscriptionRm> previousSubscriptions,
+        bool hasPreviousComparableMonth)
+    {
+        var currentByIdentity = BuildSubscriptionIdentityMap(currentSubscriptions);
+        var currentActiveByIdentity = BuildSubscriptionIdentityMap(
+            currentSubscriptions.Where(IsActiveSubscriptionLifecycle));
+        var currentPausedByIdentity = BuildSubscriptionIdentityMap(
+            currentSubscriptions.Where(x =>
+                x.SubscriptionLifecycleStatus == BudgetMonthSubscriptionLifecycleStatuses.Paused));
+        var currentCancelledByIdentity = BuildSubscriptionIdentityMap(
+            currentSubscriptions.Where(x =>
+                x.SubscriptionLifecycleStatus == BudgetMonthSubscriptionLifecycleStatuses.Cancelled));
+        var previousByIdentity = BuildSubscriptionIdentityMap(previousSubscriptions);
+        var pausedOrCancelledIdentityKeys = currentPausedByIdentity.Keys
+            .Union(currentCancelledByIdentity.Keys)
+            .ToHashSet(StringComparer.Ordinal);
+
+        if (!hasPreviousComparableMonth)
+        {
+            return new BudgetMonthRecapSubscriptionInsightDto(
+                Active: OrderSubscriptions(currentActiveByIdentity
+                    .Where(x => !pausedOrCancelledIdentityKeys.Contains(x.Key))
+                    .Select(x => x.Value)),
+                New: Array.Empty<BudgetMonthRecapSubscriptionItemDto>(),
+                Removed: Array.Empty<BudgetMonthRecapSubscriptionItemDto>(),
+                Paused: OrderSubscriptions(currentPausedByIdentity
+                    .Where(x => !currentCancelledByIdentity.ContainsKey(x.Key))
+                    .Select(x => x.Value)),
+                Cancelled: OrderSubscriptions(currentCancelledByIdentity.Values),
+                HasPreviousComparableMonth: false);
+        }
+
+        var active = currentActiveByIdentity
+            .Where(x => previousByIdentity.ContainsKey(x.Key))
+            .Where(x => !pausedOrCancelledIdentityKeys.Contains(x.Key))
+            .Select(x => x.Value);
+        var added = currentActiveByIdentity
+            .Where(x => !previousByIdentity.ContainsKey(x.Key))
+            .Where(x => !pausedOrCancelledIdentityKeys.Contains(x.Key))
+            .Select(x => x.Value);
+        var removed = previousByIdentity
+            .Where(x => !currentByIdentity.ContainsKey(x.Key))
+            .Select(x => x.Value);
+
+        return new BudgetMonthRecapSubscriptionInsightDto(
+            Active: OrderSubscriptions(active),
+            New: OrderSubscriptions(added),
+            Removed: OrderSubscriptions(removed),
+            Paused: OrderSubscriptions(currentPausedByIdentity
+                .Where(x => !currentCancelledByIdentity.ContainsKey(x.Key))
+                .Select(x => x.Value)),
+            Cancelled: OrderSubscriptions(currentCancelledByIdentity.Values),
+            HasPreviousComparableMonth: true);
+    }
+
+    private static Dictionary<string, BudgetMonthRecapSubscriptionItemDto> BuildSubscriptionIdentityMap(
+        IEnumerable<BudgetMonthSubscriptionRm> subscriptions)
+    {
+        return subscriptions
+            .Select(x => new
+            {
+                Key = BuildSubscriptionIdentityKey(x),
+                Subscription = x
+            })
+            .Where(x => x.Key is not null)
+            .GroupBy(x => x.Key!)
+            .ToDictionary(
+                x => x.Key,
+                x =>
+                {
+                    var ordered = x
+                        .Select(y => y.Subscription)
+                        .OrderBy(y => y.Name, StringComparer.OrdinalIgnoreCase)
+                        .ThenBy(y => y.Id)
+                        .ToArray();
+                    var first = ordered[0];
+                    return new BudgetMonthRecapSubscriptionItemDto(
+                        IdentityKey: x.Key,
+                        Name: first.Name.Trim(),
+                        AmountMonthly: ordered.Sum(y => y.AmountMonthly),
+                        SourceExpenseItemId: first.SourceExpenseItemId?.ToString());
+                });
+    }
+
+    private static bool IsActiveSubscriptionLifecycle(BudgetMonthSubscriptionRm subscription)
+        => subscription.SubscriptionLifecycleStatus is null ||
+           subscription.SubscriptionLifecycleStatus == BudgetMonthSubscriptionLifecycleStatuses.Active;
+
+    private static string? BuildSubscriptionIdentityKey(BudgetMonthSubscriptionRm subscription)
+    {
+        if (subscription.SourceExpenseItemId is Guid sourceExpenseItemId)
+            return $"source:{sourceExpenseItemId:D}";
+
+        var normalizedName = NormalizeSubscriptionName(subscription.Name);
+        return normalizedName.Length == 0 ? null : $"name:{normalizedName}";
+    }
+
+    private static string NormalizeSubscriptionName(string value)
+        => value.Trim().ToUpperInvariant();
+
+    private static BudgetMonthRecapSubscriptionItemDto[] OrderSubscriptions(
+        IEnumerable<BudgetMonthRecapSubscriptionItemDto> subscriptions)
+        => subscriptions
+            .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.IdentityKey, StringComparer.Ordinal)
+            .ToArray();
 }

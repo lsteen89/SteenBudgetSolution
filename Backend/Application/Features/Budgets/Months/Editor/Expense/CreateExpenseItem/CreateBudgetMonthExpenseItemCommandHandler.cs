@@ -3,6 +3,8 @@ using Backend.Domain.Shared;
 using MediatR;
 using Backend.Application.Abstractions.Application.Services.Budget;
 using Backend.Application.Abstractions.Infrastructure.Data;
+using Backend.Application.Constants;
+using Backend.Application.DTO.Budget.Months;
 using Backend.Application.DTO.Budget.Months.Editor.Expense;
 using Backend.Application.Features.Budgets.Audit;
 using Backend.Domain.Errors.Budget;
@@ -58,6 +60,7 @@ public sealed class CreateBudgetMonthExpenseItemCommandHandler
         var now = _timeProvider.GetUtcNow().UtcDateTime;
         var id = Guid.NewGuid();
         var trimmedName = cmd.Name.Trim();
+        var subscriptionLifecycleStatus = DefaultLifecycleStatusForCategory(cmd.CategoryId);
 
         await _repo.InsertMonthExpenseItemAsync(
             new InsertBudgetMonthExpenseItemModel(
@@ -67,6 +70,7 @@ public sealed class CreateBudgetMonthExpenseItemCommandHandler
                 CategoryId: cmd.CategoryId,
                 Name: trimmedName,
                 AmountMonthly: cmd.AmountMonthly,
+                SubscriptionLifecycleStatus: subscriptionLifecycleStatus,
                 IsActive: cmd.IsActive,
                 IsDeleted: false,
                 ActorPersoid: cmd.Persoid,
@@ -81,6 +85,7 @@ public sealed class CreateBudgetMonthExpenseItemCommandHandler
                 CategoryId = cmd.CategoryId,
                 Name = trimmedName,
                 AmountMonthly = cmd.AmountMonthly,
+                SubscriptionLifecycleStatus = subscriptionLifecycleStatus,
                 IsActive = cmd.IsActive,
                 IsMonthOnly = true
             }
@@ -106,9 +111,15 @@ public sealed class CreateBudgetMonthExpenseItemCommandHandler
                 CategoryId: cmd.CategoryId,
                 Name: trimmedName,
                 AmountMonthly: cmd.AmountMonthly,
+                SubscriptionLifecycleStatus: subscriptionLifecycleStatus,
                 IsActive: cmd.IsActive,
                 IsDeleted: false,
                 IsMonthOnly: true,
                 CanUpdateDefault: false));
     }
+
+    private static string? DefaultLifecycleStatusForCategory(Guid categoryId)
+        => categoryId == ExpenseCategoryIds.Subscription
+            ? BudgetMonthSubscriptionLifecycleStatuses.Active
+            : null;
 }

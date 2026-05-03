@@ -20,6 +20,7 @@ public sealed partial class BudgetMonthEditorRepository
         bmei.CategoryId,
         bmei.Name,
         bmei.AmountMonthly,
+        bmei.SubscriptionLifecycleStatus,
         bmei.IsActive,
         bmei.IsDeleted
     FROM BudgetMonthExpenseItem bmei

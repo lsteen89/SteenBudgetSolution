@@ -21,3 +21,10 @@ public sealed record BudgetMonthExpenseCategoryTotalRm(
     Guid CategoryId,
     string CategoryName,
     decimal TotalMonthlyAmount);
+
+public sealed record BudgetMonthSubscriptionRm(
+    Guid Id,
+    Guid? SourceExpenseItemId,
+    string Name,
+    decimal AmountMonthly,
+    string? SubscriptionLifecycleStatus);

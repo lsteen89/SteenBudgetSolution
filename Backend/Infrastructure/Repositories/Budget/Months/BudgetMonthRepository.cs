@@ -142,6 +142,18 @@ public sealed partial class BudgetMonthRepository : SqlBase, IBudgetMonthReposit
         CancellationToken ct)
         => await QueryAsync<BudgetMonthExpenseCategoryTotalRm>(
             GetExpenseCategoryTotals,
+            new
+            {
+                BudgetMonthId = budgetMonthId,
+                ActiveSubscriptionLifecycleStatus = BudgetMonthSubscriptionLifecycleStatuses.Active
+            },
+            ct);
+
+    public async Task<IReadOnlyList<BudgetMonthSubscriptionRm>> GetSubscriptionsAsync(
+        Guid budgetMonthId,
+        CancellationToken ct)
+        => await QueryAsync<BudgetMonthSubscriptionRm>(
+            GetSubscriptions,
             new { BudgetMonthId = budgetMonthId },
             ct);
 

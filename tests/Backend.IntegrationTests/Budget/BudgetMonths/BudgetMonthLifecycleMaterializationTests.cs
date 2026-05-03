@@ -6,8 +6,10 @@ using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Application.BudgetMonths.Services;
 using Backend.Application.Common.Behaviors;
+using Backend.Application.DTO.Budget.Months;
 using Backend.Application.Services.Budget.Materializer;
 using Backend.Application.Services.Debts;
+using Backend.Domain.Entities.Budget.Expenses;
 using Backend.Infrastructure.Data.Sql.Helpers.UnitOfWork;
 using Backend.Infrastructure.Repositories.Budget.Months;
 using Backend.Infrastructure.Repositories.Budget.Months.Materializer;
@@ -110,6 +112,162 @@ public sealed class BudgetMonthLifecycleMaterializationTests
 
         var expenseCount = await CountBudgetMonthExpenseRowsAsync(_db.ConnectionString, result.Value.BudgetMonthId);
         expenseCount.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public async Task Schema_SupportsSubscriptionLifecycleStatus_AndRejectsInvalidValues()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+
+        await BudgetMonthDsl.InsertAsync(
+            cs: _db.ConnectionString,
+            budgetId: seed.BudgetId,
+            yearMonth: "2026-02",
+            status: "open",
+            openedAtUtc: new DateTime(2026, 02, 01, 8, 0, 0, DateTimeKind.Utc),
+            createdByUserId: seed.UserId,
+            closedAtUtc: null,
+            carryOverMode: "none",
+            carryOverAmount: null);
+
+        var budgetMonthId = await GetBudgetMonthIdAsync(_db.ConnectionString, seed.BudgetId, "2026-02");
+        budgetMonthId.Should().NotBeNull();
+
+        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await conn.OpenAsync();
+        await DbSeeds.EnsureDefaultExpenseCategoriesAsync(conn);
+
+        var column = await conn.QuerySingleOrDefaultAsync<(string Field, string Type, string Null)>(
+            "SHOW COLUMNS FROM BudgetMonthExpenseItem LIKE 'SubscriptionLifecycleStatus';");
+        column.Field.Should().Be("SubscriptionLifecycleStatus");
+        column.Type.Should().Be("varchar(20)");
+        column.Null.Should().Be("YES");
+
+        var insertInvalid = async () => await conn.ExecuteAsync("""
+            INSERT INTO BudgetMonthExpenseItem
+            (
+                Id,
+                BudgetMonthId,
+                SourceExpenseItemId,
+                CategoryId,
+                Name,
+                AmountMonthly,
+                SubscriptionLifecycleStatus,
+                IsActive,
+                IsOverride,
+                IsDeleted,
+                SortOrder,
+                CreatedAt,
+                CreatedByUserId
+            )
+            VALUES
+            (
+                UUID_TO_BIN(UUID()),
+                @BudgetMonthId,
+                NULL,
+                @CategoryId,
+                'Invalid lifecycle',
+                10,
+                'sleeping',
+                1,
+                0,
+                0,
+                0,
+                UTC_TIMESTAMP(),
+                @UserId
+            );
+        """, new
+        {
+            BudgetMonthId = budgetMonthId!.Value,
+            CategoryId = ExpenseCategories.Subscription,
+            UserId = seed.UserId
+        });
+
+        await insertInvalid.Should().ThrowAsync<MySqlException>();
+    }
+
+    [Fact]
+    public async Task Materializer_DefaultsSubscriptionMonthlyRows_ToActiveLifecycle()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+        await InsertBaselineExpenseItemAsync(
+            _db.ConnectionString,
+            seed.BudgetId,
+            seed.UserId,
+            ExpenseCategories.Subscription,
+            "Netflix",
+            129m);
+
+        var clock = new FakeTimeProvider(new DateTime(2026, 02, 07, 08, 00, 00, DateTimeKind.Utc));
+
+        await using var sp = BuildServiceProvider(_db.ConnectionString, clock);
+        await using var scope = sp.CreateAsyncScope();
+
+        var lifecycle = scope.ServiceProvider.GetRequiredService<IBudgetMonthLifecycleService>();
+        var uow = (UnitOfWork)scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+        var result = await uow.InTx(CancellationToken.None, () =>
+            lifecycle.EnsureAccessibleMonthAsync(
+                seed.Persoid,
+                seed.Persoid,
+                "2026-02",
+                CancellationToken.None));
+
+        result.IsSuccess.Should().BeTrue();
+
+        var rows = await GetBudgetMonthExpenseLifecycleRowsAsync(
+            _db.ConnectionString,
+            result.Value!.BudgetMonthId);
+
+        rows.Should().ContainSingle(x =>
+            x.Name == "Netflix" &&
+            x.SubscriptionLifecycleStatus == BudgetMonthSubscriptionLifecycleStatuses.Active &&
+            x.AmountMonthly == 129m);
+    }
+
+    [Fact]
+    public async Task Materializer_DefaultsNonSubscriptionMonthlyRows_ToNullLifecycle()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+        await InsertBaselineExpenseItemAsync(
+            _db.ConnectionString,
+            seed.BudgetId,
+            seed.UserId,
+            ExpenseCategories.Food,
+            "Groceries",
+            250m);
+
+        var clock = new FakeTimeProvider(new DateTime(2026, 02, 07, 08, 00, 00, DateTimeKind.Utc));
+
+        await using var sp = BuildServiceProvider(_db.ConnectionString, clock);
+        await using var scope = sp.CreateAsyncScope();
+
+        var lifecycle = scope.ServiceProvider.GetRequiredService<IBudgetMonthLifecycleService>();
+        var uow = (UnitOfWork)scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+        var result = await uow.InTx(CancellationToken.None, () =>
+            lifecycle.EnsureAccessibleMonthAsync(
+                seed.Persoid,
+                seed.Persoid,
+                "2026-02",
+                CancellationToken.None));
+
+        result.IsSuccess.Should().BeTrue();
+
+        var rows = await GetBudgetMonthExpenseLifecycleRowsAsync(
+            _db.ConnectionString,
+            result.Value!.BudgetMonthId);
+
+        rows.Should().ContainSingle(x =>
+            x.Name == "Groceries" &&
+            x.SubscriptionLifecycleStatus == null &&
+            x.AmountMonthly == 250m);
     }
 
     [Fact]
@@ -913,6 +1071,72 @@ public sealed class BudgetMonthLifecycleMaterializationTests
         sbyte? IncomePaymentDay);
 
     private sealed record BudgetMonthSavingsRow(Guid? SourceSavingsId, decimal MonthlySavings);
+
+    private sealed record BudgetMonthExpenseLifecycleRow(
+        string Name,
+        decimal AmountMonthly,
+        string? SubscriptionLifecycleStatus);
+
+    private static async Task InsertBaselineExpenseItemAsync(
+        string cs,
+        Guid budgetId,
+        Guid actorPersoid,
+        Guid categoryId,
+        string name,
+        decimal amountMonthly)
+    {
+        await using var conn = new MySqlConnection(cs);
+        await conn.OpenAsync();
+        await DbSeeds.EnsureDefaultExpenseCategoriesAsync(conn);
+
+        await conn.ExecuteAsync("""
+            INSERT INTO ExpenseItem
+            (
+                Id,
+                BudgetId,
+                CategoryId,
+                Name,
+                AmountMonthly,
+                CreatedAt,
+                CreatedByUserId
+            )
+            VALUES
+            (
+                UUID_TO_BIN(UUID()),
+                @BudgetId,
+                @CategoryId,
+                @Name,
+                @AmountMonthly,
+                UTC_TIMESTAMP(),
+                @ActorPersoid
+            );
+        """, new
+        {
+            BudgetId = budgetId,
+            CategoryId = categoryId,
+            Name = name,
+            AmountMonthly = amountMonthly,
+            ActorPersoid = actorPersoid
+        });
+    }
+
+    private static async Task<IReadOnlyList<BudgetMonthExpenseLifecycleRow>> GetBudgetMonthExpenseLifecycleRowsAsync(
+        string cs,
+        Guid budgetMonthId)
+    {
+        await using var conn = new MySqlConnection(cs);
+        await conn.OpenAsync();
+
+        return (await conn.QueryAsync<BudgetMonthExpenseLifecycleRow>("""
+            SELECT
+                Name,
+                AmountMonthly,
+                SubscriptionLifecycleStatus
+            FROM BudgetMonthExpenseItem
+            WHERE BudgetMonthId = @BudgetMonthId
+            ORDER BY Name;
+        """, new { BudgetMonthId = budgetMonthId })).ToArray();
+    }
 
     private static async Task<Guid> InsertBaselineIncomeAsync(
         string cs,

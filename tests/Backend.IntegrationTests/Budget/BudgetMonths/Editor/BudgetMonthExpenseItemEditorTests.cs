@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Backend.Domain.Errors.Budget;
+using Backend.Application.DTO.Budget.Months;
 using Backend.Application.Services.Budget.Projections;
 using Backend.Application.BudgetMonths.Services;
 using Backend.Application.Features.Budgets.Months.Editor.Expense.DeleteExpenseItem;
@@ -124,7 +125,8 @@ public sealed class BudgetMonthExpenseItemEditorTests
                     CategoryId: ExpenseCategories.Other,
                     AmountMonthly: 777m,
                     IsActive: false,
-                    UpdateDefault: false),
+                    SubscriptionLifecycleStatus: null,
+            UpdateDefault: false),
                 CancellationToken.None));
 
         patch.IsFailure.Should().BeFalse();
@@ -175,7 +177,8 @@ public sealed class BudgetMonthExpenseItemEditorTests
                     CategoryId: ExpenseCategories.Subscription,
                     AmountMonthly: 999m,
                     IsActive: true,
-                    UpdateDefault: true),
+                    SubscriptionLifecycleStatus: null,
+            UpdateDefault: true),
                 CancellationToken.None));
 
         patch.IsFailure.Should().BeFalse();
@@ -229,6 +232,259 @@ public sealed class BudgetMonthExpenseItemEditorTests
         var eventCount = await CountChangeEventsAsync(budgetMonthId, "created");
         eventCount.Should().Be(1);
     }
+
+    [Fact]
+    public async Task PatchSubscriptionLifecycle_CanPauseCancelAndReactivateSubscriptionRow()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var persoid = seed.Persoid;
+
+        var sut = CreateSut(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+
+        var ensure = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.Lifecycle.EnsureAccessibleMonthAsync(persoid, persoid, "2026-01", CancellationToken.None));
+
+        var budgetMonthId = ensure.Value!.BudgetMonthId;
+
+        var create = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.CreateHandler.Handle(
+                new CreateBudgetMonthExpenseItemCommand(
+                    Persoid: persoid,
+                    YearMonth: "2026-01",
+                    CategoryId: ExpenseCategories.Subscription,
+                    Name: "Netflix",
+                    AmountMonthly: 129m,
+                    IsActive: true),
+                CancellationToken.None));
+
+        create.IsSuccess.Should().BeTrue();
+        create.Value!.SubscriptionLifecycleStatus.Should().Be(BudgetMonthSubscriptionLifecycleStatuses.Active);
+
+        var pause = await PatchLifecycleAsync(
+            sut,
+            persoid,
+            create.Value,
+            BudgetMonthSubscriptionLifecycleStatuses.Paused);
+
+        pause.IsSuccess.Should().BeTrue();
+        pause.Value!.SubscriptionLifecycleStatus.Should().Be(BudgetMonthSubscriptionLifecycleStatuses.Paused);
+
+        var pausedRow = await GetMonthExpenseRowAsync(budgetMonthId, create.Value.Id);
+        pausedRow.Should().NotBeNull();
+        pausedRow!.Name.Should().Be("Netflix");
+        pausedRow.AmountMonthly.Should().Be(129m);
+        pausedRow.SourceExpenseItemId.Should().BeNull();
+        pausedRow.IsDeleted.Should().BeFalse();
+        pausedRow.SubscriptionLifecycleStatus.Should().Be(BudgetMonthSubscriptionLifecycleStatuses.Paused);
+
+        var cancel = await PatchLifecycleAsync(
+            sut,
+            persoid,
+            create.Value,
+            BudgetMonthSubscriptionLifecycleStatuses.Cancelled);
+
+        cancel.IsSuccess.Should().BeTrue();
+        cancel.Value!.SubscriptionLifecycleStatus.Should().Be(BudgetMonthSubscriptionLifecycleStatuses.Cancelled);
+
+        var reactivate = await PatchLifecycleAsync(
+            sut,
+            persoid,
+            create.Value,
+            BudgetMonthSubscriptionLifecycleStatuses.Active);
+
+        reactivate.IsSuccess.Should().BeTrue();
+        reactivate.Value!.SubscriptionLifecycleStatus.Should().Be(BudgetMonthSubscriptionLifecycleStatuses.Active);
+    }
+
+    [Fact]
+    public async Task PatchSubscriptionLifecycle_PausedAndCancelledRowsAreExcludedFromDashboardTotals()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var persoid = seed.Persoid;
+
+        var sut = CreateSut(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+
+        await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.Lifecycle.EnsureAccessibleMonthAsync(persoid, persoid, "2026-01", CancellationToken.None));
+
+        var before = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.DashboardHandler.Handle(new GetBudgetDashboardMonthQuery(persoid, "2026-01"), CancellationToken.None));
+
+        var beforeExpenses = before.Value!.LiveDashboard!.Expenditure.TotalExpensesMonthly;
+
+        var create = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.CreateHandler.Handle(
+                new CreateBudgetMonthExpenseItemCommand(
+                    Persoid: persoid,
+                    YearMonth: "2026-01",
+                    CategoryId: ExpenseCategories.Subscription,
+                    Name: "Spotify",
+                    AmountMonthly: 99m,
+                    IsActive: true),
+                CancellationToken.None));
+
+        create.IsSuccess.Should().BeTrue();
+
+        var afterCreate = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.DashboardHandler.Handle(new GetBudgetDashboardMonthQuery(persoid, "2026-01"), CancellationToken.None));
+
+        afterCreate.Value!.LiveDashboard!.Expenditure.TotalExpensesMonthly.Should().Be(beforeExpenses + 99m);
+
+        var pause = await PatchLifecycleAsync(
+            sut,
+            persoid,
+            create.Value!,
+            BudgetMonthSubscriptionLifecycleStatuses.Paused);
+
+        pause.IsSuccess.Should().BeTrue();
+
+        var afterPause = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.DashboardHandler.Handle(new GetBudgetDashboardMonthQuery(persoid, "2026-01"), CancellationToken.None));
+
+        afterPause.Value!.LiveDashboard!.Expenditure.TotalExpensesMonthly.Should().Be(beforeExpenses);
+
+        var cancel = await PatchLifecycleAsync(
+            sut,
+            persoid,
+            create.Value!,
+            BudgetMonthSubscriptionLifecycleStatuses.Cancelled);
+
+        cancel.IsSuccess.Should().BeTrue();
+
+        var afterCancel = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.DashboardHandler.Handle(new GetBudgetDashboardMonthQuery(persoid, "2026-01"), CancellationToken.None));
+
+        afterCancel.Value!.LiveDashboard!.Expenditure.TotalExpensesMonthly.Should().Be(beforeExpenses);
+    }
+
+    [Fact]
+    public async Task PatchSubscriptionLifecycle_InvalidValueFails()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var persoid = seed.Persoid;
+
+        var sut = CreateSut(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+
+        await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.Lifecycle.EnsureAccessibleMonthAsync(persoid, persoid, "2026-01", CancellationToken.None));
+
+        var create = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.CreateHandler.Handle(
+                new CreateBudgetMonthExpenseItemCommand(
+                    Persoid: persoid,
+                    YearMonth: "2026-01",
+                    CategoryId: ExpenseCategories.Subscription,
+                    Name: "Invalid lifecycle target",
+                    AmountMonthly: 99m,
+                    IsActive: true),
+                CancellationToken.None));
+
+        var patch = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.PatchHandler.Handle(
+                new PatchBudgetMonthExpenseItemCommand(
+                    Persoid: persoid,
+                    YearMonth: "2026-01",
+                    MonthExpenseItemId: create.Value!.Id,
+                    Name: create.Value.Name,
+                    CategoryId: create.Value.CategoryId,
+                    AmountMonthly: create.Value.AmountMonthly,
+                    IsActive: create.Value.IsActive,
+                    SubscriptionLifecycleStatus: "archived",
+            UpdateDefault: false),
+                CancellationToken.None));
+
+        patch.IsFailure.Should().BeTrue();
+        patch.Error!.Code.Should().Be(BudgetMonthExpenseItemErrors.InvalidSubscriptionLifecycleStatus.Code);
+    }
+
+    [Fact]
+    public async Task PatchSubscriptionLifecycle_NonSubscriptionRowCannotBePausedOrCancelled()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var persoid = seed.Persoid;
+
+        var sut = CreateSut(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+
+        await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.Lifecycle.EnsureAccessibleMonthAsync(persoid, persoid, "2026-01", CancellationToken.None));
+
+        var create = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.CreateHandler.Handle(
+                new CreateBudgetMonthExpenseItemCommand(
+                    Persoid: persoid,
+                    YearMonth: "2026-01",
+                    CategoryId: ExpenseCategories.Other,
+                    Name: "Coffee",
+                    AmountMonthly: 50m,
+                    IsActive: true),
+                CancellationToken.None));
+
+        var patch = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.PatchHandler.Handle(
+                new PatchBudgetMonthExpenseItemCommand(
+                    Persoid: persoid,
+                    YearMonth: "2026-01",
+                    MonthExpenseItemId: create.Value!.Id,
+                    Name: create.Value.Name,
+                    CategoryId: create.Value.CategoryId,
+                    AmountMonthly: create.Value.AmountMonthly,
+                    IsActive: create.Value.IsActive,
+                    SubscriptionLifecycleStatus: BudgetMonthSubscriptionLifecycleStatuses.Paused,
+            UpdateDefault: false),
+                CancellationToken.None));
+
+        patch.IsFailure.Should().BeTrue();
+        patch.Error!.Code.Should().Be(BudgetMonthExpenseItemErrors.SubscriptionLifecycleRequiresSubscriptionCategory.Code);
+    }
+
+    [Fact]
+    public async Task PatchSubscriptionLifecycle_WhenMonthSkipped_Fails()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var persoid = seed.Persoid;
+        var userId = seed.UserId;
+        var budgetId = seed.BudgetId;
+
+        await BudgetMonthDsl.InsertAsync(
+            cs: _db.ConnectionString,
+            budgetId: budgetId,
+            yearMonth: "2026-01",
+            status: "skipped",
+            openedAtUtc: new DateTime(2026, 01, 01, 08, 00, 00, DateTimeKind.Utc),
+            createdByUserId: userId,
+            closedAtUtc: new DateTime(2026, 01, 31, 20, 00, 00, DateTimeKind.Utc),
+            carryOverMode: "none",
+            carryOverAmount: null);
+
+        var sut = CreateSut(new DateTime(2026, 02, 01, 08, 00, 00, DateTimeKind.Utc));
+
+        var result = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.PatchHandler.Handle(
+                new PatchBudgetMonthExpenseItemCommand(
+                    Persoid: persoid,
+                    YearMonth: "2026-01",
+                    MonthExpenseItemId: Guid.NewGuid(),
+                    Name: "Skipped lifecycle",
+                    CategoryId: ExpenseCategories.Subscription,
+                    AmountMonthly: 99m,
+                    IsActive: true,
+                    SubscriptionLifecycleStatus: BudgetMonthSubscriptionLifecycleStatuses.Paused,
+            UpdateDefault: false),
+                CancellationToken.None));
+
+        result.IsFailure.Should().BeTrue();
+    }
+
     [Fact]
     public async Task DeleteExpenseItem_SoftDeletesMonthRow()
     {
@@ -299,7 +555,8 @@ public sealed class BudgetMonthExpenseItemEditorTests
                     CategoryId: null,
                     AmountMonthly: 80m,
                     IsActive: true,
-                    UpdateDefault: true),
+                    SubscriptionLifecycleStatus: null,
+            UpdateDefault: true),
                 CancellationToken.None));
 
         patch.IsFailure.Should().BeTrue();
@@ -385,7 +642,8 @@ public sealed class BudgetMonthExpenseItemEditorTests
                     CategoryId: patchTarget.CategoryId,
                     AmountMonthly: patchedAmount,
                     IsActive: patchTarget.IsActive,
-                    UpdateDefault: false),
+                    SubscriptionLifecycleStatus: null,
+            UpdateDefault: false),
                 CancellationToken.None));
 
         patch.IsFailure.Should().BeFalse();
@@ -484,7 +742,8 @@ public sealed class BudgetMonthExpenseItemEditorTests
                     CategoryId: null,
                     AmountMonthly: patchTarget.AmountMonthly + 10m,
                     IsActive: patchTarget.IsActive,
-                    UpdateDefault: false),
+                    SubscriptionLifecycleStatus: null,
+            UpdateDefault: false),
                 CancellationToken.None));
 
         patch.IsFailure.Should().BeFalse();
@@ -582,7 +841,8 @@ public sealed class BudgetMonthExpenseItemEditorTests
                     CategoryId: ExpenseCategories.Other,
                     AmountMonthly: 999m,
                     IsActive: false,
-                    UpdateDefault: false),
+                    SubscriptionLifecycleStatus: null,
+            UpdateDefault: false),
                 CancellationToken.None));
 
         patch.IsFailure.Should().BeTrue();
@@ -719,6 +979,26 @@ public sealed class BudgetMonthExpenseItemEditorTests
         WHERE Id = @budgetMonthId;",
             new { budgetMonthId });
     }
+
+    private static Task<Backend.Domain.Shared.Result<BudgetMonthExpenseItemEditorRowDto?>> PatchLifecycleAsync(
+        Sut sut,
+        Guid persoid,
+        BudgetMonthExpenseItemEditorRowDto row,
+        string subscriptionLifecycleStatus)
+        => sut.Uow.InTx(CancellationToken.None, () =>
+            sut.PatchHandler.Handle(
+                new PatchBudgetMonthExpenseItemCommand(
+                    Persoid: persoid,
+                    YearMonth: "2026-01",
+                    MonthExpenseItemId: row.Id,
+                    Name: row.Name,
+                    CategoryId: row.CategoryId,
+                    AmountMonthly: row.AmountMonthly,
+                    IsActive: row.IsActive,
+                    SubscriptionLifecycleStatus: subscriptionLifecycleStatus,
+            UpdateDefault: false),
+                CancellationToken.None));
+
     private sealed record BudgetMonthChangeEventDbRow(
         Guid Id,
         Guid BudgetMonthId,
@@ -885,6 +1165,7 @@ public sealed class BudgetMonthExpenseItemEditorTests
             CategoryId,
             Name,
             AmountMonthly,
+            SubscriptionLifecycleStatus,
             IsActive,
             IsDeleted
         FROM BudgetMonthExpenseItem
@@ -901,6 +1182,7 @@ public sealed class BudgetMonthExpenseItemEditorTests
         Guid CategoryId,
         string Name,
         decimal AmountMonthly,
+        string? SubscriptionLifecycleStatus,
         bool IsActive,
         bool IsDeleted);
     private async Task<ExpenseItemBaselineDbRow?> GetBaselineExpenseRowAsync(Guid id)

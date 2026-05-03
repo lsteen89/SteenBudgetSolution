@@ -19,4 +19,10 @@ public static partial class BudgetMonthExpenseItemErrors
 
     public static readonly Error InvalidCategory =
         new("BudgetMonthExpenseItem.InvalidCategory", "Selected category does not belong to the current budget.");
+
+    public static readonly Error InvalidSubscriptionLifecycleStatus =
+        new("BudgetMonthExpenseItem.InvalidSubscriptionLifecycleStatus", "Selected subscription lifecycle status is not supported.");
+
+    public static readonly Error SubscriptionLifecycleRequiresSubscriptionCategory =
+        new("BudgetMonthExpenseItem.SubscriptionLifecycleRequiresSubscriptionCategory", "Only subscription rows can use subscription lifecycle status.");
 }

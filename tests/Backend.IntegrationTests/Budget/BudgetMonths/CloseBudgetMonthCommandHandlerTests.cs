@@ -875,6 +875,9 @@ public sealed class CloseBudgetMonthCommandHandlerTests
         public Task<IReadOnlyList<Backend.Application.Features.Budgets.Months.Models.BudgetMonthExpenseCategoryTotalRm>> GetExpenseCategoryTotalsAsync(Guid budgetMonthId, CancellationToken ct)
             => _inner.GetExpenseCategoryTotalsAsync(budgetMonthId, ct);
 
+        public Task<IReadOnlyList<Backend.Application.Features.Budgets.Months.Models.BudgetMonthSubscriptionRm>> GetSubscriptionsAsync(Guid budgetMonthId, CancellationToken ct)
+            => _inner.GetSubscriptionsAsync(budgetMonthId, ct);
+
         public Task<Backend.Application.Features.Budgets.Income.Models.IncomePaymentTimingReadModel?> GetBudgetMonthIncomePaymentTimingAsync(Guid budgetMonthId, CancellationToken ct)
             => _inner.GetBudgetMonthIncomePaymentTimingAsync(budgetMonthId, ct);
 

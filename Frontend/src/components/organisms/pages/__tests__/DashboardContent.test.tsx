@@ -151,6 +151,79 @@ const pendingResult = {
   goToNextMonth: vi.fn(),
 };
 
+function emptySubscriptionInsight(hasPreviousComparableMonth = false) {
+  return {
+    active: [],
+    new: [],
+    removed: [],
+    paused: [],
+    cancelled: [],
+    hasPreviousComparableMonth,
+  };
+}
+
+function buildClosedRecap(overrides = {}) {
+  return {
+    month: {
+      yearMonth: "2026-04",
+      status: "closed",
+      openedAtUtc: "2026-04-01T08:00:00Z",
+      closedAtUtc: "2026-04-30T20:00:00Z",
+      carryOverMode: "none",
+      carryOverAmount: null,
+    },
+    snapshotTotals: {
+      totalIncomeMonthly: 10000,
+      totalExpensesMonthly: 4000,
+      totalSavingsMonthly: 1000,
+      totalDebtPaymentsMonthly: 500,
+      finalBalanceMonthly: 4500,
+    },
+    comparison: {
+      previousComparableYearMonth: "2026-03",
+      hasPreviousComparableMonth: true,
+      summary: {
+        income: { previousValue: 9000, deltaAmount: 1000, deltaPercent: 11.1 },
+        expenses: { previousValue: 4500, deltaAmount: -500, deltaPercent: -11.1 },
+        savings: { previousValue: 1200, deltaAmount: -200, deltaPercent: -16.7 },
+        debtPayments: { previousValue: 400, deltaAmount: 100, deltaPercent: 25 },
+        finalBalance: { previousValue: 2900, deltaAmount: 1600, deltaPercent: 55.2 },
+      },
+    },
+    expenseCategories: [],
+    subscriptionInsight: emptySubscriptionInsight(true),
+    ...overrides,
+  };
+}
+
+function mockClosedMonthDashboard(recap = buildClosedRecap()) {
+  mockUseDashboardSummary.mockReturnValue({
+    ...readyResult,
+    data: {
+      ...readyResult.data,
+      summary: buildSummary(245, "closed"),
+    },
+  });
+  mockUseBudgetMonthRecapQuery.mockReturnValue({
+    data: recap,
+    isPending: false,
+    error: null,
+    refetch: vi.fn(),
+  });
+}
+
+function renderDashboardContent() {
+  render(
+    <MemoryRouter>
+      <DashboardContent
+        isFirstTimeLogin={false}
+        isWizardOpen={false}
+        setIsWizardOpen={vi.fn()}
+      />
+    </MemoryRouter>,
+  );
+}
+
 describe("DashboardContent", () => {
   beforeEach(() => {
     mockUseDashboardSummary.mockReset();
@@ -443,6 +516,35 @@ describe("DashboardContent", () => {
             deltaPercent: null,
           },
         ],
+        subscriptionInsight: {
+          active: [
+            {
+              identityKey: "source:spotify",
+              name: "Spotify",
+              amountMonthly: 109,
+              sourceExpenseItemId: "spotify",
+            },
+          ],
+          new: [
+            {
+              identityKey: "name:NOTION",
+              name: "Notion",
+              amountMonthly: 80,
+              sourceExpenseItemId: null,
+            },
+          ],
+          removed: [
+            {
+              identityKey: "name:HBO",
+              name: "HBO",
+              amountMonthly: 119,
+              sourceExpenseItemId: null,
+            },
+          ],
+          paused: [],
+          cancelled: [],
+          hasPreviousComparableMonth: true,
+        },
       },
       isPending: false,
       error: null,
@@ -534,6 +636,11 @@ describe("DashboardContent", () => {
     expect(
       screen.queryByTestId("closed-month-expense-category-fixed-percent"),
     ).toBeNull();
+    const subscriptions = screen.getByTestId("closed-month-subscriptions");
+    expect(subscriptions).toHaveTextContent(/subscription changes/i);
+    expect(subscriptions).toHaveTextContent("Spotify");
+    expect(subscriptions).toHaveTextContent("Notion");
+    expect(subscriptions).toHaveTextContent("HBO");
     expect(screen.queryByRole("button", { name: /close month/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /add expense/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /^edit$/i })).toBeNull();
@@ -606,6 +713,7 @@ describe("DashboardContent", () => {
             deltaPercent: null,
           },
         ],
+        subscriptionInsight: emptySubscriptionInsight(),
       },
       isPending: false,
       error: null,
@@ -683,6 +791,7 @@ describe("DashboardContent", () => {
             deltaPercent: null,
           },
         ],
+        subscriptionInsight: emptySubscriptionInsight(),
       },
       isPending: false,
       error: null,
@@ -720,6 +829,303 @@ describe("DashboardContent", () => {
     expect(screen.getByTestId("closed-month-carry-over")).toHaveTextContent(
       "No carry-over applied",
     );
+  });
+
+  it("renders the subscription insight section", () => {
+    mockClosedMonthDashboard();
+
+    renderDashboardContent();
+
+    expect(screen.getByTestId("closed-month-subscriptions")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Subscription changes" }),
+    ).toBeInTheDocument();
+  });
+
+  it("renders active subscriptions from the recap DTO", () => {
+    mockClosedMonthDashboard(
+      buildClosedRecap({
+        subscriptionInsight: {
+          active: [
+            {
+              identityKey: "source:spotify",
+              name: "Spotify",
+              amountMonthly: 109,
+              sourceExpenseItemId: "spotify",
+            },
+          ],
+          new: [],
+          removed: [],
+          paused: [],
+          cancelled: [],
+          hasPreviousComparableMonth: true,
+        },
+      }),
+    );
+
+    renderDashboardContent();
+
+    const active = screen.getByTestId("closed-month-subscriptions-active");
+    expect(active).toHaveTextContent("Still active");
+    expect(active).toHaveTextContent("Spotify");
+    expect(active).toHaveTextContent(/109/);
+  });
+
+  it("renders new subscriptions from the recap DTO", () => {
+    mockClosedMonthDashboard(
+      buildClosedRecap({
+        subscriptionInsight: {
+          active: [],
+          new: [
+            {
+              identityKey: "name:NOTION",
+              name: "Notion",
+              amountMonthly: 80,
+              sourceExpenseItemId: null,
+            },
+          ],
+          removed: [],
+          paused: [],
+          cancelled: [],
+          hasPreviousComparableMonth: true,
+        },
+      }),
+    );
+
+    renderDashboardContent();
+
+    const added = screen.getByTestId("closed-month-subscriptions-new");
+    expect(added).toHaveTextContent("New");
+    expect(added).toHaveTextContent("Notion");
+  });
+
+  it("renders removed subscriptions from the recap DTO", () => {
+    mockClosedMonthDashboard(
+      buildClosedRecap({
+        subscriptionInsight: {
+          active: [],
+          new: [],
+          removed: [
+            {
+              identityKey: "name:HBO",
+              name: "HBO",
+              amountMonthly: 119,
+              sourceExpenseItemId: null,
+            },
+          ],
+          paused: [],
+          cancelled: [],
+          hasPreviousComparableMonth: true,
+        },
+      }),
+    );
+
+    renderDashboardContent();
+
+    const removed = screen.getByTestId("closed-month-subscriptions-removed");
+    expect(removed).toHaveTextContent("Removed");
+    expect(removed).toHaveTextContent("HBO");
+  });
+
+  it("renders the no previous comparable month helper for subscriptions", () => {
+    mockClosedMonthDashboard(
+      buildClosedRecap({
+        comparison: {
+          previousComparableYearMonth: null,
+          hasPreviousComparableMonth: false,
+          summary: null,
+        },
+        subscriptionInsight: {
+          active: [
+            {
+              identityKey: "name:DROPBOX",
+              name: "Dropbox",
+              amountMonthly: 120,
+              sourceExpenseItemId: null,
+            },
+          ],
+          new: [],
+          removed: [],
+          paused: [
+            {
+              identityKey: "name:NETFLIX",
+              name: "Netflix",
+              amountMonthly: 129,
+              sourceExpenseItemId: null,
+            },
+          ],
+          cancelled: [
+            {
+              identityKey: "name:HBO",
+              name: "HBO",
+              amountMonthly: 99,
+              sourceExpenseItemId: null,
+            },
+          ],
+          hasPreviousComparableMonth: false,
+        },
+      }),
+    );
+
+    renderDashboardContent();
+
+    expect(screen.getByTestId("closed-month-subscriptions")).toHaveTextContent(
+      /no previous month to compare subscription changes against/i,
+    );
+    expect(screen.getByTestId("closed-month-subscriptions-active")).toHaveTextContent(
+      "Active subscriptions",
+    );
+    expect(screen.getByTestId("closed-month-subscriptions-paused")).toHaveTextContent(
+      "Netflix",
+    );
+    expect(
+      screen.getByTestId("closed-month-subscriptions-cancelled"),
+    ).toHaveTextContent("HBO");
+    expect(screen.queryByTestId("closed-month-subscriptions-new")).toBeNull();
+  });
+
+  it("renders the subscription empty state", () => {
+    mockClosedMonthDashboard(
+      buildClosedRecap({
+        subscriptionInsight: emptySubscriptionInsight(),
+      }),
+    );
+
+    renderDashboardContent();
+
+    expect(screen.getByTestId("closed-month-subscriptions-empty")).toHaveTextContent(
+      /no subscriptions were recorded/i,
+    );
+  });
+
+  it("uses positive tone for removed subscriptions", () => {
+    mockClosedMonthDashboard(
+      buildClosedRecap({
+        subscriptionInsight: {
+          active: [],
+          new: [],
+          removed: [
+            {
+              identityKey: "name:HBO",
+              name: "HBO",
+              amountMonthly: 119,
+              sourceExpenseItemId: null,
+            },
+          ],
+          paused: [],
+          cancelled: [],
+          hasPreviousComparableMonth: true,
+        },
+      }),
+    );
+
+    renderDashboardContent();
+
+    expect(screen.getByTestId("closed-month-subscriptions-removed")).toHaveAttribute(
+      "data-tone",
+      "positive",
+    );
+  });
+
+  it("renders paused subscriptions with not-counted copy", () => {
+    mockClosedMonthDashboard(
+      buildClosedRecap({
+        subscriptionInsight: {
+          active: [],
+          new: [],
+          removed: [],
+          paused: [
+            {
+              identityKey: "name:NETFLIX",
+              name: "Netflix",
+              amountMonthly: 129,
+              sourceExpenseItemId: null,
+            },
+          ],
+          cancelled: [],
+          hasPreviousComparableMonth: true,
+        },
+      }),
+    );
+
+    renderDashboardContent();
+
+    const paused = screen.getByTestId("closed-month-subscriptions-paused");
+    expect(paused).toHaveTextContent("Paused");
+    expect(paused).toHaveTextContent("Netflix");
+    expect(paused).toHaveTextContent("Not counted this month");
+    expect(paused).toHaveAttribute("data-tone", "attention");
+  });
+
+  it("renders cancelled subscriptions with not-counted copy", () => {
+    mockClosedMonthDashboard(
+      buildClosedRecap({
+        subscriptionInsight: {
+          active: [],
+          new: [],
+          removed: [],
+          paused: [],
+          cancelled: [
+            {
+              identityKey: "name:HBO",
+              name: "HBO",
+              amountMonthly: 99,
+              sourceExpenseItemId: null,
+            },
+          ],
+          hasPreviousComparableMonth: true,
+        },
+      }),
+    );
+
+    renderDashboardContent();
+
+    const cancelled = screen.getByTestId("closed-month-subscriptions-cancelled");
+    expect(cancelled).toHaveTextContent("Cancelled");
+    expect(cancelled).toHaveTextContent("HBO");
+    expect(cancelled).toHaveTextContent("Not counted this month");
+    expect(cancelled).toHaveAttribute("data-tone", "positive");
+  });
+
+  it("does not duplicate paused or cancelled subscriptions into comparison groups", () => {
+    mockClosedMonthDashboard(
+      buildClosedRecap({
+        subscriptionInsight: {
+          active: [],
+          new: [],
+          removed: [],
+          paused: [
+            {
+              identityKey: "name:NETFLIX",
+              name: "Netflix",
+              amountMonthly: 129,
+              sourceExpenseItemId: null,
+            },
+          ],
+          cancelled: [
+            {
+              identityKey: "name:HBO",
+              name: "HBO",
+              amountMonthly: 99,
+              sourceExpenseItemId: null,
+            },
+          ],
+          hasPreviousComparableMonth: true,
+        },
+      }),
+    );
+
+    renderDashboardContent();
+
+    expect(screen.queryByTestId("closed-month-subscriptions-active")).toBeNull();
+    expect(screen.queryByTestId("closed-month-subscriptions-new")).toBeNull();
+    expect(screen.queryByTestId("closed-month-subscriptions-removed")).toBeNull();
+    expect(screen.getByTestId("closed-month-subscriptions-paused")).toHaveTextContent(
+      "Netflix",
+    );
+    expect(
+      screen.getByTestId("closed-month-subscriptions-cancelled"),
+    ).toHaveTextContent("HBO");
   });
 
   it("renders the skipped month shell without requesting recap data", () => {

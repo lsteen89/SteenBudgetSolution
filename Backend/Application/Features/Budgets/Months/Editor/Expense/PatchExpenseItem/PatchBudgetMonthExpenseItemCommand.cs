@@ -13,5 +13,6 @@ public sealed record PatchBudgetMonthExpenseItemCommand(
     Guid? CategoryId,
     decimal? AmountMonthly,
     bool? IsActive,
+    string? SubscriptionLifecycleStatus,
     bool UpdateDefault)
     : IRequest<Result<BudgetMonthExpenseItemEditorRowDto?>>, ITransactionalCommand;

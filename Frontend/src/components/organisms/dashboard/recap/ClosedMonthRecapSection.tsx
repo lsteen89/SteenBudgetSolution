@@ -12,13 +12,19 @@ import {
   BadgeCheck,
   CalendarCheck,
   ChartNoAxesColumn,
+  CircleCheck,
+  CircleMinus,
+  CirclePause,
+  CircleSlash,
   ChevronLeft,
   ChevronRight,
   Landmark,
   LoaderCircle,
   LockKeyhole,
   PiggyBank,
+  PlusCircle,
   ReceiptText,
+  Repeat2,
   Scale,
   TrendingDown,
   TrendingUp,
@@ -49,6 +55,12 @@ type ComparisonMetricKey = keyof NonNullable<
 >;
 type ComparisonTone = "positive" | "attention" | "neutral";
 type ExpenseCategoryTone = ComparisonTone;
+type SubscriptionGroupKey =
+  | "active"
+  | "new"
+  | "removed"
+  | "paused"
+  | "cancelled";
 
 const totalCards: Array<{
   key: keyof BudgetMonthRecapDto["snapshotTotals"];
@@ -567,6 +579,171 @@ function ExpenseCategoryBreakdownBlock({
   );
 }
 
+function subscriptionGroupTone(group: SubscriptionGroupKey): ComparisonTone {
+  if (group === "removed" || group === "cancelled") return "positive";
+  if (group === "new" || group === "paused") return "attention";
+  return "neutral";
+}
+
+function SubscriptionInsightBlock({
+  recap,
+  currency,
+  locale,
+  t,
+}: {
+  recap: BudgetMonthRecapDto;
+  currency: CurrencyCode;
+  locale: AppLocale;
+  t: RecapT;
+}) {
+  const insight = recap.subscriptionInsight;
+  const hasAnySubscriptions =
+    insight.active.length > 0 ||
+    insight.new.length > 0 ||
+    insight.removed.length > 0 ||
+    insight.paused.length > 0 ||
+    insight.cancelled.length > 0;
+  const groups: Array<{
+    key: SubscriptionGroupKey;
+    label: string;
+    items: BudgetMonthRecapDto["subscriptionInsight"]["active"];
+    Icon: LucideIcon;
+    isNotCounted?: boolean;
+  }> = [
+    {
+      key: "active",
+      label: insight.hasPreviousComparableMonth
+        ? t("subscriptionStillActive")
+        : t("subscriptionActive"),
+      items: insight.active,
+      Icon: CircleCheck,
+    },
+    {
+      key: "new",
+      label: t("subscriptionNew"),
+      items: insight.new,
+      Icon: PlusCircle,
+    },
+    {
+      key: "paused",
+      label: t("subscriptionPaused"),
+      items: insight.paused,
+      Icon: CirclePause,
+      isNotCounted: true,
+    },
+    {
+      key: "cancelled",
+      label: t("subscriptionCancelled"),
+      items: insight.cancelled,
+      Icon: CircleSlash,
+      isNotCounted: true,
+    },
+    {
+      key: "removed",
+      label: t("subscriptionRemoved"),
+      items: insight.removed,
+      Icon: CircleMinus,
+    },
+  ];
+
+  return (
+    <article
+      aria-label={t("subscriptionChangesLabel")}
+      data-testid="closed-month-subscriptions"
+      className="mt-4 rounded-2xl border border-eb-stroke/25 bg-white/80 p-5 shadow-sm"
+    >
+      <div className="flex items-start gap-3">
+        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-700">
+          <Repeat2 className="h-4 w-4" />
+        </span>
+        <div>
+          <h2 className="text-base font-extrabold text-eb-text">
+            {t("subscriptionChangesTitle")}
+          </h2>
+          <p className="mt-1 text-sm font-medium leading-6 text-eb-text/60">
+            {insight.hasPreviousComparableMonth
+              ? t("subscriptionChangesBody")
+              : t("subscriptionNoPrevious")}
+          </p>
+        </div>
+      </div>
+
+      {hasAnySubscriptions ? (
+        <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-3 xl:grid-cols-5">
+          {groups
+            .filter((group) => group.items.length > 0)
+            .map(({ key, label, items, Icon, isNotCounted }) => {
+              const tone = subscriptionGroupTone(key);
+              const classes = toneClasses(tone);
+
+              return (
+                <section
+                  key={key}
+                  data-testid={`closed-month-subscriptions-${key}`}
+                  data-tone={tone}
+                  className={cn("rounded-xl border p-4", classes.row)}
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        "inline-flex h-8 w-8 items-center justify-center rounded-lg",
+                        classes.icon,
+                      )}
+                    >
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <h3 className="text-sm font-extrabold text-eb-text">
+                      {label}
+                    </h3>
+                  </div>
+
+                  <div className="mt-3 space-y-2">
+                    {items.map((item) => (
+                      <div
+                        key={item.identityKey}
+                        aria-label={replaceToken(
+                          t("subscriptionRowLabel"),
+                          "name",
+                          item.name,
+                        )}
+                        className="flex items-center justify-between gap-3 rounded-lg border border-eb-stroke/20 bg-white/75 px-3 py-2"
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-bold text-eb-text">
+                            {item.name}
+                          </span>
+                          {isNotCounted ? (
+                            <span className="mt-0.5 block text-xs font-semibold text-eb-text/50">
+                              {t("subscriptionNotCounted")}
+                            </span>
+                          ) : null}
+                        </span>
+                        <span className="shrink-0 self-start text-sm font-extrabold text-eb-text">
+                          {formatSnapshotMoney(
+                            item.amountMonthly,
+                            currency,
+                            locale,
+                          )}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
+        </div>
+      ) : (
+        <div
+          data-testid="closed-month-subscriptions-empty"
+          className="mt-4 rounded-xl border border-dashed border-eb-stroke/35 bg-eb-shell/35 px-4 py-5 text-sm font-semibold text-eb-text/60"
+        >
+          {t("subscriptionEmpty")}
+        </div>
+      )}
+    </article>
+  );
+}
+
 export default function ClosedMonthRecapSection({
   recap,
   currency,
@@ -727,6 +904,13 @@ export default function ClosedMonthRecapSection({
           />
 
           <ExpenseCategoryBreakdownBlock
+            recap={recap}
+            currency={currency}
+            locale={locale}
+            t={t}
+          />
+
+          <SubscriptionInsightBlock
             recap={recap}
             currency={currency}
             locale={locale}
