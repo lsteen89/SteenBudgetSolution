@@ -3,14 +3,17 @@ import {
   DebtDetailBlock,
   SavingsDetailBlock,
 } from "@/components/organisms/dashboard/recap/ClosedMonthRecapDetailBlocks";
+import ClosedMonthRecapChartCard, {
+  type ClosedMonthRecapChartTab,
+} from "@/components/organisms/dashboard/recap/ClosedMonthRecapChartCard";
 import { cn } from "@/lib/utils";
 import type { BudgetMonthRecapDto } from "@/types/budget/BudgetMonthRecapDto";
 import type { AppLocale } from "@/types/i18n/appLocale";
-import { labelLedgerItem } from "@/utils/i18n/budget/ledgerItems";
 import { closedMonthRecapDict } from "@/utils/i18n/pages/private/dashboard/recap/ClosedMonthRecapSection.i18n";
 import { tDict } from "@/utils/i18n/translate";
 import type { CurrencyCode } from "@/utils/money/currency";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
+import { useEffect, useState } from "react";
 import {
   ArrowRightLeft,
   BadgeCheck,
@@ -31,7 +34,6 @@ import {
   Repeat2,
   Scale,
   TrendingDown,
-  TrendingUp,
   WalletCards,
   type LucideIcon,
 } from "lucide-react";
@@ -54,11 +56,7 @@ type ClosedMonthRecapSectionProps = {
 
 type RecapTKey = keyof typeof closedMonthRecapDict.sv;
 type RecapT = <K extends RecapTKey>(key: K) => string;
-type ComparisonMetricKey = keyof NonNullable<
-  BudgetMonthRecapDto["comparison"]["summary"]
->;
 type ComparisonTone = "positive" | "attention" | "neutral";
-type ExpenseCategoryTone = ComparisonTone;
 type SubscriptionGroupKey =
   | "active"
   | "new"
@@ -104,18 +102,6 @@ const totalCards: Array<{
   },
 ] as const;
 
-const comparisonRows: Array<{
-  key: ComparisonMetricKey;
-  labelKey: RecapTKey;
-  Icon: LucideIcon;
-}> = [
-  { key: "income", labelKey: "income", Icon: WalletCards },
-  { key: "expenses", labelKey: "expenses", Icon: ReceiptText },
-  { key: "savings", labelKey: "savings", Icon: PiggyBank },
-  { key: "debtPayments", labelKey: "debtPayments", Icon: Landmark },
-  { key: "finalBalance", labelKey: "finalBalance", Icon: Scale },
-] as const;
-
 function replaceToken(value: string, token: string, replacement: string) {
   return value.replace(`{${token}}`, replacement);
 }
@@ -150,49 +136,6 @@ function formatSnapshotMoney(
   return formatMoneyV2(value, currency, locale);
 }
 
-function formatSignedMoney(
-  value: number,
-  currency: CurrencyCode,
-  locale: string,
-) {
-  if (value === 0) return formatSnapshotMoney(0, currency, locale);
-
-  const sign = value > 0 ? "+" : "-";
-  return `${sign}${formatSnapshotMoney(Math.abs(value), currency, locale)}`;
-}
-
-function formatSignedPercent(value: number, locale: string) {
-  if (value === 0) return "0%";
-
-  const sign = value > 0 ? "+" : "-";
-  const formatted = Math.abs(value).toLocaleString(locale, {
-    maximumFractionDigits: 1,
-  });
-
-  return `${sign}${formatted}%`;
-}
-
-function comparisonTone(
-  key: ComparisonMetricKey,
-  deltaAmount: number,
-): ComparisonTone {
-  if (deltaAmount === 0) return "neutral";
-
-  if (key === "expenses") {
-    return deltaAmount > 0 ? "attention" : "positive";
-  }
-
-  if (key === "savings" || key === "finalBalance") {
-    return deltaAmount > 0 ? "positive" : "attention";
-  }
-
-  if (key === "debtPayments") {
-    return deltaAmount > 0 ? "neutral" : "positive";
-  }
-
-  return deltaAmount > 0 ? "positive" : "attention";
-}
-
 function toneClasses(tone: ComparisonTone) {
   if (tone === "positive") {
     return {
@@ -215,12 +158,6 @@ function toneClasses(tone: ComparisonTone) {
     icon: "bg-eb-accentSoft/55 text-eb-accent",
     value: "text-eb-text",
   };
-}
-
-function expenseCategoryTone(deltaAmount: number | null): ExpenseCategoryTone {
-  if (deltaAmount == null || deltaAmount === 0) return "neutral";
-
-  return deltaAmount > 0 ? "attention" : "positive";
 }
 
 function carryOverLabel(
@@ -357,228 +294,6 @@ function KpiCard({
       >
         {value}
       </p>
-    </article>
-  );
-}
-
-function ComparisonSummaryBlock({
-  recap,
-  currency,
-  locale,
-  t,
-}: {
-  recap: BudgetMonthRecapDto;
-  currency: CurrencyCode;
-  locale: AppLocale;
-  t: RecapT;
-}) {
-  const previousComparable = recap.comparison.hasPreviousComparableMonth
-    ? recap.comparison.previousComparableYearMonth
-    : null;
-  const summary = recap.comparison.summary;
-  const previousMonthLabel = previousComparable
-    ? formatYearMonth(previousComparable, locale)
-    : null;
-
-  return (
-    <article
-      aria-label={t("comparisonLabel")}
-      data-testid="closed-month-comparison"
-      className="mt-4 rounded-2xl border border-eb-stroke/25 bg-white/80 p-5 shadow-sm"
-    >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-start gap-3">
-          <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-eb-accentSoft/60 text-eb-accent">
-            <TrendingUp className="h-4 w-4" />
-          </span>
-          <div>
-            <h2 className="text-base font-extrabold text-eb-text">
-              {t("comparisonTitle")}
-            </h2>
-            <p className="mt-1 text-sm font-medium leading-6 text-eb-text/60">
-              {previousMonthLabel
-                ? replaceToken(t("previousComparable"), "month", previousMonthLabel)
-                : t("noPreviousComparable")}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {summary ? (
-        <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-5">
-          {comparisonRows.map(({ key, labelKey, Icon }) => {
-            const metric = summary[key];
-            const label = t(labelKey);
-            const tone = comparisonTone(key, metric.deltaAmount);
-            const classes = toneClasses(tone);
-
-            return (
-              <section
-                key={key}
-                aria-label={replaceToken(t("comparisonMetricLabel"), "label", label)}
-                data-testid={`closed-month-comparison-${key}`}
-                data-tone={tone}
-                className={cn(
-                  "min-h-[132px] rounded-xl border p-4 transition",
-                  classes.row,
-                )}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-wide text-eb-text/50">
-                      {label}
-                    </p>
-                    <p className="mt-1 text-xs font-semibold text-eb-text/45">
-                      {t("previousValue")}
-                    </p>
-                  </div>
-                  <span
-                    className={cn(
-                      "inline-flex h-8 w-8 items-center justify-center rounded-lg",
-                      classes.icon,
-                    )}
-                  >
-                    <Icon className="h-4 w-4" />
-                  </span>
-                </div>
-
-                <p className="mt-4 text-xs font-semibold text-eb-text/50">
-                  {formatSnapshotMoney(metric.previousValue, currency, locale)}
-                </p>
-                <p
-                  className={cn(
-                    "mt-1 text-lg font-extrabold tracking-normal",
-                    classes.value,
-                  )}
-                >
-                  {formatSignedMoney(metric.deltaAmount, currency, locale)}
-                </p>
-                {metric.deltaPercent != null ? (
-                  <p
-                    data-testid={`closed-month-comparison-${key}-percent`}
-                    className={cn("mt-1 text-xs font-bold", classes.value)}
-                  >
-                    {formatSignedPercent(metric.deltaPercent, locale)}
-                  </p>
-                ) : null}
-              </section>
-            );
-          })}
-        </div>
-      ) : null}
-    </article>
-  );
-}
-
-function ExpenseCategoryBreakdownBlock({
-  recap,
-  currency,
-  locale,
-  t,
-}: {
-  recap: BudgetMonthRecapDto;
-  currency: CurrencyCode;
-  locale: AppLocale;
-  t: RecapT;
-}) {
-  const hasPreviousComparableMonth = recap.comparison.hasPreviousComparableMonth;
-
-  return (
-    <article
-      aria-label={t("expenseCategoryBreakdownLabel")}
-      data-testid="closed-month-expense-categories"
-      className="mt-4 rounded-2xl border border-eb-stroke/25 bg-white/80 p-5 shadow-sm"
-    >
-      <div className="flex items-start gap-3">
-        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-700">
-          <ReceiptText className="h-4 w-4" />
-        </span>
-        <div>
-          <h2 className="text-base font-extrabold text-eb-text">
-            {t("expenseCategoryBreakdownTitle")}
-          </h2>
-          <p className="mt-1 text-sm font-medium leading-6 text-eb-text/60">
-            {hasPreviousComparableMonth
-              ? t("expenseCategoryBreakdownBody")
-              : t("expenseCategoryNoPrevious")}
-          </p>
-        </div>
-      </div>
-
-      {recap.expenseCategories.length > 0 ? (
-        <div className="mt-4 divide-y divide-eb-stroke/20 overflow-hidden rounded-xl border border-eb-stroke/25 bg-eb-shell/25">
-          {recap.expenseCategories.map((category) => {
-            const tone = expenseCategoryTone(category.deltaAmount);
-            const classes = toneClasses(tone);
-            const categoryLabel = labelLedgerItem(category.categoryName, locale);
-
-            return (
-              <section
-                key={category.categoryId}
-                aria-label={replaceToken(
-                  t("expenseCategoryRowLabel"),
-                  "category",
-                  categoryLabel,
-                )}
-                data-testid={`closed-month-expense-category-${category.categoryId}`}
-                data-tone={tone}
-                className="grid grid-cols-1 gap-3 bg-white/65 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-extrabold text-eb-text">
-                    {categoryLabel}
-                  </p>
-                  {hasPreviousComparableMonth && category.previousAmount != null ? (
-                    <p className="mt-1 text-xs font-semibold text-eb-text/50">
-                      {replaceToken(
-                        t("expenseCategoryPreviousValue"),
-                        "amount",
-                        formatSnapshotMoney(
-                          category.previousAmount,
-                          currency,
-                          locale,
-                        ),
-                      )}
-                    </p>
-                  ) : null}
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                  <span className="rounded-lg border border-eb-stroke/20 bg-white/80 px-3 py-1.5 text-sm font-extrabold text-eb-text">
-                    {formatSnapshotMoney(category.currentAmount, currency, locale)}
-                  </span>
-                  {category.deltaAmount != null ? (
-                    <span
-                      className={cn(
-                        "rounded-lg border px-3 py-1.5 text-sm font-extrabold",
-                        classes.row,
-                        classes.value,
-                      )}
-                    >
-                      {formatSignedMoney(category.deltaAmount, currency, locale)}
-                      {category.deltaPercent != null ? (
-                        <span
-                          data-testid={`closed-month-expense-category-${category.categoryId}-percent`}
-                          className="ml-1"
-                        >
-                          ({formatSignedPercent(category.deltaPercent, locale)})
-                        </span>
-                      ) : null}
-                    </span>
-                  ) : null}
-                </div>
-              </section>
-            );
-          })}
-        </div>
-      ) : (
-        <div
-          data-testid="closed-month-expense-categories-empty"
-          className="mt-4 rounded-xl border border-dashed border-eb-stroke/35 bg-eb-shell/35 px-4 py-5 text-sm font-semibold text-eb-text/60"
-        >
-          {t("expenseCategoryEmpty")}
-        </div>
-      )}
     </article>
   );
 }
@@ -763,6 +478,18 @@ export default function ClosedMonthRecapSection({
   onGoNext,
   isSwitchingMonth = false,
 }: ClosedMonthRecapSectionProps) {
+  const [selectedChartTab, setSelectedChartTab] =
+    useState<ClosedMonthRecapChartTab>("flow");
+  const hasComparableChart =
+    recap?.comparison.hasPreviousComparableMonth === true &&
+    recap.comparison.summary != null;
+
+  useEffect(() => {
+    if (selectedChartTab === "compare" && !hasComparableChart) {
+      setSelectedChartTab("flow");
+    }
+  }, [hasComparableChart, selectedChartTab]);
+
   if (isLoading) {
     return (
       <section
@@ -900,18 +627,13 @@ export default function ClosedMonthRecapSection({
             })}
           </div>
 
-          <ComparisonSummaryBlock
+          <ClosedMonthRecapChartCard
             recap={recap}
             currency={currency}
             locale={locale}
             t={t}
-          />
-
-          <ExpenseCategoryBreakdownBlock
-            recap={recap}
-            currency={currency}
-            locale={locale}
-            t={t}
+            selectedTab={selectedChartTab}
+            onSelectedTabChange={setSelectedChartTab}
           />
 
           <SubscriptionInsightBlock
@@ -1015,15 +737,6 @@ export default function ClosedMonthRecapSection({
             )}
           </div>
 
-          <div
-            aria-label={t("futureVisualsLabel")}
-            className="mt-4 rounded-2xl border border-dashed border-eb-stroke/35 bg-white/45 px-5 py-4"
-          >
-            <div className="flex items-center gap-3 text-sm font-semibold text-eb-text/60">
-              <ChartNoAxesColumn className="h-4 w-4" />
-              <span>{t("futureVisuals")}</span>
-            </div>
-          </div>
         </div>
       </div>
     </section>

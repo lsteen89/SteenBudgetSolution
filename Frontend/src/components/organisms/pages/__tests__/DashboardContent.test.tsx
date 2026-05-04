@@ -653,6 +653,16 @@ describe("DashboardContent", () => {
     expect(
       within(carryOverCard).getByTestId("closed-month-carry-over"),
     ).toHaveTextContent(/500/);
+    expect(screen.getByTestId("closed-month-chart-card")).toBeInTheDocument();
+    expect(screen.getByTestId("closed-month-chart-tab-flow")).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByTestId("closed-month-chart-flow")).toBeInTheDocument();
+    expect(screen.getByTestId("closed-month-chart-flow-carry-over")).toHaveTextContent(
+      /500/,
+    );
+    fireEvent.click(screen.getByTestId("closed-month-chart-tab-compare"));
     const comparison = screen.getByTestId("closed-month-comparison");
     expect(comparison).toHaveTextContent(/previous closed month: march 2026/i);
     expect(screen.getByTestId("closed-month-comparison-income")).toHaveTextContent(
@@ -672,10 +682,13 @@ describe("DashboardContent", () => {
     expect(
       screen.getByTestId("closed-month-comparison-finalBalance"),
     ).toHaveAttribute("data-tone", "positive");
+    fireEvent.click(screen.getByTestId("closed-month-chart-tab-categories"));
     const expenseCategories = screen.getByTestId(
       "closed-month-expense-categories",
     );
-    expect(expenseCategories).toHaveTextContent(/what changed inside expenses/i);
+    expect(expenseCategories).toHaveTextContent(
+      /categories are sorted by the largest movement/i,
+    );
     expect(screen.getByTestId("closed-month-expense-category-food")).toHaveAttribute(
       "data-tone",
       "attention",
@@ -797,6 +810,7 @@ describe("DashboardContent", () => {
       </MemoryRouter>,
     );
 
+    fireEvent.click(screen.getByTestId("closed-month-chart-tab-compare"));
     expect(screen.getByTestId("closed-month-comparison-expenses")).toHaveAttribute(
       "data-tone",
       "attention",
@@ -811,6 +825,7 @@ describe("DashboardContent", () => {
     expect(
       screen.getByTestId("closed-month-comparison-finalBalance"),
     ).toHaveAttribute("data-tone", "positive");
+    fireEvent.click(screen.getByTestId("closed-month-chart-tab-categories"));
     expect(
       screen.queryByTestId(
         "closed-month-expense-category-expenses-zero-previous-percent",
@@ -883,12 +898,16 @@ describe("DashboardContent", () => {
     expect(
       screen.getByRole("article", { name: /deficit guidance/i }),
     ).toHaveTextContent(/closed with a deficit/i);
-    expect(screen.getByTestId("closed-month-comparison")).toHaveTextContent(
-      /no previous closed month/i,
+    expect(screen.getByTestId("closed-month-chart-tab-flow")).toHaveAttribute(
+      "aria-selected",
+      "true",
     );
+    expect(screen.getByTestId("closed-month-chart-tab-compare")).toBeDisabled();
+    expect(screen.getByTestId("closed-month-chart-flow")).toBeInTheDocument();
     expect(
       screen.queryByTestId("closed-month-comparison-income-percent"),
     ).toBeNull();
+    fireEvent.click(screen.getByTestId("closed-month-chart-tab-categories"));
     expect(screen.getByTestId("closed-month-expense-categories")).toHaveTextContent(
       /no previous month is available/i,
     );
