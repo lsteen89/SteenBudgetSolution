@@ -85,12 +85,6 @@ const totalCards: Array<{
     hintKey: "debtPaymentsHint",
     Icon: Landmark,
   },
-  {
-    key: "finalBalanceMonthly",
-    labelKey: "finalBalance",
-    hintKey: "finalBalanceHint",
-    Icon: Scale,
-  },
 ] as const;
 
 function replaceToken(value: string, token: string, replacement: string) {
@@ -382,7 +376,7 @@ function KpiCard({
       aria-label={ariaLabel}
       data-testid={dataTestId}
       className={cn(
-        "min-h-[140px] rounded-2xl border bg-white/80 p-4 shadow-sm ring-1 ring-white/60",
+        "min-h-[112px] rounded-2xl border bg-white/70 p-3.5 ring-1 ring-white/60",
         isNegative ? "border-rose-200 bg-rose-50/80" : "border-eb-stroke/25",
       )}
     >
@@ -398,7 +392,7 @@ function KpiCard({
             "inline-flex h-9 w-9 items-center justify-center rounded-xl",
             isNegative
               ? "bg-rose-100 text-rose-700"
-              : "bg-eb-accentSoft/60 text-eb-accent",
+              : "bg-eb-shell/70 text-eb-text/52",
           )}
         >
           <Icon className="h-4 w-4" />
@@ -408,6 +402,7 @@ function KpiCard({
       <p
         className={cn(
           "mt-5 text-2xl font-extrabold tracking-normal text-eb-text",
+          "sm:text-xl",
           isNegative && "text-rose-700",
         )}
       >
@@ -488,7 +483,7 @@ function SubscriptionInsightBlock({
     <article
       aria-label={t("subscriptionChangesLabel")}
       data-testid="closed-month-subscriptions"
-      className="mt-4 rounded-2xl border border-eb-stroke/25 bg-white/80 p-5 shadow-sm"
+      className="mt-4 rounded-2xl border border-eb-stroke/25 bg-white/72 p-4"
     >
       <div className="flex items-start gap-3">
         <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-700">
@@ -507,7 +502,7 @@ function SubscriptionInsightBlock({
       </div>
 
       {hasAnySubscriptions ? (
-        <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-3 xl:grid-cols-5">
+        <div className="mt-4 grid grid-cols-1 gap-2 lg:grid-cols-3 xl:grid-cols-5">
           {groups
             .filter((group) => group.items.length > 0)
             .map(({ key, label, items, Icon, isNotCounted }) => {
@@ -519,7 +514,7 @@ function SubscriptionInsightBlock({
                   key={key}
                   data-testid={`closed-month-subscriptions-${key}`}
                   data-tone={tone}
-                  className={cn("rounded-xl border p-4", classes.row)}
+                  className={cn("rounded-xl border px-3 py-3", classes.row)}
                 >
                   <div className="flex items-center gap-2">
                     <span
@@ -544,7 +539,7 @@ function SubscriptionInsightBlock({
                           "name",
                           item.name,
                         )}
-                        className="flex items-center justify-between gap-3 rounded-lg border border-eb-stroke/20 bg-white/75 px-3 py-2"
+                        className="flex items-center justify-between gap-3 rounded-lg bg-white/65 px-3 py-2"
                       >
                         <span className="min-w-0">
                           <span className="block truncate text-sm font-bold text-eb-text">
@@ -650,8 +645,8 @@ export default function ClosedMonthRecapSection({
       />
 
       <div className="overflow-hidden rounded-2xl border border-eb-stroke/30 bg-eb-surface/95 shadow-sm">
-        <div className="border-t-0 bg-eb-shell/25 p-5 sm:p-6">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="border-t-0 bg-eb-shell/20 p-4 sm:p-5">
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
             {totalCards.map(({ key, labelKey, hintKey, Icon }) => {
               const label = t(labelKey);
               const value = recap.snapshotTotals[key];

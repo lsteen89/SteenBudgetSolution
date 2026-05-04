@@ -105,11 +105,11 @@ function SectionSummary({
   locale: AppLocale;
 }) {
   return (
-    <div className="rounded-xl border border-eb-stroke/25 bg-eb-shell/35 px-4 py-3 sm:min-w-56">
+    <div className="rounded-xl border border-eb-stroke/20 bg-eb-shell/30 px-3.5 py-3 sm:min-w-52">
       <p className="text-xs font-bold uppercase tracking-wide text-eb-text/50">
         {label}
       </p>
-      <p className="mt-1 text-xl font-extrabold text-eb-text">
+      <p className="mt-1 text-lg font-extrabold text-eb-text">
         {formatSnapshotMoney(value, currency, locale)}
       </p>
       {deltaAmount != null ? (
@@ -136,7 +136,7 @@ function DetailChip({
   Icon?: LucideIcon;
 }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-lg border border-eb-stroke/20 bg-white/80 px-2.5 py-1 text-xs font-bold text-eb-text/65">
+    <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/65 px-2.5 py-1 text-xs font-bold text-eb-text/65">
       {Icon ? <Icon className="h-3.5 w-3.5 text-eb-text/45" /> : null}
       <span className="text-eb-text/45">{label}</span>
       <span className="text-eb-text">{value}</span>
@@ -158,7 +158,7 @@ export function SavingsDetailBlock({
     <article
       aria-label={t("savingsDetailLabel")}
       data-testid="closed-month-savings-detail"
-      className="mt-4 rounded-2xl border border-eb-stroke/25 bg-white/80 p-5 shadow-sm"
+      className="mt-4 rounded-2xl border border-eb-stroke/25 bg-white/72 p-4"
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-3">
@@ -188,7 +188,7 @@ export function SavingsDetailBlock({
       </div>
 
       {hasGoals ? (
-        <div className="mt-4 divide-y divide-eb-stroke/20 overflow-hidden rounded-xl border border-eb-stroke/25 bg-eb-shell/25">
+        <div className="mt-4 divide-y divide-eb-stroke/20 overflow-hidden rounded-xl border border-eb-stroke/20 bg-eb-shell/20">
           {detail.activeGoals.map((goal) => {
             const goalName = goal.name?.trim() || t("savingsGoalFallback");
             const deltaTone = savingsTone(goal.deltaMonthlyContribution);
@@ -199,7 +199,7 @@ export function SavingsDetailBlock({
                 key={goal.id}
                 aria-label={replaceToken(t("savingsGoalRowLabel"), "name", goalName)}
                 data-testid={`closed-month-savings-goal-${goal.id}`}
-                className="grid grid-cols-1 gap-3 bg-white/65 px-4 py-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center"
+                className="grid grid-cols-1 gap-3 bg-white/55 px-4 py-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center"
               >
                 <div className="min-w-0">
                   <p className="truncate text-sm font-extrabold text-eb-text">
@@ -230,7 +230,7 @@ export function SavingsDetailBlock({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                  <span className="rounded-lg border border-eb-stroke/20 bg-white/80 px-3 py-1.5 text-sm font-extrabold text-eb-text">
+                  <span className="rounded-lg bg-white/70 px-3 py-1.5 text-sm font-extrabold text-eb-text">
                     {formatSnapshotMoney(goal.monthlyContribution, currency, locale)}
                   </span>
                   {goal.deltaMonthlyContribution != null ? (
@@ -278,7 +278,7 @@ export function DebtDetailBlock({
     <article
       aria-label={t("debtDetailLabel")}
       data-testid="closed-month-debt-detail"
-      className="mt-4 rounded-2xl border border-eb-stroke/25 bg-white/80 p-5 shadow-sm"
+      className="mt-4 rounded-2xl border border-eb-stroke/25 bg-white/72 p-4"
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex items-start gap-3">
@@ -308,7 +308,7 @@ export function DebtDetailBlock({
       </div>
 
       {hasDebts ? (
-        <div className="mt-4 divide-y divide-eb-stroke/20 overflow-hidden rounded-xl border border-eb-stroke/25 bg-eb-shell/25">
+        <div className="mt-4 divide-y divide-eb-stroke/20 overflow-hidden rounded-xl border border-eb-stroke/20 bg-eb-shell/20">
           {detail.activeDebts.map((debt) => {
             const deltaTone = debtPaymentTone(debt.deltaMonthlyPayment);
 
@@ -317,7 +317,7 @@ export function DebtDetailBlock({
                 key={debt.id}
                 aria-label={replaceToken(t("debtRowLabel"), "name", debt.name)}
                 data-testid={`closed-month-debt-${debt.id}`}
-                className="grid grid-cols-1 gap-3 bg-white/65 px-4 py-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center"
+                className="grid grid-cols-1 gap-3 bg-white/55 px-4 py-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center"
               >
                 <div className="min-w-0">
                   <p className="truncate text-sm font-extrabold text-eb-text">
@@ -361,7 +361,7 @@ export function DebtDetailBlock({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                  <span className="rounded-lg border border-eb-stroke/20 bg-white/80 px-3 py-1.5 text-sm font-extrabold text-eb-text">
+                  <span className="rounded-lg bg-white/70 px-3 py-1.5 text-sm font-extrabold text-eb-text">
                     {formatSnapshotMoney(debt.monthlyPayment, currency, locale)}
                   </span>
                   {debt.deltaMonthlyPayment != null ? (

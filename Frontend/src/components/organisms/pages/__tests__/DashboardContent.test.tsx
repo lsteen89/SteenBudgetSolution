@@ -651,8 +651,8 @@ describe("DashboardContent", () => {
       screen.getByRole("article", { name: /debt payments snapshot total/i }),
     ).toHaveTextContent("Debt payments");
     expect(
-      screen.getByRole("article", { name: /final balance snapshot total/i }),
-    ).toHaveTextContent("Final balance");
+      screen.queryByRole("article", { name: /final balance snapshot total/i }),
+    ).toBeNull();
 
     const carryOverCard = screen.getByRole("article", {
       name: /carry-over outcome/i,
@@ -667,9 +667,42 @@ describe("DashboardContent", () => {
       "true",
     );
     expect(screen.getByTestId("closed-month-chart-flow")).toBeInTheDocument();
+    expect(screen.getByText("Into the month")).toBeInTheDocument();
+    expect(screen.getByText("Planned movement")).toBeInTheDocument();
+    expect(screen.getByText("Result")).toBeInTheDocument();
+    expect(screen.getByTestId("closed-month-chart-flow-carry-over")).toHaveTextContent(
+      "Carry-over",
+    );
     expect(screen.getByTestId("closed-month-chart-flow-carry-over")).toHaveTextContent(
       /500/,
     );
+    expect(screen.getByTestId("closed-month-chart-flow")).toHaveTextContent(
+      "Carry-over is shown separately from income and does not affect locked income totals.",
+    );
+    expect(screen.getByTestId("closed-month-chart-flow-income")).toHaveTextContent(
+      "Monthly income",
+    );
+    expect(screen.getByTestId("closed-month-chart-flow-income")).toHaveTextContent(
+      /10,000/,
+    );
+    expect(
+      screen.getByTestId("closed-month-chart-flow-income"),
+    ).not.toHaveTextContent(/10,500/);
+    expect(screen.getByTestId("closed-month-chart-flow-expenses")).toHaveTextContent(
+      "Expenses",
+    );
+    expect(screen.getByTestId("closed-month-chart-flow-savings")).toHaveTextContent(
+      "Savings",
+    );
+    expect(
+      screen.getByTestId("closed-month-chart-flow-debt-payments"),
+    ).toHaveTextContent("Debt payments");
+    expect(
+      screen.getByTestId("closed-month-chart-flow-final-balance"),
+    ).toHaveTextContent("Final result");
+    expect(
+      screen.getByTestId("closed-month-chart-flow-final-balance"),
+    ).toHaveTextContent(/4,500/);
     fireEvent.click(screen.getByTestId("closed-month-chart-tab-compare"));
     const comparison = screen.getByTestId("closed-month-comparison");
     expect(comparison).toHaveTextContent(/previous closed month: march 2026/i);
@@ -900,9 +933,9 @@ describe("DashboardContent", () => {
       </MemoryRouter>,
     );
 
-    expect(
-      screen.getByRole("article", { name: /final balance snapshot total/i }),
-    ).toHaveTextContent("-");
+    expect(screen.getByTestId("closed-month-hero-final-balance")).toHaveTextContent(
+      "-",
+    );
     expect(
       screen.getByRole("article", { name: /deficit guidance/i }),
     ).toHaveTextContent(/closed with a deficit/i);

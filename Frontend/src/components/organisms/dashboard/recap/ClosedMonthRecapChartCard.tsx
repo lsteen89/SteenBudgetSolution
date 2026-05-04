@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import ClosedMonthFlowSurface from "@/components/organisms/dashboard/recap/ClosedMonthFlowSurface";
 import type { BudgetMonthRecapDto } from "@/types/budget/BudgetMonthRecapDto";
 import type { AppLocale } from "@/types/i18n/appLocale";
 import { labelLedgerItem } from "@/utils/i18n/budget/ledgerItems";
@@ -6,7 +7,6 @@ import { closedMonthRecapDict } from "@/utils/i18n/pages/private/dashboard/recap
 import type { CurrencyCode } from "@/utils/money/currency";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
 import {
-  ArrowRightLeft,
   BarChart3,
   ChartNoAxesColumn,
   ReceiptText,
@@ -201,162 +201,6 @@ function ChartEmptyState({ message }: { message: string }) {
   return (
     <div className="flex min-h-[280px] items-center justify-center rounded-xl border border-dashed border-eb-stroke/35 bg-eb-shell/35 px-4 text-center text-sm font-semibold leading-6 text-eb-text/60">
       {message}
-    </div>
-  );
-}
-
-function FlowMeter({
-  label,
-  value,
-  max,
-  currency,
-  locale,
-  tone,
-  dataTestId,
-}: {
-  label: string;
-  value: number;
-  max: number;
-  currency: CurrencyCode;
-  locale: AppLocale;
-  tone: "income" | "carryOver" | "outflow" | "balance";
-  dataTestId?: string;
-}) {
-  const width = max > 0 ? Math.max(7, Math.min(100, (Math.abs(value) / max) * 100)) : 7;
-  const toneClass = {
-    income: "bg-emerald-600",
-    carryOver: "bg-sky-600",
-    outflow: "bg-slate-500",
-    balance: value < 0 ? "bg-rose-600" : "bg-eb-accent",
-  }[tone];
-
-  return (
-    <div data-testid={dataTestId} className="rounded-xl border border-eb-stroke/20 bg-white/70 p-3">
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-sm font-extrabold text-eb-text">{label}</p>
-        <p
-          className={cn(
-            "shrink-0 text-sm font-extrabold",
-            tone === "balance" && value < 0 ? "text-rose-700" : "text-eb-text",
-          )}
-        >
-          {formatSnapshotMoney(value, currency, locale)}
-        </p>
-      </div>
-      <div className="mt-2 h-2 overflow-hidden rounded-full bg-eb-shell/80">
-        <div
-          className={cn(
-            "h-full rounded-full transition-[width] duration-300 motion-reduce:transition-none",
-            toneClass,
-          )}
-          style={{ width: `${width}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
-function ClosedMonthRecapFlowChart({
-  recap,
-  currency,
-  locale,
-  t,
-}: {
-  recap: BudgetMonthRecapDto;
-  currency: CurrencyCode;
-  locale: AppLocale;
-  t: RecapT;
-}) {
-  const carryOver =
-    recap.month.carryOverMode === "none" || recap.month.carryOverAmount == null
-      ? 0
-      : recap.month.carryOverAmount;
-  const income = recap.snapshotTotals.totalIncomeMonthly;
-  const expenses = recap.snapshotTotals.totalExpensesMonthly;
-  const savings = recap.snapshotTotals.totalSavingsMonthly;
-  const debtPayments = recap.snapshotTotals.totalDebtPaymentsMonthly;
-  const finalBalance = recap.snapshotTotals.finalBalanceMonthly;
-  const max = Math.max(
-    Math.abs(carryOver),
-    Math.abs(income),
-    Math.abs(expenses),
-    Math.abs(savings),
-    Math.abs(debtPayments),
-    Math.abs(finalBalance),
-    1,
-  );
-
-  return (
-    <div data-testid="closed-month-chart-flow" className="grid min-h-[330px] grid-cols-1 gap-4 lg:grid-cols-[minmax(0,0.95fr)_auto_minmax(0,1.05fr)] lg:items-center">
-      <div className="space-y-3">
-        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-eb-text/50">
-          <ArrowRightLeft className="h-4 w-4" />
-          {t("chartFlowInputs")}
-        </div>
-        <FlowMeter
-          label={t("carryOver")}
-          value={carryOver}
-          max={max}
-          currency={currency}
-          locale={locale}
-          tone="carryOver"
-          dataTestId="closed-month-chart-flow-carry-over"
-        />
-        <FlowMeter
-          label={t("income")}
-          value={income}
-          max={max}
-          currency={currency}
-          locale={locale}
-          tone="income"
-          dataTestId="closed-month-chart-flow-income"
-        />
-      </div>
-
-      <div className="hidden h-px w-14 bg-eb-stroke/35 lg:block" />
-
-      <div className="space-y-3">
-        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-eb-text/50">
-          <ChartNoAxesColumn className="h-4 w-4" />
-          {t("chartFlowOutcomes")}
-        </div>
-        <FlowMeter
-          label={t("expenses")}
-          value={expenses}
-          max={max}
-          currency={currency}
-          locale={locale}
-          tone="outflow"
-          dataTestId="closed-month-chart-flow-expenses"
-        />
-        <FlowMeter
-          label={t("savings")}
-          value={savings}
-          max={max}
-          currency={currency}
-          locale={locale}
-          tone="outflow"
-          dataTestId="closed-month-chart-flow-savings"
-        />
-        <FlowMeter
-          label={t("debtPayments")}
-          value={debtPayments}
-          max={max}
-          currency={currency}
-          locale={locale}
-          tone="outflow"
-          dataTestId="closed-month-chart-flow-debt-payments"
-        />
-        <FlowMeter
-          label={t("finalBalance")}
-          value={finalBalance}
-          max={max}
-          currency={currency}
-          locale={locale}
-          tone="balance"
-          dataTestId="closed-month-chart-flow-final-balance"
-        />
-      </div>
     </div>
   );
 }
@@ -626,14 +470,11 @@ export default function ClosedMonthRecapChartCard({
     <article
       aria-label={t("chartTitle")}
       data-testid="closed-month-chart-card"
-      className="mt-4 rounded-2xl border border-eb-stroke/25 bg-white/85 p-5 shadow-sm"
+      className="mt-4 rounded-2xl border border-[rgba(199,228,255,0.65)] bg-white/90 p-4 shadow-[0_18px_45px_rgba(21,39,81,0.06)] sm:p-6"
     >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-2xl">
-          <p className="text-xs font-bold uppercase tracking-wide text-eb-text/50">
-            {t("chartEyebrow")}
-          </p>
-          <h2 className="mt-1 text-lg font-extrabold text-eb-text">
+          <h2 className="text-lg font-extrabold text-eb-text">
             {t("chartTitle")}
           </h2>
           <p className="mt-1 text-sm font-medium leading-6 text-eb-text/60">
@@ -652,10 +493,10 @@ export default function ClosedMonthRecapChartCard({
       <div
         id={`closed-month-chart-panel-${resolvedTab}`}
         role="tabpanel"
-        className="mt-5 min-h-[360px] rounded-2xl border border-eb-stroke/20 bg-eb-shell/25 p-4"
+        className="mt-5 min-h-[360px]"
       >
         {resolvedTab === "flow" ? (
-          <ClosedMonthRecapFlowChart
+          <ClosedMonthFlowSurface
             recap={recap}
             currency={currency}
             locale={locale}
