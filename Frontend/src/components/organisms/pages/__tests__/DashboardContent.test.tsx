@@ -623,10 +623,18 @@ describe("DashboardContent", () => {
     expect(
       screen.getByRole("heading", { name: /april 2026/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Closed")).toBeInTheDocument();
+    expect(screen.getAllByText("Closed").length).toBeGreaterThan(0);
     expect(screen.getByTestId("closed-month-summary")).toHaveTextContent(
+      /closed with/i,
+    );
+    expect(screen.getByTestId("closed-month-recap")).toHaveTextContent(
       /frozen snapshot/i,
     );
+    const heroResult = screen.getByTestId("closed-month-hero-result");
+    expect(heroResult).toHaveTextContent(/4,500/);
+    expect(
+      within(heroResult).getByTestId("closed-month-hero-carry-over"),
+    ).toHaveTextContent(/500/);
 
     const incomeCard = screen.getByRole("article", {
       name: /income snapshot total/i,
@@ -1307,11 +1315,20 @@ describe("DashboardContent", () => {
   });
 
   it("renders the skipped month shell without requesting recap data", () => {
+    const skippedSummary = buildSummary(0, "skipped");
+
     mockUseDashboardSummary.mockReturnValue({
       ...readyResult,
       data: {
         ...readyResult.data,
-        summary: buildSummary(0, "skipped"),
+        summary: {
+          ...skippedSummary,
+          header: {
+            ...skippedSummary.header,
+            nextPeriodLabel: "May 2026",
+            canGoNext: true,
+          },
+        },
       },
     });
 
@@ -1326,13 +1343,32 @@ describe("DashboardContent", () => {
     );
 
     expect(screen.getByTestId("skipped-month-state")).toBeInTheDocument();
+    expect(screen.getByTestId("month-nav-previous")).toHaveTextContent(
+      "March 2026",
+    );
+    expect(screen.getByTestId("active-month-label")).toHaveTextContent(
+      "April 2026",
+    );
+    expect(screen.getByTestId("month-nav-next")).toHaveTextContent("May 2026");
     expect(screen.getByTestId("month-status-badge")).toHaveTextContent(
       "Skipped",
+    );
+    expect(screen.getByTestId("stable-month-frame")).toHaveTextContent(
+      /comparisons skip this month/i,
     );
     expect(
       screen.getByRole("heading", { name: "This month was skipped" }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/cannot be edited/i)).toBeInTheDocument();
+    expect(screen.getByText(/no budget was closed/i)).toBeInTheDocument();
+    expect(screen.getByTestId("skipped-month-facts")).toHaveTextContent(
+      /no snapshot/i,
+    );
+    expect(screen.getByTestId("skipped-month-facts")).toHaveTextContent(
+      /comparisons skip this month/i,
+    );
+    expect(screen.getByTestId("skipped-month-facts")).toHaveTextContent(
+      /continue with may 2026/i,
+    );
     expect(mockUseBudgetMonthRecapQuery).toHaveBeenCalledWith("2026-04", {
       enabled: false,
     });

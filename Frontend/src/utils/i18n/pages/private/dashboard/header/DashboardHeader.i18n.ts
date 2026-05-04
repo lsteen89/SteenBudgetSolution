@@ -26,6 +26,22 @@ export const dashboardHeaderDict = {
     actionRequired: "Åtgärd krävs",
     closingOpensSoon: "Stängning öppnar snart",
     previewNextMonth: "Förhandsgranska nästa månad",
+
+    periodContextStatusTitle: "Status",
+    periodContextComparisonTitle: "Jämförelser",
+    periodContextNextTitle: "Nästa steg",
+    periodActionNoSnapshot: "Ingen ögonblicksbild",
+
+    periodContextOpenMeaning: "Aktiv planering",
+    periodContextClosedMeaning: "Låst ögonblicksbild",
+    periodContextSkippedMeaning: "Låst historik",
+    periodContextOverdueMeaning: "Redo att stängas",
+    periodContextOpenComparison: "Sparas som jämförelsebas vid stängning",
+    periodContextClosedComparison: "Kan användas som jämförelsebas",
+    periodContextSkippedComparison: "Hoppas över i jämförelser",
+    periodContextOverdueComparison: "Stäng för att spara jämförelsebas",
+    periodContextNextAvailable: "Fortsätt med {month}.",
+    periodContextNextLocked: "Nästa månad öppnas efter stängning",
   },
 
   en: {
@@ -55,6 +71,22 @@ export const dashboardHeaderDict = {
     actionRequired: "Action required",
     closingOpensSoon: "Closing opens soon",
     previewNextMonth: "Preview next month",
+
+    periodContextStatusTitle: "Status",
+    periodContextComparisonTitle: "Comparisons",
+    periodContextNextTitle: "Next step",
+    periodActionNoSnapshot: "No snapshot",
+
+    periodContextOpenMeaning: "Active planning",
+    periodContextClosedMeaning: "Locked snapshot",
+    periodContextSkippedMeaning: "Locked history",
+    periodContextOverdueMeaning: "Ready to close",
+    periodContextOpenComparison: "Saved as a comparison baseline when closed",
+    periodContextClosedComparison: "Can be used as a comparison baseline",
+    periodContextSkippedComparison: "Comparisons skip this month.",
+    periodContextOverdueComparison: "Close to save the comparison baseline",
+    periodContextNextAvailable: "Continue with {month}.",
+    periodContextNextLocked: "Next month opens after closing",
   },
 
   et: {
@@ -84,5 +116,21 @@ export const dashboardHeaderDict = {
     actionRequired: "Vajab tegevust",
     closingOpensSoon: "Sulgemine avaneb peagi",
     previewNextMonth: "Vaata järgmist kuud",
+
+    periodContextStatusTitle: "Olek",
+    periodContextComparisonTitle: "Võrdlused",
+    periodContextNextTitle: "Järgmine samm",
+    periodActionNoSnapshot: "Hetkeseisu pole",
+
+    periodContextOpenMeaning: "Aktiivne planeerimine",
+    periodContextClosedMeaning: "Lukustatud hetkeseis",
+    periodContextSkippedMeaning: "Lukustatud ajalugu",
+    periodContextOverdueMeaning: "Valmis sulgemiseks",
+    periodContextOpenComparison: "Salvestatakse sulgemisel võrdlusalusena",
+    periodContextClosedComparison: "Saab kasutada võrdlusalusena",
+    periodContextSkippedComparison: "Võrdlused jätavad selle kuu vahele.",
+    periodContextOverdueComparison: "Sulge võrdlusaluse salvestamiseks",
+    periodContextNextAvailable: "Jätka kuuga {month}.",
+    periodContextNextLocked: "Järgmine kuu avaneb pärast sulgemist",
   },
 } as const;

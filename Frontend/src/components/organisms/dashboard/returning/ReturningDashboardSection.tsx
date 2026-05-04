@@ -12,46 +12,23 @@ import ReturningHeader from "./ReturningHeader";
 
 export interface ReturningDashboardSectionProps {
   onOpenPeriodEditor: () => void;
-  onCloseMonth?: () => void;
-  onGoPreviousPeriod?: () => void;
-  onGoNextPeriod?: () => void;
   isSwitchingMonth?: boolean;
   summary: DashboardSummary;
 }
 
 const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({
   onOpenPeriodEditor,
-  onCloseMonth,
-  onGoPreviousPeriod,
-  onGoNextPeriod,
   isSwitchingMonth = false,
   summary,
 }) => {
-  console.log(
-    "recurringExpenses for month",
-    summary.header.periodKey,
-    summary.recurringExpenses,
-  );
   return (
-    <div className="w-full max-w-6xl space-y-6">
+    <div className="space-y-6">
       <ReturningHeader
         periodLabel={summary.header.periodLabel}
         periodDateRangeLabel={summary.header.periodDateRangeLabel}
         periodStatus={summary.header.periodStatus}
-        previousPeriodLabel={summary.header.previousPeriodLabel}
-        nextPeriodLabel={summary.header.nextPeriodLabel}
-        canGoPrevious={summary.header.canGoPrevious}
-        canGoNext={summary.header.canGoNext}
-        onGoPrevious={onGoPreviousPeriod}
-        onGoNext={onGoNextPeriod}
-        isSwitchingMonth={isSwitchingMonth}
         remainingToSpend={summary.remainingToSpend}
         currency={summary.currency}
-        lifecycleState={summary.header.lifecycleState}
-        noticeText={summary.header.noticeText}
-        canCloseMonth={summary.header.canCloseMonth}
-        closeMonthButtonLabel={summary.header.closeMonthButtonLabel}
-        onCloseMonth={onCloseMonth}
       />
 
       <div

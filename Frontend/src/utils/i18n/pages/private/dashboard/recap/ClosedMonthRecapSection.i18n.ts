@@ -11,6 +11,19 @@ export const closedMonthRecapDict = {
       "Det här är en fryst ögonblicksbild av månaden när den stängdes. Börja med totalsummorna och använd nästa månad för ny planering.",
     readOnlyTitle: "Skrivskyddad översikt",
     readOnlyBody: "Historisk ögonblicksbild låst vid stängning.",
+    heroResultLabel: "Slutsaldo",
+    heroOutcomePositive:
+      "{month} stängdes med {amount} kvar efter planerade pengarörelser.",
+    heroOutcomeBalanced:
+      "{month} stängdes balanserat. Alla planerade pengarörelser är avstämda.",
+    heroOutcomeNegative:
+      "{month} stängdes {amount} under plan. Granska förändringarna innan nästa månad justeras.",
+    heroCarryOverApplied: "Överfört till nästa månad",
+    heroCarryOverNone: "Ingen överföring",
+    heroCarryOverNoneBody:
+      "Den här månaden fördes inte vidare till nästa månad.",
+    heroExplainer:
+      "Det här är en fryst ögonblicksbild – inget kan ändras här. Använd nästa månad för ny planering.",
     income: "Inkomst",
     incomeHint: "Inkomst i ögonblicksbild",
     expenses: "Utgifter",
@@ -132,6 +145,19 @@ export const closedMonthRecapDict = {
       "This is a frozen snapshot of the month as it was closed. Review the totals first, then use the next month for any new planning changes.",
     readOnlyTitle: "Read-only recap",
     readOnlyBody: "Historical snapshot locked at close.",
+    heroResultLabel: "Final balance",
+    heroOutcomePositive:
+      "{month} closed with {amount} left after planned money movements.",
+    heroOutcomeBalanced:
+      "{month} closed balanced. All planned money movements lined up.",
+    heroOutcomeNegative:
+      "{month} closed {amount} below plan. Review the changes before adjusting the next month.",
+    heroCarryOverApplied: "Carried into the next month",
+    heroCarryOverNone: "Nothing carried over",
+    heroCarryOverNoneBody:
+      "This month was not carried into the next month.",
+    heroExplainer:
+      "This is a frozen snapshot – nothing can be edited here. Use the next month for new planning.",
     income: "Income",
     incomeHint: "Snapshot income",
     expenses: "Expenses",
@@ -253,6 +279,19 @@ export const closedMonthRecapDict = {
       "See on kuu sulgemise hetkel salvestatud ülevaade. Vaata esmalt kogusummasid ja tee uued plaanimuudatused järgmises kuus.",
     readOnlyTitle: "Ainult vaatamiseks kokkuvõte",
     readOnlyBody: "Ajalooline ülevaade on sulgemisel lukustatud.",
+    heroResultLabel: "Lõppsaldo",
+    heroOutcomePositive:
+      "{month} suleti, järele jäi {amount} pärast planeeritud rahaliikumisi.",
+    heroOutcomeBalanced:
+      "{month} suleti tasakaalus. Kõik planeeritud rahaliikumised läksid kokku.",
+    heroOutcomeNegative:
+      "{month} suleti {amount} alla plaani. Vaata muudatused üle, enne kui järgmist kuud kohandad.",
+    heroCarryOverApplied: "Üle kantud järgmisesse kuusse",
+    heroCarryOverNone: "Ülekannet pole",
+    heroCarryOverNoneBody:
+      "Seda kuud ei kantud järgmisesse kuusse.",
+    heroExplainer:
+      "See on lukustatud ülevaade – siin ei saa midagi muuta. Kasuta uue planeerimiseks järgmist kuud.",
     income: "Sissetulek",
     incomeHint: "Salvestatud sissetulek",
     expenses: "Kulud",

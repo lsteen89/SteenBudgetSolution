@@ -16,15 +16,12 @@ import { formatMoneyV2 } from "@/utils/money/moneyV2";
 import { useEffect, useState } from "react";
 import {
   ArrowRightLeft,
-  BadgeCheck,
   CalendarCheck,
   ChartNoAxesColumn,
   CircleCheck,
   CircleMinus,
   CirclePause,
   CircleSlash,
-  ChevronLeft,
-  ChevronRight,
   Landmark,
   LoaderCircle,
   LockKeyhole,
@@ -33,6 +30,7 @@ import {
   ReceiptText,
   Repeat2,
   Scale,
+  Snowflake,
   TrendingDown,
   WalletCards,
   type LucideIcon,
@@ -45,13 +43,6 @@ type ClosedMonthRecapSectionProps = {
   isLoading: boolean;
   errorMessage?: string | null;
   onRetry: () => void;
-  previousPeriodLabel?: string | null;
-  nextPeriodLabel?: string | null;
-  canGoPrevious: boolean;
-  canGoNext: boolean;
-  onGoPrevious?: () => void;
-  onGoNext?: () => void;
-  isSwitchingMonth?: boolean;
 };
 
 type RecapTKey = keyof typeof closedMonthRecapDict.sv;
@@ -190,54 +181,182 @@ function formatCarryOverMode(
   return t("carryOverModeNone");
 }
 
-function RecapNav({
-  previousPeriodLabel,
-  nextPeriodLabel,
-  canGoPrevious,
-  canGoNext,
-  onGoPrevious,
-  onGoNext,
-  isSwitchingMonth,
+type OutcomeTone = "positive" | "balanced" | "attention";
+
+function buildOutcomeSentence({
+  finalBalance,
+  monthLabel,
+  currency,
+  locale,
   t,
-}: Pick<
-  ClosedMonthRecapSectionProps,
-  | "previousPeriodLabel"
-  | "nextPeriodLabel"
-  | "canGoPrevious"
-  | "canGoNext"
-  | "onGoPrevious"
-  | "onGoNext"
-  | "isSwitchingMonth"
-> & {
+}: {
+  finalBalance: number;
+  monthLabel: string;
+  currency: CurrencyCode;
+  locale: string;
+  t: RecapT;
+}): { sentence: string; tone: OutcomeTone } {
+  if (finalBalance > 0) {
+    const amount = formatSnapshotMoney(finalBalance, currency, locale);
+    const sentence = replaceToken(
+      replaceToken(t("heroOutcomePositive"), "month", monthLabel),
+      "amount",
+      amount,
+    );
+    return { sentence, tone: "positive" };
+  }
+
+  if (finalBalance < 0) {
+    const amount = formatSnapshotMoney(Math.abs(finalBalance), currency, locale);
+    const sentence = replaceToken(
+      replaceToken(t("heroOutcomeNegative"), "month", monthLabel),
+      "amount",
+      amount,
+    );
+    return { sentence, tone: "attention" };
+  }
+
+  const sentence = replaceToken(t("heroOutcomeBalanced"), "month", monthLabel);
+  return { sentence, tone: "balanced" };
+}
+
+function ClosedMonthHero({
+  recap,
+  currency,
+  locale,
+  closedAtLabel,
+  monthLabel,
+  t,
+}: {
+  recap: BudgetMonthRecapDto;
+  currency: CurrencyCode;
+  locale: string;
+  closedAtLabel: string | null;
+  monthLabel: string;
   t: RecapT;
 }) {
-  const buttonClass =
-    "inline-flex h-10 items-center gap-2 rounded-full border border-eb-stroke/40 bg-eb-surface/85 px-3 text-sm font-semibold text-eb-text shadow-sm transition hover:bg-eb-surface disabled:cursor-not-allowed disabled:opacity-45";
+  const finalBalance = recap.snapshotTotals.finalBalanceMonthly;
+  const { sentence, tone } = buildOutcomeSentence({
+    finalBalance,
+    monthLabel,
+    currency,
+    locale,
+    t,
+  });
+
+  const finalBalanceLabel = formatSnapshotMoney(finalBalance, currency, locale);
+  const hasCarryOver =
+    recap.month.carryOverMode !== "none" && recap.month.carryOverAmount != null;
+  const carryOverFormatted = hasCarryOver
+    ? formatSnapshotMoney(recap.month.carryOverAmount as number, currency, locale)
+    : null;
+
+  const isAttention = tone === "attention";
+
+  const pillClass = isAttention
+    ? "border border-[rgb(239_68_68_/_0.22)] bg-[rgb(239_68_68_/_0.08)] text-[rgb(21_39_81)]"
+    : "border border-[rgb(34_197_94_/_0.25)] bg-[rgb(34_197_94_/_0.10)] text-[rgb(21_39_81)]";
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <button
-        type="button"
-        data-testid="month-nav-previous"
-        className={buttonClass}
-        disabled={!canGoPrevious || isSwitchingMonth}
-        onClick={onGoPrevious}
-      >
-        <ChevronLeft className="h-4 w-4" />
-        <span>{previousPeriodLabel ?? t("previous")}</span>
-      </button>
+    <header className="rounded-2xl border border-[rgb(199_228_255_/_0.35)] bg-white p-6 shadow-[0_18px_50px_rgb(21_39_81_/_0.06)]">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(280px,1fr)] lg:items-start">
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              data-testid="closed-month-hero-badge"
+              className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold uppercase tracking-wide text-emerald-700 ring-1 ring-emerald-200"
+            >
+              <LockKeyhole className="h-3.5 w-3.5" />
+              {t("closed")}
+            </span>
+            {closedAtLabel ? (
+              <span
+                data-testid="closed-month-hero-timestamp"
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-eb-text/60"
+              >
+                <CalendarCheck className="h-4 w-4" />
+                {replaceToken(t("closedAt"), "date", closedAtLabel)}
+              </span>
+            ) : null}
+          </div>
 
-      <button
-        type="button"
-        data-testid="month-nav-next"
-        className={buttonClass}
-        disabled={!canGoNext || isSwitchingMonth}
-        onClick={onGoNext}
-      >
-        <span>{nextPeriodLabel ?? t("next")}</span>
-        <ChevronRight className="h-4 w-4" />
-      </button>
-    </div>
+          <h1
+            id="closed-month-title"
+            className="text-2xl font-extrabold tracking-normal text-eb-text sm:text-3xl"
+          >
+            {monthLabel}
+          </h1>
+
+          <p
+            data-testid="closed-month-summary"
+            className="max-w-2xl text-base font-medium leading-7 text-eb-text/80"
+          >
+            {sentence}
+          </p>
+
+          <div className="inline-flex items-center gap-2 rounded-xl border border-eb-stroke/25 bg-eb-shell/40 px-3 py-2 text-xs font-medium text-eb-text/60">
+            <Snowflake className="h-4 w-4 text-eb-accent" />
+            {t("heroExplainer")}
+          </div>
+        </div>
+
+        <article
+          aria-label={t("heroResultLabel")}
+          data-testid="closed-month-hero-result"
+          className="rounded-2xl border border-[rgb(199_228_255_/_0.45)] bg-[rgb(224_240_255_/_0.45)] p-4"
+        >
+          <p className="text-xs font-bold uppercase tracking-wide text-eb-text/55">
+            {t("heroResultLabel")}
+          </p>
+          <p
+            data-testid="closed-month-hero-final-balance"
+            className={cn(
+              "mt-2 text-3xl font-extrabold tracking-tight",
+              isAttention ? "text-rose-700" : "text-eb-text",
+            )}
+          >
+            {finalBalanceLabel}
+          </p>
+
+          <span
+            data-testid="closed-month-hero-result-pill"
+            data-tone={tone}
+            className={cn(
+              "mt-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold",
+              pillClass,
+            )}
+          >
+            {isAttention ? (
+              <TrendingDown className="h-3.5 w-3.5" />
+            ) : (
+              <Scale className="h-3.5 w-3.5" />
+            )}
+            {t("finalBalance")}
+          </span>
+
+          <div className="mt-4 border-t border-eb-stroke/20 pt-3">
+            <p className="text-xs font-bold uppercase tracking-wide text-eb-text/55">
+              {hasCarryOver ? t("heroCarryOverApplied") : t("heroCarryOverNone")}
+            </p>
+            {hasCarryOver ? (
+              <p
+                data-testid="closed-month-hero-carry-over"
+                className="mt-1 text-lg font-extrabold text-eb-text"
+              >
+                {carryOverFormatted}
+              </p>
+            ) : (
+              <p
+                data-testid="closed-month-hero-carry-over"
+                className="mt-1 text-sm font-medium leading-5 text-eb-text/65"
+              >
+                {t("heroCarryOverNoneBody")}
+              </p>
+            )}
+          </div>
+        </article>
+      </div>
+    </header>
   );
 }
 
@@ -470,13 +589,6 @@ export default function ClosedMonthRecapSection({
   isLoading,
   errorMessage,
   onRetry,
-  previousPeriodLabel,
-  nextPeriodLabel,
-  canGoPrevious,
-  canGoNext,
-  onGoPrevious,
-  onGoNext,
-  isSwitchingMonth = false,
 }: ClosedMonthRecapSectionProps) {
   const [selectedChartTab, setSelectedChartTab] =
     useState<ClosedMonthRecapChartTab>("flow");
@@ -494,18 +606,8 @@ export default function ClosedMonthRecapSection({
     return (
       <section
         data-testid="closed-month-recap"
-        className="w-full max-w-6xl space-y-4 rounded-2xl border border-eb-stroke/30 bg-eb-surface/90 p-5 shadow-sm"
+        className="w-full space-y-4 rounded-2xl border border-eb-stroke/30 bg-eb-surface/90 p-5 shadow-sm"
       >
-        <RecapNav
-          previousPeriodLabel={previousPeriodLabel}
-          nextPeriodLabel={nextPeriodLabel}
-          canGoPrevious={canGoPrevious}
-          canGoNext={canGoNext}
-          onGoPrevious={onGoPrevious}
-          onGoNext={onGoNext}
-          isSwitchingMonth={isSwitchingMonth}
-          t={(key) => tDict(key, locale, closedMonthRecapDict)}
-        />
         <div className="flex items-center gap-2 text-sm font-semibold text-eb-text/70">
           <LoaderCircle className="h-4 w-4 animate-spin" />
           {tDict("loading", locale, closedMonthRecapDict)}
@@ -536,71 +638,19 @@ export default function ClosedMonthRecapSection({
     <section
       data-testid="closed-month-recap"
       aria-labelledby="closed-month-title"
-      className="w-full max-w-6xl space-y-5"
+      className="w-full space-y-5"
     >
-      <RecapNav
-        previousPeriodLabel={previousPeriodLabel}
-        nextPeriodLabel={nextPeriodLabel}
-        canGoPrevious={canGoPrevious}
-        canGoNext={canGoNext}
-        onGoPrevious={onGoPrevious}
-        onGoNext={onGoNext}
-        isSwitchingMonth={isSwitchingMonth}
+      <ClosedMonthHero
+        recap={recap}
+        currency={currency}
+        locale={locale}
+        closedAtLabel={closedAtLabel}
+        monthLabel={monthLabel}
         t={t}
       />
 
       <div className="overflow-hidden rounded-2xl border border-eb-stroke/30 bg-eb-surface/95 shadow-sm">
-        <div className="relative p-5 sm:p-6">
-          <div className="pointer-events-none absolute right-0 top-0 h-32 w-32 rounded-bl-[64px] bg-eb-accentSoft/25" />
-
-          <div className="relative flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-            <div className="max-w-3xl space-y-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <span
-                  data-testid="month-status-badge"
-                  className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold uppercase tracking-wide text-emerald-700 ring-1 ring-emerald-200"
-                >
-                  <LockKeyhole className="h-3.5 w-3.5" />
-                  {t("closed")}
-                </span>
-                {closedAtLabel ? (
-                  <span className="inline-flex items-center gap-1.5 text-sm font-medium text-eb-text/60">
-                    <CalendarCheck className="h-4 w-4" />
-                    {replaceToken(t("closedAt"), "date", closedAtLabel)}
-                  </span>
-                ) : null}
-              </div>
-
-              <div className="space-y-2">
-                <h1
-                  id="closed-month-title"
-                  data-testid="active-month-label"
-                  className="text-2xl font-extrabold tracking-normal text-eb-text sm:text-3xl"
-                >
-                  {monthLabel}
-                </h1>
-                <p
-                  data-testid="closed-month-summary"
-                  className="max-w-2xl text-sm font-medium leading-6 text-eb-text/70"
-                >
-                  {t("summary")}
-                </p>
-              </div>
-            </div>
-
-            <div className="relative rounded-2xl border border-eb-stroke/25 bg-white/75 px-4 py-3 shadow-sm">
-              <div className="flex items-center gap-2 text-sm font-semibold text-eb-text">
-                <BadgeCheck className="h-4 w-4 text-emerald-700" />
-                {t("readOnlyTitle")}
-              </div>
-              <p className="mt-1 text-xs font-medium leading-5 text-eb-text/60">
-                {t("readOnlyBody")}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="border-t border-eb-stroke/20 bg-eb-shell/25 p-5 sm:p-6">
+        <div className="border-t-0 bg-eb-shell/25 p-5 sm:p-6">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
             {totalCards.map(({ key, labelKey, hintKey, Icon }) => {
               const label = t(labelKey);
