@@ -199,6 +199,41 @@ public sealed partial class BudgetMonthRepository
       AND e.IsDeleted = 0
     ORDER BY e.Name, e.Id;";
 
+    private const string GetSavingsGoals = @"
+    SELECT
+        g.Id,
+        g.SourceSavingsGoalId,
+        g.Name,
+        g.TargetAmount,
+        g.TargetDate,
+        g.AmountSaved,
+        g.MonthlyContribution
+    FROM BudgetMonthSavings s
+    JOIN BudgetMonthSavingsGoal g
+        ON g.BudgetMonthSavingsId = s.Id
+    WHERE s.BudgetMonthId = @BudgetMonthId
+      AND s.IsDeleted = 0
+      AND g.IsDeleted = 0
+      AND g.Status = 'active'
+    ORDER BY g.SortOrder, g.CreatedAt, g.Id;";
+
+    private const string GetDebts = @"
+    SELECT
+        d.Id,
+        d.SourceDebtId,
+        d.Name,
+        d.Type,
+        d.Balance,
+        d.Apr,
+        d.MonthlyFee,
+        d.MinPayment,
+        CAST(d.TermMonths AS SIGNED) AS TermMonths
+    FROM BudgetMonthDebt d
+    WHERE d.BudgetMonthId = @BudgetMonthId
+      AND d.IsDeleted = 0
+      AND d.Status = 'active'
+    ORDER BY d.SortOrder, d.Balance DESC, d.Name;";
+
     const string ExistsAnyMonths = """
         SELECT EXISTS(
             SELECT 1

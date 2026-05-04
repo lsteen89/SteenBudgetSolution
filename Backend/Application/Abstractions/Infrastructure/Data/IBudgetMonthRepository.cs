@@ -16,6 +16,8 @@ public interface IBudgetMonthRepository
     Task<string?> GetPreviousComparableYearMonthAsync(Guid budgetId, string yearMonth, CancellationToken ct);
     Task<IReadOnlyList<BudgetMonthExpenseCategoryTotalRm>> GetExpenseCategoryTotalsAsync(Guid budgetMonthId, CancellationToken ct);
     Task<IReadOnlyList<BudgetMonthSubscriptionRm>> GetSubscriptionsAsync(Guid budgetMonthId, CancellationToken ct);
+    Task<IReadOnlyList<BudgetMonthSavingsGoalRm>> GetSavingsGoalsAsync(Guid budgetMonthId, CancellationToken ct);
+    Task<IReadOnlyList<BudgetMonthDebtRm>> GetDebtsAsync(Guid budgetMonthId, CancellationToken ct);
     Task<IncomePaymentTimingReadModel?> GetBudgetMonthIncomePaymentTimingAsync(Guid budgetMonthId, CancellationToken ct);
 
     Task<bool> HasAnyMonthsAsync(Guid budgetId, CancellationToken ct);

@@ -1,4 +1,8 @@
 import DashboardErrorState from "@/components/organisms/dashboard/DashboardErrorState";
+import {
+  DebtDetailBlock,
+  SavingsDetailBlock,
+} from "@/components/organisms/dashboard/recap/ClosedMonthRecapDetailBlocks";
 import { cn } from "@/lib/utils";
 import type { BudgetMonthRecapDto } from "@/types/budget/BudgetMonthRecapDto";
 import type { AppLocale } from "@/types/i18n/appLocale";
@@ -911,6 +915,20 @@ export default function ClosedMonthRecapSection({
           />
 
           <SubscriptionInsightBlock
+            recap={recap}
+            currency={currency}
+            locale={locale}
+            t={t}
+          />
+
+          <SavingsDetailBlock
+            recap={recap}
+            currency={currency}
+            locale={locale}
+            t={t}
+          />
+
+          <DebtDetailBlock
             recap={recap}
             currency={currency}
             locale={locale}

@@ -5,7 +5,9 @@ public sealed record BudgetMonthRecapDto(
     BudgetMonthRecapSnapshotTotalsDto SnapshotTotals,
     BudgetMonthRecapComparisonMetaDto Comparison,
     IReadOnlyList<BudgetMonthRecapExpenseCategoryDto> ExpenseCategories,
-    BudgetMonthRecapSubscriptionInsightDto SubscriptionInsight);
+    BudgetMonthRecapSubscriptionInsightDto SubscriptionInsight,
+    BudgetMonthRecapSavingsDetailDto SavingsDetail,
+    BudgetMonthRecapDebtDetailDto DebtDetail);
 
 public sealed record BudgetMonthRecapMetaDto(
     string YearMonth,
@@ -60,3 +62,38 @@ public sealed record BudgetMonthRecapSubscriptionItemDto(
     string Name,
     decimal AmountMonthly,
     string? SourceExpenseItemId);
+
+public sealed record BudgetMonthRecapSavingsDetailDto(
+    decimal TotalSavingsMonthly,
+    IReadOnlyList<BudgetMonthRecapSavingsGoalDto> ActiveGoals,
+    bool HasPreviousComparableMonth);
+
+public sealed record BudgetMonthRecapSavingsGoalDto(
+    string Id,
+    string? SourceSavingsGoalId,
+    string? Name,
+    decimal MonthlyContribution,
+    decimal? TargetAmount,
+    DateTime? TargetDate,
+    decimal? AmountSaved,
+    decimal? PreviousMonthlyContribution,
+    decimal? DeltaMonthlyContribution);
+
+public sealed record BudgetMonthRecapDebtDetailDto(
+    decimal TotalDebtPaymentsMonthly,
+    IReadOnlyList<BudgetMonthRecapDebtItemDto> ActiveDebts,
+    bool HasPreviousComparableMonth);
+
+public sealed record BudgetMonthRecapDebtItemDto(
+    string Id,
+    string? SourceDebtId,
+    string Name,
+    string Type,
+    decimal Balance,
+    decimal Apr,
+    decimal MonthlyPayment,
+    decimal? MinPayment,
+    decimal? MonthlyFee,
+    int? TermMonths,
+    decimal? PreviousMonthlyPayment,
+    decimal? DeltaMonthlyPayment);

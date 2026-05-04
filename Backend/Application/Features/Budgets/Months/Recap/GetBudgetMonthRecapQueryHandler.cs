@@ -1,7 +1,9 @@
+using Backend.Application.Abstractions.Application.Services.Debts;
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Application.Abstractions.Messaging;
 using Backend.Application.DTO.Budget.Months;
 using Backend.Application.DTO.Budget.Months.Recap;
+using Backend.Application.Features.Budgets.Dashboard;
 using Backend.Application.Features.Budgets.Months.Helpers;
 using Backend.Application.Features.Budgets.Months.Models;
 using Backend.Domain.Errors.Budget;
@@ -13,10 +15,14 @@ public sealed class GetBudgetMonthRecapQueryHandler
     : IQueryHandler<GetBudgetMonthRecapQuery, Result<BudgetMonthRecapDto?>>
 {
     private readonly IBudgetMonthRepository _months;
+    private readonly IDebtPaymentCalculator _debtPaymentCalculator;
 
-    public GetBudgetMonthRecapQueryHandler(IBudgetMonthRepository months)
+    public GetBudgetMonthRecapQueryHandler(
+        IBudgetMonthRepository months,
+        IDebtPaymentCalculator debtPaymentCalculator)
     {
         _months = months;
+        _debtPaymentCalculator = debtPaymentCalculator;
     }
 
     public async Task<Result<BudgetMonthRecapDto?>> Handle(
@@ -71,6 +77,24 @@ public sealed class GetBudgetMonthRecapQueryHandler
             currentSubscriptions,
             previousSubscriptions,
             previousComparableMonth is not null);
+        var currentSavingsGoals = await _months.GetSavingsGoalsAsync(month.Id, ct);
+        var previousSavingsGoals = previousComparableMonth is null
+            ? Array.Empty<BudgetMonthSavingsGoalRm>()
+            : await _months.GetSavingsGoalsAsync(previousComparableMonth.Id, ct);
+        var savingsDetail = BuildSavingsDetail(
+            month.SnapshotTotalSavingsMonthly.Value,
+            currentSavingsGoals,
+            previousSavingsGoals,
+            previousComparableMonth is not null);
+        var currentDebts = await _months.GetDebtsAsync(month.Id, ct);
+        var previousDebts = previousComparableMonth is null
+            ? Array.Empty<BudgetMonthDebtRm>()
+            : await _months.GetDebtsAsync(previousComparableMonth.Id, ct);
+        var debtDetail = BuildDebtDetail(
+            month.SnapshotTotalDebtPaymentsMonthly.Value,
+            currentDebts,
+            previousDebts,
+            previousComparableMonth is not null);
 
         return Result<BudgetMonthRecapDto?>.Success(new BudgetMonthRecapDto(
             Month: new BudgetMonthRecapMetaDto(
@@ -91,7 +115,9 @@ public sealed class GetBudgetMonthRecapQueryHandler
                 HasPreviousComparableMonth: comparisonSummary is not null,
                 Summary: comparisonSummary),
             ExpenseCategories: expenseCategories,
-            SubscriptionInsight: subscriptionInsight));
+            SubscriptionInsight: subscriptionInsight,
+            SavingsDetail: savingsDetail,
+            DebtDetail: debtDetail));
     }
 
     private static BudgetMonthRecapComparisonSummaryDto? BuildComparisonSummary(
@@ -295,4 +321,116 @@ public sealed class GetBudgetMonthRecapQueryHandler
             .OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
             .ThenBy(x => x.IdentityKey, StringComparer.Ordinal)
             .ToArray();
+
+    private static BudgetMonthRecapSavingsDetailDto BuildSavingsDetail(
+        decimal totalSavingsMonthly,
+        IReadOnlyList<BudgetMonthSavingsGoalRm> currentGoals,
+        IReadOnlyList<BudgetMonthSavingsGoalRm> previousGoals,
+        bool hasPreviousComparableMonth)
+    {
+        var previousContributionBySource = previousGoals
+            .Where(x => x.SourceSavingsGoalId is not null)
+            .GroupBy(x => x.SourceSavingsGoalId!.Value)
+            .ToDictionary(
+                x => x.Key,
+                x => x.Sum(y => y.MonthlyContribution));
+
+        var goals = currentGoals
+            .Select(goal =>
+            {
+                var previousContribution = hasPreviousComparableMonth &&
+                                           goal.SourceSavingsGoalId is Guid sourceSavingsGoalId &&
+                                           previousContributionBySource.TryGetValue(sourceSavingsGoalId, out var amount)
+                    ? amount
+                    : (decimal?)null;
+                var deltaContribution = previousContribution is null
+                    ? (decimal?)null
+                    : goal.MonthlyContribution - previousContribution.Value;
+
+                return new BudgetMonthRecapSavingsGoalDto(
+                    Id: goal.Id.ToString(),
+                    SourceSavingsGoalId: goal.SourceSavingsGoalId?.ToString(),
+                    Name: goal.Name,
+                    MonthlyContribution: goal.MonthlyContribution,
+                    TargetAmount: goal.TargetAmount,
+                    TargetDate: goal.TargetDate,
+                    AmountSaved: goal.AmountSaved,
+                    PreviousMonthlyContribution: previousContribution,
+                    DeltaMonthlyContribution: deltaContribution);
+            })
+            .OrderByDescending(x => x.MonthlyContribution)
+            .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.Id, StringComparer.Ordinal)
+            .ToArray();
+
+        return new BudgetMonthRecapSavingsDetailDto(
+            TotalSavingsMonthly: totalSavingsMonthly,
+            ActiveGoals: goals,
+            HasPreviousComparableMonth: hasPreviousComparableMonth);
+    }
+
+    private BudgetMonthRecapDebtDetailDto BuildDebtDetail(
+        decimal totalDebtPaymentsMonthly,
+        IReadOnlyList<BudgetMonthDebtRm> currentDebts,
+        IReadOnlyList<BudgetMonthDebtRm> previousDebts,
+        bool hasPreviousComparableMonth)
+    {
+        var previousPaymentBySource = previousDebts
+            .Where(x => x.SourceDebtId is not null)
+            .GroupBy(x => x.SourceDebtId!.Value)
+            .ToDictionary(
+                x => x.Key,
+                x => x.Sum(CalculateMonthlyPayment));
+
+        var debts = currentDebts
+            .Select(debt =>
+            {
+                var monthlyPayment = CalculateMonthlyPayment(debt);
+                var previousPayment = hasPreviousComparableMonth &&
+                                      debt.SourceDebtId is Guid sourceDebtId &&
+                                      previousPaymentBySource.TryGetValue(sourceDebtId, out var amount)
+                    ? amount
+                    : (decimal?)null;
+                var deltaPayment = previousPayment is null
+                    ? (decimal?)null
+                    : monthlyPayment - previousPayment.Value;
+
+                return new BudgetMonthRecapDebtItemDto(
+                    Id: debt.Id.ToString(),
+                    SourceDebtId: debt.SourceDebtId?.ToString(),
+                    Name: debt.Name,
+                    Type: debt.Type,
+                    Balance: debt.Balance,
+                    Apr: debt.Apr,
+                    MonthlyPayment: monthlyPayment,
+                    MinPayment: debt.MinPayment,
+                    MonthlyFee: debt.MonthlyFee,
+                    TermMonths: ToNullableInt(debt.TermMonths),
+                    PreviousMonthlyPayment: previousPayment,
+                    DeltaMonthlyPayment: deltaPayment);
+            })
+            .OrderByDescending(x => x.MonthlyPayment)
+            .ThenByDescending(x => x.Balance)
+            .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.Id, StringComparer.Ordinal)
+            .ToArray();
+
+        return new BudgetMonthRecapDebtDetailDto(
+            TotalDebtPaymentsMonthly: totalDebtPaymentsMonthly,
+            ActiveDebts: debts,
+            HasPreviousComparableMonth: hasPreviousComparableMonth);
+    }
+
+    private decimal CalculateMonthlyPayment(BudgetMonthDebtRm debt)
+        => _debtPaymentCalculator.CalculateMonthlyPayment(
+            new DebtForCalc(
+                debt.Type,
+                debt.Balance,
+                debt.Apr,
+                debt.MinPayment,
+                debt.MonthlyFee,
+                ToNullableInt(debt.TermMonths)));
+
+    private static int? ToNullableInt(long? value)
+        => value is null ? null : Convert.ToInt32(value.Value);
 }

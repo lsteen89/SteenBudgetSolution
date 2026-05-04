@@ -1,5 +1,7 @@
+using Backend.Application.Constants;
 using Backend.Application.DTO.Budget.Months;
 using Backend.Application.Features.Budgets.Months.Recap;
+using Backend.Application.Services.Debts;
 using Backend.Domain.Entities.Budget.Expenses;
 using Backend.Domain.Errors.Budget;
 using Backend.Infrastructure.Data.Sql.Helpers.UnitOfWork;
@@ -75,6 +77,12 @@ public sealed class BudgetMonthRecapQueryHandlerTests
         dto.SubscriptionInsight.Paused.Should().BeEmpty();
         dto.SubscriptionInsight.Cancelled.Should().BeEmpty();
         dto.SubscriptionInsight.HasPreviousComparableMonth.Should().BeFalse();
+        dto.SavingsDetail.TotalSavingsMonthly.Should().Be(303m);
+        dto.SavingsDetail.ActiveGoals.Should().BeEmpty();
+        dto.SavingsDetail.HasPreviousComparableMonth.Should().BeFalse();
+        dto.DebtDetail.TotalDebtPaymentsMonthly.Should().Be(404m);
+        dto.DebtDetail.ActiveDebts.Should().BeEmpty();
+        dto.DebtDetail.HasPreviousComparableMonth.Should().BeFalse();
     }
 
     [Fact]
@@ -200,6 +208,184 @@ public sealed class BudgetMonthRecapQueryHandlerTests
             x.PreviousAmount == null &&
             x.DeltaAmount == null &&
             x.DeltaPercent == null);
+    }
+
+    [Fact]
+    public async Task ClosedMonth_ReturnsSavingsGoalsFromMonthlyRows_WithComparableContributionDelta()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+        var sourceSavingsGoalId = Guid.NewGuid();
+
+        await InsertClosedMonthWithSnapshotAsync(
+            budgetId: seed.BudgetId,
+            yearMonth: "2026-03",
+            createdByUserId: seed.UserId,
+            openedAtUtc: new DateTime(2026, 03, 01, 08, 00, 00, DateTimeKind.Utc),
+            closedAtUtc: new DateTime(2026, 03, 31, 20, 00, 00, DateTimeKind.Utc),
+            carryOverMode: BudgetMonthCarryOverModes.None,
+            carryOverAmount: null,
+            totalIncome: 1000m,
+            totalExpenses: 100m,
+            totalSavings: 75m,
+            totalDebtPayments: 0m,
+            finalBalance: 825m);
+        await InsertClosedMonthWithSnapshotAsync(
+            budgetId: seed.BudgetId,
+            yearMonth: "2026-04",
+            createdByUserId: seed.UserId,
+            openedAtUtc: new DateTime(2026, 04, 01, 08, 00, 00, DateTimeKind.Utc),
+            closedAtUtc: new DateTime(2026, 04, 30, 20, 00, 00, DateTimeKind.Utc),
+            carryOverMode: BudgetMonthCarryOverModes.None,
+            carryOverAmount: null,
+            totalIncome: 1000m,
+            totalExpenses: 100m,
+            totalSavings: 175m,
+            totalDebtPayments: 0m,
+            finalBalance: 725m);
+
+        await InsertMonthSavingsGoalAsync(
+            seed.BudgetId,
+            "2026-03",
+            seed.UserId,
+            sourceSavingsGoalId,
+            "Emergency fund",
+            monthlyContribution: 75m);
+        await InsertMonthSavingsGoalAsync(
+            seed.BudgetId,
+            "2026-04",
+            seed.UserId,
+            sourceSavingsGoalId,
+            "Emergency fund",
+            monthlyContribution: 125m,
+            targetAmount: 5000m,
+            amountSaved: 900m);
+        await InsertMonthSavingsGoalAsync(
+            seed.BudgetId,
+            "2026-04",
+            seed.UserId,
+            null,
+            "Trip",
+            monthlyContribution: 50m);
+
+        var result = await CreateHandler().Handle(
+            new GetBudgetMonthRecapQuery(seed.Persoid, "2026-04"),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.SavingsDetail.TotalSavingsMonthly.Should().Be(175m);
+        result.Value.SavingsDetail.HasPreviousComparableMonth.Should().BeTrue();
+        result.Value.SavingsDetail.ActiveGoals.Should().HaveCount(2);
+
+        var emergencyFund = result.Value.SavingsDetail.ActiveGoals
+            .Should().ContainSingle(x => x.Name == "Emergency fund").Subject;
+        emergencyFund.MonthlyContribution.Should().Be(125m);
+        emergencyFund.TargetAmount.Should().Be(5000m);
+        emergencyFund.AmountSaved.Should().Be(900m);
+        emergencyFund.PreviousMonthlyContribution.Should().Be(75m);
+        emergencyFund.DeltaMonthlyContribution.Should().Be(50m);
+
+        var trip = result.Value.SavingsDetail.ActiveGoals
+            .Should().ContainSingle(x => x.Name == "Trip").Subject;
+        trip.PreviousMonthlyContribution.Should().BeNull();
+        trip.DeltaMonthlyContribution.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ClosedMonth_ReturnsDebtItemsFromMonthlyRows_WithComparablePaymentDelta()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+        var sourceDebtId = Guid.NewGuid();
+
+        await InsertClosedMonthWithSnapshotAsync(
+            budgetId: seed.BudgetId,
+            yearMonth: "2026-03",
+            createdByUserId: seed.UserId,
+            openedAtUtc: new DateTime(2026, 03, 01, 08, 00, 00, DateTimeKind.Utc),
+            closedAtUtc: new DateTime(2026, 03, 31, 20, 00, 00, DateTimeKind.Utc),
+            carryOverMode: BudgetMonthCarryOverModes.None,
+            carryOverAmount: null,
+            totalIncome: 1000m,
+            totalExpenses: 100m,
+            totalSavings: 0m,
+            totalDebtPayments: 110m,
+            finalBalance: 790m);
+        await InsertClosedMonthWithSnapshotAsync(
+            budgetId: seed.BudgetId,
+            yearMonth: "2026-04",
+            createdByUserId: seed.UserId,
+            openedAtUtc: new DateTime(2026, 04, 01, 08, 00, 00, DateTimeKind.Utc),
+            closedAtUtc: new DateTime(2026, 04, 30, 20, 00, 00, DateTimeKind.Utc),
+            carryOverMode: BudgetMonthCarryOverModes.None,
+            carryOverAmount: null,
+            totalIncome: 1000m,
+            totalExpenses: 100m,
+            totalSavings: 0m,
+            totalDebtPayments: 210m,
+            finalBalance: 690m);
+
+        await InsertMonthDebtAsync(
+            seed.BudgetId,
+            "2026-03",
+            seed.UserId,
+            sourceDebtId,
+            "Card",
+            DebtTypes.Revolving,
+            balance: 2000m,
+            apr: 20m,
+            minPayment: 100m,
+            monthlyFee: 10m);
+        await InsertMonthDebtAsync(
+            seed.BudgetId,
+            "2026-04",
+            seed.UserId,
+            sourceDebtId,
+            "Card",
+            DebtTypes.Revolving,
+            balance: 1800m,
+            apr: 20m,
+            minPayment: 120m,
+            monthlyFee: 15m);
+        await InsertMonthDebtAsync(
+            seed.BudgetId,
+            "2026-04",
+            seed.UserId,
+            null,
+            "Personal loan",
+            DebtTypes.Revolving,
+            balance: 500m,
+            apr: 0m,
+            minPayment: 75m,
+            monthlyFee: null);
+
+        var result = await CreateHandler().Handle(
+            new GetBudgetMonthRecapQuery(seed.Persoid, "2026-04"),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.DebtDetail.TotalDebtPaymentsMonthly.Should().Be(210m);
+        result.Value.DebtDetail.HasPreviousComparableMonth.Should().BeTrue();
+        result.Value.DebtDetail.ActiveDebts.Should().HaveCount(2);
+
+        var card = result.Value.DebtDetail.ActiveDebts
+            .Should().ContainSingle(x => x.Name == "Card").Subject;
+        card.Type.Should().Be(DebtTypes.Revolving);
+        card.Balance.Should().Be(1800m);
+        card.Apr.Should().Be(20m);
+        card.MinPayment.Should().Be(120m);
+        card.MonthlyFee.Should().Be(15m);
+        card.MonthlyPayment.Should().Be(135m);
+        card.PreviousMonthlyPayment.Should().Be(110m);
+        card.DeltaMonthlyPayment.Should().Be(25m);
+
+        var personalLoan = result.Value.DebtDetail.ActiveDebts
+            .Should().ContainSingle(x => x.Name == "Personal loan").Subject;
+        personalLoan.MonthlyPayment.Should().Be(75m);
+        personalLoan.PreviousMonthlyPayment.Should().BeNull();
+        personalLoan.DeltaMonthlyPayment.Should().BeNull();
     }
 
     [Fact]
@@ -716,7 +902,7 @@ public sealed class BudgetMonthRecapQueryHandlerTests
         var uow = new UnitOfWork(opts, NullLogger<UnitOfWork>.Instance);
         var repo = new BudgetMonthRepository(uow, NullLogger<BudgetMonthRepository>.Instance, opts);
 
-        return new GetBudgetMonthRecapQueryHandler(repo);
+        return new GetBudgetMonthRecapQueryHandler(repo, new DebtPaymentCalculator());
     }
 
     private Task InsertClosedMonthWithSnapshotAsync(
@@ -879,6 +1065,325 @@ public sealed class BudgetMonthRecapQueryHandlerTests
                 SubscriptionLifecycleStatus = subscriptionLifecycleStatus,
                 IsActive = isActive,
                 IsDeleted = isDeleted,
+                CreatedByUserId = createdByUserId
+            });
+    }
+
+    private async Task InsertMonthSavingsGoalAsync(
+        Guid budgetId,
+        string yearMonth,
+        Guid createdByUserId,
+        Guid? sourceSavingsGoalId,
+        string name,
+        decimal monthlyContribution,
+        decimal? targetAmount = null,
+        decimal? amountSaved = null)
+    {
+        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await conn.OpenAsync();
+
+        var budgetMonthId = await conn.QuerySingleAsync<Guid>(
+            """
+            SELECT Id
+            FROM BudgetMonth
+            WHERE BudgetId = @BudgetId
+              AND YearMonth = @YearMonth
+            LIMIT 1;
+            """,
+            new { BudgetId = budgetId, YearMonth = yearMonth });
+
+        if (sourceSavingsGoalId is Guid sourceId)
+        {
+            var savingsId = await conn.QuerySingleOrDefaultAsync<Guid?>(
+                """
+                SELECT Id
+                FROM Savings
+                WHERE BudgetId = @BudgetId
+                LIMIT 1;
+                """,
+                new { BudgetId = budgetId });
+
+            if (savingsId is null)
+            {
+                savingsId = Guid.NewGuid();
+                await conn.ExecuteAsync(
+                    """
+                    INSERT INTO Savings
+                    (
+                        Id,
+                        BudgetId,
+                        MonthlySavings,
+                        CreatedByUserId
+                    )
+                    VALUES
+                    (
+                        @SavingsId,
+                        @BudgetId,
+                        0,
+                        @CreatedByUserId
+                    );
+                    """,
+                    new
+                    {
+                        SavingsId = savingsId.Value,
+                        BudgetId = budgetId,
+                        CreatedByUserId = createdByUserId
+                    });
+            }
+
+            await conn.ExecuteAsync(
+                """
+                INSERT INTO SavingsGoal
+                (
+                    Id,
+                    SavingsId,
+                    Name,
+                    TargetAmount,
+                    AmountSaved,
+                    MonthlyContribution,
+                    CreatedByUserId
+                )
+                VALUES
+                (
+                    @SourceSavingsGoalId,
+                    @SavingsId,
+                    @Name,
+                    @TargetAmount,
+                    @AmountSaved,
+                    @MonthlyContribution,
+                    @CreatedByUserId
+                )
+                ON DUPLICATE KEY UPDATE Id = Id;
+                """,
+                new
+                {
+                    SourceSavingsGoalId = sourceId,
+                    SavingsId = savingsId.Value,
+                    Name = name,
+                    TargetAmount = targetAmount,
+                    AmountSaved = amountSaved,
+                    MonthlyContribution = monthlyContribution,
+                    CreatedByUserId = createdByUserId
+                });
+        }
+
+        var budgetMonthSavingsId = Guid.NewGuid();
+        await conn.ExecuteAsync(
+            """
+            INSERT INTO BudgetMonthSavings
+            (
+                Id,
+                BudgetMonthId,
+                MonthlySavings,
+                IsOverride,
+                IsDeleted,
+                CreatedAt,
+                CreatedByUserId
+            )
+            VALUES
+            (
+                @BudgetMonthSavingsId,
+                @BudgetMonthId,
+                0,
+                0,
+                0,
+                UTC_TIMESTAMP(),
+                @CreatedByUserId
+            )
+            ON DUPLICATE KEY UPDATE UpdatedAt = UpdatedAt;
+            """,
+            new
+            {
+                BudgetMonthSavingsId = budgetMonthSavingsId,
+                BudgetMonthId = budgetMonthId,
+                CreatedByUserId = createdByUserId
+            });
+
+        var existingBudgetMonthSavingsId = await conn.QuerySingleAsync<Guid>(
+            """
+            SELECT Id
+            FROM BudgetMonthSavings
+            WHERE BudgetMonthId = @BudgetMonthId
+            LIMIT 1;
+            """,
+            new { BudgetMonthId = budgetMonthId });
+
+        await conn.ExecuteAsync(
+            """
+            INSERT INTO BudgetMonthSavingsGoal
+            (
+                Id,
+                BudgetMonthSavingsId,
+                SourceSavingsGoalId,
+                Name,
+                TargetAmount,
+                AmountSaved,
+                MonthlyContribution,
+                OpenedAt,
+                Status,
+                IsOverride,
+                IsDeleted,
+                SortOrder,
+                CreatedAt,
+                CreatedByUserId
+            )
+            VALUES
+            (
+                UUID_TO_BIN(UUID()),
+                @BudgetMonthSavingsId,
+                @SourceSavingsGoalId,
+                @Name,
+                @TargetAmount,
+                @AmountSaved,
+                @MonthlyContribution,
+                UTC_TIMESTAMP(),
+                'active',
+                0,
+                0,
+                0,
+                UTC_TIMESTAMP(),
+                @CreatedByUserId
+            );
+            """,
+            new
+            {
+                BudgetMonthSavingsId = existingBudgetMonthSavingsId,
+                SourceSavingsGoalId = sourceSavingsGoalId,
+                Name = name,
+                TargetAmount = targetAmount,
+                AmountSaved = amountSaved,
+                MonthlyContribution = monthlyContribution,
+                CreatedByUserId = createdByUserId
+            });
+    }
+
+    private async Task InsertMonthDebtAsync(
+        Guid budgetId,
+        string yearMonth,
+        Guid createdByUserId,
+        Guid? sourceDebtId,
+        string name,
+        string type,
+        decimal balance,
+        decimal apr,
+        decimal? minPayment,
+        decimal? monthlyFee,
+        int? termMonths = null)
+    {
+        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await conn.OpenAsync();
+
+        var budgetMonthId = await conn.QuerySingleAsync<Guid>(
+            """
+            SELECT Id
+            FROM BudgetMonth
+            WHERE BudgetId = @BudgetId
+              AND YearMonth = @YearMonth
+            LIMIT 1;
+            """,
+            new { BudgetId = budgetId, YearMonth = yearMonth });
+
+        if (sourceDebtId is Guid sourceId)
+        {
+            await conn.ExecuteAsync(
+                """
+                INSERT INTO Debt
+                (
+                    Id,
+                    BudgetId,
+                    Name,
+                    Type,
+                    Balance,
+                    Apr,
+                    MonthlyFee,
+                    MinPayment,
+                    TermMonths,
+                    CreatedByUserId
+                )
+                VALUES
+                (
+                    @SourceDebtId,
+                    @BudgetId,
+                    @Name,
+                    @Type,
+                    @Balance,
+                    @Apr,
+                    @MonthlyFee,
+                    @MinPayment,
+                    @TermMonths,
+                    @CreatedByUserId
+                )
+                ON DUPLICATE KEY UPDATE Id = Id;
+                """,
+                new
+                {
+                    SourceDebtId = sourceId,
+                    BudgetId = budgetId,
+                    Name = name,
+                    Type = type,
+                    Balance = balance,
+                    Apr = apr,
+                    MonthlyFee = monthlyFee,
+                    MinPayment = minPayment,
+                    TermMonths = termMonths,
+                    CreatedByUserId = createdByUserId
+                });
+        }
+
+        await conn.ExecuteAsync(
+            """
+            INSERT INTO BudgetMonthDebt
+            (
+                Id,
+                BudgetMonthId,
+                SourceDebtId,
+                Name,
+                Type,
+                Balance,
+                Apr,
+                MonthlyFee,
+                MinPayment,
+                TermMonths,
+                OpenedAt,
+                Status,
+                IsOverride,
+                IsDeleted,
+                SortOrder,
+                CreatedAt,
+                CreatedByUserId
+            )
+            VALUES
+            (
+                UUID_TO_BIN(UUID()),
+                @BudgetMonthId,
+                @SourceDebtId,
+                @Name,
+                @Type,
+                @Balance,
+                @Apr,
+                @MonthlyFee,
+                @MinPayment,
+                @TermMonths,
+                UTC_TIMESTAMP(),
+                'active',
+                0,
+                0,
+                0,
+                UTC_TIMESTAMP(),
+                @CreatedByUserId
+            );
+            """,
+            new
+            {
+                BudgetMonthId = budgetMonthId,
+                SourceDebtId = sourceDebtId,
+                Name = name,
+                Type = type,
+                Balance = balance,
+                Apr = apr,
+                MonthlyFee = monthlyFee,
+                MinPayment = minPayment,
+                TermMonths = termMonths,
                 CreatedByUserId = createdByUserId
             });
     }

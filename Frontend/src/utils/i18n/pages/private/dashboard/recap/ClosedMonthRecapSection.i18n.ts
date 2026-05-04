@@ -74,6 +74,36 @@ export const closedMonthRecapDict = {
     subscriptionEmpty:
       "Inga abonnemang registrerades för den här stängda månaden.",
     subscriptionRowLabel: "{name} abonnemang",
+    savingsDetailLabel: "Spardetaljer",
+    savingsDetailTitle: "Sparande den här månaden",
+    savingsDetailBody:
+      "Aktiva mål och månadsbidrag jämfört med föregående stängda månad.",
+    savingsDetailNoPrevious:
+      "Aktiva mål och månadsbidrag för den här stängda månaden.",
+    savingsDetailTotal: "Totalt sparande",
+    savingsDetailEmpty:
+      "Inga aktiva sparmål fanns för den här stängda månaden.",
+    savingsGoalFallback: "Sparmål",
+    savingsGoalRowLabel: "{name} sparmål",
+    savingsGoalTarget: "Mål",
+    savingsGoalSaved: "Sparat",
+    savingsGoalTargetDate: "Datum",
+    debtDetailLabel: "Skulddetaljer",
+    debtDetailTitle: "Skulder den här månaden",
+    debtDetailBody:
+      "Aktiva skulder och månadsbetalningar jämfört med föregående stängda månad.",
+    debtDetailNoPrevious:
+      "Aktiva skulder och månadsbetalningar för den här stängda månaden.",
+    debtDetailTotal: "Totala skuldbetalningar",
+    debtDetailEmpty:
+      "Inga aktiva skulder fanns för den här stängda månaden.",
+    debtRowLabel: "{name} skuld",
+    debtType: "Typ",
+    debtBalance: "Saldo",
+    debtApr: "Ränta",
+    debtMinPayment: "Minsta",
+    debtMonthlyFee: "Avgift",
+    debtTermMonths: "Månader",
     futureVisualsLabel: "Framtida visuella översikter",
     futureVisuals: "Visuell översikt",
   },
@@ -152,6 +182,36 @@ export const closedMonthRecapDict = {
     subscriptionEmpty:
       "No subscriptions were recorded for this closed month.",
     subscriptionRowLabel: "{name} subscription",
+    savingsDetailLabel: "Savings details",
+    savingsDetailTitle: "Savings this month",
+    savingsDetailBody:
+      "Active goals and monthly contributions compared with the previous closed month.",
+    savingsDetailNoPrevious:
+      "Active goals and monthly contributions for this closed month.",
+    savingsDetailTotal: "Total savings",
+    savingsDetailEmpty:
+      "No active savings goals were recorded for this closed month.",
+    savingsGoalFallback: "Savings goal",
+    savingsGoalRowLabel: "{name} savings goal",
+    savingsGoalTarget: "Goal",
+    savingsGoalSaved: "Saved",
+    savingsGoalTargetDate: "Date",
+    debtDetailLabel: "Debt details",
+    debtDetailTitle: "Debt this month",
+    debtDetailBody:
+      "Active debts and monthly payments compared with the previous closed month.",
+    debtDetailNoPrevious:
+      "Active debts and monthly payments for this closed month.",
+    debtDetailTotal: "Total debt payments",
+    debtDetailEmpty:
+      "No active debts were recorded for this closed month.",
+    debtRowLabel: "{name} debt",
+    debtType: "Type",
+    debtBalance: "Balance",
+    debtApr: "APR",
+    debtMinPayment: "Minimum",
+    debtMonthlyFee: "Fee",
+    debtTermMonths: "Months",
     futureVisualsLabel: "Future recap visuals",
     futureVisuals: "Visual recap",
   },
@@ -228,6 +288,36 @@ export const closedMonthRecapDict = {
     subscriptionEmpty:
       "Sellel suletud kuul ei registreeritud tellimusi.",
     subscriptionRowLabel: "{name} tellimus",
+    savingsDetailLabel: "Säästude detailid",
+    savingsDetailTitle: "Säästud sellel kuul",
+    savingsDetailBody:
+      "Aktiivsed eesmärgid ja kuupanused võrreldes eelmise suletud kuuga.",
+    savingsDetailNoPrevious:
+      "Selle suletud kuu aktiivsed eesmärgid ja kuupanused.",
+    savingsDetailTotal: "Säästud kokku",
+    savingsDetailEmpty:
+      "Sellel suletud kuul ei olnud aktiivseid säästueesmärke.",
+    savingsGoalFallback: "Säästueesmärk",
+    savingsGoalRowLabel: "{name} säästueesmärk",
+    savingsGoalTarget: "Eesmärk",
+    savingsGoalSaved: "Säästetud",
+    savingsGoalTargetDate: "Kuupäev",
+    debtDetailLabel: "Võlgade detailid",
+    debtDetailTitle: "Võlad sellel kuul",
+    debtDetailBody:
+      "Aktiivsed võlad ja kuumaksed võrreldes eelmise suletud kuuga.",
+    debtDetailNoPrevious:
+      "Selle suletud kuu aktiivsed võlad ja kuumaksed.",
+    debtDetailTotal: "Võlamaksed kokku",
+    debtDetailEmpty:
+      "Sellel suletud kuul ei olnud aktiivseid võlgu.",
+    debtRowLabel: "{name} võlg",
+    debtType: "Tüüp",
+    debtBalance: "Saldo",
+    debtApr: "Intress",
+    debtMinPayment: "Miinimum",
+    debtMonthlyFee: "Tasu",
+    debtTermMonths: "Kuud",
     futureVisualsLabel: "Tulevased visuaalsed ülevaated",
     futureVisuals: "Visuaalne ülevaade",
   },

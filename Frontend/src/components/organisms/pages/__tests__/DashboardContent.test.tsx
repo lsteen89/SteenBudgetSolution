@@ -162,6 +162,22 @@ function emptySubscriptionInsight(hasPreviousComparableMonth = false) {
   };
 }
 
+function emptySavingsDetail(hasPreviousComparableMonth = false) {
+  return {
+    totalSavingsMonthly: 1000,
+    activeGoals: [],
+    hasPreviousComparableMonth,
+  };
+}
+
+function emptyDebtDetail(hasPreviousComparableMonth = false) {
+  return {
+    totalDebtPaymentsMonthly: 500,
+    activeDebts: [],
+    hasPreviousComparableMonth,
+  };
+}
+
 function buildClosedRecap(overrides = {}) {
   return {
     month: {
@@ -192,6 +208,8 @@ function buildClosedRecap(overrides = {}) {
     },
     expenseCategories: [],
     subscriptionInsight: emptySubscriptionInsight(true),
+    savingsDetail: emptySavingsDetail(true),
+    debtDetail: emptyDebtDetail(true),
     ...overrides,
   };
 }
@@ -545,6 +563,43 @@ describe("DashboardContent", () => {
           cancelled: [],
           hasPreviousComparableMonth: true,
         },
+        savingsDetail: {
+          totalSavingsMonthly: 1000,
+          activeGoals: [
+            {
+              id: "goal-emergency",
+              sourceSavingsGoalId: "source-goal-emergency",
+              name: "Emergency fund",
+              monthlyContribution: 700,
+              targetAmount: 10000,
+              targetDate: "2026-12-01T00:00:00Z",
+              amountSaved: 2500,
+              previousMonthlyContribution: 600,
+              deltaMonthlyContribution: 100,
+            },
+          ],
+          hasPreviousComparableMonth: true,
+        },
+        debtDetail: {
+          totalDebtPaymentsMonthly: 500,
+          activeDebts: [
+            {
+              id: "debt-card",
+              sourceDebtId: "source-debt-card",
+              name: "Credit card",
+              type: "revolving",
+              balance: 2400,
+              apr: 19.5,
+              monthlyPayment: 500,
+              minPayment: 450,
+              monthlyFee: 50,
+              termMonths: null,
+              previousMonthlyPayment: 400,
+              deltaMonthlyPayment: 100,
+            },
+          ],
+          hasPreviousComparableMonth: true,
+        },
       },
       isPending: false,
       error: null,
@@ -641,6 +696,16 @@ describe("DashboardContent", () => {
     expect(subscriptions).toHaveTextContent("Spotify");
     expect(subscriptions).toHaveTextContent("Notion");
     expect(subscriptions).toHaveTextContent("HBO");
+    const savingsDetail = screen.getByTestId("closed-month-savings-detail");
+    expect(savingsDetail).toHaveTextContent(/savings this month/i);
+    expect(savingsDetail).toHaveTextContent("Emergency fund");
+    expect(savingsDetail).toHaveTextContent(/700/);
+    expect(savingsDetail).toHaveTextContent(/\+.*100/);
+    const debtDetail = screen.getByTestId("closed-month-debt-detail");
+    expect(debtDetail).toHaveTextContent(/debt this month/i);
+    expect(debtDetail).toHaveTextContent("Credit card");
+    expect(debtDetail).toHaveTextContent(/2,400/);
+    expect(debtDetail).toHaveTextContent(/\+.*100/);
     expect(screen.queryByRole("button", { name: /close month/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /add expense/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /^edit$/i })).toBeNull();
@@ -714,6 +779,8 @@ describe("DashboardContent", () => {
           },
         ],
         subscriptionInsight: emptySubscriptionInsight(),
+        savingsDetail: emptySavingsDetail(),
+        debtDetail: emptyDebtDetail(),
       },
       isPending: false,
       error: null,
@@ -792,6 +859,8 @@ describe("DashboardContent", () => {
           },
         ],
         subscriptionInsight: emptySubscriptionInsight(),
+        savingsDetail: emptySavingsDetail(),
+        debtDetail: emptyDebtDetail(),
       },
       isPending: false,
       error: null,
@@ -996,6 +1065,96 @@ describe("DashboardContent", () => {
     expect(screen.getByTestId("closed-month-subscriptions-empty")).toHaveTextContent(
       /no subscriptions were recorded/i,
     );
+  });
+
+  it("renders savings and debt detail empty states from the recap DTO", () => {
+    mockClosedMonthDashboard(
+      buildClosedRecap({
+        savingsDetail: {
+          totalSavingsMonthly: 1000,
+          activeGoals: [],
+          hasPreviousComparableMonth: false,
+        },
+        debtDetail: {
+          totalDebtPaymentsMonthly: 500,
+          activeDebts: [],
+          hasPreviousComparableMonth: false,
+        },
+      }),
+    );
+
+    renderDashboardContent();
+
+    expect(screen.getByTestId("closed-month-savings-detail")).toHaveTextContent(
+      /active goals and monthly contributions for this closed month/i,
+    );
+    expect(screen.getByTestId("closed-month-savings-empty")).toHaveTextContent(
+      /no active savings goals/i,
+    );
+    expect(screen.getByTestId("closed-month-debt-detail")).toHaveTextContent(
+      /active debts and monthly payments for this closed month/i,
+    );
+    expect(screen.getByTestId("closed-month-debt-empty")).toHaveTextContent(
+      /no active debts/i,
+    );
+  });
+
+  it("renders savings and debt detail rows with supported month-over-month deltas", () => {
+    mockClosedMonthDashboard(
+      buildClosedRecap({
+        savingsDetail: {
+          totalSavingsMonthly: 1400,
+          activeGoals: [
+            {
+              id: "goal-house",
+              sourceSavingsGoalId: "source-goal-house",
+              name: "House deposit",
+              monthlyContribution: 900,
+              targetAmount: 50000,
+              targetDate: "2027-06-01T00:00:00Z",
+              amountSaved: 12000,
+              previousMonthlyContribution: 700,
+              deltaMonthlyContribution: 200,
+            },
+          ],
+          hasPreviousComparableMonth: true,
+        },
+        debtDetail: {
+          totalDebtPaymentsMonthly: 650,
+          activeDebts: [
+            {
+              id: "debt-loan",
+              sourceDebtId: "source-debt-loan",
+              name: "Bank loan",
+              type: "bank-loan",
+              balance: 12000,
+              apr: 5.25,
+              monthlyPayment: 650,
+              minPayment: null,
+              monthlyFee: 20,
+              termMonths: 24,
+              previousMonthlyPayment: 600,
+              deltaMonthlyPayment: 50,
+            },
+          ],
+          hasPreviousComparableMonth: true,
+        },
+      }),
+    );
+
+    renderDashboardContent();
+
+    const savings = screen.getByTestId("closed-month-savings-detail");
+    expect(savings).toHaveTextContent("House deposit");
+    expect(savings).toHaveTextContent(/900/);
+    expect(savings).toHaveTextContent(/\+.*200/);
+    expect(savings).toHaveTextContent(/50,000/);
+
+    const debt = screen.getByTestId("closed-month-debt-detail");
+    expect(debt).toHaveTextContent("Bank loan");
+    expect(debt).toHaveTextContent(/12,000/);
+    expect(debt).toHaveTextContent(/5.25%/);
+    expect(debt).toHaveTextContent(/\+.*50/);
   });
 
   it("uses positive tone for removed subscriptions", () => {
