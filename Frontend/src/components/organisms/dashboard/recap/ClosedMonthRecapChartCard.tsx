@@ -1,5 +1,4 @@
 import { cn } from "@/lib/utils";
-import ClosedMonthFlowSurface from "@/components/organisms/dashboard/recap/ClosedMonthFlowSurface";
 import type { BudgetMonthRecapDto } from "@/types/budget/BudgetMonthRecapDto";
 import type { AppLocale } from "@/types/i18n/appLocale";
 import { labelLedgerItem } from "@/utils/i18n/budget/ledgerItems";
@@ -26,7 +25,7 @@ import {
   type TooltipProps,
 } from "recharts";
 
-export type ClosedMonthRecapChartTab = "flow" | "compare" | "categories";
+export type ClosedMonthRecapChartTab = "compare" | "categories";
 
 type RecapTKey = keyof typeof closedMonthRecapDict.sv;
 type RecapT = <K extends RecapTKey>(key: K) => string;
@@ -460,11 +459,10 @@ export default function ClosedMonthRecapChartCard({
   const canCompare =
     recap.comparison.hasPreviousComparableMonth && recap.comparison.summary != null;
   const tabs: ChartTabOption[] = [
-    { value: "flow", labelKey: "chartFlow" },
     { value: "compare", labelKey: "chartCompare", disabled: !canCompare },
     { value: "categories", labelKey: "chartCategories" },
   ];
-  const resolvedTab = selectedTab === "compare" && !canCompare ? "flow" : selectedTab;
+  const resolvedTab = selectedTab === "compare" && !canCompare ? "categories" : selectedTab;
 
   return (
     <article
@@ -495,14 +493,6 @@ export default function ClosedMonthRecapChartCard({
         role="tabpanel"
         className="mt-5 min-h-[360px]"
       >
-        {resolvedTab === "flow" ? (
-          <ClosedMonthFlowSurface
-            recap={recap}
-            currency={currency}
-            locale={locale}
-            t={t}
-          />
-        ) : null}
         {resolvedTab === "compare" ? (
           <ClosedMonthRecapCompareChart
             recap={recap}

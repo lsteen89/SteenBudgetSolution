@@ -625,16 +625,25 @@ describe("DashboardContent", () => {
     ).toBeInTheDocument();
     expect(screen.getAllByText("Closed").length).toBeGreaterThan(0);
     expect(screen.getByTestId("closed-month-summary")).toHaveTextContent(
-      /closed with/i,
+      /clear margin/i,
     );
     expect(screen.getByTestId("closed-month-recap")).toHaveTextContent(
-      /frozen snapshot/i,
+      /monthly takeaway/i,
+    );
+    expect(screen.getByTestId("closed-month-recap")).not.toHaveTextContent(
+      /locked snapshot for april 2026/i,
+    );
+    expect(screen.getByTestId("stable-month-frame")).not.toHaveTextContent(
+      /comparison baseline/i,
     );
     const heroResult = screen.getByTestId("closed-month-hero-result");
     expect(heroResult).toHaveTextContent(/4,500/);
-    expect(
-      within(heroResult).getByTestId("closed-month-hero-carry-over"),
-    ).toHaveTextContent(/500/);
+    expect(screen.getByTestId("closed-month-hero-carry-over")).toHaveTextContent(
+      /500/,
+    );
+    expect(screen.getByTestId("closed-month-hero-carry-over")).toHaveTextContent(
+      /may 2026/i,
+    );
 
     const incomeCard = screen.getByRole("article", {
       name: /income snapshot total/i,
@@ -661,49 +670,51 @@ describe("DashboardContent", () => {
     expect(
       within(carryOverCard).getByTestId("closed-month-carry-over"),
     ).toHaveTextContent(/500/);
+    expect(screen.queryByTestId("closed-month-chart-tab-flow")).toBeNull();
     expect(screen.getByTestId("closed-month-chart-card")).toBeInTheDocument();
-    expect(screen.getByTestId("closed-month-chart-tab-flow")).toHaveAttribute(
+    expect(screen.getByTestId("closed-month-chart-tab-compare")).toHaveAttribute(
       "aria-selected",
       "true",
     );
-    expect(screen.getByTestId("closed-month-chart-flow")).toBeInTheDocument();
-    expect(screen.getByText("Into the month")).toBeInTheDocument();
-    expect(screen.getByText("Planned movement")).toBeInTheDocument();
-    expect(screen.getByText("Result")).toBeInTheDocument();
-    expect(screen.getByTestId("closed-month-chart-flow-carry-over")).toHaveTextContent(
+    expect(screen.getByTestId("closed-month-hero-flow")).toBeInTheDocument();
+    expect(screen.getByText("Where did the money go?")).toBeInTheDocument();
+    expect(screen.getByText("From starting point to final balance")).toBeInTheDocument();
+    expect(screen.getByTestId("closed-month-hero-flow-available")).toHaveTextContent(
+      "Available",
+    );
+    expect(screen.getByTestId("closed-month-hero-flow-available")).toHaveTextContent(
+      /10,500/,
+    );
+    expect(screen.getByTestId("closed-month-hero-flow-carry-over")).toHaveTextContent(
       "Carry-over",
     );
-    expect(screen.getByTestId("closed-month-chart-flow-carry-over")).toHaveTextContent(
+    expect(screen.getByTestId("closed-month-hero-flow-carry-over")).toHaveTextContent(
       /500/,
     );
-    expect(screen.getByTestId("closed-month-chart-flow")).toHaveTextContent(
-      "Carry-over is shown separately from income and does not affect locked income totals.",
+    expect(screen.getByTestId("closed-month-hero-flow-income")).toHaveTextContent(
+      "Income",
     );
-    expect(screen.getByTestId("closed-month-chart-flow-income")).toHaveTextContent(
-      "Monthly income",
-    );
-    expect(screen.getByTestId("closed-month-chart-flow-income")).toHaveTextContent(
+    expect(screen.getByTestId("closed-month-hero-flow-income")).toHaveTextContent(
       /10,000/,
     );
     expect(
-      screen.getByTestId("closed-month-chart-flow-income"),
+      screen.getByTestId("closed-month-hero-flow-income"),
     ).not.toHaveTextContent(/10,500/);
-    expect(screen.getByTestId("closed-month-chart-flow-expenses")).toHaveTextContent(
+    expect(screen.getByTestId("closed-month-hero-flow-expenses")).toHaveTextContent(
       "Expenses",
     );
-    expect(screen.getByTestId("closed-month-chart-flow-savings")).toHaveTextContent(
+    expect(screen.getByTestId("closed-month-hero-flow-savings")).toHaveTextContent(
       "Savings",
     );
     expect(
-      screen.getByTestId("closed-month-chart-flow-debt-payments"),
-    ).toHaveTextContent("Debt payments");
+      screen.getByTestId("closed-month-hero-flow-debt-payments"),
+    ).toHaveTextContent("Debt");
     expect(
-      screen.getByTestId("closed-month-chart-flow-final-balance"),
-    ).toHaveTextContent("Final result");
+      screen.getByTestId("closed-month-hero-flow-final-balance"),
+    ).toHaveTextContent("Final balance");
     expect(
-      screen.getByTestId("closed-month-chart-flow-final-balance"),
+      screen.getByTestId("closed-month-hero-flow-final-balance"),
     ).toHaveTextContent(/4,500/);
-    fireEvent.click(screen.getByTestId("closed-month-chart-tab-compare"));
     const comparison = screen.getByTestId("closed-month-comparison");
     expect(comparison).toHaveTextContent(/previous closed month: march 2026/i);
     expect(screen.getByTestId("closed-month-comparison-income")).toHaveTextContent(
@@ -939,12 +950,13 @@ describe("DashboardContent", () => {
     expect(
       screen.getByRole("article", { name: /deficit guidance/i }),
     ).toHaveTextContent(/closed with a deficit/i);
-    expect(screen.getByTestId("closed-month-chart-tab-flow")).toHaveAttribute(
+    expect(screen.queryByTestId("closed-month-chart-tab-flow")).toBeNull();
+    expect(screen.getByTestId("closed-month-chart-tab-compare")).toBeDisabled();
+    expect(screen.getByTestId("closed-month-chart-tab-categories")).toHaveAttribute(
       "aria-selected",
       "true",
     );
-    expect(screen.getByTestId("closed-month-chart-tab-compare")).toBeDisabled();
-    expect(screen.getByTestId("closed-month-chart-flow")).toBeInTheDocument();
+    expect(screen.getByTestId("closed-month-hero-flow")).toBeInTheDocument();
     expect(
       screen.queryByTestId("closed-month-comparison-income-percent"),
     ).toBeNull();

@@ -74,6 +74,34 @@ function buildPeriodControlBarViewModel(
         )
       : t("periodContextNextLocked");
 
+  const ribbonItems: PeriodControlBarViewModel["ribbonItems"] = [
+    {
+      label: isSkipped
+        ? t("periodContextSkippedMeaning")
+        : isClosed
+          ? t("periodContextClosedMeaning")
+          : isAttention || showCloseAction
+            ? t("periodContextOverdueMeaning")
+            : t("periodContextOpenMeaning"),
+      tone: currentTone,
+      icon: isSkipped ? "skip" : isClosed ? "lock" : "status",
+    },
+    ...(isClosed
+      ? []
+      : [
+          {
+            label: comparisonLabel,
+            tone: isAttention ? "attention" : isSkipped ? "muted" : "neutral",
+            icon: "compare",
+          } satisfies PeriodControlBarViewModel["ribbonItems"][number],
+        ]),
+    {
+      label: nextLabel,
+      tone: header.canGoNext ? "neutral" : "muted",
+      icon: "next",
+    },
+  ];
+
   return {
     current: {
       yearMonth: header.periodKey,
@@ -90,29 +118,7 @@ function buildPeriodControlBarViewModel(
       label: header.nextPeriodLabel ?? t("next"),
       disabled: !header.canGoNext,
     },
-    ribbonItems: [
-      {
-        label: isSkipped
-          ? t("periodContextSkippedMeaning")
-          : isClosed
-            ? t("periodContextClosedMeaning")
-            : isAttention || showCloseAction
-              ? t("periodContextOverdueMeaning")
-              : t("periodContextOpenMeaning"),
-        tone: currentTone,
-        icon: isSkipped ? "skip" : isClosed ? "lock" : "status",
-      },
-      {
-        label: comparisonLabel,
-        tone: isAttention ? "attention" : isSkipped ? "muted" : "neutral",
-        icon: "compare",
-      },
-      {
-        label: nextLabel,
-        tone: header.canGoNext ? "neutral" : "muted",
-        icon: "next",
-      },
-    ],
+    ribbonItems,
     action: showCloseAction
       ? {
           type: "close",
@@ -126,11 +132,7 @@ function buildPeriodControlBarViewModel(
           attention: header.lifecycleState === "overdue",
         }
       : isClosed
-        ? {
-            type: "passive",
-            label: t("periodContextClosedMeaning"),
-            tone: "success",
-          }
+        ? { type: "none" }
         : isSkipped
           ? {
               type: "passive",

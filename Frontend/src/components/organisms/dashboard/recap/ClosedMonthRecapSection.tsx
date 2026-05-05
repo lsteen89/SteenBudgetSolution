@@ -6,6 +6,7 @@ import {
 import ClosedMonthRecapChartCard, {
   type ClosedMonthRecapChartTab,
 } from "@/components/organisms/dashboard/recap/ClosedMonthRecapChartCard";
+import ClosedMonthReviewHero from "@/components/organisms/dashboard/recap/ClosedMonthReviewHero";
 import { cn } from "@/lib/utils";
 import type { BudgetMonthRecapDto } from "@/types/budget/BudgetMonthRecapDto";
 import type { AppLocale } from "@/types/i18n/appLocale";
@@ -16,7 +17,6 @@ import { formatMoneyV2 } from "@/utils/money/moneyV2";
 import { useEffect, useState } from "react";
 import {
   ArrowRightLeft,
-  CalendarCheck,
   ChartNoAxesColumn,
   CircleCheck,
   CircleMinus,
@@ -24,13 +24,10 @@ import {
   CircleSlash,
   Landmark,
   LoaderCircle,
-  LockKeyhole,
   PiggyBank,
   PlusCircle,
   ReceiptText,
   Repeat2,
-  Scale,
-  Snowflake,
   TrendingDown,
   WalletCards,
   type LucideIcon,
@@ -113,6 +110,16 @@ function formatYearMonth(value: string, locale: string) {
   });
 }
 
+function formatNextYearMonth(value: string, locale: string) {
+  const [year, month] = value.split("-").map(Number);
+  const date = new Date(year, month ?? 1, 1);
+
+  return date.toLocaleDateString(locale, {
+    month: "long",
+    year: "numeric",
+  });
+}
+
 function formatSnapshotMoney(
   value: number,
   currency: CurrencyCode,
@@ -173,185 +180,6 @@ function formatCarryOverMode(
   if (mode === "full") return t("carryOverModeFull");
   if (mode === "custom") return t("carryOverModeCustom");
   return t("carryOverModeNone");
-}
-
-type OutcomeTone = "positive" | "balanced" | "attention";
-
-function buildOutcomeSentence({
-  finalBalance,
-  monthLabel,
-  currency,
-  locale,
-  t,
-}: {
-  finalBalance: number;
-  monthLabel: string;
-  currency: CurrencyCode;
-  locale: string;
-  t: RecapT;
-}): { sentence: string; tone: OutcomeTone } {
-  if (finalBalance > 0) {
-    const amount = formatSnapshotMoney(finalBalance, currency, locale);
-    const sentence = replaceToken(
-      replaceToken(t("heroOutcomePositive"), "month", monthLabel),
-      "amount",
-      amount,
-    );
-    return { sentence, tone: "positive" };
-  }
-
-  if (finalBalance < 0) {
-    const amount = formatSnapshotMoney(Math.abs(finalBalance), currency, locale);
-    const sentence = replaceToken(
-      replaceToken(t("heroOutcomeNegative"), "month", monthLabel),
-      "amount",
-      amount,
-    );
-    return { sentence, tone: "attention" };
-  }
-
-  const sentence = replaceToken(t("heroOutcomeBalanced"), "month", monthLabel);
-  return { sentence, tone: "balanced" };
-}
-
-function ClosedMonthHero({
-  recap,
-  currency,
-  locale,
-  closedAtLabel,
-  monthLabel,
-  t,
-}: {
-  recap: BudgetMonthRecapDto;
-  currency: CurrencyCode;
-  locale: string;
-  closedAtLabel: string | null;
-  monthLabel: string;
-  t: RecapT;
-}) {
-  const finalBalance = recap.snapshotTotals.finalBalanceMonthly;
-  const { sentence, tone } = buildOutcomeSentence({
-    finalBalance,
-    monthLabel,
-    currency,
-    locale,
-    t,
-  });
-
-  const finalBalanceLabel = formatSnapshotMoney(finalBalance, currency, locale);
-  const hasCarryOver =
-    recap.month.carryOverMode !== "none" && recap.month.carryOverAmount != null;
-  const carryOverFormatted = hasCarryOver
-    ? formatSnapshotMoney(recap.month.carryOverAmount as number, currency, locale)
-    : null;
-
-  const isAttention = tone === "attention";
-
-  const pillClass = isAttention
-    ? "border border-[rgb(239_68_68_/_0.22)] bg-[rgb(239_68_68_/_0.08)] text-[rgb(21_39_81)]"
-    : "border border-[rgb(34_197_94_/_0.25)] bg-[rgb(34_197_94_/_0.10)] text-[rgb(21_39_81)]";
-
-  return (
-    <header className="rounded-2xl border border-[rgb(199_228_255_/_0.35)] bg-white p-6 shadow-[0_18px_50px_rgb(21_39_81_/_0.06)]">
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(280px,1fr)] lg:items-start">
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span
-              data-testid="closed-month-hero-badge"
-              className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold uppercase tracking-wide text-emerald-700 ring-1 ring-emerald-200"
-            >
-              <LockKeyhole className="h-3.5 w-3.5" />
-              {t("closed")}
-            </span>
-            {closedAtLabel ? (
-              <span
-                data-testid="closed-month-hero-timestamp"
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-eb-text/60"
-              >
-                <CalendarCheck className="h-4 w-4" />
-                {replaceToken(t("closedAt"), "date", closedAtLabel)}
-              </span>
-            ) : null}
-          </div>
-
-          <h1
-            id="closed-month-title"
-            className="text-2xl font-extrabold tracking-normal text-eb-text sm:text-3xl"
-          >
-            {monthLabel}
-          </h1>
-
-          <p
-            data-testid="closed-month-summary"
-            className="max-w-2xl text-base font-medium leading-7 text-eb-text/80"
-          >
-            {sentence}
-          </p>
-
-          <div className="inline-flex items-center gap-2 rounded-xl border border-eb-stroke/25 bg-eb-shell/40 px-3 py-2 text-xs font-medium text-eb-text/60">
-            <Snowflake className="h-4 w-4 text-eb-accent" />
-            {t("heroExplainer")}
-          </div>
-        </div>
-
-        <article
-          aria-label={t("heroResultLabel")}
-          data-testid="closed-month-hero-result"
-          className="rounded-2xl border border-[rgb(199_228_255_/_0.45)] bg-[rgb(224_240_255_/_0.45)] p-4"
-        >
-          <p className="text-xs font-bold uppercase tracking-wide text-eb-text/55">
-            {t("heroResultLabel")}
-          </p>
-          <p
-            data-testid="closed-month-hero-final-balance"
-            className={cn(
-              "mt-2 text-3xl font-extrabold tracking-tight",
-              isAttention ? "text-rose-700" : "text-eb-text",
-            )}
-          >
-            {finalBalanceLabel}
-          </p>
-
-          <span
-            data-testid="closed-month-hero-result-pill"
-            data-tone={tone}
-            className={cn(
-              "mt-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold",
-              pillClass,
-            )}
-          >
-            {isAttention ? (
-              <TrendingDown className="h-3.5 w-3.5" />
-            ) : (
-              <Scale className="h-3.5 w-3.5" />
-            )}
-            {t("finalBalance")}
-          </span>
-
-          <div className="mt-4 border-t border-eb-stroke/20 pt-3">
-            <p className="text-xs font-bold uppercase tracking-wide text-eb-text/55">
-              {hasCarryOver ? t("heroCarryOverApplied") : t("heroCarryOverNone")}
-            </p>
-            {hasCarryOver ? (
-              <p
-                data-testid="closed-month-hero-carry-over"
-                className="mt-1 text-lg font-extrabold text-eb-text"
-              >
-                {carryOverFormatted}
-              </p>
-            ) : (
-              <p
-                data-testid="closed-month-hero-carry-over"
-                className="mt-1 text-sm font-medium leading-5 text-eb-text/65"
-              >
-                {t("heroCarryOverNoneBody")}
-              </p>
-            )}
-          </div>
-        </article>
-      </div>
-    </header>
-  );
 }
 
 function KpiCard({
@@ -586,14 +414,14 @@ export default function ClosedMonthRecapSection({
   onRetry,
 }: ClosedMonthRecapSectionProps) {
   const [selectedChartTab, setSelectedChartTab] =
-    useState<ClosedMonthRecapChartTab>("flow");
+    useState<ClosedMonthRecapChartTab>("compare");
   const hasComparableChart =
     recap?.comparison.hasPreviousComparableMonth === true &&
     recap.comparison.summary != null;
 
   useEffect(() => {
     if (selectedChartTab === "compare" && !hasComparableChart) {
-      setSelectedChartTab("flow");
+      setSelectedChartTab("categories");
     }
   }, [hasComparableChart, selectedChartTab]);
 
@@ -625,6 +453,7 @@ export default function ClosedMonthRecapSection({
 
   const t: RecapT = (key) => tDict(key, locale, closedMonthRecapDict);
   const monthLabel = formatYearMonth(recap.month.yearMonth, locale);
+  const nextMonthLabel = formatNextYearMonth(recap.month.yearMonth, locale);
   const closedAtLabel = formatDateTime(recap.month.closedAtUtc, locale);
   const finalBalance = recap.snapshotTotals.finalBalanceMonthly;
   const hasDeficit = finalBalance < 0;
@@ -635,12 +464,13 @@ export default function ClosedMonthRecapSection({
       aria-labelledby="closed-month-title"
       className="w-full space-y-5"
     >
-      <ClosedMonthHero
+      <ClosedMonthReviewHero
         recap={recap}
         currency={currency}
         locale={locale}
         closedAtLabel={closedAtLabel}
         monthLabel={monthLabel}
+        nextMonthLabel={nextMonthLabel}
         t={t}
       />
 

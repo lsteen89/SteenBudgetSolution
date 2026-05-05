@@ -13,12 +13,32 @@ export const closedMonthRecapDict = {
     readOnlyBody: "Historisk ögonblicksbild låst vid stängning.",
     heroResultLabel: "Slutsaldo",
     heroOutcomePositive:
-      "{month} stängdes med {amount} kvar efter planerade pengarörelser.",
+      "{month} stängdes med {amount} kvar efter planerade pengarrörelser.",
     heroOutcomeBalanced:
-      "{month} stängdes balanserat. Alla planerade pengarörelser är avstämda.",
+      "{month} stängdes balanserat. Alla planerade pengarrörelser är avstämda.",
     heroOutcomeNegative:
       "{month} stängdes {amount} under plan. Granska förändringarna innan nästa månad justeras.",
+    heroGuideEyebrow: "Månadsgenomgång",
+    heroTakeawayLabel: "Månadens slutsats",
+    heroTakeawayPositive:
+      "Månaden avslutades med en tydlig marginal. Bra utgångsläge inför nästa planering.",
+    heroTakeawayBalanced:
+      "Månaden landade nära balans. Små justeringar kan göra nästa månad tydligare.",
+    heroTakeawayDeficit:
+      "Månaden stängdes med underskott. Börja nästa planering med att se över de största rörelserna.",
+    heroTakeawayExpensesUp:
+      "Månaden slutade positivt, men utgifterna ökade jämfört med föregående stängda månad.",
+    heroTakeawaySavingsUp:
+      "Sparandet stärktes jämfört med föregående stängda månad.",
+    heroFlowLabel: "Månadens pengaflöde",
+    heroFlowEyebrow: "Var tog pengarna vägen?",
+    heroFlowTitle: "Från startläge till slutsaldo",
+    heroFlowStartGroup: "Start",
+    heroFlowResultGroup: "Slutsats",
+    heroAvailableShort: "Tillgängligt",
+    heroDebtShort: "Skulder",
     heroCarryOverApplied: "Överfört till nästa månad",
+    heroCarryOverToNextMonth: "Överfört till {month}: {amount}",
     heroCarryOverNone: "Ingen överföring",
     heroCarryOverNoneBody:
       "Den här månaden fördes inte vidare till nästa månad.",
@@ -118,9 +138,9 @@ export const closedMonthRecapDict = {
     debtMonthlyFee: "Avgift",
     debtTermMonths: "Månader",
     chartEyebrow: "Diagram",
-    chartTitle: "Pengarnas rörelse",
+    chartTitle: "Månadsanalys",
     chartBody:
-      "Så rörde sig månadens pengar från startläge till resultat.",
+      "Fördjupa dig i jämförelser och kategorier från den låsta månaden.",
     chartSwitcherLabel: "Välj diagramvy",
     chartFlow: "Flöde",
     chartCompare: "Jämför",
@@ -171,7 +191,27 @@ export const closedMonthRecapDict = {
       "{month} closed balanced. All planned money movements lined up.",
     heroOutcomeNegative:
       "{month} closed {amount} below plan. Review the changes before adjusting the next month.",
+    heroGuideEyebrow: "Monthly review",
+    heroTakeawayLabel: "Monthly takeaway",
+    heroTakeawayPositive:
+      "The month ended with a clear margin. A good starting point for the next plan.",
+    heroTakeawayBalanced:
+      "The month landed close to balance. Small adjustments can make the next month clearer.",
+    heroTakeawayDeficit:
+      "The month closed with a deficit. Start the next plan by reviewing the largest movements.",
+    heroTakeawayExpensesUp:
+      "The month ended positive, but expenses increased compared with the previous closed month.",
+    heroTakeawaySavingsUp:
+      "Savings strengthened compared with the previous closed month.",
+    heroFlowLabel: "Month money flow",
+    heroFlowEyebrow: "Where did the money go?",
+    heroFlowTitle: "From starting point to final balance",
+    heroFlowStartGroup: "Start",
+    heroFlowResultGroup: "Result",
+    heroAvailableShort: "Available",
+    heroDebtShort: "Debt",
     heroCarryOverApplied: "Carried into the next month",
+    heroCarryOverToNextMonth: "Carried into {month}: {amount}",
     heroCarryOverNone: "Nothing carried over",
     heroCarryOverNoneBody:
       "This month was not carried into the next month.",
@@ -271,9 +311,9 @@ export const closedMonthRecapDict = {
     debtMonthlyFee: "Fee",
     debtTermMonths: "Months",
     chartEyebrow: "Chart",
-    chartTitle: "Money movement",
+    chartTitle: "Month analysis",
     chartBody:
-      "How this month's money moved from starting point to result.",
+      "Compare the locked month and review the category breakdown.",
     chartSwitcherLabel: "Choose chart view",
     chartFlow: "Flow",
     chartCompare: "Compare",
@@ -324,7 +364,27 @@ export const closedMonthRecapDict = {
       "{month} suleti tasakaalus. Kõik planeeritud rahaliikumised läksid kokku.",
     heroOutcomeNegative:
       "{month} suleti {amount} alla plaani. Vaata muudatused üle, enne kui järgmist kuud kohandad.",
+    heroGuideEyebrow: "Kuu ülevaade",
+    heroTakeawayLabel: "Kuu järeldus",
+    heroTakeawayPositive:
+      "Kuu lõppes selge varuga. Hea lähtekoht järgmise plaani jaoks.",
+    heroTakeawayBalanced:
+      "Kuu jäi tasakaalu lähedale. Väikesed kohandused võivad järgmise kuu selgemaks teha.",
+    heroTakeawayDeficit:
+      "Kuu suleti puudujäägiga. Alusta järgmist plaani suurimate liikumiste ülevaatamisest.",
+    heroTakeawayExpensesUp:
+      "Kuu lõppes positiivselt, kuid kulud kasvasid võrreldes eelmise suletud kuuga.",
+    heroTakeawaySavingsUp:
+      "Säästmine tugevnes võrreldes eelmise suletud kuuga.",
+    heroFlowLabel: "Kuu rahavoog",
+    heroFlowEyebrow: "Kuhu raha liikus?",
+    heroFlowTitle: "Algseisust lõppsaldoni",
+    heroFlowStartGroup: "Algus",
+    heroFlowResultGroup: "Tulemus",
+    heroAvailableShort: "Saadaval",
+    heroDebtShort: "Võlad",
     heroCarryOverApplied: "Üle kantud järgmisesse kuusse",
+    heroCarryOverToNextMonth: "Üle kantud kuusse {month}: {amount}",
     heroCarryOverNone: "Ülekannet pole",
     heroCarryOverNoneBody:
       "Seda kuud ei kantud järgmisesse kuusse.",
@@ -422,9 +482,9 @@ export const closedMonthRecapDict = {
     debtMonthlyFee: "Tasu",
     debtTermMonths: "Kuud",
     chartEyebrow: "Diagramm",
-    chartTitle: "Raha liikumine",
+    chartTitle: "Kuu analüüs",
     chartBody:
-      "Nii liikus kuu raha algseisust tulemuseni.",
+      "Võrdle lukustatud kuud ja vaata kategooriate jaotust.",
     chartSwitcherLabel: "Vali diagrammivaade",
     chartFlow: "Voog",
     chartCompare: "Võrdle",
