@@ -4,14 +4,8 @@ import type { AppLocale } from "@/types/i18n/appLocale";
 import { closedMonthRecapDict } from "@/utils/i18n/pages/private/dashboard/recap/ClosedMonthRecapSection.i18n";
 import type { CurrencyCode } from "@/utils/money/currency";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
-import {
-  BadgeDollarSign,
-  CalendarDays,
-  Landmark,
-  PiggyBank,
-  Target,
-  type LucideIcon,
-} from "lucide-react";
+import { Landmark, PiggyBank, ShieldCheck } from "lucide-react";
+import type { ReactNode } from "react";
 
 type RecapTKey = keyof typeof closedMonthRecapDict.sv;
 type RecapT = <K extends RecapTKey>(key: K) => string;
@@ -67,16 +61,10 @@ function formatDebtType(value: string) {
     .join(" ");
 }
 
-function detailToneClasses(tone: DetailTone) {
-  if (tone === "positive") {
-    return "border-emerald-200 bg-emerald-50/70 text-emerald-800";
-  }
-
-  if (tone === "attention") {
-    return "border-amber-200 bg-amber-50/70 text-amber-800";
-  }
-
-  return "border-eb-stroke/25 bg-white/75 text-eb-text";
+function deltaToneClasses(tone: DetailTone) {
+  if (tone === "positive") return "text-emerald-700";
+  if (tone === "attention") return "text-amber-700";
+  return "text-eb-text/60";
 }
 
 function savingsTone(deltaAmount: number | null): DetailTone {
@@ -86,61 +74,111 @@ function savingsTone(deltaAmount: number | null): DetailTone {
 
 function debtPaymentTone(deltaAmount: number | null): DetailTone {
   if (deltaAmount == null || deltaAmount === 0) return "neutral";
+  // For debt, paying *more* than before is neutral (still on plan); paying
+  // less without context could be a missed payment, so we render as positive
+  // (less debt service) by default — match the existing convention.
   return deltaAmount > 0 ? "neutral" : "positive";
 }
 
-function SectionSummary({
+function MetaItem({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="inline-flex items-baseline gap-1.5 text-xs">
+      <span className="font-semibold uppercase tracking-wide text-eb-text/45">
+        {label}
+      </span>
+      <span className="font-bold tabular-nums text-eb-text/80">{value}</span>
+    </span>
+  );
+}
+
+function ProgressBar({
+  current,
+  target,
+  ariaLabel,
+}: {
+  current: number;
+  target: number;
+  ariaLabel: string;
+}) {
+  const ratio = target > 0 ? Math.min(1, Math.max(0, current / target)) : 0;
+  const percent = Math.round(ratio * 100);
+
+  return (
+    <div
+      role="progressbar"
+      aria-label={ariaLabel}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={percent}
+      className="h-1 w-full overflow-hidden rounded-full bg-eb-shell/55"
+    >
+      <div
+        className="h-full rounded-full bg-emerald-500/80"
+        style={{ width: `${percent}%` }}
+      />
+    </div>
+  );
+}
+
+function SectionHeading({
+  Icon,
+  iconBg,
+  iconColor,
+  title,
+  body,
+  meta,
+}: {
+  Icon: typeof PiggyBank;
+  iconBg: string;
+  iconColor: string;
+  title: string;
+  body: string;
+  meta?: ReactNode;
+}) {
+  return (
+    <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex items-start gap-3">
+        <span
+          className={cn(
+            "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl",
+            iconBg,
+            iconColor,
+          )}
+        >
+          <Icon className="h-4 w-4" />
+        </span>
+        <div>
+          <h2 className="text-base font-extrabold text-eb-text">{title}</h2>
+          <p className="mt-1 text-sm font-medium leading-6 text-eb-text/60">
+            {body}
+          </p>
+        </div>
+      </div>
+      {meta ? <div className="sm:self-start">{meta}</div> : null}
+    </header>
+  );
+}
+
+function TotalSummary({
   label,
   value,
-  deltaAmount,
-  tone,
   currency,
   locale,
 }: {
   label: string;
   value: number;
-  deltaAmount: number | null | undefined;
-  tone: DetailTone;
   currency: CurrencyCode;
   locale: AppLocale;
 }) {
   return (
-    <div className="rounded-xl border border-eb-stroke/20 bg-eb-shell/30 px-3.5 py-3 sm:min-w-52">
-      <p className="text-xs font-bold uppercase tracking-wide text-eb-text/50">
+    <div className="rounded-xl border border-eb-stroke/15 bg-white px-3.5 py-2.5 text-right">
+      <p className="text-[10px] font-extrabold uppercase tracking-[0.1em] text-eb-text/45">
         {label}
       </p>
-      <p className="mt-1 text-lg font-extrabold text-eb-text">
+      <p className="mt-0.5 text-base font-extrabold tabular-nums text-eb-text">
         {formatSnapshotMoney(value, currency, locale)}
       </p>
-      {deltaAmount != null ? (
-        <span
-          className={cn(
-            "mt-2 inline-flex rounded-lg border px-2.5 py-1 text-xs font-extrabold",
-            detailToneClasses(tone),
-          )}
-        >
-          {formatSignedMoney(deltaAmount, currency, locale)}
-        </span>
-      ) : null}
     </div>
-  );
-}
-
-function DetailChip({
-  label,
-  value,
-  Icon,
-}: {
-  label: string;
-  value: string;
-  Icon?: LucideIcon;
-}) {
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/65 px-2.5 py-1 text-xs font-bold text-eb-text/65">
-      {Icon ? <Icon className="h-3.5 w-3.5 text-eb-text/45" /> : null}
-      <span className="text-eb-text/45">{label}</span>
-      <span className="text-eb-text">{value}</span>
-    </span>
   );
 }
 
@@ -154,111 +192,176 @@ export function SavingsDetailBlock({
   const totalDelta = recap.comparison.summary?.savings.deltaAmount ?? null;
   const hasGoals = detail.activeGoals.length > 0;
 
+  let insightSentence: string | null = null;
+  if (detail.hasPreviousComparableMonth && totalDelta != null) {
+    if (totalDelta > 0) {
+      insightSentence = replaceToken(
+        t("savingsInsightIncreased"),
+        "amount",
+        formatSnapshotMoney(Math.abs(totalDelta), currency, locale),
+      );
+    } else if (totalDelta < 0) {
+      insightSentence = replaceToken(
+        t("savingsInsightDecreased"),
+        "amount",
+        formatSnapshotMoney(Math.abs(totalDelta), currency, locale),
+      );
+    } else {
+      insightSentence = t("savingsInsightUnchanged");
+    }
+  }
+
   return (
     <article
       aria-label={t("savingsDetailLabel")}
       data-testid="closed-month-savings-detail"
-      className="mt-4 rounded-2xl border border-eb-stroke/25 bg-white/72 p-4"
+      className="rounded-2xl border border-eb-stroke/20 bg-white/85 p-4 sm:p-5"
     >
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-start gap-3">
-          <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
-            <PiggyBank className="h-4 w-4" />
-          </span>
-          <div>
-            <h2 className="text-base font-extrabold text-eb-text">
-              {t("savingsDetailTitle")}
-            </h2>
-            <p className="mt-1 text-sm font-medium leading-6 text-eb-text/60">
-              {detail.hasPreviousComparableMonth
-                ? t("savingsDetailBody")
-                : t("savingsDetailNoPrevious")}
-            </p>
-          </div>
-        </div>
+      <SectionHeading
+        Icon={PiggyBank}
+        iconBg="bg-emerald-50"
+        iconColor="text-emerald-700"
+        title={t("savingsDetailTitle")}
+        body={
+          detail.hasPreviousComparableMonth
+            ? t("savingsDetailBody")
+            : t("savingsDetailNoPrevious")
+        }
+        meta={
+          <TotalSummary
+            label={t("savingsDetailTotal")}
+            value={detail.totalSavingsMonthly}
+            currency={currency}
+            locale={locale}
+          />
+        }
+      />
 
-        <SectionSummary
-          label={t("savingsDetailTotal")}
-          value={detail.totalSavingsMonthly}
-          deltaAmount={totalDelta}
-          tone={savingsTone(totalDelta)}
-          currency={currency}
-          locale={locale}
-        />
-      </div>
+      {insightSentence ? (
+        <p
+          data-testid="closed-month-savings-insight"
+          className="mt-3 text-sm font-medium text-eb-text/65"
+        >
+          {insightSentence}
+        </p>
+      ) : null}
 
       {hasGoals ? (
-        <div className="mt-4 divide-y divide-eb-stroke/20 overflow-hidden rounded-xl border border-eb-stroke/20 bg-eb-shell/20">
+        <ul className="mt-4 divide-y divide-eb-stroke/12 overflow-hidden rounded-xl border border-eb-stroke/15 bg-white/70">
           {detail.activeGoals.map((goal) => {
             const goalName = goal.name?.trim() || t("savingsGoalFallback");
-            const deltaTone = savingsTone(goal.deltaMonthlyContribution);
             const targetDate = formatMonthDate(goal.targetDate, locale);
+            const hasTarget =
+              goal.targetAmount != null && goal.targetAmount > 0;
+            const currentSaved = goal.amountSaved ?? 0;
+            const progressPercent = hasTarget
+              ? Math.min(
+                  100,
+                  Math.round((currentSaved / (goal.targetAmount as number)) * 100),
+                )
+              : null;
+            const deltaTone = savingsTone(goal.deltaMonthlyContribution);
 
             return (
-              <section
+              <li
                 key={goal.id}
-                aria-label={replaceToken(t("savingsGoalRowLabel"), "name", goalName)}
+                aria-label={replaceToken(
+                  t("savingsGoalRowLabel"),
+                  "name",
+                  goalName,
+                )}
                 data-testid={`closed-month-savings-goal-${goal.id}`}
-                className="grid grid-cols-1 gap-3 bg-white/55 px-4 py-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center"
+                className="px-4 py-3.5"
               >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-extrabold text-eb-text">
-                    {goalName}
-                  </p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {goal.targetAmount != null ? (
-                      <DetailChip
-                        label={t("savingsGoalTarget")}
-                        value={formatSnapshotMoney(goal.targetAmount, currency, locale)}
-                        Icon={Target}
-                      />
-                    ) : null}
-                    {goal.amountSaved != null ? (
-                      <DetailChip
-                        label={t("savingsGoalSaved")}
-                        value={formatSnapshotMoney(goal.amountSaved, currency, locale)}
-                      />
-                    ) : null}
-                    {targetDate ? (
-                      <DetailChip
-                        label={t("savingsGoalTargetDate")}
-                        value={targetDate}
-                        Icon={CalendarDays}
-                      />
-                    ) : null}
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-extrabold text-eb-text">
+                      {goalName}
+                    </p>
+                    <div className="mt-1.5 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                      {goal.amountSaved != null ? (
+                        <MetaItem
+                          label={t("savingsGoalSaved")}
+                          value={formatSnapshotMoney(
+                            currentSaved,
+                            currency,
+                            locale,
+                          )}
+                        />
+                      ) : null}
+                      {goal.targetAmount != null ? (
+                        <MetaItem
+                          label={t("savingsGoalTarget")}
+                          value={formatSnapshotMoney(
+                            goal.targetAmount,
+                            currency,
+                            locale,
+                          )}
+                        />
+                      ) : null}
+                      {targetDate ? (
+                        <MetaItem
+                          label={t("savingsGoalTargetDate")}
+                          value={targetDate}
+                        />
+                      ) : null}
+                    </div>
                   </div>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                  <span className="rounded-lg bg-white/70 px-3 py-1.5 text-sm font-extrabold text-eb-text">
-                    {formatSnapshotMoney(goal.monthlyContribution, currency, locale)}
-                  </span>
-                  {goal.deltaMonthlyContribution != null ? (
-                    <span
-                      className={cn(
-                        "rounded-lg border px-3 py-1.5 text-sm font-extrabold",
-                        detailToneClasses(deltaTone),
-                      )}
-                    >
-                      {formatSignedMoney(
-                        goal.deltaMonthlyContribution,
+                  <div className="flex items-baseline gap-3 lg:justify-end">
+                    <span className="text-base font-extrabold tabular-nums text-eb-text">
+                      {formatSnapshotMoney(
+                        goal.monthlyContribution,
                         currency,
                         locale,
                       )}
                     </span>
-                  ) : null}
+                    {goal.deltaMonthlyContribution != null ? (
+                      <span
+                        className={cn(
+                          "text-xs font-extrabold tabular-nums",
+                          deltaToneClasses(deltaTone),
+                        )}
+                      >
+                        {formatSignedMoney(
+                          goal.deltaMonthlyContribution,
+                          currency,
+                          locale,
+                        )}
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
-              </section>
+                {hasTarget && progressPercent != null ? (
+                  <div className="mt-3 flex items-center gap-3">
+                    <ProgressBar
+                      current={currentSaved}
+                      target={goal.targetAmount as number}
+                      ariaLabel={replaceToken(
+                        t("savingsGoalProgressLabel"),
+                        "percent",
+                        String(progressPercent),
+                      )}
+                    />
+                    <span className="shrink-0 text-[11px] font-bold tabular-nums text-eb-text/55">
+                      {replaceToken(
+                        t("savingsGoalProgressLabel"),
+                        "percent",
+                        String(progressPercent),
+                      )}
+                    </span>
+                  </div>
+                ) : null}
+              </li>
             );
           })}
-        </div>
+        </ul>
       ) : (
-        <div
+        <p
           data-testid="closed-month-savings-empty"
-          className="mt-4 rounded-xl border border-dashed border-eb-stroke/35 bg-eb-shell/35 px-4 py-5 text-sm font-semibold text-eb-text/60"
+          className="mt-4 text-sm font-medium text-eb-text/55"
         >
           {t("savingsDetailEmpty")}
-        </div>
+        </p>
       )}
     </article>
   );
@@ -271,121 +374,150 @@ export function DebtDetailBlock({
   t,
 }: RecapDetailBlockProps) {
   const detail = recap.debtDetail;
-  const totalDelta = recap.comparison.summary?.debtPayments.deltaAmount ?? null;
   const hasDebts = detail.activeDebts.length > 0;
 
   return (
     <article
       aria-label={t("debtDetailLabel")}
       data-testid="closed-month-debt-detail"
-      className="mt-4 rounded-2xl border border-eb-stroke/25 bg-white/72 p-4"
+      className="rounded-2xl border border-eb-stroke/20 bg-white/85 p-4 sm:p-5"
     >
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-start gap-3">
-          <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
-            <Landmark className="h-4 w-4" />
-          </span>
-          <div>
-            <h2 className="text-base font-extrabold text-eb-text">
-              {t("debtDetailTitle")}
-            </h2>
-            <p className="mt-1 text-sm font-medium leading-6 text-eb-text/60">
-              {detail.hasPreviousComparableMonth
-                ? t("debtDetailBody")
-                : t("debtDetailNoPrevious")}
-            </p>
-          </div>
-        </div>
-
-        <SectionSummary
-          label={t("debtDetailTotal")}
-          value={detail.totalDebtPaymentsMonthly}
-          deltaAmount={totalDelta}
-          tone={debtPaymentTone(totalDelta)}
-          currency={currency}
-          locale={locale}
-        />
-      </div>
+      <SectionHeading
+        Icon={Landmark}
+        iconBg="bg-eb-accentSoft/55"
+        iconColor="text-eb-accent"
+        title={t("debtDetailTitle")}
+        body={
+          detail.hasPreviousComparableMonth
+            ? t("debtDetailBody")
+            : t("debtDetailNoPrevious")
+        }
+        meta={
+          <TotalSummary
+            label={t("debtDetailTotal")}
+            value={detail.totalDebtPaymentsMonthly}
+            currency={currency}
+            locale={locale}
+          />
+        }
+      />
 
       {hasDebts ? (
-        <div className="mt-4 divide-y divide-eb-stroke/20 overflow-hidden rounded-xl border border-eb-stroke/20 bg-eb-shell/20">
+        <ul className="mt-4 divide-y divide-eb-stroke/12 overflow-hidden rounded-xl border border-eb-stroke/15 bg-white/70">
           {detail.activeDebts.map((debt) => {
             const deltaTone = debtPaymentTone(debt.deltaMonthlyPayment);
+            // Show the "On plan" badge only when there is a real minimum
+            // payment to compare against — otherwise we have no signal.
+            const showOnPlanBadge =
+              debt.minPayment != null &&
+              debt.minPayment > 0 &&
+              debt.monthlyPayment >= debt.minPayment;
 
             return (
-              <section
+              <li
                 key={debt.id}
                 aria-label={replaceToken(t("debtRowLabel"), "name", debt.name)}
                 data-testid={`closed-month-debt-${debt.id}`}
-                className="grid grid-cols-1 gap-3 bg-white/55 px-4 py-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center"
+                className="px-4 py-3.5"
               >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-extrabold text-eb-text">
-                    {debt.name}
-                  </p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <DetailChip
-                      label={t("debtType")}
-                      value={formatDebtType(debt.type)}
-                    />
-                    <DetailChip
-                      label={t("debtBalance")}
-                      value={formatSnapshotMoney(debt.balance, currency, locale)}
-                    />
-                    <DetailChip
-                      label={t("debtApr")}
-                      value={`${debt.apr.toLocaleString(locale, {
-                        maximumFractionDigits: 2,
-                      })}%`}
-                    />
-                    {debt.minPayment != null ? (
-                      <DetailChip
-                        label={t("debtMinPayment")}
-                        value={formatSnapshotMoney(debt.minPayment, currency, locale)}
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="truncate text-sm font-extrabold text-eb-text">
+                        {debt.name}
+                      </p>
+                      {showOnPlanBadge ? (
+                        <span
+                          data-testid={`closed-month-debt-${debt.id}-on-plan`}
+                          className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-emerald-700"
+                        >
+                          <ShieldCheck className="h-3 w-3" />
+                          {t("debtPlanCompliantBadge")}
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="mt-1.5 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                      <MetaItem
+                        label={t("debtType")}
+                        value={formatDebtType(debt.type)}
                       />
-                    ) : null}
-                    {debt.monthlyFee != null ? (
-                      <DetailChip
-                        label={t("debtMonthlyFee")}
-                        value={formatSnapshotMoney(debt.monthlyFee, currency, locale)}
-                        Icon={BadgeDollarSign}
+                      <MetaItem
+                        label={t("debtBalance")}
+                        value={formatSnapshotMoney(
+                          debt.balance,
+                          currency,
+                          locale,
+                        )}
                       />
-                    ) : null}
-                    {debt.termMonths != null ? (
-                      <DetailChip
-                        label={t("debtTermMonths")}
-                        value={String(debt.termMonths)}
+                      <MetaItem
+                        label={t("debtApr")}
+                        value={`${debt.apr.toLocaleString(locale, {
+                          maximumFractionDigits: 2,
+                        })}%`}
                       />
+                      {debt.minPayment != null ? (
+                        <MetaItem
+                          label={t("debtMinPayment")}
+                          value={formatSnapshotMoney(
+                            debt.minPayment,
+                            currency,
+                            locale,
+                          )}
+                        />
+                      ) : null}
+                      {debt.monthlyFee != null ? (
+                        <MetaItem
+                          label={t("debtMonthlyFee")}
+                          value={formatSnapshotMoney(
+                            debt.monthlyFee,
+                            currency,
+                            locale,
+                          )}
+                        />
+                      ) : null}
+                      {debt.termMonths != null ? (
+                        <MetaItem
+                          label={t("debtTermMonths")}
+                          value={String(debt.termMonths)}
+                        />
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="flex items-baseline gap-3 lg:justify-end">
+                    <span className="text-base font-extrabold tabular-nums text-eb-text">
+                      {formatSnapshotMoney(
+                        debt.monthlyPayment,
+                        currency,
+                        locale,
+                      )}
+                    </span>
+                    {debt.deltaMonthlyPayment != null ? (
+                      <span
+                        className={cn(
+                          "text-xs font-extrabold tabular-nums",
+                          deltaToneClasses(deltaTone),
+                        )}
+                      >
+                        {formatSignedMoney(
+                          debt.deltaMonthlyPayment,
+                          currency,
+                          locale,
+                        )}
+                      </span>
                     ) : null}
                   </div>
                 </div>
-
-                <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-                  <span className="rounded-lg bg-white/70 px-3 py-1.5 text-sm font-extrabold text-eb-text">
-                    {formatSnapshotMoney(debt.monthlyPayment, currency, locale)}
-                  </span>
-                  {debt.deltaMonthlyPayment != null ? (
-                    <span
-                      className={cn(
-                        "rounded-lg border px-3 py-1.5 text-sm font-extrabold",
-                        detailToneClasses(deltaTone),
-                      )}
-                    >
-                      {formatSignedMoney(debt.deltaMonthlyPayment, currency, locale)}
-                    </span>
-                  ) : null}
-                </div>
-              </section>
+              </li>
             );
           })}
-        </div>
+        </ul>
       ) : (
-        <div
+        <p
           data-testid="closed-month-debt-empty"
-          className="mt-4 rounded-xl border border-dashed border-eb-stroke/35 bg-eb-shell/35 px-4 py-5 text-sm font-semibold text-eb-text/60"
+          className="mt-4 text-sm font-medium text-eb-text/55"
         >
           {t("debtDetailEmpty")}
-        </div>
+        </p>
       )}
     </article>
   );

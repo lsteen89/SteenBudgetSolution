@@ -1,0 +1,23 @@
+---
+description: SteenBudgetSolution global rules — read PROJECT.md before any edit
+alwaysApply: true
+---
+
+# Cursor — Global Rules
+
+Before editing any file in this repository, open and read [`PROJECT.md`](../../PROJECT.md). It is the canonical reference for stack, architecture, folder layout, dev commands, and secret handling.
+
+## Cursor-specific behavior
+
+- Treat `PROJECT.md` as authoritative for project facts. Do not paraphrase its decisions back to the user as suggestions; they are already settled.
+- Apply path-scoped rules in `.cursor/rules/backend.mdc` (under `Backend/**`) and `.cursor/rules/frontend.mdc` (under `Frontend/**`). When edits cross both, follow the rules of every applicable scope.
+- Cursor does not chain imports. If you need detail beyond the inline summaries in the path-scoped rules, open `.agents/instructions/backend.instructions.md` or `.agents/instructions/frontend-ui.instructions.md` directly.
+
+## Universal rules
+
+- Diagnose first; change second. Keep scope tight to the user's task.
+- Match existing patterns (feature slices, DTOs, components, tests). Do not introduce parallel architectures.
+- Use `decimal` for all money. Preserve transaction discipline and idempotency in lifecycle flows.
+- Never modify auth, security, Docker, Caddy, CI/CD, env, or secret configuration without explicit instruction.
+- Git safety: no `commit`, `push`, `rebase`, `reset`, or destructive `checkout`. Commit messages go to `COMMIT_MSG.tmp` using Conventional Commits.
+- Validate honestly — report what was actually run.

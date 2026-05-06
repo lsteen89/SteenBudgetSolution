@@ -1,0 +1,30 @@
+---
+description: Backend rules for .NET 8 / Dapper / MariaDB / MediatR slices
+globs: Backend/**
+applyTo: Backend/**
+---
+
+# Cursor — Backend Rules
+
+Canonical source: [`.agents/instructions/backend.instructions.md`](../../.agents/instructions/backend.instructions.md). Read it for the full backend ruleset. Project facts live in [`PROJECT.md`](../../PROJECT.md). Cursor does not chain imports, so the most important rules are summarized below.
+
+## Top 10 backend rules
+
+1. **Clean Architecture is non-negotiable.** Domain must not depend on Infrastructure. Controllers stay thin. Business logic lives in Application/Domain. Data access stays in repositories.
+2. **Dapper only.** Do not introduce Entity Framework, another ORM, query builders, or repository generators. Match existing Dapper mapping conventions.
+3. **Follow the nearest existing feature slice.** Before adding a command, query, handler, validator, DTO, or endpoint, copy the structure of a similar slice (folder, naming, validation, transaction style).
+4. **`decimal` for money — always.** Never `float` or `double`. Rounding must be explicit and intentional. Be especially careful around totals, installments, savings, debt payments, snapshots, and carry-over.
+5. **Respect transaction boundaries.** Some repository methods require an active DB transaction (UnitOfWork / pipeline behavior). Do not patch around `no active transaction` errors by weakening guarantees — diagnose and route the call through the right command pipeline.
+6. **Parameterize all SQL.** Explicit selected columns. No string concatenation of inputs. Preserve MariaDB compatibility. Readable SQL beats compressed SQL.
+7. **Preserve idempotency in lifecycle flows.** Month creation, bootstrap, close/open transitions, finalization, and materialization may be retried — do not turn a safe repeatable operation into a duplicating one.
+8. **Auth and security are conservative areas.** Login, refresh tokens, JWT config, cookies, WebSocket auth, rate limits, email verification, and session termination must not be relaxed without evidence. Diagnose before changing.
+9. **Validate inputs explicitly and early.** Dates, `YYYY-MM` month ids, currency-like values, ids, and state transitions get explicit validation. No wishful parsing.
+10. **Pass `CancellationToken` through the full async chain** when the surrounding code already does. Match existing repository and handler signatures.
+
+## Quick safety reminders
+
+- Smallest safe change. No "while I'm here" refactors, renames, or formatting sweeps.
+- New tests inherit from `Backend.Tests/UnitTests/BaseClasses/UnitTestBase.cs` or `Backend.Tests/IntegrationTests/BaseClasses/IntegrationTestBase.cs`. Prefer integration tests for query/lifecycle/transaction-sensitive logic.
+- Run only the narrowest validation that exercises the change.
+- Never hardcode connection strings, JWT keys, or other secrets. Use `dotnet user-secrets` for dev.
+- Git safety: no `commit`, `push`, `rebase`, `reset`, or destructive `checkout`. Commit messages go to `COMMIT_MSG.tmp` (Conventional Commits).

@@ -8,24 +8,19 @@ import ClosedMonthRecapChartCard, {
 } from "@/components/organisms/dashboard/recap/ClosedMonthRecapChartCard";
 import ClosedMonthReviewHero from "@/components/organisms/dashboard/recap/ClosedMonthReviewHero";
 import { cn } from "@/lib/utils";
+import { useBudgetMonthStore } from "@/stores/Budget/budgetMonthStore";
 import type { BudgetMonthRecapDto } from "@/types/budget/BudgetMonthRecapDto";
 import type { AppLocale } from "@/types/i18n/appLocale";
 import { closedMonthRecapDict } from "@/utils/i18n/pages/private/dashboard/recap/ClosedMonthRecapSection.i18n";
 import { tDict } from "@/utils/i18n/translate";
 import type { CurrencyCode } from "@/utils/money/currency";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import {
-  ArrowRightLeft,
-  ChartNoAxesColumn,
-  CircleCheck,
-  CircleMinus,
-  CirclePause,
-  CircleSlash,
+  ArrowRight,
   Landmark,
   LoaderCircle,
   PiggyBank,
-  PlusCircle,
   ReceiptText,
   Repeat2,
   TrendingDown,
@@ -44,13 +39,6 @@ type ClosedMonthRecapSectionProps = {
 
 type RecapTKey = keyof typeof closedMonthRecapDict.sv;
 type RecapT = <K extends RecapTKey>(key: K) => string;
-type ComparisonTone = "positive" | "attention" | "neutral";
-type SubscriptionGroupKey =
-  | "active"
-  | "new"
-  | "removed"
-  | "paused"
-  | "cancelled";
 
 const totalCards: Array<{
   key: keyof BudgetMonthRecapDto["snapshotTotals"];
@@ -120,6 +108,16 @@ function formatNextYearMonth(value: string, locale: string) {
   });
 }
 
+function computeNextYearMonth(value: string): string {
+  // Increments "YYYY-MM" by one calendar month, rolling over to next year.
+  const [year, month] = value.split("-").map(Number);
+  if (!Number.isFinite(year) || !Number.isFinite(month)) return value;
+
+  const nextMonth = month === 12 ? 1 : month + 1;
+  const nextYear = month === 12 ? year + 1 : year;
+  return `${nextYear}-${String(nextMonth).padStart(2, "0")}`;
+}
+
 function formatSnapshotMoney(
   value: number,
   currency: CurrencyCode,
@@ -128,59 +126,6 @@ function formatSnapshotMoney(
   return formatMoneyV2(value, currency, locale);
 }
 
-function toneClasses(tone: ComparisonTone) {
-  if (tone === "positive") {
-    return {
-      row: "border-emerald-200 bg-emerald-50/65",
-      icon: "bg-emerald-100 text-emerald-700",
-      value: "text-emerald-800",
-    };
-  }
-
-  if (tone === "attention") {
-    return {
-      row: "border-amber-200 bg-amber-50/70",
-      icon: "bg-amber-100 text-amber-700",
-      value: "text-amber-800",
-    };
-  }
-
-  return {
-    row: "border-eb-stroke/25 bg-white/75",
-    icon: "bg-eb-accentSoft/55 text-eb-accent",
-    value: "text-eb-text",
-  };
-}
-
-function carryOverLabel(
-  recap: BudgetMonthRecapDto,
-  currency: CurrencyCode,
-  locale: string,
-  t: RecapT,
-) {
-  if (recap.month.carryOverMode === "none" || recap.month.carryOverAmount == null) {
-    return t("carryOverNone");
-  }
-
-  return formatSnapshotMoney(recap.month.carryOverAmount, currency, locale);
-}
-
-function carryOverDescription(recap: BudgetMonthRecapDto, t: RecapT) {
-  if (recap.month.carryOverMode === "none" || recap.month.carryOverAmount == null) {
-    return t("carryOverNoneDescription");
-  }
-
-  return t("carryOverAppliedDescription");
-}
-
-function formatCarryOverMode(
-  mode: BudgetMonthRecapDto["month"]["carryOverMode"],
-  t: RecapT,
-) {
-  if (mode === "full") return t("carryOverModeFull");
-  if (mode === "custom") return t("carryOverModeCustom");
-  return t("carryOverModeNone");
-}
 
 function KpiCard({
   label,
@@ -240,10 +185,145 @@ function KpiCard({
   );
 }
 
-function subscriptionGroupTone(group: SubscriptionGroupKey): ComparisonTone {
-  if (group === "removed" || group === "cancelled") return "positive";
-  if (group === "new" || group === "paused") return "attention";
-  return "neutral";
+type SubscriptionGroupTone = "neutral" | "attention" | "positive";
+type SubscriptionGroupKeyId =
+  | "active"
+  | "new"
+  | "removed"
+  | "paused"
+  | "cancelled";
+
+function subscriptionMetaStrip(
+  insight: BudgetMonthRecapDto["subscriptionInsight"],
+  t: RecapT,
+): string {
+  const activeCount = insight.active.length;
+  const newCount = insight.new.length;
+  // Group removed + paused + cancelled together for the metadata strip
+  // since they all read as "no longer charging this month" in the calm summary.
+  const removedTotal =
+    insight.removed.length + insight.paused.length + insight.cancelled.length;
+
+  const activeText = replaceToken(
+    activeCount === 1
+      ? t("subscriptionMetaActiveSingular")
+      : t("subscriptionMetaActive"),
+    "count",
+    String(activeCount),
+  );
+  const newText = replaceToken(
+    newCount === 1
+      ? t("subscriptionMetaNew")
+      : t("subscriptionMetaNewPlural"),
+    "count",
+    String(newCount),
+  );
+  const removedText = replaceToken(
+    removedTotal === 1
+      ? t("subscriptionMetaRemovedSingular")
+      : t("subscriptionMetaRemoved"),
+    "count",
+    String(removedTotal),
+  );
+
+  return `${activeText} · ${newText} · ${removedText}`;
+}
+
+function SubscriptionRow({
+  name,
+  amount,
+  currency,
+  locale,
+  notCountedLabel,
+  ariaLabel,
+}: {
+  name: string;
+  amount: number;
+  currency: CurrencyCode;
+  locale: AppLocale;
+  notCountedLabel?: string;
+  ariaLabel: string;
+}) {
+  return (
+    <div
+      aria-label={ariaLabel}
+      className="flex items-center justify-between gap-3 px-3 py-2.5 sm:px-4"
+    >
+      <div className="min-w-0">
+        <p className="truncate text-sm font-semibold text-eb-text">{name}</p>
+        {notCountedLabel ? (
+          <p className="mt-0.5 truncate text-xs font-medium text-eb-text/55">
+            {notCountedLabel}
+          </p>
+        ) : null}
+      </div>
+      <p className="shrink-0 text-sm font-extrabold tabular-nums text-eb-text">
+        {formatSnapshotMoney(amount, currency, locale)}
+      </p>
+    </div>
+  );
+}
+
+function SubscriptionGroup({
+  groupKey,
+  label,
+  items,
+  tone,
+  currency,
+  locale,
+  notCountedLabel,
+  rowAriaLabelTemplate,
+}: {
+  groupKey: SubscriptionGroupKeyId;
+  label: string;
+  items: BudgetMonthRecapDto["subscriptionInsight"]["active"];
+  tone: SubscriptionGroupTone;
+  currency: CurrencyCode;
+  locale: AppLocale;
+  notCountedLabel?: string;
+  rowAriaLabelTemplate: string;
+}) {
+  if (items.length === 0) return null;
+
+  const toneDot =
+    tone === "positive"
+      ? "bg-emerald-500"
+      : tone === "attention"
+        ? "bg-amber-500"
+        : "bg-eb-text/30";
+
+  return (
+    <section
+      data-testid={`closed-month-subscriptions-${groupKey}`}
+      data-tone={tone}
+      className="overflow-hidden rounded-xl border border-eb-stroke/15 bg-white/75"
+    >
+      <header className="flex items-center justify-between gap-3 px-3 py-2 sm:px-4">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", toneDot)} />
+          <h3 className="truncate text-xs font-extrabold uppercase tracking-[0.08em] text-eb-text/55">
+            {label}
+          </h3>
+        </div>
+        <span className="shrink-0 text-xs font-bold tabular-nums text-eb-text/45">
+          {items.length}
+        </span>
+      </header>
+      <div className="divide-y divide-eb-stroke/12">
+        {items.map((item) => (
+          <SubscriptionRow
+            key={item.identityKey}
+            name={item.name}
+            amount={item.amountMonthly}
+            currency={currency}
+            locale={locale}
+            notCountedLabel={notCountedLabel}
+            ariaLabel={replaceToken(rowAriaLabelTemplate, "name", item.name)}
+          />
+        ))}
+      </div>
+    </section>
+  );
 }
 
 function SubscriptionInsightBlock({
@@ -264,143 +344,225 @@ function SubscriptionInsightBlock({
     insight.removed.length > 0 ||
     insight.paused.length > 0 ||
     insight.cancelled.length > 0;
-  const groups: Array<{
-    key: SubscriptionGroupKey;
-    label: string;
-    items: BudgetMonthRecapDto["subscriptionInsight"]["active"];
-    Icon: LucideIcon;
-    isNotCounted?: boolean;
-  }> = [
-    {
-      key: "active",
-      label: insight.hasPreviousComparableMonth
-        ? t("subscriptionStillActive")
-        : t("subscriptionActive"),
-      items: insight.active,
-      Icon: CircleCheck,
-    },
-    {
-      key: "new",
-      label: t("subscriptionNew"),
-      items: insight.new,
-      Icon: PlusCircle,
-    },
-    {
-      key: "paused",
-      label: t("subscriptionPaused"),
-      items: insight.paused,
-      Icon: CirclePause,
-      isNotCounted: true,
-    },
-    {
-      key: "cancelled",
-      label: t("subscriptionCancelled"),
-      items: insight.cancelled,
-      Icon: CircleSlash,
-      isNotCounted: true,
-    },
-    {
-      key: "removed",
-      label: t("subscriptionRemoved"),
-      items: insight.removed,
-      Icon: CircleMinus,
-    },
-  ];
+
+  const activeLabel = insight.hasPreviousComparableMonth
+    ? t("subscriptionStillActive")
+    : t("subscriptionActive");
 
   return (
     <article
       aria-label={t("subscriptionChangesLabel")}
       data-testid="closed-month-subscriptions"
-      className="mt-4 rounded-2xl border border-eb-stroke/25 bg-white/72 p-4"
+      className="rounded-2xl border border-eb-stroke/20 bg-white/85 p-4 sm:p-5"
     >
-      <div className="flex items-start gap-3">
-        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-700">
-          <Repeat2 className="h-4 w-4" />
-        </span>
-        <div>
-          <h2 className="text-base font-extrabold text-eb-text">
-            {t("subscriptionChangesTitle")}
-          </h2>
-          <p className="mt-1 text-sm font-medium leading-6 text-eb-text/60">
-            {insight.hasPreviousComparableMonth
-              ? t("subscriptionChangesBody")
-              : t("subscriptionNoPrevious")}
-          </p>
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-start gap-3">
+          <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-700">
+            <Repeat2 className="h-4 w-4" />
+          </span>
+          <div>
+            <h2 className="text-base font-extrabold text-eb-text">
+              {t("subscriptionChangesTitle")}
+            </h2>
+            <p className="mt-1 text-sm font-medium leading-6 text-eb-text/60">
+              {t("subscriptionChangesBody")}
+            </p>
+          </div>
         </div>
-      </div>
+        {hasAnySubscriptions ? (
+          <p
+            data-testid="closed-month-subscriptions-meta"
+            className="rounded-lg border border-eb-stroke/15 bg-white px-3 py-1.5 text-xs font-bold text-eb-text/65 sm:self-start"
+          >
+            {subscriptionMetaStrip(insight, t)}
+          </p>
+        ) : null}
+      </header>
 
       {hasAnySubscriptions ? (
-        <div className="mt-4 grid grid-cols-1 gap-2 lg:grid-cols-3 xl:grid-cols-5">
-          {groups
-            .filter((group) => group.items.length > 0)
-            .map(({ key, label, items, Icon, isNotCounted }) => {
-              const tone = subscriptionGroupTone(key);
-              const classes = toneClasses(tone);
-
-              return (
-                <section
-                  key={key}
-                  data-testid={`closed-month-subscriptions-${key}`}
-                  data-tone={tone}
-                  className={cn("rounded-xl border px-3 py-3", classes.row)}
-                >
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={cn(
-                        "inline-flex h-8 w-8 items-center justify-center rounded-lg",
-                        classes.icon,
-                      )}
-                    >
-                      <Icon className="h-4 w-4" />
-                    </span>
-                    <h3 className="text-sm font-extrabold text-eb-text">
-                      {label}
-                    </h3>
-                  </div>
-
-                  <div className="mt-3 space-y-2">
-                    {items.map((item) => (
-                      <div
-                        key={item.identityKey}
-                        aria-label={replaceToken(
-                          t("subscriptionRowLabel"),
-                          "name",
-                          item.name,
-                        )}
-                        className="flex items-center justify-between gap-3 rounded-lg bg-white/65 px-3 py-2"
-                      >
-                        <span className="min-w-0">
-                          <span className="block truncate text-sm font-bold text-eb-text">
-                            {item.name}
-                          </span>
-                          {isNotCounted ? (
-                            <span className="mt-0.5 block text-xs font-semibold text-eb-text/50">
-                              {t("subscriptionNotCounted")}
-                            </span>
-                          ) : null}
-                        </span>
-                        <span className="shrink-0 self-start text-sm font-extrabold text-eb-text">
-                          {formatSnapshotMoney(
-                            item.amountMonthly,
-                            currency,
-                            locale,
-                          )}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              );
-            })}
+        <div className="mt-4 space-y-2.5">
+          <SubscriptionGroup
+            groupKey="active"
+            label={activeLabel}
+            items={insight.active}
+            tone="neutral"
+            currency={currency}
+            locale={locale}
+            rowAriaLabelTemplate={t("subscriptionRowLabel")}
+          />
+          <SubscriptionGroup
+            groupKey="new"
+            label={t("subscriptionNew")}
+            items={insight.new}
+            tone="attention"
+            currency={currency}
+            locale={locale}
+            rowAriaLabelTemplate={t("subscriptionRowLabel")}
+          />
+          <SubscriptionGroup
+            groupKey="paused"
+            label={t("subscriptionPaused")}
+            items={insight.paused}
+            tone="attention"
+            currency={currency}
+            locale={locale}
+            notCountedLabel={t("subscriptionNotCounted")}
+            rowAriaLabelTemplate={t("subscriptionRowLabel")}
+          />
+          <SubscriptionGroup
+            groupKey="cancelled"
+            label={t("subscriptionCancelled")}
+            items={insight.cancelled}
+            tone="positive"
+            currency={currency}
+            locale={locale}
+            notCountedLabel={t("subscriptionNotCounted")}
+            rowAriaLabelTemplate={t("subscriptionRowLabel")}
+          />
+          <SubscriptionGroup
+            groupKey="removed"
+            label={t("subscriptionRemoved")}
+            items={insight.removed}
+            tone="positive"
+            currency={currency}
+            locale={locale}
+            rowAriaLabelTemplate={t("subscriptionRowLabel")}
+          />
         </div>
       ) : (
-        <div
+        <p
           data-testid="closed-month-subscriptions-empty"
-          className="mt-4 rounded-xl border border-dashed border-eb-stroke/35 bg-eb-shell/35 px-4 py-5 text-sm font-semibold text-eb-text/60"
+          className="mt-4 text-sm font-medium text-eb-text/55"
         >
           {t("subscriptionEmpty")}
-        </div>
+        </p>
       )}
+    </article>
+  );
+}
+
+function DetailChapter({
+  children,
+  t,
+}: {
+  children: ReactNode;
+  t: RecapT;
+}) {
+  return (
+    <section
+      data-testid="closed-month-detail-layer"
+      aria-labelledby="closed-month-detail-title"
+      className="space-y-4"
+    >
+      <header className="space-y-2">
+        <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-eb-text/45">
+          {t("detailChapterEyebrow")}
+        </p>
+        <div className="max-w-2xl">
+          <h2
+            id="closed-month-detail-title"
+            className="text-xl font-extrabold tracking-tight text-eb-text sm:text-2xl"
+          >
+            {t("detailChapterTitle")}
+          </h2>
+          <p className="mt-1 text-sm font-medium leading-6 text-eb-text/60">
+            {t("detailChapterBody")}
+          </p>
+        </div>
+      </header>
+
+      <div
+        aria-label={t("detailSurfaceLabel")}
+        className="rounded-3xl border border-sky-100/70 bg-sky-50/30 p-3 ring-1 ring-white/70 sm:p-4 lg:p-5"
+      >
+        <div className="space-y-3 sm:space-y-4">{children}</div>
+      </div>
+    </section>
+  );
+}
+
+function NextStepCard({
+  recap,
+  currency,
+  locale,
+  nextMonthLabel,
+  nextYearMonth,
+  hasDeficit,
+  onContinue,
+  t,
+}: {
+  recap: BudgetMonthRecapDto;
+  currency: CurrencyCode;
+  locale: AppLocale;
+  nextMonthLabel: string;
+  nextYearMonth: string;
+  hasDeficit: boolean;
+  onContinue: (yearMonth: string) => void;
+  t: RecapT;
+}) {
+  const carryOverAmount = recap.month.carryOverAmount ?? 0;
+  const hasCarryOver =
+    recap.month.carryOverMode !== "none" && carryOverAmount > 0;
+
+  const carryOverText = hasCarryOver
+    ? replaceToken(
+        replaceToken(
+          t("nextStepCarryOverApplied"),
+          "amount",
+          formatSnapshotMoney(carryOverAmount, currency, locale),
+        ),
+        "month",
+        nextMonthLabel,
+      )
+    : replaceToken(t("nextStepCarryOverNone"), "month", nextMonthLabel);
+
+  const ctaLabel = replaceToken(t("nextStepCta"), "month", nextMonthLabel);
+
+  return (
+    <article
+      data-testid="closed-month-next-step"
+      aria-label={t("nextStepLabel")}
+      className="rounded-2xl border border-eb-stroke/20 bg-white/95 p-4 shadow-eb sm:p-5"
+    >
+      {hasDeficit ? (
+        <div
+          data-testid="closed-month-next-step-deficit"
+          role="article"
+          aria-label={t("deficitGuidanceLabel")}
+          className="mb-3 flex items-center gap-2 rounded-lg border border-rose-200/80 bg-rose-50/70 px-3 py-2 text-xs font-bold text-rose-800"
+        >
+          <TrendingDown className="h-3.5 w-3.5 shrink-0" />
+          <span>{t("deficitTitle")}</span>
+        </div>
+      ) : null}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-eb-text/52">
+            {t("nextStepLabel")}
+          </p>
+          <h2 className="mt-1 text-lg font-extrabold tracking-tight text-eb-text">
+            {t("nextStepTitle")}
+          </h2>
+          <p
+            data-testid="closed-month-carry-over"
+            className="mt-1 text-sm font-semibold leading-6 text-eb-text/70"
+          >
+            {carryOverText}
+          </p>
+        </div>
+        <button
+          type="button"
+          data-testid="closed-month-next-step-cta"
+          onClick={() => onContinue(nextYearMonth)}
+          className={cn(
+            "inline-flex shrink-0 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-extrabold transition-colors",
+            "bg-eb-text text-white hover:bg-eb-text/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-eb-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white",
+          )}
+        >
+          <span>{ctaLabel}</span>
+          <ArrowRight className="h-4 w-4 shrink-0" />
+        </button>
+      </div>
     </article>
   );
 }
@@ -415,6 +577,9 @@ export default function ClosedMonthRecapSection({
 }: ClosedMonthRecapSectionProps) {
   const [selectedChartTab, setSelectedChartTab] =
     useState<ClosedMonthRecapChartTab>("compare");
+  const setSelectedYearMonth = useBudgetMonthStore(
+    (s) => s.setSelectedYearMonth,
+  );
   const hasComparableChart =
     recap?.comparison.hasPreviousComparableMonth === true &&
     recap.comparison.summary != null;
@@ -454,6 +619,7 @@ export default function ClosedMonthRecapSection({
   const t: RecapT = (key) => tDict(key, locale, closedMonthRecapDict);
   const monthLabel = formatYearMonth(recap.month.yearMonth, locale);
   const nextMonthLabel = formatNextYearMonth(recap.month.yearMonth, locale);
+  const nextYearMonth = computeNextYearMonth(recap.month.yearMonth);
   const closedAtLabel = formatDateTime(recap.month.closedAtUtc, locale);
   const finalBalance = recap.snapshotTotals.finalBalanceMonthly;
   const hasDeficit = finalBalance < 0;
@@ -475,32 +641,39 @@ export default function ClosedMonthRecapSection({
       />
 
       <div className="overflow-hidden rounded-2xl border border-eb-stroke/30 bg-eb-surface/95 shadow-sm">
-        <div className="border-t-0 bg-eb-shell/20 p-4 sm:p-5">
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
-            {totalCards.map(({ key, labelKey, hintKey, Icon }) => {
-              const label = t(labelKey);
-              const value = recap.snapshotTotals[key];
-              const isNegativeFinalBalance =
-                key === "finalBalanceMonthly" && value < 0;
+        <div className="space-y-7 border-t-0 bg-eb-shell/20 p-4 sm:p-5 sm:space-y-8">
+          <section aria-label={t("snapshotTotalsHeading")}>
+            <header className="mb-3">
+              <h2 className="text-base font-extrabold text-eb-text">
+                {t("snapshotTotalsHeading")}
+              </h2>
+              <p className="mt-1 text-sm font-medium leading-6 text-eb-text/60">
+                {t("snapshotTotalsBody")}
+              </p>
+            </header>
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+              {totalCards.map(({ key, labelKey, hintKey, Icon }) => {
+                const label = t(labelKey);
+                const value = recap.snapshotTotals[key];
 
-              return (
-                <KpiCard
-                  key={key}
-                  label={label}
-                  hint={t(hintKey)}
-                  value={formatSnapshotMoney(value, currency, locale)}
-                  Icon={Icon}
-                  dataTestId={`closed-month-total-${key}`}
-                  ariaLabel={replaceToken(
-                    t("snapshotTotalLabel"),
-                    "label",
-                    label,
-                  )}
-                  isNegative={isNegativeFinalBalance}
-                />
-              );
-            })}
-          </div>
+                return (
+                  <KpiCard
+                    key={key}
+                    label={label}
+                    hint={t(hintKey)}
+                    value={formatSnapshotMoney(value, currency, locale)}
+                    Icon={Icon}
+                    dataTestId={`closed-month-total-${key}`}
+                    ariaLabel={replaceToken(
+                      t("snapshotTotalLabel"),
+                      "label",
+                      label,
+                    )}
+                  />
+                );
+              })}
+            </div>
+          </section>
 
           <ClosedMonthRecapChartCard
             recap={recap}
@@ -511,106 +684,39 @@ export default function ClosedMonthRecapSection({
             onSelectedTabChange={setSelectedChartTab}
           />
 
-          <SubscriptionInsightBlock
-            recap={recap}
-            currency={currency}
-            locale={locale}
-            t={t}
-          />
+          <DetailChapter t={t}>
+            <SubscriptionInsightBlock
+              recap={recap}
+              currency={currency}
+              locale={locale}
+              t={t}
+            />
 
-          <SavingsDetailBlock
-            recap={recap}
-            currency={currency}
-            locale={locale}
-            t={t}
-          />
+            <SavingsDetailBlock
+              recap={recap}
+              currency={currency}
+              locale={locale}
+              t={t}
+            />
 
-          <DebtDetailBlock
-            recap={recap}
-            currency={currency}
-            locale={locale}
-            t={t}
-          />
+            <DebtDetailBlock
+              recap={recap}
+              currency={currency}
+              locale={locale}
+              t={t}
+            />
 
-          <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.7fr)]">
-            <article
-              aria-label={t("carryOverOutcomeLabel")}
-              className="rounded-2xl border border-eb-stroke/25 bg-white/80 p-5 shadow-sm"
-            >
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-sky-50 text-sky-700">
-                      <ArrowRightLeft className="h-4 w-4" />
-                    </span>
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-wide text-eb-text/50">
-                        {t("carryOver")}
-                      </p>
-                      <h2 className="text-lg font-extrabold text-eb-text">
-                        {t("carryOverOutcomeTitle")}
-                      </h2>
-                    </div>
-                  </div>
-                  <p className="max-w-2xl text-sm font-medium leading-6 text-eb-text/60">
-                    {carryOverDescription(recap, t)}
-                  </p>
-                </div>
-
-                <div className="rounded-xl border border-eb-stroke/25 bg-eb-shell/40 px-4 py-3 sm:min-w-52">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-eb-text/50">
-                    {formatCarryOverMode(recap.month.carryOverMode, t)}
-                  </p>
-                  <p
-                    data-testid="closed-month-carry-over"
-                    className="mt-1 text-xl font-extrabold text-eb-text"
-                  >
-                    {carryOverLabel(recap, currency, locale, t)}
-                  </p>
-                </div>
-              </div>
-            </article>
-
-            {hasDeficit ? (
-              <article
-                aria-label={t("deficitGuidanceLabel")}
-                className="rounded-2xl border border-rose-200 bg-rose-50/85 p-5 shadow-sm"
-              >
-                <div className="flex items-start gap-3">
-                  <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-rose-100 text-rose-700">
-                    <TrendingDown className="h-4 w-4" />
-                  </span>
-                  <div>
-                    <h2 className="text-base font-extrabold text-rose-800">
-                      {t("deficitTitle")}
-                    </h2>
-                    <p className="mt-2 text-sm font-medium leading-6 text-rose-800/75">
-                      {t("deficitBody")}
-                    </p>
-                  </div>
-                </div>
-              </article>
-            ) : (
-              <article
-                aria-label={t("snapshotContextLabel")}
-                className="rounded-2xl border border-eb-stroke/25 bg-white/75 p-5 shadow-sm"
-              >
-                <div className="flex items-start gap-3">
-                  <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-eb-accentSoft/60 text-eb-accent">
-                    <ChartNoAxesColumn className="h-4 w-4" />
-                  </span>
-                  <div>
-                    <h2 className="text-base font-extrabold text-eb-text">
-                      {t("snapshotContextTitle")}
-                    </h2>
-                    <p className="mt-2 text-sm font-medium leading-6 text-eb-text/60">
-                      {t("snapshotContextBody")}
-                    </p>
-                  </div>
-                </div>
-              </article>
-            )}
-          </div>
+            <NextStepCard
+              recap={recap}
+              currency={currency}
+              locale={locale}
+              nextMonthLabel={nextMonthLabel}
+              nextYearMonth={nextYearMonth}
+              hasDeficit={hasDeficit}
+              onContinue={setSelectedYearMonth}
+              t={t}
+            />
+          </DetailChapter>
 
         </div>
       </div>

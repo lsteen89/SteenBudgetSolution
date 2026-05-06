@@ -32,6 +32,59 @@ type RecapT = <K extends RecapTKey>(key: K) => string;
 type ComparisonMetricKey = keyof NonNullable<
   BudgetMonthRecapDto["comparison"]["summary"]
 >;
+type NarrativeMetricKey = "expenses" | "income" | "savings" | "debtPayments";
+
+function buildChartNarrativeKey(recap: BudgetMonthRecapDto): RecapTKey {
+  const summary = recap.comparison.summary;
+  if (!summary) return "chartNarrativeNoComparison";
+
+  const candidates: Array<{
+    key: NarrativeMetricKey;
+    delta: number;
+    current: number;
+  }> = [
+    {
+      key: "expenses",
+      delta: summary.expenses.deltaAmount,
+      current: recap.snapshotTotals.totalExpensesMonthly,
+    },
+    {
+      key: "income",
+      delta: summary.income.deltaAmount,
+      current: recap.snapshotTotals.totalIncomeMonthly,
+    },
+    {
+      key: "savings",
+      delta: summary.savings.deltaAmount,
+      current: recap.snapshotTotals.totalSavingsMonthly,
+    },
+    {
+      key: "debtPayments",
+      delta: summary.debtPayments.deltaAmount,
+      current: recap.snapshotTotals.totalDebtPaymentsMonthly,
+    },
+  ];
+
+  const top = candidates.reduce((best, curr) =>
+    Math.abs(curr.delta) > Math.abs(best.delta) ? curr : best,
+  );
+  const stabilityThreshold = Math.max(100, Math.abs(top.current) * 0.05);
+  if (Math.abs(top.delta) <= stabilityThreshold) {
+    return "chartNarrativeStable";
+  }
+
+  const isUp = top.delta > 0;
+  if (top.key === "expenses") {
+    return isUp ? "chartNarrativeExpensesUp" : "chartNarrativeExpensesDown";
+  }
+  if (top.key === "income") {
+    return isUp ? "chartNarrativeIncomeUp" : "chartNarrativeIncomeDown";
+  }
+  if (top.key === "savings") {
+    return isUp ? "chartNarrativeSavingsUp" : "chartNarrativeSavingsDown";
+  }
+  return isUp ? "chartNarrativeDebtsUp" : "chartNarrativeDebtsDown";
+}
 
 type ClosedMonthRecapChartCardProps = {
   recap: BudgetMonthRecapDto;
@@ -464,11 +517,13 @@ export default function ClosedMonthRecapChartCard({
   ];
   const resolvedTab = selectedTab === "compare" && !canCompare ? "categories" : selectedTab;
 
+  const narrativeKey = buildChartNarrativeKey(recap);
+
   return (
     <article
       aria-label={t("chartTitle")}
       data-testid="closed-month-chart-card"
-      className="mt-4 rounded-2xl border border-[rgba(199,228,255,0.65)] bg-white/90 p-4 shadow-[0_18px_45px_rgba(21,39,81,0.06)] sm:p-6"
+      className="rounded-2xl border border-[rgba(199,228,255,0.65)] bg-white/90 p-4 shadow-[0_18px_45px_rgba(21,39,81,0.06)] sm:p-6"
     >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-2xl">
@@ -488,10 +543,17 @@ export default function ClosedMonthRecapChartCard({
         />
       </div>
 
+      <p
+        data-testid="closed-month-chart-narrative"
+        className="mt-4 rounded-xl border border-eb-stroke/20 bg-eb-shell/35 px-4 py-2.5 text-sm font-semibold leading-6 text-eb-text/74"
+      >
+        {t(narrativeKey)}
+      </p>
+
       <div
         id={`closed-month-chart-panel-${resolvedTab}`}
         role="tabpanel"
-        className="mt-5 min-h-[360px]"
+        className="mt-4 min-h-[360px]"
       >
         {resolvedTab === "compare" ? (
           <ClosedMonthRecapCompareChart

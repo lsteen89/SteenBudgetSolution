@@ -1,0 +1,30 @@
+---
+description: Frontend rules for React + TypeScript + Vite + Tailwind UI in the eBudget design system
+globs: Frontend/**
+applyTo: Frontend/**
+---
+
+# Cursor — Frontend Rules
+
+Canonical source: [`.agents/instructions/frontend-ui.instructions.md`](../../.agents/instructions/frontend-ui.instructions.md). Read it for the full frontend / design ruleset. Project facts live in [`PROJECT.md`](../../PROJECT.md). Cursor does not chain imports, so the most important rules are summarized below.
+
+## Top 10 frontend / design rules
+
+1. **This is a financial product, not a marketing site.** Calm, premium, trustworthy, restrained. Clarity beats spectacle. Avoid Awwwards-style behavior (preloaders, scroll-jacking, custom cursors, magnetic buttons, cinematic intros) inside application UI.
+2. **Default style: "Nordic Calm Premium."** Strong typography hierarchy, generous spacing, soft surfaces, subtle layering, restrained accents. No loud gradients, glassmorphism, or AI-template dashboards.
+3. **Existing tokens are the source of truth.** Use shadcn (`--background`, `--foreground`, `--card`, …), eBudget (`--eb-shell`, `--eb-surface`, `--eb-text`, `--eb-accent`, `--eb-danger`, …), and wizard (`--wizard-*`) tokens. Reuse utilities like `shadow-eb`, `money`, `money-muted`. Do not introduce a parallel color system.
+4. **Respect the global background.** The body already carries the eBudget gradient. Do not paint full-screen competing backgrounds; build refined surfaces on top of the shell.
+5. **Default font is `font-inter`.** Improve hierarchy through size, weight, spacing, and rhythm — not random font swaps. Skill rules that conflict with this are overridden.
+6. **Wizard styling is contextual.** Use `--wizard-*` only inside onboarding, wizard flows, or guided overlays. Do not spread it across regular app UI.
+7. **Money is the main content.** Readable totals, strong contrast between primary and secondary values, clear positive/negative semantics, consistent number alignment, obvious empty states. Do not bury numbers under decoration.
+8. **Read-only vs editable must be visually obvious.** Closed months are not editable. Disable interactions intentionally; show explanatory copy; never imply editing is available when it is not.
+9. **Reuse existing primitives before inventing.** Inspect current button, input, card, drawer, and modal patterns. Match folder structure, naming, and composition style.
+10. **Loading / empty / error / partial / read-only / disabled states are mandatory** — never ship a component that only handles the happy path.
+
+## Implementation reminders
+
+- Prefer typed React, small composable components, and explicit props. No `any`. Avoid fragile effect chains and giant monolithic page files.
+- Tailwind: readable composition, extract components when markup repeats, `cn(...)` only when it improves clarity. Avoid one-off arbitrary values.
+- Animate only `transform` and `opacity`. Respect `prefers-reduced-motion`. Subtle, brief, confident motion — never decorative for its own sake.
+- Smallest safe change. Match existing UI patterns. Do not redesign a feature when asked to fix a bug.
+- Git safety: no `commit`, `push`, `rebase`, `reset`, or destructive `checkout`. Commit messages go to `COMMIT_MSG.tmp` (Conventional Commits).

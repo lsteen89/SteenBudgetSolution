@@ -663,13 +663,21 @@ describe("DashboardContent", () => {
       screen.queryByRole("article", { name: /final balance snapshot total/i }),
     ).toBeNull();
 
-    const carryOverCard = screen.getByRole("article", {
-      name: /carry-over outcome/i,
-    });
-    expect(within(carryOverCard).getByText("Carry-over")).toBeInTheDocument();
+    const nextStep = screen.getByTestId("closed-month-next-step");
     expect(
-      within(carryOverCard).getByTestId("closed-month-carry-over"),
+      within(nextStep).getByRole("heading", { name: /next step/i }),
+    ).toBeInTheDocument();
+    expect(
+      within(nextStep).getByTestId("closed-month-carry-over"),
     ).toHaveTextContent(/500/);
+    expect(
+      within(nextStep).getByTestId("closed-month-carry-over"),
+    ).toHaveTextContent(/may 2026/i);
+    expect(
+      within(nextStep).getByRole("button", {
+        name: /continue to may 2026/i,
+      }),
+    ).toBeInTheDocument();
     expect(screen.queryByTestId("closed-month-chart-tab-flow")).toBeNull();
     expect(screen.getByTestId("closed-month-chart-card")).toBeInTheDocument();
     expect(screen.getByTestId("closed-month-chart-tab-compare")).toHaveAttribute(
@@ -757,17 +765,20 @@ describe("DashboardContent", () => {
       screen.queryByTestId("closed-month-expense-category-fixed-percent"),
     ).toBeNull();
     const subscriptions = screen.getByTestId("closed-month-subscriptions");
-    expect(subscriptions).toHaveTextContent(/subscription changes/i);
+    const detailLayer = screen.getByTestId("closed-month-detail-layer");
+    expect(detailLayer).toHaveTextContent(/month details/i);
+    expect(detailLayer).toHaveTextContent(/records behind the locked snapshot/i);
+    expect(subscriptions).toHaveTextContent(/recurring costs/i);
     expect(subscriptions).toHaveTextContent("Spotify");
     expect(subscriptions).toHaveTextContent("Notion");
     expect(subscriptions).toHaveTextContent("HBO");
     const savingsDetail = screen.getByTestId("closed-month-savings-detail");
-    expect(savingsDetail).toHaveTextContent(/savings this month/i);
+    expect(savingsDetail).toHaveTextContent(/goals and contributions from the locked month/i);
     expect(savingsDetail).toHaveTextContent("Emergency fund");
     expect(savingsDetail).toHaveTextContent(/700/);
     expect(savingsDetail).toHaveTextContent(/\+.*100/);
     const debtDetail = screen.getByTestId("closed-month-debt-detail");
-    expect(debtDetail).toHaveTextContent(/debt this month/i);
+    expect(debtDetail).toHaveTextContent(/payments and debt status from the locked month/i);
     expect(debtDetail).toHaveTextContent("Credit card");
     expect(debtDetail).toHaveTextContent(/2,400/);
     expect(debtDetail).toHaveTextContent(/\+.*100/);
@@ -968,7 +979,7 @@ describe("DashboardContent", () => {
       /900/,
     );
     expect(screen.getByTestId("closed-month-carry-over")).toHaveTextContent(
-      "No carry-over applied",
+      /nothing was carried into may 2026/i,
     );
   });
 
@@ -979,7 +990,7 @@ describe("DashboardContent", () => {
 
     expect(screen.getByTestId("closed-month-subscriptions")).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Subscription changes" }),
+      screen.getByRole("heading", { name: "Recurring costs" }),
     ).toBeInTheDocument();
   });
 
@@ -1111,7 +1122,7 @@ describe("DashboardContent", () => {
     renderDashboardContent();
 
     expect(screen.getByTestId("closed-month-subscriptions")).toHaveTextContent(
-      /no previous month to compare subscription changes against/i,
+      /new or active recurring expenses this month/i,
     );
     expect(screen.getByTestId("closed-month-subscriptions-active")).toHaveTextContent(
       "Active subscriptions",
@@ -1135,7 +1146,7 @@ describe("DashboardContent", () => {
     renderDashboardContent();
 
     expect(screen.getByTestId("closed-month-subscriptions-empty")).toHaveTextContent(
-      /no subscriptions were recorded/i,
+      /no new recurring costs were found/i,
     );
   });
 
@@ -1158,13 +1169,13 @@ describe("DashboardContent", () => {
     renderDashboardContent();
 
     expect(screen.getByTestId("closed-month-savings-detail")).toHaveTextContent(
-      /active goals and monthly contributions for this closed month/i,
+      /goals and contributions from the locked month/i,
     );
     expect(screen.getByTestId("closed-month-savings-empty")).toHaveTextContent(
       /no active savings goals/i,
     );
     expect(screen.getByTestId("closed-month-debt-detail")).toHaveTextContent(
-      /active debts and monthly payments for this closed month/i,
+      /payments and debt status from the locked month/i,
     );
     expect(screen.getByTestId("closed-month-debt-empty")).toHaveTextContent(
       /no active debts/i,
