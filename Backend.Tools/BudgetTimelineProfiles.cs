@@ -310,4 +310,187 @@ internal static class BudgetTimelineProfiles
                 "expected a positive value (Credit Card + Student Loan + Phone Financing).");
         }
     }
+
+    // Recap Sankey/category stress profile
+    //
+    // Drives the closed-month recap hero Sankey and category comparison at the
+    // comparable closed month (2026-03 vs 2026-01) with deliberately large but
+    // exact decimal values:
+    //   - large income, expense, savings, debt-payment and final-balance totals
+    //   - long category labels in the category comparison chart/list
+    //   - current-only category: previous value is 0, so deltaPercent is null
+    //   - previous-only category: present in 2026-01, deleted in 2026-03
+    //   - deterministic top two expense increase drivers: current-only category
+    //     and Food
+    //   - full carry-over from 2026-03 to 2026-04 equals the closed snapshot
+    //     final balance, proving the recap can display carry-over separately
+    //     from income totals.
+    private static readonly Guid RecapSankeyCurrentOnlyCategoryId =
+        Guid.Parse("8a2b1bc8-8de0-4f41-b4dd-75f6f449e1bf");
+    private static readonly Guid RecapSankeyPreviousOnlyCategoryId =
+        Guid.Parse("f36baf7f-3e55-498b-8f9a-cb4f8db59851");
+
+    private const string RecapSankeyCurrentOnlyCategoryName =
+        "Current Only Category With A Very Long Sankey Stress Label";
+    private const string RecapSankeyPreviousOnlyCategoryName =
+        "Previous Only Category With A Very Long Archived Label";
+
+    private const decimal RecapSankeyExpectedIncomeInComparableMonth = 630000m;
+    private const decimal RecapSankeyExpectedExpensesInComparableMonth = 293000m;
+    private const decimal RecapSankeyExpectedSavingsInComparableMonth = 145000m;
+    private const decimal RecapSankeyExpectedDebtPaymentsInComparableMonth = 52500m;
+    private const decimal RecapSankeyExpectedFinalBalanceInComparableMonth = 139500m;
+    private const decimal RecapSankeyExpectedCarryOverFromComparableMonth = 139500m;
+
+    public static BudgetTimelineProfile RecapSankeyStress { get; } = BuildRecapSankeyStressProfile();
+
+    private static BudgetTimelineProfile BuildRecapSankeyStressProfile()
+    {
+        var baseline = new BudgetTimelineBaseline(
+            Income: new BudgetTimelineIncomeSeed(
+                NetSalaryMonthly: 420000m,
+                SalaryFrequency: Frequency.Monthly,
+                IncomePaymentDayType: "dayOfMonth",
+                IncomePaymentDay: 25,
+                SideHustles:
+                [
+                    new BudgetTimelineIncomeEntrySeed(
+                        "Quarterly Consultancy Retainer",
+                        75000m,
+                        Frequency.Monthly)
+                ],
+                HouseholdMembers:
+                [
+                    new BudgetTimelineIncomeEntrySeed(
+                        "Partner Executive Contribution",
+                        65000m,
+                        Frequency.Monthly)
+                ]),
+            Expenses:
+            [
+                new(BudgetTimelineBaselineData.HousingCategoryId, "Family Home Mortgage", 90000m),
+                new(BudgetTimelineBaselineData.FoodCategoryId, "Groceries", 18000m),
+                new(BudgetTimelineBaselineData.TransportCategoryId, "Transport Pass", 7000m),
+                new(BudgetTimelineBaselineData.FixedExpenseCategoryId, "Utilities And Insurance Bundle", 22000m),
+                new(BudgetTimelineBaselineData.SubscriptionCategoryId, "Professional Tooling Suite", 6500m),
+                new(RecapSankeyPreviousOnlyCategoryId, "Archived School Term Fees", 28000m)
+            ],
+            Savings: new BudgetTimelineSavingsSeed(
+                MonthlySavings: 60000m,
+                Goals:
+                [
+                    new BudgetTimelineSavingsGoalSeed(
+                        Name: "Long Horizon Reserve",
+                        TargetAmount: 1200000m,
+                        TargetMonthOffset: 36,
+                        AmountSaved: 300000m,
+                        MonthlyContribution: 45000m)
+                ]),
+            Debts:
+            [
+                new("Legacy Credit Line", "revolving", 250000m, 18m, 750m, 18000m, null),
+                new("Tax Repayment Plan", "revolving", 130000m, 0m, 0m, 10500m, null)
+            ])
+        {
+            AdditionalExpenseCategories =
+            [
+                new BudgetTimelineExpenseCategorySeed(
+                    RecapSankeyCurrentOnlyCategoryId,
+                    RecapSankeyCurrentOnlyCategoryName),
+                new BudgetTimelineExpenseCategorySeed(
+                    RecapSankeyPreviousOnlyCategoryId,
+                    RecapSankeyPreviousOnlyCategoryName)
+            ]
+        };
+
+        var oldest = BudgetTimelineScenarioData.Empty;
+
+        var middle = BudgetTimelineScenarioData.Empty with
+        {
+            ExpenseAmountOverrides =
+            [
+                new("Family Home Mortgage", 112000m),
+                new("Groceries", 56000m),
+                new("Transport Pass", 16500m),
+                new("Utilities And Insurance Bundle", 38000m)
+            ],
+            CreatedExpenses =
+            [
+                new(
+                    RecapSankeyCurrentOnlyCategoryId,
+                    "Current Month Category Spike",
+                    64000m)
+            ],
+            DeletedExpenses =
+            [
+                "Archived School Term Fees"
+            ],
+            SideHustleAmountOverrides =
+            [
+                new("Quarterly Consultancy Retainer", 125000m)
+            ],
+            HouseholdMemberAmountOverrides =
+            [
+                new("Partner Executive Contribution", 85000m)
+            ],
+            SavingsMonthlyOverride = 80000m,
+            SavingsGoalAdjustments =
+            [
+                new(
+                    "Long Horizon Reserve",
+                    MonthlyContribution: 65000m,
+                    AmountSaved: 365000m)
+            ],
+            DebtAdjustments =
+            [
+                new("Legacy Credit Line", MinPayment: 32000m, MonthlyFee: 1500m),
+                new("Tax Repayment Plan", MinPayment: 19000m)
+            ]
+        };
+
+        var open = BudgetTimelineScenarioData.Empty;
+
+        return new BudgetTimelineProfile(
+            Name: "recap-sankey-stress",
+            Baseline: baseline,
+            Oldest: oldest,
+            Middle: middle,
+            Open: open,
+            PostCloseInvariantsAsync: VerifyRecapSankeyStressInvariantsAsync);
+    }
+
+    private static async Task VerifyRecapSankeyStressInvariantsAsync(
+        BudgetTimelineSeedInvariantContext ctx)
+    {
+        var totals = await ctx.GetSnapshotTotalsAsync(ctx.YearMonth);
+
+        if (totals.TotalIncomeMonthly != RecapSankeyExpectedIncomeInComparableMonth ||
+            totals.TotalExpensesMonthly != RecapSankeyExpectedExpensesInComparableMonth ||
+            totals.TotalSavingsMonthly != RecapSankeyExpectedSavingsInComparableMonth ||
+            totals.TotalDebtPaymentsMonthly != RecapSankeyExpectedDebtPaymentsInComparableMonth ||
+            totals.FinalBalanceMonthly != RecapSankeyExpectedFinalBalanceInComparableMonth)
+        {
+            throw new InvalidOperationException(
+                $"Recap Sankey stress seed invariant failed for {ctx.YearMonth}: " +
+                $"snapshot totals were income={totals.TotalIncomeMonthly}, " +
+                $"expenses={totals.TotalExpensesMonthly}, " +
+                $"savings={totals.TotalSavingsMonthly}, " +
+                $"debtPayments={totals.TotalDebtPaymentsMonthly}, " +
+                $"finalBalance={totals.FinalBalanceMonthly}. Expected " +
+                $"income={RecapSankeyExpectedIncomeInComparableMonth}, " +
+                $"expenses={RecapSankeyExpectedExpensesInComparableMonth}, " +
+                $"savings={RecapSankeyExpectedSavingsInComparableMonth}, " +
+                $"debtPayments={RecapSankeyExpectedDebtPaymentsInComparableMonth}, " +
+                $"finalBalance={RecapSankeyExpectedFinalBalanceInComparableMonth}.");
+        }
+
+        var carryOverAmount = await ctx.GetCarryOverOutcomeAmountAsync(ctx.YearMonth);
+        if (carryOverAmount != RecapSankeyExpectedCarryOverFromComparableMonth)
+        {
+            throw new InvalidOperationException(
+                $"Recap Sankey stress seed invariant failed for {ctx.YearMonth}: " +
+                $"carry-over outcome was {carryOverAmount}, " +
+                $"expected {RecapSankeyExpectedCarryOverFromComparableMonth}.");
+        }
+    }
 }

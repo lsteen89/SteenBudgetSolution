@@ -113,7 +113,16 @@ E2eSeedUser[] e2eSeed =
             LastName: "RecapSavingsDebt"),
         IncludeBudget: true,
         OpenMonthTargetFinalBalance: null,
-        Profile: BudgetTimelineProfiles.RecapSavingsDebt)
+        Profile: BudgetTimelineProfiles.RecapSavingsDebt),
+    new(
+        User: new DevSeedUser(
+            Email: "e2e-recap-sankey-stress@local.test",
+            Password: DevSeedPassword,
+            FirstName: "E2E",
+            LastName: "RecapSankeyStress"),
+        IncludeBudget: true,
+        OpenMonthTargetFinalBalance: null,
+        Profile: BudgetTimelineProfiles.RecapSankeyStress)
 ];
 
 var isE2eSeedCommand = args.Any(arg => string.Equals(arg, SeedE2eCommandName, StringComparison.OrdinalIgnoreCase));

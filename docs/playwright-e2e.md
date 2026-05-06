@@ -178,6 +178,7 @@ Seeded users:
 | `e2e-close-deficit@local.test`         | `ChangeMe123!` | Dashboard-ready user; `2026-04` starts negative and closes directly when business rules allow it                             |
 | `e2e-recap-subscriptions@local.test`   | `ChangeMe123!` | Dashboard-ready user; closed `2026-03` recap exercises subscription states (active, renamed, new, removed, paused, cancelled) |
 | `e2e-recap-savings-debt@local.test`    | `ChangeMe123!` | Dashboard-ready user; closed `2026-03` recap exercises savings goal + debt deltas, current-only month rows, and ordering cues  |
+| `e2e-recap-sankey-stress@local.test`   | `ChangeMe123!` | Dashboard-ready user; closed `2026-03` recap exercises large Sankey totals, carry-over outcome display, long/current-only/previous-only expense categories, and top increase drivers |
 
 All dashboard-ready E2E users share the same month timeline:
 
@@ -187,6 +188,12 @@ All dashboard-ready E2E users share the same month timeline:
 - `2026-04` open month
 
 They have `FirstLogin = 0` and the close window is open under the fixed seed clock `2026-04-26T12:00:00Z`.
+
+Focused full-project recap checks can be run with a grep against the seeded scenario name, for example:
+
+```bash
+./scripts/playwright-e2e.sh test --project=full --grep "recap-sankey-stress"
+```
 
 ## Reset model
 

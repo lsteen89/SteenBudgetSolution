@@ -120,10 +120,14 @@ internal sealed class BudgetTimelineSeeder
                 YearMonth: middleYm,
                 SumActiveSubscriptionAmountAsync: ym =>
                     SumActiveSubscriptionAmountAsync(persoid, ym, ct),
+                GetSnapshotTotalsAsync: ym =>
+                    GetSnapshotTotalsAsync(persoid, ym, ct),
                 GetSnapshotSavingsTotalAsync: ym =>
                     GetSnapshotSavingsTotalAsync(persoid, ym, ct),
                 GetSnapshotDebtPaymentsTotalAsync: ym =>
                     GetSnapshotDebtPaymentsTotalAsync(persoid, ym, ct),
+                GetCarryOverOutcomeAmountAsync: ym =>
+                    GetCarryOverOutcomeAmountAsync(persoid, ym, ct),
                 CountActiveSavingsGoalsAsync: ym =>
                     CountActiveSavingsGoalsAsync(persoid, ym, ct),
                 CountActiveDebtsAsync: ym =>
@@ -185,6 +189,7 @@ internal sealed class BudgetTimelineSeeder
         }
 
         await EnsureExpenseCategoriesAsync(ct);
+        await EnsureAdditionalExpenseCategoriesAsync(baseline.AdditionalExpenseCategories, ct);
         await EnsureBaselineIncomeAsync(budgetId, persoid, baseline.Income, ct);
         await EnsureBaselineExpensesAsync(budgetId, persoid, baseline.Expenses, ct);
         await EnsureBaselineSavingsAsync(budgetId, persoid, baseline.Savings, ct);
@@ -211,6 +216,24 @@ internal sealed class BudgetTimelineSeeder
                 ["Subscription"] = BudgetTimelineBaselineData.SubscriptionCategoryId
             },
             ct);
+    }
+
+    private async Task EnsureAdditionalExpenseCategoriesAsync(
+        IReadOnlyList<BudgetTimelineExpenseCategorySeed> categories,
+        CancellationToken ct)
+    {
+        foreach (var category in categories)
+        {
+            await ExecuteAsync(
+                @"INSERT IGNORE INTO ExpenseCategory (Id, Name)
+                  VALUES (@Id, @Name);",
+                new Dictionary<string, object?>
+                {
+                    ["Id"] = category.Id,
+                    ["Name"] = category.Name
+                },
+                ct);
+        }
     }
 
     private async Task EnsureBaselineIncomeAsync(
@@ -1866,6 +1889,58 @@ internal sealed class BudgetTimelineSeeder
             ct);
     }
 
+    private async Task<BudgetTimelineSnapshotTotals> GetSnapshotTotalsAsync(
+        Guid persoid,
+        string yearMonth,
+        CancellationToken ct)
+    {
+        var row = await QuerySnapshotTotalsAsync(persoid, yearMonth, ct);
+        if (row is null)
+        {
+            throw new InvalidOperationException(
+                $"Could not find snapshot totals for {yearMonth}.");
+        }
+
+        return row;
+    }
+
+    private async Task<BudgetTimelineSnapshotTotals?> QuerySnapshotTotalsAsync(
+        Guid persoid,
+        string yearMonth,
+        CancellationToken ct)
+    {
+        var conn = await _uow.GetOpenConnectionAsync(ct);
+
+        await using var cmd = conn.CreateCommand();
+        cmd.Transaction = _uow.Transaction;
+        cmd.CommandText =
+            @"SELECT
+                  COALESCE(m.SnapshotTotalIncomeMonthly, 0),
+                  COALESCE(m.SnapshotTotalExpensesMonthly, 0),
+                  COALESCE(m.SnapshotTotalSavingsMonthly, 0),
+                  COALESCE(m.SnapshotTotalDebtPaymentsMonthly, 0),
+                  COALESCE(m.SnapshotFinalBalanceMonthly, 0)
+              FROM BudgetMonth m
+              JOIN Budget b ON b.Id = m.BudgetId
+              WHERE b.Persoid = @Persoid
+                AND m.YearMonth = @YearMonth
+              LIMIT 1;";
+
+        AddParameter(cmd, "Persoid", persoid);
+        AddParameter(cmd, "YearMonth", yearMonth);
+
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        if (!await reader.ReadAsync(ct))
+            return null;
+
+        return new BudgetTimelineSnapshotTotals(
+            TotalIncomeMonthly: reader.GetDecimal(0),
+            TotalExpensesMonthly: reader.GetDecimal(1),
+            TotalSavingsMonthly: reader.GetDecimal(2),
+            TotalDebtPaymentsMonthly: reader.GetDecimal(3),
+            FinalBalanceMonthly: reader.GetDecimal(4));
+    }
+
     private async Task<decimal> GetSnapshotDebtPaymentsTotalAsync(
         Guid persoid,
         string yearMonth,
@@ -1877,6 +1952,30 @@ internal sealed class BudgetTimelineSeeder
               JOIN Budget b ON b.Id = m.BudgetId
               WHERE b.Persoid = @Persoid
                 AND m.YearMonth = @YearMonth
+              LIMIT 1;",
+            new Dictionary<string, object?>
+            {
+                ["Persoid"] = persoid,
+                ["YearMonth"] = yearMonth
+            },
+            ct);
+    }
+
+    private async Task<decimal> GetCarryOverOutcomeAmountAsync(
+        Guid persoid,
+        string yearMonth,
+        CancellationToken ct)
+    {
+        return await QueryDecimalAsync(
+            @"SELECT COALESCE(e.CarryOverAmount, 0)
+              FROM BudgetMonthLifecycleEvent e
+              JOIN BudgetMonth targetMonth ON targetMonth.Id = e.BudgetMonthId
+              JOIN BudgetMonth sourceMonth ON sourceMonth.Id = e.RelatedBudgetMonthId
+              JOIN Budget b ON b.Id = sourceMonth.BudgetId
+              WHERE b.Persoid = @Persoid
+                AND sourceMonth.YearMonth = @YearMonth
+                AND e.EventType = 'carry-over-applied'
+              ORDER BY e.OccurredAt DESC
               LIMIT 1;",
             new Dictionary<string, object?>
             {
