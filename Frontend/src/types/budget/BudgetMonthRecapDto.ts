@@ -115,6 +115,17 @@ export type BudgetMonthRecapInsightDriversDto = {
   largestExpenseIncreaseDriver: BudgetMonthRecapExpenseDriverDto | null;
 };
 
+// Explicit outcome of the carry-over decision recorded at close-time. The
+// frontend should display carry-over from this DTO — `month.carryOverMode`
+// and `month.carryOverAmount` are not reliable for `full` mode (Amount is
+// stored as null on the next-month row).
+export type BudgetMonthRecapCarryOverOutcomeDto = {
+  mode: CarryOverMode;
+  amount: number;
+  targetYearMonth: string | null;
+  wasApplied: boolean;
+};
+
 export type BudgetMonthRecapDto = {
   month: BudgetMonthRecapMetaDto;
   snapshotTotals: BudgetMonthRecapSnapshotTotalsDto;
@@ -124,4 +135,5 @@ export type BudgetMonthRecapDto = {
   savingsDetail: BudgetMonthRecapSavingsDetailDto;
   debtDetail: BudgetMonthRecapDebtDetailDto;
   insightDrivers: BudgetMonthRecapInsightDriversDto;
+  carryOverOutcome: BudgetMonthRecapCarryOverOutcomeDto;
 };

@@ -253,4 +253,19 @@ public sealed partial class BudgetMonthRepository
       AND bm.YearMonth = @YearMonth
     LIMIT 1;";
 
+    // Reads the most recent carry-over-applied lifecycle event whose
+    // RelatedBudgetMonthId points back to the closed source month. The joined
+    // BudgetMonth row is the target month the carry-over was applied to.
+    private const string GetCarryOverOutcomeForClosedMonth = @"
+    SELECT
+        e.CarryOverMode               AS Mode,
+        COALESCE(e.CarryOverAmount, 0) AS Amount,
+        bm.YearMonth                   AS TargetYearMonth
+    FROM BudgetMonthLifecycleEvent e
+    JOIN BudgetMonth bm ON bm.Id = e.BudgetMonthId
+    WHERE e.EventType = @EventType
+      AND e.RelatedBudgetMonthId = @SourceBudgetMonthId
+    ORDER BY e.OccurredAt DESC
+    LIMIT 1;";
+
 }

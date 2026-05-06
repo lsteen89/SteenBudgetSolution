@@ -98,6 +98,8 @@ public sealed class GetBudgetMonthRecapQueryHandler
         var insightDrivers = BuildInsightDrivers(
             expenseCategories,
             previousComparableMonth is not null);
+        var outcome = await _months.GetCarryOverOutcomeForClosedMonthAsync(month.Id, ct);
+        var carryOverOutcome = BuildCarryOverOutcome(month.YearMonth, outcome);
 
         return Result<BudgetMonthRecapDto?>.Success(new BudgetMonthRecapDto(
             Month: new BudgetMonthRecapMetaDto(
@@ -121,7 +123,42 @@ public sealed class GetBudgetMonthRecapQueryHandler
             SubscriptionInsight: subscriptionInsight,
             SavingsDetail: savingsDetail,
             DebtDetail: debtDetail,
-            InsightDrivers: insightDrivers));
+            InsightDrivers: insightDrivers,
+            CarryOverOutcome: carryOverOutcome));
+    }
+
+    private static BudgetMonthRecapCarryOverOutcomeDto BuildCarryOverOutcome(
+        string sourceYearMonth,
+        BudgetMonthCarryOverOutcomeRm? outcome)
+    {
+        // The next calendar month is the target the close handler always
+        // creates/configures, so we use it as a deterministic fallback when
+        // legacy/orphaned data has no carry-over-applied event.
+        var fallbackTargetYearMonth = ComputeNextYearMonth(sourceYearMonth);
+
+        if (outcome is null)
+        {
+            return new BudgetMonthRecapCarryOverOutcomeDto(
+                Mode: BudgetMonthCarryOverModes.None,
+                Amount: 0m,
+                TargetYearMonth: fallbackTargetYearMonth,
+                WasApplied: false);
+        }
+
+        return new BudgetMonthRecapCarryOverOutcomeDto(
+            Mode: outcome.Mode,
+            Amount: outcome.Amount,
+            TargetYearMonth: outcome.TargetYearMonth ?? fallbackTargetYearMonth,
+            WasApplied: true);
+    }
+
+    private static string? ComputeNextYearMonth(string yearMonth)
+    {
+        if (!YearMonthUtil.TryParse(yearMonth, out var year, out var month))
+            return null;
+
+        var next = new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Utc).AddMonths(1);
+        return next.ToString("yyyy-MM");
     }
 
     private static BudgetMonthRecapComparisonSummaryDto? BuildComparisonSummary(

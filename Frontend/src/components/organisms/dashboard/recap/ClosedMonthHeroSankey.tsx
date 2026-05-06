@@ -97,10 +97,11 @@ function resultLinkTone(finalBalance: number): LinkTone {
 }
 
 function toSankeyInput(recap: BudgetMonthRecapDto): ClosedMonthSankeyInput {
-  const carryOverAmount =
-    recap.month.carryOverMode === "none" || recap.month.carryOverAmount == null
-      ? 0
-      : recap.month.carryOverAmount;
+  // Carry-over is sourced from the explicit outcome rather than the next-month
+  // row's stored CarryOverAmount, which is null for `full` mode.
+  const carryOverAmount = recap.carryOverOutcome.wasApplied
+    ? recap.carryOverOutcome.amount
+    : 0;
 
   return {
     carryOverAmount,
@@ -530,13 +531,12 @@ export default function ClosedMonthHeroSankey({
   const nodes = useMemo(() => buildFlowNodes(sankeyInput, t), [sankeyInput, t]);
   const links = useMemo(() => buildFlowLinks(sankeyInput), [sankeyInput]);
   const maxAmount = useMemo(() => maxFlowAmount(sankeyInput), [sankeyInput]);
-  const hasCarryOver =
-    recap.month.carryOverMode !== "none" && recap.month.carryOverAmount != null;
+  const hasCarryOver = recap.carryOverOutcome.wasApplied;
   const carryOverText = hasCarryOver
     ? replaceToken(
         replaceToken(t("heroCarryOverToNextMonth"), "month", nextMonthLabel),
         "amount",
-        formatSnapshotMoney(recap.month.carryOverAmount ?? 0, currency, locale),
+        formatSnapshotMoney(recap.carryOverOutcome.amount, currency, locale),
       )
     : t("heroCarryOverNoneBody");
   const availableAmount = nodes.available.amount;

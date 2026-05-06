@@ -14,6 +14,9 @@ public interface IBudgetMonthRepository
     Task<BudgetMonthLookupRm?> GetByBudgetIdAndYearMonthAsync(Guid budgetId, string yearMonth, CancellationToken ct);
     Task<BudgetMonthDetailsRm?> GetMonthAsync(Guid budgetId, string yearMonth, CancellationToken ct);
     Task<string?> GetPreviousComparableYearMonthAsync(Guid budgetId, string yearMonth, CancellationToken ct);
+    Task<BudgetMonthCarryOverOutcomeRm?> GetCarryOverOutcomeForClosedMonthAsync(
+        Guid sourceBudgetMonthId,
+        CancellationToken ct);
     Task<IReadOnlyList<BudgetMonthExpenseCategoryTotalRm>> GetExpenseCategoryTotalsAsync(Guid budgetMonthId, CancellationToken ct);
     Task<IReadOnlyList<BudgetMonthSubscriptionRm>> GetSubscriptionsAsync(Guid budgetMonthId, CancellationToken ct);
     Task<IReadOnlyList<BudgetMonthSavingsGoalRm>> GetSavingsGoalsAsync(Guid budgetMonthId, CancellationToken ct);

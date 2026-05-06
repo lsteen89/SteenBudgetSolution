@@ -13,3 +13,9 @@
 - Never modify auth, security, Docker, Caddy, CI/CD, or environment/secret config without explicit instruction. Diagnose and report instead.
 - Use `decimal` for money. Preserve transaction discipline and idempotency in lifecycle flows. Match existing feature-slice patterns.
 - Validate honestly. Report what was built, what was checked, and what remains unverified. Do not imply success when validation was partial.
+
+After completing any task:
+
+1. Append a short entry to docs/ai/ai-changelog.md (date, what changed, files touched, risks/follow-up)
+2. Write the commit message to COMMIT_MSG.tmp (Conventional Commits format)
+3. Stop. Do not commit or push.

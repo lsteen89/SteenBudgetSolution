@@ -1003,6 +1003,305 @@ public sealed class BudgetMonthRecapQueryHandlerTests
         result.Error.Code.Should().Be(BudgetMonth.RecapRequiresClosedMonth.Code);
     }
 
+    [Fact]
+    public async Task ClosedMonth_FullCarryOver_ReturnsAppliedAmountAndTargetMonth_FromLifecycleEvent()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+
+        // Closed source month: Apr with finalBalance 500. CarryOverMode/Amount on
+        // the source row remain "none"/null — full carry-over is recorded only on
+        // the lifecycle event, exactly as the close handler writes it today.
+        await InsertClosedMonthWithSnapshotAsync(
+            budgetId: seed.BudgetId,
+            yearMonth: "2026-04",
+            createdByUserId: seed.UserId,
+            openedAtUtc: new DateTime(2026, 04, 01, 08, 00, 00, DateTimeKind.Utc),
+            closedAtUtc: new DateTime(2026, 04, 30, 20, 00, 00, DateTimeKind.Utc),
+            carryOverMode: BudgetMonthCarryOverModes.None,
+            carryOverAmount: null,
+            totalIncome: 1000m,
+            totalExpenses: 200m,
+            totalSavings: 200m,
+            totalDebtPayments: 100m,
+            finalBalance: 500m);
+
+        // Next month exists with CarryOverMode="full" but CarryOverAmount=null,
+        // mirroring how CloseBudgetMonth seeds the row today.
+        await BudgetMonthDsl.InsertAsync(
+            cs: _db.ConnectionString,
+            budgetId: seed.BudgetId,
+            yearMonth: "2026-05",
+            status: BudgetMonthStatuses.Open,
+            openedAtUtc: new DateTime(2026, 05, 01, 00, 00, 00, DateTimeKind.Utc),
+            createdByUserId: seed.UserId,
+            closedAtUtc: null,
+            carryOverMode: BudgetMonthCarryOverModes.Full,
+            carryOverAmount: null);
+
+        var sourceId = await GetBudgetMonthIdAsync(seed.BudgetId, "2026-04");
+        var targetId = await GetBudgetMonthIdAsync(seed.BudgetId, "2026-05");
+
+        await InsertCarryOverAppliedEventAsync(
+            budgetMonthId: targetId,
+            relatedBudgetMonthId: sourceId,
+            carryOverMode: BudgetMonthCarryOverModes.Full,
+            carryOverAmount: 500m,
+            occurredByUserId: seed.UserId,
+            occurredAt: new DateTime(2026, 04, 30, 20, 00, 01, DateTimeKind.Utc));
+
+        var handler = CreateHandler();
+
+        var result = await handler.Handle(
+            new GetBudgetMonthRecapQuery(seed.Persoid, "2026-04"),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+
+        var dto = result.Value!;
+        dto.CarryOverOutcome.Mode.Should().Be(BudgetMonthCarryOverModes.Full);
+        dto.CarryOverOutcome.Amount.Should().Be(500m);
+        dto.CarryOverOutcome.TargetYearMonth.Should().Be("2026-05");
+        dto.CarryOverOutcome.WasApplied.Should().BeTrue();
+
+        // Snapshot totals must remain unchanged — carry-over is a transition
+        // concept and must not be folded into income or any snapshot total.
+        dto.SnapshotTotals.TotalIncomeMonthly.Should().Be(1000m);
+        dto.SnapshotTotals.FinalBalanceMonthly.Should().Be(500m);
+    }
+
+    [Fact]
+    public async Task ClosedMonth_NoCarryOver_ReturnsNotAppliedWithFallbackTargetMonth()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+
+        await InsertClosedMonthWithSnapshotAsync(
+            budgetId: seed.BudgetId,
+            yearMonth: "2026-04",
+            createdByUserId: seed.UserId,
+            openedAtUtc: new DateTime(2026, 04, 01, 08, 00, 00, DateTimeKind.Utc),
+            closedAtUtc: new DateTime(2026, 04, 30, 20, 00, 00, DateTimeKind.Utc),
+            carryOverMode: BudgetMonthCarryOverModes.None,
+            carryOverAmount: null,
+            totalIncome: 1000m,
+            totalExpenses: 600m,
+            totalSavings: 200m,
+            totalDebtPayments: 100m,
+            finalBalance: 100m);
+
+        var handler = CreateHandler();
+
+        var result = await handler.Handle(
+            new GetBudgetMonthRecapQuery(seed.Persoid, "2026-04"),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+
+        var dto = result.Value!;
+        dto.CarryOverOutcome.Mode.Should().Be(BudgetMonthCarryOverModes.None);
+        dto.CarryOverOutcome.Amount.Should().Be(0m);
+        dto.CarryOverOutcome.TargetYearMonth.Should().Be("2026-05");
+        dto.CarryOverOutcome.WasApplied.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ClosedMonth_SkippedMonthBetween_DoesNotBreakOutcomeAndComparison()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+
+        await InsertClosedMonthWithSnapshotAsync(
+            budgetId: seed.BudgetId,
+            yearMonth: "2026-01",
+            createdByUserId: seed.UserId,
+            openedAtUtc: new DateTime(2026, 01, 01, 08, 00, 00, DateTimeKind.Utc),
+            closedAtUtc: new DateTime(2026, 01, 31, 20, 00, 00, DateTimeKind.Utc),
+            carryOverMode: BudgetMonthCarryOverModes.None,
+            carryOverAmount: null,
+            totalIncome: 900m,
+            totalExpenses: 500m,
+            totalSavings: 200m,
+            totalDebtPayments: 100m,
+            finalBalance: 100m);
+
+        await BudgetMonthDsl.InsertAsync(
+            cs: _db.ConnectionString,
+            budgetId: seed.BudgetId,
+            yearMonth: "2026-02",
+            status: BudgetMonthStatuses.Skipped,
+            openedAtUtc: new DateTime(2026, 02, 01, 08, 00, 00, DateTimeKind.Utc),
+            createdByUserId: seed.UserId,
+            closedAtUtc: new DateTime(2026, 02, 28, 20, 00, 00, DateTimeKind.Utc),
+            carryOverMode: BudgetMonthCarryOverModes.None,
+            carryOverAmount: null);
+
+        await InsertClosedMonthWithSnapshotAsync(
+            budgetId: seed.BudgetId,
+            yearMonth: "2026-03",
+            createdByUserId: seed.UserId,
+            openedAtUtc: new DateTime(2026, 03, 01, 08, 00, 00, DateTimeKind.Utc),
+            closedAtUtc: new DateTime(2026, 03, 31, 20, 00, 00, DateTimeKind.Utc),
+            carryOverMode: BudgetMonthCarryOverModes.None,
+            carryOverAmount: null,
+            totalIncome: 1100m,
+            totalExpenses: 600m,
+            totalSavings: 250m,
+            totalDebtPayments: 100m,
+            finalBalance: 150m);
+
+        await BudgetMonthDsl.InsertAsync(
+            cs: _db.ConnectionString,
+            budgetId: seed.BudgetId,
+            yearMonth: "2026-04",
+            status: BudgetMonthStatuses.Open,
+            openedAtUtc: new DateTime(2026, 04, 01, 00, 00, 00, DateTimeKind.Utc),
+            createdByUserId: seed.UserId,
+            closedAtUtc: null,
+            carryOverMode: BudgetMonthCarryOverModes.Full,
+            carryOverAmount: null);
+
+        var sourceId = await GetBudgetMonthIdAsync(seed.BudgetId, "2026-03");
+        var targetId = await GetBudgetMonthIdAsync(seed.BudgetId, "2026-04");
+
+        await InsertCarryOverAppliedEventAsync(
+            budgetMonthId: targetId,
+            relatedBudgetMonthId: sourceId,
+            carryOverMode: BudgetMonthCarryOverModes.Full,
+            carryOverAmount: 150m,
+            occurredByUserId: seed.UserId,
+            occurredAt: new DateTime(2026, 03, 31, 20, 00, 01, DateTimeKind.Utc));
+
+        var handler = CreateHandler();
+
+        var result = await handler.Handle(
+            new GetBudgetMonthRecapQuery(seed.Persoid, "2026-03"),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+
+        var dto = result.Value!;
+        dto.CarryOverOutcome.Mode.Should().Be(BudgetMonthCarryOverModes.Full);
+        dto.CarryOverOutcome.Amount.Should().Be(150m);
+        dto.CarryOverOutcome.TargetYearMonth.Should().Be("2026-04");
+        dto.CarryOverOutcome.WasApplied.Should().BeTrue();
+
+        // The skipped month between Jan and Mar must be ignored by the
+        // comparison baseline so Mar still compares against Jan.
+        dto.Comparison.HasPreviousComparableMonth.Should().BeTrue();
+        dto.Comparison.PreviousComparableYearMonth.Should().Be("2026-01");
+    }
+
+    [Fact]
+    public async Task ClosedMonth_LegacyDataWithoutLifecycleEvent_DegradesToNotApplied()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+
+        // Legacy shape: row says full carry-over but no carry-over-applied event
+        // was ever written. The recap must not invent an amount it cannot prove.
+        await InsertClosedMonthWithSnapshotAsync(
+            budgetId: seed.BudgetId,
+            yearMonth: "2026-04",
+            createdByUserId: seed.UserId,
+            openedAtUtc: new DateTime(2026, 04, 01, 08, 00, 00, DateTimeKind.Utc),
+            closedAtUtc: new DateTime(2026, 04, 30, 20, 00, 00, DateTimeKind.Utc),
+            carryOverMode: BudgetMonthCarryOverModes.Full,
+            carryOverAmount: null,
+            totalIncome: 1000m,
+            totalExpenses: 600m,
+            totalSavings: 200m,
+            totalDebtPayments: 100m,
+            finalBalance: 100m);
+
+        var handler = CreateHandler();
+
+        var result = await handler.Handle(
+            new GetBudgetMonthRecapQuery(seed.Persoid, "2026-04"),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+
+        var dto = result.Value!;
+        dto.CarryOverOutcome.Mode.Should().Be(BudgetMonthCarryOverModes.None);
+        dto.CarryOverOutcome.Amount.Should().Be(0m);
+        dto.CarryOverOutcome.TargetYearMonth.Should().Be("2026-05");
+        dto.CarryOverOutcome.WasApplied.Should().BeFalse();
+
+        // Snapshot remains the legacy values verbatim — the meta block still
+        // exposes the source row's CarryOverMode for diagnostic continuity.
+        dto.Month.CarryOverMode.Should().Be(BudgetMonthCarryOverModes.Full);
+        dto.Month.CarryOverAmount.Should().BeNull();
+    }
+
+    private async Task<Guid> GetBudgetMonthIdAsync(Guid budgetId, string yearMonth)
+    {
+        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await conn.OpenAsync();
+        return await conn.QuerySingleAsync<Guid>(
+            """
+            SELECT Id
+            FROM BudgetMonth
+            WHERE BudgetId = @BudgetId
+              AND YearMonth = @YearMonth
+            LIMIT 1;
+            """,
+            new { BudgetId = budgetId, YearMonth = yearMonth });
+    }
+
+    private async Task InsertCarryOverAppliedEventAsync(
+        Guid budgetMonthId,
+        Guid relatedBudgetMonthId,
+        string carryOverMode,
+        decimal carryOverAmount,
+        Guid occurredByUserId,
+        DateTime occurredAt)
+    {
+        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await conn.OpenAsync();
+
+        await conn.ExecuteAsync(
+            """
+            INSERT INTO BudgetMonthLifecycleEvent
+            (
+                Id,
+                BudgetMonthId,
+                EventType,
+                RelatedBudgetMonthId,
+                CarryOverMode,
+                CarryOverAmount,
+                MetadataJson,
+                OccurredAt,
+                OccurredByUserId
+            )
+            VALUES
+            (
+                UUID_TO_BIN(UUID()),
+                @BudgetMonthId,
+                'carry-over-applied',
+                @RelatedBudgetMonthId,
+                @CarryOverMode,
+                @CarryOverAmount,
+                NULL,
+                @OccurredAt,
+                @OccurredByUserId
+            );
+            """,
+            new
+            {
+                BudgetMonthId = budgetMonthId,
+                RelatedBudgetMonthId = relatedBudgetMonthId,
+                CarryOverMode = carryOverMode,
+                CarryOverAmount = carryOverAmount,
+                OccurredAt = occurredAt,
+                OccurredByUserId = occurredByUserId
+            });
+    }
+
     private GetBudgetMonthRecapQueryHandler CreateHandler()
     {
         var opts = Options.Create(new DatabaseSettings
