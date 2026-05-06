@@ -198,7 +198,10 @@ function comparisonTone(
   }
 
   if (key === "debtPayments") {
-    return deltaAmount > 0 ? "neutral" : "positive";
+    // Both directions stay neutral: paying more or less than the previous
+    // closed month is ambiguous on its own (could be amortization, refinance,
+    // or a missed payment). We don't dress these as "positive" without context.
+    return "neutral";
   }
 
   return deltaAmount > 0 ? "positive" : "attention";
@@ -285,27 +288,14 @@ function ClosedMonthRecapCompareChart({
   }));
 
   return (
-    <div data-testid="closed-month-comparison" className="min-h-[330px] space-y-4">
+    <div data-testid="closed-month-comparison" className="min-h-[330px] space-y-5">
       <p className="text-sm font-medium leading-6 text-eb-text/60">
         {previousMonthLabel
           ? replaceToken(t("previousComparable"), "month", previousMonthLabel)
           : t("noPreviousComparable")}
       </p>
 
-      <div className="h-[250px] min-w-0">
-        <ResponsiveContainer width="100%" height="100%" minWidth={320} minHeight={250}>
-          <BarChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-            <CartesianGrid stroke="#d7e0e5" strokeDasharray="3 3" vertical={false} />
-            <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "#50626d", fontSize: 11, fontWeight: 700 }} />
-            <YAxis hide />
-            <Tooltip content={<CustomTooltip currency={currency} locale={locale} />} />
-            <Bar dataKey="previous" name={t("previousValue")} fill="#c9d6dd" radius={[8, 8, 0, 0]} />
-            <Bar dataKey="current" name={t("chartCurrentValue")} fill="#2f6074" radius={[8, 8, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      <div className="grid grid-cols-1 gap-2 md:grid-cols-5">
+      <div className="grid grid-cols-1 gap-2.5 md:grid-cols-5">
         {comparisonMetrics.map(({ key, labelKey, Icon }) => {
           const metric = summary[key];
           const tone = comparisonTone(key, metric.deltaAmount);
@@ -315,21 +305,28 @@ function ClosedMonthRecapCompareChart({
               key={key}
               data-testid={`closed-month-comparison-${key}`}
               data-tone={tone}
-              className="rounded-xl border border-eb-stroke/20 bg-white/70 p-3"
+              className={cn(
+                "rounded-2xl border bg-white/85 p-3.5 shadow-[0_10px_24px_rgb(21_39_81_/_0.04)] ring-1 ring-white/60",
+                tone === "attention"
+                  ? "border-amber-200/70"
+                  : tone === "positive"
+                    ? "border-emerald-200/70"
+                    : "border-eb-stroke/20",
+              )}
             >
               <div className="flex items-center gap-2">
                 <Icon className="h-4 w-4 text-eb-text/50" />
-                <p className="truncate text-xs font-bold uppercase tracking-wide text-eb-text/50">
+                <p className="truncate text-[11px] font-extrabold uppercase tracking-[0.08em] text-eb-text/55">
                   {t(labelKey)}
                 </p>
               </div>
-              <p className={cn("mt-2 text-sm font-extrabold", toneTextClass(tone))}>
+              <p className={cn("mt-2 text-base font-extrabold tabular-nums leading-6", toneTextClass(tone))}>
                 {formatSignedMoney(metric.deltaAmount, currency, locale)}
               </p>
               {metric.deltaPercent != null ? (
                 <p
                   data-testid={`closed-month-comparison-${key}-percent`}
-                  className={cn("mt-0.5 text-xs font-bold", toneTextClass(tone))}
+                  className={cn("mt-0.5 text-xs font-bold tabular-nums", toneTextClass(tone))}
                 >
                   {formatSignedPercent(metric.deltaPercent, locale)}
                 </p>
@@ -338,6 +335,27 @@ function ClosedMonthRecapCompareChart({
           );
         })}
       </div>
+
+      <details className="group rounded-2xl border border-eb-stroke/15 bg-white/55 open:bg-white/75">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-2xl px-4 py-2.5 text-xs font-extrabold uppercase tracking-[0.08em] text-eb-text/55 transition-colors hover:text-eb-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-eb-accent">
+          <span>{t("chartCompareSupportingTitle")}</span>
+          <span aria-hidden className="text-eb-text/40 transition-transform group-open:rotate-180">▾</span>
+        </summary>
+        <div className="px-3 pb-3 pt-1">
+          <div className="h-[180px] min-w-0">
+            <ResponsiveContainer width="100%" height="100%" minWidth={320} minHeight={180}>
+              <BarChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+                <CartesianGrid stroke="#d7e0e5" strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: "#50626d", fontSize: 11, fontWeight: 700 }} />
+                <YAxis hide />
+                <Tooltip content={<CustomTooltip currency={currency} locale={locale} />} />
+                <Bar dataKey="previous" name={t("previousValue")} fill="#c9d6dd" radius={[8, 8, 0, 0]} animationDuration={320} animationEasing="ease-out" />
+                <Bar dataKey="current" name={t("chartCurrentValue")} fill="#2f6074" radius={[8, 8, 0, 0]} animationDuration={320} animationEasing="ease-out" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </details>
     </div>
   );
 }
@@ -400,9 +418,22 @@ function ClosedMonthRecapCategoriesChart({
             />
             <Tooltip content={<CustomTooltip currency={currency} locale={locale} />} />
             {hasPreviousComparableMonth ? (
-              <Bar dataKey="previousAmount" name={t("previousValue")} fill="#c9d6dd" radius={[0, 8, 8, 0]} />
+              <Bar
+                dataKey="previousAmount"
+                name={t("previousValue")}
+                fill="#c9d6dd"
+                radius={[0, 8, 8, 0]}
+                animationDuration={320}
+                animationEasing="ease-out"
+              />
             ) : null}
-            <Bar dataKey="currentAmount" name={t("chartCurrentValue")} radius={[0, 8, 8, 0]}>
+            <Bar
+              dataKey="currentAmount"
+              name={t("chartCurrentValue")}
+              radius={[0, 8, 8, 0]}
+              animationDuration={320}
+              animationEasing="ease-out"
+            >
               {categories.map((category) => (
                 <Cell key={category.categoryId} fill={barToneColor(category.tone)} />
               ))}
@@ -511,36 +542,42 @@ export default function ClosedMonthRecapChartCard({
 }: ClosedMonthRecapChartCardProps) {
   const canCompare =
     recap.comparison.hasPreviousComparableMonth && recap.comparison.summary != null;
-  const tabs: ChartTabOption[] = [
-    { value: "compare", labelKey: "chartCompare", disabled: !canCompare },
-    { value: "categories", labelKey: "chartCategories" },
-  ];
-  const resolvedTab = selectedTab === "compare" && !canCompare ? "categories" : selectedTab;
+  const tabs: ChartTabOption[] = canCompare
+    ? [
+        { value: "compare", labelKey: "chartCompare" },
+        { value: "categories", labelKey: "chartCategories" },
+      ]
+    : [{ value: "categories", labelKey: "chartCategories" }];
+  const resolvedTab = canCompare ? selectedTab : "categories";
 
-  const narrativeKey = buildChartNarrativeKey(recap);
+  const titleKey: RecapTKey = canCompare ? "chartTitle" : "chartTitleNoPrevious";
+  const bodyKey: RecapTKey = canCompare ? "chartBody" : "chartBodyNoPrevious";
+  const narrativeKey = canCompare
+    ? buildChartNarrativeKey(recap)
+    : "chartNarrativeDistribution";
 
   return (
     <article
-      aria-label={t("chartTitle")}
+      aria-label={t(titleKey)}
       data-testid="closed-month-chart-card"
       className="rounded-2xl border border-[rgba(199,228,255,0.65)] bg-white/90 p-4 shadow-[0_18px_45px_rgba(21,39,81,0.06)] sm:p-6"
     >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-2xl">
-          <h2 className="text-lg font-extrabold text-eb-text">
-            {t("chartTitle")}
-          </h2>
+          <h2 className="text-lg font-extrabold text-eb-text">{t(titleKey)}</h2>
           <p className="mt-1 text-sm font-medium leading-6 text-eb-text/60">
-            {t("chartBody")}
+            {t(bodyKey)}
           </p>
         </div>
 
-        <ClosedMonthRecapChartSwitcher
-          tabs={tabs}
-          selectedTab={resolvedTab}
-          onSelectedTabChange={onSelectedTabChange}
-          t={t}
-        />
+        {canCompare ? (
+          <ClosedMonthRecapChartSwitcher
+            tabs={tabs}
+            selectedTab={resolvedTab}
+            onSelectedTabChange={onSelectedTabChange}
+            t={t}
+          />
+        ) : null}
       </div>
 
       <p

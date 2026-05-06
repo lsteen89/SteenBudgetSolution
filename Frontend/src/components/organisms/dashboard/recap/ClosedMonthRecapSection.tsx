@@ -16,6 +16,7 @@ import { tDict } from "@/utils/i18n/translate";
 import type { CurrencyCode } from "@/utils/money/currency";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
 import { type ReactNode, useEffect, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   ArrowRight,
   Landmark,
@@ -583,6 +584,7 @@ export default function ClosedMonthRecapSection({
   const hasComparableChart =
     recap?.comparison.hasPreviousComparableMonth === true &&
     recap.comparison.summary != null;
+  const prefersReducedMotion = useReducedMotion();
 
   useEffect(() => {
     if (selectedChartTab === "compare" && !hasComparableChart) {
@@ -624,12 +626,30 @@ export default function ClosedMonthRecapSection({
   const finalBalance = recap.snapshotTotals.finalBalanceMonthly;
   const hasDeficit = finalBalance < 0;
 
+  const motionInitial = prefersReducedMotion ? false : { opacity: 0, x: 20 };
+  const motionAnimate = { opacity: 1, x: 0 };
+  const motionExit = prefersReducedMotion
+    ? { opacity: 1, x: 0 }
+    : { opacity: 0, x: -20 };
+  const motionTransition = prefersReducedMotion
+    ? { duration: 0 }
+    : { type: "spring" as const, stiffness: 300, damping: 30 };
+
   return (
     <section
       data-testid="closed-month-recap"
       aria-labelledby="closed-month-title"
-      className="w-full space-y-5"
+      className="w-full"
     >
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={recap.month.yearMonth}
+          initial={motionInitial}
+          animate={motionAnimate}
+          exit={motionExit}
+          transition={motionTransition}
+          className="space-y-5"
+        >
       <ClosedMonthReviewHero
         recap={recap}
         currency={currency}
@@ -720,6 +740,8 @@ export default function ClosedMonthRecapSection({
 
         </div>
       </div>
+        </motion.div>
+      </AnimatePresence>
     </section>
   );
 }

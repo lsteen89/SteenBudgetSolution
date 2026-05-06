@@ -141,6 +141,12 @@ export const closedMonthRecapDict = {
     chartTitle: "Vad ändrades?",
     chartBody:
       "Jämför med föregående stängda månad och se vilka kategorier som rörde sig mest.",
+    chartTitleNoPrevious: "Vad bestod månaden av?",
+    chartBodyNoPrevious:
+      "Översikt av månadens utgifter per kategori.",
+    chartCompareSupportingTitle: "Visa stapeldiagram",
+    chartNarrativeDistribution:
+      "Aktuella utgifter fördelade på de största kategorierna.",
     chartSwitcherLabel: "Välj diagramvy",
     chartCompare: "Jämför",
     chartCategories: "Kategorier",
@@ -356,6 +362,12 @@ export const closedMonthRecapDict = {
     chartTitle: "What changed?",
     chartBody:
       "Compare with the previous closed month and see which categories moved the most.",
+    chartTitleNoPrevious: "What did the month consist of?",
+    chartBodyNoPrevious:
+      "An overview of this month's expenses by category.",
+    chartCompareSupportingTitle: "Show bar chart",
+    chartNarrativeDistribution:
+      "Current expenses spread across the largest categories.",
     chartSwitcherLabel: "Choose chart view",
     chartCompare: "Compare",
     chartCategories: "Categories",
@@ -569,6 +581,12 @@ export const closedMonthRecapDict = {
     chartTitle: "Mis muutus?",
     chartBody:
       "Võrdle eelmise suletud kuuga ja vaata, millised kategooriad enim liikusid.",
+    chartTitleNoPrevious: "Millest see kuu koosnes?",
+    chartBodyNoPrevious:
+      "Selle kuu kulude ülevaade kategooriate kaupa.",
+    chartCompareSupportingTitle: "Näita tulpdiagrammi",
+    chartNarrativeDistribution:
+      "Praegused kulud jaotatuna suurimate kategooriate vahel.",
     chartSwitcherLabel: "Vali diagrammivaade",
     chartCompare: "Võrdle",
     chartCategories: "Kategooriad",

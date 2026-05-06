@@ -161,7 +161,7 @@ export default function ClosedMonthReviewHero({
             ) : null}
           </div>
 
-          <div className="mt-5 grid grid-cols-[minmax(0,1fr)_96px] items-end gap-4 sm:grid-cols-[minmax(0,1fr)_132px] xl:grid-cols-1">
+          <div className="mt-5 xl:grid xl:grid-cols-1 xl:items-end xl:gap-4">
             <div className="min-w-0">
               <p className="text-xs font-bold uppercase tracking-wide text-eb-text/48">
                 {t("heroGuideEyebrow")}
@@ -184,14 +184,13 @@ export default function ClosedMonthReviewHero({
                   {buildMonthlyTakeaway(recap, currency, locale, t)}
                 </p>
               </div>
-
             </div>
 
             <img
               src={GuideBird}
               alt=""
               aria-hidden="true"
-              className="h-28 w-full object-contain object-bottom sm:h-32 xl:h-40"
+              className="hidden xl:block xl:h-32 2xl:h-40 w-full object-contain object-bottom opacity-90"
             />
           </div>
         </div>

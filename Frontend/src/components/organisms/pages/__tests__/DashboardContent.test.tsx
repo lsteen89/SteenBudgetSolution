@@ -1124,16 +1124,15 @@ describe("DashboardContent", () => {
       screen.getByRole("article", { name: /deficit guidance/i }),
     ).toHaveTextContent(/closed with a deficit/i);
     expect(screen.queryByTestId("closed-month-chart-tab-flow")).toBeNull();
-    expect(screen.getByTestId("closed-month-chart-tab-compare")).toBeDisabled();
-    expect(screen.getByTestId("closed-month-chart-tab-categories")).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
+    expect(screen.queryByTestId("closed-month-chart-tab-compare")).toBeNull();
+    expect(screen.queryByTestId("closed-month-chart-tab-categories")).toBeNull();
+    expect(
+      screen.getByRole("heading", { name: /what did the month consist of/i }),
+    ).toBeInTheDocument();
     expect(screen.getByTestId("closed-month-hero-flow")).toBeInTheDocument();
     expect(
       screen.queryByTestId("closed-month-comparison-income-percent"),
     ).toBeNull();
-    fireEvent.click(screen.getByTestId("closed-month-chart-tab-categories"));
     expect(screen.getByTestId("closed-month-expense-categories")).toHaveTextContent(
       /no previous month is available/i,
     );
@@ -1575,7 +1574,7 @@ describe("DashboardContent", () => {
       /comparisons skip this month/i,
     );
     expect(
-      screen.getByRole("heading", { name: "This month was skipped" }),
+      screen.getByRole("heading", { name: /this month was skipped\.?/i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/no budget was closed/i)).toBeInTheDocument();
     expect(screen.getByTestId("skipped-month-facts")).toHaveTextContent(
