@@ -119,7 +119,15 @@ internal sealed class BudgetTimelineSeeder
                 BudgetMonthId: middleBudgetMonthId,
                 YearMonth: middleYm,
                 SumActiveSubscriptionAmountAsync: ym =>
-                    SumActiveSubscriptionAmountAsync(persoid, ym, ct));
+                    SumActiveSubscriptionAmountAsync(persoid, ym, ct),
+                GetSnapshotSavingsTotalAsync: ym =>
+                    GetSnapshotSavingsTotalAsync(persoid, ym, ct),
+                GetSnapshotDebtPaymentsTotalAsync: ym =>
+                    GetSnapshotDebtPaymentsTotalAsync(persoid, ym, ct),
+                CountActiveSavingsGoalsAsync: ym =>
+                    CountActiveSavingsGoalsAsync(persoid, ym, ct),
+                CountActiveDebtsAsync: ym =>
+                    CountActiveDebtsAsync(persoid, ym, ct));
 
             await resolvedProfile.PostCloseInvariantsAsync(invariantContext);
         }
@@ -619,6 +627,26 @@ internal sealed class BudgetTimelineSeeder
                 change.Balance,
                 change.MinPayment,
                 change.MonthlyFee,
+                NextChangedAtUtc(),
+                ct);
+        }
+
+        foreach (var goal in scenario.CreatedSavingsGoals)
+        {
+            await CreateMonthSavingsGoalAsync(
+                budgetMonthId,
+                actorPersoid,
+                goal,
+                NextChangedAtUtc(),
+                ct);
+        }
+
+        foreach (var debt in scenario.CreatedDebts)
+        {
+            await CreateMonthDebtAsync(
+                budgetMonthId,
+                actorPersoid,
+                debt,
                 NextChangedAtUtc(),
                 ct);
         }
@@ -1453,6 +1481,223 @@ internal sealed class BudgetTimelineSeeder
             ct: ct);
     }
 
+    private async Task CreateMonthSavingsGoalAsync(
+        Guid budgetMonthId,
+        Guid actorPersoid,
+        BudgetTimelineMonthSavingsGoalCreate goal,
+        DateTime changedAtUtc,
+        CancellationToken ct)
+    {
+        var budgetMonthSavingsId = await QueryGuidAsync(
+            @"SELECT Id
+              FROM BudgetMonthSavings
+              WHERE BudgetMonthId = @BudgetMonthId
+                AND IsDeleted = 0
+              LIMIT 1;",
+            new Dictionary<string, object?> { ["BudgetMonthId"] = budgetMonthId },
+            ct);
+
+        if (budgetMonthSavingsId is null)
+        {
+            throw new InvalidOperationException(
+                $"Could not find BudgetMonthSavings for month {budgetMonthId} when creating goal '{goal.Name}'.");
+        }
+
+        var entityId = Guid.NewGuid();
+        var sortOrder = await QueryIntAsync(
+            @"SELECT COALESCE(MAX(SortOrder), -1) + 1
+              FROM BudgetMonthSavingsGoal
+              WHERE BudgetMonthSavingsId = @BudgetMonthSavingsId;",
+            new Dictionary<string, object?>
+            {
+                ["BudgetMonthSavingsId"] = budgetMonthSavingsId.Value
+            },
+            ct);
+
+        DateTime? targetDate = null;
+        if (goal.TargetMonthOffset.HasValue)
+        {
+            var anchor = new DateTime(_clock.UtcNow.Year, _clock.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+            targetDate = anchor.AddMonths(goal.TargetMonthOffset.Value).Date;
+        }
+
+        await ExecuteAsync(
+            @"INSERT INTO BudgetMonthSavingsGoal
+              (
+                  Id,
+                  BudgetMonthSavingsId,
+                  SourceSavingsGoalId,
+                  Name,
+                  TargetAmount,
+                  TargetDate,
+                  AmountSaved,
+                  MonthlyContribution,
+                  OpenedAt,
+                  Status,
+                  IsOverride,
+                  IsDeleted,
+                  SortOrder,
+                  CreatedAt,
+                  CreatedByUserId
+              )
+              VALUES
+              (
+                  @Id,
+                  @BudgetMonthSavingsId,
+                  NULL,
+                  @Name,
+                  @TargetAmount,
+                  @TargetDate,
+                  @AmountSaved,
+                  @MonthlyContribution,
+                  @ChangedAtUtc,
+                  'active',
+                  1,
+                  0,
+                  @SortOrder,
+                  @ChangedAtUtc,
+                  @ActorPersoid
+              );",
+            new Dictionary<string, object?>
+            {
+                ["Id"] = entityId,
+                ["BudgetMonthSavingsId"] = budgetMonthSavingsId.Value,
+                ["Name"] = goal.Name,
+                ["TargetAmount"] = goal.TargetAmount,
+                ["TargetDate"] = targetDate,
+                ["AmountSaved"] = goal.AmountSaved,
+                ["MonthlyContribution"] = goal.MonthlyContribution,
+                ["SortOrder"] = sortOrder,
+                ["ChangedAtUtc"] = changedAtUtc,
+                ["ActorPersoid"] = actorPersoid
+            },
+            ct);
+
+        await InsertBudgetMonthChangeEventAsync(
+            budgetMonthId: budgetMonthId,
+            entityType: "savings-goal",
+            entityId: entityId,
+            sourceEntityId: null,
+            changeType: "created",
+            changeSet: new
+            {
+                createdEntity = new
+                {
+                    Id = entityId,
+                    goal.Name,
+                    goal.MonthlyContribution,
+                    goal.TargetAmount,
+                    goal.AmountSaved,
+                    IsMonthOnly = true
+                }
+            },
+            changedByUserId: actorPersoid,
+            changedAtUtc: changedAtUtc,
+            ct: ct);
+    }
+
+    private async Task CreateMonthDebtAsync(
+        Guid budgetMonthId,
+        Guid actorPersoid,
+        BudgetTimelineMonthDebtCreate debt,
+        DateTime changedAtUtc,
+        CancellationToken ct)
+    {
+        var entityId = Guid.NewGuid();
+        var sortOrder = await QueryIntAsync(
+            @"SELECT COALESCE(MAX(SortOrder), -1) + 1
+              FROM BudgetMonthDebt
+              WHERE BudgetMonthId = @BudgetMonthId;",
+            new Dictionary<string, object?>
+            {
+                ["BudgetMonthId"] = budgetMonthId
+            },
+            ct);
+
+        await ExecuteAsync(
+            @"INSERT INTO BudgetMonthDebt
+              (
+                  Id,
+                  BudgetMonthId,
+                  SourceDebtId,
+                  Name,
+                  Type,
+                  Balance,
+                  Apr,
+                  MonthlyFee,
+                  MinPayment,
+                  TermMonths,
+                  OpenedAt,
+                  Status,
+                  IsOverride,
+                  IsDeleted,
+                  SortOrder,
+                  CreatedAt,
+                  CreatedByUserId
+              )
+              VALUES
+              (
+                  @Id,
+                  @BudgetMonthId,
+                  NULL,
+                  @Name,
+                  @Type,
+                  @Balance,
+                  @Apr,
+                  @MonthlyFee,
+                  @MinPayment,
+                  @TermMonths,
+                  @ChangedAtUtc,
+                  'active',
+                  1,
+                  0,
+                  @SortOrder,
+                  @ChangedAtUtc,
+                  @ActorPersoid
+              );",
+            new Dictionary<string, object?>
+            {
+                ["Id"] = entityId,
+                ["BudgetMonthId"] = budgetMonthId,
+                ["Name"] = debt.Name,
+                ["Type"] = debt.Type,
+                ["Balance"] = debt.Balance,
+                ["Apr"] = debt.Apr,
+                ["MonthlyFee"] = debt.MonthlyFee,
+                ["MinPayment"] = debt.MinPayment,
+                ["TermMonths"] = debt.TermMonths,
+                ["SortOrder"] = sortOrder,
+                ["ChangedAtUtc"] = changedAtUtc,
+                ["ActorPersoid"] = actorPersoid
+            },
+            ct);
+
+        await InsertBudgetMonthChangeEventAsync(
+            budgetMonthId: budgetMonthId,
+            entityType: "debt",
+            entityId: entityId,
+            sourceEntityId: null,
+            changeType: "created",
+            changeSet: new
+            {
+                createdEntity = new
+                {
+                    Id = entityId,
+                    debt.Name,
+                    debt.Type,
+                    debt.Balance,
+                    debt.Apr,
+                    debt.MonthlyFee,
+                    debt.MinPayment,
+                    debt.TermMonths,
+                    IsMonthOnly = true
+                }
+            },
+            changedByUserId: actorPersoid,
+            changedAtUtc: changedAtUtc,
+            ct: ct);
+    }
+
     private async Task<BudgetTimelineExpenseMonthRow> GetExpenseRowAsync(
         Guid budgetMonthId,
         string expenseName,
@@ -1593,6 +1838,92 @@ internal sealed class BudgetTimelineSeeder
                     e.SubscriptionLifecycleStatus IS NULL
                     OR e.SubscriptionLifecycleStatus = 'active'
                 );",
+            new Dictionary<string, object?>
+            {
+                ["Persoid"] = persoid,
+                ["YearMonth"] = yearMonth
+            },
+            ct);
+    }
+
+    private async Task<decimal> GetSnapshotSavingsTotalAsync(
+        Guid persoid,
+        string yearMonth,
+        CancellationToken ct)
+    {
+        return await QueryDecimalAsync(
+            @"SELECT COALESCE(m.SnapshotTotalSavingsMonthly, 0)
+              FROM BudgetMonth m
+              JOIN Budget b ON b.Id = m.BudgetId
+              WHERE b.Persoid = @Persoid
+                AND m.YearMonth = @YearMonth
+              LIMIT 1;",
+            new Dictionary<string, object?>
+            {
+                ["Persoid"] = persoid,
+                ["YearMonth"] = yearMonth
+            },
+            ct);
+    }
+
+    private async Task<decimal> GetSnapshotDebtPaymentsTotalAsync(
+        Guid persoid,
+        string yearMonth,
+        CancellationToken ct)
+    {
+        return await QueryDecimalAsync(
+            @"SELECT COALESCE(m.SnapshotTotalDebtPaymentsMonthly, 0)
+              FROM BudgetMonth m
+              JOIN Budget b ON b.Id = m.BudgetId
+              WHERE b.Persoid = @Persoid
+                AND m.YearMonth = @YearMonth
+              LIMIT 1;",
+            new Dictionary<string, object?>
+            {
+                ["Persoid"] = persoid,
+                ["YearMonth"] = yearMonth
+            },
+            ct);
+    }
+
+    private async Task<int> CountActiveSavingsGoalsAsync(
+        Guid persoid,
+        string yearMonth,
+        CancellationToken ct)
+    {
+        return await QueryIntAsync(
+            @"SELECT COUNT(*)
+              FROM BudgetMonthSavingsGoal g
+              JOIN BudgetMonthSavings s ON s.Id = g.BudgetMonthSavingsId
+              JOIN BudgetMonth m ON m.Id = s.BudgetMonthId
+              JOIN Budget b ON b.Id = m.BudgetId
+              WHERE b.Persoid = @Persoid
+                AND m.YearMonth = @YearMonth
+                AND s.IsDeleted = 0
+                AND g.IsDeleted = 0
+                AND g.Status = 'active';",
+            new Dictionary<string, object?>
+            {
+                ["Persoid"] = persoid,
+                ["YearMonth"] = yearMonth
+            },
+            ct);
+    }
+
+    private async Task<int> CountActiveDebtsAsync(
+        Guid persoid,
+        string yearMonth,
+        CancellationToken ct)
+    {
+        return await QueryIntAsync(
+            @"SELECT COUNT(*)
+              FROM BudgetMonthDebt d
+              JOIN BudgetMonth m ON m.Id = d.BudgetMonthId
+              JOIN Budget b ON b.Id = m.BudgetId
+              WHERE b.Persoid = @Persoid
+                AND m.YearMonth = @YearMonth
+                AND d.IsDeleted = 0
+                AND d.Status = 'active';",
             new Dictionary<string, object?>
             {
                 ["Persoid"] = persoid,

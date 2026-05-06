@@ -14,10 +14,18 @@ internal sealed record BudgetTimelineProfile(
 
 // Hooks the seeder runs after closing the comparable middle month so that
 // scenario-specific math (e.g. paused/cancelled subscriptions excluded from the
-// active expense total) fails the seed run early instead of silently producing
-// drifted recap data.
+// active expense total, or savings totals that drift after deltas + month-only
+// rows) fails the seed run early instead of silently producing drifted recap
+// data.
+//
+// Each accessor takes the target year-month so profiles can assert against the
+// month they care about (typically the closed comparable month).
 internal sealed record BudgetTimelineSeedInvariantContext(
     Guid Persoid,
     Guid BudgetMonthId,
     string YearMonth,
-    Func<string, Task<decimal>> SumActiveSubscriptionAmountAsync);
+    Func<string, Task<decimal>> SumActiveSubscriptionAmountAsync,
+    Func<string, Task<decimal>> GetSnapshotSavingsTotalAsync,
+    Func<string, Task<decimal>> GetSnapshotDebtPaymentsTotalAsync,
+    Func<string, Task<int>> CountActiveSavingsGoalsAsync,
+    Func<string, Task<int>> CountActiveDebtsAsync);

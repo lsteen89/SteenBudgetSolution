@@ -177,6 +177,7 @@ Seeded users:
 | `e2e-close-surplus-full@local.test`    | `ChangeMe123!` | Dashboard-ready user; `2026-04` starts with surplus and resolves via carry-over before close                                 |
 | `e2e-close-deficit@local.test`         | `ChangeMe123!` | Dashboard-ready user; `2026-04` starts negative and closes directly when business rules allow it                             |
 | `e2e-recap-subscriptions@local.test`   | `ChangeMe123!` | Dashboard-ready user; closed `2026-03` recap exercises subscription states (active, renamed, new, removed, paused, cancelled) |
+| `e2e-recap-savings-debt@local.test`    | `ChangeMe123!` | Dashboard-ready user; closed `2026-03` recap exercises savings goal + debt deltas, current-only month rows, and ordering cues  |
 
 All dashboard-ready E2E users share the same month timeline:
 
