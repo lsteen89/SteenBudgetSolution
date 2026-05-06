@@ -42,6 +42,87 @@ public sealed class BudgetMonthLifecycleTests
         Options.Create(new DatabaseSettings { ConnectionString = cs, DefaultCommandTimeoutSeconds = 30 });
 
     [Fact]
+    public async Task BudgetMonthDatabaseConstraint_WhenSecondOpenMonthInsertedForBudget_RejectsRow()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+
+        await BudgetMonthDsl.InsertOpenAsync(
+            _db.ConnectionString,
+            seed.BudgetId,
+            "2026-04",
+            new DateTime(2026, 04, 01, 10, 00, 00, DateTimeKind.Utc),
+            seed.UserId);
+
+        var insertSecondOpenMonth = () => BudgetMonthDsl.InsertOpenAsync(
+            _db.ConnectionString,
+            seed.BudgetId,
+            "2026-05",
+            new DateTime(2026, 05, 01, 10, 00, 00, DateTimeKind.Utc),
+            seed.UserId);
+
+        await insertSecondOpenMonth.Should()
+            .ThrowAsync<MySqlException>()
+            .Where(ex => ex.Number == 1062 && ex.Message.Contains("UX_BudgetMonth_OneOpenPerBudget"));
+    }
+
+    [Fact]
+    public async Task BudgetMonthDatabaseConstraint_WhenClosedAndSkippedMonthsExistForBudget_AllowsRows()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+        var openedAt = new DateTime(2026, 01, 01, 10, 00, 00, DateTimeKind.Utc);
+        var closedAt = new DateTime(2026, 02, 01, 10, 00, 00, DateTimeKind.Utc);
+
+        await BudgetMonthDsl.InsertAsync(
+            _db.ConnectionString,
+            seed.BudgetId,
+            "2026-01",
+            "closed",
+            openedAt,
+            seed.UserId,
+            closedAt,
+            carryOverMode: "none",
+            carryOverAmount: null);
+
+        await BudgetMonthDsl.InsertAsync(
+            _db.ConnectionString,
+            seed.BudgetId,
+            "2026-02",
+            "closed",
+            openedAt,
+            seed.UserId,
+            closedAt,
+            carryOverMode: "none",
+            carryOverAmount: null);
+
+        await BudgetMonthDsl.InsertAsync(
+            _db.ConnectionString,
+            seed.BudgetId,
+            "2026-03",
+            "skipped",
+            openedAt,
+            seed.UserId,
+            closedAt,
+            carryOverMode: "none",
+            carryOverAmount: null);
+
+        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await conn.OpenAsync();
+
+        var nonOpenCount = await conn.ExecuteScalarAsync<int>("""
+            SELECT COUNT(*)
+            FROM BudgetMonth
+            WHERE BudgetId = @BudgetId
+              AND Status IN ('closed', 'skipped');
+        """, new { seed.BudgetId });
+
+        nonOpenCount.Should().Be(3);
+    }
+
+    [Fact]
     public async Task StartMonth_ClosePrevious_OpensTarget_SnapshotsCorrectly()
     {
         await _db.ResetAsync();

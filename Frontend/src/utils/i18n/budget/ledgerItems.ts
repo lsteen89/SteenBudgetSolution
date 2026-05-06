@@ -3,6 +3,14 @@ import { tDict } from "@/utils/i18n/translate";
 
 const sv: Record<string, string> = {
   // normalized keys!
+  housing: "Boende",
+  food: "Mat",
+  transport: "Transport",
+  fixedexpense: "Räkningar & nödvändigt",
+  subscription: "Prenumerationer",
+  subscriptions: "Prenumerationer",
+  other: "Övrigt",
+
   housingmonthlyrent: "Hyra / boendeavgift",
   rent: "Hyra",
   rentextrafees: "Extra avgifter",
@@ -31,6 +39,14 @@ const sv: Record<string, string> = {
 };
 
 const en: Record<string, string> = {
+  housing: "Housing",
+  food: "Food",
+  transport: "Transport",
+  fixedexpense: "Bills & essentials",
+  subscription: "Subscriptions",
+  subscriptions: "Subscriptions",
+  other: "Other",
+
   housingmonthlyrent: "Rent / housing fee",
   rent: "Rent",
   rentextrafees: "Extra fees",
@@ -56,6 +72,14 @@ const en: Record<string, string> = {
 };
 
 const et: Record<string, string> = {
+  housing: "Eluase",
+  food: "Toit",
+  transport: "Transport",
+  fixedexpense: "Arved ja püsikulud",
+  subscription: "Tellimused",
+  subscriptions: "Tellimused",
+  other: "Muu",
+
   housingmonthlyrent: "Üür / eluasemekulud",
   rent: "Üür",
   rentextrafees: "Lisatasud",

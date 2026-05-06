@@ -18,6 +18,7 @@ import {
   useBudgetMonthEditor,
   usePatchBudgetMonthExpenseItemsBulk,
 } from "@hooks/budget/editPeriod/useMonthEditor";
+import type { SubscriptionLifecycleStatus } from "@/types/budget/BudgetMonthsStatusDto";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ZodError } from "zod";
@@ -37,7 +38,13 @@ type EditPeriodDrawerProps = {
 type ExpenseDraft = {
   amountMonthly: string;
   isActive: boolean;
+  subscriptionLifecycleStatus: SubscriptionLifecycleStatus | null;
 };
+
+const countableSubscriptionStatuses = new Set<SubscriptionLifecycleStatus | null>([
+  null,
+  "active",
+]);
 
 const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
   open,
@@ -112,6 +119,7 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
           {
             amountMonthly: String(x.amountMonthly),
             isActive: x.isActive,
+            subscriptionLifecycleStatus: x.subscriptionLifecycleStatus,
           },
         ]),
     );
@@ -163,7 +171,11 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
     setDrafts((prev) => ({
       ...prev,
       [rowId]: {
-        ...(prev[rowId] ?? { amountMonthly: "", isActive: true }),
+        ...(prev[rowId] ?? {
+          amountMonthly: "",
+          isActive: true,
+          subscriptionLifecycleStatus: null,
+        }),
         amountMonthly,
       },
     }));
@@ -173,8 +185,32 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
     setDrafts((prev) => ({
       ...prev,
       [rowId]: {
-        ...(prev[rowId] ?? { amountMonthly: "", isActive }),
+        ...(prev[rowId] ?? {
+          amountMonthly: "",
+          isActive,
+          subscriptionLifecycleStatus: null,
+        }),
         isActive,
+      },
+    }));
+  };
+
+  const handleSubscriptionLifecycleChange = (
+    rowId: string,
+    subscriptionLifecycleStatus: SubscriptionLifecycleStatus,
+    fallbackAmount: number,
+  ) => {
+    setDrafts((prev) => ({
+      ...prev,
+      [rowId]: {
+        ...(prev[rowId] ?? {
+          amountMonthly: String(fallbackAmount),
+          isActive: true,
+          subscriptionLifecycleStatus: "active",
+        }),
+        amountMonthly: String(fallbackAmount),
+        isActive: true,
+        subscriptionLifecycleStatus,
       },
     }));
   };
@@ -215,12 +251,16 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
         const draft = drafts[row.id] ?? {
           amountMonthly: String(row.amountMonthly),
           isActive: row.isActive,
+          subscriptionLifecycleStatus: row.subscriptionLifecycleStatus,
         };
 
         const disabledByInactiveToggle =
           hasActiveToggleForRow(row) && !draft.isActive;
+        const disabledByLifecycle =
+          hasActiveToggleForRow(row) &&
+          !countableSubscriptionStatuses.has(draft.subscriptionLifecycleStatus);
 
-        if (disabledByInactiveToggle) {
+        if (disabledByInactiveToggle || disabledByLifecycle) {
           return [row.id, undefined];
         }
 
@@ -247,7 +287,8 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
 
       return (
         row.amountMonthly !== parsedDraftAmount ||
-        row.isActive !== draft.isActive
+        row.isActive !== draft.isActive ||
+        row.subscriptionLifecycleStatus !== draft.subscriptionLifecycleStatus
       );
     });
   }, [visibleRows, drafts]);
@@ -256,7 +297,11 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
 
   const originalEditableTotal = useMemo(() => {
     return [...quickAdjustRows, ...subscriptionRows].reduce((sum, row) => {
-      return sum + (row.isActive ? row.amountMonthly : 0);
+      const countsForMonth =
+        row.isActive &&
+        countableSubscriptionStatuses.has(row.subscriptionLifecycleStatus);
+
+      return sum + (countsForMonth ? row.amountMonthly : 0);
     }, 0);
   }, [quickAdjustRows, subscriptionRows]);
 
@@ -265,6 +310,7 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
       const draft = drafts[row.id] ?? {
         amountMonthly: String(row.amountMonthly),
         isActive: row.isActive,
+        subscriptionLifecycleStatus: row.subscriptionLifecycleStatus,
       };
 
       const parsedAmount =
@@ -273,7 +319,11 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
           maxDecimals: 2,
         }) ?? 0;
 
-      return sum + (draft.isActive ? parsedAmount : 0);
+      const countsForMonth =
+        draft.isActive &&
+        countableSubscriptionStatuses.has(draft.subscriptionLifecycleStatus);
+
+      return sum + (countsForMonth ? parsedAmount : 0);
     }, 0);
   }, [quickAdjustRows, subscriptionRows, drafts]);
 
@@ -299,6 +349,7 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
         const draft = drafts[row.id] ?? {
           amountMonthly: String(row.amountMonthly),
           isActive: row.isActive,
+          subscriptionLifecycleStatus: row.subscriptionLifecycleStatus,
         };
 
         return {
@@ -308,6 +359,7 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
             categoryId: row.categoryId,
             amountMonthly: draft.amountMonthly,
             isActive: draft.isActive,
+            subscriptionLifecycleStatus: draft.subscriptionLifecycleStatus,
             updateDefault: false,
           },
         };
@@ -428,6 +480,8 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
                         const draft = drafts[row.id] ?? {
                           amountMonthly: String(row.amountMonthly),
                           isActive: row.isActive,
+                          subscriptionLifecycleStatus:
+                            row.subscriptionLifecycleStatus,
                         };
 
                         return (
@@ -465,6 +519,8 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
                         const draft = drafts[row.id] ?? {
                           amountMonthly: String(row.amountMonthly),
                           isActive: row.isActive,
+                          subscriptionLifecycleStatus:
+                            row.subscriptionLifecycleStatus ?? "active",
                         };
 
                         return (
@@ -476,12 +532,20 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
                             categoryLabel={getCategoryLabel(row.categoryId)}
                             amountMonthly={draft.amountMonthly}
                             isActive={draft.isActive}
-                            showActiveToggle
+                            showActiveToggle={false}
+                            showLifecycleControl
+                            subscriptionLifecycleStatus={
+                              draft.subscriptionLifecycleStatus ?? "active"
+                            }
                             onAmountChange={(value) =>
                               handleAmountChange(row.id, value)
                             }
-                            onActiveChange={(value) =>
-                              handleActiveChange(row.id, value)
+                            onSubscriptionLifecycleChange={(value) =>
+                              handleSubscriptionLifecycleChange(
+                                row.id,
+                                value,
+                                row.amountMonthly,
+                              )
                             }
                             error={draftErrorsByRowId[row.id]}
                           />

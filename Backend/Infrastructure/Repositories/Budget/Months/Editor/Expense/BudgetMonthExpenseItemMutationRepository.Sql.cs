@@ -10,6 +10,7 @@ public sealed partial class BudgetMonthExpenseItemMutationRepository
         bmei.CategoryId,
         bmei.Name,
         bmei.AmountMonthly,
+        bmei.SubscriptionLifecycleStatus,
         bmei.IsActive,
         bmei.IsDeleted
     FROM BudgetMonthExpenseItem bmei
@@ -29,6 +30,7 @@ public sealed partial class BudgetMonthExpenseItemMutationRepository
         CategoryId = @CategoryId,
         Name = @Name,
         AmountMonthly = @AmountMonthly,
+        SubscriptionLifecycleStatus = @SubscriptionLifecycleStatus,
         IsActive = @IsActive,
         UpdatedAt = @UtcNow,
         UpdatedByUserId = @ActorPersoid
@@ -44,6 +46,7 @@ public sealed partial class BudgetMonthExpenseItemMutationRepository
         CategoryId,
         Name,
         AmountMonthly,
+        SubscriptionLifecycleStatus,
         IsActive,
         IsDeleted,
         CreatedAt,
@@ -59,6 +62,7 @@ public sealed partial class BudgetMonthExpenseItemMutationRepository
         @CategoryId,
         @Name,
         @AmountMonthly,
+        @SubscriptionLifecycleStatus,
         @IsActive,
         @IsDeleted,
         @UtcNow,

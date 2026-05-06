@@ -6,6 +6,7 @@ import type {
   BudgetMonthsStatusDto,
 } from "@/types/budget/BudgetMonthsStatusDto";
 import type { ExpenseCategoryDto } from "@/types/budget/ExpenseCategoryDto";
+import type { BudgetMonthRecapDto } from "@/types/budget/BudgetMonthRecapDto";
 import type { BudgetDashboardMonthDto } from "@myTypes/budget/BudgetDashboardMonthDto";
 
 export async function fetchBudgetMonthsStatus(): Promise<BudgetMonthsStatusDto> {
@@ -81,6 +82,16 @@ export async function fetchBudgetDashboardMonth(
   );
 
   return unwrapEnvelopeData(res, "Could not load budget dashboard.");
+}
+
+export async function fetchBudgetMonthRecap(
+  yearMonth: string,
+): Promise<BudgetMonthRecapDto> {
+  const res = await api.get<ApiEnvelope<BudgetMonthRecapDto>>(
+    `/api/budgets/months/${encodeURIComponent(yearMonth)}/recap`,
+  );
+
+  return unwrapEnvelopeData(res, "Could not load budget month recap.");
 }
 
 export async function fetchExpenseCategories(): Promise<ExpenseCategoryDto[]> {

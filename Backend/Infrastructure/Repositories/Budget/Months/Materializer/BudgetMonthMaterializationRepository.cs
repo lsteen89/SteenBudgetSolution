@@ -126,6 +126,7 @@ public sealed partial class BudgetMonthMaterializationRepository : SqlBase, IBud
             x.CategoryId,
             x.Name,
             x.AmountMonthly,
+            x.SubscriptionLifecycleStatus,
             x.SortOrder,
             ActorPersoid = actorPersoid,
             NowUtc = nowUtc

@@ -14,6 +14,19 @@ public static class BudgetMonthCarryOverModes
     public const string Custom = "custom";
 }
 
+public static class BudgetMonthSubscriptionLifecycleStatuses
+{
+    public const string Active = "active";
+    public const string Paused = "paused";
+    public const string Cancelled = "cancelled";
+
+    public static bool IsSupported(string? value)
+        => value is null ||
+           value == Active ||
+           value == Paused ||
+           value == Cancelled;
+}
+
 public static class BudgetMonthSuggestedActions
 {
     public const string CreateFirstMonth = "createFirstMonth";

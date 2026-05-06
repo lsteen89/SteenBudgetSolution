@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Application.Features.Budgets.Dashboard;
 using Backend.Application.Constants;
+using Backend.Application.DTO.Budget.Months;
 using Backend.Domain.Entities.Budget.Debt;
 using Backend.Application.Mappings.Budget;
 
@@ -40,7 +41,11 @@ public sealed partial class BudgetMonthDashboardRepository : SqlBase, IBudgetMon
 
         var totalsRow = await QuerySingleOrDefaultAsync<DashboardTotalsRow>(
             TotalsSql,
-            new { BudgetMonthId = budgetMonthId },
+            new
+            {
+                BudgetMonthId = budgetMonthId,
+                ActiveSubscriptionLifecycleStatus = BudgetMonthSubscriptionLifecycleStatuses.Active
+            },
             ct);
 
         if (totalsRow is null)
@@ -48,7 +53,11 @@ public sealed partial class BudgetMonthDashboardRepository : SqlBase, IBudgetMon
 
         var categories = await QueryAsync<DashboardCategoryRm>(
             CategoriesSql,
-            new { BudgetMonthId = budgetMonthId },
+            new
+            {
+                BudgetMonthId = budgetMonthId,
+                ActiveSubscriptionLifecycleStatus = BudgetMonthSubscriptionLifecycleStatuses.Active
+            },
             ct);
 
         var recurring = await QueryAsync<DashboardRecurringExpenseRm>(
@@ -56,7 +65,8 @@ public sealed partial class BudgetMonthDashboardRepository : SqlBase, IBudgetMon
             new
             {
                 BudgetMonthId = budgetMonthId,
-                SubscriptionCategoryId = ExpenseCategoryIds.Subscription
+                SubscriptionCategoryId = ExpenseCategoryIds.Subscription,
+                ActiveSubscriptionLifecycleStatus = BudgetMonthSubscriptionLifecycleStatuses.Active
             },
             ct);
 
@@ -95,7 +105,8 @@ public sealed partial class BudgetMonthDashboardRepository : SqlBase, IBudgetMon
             new
             {
                 BudgetMonthId = budgetMonthId,
-                SubscriptionCategoryId = ExpenseCategoryIds.Subscription
+                SubscriptionCategoryId = ExpenseCategoryIds.Subscription,
+                ActiveSubscriptionLifecycleStatus = BudgetMonthSubscriptionLifecycleStatuses.Active
             },
             ct)).ToList();
 
@@ -104,7 +115,8 @@ public sealed partial class BudgetMonthDashboardRepository : SqlBase, IBudgetMon
             new
             {
                 BudgetMonthId = budgetMonthId,
-                SubscriptionCategoryId = ExpenseCategoryIds.Subscription
+                SubscriptionCategoryId = ExpenseCategoryIds.Subscription,
+                ActiveSubscriptionLifecycleStatus = BudgetMonthSubscriptionLifecycleStatuses.Active
             },
             ct);
 

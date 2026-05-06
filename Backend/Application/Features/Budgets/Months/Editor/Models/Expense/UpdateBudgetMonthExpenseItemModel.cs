@@ -6,6 +6,7 @@ public sealed record UpdateBudgetMonthExpenseItemModel(
     Guid CategoryId,
     string Name,
     decimal AmountMonthly,
+    string? SubscriptionLifecycleStatus,
     bool IsActive,
     Guid ActorPersoid,
     DateTime UtcNow);

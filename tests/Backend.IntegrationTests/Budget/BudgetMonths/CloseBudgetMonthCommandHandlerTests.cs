@@ -240,6 +240,36 @@ public sealed class CloseBudgetMonthCommandHandlerTests
     }
 
     [Fact]
+    public async Task ClosesAprilOnMayFirst_WhenCloseWindowHasOpened()
+    {
+        await _db.ResetAsync();
+
+        var seed = await SeedClosableOpenMonthAsync("2026-04");
+        var sut = CreateSut(new FakeTimeProvider(new DateTime(2026, 05, 01, 12, 0, 0, DateTimeKind.Utc)));
+
+        var result = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.Handler.Handle(
+                new CloseBudgetMonthCommand(
+                    seed.Persoid,
+                    seed.UserId,
+                    "2026-04",
+                    new CloseBudgetMonthRequestDto(BudgetMonthCarryOverModes.None)),
+                CancellationToken.None));
+
+        result.IsSuccess.Should().BeTrue();
+
+        var closedMonth = await GetMonthRowAsync(seed.BudgetId, "2026-04");
+        closedMonth.Should().NotBeNull();
+        closedMonth!.Status.Should().Be(BudgetMonthStatuses.Closed);
+        closedMonth.ClosedAt.Should().Be(new DateTime(2026, 05, 01, 12, 0, 0, DateTimeKind.Utc));
+
+        var nextMonth = await GetMonthRowAsync(seed.BudgetId, "2026-05");
+        nextMonth.Should().NotBeNull();
+        nextMonth!.Status.Should().Be(BudgetMonthStatuses.Open);
+        (await CountOpenMonthsAsync(seed.BudgetId)).Should().Be(1);
+    }
+
+    [Fact]
     public async Task CloseMonth_WithFullCarryOver_WritesLifecycleAuditRows()
     {
         await _db.ResetAsync();
@@ -329,15 +359,20 @@ public sealed class CloseBudgetMonthCommandHandlerTests
 
         var seed = await SeedClosableOpenMonthAsync("2026-04");
         var sut = CreateSut(new FakeTimeProvider(new DateTime(2026, 04, 23, 12, 0, 0, DateTimeKind.Utc)));
+        var behavior = new UnitOfWorkPipelineBehavior<CloseBudgetMonthCommand, Backend.Domain.Shared.Result<CloseBudgetMonthResultDto>>(
+            sut.Uow,
+            NullLogger<UnitOfWorkPipelineBehavior<CloseBudgetMonthCommand, Backend.Domain.Shared.Result<CloseBudgetMonthResultDto>>>.Instance);
 
-        var result = await sut.Uow.InTx(CancellationToken.None, () =>
-            sut.Handler.Handle(
-                new CloseBudgetMonthCommand(
-                    seed.Persoid,
-                    seed.UserId,
-                    "2026-04",
-                    new CloseBudgetMonthRequestDto(BudgetMonthCarryOverModes.Full)),
-                CancellationToken.None));
+        var command = new CloseBudgetMonthCommand(
+            seed.Persoid,
+            seed.UserId,
+            "2026-04",
+            new CloseBudgetMonthRequestDto(BudgetMonthCarryOverModes.Full));
+
+        var result = await behavior.Handle(
+            command,
+            () => sut.Handler.Handle(command, CancellationToken.None),
+            CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
 
@@ -347,7 +382,7 @@ public sealed class CloseBudgetMonthCommandHandlerTests
     }
 
     [Fact]
-    public async Task WorksWhenNextMonthAlreadyExists()
+    public async Task RejectsAndRollsBack_WhenNextMonthAlreadyExistsButIsSkipped()
     {
         await _db.ResetAsync();
 
@@ -357,31 +392,40 @@ public sealed class CloseBudgetMonthCommandHandlerTests
             cs: _db.ConnectionString,
             budgetId: seed.BudgetId,
             yearMonth: "2026-05",
-            status: BudgetMonthStatuses.Open,
+            status: BudgetMonthStatuses.Skipped,
             openedAtUtc: new DateTime(2026, 05, 01, 9, 0, 0, DateTimeKind.Utc),
             createdByUserId: seed.UserId,
-            closedAtUtc: null,
-            carryOverMode: BudgetMonthCarryOverModes.Custom,
-            carryOverAmount: 1234m);
+            closedAtUtc: new DateTime(2026, 05, 01, 9, 0, 0, DateTimeKind.Utc),
+            carryOverMode: BudgetMonthCarryOverModes.None,
+            carryOverAmount: null);
 
         var sut = CreateSut(new FakeTimeProvider(new DateTime(2026, 04, 23, 12, 0, 0, DateTimeKind.Utc)));
+        var behavior = new UnitOfWorkPipelineBehavior<CloseBudgetMonthCommand, Backend.Domain.Shared.Result<CloseBudgetMonthResultDto>>(
+            sut.Uow,
+            NullLogger<UnitOfWorkPipelineBehavior<CloseBudgetMonthCommand, Backend.Domain.Shared.Result<CloseBudgetMonthResultDto>>>.Instance);
 
-        var result = await sut.Uow.InTx(CancellationToken.None, () =>
-            sut.Handler.Handle(
-                new CloseBudgetMonthCommand(
-                    seed.Persoid,
-                    seed.UserId,
-                    "2026-04",
-                    new CloseBudgetMonthRequestDto(BudgetMonthCarryOverModes.Full)),
-                CancellationToken.None));
+        var command = new CloseBudgetMonthCommand(
+            seed.Persoid,
+            seed.UserId,
+            "2026-04",
+            new CloseBudgetMonthRequestDto(BudgetMonthCarryOverModes.Full));
 
-        result.IsSuccess.Should().BeTrue();
+        var result = await behavior.Handle(
+            command,
+            () => sut.Handler.Handle(command, CancellationToken.None),
+            CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be(Backend.Domain.Errors.Budget.BudgetMonth.NextMonthMustBeOpen.Code);
 
         (await CountMonthsForYearMonthAsync(seed.BudgetId, "2026-05")).Should().Be(1);
 
+        var currentMonth = await GetMonthRowAsync(seed.BudgetId, "2026-04");
+        currentMonth!.Status.Should().Be(BudgetMonthStatuses.Open);
+
         var nextMonth = await GetMonthRowAsync(seed.BudgetId, "2026-05");
-        nextMonth!.Status.Should().Be(BudgetMonthStatuses.Open);
-        nextMonth.CarryOverMode.Should().Be(BudgetMonthCarryOverModes.Full);
+        nextMonth!.Status.Should().Be(BudgetMonthStatuses.Skipped);
+        nextMonth.CarryOverMode.Should().Be(BudgetMonthCarryOverModes.None);
         nextMonth.CarryOverAmount.Should().BeNull();
     }
 
@@ -733,6 +777,21 @@ public sealed class CloseBudgetMonthCommandHandlerTests
             new { budgetId, yearMonth });
     }
 
+    private async Task<int> CountOpenMonthsAsync(Guid budgetId)
+    {
+        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await conn.OpenAsync();
+
+        return await conn.ExecuteScalarAsync<int>(
+            """
+            SELECT COUNT(*)
+            FROM BudgetMonth
+            WHERE BudgetId = @budgetId
+              AND Status = 'open';
+            """,
+            new { budgetId });
+    }
+
     private static async Task SetIncomePaymentTimingAsync(
         string cs,
         Guid budgetId,
@@ -809,6 +868,21 @@ public sealed class CloseBudgetMonthCommandHandlerTests
 
         public Task<Backend.Application.Features.Budgets.Months.Models.BudgetMonthDetailsRm?> GetMonthAsync(Guid budgetId, string yearMonth, CancellationToken ct)
             => _inner.GetMonthAsync(budgetId, yearMonth, ct);
+
+        public Task<string?> GetPreviousComparableYearMonthAsync(Guid budgetId, string yearMonth, CancellationToken ct)
+            => _inner.GetPreviousComparableYearMonthAsync(budgetId, yearMonth, ct);
+
+        public Task<IReadOnlyList<Backend.Application.Features.Budgets.Months.Models.BudgetMonthExpenseCategoryTotalRm>> GetExpenseCategoryTotalsAsync(Guid budgetMonthId, CancellationToken ct)
+            => _inner.GetExpenseCategoryTotalsAsync(budgetMonthId, ct);
+
+        public Task<IReadOnlyList<Backend.Application.Features.Budgets.Months.Models.BudgetMonthSubscriptionRm>> GetSubscriptionsAsync(Guid budgetMonthId, CancellationToken ct)
+            => _inner.GetSubscriptionsAsync(budgetMonthId, ct);
+
+        public Task<IReadOnlyList<Backend.Application.Features.Budgets.Months.Models.BudgetMonthSavingsGoalRm>> GetSavingsGoalsAsync(Guid budgetMonthId, CancellationToken ct)
+            => _inner.GetSavingsGoalsAsync(budgetMonthId, ct);
+
+        public Task<IReadOnlyList<Backend.Application.Features.Budgets.Months.Models.BudgetMonthDebtRm>> GetDebtsAsync(Guid budgetMonthId, CancellationToken ct)
+            => _inner.GetDebtsAsync(budgetMonthId, ct);
 
         public Task<Backend.Application.Features.Budgets.Income.Models.IncomePaymentTimingReadModel?> GetBudgetMonthIncomePaymentTimingAsync(Guid budgetMonthId, CancellationToken ct)
             => _inner.GetBudgetMonthIncomePaymentTimingAsync(budgetMonthId, ct);

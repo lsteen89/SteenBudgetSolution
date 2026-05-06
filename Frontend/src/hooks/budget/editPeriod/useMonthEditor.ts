@@ -5,6 +5,7 @@ import {
   patchBudgetMonthExpenseItem,
 } from "@/api/Services/Budget/editor/monthEditor.api";
 import { budgetDashboardMonthQueryKey } from "@/hooks/budget/useBudgetDashboardMonthQuery";
+import { budgetMonthRecapQueryKey } from "@/hooks/budget/useBudgetMonthRecapQuery";
 import type {
   CreateBudgetMonthExpenseItemRequestDto,
   PatchBudgetMonthExpenseItemRequestDto,
@@ -51,6 +52,9 @@ export function usePatchBudgetMonthExpenseItem(yearMonth: string) {
         queryClient.invalidateQueries({
           queryKey: budgetDashboardMonthQueryKey(yearMonth),
         }),
+        queryClient.invalidateQueries({
+          queryKey: budgetMonthRecapQueryKey(yearMonth),
+        }),
       ]);
     },
   });
@@ -84,6 +88,9 @@ export function usePatchBudgetMonthExpenseItemsBulk(yearMonth: string) {
         queryClient.invalidateQueries({
           queryKey: budgetDashboardMonthQueryKey(yearMonth),
         }),
+        queryClient.invalidateQueries({
+          queryKey: budgetMonthRecapQueryKey(yearMonth),
+        }),
       ]);
     },
   });
@@ -103,6 +110,9 @@ export function useCreateBudgetMonthExpenseItem(yearMonth: string) {
         queryClient.invalidateQueries({
           queryKey: budgetDashboardMonthQueryKey(yearMonth),
         }),
+        queryClient.invalidateQueries({
+          queryKey: budgetMonthRecapQueryKey(yearMonth),
+        }),
       ]);
     },
   });
@@ -121,6 +131,9 @@ export function useDeleteBudgetMonthExpenseItem(yearMonth: string) {
         }),
         queryClient.invalidateQueries({
           queryKey: budgetDashboardMonthQueryKey(yearMonth),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: budgetMonthRecapQueryKey(yearMonth),
         }),
       ]);
     },

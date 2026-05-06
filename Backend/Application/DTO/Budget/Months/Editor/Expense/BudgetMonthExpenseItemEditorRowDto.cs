@@ -6,6 +6,7 @@ public sealed record BudgetMonthExpenseItemEditorRowDto(
     Guid CategoryId,
     string Name,
     decimal AmountMonthly,
+    string? SubscriptionLifecycleStatus,
     bool IsActive,
     bool IsDeleted,
     bool IsMonthOnly,

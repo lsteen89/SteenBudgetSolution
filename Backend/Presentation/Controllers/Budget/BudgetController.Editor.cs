@@ -50,6 +50,7 @@ public sealed partial class BudgetController
                 CategoryId: req.CategoryId,
                 AmountMonthly: req.AmountMonthly,
                 IsActive: req.IsActive,
+                SubscriptionLifecycleStatus: req.SubscriptionLifecycleStatus,
                 UpdateDefault: req.UpdateDefault),
             ct);
 

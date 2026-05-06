@@ -61,6 +61,7 @@ public sealed class GetBudgetMonthEditorQueryHandler
                     x.CategoryId,
                     x.Name,
                     x.AmountMonthly,
+                    x.SubscriptionLifecycleStatus,
                     x.IsActive,
                     x.IsDeleted,
                     x.SourceExpenseItemId is null,

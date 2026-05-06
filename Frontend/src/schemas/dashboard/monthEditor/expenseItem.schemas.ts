@@ -50,6 +50,10 @@ export function buildPatchExpenseItemFormSchema(
   messages: ExpenseItemSchemaMessages,
 ) {
   return buildCreateExpenseItemFormSchema(messages).extend({
+    subscriptionLifecycleStatus: z
+      .enum(["active", "paused", "cancelled"])
+      .nullable()
+      .optional(),
     updateDefault: z.boolean(),
   });
 }
@@ -93,9 +97,11 @@ export type CreateExpenseItemApiPayload = {
 };
 
 export type PatchExpenseItemFormValues = CreateExpenseItemFormValues & {
+  subscriptionLifecycleStatus?: "active" | "paused" | "cancelled" | null;
   updateDefault: boolean;
 };
 export type PatchExpenseItemApiPayload = CreateExpenseItemApiPayload & {
+  subscriptionLifecycleStatus?: "active" | "paused" | "cancelled" | null;
   updateDefault: boolean;
 };
 

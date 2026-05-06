@@ -35,7 +35,7 @@ public static class RateLimitingExtensions
                     partitionKey: GetIpKey(httpContext, "register"),
                     factory: _ => new FixedWindowRateLimiterOptions
                     {
-                        PermitLimit = 3,
+                        PermitLimit = isProduction ? 3 : debugLimit,
                         Window = TimeSpan.FromMinutes(2),
                         QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
                         QueueLimit = 0
@@ -46,7 +46,7 @@ public static class RateLimitingExtensions
                     partitionKey: GetIpKey(httpContext, "login"),
                     factory: _ => new FixedWindowRateLimiterOptions
                     {
-                        PermitLimit = 5,
+                        PermitLimit = isProduction ? 5 : debugLimit,
                         Window = TimeSpan.FromMinutes(10),
                         QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
                         QueueLimit = 0

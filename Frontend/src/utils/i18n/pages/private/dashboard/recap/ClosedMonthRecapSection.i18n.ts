@@ -1,0 +1,663 @@
+export const closedMonthRecapDict = {
+  sv: {
+    previous: "Föregående",
+    next: "Nästa",
+    loading: "Laddar stängd månadsöversikt",
+    errorTitle: "Kunde inte ladda översikten för stängd månad",
+    errorMessage: "Försök igen om en stund.",
+    closed: "Stängd",
+    closedAt: "Stängd {date}",
+    summary:
+      "Det här är en fryst ögonblicksbild av månaden när den stängdes. Börja med totalsummorna och använd nästa månad för ny planering.",
+    readOnlyTitle: "Skrivskyddad översikt",
+    readOnlyBody: "Historisk ögonblicksbild låst vid stängning.",
+    heroResultLabel: "Slutsaldo",
+    heroOutcomePositive:
+      "{month} stängdes med {amount} kvar efter planerade pengarrörelser.",
+    heroOutcomeBalanced:
+      "{month} stängdes balanserat. Alla planerade pengarrörelser är avstämda.",
+    heroOutcomeNegative:
+      "{month} stängdes {amount} under plan. Granska förändringarna innan nästa månad justeras.",
+    heroGuideEyebrow: "Månadsgenomgång",
+    heroTakeawayLabel: "Månadens slutsats",
+    heroTakeawayPositive:
+      "Månaden avslutades med en tydlig marginal. Bra utgångsläge inför nästa planering.",
+    heroTakeawayBalanced:
+      "Månaden landade nära balans. Små justeringar kan göra nästa månad tydligare.",
+    heroTakeawayDeficit:
+      "Månaden stängdes med underskott. Börja nästa planering med att se över de största rörelserna.",
+    heroTakeawayExpensesUp:
+      "Månaden slutade positivt, men utgifterna ökade jämfört med föregående stängda månad.",
+    heroTakeawaySavingsUp:
+      "Sparandet stärktes jämfört med föregående stängda månad.",
+    expenseDriverSingle: "Ökningen drevs främst av {category} ({amount}).",
+    expenseDriverPair:
+      "Ökningen drevs främst av {category1} ({amount1}) och {category2} ({amount2}).",
+    heroFlowLabel: "Månadens pengaflöde",
+    heroFlowEyebrow: "Var tog pengarna vägen?",
+    heroFlowTitle: "Från startläge till slutsaldo",
+    heroFlowStartGroup: "Start",
+    heroFlowResultGroup: "Slutsats",
+    heroAvailableShort: "Tillgängligt",
+    heroDebtShort: "Skulder",
+    heroCarryOverApplied: "Överfört till nästa månad",
+    heroCarryOverToNextMonth: "Överfört till {month}: {amount}",
+    heroCarryOverNone: "Ingen överföring",
+    heroCarryOverNoneBody:
+      "Den här månaden fördes inte vidare till nästa månad.",
+    heroExplainer:
+      "Det här är en fryst ögonblicksbild – inget kan ändras här. Använd nästa månad för ny planering.",
+    income: "Inkomst",
+    incomeHint: "Inkomst i ögonblicksbild",
+    expenses: "Utgifter",
+    expensesHint: "Utgifter i ögonblicksbild",
+    savings: "Sparande",
+    savingsHint: "Avsatt",
+    debtPayments: "Skuldbetalningar",
+    debtPaymentsHint: "Amorterat",
+    finalBalance: "Slutsaldo",
+    finalBalanceHint: "Efter alla totalsummor",
+    snapshotTotalLabel: "{label} i ögonblicksbild",
+    snapshotTotalsHeading: "Ögonblicksbildens totalsummor",
+    snapshotTotalsBody: "Låsta totalsummor från när månaden stängdes.",
+    carryOver: "Överföring",
+    monthTransitionLabel: "Månadsövergång",
+    monthTransitionTitle: "Månadsövergång",
+    monthTransitionNone: "Ingen överföring till nästa månad.",
+    monthTransitionApplied: "{amount} fördes över till {month}.",
+    detailChapterEyebrow: "MÅNADENS DETALJER",
+    detailChapterTitle: "Det som låg bakom månaden",
+    detailChapterBody: "Här visas posterna bakom den låsta ögonblicksbilden.",
+    detailSurfaceLabel: "Månadens detaljposter",
+    carryOverModeNone: "Ingen överföring",
+    carryOverModeFull: "Full överföring",
+    carryOverModeCustom: "Anpassad överföring",
+    deficitGuidanceLabel: "Underskottsvägledning",
+    deficitTitle: "Den här månaden stängdes med underskott.",
+    deficitBody:
+      "Granska återkommande kostnader och rörliga utgifter när du planerar nästa månad.",
+    comparisonLabel: "Stängningsjämförelse",
+    comparisonTitle: "Jämfört med föregående stängda månad",
+    comparisonMetricLabel: "{label} månadsjämförelse",
+    previousValue: "Föregående",
+    previousComparable: "Föregående stängda månad: {month}.",
+    noPreviousComparable:
+      "Det finns ingen tidigare stängd månad att jämföra med ännu.",
+    expenseCategoryBreakdownLabel: "Utgiftskategorier",
+    expenseCategoryBreakdownTitle: "Vad ändrades i utgifterna?",
+    expenseCategoryBreakdownBody:
+      "Kategorier sorterade efter störst förändring sedan föregående stängda månad.",
+    expenseCategoryNoPrevious:
+      "Ingen tidigare månad finns för kategorijämförelse. Aktuella kategorisummor visas.",
+    expenseCategoryEmpty:
+      "Den här stängda månaden har inga aktiva utgiftskategorier.",
+    expenseCategoryRowLabel: "{category} utgiftskategori",
+    expenseCategoryPreviousValue: "Föregående {amount}",
+    subscriptionChangesLabel: "Återkommande kostnader",
+    subscriptionChangesTitle: "Återkommande kostnader",
+    subscriptionChangesBody:
+      "Nya eller aktiva återkommande utgifter den här månaden.",
+    subscriptionStillActive: "Fortfarande aktiva",
+    subscriptionActive: "Aktiva abonnemang",
+    subscriptionNew: "Nya",
+    subscriptionRemoved: "Borttagna",
+    subscriptionPaused: "Pausade",
+    subscriptionCancelled: "Avslutade",
+    subscriptionNotCounted: "Räknas inte den här månaden",
+    subscriptionNoPrevious:
+      "Ingen tidigare månad finns för att jämföra abonnemangsförändringar.",
+    subscriptionEmpty:
+      "Inga nya återkommande kostnader hittades den här månaden.",
+    subscriptionRowLabel: "{name} abonnemang",
+    savingsDetailLabel: "Sparande",
+    savingsDetailTitle: "Sparande",
+    savingsDetailBody: "Mål och avsättningar från den låsta månaden.",
+    savingsDetailNoPrevious:
+      "Mål och avsättningar från den låsta månaden.",
+    savingsDetailTotal: "Totalt sparande",
+    savingsDetailEmpty:
+      "Inga aktiva sparmål fanns för den här stängda månaden.",
+    savingsGoalFallback: "Sparmål",
+    savingsGoalRowLabel: "{name} sparmål",
+    savingsGoalTarget: "Mål",
+    savingsGoalSaved: "Sparat",
+    savingsGoalTargetDate: "Datum",
+    debtDetailLabel: "Skulder",
+    debtDetailTitle: "Skulder",
+    debtDetailBody: "Betalningar och skuldstatus från den låsta månaden.",
+    debtDetailNoPrevious:
+      "Betalningar och skuldstatus från den låsta månaden.",
+    debtDetailTotal: "Totala skuldbetalningar",
+    debtDetailEmpty:
+      "Inga aktiva skulder fanns för den här stängda månaden.",
+    debtRowLabel: "{name} skuld",
+    debtType: "Typ",
+    debtBalance: "Saldo",
+    debtApr: "Ränta",
+    debtMinPayment: "Minsta",
+    debtMonthlyFee: "Avgift",
+    debtTermMonths: "Månader",
+    chartEyebrow: "Diagram",
+    chartTitle: "Vad ändrades?",
+    chartBody:
+      "Jämför med föregående stängda månad och se vilka kategorier som rörde sig mest.",
+    chartTitleNoPrevious: "Vad bestod månaden av?",
+    chartBodyNoPrevious:
+      "Översikt av månadens utgifter per kategori.",
+    chartCompareSupportingTitle: "Visa stapeldiagram",
+    chartNarrativeDistribution:
+      "Aktuella utgifter fördelade på de största kategorierna.",
+    chartSwitcherLabel: "Välj diagramvy",
+    chartCompare: "Jämför",
+    chartCategories: "Kategorier",
+    chartNarrativeStable:
+      "Månaden var stabil jämfört med föregående stängda månad.",
+    chartNarrativeNoComparison:
+      "Ingen tidigare stängd månad finns att jämföra med ännu.",
+    chartNarrativeExpensesUp:
+      "Utgifterna ökade mest jämfört med föregående stängda månad.",
+    chartNarrativeExpensesDown:
+      "Utgifterna minskade mest jämfört med föregående stängda månad.",
+    chartNarrativeIncomeUp:
+      "Inkomsten ökade mest jämfört med föregående stängda månad.",
+    chartNarrativeIncomeDown:
+      "Inkomsten minskade mest jämfört med föregående stängda månad.",
+    chartNarrativeSavingsUp:
+      "Sparandet stärktes mest jämfört med föregående stängda månad.",
+    chartNarrativeSavingsDown:
+      "Sparandet minskade mest jämfört med föregående stängda månad.",
+    chartNarrativeDebtsUp:
+      "Skuldbetalningarna ökade mest jämfört med föregående stängda månad.",
+    chartNarrativeDebtsDown:
+      "Skuldbetalningarna minskade mest jämfört med föregående stängda månad.",
+    chartFlowInputs: "In till månaden",
+    chartFlowInputsBody: "Startvärden",
+    chartFlowOutcomes: "Utfall",
+    chartFlowMovement: "Planerad rörelse",
+    chartFlowMovementBody: "Fördelat enligt planen",
+    chartFlowResult: "Resultat",
+    chartFlowResultBody: "Låst utfall",
+    flowCarryOverLabel: "Överföring",
+    flowCarryOverNoneHelper: "Ingen carry-over",
+    flowCarryOverSeparateHelper: "Carry-over visas separat från inkomst.",
+    flowIncomeLabel: "Månadens inkomst",
+    flowIncomeSnapshotHelper: "Snapshotvärde, utan carry-over.",
+    flowExpensesHelper: "Planerade utgifter.",
+    flowSavingsHelper: "Avsatt till sparande.",
+    flowDebtPaymentsHelper: "Betalningar mot skulder.",
+    flowFinalBalanceLabel: "Slutligt resultat",
+    flowFinalBalancePositiveHelper: "Kvar efter månadens rörelse.",
+    flowFinalBalanceNegativeHelper: "Kräver uppmärksamhet inför nästa plan.",
+    flowFinalBalanceBalancedHelper: "Månaden stängdes balanserat.",
+    flowCarryOverNote:
+      "Överföring visas separat från inkomst och påverkar inte låsta inkomstsummor.",
+    chartCurrentValue: "Aktuell",
+    chartCompareUnavailable:
+      "Jämförelse blir tillgänglig när det finns en tidigare stängd månad.",
+    futureVisualsLabel: "Framtida visuella översikter",
+    futureVisuals: "Visuell översikt",
+    subscriptionMetaActive: "{count} aktiva",
+    subscriptionMetaActiveSingular: "{count} aktiv",
+    subscriptionMetaNew: "{count} ny",
+    subscriptionMetaNewPlural: "{count} nya",
+    subscriptionMetaRemoved: "{count} borttagna",
+    subscriptionMetaRemovedSingular: "{count} borttagen",
+    subscriptionGroupRemovedPaused: "Borttagna, pausade eller avslutade",
+    savingsInsightIncreased:
+      "Sparandet ökade med {amount} jämfört med föregående stängda månad.",
+    savingsInsightDecreased:
+      "Sparandet minskade med {amount} jämfört med föregående stängda månad.",
+    savingsInsightUnchanged:
+      "Sparandet är oförändrat jämfört med föregående stängda månad.",
+    savingsGoalProgressLabel: "{percent}% av målet",
+    debtPlanCompliantBadge: "Planenligt",
+    debtPaymentThisMonthLabel: "Betalt i månaden",
+    nextStepLabel: "Nästa steg",
+    nextStepTitle: "Nästa steg",
+    nextStepCarryOverNone: "Ingen överföring följde med till {month}.",
+    nextStepCarryOverApplied: "{amount} följde med till {month}.",
+    nextStepCta: "Fortsätt till {month} för ny planering",
+    nextStepDeficitNote:
+      "Månaden stängdes med underskott. Börja nästa planering med att se över de största rörelserna.",
+  },
+  en: {
+    previous: "Previous",
+    next: "Next",
+    loading: "Loading closed month recap",
+    errorTitle: "Could not load closed month recap",
+    errorMessage: "Try again in a moment.",
+    closed: "Closed",
+    closedAt: "Closed {date}",
+    summary:
+      "This is a frozen snapshot of the month as it was closed. Review the totals first, then use the next month for any new planning changes.",
+    readOnlyTitle: "Read-only recap",
+    readOnlyBody: "Historical snapshot locked at close.",
+    heroResultLabel: "Final balance",
+    heroOutcomePositive:
+      "{month} closed with {amount} left after planned money movements.",
+    heroOutcomeBalanced:
+      "{month} closed balanced. All planned money movements lined up.",
+    heroOutcomeNegative:
+      "{month} closed {amount} below plan. Review the changes before adjusting the next month.",
+    heroGuideEyebrow: "Monthly review",
+    heroTakeawayLabel: "Monthly takeaway",
+    heroTakeawayPositive:
+      "The month ended with a clear margin. A good starting point for the next plan.",
+    heroTakeawayBalanced:
+      "The month landed close to balance. Small adjustments can make the next month clearer.",
+    heroTakeawayDeficit:
+      "The month closed with a deficit. Start the next plan by reviewing the largest movements.",
+    heroTakeawayExpensesUp:
+      "The month ended positive, but expenses increased compared with the previous closed month.",
+    heroTakeawaySavingsUp:
+      "Savings strengthened compared with the previous closed month.",
+    expenseDriverSingle: "The increase was driven mainly by {category} ({amount}).",
+    expenseDriverPair:
+      "The increase was driven mainly by {category1} ({amount1}) and {category2} ({amount2}).",
+    heroFlowLabel: "Month money flow",
+    heroFlowEyebrow: "Where did the money go?",
+    heroFlowTitle: "From starting point to final balance",
+    heroFlowStartGroup: "Start",
+    heroFlowResultGroup: "Result",
+    heroAvailableShort: "Available",
+    heroDebtShort: "Debt",
+    heroCarryOverApplied: "Carried into the next month",
+    heroCarryOverToNextMonth: "Carried into {month}: {amount}",
+    heroCarryOverNone: "Nothing carried over",
+    heroCarryOverNoneBody:
+      "This month was not carried into the next month.",
+    heroExplainer:
+      "This is a frozen snapshot – nothing can be edited here. Use the next month for new planning.",
+    income: "Income",
+    incomeHint: "Snapshot income",
+    expenses: "Expenses",
+    expensesHint: "Snapshot spending",
+    savings: "Savings",
+    savingsHint: "Set aside",
+    debtPayments: "Debt payments",
+    debtPaymentsHint: "Paid down",
+    finalBalance: "Final balance",
+    finalBalanceHint: "After all snapshot totals",
+    snapshotTotalLabel: "{label} snapshot total",
+    snapshotTotalsHeading: "Snapshot totals",
+    snapshotTotalsBody: "Locked totals from when the month was closed.",
+    carryOver: "Carry-over",
+    monthTransitionLabel: "Month transition",
+    monthTransitionTitle: "Month transition",
+    monthTransitionNone: "No carry-over to next month.",
+    monthTransitionApplied: "{amount} was carried over to {month}.",
+    detailChapterEyebrow: "MONTH DETAILS",
+    detailChapterTitle: "What was behind the month",
+    detailChapterBody: "Records behind the locked snapshot are shown here.",
+    detailSurfaceLabel: "Month detail records",
+    carryOverModeNone: "No carry-over",
+    carryOverModeFull: "Full carry-over",
+    carryOverModeCustom: "Custom carry-over",
+    deficitGuidanceLabel: "Deficit guidance",
+    deficitTitle: "This month closed with a deficit.",
+    deficitBody:
+      "Review recurring costs and variable spending as you plan the next month.",
+    comparisonLabel: "Closing comparison",
+    comparisonTitle: "Compared with the previous closed month",
+    comparisonMetricLabel: "{label} month comparison",
+    previousValue: "Previous",
+    previousComparable: "Previous closed month: {month}.",
+    noPreviousComparable:
+      "No previous closed month is available for comparison yet.",
+    expenseCategoryBreakdownLabel: "Expense categories",
+    expenseCategoryBreakdownTitle: "What changed inside expenses?",
+    expenseCategoryBreakdownBody:
+      "Categories are sorted by the largest movement since the previous closed month.",
+    expenseCategoryNoPrevious:
+      "No previous month is available for category comparison. Current category totals are shown.",
+    expenseCategoryEmpty:
+      "This closed month has no active expense categories.",
+    expenseCategoryRowLabel: "{category} expense category",
+    expenseCategoryPreviousValue: "Previous {amount}",
+    subscriptionChangesLabel: "Recurring costs",
+    subscriptionChangesTitle: "Recurring costs",
+    subscriptionChangesBody:
+      "New or active recurring expenses this month.",
+    subscriptionStillActive: "Still active",
+    subscriptionActive: "Active subscriptions",
+    subscriptionNew: "New",
+    subscriptionRemoved: "Removed",
+    subscriptionPaused: "Paused",
+    subscriptionCancelled: "Cancelled",
+    subscriptionNotCounted: "Not counted this month",
+    subscriptionNoPrevious:
+      "No previous month to compare subscription changes against.",
+    subscriptionEmpty:
+      "No new recurring costs were found this month.",
+    subscriptionRowLabel: "{name} subscription",
+    savingsDetailLabel: "Savings",
+    savingsDetailTitle: "Savings",
+    savingsDetailBody: "Goals and contributions from the locked month.",
+    savingsDetailNoPrevious:
+      "Goals and contributions from the locked month.",
+    savingsDetailTotal: "Total savings",
+    savingsDetailEmpty:
+      "No active savings goals were recorded for this closed month.",
+    savingsGoalFallback: "Savings goal",
+    savingsGoalRowLabel: "{name} savings goal",
+    savingsGoalTarget: "Goal",
+    savingsGoalSaved: "Saved",
+    savingsGoalTargetDate: "Date",
+    debtDetailLabel: "Debts",
+    debtDetailTitle: "Debts",
+    debtDetailBody: "Payments and debt status from the locked month.",
+    debtDetailNoPrevious:
+      "Payments and debt status from the locked month.",
+    debtDetailTotal: "Total debt payments",
+    debtDetailEmpty:
+      "No active debts were recorded for this closed month.",
+    debtRowLabel: "{name} debt",
+    debtType: "Type",
+    debtBalance: "Balance",
+    debtApr: "APR",
+    debtMinPayment: "Minimum",
+    debtMonthlyFee: "Fee",
+    debtTermMonths: "Months",
+    chartEyebrow: "Chart",
+    chartTitle: "What changed?",
+    chartBody:
+      "Compare with the previous closed month and see which categories moved the most.",
+    chartTitleNoPrevious: "What did the month consist of?",
+    chartBodyNoPrevious:
+      "An overview of this month's expenses by category.",
+    chartCompareSupportingTitle: "Show bar chart",
+    chartNarrativeDistribution:
+      "Current expenses spread across the largest categories.",
+    chartSwitcherLabel: "Choose chart view",
+    chartCompare: "Compare",
+    chartCategories: "Categories",
+    chartNarrativeStable:
+      "The month was stable compared with the previous closed month.",
+    chartNarrativeNoComparison:
+      "No previous closed month to compare against yet.",
+    chartNarrativeExpensesUp:
+      "Expenses moved up the most compared with the previous closed month.",
+    chartNarrativeExpensesDown:
+      "Expenses moved down the most compared with the previous closed month.",
+    chartNarrativeIncomeUp:
+      "Income increased the most compared with the previous closed month.",
+    chartNarrativeIncomeDown:
+      "Income decreased the most compared with the previous closed month.",
+    chartNarrativeSavingsUp:
+      "Savings strengthened the most compared with the previous closed month.",
+    chartNarrativeSavingsDown:
+      "Savings dropped the most compared with the previous closed month.",
+    chartNarrativeDebtsUp:
+      "Debt payments increased the most compared with the previous closed month.",
+    chartNarrativeDebtsDown:
+      "Debt payments decreased the most compared with the previous closed month.",
+    chartFlowInputs: "Into the month",
+    chartFlowInputsBody: "Starting values",
+    chartFlowOutcomes: "Outcomes",
+    chartFlowMovement: "Planned movement",
+    chartFlowMovementBody: "Allocated according to plan",
+    chartFlowResult: "Result",
+    chartFlowResultBody: "Locked outcome",
+    flowCarryOverLabel: "Carry-over",
+    flowCarryOverNoneHelper: "No carry-over",
+    flowCarryOverSeparateHelper: "Carry-over is shown separately from income.",
+    flowIncomeLabel: "Monthly income",
+    flowIncomeSnapshotHelper: "Snapshot value, without carry-over.",
+    flowExpensesHelper: "Planned expenses.",
+    flowSavingsHelper: "Set aside for savings.",
+    flowDebtPaymentsHelper: "Payments toward debts.",
+    flowFinalBalanceLabel: "Final result",
+    flowFinalBalancePositiveHelper: "Left after the month's movement.",
+    flowFinalBalanceNegativeHelper: "Needs attention before the next plan.",
+    flowFinalBalanceBalancedHelper: "The month closed balanced.",
+    flowCarryOverNote:
+      "Carry-over is shown separately from income and does not affect locked income totals.",
+    chartCurrentValue: "Current",
+    chartCompareUnavailable:
+      "Compare becomes available once a previous closed month exists.",
+    futureVisualsLabel: "Future recap visuals",
+    futureVisuals: "Visual recap",
+    subscriptionMetaActive: "{count} active",
+    subscriptionMetaActiveSingular: "{count} active",
+    subscriptionMetaNew: "{count} new",
+    subscriptionMetaNewPlural: "{count} new",
+    subscriptionMetaRemoved: "{count} removed",
+    subscriptionMetaRemovedSingular: "{count} removed",
+    subscriptionGroupRemovedPaused: "Removed, paused or cancelled",
+    savingsInsightIncreased:
+      "Savings increased by {amount} compared with the previous closed month.",
+    savingsInsightDecreased:
+      "Savings decreased by {amount} compared with the previous closed month.",
+    savingsInsightUnchanged:
+      "Savings are unchanged compared with the previous closed month.",
+    savingsGoalProgressLabel: "{percent}% of goal",
+    debtPlanCompliantBadge: "On plan",
+    debtPaymentThisMonthLabel: "Paid this month",
+    nextStepLabel: "Next step",
+    nextStepTitle: "Next step",
+    nextStepCarryOverNone: "Nothing was carried into {month}.",
+    nextStepCarryOverApplied: "{amount} carried into {month}.",
+    nextStepCta: "Continue to {month} for new planning",
+    nextStepDeficitNote:
+      "The month closed with a deficit. Start the next plan by reviewing the largest movements.",
+  },
+  et: {
+    previous: "Eelmine",
+    next: "Järgmine",
+    loading: "Suletud kuu kokkuvõtte laadimine",
+    errorTitle: "Suletud kuu kokkuvõtet ei saanud laadida",
+    errorMessage: "Proovi hetke pärast uuesti.",
+    closed: "Suletud",
+    closedAt: "Suletud {date}",
+    summary:
+      "See on kuu sulgemise hetkel salvestatud ülevaade. Vaata esmalt kogusummasid ja tee uued plaanimuudatused järgmises kuus.",
+    readOnlyTitle: "Ainult vaatamiseks kokkuvõte",
+    readOnlyBody: "Ajalooline ülevaade on sulgemisel lukustatud.",
+    heroResultLabel: "Lõppsaldo",
+    heroOutcomePositive:
+      "{month} suleti, järele jäi {amount} pärast planeeritud rahaliikumisi.",
+    heroOutcomeBalanced:
+      "{month} suleti tasakaalus. Kõik planeeritud rahaliikumised läksid kokku.",
+    heroOutcomeNegative:
+      "{month} suleti {amount} alla plaani. Vaata muudatused üle, enne kui järgmist kuud kohandad.",
+    heroGuideEyebrow: "Kuu ülevaade",
+    heroTakeawayLabel: "Kuu järeldus",
+    heroTakeawayPositive:
+      "Kuu lõppes selge varuga. Hea lähtekoht järgmise plaani jaoks.",
+    heroTakeawayBalanced:
+      "Kuu jäi tasakaalu lähedale. Väikesed kohandused võivad järgmise kuu selgemaks teha.",
+    heroTakeawayDeficit:
+      "Kuu suleti puudujäägiga. Alusta järgmist plaani suurimate liikumiste ülevaatamisest.",
+    heroTakeawayExpensesUp:
+      "Kuu lõppes positiivselt, kuid kulud kasvasid võrreldes eelmise suletud kuuga.",
+    heroTakeawaySavingsUp:
+      "Säästmine tugevnes võrreldes eelmise suletud kuuga.",
+    expenseDriverSingle: "Kasvu vedas peamiselt {category} ({amount}).",
+    expenseDriverPair:
+      "Kasvu vedas peamiselt {category1} ({amount1}) ja {category2} ({amount2}).",
+    heroFlowLabel: "Kuu rahavoog",
+    heroFlowEyebrow: "Kuhu raha liikus?",
+    heroFlowTitle: "Algseisust lõppsaldoni",
+    heroFlowStartGroup: "Algus",
+    heroFlowResultGroup: "Tulemus",
+    heroAvailableShort: "Saadaval",
+    heroDebtShort: "Võlad",
+    heroCarryOverApplied: "Üle kantud järgmisesse kuusse",
+    heroCarryOverToNextMonth: "Üle kantud kuusse {month}: {amount}",
+    heroCarryOverNone: "Ülekannet pole",
+    heroCarryOverNoneBody:
+      "Seda kuud ei kantud järgmisesse kuusse.",
+    heroExplainer:
+      "See on lukustatud ülevaade – siin ei saa midagi muuta. Kasuta uue planeerimiseks järgmist kuud.",
+    income: "Sissetulek",
+    incomeHint: "Salvestatud sissetulek",
+    expenses: "Kulud",
+    expensesHint: "Salvestatud kulud",
+    savings: "Säästud",
+    savingsHint: "Kõrvale pandud",
+    debtPayments: "Võlamaksed",
+    debtPaymentsHint: "Tagasi makstud",
+    finalBalance: "Lõppsaldo",
+    finalBalanceHint: "Pärast kõiki kogusummasid",
+    snapshotTotalLabel: "{label} salvestatud kogusumma",
+    snapshotTotalsHeading: "Hetkepildi kogusummad",
+    snapshotTotalsBody: "Lukustatud kogusummad kuu sulgemise hetkest.",
+    carryOver: "Ülekanne",
+    monthTransitionLabel: "Kuu üleminek",
+    monthTransitionTitle: "Kuu üleminek",
+    monthTransitionNone: "Ülekannet järgmisesse kuusse pole.",
+    monthTransitionApplied: "{amount} kanti üle kuusse {month}.",
+    detailChapterEyebrow: "KUU DETAILID",
+    detailChapterTitle: "Kuu taustakirjed",
+    detailChapterBody: "Siin kuvatakse lukustatud ülevaate aluseks olevad kirjed.",
+    detailSurfaceLabel: "Kuu detailkirjed",
+    carryOverModeNone: "Ülekannet pole",
+    carryOverModeFull: "Täielik ülekanne",
+    carryOverModeCustom: "Kohandatud ülekanne",
+    deficitGuidanceLabel: "Puudujäägi juhis",
+    deficitTitle: "See kuu suleti puudujäägiga.",
+    deficitBody:
+      "Vaata järgmise kuu planeerimisel üle korduvad kulud ja muutuvad väljaminekud.",
+    comparisonLabel: "Sulgemise võrdlus",
+    comparisonTitle: "Võrdlus eelmise suletud kuuga",
+    comparisonMetricLabel: "{label} kuu võrdlus",
+    previousValue: "Eelmine",
+    previousComparable: "Eelmine suletud kuu: {month}.",
+    noPreviousComparable: "Varasemat suletud kuud võrdluseks veel ei ole.",
+    expenseCategoryBreakdownLabel: "Kulude kategooriad",
+    expenseCategoryBreakdownTitle: "Mis kuludes muutus?",
+    expenseCategoryBreakdownBody:
+      "Kategooriad on järjestatud suurima muutuse järgi võrreldes eelmise suletud kuuga.",
+    expenseCategoryNoPrevious:
+      "Varasemat kuud kategooriate võrdluseks ei ole. Kuvatakse praegused kategooriasummad.",
+    expenseCategoryEmpty: "Sellel suletud kuul ei ole aktiivseid kulukategooriaid.",
+    expenseCategoryRowLabel: "{category} kulukategooria",
+    expenseCategoryPreviousValue: "Eelmine {amount}",
+    subscriptionChangesLabel: "Korduvad kulud",
+    subscriptionChangesTitle: "Korduvad kulud",
+    subscriptionChangesBody:
+      "Uued või aktiivsed korduvad kulud sel kuul.",
+    subscriptionStillActive: "Endiselt aktiivsed",
+    subscriptionActive: "Aktiivsed tellimused",
+    subscriptionNew: "Uued",
+    subscriptionRemoved: "Eemaldatud",
+    subscriptionPaused: "Peatatud",
+    subscriptionCancelled: "Tühistatud",
+    subscriptionNotCounted: "Sellel kuul ei arvestata",
+    subscriptionNoPrevious:
+      "Varasemat kuud tellimuste muutuste võrdlemiseks ei ole.",
+    subscriptionEmpty:
+      "Sel kuul ei leitud uusi korduvaid kulusid.",
+    subscriptionRowLabel: "{name} tellimus",
+    savingsDetailLabel: "Säästud",
+    savingsDetailTitle: "Säästud",
+    savingsDetailBody: "Eesmärgid ja sissemaksed lukustatud kuust.",
+    savingsDetailNoPrevious:
+      "Eesmärgid ja sissemaksed lukustatud kuust.",
+    savingsDetailTotal: "Säästud kokku",
+    savingsDetailEmpty:
+      "Sellel suletud kuul ei olnud aktiivseid säästueesmärke.",
+    savingsGoalFallback: "Säästueesmärk",
+    savingsGoalRowLabel: "{name} säästueesmärk",
+    savingsGoalTarget: "Eesmärk",
+    savingsGoalSaved: "Säästetud",
+    savingsGoalTargetDate: "Kuupäev",
+    debtDetailLabel: "Võlad",
+    debtDetailTitle: "Võlad",
+    debtDetailBody: "Maksed ja võlastaatus lukustatud kuust.",
+    debtDetailNoPrevious:
+      "Maksed ja võlastaatus lukustatud kuust.",
+    debtDetailTotal: "Võlamaksed kokku",
+    debtDetailEmpty:
+      "Sellel suletud kuul ei olnud aktiivseid võlgu.",
+    debtRowLabel: "{name} võlg",
+    debtType: "Tüüp",
+    debtBalance: "Saldo",
+    debtApr: "Intress",
+    debtMinPayment: "Miinimum",
+    debtMonthlyFee: "Tasu",
+    debtTermMonths: "Kuud",
+    chartEyebrow: "Diagramm",
+    chartTitle: "Mis muutus?",
+    chartBody:
+      "Võrdle eelmise suletud kuuga ja vaata, millised kategooriad enim liikusid.",
+    chartTitleNoPrevious: "Millest see kuu koosnes?",
+    chartBodyNoPrevious:
+      "Selle kuu kulude ülevaade kategooriate kaupa.",
+    chartCompareSupportingTitle: "Näita tulpdiagrammi",
+    chartNarrativeDistribution:
+      "Praegused kulud jaotatuna suurimate kategooriate vahel.",
+    chartSwitcherLabel: "Vali diagrammivaade",
+    chartCompare: "Võrdle",
+    chartCategories: "Kategooriad",
+    chartNarrativeStable:
+      "Kuu oli stabiilne võrreldes eelmise suletud kuuga.",
+    chartNarrativeNoComparison:
+      "Varasemat suletud kuud võrdluseks veel ei ole.",
+    chartNarrativeExpensesUp:
+      "Kulud kasvasid kõige rohkem võrreldes eelmise suletud kuuga.",
+    chartNarrativeExpensesDown:
+      "Kulud vähenesid kõige rohkem võrreldes eelmise suletud kuuga.",
+    chartNarrativeIncomeUp:
+      "Sissetulek kasvas kõige rohkem võrreldes eelmise suletud kuuga.",
+    chartNarrativeIncomeDown:
+      "Sissetulek vähenes kõige rohkem võrreldes eelmise suletud kuuga.",
+    chartNarrativeSavingsUp:
+      "Säästud tugevnesid kõige rohkem võrreldes eelmise suletud kuuga.",
+    chartNarrativeSavingsDown:
+      "Säästud vähenesid kõige rohkem võrreldes eelmise suletud kuuga.",
+    chartNarrativeDebtsUp:
+      "Võlamaksed kasvasid kõige rohkem võrreldes eelmise suletud kuuga.",
+    chartNarrativeDebtsDown:
+      "Võlamaksed vähenesid kõige rohkem võrreldes eelmise suletud kuuga.",
+    chartFlowInputs: "Kuu sisendid",
+    chartFlowInputsBody: "Algväärtused",
+    chartFlowOutcomes: "Tulemused",
+    chartFlowMovement: "Planeeritud liikumine",
+    chartFlowMovementBody: "Jaotatud plaani järgi",
+    chartFlowResult: "Tulemus",
+    chartFlowResultBody: "Lukustatud tulemus",
+    flowCarryOverLabel: "Ülekanne",
+    flowCarryOverNoneHelper: "Ülekannet pole",
+    flowCarryOverSeparateHelper: "Ülekanne kuvatakse sissetulekust eraldi.",
+    flowIncomeLabel: "Kuu sissetulek",
+    flowIncomeSnapshotHelper: "Ülevaate väärtus, ilma ülekandeta.",
+    flowExpensesHelper: "Planeeritud kulud.",
+    flowSavingsHelper: "Säästudeks kõrvale pandud.",
+    flowDebtPaymentsHelper: "Võlgade tagasimaksed.",
+    flowFinalBalanceLabel: "Lõplik tulemus",
+    flowFinalBalancePositiveHelper: "Alles pärast kuu liikumisi.",
+    flowFinalBalanceNegativeHelper: "Vajab enne järgmist plaani tähelepanu.",
+    flowFinalBalanceBalancedHelper: "Kuu suleti tasakaalus.",
+    flowCarryOverNote:
+      "Ülekanne kuvatakse sissetulekust eraldi ja see ei mõjuta lukustatud sissetulekute summasid.",
+    chartCurrentValue: "Praegune",
+    chartCompareUnavailable:
+      "Võrdlus avaneb siis, kui olemas on varasem suletud kuu.",
+    futureVisualsLabel: "Tulevased visuaalsed ülevaated",
+    futureVisuals: "Visuaalne ülevaade",
+    subscriptionMetaActive: "{count} aktiivset",
+    subscriptionMetaActiveSingular: "{count} aktiivne",
+    subscriptionMetaNew: "{count} uus",
+    subscriptionMetaNewPlural: "{count} uut",
+    subscriptionMetaRemoved: "{count} eemaldatud",
+    subscriptionMetaRemovedSingular: "{count} eemaldatud",
+    subscriptionGroupRemovedPaused: "Eemaldatud, peatatud või tühistatud",
+    savingsInsightIncreased:
+      "Säästmine kasvas {amount} võrra võrreldes eelmise suletud kuuga.",
+    savingsInsightDecreased:
+      "Säästmine vähenes {amount} võrra võrreldes eelmise suletud kuuga.",
+    savingsInsightUnchanged:
+      "Säästmine on muutumatu võrreldes eelmise suletud kuuga.",
+    savingsGoalProgressLabel: "{percent}% eesmärgist",
+    debtPlanCompliantBadge: "Plaanipärane",
+    debtPaymentThisMonthLabel: "Tasutud sel kuul",
+    nextStepLabel: "Järgmine samm",
+    nextStepTitle: "Järgmine samm",
+    nextStepCarryOverNone: "Kuusse {month} ei kantud midagi üle.",
+    nextStepCarryOverApplied: "{amount} kanti üle kuusse {month}.",
+    nextStepCta: "Jätka kuusse {month} uue planeerimisega",
+    nextStepDeficitNote:
+      "Kuu suleti puudujäägiga. Alusta järgmist plaani suurimate liikumiste ülevaatamisest.",
+  },
+} as const;

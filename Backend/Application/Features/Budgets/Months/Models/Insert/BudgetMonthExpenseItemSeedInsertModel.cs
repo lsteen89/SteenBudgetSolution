@@ -6,4 +6,5 @@ public sealed record BudgetMonthExpenseItemSeedInsertModel(
     Guid CategoryId,
     string Name,
     decimal AmountMonthly,
+    string? SubscriptionLifecycleStatus,
     int SortOrder);

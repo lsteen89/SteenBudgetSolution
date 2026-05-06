@@ -5,4 +5,5 @@ public sealed record PatchBudgetMonthExpenseItemRequestDto(
     Guid? CategoryId,
     decimal? AmountMonthly,
     bool? IsActive,
+    string? SubscriptionLifecycleStatus,
     bool UpdateDefault);

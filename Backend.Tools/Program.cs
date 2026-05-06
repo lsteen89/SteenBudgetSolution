@@ -363,7 +363,7 @@ async Task SeedOneUserAsync(
         ct,
         openMonthTargetFinalBalance);
 
-    Console.WriteLine($"Seeded budget data for {seedUser.Email}: 2 closed months + open month {openYearMonth}.");
+    Console.WriteLine($"Seeded budget data for {seedUser.Email}: 2 closed months + 1 skipped month + open month {openYearMonth}.");
     Console.WriteLine($"Set Users.FirstLogin = 0 for {seedUser.Email} so the dashboard skips the setup wizard.");
 }
 

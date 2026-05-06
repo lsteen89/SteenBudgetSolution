@@ -19,6 +19,7 @@ public sealed class PatchBudgetMonthExpenseItemCommandValidatorTests
             CategoryId: ExpenseCategories.Subscription,
             AmountMonthly: 99.99m,
             IsActive: true,
+            SubscriptionLifecycleStatus: null,
             UpdateDefault: false);
 
         var result = _sut.TestValidate(cmd);
@@ -37,6 +38,7 @@ public sealed class PatchBudgetMonthExpenseItemCommandValidatorTests
             CategoryId: ExpenseCategories.Subscription,
             AmountMonthly: -10m,
             IsActive: true,
+            SubscriptionLifecycleStatus: null,
             UpdateDefault: false);
 
         var result = _sut.TestValidate(cmd);
@@ -55,6 +57,7 @@ public sealed class PatchBudgetMonthExpenseItemCommandValidatorTests
             CategoryId: ExpenseCategories.Subscription,
             AmountMonthly: 10.999m,
             IsActive: true,
+            SubscriptionLifecycleStatus: null,
             UpdateDefault: false);
 
         var result = _sut.TestValidate(cmd);
@@ -73,6 +76,7 @@ public sealed class PatchBudgetMonthExpenseItemCommandValidatorTests
             CategoryId: ExpenseCategories.Subscription,
             AmountMonthly: 10m,
             IsActive: true,
+            SubscriptionLifecycleStatus: null,
             UpdateDefault: false);
 
         var result = _sut.TestValidate(cmd);

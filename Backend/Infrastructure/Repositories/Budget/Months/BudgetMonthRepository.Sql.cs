@@ -153,6 +153,87 @@ public sealed partial class BudgetMonthRepository
     AND bm.YearMonth = @YearMonth
     LIMIT 1;";
 
+    private const string GetPreviousComparableYearMonth = @"
+    SELECT
+        bm.YearMonth
+    FROM BudgetMonth bm
+    WHERE bm.BudgetId = @BudgetId
+      AND bm.YearMonth < @YearMonth
+      AND bm.Status = 'closed'
+      AND bm.SnapshotTotalIncomeMonthly IS NOT NULL
+      AND bm.SnapshotTotalExpensesMonthly IS NOT NULL
+      AND bm.SnapshotTotalSavingsMonthly IS NOT NULL
+      AND bm.SnapshotTotalDebtPaymentsMonthly IS NOT NULL
+      AND bm.SnapshotFinalBalanceMonthly IS NOT NULL
+    ORDER BY bm.YearMonth DESC
+    LIMIT 1;";
+
+    private const string GetExpenseCategoryTotals = @"
+    SELECT
+        c.Id AS CategoryId,
+        c.Name AS CategoryName,
+        COALESCE(SUM(e.AmountMonthly), 0) AS TotalMonthlyAmount
+    FROM BudgetMonthExpenseItem e
+    JOIN ExpenseCategory c ON c.Id = e.CategoryId
+    WHERE e.BudgetMonthId = @BudgetMonthId
+      AND e.IsDeleted = 0
+      AND e.IsActive = 1
+      AND (
+          e.SubscriptionLifecycleStatus IS NULL
+          OR e.SubscriptionLifecycleStatus = @ActiveSubscriptionLifecycleStatus
+      )
+    GROUP BY c.Id, c.Name
+    ORDER BY c.Name;";
+
+    private const string GetSubscriptions = @"
+    SELECT
+        e.Id,
+        e.SourceExpenseItemId,
+        e.Name,
+        e.AmountMonthly,
+        e.SubscriptionLifecycleStatus
+    FROM BudgetMonthExpenseItem e
+    JOIN ExpenseCategory c ON c.Id = e.CategoryId
+    WHERE e.BudgetMonthId = @BudgetMonthId
+      AND c.Name = 'Subscription'
+      AND e.IsDeleted = 0
+    ORDER BY e.Name, e.Id;";
+
+    private const string GetSavingsGoals = @"
+    SELECT
+        g.Id,
+        g.SourceSavingsGoalId,
+        g.Name,
+        g.TargetAmount,
+        g.TargetDate,
+        g.AmountSaved,
+        g.MonthlyContribution
+    FROM BudgetMonthSavings s
+    JOIN BudgetMonthSavingsGoal g
+        ON g.BudgetMonthSavingsId = s.Id
+    WHERE s.BudgetMonthId = @BudgetMonthId
+      AND s.IsDeleted = 0
+      AND g.IsDeleted = 0
+      AND g.Status = 'active'
+    ORDER BY g.SortOrder, g.CreatedAt, g.Id;";
+
+    private const string GetDebts = @"
+    SELECT
+        d.Id,
+        d.SourceDebtId,
+        d.Name,
+        d.Type,
+        d.Balance,
+        d.Apr,
+        d.MonthlyFee,
+        d.MinPayment,
+        CAST(d.TermMonths AS SIGNED) AS TermMonths
+    FROM BudgetMonthDebt d
+    WHERE d.BudgetMonthId = @BudgetMonthId
+      AND d.IsDeleted = 0
+      AND d.Status = 'active'
+    ORDER BY d.SortOrder, d.Balance DESC, d.Name;";
+
     const string ExistsAnyMonths = """
         SELECT EXISTS(
             SELECT 1

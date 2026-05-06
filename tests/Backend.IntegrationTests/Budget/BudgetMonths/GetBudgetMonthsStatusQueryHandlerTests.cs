@@ -149,7 +149,7 @@ public sealed class GetBudgetMonthsStatusQueryHandlerTests
     }
 
     [Fact]
-    public async Task GetStatus_WhenMultipleOpenMonths_PicksNewestOpenedAt()
+    public async Task GetStatus_WhenHistoricalMonthsAndSingleOpenMonthExist_ReturnsOpenMonth()
     {
         await _db.ResetAsync();
 
@@ -158,8 +158,27 @@ public sealed class GetBudgetMonthsStatusQueryHandlerTests
         var userId = seed.UserId;
         var budgetId = seed.BudgetId;
 
-        await BudgetMonthDsl.InsertOpenAsync(_db.ConnectionString, budgetId, "2025-12",
-            new DateTime(2025, 12, 01, 10, 00, 00, DateTimeKind.Utc), userId);
+        await BudgetMonthDsl.InsertAsync(
+            cs: _db.ConnectionString,
+            budgetId: budgetId,
+            yearMonth: "2025-11",
+            status: BudgetMonthStatuses.Closed,
+            openedAtUtc: new DateTime(2025, 11, 01, 10, 00, 00, DateTimeKind.Utc),
+            createdByUserId: userId,
+            closedAtUtc: new DateTime(2025, 11, 30, 10, 00, 00, DateTimeKind.Utc),
+            carryOverMode: BudgetMonthCarryOverModes.None,
+            carryOverAmount: null);
+
+        await BudgetMonthDsl.InsertAsync(
+            cs: _db.ConnectionString,
+            budgetId: budgetId,
+            yearMonth: "2025-12",
+            status: BudgetMonthStatuses.Skipped,
+            openedAtUtc: new DateTime(2025, 12, 01, 10, 00, 00, DateTimeKind.Utc),
+            createdByUserId: userId,
+            closedAtUtc: new DateTime(2025, 12, 01, 10, 00, 00, DateTimeKind.Utc),
+            carryOverMode: BudgetMonthCarryOverModes.None,
+            carryOverAmount: null);
 
         await BudgetMonthDsl.InsertOpenAsync(_db.ConnectionString, budgetId, "2026-01",
             new DateTime(2026, 01, 05, 10, 00, 00, DateTimeKind.Utc), userId);
@@ -177,6 +196,12 @@ public sealed class GetBudgetMonthsStatusQueryHandlerTests
         res.IsFailure.Should().BeFalse();
         res.Value.Should().NotBeNull();
         res.Value!.OpenMonthYearMonth.Should().Be("2026-01");
+        res.Value.CurrentYearMonth.Should().Be("2026-01");
+        res.Value.GapMonthsCount.Should().Be(0);
+        res.Value.SuggestedAction.Should().Be(BudgetMonthSuggestedActions.None);
+        res.Value.Months.Should().ContainSingle(m => m.YearMonth == "2025-11" && m.Status == BudgetMonthStatuses.Closed);
+        res.Value.Months.Should().ContainSingle(m => m.YearMonth == "2025-12" && m.Status == BudgetMonthStatuses.Skipped);
+        res.Value.Months.Should().ContainSingle(m => m.YearMonth == "2026-01" && m.Status == BudgetMonthStatuses.Open);
     }
 
     private sealed class FakeTimeProvider : ITimeProvider

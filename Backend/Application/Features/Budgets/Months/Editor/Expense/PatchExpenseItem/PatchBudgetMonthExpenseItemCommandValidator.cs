@@ -30,5 +30,9 @@ public sealed class PatchBudgetMonthExpenseItemCommandValidator
             .NotNull()
             .GreaterThanOrEqualTo(0m)
             .PrecisionScale(12, 2, false);
+
+        RuleFor(x => x.SubscriptionLifecycleStatus)
+            .MaximumLength(20)
+            .When(x => x.SubscriptionLifecycleStatus is not null);
     }
 }

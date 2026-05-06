@@ -52,6 +52,22 @@ public sealed class BudgetMonthCloseWindowCalculatorTests
     }
 
     [Fact]
+    public void Calculate_AfterDueDate_KeepsCloseWindowOpen()
+    {
+        var result = BudgetMonthCloseWindowCalculator.Calculate(
+            yearMonth: "2026-04",
+            incomePaymentDayType: "dayOfMonth",
+            incomePaymentDay: 25,
+            nowUtc: new DateTime(2026, 5, 1, 12, 0, 0, DateTimeKind.Utc));
+
+        result.IsCloseWindowOpen.Should().BeTrue();
+        result.IsOverdueForClose.Should().BeTrue();
+        result.CloseWindowOpensAtUtc.Should().Be(new DateTime(2026, 4, 22, 0, 0, 0, DateTimeKind.Utc));
+        result.CloseEligibleAtUtc.Should().Be(new DateTime(2026, 4, 25, 0, 0, 0, DateTimeKind.Utc));
+    }
+
+
+    [Fact]
     public void Calculate_ForLastDayOfMonth_UsesThreeDayCloseWindow()
     {
         var result = BudgetMonthCloseWindowCalculator.Calculate(
@@ -78,4 +94,3 @@ public sealed class BudgetMonthCloseWindowCalculatorTests
         result.Should().Be(BudgetMonthCloseWindowInfo.Unavailable());
     }
 }
-

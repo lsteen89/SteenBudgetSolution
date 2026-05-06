@@ -131,6 +131,48 @@ public sealed partial class BudgetMonthRepository : SqlBase, IBudgetMonthReposit
     public Task<BudgetMonthDetailsRm?> GetMonthAsync(Guid budgetId, string yearMonth, CancellationToken ct)
         => QuerySingleOrDefaultAsync<BudgetMonthDetailsRm>(GetMonth, new { BudgetId = budgetId, YearMonth = yearMonth }, ct);
 
+    public Task<string?> GetPreviousComparableYearMonthAsync(Guid budgetId, string yearMonth, CancellationToken ct)
+        => QuerySingleOrDefaultAsync<string?>(
+            GetPreviousComparableYearMonth,
+            new { BudgetId = budgetId, YearMonth = yearMonth },
+            ct);
+
+    public async Task<IReadOnlyList<BudgetMonthExpenseCategoryTotalRm>> GetExpenseCategoryTotalsAsync(
+        Guid budgetMonthId,
+        CancellationToken ct)
+        => await QueryAsync<BudgetMonthExpenseCategoryTotalRm>(
+            GetExpenseCategoryTotals,
+            new
+            {
+                BudgetMonthId = budgetMonthId,
+                ActiveSubscriptionLifecycleStatus = BudgetMonthSubscriptionLifecycleStatuses.Active
+            },
+            ct);
+
+    public async Task<IReadOnlyList<BudgetMonthSubscriptionRm>> GetSubscriptionsAsync(
+        Guid budgetMonthId,
+        CancellationToken ct)
+        => await QueryAsync<BudgetMonthSubscriptionRm>(
+            GetSubscriptions,
+            new { BudgetMonthId = budgetMonthId },
+            ct);
+
+    public async Task<IReadOnlyList<BudgetMonthSavingsGoalRm>> GetSavingsGoalsAsync(
+        Guid budgetMonthId,
+        CancellationToken ct)
+        => await QueryAsync<BudgetMonthSavingsGoalRm>(
+            GetSavingsGoals,
+            new { BudgetMonthId = budgetMonthId },
+            ct);
+
+    public async Task<IReadOnlyList<BudgetMonthDebtRm>> GetDebtsAsync(
+        Guid budgetMonthId,
+        CancellationToken ct)
+        => await QueryAsync<BudgetMonthDebtRm>(
+            GetDebts,
+            new { BudgetMonthId = budgetMonthId },
+            ct);
+
     public Task<IncomePaymentTimingReadModel?> GetBudgetMonthIncomePaymentTimingAsync(
         Guid budgetMonthId,
         CancellationToken ct)

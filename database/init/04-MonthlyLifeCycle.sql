@@ -26,6 +26,9 @@ CREATE TABLE BudgetMonth (
     UpdatedAt               DATETIME      NULL ON UPDATE CURRENT_TIMESTAMP,
     CreatedByUserId         BINARY(16)    NOT NULL,
     UpdatedByUserId         BINARY(16)    NULL,
+    OpenBudgetId            BINARY(16)    GENERATED ALWAYS AS (
+        CASE WHEN Status = 'open' THEN BudgetId ELSE NULL END
+    ) STORED,
 
     CONSTRAINT FK_BudgetMonth_Budget
         FOREIGN KEY (BudgetId) REFERENCES Budget(Id) ON DELETE CASCADE,
@@ -46,6 +49,7 @@ CREATE TABLE BudgetMonth (
         ),
 
     UNIQUE KEY UX_BudgetMonth_BudgetId_YearMonth (BudgetId, YearMonth),
+    UNIQUE KEY UX_BudgetMonth_OneOpenPerBudget (OpenBudgetId),
     KEY IX_BudgetMonth_BudgetId_Status (BudgetId, Status)
 ) ENGINE=InnoDB;
 
@@ -153,6 +157,7 @@ CREATE TABLE BudgetMonthExpenseItem (
     CategoryId              BINARY(16)    NOT NULL,
     Name                    VARCHAR(255)  NOT NULL,
     AmountMonthly           DECIMAL(18,2) NOT NULL DEFAULT 0,
+    SubscriptionLifecycleStatus VARCHAR(20) NULL,
 
     IsActive                TINYINT(1)    NOT NULL DEFAULT 1,
     IsOverride              TINYINT(1)    NOT NULL DEFAULT 0,
@@ -173,6 +178,12 @@ CREATE TABLE BudgetMonthExpenseItem (
 
     CONSTRAINT FK_BudgetMonthExpenseItem_Category
         FOREIGN KEY (CategoryId) REFERENCES ExpenseCategory(Id) ON DELETE RESTRICT,
+
+    CONSTRAINT CK_BudgetMonthExpenseItem_SubscriptionLifecycleStatus
+        CHECK (
+            SubscriptionLifecycleStatus IS NULL
+            OR SubscriptionLifecycleStatus IN ('active', 'paused', 'cancelled')
+        ),
 
     INDEX IX_BudgetMonthExpenseItem_BudgetMonthId (BudgetMonthId),
     INDEX IX_BudgetMonthExpenseItem_SourceExpenseItemId (SourceExpenseItemId),
