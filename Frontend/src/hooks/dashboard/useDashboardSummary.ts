@@ -75,6 +75,8 @@ export const useDashboardSummary = (opts?: UseDashboardSummaryOptions) => {
           nextPeriodLabel: nav.nextYearMonth
             ? ymLabel(nav.nextYearMonth, locale)
             : null,
+          previousPeriodKey: nav.previousYearMonth ?? null,
+          nextPeriodKey: nav.nextYearMonth ?? null,
           canGoPrevious: nav.canGoPrevious,
           canGoNext: nav.canGoNext,
         },

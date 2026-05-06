@@ -25,6 +25,9 @@ export interface DashboardPeriodHeaderSummary {
   previousPeriodLabel?: string | null;
   nextPeriodLabel?: string | null;
 
+  previousPeriodKey?: string | null;
+  nextPeriodKey?: string | null;
+
   canGoPrevious: boolean;
   canGoNext: boolean;
 

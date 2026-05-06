@@ -6,12 +6,15 @@ import ReturningDashboardSection from "@/components/organisms/dashboard/returnin
 import PeriodControlBar, {
   type PeriodControlBarViewModel,
 } from "@/components/organisms/dashboard/shell/PeriodControlBar";
+import type { PeriodActionSlotViewModel } from "@/components/organisms/dashboard/shell/PeriodActionSlot";
 import { useBudgetMonthRecapQuery } from "@/hooks/budget/useBudgetMonthRecapQuery";
 import { useCloseMonthReviewController } from "@/hooks/dashboard/useCloseMonthReviewController";
 import { useDashboardSummary } from "@/hooks/dashboard/useDashboardSummary";
 import type { DashboardSummary } from "@/hooks/dashboard/dashboardSummary.types";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
+import { useBudgetMonthStore } from "@/stores/Budget/budgetMonthStore";
 import type { AppLocale } from "@/types/i18n/appLocale";
+import type { BudgetMonthListItemDto } from "@/types/budget/BudgetMonthsStatusDto";
 import { dashboardHeaderDict } from "@/utils/i18n/pages/private/dashboard/header/DashboardHeader.i18n";
 import { tDict } from "@/utils/i18n/translate";
 import DashboardHomeSkeleton from "@components/organisms/dashboard/DashboardHomeSkeleton";
@@ -102,6 +105,52 @@ function buildPeriodControlBarViewModel(
     },
   ];
 
+  const previousLabel = header.previousPeriodLabel ?? t("previous");
+  const nextNavLabel = header.nextPeriodLabel ?? t("next");
+  const previousAriaLabel = header.previousPeriodLabel
+    ? replaceToken(t("previousMonthAria"), "month", header.previousPeriodLabel)
+    : t("previousMonthLockedAria");
+  const nextAriaLabel = header.nextPeriodLabel
+    ? replaceToken(t("nextMonthAria"), "month", header.nextPeriodLabel)
+    : t("nextMonthLockedAria");
+
+  const continueTargetLabel = header.nextPeriodLabel ?? null;
+  const continueTargetKey = header.nextPeriodKey ?? null;
+
+  let action: PeriodActionSlotViewModel;
+  if (showCloseAction) {
+    action = {
+      type: "close",
+      label: header.closeMonthButtonLabel as string,
+      helperText:
+        header.lifecycleState === "overdue"
+          ? t("actionRequired")
+          : header.lifecycleState === "eligible"
+            ? t("readyToFinalize")
+            : null,
+      attention: header.lifecycleState === "overdue",
+    };
+  } else if ((isClosed || isSkipped) && continueTargetLabel && continueTargetKey) {
+    action = {
+      type: "continue",
+      label: replaceToken(t("continueWithMonth"), "month", continueTargetLabel),
+      ariaLabel: replaceToken(
+        t("continueWithMonthAria"),
+        "month",
+        continueTargetLabel,
+      ),
+      targetYearMonth: continueTargetKey,
+    };
+  } else if (isSkipped) {
+    action = {
+      type: "passive",
+      label: t("periodActionNoSnapshot"),
+      tone: "muted",
+    };
+  } else {
+    action = { type: "none" };
+  }
+
   return {
     current: {
       yearMonth: header.periodKey,
@@ -111,35 +160,26 @@ function buildPeriodControlBarViewModel(
       tone: currentTone,
     },
     previous: {
-      label: header.previousPeriodLabel ?? t("previous"),
+      label: previousLabel,
       disabled: !header.canGoPrevious,
+      ariaLabel: previousAriaLabel,
     },
     next: {
-      label: header.nextPeriodLabel ?? t("next"),
+      label: nextNavLabel,
       disabled: !header.canGoNext,
+      ariaLabel: nextAriaLabel,
     },
     ribbonItems,
-    action: showCloseAction
-      ? {
-          type: "close",
-          label: header.closeMonthButtonLabel as string,
-          helperText:
-            header.lifecycleState === "overdue"
-              ? t("actionRequired")
-              : header.lifecycleState === "eligible"
-                ? t("readyToFinalize")
-                : null,
-          attention: header.lifecycleState === "overdue",
-        }
-      : isClosed
-        ? { type: "none" }
-        : isSkipped
-          ? {
-              type: "passive",
-              label: t("periodActionNoSnapshot"),
-              tone: "muted",
-            }
-          : { type: "none" },
+    action,
+    archive: {
+      triggerLabel: t("monthArchiveTrigger"),
+      emptyLabel: t("monthArchiveEmpty"),
+      statusLabels: {
+        open: t("open"),
+        closed: t("closed"),
+        skipped: t("skipped"),
+      },
+    },
   };
 }
 
@@ -149,6 +189,7 @@ type LoadedDashboardContentProps = {
   isPending: boolean;
   goToPreviousMonth: () => void;
   goToNextMonth: () => void;
+  archiveMonths: BudgetMonthListItemDto[];
 };
 
 function LoadedDashboardContent({
@@ -157,9 +198,13 @@ function LoadedDashboardContent({
   isPending,
   goToPreviousMonth,
   goToNextMonth,
+  archiveMonths,
 }: LoadedDashboardContentProps) {
   const [isPeriodEditorOpen, setIsPeriodEditorOpen] = useState(false);
   const locale = useAppLocale();
+  const setSelectedYearMonth = useBudgetMonthStore(
+    (s) => s.setSelectedYearMonth,
+  );
 
   const yearMonth = summary.header.periodKey;
   const isClosedMonth = summary.header.periodStatus === "closed";
@@ -211,6 +256,10 @@ function LoadedDashboardContent({
         onGoNext={goToNextMonth}
         isSwitchingMonth={isSwitchingMonth}
         onCloseMonth={closeMonthReview.open}
+        onContinueAction={setSelectedYearMonth}
+        archiveMonths={archiveMonths}
+        onSelectMonth={setSelectedYearMonth}
+        archiveLocale={locale}
       />
 
       {isClosedMonth ? (
@@ -289,6 +338,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
     refetch,
     goToPreviousMonth,
     goToNextMonth,
+    monthsStatus,
   } = useDashboardSummary({
     enabled: shouldFetchDashboard,
   });
@@ -351,6 +401,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
       isPending={isPending}
       goToPreviousMonth={goToPreviousMonth}
       goToNextMonth={goToNextMonth}
+      archiveMonths={monthsStatus?.months ?? []}
     />
   );
 };

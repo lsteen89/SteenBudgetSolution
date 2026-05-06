@@ -42,6 +42,16 @@ export const dashboardHeaderDict = {
     periodContextOverdueComparison: "Stäng för att spara jämförelsebas",
     periodContextNextAvailable: "Fortsätt med {month}.",
     periodContextNextLocked: "Nästa månad öppnas efter stängning",
+
+    monthArchiveTrigger: "Månadsarkiv",
+    monthArchiveTriggerLong: "Hoppa till månad",
+    monthArchiveEmpty: "Inga sparade månader ännu.",
+    previousMonthAria: "Gå till föregående månad: {month}",
+    nextMonthAria: "Gå till nästa månad: {month}",
+    previousMonthLockedAria: "Föregående månad är inte tillgänglig",
+    nextMonthLockedAria: "Nästa månad är inte tillgänglig",
+    continueWithMonth: "Fortsätt med {month}",
+    continueWithMonthAria: "Fortsätt till {month}",
   },
 
   en: {
@@ -87,6 +97,16 @@ export const dashboardHeaderDict = {
     periodContextOverdueComparison: "Close to save the comparison baseline",
     periodContextNextAvailable: "Continue with {month}.",
     periodContextNextLocked: "Next month opens after closing",
+
+    monthArchiveTrigger: "Month archive",
+    monthArchiveTriggerLong: "Jump to month",
+    monthArchiveEmpty: "No saved months yet.",
+    previousMonthAria: "Go to previous month: {month}",
+    nextMonthAria: "Go to next month: {month}",
+    previousMonthLockedAria: "Previous month is not available",
+    nextMonthLockedAria: "Next month is not available",
+    continueWithMonth: "Continue with {month}",
+    continueWithMonthAria: "Continue with {month}",
   },
 
   et: {
@@ -132,5 +152,15 @@ export const dashboardHeaderDict = {
     periodContextOverdueComparison: "Sulge võrdlusaluse salvestamiseks",
     periodContextNextAvailable: "Jätka kuuga {month}.",
     periodContextNextLocked: "Järgmine kuu avaneb pärast sulgemist",
+
+    monthArchiveTrigger: "Kuude arhiiv",
+    monthArchiveTriggerLong: "Hüppa kuule",
+    monthArchiveEmpty: "Salvestatud kuid veel ei ole.",
+    previousMonthAria: "Mine eelmisele kuule: {month}",
+    nextMonthAria: "Mine järgmisele kuule: {month}",
+    previousMonthLockedAria: "Eelmine kuu pole saadaval",
+    nextMonthLockedAria: "Järgmine kuu pole saadaval",
+    continueWithMonth: "Jätka kuuga {month}",
+    continueWithMonthAria: "Jätka kuuga {month}",
   },
 } as const;

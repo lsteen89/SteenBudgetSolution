@@ -121,6 +121,39 @@ function buildSummary(
   };
 }
 
+const sampleMonthsStatus = {
+  openMonthYearMonth: "2026-04",
+  currentYearMonth: "2026-04",
+  gapMonthsCount: 0,
+  months: [
+    {
+      yearMonth: "2026-02",
+      status: "closed" as const,
+      openedAt: "2026-02-01T00:00:00Z",
+      closedAt: "2026-02-28T20:00:00Z",
+    },
+    {
+      yearMonth: "2026-03",
+      status: "closed" as const,
+      openedAt: "2026-03-01T00:00:00Z",
+      closedAt: "2026-03-31T20:00:00Z",
+    },
+    {
+      yearMonth: "2026-04",
+      status: "open" as const,
+      openedAt: "2026-04-01T00:00:00Z",
+      closedAt: null,
+    },
+    {
+      yearMonth: "2025-12",
+      status: "skipped" as const,
+      openedAt: "2025-12-01T00:00:00Z",
+      closedAt: null,
+    },
+  ],
+  suggestedAction: "none" as const,
+};
+
 const readyResult = {
   data: {
     summary: buildSummary(245),
@@ -138,6 +171,7 @@ const readyResult = {
   refetch: vi.fn(),
   goToPreviousMonth: vi.fn(),
   goToNextMonth: vi.fn(),
+  monthsStatus: sampleMonthsStatus,
 };
 
 const pendingResult = {
@@ -1590,5 +1624,116 @@ describe("DashboardContent", () => {
       enabled: false,
     });
     expect(screen.queryByRole("button", { name: /close month/i })).toBeNull();
+  });
+
+  it("renders the month archive trigger and shows months grouped by year", () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+
+    renderDashboardContent();
+
+    const trigger = screen.getByTestId("month-archive-trigger");
+    expect(trigger).toBeInTheDocument();
+    expect(trigger).toHaveAccessibleName(/month archive/i);
+
+    fireEvent.click(trigger);
+
+    const popover = screen.getByTestId("month-archive-popover");
+    expect(popover).toBeInTheDocument();
+    expect(popover).toHaveTextContent("April");
+    expect(popover).toHaveTextContent("March");
+    expect(popover).toHaveTextContent("December");
+    expect(popover).toHaveTextContent("2026");
+    expect(popover).toHaveTextContent("2025");
+  });
+
+  it("selecting a month from the archive calls setSelectedYearMonth", () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+
+    renderDashboardContent();
+
+    fireEvent.click(screen.getByTestId("month-archive-trigger"));
+    fireEvent.click(screen.getByTestId("month-archive-option-2026-02"));
+
+    expect(mockSetSelectedYearMonth).toHaveBeenCalledWith("2026-02");
+    expect(screen.queryByTestId("month-archive-popover")).toBeNull();
+  });
+
+  it("shows continue action in the header for a closed month", () => {
+    const closedSummary = buildSummary(245, "closed");
+    mockUseDashboardSummary.mockReturnValue({
+      ...readyResult,
+      data: {
+        ...readyResult.data,
+        summary: {
+          ...closedSummary,
+          header: {
+            ...closedSummary.header,
+            nextPeriodLabel: "May 2026",
+            nextPeriodKey: "2026-05",
+            canCloseMonth: false,
+            closeMonthButtonLabel: null,
+          },
+        },
+      },
+    });
+    mockUseBudgetMonthRecapQuery.mockReturnValue({
+      data: buildClosedRecap({
+        comparison: {
+          previousComparableYearMonth: null,
+          hasPreviousComparableMonth: false,
+          summary: null,
+        },
+      }),
+      isPending: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    renderDashboardContent();
+
+    const continueAction = screen.getByTestId("period-action-continue");
+    expect(continueAction).toBeInTheDocument();
+    expect(continueAction).toHaveTextContent(/continue with may 2026/i);
+
+    fireEvent.click(continueAction);
+    expect(mockSetSelectedYearMonth).toHaveBeenCalledWith("2026-05");
+  });
+
+  it("shows continue action in the header for a skipped month", () => {
+    const skippedSummary = buildSummary(0, "skipped");
+    mockUseDashboardSummary.mockReturnValue({
+      ...readyResult,
+      data: {
+        ...readyResult.data,
+        summary: {
+          ...skippedSummary,
+          header: {
+            ...skippedSummary.header,
+            nextPeriodLabel: "May 2026",
+            nextPeriodKey: "2026-05",
+            canGoNext: true,
+            canCloseMonth: false,
+            closeMonthButtonLabel: null,
+          },
+        },
+      },
+    });
+
+    renderDashboardContent();
+
+    const continueAction = screen.getByTestId("period-action-continue");
+    expect(continueAction).toHaveTextContent(/continue with may 2026/i);
+
+    fireEvent.click(continueAction);
+    expect(mockSetSelectedYearMonth).toHaveBeenCalledWith("2026-05");
+  });
+
+  it("disables the next month button when the next period is unavailable", () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+
+    renderDashboardContent();
+
+    expect(screen.getByTestId("month-nav-next")).toBeDisabled();
+    expect(screen.getByTestId("month-nav-previous")).not.toBeDisabled();
   });
 });
