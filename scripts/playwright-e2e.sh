@@ -74,6 +74,44 @@ ensure_backend_port_is_free() {
   fi
 }
 
+process_tree() {
+  local pid="$1"
+  local child_pid
+
+  for child_pid in $(pgrep -P "$pid" 2>/dev/null || true); do
+    process_tree "$child_pid"
+  done
+
+  echo "$pid"
+}
+
+terminate_process_tree() {
+  local pid="$1"
+  local pids
+  local attempt
+
+  if ! kill -0 "$pid" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  pids="$(process_tree "$pid" | tr '\n' ' ')"
+  if [[ -z "$pids" ]]; then
+    return 0
+  fi
+
+  kill $pids >/dev/null 2>&1 || true
+
+  for ((attempt = 1; attempt <= 20; attempt++)); do
+    if ! kill -0 "$pid" >/dev/null 2>&1; then
+      return 0
+    fi
+
+    sleep 0.25
+  done
+
+  kill -KILL $pids >/dev/null 2>&1 || true
+}
+
 playwright_args=("$@")
 if [[ ${#playwright_args[@]} -eq 0 ]]; then
   playwright_args=("test" "--project=smoke")
@@ -95,19 +133,23 @@ wait_for_container_health "$db_container_id"
 backend_log="$ROOT_DIR/.playwright-backend.log"
 rm -f "$backend_log"
 
-(
-  cd "$ROOT_DIR/Backend"
-  DOTNET_USE_POLLING_FILE_WATCHER=true dotnet run --urls "$BACKEND_URL"
-) >"$backend_log" 2>&1 &
+pushd "$ROOT_DIR/Backend" >/dev/null
+DOTNET_USE_POLLING_FILE_WATCHER=true dotnet run --urls "$BACKEND_URL" >"$backend_log" 2>&1 &
 backend_pid=$!
+popd >/dev/null
 
 cleanup() {
-  if kill -0 "$backend_pid" >/dev/null 2>&1; then
-    kill "$backend_pid" >/dev/null 2>&1 || true
-    wait "$backend_pid" >/dev/null 2>&1 || true
-  fi
+  local exit_code=$?
+
+  trap - EXIT INT TERM
+  terminate_process_tree "$backend_pid"
+  wait "$backend_pid" >/dev/null 2>&1 || true
+
+  return "$exit_code"
 }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 wait_for_backend
 

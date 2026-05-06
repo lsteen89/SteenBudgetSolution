@@ -415,3 +415,6 @@ test-results/
 
 # Optional, if you add auth state later
 Frontend/playwright/.auth/
+
+#logs
+docs/ai/ai-changelog.md
