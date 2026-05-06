@@ -8,7 +8,8 @@ public sealed record BudgetMonthRecapDto(
     BudgetMonthRecapSubscriptionInsightDto SubscriptionInsight,
     BudgetMonthRecapSavingsDetailDto SavingsDetail,
     BudgetMonthRecapDebtDetailDto DebtDetail,
-    BudgetMonthRecapInsightDriversDto InsightDrivers);
+    BudgetMonthRecapInsightDriversDto InsightDrivers,
+    BudgetMonthRecapCarryOverOutcomeDto CarryOverOutcome);
 
 public sealed record BudgetMonthRecapMetaDto(
     string YearMonth,
@@ -17,6 +18,16 @@ public sealed record BudgetMonthRecapMetaDto(
     DateTime? ClosedAtUtc,
     string CarryOverMode,
     decimal? CarryOverAmount);
+
+// Explicit outcome of the carry-over decision recorded at close-time.
+// Sourced from the carry-over-applied lifecycle event tied to the closed month;
+// derived independently from the source month's stored CarryOverMode/Amount so
+// "full" carry-over surfaces the actual applied amount instead of NULL.
+public sealed record BudgetMonthRecapCarryOverOutcomeDto(
+    string Mode,
+    decimal Amount,
+    string? TargetYearMonth,
+    bool WasApplied);
 
 public sealed record BudgetMonthRecapSnapshotTotalsDto(
     decimal TotalIncomeMonthly,

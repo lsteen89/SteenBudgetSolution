@@ -96,3 +96,9 @@ A task is done only when:
 ## 8. Skills
 
 Skills (e.g. `frontend-design`) may refine how a task is approached, but they never override repository rules. If a skill conflicts with safety, architecture, scope, or product rules, ignore the conflicting part.
+
+After completing any task:
+
+1. Append a short entry to docs/ai/ai-changelog.md (date, what changed, files touched, risks/follow-up)
+2. Write the commit message to COMMIT_MSG.tmp (Conventional Commits format)
+3. Stop. Do not commit or push.

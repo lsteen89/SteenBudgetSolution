@@ -219,6 +219,24 @@ function emptyInsightDrivers() {
   };
 }
 
+function noCarryOverOutcome(targetYearMonth: string | null = "2026-05") {
+  return {
+    mode: "none" as const,
+    amount: 0,
+    targetYearMonth,
+    wasApplied: false,
+  };
+}
+
+function fullCarryOverOutcome(amount: number, targetYearMonth = "2026-05") {
+  return {
+    mode: "full" as const,
+    amount,
+    targetYearMonth,
+    wasApplied: true,
+  };
+}
+
 function buildClosedRecap(overrides = {}) {
   return {
     month: {
@@ -252,6 +270,7 @@ function buildClosedRecap(overrides = {}) {
     savingsDetail: emptySavingsDetail(true),
     debtDetail: emptyDebtDetail(true),
     insightDrivers: emptyInsightDrivers(),
+    carryOverOutcome: noCarryOverOutcome(),
     ...overrides,
   };
 }
@@ -643,6 +662,12 @@ describe("DashboardContent", () => {
           hasPreviousComparableMonth: true,
         },
         insightDrivers: emptyInsightDrivers(),
+        carryOverOutcome: {
+          mode: "custom",
+          amount: 500,
+          targetYearMonth: "2026-05",
+          wasApplied: true,
+        },
       },
       isPending: false,
       error: null,
@@ -901,6 +926,7 @@ describe("DashboardContent", () => {
         savingsDetail: emptySavingsDetail(),
         debtDetail: emptyDebtDetail(),
         insightDrivers: emptyInsightDrivers(),
+        carryOverOutcome: noCarryOverOutcome(),
       },
       isPending: false,
       error: null,
@@ -1135,6 +1161,7 @@ describe("DashboardContent", () => {
         savingsDetail: emptySavingsDetail(),
         debtDetail: emptyDebtDetail(),
         insightDrivers: emptyInsightDrivers(),
+        carryOverOutcome: noCarryOverOutcome(),
       },
       isPending: false,
       error: null,
@@ -1735,5 +1762,86 @@ describe("DashboardContent", () => {
 
     expect(screen.getByTestId("month-nav-next")).toBeDisabled();
     expect(screen.getByTestId("month-nav-previous")).not.toBeDisabled();
+  });
+
+  it("renders the full carry-over amount and target month from carryOverOutcome", () => {
+    // Source row carries the legacy NULL CarryOverAmount the next-month row
+    // gets after a `full` close. The recap must surface the applied amount
+    // from carryOverOutcome regardless of what month.* says.
+    mockClosedMonthDashboard(
+      buildClosedRecap({
+        month: {
+          yearMonth: "2026-04",
+          status: "closed",
+          openedAtUtc: "2026-04-01T08:00:00Z",
+          closedAtUtc: "2026-04-30T20:00:00Z",
+          carryOverMode: "none",
+          carryOverAmount: null,
+        },
+        carryOverOutcome: fullCarryOverOutcome(750, "2026-05"),
+      }),
+    );
+
+    renderDashboardContent();
+
+    const heroCarryOver = screen.getByTestId("closed-month-hero-carry-over");
+    expect(heroCarryOver).toHaveTextContent(/750/);
+    expect(heroCarryOver).toHaveTextContent(/may 2026/i);
+
+    const nextStepCarryOver = screen.getByTestId("closed-month-carry-over");
+    expect(nextStepCarryOver).toHaveTextContent(/750/);
+    expect(nextStepCarryOver).toHaveTextContent(/may 2026/i);
+
+    // Snapshot totals must remain unchanged — carry-over is shown
+    // separately and never folded into income or any total.
+    const incomeCard = screen.getByRole("article", {
+      name: /income snapshot total/i,
+    });
+    expect(incomeCard).not.toHaveTextContent(/750/);
+    expect(incomeCard).not.toHaveTextContent(/carry-over/i);
+  });
+
+  it("renders no applied carry-over text when carryOverOutcome.wasApplied is false", () => {
+    mockClosedMonthDashboard(
+      buildClosedRecap({
+        carryOverOutcome: noCarryOverOutcome("2026-05"),
+      }),
+    );
+
+    renderDashboardContent();
+
+    const heroCarryOver = screen.getByTestId("closed-month-hero-carry-over");
+    expect(heroCarryOver).toHaveTextContent(/not carried into the next month/i);
+
+    const nextStepCarryOver = screen.getByTestId("closed-month-carry-over");
+    expect(nextStepCarryOver).toHaveTextContent(/nothing was carried into may 2026/i);
+  });
+
+  it("ignores legacy month.carryOverAmount when carryOverOutcome.wasApplied is false", () => {
+    // A legacy row may still have a non-null CarryOverAmount on the closed
+    // source month, but without a lifecycle event the outcome is "not
+    // applied". The UI must trust the outcome, not the legacy value.
+    mockClosedMonthDashboard(
+      buildClosedRecap({
+        month: {
+          yearMonth: "2026-04",
+          status: "closed",
+          openedAtUtc: "2026-04-01T08:00:00Z",
+          closedAtUtc: "2026-04-30T20:00:00Z",
+          carryOverMode: "full",
+          carryOverAmount: 999,
+        },
+        carryOverOutcome: noCarryOverOutcome("2026-05"),
+      }),
+    );
+
+    renderDashboardContent();
+
+    const heroCarryOver = screen.getByTestId("closed-month-hero-carry-over");
+    expect(heroCarryOver).not.toHaveTextContent(/999/);
+
+    const nextStepCarryOver = screen.getByTestId("closed-month-carry-over");
+    expect(nextStepCarryOver).not.toHaveTextContent(/999/);
+    expect(nextStepCarryOver).toHaveTextContent(/nothing was carried into may 2026/i);
   });
 });

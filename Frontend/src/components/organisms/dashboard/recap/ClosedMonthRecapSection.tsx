@@ -501,9 +501,11 @@ function NextStepCard({
   onContinue: (yearMonth: string) => void;
   t: RecapT;
 }) {
-  const carryOverAmount = recap.month.carryOverAmount ?? 0;
+  // Use the explicit outcome so `full` carry-over surfaces the actual applied
+  // amount instead of the next-month row's stored CarryOverAmount (null).
   const hasCarryOver =
-    recap.month.carryOverMode !== "none" && carryOverAmount > 0;
+    recap.carryOverOutcome.wasApplied && recap.carryOverOutcome.amount > 0;
+  const carryOverAmount = recap.carryOverOutcome.amount;
 
   const carryOverText = hasCarryOver
     ? replaceToken(

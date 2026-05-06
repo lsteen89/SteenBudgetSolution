@@ -48,3 +48,11 @@ public sealed record BudgetMonthDebtRm(
     decimal? MonthlyFee,
     decimal? MinPayment,
     long? TermMonths);
+
+// Outcome of a carry-over decision recorded against a closed source month.
+// Sourced from the BudgetMonthLifecycleEvent (event type "carry-over-applied")
+// where RelatedBudgetMonthId points back to the closed source month.
+public sealed record BudgetMonthCarryOverOutcomeRm(
+    string Mode,
+    decimal Amount,
+    string? TargetYearMonth);

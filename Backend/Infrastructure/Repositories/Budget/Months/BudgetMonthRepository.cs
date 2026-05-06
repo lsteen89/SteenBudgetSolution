@@ -1,5 +1,6 @@
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Application.DTO.Budget.Months;
+using Backend.Application.Features.Budgets.Audit;
 using Backend.Application.Features.Budgets.Income.Models;
 using Backend.Application.Features.Budgets.Months.Models;
 using Backend.Infrastructure.Data.BaseClass;
@@ -135,6 +136,18 @@ public sealed partial class BudgetMonthRepository : SqlBase, IBudgetMonthReposit
         => QuerySingleOrDefaultAsync<string?>(
             GetPreviousComparableYearMonth,
             new { BudgetId = budgetId, YearMonth = yearMonth },
+            ct);
+
+    public Task<BudgetMonthCarryOverOutcomeRm?> GetCarryOverOutcomeForClosedMonthAsync(
+        Guid sourceBudgetMonthId,
+        CancellationToken ct)
+        => QuerySingleOrDefaultAsync<BudgetMonthCarryOverOutcomeRm>(
+            GetCarryOverOutcomeForClosedMonth,
+            new
+            {
+                SourceBudgetMonthId = sourceBudgetMonthId,
+                EventType = BudgetMonthLifecycleEventTypes.CarryOverApplied
+            },
             ct);
 
     public async Task<IReadOnlyList<BudgetMonthExpenseCategoryTotalRm>> GetExpenseCategoryTotalsAsync(
