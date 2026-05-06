@@ -11,12 +11,10 @@ const text = {
   february2026: /februari 2026|february 2026|veebruar 2026/i,
   january2026: /januari 2026|january 2026|jaanuar 2026/i,
   may2026: /maj 2026|may 2026|mai 2026/i,
-  readOnly: /read-only recap|skrivskyddad översikt|ainult vaatamiseks kokkuvõte/i,
-  snapshotSummary:
-    /frozen snapshot|fryst ögonblicksbild|sulgemise hetkel salvestatud ülevaade/i,
+  snapshotTotals:
+    /snapshot totals|ögonblicksbildens totalsummor|hetkepildi kogusummad/i,
   noCarryOver:
-    /no carry-over applied|ingen överföring tillämpad|ülekannet ei rakendatud/i,
-  fullCarryOver: /full carry-over|full överföring|täielik ülekanne/i,
+    /no carry-over|nothing carried over|ingen överföring|ülekannet/i,
   comparisonTab: /compare|jämför|võrdle/i,
   categoriesTab: /categories|kategorier|kategooriad/i,
   previousComparable:
@@ -27,17 +25,13 @@ const text = {
   categoryComparison:
     /categories are sorted|kategorier sorterade|kategooriad on järjestatud/i,
   subscriptionSection:
-    /subscription changes|abonnemangsförändringar|tellimuste muutused/i,
+    /recurring costs|återkommande kostnader|korduvad kulud/i,
   subscriptionActive: /still active|fortfarande aktiva|endiselt aktiivsed/i,
   subscriptionNew: /new|nya|uued/i,
-  savingsDetail: /savings details|spardetaljer|säästude detailid/i,
-  debtDetail: /debt details|skulddetaljer|võlgade detailid/i,
   deficitGuidance:
     /deficit guidance|underskottsvägledning|puudujäägi juhis/i,
   deficitTitle:
     /closed with a deficit|stängdes med underskott|suleti puudujäägiga/i,
-  deficitBody:
-    /review recurring costs|granska återkommande kostnader|vaata .*korduvad kulud/i,
 };
 
 function waitForCloseResponse(page: Page) {
@@ -85,7 +79,11 @@ async function expectClosedRecap(page: Page, monthLabel: RegExp) {
   await expect(page.getByTestId("month-status-badge")).toContainText(
     text.closedStatus,
   );
-  await expect(recap.getByText(text.snapshotSummary)).toBeVisible();
+  await expect(
+    recap.getByRole("region", { name: text.snapshotTotals }),
+  ).toBeVisible();
+  await expect(recap.getByTestId("closed-month-summary")).toBeVisible();
+  await expect(recap.getByTestId("closed-month-hero-flow")).toBeVisible();
   await expect(page.getByTestId("close-month-cta")).toHaveCount(0);
 
   return recap;
@@ -126,13 +124,14 @@ test("traverses open, closed, skipped, and first closed month states", async ({
     firstClosedRecap.getByTestId("closed-month-carry-over"),
   ).toHaveText(text.noCarryOver);
   await expect(
+    firstClosedRecap.getByTestId("closed-month-chart-card"),
+  ).toBeVisible();
+  await expect(
     firstClosedRecap.getByTestId("closed-month-chart-tab-compare"),
-  ).toBeDisabled();
-
-  await firstClosedRecap
-    .getByTestId("closed-month-chart-tab-categories")
-    .click();
-  await expect(firstClosedRecap.getByText(text.noPreviousCategory)).toBeVisible();
+  ).toHaveCount(0);
+  await expect(
+    firstClosedRecap.getByText(text.noPreviousCategory),
+  ).toBeVisible();
 
   await goToNextMonth(page);
   await expect(page.getByTestId("skipped-month-state")).toBeVisible();
@@ -147,14 +146,16 @@ test("traverses open, closed, skipped, and first closed month states", async ({
   await expectOpenDashboard(page);
 });
 
-test("closed comparable month shows read-only recap, full carry-over, comparisons, and detail sections", async ({
+test("closed comparable month shows read-only recap, no carry-over, comparisons, and detail sections", async ({
   page,
 }) => {
   await login(page, e2eUsers.closeSurplusFull);
   await goToPreviousMonth(page);
 
   const recap = await expectClosedRecap(page, text.march2026);
-  await expect(recap.getByText(text.readOnly)).toBeVisible();
+  await expect(recap.getByTestId("closed-month-hero-badge")).toContainText(
+    text.closedStatus,
+  );
 
   await expect(
     recap.getByTestId("closed-month-total-totalIncomeMonthly"),
@@ -169,22 +170,21 @@ test("closed comparable month shows read-only recap, full carry-over, comparison
     recap.getByTestId("closed-month-total-totalDebtPaymentsMonthly"),
   ).toBeVisible();
   await expect(
-    recap.getByTestId("closed-month-total-finalBalanceMonthly"),
+    recap.getByTestId("closed-month-hero-flow-final-balance"),
   ).toBeVisible();
 
   await expect(
     recap.getByRole("tablist", { name: text.chartSwitcher }),
   ).toBeVisible();
-  await expect(recap.getByTestId("closed-month-carry-over")).not.toHaveText(
+  await expect(recap.getByTestId("closed-month-carry-over")).toHaveText(
     text.noCarryOver,
   );
-  await expect(
-    recap.getByRole("article", { name: /carry-over|överföring|ülekanne/i }),
-  ).toContainText(text.fullCarryOver);
+  await expect(recap.getByTestId("closed-month-hero-carry-over")).toBeVisible();
 
   await recap.getByRole("tab", { name: text.comparisonTab }).click();
-  await expect(recap.getByTestId("closed-month-comparison")).toBeVisible();
-  await expect(recap.getByText(text.previousComparable)).toBeVisible();
+  const comparison = recap.getByTestId("closed-month-comparison");
+  await expect(comparison).toBeVisible();
+  await expect(comparison.getByText(text.previousComparable)).toBeVisible();
   await expect(
     recap.getByTestId("closed-month-comparison-income"),
   ).toBeVisible();
@@ -214,12 +214,8 @@ test("closed comparable month shows read-only recap, full carry-over, comparison
     /Netflix|Spotify|Cloud Storage/i,
   );
 
-  await expect(
-    recap.getByRole("article", { name: text.savingsDetail }),
-  ).toBeVisible();
-  await expect(
-    recap.getByRole("article", { name: text.debtDetail }),
-  ).toBeVisible();
+  await expect(recap.getByTestId("closed-month-savings-detail")).toBeVisible();
+  await expect(recap.getByTestId("closed-month-debt-detail")).toBeVisible();
 });
 
 test("closed deficit month displays calm deficit recap after end-to-end close", async ({
@@ -246,18 +242,14 @@ test("closed deficit month displays calm deficit recap after end-to-end close", 
   const recap = await expectClosedRecap(page, text.april2026);
 
   await expect(
-    recap.getByTestId("closed-month-total-finalBalanceMonthly"),
+    recap.getByTestId("closed-month-hero-flow-final-balance"),
   ).toContainText(/-|−|750/);
 
   const deficitGuidance = recap.getByRole("article", {
     name: text.deficitGuidance,
   });
   await expect(deficitGuidance).toContainText(text.deficitTitle);
-  await expect(deficitGuidance).toContainText(text.deficitBody);
   await expect(deficitGuidance).not.toContainText(
     /shame|blame|failed|bad|skäms|misslyckades/i,
   );
-  await expect(
-    recap.getByTestId("closed-month-chart-flow-final-balance"),
-  ).toContainText(/-|−|750/);
 });

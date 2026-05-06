@@ -333,10 +333,24 @@ Before running E2E tests, make sure:
 
 ### Common commands
 
-Start the database from the repository root:
+The easiest path is the repository helper:
 
 ```bash
-docker compose --env-file .env.dev -f docker-compose.dev.yml up -d db
+./scripts/playwright-e2e.sh smoke
+```
+
+It starts the E2E database, starts the backend, lets Playwright start Vite, runs the smoke project, and then stops the backend.
+
+To run the full E2E project:
+
+```bash
+./scripts/playwright-e2e.sh full
+```
+
+Manual setup is still available when debugging. Start the E2E database from the repository root:
+
+```bash
+docker compose --env-file .env.e2e -f docker-compose.e2e.yml up -d db-e2e
 ```
 
 Start the backend against the E2E database:
@@ -344,10 +358,17 @@ Start the backend against the E2E database:
 ```bash
 cd Backend
 DOTNET_ENVIRONMENT=Development \
-DATABASESETTINGS__CONNECTIONSTRING="Server=127.0.0.1;Port=3306;Database=steenbudgetE2E;Uid=app;Pwd=apppwd;SslMode=None;GuidFormat=Binary16" \
+DATABASESETTINGS__CONNECTIONSTRING="Server=127.0.0.1;Port=3307;Database=steenbudgetE2E;Uid=app;Pwd=apppwd;SslMode=None;GuidFormat=Binary16" \
+ALLOW_SEEDING=true \
+SEED_CLOCK_UTC="2026-04-26T12:00:00Z" \
+WEBSOCKET_SECRET="dev-ws-secret" \
+Jwt__ActiveKid="dev" \
+Jwt__Keys__dev="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" \
 DOTNET_USE_POLLING_FILE_WATCHER=true \
 dotnet watch run --urls http://localhost:5001
 ```
+
+Do not `source .env.e2e` directly in the shell. Its connection strings contain semicolons, so source-style loading breaks them unless the values are parsed as dotenv or manually quoted.
 
 From `Frontend/`, Playwright resets and seeds `steenbudgetE2E` automatically through global setup:
 

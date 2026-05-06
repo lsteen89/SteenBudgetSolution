@@ -34,7 +34,7 @@ export default defineConfig({
     {
       name: "full",
       grepInvert: /@smoke/,
-      retries: 1,
+      retries: 0,
       use: {
         ...devices["Desktop Chrome"],
       },

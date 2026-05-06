@@ -70,10 +70,28 @@ Examples:
 
 ## Running locally
 
-Start the dev database from the repository root:
+The easiest path is the repository helper:
 
 ```bash
-docker compose --env-file .env.dev -f docker-compose.dev.yml up -d db
+./scripts/playwright-e2e.sh smoke
+```
+
+It starts the E2E MariaDB service, starts the backend on `http://localhost:5001`, lets Playwright start Vite on `http://localhost:5173`, and runs the smoke project. The backend is stopped when the script exits; the database container is left running for faster later runs.
+
+Other useful forms:
+
+```bash
+./scripts/playwright-e2e.sh full
+./scripts/playwright-e2e.sh all
+./scripts/playwright-e2e.sh test --headed --project=smoke
+```
+
+Manual setup is still useful when debugging.
+
+Start the E2E database from the repository root:
+
+```bash
+docker compose --env-file .env.e2e -f docker-compose.e2e.yml up -d db-e2e
 ```
 
 Start the backend against the dedicated E2E database:
@@ -81,30 +99,28 @@ Start the backend against the dedicated E2E database:
 ```bash
 cd Backend
 DOTNET_ENVIRONMENT=Development \
-DATABASESETTINGS__CONNECTIONSTRING="Server=127.0.0.1;Port=3306;Database=steenbudgetE2E;Uid=app;Pwd=apppwd;SslMode=None;GuidFormat=Binary16" \
+DATABASESETTINGS__CONNECTIONSTRING='Server=127.0.0.1;Port=3307;Database=steenbudgetE2E;Uid=app;Pwd=apppwd;SslMode=None;GuidFormat=Binary16' \
+ALLOW_SEEDING=true \
+SEED_CLOCK_UTC='2026-04-26T12:00:00Z' \
+WEBSOCKET_SECRET='dev-ws-secret' \
+Jwt__ActiveKid='dev' \
+Jwt__Keys__dev='AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=' \
 DOTNET_USE_POLLING_FILE_WATCHER=true \
 dotnet watch run --urls http://localhost:5001
 ```
 
-From `Frontend/`:
+Do not `source .env.e2e` in your shell. The file is dotenv syntax and its semicolon-delimited connection strings are not shell-safe unless every value is parsed as dotenv or manually quoted.
 
-```bash
-npm run test:e2e
-
-```
-
-Run only smoke tests:
+From `Frontend/`, Playwright resets and seeds `steenbudgetE2E` automatically through global setup:
 
 ```bash
 npm run test:e2e:smoke
-
 ```
 
 Run only the fuller suite:
 
 ```bash
 npm run test:e2e:full
-
 ```
 
 Open the report:
@@ -122,7 +138,7 @@ npx playwright test
 
 The Playwright global setup automatically runs `Backend.Tools seed-e2e`, so you should not manually seed before every test run.
 
-Port `5173` must be free because Playwright starts its own frontend dev server and the backend Development CORS policy allows `http://localhost:5173`.
+Ports `3307`, `5001`, and `5173` must be free. The E2E database uses `3307` so it does not collide with the dev database on `3306`; Playwright starts its own frontend dev server on `5173`, and the backend Development CORS policy allows `http://localhost:5173`.
 
 ## CI smoke
 

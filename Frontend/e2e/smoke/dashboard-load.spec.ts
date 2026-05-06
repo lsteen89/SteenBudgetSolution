@@ -19,20 +19,13 @@ const recapText = {
   debtPaymentsArticle:
     /debt payments snapshot total|skuldbetalningar i ögonblicksbild|võlamaksed salvestatud kogusumma/i,
   finalBalance: /Final balance|Slutsaldo|Lõppsaldo/i,
-  finalBalanceArticle:
-    /final balance snapshot total|slutsaldo i ögonblicksbild|lõppsaldo salvestatud kogusumma/i,
-  comparisonArticle:
-    /closing comparison|stängningsjämförelse|sulgemise võrdlus/i,
-  expenseCategoriesArticle:
-    /expense categories|utgiftskategorier|kulude kategooriad/i,
-  carryOver: /Carry-over|No carry-over|Överföring|Ingen överföring|Ülekanne|Ülekannet/i,
-  carryOverArticle:
-    /carry-over outcome|överföringsresultat|ülekande tulemus/i,
+  carryOver:
+    /Carry-over|No carry-over|not carried into the next month|Överföring|Ingen överföring|fördes inte vidare|Ülekanne|Ülekannet|ei kantud järgmisse kuusse/i,
   edit: /^(edit|redigera|muuda)$/i,
   addExpense: /add expense|lägg till utgift|lisa kulu/i,
   closeMonth: /close month|stäng månad|sulge kuu/i,
   skippedBody:
-    /skipped by user action|hoppades över av användaren|jäeti kasutaja toiminguga vahele/i,
+    /no budget was closed|ingen budget stängdes|selle perioodi eelarvet ei suletud/i,
 };
 
 test("seeded budget user lands on an open dashboard @smoke", async ({ page }) => {
@@ -71,17 +64,15 @@ test("seeded closed month renders recap shell @smoke", async ({ page }) => {
     recap.getByRole("article", { name: recapText.debtPaymentsArticle }),
   ).toContainText(recapText.debtPayments);
   await expect(
-    recap.getByRole("article", { name: recapText.finalBalanceArticle }),
+    recap.getByTestId("closed-month-hero-flow-final-balance"),
   ).toContainText(recapText.finalBalance);
 
   await expect(
-    recap.getByRole("article", { name: recapText.carryOverArticle }),
+    recap.getByTestId("closed-month-hero-carry-over"),
   ).toContainText(recapText.carryOver);
+  await expect(recap.getByTestId("closed-month-chart-card")).toBeVisible();
   await expect(
-    recap.getByRole("article", { name: recapText.comparisonArticle }),
-  ).toBeVisible();
-  await expect(
-    recap.getByRole("article", { name: recapText.expenseCategoriesArticle }),
+    recap.getByTestId("closed-month-expense-categories"),
   ).toBeVisible();
   await expect(page.getByTestId("close-month-cta")).toHaveCount(0);
   await expect(recap.getByRole("button", { name: recapText.edit })).toHaveCount(
