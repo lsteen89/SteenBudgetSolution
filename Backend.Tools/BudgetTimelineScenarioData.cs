@@ -5,6 +5,8 @@ internal static class BudgetTimelineScenarioData
         CreatedExpenses: Array.Empty<BudgetTimelineMonthExpenseCreate>(),
         ExpenseActivityChanges: Array.Empty<BudgetTimelineActivityChange>(),
         DeletedExpenses: Array.Empty<string>(),
+        ExpenseRenames: Array.Empty<BudgetTimelineExpenseRename>(),
+        SubscriptionLifecycleChanges: Array.Empty<BudgetTimelineSubscriptionLifecycleChange>(),
         SideHustleAmountOverrides: Array.Empty<BudgetTimelineAmountOverride>(),
         HouseholdMemberAmountOverrides: Array.Empty<BudgetTimelineAmountOverride>(),
         SavingsMonthlyOverride: null,
@@ -24,6 +26,8 @@ internal static class BudgetTimelineScenarioData
         ],
         ExpenseActivityChanges: Array.Empty<BudgetTimelineActivityChange>(),
         DeletedExpenses: Array.Empty<string>(),
+        ExpenseRenames: Array.Empty<BudgetTimelineExpenseRename>(),
+        SubscriptionLifecycleChanges: Array.Empty<BudgetTimelineSubscriptionLifecycleChange>(),
         SideHustleAmountOverrides:
         [
             new("Freelance", 3200m)
@@ -59,6 +63,8 @@ internal static class BudgetTimelineScenarioData
         [
             "Spotify"
         ],
+        ExpenseRenames: Array.Empty<BudgetTimelineExpenseRename>(),
+        SubscriptionLifecycleChanges: Array.Empty<BudgetTimelineSubscriptionLifecycleChange>(),
         SideHustleAmountOverrides:
         [
             new("Freelance", 2200m)
@@ -77,6 +83,19 @@ internal static class BudgetTimelineScenarioData
             new("Credit Card", Balance: 15850m, MinPayment: 650m),
             new("Student Loan", Balance: 93880m)
         ]);
+
+    public static BudgetTimelineMonthScenario Empty { get; } = new(
+        ExpenseAmountOverrides: Array.Empty<BudgetTimelineAmountOverride>(),
+        CreatedExpenses: Array.Empty<BudgetTimelineMonthExpenseCreate>(),
+        ExpenseActivityChanges: Array.Empty<BudgetTimelineActivityChange>(),
+        DeletedExpenses: Array.Empty<string>(),
+        ExpenseRenames: Array.Empty<BudgetTimelineExpenseRename>(),
+        SubscriptionLifecycleChanges: Array.Empty<BudgetTimelineSubscriptionLifecycleChange>(),
+        SideHustleAmountOverrides: Array.Empty<BudgetTimelineAmountOverride>(),
+        HouseholdMemberAmountOverrides: Array.Empty<BudgetTimelineAmountOverride>(),
+        SavingsMonthlyOverride: null,
+        SavingsGoalAdjustments: Array.Empty<BudgetTimelineSavingsGoalAdjustment>(),
+        DebtAdjustments: Array.Empty<BudgetTimelineDebtAdjustment>());
 }
 
 internal sealed record BudgetTimelineMonthScenario(
@@ -84,6 +103,8 @@ internal sealed record BudgetTimelineMonthScenario(
     IReadOnlyList<BudgetTimelineMonthExpenseCreate> CreatedExpenses,
     IReadOnlyList<BudgetTimelineActivityChange> ExpenseActivityChanges,
     IReadOnlyList<string> DeletedExpenses,
+    IReadOnlyList<BudgetTimelineExpenseRename> ExpenseRenames,
+    IReadOnlyList<BudgetTimelineSubscriptionLifecycleChange> SubscriptionLifecycleChanges,
     IReadOnlyList<BudgetTimelineAmountOverride> SideHustleAmountOverrides,
     IReadOnlyList<BudgetTimelineAmountOverride> HouseholdMemberAmountOverrides,
     decimal? SavingsMonthlyOverride,
@@ -99,6 +120,10 @@ internal sealed record BudgetTimelineMonthExpenseCreate(
     bool IsActive = true);
 
 internal sealed record BudgetTimelineActivityChange(string Name, bool IsActive);
+
+internal sealed record BudgetTimelineExpenseRename(string FromName, string ToName);
+
+internal sealed record BudgetTimelineSubscriptionLifecycleChange(string Name, string LifecycleStatus);
 
 internal sealed record BudgetTimelineSavingsGoalAdjustment(
     string Name,

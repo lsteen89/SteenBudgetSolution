@@ -95,7 +95,16 @@ E2eSeedUser[] e2eSeed =
             FirstName: "E2E",
             LastName: "Deficit"),
         IncludeBudget: true,
-        OpenMonthTargetFinalBalance: -750m)
+        OpenMonthTargetFinalBalance: -750m),
+    new(
+        User: new DevSeedUser(
+            Email: "e2e-recap-subscriptions@local.test",
+            Password: DevSeedPassword,
+            FirstName: "E2E",
+            LastName: "RecapSubs"),
+        IncludeBudget: true,
+        OpenMonthTargetFinalBalance: null,
+        Profile: BudgetTimelineProfiles.RecapSubscriptions)
 ];
 
 var isE2eSeedCommand = args.Any(arg => string.Equals(arg, SeedE2eCommandName, StringComparison.OrdinalIgnoreCase));
@@ -259,7 +268,8 @@ Command CreateE2eSeedCommand()
                 seed.IncludeBudget,
                 DefaultBudgetOpenYearMonth,
                 CancellationToken.None,
-                seed.OpenMonthTargetFinalBalance);
+                seed.OpenMonthTargetFinalBalance,
+                seed.Profile);
         }
 
         Console.WriteLine($"Seeded {e2eSeed.Length} deterministic E2E account(s) in open month {DefaultBudgetOpenYearMonth}.");
@@ -305,7 +315,8 @@ async Task SeedOneUserAsync(
     bool includeBudget,
     string openYearMonth,
     CancellationToken ct,
-    decimal? openMonthTargetFinalBalance = null)
+    decimal? openMonthTargetFinalBalance = null,
+    BudgetTimelineProfile? profile = null)
 {
     var mediator = services.GetRequiredService<IMediator>();
     var uow = services.GetRequiredService<IUnitOfWork>();
@@ -361,9 +372,11 @@ async Task SeedOneUserAsync(
         user.PersoId,
         openYearMonth,
         ct,
-        openMonthTargetFinalBalance);
+        openMonthTargetFinalBalance,
+        profile);
 
-    Console.WriteLine($"Seeded budget data for {seedUser.Email}: 2 closed months + 1 skipped month + open month {openYearMonth}.");
+    var profileLabel = profile is null ? "default" : profile.Name;
+    Console.WriteLine($"Seeded budget data for {seedUser.Email} (profile={profileLabel}): 2 closed months + 1 skipped month + open month {openYearMonth}.");
     Console.WriteLine($"Set Users.FirstLogin = 0 for {seedUser.Email} so the dashboard skips the setup wizard.");
 }
 
@@ -418,7 +431,8 @@ internal sealed record DevSeedUser(
 internal sealed record E2eSeedUser(
     DevSeedUser User,
     bool IncludeBudget,
-    decimal? OpenMonthTargetFinalBalance);
+    decimal? OpenMonthTargetFinalBalance,
+    BudgetTimelineProfile? Profile = null);
 
 internal sealed class SeedTimeProvider : ITimeProvider
 {

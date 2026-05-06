@@ -170,18 +170,22 @@ It is intentionally separate from the Docker-first local dev seed flow and the s
 
 Seeded users:
 
-| Email                               | Password       | Purpose                                                                                          |
-| ----------------------------------- | -------------- | ------------------------------------------------------------------------------------------------ |
-| `e2e-login@local.test`              | `ChangeMe123!` | Plain login-capable user                                                                         |
-| `e2e-close-balanced@local.test`     | `ChangeMe123!` | Dashboard-ready user; `2026-04` closes directly from a balanced modal                            |
-| `e2e-close-surplus-full@local.test` | `ChangeMe123!` | Dashboard-ready user; `2026-04` starts with surplus and resolves via carry-over before close     |
-| `e2e-close-deficit@local.test`      | `ChangeMe123!` | Dashboard-ready user; `2026-04` starts negative and closes directly when business rules allow it |
+| Email                                  | Password       | Purpose                                                                                                                      |
+| -------------------------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `e2e-login@local.test`                 | `ChangeMe123!` | Plain login-capable user                                                                                                     |
+| `e2e-close-balanced@local.test`        | `ChangeMe123!` | Dashboard-ready user; `2026-04` closes directly from a balanced modal                                                        |
+| `e2e-close-surplus-full@local.test`    | `ChangeMe123!` | Dashboard-ready user; `2026-04` starts with surplus and resolves via carry-over before close                                 |
+| `e2e-close-deficit@local.test`         | `ChangeMe123!` | Dashboard-ready user; `2026-04` starts negative and closes directly when business rules allow it                             |
+| `e2e-recap-subscriptions@local.test`   | `ChangeMe123!` | Dashboard-ready user; closed `2026-03` recap exercises subscription states (active, renamed, new, removed, paused, cancelled) |
 
-All close-month E2E users have:
+All dashboard-ready E2E users share the same month timeline:
 
-- `FirstLogin = 0`
-- open month `2026-04`
-- close window open under the fixed seed clock `2026-04-26T12:00:00Z`
+- `2026-01` closed baseline month
+- `2026-02` skipped month
+- `2026-03` closed comparable month
+- `2026-04` open month
+
+They have `FirstLogin = 0` and the close window is open under the fixed seed clock `2026-04-26T12:00:00Z`.
 
 ## Reset model
 

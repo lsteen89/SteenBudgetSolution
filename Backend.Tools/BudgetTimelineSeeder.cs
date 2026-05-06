@@ -8,7 +8,7 @@ using Backend.Application.DTO.Budget.Months;
 using Backend.Application.Features.Budgets.Months.StartBudgetMonth;
 using MediatR;
 
-public sealed class BudgetTimelineSeeder
+internal sealed class BudgetTimelineSeeder
 {
     private readonly IUnitOfWork _uow;
     private readonly IMediator _mediator;
@@ -34,14 +34,16 @@ public sealed class BudgetTimelineSeeder
         Guid persoid,
         string openYearMonth,
         CancellationToken ct,
-        decimal? openMonthTargetFinalBalance = null)
+        decimal? openMonthTargetFinalBalance = null,
+        BudgetTimelineProfile? profile = null)
     {
+        var resolvedProfile = profile ?? BudgetTimelineProfiles.Default;
         Guid budgetId = Guid.Empty;
 
         await RunInTransactionAsync(
             async () =>
             {
-                budgetId = await EnsureBaselineBudgetAsync(persoid, ct);
+                budgetId = await EnsureBaselineBudgetAsync(persoid, resolvedProfile.Baseline, ct);
                 await EnsureNoExistingMonthsAsync(budgetId, ct);
             },
             ct);
@@ -62,7 +64,7 @@ public sealed class BudgetTimelineSeeder
             async () =>
             {
                 var oldest = await EnsureMaterializedMonthAsync(persoid, oldestYm, ct);
-                await ApplyMonthScenarioAsync(oldest.BudgetMonthId, persoid, oldestYm, BudgetTimelineScenarioData.Oldest, ct);
+                await ApplyMonthScenarioAsync(oldest.BudgetMonthId, persoid, oldestYm, resolvedProfile.Oldest, ct);
             },
             ct);
 
@@ -74,11 +76,14 @@ public sealed class BudgetTimelineSeeder
             ct,
             createSkippedMonths: true);
 
+        Guid middleBudgetMonthId = Guid.Empty;
+
         await RunInTransactionAsync(
             async () =>
             {
                 var middle = await EnsureMaterializedMonthAsync(persoid, middleYm, ct);
-                await ApplyMonthScenarioAsync(middle.BudgetMonthId, persoid, middleYm, BudgetTimelineScenarioData.Middle, ct);
+                middleBudgetMonthId = middle.BudgetMonthId;
+                await ApplyMonthScenarioAsync(middle.BudgetMonthId, persoid, middleYm, resolvedProfile.Middle, ct);
             },
             ct);
 
@@ -93,7 +98,7 @@ public sealed class BudgetTimelineSeeder
             async () =>
             {
                 var open = await EnsureMaterializedMonthAsync(persoid, openYm, ct);
-                await ApplyMonthScenarioAsync(open.BudgetMonthId, persoid, openYm, BudgetTimelineScenarioData.Open, ct);
+                await ApplyMonthScenarioAsync(open.BudgetMonthId, persoid, openYm, resolvedProfile.Open, ct);
 
                 if (openMonthTargetFinalBalance.HasValue)
                 {
@@ -106,6 +111,18 @@ public sealed class BudgetTimelineSeeder
                 }
             },
             ct);
+
+        if (resolvedProfile.PostCloseInvariantsAsync is not null && middleBudgetMonthId != Guid.Empty)
+        {
+            var invariantContext = new BudgetTimelineSeedInvariantContext(
+                Persoid: persoid,
+                BudgetMonthId: middleBudgetMonthId,
+                YearMonth: middleYm,
+                SumActiveSubscriptionAmountAsync: ym =>
+                    SumActiveSubscriptionAmountAsync(persoid, ym, ct));
+
+            await resolvedProfile.PostCloseInvariantsAsync(invariantContext);
+        }
     }
 
     private async Task RunInTransactionAsync(Func<Task> action, CancellationToken ct)
@@ -134,7 +151,10 @@ public sealed class BudgetTimelineSeeder
         }
     }
 
-    private async Task<Guid> EnsureBaselineBudgetAsync(Guid persoid, CancellationToken ct)
+    private async Task<Guid> EnsureBaselineBudgetAsync(
+        Guid persoid,
+        BudgetTimelineBaseline baseline,
+        CancellationToken ct)
     {
         var existingBudgetId = await QueryGuidAsync(
             "SELECT Id FROM Budget WHERE Persoid = @Persoid LIMIT 1;",
@@ -157,10 +177,10 @@ public sealed class BudgetTimelineSeeder
         }
 
         await EnsureExpenseCategoriesAsync(ct);
-        await EnsureBaselineIncomeAsync(budgetId, persoid, ct);
-        await EnsureBaselineExpensesAsync(budgetId, persoid, ct);
-        await EnsureBaselineSavingsAsync(budgetId, persoid, ct);
-        await EnsureBaselineDebtsAsync(budgetId, persoid, ct);
+        await EnsureBaselineIncomeAsync(budgetId, persoid, baseline.Income, ct);
+        await EnsureBaselineExpensesAsync(budgetId, persoid, baseline.Expenses, ct);
+        await EnsureBaselineSavingsAsync(budgetId, persoid, baseline.Savings, ct);
+        await EnsureBaselineDebtsAsync(budgetId, persoid, baseline.Debts, ct);
 
         return budgetId;
     }
@@ -185,7 +205,11 @@ public sealed class BudgetTimelineSeeder
             ct);
     }
 
-    private async Task EnsureBaselineIncomeAsync(Guid budgetId, Guid persoid, CancellationToken ct)
+    private async Task EnsureBaselineIncomeAsync(
+        Guid budgetId,
+        Guid persoid,
+        BudgetTimelineIncomeSeed income,
+        CancellationToken ct)
     {
         var count = await QueryIntAsync(
             "SELECT COUNT(*) FROM Income WHERE BudgetId = @BudgetId;",
@@ -196,7 +220,6 @@ public sealed class BudgetTimelineSeeder
             return;
 
         var incomeId = Guid.NewGuid();
-        var income = BudgetTimelineBaselineData.Income;
 
         await ExecuteAsync(
             @"INSERT INTO Income
@@ -266,9 +289,13 @@ public sealed class BudgetTimelineSeeder
         }
     }
 
-    private async Task EnsureBaselineExpensesAsync(Guid budgetId, Guid persoid, CancellationToken ct)
+    private async Task EnsureBaselineExpensesAsync(
+        Guid budgetId,
+        Guid persoid,
+        IReadOnlyList<BudgetTimelineExpenseSeed> expenses,
+        CancellationToken ct)
     {
-        foreach (var expense in BudgetTimelineBaselineData.Expenses)
+        foreach (var expense in expenses)
         {
             await EnsureExpenseItemExistsAsync(
                 budgetId,
@@ -311,7 +338,11 @@ public sealed class BudgetTimelineSeeder
             ct);
     }
 
-    private async Task EnsureBaselineSavingsAsync(Guid budgetId, Guid persoid, CancellationToken ct)
+    private async Task EnsureBaselineSavingsAsync(
+        Guid budgetId,
+        Guid persoid,
+        BudgetTimelineSavingsSeed savings,
+        CancellationToken ct)
     {
         var count = await QueryIntAsync(
             "SELECT COUNT(*) FROM Savings WHERE BudgetId = @BudgetId;",
@@ -322,7 +353,6 @@ public sealed class BudgetTimelineSeeder
             return;
 
         var savingsId = Guid.NewGuid();
-        var savings = BudgetTimelineBaselineData.Savings;
         var anchor = new DateTime(_clock.UtcNow.Year, _clock.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
 
         await ExecuteAsync(
@@ -359,7 +389,11 @@ public sealed class BudgetTimelineSeeder
         }
     }
 
-    private async Task EnsureBaselineDebtsAsync(Guid budgetId, Guid persoid, CancellationToken ct)
+    private async Task EnsureBaselineDebtsAsync(
+        Guid budgetId,
+        Guid persoid,
+        IReadOnlyList<BudgetTimelineDebtSeed> debts,
+        CancellationToken ct)
     {
         var count = await QueryIntAsync(
             "SELECT COUNT(*) FROM Debt WHERE BudgetId = @BudgetId AND Status = 'active';",
@@ -369,7 +403,7 @@ public sealed class BudgetTimelineSeeder
         if (count > 0)
             return;
 
-        foreach (var debt in BudgetTimelineBaselineData.Debts)
+        foreach (var debt in debts)
         {
             await ExecuteAsync(
                 @"INSERT INTO Debt
@@ -506,6 +540,28 @@ public sealed class BudgetTimelineSeeder
                 budgetMonthId,
                 actorPersoid,
                 deletedExpense,
+                NextChangedAtUtc(),
+                ct);
+        }
+
+        foreach (var rename in scenario.ExpenseRenames)
+        {
+            await RenameMonthExpenseAsync(
+                budgetMonthId,
+                actorPersoid,
+                rename.FromName,
+                rename.ToName,
+                NextChangedAtUtc(),
+                ct);
+        }
+
+        foreach (var lifecycleChange in scenario.SubscriptionLifecycleChanges)
+        {
+            await SetSubscriptionLifecycleStatusAsync(
+                budgetMonthId,
+                actorPersoid,
+                lifecycleChange.Name,
+                lifecycleChange.LifecycleStatus,
                 NextChangedAtUtc(),
                 ct);
         }
@@ -771,6 +827,129 @@ public sealed class BudgetTimelineSeeder
                         oldValue = false,
                         newValue = true
                     }
+                }
+            },
+            changedByUserId: actorPersoid,
+            changedAtUtc: changedAtUtc,
+            ct: ct);
+    }
+
+    private async Task RenameMonthExpenseAsync(
+        Guid budgetMonthId,
+        Guid actorPersoid,
+        string fromName,
+        string toName,
+        DateTime changedAtUtc,
+        CancellationToken ct)
+    {
+        var existing = await GetExpenseRowAsync(budgetMonthId, fromName, includeDeleted: false, ct);
+
+        if (string.Equals(existing.Name, toName, StringComparison.Ordinal))
+            return;
+
+        await ExecuteAsync(
+            @"UPDATE BudgetMonthExpenseItem
+              SET Name = @NewName,
+                  IsOverride = 1,
+                  UpdatedAt = @ChangedAtUtc,
+                  UpdatedByUserId = @ActorPersoid
+              WHERE Id = @EntityId;",
+            new Dictionary<string, object?>
+            {
+                ["NewName"] = toName,
+                ["ChangedAtUtc"] = changedAtUtc,
+                ["ActorPersoid"] = actorPersoid,
+                ["EntityId"] = existing.Id
+            },
+            ct);
+
+        await InsertBudgetMonthChangeEventAsync(
+            budgetMonthId: budgetMonthId,
+            entityType: "expense-item",
+            entityId: existing.Id,
+            sourceEntityId: existing.SourceEntityId,
+            changeType: "updated",
+            changeSet: new
+            {
+                before = new
+                {
+                    Name = existing.Name,
+                    existing.AmountMonthly,
+                    existing.IsActive
+                },
+                after = new
+                {
+                    Name = toName,
+                    existing.AmountMonthly,
+                    existing.IsActive
+                }
+            },
+            changedByUserId: actorPersoid,
+            changedAtUtc: changedAtUtc,
+            ct: ct);
+    }
+
+    private async Task SetSubscriptionLifecycleStatusAsync(
+        Guid budgetMonthId,
+        Guid actorPersoid,
+        string expenseName,
+        string lifecycleStatus,
+        DateTime changedAtUtc,
+        CancellationToken ct)
+    {
+        if (lifecycleStatus != BudgetMonthSubscriptionLifecycleStatuses.Active &&
+            lifecycleStatus != BudgetMonthSubscriptionLifecycleStatuses.Paused &&
+            lifecycleStatus != BudgetMonthSubscriptionLifecycleStatuses.Cancelled)
+        {
+            throw new InvalidOperationException(
+                $"Unsupported subscription lifecycle status '{lifecycleStatus}' for expense '{expenseName}'.");
+        }
+
+        var existing = await GetExpenseRowAsync(budgetMonthId, expenseName, includeDeleted: false, ct);
+        var oldStatus = await QueryStringAsync(
+            @"SELECT SubscriptionLifecycleStatus
+              FROM BudgetMonthExpenseItem
+              WHERE Id = @EntityId
+              LIMIT 1;",
+            new Dictionary<string, object?> { ["EntityId"] = existing.Id },
+            ct);
+
+        if (string.Equals(oldStatus, lifecycleStatus, StringComparison.Ordinal))
+            return;
+
+        await ExecuteAsync(
+            @"UPDATE BudgetMonthExpenseItem
+              SET SubscriptionLifecycleStatus = @LifecycleStatus,
+                  IsOverride = 1,
+                  UpdatedAt = @ChangedAtUtc,
+                  UpdatedByUserId = @ActorPersoid
+              WHERE Id = @EntityId;",
+            new Dictionary<string, object?>
+            {
+                ["LifecycleStatus"] = lifecycleStatus,
+                ["ChangedAtUtc"] = changedAtUtc,
+                ["ActorPersoid"] = actorPersoid,
+                ["EntityId"] = existing.Id
+            },
+            ct);
+
+        await InsertBudgetMonthChangeEventAsync(
+            budgetMonthId: budgetMonthId,
+            entityType: "expense-item",
+            entityId: existing.Id,
+            sourceEntityId: existing.SourceEntityId,
+            changeType: "updated",
+            changeSet: new
+            {
+                before = new
+                {
+                    existing.Name,
+                    SubscriptionLifecycleStatus = oldStatus
+                },
+                after = new
+                {
+                    existing.Name,
+                    SubscriptionLifecycleStatus = lifecycleStatus
                 }
             },
             changedByUserId: actorPersoid,
@@ -1374,6 +1553,52 @@ public sealed class BudgetTimelineSeeder
     {
         var scalar = await ExecuteScalarAsync(sql, parameters, ct);
         return Convert.ToInt32(scalar, CultureInfo.InvariantCulture);
+    }
+
+    private async Task<string?> QueryStringAsync(string sql, IReadOnlyDictionary<string, object?> parameters, CancellationToken ct)
+    {
+        var scalar = await ExecuteScalarAsync(sql, parameters, ct);
+        if (scalar is null || scalar == DBNull.Value)
+            return null;
+
+        return Convert.ToString(scalar, CultureInfo.InvariantCulture);
+    }
+
+    private async Task<decimal> QueryDecimalAsync(string sql, IReadOnlyDictionary<string, object?> parameters, CancellationToken ct)
+    {
+        var scalar = await ExecuteScalarAsync(sql, parameters, ct);
+        if (scalar is null || scalar == DBNull.Value)
+            return 0m;
+
+        return Convert.ToDecimal(scalar, CultureInfo.InvariantCulture);
+    }
+
+    private async Task<decimal> SumActiveSubscriptionAmountAsync(
+        Guid persoid,
+        string yearMonth,
+        CancellationToken ct)
+    {
+        return await QueryDecimalAsync(
+            @"SELECT COALESCE(SUM(e.AmountMonthly), 0)
+              FROM BudgetMonthExpenseItem e
+              JOIN ExpenseCategory c ON c.Id = e.CategoryId
+              JOIN BudgetMonth m ON m.Id = e.BudgetMonthId
+              JOIN Budget b ON b.Id = m.BudgetId
+              WHERE b.Persoid = @Persoid
+                AND m.YearMonth = @YearMonth
+                AND c.Name = 'Subscription'
+                AND e.IsDeleted = 0
+                AND e.IsActive = 1
+                AND (
+                    e.SubscriptionLifecycleStatus IS NULL
+                    OR e.SubscriptionLifecycleStatus = 'active'
+                );",
+            new Dictionary<string, object?>
+            {
+                ["Persoid"] = persoid,
+                ["YearMonth"] = yearMonth
+            },
+            ct);
     }
 
     private async Task<Guid?> QueryGuidAsync(string sql, IReadOnlyDictionary<string, object?> parameters, CancellationToken ct)

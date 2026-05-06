@@ -17,6 +17,10 @@ export const e2eUsers = {
     email: "e2e-close-deficit@local.test",
     password: e2ePassword,
   },
+  recapSubscriptions: {
+    email: "e2e-recap-subscriptions@local.test",
+    password: e2ePassword,
+  },
 } as const;
 
 export const e2eOpenYearMonth = "2026-04";
