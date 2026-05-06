@@ -95,6 +95,9 @@ public sealed class GetBudgetMonthRecapQueryHandler
             currentDebts,
             previousDebts,
             previousComparableMonth is not null);
+        var insightDrivers = BuildInsightDrivers(
+            expenseCategories,
+            previousComparableMonth is not null);
 
         return Result<BudgetMonthRecapDto?>.Success(new BudgetMonthRecapDto(
             Month: new BudgetMonthRecapMetaDto(
@@ -117,7 +120,8 @@ public sealed class GetBudgetMonthRecapQueryHandler
             ExpenseCategories: expenseCategories,
             SubscriptionInsight: subscriptionInsight,
             SavingsDetail: savingsDetail,
-            DebtDetail: debtDetail));
+            DebtDetail: debtDetail,
+            InsightDrivers: insightDrivers));
     }
 
     private static BudgetMonthRecapComparisonSummaryDto? BuildComparisonSummary(
@@ -211,6 +215,40 @@ public sealed class GetBudgetMonthRecapQueryHandler
                 .OrderByDescending(x => x.CurrentAmount)
                 .ThenBy(x => x.CategoryName)
                 .ToArray();
+    }
+
+    private const int MaxExpenseIncreaseDrivers = 2;
+
+    private static BudgetMonthRecapInsightDriversDto BuildInsightDrivers(
+        IReadOnlyList<BudgetMonthRecapExpenseCategoryDto> expenseCategories,
+        bool hasPreviousComparableMonth)
+    {
+        if (!hasPreviousComparableMonth)
+        {
+            return new BudgetMonthRecapInsightDriversDto(
+                ExpenseIncreaseDrivers: Array.Empty<BudgetMonthRecapExpenseDriverDto>(),
+                LargestExpenseIncreaseDriver: null);
+        }
+
+        var increaseDrivers = expenseCategories
+            .Where(x => x.PreviousAmount is not null &&
+                        x.DeltaAmount is > 0m)
+            .OrderByDescending(x => x.DeltaAmount!.Value)
+            .ThenByDescending(x => x.CurrentAmount)
+            .ThenBy(x => x.CategoryName, StringComparer.OrdinalIgnoreCase)
+            .Take(MaxExpenseIncreaseDrivers)
+            .Select(x => new BudgetMonthRecapExpenseDriverDto(
+                CategoryId: x.CategoryId,
+                CategoryName: x.CategoryName,
+                CurrentAmount: x.CurrentAmount,
+                PreviousAmount: x.PreviousAmount!.Value,
+                DeltaAmount: x.DeltaAmount!.Value,
+                DeltaPercent: x.DeltaPercent))
+            .ToArray();
+
+        return new BudgetMonthRecapInsightDriversDto(
+            ExpenseIncreaseDrivers: increaseDrivers,
+            LargestExpenseIncreaseDriver: increaseDrivers.Length == 0 ? null : increaseDrivers[0]);
     }
 
     private static BudgetMonthRecapSubscriptionInsightDto BuildSubscriptionInsight(

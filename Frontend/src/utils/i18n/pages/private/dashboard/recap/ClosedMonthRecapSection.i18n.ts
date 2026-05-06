@@ -30,6 +30,9 @@ export const closedMonthRecapDict = {
       "Månaden slutade positivt, men utgifterna ökade jämfört med föregående stängda månad.",
     heroTakeawaySavingsUp:
       "Sparandet stärktes jämfört med föregående stängda månad.",
+    expenseDriverSingle: "Ökningen drevs främst av {category} ({amount}).",
+    expenseDriverPair:
+      "Ökningen drevs främst av {category1} ({amount1}) och {category2} ({amount2}).",
     heroFlowLabel: "Månadens pengaflöde",
     heroFlowEyebrow: "Var tog pengarna vägen?",
     heroFlowTitle: "Från startläge till slutsaldo",
@@ -242,6 +245,9 @@ export const closedMonthRecapDict = {
       "The month ended positive, but expenses increased compared with the previous closed month.",
     heroTakeawaySavingsUp:
       "Savings strengthened compared with the previous closed month.",
+    expenseDriverSingle: "The increase was driven mainly by {category} ({amount}).",
+    expenseDriverPair:
+      "The increase was driven mainly by {category1} ({amount1}) and {category2} ({amount2}).",
     heroFlowLabel: "Month money flow",
     heroFlowEyebrow: "Where did the money go?",
     heroFlowTitle: "From starting point to final balance",
@@ -454,6 +460,9 @@ export const closedMonthRecapDict = {
       "Kuu lõppes positiivselt, kuid kulud kasvasid võrreldes eelmise suletud kuuga.",
     heroTakeawaySavingsUp:
       "Säästmine tugevnes võrreldes eelmise suletud kuuga.",
+    expenseDriverSingle: "Kasvu vedas peamiselt {category} ({amount}).",
+    expenseDriverPair:
+      "Kasvu vedas peamiselt {category1} ({amount1}) ja {category2} ({amount2}).",
     heroFlowLabel: "Kuu rahavoog",
     heroFlowEyebrow: "Kuhu raha liikus?",
     heroFlowTitle: "Algseisust lõppsaldoni",

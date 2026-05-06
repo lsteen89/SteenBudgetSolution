@@ -178,6 +178,13 @@ function emptyDebtDetail(hasPreviousComparableMonth = false) {
   };
 }
 
+function emptyInsightDrivers() {
+  return {
+    expenseIncreaseDrivers: [],
+    largestExpenseIncreaseDriver: null,
+  };
+}
+
 function buildClosedRecap(overrides = {}) {
   return {
     month: {
@@ -210,6 +217,7 @@ function buildClosedRecap(overrides = {}) {
     subscriptionInsight: emptySubscriptionInsight(true),
     savingsDetail: emptySavingsDetail(true),
     debtDetail: emptyDebtDetail(true),
+    insightDrivers: emptyInsightDrivers(),
     ...overrides,
   };
 }
@@ -600,6 +608,7 @@ describe("DashboardContent", () => {
           ],
           hasPreviousComparableMonth: true,
         },
+        insightDrivers: emptyInsightDrivers(),
       },
       isPending: false,
       error: null,
@@ -857,6 +866,7 @@ describe("DashboardContent", () => {
         subscriptionInsight: emptySubscriptionInsight(),
         savingsDetail: emptySavingsDetail(),
         debtDetail: emptyDebtDetail(),
+        insightDrivers: emptyInsightDrivers(),
       },
       isPending: false,
       error: null,
@@ -894,6 +904,157 @@ describe("DashboardContent", () => {
         "closed-month-expense-category-expenses-zero-previous-percent",
       ),
     ).toBeNull();
+  });
+
+  it("injects a single-driver clause into the hero takeaway when expenses rose", () => {
+    mockClosedMonthDashboard(
+      buildClosedRecap({
+        comparison: {
+          previousComparableYearMonth: "2026-03",
+          hasPreviousComparableMonth: true,
+          summary: {
+            income: { previousValue: 9000, deltaAmount: 1000, deltaPercent: 11.1 },
+            expenses: { previousValue: 3500, deltaAmount: 500, deltaPercent: 14.3 },
+            savings: { previousValue: 1200, deltaAmount: -200, deltaPercent: -16.7 },
+            debtPayments: { previousValue: 400, deltaAmount: 100, deltaPercent: 25 },
+            finalBalance: { previousValue: 2900, deltaAmount: 1600, deltaPercent: 55.2 },
+          },
+        },
+        insightDrivers: {
+          expenseIncreaseDrivers: [
+            {
+              categoryId: "food",
+              categoryName: "Food",
+              currentAmount: 1800,
+              previousAmount: 1500,
+              deltaAmount: 300,
+              deltaPercent: 20,
+            },
+          ],
+          largestExpenseIncreaseDriver: {
+            categoryId: "food",
+            categoryName: "Food",
+            currentAmount: 1800,
+            previousAmount: 1500,
+            deltaAmount: 300,
+            deltaPercent: 20,
+          },
+        },
+      }),
+    );
+
+    renderDashboardContent();
+
+    const summary = screen.getByTestId("closed-month-summary");
+    expect(summary).toHaveTextContent(/expenses increased/i);
+    expect(summary).toHaveTextContent(/driven mainly by food/i);
+    expect(summary).toHaveTextContent(/\+.*300/);
+  });
+
+  it("injects a paired-driver clause into the hero takeaway when expenses rose", () => {
+    mockClosedMonthDashboard(
+      buildClosedRecap({
+        comparison: {
+          previousComparableYearMonth: "2026-03",
+          hasPreviousComparableMonth: true,
+          summary: {
+            income: { previousValue: 9000, deltaAmount: 1000, deltaPercent: 11.1 },
+            expenses: { previousValue: 3500, deltaAmount: 800, deltaPercent: 22.9 },
+            savings: { previousValue: 1200, deltaAmount: -200, deltaPercent: -16.7 },
+            debtPayments: { previousValue: 400, deltaAmount: 100, deltaPercent: 25 },
+            finalBalance: { previousValue: 2900, deltaAmount: 1600, deltaPercent: 55.2 },
+          },
+        },
+        insightDrivers: {
+          expenseIncreaseDrivers: [
+            {
+              categoryId: "food",
+              categoryName: "Food",
+              currentAmount: 1800,
+              previousAmount: 1500,
+              deltaAmount: 300,
+              deltaPercent: 20,
+            },
+            {
+              categoryId: "transport",
+              categoryName: "Transport",
+              currentAmount: 700,
+              previousAmount: 500,
+              deltaAmount: 200,
+              deltaPercent: 40,
+            },
+          ],
+          largestExpenseIncreaseDriver: {
+            categoryId: "food",
+            categoryName: "Food",
+            currentAmount: 1800,
+            previousAmount: 1500,
+            deltaAmount: 300,
+            deltaPercent: 20,
+          },
+        },
+      }),
+    );
+
+    renderDashboardContent();
+
+    const summary = screen.getByTestId("closed-month-summary");
+    expect(summary).toHaveTextContent(/driven mainly by food/i);
+    expect(summary).toHaveTextContent(/and transport/i);
+    expect(summary).toHaveTextContent(/\+.*300/);
+    expect(summary).toHaveTextContent(/\+.*200/);
+  });
+
+  it("does not append a driver clause when no previous comparable month exists", () => {
+    mockClosedMonthDashboard(
+      buildClosedRecap({
+        comparison: {
+          previousComparableYearMonth: null,
+          hasPreviousComparableMonth: false,
+          summary: null,
+        },
+        insightDrivers: emptyInsightDrivers(),
+      }),
+    );
+
+    renderDashboardContent();
+
+    const summary = screen.getByTestId("closed-month-summary");
+    expect(summary).not.toHaveTextContent(/driven mainly by/i);
+  });
+
+  it("does not append a driver clause when expenses did not increase", () => {
+    mockClosedMonthDashboard(
+      buildClosedRecap({
+        // The default buildClosedRecap already has expenses.deltaAmount = -500
+        // (i.e. expenses fell). Even if drivers exist, they must not surface.
+        insightDrivers: {
+          expenseIncreaseDrivers: [
+            {
+              categoryId: "food",
+              categoryName: "Food",
+              currentAmount: 100,
+              previousAmount: 50,
+              deltaAmount: 50,
+              deltaPercent: 100,
+            },
+          ],
+          largestExpenseIncreaseDriver: {
+            categoryId: "food",
+            categoryName: "Food",
+            currentAmount: 100,
+            previousAmount: 50,
+            deltaAmount: 50,
+            deltaPercent: 100,
+          },
+        },
+      }),
+    );
+
+    renderDashboardContent();
+
+    const summary = screen.getByTestId("closed-month-summary");
+    expect(summary).not.toHaveTextContent(/driven mainly by/i);
   });
 
   it("shows calm deficit guidance when a closed month snapshot ends negative", () => {
@@ -939,6 +1100,7 @@ describe("DashboardContent", () => {
         subscriptionInsight: emptySubscriptionInsight(),
         savingsDetail: emptySavingsDetail(),
         debtDetail: emptyDebtDetail(),
+        insightDrivers: emptyInsightDrivers(),
       },
       isPending: false,
       error: null,

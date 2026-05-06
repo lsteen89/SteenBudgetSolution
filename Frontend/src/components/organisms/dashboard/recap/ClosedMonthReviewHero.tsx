@@ -1,8 +1,11 @@
 import GuideBird from "@assets/Images/GuideBird.png";
 import ClosedMonthHeroSankey from "@/components/organisms/dashboard/recap/ClosedMonthHeroSankey";
 import type { BudgetMonthRecapDto } from "@/types/budget/BudgetMonthRecapDto";
+import type { AppLocale } from "@/types/i18n/appLocale";
+import { labelLedgerItem } from "@/utils/i18n/budget/ledgerItems";
 import { closedMonthRecapDict } from "@/utils/i18n/pages/private/dashboard/recap/ClosedMonthRecapSection.i18n";
 import type { CurrencyCode } from "@/utils/money/currency";
+import { formatMoneyV2 } from "@/utils/money/moneyV2";
 import { CalendarCheck, LockKeyhole } from "lucide-react";
 
 type RecapTKey = keyof typeof closedMonthRecapDict.sv;
@@ -11,7 +14,7 @@ type RecapT = <K extends RecapTKey>(key: K) => string;
 type ClosedMonthReviewHeroProps = {
   recap: BudgetMonthRecapDto;
   currency: CurrencyCode;
-  locale: string;
+  locale: AppLocale;
   closedAtLabel: string | null;
   monthLabel: string;
   nextMonthLabel: string;
@@ -20,6 +23,65 @@ type ClosedMonthReviewHeroProps = {
 
 function replaceToken(value: string, token: string, replacement: string) {
   return value.replace(`{${token}}`, replacement);
+}
+
+function formatDriverAmount(
+  value: number,
+  currency: CurrencyCode,
+  locale: AppLocale,
+) {
+  // Driver deltas always represent a positive month-over-month increase, so
+  // we prefix with '+' to make the direction obvious in the conclusion line.
+  return `+${formatMoneyV2(value, currency, locale)}`;
+}
+
+function buildExpenseDriverClause(
+  recap: BudgetMonthRecapDto,
+  currency: CurrencyCode,
+  locale: AppLocale,
+  t: RecapT,
+): string | null {
+  const comparison = recap.comparison;
+  if (!comparison.hasPreviousComparableMonth) return null;
+
+  const expensesDelta = comparison.summary?.expenses.deltaAmount ?? 0;
+  if (expensesDelta <= 0) return null;
+
+  const drivers = recap.insightDrivers?.expenseIncreaseDrivers ?? [];
+  if (drivers.length === 0) return null;
+
+  const [first, second] = drivers;
+  const firstName = labelLedgerItem(first.categoryName, locale);
+  const firstAmount = formatDriverAmount(first.deltaAmount, currency, locale);
+
+  if (second) {
+    const secondName = labelLedgerItem(second.categoryName, locale);
+    const secondAmount = formatDriverAmount(
+      second.deltaAmount,
+      currency,
+      locale,
+    );
+
+    return replaceToken(
+      replaceToken(
+        replaceToken(
+          replaceToken(t("expenseDriverPair"), "category1", firstName),
+          "amount1",
+          firstAmount,
+        ),
+        "category2",
+        secondName,
+      ),
+      "amount2",
+      secondAmount,
+    );
+  }
+
+  return replaceToken(
+    replaceToken(t("expenseDriverSingle"), "category", firstName),
+    "amount",
+    firstAmount,
+  );
 }
 
 function isCloseToBalance(recap: BudgetMonthRecapDto) {
@@ -34,16 +96,26 @@ function isCloseToBalance(recap: BudgetMonthRecapDto) {
   return Math.abs(recap.snapshotTotals.finalBalanceMonthly) <= threshold;
 }
 
-function buildMonthlyTakeaway(recap: BudgetMonthRecapDto, t: RecapT) {
+function buildMonthlyTakeaway(
+  recap: BudgetMonthRecapDto,
+  currency: CurrencyCode,
+  locale: AppLocale,
+  t: RecapT,
+) {
   const finalBalance = recap.snapshotTotals.finalBalanceMonthly;
   const comparison = recap.comparison.summary;
+  const driverClause = buildExpenseDriverClause(recap, currency, locale, t);
+
+  const appendDriver = (leadIn: string) =>
+    driverClause ? `${leadIn} ${driverClause}` : leadIn;
 
   if (finalBalance < 0) {
-    return t("heroTakeawayDeficit");
+    // Deficit + expense increase: the driver clause explains the "why".
+    return appendDriver(t("heroTakeawayDeficit"));
   }
 
   if (comparison?.expenses.deltaAmount && comparison.expenses.deltaAmount > 0) {
-    return t("heroTakeawayExpensesUp");
+    return appendDriver(t("heroTakeawayExpensesUp"));
   }
 
   if (comparison?.savings.deltaAmount && comparison.savings.deltaAmount > 0) {
@@ -109,7 +181,7 @@ export default function ClosedMonthReviewHero({
                   data-testid="closed-month-summary"
                   className="mt-1 text-base font-semibold leading-7 text-eb-text/78"
                 >
-                  {buildMonthlyTakeaway(recap, t)}
+                  {buildMonthlyTakeaway(recap, currency, locale, t)}
                 </p>
               </div>
 

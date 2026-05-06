@@ -101,6 +101,20 @@ export type BudgetMonthRecapDebtItemDto = {
   deltaMonthlyPayment: number | null;
 };
 
+export type BudgetMonthRecapExpenseDriverDto = {
+  categoryId: string;
+  categoryName: string;
+  currentAmount: number;
+  previousAmount: number;
+  deltaAmount: number;
+  deltaPercent: number | null;
+};
+
+export type BudgetMonthRecapInsightDriversDto = {
+  expenseIncreaseDrivers: BudgetMonthRecapExpenseDriverDto[];
+  largestExpenseIncreaseDriver: BudgetMonthRecapExpenseDriverDto | null;
+};
+
 export type BudgetMonthRecapDto = {
   month: BudgetMonthRecapMetaDto;
   snapshotTotals: BudgetMonthRecapSnapshotTotalsDto;
@@ -109,4 +123,5 @@ export type BudgetMonthRecapDto = {
   subscriptionInsight: BudgetMonthRecapSubscriptionInsightDto;
   savingsDetail: BudgetMonthRecapSavingsDetailDto;
   debtDetail: BudgetMonthRecapDebtDetailDto;
+  insightDrivers: BudgetMonthRecapInsightDriversDto;
 };

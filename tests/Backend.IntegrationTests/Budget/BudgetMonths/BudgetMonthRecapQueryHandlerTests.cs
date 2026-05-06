@@ -840,6 +840,118 @@ public sealed class BudgetMonthRecapQueryHandlerTests
     }
 
     [Fact]
+    public async Task ClosedMonth_InsightDrivers_AreEmpty_WhenNoPreviousComparableMonth()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+
+        await InsertClosedMonthWithSnapshotAsync(seed.BudgetId, "2026-04", seed.UserId);
+        await InsertMonthExpenseItemAsync(seed.BudgetId, "2026-04", seed.UserId, ExpenseCategories.Food, "Groceries", 350m);
+
+        var result = await CreateHandler().Handle(
+            new GetBudgetMonthRecapQuery(seed.Persoid, "2026-04"),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.InsightDrivers.ExpenseIncreaseDrivers.Should().BeEmpty();
+        result.Value.InsightDrivers.LargestExpenseIncreaseDriver.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ClosedMonth_InsightDrivers_ReturnTopTwoExpenseIncreaseCategories_OrderedByDeltaDescending()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+
+        await InsertClosedMonthWithSnapshotAsync(
+            budgetId: seed.BudgetId,
+            yearMonth: "2026-03",
+            createdByUserId: seed.UserId,
+            openedAtUtc: new DateTime(2026, 03, 01, 08, 00, 00, DateTimeKind.Utc),
+            closedAtUtc: new DateTime(2026, 03, 31, 20, 00, 00, DateTimeKind.Utc),
+            carryOverMode: BudgetMonthCarryOverModes.None,
+            carryOverAmount: null,
+            totalIncome: 1000m,
+            totalExpenses: 600m,
+            totalSavings: 0m,
+            totalDebtPayments: 0m,
+            finalBalance: 400m);
+        await InsertClosedMonthWithSnapshotAsync(
+            budgetId: seed.BudgetId,
+            yearMonth: "2026-04",
+            createdByUserId: seed.UserId,
+            openedAtUtc: new DateTime(2026, 04, 01, 08, 00, 00, DateTimeKind.Utc),
+            closedAtUtc: new DateTime(2026, 04, 30, 20, 00, 00, DateTimeKind.Utc),
+            carryOverMode: BudgetMonthCarryOverModes.None,
+            carryOverAmount: null,
+            totalIncome: 1000m,
+            totalExpenses: 1500m,
+            totalSavings: 0m,
+            totalDebtPayments: 0m,
+            finalBalance: -500m);
+
+        // Previous month baseline.
+        await InsertMonthExpenseItemAsync(seed.BudgetId, "2026-03", seed.UserId, ExpenseCategories.Food, "Groceries", 200m);
+        await InsertMonthExpenseItemAsync(seed.BudgetId, "2026-03", seed.UserId, ExpenseCategories.Transport, "Transit", 200m);
+        await InsertMonthExpenseItemAsync(seed.BudgetId, "2026-03", seed.UserId, ExpenseCategories.Housing, "Rent", 200m);
+
+        // Current month: Food +400 (largest), Housing +300 (second), Transport -50 (decrease, ignored), Other +100 (third, dropped by Take(2)).
+        await InsertMonthExpenseItemAsync(seed.BudgetId, "2026-04", seed.UserId, ExpenseCategories.Food, "Groceries", 600m);
+        await InsertMonthExpenseItemAsync(seed.BudgetId, "2026-04", seed.UserId, ExpenseCategories.Housing, "Rent", 500m);
+        await InsertMonthExpenseItemAsync(seed.BudgetId, "2026-04", seed.UserId, ExpenseCategories.Transport, "Transit", 150m);
+        await InsertMonthExpenseItemAsync(seed.BudgetId, "2026-04", seed.UserId, ExpenseCategories.Other, "One-off", 100m);
+
+        var result = await CreateHandler().Handle(
+            new GetBudgetMonthRecapQuery(seed.Persoid, "2026-04"),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.InsightDrivers.ExpenseIncreaseDrivers.Should().HaveCount(2);
+
+        var first = result.Value.InsightDrivers.ExpenseIncreaseDrivers[0];
+        first.CategoryName.Should().Be("Food");
+        first.CurrentAmount.Should().Be(600m);
+        first.PreviousAmount.Should().Be(200m);
+        first.DeltaAmount.Should().Be(400m);
+        first.DeltaPercent.Should().Be(200m);
+
+        var second = result.Value.InsightDrivers.ExpenseIncreaseDrivers[1];
+        second.CategoryName.Should().Be("Housing");
+        second.DeltaAmount.Should().Be(300m);
+
+        result.Value.InsightDrivers.LargestExpenseIncreaseDriver.Should().NotBeNull();
+        result.Value.InsightDrivers.LargestExpenseIncreaseDriver!.CategoryName.Should().Be("Food");
+
+        // No decreased category should ever surface as a driver.
+        result.Value.InsightDrivers.ExpenseIncreaseDrivers
+            .Should().NotContain(x => x.CategoryName == "Transport");
+    }
+
+    [Fact]
+    public async Task ClosedMonth_InsightDrivers_AreEmpty_WhenNoCategoryIncreased()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+
+        await InsertClosedMonthWithSnapshotAsync(seed.BudgetId, "2026-03", seed.UserId);
+        await InsertClosedMonthWithSnapshotAsync(seed.BudgetId, "2026-04", seed.UserId);
+
+        await InsertMonthExpenseItemAsync(seed.BudgetId, "2026-03", seed.UserId, ExpenseCategories.Food, "Groceries", 400m);
+        await InsertMonthExpenseItemAsync(seed.BudgetId, "2026-04", seed.UserId, ExpenseCategories.Food, "Groceries", 200m);
+
+        var result = await CreateHandler().Handle(
+            new GetBudgetMonthRecapQuery(seed.Persoid, "2026-04"),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.InsightDrivers.ExpenseIncreaseDrivers.Should().BeEmpty();
+        result.Value.InsightDrivers.LargestExpenseIncreaseDriver.Should().BeNull();
+    }
+
+    [Fact]
     public async Task OpenMonth_ReturnsClearDomainFailure()
     {
         await _db.ResetAsync();

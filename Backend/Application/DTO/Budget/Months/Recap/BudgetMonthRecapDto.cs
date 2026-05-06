@@ -7,7 +7,8 @@ public sealed record BudgetMonthRecapDto(
     IReadOnlyList<BudgetMonthRecapExpenseCategoryDto> ExpenseCategories,
     BudgetMonthRecapSubscriptionInsightDto SubscriptionInsight,
     BudgetMonthRecapSavingsDetailDto SavingsDetail,
-    BudgetMonthRecapDebtDetailDto DebtDetail);
+    BudgetMonthRecapDebtDetailDto DebtDetail,
+    BudgetMonthRecapInsightDriversDto InsightDrivers);
 
 public sealed record BudgetMonthRecapMetaDto(
     string YearMonth,
@@ -97,3 +98,15 @@ public sealed record BudgetMonthRecapDebtItemDto(
     int? TermMonths,
     decimal? PreviousMonthlyPayment,
     decimal? DeltaMonthlyPayment);
+
+public sealed record BudgetMonthRecapInsightDriversDto(
+    IReadOnlyList<BudgetMonthRecapExpenseDriverDto> ExpenseIncreaseDrivers,
+    BudgetMonthRecapExpenseDriverDto? LargestExpenseIncreaseDriver);
+
+public sealed record BudgetMonthRecapExpenseDriverDto(
+    string CategoryId,
+    string CategoryName,
+    decimal CurrentAmount,
+    decimal PreviousAmount,
+    decimal DeltaAmount,
+    decimal? DeltaPercent);
