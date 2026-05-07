@@ -174,6 +174,7 @@ Seeded users:
 | -------------------------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | `e2e-login@local.test`                 | `ChangeMe123!` | Plain login-capable user                                                                                                     |
 | `e2e-close-balanced@local.test`        | `ChangeMe123!` | Dashboard-ready user; `2026-04` closes directly from a balanced modal                                                        |
+| `e2e-close-modal-balanced@local.test`  | `ChangeMe123!` | Dashboard-ready user; `2026-04` is balanced for focused close-month modal state coverage without reusing the smoke account    |
 | `e2e-close-surplus-full@local.test`    | `ChangeMe123!` | Dashboard-ready user; `2026-04` starts with surplus and resolves via carry-over before close                                 |
 | `e2e-close-deficit@local.test`         | `ChangeMe123!` | Dashboard-ready user; `2026-04` starts negative and closes directly when business rules allow it                             |
 | `e2e-recap-subscriptions@local.test`   | `ChangeMe123!` | Dashboard-ready user; closed `2026-03` recap exercises subscription states (active, renamed, new, removed, paused, cancelled) |
@@ -197,6 +198,7 @@ Focused full-project recap checks can be run with a grep against the seeded scen
 ./scripts/playwright-e2e.sh test --project=full --grep "recap-sankey-stress"
 ./scripts/playwright-e2e.sh test --project=full --grep "first closed recap"
 ./scripts/playwright-e2e.sh test --project=full --grep "comparison skip"
+./scripts/playwright-e2e.sh test --project=full --grep "close modal balanced user"
 ```
 
 ## Reset model

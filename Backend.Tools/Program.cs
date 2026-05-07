@@ -82,6 +82,14 @@ E2eSeedUser[] e2eSeed =
         OpenMonthTargetFinalBalance: 0m),
     new(
         User: new DevSeedUser(
+            Email: "e2e-close-modal-balanced@local.test",
+            Password: DevSeedPassword,
+            FirstName: "E2E",
+            LastName: "ModalBalanced"),
+        IncludeBudget: true,
+        OpenMonthTargetFinalBalance: 0m),
+    new(
+        User: new DevSeedUser(
             Email: "e2e-close-surplus-full@local.test",
             Password: DevSeedPassword,
             FirstName: "E2E",

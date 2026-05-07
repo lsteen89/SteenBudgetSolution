@@ -9,6 +9,10 @@ export const e2eUsers = {
     email: "e2e-close-balanced@local.test",
     password: e2ePassword,
   },
+  closeModalBalanced: {
+    email: "e2e-close-modal-balanced@local.test",
+    password: e2ePassword,
+  },
   closeSurplusFull: {
     email: "e2e-close-surplus-full@local.test",
     password: e2ePassword,
