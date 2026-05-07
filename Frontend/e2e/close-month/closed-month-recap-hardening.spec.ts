@@ -13,8 +13,8 @@ const text = {
   may2026: /maj 2026|may 2026|mai 2026/i,
   snapshotTotals:
     /snapshot totals|ögonblicksbildens totalsummor|hetkepildi kogusummad/i,
-  noCarryOver:
-    /no carry-over|nothing carried over|ingen överföring|ülekannet/i,
+  appliedCarryOver:
+    /carried into|följde med till|kanti üle kuusse/i,
   comparisonTab: /compare|jämför|võrdle/i,
   categoriesTab: /categories|kategorier|kategooriad/i,
   previousComparable:
@@ -122,7 +122,7 @@ test("traverses open, closed, skipped, and first closed month states", async ({
   const firstClosedRecap = await expectClosedRecap(page, text.january2026);
   await expect(
     firstClosedRecap.getByTestId("closed-month-carry-over"),
-  ).toHaveText(text.noCarryOver);
+  ).toHaveText(text.appliedCarryOver);
   await expect(
     firstClosedRecap.getByTestId("closed-month-chart-card"),
   ).toBeVisible();
@@ -146,7 +146,7 @@ test("traverses open, closed, skipped, and first closed month states", async ({
   await expectOpenDashboard(page);
 });
 
-test("closed comparable month shows read-only recap, no carry-over, comparisons, and detail sections", async ({
+test("closed comparable month shows read-only recap, carry-over, comparisons, and detail sections", async ({
   page,
 }) => {
   await login(page, e2eUsers.closeSurplusFull);
@@ -177,7 +177,7 @@ test("closed comparable month shows read-only recap, no carry-over, comparisons,
     recap.getByRole("tablist", { name: text.chartSwitcher }),
   ).toBeVisible();
   await expect(recap.getByTestId("closed-month-carry-over")).toHaveText(
-    text.noCarryOver,
+    text.appliedCarryOver,
   );
   await expect(recap.getByTestId("closed-month-hero-carry-over")).toBeVisible();
 

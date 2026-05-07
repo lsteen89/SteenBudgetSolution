@@ -170,18 +170,42 @@ It is intentionally separate from the Docker-first local dev seed flow and the s
 
 Seeded users:
 
-| Email                               | Password       | Purpose                                                                                          |
-| ----------------------------------- | -------------- | ------------------------------------------------------------------------------------------------ |
-| `e2e-login@local.test`              | `ChangeMe123!` | Plain login-capable user                                                                         |
-| `e2e-close-balanced@local.test`     | `ChangeMe123!` | Dashboard-ready user; `2026-04` closes directly from a balanced modal                            |
-| `e2e-close-surplus-full@local.test` | `ChangeMe123!` | Dashboard-ready user; `2026-04` starts with surplus and resolves via carry-over before close     |
-| `e2e-close-deficit@local.test`      | `ChangeMe123!` | Dashboard-ready user; `2026-04` starts negative and closes directly when business rules allow it |
+| Email                                  | Password       | Purpose                                                                                                                      |
+| -------------------------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `e2e-login@local.test`                 | `ChangeMe123!` | Plain login-capable user                                                                                                     |
+| `e2e-close-balanced@local.test`        | `ChangeMe123!` | Dashboard-ready user; `2026-04` closes directly from a balanced modal                                                        |
+| `e2e-close-modal-balanced@local.test`  | `ChangeMe123!` | Dashboard-ready user; `2026-04` is balanced for focused close-month modal state coverage without reusing the smoke account    |
+| `e2e-close-modal-surplus-none@local.test` | `ChangeMe123!` | Dashboard-ready user; `2026-04` starts with a positive surplus and closes directly without selecting carry-over resolution    |
+| `e2e-close-modal-surplus-carryover@local.test` | `ChangeMe123!` | Dashboard-ready user; `2026-04` starts with a positive surplus and explicitly resolves the modal by carrying the full surplus into `2026-05` |
+| `e2e-close-modal-deficit@local.test`   | `ChangeMe123!` | Dashboard-ready user; `2026-04` starts with a `-750` deficit and closes directly from the focused close-month deficit modal     |
+| `e2e-close-surplus-full@local.test`    | `ChangeMe123!` | Dashboard-ready user; `2026-04` starts with surplus and resolves via carry-over before close                                 |
+| `e2e-close-deficit@local.test`         | `ChangeMe123!` | Dashboard-ready user; `2026-04` starts negative and closes directly when business rules allow it                             |
+| `e2e-recap-subscriptions@local.test`   | `ChangeMe123!` | Dashboard-ready user; closed `2026-03` recap exercises subscription states (active, renamed, new, removed, paused, cancelled) |
+| `e2e-recap-savings-debt@local.test`    | `ChangeMe123!` | Dashboard-ready user; closed `2026-03` recap exercises savings goal + debt deltas, current-only month rows, and ordering cues  |
+| `e2e-recap-sankey-stress@local.test`   | `ChangeMe123!` | Dashboard-ready user; closed `2026-03` recap exercises large Sankey totals, carry-over outcome display, long/current-only/previous-only expense categories, and top increase drivers |
+| `e2e-recap-first-closed@local.test`    | `ChangeMe123!` | Dashboard-ready user; closed `2026-01` recap exercises first-closed-month behavior with no previous comparable month, active subscriptions, savings/debt rows without deltas, and no carry-over |
+| `e2e-recap-comparison-skip@local.test` | `ChangeMe123!` | Dashboard-ready user; closed `2026-03` recap compares against `2026-01` while skipped `2026-02` is ignored; includes obvious snapshot, category, savings, and debt deltas |
 
-All close-month E2E users have:
+All dashboard-ready E2E users share the same month timeline:
 
-- `FirstLogin = 0`
-- open month `2026-04`
-- close window open under the fixed seed clock `2026-04-26T12:00:00Z`
+- `2026-01` closed baseline month
+- `2026-02` skipped month
+- `2026-03` closed comparable month
+- `2026-04` open month
+
+They have `FirstLogin = 0` and the close window is open under the fixed seed clock `2026-04-26T12:00:00Z`.
+
+Focused full-project recap checks can be run with a grep against the seeded scenario name, for example:
+
+```bash
+./scripts/playwright-e2e.sh test --project=full --grep "recap-sankey-stress"
+./scripts/playwright-e2e.sh test --project=full --grep "first closed recap"
+./scripts/playwright-e2e.sh test --project=full --grep "comparison skip"
+./scripts/playwright-e2e.sh test --project=full --grep "close modal balanced user"
+./scripts/playwright-e2e.sh test --project=full --grep "close modal surplus user"
+./scripts/playwright-e2e.sh test --project=full --grep "close modal carry-over user"
+./scripts/playwright-e2e.sh test --project=full --grep "close modal deficit"
+```
 
 ## Reset model
 

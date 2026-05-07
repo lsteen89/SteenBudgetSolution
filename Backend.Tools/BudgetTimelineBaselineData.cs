@@ -71,6 +71,10 @@ internal sealed record BudgetTimelineExpenseSeed(
     string Name,
     decimal AmountMonthly);
 
+internal sealed record BudgetTimelineExpenseCategorySeed(
+    Guid Id,
+    string Name);
+
 internal sealed record BudgetTimelineSavingsSeed(
     decimal MonthlySavings,
     IReadOnlyList<BudgetTimelineSavingsGoalSeed> Goals);

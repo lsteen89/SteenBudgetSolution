@@ -531,7 +531,8 @@ export default function ClosedMonthHeroSankey({
   const nodes = useMemo(() => buildFlowNodes(sankeyInput, t), [sankeyInput, t]);
   const links = useMemo(() => buildFlowLinks(sankeyInput), [sankeyInput]);
   const maxAmount = useMemo(() => maxFlowAmount(sankeyInput), [sankeyInput]);
-  const hasCarryOver = recap.carryOverOutcome.wasApplied;
+  const hasCarryOver =
+    recap.carryOverOutcome.wasApplied && recap.carryOverOutcome.amount > 0;
   const carryOverText = hasCarryOver
     ? replaceToken(
         replaceToken(t("heroCarryOverToNextMonth"), "month", nextMonthLabel),

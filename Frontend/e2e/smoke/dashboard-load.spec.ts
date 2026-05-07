@@ -20,7 +20,7 @@ const recapText = {
     /debt payments snapshot total|skuldbetalningar i ögonblicksbild|võlamaksed salvestatud kogusumma/i,
   finalBalance: /Final balance|Slutsaldo|Lõppsaldo/i,
   carryOver:
-    /Carry-over|No carry-over|not carried into the next month|Överföring|Ingen överföring|fördes inte vidare|Ülekanne|Ülekannet|ei kantud järgmisse kuusse/i,
+    /Carry-over|Carried into|No carry-over|not carried into the next month|Överföring|Överfört|Ingen överföring|fördes inte vidare|Ülekanne|Ülekannet|Üle kantud|ei kantud järgmisse kuusse/i,
   edit: /^(edit|redigera|muuda)$/i,
   addExpense: /add expense|lägg till utgift|lisa kulu/i,
   closeMonth: /close month|stäng månad|sulge kuu/i,

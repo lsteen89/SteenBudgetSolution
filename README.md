@@ -226,6 +226,8 @@ For the full reset-and-seed checklist, see [Local Seeding Playbook](docs/local-s
 - Use the Docker Compose `seed-users` service to create fixed demo users only
 - Use the Docker Compose `seed-users-with-budget` service to create fixed budget demo users with baseline data,
   2 closed months, 1 open month, and `Users.FirstLogin = 0` so the dashboard skips the setup wizard
+- `seed-users-with-budget` also creates `devhistory@local.test`, a local developer playground account with a year-ish historical budget timeline plus open April 2026
+- Playwright E2E seed data remains separate in `Backend.Tools seed-e2e`; `devhistory@local.test` is not intended for brittle E2E assertions
 
 ### Docker reset + seed flow
 

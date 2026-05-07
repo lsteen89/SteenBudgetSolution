@@ -5,11 +5,15 @@ internal static class BudgetTimelineScenarioData
         CreatedExpenses: Array.Empty<BudgetTimelineMonthExpenseCreate>(),
         ExpenseActivityChanges: Array.Empty<BudgetTimelineActivityChange>(),
         DeletedExpenses: Array.Empty<string>(),
+        ExpenseRenames: Array.Empty<BudgetTimelineExpenseRename>(),
+        SubscriptionLifecycleChanges: Array.Empty<BudgetTimelineSubscriptionLifecycleChange>(),
         SideHustleAmountOverrides: Array.Empty<BudgetTimelineAmountOverride>(),
         HouseholdMemberAmountOverrides: Array.Empty<BudgetTimelineAmountOverride>(),
         SavingsMonthlyOverride: null,
         SavingsGoalAdjustments: Array.Empty<BudgetTimelineSavingsGoalAdjustment>(),
-        DebtAdjustments: Array.Empty<BudgetTimelineDebtAdjustment>());
+        DebtAdjustments: Array.Empty<BudgetTimelineDebtAdjustment>(),
+        CreatedSavingsGoals: Array.Empty<BudgetTimelineMonthSavingsGoalCreate>(),
+        CreatedDebts: Array.Empty<BudgetTimelineMonthDebtCreate>());
 
     public static BudgetTimelineMonthScenario Middle { get; } = new(
         ExpenseAmountOverrides:
@@ -24,6 +28,8 @@ internal static class BudgetTimelineScenarioData
         ],
         ExpenseActivityChanges: Array.Empty<BudgetTimelineActivityChange>(),
         DeletedExpenses: Array.Empty<string>(),
+        ExpenseRenames: Array.Empty<BudgetTimelineExpenseRename>(),
+        SubscriptionLifecycleChanges: Array.Empty<BudgetTimelineSubscriptionLifecycleChange>(),
         SideHustleAmountOverrides:
         [
             new("Freelance", 3200m)
@@ -38,7 +44,9 @@ internal static class BudgetTimelineScenarioData
         [
             new("Credit Card", Balance: 17100m),
             new("Student Loan", Balance: 94450m)
-        ]);
+        ],
+        CreatedSavingsGoals: Array.Empty<BudgetTimelineMonthSavingsGoalCreate>(),
+        CreatedDebts: Array.Empty<BudgetTimelineMonthDebtCreate>());
 
     public static BudgetTimelineMonthScenario Open { get; } = new(
         ExpenseAmountOverrides:
@@ -59,6 +67,8 @@ internal static class BudgetTimelineScenarioData
         [
             "Spotify"
         ],
+        ExpenseRenames: Array.Empty<BudgetTimelineExpenseRename>(),
+        SubscriptionLifecycleChanges: Array.Empty<BudgetTimelineSubscriptionLifecycleChange>(),
         SideHustleAmountOverrides:
         [
             new("Freelance", 2200m)
@@ -76,7 +86,24 @@ internal static class BudgetTimelineScenarioData
         [
             new("Credit Card", Balance: 15850m, MinPayment: 650m),
             new("Student Loan", Balance: 93880m)
-        ]);
+        ],
+        CreatedSavingsGoals: Array.Empty<BudgetTimelineMonthSavingsGoalCreate>(),
+        CreatedDebts: Array.Empty<BudgetTimelineMonthDebtCreate>());
+
+    public static BudgetTimelineMonthScenario Empty { get; } = new(
+        ExpenseAmountOverrides: Array.Empty<BudgetTimelineAmountOverride>(),
+        CreatedExpenses: Array.Empty<BudgetTimelineMonthExpenseCreate>(),
+        ExpenseActivityChanges: Array.Empty<BudgetTimelineActivityChange>(),
+        DeletedExpenses: Array.Empty<string>(),
+        ExpenseRenames: Array.Empty<BudgetTimelineExpenseRename>(),
+        SubscriptionLifecycleChanges: Array.Empty<BudgetTimelineSubscriptionLifecycleChange>(),
+        SideHustleAmountOverrides: Array.Empty<BudgetTimelineAmountOverride>(),
+        HouseholdMemberAmountOverrides: Array.Empty<BudgetTimelineAmountOverride>(),
+        SavingsMonthlyOverride: null,
+        SavingsGoalAdjustments: Array.Empty<BudgetTimelineSavingsGoalAdjustment>(),
+        DebtAdjustments: Array.Empty<BudgetTimelineDebtAdjustment>(),
+        CreatedSavingsGoals: Array.Empty<BudgetTimelineMonthSavingsGoalCreate>(),
+        CreatedDebts: Array.Empty<BudgetTimelineMonthDebtCreate>());
 }
 
 internal sealed record BudgetTimelineMonthScenario(
@@ -84,11 +111,15 @@ internal sealed record BudgetTimelineMonthScenario(
     IReadOnlyList<BudgetTimelineMonthExpenseCreate> CreatedExpenses,
     IReadOnlyList<BudgetTimelineActivityChange> ExpenseActivityChanges,
     IReadOnlyList<string> DeletedExpenses,
+    IReadOnlyList<BudgetTimelineExpenseRename> ExpenseRenames,
+    IReadOnlyList<BudgetTimelineSubscriptionLifecycleChange> SubscriptionLifecycleChanges,
     IReadOnlyList<BudgetTimelineAmountOverride> SideHustleAmountOverrides,
     IReadOnlyList<BudgetTimelineAmountOverride> HouseholdMemberAmountOverrides,
     decimal? SavingsMonthlyOverride,
     IReadOnlyList<BudgetTimelineSavingsGoalAdjustment> SavingsGoalAdjustments,
-    IReadOnlyList<BudgetTimelineDebtAdjustment> DebtAdjustments);
+    IReadOnlyList<BudgetTimelineDebtAdjustment> DebtAdjustments,
+    IReadOnlyList<BudgetTimelineMonthSavingsGoalCreate> CreatedSavingsGoals,
+    IReadOnlyList<BudgetTimelineMonthDebtCreate> CreatedDebts);
 
 internal sealed record BudgetTimelineAmountOverride(string Name, decimal NewAmount);
 
@@ -100,6 +131,10 @@ internal sealed record BudgetTimelineMonthExpenseCreate(
 
 internal sealed record BudgetTimelineActivityChange(string Name, bool IsActive);
 
+internal sealed record BudgetTimelineExpenseRename(string FromName, string ToName);
+
+internal sealed record BudgetTimelineSubscriptionLifecycleChange(string Name, string LifecycleStatus);
+
 internal sealed record BudgetTimelineSavingsGoalAdjustment(
     string Name,
     decimal? MonthlyContribution = null,
@@ -110,3 +145,24 @@ internal sealed record BudgetTimelineDebtAdjustment(
     decimal? Balance = null,
     decimal? MinPayment = null,
     decimal? MonthlyFee = null);
+
+// Month-only savings goal: inserted into BudgetMonthSavingsGoal with NULL
+// SourceSavingsGoalId so the recap surfaces it as a current-only goal (no
+// previous-month delta).
+internal sealed record BudgetTimelineMonthSavingsGoalCreate(
+    string Name,
+    decimal MonthlyContribution,
+    decimal? TargetAmount = null,
+    int? TargetMonthOffset = null,
+    decimal? AmountSaved = null);
+
+// Month-only debt: inserted into BudgetMonthDebt with NULL SourceDebtId so
+// the recap surfaces it as a current-only debt (no previous-month delta).
+internal sealed record BudgetTimelineMonthDebtCreate(
+    string Name,
+    string Type,
+    decimal Balance,
+    decimal Apr,
+    decimal? MonthlyFee = null,
+    decimal? MinPayment = null,
+    int? TermMonths = null);

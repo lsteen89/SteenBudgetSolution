@@ -48,18 +48,29 @@ DevSeedUser[] usersOnlySeed =
         LastName: "Month")
 ];
 
-DevSeedUser[] budgetSeed =
+LocalBudgetSeedUser[] budgetSeed =
 [
     new(
-        Email: "budgetdemo@local.test",
-        Password: DevSeedPassword,
-        FirstName: "Budget",
-        LastName: "Demo"),
+        User: new DevSeedUser(
+            Email: "budgetdemo@local.test",
+            Password: DevSeedPassword,
+            FirstName: "Budget",
+            LastName: "Demo"),
+        Profile: null),
     new(
-        Email: "closemonth@local.test",
-        Password: DevSeedPassword,
-        FirstName: "Close",
-        LastName: "Month")
+        User: new DevSeedUser(
+            Email: "closemonth@local.test",
+            Password: DevSeedPassword,
+            FirstName: "Close",
+            LastName: "Month"),
+        Profile: null),
+    new(
+        User: new DevSeedUser(
+            Email: "devhistory@local.test",
+            Password: DevSeedPassword,
+            FirstName: "Dev",
+            LastName: "History"),
+        Profile: BudgetTimelineProfiles.LocalDevYearHistory)
 ];
 
 E2eSeedUser[] e2eSeed =
@@ -82,6 +93,38 @@ E2eSeedUser[] e2eSeed =
         OpenMonthTargetFinalBalance: 0m),
     new(
         User: new DevSeedUser(
+            Email: "e2e-close-modal-balanced@local.test",
+            Password: DevSeedPassword,
+            FirstName: "E2E",
+            LastName: "ModalBalanced"),
+        IncludeBudget: true,
+        OpenMonthTargetFinalBalance: 0m),
+    new(
+        User: new DevSeedUser(
+            Email: "e2e-close-modal-surplus-none@local.test",
+            Password: DevSeedPassword,
+            FirstName: "E2E",
+            LastName: "ModalSurplusNone"),
+        IncludeBudget: true,
+        OpenMonthTargetFinalBalance: 1250m),
+    new(
+        User: new DevSeedUser(
+            Email: "e2e-close-modal-surplus-carryover@local.test",
+            Password: DevSeedPassword,
+            FirstName: "E2E",
+            LastName: "ModalSurplusCarryOver"),
+        IncludeBudget: true,
+        OpenMonthTargetFinalBalance: 1250m),
+    new(
+        User: new DevSeedUser(
+            Email: "e2e-close-modal-deficit@local.test",
+            Password: DevSeedPassword,
+            FirstName: "E2E",
+            LastName: "ModalDeficit"),
+        IncludeBudget: true,
+        OpenMonthTargetFinalBalance: -750m),
+    new(
+        User: new DevSeedUser(
             Email: "e2e-close-surplus-full@local.test",
             Password: DevSeedPassword,
             FirstName: "E2E",
@@ -95,7 +138,52 @@ E2eSeedUser[] e2eSeed =
             FirstName: "E2E",
             LastName: "Deficit"),
         IncludeBudget: true,
-        OpenMonthTargetFinalBalance: -750m)
+        OpenMonthTargetFinalBalance: -750m),
+    new(
+        User: new DevSeedUser(
+            Email: "e2e-recap-subscriptions@local.test",
+            Password: DevSeedPassword,
+            FirstName: "E2E",
+            LastName: "RecapSubs"),
+        IncludeBudget: true,
+        OpenMonthTargetFinalBalance: null,
+        Profile: BudgetTimelineProfiles.RecapSubscriptions),
+    new(
+        User: new DevSeedUser(
+            Email: "e2e-recap-savings-debt@local.test",
+            Password: DevSeedPassword,
+            FirstName: "E2E",
+            LastName: "RecapSavingsDebt"),
+        IncludeBudget: true,
+        OpenMonthTargetFinalBalance: null,
+        Profile: BudgetTimelineProfiles.RecapSavingsDebt),
+    new(
+        User: new DevSeedUser(
+            Email: "e2e-recap-sankey-stress@local.test",
+            Password: DevSeedPassword,
+            FirstName: "E2E",
+            LastName: "RecapSankeyStress"),
+        IncludeBudget: true,
+        OpenMonthTargetFinalBalance: null,
+        Profile: BudgetTimelineProfiles.RecapSankeyStress),
+    new(
+        User: new DevSeedUser(
+            Email: "e2e-recap-first-closed@local.test",
+            Password: DevSeedPassword,
+            FirstName: "E2E",
+            LastName: "RecapFirstClosed"),
+        IncludeBudget: true,
+        OpenMonthTargetFinalBalance: null,
+        Profile: BudgetTimelineProfiles.RecapFirstClosed),
+    new(
+        User: new DevSeedUser(
+            Email: "e2e-recap-comparison-skip@local.test",
+            Password: DevSeedPassword,
+            FirstName: "E2E",
+            LastName: "RecapComparisonSkip"),
+        IncludeBudget: true,
+        OpenMonthTargetFinalBalance: null,
+        Profile: BudgetTimelineProfiles.RecapComparisonSkip)
 ];
 
 var isE2eSeedCommand = args.Any(arg => string.Equals(arg, SeedE2eCommandName, StringComparison.OrdinalIgnoreCase));
@@ -114,11 +202,10 @@ root.AddCommand(CreateFixedSeedCommand(
     description: "Seed the fixed local-dev demo users.",
     users: usersOnlySeed,
     includeBudget: false));
-root.AddCommand(CreateFixedSeedCommand(
+root.AddCommand(CreateFixedBudgetSeedCommand(
     name: "seed-users-with-budget",
-    description: "Seed the fixed local-dev budget demo users with baseline budget data and a fixed 3-month timeline.",
-    users: budgetSeed,
-    includeBudget: true));
+    description: "Seed the fixed local-dev budget demo users with baseline budget data and deterministic budget timelines.",
+    users: budgetSeed));
 root.AddCommand(CreateE2eSeedCommand());
 root.AddCommand(CreateSeedCommand(
     name: "seed-user",
@@ -238,6 +325,33 @@ Command CreateFixedSeedCommand(string name, string description, IReadOnlyList<De
     return command;
 }
 
+Command CreateFixedBudgetSeedCommand(string name, string description, IReadOnlyList<LocalBudgetSeedUser> users)
+{
+    var command = new Command(name, description);
+
+    command.SetHandler(async () =>
+    {
+        await using var scope = serviceProvider.CreateAsyncScope();
+
+        Console.WriteLine($"Running {name} with {users.Count} fixed local-dev budget account(s).");
+
+        foreach (var seed in users)
+        {
+            await SeedOneUserAsync(
+                scope.ServiceProvider,
+                seed.User,
+                true,
+                DefaultBudgetOpenYearMonth,
+                CancellationToken.None,
+                profile: seed.Profile);
+        }
+
+        Console.WriteLine($"Seeded fixed local-dev budget timelines ending in open month {DefaultBudgetOpenYearMonth}.");
+    });
+
+    return command;
+}
+
 Command CreateE2eSeedCommand()
 {
     var command = new Command(
@@ -259,7 +373,8 @@ Command CreateE2eSeedCommand()
                 seed.IncludeBudget,
                 DefaultBudgetOpenYearMonth,
                 CancellationToken.None,
-                seed.OpenMonthTargetFinalBalance);
+                seed.OpenMonthTargetFinalBalance,
+                seed.Profile);
         }
 
         Console.WriteLine($"Seeded {e2eSeed.Length} deterministic E2E account(s) in open month {DefaultBudgetOpenYearMonth}.");
@@ -305,7 +420,8 @@ async Task SeedOneUserAsync(
     bool includeBudget,
     string openYearMonth,
     CancellationToken ct,
-    decimal? openMonthTargetFinalBalance = null)
+    decimal? openMonthTargetFinalBalance = null,
+    BudgetTimelineProfile? profile = null)
 {
     var mediator = services.GetRequiredService<IMediator>();
     var uow = services.GetRequiredService<IUnitOfWork>();
@@ -357,13 +473,28 @@ async Task SeedOneUserAsync(
         ct);
 
     var monthSeeder = services.GetRequiredService<BudgetTimelineSeeder>();
-    await monthSeeder.SeedThreeMonthTimelineAsync(
-        user.PersoId,
-        openYearMonth,
-        ct,
-        openMonthTargetFinalBalance);
+    if (profile?.TimelineMonths is { Count: > 0 })
+    {
+        await monthSeeder.SeedTimelineAsync(
+            user.PersoId,
+            profile,
+            ct);
+    }
+    else
+    {
+        await monthSeeder.SeedThreeMonthTimelineAsync(
+            user.PersoId,
+            openYearMonth,
+            ct,
+            openMonthTargetFinalBalance,
+            profile);
+    }
 
-    Console.WriteLine($"Seeded budget data for {seedUser.Email}: 2 closed months + 1 skipped month + open month {openYearMonth}.");
+    var profileLabel = profile is null ? "default" : profile.Name;
+    var timelineLabel = profile?.TimelineMonths is { Count: > 0 }
+        ? "11 closed months + 1 skipped month + open month 2026-04"
+        : $"2 closed months + 1 skipped month + open month {openYearMonth}";
+    Console.WriteLine($"Seeded budget data for {seedUser.Email} (profile={profileLabel}): {timelineLabel}.");
     Console.WriteLine($"Set Users.FirstLogin = 0 for {seedUser.Email} so the dashboard skips the setup wizard.");
 }
 
@@ -415,10 +546,15 @@ internal sealed record DevSeedUser(
     string FirstName,
     string LastName);
 
+internal sealed record LocalBudgetSeedUser(
+    DevSeedUser User,
+    BudgetTimelineProfile? Profile);
+
 internal sealed record E2eSeedUser(
     DevSeedUser User,
     bool IncludeBudget,
-    decimal? OpenMonthTargetFinalBalance);
+    decimal? OpenMonthTargetFinalBalance,
+    BudgetTimelineProfile? Profile = null);
 
 internal sealed class SeedTimeProvider : ITimeProvider
 {
