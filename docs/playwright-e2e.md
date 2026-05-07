@@ -177,6 +177,7 @@ Seeded users:
 | `e2e-close-modal-balanced@local.test`  | `ChangeMe123!` | Dashboard-ready user; `2026-04` is balanced for focused close-month modal state coverage without reusing the smoke account    |
 | `e2e-close-modal-surplus-none@local.test` | `ChangeMe123!` | Dashboard-ready user; `2026-04` starts with a positive surplus and closes directly without selecting carry-over resolution    |
 | `e2e-close-modal-surplus-carryover@local.test` | `ChangeMe123!` | Dashboard-ready user; `2026-04` starts with a positive surplus and explicitly resolves the modal by carrying the full surplus into `2026-05` |
+| `e2e-close-modal-deficit@local.test`   | `ChangeMe123!` | Dashboard-ready user; `2026-04` starts with a `-750` deficit and closes directly from the focused close-month deficit modal     |
 | `e2e-close-surplus-full@local.test`    | `ChangeMe123!` | Dashboard-ready user; `2026-04` starts with surplus and resolves via carry-over before close                                 |
 | `e2e-close-deficit@local.test`         | `ChangeMe123!` | Dashboard-ready user; `2026-04` starts negative and closes directly when business rules allow it                             |
 | `e2e-recap-subscriptions@local.test`   | `ChangeMe123!` | Dashboard-ready user; closed `2026-03` recap exercises subscription states (active, renamed, new, removed, paused, cancelled) |
@@ -203,6 +204,7 @@ Focused full-project recap checks can be run with a grep against the seeded scen
 ./scripts/playwright-e2e.sh test --project=full --grep "close modal balanced user"
 ./scripts/playwright-e2e.sh test --project=full --grep "close modal surplus user"
 ./scripts/playwright-e2e.sh test --project=full --grep "close modal carry-over user"
+./scripts/playwright-e2e.sh test --project=full --grep "close modal deficit"
 ```
 
 ## Reset model

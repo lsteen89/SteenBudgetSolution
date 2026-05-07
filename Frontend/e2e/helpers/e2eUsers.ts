@@ -21,6 +21,10 @@ export const e2eUsers = {
     email: "e2e-close-modal-surplus-carryover@local.test",
     password: e2ePassword,
   },
+  closeModalDeficit: {
+    email: "e2e-close-modal-deficit@local.test",
+    password: e2ePassword,
+  },
   closeSurplusFull: {
     email: "e2e-close-surplus-full@local.test",
     password: e2ePassword,
