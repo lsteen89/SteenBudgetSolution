@@ -4,6 +4,8 @@ This playbook describes the primary supported local seeding flow for the eBudget
 
 This is separate from the Playwright E2E seed flow. E2E tests use `Backend.Tools seed-e2e` against `steenbudgetE2E`; this playbook stays focused on the Docker-first local developer seed flow for `steenbudgetDEV`.
 
+`devhistory@local.test` is a local development playground account, not a Playwright fixture. Keep focused E2E regression accounts in `seed-e2e`; do not write brittle Playwright assertions against the local dev-history account.
+
 The flow is intentionally Docker-first and reset-first:
 
 - reset the Docker Compose dev database volume
@@ -57,17 +59,29 @@ Reuses or creates:
 
 - `budgetdemo@local.test`
 - `closemonth@local.test`
+- `devhistory@local.test`
 
-Then it creates the same budget data for each user and sets:
+Then it creates budget data and sets:
 
 - `FirstLogin = 0`
 - `DebtRepaymentStrategy = snowball`
 
 This lets the dashboard open without the setup wizard.
 
+`budgetdemo@local.test` and `closemonth@local.test` keep the existing fixed three-month timeline.
+
+`devhistory@local.test` uses password `ChangeMe123!` and gets the richer `local-dev-year-history` profile:
+
+- historical budget months from `2025-04` through `2026-03`
+- exactly one skipped month: `2025-09`
+- open `2026-04`, close-window eligible under the fixed seed clock `2026-04-26T12:00:00Z`
+- salary, freelance income, household contribution, living/fixed expenses, subscriptions, savings goals, revolving debt, and installment debt
+- high-income, low-income, expense-spike, near-zero/negative, large-surplus, full-carry-over, and no-carry-over months
+- subscription rename, new subscription, paused subscription, cancelled subscription, removed subscription, savings/debt adjustments, current-only savings goal, and current-only debt examples
+
 ## Budget Baseline
 
-Each budget demo user gets one baseline budget with:
+`budgetdemo@local.test` and `closemonth@local.test` get one baseline budget with:
 
 ### Income
 
@@ -114,9 +128,9 @@ Savings goal:
 | Credit Card | revolving | `18500.00` | `19.90` | `25.00` | `500.00` | |
 | Student Loan | installment | `95000.00` | `1.20` | `0.00` | `1500.00` | `72` |
 
-## Budget Month Timeline
+## Default Budget Month Timeline
 
-Each budget demo user gets a fixed three-month timeline:
+`budgetdemo@local.test` and `closemonth@local.test` get a fixed three-month timeline:
 
 | Month | Status | Carry-over mode | Notes |
 | --- | --- | --- | --- |
@@ -164,33 +178,64 @@ Closed month snapshots:
 - Credit Card balance/min payment: `15850.00` / `650.00`
 - Student Loan balance: `93880.00`
 
+## Dev History Timeline
+
+`devhistory@local.test` gets a local-only development timeline:
+
+| Month | Status | Carry-over mode | Notes |
+| --- | --- | --- | --- |
+| `2025-04` | closed | none | Normal baseline month |
+| `2025-05` | closed | full | Lower freelance income; this surplus is not carried into June |
+| `2025-06` | closed | none | High freelance income and large surplus |
+| `2025-07` | closed | full | Low income and expense pressure |
+| `2025-08` | closed | full | Appliance spike and negative final balance |
+| `2025-09` | skipped | none | Intentional skipped month |
+| `2025-10` | closed | none | Rebound month with a paused subscription |
+| `2025-11` | closed | full | Renamed subscription and new subscription |
+| `2025-12` | closed | full | Medical spike and cancelled subscription |
+| `2026-01` | closed | none | Current-only savings goal |
+| `2026-02` | closed | full | Removed subscription and renamed subscription |
+| `2026-03` | closed | full | Current-only debt |
+| `2026-04` | open | full | Close-window eligible playground month with a near-zero surplus |
+
+Selected closed snapshots:
+
+| Month | Income | Expenses | Savings | Debt payments | Final balance |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `2025-04` | `54000.00` | `30095.00` | `7800.00` | `2935.00` | `13170.00` |
+| `2025-06` | `65500.00` | `31895.00` | `9500.00` | `3185.00` | `20920.00` |
+| `2025-12` | `54000.00` | `46696.00` | `4500.00` | `3185.00` | `-381.00` |
+| `2026-03` | `56500.00` | `30095.00` | `7200.00` | `2685.00` | `16520.00` |
+
+Open `2026-04` is adjusted to a computed final balance of `950.00`, but its snapshot columns remain `NULL` until the month is closed.
+
 ## Expected Row Counts After A Clean Seed
 
 After running both seed commands on a clean reset, the seeded database should contain:
 
 | Table | Rows |
 | --- | ---: |
-| Users | 4 |
-| UserSettings | 4 |
-| RefreshTokens | 4 |
-| Budget | 2 |
-| Income | 2 |
-| IncomeSideHustle | 2 |
-| IncomeHouseholdMember | 2 |
+| Users | 5 |
+| UserSettings | 5 |
+| RefreshTokens | 5 |
+| Budget | 3 |
+| Income | 3 |
+| IncomeSideHustle | 3 |
+| IncomeHouseholdMember | 3 |
 | ExpenseCategory | 7 |
-| ExpenseItem | 16 |
-| Savings | 2 |
-| SavingsGoal | 2 |
-| Debt | 4 |
-| BudgetMonth | 6 |
-| BudgetMonthIncome | 6 |
-| BudgetMonthIncomeSideHustle | 6 |
-| BudgetMonthIncomeHouseholdMember | 6 |
-| BudgetMonthExpenseItem | 52 |
-| BudgetMonthSavings | 6 |
-| BudgetMonthSavingsGoal | 6 |
-| BudgetMonthDebt | 12 |
-| BudgetMonthChangeEvent | 42 |
+| ExpenseItem | 29 |
+| Savings | 3 |
+| SavingsGoal | 5 |
+| Debt | 6 |
+| BudgetMonth | 21 |
+| BudgetMonthIncome | 18 |
+| BudgetMonthIncomeSideHustle | 18 |
+| BudgetMonthIncomeHouseholdMember | 18 |
+| BudgetMonthExpenseItem | 218 |
+| BudgetMonthSavings | 18 |
+| BudgetMonthSavingsGoal | 43 |
+| BudgetMonthDebt | 38 |
+| BudgetMonthChangeEvent | 142 |
 
 ## Useful Verification Queries
 
@@ -207,7 +252,7 @@ docker compose --env-file .env.dev -f docker-compose.dev.yml exec -T db \
       FROM Users u
       JOIN Budget b ON b.Persoid = u.Persoid
       JOIN BudgetMonth bm ON bm.BudgetId = b.Id
-      WHERE u.Email IN ('budgetdemo@local.test','closemonth@local.test')
+      WHERE u.Email IN ('budgetdemo@local.test','closemonth@local.test','devhistory@local.test')
       ORDER BY u.Email, bm.YearMonth;"
 ```
 

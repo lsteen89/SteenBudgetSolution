@@ -810,4 +810,570 @@ internal static class BudgetTimelineProfiles
                 $"expected {RecapSankeyExpectedCarryOverFromComparableMonth}.");
         }
     }
+
+    // Local developer year-history profile
+    //
+    // A rich local-only playground account for manual product development.
+    // This deliberately does not back a brittle Playwright fixture: the E2E
+    // seed flow owns focused regression accounts, while this profile gives
+    // developers a year-ish timeline with skipped, closed, and open states.
+    public static BudgetTimelineProfile LocalDevYearHistory { get; } = BuildLocalDevYearHistoryProfile();
+
+    private const decimal LocalDevApril2025Income = 54000m;
+    private const decimal LocalDevApril2025Expenses = 30095m;
+    private const decimal LocalDevApril2025Savings = 7800m;
+    private const decimal LocalDevApril2025DebtPayments = 2935m;
+    private const decimal LocalDevApril2025FinalBalance = 13170m;
+
+    private const decimal LocalDevJune2025Income = 65500m;
+    private const decimal LocalDevJune2025Expenses = 31895m;
+    private const decimal LocalDevJune2025Savings = 9500m;
+    private const decimal LocalDevJune2025DebtPayments = 3185m;
+    private const decimal LocalDevJune2025FinalBalance = 20920m;
+
+    private const decimal LocalDevDecember2025Income = 54000m;
+    private const decimal LocalDevDecember2025Expenses = 46696m;
+    private const decimal LocalDevDecember2025Savings = 4500m;
+    private const decimal LocalDevDecember2025DebtPayments = 3185m;
+    private const decimal LocalDevDecember2025FinalBalance = -381m;
+
+    private const decimal LocalDevMarch2026Income = 56500m;
+    private const decimal LocalDevMarch2026Expenses = 30095m;
+    private const decimal LocalDevMarch2026Savings = 7200m;
+    private const decimal LocalDevMarch2026DebtPayments = 2685m;
+    private const decimal LocalDevMarch2026FinalBalance = 16520m;
+
+    private const decimal LocalDevApril2026OpenFinalBalance = 950m;
+    private const decimal LocalDevDecember2025ActiveSubscriptionTotal = 466m;
+
+    private static BudgetTimelineProfile BuildLocalDevYearHistoryProfile()
+    {
+        var baseline = new BudgetTimelineBaseline(
+            Income: new BudgetTimelineIncomeSeed(
+                NetSalaryMonthly: 42000m,
+                SalaryFrequency: Frequency.Monthly,
+                IncomePaymentDayType: "dayOfMonth",
+                IncomePaymentDay: 25,
+                SideHustles:
+                [
+                    new BudgetTimelineIncomeEntrySeed("Freelance", 3500m, Frequency.Monthly)
+                ],
+                HouseholdMembers:
+                [
+                    new BudgetTimelineIncomeEntrySeed("Partner contribution", 8500m, Frequency.Monthly)
+                ]),
+            Expenses:
+            [
+                new(BudgetTimelineBaselineData.HousingCategoryId, "Rent", 15000m),
+                new(BudgetTimelineBaselineData.FoodCategoryId, "Groceries", 6200m),
+                new(BudgetTimelineBaselineData.TransportCategoryId, "Transport Pass", 1200m),
+                new(BudgetTimelineBaselineData.FixedExpenseCategoryId, "Utilities", 1800m),
+                new(BudgetTimelineBaselineData.FixedExpenseCategoryId, "Insurance", 900m),
+                new(BudgetTimelineBaselineData.FixedExpenseCategoryId, "Childcare", 3500m),
+                new(BudgetTimelineBaselineData.FixedExpenseCategoryId, "Home Internet", 450m),
+                new(BudgetTimelineBaselineData.FixedExpenseCategoryId, "Mobile Plan", 380m),
+                new(BudgetTimelineBaselineData.SubscriptionCategoryId, "StreamBox", 169m),
+                new(BudgetTimelineBaselineData.SubscriptionCategoryId, "Music Basic", 119m),
+                new(BudgetTimelineBaselineData.SubscriptionCategoryId, "Cloud Drive", 79m),
+                new(BudgetTimelineBaselineData.SubscriptionCategoryId, "News Daily", 99m),
+                new(BudgetTimelineBaselineData.SubscriptionCategoryId, "Fitness App", 199m)
+            ],
+            Savings: new BudgetTimelineSavingsSeed(
+                MonthlySavings: 3500m,
+                Goals:
+                [
+                    new BudgetTimelineSavingsGoalSeed(
+                        Name: "Emergency Fund",
+                        TargetAmount: 120000m,
+                        TargetMonthOffset: 24,
+                        AmountSaved: 52000m,
+                        MonthlyContribution: 2200m),
+                    new BudgetTimelineSavingsGoalSeed(
+                        Name: "Vacation Fund",
+                        TargetAmount: 36000m,
+                        TargetMonthOffset: 10,
+                        AmountSaved: 12000m,
+                        MonthlyContribution: 1200m),
+                    new BudgetTimelineSavingsGoalSeed(
+                        Name: "Home Repair",
+                        TargetAmount: 50000m,
+                        TargetMonthOffset: 18,
+                        AmountSaved: 18000m,
+                        MonthlyContribution: 900m)
+                ]),
+            Debts:
+            [
+                new("Credit Card", "revolving", 28000m, 19.9m, 35m, 900m, null),
+                new("Car Loan", "installment", 120000m, 0m, 0m, null, 60)
+            ]);
+
+        var timeline = new BudgetTimelineMonthPlan[]
+        {
+            new(
+                "2025-04",
+                BudgetTimelineScenarioData.Empty,
+                BudgetMonthCarryOverModes.None),
+            new(
+                "2025-05",
+                BudgetTimelineScenarioData.Empty with
+                {
+                    ExpenseAmountOverrides =
+                    [
+                        new("Groceries", 6400m)
+                    ],
+                    SideHustleAmountOverrides =
+                    [
+                        new("Freelance", 500m)
+                    ],
+                    HouseholdMemberAmountOverrides =
+                    [
+                        new("Partner contribution", 8000m)
+                    ],
+                    SavingsMonthlyOverride = 2500m,
+                    SavingsGoalAdjustments =
+                    [
+                        new("Emergency Fund", MonthlyContribution: 1800m, AmountSaved: 53800m),
+                        new("Vacation Fund", MonthlyContribution: 800m, AmountSaved: 12800m),
+                        new("Home Repair", MonthlyContribution: 600m, AmountSaved: 18600m)
+                    ],
+                    DebtAdjustments =
+                    [
+                        new("Credit Card", Balance: 27100m, MinPayment: 950m),
+                        new("Car Loan", Balance: 118800m)
+                    ]
+                },
+                BudgetMonthCarryOverModes.Full),
+            new(
+                "2025-06",
+                BudgetTimelineScenarioData.Empty with
+                {
+                    CreatedExpenses =
+                    [
+                        new(BudgetTimelineBaselineData.FixedExpenseCategoryId, "Concert Weekend", 1800m)
+                    ],
+                    SideHustleAmountOverrides =
+                    [
+                        new("Freelance", 14500m)
+                    ],
+                    HouseholdMemberAmountOverrides =
+                    [
+                        new("Partner contribution", 9000m)
+                    ],
+                    SavingsMonthlyOverride = 3500m,
+                    SavingsGoalAdjustments =
+                    [
+                        new("Emergency Fund", MonthlyContribution: 3000m, AmountSaved: 56800m),
+                        new("Vacation Fund", MonthlyContribution: 1800m, AmountSaved: 14600m),
+                        new("Home Repair", MonthlyContribution: 1200m, AmountSaved: 19800m)
+                    ],
+                    DebtAdjustments =
+                    [
+                        new("Credit Card", Balance: 26000m, MinPayment: 1200m),
+                        new("Car Loan", Balance: 117000m)
+                    ]
+                },
+                BudgetMonthCarryOverModes.None),
+            new(
+                "2025-07",
+                BudgetTimelineScenarioData.Empty with
+                {
+                    ExpenseAmountOverrides =
+                    [
+                        new("Groceries", 7000m),
+                        new("Utilities", 2200m)
+                    ],
+                    CreatedExpenses =
+                    [
+                        new(BudgetTimelineBaselineData.FixedExpenseCategoryId, "Vet Bill", 8000m)
+                    ],
+                    SideHustleAmountOverrides =
+                    [
+                        new("Freelance", 0m)
+                    ],
+                    HouseholdMemberAmountOverrides =
+                    [
+                        new("Partner contribution", 7000m)
+                    ],
+                    SavingsMonthlyOverride = 1800m,
+                    SavingsGoalAdjustments =
+                    [
+                        new("Emergency Fund", MonthlyContribution: 1000m, AmountSaved: 57800m),
+                        new("Vacation Fund", MonthlyContribution: 300m, AmountSaved: 14900m),
+                        new("Home Repair", MonthlyContribution: 300m, AmountSaved: 20100m)
+                    ],
+                    DebtAdjustments =
+                    [
+                        new("Credit Card", Balance: 25000m, MinPayment: 1300m),
+                        new("Car Loan", Balance: 114000m)
+                    ]
+                },
+                BudgetMonthCarryOverModes.Full),
+            new(
+                "2025-08",
+                BudgetTimelineScenarioData.Empty with
+                {
+                    ExpenseAmountOverrides =
+                    [
+                        new("Groceries", 6600m)
+                    ],
+                    CreatedExpenses =
+                    [
+                        new(BudgetTimelineBaselineData.FixedExpenseCategoryId, "Appliance Replacement", 18000m)
+                    ],
+                    SavingsMonthlyOverride = 2500m,
+                    SavingsGoalAdjustments =
+                    [
+                        new("Emergency Fund", MonthlyContribution: 1500m, AmountSaved: 59300m),
+                        new("Vacation Fund", MonthlyContribution: 600m, AmountSaved: 15500m),
+                        new("Home Repair", MonthlyContribution: 400m, AmountSaved: 20500m)
+                    ],
+                    DebtAdjustments =
+                    [
+                        new("Credit Card", Balance: 23800m, MinPayment: 1300m),
+                        new("Car Loan", Balance: 112800m)
+                    ]
+                },
+                BudgetMonthCarryOverModes.Full),
+            new(
+                "2025-10",
+                BudgetTimelineScenarioData.Empty with
+                {
+                    SubscriptionLifecycleChanges =
+                    [
+                        new("News Daily", BudgetMonthSubscriptionLifecycleStatuses.Paused)
+                    ],
+                    SideHustleAmountOverrides =
+                    [
+                        new("Freelance", 4000m)
+                    ],
+                    HouseholdMemberAmountOverrides =
+                    [
+                        new("Partner contribution", 10000m)
+                    ],
+                    SavingsMonthlyOverride = 3500m,
+                    SavingsGoalAdjustments =
+                    [
+                        new("Emergency Fund", MonthlyContribution: 2200m, AmountSaved: 61500m),
+                        new("Vacation Fund", MonthlyContribution: 1000m, AmountSaved: 16500m),
+                        new("Home Repair", MonthlyContribution: 900m, AmountSaved: 21400m)
+                    ],
+                    DebtAdjustments =
+                    [
+                        new("Credit Card", Balance: 22600m, MinPayment: 1100m),
+                        new("Car Loan", Balance: 111000m)
+                    ]
+                },
+                BudgetMonthCarryOverModes.None,
+                CreateSkippedMonthsBefore: true),
+            new(
+                "2025-11",
+                BudgetTimelineScenarioData.Empty with
+                {
+                    CreatedExpenses =
+                    [
+                        new(BudgetTimelineBaselineData.SubscriptionCategoryId, "Language App", 149m)
+                    ],
+                    ExpenseRenames =
+                    [
+                        new("Music Basic", "Music Premium")
+                    ],
+                    SideHustleAmountOverrides =
+                    [
+                        new("Freelance", 5000m)
+                    ],
+                    SavingsMonthlyOverride = 3500m,
+                    SavingsGoalAdjustments =
+                    [
+                        new("Emergency Fund", MonthlyContribution: 2400m, AmountSaved: 63900m),
+                        new("Vacation Fund", MonthlyContribution: 1100m, AmountSaved: 17600m),
+                        new("Home Repair", MonthlyContribution: 1000m, AmountSaved: 22400m)
+                    ],
+                    DebtAdjustments =
+                    [
+                        new("Credit Card", Balance: 21600m, MinPayment: 1000m),
+                        new("Car Loan", Balance: 108000m)
+                    ]
+                },
+                BudgetMonthCarryOverModes.Full),
+            new(
+                "2025-12",
+                BudgetTimelineScenarioData.Empty with
+                {
+                    ExpenseAmountOverrides =
+                    [
+                        new("Utilities", 2600m)
+                    ],
+                    CreatedExpenses =
+                    [
+                        new(BudgetTimelineBaselineData.FixedExpenseCategoryId, "Medical Bill", 16000m)
+                    ],
+                    SubscriptionLifecycleChanges =
+                    [
+                        new("Fitness App", BudgetMonthSubscriptionLifecycleStatuses.Cancelled)
+                    ],
+                    SavingsMonthlyOverride = 2500m,
+                    SavingsGoalAdjustments =
+                    [
+                        new("Emergency Fund", MonthlyContribution: 1200m, AmountSaved: 65100m),
+                        new("Vacation Fund", MonthlyContribution: 500m, AmountSaved: 18100m),
+                        new("Home Repair", MonthlyContribution: 300m, AmountSaved: 22700m)
+                    ],
+                    DebtAdjustments =
+                    [
+                        new("Credit Card", Balance: 20500m, MinPayment: 1400m),
+                        new("Car Loan", Balance: 105000m)
+                    ]
+                },
+                BudgetMonthCarryOverModes.Full),
+            new(
+                "2026-01",
+                BudgetTimelineScenarioData.Empty with
+                {
+                    CreatedExpenses =
+                    [
+                        new(BudgetTimelineBaselineData.FixedExpenseCategoryId, "Winter Trip Deposit", 5000m)
+                    ],
+                    SideHustleAmountOverrides =
+                    [
+                        new("Freelance", 6500m)
+                    ],
+                    CreatedSavingsGoals =
+                    [
+                        new("Laptop Replacement",
+                            MonthlyContribution: 700m,
+                            TargetAmount: 18000m,
+                            TargetMonthOffset: 7,
+                            AmountSaved: 700m)
+                    ],
+                    SavingsMonthlyOverride = 3000m,
+                    SavingsGoalAdjustments =
+                    [
+                        new("Emergency Fund", MonthlyContribution: 2400m, AmountSaved: 67500m),
+                        new("Vacation Fund", MonthlyContribution: 700m, AmountSaved: 18800m),
+                        new("Home Repair", MonthlyContribution: 600m, AmountSaved: 23300m)
+                    ],
+                    DebtAdjustments =
+                    [
+                        new("Credit Card", Balance: 19600m, MinPayment: 950m),
+                        new("Car Loan", Balance: 102000m)
+                    ]
+                },
+                BudgetMonthCarryOverModes.None),
+            new(
+                "2026-02",
+                BudgetTimelineScenarioData.Empty with
+                {
+                    CreatedExpenses =
+                    [
+                        new(BudgetTimelineBaselineData.SubscriptionCategoryId, "Security Monitoring", 129m)
+                    ],
+                    DeletedExpenses =
+                    [
+                        "Cloud Drive"
+                    ],
+                    ExpenseRenames =
+                    [
+                        new("Music Basic", "Music Premium")
+                    ],
+                    SideHustleAmountOverrides =
+                    [
+                        new("Freelance", 4500m)
+                    ],
+                    SavingsMonthlyOverride = 3500m,
+                    SavingsGoalAdjustments =
+                    [
+                        new("Emergency Fund", MonthlyContribution: 2600m, AmountSaved: 70100m),
+                        new("Vacation Fund", MonthlyContribution: 1100m, AmountSaved: 19900m),
+                        new("Home Repair", MonthlyContribution: 800m, AmountSaved: 24100m)
+                    ],
+                    DebtAdjustments =
+                    [
+                        new("Credit Card", Balance: 18800m, MinPayment: 850m),
+                        new("Car Loan", Balance: 99000m)
+                    ]
+                },
+                BudgetMonthCarryOverModes.Full),
+            new(
+                "2026-03",
+                BudgetTimelineScenarioData.Empty with
+                {
+                    SideHustleAmountOverrides =
+                    [
+                        new("Freelance", 6000m)
+                    ],
+                    CreatedDebts =
+                    [
+                        new("Phone Financing",
+                            Type: "installment",
+                            Balance: 3000m,
+                            Apr: 0m,
+                            MonthlyFee: 0m,
+                            MinPayment: null,
+                            TermMonths: 12)
+                    ],
+                    SavingsMonthlyOverride = 3300m,
+                    SavingsGoalAdjustments =
+                    [
+                        new("Emergency Fund", MonthlyContribution: 2300m, AmountSaved: 72400m),
+                        new("Vacation Fund", MonthlyContribution: 900m, AmountSaved: 20800m),
+                        new("Home Repair", MonthlyContribution: 700m, AmountSaved: 24800m)
+                    ],
+                    DebtAdjustments =
+                    [
+                        new("Credit Card", Balance: 18000m, MinPayment: 800m),
+                        new("Car Loan", Balance: 96000m)
+                    ]
+                },
+                BudgetMonthCarryOverModes.Full),
+            new(
+                "2026-04",
+                BudgetTimelineScenarioData.Empty with
+                {
+                    ExpenseAmountOverrides =
+                    [
+                        new("Groceries", 6800m),
+                        new("Utilities", 2300m)
+                    ],
+                    CreatedExpenses =
+                    [
+                        new(BudgetTimelineBaselineData.FixedExpenseCategoryId, "Spring Travel", 7000m),
+                        new(BudgetTimelineBaselineData.FixedExpenseCategoryId, "Garden Supplies", 2200m)
+                    ],
+                    SideHustleAmountOverrides =
+                    [
+                        new("Freelance", 3000m)
+                    ],
+                    CreatedDebts =
+                    [
+                        new("Bike Financing",
+                            Type: "installment",
+                            Balance: 2400m,
+                            Apr: 0m,
+                            MonthlyFee: 0m,
+                            MinPayment: null,
+                            TermMonths: 12)
+                    ],
+                    SavingsMonthlyOverride = 3000m,
+                    SavingsGoalAdjustments =
+                    [
+                        new("Emergency Fund", MonthlyContribution: 2200m, AmountSaved: 74600m),
+                        new("Vacation Fund", MonthlyContribution: 1000m, AmountSaved: 21800m),
+                        new("Home Repair", MonthlyContribution: 800m, AmountSaved: 25600m)
+                    ],
+                    DebtAdjustments =
+                    [
+                        new("Credit Card", Balance: 17250m, MinPayment: 750m),
+                        new("Car Loan", Balance: 93000m)
+                    ]
+                },
+                BudgetMonthCarryOverModes.Full,
+                TargetFinalBalance: LocalDevApril2026OpenFinalBalance)
+        };
+
+        return new BudgetTimelineProfile(
+            Name: "local-dev-year-history",
+            Baseline: baseline,
+            Oldest: BudgetTimelineScenarioData.Empty,
+            Middle: BudgetTimelineScenarioData.Empty,
+            Open: BudgetTimelineScenarioData.Empty,
+            PostCloseInvariantsAsync: VerifyLocalDevYearHistoryInvariantsAsync,
+            TimelineMonths: timeline);
+    }
+
+    private static async Task VerifyLocalDevYearHistoryInvariantsAsync(
+        BudgetTimelineSeedInvariantContext ctx)
+    {
+        var monthCount = await ctx.CountBudgetMonthsAsync();
+        if (monthCount != 13)
+        {
+            throw new InvalidOperationException(
+                $"Local dev year-history seed invariant failed: month count was {monthCount}, expected 13.");
+        }
+
+        var skippedStatus = await ctx.GetBudgetMonthStatusAsync("2025-09");
+        if (skippedStatus != BudgetMonthStatuses.Skipped)
+        {
+            throw new InvalidOperationException(
+                $"Local dev year-history seed invariant failed for 2025-09: status was '{skippedStatus}', expected '{BudgetMonthStatuses.Skipped}'.");
+        }
+
+        var openStatus = await ctx.GetBudgetMonthStatusAsync("2026-04");
+        if (openStatus != BudgetMonthStatuses.Open)
+        {
+            throw new InvalidOperationException(
+                $"Local dev year-history seed invariant failed for 2026-04: status was '{openStatus}', expected '{BudgetMonthStatuses.Open}'.");
+        }
+
+        var juneCarryOver = await ctx.GetCarryOverOutcomeAmountAsync("2025-06");
+        if (juneCarryOver != LocalDevJune2025FinalBalance)
+        {
+            throw new InvalidOperationException(
+                $"Local dev year-history seed invariant failed for 2025-06: carry-over outcome was {juneCarryOver}, expected {LocalDevJune2025FinalBalance}.");
+        }
+
+        var mayCarryOver = await ctx.GetCarryOverOutcomeAmountAsync("2025-05");
+        if (mayCarryOver != 0m)
+        {
+            throw new InvalidOperationException(
+                $"Local dev year-history seed invariant failed for 2025-05: carry-over outcome was {mayCarryOver}, expected 0 for a no-carry-over month.");
+        }
+
+        AssertSnapshotTotals(
+            scenarioName: "Local dev year-history",
+            yearMonth: "2025-04",
+            actual: await ctx.GetSnapshotTotalsAsync("2025-04"),
+            expected: new BudgetTimelineSnapshotTotals(
+                LocalDevApril2025Income,
+                LocalDevApril2025Expenses,
+                LocalDevApril2025Savings,
+                LocalDevApril2025DebtPayments,
+                LocalDevApril2025FinalBalance));
+
+        AssertSnapshotTotals(
+            scenarioName: "Local dev year-history",
+            yearMonth: "2025-06",
+            actual: await ctx.GetSnapshotTotalsAsync("2025-06"),
+            expected: new BudgetTimelineSnapshotTotals(
+                LocalDevJune2025Income,
+                LocalDevJune2025Expenses,
+                LocalDevJune2025Savings,
+                LocalDevJune2025DebtPayments,
+                LocalDevJune2025FinalBalance));
+
+        AssertSnapshotTotals(
+            scenarioName: "Local dev year-history",
+            yearMonth: "2025-12",
+            actual: await ctx.GetSnapshotTotalsAsync("2025-12"),
+            expected: new BudgetTimelineSnapshotTotals(
+                LocalDevDecember2025Income,
+                LocalDevDecember2025Expenses,
+                LocalDevDecember2025Savings,
+                LocalDevDecember2025DebtPayments,
+                LocalDevDecember2025FinalBalance));
+
+        AssertSnapshotTotals(
+            scenarioName: "Local dev year-history",
+            yearMonth: "2026-03",
+            actual: await ctx.GetSnapshotTotalsAsync("2026-03"),
+            expected: new BudgetTimelineSnapshotTotals(
+                LocalDevMarch2026Income,
+                LocalDevMarch2026Expenses,
+                LocalDevMarch2026Savings,
+                LocalDevMarch2026DebtPayments,
+                LocalDevMarch2026FinalBalance));
+
+        var aprilOpenTotals = await ctx.GetComputedTotalsAsync("2026-04");
+        if (aprilOpenTotals.FinalBalanceMonthly != LocalDevApril2026OpenFinalBalance)
+        {
+            throw new InvalidOperationException(
+                $"Local dev year-history seed invariant failed for open 2026-04: computed final balance was {aprilOpenTotals.FinalBalanceMonthly}, expected {LocalDevApril2026OpenFinalBalance}.");
+        }
+
+        var activeSubscriptionTotal = await ctx.SumActiveSubscriptionAmountAsync("2025-12");
+        if (activeSubscriptionTotal != LocalDevDecember2025ActiveSubscriptionTotal)
+        {
+            throw new InvalidOperationException(
+                $"Local dev year-history seed invariant failed for 2025-12: active subscription total was {activeSubscriptionTotal}, expected {LocalDevDecember2025ActiveSubscriptionTotal} with cancelled subscriptions excluded.");
+        }
+    }
 }

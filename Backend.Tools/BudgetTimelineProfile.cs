@@ -1,3 +1,5 @@
+using Backend.Application.DTO.Budget.Months;
+
 internal sealed record BudgetTimelineBaseline(
     BudgetTimelineIncomeSeed Income,
     IReadOnlyList<BudgetTimelineExpenseSeed> Expenses,
@@ -14,7 +16,15 @@ internal sealed record BudgetTimelineProfile(
     BudgetTimelineMonthScenario Oldest,
     BudgetTimelineMonthScenario Middle,
     BudgetTimelineMonthScenario Open,
-    Func<BudgetTimelineSeedInvariantContext, Task>? PostCloseInvariantsAsync = null);
+    Func<BudgetTimelineSeedInvariantContext, Task>? PostCloseInvariantsAsync = null,
+    IReadOnlyList<BudgetTimelineMonthPlan>? TimelineMonths = null);
+
+internal sealed record BudgetTimelineMonthPlan(
+    string YearMonth,
+    BudgetTimelineMonthScenario Scenario,
+    string CarryOverMode = BudgetMonthCarryOverModes.Full,
+    bool CreateSkippedMonthsBefore = false,
+    decimal? TargetFinalBalance = null);
 
 // Hooks the seeder runs after closing the comparable middle month so that
 // scenario-specific math (e.g. paused/cancelled subscriptions excluded from the
@@ -36,7 +46,9 @@ internal sealed record BudgetTimelineSeedInvariantContext(
     Func<string, Task<decimal>> GetSnapshotDebtPaymentsTotalAsync,
     Func<string, Task<decimal>> GetCarryOverOutcomeAmountAsync,
     Func<string, Task<int>> CountActiveSavingsGoalsAsync,
-    Func<string, Task<int>> CountActiveDebtsAsync);
+    Func<string, Task<int>> CountActiveDebtsAsync,
+    Func<Task<int>> CountBudgetMonthsAsync,
+    Func<string, Task<BudgetTimelineSnapshotTotals>> GetComputedTotalsAsync);
 
 internal sealed record BudgetTimelineSnapshotTotals(
     decimal TotalIncomeMonthly,

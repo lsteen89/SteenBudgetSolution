@@ -102,11 +102,12 @@ internal sealed class BudgetTimelineSeeder
 
                 if (openMonthTargetFinalBalance.HasValue)
                 {
-                    await AdjustOpenMonthFinalBalanceAsync(
+                    await AdjustMonthFinalBalanceAsync(
                         open.BudgetMonthId,
                         persoid,
                         openMonthTargetFinalBalance.Value,
                         ParseYearMonthStartUtc(openYm).AddDays(4).AddHours(17),
+                        "E2E Balance Adjustment",
                         ct);
                 }
             },
@@ -135,9 +136,151 @@ internal sealed class BudgetTimelineSeeder
                 CountActiveSavingsGoalsAsync: ym =>
                     CountActiveSavingsGoalsAsync(persoid, ym, ct),
                 CountActiveDebtsAsync: ym =>
-                    CountActiveDebtsAsync(persoid, ym, ct));
+                    CountActiveDebtsAsync(persoid, ym, ct),
+                CountBudgetMonthsAsync: () =>
+                    CountBudgetMonthsAsync(persoid, ct),
+                GetComputedTotalsAsync: ym =>
+                    GetComputedTotalsAsync(persoid, ym, ct));
 
             await resolvedProfile.PostCloseInvariantsAsync(invariantContext);
+        }
+    }
+
+    public async Task SeedTimelineAsync(
+        Guid persoid,
+        BudgetTimelineProfile profile,
+        CancellationToken ct)
+    {
+        if (profile.TimelineMonths is null || profile.TimelineMonths.Count == 0)
+        {
+            throw new InvalidOperationException(
+                $"Budget timeline profile '{profile.Name}' does not define timeline months.");
+        }
+
+        ValidateTimeline(profile);
+
+        Guid budgetId = Guid.Empty;
+
+        await RunInTransactionAsync(
+            async () =>
+            {
+                budgetId = await EnsureBaselineBudgetAsync(persoid, profile.Baseline, ct);
+                await EnsureNoExistingMonthsAsync(budgetId, ct);
+            },
+            ct);
+
+        BudgetTimelineMonthPlan? previousPlan = null;
+        Guid lastClosedBudgetMonthId = Guid.Empty;
+        string? lastClosedYearMonth = null;
+
+        foreach (var plan in profile.TimelineMonths)
+        {
+            var closePreviousOpenMonth = previousPlan is not null;
+            var carryOverMode = closePreviousOpenMonth
+                ? plan.CarryOverMode
+                : BudgetMonthCarryOverModes.None;
+
+            await StartMonthAsync(
+                persoid,
+                plan.YearMonth,
+                closePreviousOpenMonth,
+                carryOverMode,
+                ct,
+                plan.CreateSkippedMonthsBefore);
+
+            if (previousPlan is not null)
+            {
+                lastClosedYearMonth = previousPlan.YearMonth;
+                lastClosedBudgetMonthId = await GetBudgetMonthIdRequiredAsync(
+                    persoid,
+                    previousPlan.YearMonth,
+                    ct);
+            }
+
+            await RunInTransactionAsync(
+                async () =>
+                {
+                    var month = await EnsureMaterializedMonthAsync(persoid, plan.YearMonth, ct);
+                    await ApplyMonthScenarioAsync(month.BudgetMonthId, persoid, plan.YearMonth, plan.Scenario, ct);
+
+                    if (plan.TargetFinalBalance.HasValue)
+                    {
+                        await AdjustMonthFinalBalanceAsync(
+                            month.BudgetMonthId,
+                            persoid,
+                            plan.TargetFinalBalance.Value,
+                            ParseYearMonthStartUtc(plan.YearMonth).AddDays(4).AddHours(17),
+                            "Local Dev Balance Adjustment",
+                            ct);
+                    }
+                },
+                ct);
+
+            previousPlan = plan;
+        }
+
+        if (profile.PostCloseInvariantsAsync is not null && lastClosedYearMonth is not null)
+        {
+            var invariantContext = new BudgetTimelineSeedInvariantContext(
+                Persoid: persoid,
+                BudgetMonthId: lastClosedBudgetMonthId,
+                YearMonth: lastClosedYearMonth,
+                SumActiveSubscriptionAmountAsync: ym =>
+                    SumActiveSubscriptionAmountAsync(persoid, ym, ct),
+                GetSnapshotTotalsAsync: ym =>
+                    GetSnapshotTotalsAsync(persoid, ym, ct),
+                GetBudgetMonthStatusAsync: ym =>
+                    GetBudgetMonthStatusAsync(persoid, ym, ct),
+                GetPreviousComparableYearMonthAsync: ym =>
+                    GetPreviousComparableYearMonthAsync(persoid, ym, ct),
+                GetSnapshotSavingsTotalAsync: ym =>
+                    GetSnapshotSavingsTotalAsync(persoid, ym, ct),
+                GetSnapshotDebtPaymentsTotalAsync: ym =>
+                    GetSnapshotDebtPaymentsTotalAsync(persoid, ym, ct),
+                GetCarryOverOutcomeAmountAsync: ym =>
+                    GetCarryOverOutcomeAmountAsync(persoid, ym, ct),
+                CountActiveSavingsGoalsAsync: ym =>
+                    CountActiveSavingsGoalsAsync(persoid, ym, ct),
+                CountActiveDebtsAsync: ym =>
+                    CountActiveDebtsAsync(persoid, ym, ct),
+                CountBudgetMonthsAsync: () =>
+                    CountBudgetMonthsAsync(persoid, ct),
+                GetComputedTotalsAsync: ym =>
+                    GetComputedTotalsAsync(persoid, ym, ct));
+
+            await profile.PostCloseInvariantsAsync(invariantContext);
+        }
+    }
+
+    private static void ValidateTimeline(BudgetTimelineProfile profile)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        string? previousYearMonth = null;
+
+        foreach (var plan in profile.TimelineMonths!)
+        {
+            _ = ParseYearMonthStartUtc(plan.YearMonth);
+
+            if (!seen.Add(plan.YearMonth))
+            {
+                throw new InvalidOperationException(
+                    $"Budget timeline profile '{profile.Name}' contains duplicate month '{plan.YearMonth}'.");
+            }
+
+            if (plan.CarryOverMode is not (BudgetMonthCarryOverModes.None or BudgetMonthCarryOverModes.Full))
+            {
+                throw new InvalidOperationException(
+                    $"Budget timeline profile '{profile.Name}' uses unsupported carry-over mode '{plan.CarryOverMode}' for '{plan.YearMonth}'.");
+            }
+
+            if (previousYearMonth is not null &&
+                string.CompareOrdinal(previousYearMonth, plan.YearMonth) >= 0)
+            {
+                throw new InvalidOperationException(
+                    $"Budget timeline profile '{profile.Name}' must list months in ascending order.");
+            }
+
+            previousYearMonth = plan.YearMonth;
         }
     }
 
@@ -679,18 +822,19 @@ internal sealed class BudgetTimelineSeeder
         }
     }
 
-    private async Task AdjustOpenMonthFinalBalanceAsync(
+    private async Task AdjustMonthFinalBalanceAsync(
         Guid budgetMonthId,
         Guid actorPersoid,
         decimal targetFinalBalance,
         DateTime changedAtUtc,
+        string adjustmentExpenseName,
         CancellationToken ct)
     {
         var snapshot = await _closeSnapshot.ComputeAsync(budgetMonthId, carryOverAmount: 0m, ct);
         if (snapshot is null)
         {
             throw new InvalidOperationException(
-                $"Could not compute E2E final balance for month {budgetMonthId}.");
+                $"Could not compute seed final balance for month {budgetMonthId}.");
         }
 
         var adjustmentExpense = Math.Round(
@@ -701,7 +845,7 @@ internal sealed class BudgetTimelineSeeder
         if (adjustmentExpense < 0m)
         {
             throw new InvalidOperationException(
-                $"E2E target balance {targetFinalBalance} is above current final balance {snapshot.FinalBalance}; seed adjustment only supports adding expenses.");
+                $"Seed target balance {targetFinalBalance} is above current final balance {snapshot.FinalBalance}; seed adjustment only supports adding expenses.");
         }
 
         if (adjustmentExpense > 0m)
@@ -710,7 +854,7 @@ internal sealed class BudgetTimelineSeeder
                 budgetMonthId,
                 actorPersoid,
                 BudgetTimelineBaselineData.FixedExpenseCategoryId,
-                "E2E Balance Adjustment",
+                adjustmentExpenseName,
                 adjustmentExpense,
                 isActive: true,
                 changedAtUtc,
@@ -721,7 +865,7 @@ internal sealed class BudgetTimelineSeeder
         if (updatedSnapshot is null || Math.Abs(updatedSnapshot.FinalBalance - targetFinalBalance) > 0.01m)
         {
             throw new InvalidOperationException(
-                $"E2E final balance adjustment failed. Target={targetFinalBalance}, Actual={updatedSnapshot?.FinalBalance}.");
+                $"Seed final balance adjustment failed. Target={targetFinalBalance}, Actual={updatedSnapshot?.FinalBalance}.");
         }
     }
 
@@ -1926,6 +2070,82 @@ internal sealed class BudgetTimelineSeeder
                 ["YearMonth"] = yearMonth
             },
             ct);
+    }
+
+    private async Task<Guid> GetBudgetMonthIdRequiredAsync(
+        Guid persoid,
+        string yearMonth,
+        CancellationToken ct)
+    {
+        var budgetMonthId = await QueryGuidAsync(
+            @"SELECT m.Id
+              FROM BudgetMonth m
+              JOIN Budget b ON b.Id = m.BudgetId
+              WHERE b.Persoid = @Persoid
+                AND m.YearMonth = @YearMonth
+              LIMIT 1;",
+            new Dictionary<string, object?>
+            {
+                ["Persoid"] = persoid,
+                ["YearMonth"] = yearMonth
+            },
+            ct);
+
+        if (budgetMonthId is null)
+        {
+            throw new InvalidOperationException(
+                $"Could not find budget month '{yearMonth}' for seeded user.");
+        }
+
+        return budgetMonthId.Value;
+    }
+
+    private async Task<int> CountBudgetMonthsAsync(
+        Guid persoid,
+        CancellationToken ct)
+    {
+        return await QueryIntAsync(
+            @"SELECT COUNT(*)
+              FROM BudgetMonth m
+              JOIN Budget b ON b.Id = m.BudgetId
+              WHERE b.Persoid = @Persoid;",
+            new Dictionary<string, object?>
+            {
+                ["Persoid"] = persoid
+            },
+            ct);
+    }
+
+    private async Task<BudgetTimelineSnapshotTotals> GetComputedTotalsAsync(
+        Guid persoid,
+        string yearMonth,
+        CancellationToken ct)
+    {
+        var budgetMonthId = await GetBudgetMonthIdRequiredAsync(persoid, yearMonth, ct);
+        var carryOverAmount = await QueryDecimalAsync(
+            @"SELECT COALESCE(m.CarryOverAmount, 0)
+              FROM BudgetMonth m
+              WHERE m.Id = @BudgetMonthId
+              LIMIT 1;",
+            new Dictionary<string, object?>
+            {
+                ["BudgetMonthId"] = budgetMonthId
+            },
+            ct);
+
+        var snapshot = await _closeSnapshot.ComputeAsync(budgetMonthId, carryOverAmount, ct);
+        if (snapshot is null)
+        {
+            throw new InvalidOperationException(
+                $"Could not compute totals for budget month '{yearMonth}'.");
+        }
+
+        return new BudgetTimelineSnapshotTotals(
+            TotalIncomeMonthly: snapshot.TotalIncome,
+            TotalExpensesMonthly: snapshot.TotalExpenses,
+            TotalSavingsMonthly: snapshot.TotalSavings,
+            TotalDebtPaymentsMonthly: snapshot.TotalDebtPayments,
+            FinalBalanceMonthly: snapshot.FinalBalance);
     }
 
     private async Task<string?> GetPreviousComparableYearMonthAsync(

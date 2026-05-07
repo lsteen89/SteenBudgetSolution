@@ -48,18 +48,29 @@ DevSeedUser[] usersOnlySeed =
         LastName: "Month")
 ];
 
-DevSeedUser[] budgetSeed =
+LocalBudgetSeedUser[] budgetSeed =
 [
     new(
-        Email: "budgetdemo@local.test",
-        Password: DevSeedPassword,
-        FirstName: "Budget",
-        LastName: "Demo"),
+        User: new DevSeedUser(
+            Email: "budgetdemo@local.test",
+            Password: DevSeedPassword,
+            FirstName: "Budget",
+            LastName: "Demo"),
+        Profile: null),
     new(
-        Email: "closemonth@local.test",
-        Password: DevSeedPassword,
-        FirstName: "Close",
-        LastName: "Month")
+        User: new DevSeedUser(
+            Email: "closemonth@local.test",
+            Password: DevSeedPassword,
+            FirstName: "Close",
+            LastName: "Month"),
+        Profile: null),
+    new(
+        User: new DevSeedUser(
+            Email: "devhistory@local.test",
+            Password: DevSeedPassword,
+            FirstName: "Dev",
+            LastName: "History"),
+        Profile: BudgetTimelineProfiles.LocalDevYearHistory)
 ];
 
 E2eSeedUser[] e2eSeed =
@@ -191,11 +202,10 @@ root.AddCommand(CreateFixedSeedCommand(
     description: "Seed the fixed local-dev demo users.",
     users: usersOnlySeed,
     includeBudget: false));
-root.AddCommand(CreateFixedSeedCommand(
+root.AddCommand(CreateFixedBudgetSeedCommand(
     name: "seed-users-with-budget",
-    description: "Seed the fixed local-dev budget demo users with baseline budget data and a fixed 3-month timeline.",
-    users: budgetSeed,
-    includeBudget: true));
+    description: "Seed the fixed local-dev budget demo users with baseline budget data and deterministic budget timelines.",
+    users: budgetSeed));
 root.AddCommand(CreateE2eSeedCommand());
 root.AddCommand(CreateSeedCommand(
     name: "seed-user",
@@ -310,6 +320,33 @@ Command CreateFixedSeedCommand(string name, string description, IReadOnlyList<De
         Console.WriteLine(includeBudget
             ? $"Seeded fixed budget timeline ending in open month {DefaultBudgetOpenYearMonth}."
             : "Seeded fixed local-dev users.");
+    });
+
+    return command;
+}
+
+Command CreateFixedBudgetSeedCommand(string name, string description, IReadOnlyList<LocalBudgetSeedUser> users)
+{
+    var command = new Command(name, description);
+
+    command.SetHandler(async () =>
+    {
+        await using var scope = serviceProvider.CreateAsyncScope();
+
+        Console.WriteLine($"Running {name} with {users.Count} fixed local-dev budget account(s).");
+
+        foreach (var seed in users)
+        {
+            await SeedOneUserAsync(
+                scope.ServiceProvider,
+                seed.User,
+                true,
+                DefaultBudgetOpenYearMonth,
+                CancellationToken.None,
+                profile: seed.Profile);
+        }
+
+        Console.WriteLine($"Seeded fixed local-dev budget timelines ending in open month {DefaultBudgetOpenYearMonth}.");
     });
 
     return command;
@@ -436,15 +473,28 @@ async Task SeedOneUserAsync(
         ct);
 
     var monthSeeder = services.GetRequiredService<BudgetTimelineSeeder>();
-    await monthSeeder.SeedThreeMonthTimelineAsync(
-        user.PersoId,
-        openYearMonth,
-        ct,
-        openMonthTargetFinalBalance,
-        profile);
+    if (profile?.TimelineMonths is { Count: > 0 })
+    {
+        await monthSeeder.SeedTimelineAsync(
+            user.PersoId,
+            profile,
+            ct);
+    }
+    else
+    {
+        await monthSeeder.SeedThreeMonthTimelineAsync(
+            user.PersoId,
+            openYearMonth,
+            ct,
+            openMonthTargetFinalBalance,
+            profile);
+    }
 
     var profileLabel = profile is null ? "default" : profile.Name;
-    Console.WriteLine($"Seeded budget data for {seedUser.Email} (profile={profileLabel}): 2 closed months + 1 skipped month + open month {openYearMonth}.");
+    var timelineLabel = profile?.TimelineMonths is { Count: > 0 }
+        ? "11 closed months + 1 skipped month + open month 2026-04"
+        : $"2 closed months + 1 skipped month + open month {openYearMonth}";
+    Console.WriteLine($"Seeded budget data for {seedUser.Email} (profile={profileLabel}): {timelineLabel}.");
     Console.WriteLine($"Set Users.FirstLogin = 0 for {seedUser.Email} so the dashboard skips the setup wizard.");
 }
 
@@ -495,6 +545,10 @@ internal sealed record DevSeedUser(
     string Password,
     string FirstName,
     string LastName);
+
+internal sealed record LocalBudgetSeedUser(
+    DevSeedUser User,
+    BudgetTimelineProfile? Profile);
 
 internal sealed record E2eSeedUser(
     DevSeedUser User,
