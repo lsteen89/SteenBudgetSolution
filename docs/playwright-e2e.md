@@ -180,6 +180,7 @@ Seeded users:
 | `e2e-recap-savings-debt@local.test`    | `ChangeMe123!` | Dashboard-ready user; closed `2026-03` recap exercises savings goal + debt deltas, current-only month rows, and ordering cues  |
 | `e2e-recap-sankey-stress@local.test`   | `ChangeMe123!` | Dashboard-ready user; closed `2026-03` recap exercises large Sankey totals, carry-over outcome display, long/current-only/previous-only expense categories, and top increase drivers |
 | `e2e-recap-first-closed@local.test`    | `ChangeMe123!` | Dashboard-ready user; closed `2026-01` recap exercises first-closed-month behavior with no previous comparable month, active subscriptions, savings/debt rows without deltas, and no carry-over |
+| `e2e-recap-comparison-skip@local.test` | `ChangeMe123!` | Dashboard-ready user; closed `2026-03` recap compares against `2026-01` while skipped `2026-02` is ignored; includes obvious snapshot, category, savings, and debt deltas |
 
 All dashboard-ready E2E users share the same month timeline:
 
@@ -195,6 +196,7 @@ Focused full-project recap checks can be run with a grep against the seeded scen
 ```bash
 ./scripts/playwright-e2e.sh test --project=full --grep "recap-sankey-stress"
 ./scripts/playwright-e2e.sh test --project=full --grep "first closed recap"
+./scripts/playwright-e2e.sh test --project=full --grep "comparison skip"
 ```
 
 ## Reset model

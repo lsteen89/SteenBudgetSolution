@@ -30,6 +30,8 @@ internal sealed record BudgetTimelineSeedInvariantContext(
     string YearMonth,
     Func<string, Task<decimal>> SumActiveSubscriptionAmountAsync,
     Func<string, Task<BudgetTimelineSnapshotTotals>> GetSnapshotTotalsAsync,
+    Func<string, Task<string?>> GetBudgetMonthStatusAsync,
+    Func<string, Task<string?>> GetPreviousComparableYearMonthAsync,
     Func<string, Task<decimal>> GetSnapshotSavingsTotalAsync,
     Func<string, Task<decimal>> GetSnapshotDebtPaymentsTotalAsync,
     Func<string, Task<decimal>> GetCarryOverOutcomeAmountAsync,

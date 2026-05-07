@@ -122,6 +122,10 @@ internal sealed class BudgetTimelineSeeder
                     SumActiveSubscriptionAmountAsync(persoid, ym, ct),
                 GetSnapshotTotalsAsync: ym =>
                     GetSnapshotTotalsAsync(persoid, ym, ct),
+                GetBudgetMonthStatusAsync: ym =>
+                    GetBudgetMonthStatusAsync(persoid, ym, ct),
+                GetPreviousComparableYearMonthAsync: ym =>
+                    GetPreviousComparableYearMonthAsync(persoid, ym, ct),
                 GetSnapshotSavingsTotalAsync: ym =>
                     GetSnapshotSavingsTotalAsync(persoid, ym, ct),
                 GetSnapshotDebtPaymentsTotalAsync: ym =>
@@ -1902,6 +1906,55 @@ internal sealed class BudgetTimelineSeeder
         }
 
         return row;
+    }
+
+    private async Task<string?> GetBudgetMonthStatusAsync(
+        Guid persoid,
+        string yearMonth,
+        CancellationToken ct)
+    {
+        return await QueryStringAsync(
+            @"SELECT m.Status
+              FROM BudgetMonth m
+              JOIN Budget b ON b.Id = m.BudgetId
+              WHERE b.Persoid = @Persoid
+                AND m.YearMonth = @YearMonth
+              LIMIT 1;",
+            new Dictionary<string, object?>
+            {
+                ["Persoid"] = persoid,
+                ["YearMonth"] = yearMonth
+            },
+            ct);
+    }
+
+    private async Task<string?> GetPreviousComparableYearMonthAsync(
+        Guid persoid,
+        string yearMonth,
+        CancellationToken ct)
+    {
+        return await QueryStringAsync(
+            @"SELECT previousMonth.YearMonth
+              FROM BudgetMonth currentMonth
+              JOIN Budget b ON b.Id = currentMonth.BudgetId
+              JOIN BudgetMonth previousMonth ON previousMonth.BudgetId = currentMonth.BudgetId
+              WHERE b.Persoid = @Persoid
+                AND currentMonth.YearMonth = @YearMonth
+                AND previousMonth.YearMonth < currentMonth.YearMonth
+                AND previousMonth.Status = 'closed'
+                AND previousMonth.SnapshotTotalIncomeMonthly IS NOT NULL
+                AND previousMonth.SnapshotTotalExpensesMonthly IS NOT NULL
+                AND previousMonth.SnapshotTotalSavingsMonthly IS NOT NULL
+                AND previousMonth.SnapshotTotalDebtPaymentsMonthly IS NOT NULL
+                AND previousMonth.SnapshotFinalBalanceMonthly IS NOT NULL
+              ORDER BY previousMonth.YearMonth DESC
+              LIMIT 1;",
+            new Dictionary<string, object?>
+            {
+                ["Persoid"] = persoid,
+                ["YearMonth"] = yearMonth
+            },
+            ct);
     }
 
     private async Task<BudgetTimelineSnapshotTotals?> QuerySnapshotTotalsAsync(

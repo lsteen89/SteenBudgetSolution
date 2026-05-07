@@ -131,7 +131,16 @@ E2eSeedUser[] e2eSeed =
             LastName: "RecapFirstClosed"),
         IncludeBudget: true,
         OpenMonthTargetFinalBalance: null,
-        Profile: BudgetTimelineProfiles.RecapFirstClosed)
+        Profile: BudgetTimelineProfiles.RecapFirstClosed),
+    new(
+        User: new DevSeedUser(
+            Email: "e2e-recap-comparison-skip@local.test",
+            Password: DevSeedPassword,
+            FirstName: "E2E",
+            LastName: "RecapComparisonSkip"),
+        IncludeBudget: true,
+        OpenMonthTargetFinalBalance: null,
+        Profile: BudgetTimelineProfiles.RecapComparisonSkip)
 ];
 
 var isE2eSeedCommand = args.Any(arg => string.Equals(arg, SeedE2eCommandName, StringComparison.OrdinalIgnoreCase));

@@ -418,6 +418,209 @@ internal static class BudgetTimelineProfiles
         }
     }
 
+    // Recap comparison-skip profile
+    //
+    // Drives a closed-month recap where 2026-02 is deliberately skipped, so
+    // 2026-03 must compare against the previous comparable closed month
+    // 2026-01. The March deltas are intentionally easy to see:
+    //   - income increases from consulting
+    //   - Housing increases
+    //   - Subscription decreases via a previous-only removed cost
+    //   - Food decreases while also containing a current-only row
+    //   - Emergency Fund and Credit Card keep source identities with deltas
+    public static BudgetTimelineProfile RecapComparisonSkip { get; } = BuildRecapComparisonSkipProfile();
+
+    private const decimal RecapComparisonSkipJanuaryIncome = 42000m;
+    private const decimal RecapComparisonSkipJanuaryExpenses = 20500m;
+    private const decimal RecapComparisonSkipJanuarySavings = 3500m;
+    private const decimal RecapComparisonSkipJanuaryDebtPayments = 2500m;
+    private const decimal RecapComparisonSkipJanuaryFinalBalance = 15500m;
+
+    private const decimal RecapComparisonSkipMarchIncome = 43500m;
+    private const decimal RecapComparisonSkipMarchExpenses = 19950m;
+    private const decimal RecapComparisonSkipMarchSavings = 4800m;
+    private const decimal RecapComparisonSkipMarchDebtPayments = 2300m;
+    private const decimal RecapComparisonSkipMarchFinalBalance = 16450m;
+
+    private static BudgetTimelineProfile BuildRecapComparisonSkipProfile()
+    {
+        var baseline = new BudgetTimelineBaseline(
+            Income: new BudgetTimelineIncomeSeed(
+                NetSalaryMonthly: 40000m,
+                SalaryFrequency: Frequency.Monthly,
+                IncomePaymentDayType: "dayOfMonth",
+                IncomePaymentDay: 25,
+                SideHustles:
+                [
+                    new BudgetTimelineIncomeEntrySeed(
+                        "Consulting",
+                        2000m,
+                        Frequency.Monthly)
+                ],
+                HouseholdMembers: Array.Empty<BudgetTimelineIncomeEntrySeed>()),
+            Expenses:
+            [
+                new(BudgetTimelineBaselineData.HousingCategoryId, "Rent", 12000m),
+                new(BudgetTimelineBaselineData.FoodCategoryId, "Groceries", 5000m),
+                new(BudgetTimelineBaselineData.TransportCategoryId, "Transport Pass", 1500m),
+                new(BudgetTimelineBaselineData.FixedExpenseCategoryId, "Insurance", 1000m),
+                new(BudgetTimelineBaselineData.SubscriptionCategoryId, "Streaming Plus", 300m),
+                new(BudgetTimelineBaselineData.SubscriptionCategoryId, "Old Fitness", 700m)
+            ],
+            Savings: new BudgetTimelineSavingsSeed(
+                MonthlySavings: 2000m,
+                Goals:
+                [
+                    new BudgetTimelineSavingsGoalSeed(
+                        Name: "Emergency Fund",
+                        TargetAmount: 80000m,
+                        TargetMonthOffset: 24,
+                        AmountSaved: 20000m,
+                        MonthlyContribution: 1000m),
+                    new BudgetTimelineSavingsGoalSeed(
+                        Name: "Holiday Fund",
+                        TargetAmount: 18000m,
+                        TargetMonthOffset: 10,
+                        AmountSaved: 4500m,
+                        MonthlyContribution: 500m)
+                ]),
+            Debts:
+            [
+                new("Credit Card", "revolving", 14000m, 18m, 100m, 900m, null),
+                new("Car Loan", "revolving", 60000m, 7m, 0m, 1500m, null)
+            ]);
+
+        var middle = BudgetTimelineScenarioData.Empty with
+        {
+            ExpenseAmountOverrides =
+            [
+                new("Rent", 12500m),
+                new("Groceries", 3600m),
+                new("Streaming Plus", 450m)
+            ],
+            CreatedExpenses =
+            [
+                new(BudgetTimelineBaselineData.FoodCategoryId, "Meal Kit", 900m)
+            ],
+            DeletedExpenses =
+            [
+                "Old Fitness"
+            ],
+            SideHustleAmountOverrides =
+            [
+                new("Consulting", 3500m)
+            ],
+            SavingsMonthlyOverride = 2500m,
+            SavingsGoalAdjustments =
+            [
+                new("Emergency Fund", MonthlyContribution: 1600m, AmountSaved: 21600m),
+                new("Holiday Fund", MonthlyContribution: 300m, AmountSaved: 4800m)
+            ],
+            CreatedSavingsGoals =
+            [
+                new(
+                    "March Buffer",
+                    MonthlyContribution: 400m,
+                    TargetAmount: 12000m,
+                    TargetMonthOffset: 8,
+                    AmountSaved: 400m)
+            ],
+            DebtAdjustments =
+            [
+                new("Credit Card", MinPayment: 1200m),
+                new("Car Loan", MinPayment: 1000m)
+            ]
+        };
+
+        return new BudgetTimelineProfile(
+            Name: "recap-comparison-skip",
+            Baseline: baseline,
+            Oldest: BudgetTimelineScenarioData.Empty,
+            Middle: middle,
+            Open: BudgetTimelineScenarioData.Empty,
+            PostCloseInvariantsAsync: VerifyRecapComparisonSkipInvariantsAsync);
+    }
+
+    private static async Task VerifyRecapComparisonSkipInvariantsAsync(
+        BudgetTimelineSeedInvariantContext ctx)
+    {
+        var januaryYearMonth = ParseSeedYearMonth(ctx.YearMonth)
+            .AddMonths(-2)
+            .ToString("yyyy-MM", CultureInfo.InvariantCulture);
+        var skippedYearMonth = ParseSeedYearMonth(ctx.YearMonth)
+            .AddMonths(-1)
+            .ToString("yyyy-MM", CultureInfo.InvariantCulture);
+
+        var skippedStatus = await ctx.GetBudgetMonthStatusAsync(skippedYearMonth);
+        if (skippedStatus != BudgetMonthStatuses.Skipped)
+        {
+            throw new InvalidOperationException(
+                $"Recap comparison-skip seed invariant failed for {skippedYearMonth}: " +
+                $"status was '{skippedStatus}', expected '{BudgetMonthStatuses.Skipped}'.");
+        }
+
+        var previousComparableYearMonth = await ctx.GetPreviousComparableYearMonthAsync(ctx.YearMonth);
+        if (previousComparableYearMonth != januaryYearMonth)
+        {
+            throw new InvalidOperationException(
+                $"Recap comparison-skip seed invariant failed for {ctx.YearMonth}: " +
+                $"previous comparable month was '{previousComparableYearMonth}', expected '{januaryYearMonth}'.");
+        }
+
+        var januaryTotals = await ctx.GetSnapshotTotalsAsync(januaryYearMonth);
+        AssertSnapshotTotals(
+            scenarioName: "Recap comparison-skip",
+            yearMonth: januaryYearMonth,
+            actual: januaryTotals,
+            expected: new BudgetTimelineSnapshotTotals(
+                RecapComparisonSkipJanuaryIncome,
+                RecapComparisonSkipJanuaryExpenses,
+                RecapComparisonSkipJanuarySavings,
+                RecapComparisonSkipJanuaryDebtPayments,
+                RecapComparisonSkipJanuaryFinalBalance));
+
+        var marchTotals = await ctx.GetSnapshotTotalsAsync(ctx.YearMonth);
+        AssertSnapshotTotals(
+            scenarioName: "Recap comparison-skip",
+            yearMonth: ctx.YearMonth,
+            actual: marchTotals,
+            expected: new BudgetTimelineSnapshotTotals(
+                RecapComparisonSkipMarchIncome,
+                RecapComparisonSkipMarchExpenses,
+                RecapComparisonSkipMarchSavings,
+                RecapComparisonSkipMarchDebtPayments,
+                RecapComparisonSkipMarchFinalBalance));
+    }
+
+    private static void AssertSnapshotTotals(
+        string scenarioName,
+        string yearMonth,
+        BudgetTimelineSnapshotTotals actual,
+        BudgetTimelineSnapshotTotals expected)
+    {
+        if (actual.TotalIncomeMonthly == expected.TotalIncomeMonthly &&
+            actual.TotalExpensesMonthly == expected.TotalExpensesMonthly &&
+            actual.TotalSavingsMonthly == expected.TotalSavingsMonthly &&
+            actual.TotalDebtPaymentsMonthly == expected.TotalDebtPaymentsMonthly &&
+            actual.FinalBalanceMonthly == expected.FinalBalanceMonthly)
+        {
+            return;
+        }
+
+        throw new InvalidOperationException(
+            $"{scenarioName} seed invariant failed for {yearMonth}: " +
+            $"snapshot totals were income={actual.TotalIncomeMonthly}, " +
+            $"expenses={actual.TotalExpensesMonthly}, " +
+            $"savings={actual.TotalSavingsMonthly}, " +
+            $"debtPayments={actual.TotalDebtPaymentsMonthly}, " +
+            $"finalBalance={actual.FinalBalanceMonthly}. Expected " +
+            $"income={expected.TotalIncomeMonthly}, " +
+            $"expenses={expected.TotalExpensesMonthly}, " +
+            $"savings={expected.TotalSavingsMonthly}, " +
+            $"debtPayments={expected.TotalDebtPaymentsMonthly}, " +
+            $"finalBalance={expected.FinalBalanceMonthly}.");
+    }
+
     private static DateTime ParseSeedYearMonth(string yearMonth)
         => DateTime.ParseExact(
             $"{yearMonth}-01",
