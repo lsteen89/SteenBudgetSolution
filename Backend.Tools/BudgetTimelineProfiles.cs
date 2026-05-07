@@ -1,3 +1,4 @@
+using System.Globalization;
 using Backend.Application.DTO.Budget.Months;
 using Backend.Domain.Enums;
 
@@ -310,6 +311,119 @@ internal static class BudgetTimelineProfiles
                 "expected a positive value (Credit Card + Student Loan + Phone Financing).");
         }
     }
+
+    // Recap first-closed profile
+    //
+    // Drives the first closed month recap at 2026-01 where no previous closed
+    // comparable month exists. January intentionally closes balanced so the
+    // existing full carry-over transition records an outcome amount of 0:
+    //   - snapshot totals render with a 0 final balance
+    //   - expense categories render current amounts without previous values
+    //   - baseline subscriptions are active, not new
+    //   - savings/debt detail rows have no previous-month delta cues
+    //   - carry-over outcome reads as no carry-over
+    public static BudgetTimelineProfile RecapFirstClosed { get; } = BuildRecapFirstClosedProfile();
+
+    private const decimal RecapFirstClosedSubscriptionsTotal = 500m;
+
+    private static BudgetTimelineProfile BuildRecapFirstClosedProfile()
+    {
+        var baseline = new BudgetTimelineBaseline(
+            Income: new BudgetTimelineIncomeSeed(
+                NetSalaryMonthly: 12000m,
+                SalaryFrequency: Frequency.Monthly,
+                IncomePaymentDayType: "dayOfMonth",
+                IncomePaymentDay: 25,
+                SideHustles: Array.Empty<BudgetTimelineIncomeEntrySeed>(),
+                HouseholdMembers: Array.Empty<BudgetTimelineIncomeEntrySeed>()),
+            Expenses:
+            [
+                new(BudgetTimelineBaselineData.HousingCategoryId, "Starter Rent", 4800m),
+                new(BudgetTimelineBaselineData.FoodCategoryId, "Groceries", 1400m),
+                new(BudgetTimelineBaselineData.SubscriptionCategoryId, "Streaming Essentials", 300m),
+                new(BudgetTimelineBaselineData.SubscriptionCategoryId, "Cloud Backup", 200m)
+            ],
+            Savings: new BudgetTimelineSavingsSeed(
+                MonthlySavings: 1000m,
+                Goals:
+                [
+                    new BudgetTimelineSavingsGoalSeed(
+                        Name: "Emergency Buffer",
+                        TargetAmount: 30000m,
+                        TargetMonthOffset: 18,
+                        AmountSaved: 6000m,
+                        MonthlyContribution: 1500m)
+                ]),
+            Debts:
+            [
+                new("Starter Credit Card", "revolving", 6000m, 15m, 0m, 2800m, null)
+            ]);
+
+        return new BudgetTimelineProfile(
+            Name: "recap-first-closed",
+            Baseline: baseline,
+            Oldest: BudgetTimelineScenarioData.Empty,
+            Middle: BudgetTimelineScenarioData.Empty,
+            Open: BudgetTimelineScenarioData.Empty,
+            PostCloseInvariantsAsync: VerifyRecapFirstClosedInvariantsAsync);
+    }
+
+    private static async Task VerifyRecapFirstClosedInvariantsAsync(
+        BudgetTimelineSeedInvariantContext ctx)
+    {
+        var firstClosedYearMonth = ParseSeedYearMonth(ctx.YearMonth)
+            .AddMonths(-2)
+            .ToString("yyyy-MM", CultureInfo.InvariantCulture);
+        var totals = await ctx.GetSnapshotTotalsAsync(firstClosedYearMonth);
+
+        if (totals.FinalBalanceMonthly != 0m)
+        {
+            throw new InvalidOperationException(
+                $"Recap first-closed seed invariant failed for {firstClosedYearMonth}: " +
+                $"final balance snapshot was {totals.FinalBalanceMonthly}, expected 0 " +
+                "so the first closed month displays no carry-over.");
+        }
+
+        var carryOverAmount = await ctx.GetCarryOverOutcomeAmountAsync(firstClosedYearMonth);
+        if (carryOverAmount != 0m)
+        {
+            throw new InvalidOperationException(
+                $"Recap first-closed seed invariant failed for {firstClosedYearMonth}: " +
+                $"carry-over outcome was {carryOverAmount}, expected 0.");
+        }
+
+        var activeSubscriptionTotal = await ctx.SumActiveSubscriptionAmountAsync(firstClosedYearMonth);
+        if (activeSubscriptionTotal != RecapFirstClosedSubscriptionsTotal)
+        {
+            throw new InvalidOperationException(
+                $"Recap first-closed seed invariant failed for {firstClosedYearMonth}: " +
+                $"active subscription total was {activeSubscriptionTotal}, " +
+                $"expected {RecapFirstClosedSubscriptionsTotal}.");
+        }
+
+        var savingsGoalCount = await ctx.CountActiveSavingsGoalsAsync(firstClosedYearMonth);
+        if (savingsGoalCount != 1)
+        {
+            throw new InvalidOperationException(
+                $"Recap first-closed seed invariant failed for {firstClosedYearMonth}: " +
+                $"active savings goal count was {savingsGoalCount}, expected 1.");
+        }
+
+        var debtCount = await ctx.CountActiveDebtsAsync(firstClosedYearMonth);
+        if (debtCount != 1)
+        {
+            throw new InvalidOperationException(
+                $"Recap first-closed seed invariant failed for {firstClosedYearMonth}: " +
+                $"active debt count was {debtCount}, expected 1.");
+        }
+    }
+
+    private static DateTime ParseSeedYearMonth(string yearMonth)
+        => DateTime.ParseExact(
+            $"{yearMonth}-01",
+            "yyyy-MM-dd",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
 
     // Recap Sankey/category stress profile
     //
