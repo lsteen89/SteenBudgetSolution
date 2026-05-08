@@ -25,6 +25,10 @@ export const closeMonthReviewModalDict = {
       "Granska inkomster, utgifter eller sparande och skulder innan du stänger, eller lås månaden och behåll resultatet i ögonblicksbilden.",
 
     checklistTitle: "Är dina siffror uppdaterade?",
+    incomingCarryOverLabel: "Ingående överföring",
+    incomeLabel: "Inkomster",
+    expensesLabel: "Utgifter",
+    savingsDebtLabel: "Sparande & skulder",
     edit: "Ändra",
 
     footerBalanced: "{month} är redo att låsas.",
@@ -70,6 +74,10 @@ export const closeMonthReviewModalDict = {
       "Review income, expenses, or savings and debt before closing, or lock the month and keep this result in the snapshot.",
 
     checklistTitle: "Are your numbers up to date?",
+    incomingCarryOverLabel: "Incoming carry-over",
+    incomeLabel: "Income",
+    expensesLabel: "Expenses",
+    savingsDebtLabel: "Savings & Debt",
     edit: "Edit",
 
     footerBalanced: "{month} is ready to lock.",
@@ -114,6 +122,10 @@ export const closeMonthReviewModalDict = {
       "Vaata enne sulgemist üle tulud, kulud või säästud ja võlad, või lukusta kuu ning säilita see tulemus hetkeseisus.",
 
     checklistTitle: "Kas sinu numbrid on ajakohased?",
+    incomingCarryOverLabel: "Sissetulev ülekanne",
+    incomeLabel: "Sissetulek",
+    expensesLabel: "Kulud",
+    savingsDebtLabel: "Säästud ja võlad",
     edit: "Muuda",
 
     footerBalanced: "{month} on lukustamiseks valmis.",

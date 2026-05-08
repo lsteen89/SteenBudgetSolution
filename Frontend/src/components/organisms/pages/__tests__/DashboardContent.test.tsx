@@ -370,15 +370,54 @@ describe("DashboardContent", () => {
     const modal = screen.getByTestId("close-month-modal");
 
     expect(within(modal).getByText("Income")).toBeInTheDocument();
-    expect(within(modal).getByText("kr 53,500.00")).toBeInTheDocument();
+    expect(within(modal).getByText("+kr 53,500.00")).toBeInTheDocument();
     expect(within(modal).getByText("Expenses")).toBeInTheDocument();
-    expect(within(modal).getByText("kr 43,015.00")).toBeInTheDocument();
+    expect(within(modal).getByText("-kr 43,015.00")).toBeInTheDocument();
     expect(within(modal).getByText("Savings & Debt")).toBeInTheDocument();
-    expect(within(modal).getByText("kr 9,535.00")).toBeInTheDocument();
+    expect(within(modal).getByText("-kr 9,535.00")).toBeInTheDocument();
     expect(within(modal).getByText(/kr 950.00 left/i)).toBeInTheDocument();
     expect(
       within(modal).queryByText(/incoming carry-over|ingående överföring/i),
     ).not.toBeInTheDocument();
+  });
+
+  it("renders positive incoming carry-over rows that reconcile with backend remaining amount", () => {
+    mockUseDashboardSummary.mockReturnValue({
+      ...readyResult,
+      data: {
+        ...readyResult.data,
+        summary: {
+          ...buildSummary(1618),
+          totalIncome: 53500,
+          totalExpenditure: 43015,
+          habitSavings: 3000,
+          goalSavings: 4000,
+          totalSavings: 7000,
+          totalDebtPayments: 2535,
+          incomingCarryOverAmount: 668,
+          finalBalance: 1618,
+        },
+      },
+    });
+
+    renderDashboardContent();
+
+    expect(screen.getByText("Ingående överföring")).toBeInTheDocument();
+    expect(screen.getByText("+kr 668.00")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /close month/i }));
+
+    const modal = screen.getByTestId("close-month-modal");
+
+    expect(within(modal).getByText("Incoming carry-over")).toBeInTheDocument();
+    expect(within(modal).getByText("+kr 668.00")).toBeInTheDocument();
+    expect(within(modal).getByText("Income")).toBeInTheDocument();
+    expect(within(modal).getByText("+kr 53,500.00")).toBeInTheDocument();
+    expect(within(modal).getByText("Expenses")).toBeInTheDocument();
+    expect(within(modal).getByText("-kr 43,015.00")).toBeInTheDocument();
+    expect(within(modal).getByText("Savings & Debt")).toBeInTheDocument();
+    expect(within(modal).getByText("-kr 9,535.00")).toBeInTheDocument();
+    expect(within(modal).getByText(/kr 1,618.00 left/i)).toBeInTheDocument();
   });
 
   it("review action closes the modal and opens the existing editor flow", () => {

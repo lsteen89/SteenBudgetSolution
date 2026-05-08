@@ -6,6 +6,7 @@ using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Application.Common.Behaviors;
 using Backend.Application.BudgetMonths.Services;
 using Backend.Application.DTO.Budget.Months;
+using Backend.Application.Features.Budgets.Audit;
 using Backend.Application.Features.Budgets.Months.CloseBudgetMonth;
 using Backend.Application.Services.Budget.Compute;
 using Backend.Application.Services.Budget.Materializer;
@@ -378,7 +379,10 @@ public sealed class CloseBudgetMonthCommandHandlerTests
 
         var nextMonth = await GetMonthRowAsync(seed.BudgetId, "2026-05");
         nextMonth!.CarryOverMode.Should().Be(BudgetMonthCarryOverModes.Full);
-        nextMonth.CarryOverAmount.Should().BeNull();
+        nextMonth.CarryOverAmount.Should().BeGreaterThan(0m);
+
+        var closedMonth = await GetMonthRowAsync(seed.BudgetId, "2026-04");
+        nextMonth.CarryOverAmount.Should().Be(closedMonth!.SnapshotFinalBalanceMonthly);
     }
 
     [Fact]
@@ -524,7 +528,7 @@ public sealed class CloseBudgetMonthCommandHandlerTests
         dto.NextMonth.YearMonth.Should().Be("2026-05");
         dto.NextMonth.Status.Should().Be(BudgetMonthStatuses.Open);
         dto.NextMonth.CarryOverMode.Should().Be(BudgetMonthCarryOverModes.Full);
-        dto.NextMonth.CarryOverAmount.Should().BeNull();
+        dto.NextMonth.CarryOverAmount.Should().Be(dto.SnapshotTotals.FinalBalanceMonthly);
     }
 
     [Fact]
@@ -598,6 +602,63 @@ public sealed class CloseBudgetMonthCommandHandlerTests
         var nextMonth = await GetMonthRowAsync(seed.BudgetId, "2026-05");
         nextMonth.Should().NotBeNull();
         nextMonth!.Status.Should().Be(BudgetMonthStatuses.Open);
+    }
+
+    [Fact]
+    public async Task FullCarryOver_WhenFinalBalanceIsNegative_StoresZeroOnNextMonth()
+    {
+        await _db.ResetAsync();
+
+        var seed = await SeedClosableOpenMonthAsync("2026-04");
+        await InsertExpenseItemAsync(seed.BudgetId, seed.UserId, "Unexpected bill", 50000m);
+
+        var sut = CreateSut(new FakeTimeProvider(new DateTime(2026, 04, 23, 12, 0, 0, DateTimeKind.Utc)));
+
+        var result = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.Handler.Handle(
+                new CloseBudgetMonthCommand(
+                    seed.Persoid,
+                    seed.UserId,
+                    "2026-04",
+                    new CloseBudgetMonthRequestDto(BudgetMonthCarryOverModes.Full)),
+                CancellationToken.None));
+
+        result.IsSuccess.Should().BeTrue();
+
+        var closedMonth = await GetMonthRowAsync(seed.BudgetId, "2026-04");
+        closedMonth!.SnapshotFinalBalanceMonthly.Should().BeLessThan(0m);
+
+        var nextMonth = await GetMonthRowAsync(seed.BudgetId, "2026-05");
+        nextMonth.Should().NotBeNull();
+        nextMonth!.CarryOverMode.Should().Be(BudgetMonthCarryOverModes.Full);
+        nextMonth.CarryOverAmount.Should().Be(0m);
+
+        var carryOverEvent = (await GetLifecycleAuditRowsAsync(closedMonth.Id, nextMonth.Id))
+            .Should()
+            .ContainSingle(x => x.EventType == BudgetMonthLifecycleEventTypes.CarryOverApplied)
+            .Subject;
+        carryOverEvent.CarryOverAmount.Should().Be(0m);
+    }
+
+    [Fact]
+    public async Task BudgetMonthConstraint_RejectsFullCarryOverWithoutMaterializedAmount()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+
+        var act = () => BudgetMonthDsl.InsertAsync(
+            cs: _db.ConnectionString,
+            budgetId: seed.BudgetId,
+            yearMonth: "2026-04",
+            status: BudgetMonthStatuses.Open,
+            openedAtUtc: new DateTime(2026, 04, 01, 9, 0, 0, DateTimeKind.Utc),
+            createdByUserId: seed.UserId,
+            closedAtUtc: null,
+            carryOverMode: BudgetMonthCarryOverModes.Full,
+            carryOverAmount: null);
+
+        await act.Should().ThrowAsync<MySqlException>();
     }
 
     [Fact]

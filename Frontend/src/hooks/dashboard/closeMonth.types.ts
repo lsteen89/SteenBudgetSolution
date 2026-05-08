@@ -28,6 +28,7 @@ export type CloseMonthReviewItem = {
   id: string;
   label: string;
   amount: number;
+  formattedAmount?: string;
   onEdit: () => void;
 };
 

@@ -135,4 +135,28 @@ describe("buildDashboardSummaryAggregate", () => {
       aggregate.summary.totalSavings + aggregate.summary.totalDebtPayments,
     ).toBe(9535);
   });
+
+  it("uses backend carry-over amount in summary math without deriving it client-side", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-08T00:00:00Z"));
+
+    const dashboard = buildAprilDashboardDto();
+    dashboard.liveDashboard!.carryOverAmountMonthly = 668;
+    dashboard.liveDashboard!.disposableAfterExpensesWithCarryMonthly = 11153;
+    dashboard.liveDashboard!.disposableAfterExpensesAndSavingsWithCarryMonthly = 4153;
+    dashboard.liveDashboard!.finalBalanceWithCarryMonthly = 1618;
+    dashboard.month.carryOverAmount = 668;
+
+    const aggregate = buildDashboardSummaryAggregate(dashboard, "sv");
+
+    expect(aggregate.summary.incomingCarryOverAmount).toBe(668);
+    expect(aggregate.summary.remainingToSpend).toBe(1618);
+    expect(
+      aggregate.summary.incomingCarryOverAmount
+        + aggregate.summary.totalIncome
+        - aggregate.summary.totalExpenditure
+        - aggregate.summary.totalSavings
+        - aggregate.summary.totalDebtPayments,
+    ).toBe(1618);
+  });
 });

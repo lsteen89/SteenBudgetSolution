@@ -282,7 +282,8 @@ export default function CloseMonthReviewModal({
                         {item.label}
                       </p>
                       <p className="mt-0.5 text-sm text-eb-text/65">
-                        {formatMoneyV2(item.amount, currency, locale)}
+                        {item.formattedAmount ??
+                          formatMoneyV2(item.amount, currency, locale)}
                       </p>
                     </div>
 

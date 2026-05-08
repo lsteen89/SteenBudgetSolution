@@ -42,10 +42,14 @@ CREATE TABLE BudgetMonth (
     CONSTRAINT CK_BudgetMonth_CarryOverMode
         CHECK (CarryOverMode IN ('none','full','custom')),
 
-    CONSTRAINT CK_BudgetMonth_CarryOverAmount_CustomOnly
+    CONSTRAINT CK_BudgetMonth_CarryOverAmount_ByMode
         CHECK (
-            (CarryOverMode <> 'custom' AND CarryOverAmount IS NULL)
-            OR (CarryOverMode = 'custom' AND CarryOverAmount IS NOT NULL AND CarryOverAmount >= 0)
+            (CarryOverMode = 'none' AND CarryOverAmount IS NULL)
+            OR (
+                CarryOverMode IN ('full','custom')
+                AND CarryOverAmount IS NOT NULL
+                AND CarryOverAmount >= 0
+            )
         ),
 
     UNIQUE KEY UX_BudgetMonth_BudgetId_YearMonth (BudgetId, YearMonth),

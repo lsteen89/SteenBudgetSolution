@@ -1027,8 +1027,8 @@ public sealed class BudgetMonthRecapQueryHandlerTests
             totalDebtPayments: 100m,
             finalBalance: 500m);
 
-        // Next month exists with CarryOverMode="full" but CarryOverAmount=null,
-        // mirroring how CloseBudgetMonth seeds the row today.
+        // Next month stores the materialized incoming carry-over. The recap
+        // still reads the applied outcome from lifecycle history.
         await BudgetMonthDsl.InsertAsync(
             cs: _db.ConnectionString,
             budgetId: seed.BudgetId,
@@ -1038,7 +1038,7 @@ public sealed class BudgetMonthRecapQueryHandlerTests
             createdByUserId: seed.UserId,
             closedAtUtc: null,
             carryOverMode: BudgetMonthCarryOverModes.Full,
-            carryOverAmount: null);
+            carryOverAmount: 500m);
 
         var sourceId = await GetBudgetMonthIdAsync(seed.BudgetId, "2026-04");
         var targetId = await GetBudgetMonthIdAsync(seed.BudgetId, "2026-05");
@@ -1162,7 +1162,7 @@ public sealed class BudgetMonthRecapQueryHandlerTests
             createdByUserId: seed.UserId,
             closedAtUtc: null,
             carryOverMode: BudgetMonthCarryOverModes.Full,
-            carryOverAmount: null);
+            carryOverAmount: 150m);
 
         var sourceId = await GetBudgetMonthIdAsync(seed.BudgetId, "2026-03");
         var targetId = await GetBudgetMonthIdAsync(seed.BudgetId, "2026-04");
@@ -1202,8 +1202,9 @@ public sealed class BudgetMonthRecapQueryHandlerTests
 
         var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
 
-        // Legacy shape: row says full carry-over but no carry-over-applied event
-        // was ever written. The recap must not invent an amount it cannot prove.
+        // A source row can have incoming full carry-over without proving any
+        // outgoing carry-over was applied to the following month. The recap must
+        // not invent an outgoing amount from source-month metadata.
         await InsertClosedMonthWithSnapshotAsync(
             budgetId: seed.BudgetId,
             yearMonth: "2026-04",
@@ -1211,7 +1212,7 @@ public sealed class BudgetMonthRecapQueryHandlerTests
             openedAtUtc: new DateTime(2026, 04, 01, 08, 00, 00, DateTimeKind.Utc),
             closedAtUtc: new DateTime(2026, 04, 30, 20, 00, 00, DateTimeKind.Utc),
             carryOverMode: BudgetMonthCarryOverModes.Full,
-            carryOverAmount: null,
+            carryOverAmount: 100m,
             totalIncome: 1000m,
             totalExpenses: 600m,
             totalSavings: 200m,
@@ -1235,7 +1236,7 @@ public sealed class BudgetMonthRecapQueryHandlerTests
         // Snapshot remains the legacy values verbatim — the meta block still
         // exposes the source row's CarryOverMode for diagnostic continuity.
         dto.Month.CarryOverMode.Should().Be(BudgetMonthCarryOverModes.Full);
-        dto.Month.CarryOverAmount.Should().BeNull();
+        dto.Month.CarryOverAmount.Should().Be(100m);
     }
 
     private async Task<Guid> GetBudgetMonthIdAsync(Guid budgetId, string yearMonth)

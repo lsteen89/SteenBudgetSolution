@@ -63,6 +63,7 @@ const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({
               currency={summary.currency}
               totalIncome={summary.totalIncome}
               totalExpenditure={summary.totalExpenditure}
+              incomingCarryOverAmount={summary.incomingCarryOverAmount}
               totalSavings={summary.totalSavings}
               totalDebtPayments={summary.totalDebtPayments}
               remainingToSpend={summary.remainingToSpend}
