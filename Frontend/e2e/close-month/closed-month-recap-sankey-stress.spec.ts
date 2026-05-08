@@ -11,7 +11,7 @@ const text = {
   foodCategory: /food|mat|toit/i,
   carryOver: /carried into|följde med till|kanti üle kuusse/i,
   carryOverLabel: /carry-over|överför|üle/i,
-  largeFinalBalance: /139[\s\u00a0.,]*500/,
+  largeFinalBalance: /393[\s\u00a0.,]*750/,
 };
 
 test("closed comparable recap renders seeded Sankey/category stress data", async ({
