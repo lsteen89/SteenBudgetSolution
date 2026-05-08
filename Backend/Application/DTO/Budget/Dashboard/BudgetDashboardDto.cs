@@ -11,7 +11,7 @@ public sealed class BudgetDashboardDto
         = Array.Empty<DashboardRecurringExpenseDto>();
     public SubscriptionsOverviewDto Subscriptions { get; init; } = default!;
 
-    public decimal CarryOverAmountMonthly { get; init; } // 0 for none, real value for open/full/custom 
+    public decimal CarryOverAmountMonthly { get; init; } // incoming carry-over for this month
     public decimal DisposableAfterExpensesWithCarryMonthly { get; init; }
     public decimal DisposableAfterExpensesAndSavingsWithCarryMonthly { get; init; }
 
@@ -42,4 +42,3 @@ public sealed record BudgetDashboardMonthDto(
     BudgetDashboardDto? LiveDashboard,                 // present when open
     BudgetMonthSnapshotTotalsDto? SnapshotTotals       // present when closed
 );
-

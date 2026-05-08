@@ -4,6 +4,7 @@ using System.Threading;
 using Backend.Infrastructure.Repositories.User;
 using Backend.Application.Abstractions.Application.Services.Debts;
 using Backend.Application.Abstractions.Infrastructure.System;
+using Backend.Application.DTO.Budget.Months;
 using Backend.Application.Features.Budgets.Dashboard.GetBudgetDashboardMonth;
 using Backend.Application.Services.Budget.Projections;
 using Backend.Application.Services.Debts;
@@ -97,6 +98,53 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
         var debtPayments = live.Debt.TotalMonthlyPayments;
         var expectedFinal = 32500m - 12000m - totalSavings - debtPayments + 1000m;
         live.FinalBalanceWithCarryMonthly.Should().Be(expectedFinal);
+    }
+
+    [Fact]
+    public async Task OpenMonth_ReturnsMaterializedFullCarryOver_FromBudgetMonthAmount()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var persoid = seed.Persoid;
+        var userId = seed.UserId;
+        var budgetId = seed.BudgetId;
+
+        await BudgetMonthDsl.InsertAsync(
+            cs: _db.ConnectionString,
+            budgetId: budgetId,
+            yearMonth: "2026-02",
+            status: BudgetMonthStatuses.Open,
+            openedAtUtc: new DateTime(2026, 02, 01, 08, 00, 00, DateTimeKind.Utc),
+            createdByUserId: userId,
+            closedAtUtc: null,
+            carryOverMode: BudgetMonthCarryOverModes.Full,
+            carryOverAmount: 1250m);
+
+        var clock = new FakeTimeProvider(new DateTime(2026, 02, 07, 08, 00, 00, DateTimeKind.Utc));
+
+        await using var sp = BuildServiceProvider(_db.ConnectionString, clock, new DebtPaymentCalculator());
+        await using var scope = sp.CreateAsyncScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+        var result = await mediator.Send(
+            new GetBudgetDashboardMonthQuery(persoid, "2026-02"),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+
+        var dto = result.Value!;
+        dto.Month.CarryOverMode.Should().Be(BudgetMonthCarryOverModes.Full);
+        dto.Month.CarryOverAmount.Should().Be(1250m);
+
+        var live = dto.LiveDashboard!;
+        live.CarryOverAmountMonthly.Should().Be(1250m);
+        live.FinalBalanceWithCarryMonthly.Should().Be(
+            live.Income.TotalIncomeMonthly
+            - live.Expenditure.TotalExpensesMonthly
+            - live.Savings!.TotalSavingsMonthly
+            - live.Debt.TotalMonthlyPayments
+            + 1250m);
     }
 
     [Fact]

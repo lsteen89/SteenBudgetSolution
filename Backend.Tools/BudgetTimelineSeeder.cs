@@ -830,7 +830,13 @@ internal sealed class BudgetTimelineSeeder
         string adjustmentExpenseName,
         CancellationToken ct)
     {
-        var snapshot = await _closeSnapshot.ComputeAsync(budgetMonthId, carryOverAmount: 0m, ct);
+        // targetFinalBalance is the displayed final balance (income - expenses
+        // - savings - debt + carry-over). The seeded month may already carry an
+        // amount forward from the previously closed prior month, so use that
+        // materialized carry-over when sizing the adjustment expense.
+        var carryOverAmount = await GetBudgetMonthCarryOverAmountAsync(budgetMonthId, ct);
+
+        var snapshot = await _closeSnapshot.ComputeAsync(budgetMonthId, carryOverAmount, ct);
         if (snapshot is null)
         {
             throw new InvalidOperationException(
@@ -861,12 +867,28 @@ internal sealed class BudgetTimelineSeeder
                 ct);
         }
 
-        var updatedSnapshot = await _closeSnapshot.ComputeAsync(budgetMonthId, carryOverAmount: 0m, ct);
+        var updatedSnapshot = await _closeSnapshot.ComputeAsync(budgetMonthId, carryOverAmount, ct);
         if (updatedSnapshot is null || Math.Abs(updatedSnapshot.FinalBalance - targetFinalBalance) > 0.01m)
         {
             throw new InvalidOperationException(
                 $"Seed final balance adjustment failed. Target={targetFinalBalance}, Actual={updatedSnapshot?.FinalBalance}.");
         }
+    }
+
+    private async Task<decimal> GetBudgetMonthCarryOverAmountAsync(
+        Guid budgetMonthId,
+        CancellationToken ct)
+    {
+        return await QueryDecimalAsync(
+            @"SELECT COALESCE(m.CarryOverAmount, 0)
+              FROM BudgetMonth m
+              WHERE m.Id = @BudgetMonthId
+              LIMIT 1;",
+            new Dictionary<string, object?>
+            {
+                ["BudgetMonthId"] = budgetMonthId
+            },
+            ct);
     }
 
     private async Task OverrideExpenseAmountAsync(

@@ -176,12 +176,11 @@ public sealed class StartBudgetMonthCommandHandler
             }
         }
 
-        // Resolve carry
         decimal? carryAmount = req.CarryOverMode switch
         {
             BudgetMonthCarryOverModes.None => null,
             BudgetMonthCarryOverModes.Custom => req.CarryOverAmount,
-            BudgetMonthCarryOverModes.Full => null,
+            BudgetMonthCarryOverModes.Full => Math.Max(previousFinalBalance, 0m),
             _ => null
         };
 
@@ -212,7 +211,7 @@ public sealed class StartBudgetMonthCommandHandler
             if (existingTarget is null && open is not null && req.CarryOverMode != BudgetMonthCarryOverModes.None)
             {
                 var appliedCarryOverAmount = req.CarryOverMode == BudgetMonthCarryOverModes.Full
-                    ? previousFinalBalance
+                    ? Math.Max(previousFinalBalance, 0m)
                     : req.CarryOverAmount;
 
                 await WriteLifecycleAsync(

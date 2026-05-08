@@ -1,6 +1,4 @@
 import type { AppLocale } from "@/types/i18n/appLocale";
-import { calculateMonthlyContribution } from "@/utils/budget/financialCalculations";
-import { parseIsoDateLocal } from "@/utils/dates/parseIsoDateLocal";
 import { asCategoryKey, labelCategory } from "@/utils/i18n/budget/categories";
 import { labelLedgerItem } from "@/utils/i18n/budget/ledgerItems";
 import { tDict } from "@/utils/i18n/translate";
@@ -145,6 +143,7 @@ function buildClosedMonthAggregate(
 
       totalIncome: num0(snapshot.totalIncomeMonthly),
       totalExpenditure: num0(snapshot.totalExpensesMonthly),
+      incomingCarryOverAmount: 0,
 
       habitSavings: 0,
       goalSavings: 0,
@@ -198,6 +197,7 @@ function buildSkippedMonthAggregate(
 
       totalIncome: 0,
       totalExpenditure: 0,
+      incomingCarryOverAmount: 0,
 
       habitSavings: 0,
       goalSavings: 0,
@@ -242,6 +242,7 @@ function buildOpenMonthAggregate(
 
   const totalIncome = num0(dashboard.income?.totalIncomeMonthly);
   const totalExpenditure = num0(dashboard.expenditure?.totalExpensesMonthly);
+  const incomingCarryOverAmount = round2(num0(dashboard.carryOverAmountMonthly));
   const finalBalance = num0(dashboard.finalBalanceWithCarryMonthly);
 
   const goals = dashboard.savings?.goals ?? [];
@@ -249,27 +250,9 @@ function buildOpenMonthAggregate(
   const categories = dashboard.expenditure?.byCategory ?? [];
 
   const habitSavings = num0(dashboard.savings?.monthlySavings);
-
-  const goalSavings = round2(
-    goals.reduce((acc, g) => {
-      if (g.targetAmount == null || !g.targetDate) return acc;
-
-      return (
-        acc +
-        calculateMonthlyContribution(
-          g.targetAmount,
-          g.amountSaved ?? 0,
-          parseIsoDateLocal(g.targetDate),
-        )
-      );
-    }, 0),
-  );
-
-  const totalSavings = round2(habitSavings + goalSavings);
-
-  const totalDebtPayments = round2(
-    debts.reduce((acc, d) => acc + num0(d.monthlyPayment), 0),
-  );
+  const goalSavings = num0(dashboard.savings?.totalGoalSavingsMonthly);
+  const totalSavings = num0(dashboard.savings?.totalSavingsMonthly);
+  const totalDebtPayments = num0(dashboard.debt?.totalMonthlyPayments);
 
   const recurringExpenses =
     dashboard.recurringExpenses?.map((r) => {
@@ -345,6 +328,7 @@ function buildOpenMonthAggregate(
 
       totalIncome,
       totalExpenditure,
+      incomingCarryOverAmount,
 
       habitSavings,
       goalSavings,

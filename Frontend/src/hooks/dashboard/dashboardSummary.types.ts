@@ -53,6 +53,7 @@ export interface DashboardSummary {
 
   totalIncome: number;
   totalExpenditure: number;
+  incomingCarryOverAmount: number;
 
   habitSavings: number;
   goalSavings: number;

@@ -16,7 +16,9 @@ import { useBudgetMonthStore } from "@/stores/Budget/budgetMonthStore";
 import type { AppLocale } from "@/types/i18n/appLocale";
 import type { BudgetMonthListItemDto } from "@/types/budget/BudgetMonthsStatusDto";
 import { dashboardHeaderDict } from "@/utils/i18n/pages/private/dashboard/header/DashboardHeader.i18n";
+import { closeMonthReviewModalDict } from "@/utils/i18n/pages/private/dashboard/closeMonth/CloseMonthReviewModal.i18n";
 import { tDict } from "@/utils/i18n/translate";
+import { formatMoneyV2 } from "@/utils/money/moneyV2";
 import DashboardHomeSkeleton from "@components/organisms/dashboard/DashboardHomeSkeleton";
 import FirstTimeDashboardSection from "@components/organisms/dashboard/FirstTimeDashboardSection";
 import React, { useCallback, useState } from "react";
@@ -33,6 +35,8 @@ const isNotFound = (p: any) =>
 
 type HeaderTKey = keyof typeof dashboardHeaderDict.sv;
 type HeaderT = <K extends HeaderTKey>(key: K) => string;
+type CloseReviewTKey = keyof typeof closeMonthReviewModalDict.sv;
+type CloseReviewT = <K extends CloseReviewTKey>(key: K) => string;
 
 function replaceToken(template: string, token: string, value: string) {
   return template.replace(`{${token}}`, value);
@@ -224,23 +228,44 @@ function LoadedDashboardContent({
     onOpenPeriodEditor: handleOpenPeriodEditor,
   });
 
+  const tReview: CloseReviewT = (key) =>
+    tDict(key, locale, closeMonthReviewModalDict);
+  const signedMoney = (amount: number, sign: "+" | "-") =>
+    `${sign}${formatMoneyV2(Math.abs(amount), summary.currency, locale)}`;
+  const savingsAndDebt = summary.totalSavings + summary.totalDebtPayments;
+  const showIncomingCarryOver = summary.incomingCarryOverAmount > 0;
+
   const reviewItems = [
+    ...(showIncomingCarryOver
+      ? [
+          {
+            id: "incoming-carry-over",
+            label: tReview("incomingCarryOverLabel"),
+            amount: summary.incomingCarryOverAmount,
+            formattedAmount: signedMoney(summary.incomingCarryOverAmount, "+"),
+            onEdit: closeMonthReview.reviewMonth,
+          },
+        ]
+      : []),
     {
       id: "income",
-      label: "Income",
+      label: tReview("incomeLabel"),
       amount: summary.totalIncome,
+      formattedAmount: signedMoney(summary.totalIncome, "+"),
       onEdit: closeMonthReview.reviewMonth,
     },
     {
       id: "expenses",
-      label: "Expenses",
+      label: tReview("expensesLabel"),
       amount: summary.totalExpenditure,
+      formattedAmount: signedMoney(summary.totalExpenditure, "-"),
       onEdit: closeMonthReview.reviewMonth,
     },
     {
       id: "savings-debt",
-      label: "Savings & Debt",
-      amount: summary.totalSavings + summary.totalDebtPayments,
+      label: tReview("savingsDebtLabel"),
+      amount: savingsAndDebt,
+      formattedAmount: signedMoney(savingsAndDebt, "-"),
       onEdit: closeMonthReview.reviewMonth,
     },
   ];

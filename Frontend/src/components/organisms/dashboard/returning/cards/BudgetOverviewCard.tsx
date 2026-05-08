@@ -6,6 +6,7 @@ type Props = {
     currency: CurrencyCode;
     totalIncome?: number | null;
     totalExpenditure?: number | null;
+    incomingCarryOverAmount?: number | null;
     totalSavings?: number | null;
     totalDebtPayments?: number | null;
     remainingToSpend?: number | null;
@@ -16,14 +17,18 @@ const BudgetOverviewCard: React.FC<Props> = ({
     currency,
     totalIncome,
     totalExpenditure,
+    incomingCarryOverAmount,
     totalSavings,
     totalDebtPayments,
     remainingToSpend,
     finalBalance,
 }) => {
     const fmt = (n?: number | null) => formatMoneyV2(n, currency);
+    const signedFmt = (n: number) => `+${fmt(Math.abs(n))}`;
 
     const safeFinal = typeof finalBalance === "number" ? finalBalance : 0;
+    const showIncomingCarryOver =
+        typeof incomingCarryOverAmount === "number" && incomingCarryOverAmount > 0;
 
     return (
         <div className="rounded-3xl bg-white/80 border border-slate-100 shadow-sm px-5 py-4">
@@ -33,6 +38,12 @@ const BudgetOverviewCard: React.FC<Props> = ({
             </p>
 
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs text-slate-700">
+                {showIncomingCarryOver ? (
+                    <div>
+                        <p className="font-medium text-slate-900">Ingående överföring</p>
+                        <p className="mt-0.5">{signedFmt(incomingCarryOverAmount ?? 0)}</p>
+                    </div>
+                ) : null}
                 <div>
                     <p className="font-medium text-slate-900">Inkomster</p>
                     <p className="mt-0.5">{fmt(totalIncome)}</p>
@@ -57,7 +68,7 @@ const BudgetOverviewCard: React.FC<Props> = ({
 
             <div className="mt-4 border-t border-slate-100 pt-3 flex items-baseline justify-between text-xs">
                 <span className="font-semibold text-slate-900">
-                    Resultat (Inkomster − Utgifter − Sparande − Skulder)
+                    Resultat ({showIncomingCarryOver ? "Överföring + " : ""}Inkomster − Utgifter − Sparande − Skulder)
                 </span>
                 <span className={`font-semibold ${safeFinal >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
                     {fmt(finalBalance)}

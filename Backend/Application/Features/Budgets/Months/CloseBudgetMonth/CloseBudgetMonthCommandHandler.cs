@@ -299,10 +299,14 @@ public sealed class CloseBudgetMonthCommandHandler
                 ct: ct);
         }
 
+        var receivingCarryOverAmount = ResolveReceivingCarryOverAmount(
+            carryOverMode,
+            snapshot.FinalBalance);
+
         var updatedCarryOverRows = await _months.UpdateCarryOverSettingsAsync(
             budgetMonthId: nextMonth.Id,
             carryOverMode: carryOverMode,
-            carryOverAmount: null,
+            carryOverAmount: receivingCarryOverAmount,
             userId: cmd.ActorPersoid,
             nowUtc: nowUtc,
             ct: ct);
@@ -312,16 +316,12 @@ public sealed class CloseBudgetMonthCommandHandler
 
         if (carryOverMode != BudgetMonthCarryOverModes.None)
         {
-            var carryOverAmount = carryOverMode == BudgetMonthCarryOverModes.Full
-                ? snapshot.FinalBalance
-                : nextMonth.CarryOverAmount;
-
             await WriteLifecycleAsync(
                 budgetMonthId: nextMonth.Id,
                 eventType: BudgetMonthLifecycleEventTypes.CarryOverApplied,
                 relatedBudgetMonthId: currentMonth.Id,
                 carryOverMode: carryOverMode,
-                carryOverAmount: carryOverAmount,
+                carryOverAmount: receivingCarryOverAmount,
                 metadataJson: JsonSerializer.Serialize(new
                 {
                     sourceYearMonth = currentMonth.YearMonth,
@@ -339,6 +339,17 @@ public sealed class CloseBudgetMonthCommandHandler
 
         return Result<BudgetMonthDetailsRm>.Success(updatedNextMonth);
     }
+
+    private static decimal? ResolveReceivingCarryOverAmount(
+        string carryOverMode,
+        decimal sourceFinalBalance)
+        => carryOverMode switch
+        {
+            BudgetMonthCarryOverModes.None => null,
+            BudgetMonthCarryOverModes.Full => Math.Max(sourceFinalBalance, 0m),
+            _ => null
+        };
+
     private async Task<Result> EnsureCurrentMonthMaterializedAsync(
         BudgetMonthDetailsRm currentMonth,
         Guid actorPersoid,

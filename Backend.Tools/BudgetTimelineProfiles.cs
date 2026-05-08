@@ -440,7 +440,7 @@ internal static class BudgetTimelineProfiles
     private const decimal RecapComparisonSkipMarchExpenses = 19950m;
     private const decimal RecapComparisonSkipMarchSavings = 4800m;
     private const decimal RecapComparisonSkipMarchDebtPayments = 2300m;
-    private const decimal RecapComparisonSkipMarchFinalBalance = 16450m;
+    private const decimal RecapComparisonSkipMarchFinalBalance = 31950m;
 
     private static BudgetTimelineProfile BuildRecapComparisonSkipProfile()
     {
@@ -656,8 +656,8 @@ internal static class BudgetTimelineProfiles
     private const decimal RecapSankeyExpectedExpensesInComparableMonth = 293000m;
     private const decimal RecapSankeyExpectedSavingsInComparableMonth = 145000m;
     private const decimal RecapSankeyExpectedDebtPaymentsInComparableMonth = 52500m;
-    private const decimal RecapSankeyExpectedFinalBalanceInComparableMonth = 139500m;
-    private const decimal RecapSankeyExpectedCarryOverFromComparableMonth = 139500m;
+    private const decimal RecapSankeyExpectedFinalBalanceInComparableMonth = 393750m;
+    private const decimal RecapSankeyExpectedCarryOverFromComparableMonth = 393750m;
 
     public static BudgetTimelineProfile RecapSankeyStress { get; } = BuildRecapSankeyStressProfile();
 

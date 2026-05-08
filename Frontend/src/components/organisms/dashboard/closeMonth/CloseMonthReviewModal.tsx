@@ -112,7 +112,7 @@ export default function CloseMonthReviewModal({
     >
       <DialogContent
         data-testid="close-month-modal"
-        className="w-[min(760px,calc(100vw-1.5rem))] border-eb-stroke/20 bg-eb-surface p-0 shadow-[0_28px_80px_rgba(21,39,81,0.18)]"
+        className="max-h-[calc(100dvh-1.5rem)] w-[min(760px,calc(100vw-1.5rem))] overflow-y-auto border-eb-stroke/20 bg-eb-surface p-0 shadow-[0_28px_80px_rgba(21,39,81,0.18)]"
       >
         <div className="rounded-2xl bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(244,248,255,0.96))]">
           <div className="border-b border-eb-stroke/15 px-6 py-6 sm:px-7">
@@ -282,7 +282,8 @@ export default function CloseMonthReviewModal({
                         {item.label}
                       </p>
                       <p className="mt-0.5 text-sm text-eb-text/65">
-                        {formatMoneyV2(item.amount, currency, locale)}
+                        {item.formattedAmount ??
+                          formatMoneyV2(item.amount, currency, locale)}
                       </p>
                     </div>
 
