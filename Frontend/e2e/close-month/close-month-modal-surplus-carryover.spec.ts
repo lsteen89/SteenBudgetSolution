@@ -8,14 +8,14 @@ const text = {
   may2026: /maj 2026|may 2026|mai 2026/i,
   closedStatus: /^(Closed|Stängd|Suletud)$/i,
   skippedStatus: /^(Skipped|Hoppad över|Vahele jäetud)$/i,
-  positiveHeadline: /left to allocate|kvar att fördela|jaotamata/i,
-  resolverBody: /handle this surplus|hantera överskottet|ülejäägi lahendada/i,
-  resolvedCarryOverHeadline:
-    /will carry over to|kommer att föras över till|kantakse üle kuusse/i,
-  resolvedCarryOverBody:
-    /surplus will move forward|överskottet förs vidare|ülejääk liigub edasi/i,
-  resolvedCarryOverFooter:
-    /will carry over into|förs över till|kantakse kuusse .* üle/i,
+  // Surplus intro line 1: "You have {amount} left to handle." / "Du har {amount} kvar att hantera." / "Sul on veel {amount} jaotada."
+  positiveHeadline: /left to handle|kvar att hantera|veel .* jaotada/i,
+  // Surplus intro line 2: choose carry-over vs keep.
+  resolverBody:
+    /carry it into next month|följa med till|läheb järgmisesse kuusse/i,
+  // Carry-over option title — references next month.
+  carryOverOptionTitle:
+    /Carry over to |För över till |Kanna üle kuusse /i,
   deficitGuidance:
     /deficit guidance|underskottsvägledning|puudujäägi juhis/i,
   positiveFinalBalance: /1(?:[\s.,\u00a0])?250|1250/,
@@ -60,15 +60,26 @@ test("close modal carry-over user moves April surplus into May", async ({
   await expect(modal).toBeVisible();
   await expect(modal).toContainText(text.positiveHeadline);
   await expect(modal).toContainText(text.resolverBody);
+  // Default selection is "keep in current month" (carryOverMode "none").
+  await expect(modal.getByTestId("resolve-keep")).toHaveAttribute(
+    "data-state",
+    "selected",
+  );
   await expect(modal.getByTestId("resolve-carry-over")).toBeVisible();
   await expect(modal.getByTestId("resolve-emergency-fund")).toHaveCount(0);
 
+  // Switch to carry-over: the carry-over option is now selected and references May.
   await modal.getByTestId("resolve-carry-over").click();
-  await expect(modal).toContainText(text.resolvedCarryOverHeadline);
-  await expect(modal).toContainText(text.resolvedCarryOverBody);
-  await expect(modal).toContainText(text.resolvedCarryOverFooter);
-  await expect(modal).toContainText(text.positiveFinalBalance);
-  await expect(modal).toContainText(text.may2026);
+  await expect(modal.getByTestId("resolve-carry-over")).toHaveAttribute(
+    "data-state",
+    "selected",
+  );
+  await expect(modal.getByTestId("resolve-carry-over")).toContainText(
+    text.carryOverOptionTitle,
+  );
+  await expect(modal.getByTestId("resolve-carry-over")).toContainText(
+    text.may2026,
+  );
 
   const closeResponsePromise = waitForCloseResponse(page);
   await page.getByTestId("confirm-close-month").click();

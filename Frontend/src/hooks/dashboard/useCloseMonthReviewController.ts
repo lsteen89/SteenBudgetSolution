@@ -3,9 +3,9 @@ import { useCallback, useMemo, useState } from "react";
 import { toApiProblem } from "@/api/toApiProblem";
 import { useCloseBudgetMonthMutation } from "@/hooks/budget/useCloseBudgetMonthMutation";
 import type {
+  CloseMonthCarryOverMode,
   CloseMonthPendingOptions,
   CloseMonthReviewState,
-  SurplusResolutionStatus,
 } from "@/hooks/dashboard/closeMonth.types";
 import type { DashboardSummary } from "@/hooks/dashboard/dashboardSummary.types";
 import { resolveCloseMonthReviewState } from "@/hooks/dashboard/resolveCloseMonthReviewState";
@@ -19,7 +19,6 @@ import { tDict } from "@/utils/i18n/translate";
 type UseCloseMonthReviewControllerArgs = {
   yearMonth?: string;
   summary: DashboardSummary;
-  onOpenPeriodEditor: () => void;
 };
 
 function getPeriodLabel(yearMonth: string | undefined, locale: string) {
@@ -48,6 +47,21 @@ function getNextPeriodLabel(yearMonth: string | undefined, locale: string) {
   }).format(new Date(Date.UTC(year, month, 1)));
 }
 
+function getPeriodMonthOnlyLabel(
+  yearMonth: string | undefined,
+  locale: string,
+) {
+  if (!yearMonth) return "";
+
+  const [year, month] = yearMonth.split("-").map(Number);
+  if (!year || !month) return "";
+
+  return new Intl.DateTimeFormat(locale, {
+    month: "long",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(year, month - 1, 1)));
+}
+
 function resolveCarryOverMode(
   reviewState: CloseMonthReviewState,
   pendingOptions: CloseMonthPendingOptions,
@@ -65,7 +79,6 @@ function resolveCarryOverMode(
 export function useCloseMonthReviewController({
   yearMonth,
   summary,
-  onOpenPeriodEditor,
 }: UseCloseMonthReviewControllerArgs) {
   const locale = useAppLocale();
   const toast = useToast();
@@ -100,11 +113,10 @@ export function useCloseMonthReviewController({
     [yearMonth, locale],
   );
 
-  const surplusResolutionStatus: SurplusResolutionStatus = useMemo(() => {
-    if (reviewState.state !== "positiveRemaining") return "idle";
-    if (pendingOptions.carryOverMode === "full") return "resolvedCarryOver";
-    return "idle";
-  }, [pendingOptions.carryOverMode, reviewState.state]);
+  const periodMonthOnlyLabel = useMemo(
+    () => getPeriodMonthOnlyLabel(yearMonth, locale),
+    [yearMonth, locale],
+  );
 
   const open = useCallback(() => {
     setPendingOptions({ carryOverMode: "none" });
@@ -116,15 +128,9 @@ export function useCloseMonthReviewController({
     setIsOpen(false);
   }, [isSubmitting]);
 
-  const reviewMonth = useCallback(() => {
-    setIsOpen(false);
-    onOpenPeriodEditor();
-  }, [onOpenPeriodEditor]);
-
-  const resolveToCarryOver = useCallback(() => {
-    if (reviewState.state !== "positiveRemaining") return;
-    setPendingOptions({ carryOverMode: "full" });
-  }, [reviewState.state]);
+  const selectCarryOverMode = useCallback((mode: CloseMonthCarryOverMode) => {
+    setPendingOptions({ carryOverMode: mode });
+  }, []);
 
   const confirm = useCallback(async () => {
     if (!yearMonth || isSubmitting) return;
@@ -172,11 +178,11 @@ export function useCloseMonthReviewController({
     isSubmitting,
     reviewState,
     nextPeriodLabel,
-    surplusResolutionStatus,
+    periodMonthOnlyLabel,
+    selectedCarryOverMode: pendingOptions.carryOverMode,
     open,
     close,
-    reviewMonth,
     confirm,
-    resolveToCarryOver,
+    selectCarryOverMode,
   };
 }

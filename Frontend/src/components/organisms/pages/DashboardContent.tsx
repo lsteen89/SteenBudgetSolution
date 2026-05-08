@@ -225,50 +225,15 @@ function LoadedDashboardContent({
   const closeMonthReview = useCloseMonthReviewController({
     yearMonth,
     summary,
-    onOpenPeriodEditor: handleOpenPeriodEditor,
   });
 
-  const tReview: CloseReviewT = (key) =>
-    tDict(key, locale, closeMonthReviewModalDict);
-  const signedMoney = (amount: number, sign: "+" | "-") =>
-    `${sign}${formatMoneyV2(Math.abs(amount), summary.currency, locale)}`;
-  const savingsAndDebt = summary.totalSavings + summary.totalDebtPayments;
-  const showIncomingCarryOver = summary.incomingCarryOverAmount > 0;
-
-  const reviewItems = [
-    ...(showIncomingCarryOver
-      ? [
-          {
-            id: "incoming-carry-over",
-            label: tReview("incomingCarryOverLabel"),
-            amount: summary.incomingCarryOverAmount,
-            formattedAmount: signedMoney(summary.incomingCarryOverAmount, "+"),
-            onEdit: closeMonthReview.reviewMonth,
-          },
-        ]
-      : []),
-    {
-      id: "income",
-      label: tReview("incomeLabel"),
-      amount: summary.totalIncome,
-      formattedAmount: signedMoney(summary.totalIncome, "+"),
-      onEdit: closeMonthReview.reviewMonth,
-    },
-    {
-      id: "expenses",
-      label: tReview("expensesLabel"),
-      amount: summary.totalExpenditure,
-      formattedAmount: signedMoney(summary.totalExpenditure, "-"),
-      onEdit: closeMonthReview.reviewMonth,
-    },
-    {
-      id: "savings-debt",
-      label: tReview("savingsDebtLabel"),
-      amount: savingsAndDebt,
-      formattedAmount: signedMoney(savingsAndDebt, "-"),
-      onEdit: closeMonthReview.reviewMonth,
-    },
-  ];
+  const closeMonthSummary = {
+    incomingCarryOver: summary.incomingCarryOverAmount,
+    income: summary.totalIncome,
+    expenses: summary.totalExpenditure,
+    savingsAndDebt: summary.totalSavings + summary.totalDebtPayments,
+    remaining: summary.remainingToSpend,
+  };
 
   const isSwitchingMonth = isFetching && !isPending;
   const periodControlVm = buildPeriodControlBarViewModel(summary, locale);
@@ -313,15 +278,16 @@ function LoadedDashboardContent({
           <CloseMonthReviewModal
             open={closeMonthReview.isOpen}
             periodLabel={summary.header.periodLabel}
+            periodMonthOnlyLabel={closeMonthReview.periodMonthOnlyLabel}
             nextPeriodLabel={closeMonthReview.nextPeriodLabel}
             currency={summary.currency}
             reviewState={closeMonthReview.reviewState}
-            reviewItems={reviewItems}
-            surplusResolutionStatus={closeMonthReview.surplusResolutionStatus}
+            summary={closeMonthSummary}
+            selectedCarryOverMode={closeMonthReview.selectedCarryOverMode}
             isSubmitting={closeMonthReview.isSubmitting}
             onClose={closeMonthReview.close}
             onConfirm={closeMonthReview.confirm}
-            onResolveToCarryOver={closeMonthReview.resolveToCarryOver}
+            onSelectCarryOverMode={closeMonthReview.selectCarryOverMode}
           />
 
           <EditPeriodDrawer

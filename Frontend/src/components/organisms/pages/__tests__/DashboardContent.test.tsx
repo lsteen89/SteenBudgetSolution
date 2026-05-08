@@ -78,6 +78,7 @@ vi.mock("@/components/organisms/dashboard/editPeriod/EditPeriodDrawer", () => ({
 function buildSummary(
   remainingToSpend: number,
   status: "open" | "closed" | "skipped" = "open",
+  options: { incomingCarryOverAmount?: number } = {},
 ) {
   return {
     header: {
@@ -103,7 +104,7 @@ function buildSummary(
     goalsProgressPercent: 0,
     totalIncome: 12000,
     totalExpenditure: 8000,
-    incomingCarryOverAmount: 0,
+    incomingCarryOverAmount: options.incomingCarryOverAmount ?? 0,
     habitSavings: 500,
     goalSavings: 250,
     totalSavings: 750,
@@ -324,7 +325,7 @@ describe("DashboardContent", () => {
     mockToast.showToast.mockReset();
   });
 
-  it("opens the close month modal from the month rail trigger", () => {
+  it("opens the close month modal from the month rail trigger with translated title", () => {
     mockUseDashboardSummary.mockReturnValue(readyResult);
 
     render(
@@ -340,87 +341,14 @@ describe("DashboardContent", () => {
     fireEvent.click(screen.getByRole("button", { name: /close month/i }));
 
     expect(
-      screen.getByRole("heading", { name: "Ready to lock in April 2026?" }),
+      screen.getByRole("heading", { name: "Close April 2026?" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^close april 2026$/i }),
     ).toBeInTheDocument();
   });
 
-  it("renders close-month summary rows that reconcile with backend remaining amount", () => {
-    mockUseDashboardSummary.mockReturnValue({
-      ...readyResult,
-      data: {
-        ...readyResult.data,
-        summary: {
-          ...buildSummary(950),
-          totalIncome: 53500,
-          totalExpenditure: 43015,
-          habitSavings: 3000,
-          goalSavings: 4000,
-          totalSavings: 7000,
-          totalDebtPayments: 2535,
-          incomingCarryOverAmount: 0,
-          finalBalance: 950,
-        },
-      },
-    });
-
-    renderDashboardContent();
-
-    fireEvent.click(screen.getByRole("button", { name: /close month/i }));
-
-    const modal = screen.getByTestId("close-month-modal");
-
-    expect(within(modal).getByText("Income")).toBeInTheDocument();
-    expect(within(modal).getByText("+kr 53,500.00")).toBeInTheDocument();
-    expect(within(modal).getByText("Expenses")).toBeInTheDocument();
-    expect(within(modal).getByText("-kr 43,015.00")).toBeInTheDocument();
-    expect(within(modal).getByText("Savings & Debt")).toBeInTheDocument();
-    expect(within(modal).getByText("-kr 9,535.00")).toBeInTheDocument();
-    expect(within(modal).getByText(/kr 950.00 left/i)).toBeInTheDocument();
-    expect(
-      within(modal).queryByText(/incoming carry-over|ingående överföring/i),
-    ).not.toBeInTheDocument();
-  });
-
-  it("renders positive incoming carry-over rows that reconcile with backend remaining amount", () => {
-    mockUseDashboardSummary.mockReturnValue({
-      ...readyResult,
-      data: {
-        ...readyResult.data,
-        summary: {
-          ...buildSummary(1618),
-          totalIncome: 53500,
-          totalExpenditure: 43015,
-          habitSavings: 3000,
-          goalSavings: 4000,
-          totalSavings: 7000,
-          totalDebtPayments: 2535,
-          incomingCarryOverAmount: 668,
-          finalBalance: 1618,
-        },
-      },
-    });
-
-    renderDashboardContent();
-
-    expect(screen.getByText("Ingående överföring")).toBeInTheDocument();
-    expect(screen.getByText("+kr 668.00")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: /close month/i }));
-
-    const modal = screen.getByTestId("close-month-modal");
-
-    expect(within(modal).getByText("Incoming carry-over")).toBeInTheDocument();
-    expect(within(modal).getByText("+kr 668.00")).toBeInTheDocument();
-    expect(within(modal).getByText("Income")).toBeInTheDocument();
-    expect(within(modal).getByText("+kr 53,500.00")).toBeInTheDocument();
-    expect(within(modal).getByText("Expenses")).toBeInTheDocument();
-    expect(within(modal).getByText("-kr 43,015.00")).toBeInTheDocument();
-    expect(within(modal).getByText("Savings & Debt")).toBeInTheDocument();
-    expect(within(modal).getByText("-kr 9,535.00")).toBeInTheDocument();
-    expect(within(modal).getByText(/kr 1,618.00 left/i)).toBeInTheDocument();
-  });
-
-  it("review action closes the modal and opens the existing editor flow", () => {
+  it("does not render any 'Edit' affordances inside the close month modal", () => {
     mockUseDashboardSummary.mockReturnValue(readyResult);
 
     render(
@@ -434,13 +362,74 @@ describe("DashboardContent", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: /close month/i }));
-    fireEvent.click(screen.getAllByRole("button", { name: /^edit$/i })[0]);
+
+    const modal = screen.getByTestId("close-month-modal");
+    expect(within(modal).queryByRole("button", { name: /^edit$/i })).toBeNull();
+    expect(within(modal).queryByText(/ändra/i)).toBeNull();
+  });
+
+  it("shows two carry-over choices when there is a positive surplus", () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+
+    render(
+      <MemoryRouter>
+        <DashboardContent
+          isFirstTimeLogin={false}
+          isWizardOpen={false}
+          setIsWizardOpen={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /close month/i }));
+
+    const carryOverOption = screen.getByTestId("resolve-carry-over");
+    const keepOption = screen.getByTestId("resolve-keep");
+    expect(carryOverOption).toHaveTextContent(/carry over to may 2026/i);
+    expect(keepOption).toHaveTextContent(/keep in april/i);
+    expect(keepOption).not.toHaveTextContent(/2026/);
+    expect(keepOption).toHaveAttribute("aria-checked", "true");
+    expect(carryOverOption).toHaveAttribute("aria-checked", "false");
+  });
+
+  it("lets the user switch between carry-over choices without closing the modal", () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+
+    render(
+      <MemoryRouter>
+        <DashboardContent
+          isFirstTimeLogin={false}
+          isWizardOpen={false}
+          setIsWizardOpen={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /close month/i }));
+
+    fireEvent.click(screen.getByTestId("resolve-carry-over"));
+    expect(screen.getByTestId("resolve-carry-over")).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    expect(screen.getByTestId("resolve-keep")).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
+
+    fireEvent.click(screen.getByTestId("resolve-keep"));
+    expect(screen.getByTestId("resolve-keep")).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    expect(screen.getByTestId("resolve-carry-over")).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
 
     expect(
-      screen.queryByRole("heading", { name: "Ready to lock in April 2026?" }),
-    ).not.toBeInTheDocument();
-
-    expect(screen.getByText("Edit drawer open")).toBeInTheDocument();
+      screen.getByRole("heading", { name: "Close April 2026?" }),
+    ).toBeInTheDocument();
   });
 
   it("submits carryOverMode none by default, advances to the returned month, and closes the modal", async () => {
@@ -462,7 +451,7 @@ describe("DashboardContent", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: /close month/i }));
-    fireEvent.click(screen.getByRole("button", { name: /lock april 2026/i }));
+    fireEvent.click(screen.getByTestId("confirm-close-month"));
 
     await waitFor(() => {
       expect(mockMutateAsync).toHaveBeenCalledWith({
@@ -482,12 +471,12 @@ describe("DashboardContent", () => {
         }),
       );
       expect(
-        screen.queryByRole("heading", { name: "Ready to lock in April 2026?" }),
+        screen.queryByRole("heading", { name: "Close April 2026?" }),
       ).not.toBeInTheDocument();
     });
   });
 
-  it("maps a carry-over choice to carryOverMode full", async () => {
+  it("maps the carry-over choice to carryOverMode full", async () => {
     mockUseDashboardSummary.mockReturnValue(readyResult);
     mockMutateAsync.mockResolvedValue({
       nextMonth: {
@@ -506,10 +495,8 @@ describe("DashboardContent", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: /close month/i }));
-    fireEvent.click(
-      screen.getByRole("button", { name: /carry over to may 2026/i }),
-    );
-    fireEvent.click(screen.getByRole("button", { name: /lock april 2026/i }));
+    fireEvent.click(screen.getByTestId("resolve-carry-over"));
+    fireEvent.click(screen.getByTestId("confirm-close-month"));
 
     await waitFor(() => {
       expect(mockMutateAsync).toHaveBeenCalledWith({
@@ -519,6 +506,88 @@ describe("DashboardContent", () => {
         },
       });
     });
+  });
+
+  it("hides the incoming carry-over row when there is no carry-in", () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+
+    render(
+      <MemoryRouter>
+        <DashboardContent
+          isFirstTimeLogin={false}
+          isWizardOpen={false}
+          setIsWizardOpen={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /close month/i }));
+
+    expect(
+      screen.queryByTestId("close-month-summary-incoming-carry-over"),
+    ).toBeNull();
+  });
+
+  it("renders an incoming carry-over row so the summary reconciles when carry-in is present", () => {
+    mockUseDashboardSummary.mockReturnValue({
+      ...readyResult,
+      data: {
+        ...readyResult.data,
+        summary: buildSummary(950, "open", { incomingCarryOverAmount: 668 }),
+      },
+    });
+
+    render(
+      <MemoryRouter>
+        <DashboardContent
+          isFirstTimeLogin={false}
+          isWizardOpen={false}
+          setIsWizardOpen={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /close month/i }));
+
+    const carryOverRow = screen.getByTestId(
+      "close-month-summary-incoming-carry-over",
+    );
+    expect(carryOverRow).toHaveTextContent(/incoming carry-over/i);
+    expect(carryOverRow).toHaveTextContent(/\+.*668/);
+  });
+
+  it("keeps the info disclosure collapsed by default and expands it on click", () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+
+    render(
+      <MemoryRouter>
+        <DashboardContent
+          isFirstTimeLogin={false}
+          isWizardOpen={false}
+          setIsWizardOpen={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /close month/i }));
+
+    const disclosureTrigger = screen.getByRole("button", {
+      name: /what happens when i close the month/i,
+    });
+    expect(disclosureTrigger).toHaveAttribute("aria-expanded", "false");
+    expect(
+      screen.queryByTestId("close-month-disclosure-panel"),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(disclosureTrigger);
+
+    expect(disclosureTrigger).toHaveAttribute("aria-expanded", "true");
+    expect(
+      screen.getByTestId("close-month-disclosure-panel"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("close-month-disclosure-panel"),
+    ).toHaveTextContent(/historical summary/i);
   });
 
   it("shows an error toast and keeps the modal open when closing fails", async () => {
@@ -541,7 +610,7 @@ describe("DashboardContent", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: /close month/i }));
-    fireEvent.click(screen.getByRole("button", { name: /lock april 2026/i }));
+    fireEvent.click(screen.getByTestId("confirm-close-month"));
 
     await waitFor(() => {
       expect(mockToast.error).toHaveBeenCalledWith(
@@ -554,7 +623,7 @@ describe("DashboardContent", () => {
 
     expect(mockSetSelectedYearMonth).not.toHaveBeenCalled();
     expect(
-      screen.getByRole("heading", { name: "Ready to lock in April 2026?" }),
+      screen.getByRole("heading", { name: "Close April 2026?" }),
     ).toBeInTheDocument();
   });
 

@@ -17,21 +17,16 @@ export type CloseMonthReviewState =
       normalizedRemainingToSpend: number;
     };
 
-export type SurplusResolutionStatus =
-  | "idle"
-  | "resolvingEmergencyFund"
-  | "resolvingCarryOver"
-  | "resolvedEmergencyFund"
-  | "resolvedCarryOver";
+export type CloseMonthCarryOverMode = "none" | "full";
 
-export type CloseMonthReviewItem = {
-  id: string;
-  label: string;
-  amount: number;
-  formattedAmount?: string;
-  onEdit: () => void;
+export type CloseMonthSummary = {
+  incomingCarryOver: number;
+  income: number;
+  expenses: number;
+  savingsAndDebt: number;
+  remaining: number;
 };
 
 export type CloseMonthPendingOptions = {
-  carryOverMode: "none" | "full";
+  carryOverMode: CloseMonthCarryOverMode;
 };

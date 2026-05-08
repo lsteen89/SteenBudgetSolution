@@ -14,6 +14,14 @@
 - Use `decimal` for money. Preserve transaction discipline and idempotency in lifecycle flows. Match existing feature-slice patterns.
 - Validate honestly. Report what was built, what was checked, and what remains unverified. Do not imply success when validation was partial.
 
+## Claude Code behavior
+
+- Work on the current branch. Do not create a worktree.
+- Plan before writing code — state which files will change and why
+- /compact at 50% context
+- Commit after each completed task using Conventional Commits
+- Never touch auth flow, docker-compose, Caddy config, or CI/CD without explicit instruction
+
 After completing any task:
 
 1. Append a short entry to docs/ai/ai-changelog.md (date, what changed, files touched, risks/follow-up)

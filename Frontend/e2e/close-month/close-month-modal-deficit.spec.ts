@@ -8,11 +8,8 @@ const text = {
   may2026: /maj 2026|may 2026|mai 2026/i,
   closedStatus: /^(Closed|Stängd|Suletud)$/i,
   skippedStatus: /^(Skipped|Hoppad över|Vahele jäetud)$/i,
+  // Calm "negativeNotice" copy: "This month is overspent by {amount}." / "Månaden är överspenderad med {amount}." / "See kuu on {amount} miinuses."
   overspentHeadline: /overspent|överspenderad|miinuses/i,
-  overspentBody:
-    /review income, expenses|granska inkomster|vaata .*tulud/i,
-  overspentFooter:
-    /deficit of|underskottet på|puudujääk summas/i,
   noCarryOver:
     /nothing carried over|nothing was carried into|ingen överföring följde med|fördes inte vidare|ei kantud midagi üle/i,
   deficitGuidance:
@@ -60,10 +57,12 @@ test("close modal deficit user locks April with calm deficit recap", async ({
 
   const modal = page.getByTestId("close-month-modal");
   await expect(modal).toBeVisible();
-  await expect(modal).toContainText(text.overspentHeadline);
-  await expect(modal).toContainText(text.overspentBody);
-  await expect(modal).toContainText(text.overspentFooter);
+  // Calm overspent notice surfaces in the modal; no surplus decision is shown.
+  await expect(modal.getByTestId("close-month-negative-notice")).toContainText(
+    text.overspentHeadline,
+  );
   await expect(modal.getByTestId("resolve-carry-over")).toHaveCount(0);
+  await expect(modal.getByTestId("resolve-keep")).toHaveCount(0);
   await expect(modal.getByTestId("resolve-emergency-fund")).toHaveCount(0);
 
   const closeResponsePromise = waitForCloseResponse(page);

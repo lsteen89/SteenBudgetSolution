@@ -8,9 +8,8 @@ const text = {
   may2026: /maj 2026|may 2026|mai 2026/i,
   closedStatus: /^(Closed|Stängd|Suletud)$/i,
   skippedStatus: /^(Skipped|Hoppad över|Vahele jäetud)$/i,
-  balancedHeadline: /perfect balance|perfekt balans|täiuslik tasakaal/i,
-  balancedBody: /every krona|varje krona|iga kroon/i,
-  balancedFooter: /ready to lock|redo att låsas|lukustamiseks valmis/i,
+  // Modal title for the closing month — same in every locale via the shared snapshotLabel + month label.
+  modalTitle: /Close april 2026|Stäng april 2026|Sulge april 2026/i,
   noCarryOver:
     /nothing was carried into|ingen överföring följde med|ei kantud midagi üle/i,
   deficitGuidance:
@@ -52,11 +51,12 @@ test("close modal balanced user locks April without carry-over resolution", asyn
 
   const modal = page.getByTestId("close-month-modal");
   await expect(modal).toBeVisible();
-  await expect(modal).toContainText(text.balancedHeadline);
-  await expect(modal).toContainText(text.balancedBody);
-  await expect(modal).toContainText(text.balancedFooter);
+  await expect(modal).toContainText(text.modalTitle);
+  // Balanced months show no surplus decision and no overspent notice.
   await expect(modal.getByTestId("resolve-carry-over")).toHaveCount(0);
+  await expect(modal.getByTestId("resolve-keep")).toHaveCount(0);
   await expect(modal.getByTestId("resolve-emergency-fund")).toHaveCount(0);
+  await expect(modal.getByTestId("close-month-negative-notice")).toHaveCount(0);
 
   const closeResponsePromise = waitForCloseResponse(page);
   await page.getByTestId("confirm-close-month").click();

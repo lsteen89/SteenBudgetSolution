@@ -61,18 +61,28 @@ async function readEnvelopeData<T>(response: Response): Promise<T> {
   return (json.data ?? json) as T;
 }
 
+// Round to whole öre (2 decimal places) before comparing. The backend rounds
+// each money value with MoneyRound.Kr, but recomputing the expected balance in
+// JavaScript via raw subtraction can produce 1250.000000000001 etc. due to
+// IEEE-754 drift. Comparing rounded cents avoids the false negative without
+// weakening the invariant the assertion is meant to express.
+function roundOre(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
 function expectDashboardMathToReconcile(dto: DashboardMonthDto) {
   const live = dto.liveDashboard;
   expect(live).not.toBeNull();
 
-  const expected =
+  const expected = roundOre(
     live!.carryOverAmountMonthly +
-    live!.income.totalIncomeMonthly -
-    live!.expenditure.totalExpensesMonthly -
-    live!.savings.totalSavingsMonthly -
-    live!.debt.totalMonthlyPayments;
+      live!.income.totalIncomeMonthly -
+      live!.expenditure.totalExpensesMonthly -
+      live!.savings.totalSavingsMonthly -
+      live!.debt.totalMonthlyPayments,
+  );
 
-  expect(live!.finalBalanceWithCarryMonthly).toBe(expected);
+  expect(roundOre(live!.finalBalanceWithCarryMonthly)).toBe(expected);
 }
 
 async function expectIncomingCarryOverRow(page: Page) {

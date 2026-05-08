@@ -8,10 +8,12 @@ const text = {
   may2026: /maj 2026|may 2026|mai 2026/i,
   closedStatus: /^(Closed|Stängd|Suletud)$/i,
   skippedStatus: /^(Skipped|Hoppad över|Vahele jäetud)$/i,
-  positiveHeadline: /left to allocate|kvar att fördela|jaotamata/i,
-  resolverBody: /handle this surplus|hantera överskottet|ülejäägi lahendada/i,
-  unresolvedFooter:
-    /remain unassigned|förbli ofördelat|jääb .*jaotamata/i,
+  // Surplus intro line 1: "You have {amount} left to handle." / "Du har {amount} kvar att hantera." / "Sul on veel {amount} jaotada."
+  positiveHeadline: /left to handle|kvar att hantera|veel .* jaotada/i,
+  // Surplus intro line 2 mentions carrying it forward vs keeping in current month.
+  resolverBody:
+    /carry it into next month|följa med till|läheb järgmisesse kuusse/i,
+  keepOptionTitle: /Keep in |Behåll i |Säilita kuus /i,
   noCarryOver:
     /nothing was carried into|ingen överföring följde med|ei kantud midagi üle/i,
   deficitGuidance:
@@ -56,8 +58,15 @@ test("close modal surplus user can lock April without resolving carry-over", asy
   await expect(modal).toBeVisible();
   await expect(modal).toContainText(text.positiveHeadline);
   await expect(modal).toContainText(text.resolverBody);
-  await expect(modal).toContainText(text.unresolvedFooter);
-  await expect(modal.getByTestId("resolve-carry-over")).toBeVisible();
+  // Default surplus selection: keep amount in the closing month (carryOverMode "none").
+  await expect(modal.getByTestId("resolve-keep")).toHaveAttribute(
+    "data-state",
+    "selected",
+  );
+  await expect(modal.getByTestId("resolve-carry-over")).toHaveAttribute(
+    "data-state",
+    "idle",
+  );
   await expect(modal.getByTestId("resolve-emergency-fund")).toHaveCount(0);
 
   const closeResponsePromise = waitForCloseResponse(page);

@@ -1,145 +1,115 @@
 export const closeMonthReviewModalDict = {
   sv: {
     snapshotLabel: "Månadsstängning",
-    title: "Redo att låsa {month}?",
+    title: "Stäng {month}?",
     description:
-      "När du stänger månaden sparas en skrivskyddad ögonblicksbild som du alltid kan gå tillbaka till.",
-    balancedHeadline: "Perfekt balans.",
-    balancedBody: "Varje krona har ett jobb och månaden är redo att låsas.",
+      "När månaden stängs sparas en historisk vy av dina siffror. Du kan alltid gå tillbaka och läsa den.",
 
-    positiveHeadline: "Du har {amount} kvar att fördela.",
-    resolverBody:
-      "Varje krona behöver ett jobb. Hur vill du hantera överskottet?",
-    addToEmergencyFund: "Lägg till i {fund}",
-    carryOverToNext: "För över till {month}",
-    resolvingEmergencyFund: "Lägger till i {fund}...",
-    resolvingCarryOver: "Förbereder överföring till {month}...",
-    resolvedEmergencyFundHeadline: "{amount} tilldelat till {fund}",
-    resolvedEmergencyFundBody:
-      "Bra. Ditt överskott har nu ett tydligt syfte innan månaden låses.",
-    resolvedCarryOverHeadline: "{amount} kommer att föras över till {month}",
-    resolvedCarryOverBody: "Bra. Överskottet förs vidare när månaden låses.",
+    surplusIntroLine1: "Du har {amount} kvar att hantera.",
+    surplusIntroLine2:
+      "Välj om beloppet ska följa med till nästa månad eller stanna i {monthOnly}.",
 
-    negativeHeadline: "Månaden är överspenderad med {amount}.",
-    negativeBody:
-      "Granska inkomster, utgifter eller sparande och skulder innan du stänger, eller lås månaden och behåll resultatet i ögonblicksbilden.",
+    optionCarryOverTitle: "För över till {nextMonth}",
+    optionCarryOverBody: "Beloppet blir tillgängligt i nästa månads plan.",
+    optionKeepTitle: "Behåll i {monthOnly}",
+    optionKeepBody: "Beloppet sparas som överskott i {monthOnly}-vyn.",
+    optionSelected: "Valt",
 
-    checklistTitle: "Är dina siffror uppdaterade?",
-    incomingCarryOverLabel: "Ingående överföring",
-    incomeLabel: "Inkomster",
-    expensesLabel: "Utgifter",
-    savingsDebtLabel: "Sparande & skulder",
-    edit: "Ändra",
+    negativeNotice: "Månaden är överspenderad med {amount}.",
 
-    footerBalanced: "{month} är redo att låsas.",
-    footerPositiveUnresolved:
-      "Om du låser nu kommer {amount} att förbli ofördelat i ögonblicksbilden för {month}.",
-    footerResolvedEmergencyFund: "{amount} har tilldelats till {fund}.",
-    footerResolvedCarryOver:
-      "{amount} förs över till {month} när du låser perioden.",
-    footerNegative:
-      "Om du låser nu kommer underskottet på {amount} att finnas kvar i ögonblicksbilden för {month}.",
+    summaryTitle: "Månadens siffror",
+    summaryIncomingCarryOver: "Ingående överföring",
+    summaryIncome: "Inkomster",
+    summaryExpenses: "Utgifter",
+    summarySavingsDebt: "Sparande & skulder",
+    summaryRemaining: "Kvar",
 
-    confirm: "Lås {month}",
+    adjustHint:
+      "Stämmer inte siffrorna? Avbryt och justera månaden innan du stänger den.",
+
+    disclosureSummary: "Vad händer när jag stänger månaden?",
+    disclosureBody:
+      "Månaden sparas som en historisk sammanfattning och blir skrivskyddad. Du kan alltid gå tillbaka och läsa den, men ändringar görs i öppna månader.",
+
+    confirm: "Stäng {month}",
     cancel: "Avbryt",
-    emergencyFundFallback: "Nödfond",
-    closeMonthSuccessToast: "{month} visas nu efter att månaden låsts.",
+
+    closeMonthSuccessToast: "{month} visas nu efter att månaden stängts.",
   },
 
   en: {
-    snapshotLabel: "Month close review",
-    title: "Ready to lock in {month}?",
+    snapshotLabel: "Monthly close",
+    title: "Close {month}?",
     description:
-      "Closing this month saves a read-only snapshot that you can revisit at any time.",
-    balancedHeadline: "Perfect balance.",
-    balancedBody:
-      "Every krona is accounted for and this month is ready to lock.",
+      "Closing this month saves a historical view of your numbers. You can always come back and read it.",
 
-    positiveHeadline: "You have {amount} left to allocate.",
-    resolverBody:
-      "Every krona needs a job. How do you want to handle this surplus?",
-    addToEmergencyFund: "Add to {fund}",
-    carryOverToNext: "Carry over to {month}",
-    resolvingEmergencyFund: "Adding to {fund}...",
-    resolvingCarryOver: "Preparing carry over to {month}...",
-    resolvedEmergencyFundHeadline: "{amount} assigned to {fund}",
-    resolvedEmergencyFundBody:
-      "Great. Your surplus now has a clear purpose before this month is locked.",
-    resolvedCarryOverHeadline: "{amount} will carry over to {month}",
-    resolvedCarryOverBody:
-      "Great. This surplus will move forward when this month is locked.",
+    surplusIntroLine1: "You have {amount} left to handle.",
+    surplusIntroLine2:
+      "Choose whether to carry it into next month or keep it in {monthOnly}.",
 
-    negativeHeadline: "This month is overspent by {amount}.",
-    negativeBody:
-      "Review income, expenses, or savings and debt before closing, or lock the month and keep this result in the snapshot.",
+    optionCarryOverTitle: "Carry over to {nextMonth}",
+    optionCarryOverBody: "The amount becomes available in next month's plan.",
+    optionKeepTitle: "Keep in {monthOnly}",
+    optionKeepBody: "The amount is saved as a surplus in the {monthOnly} view.",
+    optionSelected: "Selected",
 
-    checklistTitle: "Are your numbers up to date?",
-    incomingCarryOverLabel: "Incoming carry-over",
-    incomeLabel: "Income",
-    expensesLabel: "Expenses",
-    savingsDebtLabel: "Savings & Debt",
-    edit: "Edit",
+    negativeNotice: "This month is overspent by {amount}.",
 
-    footerBalanced: "{month} is ready to lock.",
-    footerPositiveUnresolved:
-      "If you lock now, {amount} will remain unassigned in the {month} snapshot.",
-    footerResolvedEmergencyFund: "{amount} has been assigned to {fund}.",
-    footerResolvedCarryOver:
-      "{amount} will carry over into {month} when you lock this period.",
-    footerNegative:
-      "If you lock now, the deficit of {amount} will remain in the {month} snapshot.",
+    summaryTitle: "This month's numbers",
+    summaryIncomingCarryOver: "Incoming carry-over",
+    summaryIncome: "Income",
+    summaryExpenses: "Expenses",
+    summarySavingsDebt: "Savings & debt",
+    summaryRemaining: "Remaining",
 
-    confirm: "Lock {month}",
+    adjustHint:
+      "Numbers don't add up? Cancel and adjust the month before closing it.",
+
+    disclosureSummary: "What happens when I close the month?",
+    disclosureBody:
+      "The month is saved as a historical summary and becomes read-only. You can always go back and read it, but edits are made in open months.",
+
+    confirm: "Close {month}",
     cancel: "Cancel",
-    emergencyFundFallback: "Emergency fund",
+
     closeMonthSuccessToast: "Month closed. You're now viewing {month}.",
   },
 
   et: {
-    snapshotLabel: "Kuu sulgemise ülevaade",
-    title: "Kas oled valmis {month} lukustama?",
+    snapshotLabel: "Kuu sulgemine",
+    title: "Sulge {month}?",
     description:
-      "Kuu sulgemisel salvestatakse kirjutuskaitstud hetkeseis, mida saad igal ajal uuesti vaadata.",
-    balancedHeadline: "Täiuslik tasakaal.",
-    balancedBody: "Iga kroon on arvel ja kuu on lukustamiseks valmis.",
+      "Kuu sulgemisel salvestatakse ajalooline vaade sinu numbritest. Saad selle juurde igal ajal naasta.",
 
-    positiveHeadline: "Sul on veel {amount} jaotamata.",
-    resolverBody:
-      "Iga kroon vajab eesmärki. Kuidas soovid selle ülejäägi lahendada?",
-    addToEmergencyFund: "Lisa see fondi {fund}",
-    carryOverToNext: "Kanna üle kuusse {month}",
-    resolvingEmergencyFund: "Lisan fondi {fund}...",
-    resolvingCarryOver: "Valmistan ülekannet kuusse {month}...",
-    resolvedEmergencyFundHeadline: "{amount} suunati fondi {fund}",
-    resolvedEmergencyFundBody:
-      "Väga hea. Sinu ülejääk sai enne kuu lukustamist selge eesmärgi.",
-    resolvedCarryOverHeadline: "{amount} kantakse üle kuusse {month}",
-    resolvedCarryOverBody:
-      "Väga hea. See ülejääk liigub edasi, kui kuu lukustad.",
+    surplusIntroLine1: "Sul on veel {amount} jaotada.",
+    surplusIntroLine2:
+      "Vali, kas summa läheb järgmisesse kuusse või jääb kuusse {monthOnly}.",
 
-    negativeHeadline: "See kuu on {amount} miinuses.",
-    negativeBody:
-      "Vaata enne sulgemist üle tulud, kulud või säästud ja võlad, või lukusta kuu ning säilita see tulemus hetkeseisus.",
+    optionCarryOverTitle: "Kanna üle kuusse {nextMonth}",
+    optionCarryOverBody: "Summa muutub kättesaadavaks järgmise kuu plaanis.",
+    optionKeepTitle: "Säilita kuus {monthOnly}",
+    optionKeepBody: "Summa salvestatakse ülejäägina kuu {monthOnly} vaates.",
+    optionSelected: "Valitud",
 
-    checklistTitle: "Kas sinu numbrid on ajakohased?",
-    incomingCarryOverLabel: "Sissetulev ülekanne",
-    incomeLabel: "Sissetulek",
-    expensesLabel: "Kulud",
-    savingsDebtLabel: "Säästud ja võlad",
-    edit: "Muuda",
+    negativeNotice: "See kuu on {amount} miinuses.",
 
-    footerBalanced: "{month} on lukustamiseks valmis.",
-    footerPositiveUnresolved:
-      "Kui lukustad nüüd, jääb {amount} kuu {month} hetkeseisus jaotamata.",
-    footerResolvedEmergencyFund: "{amount} on suunatud fondi {fund}.",
-    footerResolvedCarryOver:
-      "{amount} kantakse kuusse {month} üle, kui selle perioodi lukustad.",
-    footerNegative:
-      "Kui lukustad nüüd, jääb puudujääk summas {amount} kuu {month} hetkeseisu.",
+    summaryTitle: "Kuu numbrid",
+    summaryIncomingCarryOver: "Eelnev ülekanne",
+    summaryIncome: "Tulud",
+    summaryExpenses: "Kulud",
+    summarySavingsDebt: "Säästud ja võlad",
+    summaryRemaining: "Jääk",
 
-    confirm: "Lukusta {month}",
+    adjustHint:
+      "Numbrid ei klapi? Tühista ja paranda kuud enne sulgemist.",
+
+    disclosureSummary: "Mis juhtub, kui kuu sulgen?",
+    disclosureBody:
+      "Kuu salvestatakse ajaloolise kokkuvõttena ja muutub kirjutuskaitstuks. Saad alati tagasi minna ja vaadata, kuid muudatusi tehakse avatud kuudes.",
+
+    confirm: "Sulge {month}",
     cancel: "Tühista",
-    emergencyFundFallback: "Hädaabifond",
+
     closeMonthSuccessToast: "Kuu on suletud. Nüüd kuvame kuud {month}.",
   },
 } as const;

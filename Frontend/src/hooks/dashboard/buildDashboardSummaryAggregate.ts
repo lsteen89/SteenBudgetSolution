@@ -328,7 +328,7 @@ function buildOpenMonthAggregate(
 
       totalIncome,
       totalExpenditure,
-      incomingCarryOverAmount,
+      incomingCarryOverAmount: round2(num0(dashboard.carryOverAmountMonthly)),
 
       habitSavings,
       goalSavings,
