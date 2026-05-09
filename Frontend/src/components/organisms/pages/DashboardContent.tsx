@@ -12,6 +12,10 @@ import { useBudgetMonthRecapQuery } from "@/hooks/budget/useBudgetMonthRecapQuer
 import { useCloseMonthReviewController } from "@/hooks/dashboard/useCloseMonthReviewController";
 import { useDashboardSummary } from "@/hooks/dashboard/useDashboardSummary";
 import type { DashboardSummary } from "@/hooks/dashboard/dashboardSummary.types";
+import {
+  getCloseAvailabilityLabel,
+  type CloseAvailability,
+} from "@/hooks/dashboard/getCloseAvailabilityLabel";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { useBudgetMonthStore } from "@/stores/Budget/budgetMonthStore";
 import type { AppLocale } from "@/types/i18n/appLocale";
@@ -46,6 +50,10 @@ function replaceToken(template: string, token: string, value: string) {
 function buildPeriodControlBarViewModel(
   summary: DashboardSummary,
   locale: AppLocale,
+  options: {
+    closeAvailability?: CloseAvailability;
+    suppressContinueAction?: boolean;
+  } = {},
 ): PeriodControlBarViewModel {
   const t: HeaderT = (key) => tDict(key, locale, dashboardHeaderDict);
   const header = summary.header;
@@ -57,7 +65,18 @@ function buildPeriodControlBarViewModel(
     header.periodStatus === "open" &&
     header.canCloseMonth &&
     !!header.closeMonthButtonLabel;
-  const statusLabelKey = isAttention ? "overdue" : header.periodStatus;
+  const closeAvailability = options.closeAvailability;
+  const isReadyToClose =
+    header.periodStatus === "open" && closeAvailability?.kind === "ready";
+  // Open + ready (eligible) replaces the bland "Open" chip with a calmer
+  // "Ready to close" label so the user sees the next step at a glance.
+  // Overdue keeps its dedicated "overdue" chip + amber tone — that's a
+  // different urgency signal.
+  const statusLabelKey = isAttention
+    ? "overdue"
+    : isReadyToClose
+      ? "readyToClose"
+      : header.periodStatus;
   const currentTone: PeriodControlBarViewModel["current"]["tone"] = isSkipped
     ? "muted"
     : isClosed
@@ -108,6 +127,19 @@ function buildPeriodControlBarViewModel(
       tone: header.canGoNext ? "neutral" : "muted",
       icon: "next",
     },
+    // Open-not-yet-closable months get a calm "Månaden kan stängas om X dagar"
+    // chip after the next-month chip. Ready-to-close months don't need this
+    // — the status chip itself flips to "Redo att stängas" and the close CTA
+    // handles the rest.
+    ...(closeAvailability?.kind === "countdown"
+      ? [
+          {
+            label: closeAvailability.label,
+            tone: "neutral",
+            icon: "status",
+          } satisfies PeriodControlBarViewModel["ribbonItems"][number],
+        ]
+      : []),
   ];
 
   const previousLabel = header.previousPeriodLabel ?? t("previous");
@@ -135,7 +167,12 @@ function buildPeriodControlBarViewModel(
             : null,
       attention: header.lifecycleState === "overdue",
     };
-  } else if ((isClosed || isSkipped) && continueTargetLabel && continueTargetKey) {
+  } else if (
+    (isClosed || isSkipped) &&
+    continueTargetLabel &&
+    continueTargetKey &&
+    !options.suppressContinueAction
+  ) {
     action = {
       type: "continue",
       label: replaceToken(t("continueWithMonth"), "month", continueTargetLabel),
@@ -237,7 +274,19 @@ function LoadedDashboardContent({
   };
 
   const isSwitchingMonth = isFetching && !isPending;
-  const periodControlVm = buildPeriodControlBarViewModel(summary, locale);
+
+  // The handoff card owns the "continue to next month" CTA whenever it is
+  // visible for the active selected month. Suppress the header continue
+  // action so the user only sees one calm forward action at a time.
+  const isJustClosedHandoffVisible =
+    closeMonthReview.justClosed?.closedYearMonth === yearMonth;
+
+  const closeAvailability = getCloseAvailabilityLabel(summary.header, locale);
+
+  const periodControlVm = buildPeriodControlBarViewModel(summary, locale, {
+    closeAvailability,
+    suppressContinueAction: isJustClosedHandoffVisible,
+  });
 
   return (
     <div className="w-full max-w-6xl space-y-5">

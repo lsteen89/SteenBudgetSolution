@@ -4,6 +4,9 @@ export const dashboardHeaderDict = {
     closed: "Stängd",
     skipped: "Hoppad över",
     overdue: "Försenad",
+    readyToClose: "Redo att stängas",
+    closeAvailabilityCountdownOne: "Månaden kan stängas om {count} dag",
+    closeAvailabilityCountdownOther: "Månaden kan stängas om {count} dagar",
 
     topHint: "Den här perioden i korthet",
     title: "Den här perioden",
@@ -59,6 +62,9 @@ export const dashboardHeaderDict = {
     closed: "Closed",
     skipped: "Skipped",
     overdue: "Overdue",
+    readyToClose: "Ready to close",
+    closeAvailabilityCountdownOne: "The month can be closed in {count} day",
+    closeAvailabilityCountdownOther: "The month can be closed in {count} days",
 
     topHint: "This period at a glance",
     title: "This period",
@@ -114,6 +120,9 @@ export const dashboardHeaderDict = {
     closed: "Suletud",
     skipped: "Vahele jäetud",
     overdue: "Hilinenud",
+    readyToClose: "Valmis sulgemiseks",
+    closeAvailabilityCountdownOne: "Kuu saab sulgeda {count} päeva pärast",
+    closeAvailabilityCountdownOther: "Kuu saab sulgeda {count} päeva pärast",
 
     topHint: "Selle perioodi ülevaade",
     title: "See periood",
