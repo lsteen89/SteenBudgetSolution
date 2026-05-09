@@ -1,6 +1,9 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { ChevronLeft, Sparkles } from "lucide-react";
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
+import { breakdownCardsDict } from "@/utils/i18n/pages/private/dashboard/pages/BreakdownCards.i18n";
+import { tDict } from "@/utils/i18n/translate";
 
 type Props = {
     title: string;
@@ -8,6 +11,10 @@ type Props = {
 };
 
 const BreakdownHeader: React.FC<Props> = ({ title, equation }) => {
+    const locale = useAppLocale();
+    const t = <K extends keyof typeof breakdownCardsDict.sv>(key: K) =>
+        tDict(key, locale, breakdownCardsDict);
+
     return (
         <header className="w-full mb-10 lg:mb-16">
             <div className="mx-auto w-full max-w-3xl px-4 text-center">
@@ -51,10 +58,10 @@ const BreakdownHeader: React.FC<Props> = ({ title, equation }) => {
                   text-slate-500 hover:text-slate-900 transition
                   border border-slate-200/70 shadow-sm
                 "
-                                aria-label="Back to dashboard"
+                                aria-label={t("backToDashboardAria")}
                             >
                                 <ChevronLeft size={14} />
-                                <span>Till Dashboard</span>
+                                <span>{t("backToDashboard")}</span>
                             </Link>
                         </div>
 
@@ -63,7 +70,7 @@ const BreakdownHeader: React.FC<Props> = ({ title, equation }) => {
                             <span className="h-[2px] w-10 rounded-full bg-gradient-to-r from-transparent via-indigo-500/35 to-transparent" />
                             <span className="inline-flex items-center gap-1 rounded-full border border-slate-200/70 bg-white/70 px-2 py-1 text-[11px] font-semibold text-slate-600 shadow-sm">
                                 <Sparkles size={12} />
-                                Breakdown
+                                {t("breakdownBadge")}
                             </span>
                             <span className="h-[2px] w-10 rounded-full bg-gradient-to-r from-transparent via-emerald-400/35 to-transparent" />
                         </div>

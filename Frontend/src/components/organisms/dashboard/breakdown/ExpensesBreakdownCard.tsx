@@ -6,6 +6,9 @@ import { formatMoneyV2 } from "@/utils/money/moneyV2";
 import type { BreakdownItem, RecurringExpenseSummary } from "@/hooks/dashboard/dashboardSummary.types";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import MiniGradientBar from "@/components/atoms/charts/MiniGradientBar";
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
+import { breakdownCardsDict } from "@/utils/i18n/pages/private/dashboard/pages/BreakdownCards.i18n";
+import { tDict } from "@/utils/i18n/translate";
 
 type Props = {
     totalExpenditure: number;
@@ -15,6 +18,9 @@ type Props = {
     recurringExpenses: RecurringExpenseSummary[];
     maxItems?: number;
 };
+
+const interpolate = (template: string, values: Record<string, string | number>) =>
+    template.replace(/\{(\w+)\}/g, (_, key) => String(values[key] ?? ""));
 
 function MiniBarRow({
     label,
@@ -57,6 +63,9 @@ export default function ExpensesBreakdownCard({
     recurringExpenses,
     maxItems = 3,
 }: Props) {
+    const locale = useAppLocale();
+    const t = <K extends keyof typeof breakdownCardsDict.sv>(key: K) =>
+        tDict(key, locale, breakdownCardsDict);
     const [showAllCats, setShowAllCats] = useState(false);
 
     const vm = useMemo(() => {
@@ -77,26 +86,26 @@ export default function ExpensesBreakdownCard({
 
     return (
         <CardShell
-            title="Utgiftsanalys"
-            subtitle="Kategoriserad sammanfattning av månaden"
+            title={t("expensesTitle")}
+            subtitle={t("expensesSubtitle")}
             className="w-full"
             actions={
                 <Link to="/expenses" className="text-[11px] font-bold text-slate-400 hover:text-slate-900 transition underline underline-offset-4">
-                    Hantera alla
+                    {t("manageAll")}
                 </Link>
             }
             stats={
                 <div className="flex flex-col">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">Total utgift</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none">{t("totalExpense")}</span>
                     <span className="text-xl font-bold text-slate-900 mt-1">
-                        {formatMoneyV2(totalExpenditure, currency)}
+                        {formatMoneyV2(totalExpenditure, currency, locale)}
                     </span>
                 </div>
             }
         >
             <div className="space-y-6">
                 <div className="space-y-3">
-                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Kategorier</span>
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{t("categories")}</span>
 
                     {/* 1. Initial items - Always visible */}
                     <div className="grid gap-4">
@@ -104,11 +113,13 @@ export default function ExpensesBreakdownCard({
                             <MiniBarRow
                                 key={c.key}
                                 label={c.label}
-                                amountText={formatMoneyV2(c.amount, currency)}
+                                amountText={formatMoneyV2(c.amount, currency, locale)}
                                 pct={vm.totalCats > 0 ? c.amount / vm.totalCats : 0}
                                 meta={
                                     totalExpenditure > 0
-                                        ? `${Math.round((c.amount / totalExpenditure) * 100)}% av totalt`
+                                        ? interpolate(t("percentOfTotal"), {
+                                            percent: Math.round((c.amount / totalExpenditure) * 100),
+                                        })
                                         : "—"
                                 }
                             />
@@ -126,11 +137,13 @@ export default function ExpensesBreakdownCard({
                                     <MiniBarRow
                                         key={c.key}
                                         label={c.label}
-                                        amountText={formatMoneyV2(c.amount, currency)}
+                                        amountText={formatMoneyV2(c.amount, currency, locale)}
                                         pct={vm.totalCats > 0 ? c.amount / vm.totalCats : 0}
                                         meta={
                                             totalExpenditure > 0
-                                                ? `${Math.round((c.amount / totalExpenditure) * 100)}% av totalt`
+                                                ? interpolate(t("percentOfTotal"), {
+                                                    percent: Math.round((c.amount / totalExpenditure) * 100),
+                                                })
                                                 : "—"
                                         }
                                     />
@@ -145,7 +158,11 @@ export default function ExpensesBreakdownCard({
                             onClick={() => setShowAllCats(!showAllCats)}
                             className="flex items-center justify-center w-full py-2.5 mt-2 gap-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition-all text-[11px] font-bold uppercase tracking-widest border border-slate-100"
                         >
-                            <span>{showAllCats ? "Visa mindre" : `Visa alla (${vm.cats.length})`}</span>
+                            <span>
+                                {showAllCats
+                                    ? t("showLessCompact")
+                                    : interpolate(t("showAll"), { count: vm.cats.length })}
+                            </span>
                             <ChevronDown
                                 size={14}
                                 className={`transition-transform duration-500 ${showAllCats ? "rotate-180" : "rotate-0"}`}
@@ -155,12 +172,12 @@ export default function ExpensesBreakdownCard({
                 </div>
                 {/* Recurring Items Squeeze */}
                 <div className="pt-4 border-t border-slate-100">
-                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-3">Största fasta utgifterna</span>
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-3">{t("largestRecurringExpenses")}</span>
                     <div className="space-y-2">
                         {recurringExpenses.slice(0, 3).map((e) => (
                             <div key={e.id} className="flex items-center justify-between text-xs px-1">
                                 <span className="font-medium text-slate-700">{e.nameLabel}</span>
-                                <span className="font-bold text-slate-900 tabular-nums">{formatMoneyV2(e.amountMonthly, currency)}</span>
+                                <span className="font-bold text-slate-900 tabular-nums">{formatMoneyV2(e.amountMonthly, currency, locale)}</span>
                             </div>
                         ))}
                     </div>

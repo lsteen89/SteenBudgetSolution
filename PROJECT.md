@@ -78,8 +78,7 @@ npm run test:e2e:smoke      # PR validation slice
 
 Seed (preferred, Docker):
 ```
-docker compose --env-file .env.dev -f docker-compose.dev.yml --profile seed run --rm seed-users
-docker compose --env-file .env.dev -f docker-compose.dev.yml --profile seed run --rm seed-users-with-budget
+./scripts/seed-dev.sh
 ```
 
 ## Key files to know

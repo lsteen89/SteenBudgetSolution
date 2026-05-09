@@ -1,4 +1,5 @@
 import CloseMonthReviewModal from "@/components/organisms/dashboard/closeMonth/CloseMonthReviewModal";
+import ClosedMonthHandoffCard from "@/components/organisms/dashboard/closeMonth/ClosedMonthHandoffCard";
 import EditPeriodDrawer from "@/components/organisms/dashboard/editPeriod/EditPeriodDrawer";
 import ClosedMonthRecapSection from "@/components/organisms/dashboard/recap/ClosedMonthRecapSection";
 import SkippedMonthState from "@/components/organisms/dashboard/recap/SkippedMonthState";
@@ -11,12 +12,18 @@ import { useBudgetMonthRecapQuery } from "@/hooks/budget/useBudgetMonthRecapQuer
 import { useCloseMonthReviewController } from "@/hooks/dashboard/useCloseMonthReviewController";
 import { useDashboardSummary } from "@/hooks/dashboard/useDashboardSummary";
 import type { DashboardSummary } from "@/hooks/dashboard/dashboardSummary.types";
+import {
+  getCloseAvailabilityLabel,
+  type CloseAvailability,
+} from "@/hooks/dashboard/getCloseAvailabilityLabel";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { useBudgetMonthStore } from "@/stores/Budget/budgetMonthStore";
+import type { ApiProblem } from "@/api/api.types";
 import type { AppLocale } from "@/types/i18n/appLocale";
 import type { BudgetMonthListItemDto } from "@/types/budget/BudgetMonthsStatusDto";
 import { dashboardHeaderDict } from "@/utils/i18n/pages/private/dashboard/header/DashboardHeader.i18n";
 import { closeMonthReviewModalDict } from "@/utils/i18n/pages/private/dashboard/closeMonth/CloseMonthReviewModal.i18n";
+import { dashboardErrorStateDict } from "@/utils/i18n/pages/private/dashboard/DashboardErrorState.i18n";
 import { tDict } from "@/utils/i18n/translate";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
 import DashboardHomeSkeleton from "@components/organisms/dashboard/DashboardHomeSkeleton";
@@ -33,6 +40,17 @@ export interface DashboardContentProps {
 const isNotFound = (p: any) =>
   p?.status === 404 || p?.statusCode === 404 || p?.httpStatus === 404;
 
+const isNetworkDashboardError = (error: ApiProblem | null) => {
+  const raw = error?.raw as { message?: unknown } | undefined;
+  const rawMessage = typeof raw?.message === "string" ? raw.message : "";
+
+  return (
+    error?.isNetworkError === true ||
+    error?.message === "Network Error" ||
+    rawMessage === "Network Error"
+  );
+};
+
 type HeaderTKey = keyof typeof dashboardHeaderDict.sv;
 type HeaderT = <K extends HeaderTKey>(key: K) => string;
 type CloseReviewTKey = keyof typeof closeMonthReviewModalDict.sv;
@@ -45,6 +63,10 @@ function replaceToken(template: string, token: string, value: string) {
 function buildPeriodControlBarViewModel(
   summary: DashboardSummary,
   locale: AppLocale,
+  options: {
+    closeAvailability?: CloseAvailability;
+    suppressContinueAction?: boolean;
+  } = {},
 ): PeriodControlBarViewModel {
   const t: HeaderT = (key) => tDict(key, locale, dashboardHeaderDict);
   const header = summary.header;
@@ -56,7 +78,18 @@ function buildPeriodControlBarViewModel(
     header.periodStatus === "open" &&
     header.canCloseMonth &&
     !!header.closeMonthButtonLabel;
-  const statusLabelKey = isAttention ? "overdue" : header.periodStatus;
+  const closeAvailability = options.closeAvailability;
+  const isReadyToClose =
+    header.periodStatus === "open" && closeAvailability?.kind === "ready";
+  // Open + ready (eligible) replaces the bland "Open" chip with a calmer
+  // "Ready to close" label so the user sees the next step at a glance.
+  // Overdue keeps its dedicated "overdue" chip + amber tone — that's a
+  // different urgency signal.
+  const statusLabelKey = isAttention
+    ? "overdue"
+    : isReadyToClose
+      ? "readyToClose"
+      : header.periodStatus;
   const currentTone: PeriodControlBarViewModel["current"]["tone"] = isSkipped
     ? "muted"
     : isClosed
@@ -107,6 +140,19 @@ function buildPeriodControlBarViewModel(
       tone: header.canGoNext ? "neutral" : "muted",
       icon: "next",
     },
+    // Open-not-yet-closable months get a calm "Månaden kan stängas om X dagar"
+    // chip after the next-month chip. Ready-to-close months don't need this
+    // — the status chip itself flips to "Redo att stängas" and the close CTA
+    // handles the rest.
+    ...(closeAvailability?.kind === "countdown"
+      ? [
+          {
+            label: closeAvailability.label,
+            tone: "neutral",
+            icon: "status",
+          } satisfies PeriodControlBarViewModel["ribbonItems"][number],
+        ]
+      : []),
   ];
 
   const previousLabel = header.previousPeriodLabel ?? t("previous");
@@ -134,7 +180,12 @@ function buildPeriodControlBarViewModel(
             : null,
       attention: header.lifecycleState === "overdue",
     };
-  } else if ((isClosed || isSkipped) && continueTargetLabel && continueTargetKey) {
+  } else if (
+    (isClosed || isSkipped) &&
+    continueTargetLabel &&
+    continueTargetKey &&
+    !options.suppressContinueAction
+  ) {
     action = {
       type: "continue",
       label: replaceToken(t("continueWithMonth"), "month", continueTargetLabel),
@@ -236,7 +287,19 @@ function LoadedDashboardContent({
   };
 
   const isSwitchingMonth = isFetching && !isPending;
-  const periodControlVm = buildPeriodControlBarViewModel(summary, locale);
+
+  // The handoff card owns the "continue to next month" CTA whenever it is
+  // visible for the active selected month. Suppress the header continue
+  // action so the user only sees one calm forward action at a time.
+  const isJustClosedHandoffVisible =
+    closeMonthReview.justClosed?.closedYearMonth === yearMonth;
+
+  const closeAvailability = getCloseAvailabilityLabel(summary.header, locale);
+
+  const periodControlVm = buildPeriodControlBarViewModel(summary, locale, {
+    closeAvailability,
+    suppressContinueAction: isJustClosedHandoffVisible,
+  });
 
   return (
     <div className="w-full max-w-6xl space-y-5">
@@ -253,14 +316,32 @@ function LoadedDashboardContent({
       />
 
       {isClosedMonth ? (
-        <ClosedMonthRecapSection
-          recap={recapQuery.data}
-          currency={summary.currency}
-          locale={locale}
-          isLoading={recapQuery.isPending}
-          errorMessage={recapQuery.error?.message}
-          onRetry={() => void recapQuery.refetch()}
-        />
+        <>
+          {closeMonthReview.justClosed &&
+          closeMonthReview.justClosed.closedYearMonth === yearMonth ? (
+            <ClosedMonthHandoffCard
+              closedMonthLabel={summary.header.periodLabel}
+              nextMonthLabel={
+                summary.header.nextPeriodLabel ??
+                closeMonthReview.nextPeriodLabel
+              }
+              finalBalance={closeMonthReview.justClosed.finalBalance}
+              carryOverMode={closeMonthReview.justClosed.carryOverMode}
+              carryOverAmount={closeMonthReview.justClosed.carryOverAmount}
+              currency={summary.currency}
+              onContinue={closeMonthReview.continueToNextMonth}
+              onDismiss={closeMonthReview.dismissJustClosed}
+            />
+          ) : null}
+          <ClosedMonthRecapSection
+            recap={recapQuery.data}
+            currency={summary.currency}
+            locale={locale}
+            isLoading={recapQuery.isPending}
+            errorMessage={recapQuery.error?.message}
+            onRetry={() => void recapQuery.refetch()}
+          />
+        </>
       ) : isSkippedMonth ? (
         <SkippedMonthState
           periodLabel={summary.header.periodLabel}
@@ -312,6 +393,9 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
 }) => {
   const [hasStartedWizardThisSession, setHasStartedWizardThisSession] =
     useState(false);
+  const locale = useAppLocale();
+  const tError = <K extends keyof typeof dashboardErrorStateDict.sv>(key: K) =>
+    tDict(key, locale, dashboardErrorStateDict);
 
   const openWizard = useCallback(() => {
     setHasStartedWizardThisSession(true);
@@ -361,15 +445,22 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
   }
 
   if (isError) {
+    const shouldShowErrorDetails = import.meta.env.DEV;
+
     return (
       <DashboardErrorState
-        title="Kunde inte ladda din dashboard"
-        message={error?.message ?? "Försök igen om en stund."}
+        title={tError("title")}
+        message={
+          isNetworkDashboardError(error)
+            ? tError("networkMessage")
+            : tError("fallbackMessage")
+        }
         onRetry={refetch}
+        retryLabel={tError("retry")}
+        reloadLabel={tError("reload")}
+        detailsLabel={tError("details")}
         details={
-          import.meta.env.MODE === "development"
-            ? JSON.stringify(error, null, 2)
-            : undefined
+          shouldShowErrorDetails ? JSON.stringify(error, null, 2) : undefined
         }
       />
     );

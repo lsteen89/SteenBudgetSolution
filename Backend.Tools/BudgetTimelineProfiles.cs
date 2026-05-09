@@ -1124,7 +1124,7 @@ internal static class BudgetTimelineProfiles
                         new("Car Loan", Balance: 105000m)
                     ]
                 },
-                BudgetMonthCarryOverModes.Full),
+                BudgetMonthCarryOverModes.None),
             new(
                 "2026-01",
                 BudgetTimelineScenarioData.Empty with
@@ -1224,7 +1224,7 @@ internal static class BudgetTimelineProfiles
                         new("Car Loan", Balance: 96000m)
                     ]
                 },
-                BudgetMonthCarryOverModes.Full),
+                BudgetMonthCarryOverModes.None),
             new(
                 "2026-04",
                 BudgetTimelineScenarioData.Empty with

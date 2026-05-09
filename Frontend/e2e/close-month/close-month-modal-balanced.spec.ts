@@ -64,20 +64,18 @@ test("close modal balanced user locks April without carry-over resolution", asyn
 
   expect(closeResponse.ok()).toBeTruthy();
   await expect(modal).toBeHidden();
-  await expect(page.getByTestId("active-month-label")).toContainText(
-    text.may2026,
-  );
 
-  await page.getByTestId("month-nav-previous").click();
-
-  const recap = page.getByTestId("closed-month-recap");
-  await expect(recap).toBeVisible();
+  // After close we land on the just-closed April recap with the calm handoff
+  // card. Continuing then forwards to May.
   await expect(page.getByTestId("active-month-label")).toContainText(
     text.april2026,
   );
   await expect(page.getByTestId("month-status-badge")).toContainText(
     text.closedStatus,
   );
+
+  const recap = page.getByTestId("closed-month-recap");
+  await expect(recap).toBeVisible();
   await expect(
     recap.getByTestId("closed-month-hero-flow-final-balance"),
   ).toContainText(/0/);
@@ -87,4 +85,13 @@ test("close modal balanced user locks April without carry-over resolution", asyn
   await expect(
     recap.getByRole("article", { name: text.deficitGuidance }),
   ).toHaveCount(0);
+
+  const handoff = page.getByTestId("closed-month-handoff-card");
+  await expect(handoff).toBeVisible();
+  await expect(handoff).toHaveAttribute("data-variant", "balanced");
+
+  await handoff.getByTestId("closed-month-handoff-continue").click();
+  await expect(page.getByTestId("active-month-label")).toContainText(
+    text.may2026,
+  );
 });

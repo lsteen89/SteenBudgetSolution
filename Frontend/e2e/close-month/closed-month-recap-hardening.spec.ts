@@ -236,9 +236,9 @@ test("closed deficit month displays calm deficit recap after end-to-end close", 
 
   expect(closeResponse.ok()).toBeTruthy();
   await expect(page.getByTestId("close-month-modal")).toBeHidden();
-  await expectOpenDashboard(page, text.may2026, { expectCloseCta: false });
 
-  await goToPreviousMonth(page);
+  // Post-close UX lands on the just-closed April recap (with the calm
+  // handoff card), not directly on May.
   const recap = await expectClosedRecap(page, text.april2026);
 
   await expect(

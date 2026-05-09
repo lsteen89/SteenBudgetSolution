@@ -130,10 +130,6 @@ test("carry-over dashboard math reconciles after full close @smoke", async ({
     await fullModal.getByTestId("resolve-carry-over").click();
 
     const closeResponsePromise = waitForCloseResponse(full.page);
-    const mayDashboardResponsePromise = waitForDashboardResponse(
-      full.page,
-      "2026-05",
-    );
     await full.page.getByTestId("confirm-close-month").click();
 
     const fullClose = await readEnvelopeData<CloseBudgetMonthResultDto>(
@@ -146,6 +142,17 @@ test("carry-over dashboard math reconciles after full close @smoke", async ({
     expect(fullClose.nextMonth.carryOverAmount).toBe(
       fullClose.snapshotTotals.finalBalanceMonthly,
     );
+
+    // Post-close handoff: we land on the closed April recap with the calm
+    // success card. Click its "Continue" CTA to advance to May.
+    const handoff = full.page.getByTestId("closed-month-handoff-card");
+    await expect(handoff).toBeVisible();
+
+    const mayDashboardResponsePromise = waitForDashboardResponse(
+      full.page,
+      "2026-05",
+    );
+    await handoff.getByTestId("closed-month-handoff-continue").click();
 
     const mayDashboard = await readEnvelopeData<DashboardMonthDto>(
       await mayDashboardResponsePromise,

@@ -5,15 +5,21 @@ import { cn } from "@/utils/cn";
 type Props = {
     message: string;
     onRetry: () => void;
-    title?: string;
+    title: string;
+    retryLabel: string;
+    reloadLabel: string;
+    detailsLabel?: string;
     details?: string;
     className?: string;
 };
 
 const DashboardErrorState: React.FC<Props> = ({
-    title = "Something went wrong",
+    title,
     message,
     onRetry,
+    retryLabel,
+    reloadLabel,
+    detailsLabel,
     details,
     className,
 }) => {
@@ -36,7 +42,7 @@ const DashboardErrorState: React.FC<Props> = ({
                                 className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 transition"
                             >
                                 <RotateCcw className="h-4 w-4" />
-                                Retry
+                                {retryLabel}
                             </button>
 
                             <button
@@ -44,14 +50,14 @@ const DashboardErrorState: React.FC<Props> = ({
                                 onClick={() => window.location.reload()}
                                 className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-900 hover:bg-slate-50 transition"
                             >
-                                Reload page
+                                {reloadLabel}
                             </button>
                         </div>
 
-                        {details && (
+                        {details && detailsLabel && (
                             <details className="mt-4">
                                 <summary className="cursor-pointer text-xs font-medium text-slate-500 hover:text-slate-700">
-                                    Details
+                                    {detailsLabel}
                                 </summary>
                                 <pre className="mt-2 whitespace-pre-wrap rounded-2xl bg-slate-950 text-slate-100 p-3 text-xs overflow-auto">
                                     {details}

@@ -12,6 +12,7 @@ import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { appRoutes } from "@/routes/appRoutes";
 import { useAuthStore } from "@/stores/Auth/authStore";
 import { toUserMessage } from "@/utils/i18n/apiErrors/toUserMessage";
+import { dashboardErrorStateDict } from "@/utils/i18n/pages/private/dashboard/DashboardErrorState.i18n";
 import { breakdownDict } from "@/utils/i18n/pages/private/dashboard/pages/BreakdownPage.i18n";
 import { tDict } from "@/utils/i18n/translate";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
@@ -24,6 +25,8 @@ const DashboardBreakdownPage: React.FC = () => {
   const locale = useAppLocale();
   const t = <K extends keyof typeof breakdownDict.sv>(k: K) =>
     tDict(k, locale, breakdownDict);
+  const tError = <K extends keyof typeof dashboardErrorStateDict.sv>(k: K) =>
+    tDict(k, locale, dashboardErrorStateDict);
 
   const firstLogin = useAuthStore((s) => s.user?.firstLogin);
 
@@ -72,6 +75,8 @@ const DashboardBreakdownPage: React.FC = () => {
                 error ? toUserMessage(error, locale) : t("errorFallback")
               }
               onRetry={refetch}
+              retryLabel={tError("retry")}
+              reloadLabel={tError("reload")}
             />
             <Link
               to="/dashboard"

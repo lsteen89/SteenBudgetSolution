@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { useBudgetMonthStore } from "@/stores/Budget/budgetMonthStore";
 import type { BudgetMonthRecapDto } from "@/types/budget/BudgetMonthRecapDto";
 import type { AppLocale } from "@/types/i18n/appLocale";
+import { dashboardErrorStateDict } from "@/utils/i18n/pages/private/dashboard/DashboardErrorState.i18n";
 import { closedMonthRecapDict } from "@/utils/i18n/pages/private/dashboard/recap/ClosedMonthRecapSection.i18n";
 import { tDict } from "@/utils/i18n/translate";
 import type { CurrencyCode } from "@/utils/money/currency";
@@ -616,6 +617,8 @@ export default function ClosedMonthRecapSection({
           errorMessage ?? tDict("errorMessage", locale, closedMonthRecapDict)
         }
         onRetry={onRetry}
+        retryLabel={tDict("retry", locale, dashboardErrorStateDict)}
+        reloadLabel={tDict("reload", locale, dashboardErrorStateDict)}
       />
     );
   }

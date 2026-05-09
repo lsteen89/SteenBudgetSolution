@@ -126,7 +126,9 @@ export default function PeriodControlBar({
         <div className="flex min-w-0 flex-wrap items-center gap-3">
           <div
             className={cn(
-              "inline-flex min-w-0 overflow-hidden rounded-2xl border border-eb-stroke/30 bg-eb-surface/70 shadow-[0_10px_24px_rgb(21_39_81_/_0.05)]",
+              // Slightly more muted wrapper so the selected (white) segment
+              // reads as the active one against its inactive neighbours.
+              "inline-flex min-w-0 overflow-hidden rounded-2xl border border-eb-stroke/30 bg-[rgb(var(--eb-shell)/0.5)] shadow-[0_10px_24px_rgb(21_39_81_/_0.05)]",
               isSwitchingMonth && "opacity-70",
             )}
           >
@@ -152,7 +154,15 @@ export default function PeriodControlBar({
 
             <div
               data-testid="active-month-label"
-              className="inline-flex h-10 min-w-0 items-center justify-center gap-2 bg-white px-3 text-center text-sm font-extrabold text-eb-text sm:px-4"
+              data-active="true"
+              // Calm "selected segment" treatment: white surface against the
+              // muted wrapper, navy text, a subtle accent ring, and a thin
+              // bottom accent inset. No CTA-style saturation or shadow.
+              className={cn(
+                "relative inline-flex h-10 min-w-0 items-center justify-center gap-2 bg-white px-3 text-center text-sm font-extrabold text-eb-text sm:px-4",
+                "ring-1 ring-inset ring-eb-accent/20",
+                "shadow-[inset_0_-2px_0_rgb(var(--eb-accent)/0.32)]",
+              )}
               aria-live={isSwitchingMonth ? "polite" : undefined}
             >
               <span className="truncate">{vm.current.label}</span>

@@ -14,6 +14,7 @@ const mockUseDashboardSummary = vi.fn();
 const mockUseBudgetMonthRecapQuery = vi.fn();
 const mockMutateAsync = vi.fn();
 const mockSetSelectedYearMonth = vi.fn();
+let mockAppLocale = "en-US";
 const mockToast = {
   success: vi.fn(),
   error: vi.fn(),
@@ -40,7 +41,7 @@ vi.mock("@/hooks/budget/useCloseBudgetMonthMutation", () => ({
 }));
 
 vi.mock("@/hooks/i18n/useAppLocale", () => ({
-  useAppLocale: () => "en",
+  useAppLocale: () => mockAppLocale,
 }));
 
 vi.mock("@/hooks/i18n/useAppCurrency", () => ({
@@ -307,6 +308,8 @@ function renderDashboardContent() {
 
 describe("DashboardContent", () => {
   beforeEach(() => {
+    mockAppLocale = "en-US";
+    vi.stubEnv("DEV", true);
     mockUseDashboardSummary.mockReset();
     mockUseBudgetMonthRecapQuery.mockReset();
     mockUseBudgetMonthRecapQuery.mockReturnValue({
@@ -323,6 +326,160 @@ describe("DashboardContent", () => {
     mockToast.dismiss.mockReset();
     mockToast.clear.mockReset();
     mockToast.showToast.mockReset();
+  });
+
+  it("renders the Swedish dashboard load error with localized copy and actions", () => {
+    const refetch = vi.fn();
+    mockAppLocale = "sv-SE";
+    mockUseDashboardSummary.mockReturnValue({
+      ...readyResult,
+      data: null,
+      isError: true,
+      error: {
+        message: "Network Error",
+        isNetworkError: true,
+        raw: {
+          message: "Network Error",
+          url: "/api/budgets/dashboard?yearMonth=2026-04",
+          method: "get",
+        },
+      },
+      refetch,
+    });
+
+    renderDashboardContent();
+
+    expect(
+      screen.getByRole("heading", { name: "Kunde inte ladda din dashboard" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Vi fick inte kontakt med servern. Försök igen om en stund.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /försök igen/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /ladda om sidan/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the retry action available", () => {
+    const refetch = vi.fn();
+    mockUseDashboardSummary.mockReturnValue({
+      ...readyResult,
+      data: null,
+      isError: true,
+      error: {
+        message: "Network Error",
+        isNetworkError: true,
+      },
+      refetch,
+    });
+
+    renderDashboardContent();
+
+    fireEvent.click(screen.getByRole("button", { name: /try again/i }));
+
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the reload fallback action available", () => {
+    mockUseDashboardSummary.mockReturnValue({
+      ...readyResult,
+      data: null,
+      isError: true,
+      error: {
+        message: "Network Error",
+        isNetworkError: true,
+      },
+    });
+
+    renderDashboardContent();
+
+    expect(
+      screen.getByRole("button", { name: /reload page/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("renders raw dashboard error details in dev mode", () => {
+    vi.stubEnv("DEV", true);
+    mockUseDashboardSummary.mockReturnValue({
+      ...readyResult,
+      data: null,
+      isError: true,
+      error: {
+        message: "Network Error",
+        isNetworkError: true,
+        raw: {
+          message: "Network Error",
+          url: "/api/budgets/dashboard?yearMonth=2026-04",
+          method: "get",
+        },
+      },
+    });
+
+    renderDashboardContent();
+
+    expect(screen.getByText("Details")).toBeInTheDocument();
+    expect(screen.getByText(/\/api\/budgets\/dashboard/)).toBeInTheDocument();
+    expect(screen.getByText(/Network Error/)).toBeInTheDocument();
+  });
+
+  it("does not render raw dashboard error details in production mode", () => {
+    vi.stubEnv("DEV", false);
+    mockUseDashboardSummary.mockReturnValue({
+      ...readyResult,
+      data: null,
+      isError: true,
+      error: {
+        message: "Network Error",
+        isNetworkError: true,
+        raw: {
+          message: "Network Error",
+          url: "/api/budgets/dashboard?yearMonth=2026-04",
+          method: "get",
+        },
+      },
+    });
+
+    renderDashboardContent();
+
+    expect(screen.queryByText("Details")).toBeNull();
+    expect(screen.queryByText(/\/api\/budgets\/dashboard/)).toBeNull();
+    expect(screen.queryByText(/Network Error/)).toBeNull();
+  });
+
+  it("maps raw Network Error to friendly production copy", () => {
+    vi.stubEnv("DEV", false);
+    mockUseDashboardSummary.mockReturnValue({
+      ...readyResult,
+      data: null,
+      isError: true,
+      error: {
+        message: "Network Error",
+        isNetworkError: true,
+      },
+    });
+
+    renderDashboardContent();
+
+    expect(
+      screen.getByText(
+        "We could not reach the server. Please try again in a moment.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Network Error")).toBeNull();
+  });
+
+  it("does not render the legacy debug breakpoint text", () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+
+    renderDashboardContent();
+
+    expect(screen.queryByText(/p:\s*true/i)).toBeNull();
+    expect(screen.queryByText(/desktop:\s*true/i)).toBeNull();
   });
 
   it("opens the close month modal from the month rail trigger with translated title", () => {
@@ -432,11 +589,26 @@ describe("DashboardContent", () => {
     ).toBeInTheDocument();
   });
 
-  it("submits carryOverMode none by default, advances to the returned month, and closes the modal", async () => {
+  it("submits carryOverMode none by default, lands on the closed month, and closes the modal", async () => {
     mockUseDashboardSummary.mockReturnValue(readyResult);
     mockMutateAsync.mockResolvedValue({
+      closedMonth: {
+        yearMonth: "2026-04",
+        status: "closed",
+        closedAtUtc: "2026-04-30T20:00:00Z",
+      },
+      snapshotTotals: {
+        totalIncomeMonthly: 12000,
+        totalExpensesMonthly: 8000,
+        totalSavingsMonthly: 750,
+        totalDebtPaymentsMonthly: 0,
+        finalBalanceMonthly: 245,
+      },
       nextMonth: {
         yearMonth: "2026-05",
+        status: "open",
+        carryOverMode: "none",
+        carryOverAmount: null,
       },
     });
 
@@ -463,13 +635,12 @@ describe("DashboardContent", () => {
     });
 
     await waitFor(() => {
-      expect(mockSetSelectedYearMonth).toHaveBeenCalledWith("2026-05");
-      expect(mockToast.success).toHaveBeenCalledWith(
-        "Month closed. You're now viewing May 2026.",
-        expect.objectContaining({
-          id: "dashboard:close-month:2026-04:success",
-        }),
-      );
+      // Land on the just-closed month so the handoff card has a stage to
+      // render on. The continue CTA on the card later forwards to next month.
+      expect(mockSetSelectedYearMonth).toHaveBeenCalledWith("2026-04");
+      expect(mockSetSelectedYearMonth).not.toHaveBeenCalledWith("2026-05");
+      // The card supersedes the old success toast — no global toast on success.
+      expect(mockToast.success).not.toHaveBeenCalled();
       expect(
         screen.queryByRole("heading", { name: "Close April 2026?" }),
       ).not.toBeInTheDocument();
@@ -479,8 +650,23 @@ describe("DashboardContent", () => {
   it("maps the carry-over choice to carryOverMode full", async () => {
     mockUseDashboardSummary.mockReturnValue(readyResult);
     mockMutateAsync.mockResolvedValue({
+      closedMonth: {
+        yearMonth: "2026-04",
+        status: "closed",
+        closedAtUtc: "2026-04-30T20:00:00Z",
+      },
+      snapshotTotals: {
+        totalIncomeMonthly: 12000,
+        totalExpensesMonthly: 8000,
+        totalSavingsMonthly: 750,
+        totalDebtPaymentsMonthly: 0,
+        finalBalanceMonthly: 245,
+      },
       nextMonth: {
         yearMonth: "2026-05",
+        status: "open",
+        carryOverMode: "full",
+        carryOverAmount: 245,
       },
     });
 
@@ -625,6 +811,131 @@ describe("DashboardContent", () => {
     expect(
       screen.getByRole("heading", { name: "Close April 2026?" }),
     ).toBeInTheDocument();
+    // Failed close must not surface the success handoff.
+    expect(
+      screen.queryByTestId("closed-month-handoff-card"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not show the handoff card on a normal closed-month page load", () => {
+    mockUseDashboardSummary.mockReturnValue({
+      ...readyResult,
+      data: {
+        ...readyResult.data,
+        summary: buildSummary(245, "closed"),
+      },
+    });
+    mockUseBudgetMonthRecapQuery.mockReturnValue({
+      data: buildClosedRecap(),
+      isPending: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    renderDashboardContent();
+
+    expect(
+      screen.queryByTestId("closed-month-handoff-card"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("surfaces the handoff card on the closed recap after a successful close, and continues to the next month", async () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+    mockMutateAsync.mockResolvedValue({
+      closedMonth: {
+        yearMonth: "2026-04",
+        status: "closed",
+        closedAtUtc: "2026-04-30T20:00:00Z",
+      },
+      snapshotTotals: {
+        totalIncomeMonthly: 12000,
+        totalExpensesMonthly: 8000,
+        totalSavingsMonthly: 750,
+        totalDebtPaymentsMonthly: 0,
+        finalBalanceMonthly: 245,
+      },
+      nextMonth: {
+        yearMonth: "2026-05",
+        status: "open",
+        carryOverMode: "full",
+        carryOverAmount: 245,
+      },
+    });
+
+    const { rerender } = render(
+      <MemoryRouter>
+        <DashboardContent
+          isFirstTimeLogin={false}
+          isWizardOpen={false}
+          setIsWizardOpen={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /close month/i }));
+    fireEvent.click(screen.getByTestId("resolve-carry-over"));
+    fireEvent.click(screen.getByTestId("confirm-close-month"));
+
+    await waitFor(() => {
+      expect(mockSetSelectedYearMonth).toHaveBeenCalledWith("2026-04");
+    });
+
+    // Simulate the closed-month re-render the dashboard query would produce
+    // once we land on 2026-04 in its closed state.
+    const closedSummary = buildSummary(245, "closed");
+    closedSummary.header.nextPeriodLabel = "May 2026";
+    mockUseDashboardSummary.mockReturnValue({
+      ...readyResult,
+      data: {
+        ...readyResult.data,
+        summary: closedSummary,
+      },
+    });
+    mockUseBudgetMonthRecapQuery.mockReturnValue({
+      data: buildClosedRecap(),
+      isPending: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    rerender(
+      <MemoryRouter>
+        <DashboardContent
+          isFirstTimeLogin={false}
+          isWizardOpen={false}
+          setIsWizardOpen={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    const handoff = await screen.findByTestId("closed-month-handoff-card");
+    expect(handoff).toHaveAttribute("data-variant", "positiveFull");
+    expect(
+      within(handoff).getByTestId("closed-month-handoff-title"),
+    ).toHaveTextContent("April 2026 is closed");
+    expect(
+      within(handoff).getByTestId("closed-month-handoff-body"),
+    ).toHaveTextContent(/carried over to May 2026/i);
+
+    // Continue CTA forwards to the next open month and dismisses the card.
+    mockSetSelectedYearMonth.mockClear();
+    fireEvent.click(within(handoff).getByTestId("closed-month-handoff-continue"));
+
+    expect(mockSetSelectedYearMonth).toHaveBeenCalledWith("2026-05");
+
+    rerender(
+      <MemoryRouter>
+        <DashboardContent
+          isFirstTimeLogin={false}
+          isWizardOpen={false}
+          setIsWizardOpen={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.queryByTestId("closed-month-handoff-card"),
+    ).not.toBeInTheDocument();
   });
 
   it("keeps hook ordering stable when dashboard data loads after a pending render", () => {
@@ -1989,5 +2300,267 @@ describe("DashboardContent", () => {
     const nextStepCarryOver = screen.getByTestId("closed-month-carry-over");
     expect(nextStepCarryOver).not.toHaveTextContent(/999/);
     expect(nextStepCarryOver).toHaveTextContent(/nothing was carried into may 2026/i);
+  });
+
+  // --------------------------------------------------------------------------
+  // Period header polish: close-availability countdown, ready-to-close chip,
+  // continue-CTA suppression while the handoff card is up, active-segment
+  // highlight, and the now-removed debug overlay.
+  // --------------------------------------------------------------------------
+
+  function buildOpenSummaryWithCloseWindow(opensAt: string | null) {
+    const summary = buildSummary(245, "open");
+    summary.header = {
+      ...summary.header,
+      nextPeriodLabel: "May 2026",
+      nextPeriodKey: "2026-05",
+      lifecycleState: "normal",
+      canCloseMonth: false,
+      closeMonthButtonLabel: null,
+      closeWindowOpensAt: opensAt,
+      closeEligibleAt: opensAt,
+    };
+    return summary;
+  }
+
+  function buildOpenSummaryReadyToClose() {
+    const summary = buildSummary(245, "open");
+    summary.header = {
+      ...summary.header,
+      nextPeriodLabel: "May 2026",
+      nextPeriodKey: "2026-05",
+      lifecycleState: "eligible",
+      canCloseMonth: true,
+      closeMonthButtonLabel: "Close Month",
+    };
+    return summary;
+  }
+
+  function buildClosedSummaryReadyToContinue() {
+    const summary = buildSummary(245, "closed");
+    summary.header = {
+      ...summary.header,
+      nextPeriodLabel: "May 2026",
+      nextPeriodKey: "2026-05",
+      canCloseMonth: false,
+      closeMonthButtonLabel: null,
+    };
+    return summary;
+  }
+
+  it("shows a close-availability countdown chip on an open month not yet ready to close", () => {
+    // 17 days from a fixed wall-clock anchor so the test is stable.
+    const now = new Date("2026-04-08T12:00:00Z");
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+
+    try {
+      mockUseDashboardSummary.mockReturnValue({
+        ...readyResult,
+        data: {
+          ...readyResult.data,
+          summary: buildOpenSummaryWithCloseWindow("2026-04-25T12:00:00Z"),
+        },
+      });
+
+      renderDashboardContent();
+
+      const frame = screen.getByTestId("stable-month-frame");
+      expect(frame).toHaveTextContent(/the month can be closed in 17 days/i);
+      // "Ready to close" is the eligible-state chip, not the countdown state.
+      expect(frame).not.toHaveTextContent(/ready to close/i);
+      expect(screen.queryByTestId("close-month-cta")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("shows the 'Ready to close' chip and close CTA when an open month is eligible", () => {
+    mockUseDashboardSummary.mockReturnValue({
+      ...readyResult,
+      data: {
+        ...readyResult.data,
+        summary: buildOpenSummaryReadyToClose(),
+      },
+    });
+
+    renderDashboardContent();
+
+    expect(screen.getByTestId("month-status-badge")).toHaveTextContent(
+      /ready to close/i,
+    );
+    expect(screen.getByTestId("close-month-cta")).toBeInTheDocument();
+    // Eligible months don't carry the countdown — that chip is for the
+    // not-yet-ready state only.
+    expect(screen.getByTestId("stable-month-frame")).not.toHaveTextContent(
+      /the month can be closed in/i,
+    );
+  });
+
+  it("does not show a green close CTA on a normal closed-month revisit", () => {
+    mockUseDashboardSummary.mockReturnValue({
+      ...readyResult,
+      data: {
+        ...readyResult.data,
+        summary: buildClosedSummaryReadyToContinue(),
+      },
+    });
+    mockUseBudgetMonthRecapQuery.mockReturnValue({
+      data: buildClosedRecap(),
+      isPending: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    renderDashboardContent();
+
+    expect(screen.queryByTestId("close-month-cta")).toBeNull();
+    // Normal closed revisit (no fresh handoff state) keeps the subtle
+    // continue affordance in the header.
+    expect(screen.getByTestId("period-action-continue")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("closed-month-handoff-card"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("hides the header continue CTA while the just-closed handoff card is visible, and restores it after dismiss", async () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+    mockMutateAsync.mockResolvedValue({
+      closedMonth: {
+        yearMonth: "2026-04",
+        status: "closed",
+        closedAtUtc: "2026-04-30T20:00:00Z",
+      },
+      snapshotTotals: {
+        totalIncomeMonthly: 12000,
+        totalExpensesMonthly: 8000,
+        totalSavingsMonthly: 750,
+        totalDebtPaymentsMonthly: 0,
+        finalBalanceMonthly: 245,
+      },
+      nextMonth: {
+        yearMonth: "2026-05",
+        status: "open",
+        carryOverMode: "none",
+        carryOverAmount: null,
+      },
+    });
+
+    const { rerender } = render(
+      <MemoryRouter>
+        <DashboardContent
+          isFirstTimeLogin={false}
+          isWizardOpen={false}
+          setIsWizardOpen={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /close month/i }));
+    fireEvent.click(screen.getByTestId("confirm-close-month"));
+
+    await waitFor(() => {
+      expect(mockSetSelectedYearMonth).toHaveBeenCalledWith("2026-04");
+    });
+
+    // Switch the dashboard mock to the closed-month state so the recap +
+    // handoff card render on rerender.
+    mockUseDashboardSummary.mockReturnValue({
+      ...readyResult,
+      data: {
+        ...readyResult.data,
+        summary: buildClosedSummaryReadyToContinue(),
+      },
+    });
+    mockUseBudgetMonthRecapQuery.mockReturnValue({
+      data: buildClosedRecap(),
+      isPending: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    rerender(
+      <MemoryRouter>
+        <DashboardContent
+          isFirstTimeLogin={false}
+          isWizardOpen={false}
+          setIsWizardOpen={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    // While the handoff is up, the handoff CTA owns "continue" — header
+    // continue is suppressed so there is one calm forward action on screen.
+    const handoff = screen.getByTestId("closed-month-handoff-card");
+    expect(
+      within(handoff).getByTestId("closed-month-handoff-continue"),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("period-action-continue")).toBeNull();
+
+    // Dismiss the handoff. The header continue CTA should reappear because
+    // the closed-month dashboard is still showing.
+    fireEvent.click(within(handoff).getByTestId("closed-month-handoff-dismiss"));
+
+    rerender(
+      <MemoryRouter>
+        <DashboardContent
+          isFirstTimeLogin={false}
+          isWizardOpen={false}
+          setIsWizardOpen={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.queryByTestId("closed-month-handoff-card"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByTestId("period-action-continue")).toBeInTheDocument();
+  });
+
+  it("renders the active month label with the calm selected-segment treatment", () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+
+    renderDashboardContent();
+
+    const activeMonth = screen.getByTestId("active-month-label");
+    expect(activeMonth).toHaveAttribute("data-active", "true");
+    // Subtle accent ring on the white segment surface.
+    expect(activeMonth.className).toMatch(/ring-eb-accent\/20/);
+  });
+});
+
+// The dev-only `<MediaQueryTest>` overlay used to print "isDesktop: …" in
+// the top-left of the page. It is removed from the layout now and should
+// not be re-imported anywhere.
+describe("RootLayout", () => {
+  it("does not import the MediaQueryTest debug overlay", async () => {
+    const fs = await import("node:fs/promises");
+    const path = await import("node:path");
+    const url = await import("node:url");
+
+    const here = path.dirname(url.fileURLToPath(import.meta.url));
+    const layoutPath = path.resolve(
+      here,
+      "..",
+      "..",
+      "..",
+      "..",
+      "layout",
+      "RootLayout.tsx",
+    );
+    const mediaQueryTestPath = path.resolve(
+      here,
+      "..",
+      "..",
+      "..",
+      "..",
+      "components",
+      "Test",
+      "MediaQueryTest.tsx",
+    );
+
+    const source = await fs.readFile(layoutPath, "utf8");
+    expect(source).not.toMatch(/MediaQueryTest/);
+    await expect(fs.access(mediaQueryTestPath)).rejects.toThrow();
   });
 });
