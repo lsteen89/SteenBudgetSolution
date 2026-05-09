@@ -432,11 +432,26 @@ describe("DashboardContent", () => {
     ).toBeInTheDocument();
   });
 
-  it("submits carryOverMode none by default, advances to the returned month, and closes the modal", async () => {
+  it("submits carryOverMode none by default, lands on the closed month, and closes the modal", async () => {
     mockUseDashboardSummary.mockReturnValue(readyResult);
     mockMutateAsync.mockResolvedValue({
+      closedMonth: {
+        yearMonth: "2026-04",
+        status: "closed",
+        closedAtUtc: "2026-04-30T20:00:00Z",
+      },
+      snapshotTotals: {
+        totalIncomeMonthly: 12000,
+        totalExpensesMonthly: 8000,
+        totalSavingsMonthly: 750,
+        totalDebtPaymentsMonthly: 0,
+        finalBalanceMonthly: 245,
+      },
       nextMonth: {
         yearMonth: "2026-05",
+        status: "open",
+        carryOverMode: "none",
+        carryOverAmount: null,
       },
     });
 
@@ -463,13 +478,12 @@ describe("DashboardContent", () => {
     });
 
     await waitFor(() => {
-      expect(mockSetSelectedYearMonth).toHaveBeenCalledWith("2026-05");
-      expect(mockToast.success).toHaveBeenCalledWith(
-        "Month closed. You're now viewing May 2026.",
-        expect.objectContaining({
-          id: "dashboard:close-month:2026-04:success",
-        }),
-      );
+      // Land on the just-closed month so the handoff card has a stage to
+      // render on. The continue CTA on the card later forwards to next month.
+      expect(mockSetSelectedYearMonth).toHaveBeenCalledWith("2026-04");
+      expect(mockSetSelectedYearMonth).not.toHaveBeenCalledWith("2026-05");
+      // The card supersedes the old success toast — no global toast on success.
+      expect(mockToast.success).not.toHaveBeenCalled();
       expect(
         screen.queryByRole("heading", { name: "Close April 2026?" }),
       ).not.toBeInTheDocument();
@@ -479,8 +493,23 @@ describe("DashboardContent", () => {
   it("maps the carry-over choice to carryOverMode full", async () => {
     mockUseDashboardSummary.mockReturnValue(readyResult);
     mockMutateAsync.mockResolvedValue({
+      closedMonth: {
+        yearMonth: "2026-04",
+        status: "closed",
+        closedAtUtc: "2026-04-30T20:00:00Z",
+      },
+      snapshotTotals: {
+        totalIncomeMonthly: 12000,
+        totalExpensesMonthly: 8000,
+        totalSavingsMonthly: 750,
+        totalDebtPaymentsMonthly: 0,
+        finalBalanceMonthly: 245,
+      },
       nextMonth: {
         yearMonth: "2026-05",
+        status: "open",
+        carryOverMode: "full",
+        carryOverAmount: 245,
       },
     });
 
@@ -625,6 +654,131 @@ describe("DashboardContent", () => {
     expect(
       screen.getByRole("heading", { name: "Close April 2026?" }),
     ).toBeInTheDocument();
+    // Failed close must not surface the success handoff.
+    expect(
+      screen.queryByTestId("closed-month-handoff-card"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not show the handoff card on a normal closed-month page load", () => {
+    mockUseDashboardSummary.mockReturnValue({
+      ...readyResult,
+      data: {
+        ...readyResult.data,
+        summary: buildSummary(245, "closed"),
+      },
+    });
+    mockUseBudgetMonthRecapQuery.mockReturnValue({
+      data: buildClosedRecap(),
+      isPending: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    renderDashboardContent();
+
+    expect(
+      screen.queryByTestId("closed-month-handoff-card"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("surfaces the handoff card on the closed recap after a successful close, and continues to the next month", async () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+    mockMutateAsync.mockResolvedValue({
+      closedMonth: {
+        yearMonth: "2026-04",
+        status: "closed",
+        closedAtUtc: "2026-04-30T20:00:00Z",
+      },
+      snapshotTotals: {
+        totalIncomeMonthly: 12000,
+        totalExpensesMonthly: 8000,
+        totalSavingsMonthly: 750,
+        totalDebtPaymentsMonthly: 0,
+        finalBalanceMonthly: 245,
+      },
+      nextMonth: {
+        yearMonth: "2026-05",
+        status: "open",
+        carryOverMode: "full",
+        carryOverAmount: 245,
+      },
+    });
+
+    const { rerender } = render(
+      <MemoryRouter>
+        <DashboardContent
+          isFirstTimeLogin={false}
+          isWizardOpen={false}
+          setIsWizardOpen={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /close month/i }));
+    fireEvent.click(screen.getByTestId("resolve-carry-over"));
+    fireEvent.click(screen.getByTestId("confirm-close-month"));
+
+    await waitFor(() => {
+      expect(mockSetSelectedYearMonth).toHaveBeenCalledWith("2026-04");
+    });
+
+    // Simulate the closed-month re-render the dashboard query would produce
+    // once we land on 2026-04 in its closed state.
+    const closedSummary = buildSummary(245, "closed");
+    closedSummary.header.nextPeriodLabel = "May 2026";
+    mockUseDashboardSummary.mockReturnValue({
+      ...readyResult,
+      data: {
+        ...readyResult.data,
+        summary: closedSummary,
+      },
+    });
+    mockUseBudgetMonthRecapQuery.mockReturnValue({
+      data: buildClosedRecap(),
+      isPending: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    rerender(
+      <MemoryRouter>
+        <DashboardContent
+          isFirstTimeLogin={false}
+          isWizardOpen={false}
+          setIsWizardOpen={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    const handoff = await screen.findByTestId("closed-month-handoff-card");
+    expect(handoff).toHaveAttribute("data-variant", "positiveFull");
+    expect(
+      within(handoff).getByTestId("closed-month-handoff-title"),
+    ).toHaveTextContent("April 2026 is closed");
+    expect(
+      within(handoff).getByTestId("closed-month-handoff-body"),
+    ).toHaveTextContent(/carried over to May 2026/i);
+
+    // Continue CTA forwards to the next open month and dismisses the card.
+    mockSetSelectedYearMonth.mockClear();
+    fireEvent.click(within(handoff).getByTestId("closed-month-handoff-continue"));
+
+    expect(mockSetSelectedYearMonth).toHaveBeenCalledWith("2026-05");
+
+    rerender(
+      <MemoryRouter>
+        <DashboardContent
+          isFirstTimeLogin={false}
+          isWizardOpen={false}
+          setIsWizardOpen={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.queryByTestId("closed-month-handoff-card"),
+    ).not.toBeInTheDocument();
   });
 
   it("keeps hook ordering stable when dashboard data loads after a pending render", () => {

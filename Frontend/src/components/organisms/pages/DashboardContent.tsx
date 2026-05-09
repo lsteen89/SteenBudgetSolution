@@ -1,4 +1,5 @@
 import CloseMonthReviewModal from "@/components/organisms/dashboard/closeMonth/CloseMonthReviewModal";
+import ClosedMonthHandoffCard from "@/components/organisms/dashboard/closeMonth/ClosedMonthHandoffCard";
 import EditPeriodDrawer from "@/components/organisms/dashboard/editPeriod/EditPeriodDrawer";
 import ClosedMonthRecapSection from "@/components/organisms/dashboard/recap/ClosedMonthRecapSection";
 import SkippedMonthState from "@/components/organisms/dashboard/recap/SkippedMonthState";
@@ -253,14 +254,32 @@ function LoadedDashboardContent({
       />
 
       {isClosedMonth ? (
-        <ClosedMonthRecapSection
-          recap={recapQuery.data}
-          currency={summary.currency}
-          locale={locale}
-          isLoading={recapQuery.isPending}
-          errorMessage={recapQuery.error?.message}
-          onRetry={() => void recapQuery.refetch()}
-        />
+        <>
+          {closeMonthReview.justClosed &&
+          closeMonthReview.justClosed.closedYearMonth === yearMonth ? (
+            <ClosedMonthHandoffCard
+              closedMonthLabel={summary.header.periodLabel}
+              nextMonthLabel={
+                summary.header.nextPeriodLabel ??
+                closeMonthReview.nextPeriodLabel
+              }
+              finalBalance={closeMonthReview.justClosed.finalBalance}
+              carryOverMode={closeMonthReview.justClosed.carryOverMode}
+              carryOverAmount={closeMonthReview.justClosed.carryOverAmount}
+              currency={summary.currency}
+              onContinue={closeMonthReview.continueToNextMonth}
+              onDismiss={closeMonthReview.dismissJustClosed}
+            />
+          ) : null}
+          <ClosedMonthRecapSection
+            recap={recapQuery.data}
+            currency={summary.currency}
+            locale={locale}
+            isLoading={recapQuery.isPending}
+            errorMessage={recapQuery.error?.message}
+            onRetry={() => void recapQuery.refetch()}
+          />
+        </>
       ) : isSkippedMonth ? (
         <SkippedMonthState
           periodLabel={summary.header.periodLabel}

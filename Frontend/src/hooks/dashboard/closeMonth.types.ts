@@ -30,3 +30,13 @@ export type CloseMonthSummary = {
 export type CloseMonthPendingOptions = {
   carryOverMode: CloseMonthCarryOverMode;
 };
+
+// Transient handoff state surfaced after a successful month close. Lives only
+// in memory: cleared on continue, dismiss, navigation away, or page reload.
+export type JustClosedMonthState = {
+  closedYearMonth: string;
+  nextYearMonth: string;
+  finalBalance: number;
+  carryOverMode: CloseMonthCarryOverMode;
+  carryOverAmount: number;
+};

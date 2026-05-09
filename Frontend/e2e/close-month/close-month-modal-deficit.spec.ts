@@ -74,20 +74,24 @@ test("close modal deficit user locks April with calm deficit recap", async ({
   });
   expect(closeResponse.ok()).toBeTruthy();
   await expect(modal).toBeHidden();
-  await expect(page.getByTestId("active-month-label")).toContainText(
-    text.may2026,
-  );
 
-  await page.getByTestId("month-nav-previous").click();
-
-  const recap = page.getByTestId("closed-month-recap");
-  await expect(recap).toBeVisible();
+  // Land on the just-closed April recap (with the calm deficit handoff card),
+  // not on May. Continuing later forwards to May.
   await expect(page.getByTestId("active-month-label")).toContainText(
     text.april2026,
   );
   await expect(page.getByTestId("month-status-badge")).toContainText(
     text.closedStatus,
   );
+
+  const recap = page.getByTestId("closed-month-recap");
+  await expect(recap).toBeVisible();
+
+  const handoff = page.getByTestId("closed-month-handoff-card");
+  await expect(handoff).toBeVisible();
+  await expect(handoff).toHaveAttribute("data-variant", "deficit");
+  // Calm deficit copy: no shame language in the handoff.
+  await expect(handoff).not.toContainText(text.calmCopyGuard);
 
   const finalBalance = recap.getByTestId(
     "closed-month-hero-flow-final-balance",

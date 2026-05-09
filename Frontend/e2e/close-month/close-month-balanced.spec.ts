@@ -14,7 +14,7 @@ function waitForCloseResponse(page: Page) {
   });
 }
 
-test("balanced month can be closed and next month becomes active @smoke", async ({
+test("balanced month closes onto a calm handoff and the CTA advances to next month @smoke", async ({
   page,
 }) => {
   await login(page, e2eUsers.closeBalanced);
@@ -31,7 +31,17 @@ test("balanced month can be closed and next month becomes active @smoke", async 
 
   expect(closeResponse.ok()).toBeTruthy();
   await expect(page.getByTestId("close-month-modal")).toBeHidden();
+
+  // Land on the just-closed April recap with the calm handoff card; the
+  // continue CTA forwards to May.
   await expect(page.getByTestId("active-month-label")).toContainText(
-    /maj|may|2026/i,
+    /april|aprill/i,
+  );
+  const handoff = page.getByTestId("closed-month-handoff-card");
+  await expect(handoff).toBeVisible();
+
+  await handoff.getByTestId("closed-month-handoff-continue").click();
+  await expect(page.getByTestId("active-month-label")).toContainText(
+    /maj|may|mai/i,
   );
 });
