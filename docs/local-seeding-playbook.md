@@ -20,13 +20,14 @@ Do not use this for production data.
 Run from the repository root:
 
 ```bash
-docker compose --env-file .env.dev -f docker-compose.dev.yml down -v
-docker compose --env-file .env.dev -f docker-compose.dev.yml up -d
-docker compose --env-file .env.dev -f docker-compose.dev.yml --profile seed run --rm seed-users
-docker compose --env-file .env.dev -f docker-compose.dev.yml --profile seed run --rm seed-users-with-budget
+./scripts/seed-dev.sh
 ```
 
 `down -v` deletes the local MariaDB Docker volume. That is the intended reset model for deterministic local data.
+
+Use `./scripts/seed-dev.sh --keep-db` only when you intentionally want to reuse the existing dev database. Budget timeline seeding refuses to append months onto an existing seeded budget, so the reset-first default is the supported path.
+
+The script runs the seed Docker services with a temporary in-container artifacts directory. It should not delete or rewrite the host `Backend` / `Backend.Tools` `bin` and `obj` folders.
 
 ## Seed Commands
 
