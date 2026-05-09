@@ -14,6 +14,7 @@ const mockUseDashboardSummary = vi.fn();
 const mockUseBudgetMonthRecapQuery = vi.fn();
 const mockMutateAsync = vi.fn();
 const mockSetSelectedYearMonth = vi.fn();
+let mockAppLocale = "en-US";
 const mockToast = {
   success: vi.fn(),
   error: vi.fn(),
@@ -40,7 +41,7 @@ vi.mock("@/hooks/budget/useCloseBudgetMonthMutation", () => ({
 }));
 
 vi.mock("@/hooks/i18n/useAppLocale", () => ({
-  useAppLocale: () => "en",
+  useAppLocale: () => mockAppLocale,
 }));
 
 vi.mock("@/hooks/i18n/useAppCurrency", () => ({
@@ -307,6 +308,8 @@ function renderDashboardContent() {
 
 describe("DashboardContent", () => {
   beforeEach(() => {
+    mockAppLocale = "en-US";
+    vi.stubEnv("DEV", true);
     mockUseDashboardSummary.mockReset();
     mockUseBudgetMonthRecapQuery.mockReset();
     mockUseBudgetMonthRecapQuery.mockReturnValue({
@@ -323,6 +326,160 @@ describe("DashboardContent", () => {
     mockToast.dismiss.mockReset();
     mockToast.clear.mockReset();
     mockToast.showToast.mockReset();
+  });
+
+  it("renders the Swedish dashboard load error with localized copy and actions", () => {
+    const refetch = vi.fn();
+    mockAppLocale = "sv-SE";
+    mockUseDashboardSummary.mockReturnValue({
+      ...readyResult,
+      data: null,
+      isError: true,
+      error: {
+        message: "Network Error",
+        isNetworkError: true,
+        raw: {
+          message: "Network Error",
+          url: "/api/budgets/dashboard?yearMonth=2026-04",
+          method: "get",
+        },
+      },
+      refetch,
+    });
+
+    renderDashboardContent();
+
+    expect(
+      screen.getByRole("heading", { name: "Kunde inte ladda din dashboard" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Vi fick inte kontakt med servern. Försök igen om en stund.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /försök igen/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /ladda om sidan/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the retry action available", () => {
+    const refetch = vi.fn();
+    mockUseDashboardSummary.mockReturnValue({
+      ...readyResult,
+      data: null,
+      isError: true,
+      error: {
+        message: "Network Error",
+        isNetworkError: true,
+      },
+      refetch,
+    });
+
+    renderDashboardContent();
+
+    fireEvent.click(screen.getByRole("button", { name: /try again/i }));
+
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the reload fallback action available", () => {
+    mockUseDashboardSummary.mockReturnValue({
+      ...readyResult,
+      data: null,
+      isError: true,
+      error: {
+        message: "Network Error",
+        isNetworkError: true,
+      },
+    });
+
+    renderDashboardContent();
+
+    expect(
+      screen.getByRole("button", { name: /reload page/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("renders raw dashboard error details in dev mode", () => {
+    vi.stubEnv("DEV", true);
+    mockUseDashboardSummary.mockReturnValue({
+      ...readyResult,
+      data: null,
+      isError: true,
+      error: {
+        message: "Network Error",
+        isNetworkError: true,
+        raw: {
+          message: "Network Error",
+          url: "/api/budgets/dashboard?yearMonth=2026-04",
+          method: "get",
+        },
+      },
+    });
+
+    renderDashboardContent();
+
+    expect(screen.getByText("Details")).toBeInTheDocument();
+    expect(screen.getByText(/\/api\/budgets\/dashboard/)).toBeInTheDocument();
+    expect(screen.getByText(/Network Error/)).toBeInTheDocument();
+  });
+
+  it("does not render raw dashboard error details in production mode", () => {
+    vi.stubEnv("DEV", false);
+    mockUseDashboardSummary.mockReturnValue({
+      ...readyResult,
+      data: null,
+      isError: true,
+      error: {
+        message: "Network Error",
+        isNetworkError: true,
+        raw: {
+          message: "Network Error",
+          url: "/api/budgets/dashboard?yearMonth=2026-04",
+          method: "get",
+        },
+      },
+    });
+
+    renderDashboardContent();
+
+    expect(screen.queryByText("Details")).toBeNull();
+    expect(screen.queryByText(/\/api\/budgets\/dashboard/)).toBeNull();
+    expect(screen.queryByText(/Network Error/)).toBeNull();
+  });
+
+  it("maps raw Network Error to friendly production copy", () => {
+    vi.stubEnv("DEV", false);
+    mockUseDashboardSummary.mockReturnValue({
+      ...readyResult,
+      data: null,
+      isError: true,
+      error: {
+        message: "Network Error",
+        isNetworkError: true,
+      },
+    });
+
+    renderDashboardContent();
+
+    expect(
+      screen.getByText(
+        "We could not reach the server. Please try again in a moment.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Network Error")).toBeNull();
+  });
+
+  it("does not render the legacy debug breakpoint text", () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+
+    renderDashboardContent();
+
+    expect(screen.queryByText(/p:\s*true/i)).toBeNull();
+    expect(screen.queryByText(/desktop:\s*true/i)).toBeNull();
   });
 
   it("opens the close month modal from the month rail trigger with translated title", () => {
@@ -2391,8 +2548,19 @@ describe("RootLayout", () => {
       "layout",
       "RootLayout.tsx",
     );
+    const mediaQueryTestPath = path.resolve(
+      here,
+      "..",
+      "..",
+      "..",
+      "..",
+      "components",
+      "Test",
+      "MediaQueryTest.tsx",
+    );
 
     const source = await fs.readFile(layoutPath, "utf8");
     expect(source).not.toMatch(/MediaQueryTest/);
+    await expect(fs.access(mediaQueryTestPath)).rejects.toThrow();
   });
 });

@@ -18,10 +18,12 @@ import {
 } from "@/hooks/dashboard/getCloseAvailabilityLabel";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { useBudgetMonthStore } from "@/stores/Budget/budgetMonthStore";
+import type { ApiProblem } from "@/api/api.types";
 import type { AppLocale } from "@/types/i18n/appLocale";
 import type { BudgetMonthListItemDto } from "@/types/budget/BudgetMonthsStatusDto";
 import { dashboardHeaderDict } from "@/utils/i18n/pages/private/dashboard/header/DashboardHeader.i18n";
 import { closeMonthReviewModalDict } from "@/utils/i18n/pages/private/dashboard/closeMonth/CloseMonthReviewModal.i18n";
+import { dashboardErrorStateDict } from "@/utils/i18n/pages/private/dashboard/DashboardErrorState.i18n";
 import { tDict } from "@/utils/i18n/translate";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
 import DashboardHomeSkeleton from "@components/organisms/dashboard/DashboardHomeSkeleton";
@@ -37,6 +39,17 @@ export interface DashboardContentProps {
 
 const isNotFound = (p: any) =>
   p?.status === 404 || p?.statusCode === 404 || p?.httpStatus === 404;
+
+const isNetworkDashboardError = (error: ApiProblem | null) => {
+  const raw = error?.raw as { message?: unknown } | undefined;
+  const rawMessage = typeof raw?.message === "string" ? raw.message : "";
+
+  return (
+    error?.isNetworkError === true ||
+    error?.message === "Network Error" ||
+    rawMessage === "Network Error"
+  );
+};
 
 type HeaderTKey = keyof typeof dashboardHeaderDict.sv;
 type HeaderT = <K extends HeaderTKey>(key: K) => string;
@@ -380,6 +393,9 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
 }) => {
   const [hasStartedWizardThisSession, setHasStartedWizardThisSession] =
     useState(false);
+  const locale = useAppLocale();
+  const tError = <K extends keyof typeof dashboardErrorStateDict.sv>(key: K) =>
+    tDict(key, locale, dashboardErrorStateDict);
 
   const openWizard = useCallback(() => {
     setHasStartedWizardThisSession(true);
@@ -429,15 +445,22 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
   }
 
   if (isError) {
+    const shouldShowErrorDetails = import.meta.env.DEV;
+
     return (
       <DashboardErrorState
-        title="Kunde inte ladda din dashboard"
-        message={error?.message ?? "Försök igen om en stund."}
+        title={tError("title")}
+        message={
+          isNetworkDashboardError(error)
+            ? tError("networkMessage")
+            : tError("fallbackMessage")
+        }
         onRetry={refetch}
+        retryLabel={tError("retry")}
+        reloadLabel={tError("reload")}
+        detailsLabel={tError("details")}
         details={
-          import.meta.env.MODE === "development"
-            ? JSON.stringify(error, null, 2)
-            : undefined
+          shouldShowErrorDetails ? JSON.stringify(error, null, 2) : undefined
         }
       />
     );
