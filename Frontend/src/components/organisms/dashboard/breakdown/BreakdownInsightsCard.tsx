@@ -3,6 +3,9 @@ import CardShell from "@/components/atoms/cards/CardShell";
 import type { CurrencyCode } from "@/utils/money/currency";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
 import type { BreakdownItem, RecurringExpenseSummary } from "@/hooks/dashboard/dashboardSummary.types";
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
+import { breakdownCardsDict } from "@/utils/i18n/pages/private/dashboard/pages/BreakdownCards.i18n";
+import { tDict } from "@/utils/i18n/translate";
 
 
 
@@ -109,6 +112,10 @@ export default function BreakdownInsightsCard({
     subscriptions,
     subscriptionsTotal,
 }: Props) {
+    const locale = useAppLocale();
+    const t = <K extends keyof typeof breakdownCardsDict.sv>(key: K) =>
+        tDict(key, locale, breakdownCardsDict);
+
     const vm = useMemo(() => {
         const outflow = totalExpenditure + totalSavings + totalDebtPayments;
 
@@ -157,45 +164,45 @@ export default function BreakdownInsightsCard({
 
     return (
         <CardShell
-            title="Ekonomisk hälsa"
-            subtitle="Analys av ditt kassaflöde."
+            title={t("healthTitle")}
+            subtitle={t("healthSubtitle")}
             className="[&>div:first-child]:flex-col [&>div:first-child]:items-center [&>div:first-child]:text-center"
             stats={
                 <div className="grid grid-cols-3 gap-1.5 w-full mt-2">
-                    <MetricTile label="Kvar" value={formatMoneyV2(finalBalance, currency)} tone={balanceTone} />
-                    <MetricTile label="Sparande" value={`${Math.round(vm.savingsRate * 100)}%`} tone={savingsTone} />
-                    <MetricTile label="Fast/Inkomst" value={`${Math.round(vm.fixedishRatio * 100)}%`} tone={fixedTone} hint="Target: <50%" />
+                    <MetricTile label={t("remaining")} value={formatMoneyV2(finalBalance, currency, locale)} tone={balanceTone} />
+                    <MetricTile label={t("savings")} value={`${Math.round(vm.savingsRate * 100)}%`} tone={savingsTone} />
+                    <MetricTile label={t("fixedIncome")} value={`${Math.round(vm.fixedishRatio * 100)}%`} tone={fixedTone} hint={t("targetUnder50")} />
                 </div>
             }
             footer={
                 <div className="flex items-baseline justify-between text-slate-500">
-                    <span>Total utflöde</span>
-                    <span className="font-semibold text-slate-800">{formatMoneyV2(vm.outflow, currency)}</span>
+                    <span>{t("totalOutflow")}</span>
+                    <span className="font-semibold text-slate-800">{formatMoneyV2(vm.outflow, currency, locale)}</span>
                 </div>
             }
         >
             <div className="space-y-4">
                 {/* INSTEAD OF CATEGORIES, WE SHOW RATIOS */}
                 <div className="bg-slate-50 rounded-2xl p-3 space-y-2 border border-slate-100">
-                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Kassaflödes-mix</div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t("cashflowMix")}</div>
                     <div className="flex h-2 w-full rounded-full bg-slate-200 overflow-hidden">
                         <div className="bg-emerald-500 h-full" style={{ width: `${vm.savingsRate * 100}%` }} />
                         <div className="bg-amber-500 h-full" style={{ width: `${vm.fixedishRatio * 100}%` }} />
                         <div className="bg-slate-400 h-full" style={{ flex: 1 }} />
                     </div>
                     <div className="flex justify-between text-[10px] font-medium text-slate-600">
-                        <span>Sparande</span>
-                        <span>Fast</span>
-                        <span>Övrigt</span>
+                        <span>{t("savings")}</span>
+                        <span>{t("fixed")}</span>
+                        <span>{t("other")}</span>
                     </div>
                 </div>
 
                 {/* QUICK WINS ONLY */}
                 <div className="space-y-2">
-                    <div className="text-[11px] font-semibold text-slate-500 uppercase">Potential för optimering</div>
+                    <div className="text-[11px] font-semibold text-slate-500 uppercase">{t("optimizationPotential")}</div>
                     <ActionRow
-                        text={<>Avsluta <span className="font-semibold">{vm.largestSub.nameLabel}</span></>}
-                        value={`+ ${formatMoneyV2(vm.largestSub.amountMonthly, currency)}`}
+                        text={<>{t("cancel")} <span className="font-semibold">{vm.largestSub.nameLabel}</span></>}
+                        value={`+ ${formatMoneyV2(vm.largestSub.amountMonthly, currency, locale)}`}
                     />
                 </div>
             </div>

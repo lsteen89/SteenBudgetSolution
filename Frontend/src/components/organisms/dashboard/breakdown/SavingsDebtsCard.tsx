@@ -4,6 +4,9 @@ import type { CurrencyCode } from "@/utils/money/currency";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
 import type { BreakdownItem } from "@/hooks/dashboard/dashboardSummary.types";
 import MiniGradientBar from "@/components/atoms/charts/MiniGradientBar";
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
+import { breakdownCardsDict } from "@/utils/i18n/pages/private/dashboard/pages/BreakdownCards.i18n";
+import { tDict } from "@/utils/i18n/translate";
 
 type Props = {
     currency: CurrencyCode;
@@ -16,6 +19,8 @@ type Props = {
 };
 
 const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
+const interpolate = (template: string, values: Record<string, string | number>) =>
+    template.replace(/\{(\w+)\}/g, (_, key) => String(values[key] ?? ""));
 
 function Row({
     label,
@@ -53,6 +58,9 @@ const SavingsDebtsCard: React.FC<Props> = ({
     savingsItems,
     debtItems,
 }) => {
+    const locale = useAppLocale();
+    const t = <K extends keyof typeof breakdownCardsDict.sv>(key: K) =>
+        tDict(key, locale, breakdownCardsDict);
     const toneClass = finalBalance >= 0 ? "text-emerald-600" : "text-rose-600";
 
     const savingsVm = useMemo(() => {
@@ -81,12 +89,12 @@ const SavingsDebtsCard: React.FC<Props> = ({
 
     return (
         <CardShell
-            title="Sparande & skulder"
+            title={t("savingsDebtsTitle")}
             subtitle={
-                <>
-                    Sparande: {formatMoneyV2(totalSavings, currency)}/mån • Skuldbetalningar:{" "}
-                    {formatMoneyV2(totalDebtPayments, currency)}/mån
-                </>
+                interpolate(t("savingsDebtsSubtitle"), {
+                    savings: formatMoneyV2(totalSavings, currency, locale),
+                    debts: formatMoneyV2(totalDebtPayments, currency, locale),
+                })
             }
         >
             <div className="space-y-4">
@@ -94,9 +102,9 @@ const SavingsDebtsCard: React.FC<Props> = ({
                 {savingsVm.length > 0 && (
                     <section className="rounded-2xl border border-slate-200/70 bg-sky-50/40 p-3">
                         <div className="mb-2 flex items-center justify-between">
-                            <div className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Sparande</div>
+                            <div className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">{t("savings")}</div>
                             <div className="text-[11px] font-semibold text-slate-600 tabular-nums">
-                                {formatMoneyV2(totalSavings, currency)}/mån
+                                {formatMoneyV2(totalSavings, currency, locale)}{t("perMonthSuffix")}
                             </div>
                         </div>
 
@@ -105,7 +113,7 @@ const SavingsDebtsCard: React.FC<Props> = ({
                                 <Row
                                     key={s.key}
                                     label={s.label}
-                                    value={`${formatMoneyV2(s.amount, currency)}/mån`}
+                                    value={`${formatMoneyV2(s.amount, currency, locale)}${t("perMonthSuffix")}`}
                                     pct={s.pct}
                                     tone="savings"
                                     meta={s.meta}
@@ -120,7 +128,7 @@ const SavingsDebtsCard: React.FC<Props> = ({
                     <div className="my-3 flex items-center gap-3">
                         <div className="h-px flex-1 bg-slate-200/80" />
                         <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                            vs
+                            {t("vs")}
                         </span>
                         <div className="h-px flex-1 bg-slate-200/80" />
                     </div>
@@ -130,9 +138,9 @@ const SavingsDebtsCard: React.FC<Props> = ({
                 {debtsVm.length > 0 && (
                     <section className="rounded-2xl border border-slate-200/70 bg-rose-50/35 p-3">
                         <div className="mb-2 flex items-center justify-between">
-                            <div className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Skulder</div>
+                            <div className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">{t("debts")}</div>
                             <div className="text-[11px] font-semibold text-slate-600 tabular-nums">
-                                {formatMoneyV2(totalDebtPayments, currency)}/mån
+                                {formatMoneyV2(totalDebtPayments, currency, locale)}{t("perMonthSuffix")}
                             </div>
                         </div>
 
@@ -141,7 +149,7 @@ const SavingsDebtsCard: React.FC<Props> = ({
                                 <Row
                                     key={d.key}
                                     label={d.label}
-                                    value={`${formatMoneyV2(d.amount, currency)}/mån`}
+                                    value={`${formatMoneyV2(d.amount, currency, locale)}${t("perMonthSuffix")}`}
                                     pct={d.pct}
                                     tone="danger"
                                     meta={d.meta}
@@ -152,8 +160,8 @@ const SavingsDebtsCard: React.FC<Props> = ({
                 )}
 
                 <div className="border-t border-slate-100 pt-3 flex items-baseline justify-between text-xs">
-                    <span className="font-semibold text-slate-900">Kvar att spendera</span>
-                    <span className={`font-semibold ${toneClass}`}>{formatMoneyV2(finalBalance, currency)}</span>
+                    <span className="font-semibold text-slate-900">{t("leftToSpend")}</span>
+                    <span className={`font-semibold ${toneClass}`}>{formatMoneyV2(finalBalance, currency, locale)}</span>
                 </div>
             </div>
         </CardShell>

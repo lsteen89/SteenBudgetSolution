@@ -3,6 +3,9 @@ import { Link } from "react-router-dom";
 import type { CurrencyCode } from "@/utils/money/currency";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
 import type { RecurringExpenseSummary } from "@/hooks/dashboard/dashboardSummary.types";
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
+import { subscriptionsCardDict } from "@/utils/i18n/pages/private/dashboard/cards/SubscriptionsCard.i18n";
+import { tDict } from "@/utils/i18n/translate";
 
 type Props = {
     currency: CurrencyCode;
@@ -19,15 +22,26 @@ const SubscriptionsCard: React.FC<Props> = ({
     subscriptions,
     maxItems = 6,
 }) => {
+    const locale = useAppLocale();
+    const t = <K extends keyof typeof subscriptionsCardDict.sv>(key: K) =>
+        tDict(key, locale, subscriptionsCardDict);
+    const interpolate = (template: string, values: Record<string, string | number>) =>
+        template.replace(/\{(\w+)\}/g, (_, key) => String(values[key] ?? ""));
+
+    const formattedTotal = formatMoneyV2(subscriptionsTotal, currency, locale);
+
     return (
         <div className="rounded-3xl bg-white/80 border border-slate-100 shadow-sm px-5 py-4">
             <div className="flex items-start justify-between gap-3">
                 <div>
-                    <h2 className="text-sm font-semibold text-slate-900 mb-1">Abonnemang</h2>
+                    <h2 className="text-sm font-semibold text-slate-900 mb-1">{t("title")}</h2>
                     <p className="text-xs text-slate-500">
                         {subscriptionsCount === 0
-                            ? "Inga abonnemang registrerade ännu."
-                            : `${subscriptionsCount} st • ${formatMoneyV2(subscriptionsTotal, currency)}/mån`}
+                            ? t("empty")
+                            : interpolate(t("summary"), {
+                                count: subscriptionsCount,
+                                amount: formattedTotal,
+                            })}
                     </p>
                 </div>
 
@@ -35,7 +49,7 @@ const SubscriptionsCard: React.FC<Props> = ({
                     to="/expenses/subscriptions"
                     className="inline-flex items-center justify-center rounded-full px-3 py-1.5 text-[11px] font-medium bg-slate-900 text-white hover:bg-slate-800 transition"
                 >
-                    Hantera
+                    {t("manage")}
                 </Link>
             </div>
 
@@ -44,11 +58,13 @@ const SubscriptionsCard: React.FC<Props> = ({
                     {subscriptions.slice(0, maxItems).map((s) => (
                         <div key={s.id} className="flex items-baseline justify-between">
                             <span className="font-medium">{s.nameLabel}</span>
-                            <span>{formatMoneyV2(s.amountMonthly, currency)}/mån</span>
+                            <span>{formatMoneyV2(s.amountMonthly, currency, locale)}{t("perMonthSuffix")}</span>
                         </div>
                     ))}
                     {subscriptionsCount > maxItems && (
-                        <p className="text-[11px] text-slate-500 pt-1">+ {subscriptionsCount - maxItems} till…</p>
+                        <p className="text-[11px] text-slate-500 pt-1">
+                            {interpolate(t("more"), { count: subscriptionsCount - maxItems })}
+                        </p>
                     )}
                 </div>
             )}

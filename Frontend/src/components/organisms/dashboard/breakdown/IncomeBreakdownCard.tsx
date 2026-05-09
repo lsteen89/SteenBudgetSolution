@@ -5,6 +5,9 @@ import type { CurrencyCode } from "@/utils/money/currency";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
 import type { BreakdownItem } from "@/hooks/dashboard/dashboardSummary.types";
 import MiniGradientBar from "@/components/atoms/charts/MiniGradientBar";
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
+import { breakdownCardsDict } from "@/utils/i18n/pages/private/dashboard/pages/BreakdownCards.i18n";
+import { tDict } from "@/utils/i18n/translate";
 
 type Props = {
     totalIncome: number;
@@ -14,6 +17,8 @@ type Props = {
 };
 
 const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
+const interpolate = (template: string, values: Record<string, string | number>) =>
+    template.replace(/\{(\w+)\}/g, (_, key) => String(values[key] ?? ""));
 
 const IncomeBreakdownCard: React.FC<Props> = ({
     totalIncome,
@@ -21,6 +26,9 @@ const IncomeBreakdownCard: React.FC<Props> = ({
     items,
     maxVisible = 4,
 }) => {
+    const locale = useAppLocale();
+    const t = <K extends keyof typeof breakdownCardsDict.sv>(key: K) =>
+        tDict(key, locale, breakdownCardsDict);
     const [expanded, setExpanded] = useState(false);
 
     const normalized = useMemo(() => {
@@ -40,22 +48,28 @@ const IncomeBreakdownCard: React.FC<Props> = ({
 
     return (
         <CardShell
-            title="Inkomster"
-            subtitle={<span>Total: {formatMoneyV2(totalIncome, currency)}/mån</span>}
+            title={t("incomeTitle")}
+            subtitle={
+                <span>
+                    {interpolate(t("incomeTotalPerMonth"), {
+                        amount: formatMoneyV2(totalIncome, currency, locale),
+                    })}
+                </span>
+            }
             actions={
                 <Link
                     to="/budgets"
                     className="inline-flex items-center justify-center rounded-full px-3 py-1.5 text-[11px] font-medium bg-slate-900 text-white hover:bg-slate-800 transition"
                 >
-                    Redigera budget
+                    {t("editBudget")}
                 </Link>
             }
         >
             {normalized.length === 0 ? (
                 <div className="flex justify-between text-xs text-slate-700">
-                    <span>Total inkomst</span>
+                    <span>{t("totalIncome")}</span>
                     <span className="font-medium tabular-nums">
-                        {formatMoneyV2(totalIncome, currency)}
+                        {formatMoneyV2(totalIncome, currency, locale)}
                     </span>
                 </div>
             ) : (
@@ -74,7 +88,7 @@ const IncomeBreakdownCard: React.FC<Props> = ({
                                 </div>
 
                                 <div className="shrink-0 text-xs font-semibold text-slate-800 tabular-nums">
-                                    {formatMoneyV2(i.amount, currency)}
+                                    {formatMoneyV2(i.amount, currency, locale)}
                                 </div>
                             </div>
 
@@ -89,7 +103,9 @@ const IncomeBreakdownCard: React.FC<Props> = ({
                             onClick={() => setExpanded((s) => !s)}
                             className="w-full rounded-xl border border-slate-200/70 bg-white/60 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-white/80 transition"
                         >
-                            {expanded ? "Visa färre" : `Visa alla (${normalized.length})`}
+                            {expanded
+                                ? t("showLess")
+                                : interpolate(t("showAll"), { count: normalized.length })}
                         </button>
                     ) : null}
                 </div>

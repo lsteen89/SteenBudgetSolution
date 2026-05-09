@@ -1,23 +1,30 @@
 import React from "react";
 import PlayfulBirdCard from "@components/molecules/cards/dashboard/PlayfulBirdCard";
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
+import { nextStepsCardsDict } from "@/utils/i18n/pages/private/dashboard/cards/NextStepsCards.i18n";
+import { tDict } from "@/utils/i18n/translate";
 
 type Props = {
     onOpenWizard: () => void;
 };
 
 const NextStepsCards: React.FC<Props> = ({ onOpenWizard }) => {
+    const locale = useAppLocale();
+    const t = <K extends keyof typeof nextStepsCardsDict.sv>(key: K) =>
+        tDict(key, locale, nextStepsCardsDict);
+
     return (
         <>
             <PlayfulBirdCard
-                title="Fortsätt din resa"
-                description="Du är på rätt spår – granska din guide en gång i månaden för att hålla din plan i linje med verkligheten."
-                ctaLabel="Öppna guiden"
+                title={t("journeyTitle")}
+                description={t("journeyDescription")}
+                ctaLabel={t("journeyCta")}
                 onClick={onOpenWizard}
             />
             <PlayfulBirdCard
-                title="Lägg till denna veckas transaktioner"
-                description="Att logga dagens utgifter tar mindre än en minut och ger dig mycket bättre beslut imorgon."
-                ctaLabel="Lägg till utgifter"
+                title={t("expensesTitle")}
+                description={t("expensesDescription")}
+                ctaLabel={t("expensesCta")}
                 to="/expenses"
             />
         </>
