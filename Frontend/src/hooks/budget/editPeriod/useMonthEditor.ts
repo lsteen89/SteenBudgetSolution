@@ -3,18 +3,19 @@ import {
   deleteBudgetMonthExpenseItem,
   getBudgetMonthEditor,
   patchBudgetMonthExpenseItem,
+  patchBudgetMonthExpenseItemsBulk,
 } from "@/api/Services/Budget/editor/monthEditor.api";
-import { budgetDashboardMonthQueryKey } from "@/hooks/budget/useBudgetDashboardMonthQuery";
-import { budgetMonthRecapQueryKey } from "@/hooks/budget/useBudgetMonthRecapQuery";
 import type {
   CreateBudgetMonthExpenseItemRequestDto,
+  PatchBudgetMonthExpenseItemBulkRowDto,
   PatchBudgetMonthExpenseItemRequestDto,
 } from "@/types/budget/BudgetMonthsStatusDto";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-export const monthEditorQueryKeys = {
-  editor: (yearMonth: string) => ["budget", "month-editor", yearMonth] as const,
-};
+import { invalidateBudgetMonthEditingQueries } from "./invalidateBudgetMonthEditingQueries";
+import { monthEditorQueryKeys } from "./monthEditorQueryKeys";
+
+export { monthEditorQueryKeys };
 
 export function useBudgetMonthEditor(
   yearMonth: string | undefined,
@@ -44,55 +45,42 @@ export function usePatchBudgetMonthExpenseItem(yearMonth: string) {
       monthExpenseItemId: string;
       payload: PatchBudgetMonthExpenseItemRequestDto;
     }) => patchBudgetMonthExpenseItem(yearMonth, monthExpenseItemId, payload),
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: monthEditorQueryKeys.editor(yearMonth),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: budgetDashboardMonthQueryKey(yearMonth),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: budgetMonthRecapQueryKey(yearMonth),
-        }),
-      ]);
-    },
+    onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
   });
 }
 
+/**
+ * Transactional bulk patch. Sends one PATCH request to
+ * `/api/budgets/months/{yearMonth}/expense-items`; the backend either applies
+ * every row or rolls back the whole transaction. The hook input shape preserves
+ * the legacy `{ monthExpenseItemId, payload: { ... } }` rows so the drawer
+ * does not need a wide rewrite — we flatten to the wire DTO before sending.
+ */
 export function usePatchBudgetMonthExpenseItemsBulk(yearMonth: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (
+    mutationFn: (
       rows: Array<{
         monthExpenseItemId: string;
         payload: PatchBudgetMonthExpenseItemRequestDto;
       }>,
     ) => {
-      await Promise.all(
-        rows.map((row) =>
-          patchBudgetMonthExpenseItem(
-            yearMonth,
-            row.monthExpenseItemId,
-            row.payload,
-          ),
-        ),
+      const flatRows: PatchBudgetMonthExpenseItemBulkRowDto[] = rows.map(
+        (row) => ({
+          monthExpenseItemId: row.monthExpenseItemId,
+          name: row.payload.name,
+          categoryId: row.payload.categoryId,
+          amountMonthly: row.payload.amountMonthly,
+          isActive: row.payload.isActive,
+          subscriptionLifecycleStatus: row.payload.subscriptionLifecycleStatus,
+          updateDefault: row.payload.updateDefault,
+        }),
       );
+
+      return patchBudgetMonthExpenseItemsBulk(yearMonth, flatRows);
     },
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: monthEditorQueryKeys.editor(yearMonth),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: budgetDashboardMonthQueryKey(yearMonth),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: budgetMonthRecapQueryKey(yearMonth),
-        }),
-      ]);
-    },
+    onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
   });
 }
 
@@ -102,19 +90,7 @@ export function useCreateBudgetMonthExpenseItem(yearMonth: string) {
   return useMutation({
     mutationFn: (payload: CreateBudgetMonthExpenseItemRequestDto) =>
       createBudgetMonthExpenseItem(yearMonth, payload),
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: monthEditorQueryKeys.editor(yearMonth),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: budgetDashboardMonthQueryKey(yearMonth),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: budgetMonthRecapQueryKey(yearMonth),
-        }),
-      ]);
-    },
+    onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
   });
 }
 
@@ -124,18 +100,6 @@ export function useDeleteBudgetMonthExpenseItem(yearMonth: string) {
   return useMutation({
     mutationFn: (monthExpenseItemId: string) =>
       deleteBudgetMonthExpenseItem(yearMonth, monthExpenseItemId),
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: monthEditorQueryKeys.editor(yearMonth),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: budgetDashboardMonthQueryKey(yearMonth),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: budgetMonthRecapQueryKey(yearMonth),
-        }),
-      ]);
-    },
+    onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
   });
 }

@@ -60,6 +60,20 @@ export type CreateBudgetMonthExpenseItemRequestDto = {
   isActive: boolean;
 };
 
+export type PatchBudgetMonthExpenseItemBulkRowDto = {
+  monthExpenseItemId: string;
+  name?: string | null;
+  categoryId?: string | null;
+  amountMonthly?: number | null;
+  isActive?: boolean | null;
+  subscriptionLifecycleStatus?: SubscriptionLifecycleStatus | null;
+  updateDefault: boolean;
+};
+
+export type PatchBudgetMonthExpenseItemsBulkRequestDto = {
+  items: PatchBudgetMonthExpenseItemBulkRowDto[];
+};
+
 export type ApiErrorDto = {
   code: string;
   message: string;

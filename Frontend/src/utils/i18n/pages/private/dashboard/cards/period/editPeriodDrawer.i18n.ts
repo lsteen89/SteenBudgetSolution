@@ -20,7 +20,11 @@ export const editPeriodDrawerDict = {
       "Granska ändringarna och spara dem för den här månaden.",
     footerSummaryNoChanges: "Inga ändringar att spara.",
 
-    saveSuccess: "Ändringarna sparades.",
+    saveSuccess: "Alla ändringar sparades",
+    saveLabel: "Spara ändringar",
+    saveErrorGeneric: "Ändringarna kunde inte sparas",
+    scopePlanDisabledHint:
+      "Det finns inget i budgetplanen att uppdatera för de här ändringarna.",
 
     categoryHousing: "Boende",
     categoryRent: "Hyra",
@@ -62,7 +66,11 @@ export const editPeriodDrawerDict = {
     footerSummaryEditable: "Review your changes and save them for this month.",
     footerSummaryNoChanges: "No changes to save.",
 
-    saveSuccess: "Changes saved.",
+    saveSuccess: "All changes saved",
+    saveLabel: "Save changes",
+    saveErrorGeneric: "Could not save changes",
+    scopePlanDisabledHint:
+      "There is nothing in the budget plan to update for these changes.",
 
     categoryHousing: "Housing",
     categoryRent: "Rent",
@@ -105,7 +113,11 @@ export const editPeriodDrawerDict = {
       "Vaata muudatused üle ja salvesta need selle kuu jaoks.",
     footerSummaryNoChanges: "Muudatusi pole salvestamiseks.",
 
-    saveSuccess: "Muudatused salvestati.",
+    saveSuccess: "Kõik muudatused salvestati",
+    saveLabel: "Salvesta muudatused",
+    saveErrorGeneric: "Muudatusi ei saanud salvestada",
+    scopePlanDisabledHint:
+      "Eelarveplaanis pole midagi, mida nende muudatuste põhjal uuendada.",
 
     categoryHousing: "Elamine",
     categoryRent: "Üür",

@@ -5,7 +5,9 @@ import type {
   BudgetMonthEditorDto,
   BudgetMonthExpenseItemEditorRowDto,
   CreateBudgetMonthExpenseItemRequestDto,
+  PatchBudgetMonthExpenseItemBulkRowDto,
   PatchBudgetMonthExpenseItemRequestDto,
+  PatchBudgetMonthExpenseItemsBulkRequestDto,
 } from "@/types/budget/BudgetMonthsStatusDto";
 
 export async function getBudgetMonthEditor(
@@ -34,6 +36,25 @@ export async function patchBudgetMonthExpenseItem(
   );
 
   return unwrapEnvelopeData(res, "Could not update month expense item.");
+}
+
+/**
+ * Transactional bulk patch of budget-month expense items.
+ * The backend wraps the entire request in a single UnitOfWork transaction:
+ * either every row is applied or none are. The response array mirrors the
+ * order of the input rows.
+ */
+export async function patchBudgetMonthExpenseItemsBulk(
+  yearMonth: string,
+  rows: PatchBudgetMonthExpenseItemBulkRowDto[],
+): Promise<BudgetMonthExpenseItemEditorRowDto[]> {
+  const payload: PatchBudgetMonthExpenseItemsBulkRequestDto = { items: rows };
+
+  const res = await api.patch<
+    ApiEnvelope<BudgetMonthExpenseItemEditorRowDto[]>
+  >(`/api/budgets/months/${yearMonth}/expense-items`, payload);
+
+  return unwrapEnvelopeData(res, "Could not update month expense items.");
 }
 
 export async function createBudgetMonthExpenseItem(
