@@ -79,9 +79,13 @@ vi.mock("@/components/organisms/dashboard/editPeriod/EditPeriodDrawer", () => ({
 function buildSummary(
   remainingToSpend: number,
   status: "open" | "closed" | "skipped" = "open",
-  options: { incomingCarryOverAmount?: number } = {},
+  options: {
+    incomingCarryOverAmount?: number;
+    header?: Record<string, unknown>;
+    summary?: Record<string, unknown>;
+  } = {},
 ) {
-  return {
+  const base = {
     header: {
       periodKey: "2026-04",
       periodLabel: "April 2026",
@@ -115,12 +119,26 @@ function buildSummary(
     subscriptionsCount: 0,
     subscriptions: [],
     pillarDescriptions: {
-      income: "",
-      expenditure: "",
-      savings: "",
-      debts: "",
+      income: "Income is planned for this month.",
+      expenditure: "Housing, food and transport",
+      savings: "2 savings goals",
+      debts: "No active debt balance",
     },
     recurringExpenses: [],
+  };
+
+  return {
+    ...base,
+    ...options.summary,
+    header: {
+      ...base.header,
+      ...options.header,
+    },
+    pillarDescriptions: {
+      ...base.pillarDescriptions,
+      ...((options.summary?.pillarDescriptions as Record<string, string>) ??
+        {}),
+    },
   };
 }
 
@@ -480,6 +498,159 @@ describe("DashboardContent", () => {
 
     expect(screen.queryByText(/p:\s*true/i)).toBeNull();
     expect(screen.queryByText(/desktop:\s*true/i)).toBeNull();
+  });
+
+  it("renders the open-month command hero", () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+
+    renderDashboardContent();
+
+    expect(
+      screen.getByRole("heading", {
+        name: "You can relax, but keep the plan current",
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Open month control room")).toBeInTheDocument();
+    expect(screen.getByText("Money position")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /adjust month/i })).toBeNull();
+
+    const analysisLink = screen.getByRole("link", {
+      name: /explore analysis & trends/i,
+    });
+    expect(analysisLink).toHaveAttribute("href", "/dashboard/breakdown");
+    expect(screen.queryByText("Edit drawer open")).toBeNull();
+  });
+
+  it("does not render the old open-month report cards below the command center", () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+
+    renderDashboardContent();
+
+    expect(screen.queryByText("Budget overview")).not.toBeInTheDocument();
+    expect(screen.queryByText("Goals progress")).not.toBeInTheDocument();
+    expect(screen.queryByText("Recurring expenses")).not.toBeInTheDocument();
+    expect(screen.queryByText("Subscriptions")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Quickly adjust this period"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders deterministic open-month follow-ups from existing summary data", () => {
+    mockUseDashboardSummary.mockReturnValue({
+      ...readyResult,
+      data: {
+        ...readyResult.data,
+        summary: buildSummary(-350, "open", {
+          header: {
+            canCloseMonth: false,
+            closeMonthButtonLabel: null,
+            lifecycleState: "normal",
+            closeWindowOpensAt: "2026-05-20T00:00:00Z",
+          },
+          summary: {
+            finalBalance: -350,
+            subscriptionsTotal: 299,
+            subscriptionsCount: 2,
+            totalDebtPayments: 500,
+            recurringExpenses: [
+              {
+                id: "rent",
+                nameKey: "rent",
+                nameLabel: "Rent",
+                categoryKey: "housing",
+                categoryLabel: "Housing",
+                amountMonthly: 5000,
+              },
+            ],
+          },
+        }),
+      },
+    });
+
+    renderDashboardContent();
+
+    expect(screen.getByText("To follow up")).toBeInTheDocument();
+    expect(screen.getByText("Closing window")).toBeInTheDocument();
+    expect(screen.getByText("Money position needs review")).toBeInTheDocument();
+    expect(screen.getAllByText("Subscriptions").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Debt payments are planned")).toBeNull();
+  });
+
+  it("renders compact month areas without a duplicate deep-dive card", () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+
+    renderDashboardContent();
+
+    expect(screen.getByText("This month by area")).toBeInTheDocument();
+    expect(screen.getByText("Income is planned for this month.")).toBeInTheDocument();
+    expect(screen.getByText("Housing, food and transport")).toBeInTheDocument();
+    expect(screen.getByText("2 savings goals")).toBeInTheDocument();
+    expect(screen.getByText("No active debt balance")).toBeInTheDocument();
+
+    expect(screen.queryByText("deepDiveTitle")).not.toBeInTheDocument();
+    expect(screen.queryByText("deepDiveBody")).not.toBeInTheDocument();
+    expect(screen.queryByText("deepDiveCta")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /go to overview/i })).toBeNull();
+    expect(
+      screen.getAllByRole("link", { name: /explore analysis & trends/i }),
+    ).toHaveLength(1);
+  });
+
+  it("shows compact subscription leakage insight inside the expenses area", () => {
+    mockUseDashboardSummary.mockReturnValue({
+      ...readyResult,
+      data: {
+        ...readyResult.data,
+        summary: buildSummary(245, "open", {
+          summary: {
+            subscriptionsTotal: 665,
+            subscriptionsCount: 5,
+          },
+        }),
+      },
+    });
+
+    renderDashboardContent();
+
+    expect(screen.getAllByText("Subscriptions").length).toBeGreaterThan(0);
+    expect(screen.getByText(/5 active/)).toHaveTextContent(/year/);
+  });
+
+  it("opens the edit drawer from the expenses pillar action", () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+
+    renderDashboardContent();
+
+    fireEvent.click(screen.getByRole("button", { name: /adjust expenses/i }));
+
+    expect(screen.getByText("Edit drawer open")).toBeInTheDocument();
+  });
+
+  it("does not expose working edit actions for income, savings or debts", () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+
+    renderDashboardContent();
+
+    expect(
+      screen.queryByRole("button", { name: /manage income/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /manage savings/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /manage debts/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /adjust income/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /adjust savings/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /adjust debts/i }),
+    ).not.toBeInTheDocument();
+
+    expect(screen.getAllByText("Coming soon")).toHaveLength(3);
   });
 
   it("opens the close month modal from the month rail trigger with translated title", () => {
@@ -2348,7 +2519,7 @@ describe("DashboardContent", () => {
     return summary;
   }
 
-  it("shows a close-availability countdown chip on an open month not yet ready to close", () => {
+  it("keeps the close countdown out of the period header on an open month not yet ready to close", () => {
     // 17 days from a fixed wall-clock anchor so the test is stable.
     const now = new Date("2026-04-08T12:00:00Z");
     vi.useFakeTimers();
@@ -2366,8 +2537,12 @@ describe("DashboardContent", () => {
       renderDashboardContent();
 
       const frame = screen.getByTestId("stable-month-frame");
-      expect(frame).toHaveTextContent(/the month can be closed in 17 days/i);
-      // "Ready to close" is the eligible-state chip, not the countdown state.
+      expect(frame).not.toHaveTextContent(
+        /the month can be closed in 17 days/i,
+      );
+      expect(screen.getAllByText(/the month can be closed in 17 days/i)).toHaveLength(
+        2,
+      );
       expect(frame).not.toHaveTextContent(/ready to close/i);
       expect(screen.queryByTestId("close-month-cta")).toBeNull();
     } finally {
@@ -2375,7 +2550,7 @@ describe("DashboardContent", () => {
     }
   });
 
-  it("shows the 'Ready to close' chip and close CTA when an open month is eligible", () => {
+  it("keeps the open status structural and shows the close CTA when an open month is eligible", () => {
     mockUseDashboardSummary.mockReturnValue({
       ...readyResult,
       data: {
@@ -2386,14 +2561,13 @@ describe("DashboardContent", () => {
 
     renderDashboardContent();
 
-    expect(screen.getByTestId("month-status-badge")).toHaveTextContent(
-      /ready to close/i,
-    );
+    expect(screen.getByTestId("month-status-badge")).toHaveTextContent(/open/i);
     expect(screen.getByTestId("close-month-cta")).toBeInTheDocument();
-    // Eligible months don't carry the countdown — that chip is for the
-    // not-yet-ready state only.
     expect(screen.getByTestId("stable-month-frame")).not.toHaveTextContent(
       /the month can be closed in/i,
+    );
+    expect(screen.getByTestId("stable-month-frame")).not.toHaveTextContent(
+      /ready to close/i,
     );
   });
 
