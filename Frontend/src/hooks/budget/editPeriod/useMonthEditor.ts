@@ -75,6 +75,7 @@ export function usePatchBudgetMonthExpenseItemsBulk(yearMonth: string) {
           isActive: row.payload.isActive,
           subscriptionLifecycleStatus: row.payload.subscriptionLifecycleStatus,
           updateDefault: row.payload.updateDefault,
+          scope: row.payload.scope,
         }),
       );
 

@@ -110,7 +110,7 @@ function renderPanel() {
   );
 }
 
-describe("ExpensesPanel scope toggle", () => {
+describe("ExpensesPanel month-only drawer scope", () => {
   beforeEach(() => {
     mockUseBudgetMonthEditor.mockReset();
     mockUsePatchBudgetMonthExpenseItemsBulk.mockReset();
@@ -120,7 +120,22 @@ describe("ExpensesPanel scope toggle", () => {
     mockToast.error.mockReset();
   });
 
-  it("sends updateDefault=false by default for changed rows", async () => {
+  it("does not expose a future-budget scope selector in the quick drawer", () => {
+    renderPanel();
+
+    expect(
+      screen.getByText(
+        "Changes here apply only to April 2026. Want to update the budget plan going forward? Open planning.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("radiogroup", {
+        name: /what should this change apply to/i,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("sends updateDefault=false for changed rows", async () => {
     mockMutateAsync.mockResolvedValue([]);
     renderPanel();
 
@@ -140,33 +155,7 @@ describe("ExpensesPanel scope toggle", () => {
     expect(callArg).toHaveLength(1);
     expect(callArg[0].monthExpenseItemId).toBe(baselineRowId);
     expect(callArg[0].payload.updateDefault).toBe(false);
+    expect(callArg[0].payload.scope).toBe("currentMonthOnly");
   });
 
-  it("sends updateDefault=true for baseline-backed rows when scope=plan", async () => {
-    mockMutateAsync.mockResolvedValue([]);
-    renderPanel();
-
-    // Trigger a change on the baseline-backed (subscription) row.
-    fireEvent.click(screen.getByRole("radio", { name: "Paused" }));
-
-    // Switch the scope toggle to "plan".
-    fireEvent.click(
-      screen.getByRole("radio", { name: /Update the ongoing budget plan/i }),
-    );
-
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Save changes" })).not.toBeDisabled();
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
-
-    await waitFor(() => {
-      expect(mockMutateAsync).toHaveBeenCalledTimes(1);
-    });
-
-    const callArg = mockMutateAsync.mock.calls[0][0];
-    expect(callArg).toHaveLength(1);
-    expect(callArg[0].monthExpenseItemId).toBe(baselineRowId);
-    expect(callArg[0].payload.updateDefault).toBe(true);
-  });
 });

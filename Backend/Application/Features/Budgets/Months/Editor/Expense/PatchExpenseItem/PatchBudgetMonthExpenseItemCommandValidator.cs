@@ -1,3 +1,4 @@
+using Backend.Application.DTO.Budget.Months;
 using FluentValidation;
 
 namespace Backend.Application.Features.Budgets.Months.Editor.Expense.PatchExpenseItem;
@@ -34,5 +35,9 @@ public sealed class PatchBudgetMonthExpenseItemCommandValidator
         RuleFor(x => x.SubscriptionLifecycleStatus)
             .MaximumLength(20)
             .When(x => x.SubscriptionLifecycleStatus is not null);
+
+        RuleFor(x => x.Scope)
+            .Must(BudgetMonthExpenseEditScopes.IsSupported)
+            .WithMessage("Scope must be currentMonthOnly, currentMonthAndBudgetPlan, or budgetPlanOnly.");
     }
 }

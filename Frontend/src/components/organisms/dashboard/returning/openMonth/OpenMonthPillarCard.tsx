@@ -9,10 +9,12 @@ type Props = {
   description: string;
   icon: React.ReactNode;
   actionLabel?: string;
+  secondaryActionLabel?: string;
   actionState: "available" | "coming-soon";
   stateLabel: string;
   insight?: React.ReactNode;
   onAction?: () => void;
+  onSecondaryAction?: () => void;
 };
 
 const OpenMonthPillarCard: React.FC<Props> = ({
@@ -21,10 +23,12 @@ const OpenMonthPillarCard: React.FC<Props> = ({
   description,
   icon,
   actionLabel,
+  secondaryActionLabel,
   actionState,
   stateLabel,
   insight,
   onAction,
+  onSecondaryAction,
 }) => {
   const isAvailable = actionState === "available";
 
@@ -59,16 +63,27 @@ const OpenMonthPillarCard: React.FC<Props> = ({
 
           {insight ? <div className="mt-2">{insight}</div> : null}
 
-          <div className="mt-3 flex min-h-9 justify-end">
+          <div className="mt-3 flex min-h-9 flex-wrap justify-end gap-2">
             {isAvailable ? (
-              <button
-                type="button"
-                onClick={onAction}
-                className="group inline-flex h-9 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 shadow-[0_8px_18px_rgba(21,39,81,0.08)] transition-[transform,background-color,border-color,box-shadow] duration-150 hover:-translate-y-[1px] hover:border-slate-300 hover:bg-slate-50 hover:shadow-[0_12px_24px_rgba(21,39,81,0.10)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-eb-accent/25 active:translate-y-0 motion-reduce:transform-none"
-              >
-                <span>{actionLabel}</span>
-                <ArrowRight className="h-4 w-4 transition-transform duration-150 group-hover:translate-x-0.5 motion-reduce:transform-none" />
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={onAction}
+                  className="group inline-flex h-9 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 shadow-[0_8px_18px_rgba(21,39,81,0.08)] transition-[transform,background-color,border-color,box-shadow] duration-150 hover:-translate-y-[1px] hover:border-slate-300 hover:bg-slate-50 hover:shadow-[0_12px_24px_rgba(21,39,81,0.10)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-eb-accent/25 active:translate-y-0 motion-reduce:transform-none"
+                >
+                  <span>{actionLabel}</span>
+                </button>
+                {secondaryActionLabel ? (
+                  <button
+                    type="button"
+                    onClick={onSecondaryAction}
+                    className="group inline-flex h-9 items-center justify-center gap-2 rounded-2xl bg-[rgb(var(--eb-accent))] px-3 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(21,39,81,0.10)] transition-[transform,box-shadow,opacity] duration-150 hover:-translate-y-[1px] hover:opacity-95 hover:shadow-[0_12px_24px_rgba(21,39,81,0.12)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-eb-accent/25 active:translate-y-0 motion-reduce:transform-none"
+                  >
+                    <span>{secondaryActionLabel}</span>
+                    <ArrowRight className="h-4 w-4 transition-transform duration-150 group-hover:translate-x-0.5 motion-reduce:transform-none" />
+                  </button>
+                ) : null}
+              </>
             ) : (
               <div className="h-9" aria-hidden="true" />
             )}

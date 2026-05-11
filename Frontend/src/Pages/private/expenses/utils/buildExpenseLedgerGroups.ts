@@ -43,13 +43,17 @@ export function buildExpenseLedgerGroups({
 
       return {
         id: x.id,
+        sourceExpenseItemId: x.sourceExpenseItemId,
         name: x.name,
         categoryId: x.categoryId,
         categoryLabel: labelCategory(categoryKey, locale),
         categoryKey,
         amountMonthly: x.amountMonthly,
+        subscriptionLifecycleStatus: x.subscriptionLifecycleStatus,
         isActive: x.isActive,
         isDeleted: x.isDeleted,
+        isMonthOnly: x.isMonthOnly,
+        canUpdateDefault: x.canUpdateDefault,
         group: mapExpenseCategoryToGroup(categoryKey),
       };
     });

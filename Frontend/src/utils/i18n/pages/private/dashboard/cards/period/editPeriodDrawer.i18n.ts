@@ -14,6 +14,8 @@ export const editPeriodDrawerDict = {
     loadingEditor: "Laddar periodredigerare...",
     loadMonthError: "Kunde inte läsa in denna månad.",
     monthClosedReadOnly: "Den här månaden är stängd och kan inte redigeras.",
+    monthOnlyHelper:
+      "Ändringar här gäller bara {month}. Vill du uppdatera budgetplanen framåt? Öppna planeringen.",
 
     footerSummaryReadOnly: "Stängd månad. Skrivskyddad.",
     footerSummaryEditable:
@@ -23,8 +25,6 @@ export const editPeriodDrawerDict = {
     saveSuccess: "Alla ändringar sparades",
     saveLabel: "Spara ändringar",
     saveErrorGeneric: "Ändringarna kunde inte sparas",
-    scopePlanDisabledHint:
-      "Det finns inget i budgetplanen att uppdatera för de här ändringarna.",
 
     categoryHousing: "Boende",
     categoryRent: "Hyra",
@@ -61,6 +61,8 @@ export const editPeriodDrawerDict = {
     loadingEditor: "Loading period editor...",
     loadMonthError: "Could not load this month.",
     monthClosedReadOnly: "This month is closed and cannot be edited.",
+    monthOnlyHelper:
+      "Changes here apply only to {month}. Want to update the budget plan going forward? Open planning.",
 
     footerSummaryReadOnly: "Closed month. Read-only.",
     footerSummaryEditable: "Review your changes and save them for this month.",
@@ -69,8 +71,6 @@ export const editPeriodDrawerDict = {
     saveSuccess: "All changes saved",
     saveLabel: "Save changes",
     saveErrorGeneric: "Could not save changes",
-    scopePlanDisabledHint:
-      "There is nothing in the budget plan to update for these changes.",
 
     categoryHousing: "Housing",
     categoryRent: "Rent",
@@ -107,6 +107,8 @@ export const editPeriodDrawerDict = {
     loadingEditor: "Perioodi muutja laadimine...",
     loadMonthError: "Seda kuud ei saanud laadida.",
     monthClosedReadOnly: "See kuu on suletud ja seda ei saa muuta.",
+    monthOnlyHelper:
+      "Siinsed muudatused kehtivad ainult perioodile {month}. Kui soovid eelarveplaani edaspidi uuendada, ava planeerimine.",
 
     footerSummaryReadOnly: "Suletud kuu. Ainult vaatamiseks.",
     footerSummaryEditable:
@@ -116,8 +118,6 @@ export const editPeriodDrawerDict = {
     saveSuccess: "Kõik muudatused salvestati",
     saveLabel: "Salvesta muudatused",
     saveErrorGeneric: "Muudatusi ei saanud salvestada",
-    scopePlanDisabledHint:
-      "Eelarveplaanis pole midagi, mida nende muudatuste põhjal uuendada.",
 
     categoryHousing: "Elamine",
     categoryRent: "Üür",

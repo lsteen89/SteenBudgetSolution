@@ -52,7 +52,8 @@ public sealed partial class BudgetController
                 AmountMonthly: req.AmountMonthly,
                 IsActive: req.IsActive,
                 SubscriptionLifecycleStatus: req.SubscriptionLifecycleStatus,
-                UpdateDefault: req.UpdateDefault),
+                UpdateDefault: req.UpdateDefault,
+                Scope: req.Scope),
             ct);
 
         if (result.IsFailure || result.Value is null)
@@ -81,7 +82,8 @@ public sealed partial class BudgetController
                 AmountMonthly: item.AmountMonthly,
                 IsActive: item.IsActive,
                 SubscriptionLifecycleStatus: item.SubscriptionLifecycleStatus,
-                UpdateDefault: item.UpdateDefault))
+                UpdateDefault: item.UpdateDefault,
+                Scope: item.Scope))
             .ToList();
 
         var result = await _mediator.Send(

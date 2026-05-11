@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -190,6 +191,62 @@ public sealed class BudgetMonthExpenseItemEditorTests
         baselineAfter.AmountMonthly.Should().Be(999m);
         baselineAfter.IsActive.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task PatchExpenseItem_BudgetPlanOnlyScope_UpdatesBaselineOnly_AndWritesAuditEvent()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var persoid = seed.Persoid;
+
+        var sut = CreateSut(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+
+        var ensure = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.Lifecycle.EnsureAccessibleMonthAsync(persoid, persoid, "2026-01", CancellationToken.None));
+
+        var budgetMonthId = ensure.Value!.BudgetMonthId;
+
+        var editor = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.GetEditorHandler.Handle(new GetBudgetMonthEditorQuery(persoid, "2026-01"), CancellationToken.None));
+
+        var target = editor.Value!.ExpenseItems.First(x => !x.IsDeleted && !x.IsMonthOnly);
+        var baselineBefore = await GetBaselineExpenseRowAsync(target.SourceExpenseItemId!.Value);
+
+        var patch = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.PatchHandler.Handle(
+                new PatchBudgetMonthExpenseItemCommand(
+                    Persoid: persoid,
+                    YearMonth: "2026-01",
+                    MonthExpenseItemId: target.Id,
+                    Name: "Plan-only expense",
+                    CategoryId: target.CategoryId,
+                    AmountMonthly: target.AmountMonthly + 44m,
+                    IsActive: target.IsActive,
+                    SubscriptionLifecycleStatus: null,
+                    UpdateDefault: false,
+                    Scope: BudgetMonthExpenseEditScopes.BudgetPlanOnly),
+                CancellationToken.None));
+
+        patch.IsFailure.Should().BeFalse();
+        patch.Value!.Name.Should().Be(target.Name);
+        patch.Value.AmountMonthly.Should().Be(target.AmountMonthly);
+
+        var monthAfter = await GetMonthExpenseRowAsync(budgetMonthId, target.Id);
+        monthAfter!.Name.Should().Be(target.Name);
+        monthAfter.AmountMonthly.Should().Be(target.AmountMonthly);
+
+        var baselineAfter = await GetBaselineExpenseRowAsync(target.SourceExpenseItemId.Value);
+        baselineAfter!.Name.Should().Be("Plan-only expense");
+        baselineAfter.AmountMonthly.Should().Be(baselineBefore!.AmountMonthly + 44m);
+
+        var events = await GetChangeEventsAsync(budgetMonthId);
+        events.Should().ContainSingle(x =>
+            x.ChangeType == "updated" &&
+            x.EntityId == target.Id &&
+            x.ChangeSetJson!.Contains("\"scope\":\"budgetPlanOnly\""));
+    }
+
     [Fact]
     public async Task CreateExpenseItem_CreatesMonthOnlyRow()
     {
@@ -800,6 +857,7 @@ public sealed class BudgetMonthExpenseItemEditorTests
 
         rows.Should().Contain(x => x.ChangeType == "updated" && x.ChangeSetJson!.Contains("before"));
         rows.Should().Contain(x => x.ChangeType == "updated" && x.ChangeSetJson!.Contains("after"));
+        rows.Should().Contain(x => x.ChangeType == "updated" && x.ChangeSetJson!.Contains("\"scope\":\"currentMonthOnly\""));
         rows.Should().Contain(x => x.ChangeType == "created" && x.ChangeSetJson!.Contains("createdEntity"));
         rows.Should().Contain(x => x.ChangeType == "deleted" && x.ChangeSetJson!.Contains("deletedEntity"));
         rows.Should().Contain(x => x.ChangeType == "deleted" && x.ChangeSetJson!.Contains("isDeleted"));
@@ -1009,6 +1067,29 @@ public sealed class BudgetMonthExpenseItemEditorTests
         string? ChangeSetJson,
         Guid ChangedByUserId,
         DateTime ChangedAt);
+
+    private async Task<IReadOnlyList<BudgetMonthChangeEventDbRow>> GetChangeEventsAsync(Guid budgetMonthId)
+    {
+        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await conn.OpenAsync();
+
+        return (await conn.QueryAsync<BudgetMonthChangeEventDbRow>(@"
+        SELECT
+            Id,
+            BudgetMonthId,
+            EntityType,
+            EntityId,
+            SourceEntityId,
+            ChangeType,
+            ChangeSetJson,
+            ChangedByUserId,
+            ChangedAt
+        FROM BudgetMonthChangeEvent
+        WHERE BudgetMonthId = @budgetMonthId
+        ORDER BY ChangedAt, Id;",
+            new { budgetMonthId })).ToList();
+    }
+
     private sealed class Sut
     {
         public required UnitOfWork Uow { get; init; }

@@ -5,7 +5,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import DashboardContent from "../DashboardContent";
@@ -324,6 +324,26 @@ function renderDashboardContent() {
   );
 }
 
+function renderDashboardContentWithRoutes() {
+  render(
+    <MemoryRouter initialEntries={["/dashboard"]}>
+      <Routes>
+        <Route
+          path="/dashboard"
+          element={
+            <DashboardContent
+              isFirstTimeLogin={false}
+              isWizardOpen={false}
+              setIsWizardOpen={vi.fn()}
+            />
+          }
+        />
+        <Route path="/dashboard/expenses" element={<div>Expenses route</div>} />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
+
 describe("DashboardContent", () => {
   beforeEach(() => {
     mockAppLocale = "en-US";
@@ -616,14 +636,37 @@ describe("DashboardContent", () => {
     expect(screen.getByText(/5 active/)).toHaveTextContent(/year/);
   });
 
-  it("opens the edit drawer from the expenses pillar action", () => {
+  it("shows quick and full edit actions in the expenses pillar", () => {
     mockUseDashboardSummary.mockReturnValue(readyResult);
 
     renderDashboardContent();
 
-    fireEvent.click(screen.getByRole("button", { name: /adjust expenses/i }));
+    expect(
+      screen.getByRole("button", { name: /quick adjust/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /edit all expenses/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("opens the edit drawer from the quick expense action", () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+
+    renderDashboardContent();
+
+    fireEvent.click(screen.getByRole("button", { name: /quick adjust/i }));
 
     expect(screen.getByText("Edit drawer open")).toBeInTheDocument();
+  });
+
+  it("navigates to the full expense editor from the expenses pillar", () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+
+    renderDashboardContentWithRoutes();
+
+    fireEvent.click(screen.getByRole("button", { name: /edit all expenses/i }));
+
+    expect(screen.getByText("Expenses route")).toBeInTheDocument();
   });
 
   it("does not expose working edit actions for income, savings or debts", () => {

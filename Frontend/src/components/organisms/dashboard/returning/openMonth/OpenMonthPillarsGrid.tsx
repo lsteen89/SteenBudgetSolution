@@ -17,11 +17,13 @@ import OpenMonthPillarCard from "./OpenMonthPillarCard";
 type Props = {
   summary: DashboardSummary;
   onOpenPeriodEditor: () => void;
+  onOpenFullExpenseEditor: () => void;
 };
 
 const OpenMonthPillarsGrid: React.FC<Props> = ({
   summary,
   onOpenPeriodEditor,
+  onOpenFullExpenseEditor,
 }) => {
   const locale = useAppLocale();
   const t = <K extends keyof typeof openMonthCommandCenterDict.sv>(key: K) =>
@@ -57,7 +59,8 @@ const OpenMonthPillarsGrid: React.FC<Props> = ({
             summary.pillarDescriptions.expenditure || t("expensesHint")
           }
           icon={<ReceiptText className="h-5 w-5" />}
-          actionLabel={t("adjustExpenses")}
+          actionLabel={t("quickAdjustExpenses")}
+          secondaryActionLabel={t("editAllExpenses")}
           actionState="available"
           stateLabel={t("availableNow")}
           insight={
@@ -73,6 +76,7 @@ const OpenMonthPillarsGrid: React.FC<Props> = ({
             ) : null
           }
           onAction={onOpenPeriodEditor}
+          onSecondaryAction={onOpenFullExpenseEditor}
         />
         <OpenMonthPillarCard
           title={t("savingsTitle")}

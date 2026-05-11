@@ -1,4 +1,5 @@
 using Backend.Application.Features.Budgets.Months.Editor.Expense.PatchExpenseItemsBulk;
+using Backend.Application.DTO.Budget.Months;
 using Backend.Domain.Entities.Budget.Expenses;
 using FluentValidation.TestHelper;
 
@@ -15,7 +16,8 @@ public sealed class PatchBudgetMonthExpenseItemsBulkCommandValidatorTests
         decimal? amount = 99.90m,
         bool? isActive = true,
         string? lifecycle = null,
-        bool updateDefault = false)
+        bool updateDefault = false,
+        string? scope = null)
         => new(
             MonthExpenseItemId: id ?? Guid.NewGuid(),
             Name: name,
@@ -23,7 +25,8 @@ public sealed class PatchBudgetMonthExpenseItemsBulkCommandValidatorTests
             AmountMonthly: amount,
             IsActive: isActive,
             SubscriptionLifecycleStatus: lifecycle,
-            UpdateDefault: updateDefault);
+            UpdateDefault: updateDefault,
+            Scope: scope);
 
     [Fact]
     public void Valid_Single_Row_Passes()
@@ -113,5 +116,31 @@ public sealed class PatchBudgetMonthExpenseItemsBulkCommandValidatorTests
             });
 
         _sut.TestValidate(cmd).ShouldHaveValidationErrorFor("Items[0].AmountMonthly");
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData(BudgetMonthExpenseEditScopes.CurrentMonthOnly)]
+    [InlineData(BudgetMonthExpenseEditScopes.CurrentMonthAndBudgetPlan)]
+    [InlineData(BudgetMonthExpenseEditScopes.BudgetPlanOnly)]
+    public void Valid_Scope_Passes(string? scope)
+    {
+        var cmd = new PatchBudgetMonthExpenseItemsBulkCommand(
+            Persoid: Guid.NewGuid(),
+            YearMonth: "2026-01",
+            Items: new[] { Row(scope: scope) });
+
+        _sut.TestValidate(cmd).ShouldNotHaveValidationErrorFor("Items[0].Scope");
+    }
+
+    [Fact]
+    public void Invalid_Scope_Fails()
+    {
+        var cmd = new PatchBudgetMonthExpenseItemsBulkCommand(
+            Persoid: Guid.NewGuid(),
+            YearMonth: "2026-01",
+            Items: new[] { Row(scope: "allMonths") });
+
+        _sut.TestValidate(cmd).ShouldHaveValidationErrorFor("Items[0].Scope");
     }
 }

@@ -2,9 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ZodError } from "zod";
 
-import EditScopeToggle, {
-  type EditScope,
-} from "@/components/molecules/forms/editScope/EditScopeToggle";
 import { useExpenseCategories } from "@/hooks/budget/useExpenseCategories";
 import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
@@ -18,7 +15,7 @@ import {
 } from "@/schemas/dashboard/monthEditor/expenseItem.schemas";
 import type { SubscriptionLifecycleStatus } from "@/types/budget/BudgetMonthsStatusDto";
 import { useToast } from "@/ui/toast/toast";
-import { canEditMonth, canShowUpdateDefault } from "@/utils/budget/periodEditor/canShowUpdateDefault";
+import { canEditMonth } from "@/utils/budget/periodEditor/canShowUpdateDefault";
 import { asCategoryKey, labelCategory } from "@/utils/i18n/budget/categories";
 import { editPeriodDrawerDict } from "@/utils/i18n/pages/private/dashboard/cards/period/editPeriodDrawer.i18n";
 import { expenseItemSchemaDict } from "@/utils/i18n/pages/private/expenses/ExpenseItemSchema.i18n";
@@ -77,7 +74,6 @@ const ExpensesPanel: React.FC<ExpensesPanelProps> = ({
   const bulkPatchMutation = usePatchBudgetMonthExpenseItemsBulk(yearMonth);
 
   const [drafts, setDrafts] = useState<Record<string, ExpenseDraft>>({});
-  const [scope, setScope] = useState<EditScope>("month");
 
   const schemaMessages = useMemo<ExpenseItemSchemaMessages>(
     () => ({
@@ -119,7 +115,6 @@ const ExpensesPanel: React.FC<ExpensesPanelProps> = ({
     );
 
     setDrafts(nextDrafts);
-    setScope("month"); // each open of the panel resets the scope toggle
   }, [editor, open]);
 
   const categoriesById = useMemo(
@@ -273,18 +268,6 @@ const ExpensesPanel: React.FC<ExpensesPanelProps> = ({
 
   const hasChanges = changedRows.length > 0;
 
-  // The scope toggle's "plan" option is only meaningful when at least one
-  // changed row is baseline-backed. Pure month-only edits (a one-off cost the
-  // user added inline) cannot update the plan because there is no plan row.
-  const anyChangedRowCanUpdatePlan = useMemo(
-    () => changedRows.some((row) => canShowUpdateDefault(row)),
-    [changedRows],
-  );
-
-  const planScopeDisabledHint = anyChangedRowCanUpdatePlan
-    ? undefined
-    : t("scopePlanDisabledHint");
-
   const originalEditableTotal = useMemo(() => {
     return [...quickAdjustRows, ...subscriptionRows].reduce((sum, row) => {
       const countsForMonth =
@@ -332,19 +315,12 @@ const ExpensesPanel: React.FC<ExpensesPanelProps> = ({
     }
 
     try {
-      const wantsPlanScope = scope === "plan";
-
       const rawPayload = changedRows.map((row) => {
         const draft = drafts[row.id] ?? {
           amountMonthly: String(row.amountMonthly),
           isActive: row.isActive,
           subscriptionLifecycleStatus: row.subscriptionLifecycleStatus,
         };
-
-        // "Plan" scope only propagates to baseline rows that exist; month-only
-        // rows always patch with updateDefault=false because the backend
-        // (correctly) rejects updateDefault=true for rows without a baseline.
-        const updateDefault = wantsPlanScope && canShowUpdateDefault(row);
 
         return {
           monthExpenseItemId: row.id,
@@ -354,7 +330,8 @@ const ExpensesPanel: React.FC<ExpensesPanelProps> = ({
             amountMonthly: draft.amountMonthly,
             isActive: draft.isActive,
             subscriptionLifecycleStatus: draft.subscriptionLifecycleStatus,
-            updateDefault,
+            updateDefault: false,
+            scope: "currentMonthOnly" as const,
           },
         };
       });
@@ -448,15 +425,9 @@ const ExpensesPanel: React.FC<ExpensesPanelProps> = ({
           ) : null}
 
           {!readOnly ? (
-            <EditScopeToggle
-              value={scope}
-              onChange={setScope}
-              monthLabel={periodLabel}
-              canUpdatePlan={anyChangedRowCanUpdatePlan}
-              disabledPlanHint={planScopeDisabledHint}
-              disabled={isSaving}
-              testId="expenses-panel-scope-toggle"
-            />
+            <div className="rounded-2xl border border-eb-stroke/25 bg-[rgb(var(--eb-shell)/0.32)] p-4 text-sm text-eb-text/68">
+              {t("monthOnlyHelper").replace("{month}", periodLabel)}
+            </div>
           ) : null}
 
           <EditPeriodSection

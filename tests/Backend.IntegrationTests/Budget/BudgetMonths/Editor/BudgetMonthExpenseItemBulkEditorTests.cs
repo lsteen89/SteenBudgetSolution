@@ -5,7 +5,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Backend.Application.Abstractions.Application.Services.Budget;
 using Backend.Application.Abstractions.Infrastructure.System;
+using Backend.Application.Common.Behaviors;
 using Backend.Application.DTO.Budget.Months;
+using Backend.Application.DTO.Budget.Months.Editor.Expense;
 using Backend.Application.Features.Budgets.Months.Editor.Expense.PatchExpenseItemsBulk;
 using Backend.Application.Features.Budgets.Months.Editor.Queries;
 using Backend.Application.BudgetMonths.Services;
@@ -170,6 +172,109 @@ public sealed class BudgetMonthExpenseItemBulkEditorTests
     }
 
     [Fact]
+    public async Task BulkPatch_CurrentMonthAndBudgetPlanScope_UpdatesMonthRowAndBaseline()
+    {
+        await _db.ResetAsync();
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var sut = CreateSut(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+
+        var ensure = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.Lifecycle.EnsureAccessibleMonthAsync(seed.Persoid, seed.Persoid, "2026-01", CancellationToken.None));
+        var budgetMonthId = ensure.Value!.BudgetMonthId;
+
+        var editor = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.GetEditorHandler.Handle(new GetBudgetMonthEditorQuery(seed.Persoid, "2026-01"), CancellationToken.None));
+
+        var target = editor.Value!.ExpenseItems.First(x => !x.IsDeleted && !x.IsMonthOnly);
+        var baselineBefore = await GetBaselineExpenseRowAsync(target.SourceExpenseItemId!.Value);
+
+        var bulk = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.BulkPatchHandler.Handle(
+                new PatchBudgetMonthExpenseItemsBulkCommand(
+                    Persoid: seed.Persoid,
+                    YearMonth: "2026-01",
+                    Items: new[]
+                    {
+                        new PatchBudgetMonthExpenseItemsBulkCommand.Row(
+                            MonthExpenseItemId: target.Id,
+                            Name: "month and plan",
+                            CategoryId: target.CategoryId,
+                            AmountMonthly: target.AmountMonthly + 33m,
+                            IsActive: target.IsActive,
+                            SubscriptionLifecycleStatus: null,
+                            UpdateDefault: false,
+                            Scope: BudgetMonthExpenseEditScopes.CurrentMonthAndBudgetPlan),
+                    }),
+                CancellationToken.None));
+
+        bulk.IsFailure.Should().BeFalse();
+        bulk.Value![0].Name.Should().Be("month and plan");
+
+        var monthAfter = await GetMonthExpenseRowAsync(budgetMonthId, target.Id);
+        monthAfter!.Name.Should().Be("month and plan");
+        monthAfter.AmountMonthly.Should().Be(target.AmountMonthly + 33m);
+
+        var baselineAfter = await GetBaselineExpenseRowAsync(target.SourceExpenseItemId.Value);
+        baselineAfter!.Name.Should().Be("month and plan");
+        baselineAfter.AmountMonthly.Should().Be(baselineBefore!.AmountMonthly + 33m);
+    }
+
+    [Fact]
+    public async Task BulkPatch_BudgetPlanOnlyScope_UpdatesBaselineOnly_AndReturnsUnchangedMonthRow()
+    {
+        await _db.ResetAsync();
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var sut = CreateSut(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+
+        var ensure = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.Lifecycle.EnsureAccessibleMonthAsync(seed.Persoid, seed.Persoid, "2026-01", CancellationToken.None));
+        var budgetMonthId = ensure.Value!.BudgetMonthId;
+
+        var editor = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.GetEditorHandler.Handle(new GetBudgetMonthEditorQuery(seed.Persoid, "2026-01"), CancellationToken.None));
+
+        var target = editor.Value!.ExpenseItems.First(x => !x.IsDeleted && !x.IsMonthOnly);
+        var baselineBefore = await GetBaselineExpenseRowAsync(target.SourceExpenseItemId!.Value);
+
+        var bulk = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.BulkPatchHandler.Handle(
+                new PatchBudgetMonthExpenseItemsBulkCommand(
+                    Persoid: seed.Persoid,
+                    YearMonth: "2026-01",
+                    Items: new[]
+                    {
+                        new PatchBudgetMonthExpenseItemsBulkCommand.Row(
+                            MonthExpenseItemId: target.Id,
+                            Name: "plan only",
+                            CategoryId: target.CategoryId,
+                            AmountMonthly: target.AmountMonthly + 44m,
+                            IsActive: target.IsActive,
+                            SubscriptionLifecycleStatus: null,
+                            UpdateDefault: false,
+                            Scope: BudgetMonthExpenseEditScopes.BudgetPlanOnly),
+                    }),
+                CancellationToken.None));
+
+        bulk.IsFailure.Should().BeFalse();
+        bulk.Value![0].Name.Should().Be(target.Name);
+        bulk.Value[0].AmountMonthly.Should().Be(target.AmountMonthly);
+
+        var monthAfter = await GetMonthExpenseRowAsync(budgetMonthId, target.Id);
+        monthAfter!.Name.Should().Be(target.Name);
+        monthAfter.AmountMonthly.Should().Be(target.AmountMonthly);
+
+        var baselineAfter = await GetBaselineExpenseRowAsync(target.SourceExpenseItemId.Value);
+        baselineAfter!.Name.Should().Be("plan only");
+        baselineAfter.AmountMonthly.Should().Be(baselineBefore!.AmountMonthly + 44m);
+
+        var events = await GetChangeEventsAsync(budgetMonthId);
+        events.Should().ContainSingle(x =>
+            x.ChangeType == "updated" &&
+            x.EntityId == target.Id &&
+            x.ChangeSetJson!.Contains("\"scope\":\"budgetPlanOnly\""));
+    }
+
+    [Fact]
     public async Task BulkPatch_InvalidRow_RollsBackEntireRequest()
     {
         await _db.ResetAsync();
@@ -187,33 +292,43 @@ public sealed class BudgetMonthExpenseItemBulkEditorTests
         var validRow = editor.Value!.ExpenseItems.First(x => !x.IsDeleted);
         var validRowOriginalAmount = validRow.AmountMonthly;
         var nonExistentId = Guid.NewGuid();
+        var command = new PatchBudgetMonthExpenseItemsBulkCommand(
+            Persoid: seed.Persoid,
+            YearMonth: "2026-01",
+            Items: new[]
+            {
+                new PatchBudgetMonthExpenseItemsBulkCommand.Row(
+                    MonthExpenseItemId: validRow.Id,
+                    Name: "should be rolled back",
+                    CategoryId: validRow.CategoryId,
+                    AmountMonthly: validRowOriginalAmount + 9999m,
+                    IsActive: validRow.IsActive,
+                    SubscriptionLifecycleStatus: null,
+                    UpdateDefault: false,
+                    Scope: BudgetMonthExpenseEditScopes.CurrentMonthOnly),
+                new PatchBudgetMonthExpenseItemsBulkCommand.Row(
+                    MonthExpenseItemId: nonExistentId,
+                    Name: "ghost row",
+                    CategoryId: validRow.CategoryId,
+                    AmountMonthly: 1m,
+                    IsActive: true,
+                    SubscriptionLifecycleStatus: null,
+                    UpdateDefault: false,
+                    Scope: BudgetMonthExpenseEditScopes.BudgetPlanOnly),
+            });
+        var behavior = new UnitOfWorkPipelineBehavior<
+            PatchBudgetMonthExpenseItemsBulkCommand,
+            Backend.Domain.Shared.Result<IReadOnlyList<BudgetMonthExpenseItemEditorRowDto>>>(
+            sut.Uow,
+            NullLogger<UnitOfWorkPipelineBehavior<
+                PatchBudgetMonthExpenseItemsBulkCommand,
+                Backend.Domain.Shared.Result<IReadOnlyList<BudgetMonthExpenseItemEditorRowDto>>>>.Instance);
 
         // First row would succeed. Second row references a missing item — must roll back BOTH rows.
-        var bulk = await sut.Uow.InTx(CancellationToken.None, () =>
-            sut.BulkPatchHandler.Handle(
-                new PatchBudgetMonthExpenseItemsBulkCommand(
-                    Persoid: seed.Persoid,
-                    YearMonth: "2026-01",
-                    Items: new[]
-                    {
-                        new PatchBudgetMonthExpenseItemsBulkCommand.Row(
-                            MonthExpenseItemId: validRow.Id,
-                            Name: "should be rolled back",
-                            CategoryId: validRow.CategoryId,
-                            AmountMonthly: validRowOriginalAmount + 9999m,
-                            IsActive: validRow.IsActive,
-                            SubscriptionLifecycleStatus: null,
-                            UpdateDefault: false),
-                        new PatchBudgetMonthExpenseItemsBulkCommand.Row(
-                            MonthExpenseItemId: nonExistentId,
-                            Name: "ghost row",
-                            CategoryId: validRow.CategoryId,
-                            AmountMonthly: 1m,
-                            IsActive: true,
-                            SubscriptionLifecycleStatus: null,
-                            UpdateDefault: false),
-                    }),
-                CancellationToken.None));
+        var bulk = await behavior.Handle(
+            command,
+            () => sut.BulkPatchHandler.Handle(command, CancellationToken.None),
+            CancellationToken.None);
 
         bulk.IsFailure.Should().BeTrue();
         bulk.Error!.Code.Should().Be(BudgetMonthExpenseItemErrors.NotFound.Code);
@@ -316,6 +431,53 @@ public sealed class BudgetMonthExpenseItemBulkEditorTests
         bulk.Error!.Code.Should().Be(BudgetMonthExpenseItemErrors.CannotUpdateDefaultForMonthOnlyRow.Code);
     }
 
+    [Fact]
+    public async Task BulkPatch_BudgetPlanScope_ForMonthOnlyRow_Fails()
+    {
+        await _db.ResetAsync();
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var sut = CreateSut(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+
+        await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.Lifecycle.EnsureAccessibleMonthAsync(seed.Persoid, seed.Persoid, "2026-01", CancellationToken.None));
+
+        var create = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.CreateHandler.Handle(
+                new Backend.Application.Features.Budgets.Months.Editor.Expense.CreateExpenseItem
+                    .CreateBudgetMonthExpenseItemCommand(
+                    Persoid: seed.Persoid,
+                    YearMonth: "2026-01",
+                    CategoryId: ExpenseCategories.Other,
+                    Name: "month only",
+                    AmountMonthly: 50m,
+                    IsActive: true),
+                CancellationToken.None));
+
+        create.IsFailure.Should().BeFalse();
+
+        var bulk = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.BulkPatchHandler.Handle(
+                new PatchBudgetMonthExpenseItemsBulkCommand(
+                    Persoid: seed.Persoid,
+                    YearMonth: "2026-01",
+                    Items: new[]
+                    {
+                        new PatchBudgetMonthExpenseItemsBulkCommand.Row(
+                            MonthExpenseItemId: create.Value!.Id,
+                            Name: "should fail",
+                            CategoryId: create.Value.CategoryId,
+                            AmountMonthly: 80m,
+                            IsActive: true,
+                            SubscriptionLifecycleStatus: null,
+                            UpdateDefault: false,
+                            Scope: BudgetMonthExpenseEditScopes.BudgetPlanOnly),
+                    }),
+                CancellationToken.None));
+
+        bulk.IsFailure.Should().BeTrue();
+        bulk.Error!.Code.Should().Be(BudgetMonthExpenseItemErrors.CannotUpdateDefaultForMonthOnlyRow.Code);
+    }
+
     private async Task MarkMonthClosedAsync(Guid budgetMonthId)
     {
         await using var conn = new MySqlConnection(_db.ConnectionString);
@@ -374,6 +536,39 @@ public sealed class BudgetMonthExpenseItemBulkEditorTests
               AND ChangeType = @changeType;",
             new { budgetMonthId, changeType });
     }
+
+    private async Task<IReadOnlyList<BudgetMonthChangeEventDbRow>> GetChangeEventsAsync(Guid budgetMonthId)
+    {
+        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await conn.OpenAsync();
+
+        return (await conn.QueryAsync<BudgetMonthChangeEventDbRow>(@"
+            SELECT
+                Id,
+                BudgetMonthId,
+                EntityType,
+                EntityId,
+                SourceEntityId,
+                ChangeType,
+                ChangeSetJson,
+                ChangedByUserId,
+                ChangedAt
+            FROM BudgetMonthChangeEvent
+            WHERE BudgetMonthId = @budgetMonthId
+            ORDER BY ChangedAt, Id;",
+            new { budgetMonthId })).ToList();
+    }
+
+    private sealed record BudgetMonthChangeEventDbRow(
+        Guid Id,
+        Guid BudgetMonthId,
+        string EntityType,
+        Guid EntityId,
+        Guid? SourceEntityId,
+        string ChangeType,
+        string? ChangeSetJson,
+        Guid ChangedByUserId,
+        DateTime ChangedAt);
 
     private sealed record ExpenseItemMonthDbRow(
         Guid Id,

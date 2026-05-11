@@ -25,6 +25,7 @@ import { tDict } from "@/utils/i18n/translate";
 import DashboardHomeSkeleton from "@components/organisms/dashboard/DashboardHomeSkeleton";
 import FirstTimeDashboardSection from "@components/organisms/dashboard/FirstTimeDashboardSection";
 import React, { useCallback, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import DashboardErrorState from "../dashboard/DashboardErrorState";
 
 export interface DashboardContentProps {
@@ -219,6 +220,7 @@ function LoadedDashboardContent({
 }: LoadedDashboardContentProps) {
   const [isPeriodEditorOpen, setIsPeriodEditorOpen] = useState(false);
   const locale = useAppLocale();
+  const navigate = useNavigate();
   const setSelectedYearMonth = useBudgetMonthStore(
     (s) => s.setSelectedYearMonth,
   );
@@ -314,6 +316,7 @@ function LoadedDashboardContent({
           <ReturningDashboardSection
             summary={summary}
             onOpenPeriodEditor={handleOpenPeriodEditor}
+            onOpenFullExpenseEditor={() => navigate("/dashboard/expenses")}
             isSwitchingMonth={isSwitchingMonth}
           />
 

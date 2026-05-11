@@ -21,7 +21,7 @@ const EditPeriodHeader: React.FC<EditPeriodHeaderProps> = ({
   const t = <K extends keyof typeof editPeriodHeaderDict.sv>(key: K) =>
     tDict(key, locale, editPeriodHeaderDict);
 
-  const title = t("title").replace("{periodLabel}", periodLabel);
+  const subtitle = t("subtitle").replace("{periodLabel}", periodLabel);
 
   return (
     <div className="border-b border-eb-stroke/25 px-4 py-4 sm:px-6 sm:py-5">
@@ -32,10 +32,15 @@ const EditPeriodHeader: React.FC<EditPeriodHeaderProps> = ({
           </p>
 
           <h2 className="mt-1 text-xl font-extrabold tracking-tight text-eb-text sm:text-2xl">
-            {title}
+            {t("title")}
           </h2>
 
-          <p className="mt-2 text-sm text-eb-text/65">{periodDateRangeLabel}</p>
+          <p className="mt-2 text-sm font-semibold text-eb-text/70">
+            {subtitle}
+          </p>
+          <p className="mt-1 text-xs text-eb-text/50">
+            {periodDateRangeLabel}
+          </p>
         </div>
 
         <button

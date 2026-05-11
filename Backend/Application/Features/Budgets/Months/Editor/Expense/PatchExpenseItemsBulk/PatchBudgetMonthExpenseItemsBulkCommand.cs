@@ -24,5 +24,6 @@ public sealed record PatchBudgetMonthExpenseItemsBulkCommand(
         decimal? AmountMonthly,
         bool? IsActive,
         string? SubscriptionLifecycleStatus,
-        bool UpdateDefault);
+        bool UpdateDefault,
+        string? Scope = null);
 }

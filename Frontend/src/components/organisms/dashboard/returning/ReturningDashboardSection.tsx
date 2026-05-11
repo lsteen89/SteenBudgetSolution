@@ -10,12 +10,14 @@ import OpenMonthPillarsGrid from "./openMonth/OpenMonthPillarsGrid";
 
 export interface ReturningDashboardSectionProps {
   onOpenPeriodEditor: () => void;
+  onOpenFullExpenseEditor: () => void;
   isSwitchingMonth?: boolean;
   summary: DashboardSummary;
 }
 
 const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({
   onOpenPeriodEditor,
+  onOpenFullExpenseEditor,
   isSwitchingMonth = false,
   summary,
 }) => {
@@ -58,6 +60,7 @@ const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({
           <OpenMonthPillarsGrid
             summary={summary}
             onOpenPeriodEditor={onOpenPeriodEditor}
+            onOpenFullExpenseEditor={onOpenFullExpenseEditor}
           />
         </div>
       </div>

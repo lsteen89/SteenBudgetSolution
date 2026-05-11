@@ -52,6 +52,7 @@ describe("usePatchBudgetMonthExpenseItemsBulk", () => {
             isActive: true,
             subscriptionLifecycleStatus: "paused",
             updateDefault: true,
+            scope: "currentMonthAndBudgetPlan",
           },
         },
         {
@@ -79,9 +80,10 @@ describe("usePatchBudgetMonthExpenseItemsBulk", () => {
         categoryId: "9a3fe5f3-9fc4-4cc0-93d9-1a2ab9f7a5c4",
         amountMonthly: 129,
         isActive: true,
-        subscriptionLifecycleStatus: "paused",
-        updateDefault: true,
-      },
+            subscriptionLifecycleStatus: "paused",
+            updateDefault: true,
+            scope: "currentMonthAndBudgetPlan",
+          },
       {
         monthExpenseItemId: "row-2",
         name: "Groceries",
