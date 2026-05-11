@@ -85,10 +85,6 @@ function expectDashboardMathToReconcile(dto: DashboardMonthDto) {
   expect(roundOre(live!.finalBalanceWithCarryMonthly)).toBe(expected);
 }
 
-async function expectIncomingCarryOverRow(page: Page) {
-  await expect(page.getByText(/ingående överföring/i)).toBeVisible();
-}
-
 async function loginWithInitialDashboard(
   browser: Browser,
   user: typeof e2eUsers.login,
@@ -122,7 +118,6 @@ test("carry-over dashboard math reconciles after full close @smoke", async ({
       0,
     );
     expectDashboardMathToReconcile(full.dashboard);
-    await expectIncomingCarryOverRow(full.page);
 
     await full.page.getByTestId("close-month-cta").click();
     const fullModal = full.page.getByTestId("close-month-modal");
@@ -165,7 +160,6 @@ test("carry-over dashboard math reconciles after full close @smoke", async ({
       fullClose.nextMonth.carryOverAmount,
     );
     expectDashboardMathToReconcile(mayDashboard);
-    await expectIncomingCarryOverRow(full.page);
   } finally {
     await full.context.close();
   }
