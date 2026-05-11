@@ -118,7 +118,7 @@ if [[ ${#playwright_args[@]} -eq 0 ]]; then
 elif [[ "${playwright_args[0]}" == "smoke" ]]; then
   playwright_args=("test" "--project=smoke" "${playwright_args[@]:1}")
 elif [[ "${playwright_args[0]}" == "full" ]]; then
-  playwright_args=("test" "--project=full" "${playwright_args[@]:1}")
+  playwright_args=("test" "${playwright_args[@]:1}")
 elif [[ "${playwright_args[0]}" == "all" ]]; then
   playwright_args=("test" "${playwright_args[@]:1}")
 fi
