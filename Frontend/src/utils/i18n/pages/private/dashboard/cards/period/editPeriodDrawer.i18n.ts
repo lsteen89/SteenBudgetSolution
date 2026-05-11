@@ -14,13 +14,17 @@ export const editPeriodDrawerDict = {
     loadingEditor: "Laddar periodredigerare...",
     loadMonthError: "Kunde inte läsa in denna månad.",
     monthClosedReadOnly: "Den här månaden är stängd och kan inte redigeras.",
+    monthOnlyHelper:
+      "Ändringar här gäller bara {month}. Vill du uppdatera budgetplanen framåt? Öppna planeringen.",
 
     footerSummaryReadOnly: "Stängd månad. Skrivskyddad.",
     footerSummaryEditable:
       "Granska ändringarna och spara dem för den här månaden.",
     footerSummaryNoChanges: "Inga ändringar att spara.",
 
-    saveSuccess: "Ändringarna sparades.",
+    saveSuccess: "Alla ändringar sparades",
+    saveLabel: "Spara ändringar",
+    saveErrorGeneric: "Ändringarna kunde inte sparas",
 
     categoryHousing: "Boende",
     categoryRent: "Hyra",
@@ -57,12 +61,16 @@ export const editPeriodDrawerDict = {
     loadingEditor: "Loading period editor...",
     loadMonthError: "Could not load this month.",
     monthClosedReadOnly: "This month is closed and cannot be edited.",
+    monthOnlyHelper:
+      "Changes here apply only to {month}. Want to update the budget plan going forward? Open planning.",
 
     footerSummaryReadOnly: "Closed month. Read-only.",
     footerSummaryEditable: "Review your changes and save them for this month.",
     footerSummaryNoChanges: "No changes to save.",
 
-    saveSuccess: "Changes saved.",
+    saveSuccess: "All changes saved",
+    saveLabel: "Save changes",
+    saveErrorGeneric: "Could not save changes",
 
     categoryHousing: "Housing",
     categoryRent: "Rent",
@@ -99,13 +107,17 @@ export const editPeriodDrawerDict = {
     loadingEditor: "Perioodi muutja laadimine...",
     loadMonthError: "Seda kuud ei saanud laadida.",
     monthClosedReadOnly: "See kuu on suletud ja seda ei saa muuta.",
+    monthOnlyHelper:
+      "Siinsed muudatused kehtivad ainult perioodile {month}. Kui soovid eelarveplaani edaspidi uuendada, ava planeerimine.",
 
     footerSummaryReadOnly: "Suletud kuu. Ainult vaatamiseks.",
     footerSummaryEditable:
       "Vaata muudatused üle ja salvesta need selle kuu jaoks.",
     footerSummaryNoChanges: "Muudatusi pole salvestamiseks.",
 
-    saveSuccess: "Muudatused salvestati.",
+    saveSuccess: "Kõik muudatused salvestati",
+    saveLabel: "Salvesta muudatused",
+    saveErrorGeneric: "Muudatusi ei saanud salvestada",
 
     categoryHousing: "Elamine",
     categoryRent: "Üür",

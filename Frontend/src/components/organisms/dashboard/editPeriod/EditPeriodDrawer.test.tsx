@@ -193,9 +193,32 @@ describe("EditPeriodDrawer subscription lifecycle", () => {
             isActive: true,
             subscriptionLifecycleStatus: "paused",
             updateDefault: false,
+            scope: "currentMonthOnly",
           },
         },
       ]);
     });
+  });
+
+  it("keeps drawer edits current-month-only and points plan edits to planning", () => {
+    renderDrawer();
+
+    expect(screen.getByRole("heading", { name: "Edit expenses" }))
+      .toBeInTheDocument();
+    expect(screen.getByText("Quick adjustment for April 2026"))
+      .toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Changes here apply only to April 2026. Want to update the budget plan going forward? Open planning.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("radiogroup", {
+        name: /what should this change apply to/i,
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Open planning" }),
+    ).toBeInTheDocument();
   });
 });

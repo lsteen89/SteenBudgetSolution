@@ -1,3 +1,4 @@
+import MoneyInput from "@/components/molecules/forms/budgetEditor/MoneyInput";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import {
   buildCreateExpenseItemApiSchema,
@@ -109,14 +110,8 @@ const CreateExpenseItemCard: React.FC<CreateExpenseItemCardProps> = ({
           </p>
         ) : null}
 
-        <input
-          type="text"
-          inputMode="decimal"
-          {...form.register("amountMonthly", {
-            onChange: (e) => {
-              e.target.value = e.target.value.replace(/[^\d.,\s]/g, "");
-            },
-          })}
+        <MoneyInput
+          {...form.register("amountMonthly")}
           className="h-11 rounded-2xl border border-eb-stroke/30 bg-eb-surface px-3 text-sm text-eb-text focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-eb-accent/25"
           placeholder={t("amountPlaceholder")}
         />

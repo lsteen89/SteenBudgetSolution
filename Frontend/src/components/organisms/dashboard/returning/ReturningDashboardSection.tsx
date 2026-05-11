@@ -1,34 +1,36 @@
 import type { DashboardSummary } from "@/hooks/dashboard/dashboardSummary.types";
+import { getCloseAvailabilityLabel } from "@/hooks/dashboard/getCloseAvailabilityLabel";
+import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/lib/utils";
 import React from "react";
 
-import BudgetOverviewCard from "./cards/BudgetOverviewCard";
-import EditPeriodCard from "./cards/EditPeriodCard";
-import GoalsCard from "./cards/GoalsCard";
-import RecurringExpensesCard from "./cards/RecurringExpensesCard";
-import SubscriptionsCard from "./cards/SubscriptionsCard";
-import KpiRow from "./KpiRow";
-import ReturningHeader from "./ReturningHeader";
+import OpenMonthCommandHero from "./openMonth/OpenMonthCommandHero";
+import OpenMonthFollowUpStrip from "./openMonth/OpenMonthFollowUpStrip";
+import OpenMonthPillarsGrid from "./openMonth/OpenMonthPillarsGrid";
 
 export interface ReturningDashboardSectionProps {
   onOpenPeriodEditor: () => void;
+  onOpenFullExpenseEditor: () => void;
   isSwitchingMonth?: boolean;
   summary: DashboardSummary;
 }
 
 const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({
   onOpenPeriodEditor,
+  onOpenFullExpenseEditor,
   isSwitchingMonth = false,
   summary,
 }) => {
+  const locale = useAppLocale();
+  const closeAvailability = getCloseAvailabilityLabel(summary.header, locale);
+
   return (
     <div className="space-y-6">
-      <ReturningHeader
+      <OpenMonthCommandHero
         periodLabel={summary.header.periodLabel}
-        periodDateRangeLabel={summary.header.periodDateRangeLabel}
-        periodStatus={summary.header.periodStatus}
-        remainingToSpend={summary.remainingToSpend}
+        finalBalance={summary.finalBalance}
         currency={summary.currency}
+        closeAvailability={closeAvailability}
       />
 
       <div
@@ -43,62 +45,23 @@ const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({
             isSwitchingMonth && "opacity-90",
           )}
         >
-          <KpiRow
-            remainingToSpend={summary.remainingToSpend}
-            currency={summary.currency}
-            goalsProgressPercent={summary.goalsProgressPercent}
-            emergencyFundAmount={summary.emergencyFundAmount}
-            emergencyFundMonths={summary.emergencyFundMonths}
+          <OpenMonthFollowUpStrip
+            summary={summary}
+            closeAvailability={closeAvailability}
           />
         </div>
 
         <div
           className={cn(
-            "grid grid-cols-1 gap-4 transition-opacity duration-250 ease-out lg:grid-cols-3",
-            isSwitchingMonth && "pointer-events-none opacity-60",
+            "transition-opacity duration-250 ease-out",
+            isSwitchingMonth && "opacity-90",
           )}
         >
-          <div className="space-y-4 lg:col-span-2">
-            <BudgetOverviewCard
-              currency={summary.currency}
-              totalIncome={summary.totalIncome}
-              totalExpenditure={summary.totalExpenditure}
-              incomingCarryOverAmount={summary.incomingCarryOverAmount}
-              totalSavings={summary.totalSavings}
-              totalDebtPayments={summary.totalDebtPayments}
-              remainingToSpend={summary.remainingToSpend}
-              finalBalance={summary.finalBalance}
-            />
-
-            <div className="space-y-4">
-              <RecurringExpensesCard
-                currency={summary.currency}
-                recurringExpenses={summary.recurringExpenses}
-                yearMonth={summary.header.periodKey}
-              />
-
-              <SubscriptionsCard
-                currency={summary.currency}
-                subscriptionsTotal={summary.subscriptionsTotal}
-                subscriptionsCount={summary.subscriptionsCount}
-                subscriptions={summary.subscriptions}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <GoalsCard
-              description={summary.pillarDescriptions.savings}
-              goalsProgressPercent={summary.goalsProgressPercent}
-            />
-
-            <EditPeriodCard
-              periodLabel={summary.header.periodLabel}
-              remainingToSpend={summary.remainingToSpend}
-              currency={summary.currency}
-              onOpenPeriodEditor={onOpenPeriodEditor}
-            />
-          </div>
+          <OpenMonthPillarsGrid
+            summary={summary}
+            onOpenPeriodEditor={onOpenPeriodEditor}
+            onOpenFullExpenseEditor={onOpenFullExpenseEditor}
+          />
         </div>
       </div>
     </div>

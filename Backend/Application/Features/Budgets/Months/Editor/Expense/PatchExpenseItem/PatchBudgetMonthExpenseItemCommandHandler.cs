@@ -87,8 +87,11 @@ public sealed class PatchBudgetMonthExpenseItemCommandHandler
             mergedCategoryId,
             cmd.SubscriptionLifecycleStatus);
         var now = _timeProvider.GetUtcNow().UtcDateTime;
+        var scope = ResolveScope(cmd);
+        var writesCurrentMonth = BudgetMonthExpenseEditScopes.WritesCurrentMonth(scope);
+        var writesBudgetPlan = BudgetMonthExpenseEditScopes.WritesBudgetPlan(scope);
 
-        if (cmd.UpdateDefault)
+        if (writesBudgetPlan)
         {
             if (existing.SourceExpenseItemId is null)
                 return Result<BudgetMonthExpenseItemEditorRowDto?>.Failure(
@@ -100,22 +103,25 @@ public sealed class PatchBudgetMonthExpenseItemCommandHandler
                     BudgetMonthExpenseItemErrors.SourceDefaultNotFound);
         }
 
-        await _repo.UpdateMonthExpenseItemAsync(
-            new UpdateBudgetMonthExpenseItemModel(
-                Id: existing.Id,
-                BudgetMonthId: ensured.Value.BudgetMonthId,
-                CategoryId: mergedCategoryId,
-                Name: mergedName,
-                AmountMonthly: mergedAmountMonthly,
-                SubscriptionLifecycleStatus: mergedSubscriptionLifecycleStatus,
-                IsActive: mergedIsActive,
-                ActorPersoid: cmd.Persoid,
-                UtcNow: now),
-            ct);
+        if (writesCurrentMonth)
+        {
+            await _repo.UpdateMonthExpenseItemAsync(
+                new UpdateBudgetMonthExpenseItemModel(
+                    Id: existing.Id,
+                    BudgetMonthId: ensured.Value.BudgetMonthId,
+                    CategoryId: mergedCategoryId,
+                    Name: mergedName,
+                    AmountMonthly: mergedAmountMonthly,
+                    SubscriptionLifecycleStatus: mergedSubscriptionLifecycleStatus,
+                    IsActive: mergedIsActive,
+                    ActorPersoid: cmd.Persoid,
+                    UtcNow: now),
+                ct);
+        }
 
         var baselineUpdated = false;
 
-        if (cmd.UpdateDefault)
+        if (writesBudgetPlan)
         {
             await _repo.UpdateBaselineExpenseItemAsync(
                 new UpdateExpenseItemModel(
@@ -149,7 +155,9 @@ public sealed class PatchBudgetMonthExpenseItemCommandHandler
                 SubscriptionLifecycleStatus = mergedSubscriptionLifecycleStatus,
                 IsActive = mergedIsActive
             },
-            cmd.UpdateDefault,
+            scope,
+            currentMonthUpdated = writesCurrentMonth,
+            UpdateDefault = writesBudgetPlan,
             baselineUpdated
         });
 
@@ -170,14 +178,29 @@ public sealed class PatchBudgetMonthExpenseItemCommandHandler
             new BudgetMonthExpenseItemEditorRowDto(
                 Id: existing.Id,
                 SourceExpenseItemId: existing.SourceExpenseItemId,
-                CategoryId: mergedCategoryId,
-                Name: mergedName,
-                AmountMonthly: mergedAmountMonthly,
-                SubscriptionLifecycleStatus: mergedSubscriptionLifecycleStatus,
-                IsActive: mergedIsActive,
+                CategoryId: writesCurrentMonth ? mergedCategoryId : existing.CategoryId,
+                Name: writesCurrentMonth ? mergedName : existing.Name,
+                AmountMonthly: writesCurrentMonth ? mergedAmountMonthly : existing.AmountMonthly,
+                SubscriptionLifecycleStatus: writesCurrentMonth
+                    ? mergedSubscriptionLifecycleStatus
+                    : existing.SubscriptionLifecycleStatus,
+                IsActive: writesCurrentMonth ? mergedIsActive : existing.IsActive,
                 IsDeleted: existing.IsDeleted,
                 IsMonthOnly: existing.SourceExpenseItemId is null,
                 CanUpdateDefault: existing.SourceExpenseItemId is not null));
+    }
+
+    private static string ResolveScope(PatchBudgetMonthExpenseItemCommand cmd)
+    {
+        if (!string.IsNullOrWhiteSpace(cmd.Scope) &&
+            BudgetMonthExpenseEditScopes.IsSupported(cmd.Scope))
+        {
+            return cmd.Scope!;
+        }
+
+        return cmd.UpdateDefault
+            ? BudgetMonthExpenseEditScopes.CurrentMonthAndBudgetPlan
+            : BudgetMonthExpenseEditScopes.CurrentMonthOnly;
     }
 
     private static string? MergeLifecycleStatus(

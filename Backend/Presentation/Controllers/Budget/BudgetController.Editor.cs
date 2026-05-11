@@ -5,6 +5,7 @@ using Backend.Application.DTO.Budget.Months.Editor;
 using Backend.Presentation.Shared;
 using Microsoft.AspNetCore.Mvc;
 using Backend.Application.Features.Budgets.Months.Editor.Expense.PatchExpenseItem;
+using Backend.Application.Features.Budgets.Months.Editor.Expense.PatchExpenseItemsBulk;
 using Backend.Application.Features.Budgets.Months.Editor.Expense.DeleteExpenseItem;
 
 
@@ -51,7 +52,8 @@ public sealed partial class BudgetController
                 AmountMonthly: req.AmountMonthly,
                 IsActive: req.IsActive,
                 SubscriptionLifecycleStatus: req.SubscriptionLifecycleStatus,
-                UpdateDefault: req.UpdateDefault),
+                UpdateDefault: req.UpdateDefault,
+                Scope: req.Scope),
             ct);
 
         if (result.IsFailure || result.Value is null)
@@ -63,6 +65,43 @@ public sealed partial class BudgetController
         }
 
         return Ok(ApiEnvelope<BudgetMonthExpenseItemEditorRowDto>.Success(result.Value));
+    }
+
+    [HttpPatch("months/{yearMonth}/expense-items")]
+    [ProducesResponseType(typeof(ApiEnvelope<IReadOnlyList<BudgetMonthExpenseItemEditorRowDto>>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiEnvelope<IReadOnlyList<BudgetMonthExpenseItemEditorRowDto>>>> PatchExpenseItemsBulk(
+        [FromRoute] string yearMonth,
+        [FromBody] PatchBudgetMonthExpenseItemsBulkRequestDto req,
+        CancellationToken ct)
+    {
+        var rows = (req?.Items ?? Array.Empty<PatchBudgetMonthExpenseItemBulkRowDto>())
+            .Select(item => new PatchBudgetMonthExpenseItemsBulkCommand.Row(
+                MonthExpenseItemId: item.MonthExpenseItemId,
+                Name: item.Name,
+                CategoryId: item.CategoryId,
+                AmountMonthly: item.AmountMonthly,
+                IsActive: item.IsActive,
+                SubscriptionLifecycleStatus: item.SubscriptionLifecycleStatus,
+                UpdateDefault: item.UpdateDefault,
+                Scope: item.Scope))
+            .ToList();
+
+        var result = await _mediator.Send(
+            new PatchBudgetMonthExpenseItemsBulkCommand(
+                Persoid: _currentUser.Persoid,
+                YearMonth: yearMonth,
+                Items: rows),
+            ct);
+
+        if (result.IsFailure || result.Value is null)
+        {
+            return Ok(ApiEnvelope<IReadOnlyList<BudgetMonthExpenseItemEditorRowDto>>.Failure(
+                code: result.Error?.Code ?? "BUDGET_MONTH_EXPENSE_ITEMS_BULK_PATCH_FAILED",
+                message: result.Error?.Message ?? "Could not update month expense items."
+            ));
+        }
+
+        return Ok(ApiEnvelope<IReadOnlyList<BudgetMonthExpenseItemEditorRowDto>>.Success(result.Value));
     }
 
     [HttpPost("months/{yearMonth}/expense-items")]

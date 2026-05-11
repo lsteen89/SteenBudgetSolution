@@ -12,10 +12,7 @@ import { useBudgetMonthRecapQuery } from "@/hooks/budget/useBudgetMonthRecapQuer
 import { useCloseMonthReviewController } from "@/hooks/dashboard/useCloseMonthReviewController";
 import { useDashboardSummary } from "@/hooks/dashboard/useDashboardSummary";
 import type { DashboardSummary } from "@/hooks/dashboard/dashboardSummary.types";
-import {
-  getCloseAvailabilityLabel,
-  type CloseAvailability,
-} from "@/hooks/dashboard/getCloseAvailabilityLabel";
+import { getCloseAvailabilityLabel } from "@/hooks/dashboard/getCloseAvailabilityLabel";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { useBudgetMonthStore } from "@/stores/Budget/budgetMonthStore";
 import type { ApiProblem } from "@/api/api.types";
@@ -25,10 +22,10 @@ import { dashboardHeaderDict } from "@/utils/i18n/pages/private/dashboard/header
 import { closeMonthReviewModalDict } from "@/utils/i18n/pages/private/dashboard/closeMonth/CloseMonthReviewModal.i18n";
 import { dashboardErrorStateDict } from "@/utils/i18n/pages/private/dashboard/DashboardErrorState.i18n";
 import { tDict } from "@/utils/i18n/translate";
-import { formatMoneyV2 } from "@/utils/money/moneyV2";
 import DashboardHomeSkeleton from "@components/organisms/dashboard/DashboardHomeSkeleton";
 import FirstTimeDashboardSection from "@components/organisms/dashboard/FirstTimeDashboardSection";
 import React, { useCallback, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import DashboardErrorState from "../dashboard/DashboardErrorState";
 
 export interface DashboardContentProps {
@@ -64,7 +61,6 @@ function buildPeriodControlBarViewModel(
   summary: DashboardSummary,
   locale: AppLocale,
   options: {
-    closeAvailability?: CloseAvailability;
     suppressContinueAction?: boolean;
   } = {},
 ): PeriodControlBarViewModel {
@@ -72,39 +68,21 @@ function buildPeriodControlBarViewModel(
   const header = summary.header;
   const isSkipped = header.periodStatus === "skipped";
   const isClosed = header.periodStatus === "closed";
-  const isAttention =
-    header.periodStatus === "open" && header.lifecycleState === "overdue";
   const showCloseAction =
     header.periodStatus === "open" &&
     header.canCloseMonth &&
     !!header.closeMonthButtonLabel;
-  const closeAvailability = options.closeAvailability;
-  const isReadyToClose =
-    header.periodStatus === "open" && closeAvailability?.kind === "ready";
-  // Open + ready (eligible) replaces the bland "Open" chip with a calmer
-  // "Ready to close" label so the user sees the next step at a glance.
-  // Overdue keeps its dedicated "overdue" chip + amber tone — that's a
-  // different urgency signal.
-  const statusLabelKey = isAttention
-    ? "overdue"
-    : isReadyToClose
-      ? "readyToClose"
-      : header.periodStatus;
   const currentTone: PeriodControlBarViewModel["current"]["tone"] = isSkipped
     ? "muted"
     : isClosed
       ? "success"
-      : isAttention
-        ? "attention"
-        : "success";
+      : "success";
   const comparisonLabel =
-    showCloseAction || isAttention
-      ? t("periodContextOverdueComparison")
-      : isClosed
-        ? t("periodContextClosedComparison")
-        : isSkipped
-          ? t("periodContextSkippedComparison")
-          : t("periodContextOpenComparison");
+    isClosed
+      ? t("periodContextClosedComparison")
+      : isSkipped
+        ? t("periodContextSkippedComparison")
+        : t("periodContextOpenComparison");
   const nextLabel =
     header.nextPeriodLabel && (header.canGoNext || isClosed || isSkipped)
       ? replaceToken(
@@ -120,9 +98,7 @@ function buildPeriodControlBarViewModel(
         ? t("periodContextSkippedMeaning")
         : isClosed
           ? t("periodContextClosedMeaning")
-          : isAttention || showCloseAction
-            ? t("periodContextOverdueMeaning")
-            : t("periodContextOpenMeaning"),
+          : t("periodContextOpenMeaning"),
       tone: currentTone,
       icon: isSkipped ? "skip" : isClosed ? "lock" : "status",
     },
@@ -131,7 +107,7 @@ function buildPeriodControlBarViewModel(
       : [
           {
             label: comparisonLabel,
-            tone: isAttention ? "attention" : isSkipped ? "muted" : "neutral",
+            tone: isSkipped ? "muted" : "neutral",
             icon: "compare",
           } satisfies PeriodControlBarViewModel["ribbonItems"][number],
         ]),
@@ -140,19 +116,6 @@ function buildPeriodControlBarViewModel(
       tone: header.canGoNext ? "neutral" : "muted",
       icon: "next",
     },
-    // Open-not-yet-closable months get a calm "Månaden kan stängas om X dagar"
-    // chip after the next-month chip. Ready-to-close months don't need this
-    // — the status chip itself flips to "Redo att stängas" and the close CTA
-    // handles the rest.
-    ...(closeAvailability?.kind === "countdown"
-      ? [
-          {
-            label: closeAvailability.label,
-            tone: "neutral",
-            icon: "status",
-          } satisfies PeriodControlBarViewModel["ribbonItems"][number],
-        ]
-      : []),
   ];
 
   const previousLabel = header.previousPeriodLabel ?? t("previous");
@@ -211,7 +174,7 @@ function buildPeriodControlBarViewModel(
       yearMonth: header.periodKey,
       label: header.periodLabel,
       status: header.periodStatus,
-      statusLabel: t(statusLabelKey),
+      statusLabel: t(header.periodStatus),
       tone: currentTone,
     },
     previous: {
@@ -257,6 +220,7 @@ function LoadedDashboardContent({
 }: LoadedDashboardContentProps) {
   const [isPeriodEditorOpen, setIsPeriodEditorOpen] = useState(false);
   const locale = useAppLocale();
+  const navigate = useNavigate();
   const setSelectedYearMonth = useBudgetMonthStore(
     (s) => s.setSelectedYearMonth,
   );
@@ -297,7 +261,6 @@ function LoadedDashboardContent({
   const closeAvailability = getCloseAvailabilityLabel(summary.header, locale);
 
   const periodControlVm = buildPeriodControlBarViewModel(summary, locale, {
-    closeAvailability,
     suppressContinueAction: isJustClosedHandoffVisible,
   });
 
@@ -353,6 +316,7 @@ function LoadedDashboardContent({
           <ReturningDashboardSection
             summary={summary}
             onOpenPeriodEditor={handleOpenPeriodEditor}
+            onOpenFullExpenseEditor={() => navigate("/dashboard/expenses")}
             isSwitchingMonth={isSwitchingMonth}
           />
 

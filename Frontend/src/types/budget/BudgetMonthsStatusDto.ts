@@ -44,6 +44,11 @@ export type BudgetMonthEditorDto = {
   expenseItems: BudgetMonthExpenseItemEditorRowDto[];
 };
 
+export type ExpenseEditScope =
+  | "currentMonthOnly"
+  | "currentMonthAndBudgetPlan"
+  | "budgetPlanOnly";
+
 export type PatchBudgetMonthExpenseItemRequestDto = {
   name: string;
   categoryId: string;
@@ -51,6 +56,7 @@ export type PatchBudgetMonthExpenseItemRequestDto = {
   isActive: boolean;
   subscriptionLifecycleStatus?: SubscriptionLifecycleStatus | null;
   updateDefault: boolean;
+  scope?: ExpenseEditScope;
 };
 
 export type CreateBudgetMonthExpenseItemRequestDto = {
@@ -58,6 +64,21 @@ export type CreateBudgetMonthExpenseItemRequestDto = {
   name: string;
   amountMonthly: number;
   isActive: boolean;
+};
+
+export type PatchBudgetMonthExpenseItemBulkRowDto = {
+  monthExpenseItemId: string;
+  name?: string | null;
+  categoryId?: string | null;
+  amountMonthly?: number | null;
+  isActive?: boolean | null;
+  subscriptionLifecycleStatus?: SubscriptionLifecycleStatus | null;
+  updateDefault: boolean;
+  scope?: ExpenseEditScope | null;
+};
+
+export type PatchBudgetMonthExpenseItemsBulkRequestDto = {
+  items: PatchBudgetMonthExpenseItemBulkRowDto[];
 };
 
 export type ApiErrorDto = {

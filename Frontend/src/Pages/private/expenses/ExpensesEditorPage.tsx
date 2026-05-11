@@ -1,5 +1,4 @@
-import ContentWrapperV2 from "@/components/layout/ContentWrapperV2";
-import PageContainer from "@/components/layout/PageContainer";
+import BudgetEditorPageShell from "@/components/molecules/forms/budgetEditor/BudgetEditorPageShell";
 import {
   useBudgetMonthEditor,
   useCreateBudgetMonthExpenseItem,
@@ -7,14 +6,18 @@ import {
   usePatchBudgetMonthExpenseItem,
 } from "@/hooks/budget/editPeriod/useMonthEditor";
 import { useBudgetDashboardMonthQuery } from "@/hooks/budget/useBudgetDashboardMonthQuery";
+import { useBudgetMonthsStatusQuery } from "@/hooks/budget/useBudgetMonthsStatusQuery";
 import { useExpenseCategories } from "@/hooks/budget/useExpenseCategories";
 import { buildDashboardSummaryAggregate } from "@/hooks/dashboard/buildDashboardSummaryAggregate";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import type { CreateExpenseItemApiPayload } from "@/schemas/dashboard/monthEditor/expenseItem.schemas";
-import { useBudgetMonthStore } from "@/stores/Budget/budgetMonthStore";
+import type { ExpenseEditScope } from "@/types/budget/BudgetMonthsStatusDto";
 import type { AppLocale } from "@/types/i18n/appLocale";
 import { useToast } from "@/ui/toast/toast";
-import { canEditMonth } from "@/utils/budget/periodEditor/canShowUpdateDefault";
+import {
+  canEditMonth,
+  canShowUpdateDefault,
+} from "@/utils/budget/periodEditor/canShowUpdateDefault";
 import { expensesEditorPageDict } from "@/utils/i18n/pages/private/expenses/ExpensesEditorPage.i18n";
 import { tDict } from "@/utils/i18n/translate";
 import { useMemo, useState } from "react";
@@ -31,9 +34,20 @@ export default function ExpensesEditorPage() {
   const t = <K extends keyof typeof expensesEditorPageDict.sv>(key: K) =>
     tDict(key, locale, expensesEditorPageDict);
 
-  const yearMonth = useBudgetMonthStore((s) => s.selectedYearMonth) ?? "";
-  const dashboardMonthQuery = useBudgetDashboardMonthQuery(yearMonth, {
-    enabled: !!yearMonth,
+  const monthsStatusQuery = useBudgetMonthsStatusQuery();
+  const editableYearMonth = useMemo(() => {
+    const status = monthsStatusQuery.data;
+    if (!status) return null;
+
+    return (
+      status.openMonthYearMonth ??
+      status.months.find((month) => month.status === "open")?.yearMonth ??
+      null
+    );
+  }, [monthsStatusQuery.data]);
+
+  const dashboardMonthQuery = useBudgetDashboardMonthQuery(editableYearMonth, {
+    enabled: !!editableYearMonth,
   });
   const dashboardAggregate = useMemo(() => {
     if (!dashboardMonthQuery.data) return null;
@@ -43,40 +57,76 @@ export default function ExpensesEditorPage() {
       locale as AppLocale,
     );
   }, [dashboardMonthQuery.data, locale]);
-  const editorQuery = useBudgetMonthEditor(yearMonth || undefined, !!yearMonth);
-  const categoriesQuery = useExpenseCategories({ enabled: !!yearMonth });
+  const editorQuery = useBudgetMonthEditor(
+    editableYearMonth ?? undefined,
+    !!editableYearMonth,
+  );
+  const categoriesQuery = useExpenseCategories({ enabled: !!editableYearMonth });
 
-  const createMutation = useCreateBudgetMonthExpenseItem(yearMonth);
-  const patchMutation = usePatchBudgetMonthExpenseItem(yearMonth);
-  const deleteMutation = useDeleteBudgetMonthExpenseItem(yearMonth);
+  const mutationYearMonth = editableYearMonth ?? "";
+  const createMutation = useCreateBudgetMonthExpenseItem(mutationYearMonth);
+  const patchMutation = usePatchBudgetMonthExpenseItem(mutationYearMonth);
+  const deleteMutation = useDeleteBudgetMonthExpenseItem(mutationYearMonth);
 
   const [modalState, setModalState] = useState<
     | { open: false }
     | { open: true; mode: "create" }
     | { open: true; mode: "edit"; row: ExpenseLedgerRowVm }
   >({ open: false });
-
-  if (!yearMonth) {
-    return (
-      <PageContainer noPadding className="relative">
-        <ContentWrapperV2
-          size="xl"
-          className="relative pt-6 pb-10 sm:pt-8 sm:pb-12"
-        >
-          <div className="rounded-2xl border border-eb-stroke/25 bg-eb-surface p-6 text-sm text-eb-text/60">
-            {t("noMonthSelected")}
-          </div>
-        </ContentWrapperV2>
-      </PageContainer>
-    );
-  }
+  const [deleteTarget, setDeleteTarget] = useState<ExpenseLedgerRowVm | null>(
+    null,
+  );
 
   const editor = editorQuery.data;
   const categories = categoriesQuery.data ?? [];
   const month = editor?.month ?? null;
   const readOnly = month ? !canEditMonth(month.isEditable, month.status) : true;
+  const groups = useMemo(() => {
+    if (!editor) return [];
 
-  const handleModalSubmit = async (values: CreateExpenseItemApiPayload) => {
+    return buildExpenseLedgerGroups({
+      editor,
+      categories,
+      locale,
+    });
+  }, [editor, categories, locale]);
+
+  if (monthsStatusQuery.isLoading) {
+    return (
+      <BudgetEditorPageShell>
+        <div className="rounded-2xl border border-eb-stroke/25 bg-eb-surface p-6 text-sm text-eb-text/60">
+          {t("loadingExpenses")}
+        </div>
+      </BudgetEditorPageShell>
+    );
+  }
+
+  if (monthsStatusQuery.isError) {
+    return (
+      <BudgetEditorPageShell>
+        <div className="rounded-2xl border border-eb-stroke/25 bg-eb-surface p-6 text-sm text-eb-text/60">
+          {t("loadEditorError")}
+        </div>
+      </BudgetEditorPageShell>
+    );
+  }
+
+  if (!editableYearMonth) {
+    return (
+      <BudgetEditorPageShell>
+        <div className="rounded-2xl border border-eb-stroke/25 bg-eb-surface p-6 text-sm text-eb-text/60">
+          {t("noOpenMonth")}
+        </div>
+      </BudgetEditorPageShell>
+    );
+  }
+
+  const handleModalSubmit = async (
+    values: CreateExpenseItemApiPayload & {
+      updateDefault?: boolean;
+      scope?: ExpenseEditScope;
+    },
+  ) => {
     try {
       if (!modalState.open) return;
 
@@ -84,11 +134,23 @@ export default function ExpensesEditorPage() {
         await createMutation.mutateAsync(values);
         toast.success(t("itemCreated"));
       } else {
+        const requestedScope = values.scope ?? "currentMonthOnly";
+        const canUpdatePlan = canShowUpdateDefault(modalState.row);
+        const scope: ExpenseEditScope = canUpdatePlan
+          ? requestedScope
+          : "currentMonthOnly";
+
         await patchMutation.mutateAsync({
           monthExpenseItemId: modalState.row.id,
           payload: {
-            ...values,
-            updateDefault: false,
+            name: values.name,
+            categoryId: values.categoryId,
+            amountMonthly: values.amountMonthly,
+            isActive: values.isActive,
+            subscriptionLifecycleStatus:
+              modalState.row.subscriptionLifecycleStatus,
+            updateDefault: scope === "currentMonthAndBudgetPlan",
+            scope,
           },
         });
 
@@ -105,29 +167,20 @@ export default function ExpensesEditorPage() {
     }
   };
 
-  const groups = useMemo(() => {
-    if (!editor) return [];
-    return buildExpenseLedgerGroups({
-      editor,
-      categories,
-      locale,
-    });
-  }, [editor, categories, locale]);
-
-  const [deleteTarget, setDeleteTarget] = useState<ExpenseLedgerRowVm | null>(
-    null,
-  );
-
   const handlePauseToggle = async (row: ExpenseLedgerRowVm) => {
     try {
+      const nextIsActive = !row.isActive;
+
       await patchMutation.mutateAsync({
         monthExpenseItemId: row.id,
         payload: {
           name: row.name,
           categoryId: row.categoryId,
           amountMonthly: row.amountMonthly,
-          isActive: !row.isActive,
+          isActive: nextIsActive,
+          subscriptionLifecycleStatus: row.subscriptionLifecycleStatus,
           updateDefault: false,
+          scope: "currentMonthOnly",
         },
       });
 
@@ -151,34 +204,34 @@ export default function ExpensesEditorPage() {
       toast.error(t("itemDeleteError"));
     }
   };
+
   const incomeTotal = dashboardAggregate?.summary.totalIncome ?? 0;
   const expenseTotal = dashboardAggregate?.summary.totalExpenditure ?? 0;
   const remainingTotal = dashboardAggregate?.summary.remainingToSpend ?? 0;
   const periodLabel =
-    dashboardAggregate?.summary.header.periodLabel ?? yearMonth;
+    dashboardAggregate?.summary.header.periodLabel ?? editableYearMonth;
+  const modalEditRow =
+    modalState.open && modalState.mode === "edit"
+      ? {
+          id: modalState.row.id,
+          name: modalState.row.name,
+          categoryId: modalState.row.categoryId,
+          amountMonthly: modalState.row.amountMonthly,
+          isActive: modalState.row.isActive,
+          canUpdatePlan: canShowUpdateDefault(modalState.row),
+          initialScope: "currentMonthOnly" as ExpenseEditScope,
+        }
+      : null;
 
   return (
-    <PageContainer noPadding className="relative">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-56 overflow-hidden">
-        <div className="absolute -top-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-[rgb(var(--eb-shell)/0.40)] blur-2xl" />
-        <div className="absolute -top-24 left-[10%] h-56 w-56 rounded-full bg-[rgb(var(--eb-shell)/0.26)] blur-2xl" />
-        <div className="absolute -top-24 right-[10%] h-64 w-64 rounded-full bg-[rgb(var(--eb-shell)/0.26)] blur-2xl" />
-      </div>
-
-      <ContentWrapperV2
-        size="xl"
-        className="relative pt-6 pb-10 sm:pt-8 sm:pb-12"
-      >
+    <>
+      <BudgetEditorPageShell>
         <div className="space-y-4">
           <ExpensesEditorWorkspaceBar
             yearMonthLabel={periodLabel}
             incomeTotal={incomeTotal}
             expenseTotal={expenseTotal}
             remainingTotal={remainingTotal}
-            canGoPrevious={false}
-            canGoNext={false}
-            onGoPrevious={() => {}}
-            onGoNext={() => {}}
             onCreate={() => setModalState({ open: true, mode: "create" })}
             readOnly={readOnly}
           />
@@ -213,22 +266,13 @@ export default function ExpensesEditorPage() {
             )}
           </div>
         </div>
-      </ContentWrapperV2>
+      </BudgetEditorPageShell>
 
       <ExpenseItemModal
         open={modalState.open}
         mode={modalState.open ? modalState.mode : "create"}
-        row={
-          modalState.open && modalState.mode === "edit"
-            ? {
-                id: modalState.row.id,
-                name: modalState.row.name,
-                categoryId: modalState.row.categoryId,
-                amountMonthly: modalState.row.amountMonthly,
-                isActive: modalState.row.isActive,
-              }
-            : null
-        }
+        row={modalEditRow}
+        monthLabel={periodLabel}
         categories={categories}
         isSaving={createMutation.isPending || patchMutation.isPending}
         onClose={() => setModalState({ open: false })}
@@ -244,6 +288,6 @@ export default function ExpensesEditorPage() {
         }}
         onConfirm={handleConfirmDelete}
       />
-    </PageContainer>
+    </>
   );
 }

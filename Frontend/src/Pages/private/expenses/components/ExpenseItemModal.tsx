@@ -1,6 +1,10 @@
 import { CtaButton } from "@/components/atoms/buttons/CtaButton";
 import { FormField } from "@/components/atoms/forms/FormField";
 import { TextInput } from "@/components/atoms/InputField/TextInputv2";
+import BudgetEntryModalShell from "@/components/molecules/forms/budgetEditor/BudgetEntryModalShell";
+import EditorPreviewCard from "@/components/molecules/forms/budgetEditor/EditorPreviewCard";
+import MoneyInput from "@/components/molecules/forms/budgetEditor/MoneyInput";
+import EditScopeRadioCards from "@/components/molecules/forms/editScope/EditScopeRadioCards";
 import InfoBox from "@/components/molecules/messaging/InfoBox";
 import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
@@ -13,11 +17,12 @@ import {
   type ExpenseItemSchemaMessages,
 } from "@/schemas/dashboard/monthEditor/expenseItem.schemas";
 import type { ExpenseCategoryDto } from "@/types/budget/ExpenseCategoryDto";
+import type { ExpenseEditScope } from "@/types/budget/BudgetMonthsStatusDto";
 import { asCategoryKey, labelCategory } from "@/utils/i18n/budget/categories";
 import { expenseItemModalDict } from "@/utils/i18n/pages/private/expenses/ExpenseItemModal.i18n";
 import { expenseItemSchemaDict } from "@/utils/i18n/pages/private/expenses/ExpenseItemSchema.i18n";
 import { tDict } from "@/utils/i18n/translate";
-import { parseMoneyInput, sanitizeMoneyInput } from "@/utils/money/moneyInput";
+import { parseMoneyInput } from "@/utils/money/moneyInput";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Info } from "lucide-react";
@@ -35,22 +40,31 @@ type ExpenseItemModalRow = {
   categoryId: string;
   amountMonthly: number;
   isActive: boolean;
+  canUpdatePlan: boolean;
+  initialScope?: ExpenseEditScope;
 };
 
 type ExpenseItemModalProps = {
   open: boolean;
   mode: ExpenseItemModalMode;
   row: ExpenseItemModalRow | null;
+  monthLabel: string;
   categories: ExpenseCategoryDto[];
   isSaving?: boolean;
   onClose: () => void;
-  onSubmit: (values: CreateExpenseItemApiPayload) => Promise<void>;
+  onSubmit: (
+    values: CreateExpenseItemApiPayload & {
+      updateDefault?: boolean;
+      scope?: ExpenseEditScope;
+    },
+  ) => Promise<void>;
 };
 
 export default function ExpenseItemModal({
   open,
   mode,
   row,
+  monthLabel,
   categories,
   isSaving = false,
   onClose,
@@ -111,6 +125,10 @@ export default function ExpenseItemModal({
       isActive: true,
     },
   });
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const [showStatusInfo, setShowStatusInfo] = useState(false);
+  const [scope, setScope] = useState<ExpenseEditScope>("currentMonthOnly");
+
   const handleRequestClose = () => {
     if (!canClose) return;
 
@@ -159,6 +177,7 @@ export default function ExpenseItemModal({
         amountMonthly: String(row.amountMonthly),
         isActive: row.isActive,
       });
+      setScope(row.initialScope ?? "currentMonthOnly");
       return;
     }
 
@@ -168,6 +187,7 @@ export default function ExpenseItemModal({
       amountMonthly: "",
       isActive: true,
     });
+    setScope("currentMonthOnly");
   }, [open, mode, row, reset, defaultCategoryId]);
 
   const nameError = errors.name?.message?.toString();
@@ -184,12 +204,19 @@ export default function ExpenseItemModal({
       maxDecimals: 2,
     }) ?? 0;
   const nameField = register("name");
-  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
-  const [showStatusInfo, setShowStatusInfo] = useState(false);
   const statusInfo = watchedIsActive ? t("activeInfo") : t("inactiveInfo");
   const submitForm = handleSubmit(
     async (values) => {
-      await onSubmit(apiSchema.parse(values));
+      const parsed = apiSchema.parse(values);
+      await onSubmit(
+        mode === "edit"
+          ? {
+              ...parsed,
+              updateDefault: scope === "currentMonthAndBudgetPlan",
+              scope,
+            }
+          : parsed,
+      );
     },
     () => {},
   );
@@ -228,6 +255,12 @@ export default function ExpenseItemModal({
 
     return labelCategory(asCategoryKey(category.code), appLocale);
   }, [appLocale, categories, selectedCategoryId]);
+  const isPlanOnlyPreview = mode === "edit" && scope === "budgetPlanOnly";
+  const previewTitle = watchedName?.trim() || t("untitledItem");
+  const previewAmount = normalizedAmount;
+  const previewStatus = watchedIsActive
+    ? t("statusActive")
+    : t("statusPaused");
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key === "Escape") {
@@ -273,46 +306,49 @@ export default function ExpenseItemModal({
       />
 
       <div className="absolute inset-0 flex items-center justify-center p-4">
-        <div
-          ref={dialogRef}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="expense-item-modal-title"
-          aria-describedby="expense-item-modal-description"
-          className="relative w-full max-w-xl rounded-[2rem] border border-eb-stroke/25 bg-[rgb(var(--eb-shell))] shadow-[0_16px_60px_rgba(21,39,81,0.16)]"
-        >
-          <div className="rounded-[2rem] bg-eb-surface">
-            <div className="flex items-start justify-between gap-4 border-b border-eb-stroke/20 px-7 py-6">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-eb-text/45">
-                  {t("eyebrow")}
-                </p>
-                <h2
-                  id="expense-item-modal-title"
-                  className="mt-1 text-[1.9rem] font-black tracking-tight text-eb-text"
+        <div ref={dialogRef} className="w-full max-w-[680px]">
+          <BudgetEntryModalShell
+            titleId="expense-item-modal-title"
+            descriptionId="expense-item-modal-description"
+            eyebrow={t("eyebrow")}
+            title={mode === "create" ? t("titleCreate") : t("titleEdit")}
+            context={monthLabel}
+            description={t("description")}
+            closeAriaLabel={t("closeAriaLabel")}
+            canClose={canClose}
+            onClose={handleRequestClose}
+            footer={
+              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={handleRequestClose}
+                  disabled={!canClose}
+                  className="inline-flex h-11 items-center justify-center rounded-2xl border border-eb-stroke/25 px-4 text-sm font-medium text-eb-text/70 transition hover:bg-[rgb(var(--eb-shell)/0.28)] disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  {mode === "create" ? t("titleCreate") : t("titleEdit")}
-                </h2>
-                <p
-                  id="expense-item-modal-description"
-                  className="mt-1 text-sm text-eb-text/60"
+                  {t("cancel")}
+                </button>
+
+                <CtaButton
+                  type="submit"
+                  form="expense-item-form"
+                  disabled={isSaving}
+                  aria-busy={isSaving}
+                  className="h-11"
                 >
-                  {t("description")}
-                </p>
+                  {isSaving
+                    ? t("saving")
+                    : mode === "create"
+                      ? t("create")
+                      : t("saveChanges")}
+                </CtaButton>
               </div>
-
-              <button
-                type="button"
-                onClick={handleRequestClose}
-                disabled={!canClose}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-eb-stroke/25 text-eb-text/65 transition hover:bg-[rgb(var(--eb-shell)/0.42)] hover:text-eb-text disabled:cursor-not-allowed disabled:opacity-40"
-                aria-label={t("closeAriaLabel")}
-              >
-                ×
-              </button>
-            </div>
-
-            <form onSubmit={submitHandler} className="px-6 py-5" noValidate>
+            }
+          >
+            <form
+              id="expense-item-form"
+              onSubmit={submitHandler}
+              noValidate
+            >
               <div className="grid gap-3.5">
                 <FormField
                   label={t("nameLabel")}
@@ -358,17 +394,10 @@ export default function ExpenseItemModal({
                   htmlFor="expense-amount"
                   error={amountError}
                 >
-                  <TextInput
+                  <MoneyInput
                     id="expense-amount"
-                    type="text"
-                    inputMode="decimal"
                     aria-invalid={!!amountError}
-                    className="text-right font-semibold tabular-nums"
-                    {...register("amountMonthly", {
-                      onChange: (e) => {
-                        e.target.value = sanitizeMoneyInput(e.target.value);
-                      },
-                    })}
+                    {...register("amountMonthly")}
                   />
                 </FormField>
 
@@ -469,62 +498,48 @@ export default function ExpenseItemModal({
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-eb-stroke/22 bg-[rgb(var(--eb-shell)/0.24)] px-4 py-4">
-                  <div className="text-xs font-semibold uppercase tracking-[0.14em] text-eb-text/45">
-                    {t("previewLabel")}
-                  </div>
+                {mode === "edit" ? (
+                  <EditScopeRadioCards
+                    value={scope}
+                    onChange={setScope}
+                    monthLabel={monthLabel}
+                    canUpdatePlan={row?.canUpdatePlan ?? false}
+                    disabledPlanHint={t("scopePlanDisabledHint")}
+                    disabled={isSaving}
+                    testId="expense-item-modal-scope-toggle"
+                  />
+                ) : null}
 
-                  <div className="mt-2 flex items-center justify-between gap-4">
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-semibold text-eb-text">
-                        {watchedName?.trim() || t("untitledItem")}
+                <EditorPreviewCard
+                  label={t("previewLabel")}
+                  title={previewTitle}
+                  subtitle={selectedCategoryLabel}
+                  amount={formatMoneyV2(previewAmount, currency, appLocale, {
+                    fractionDigits: 2,
+                  })}
+                  status={previewStatus}
+                  muted={!watchedIsActive}
+                >
+                  {isPlanOnlyPreview ? (
+                    <div className="grid gap-1.5 rounded-xl border border-eb-stroke/18 bg-white/62 px-3 py-2 text-xs font-semibold text-eb-text/62 sm:grid-cols-2">
+                      <div>
+                        <span className="block text-[10px] uppercase tracking-wide text-eb-text/42">
+                          {t("previewCurrentMonthLabel")}
+                        </span>
+                        <span>{t("previewCurrentMonthUnchanged")}</span>
                       </div>
-                      <div className="mt-1 text-xs text-eb-text/55">
-                        {selectedCategoryLabel}
+                      <div>
+                        <span className="block text-[10px] uppercase tracking-wide text-eb-text/42">
+                          {t("previewBudgetPlanLabel")}
+                        </span>
+                        <span>{t("previewBudgetPlanReceivesEdit")}</span>
                       </div>
                     </div>
-
-                    <div className="text-right">
-                      <div className="text-sm font-semibold tabular-nums text-eb-text">
-                        {formatMoneyV2(normalizedAmount, currency, appLocale, {
-                          fractionDigits: 2,
-                        })}
-                      </div>
-                      <div className="mt-1 text-xs text-eb-text/50">
-                        {watchedIsActive
-                          ? t("statusActive")
-                          : t("statusPaused")}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-                <button
-                  type="button"
-                  onClick={handleRequestClose}
-                  disabled={!canClose}
-                  className="inline-flex h-11 items-center justify-center rounded-2xl border border-eb-stroke/25 px-4 text-sm font-medium text-eb-text/70 transition hover:bg-[rgb(var(--eb-shell)/0.28)] disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  {t("cancel")}
-                </button>
-
-                <CtaButton
-                  type="submit"
-                  disabled={isSaving}
-                  aria-busy={isSaving}
-                  className="h-11"
-                >
-                  {isSaving
-                    ? t("saving")
-                    : mode === "create"
-                      ? t("create")
-                      : t("saveChanges")}
-                </CtaButton>
+                  ) : null}
+                </EditorPreviewCard>
               </div>
             </form>
-          </div>
+          </BudgetEntryModalShell>
         </div>
       </div>
       {showDiscardConfirm ? (

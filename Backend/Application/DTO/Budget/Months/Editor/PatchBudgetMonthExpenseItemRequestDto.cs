@@ -6,4 +6,5 @@ public sealed record PatchBudgetMonthExpenseItemRequestDto(
     decimal? AmountMonthly,
     bool? IsActive,
     string? SubscriptionLifecycleStatus,
-    bool UpdateDefault);
+    bool UpdateDefault,
+    string? Scope = null);

@@ -2,6 +2,12 @@ import { moneyInputSchema } from "@/utils/forms/zodMoney";
 import { parseMoneyInput } from "@/utils/money/moneyInput";
 import { z } from "zod";
 
+export const expenseEditScopeValues = [
+  "currentMonthOnly",
+  "currentMonthAndBudgetPlan",
+  "budgetPlanOnly",
+] as const;
+
 export type ExpenseItemSchemaMessages = {
   invalidId: string;
   nameRequired: string;
@@ -55,6 +61,7 @@ export function buildPatchExpenseItemFormSchema(
       .nullable()
       .optional(),
     updateDefault: z.boolean(),
+    scope: z.enum(expenseEditScopeValues).optional(),
   });
 }
 
@@ -99,10 +106,12 @@ export type CreateExpenseItemApiPayload = {
 export type PatchExpenseItemFormValues = CreateExpenseItemFormValues & {
   subscriptionLifecycleStatus?: "active" | "paused" | "cancelled" | null;
   updateDefault: boolean;
+  scope?: (typeof expenseEditScopeValues)[number];
 };
 export type PatchExpenseItemApiPayload = CreateExpenseItemApiPayload & {
   subscriptionLifecycleStatus?: "active" | "paused" | "cancelled" | null;
   updateDefault: boolean;
+  scope?: (typeof expenseEditScopeValues)[number];
 };
 
 export type BulkPatchExpenseItemsApiPayload = Array<{
