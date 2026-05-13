@@ -225,7 +225,7 @@ function LoadedDashboardContent({
 }: LoadedDashboardContentProps) {
   const [isPeriodEditorOpen, setIsPeriodEditorOpen] = useState(false);
   const [periodEditorPanel, setPeriodEditorPanel] = useState<
-    "expenses" | "income"
+    "expenses" | "income" | "savings"
   >("expenses");
   const locale = useAppLocale();
   const navigate = useNavigate();
@@ -249,6 +249,12 @@ function LoadedDashboardContent({
   function handleOpenIncomeEditor() {
     if (!yearMonth) return;
     setPeriodEditorPanel("income");
+    setIsPeriodEditorOpen(true);
+  }
+
+  function handleOpenSavingsEditor() {
+    if (!yearMonth) return;
+    setPeriodEditorPanel("savings");
     setIsPeriodEditorOpen(true);
   }
 
@@ -335,6 +341,7 @@ function LoadedDashboardContent({
             onOpenFullExpenseEditor={() => navigate("/dashboard/expenses")}
             onOpenIncomeEditor={handleOpenIncomeEditor}
             onOpenFullIncomeEditor={() => navigate("/dashboard/income")}
+            onOpenSavingsEditor={handleOpenSavingsEditor}
             onOpenFullSavingsEditor={() => navigate("/dashboard/savings")}
             isSwitchingMonth={isSwitchingMonth}
           />

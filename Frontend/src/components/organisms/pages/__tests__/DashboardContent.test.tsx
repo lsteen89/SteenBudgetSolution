@@ -768,13 +768,16 @@ describe("DashboardContent", () => {
     expect(screen.getByText("Income route")).toBeInTheDocument();
   });
 
-  it("exposes the savings manage action and leaves debts coming soon", () => {
+  it("exposes quick adjust and manage all actions for savings and leaves debts coming soon", () => {
     mockUseDashboardSummary.mockReturnValue(readyResult);
 
     renderDashboardContent();
 
     expect(
-      screen.getByRole("button", { name: /manage savings/i }),
+      screen.getByRole("button", { name: /quick adjust savings/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /manage all savings/i }),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /manage debts/i }),
@@ -786,12 +789,24 @@ describe("DashboardContent", () => {
     expect(screen.getAllByText("Coming soon")).toHaveLength(1);
   });
 
-  it("navigates to the savings editor from the savings pillar", () => {
+  it("opens the edit drawer with the savings panel from the savings pillar quick action", () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+
+    renderDashboardContent();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /quick adjust savings/i }),
+    );
+
+    expect(screen.getByText("Edit drawer open: savings")).toBeInTheDocument();
+  });
+
+  it("navigates to the full savings editor from the savings pillar secondary action", () => {
     mockUseDashboardSummary.mockReturnValue(readyResult);
 
     renderDashboardContentWithRoutes();
 
-    fireEvent.click(screen.getByRole("button", { name: /manage savings/i }));
+    fireEvent.click(screen.getByRole("button", { name: /manage all savings/i }));
 
     expect(screen.getByText("Savings route")).toBeInTheDocument();
   });

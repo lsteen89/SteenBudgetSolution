@@ -8,7 +8,7 @@ import { tDict } from "@/utils/i18n/translate";
 type EditPeriodHeaderProps = {
   periodLabel: string;
   periodDateRangeLabel: string;
-  titleKey?: "title" | "incomeTitle";
+  titleKey?: "title" | "incomeTitle" | "savingsTitle";
   onClose: () => void;
 };
 

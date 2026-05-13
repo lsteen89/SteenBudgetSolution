@@ -8,20 +8,20 @@ import { tDict } from "@/utils/i18n/translate";
 import EditPeriodHeader from "./EditPeriodHeader";
 import ExpensesPanel from "./expense/ExpensesPanel";
 import IncomePanel from "./income/IncomePanel";
+import SavingsPanel from "./savings/SavingsPanel";
 
 type EditPeriodDrawerProps = {
   open: boolean;
   yearMonth: string;
   periodLabel: string;
   periodDateRangeLabel: string;
-  panel?: "expenses" | "income";
+  panel?: "expenses" | "income" | "savings";
   onClose: () => void;
 };
 
 /**
- * Modal-style drawer that hosts the period editor. Today the only panel is
- * `ExpensesPanel`; income / savings / debt panels will plug into the same
- * shell as those slices come online.
+ * Modal-style drawer that hosts the period editor. Hosts the expenses, income,
+ * and savings quick panels behind the same shell. Debt will plug in later.
  */
 const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
   open,
@@ -96,12 +96,25 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
           <EditPeriodHeader
             periodLabel={periodLabel}
             periodDateRangeLabel={periodDateRangeLabel}
-            titleKey={panel === "income" ? "incomeTitle" : "title"}
+            titleKey={
+              panel === "income"
+                ? "incomeTitle"
+                : panel === "savings"
+                  ? "savingsTitle"
+                  : "title"
+            }
             onClose={onClose}
           />
 
           {panel === "income" ? (
             <IncomePanel
+              open={open}
+              yearMonth={yearMonth}
+              periodLabel={periodLabel}
+              onClose={onClose}
+            />
+          ) : panel === "savings" ? (
+            <SavingsPanel
               open={open}
               yearMonth={yearMonth}
               periodLabel={periodLabel}
