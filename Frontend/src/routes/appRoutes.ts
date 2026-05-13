@@ -17,4 +17,5 @@ export const appRoutes = {
   dashboardSettings: "/dashboard/settings",
 
   expenses: "/dashboard/expenses",
+  income: "/dashboard/income",
 } as const;

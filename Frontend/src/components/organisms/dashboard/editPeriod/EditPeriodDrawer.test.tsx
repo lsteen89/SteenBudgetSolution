@@ -6,8 +6,11 @@ import EditPeriodDrawer from "./EditPeriodDrawer";
 
 const mockUseBudgetMonthEditor = vi.fn();
 const mockUsePatchBudgetMonthExpenseItemsBulk = vi.fn();
+const mockUseBudgetMonthIncomeItems = vi.fn();
+const mockUsePatchBudgetMonthIncomeItemsBulk = vi.fn();
 const mockUseExpenseCategories = vi.fn();
 const mockMutateAsync = vi.fn();
+const mockIncomeMutateAsync = vi.fn();
 const mockToast = {
   success: vi.fn(),
   error: vi.fn(),
@@ -17,6 +20,10 @@ vi.mock("@hooks/budget/editPeriod/useMonthEditor", () => ({
   useBudgetMonthEditor: (...args: unknown[]) => mockUseBudgetMonthEditor(...args),
   usePatchBudgetMonthExpenseItemsBulk: (...args: unknown[]) =>
     mockUsePatchBudgetMonthExpenseItemsBulk(...args),
+  useBudgetMonthIncomeItems: (...args: unknown[]) =>
+    mockUseBudgetMonthIncomeItems(...args),
+  usePatchBudgetMonthIncomeItemsBulk: (...args: unknown[]) =>
+    mockUsePatchBudgetMonthIncomeItemsBulk(...args),
 }));
 
 vi.mock("@/hooks/budget/useExpenseCategories", () => ({
@@ -123,8 +130,11 @@ describe("EditPeriodDrawer subscription lifecycle", () => {
   beforeEach(() => {
     mockUseBudgetMonthEditor.mockReset();
     mockUsePatchBudgetMonthExpenseItemsBulk.mockReset();
+    mockUseBudgetMonthIncomeItems.mockReset();
+    mockUsePatchBudgetMonthIncomeItemsBulk.mockReset();
     mockUseExpenseCategories.mockReset();
     mockMutateAsync.mockReset();
+    mockIncomeMutateAsync.mockReset();
     mockToast.success.mockReset();
     mockToast.error.mockReset();
   });
@@ -220,5 +230,56 @@ describe("EditPeriodDrawer subscription lifecycle", () => {
     expect(
       screen.getByRole("button", { name: "Open planning" }),
     ).toBeInTheDocument();
+  });
+
+  it("renders the income panel when requested", () => {
+    mockUseBudgetMonthIncomeItems.mockReturnValue({
+      data: [
+        {
+          id: "55555555-5555-4555-8555-555555555555",
+          sourceIncomeItemId: "66666666-6666-4666-8666-666666666666",
+          kind: "sideHustle",
+          name: "Consulting",
+          amountMonthly: 1500,
+          isActive: true,
+          isDeleted: false,
+          isMonthOnly: false,
+          canUpdateDefault: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    });
+    mockUsePatchBudgetMonthIncomeItemsBulk.mockReturnValue({
+      mutateAsync: mockIncomeMutateAsync,
+      isPending: false,
+    });
+
+    render(
+      <MemoryRouter>
+        <EditPeriodDrawer
+          open
+          yearMonth="2026-04"
+          periodLabel="April 2026"
+          periodDateRangeLabel="Apr 1 - Apr 30"
+          panel="income"
+          onClose={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Edit income")).toBeInTheDocument();
+    expect(screen.getByText("Consulting")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Quick adjustments only affect April 2026. Want to change the budget plan going forward? Open planning.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("radiogroup", {
+        name: /what should this change apply to/i,
+      }),
+    ).not.toBeInTheDocument();
   });
 });

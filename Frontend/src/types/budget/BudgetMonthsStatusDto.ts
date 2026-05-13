@@ -49,6 +49,25 @@ export type ExpenseEditScope =
   | "currentMonthAndBudgetPlan"
   | "budgetPlanOnly";
 
+export type IncomeEditScope = ExpenseEditScope;
+
+export type BudgetMonthIncomeItemKind =
+  | "salary"
+  | "sideHustle"
+  | "householdMember";
+
+export type BudgetMonthIncomeItemEditorRowDto = {
+  id: string;
+  sourceIncomeItemId: string | null;
+  kind: BudgetMonthIncomeItemKind;
+  name: string;
+  amountMonthly: number;
+  isActive: boolean;
+  isDeleted: boolean;
+  isMonthOnly: boolean;
+  canUpdateDefault: boolean;
+};
+
 export type PatchBudgetMonthExpenseItemRequestDto = {
   name: string;
   categoryId: string;
@@ -79,6 +98,34 @@ export type PatchBudgetMonthExpenseItemBulkRowDto = {
 
 export type PatchBudgetMonthExpenseItemsBulkRequestDto = {
   items: PatchBudgetMonthExpenseItemBulkRowDto[];
+};
+
+export type PatchBudgetMonthIncomeItemRequestDto = {
+  name?: string | null;
+  amountMonthly: number;
+  isActive?: boolean | null;
+  updateDefault: boolean;
+  scope?: IncomeEditScope | null;
+};
+
+export type CreateBudgetMonthIncomeItemRequestDto = {
+  kind: Exclude<BudgetMonthIncomeItemKind, "salary">;
+  name: string;
+  amountMonthly: number;
+  isActive: boolean;
+};
+
+export type PatchBudgetMonthIncomeItemBulkRowDto = {
+  monthIncomeItemId: string;
+  name?: string | null;
+  amountMonthly?: number | null;
+  isActive?: boolean | null;
+  updateDefault: boolean;
+  scope?: IncomeEditScope | null;
+};
+
+export type PatchBudgetMonthIncomeItemsBulkRequestDto = {
+  items: PatchBudgetMonthIncomeItemBulkRowDto[];
 };
 
 export type ApiErrorDto = {

@@ -2,6 +2,11 @@ export const editPeriodDrawerDict = {
   sv: {
     closePeriodEditor: "Stäng periodredigeraren",
     editPeriodAriaLabel: "Redigera period {periodLabel}",
+    incomeTitle: "Inkomster",
+    incomeDescription: "Justera inkomster för den öppna månaden.",
+    noIncomeItems: "Det finns inga inkomster att snabbjustera.",
+    incomeMonthOnlyHelper:
+      "Snabbjusteringar påverkar bara {month}. Vill du ändra budgetplanen framåt? Öppna planeringen.",
 
     recurringExpensesTitle: "Rörliga kostnader",
     recurringExpensesDescription:
@@ -49,6 +54,11 @@ export const editPeriodDrawerDict = {
   en: {
     closePeriodEditor: "Close period editor",
     editPeriodAriaLabel: "Edit period {periodLabel}",
+    incomeTitle: "Income",
+    incomeDescription: "Adjust income for the open month.",
+    noIncomeItems: "There are no income items to quick adjust.",
+    incomeMonthOnlyHelper:
+      "Quick adjustments only affect {month}. Want to change the budget plan going forward? Open planning.",
 
     recurringExpensesTitle: "Variable expenses",
     recurringExpensesDescription:
@@ -95,6 +105,11 @@ export const editPeriodDrawerDict = {
   et: {
     closePeriodEditor: "Sulge perioodi muutja",
     editPeriodAriaLabel: "Muuda perioodi {periodLabel}",
+    incomeTitle: "Tulu",
+    incomeDescription: "Kohanda avatud kuu tulu.",
+    noIncomeItems: "Kiireks kohandamiseks pole tulukirjeid.",
+    incomeMonthOnlyHelper:
+      "Kiirkohandused mõjutavad ainult perioodi {month}. Kui soovid eelarveplaani edaspidi muuta, ava planeerimine.",
 
     recurringExpensesTitle: "Muutuvad kulud",
     recurringExpensesDescription:

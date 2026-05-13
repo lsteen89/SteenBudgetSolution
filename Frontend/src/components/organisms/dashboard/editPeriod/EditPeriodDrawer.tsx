@@ -7,12 +7,14 @@ import { tDict } from "@/utils/i18n/translate";
 
 import EditPeriodHeader from "./EditPeriodHeader";
 import ExpensesPanel from "./expense/ExpensesPanel";
+import IncomePanel from "./income/IncomePanel";
 
 type EditPeriodDrawerProps = {
   open: boolean;
   yearMonth: string;
   periodLabel: string;
   periodDateRangeLabel: string;
+  panel?: "expenses" | "income";
   onClose: () => void;
 };
 
@@ -26,6 +28,7 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
   yearMonth,
   periodLabel,
   periodDateRangeLabel,
+  panel = "expenses",
   onClose,
 }) => {
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -93,15 +96,25 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
           <EditPeriodHeader
             periodLabel={periodLabel}
             periodDateRangeLabel={periodDateRangeLabel}
+            titleKey={panel === "income" ? "incomeTitle" : "title"}
             onClose={onClose}
           />
 
-          <ExpensesPanel
-            open={open}
-            yearMonth={yearMonth}
-            periodLabel={periodLabel}
-            onClose={onClose}
-          />
+          {panel === "income" ? (
+            <IncomePanel
+              open={open}
+              yearMonth={yearMonth}
+              periodLabel={periodLabel}
+              onClose={onClose}
+            />
+          ) : (
+            <ExpensesPanel
+              open={open}
+              yearMonth={yearMonth}
+              periodLabel={periodLabel}
+              onClose={onClose}
+            />
+          )}
         </div>
       </div>
     </div>

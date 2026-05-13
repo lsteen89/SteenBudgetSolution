@@ -11,7 +11,10 @@ import type { PeriodActionSlotViewModel } from "@/components/organisms/dashboard
 import { useBudgetMonthRecapQuery } from "@/hooks/budget/useBudgetMonthRecapQuery";
 import { useCloseMonthReviewController } from "@/hooks/dashboard/useCloseMonthReviewController";
 import { useDashboardSummary } from "@/hooks/dashboard/useDashboardSummary";
-import type { DashboardSummary } from "@/hooks/dashboard/dashboardSummary.types";
+import type {
+  DashboardBreakdown,
+  DashboardSummary,
+} from "@/hooks/dashboard/dashboardSummary.types";
 import { getCloseAvailabilityLabel } from "@/hooks/dashboard/getCloseAvailabilityLabel";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { useBudgetMonthStore } from "@/stores/Budget/budgetMonthStore";
@@ -203,6 +206,7 @@ function buildPeriodControlBarViewModel(
 
 type LoadedDashboardContentProps = {
   summary: DashboardSummary;
+  breakdown: DashboardBreakdown;
   isFetching: boolean;
   isPending: boolean;
   goToPreviousMonth: () => void;
@@ -212,6 +216,7 @@ type LoadedDashboardContentProps = {
 
 function LoadedDashboardContent({
   summary,
+  breakdown,
   isFetching,
   isPending,
   goToPreviousMonth,
@@ -219,6 +224,9 @@ function LoadedDashboardContent({
   archiveMonths,
 }: LoadedDashboardContentProps) {
   const [isPeriodEditorOpen, setIsPeriodEditorOpen] = useState(false);
+  const [periodEditorPanel, setPeriodEditorPanel] = useState<
+    "expenses" | "income"
+  >("expenses");
   const locale = useAppLocale();
   const navigate = useNavigate();
   const setSelectedYearMonth = useBudgetMonthStore(
@@ -234,6 +242,13 @@ function LoadedDashboardContent({
 
   function handleOpenPeriodEditor() {
     if (!yearMonth) return;
+    setPeriodEditorPanel("expenses");
+    setIsPeriodEditorOpen(true);
+  }
+
+  function handleOpenIncomeEditor() {
+    if (!yearMonth) return;
+    setPeriodEditorPanel("income");
     setIsPeriodEditorOpen(true);
   }
 
@@ -315,8 +330,11 @@ function LoadedDashboardContent({
         <>
           <ReturningDashboardSection
             summary={summary}
+            breakdown={breakdown}
             onOpenPeriodEditor={handleOpenPeriodEditor}
             onOpenFullExpenseEditor={() => navigate("/dashboard/expenses")}
+            onOpenIncomeEditor={handleOpenIncomeEditor}
+            onOpenFullIncomeEditor={() => navigate("/dashboard/income")}
             isSwitchingMonth={isSwitchingMonth}
           />
 
@@ -340,6 +358,7 @@ function LoadedDashboardContent({
             yearMonth={yearMonth}
             periodLabel={summary.header.periodLabel}
             periodDateRangeLabel={summary.header.periodDateRangeLabel}
+            panel={periodEditorPanel}
             onClose={() => {
               setIsPeriodEditorOpen(false);
             }}
@@ -443,6 +462,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
   return (
     <LoadedDashboardContent
       summary={data.summary}
+      breakdown={data.breakdown}
       isFetching={isFetching}
       isPending={isPending}
       goToPreviousMonth={goToPreviousMonth}

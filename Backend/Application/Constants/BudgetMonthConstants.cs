@@ -52,3 +52,38 @@ public static class BudgetMonthExpenseEditScopes
     public static bool WritesBudgetPlan(string scope)
         => scope == CurrentMonthAndBudgetPlan || scope == BudgetPlanOnly;
 }
+
+public static class BudgetMonthIncomeEditScopes
+{
+    public const string CurrentMonthOnly = "currentMonthOnly";
+    public const string CurrentMonthAndBudgetPlan = "currentMonthAndBudgetPlan";
+    public const string BudgetPlanOnly = "budgetPlanOnly";
+
+    public static bool IsSupported(string? value)
+        => value is null ||
+           value == CurrentMonthOnly ||
+           value == CurrentMonthAndBudgetPlan ||
+           value == BudgetPlanOnly;
+
+    public static bool WritesCurrentMonth(string scope)
+        => scope == CurrentMonthOnly || scope == CurrentMonthAndBudgetPlan;
+
+    public static bool WritesBudgetPlan(string scope)
+        => scope == CurrentMonthAndBudgetPlan || scope == BudgetPlanOnly;
+}
+
+public static class BudgetMonthIncomeItemKinds
+{
+    public const string Salary = "salary";
+    public const string SideHustle = "sideHustle";
+    public const string HouseholdMember = "householdMember";
+
+    public static bool IsSupported(string? value)
+        => value == Salary ||
+           value == SideHustle ||
+           value == HouseholdMember;
+
+    public static bool IsSupportedCreateKind(string? value)
+        => value == SideHustle ||
+           value == HouseholdMember;
+}

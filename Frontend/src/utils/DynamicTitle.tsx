@@ -20,6 +20,7 @@ const pathToKey: Record<string, TitleKey> = {
   "/reset-password": "resetPassword",
   "/dashboard": "dashboard",
   "/dashboard/expenses": "expenses",
+  "/dashboard/income": "income",
   "/dashboard/breakdown": "dashboardBreakdown",
   "/how-it-works": "howItWorks",
   "/email-verification-recovery": "emailConfirmationRecovery",

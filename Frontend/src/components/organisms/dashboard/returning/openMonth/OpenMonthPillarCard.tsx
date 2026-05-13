@@ -33,13 +33,13 @@ const OpenMonthPillarCard: React.FC<Props> = ({
   const isAvailable = actionState === "available";
 
   return (
-    <article className="min-h-[190px] rounded-2xl border border-eb-stroke/25 bg-white/70 px-4 py-3 shadow-sm transition hover:bg-white/85">
-      <div className="flex items-start gap-3">
+    <article className="flex min-h-[190px] rounded-2xl border border-eb-stroke/25 bg-white/70 px-4 py-3 shadow-sm transition hover:bg-white/85">
+      <div className="flex flex-1 items-start gap-3">
         <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-eb-stroke/25 bg-[rgb(var(--eb-shell)/0.35)] text-eb-accent">
           {icon}
         </div>
 
-        <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 flex-1 flex-col self-stretch">
           <div className="flex items-start justify-between gap-2">
             <h3 className="text-sm font-bold text-eb-text">{title}</h3>
             <span
@@ -63,11 +63,12 @@ const OpenMonthPillarCard: React.FC<Props> = ({
 
           {insight ? <div className="mt-2">{insight}</div> : null}
 
-          <div className="mt-3 flex min-h-9 flex-wrap justify-end gap-2">
+          <div className="mt-auto flex min-h-9 flex-wrap justify-end gap-2 pt-3">
             {isAvailable ? (
               <>
                 <button
                   type="button"
+                  aria-label={actionLabel ? `${actionLabel} ${title}` : title}
                   onClick={onAction}
                   className="group inline-flex h-9 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 shadow-[0_8px_18px_rgba(21,39,81,0.08)] transition-[transform,background-color,border-color,box-shadow] duration-150 hover:-translate-y-[1px] hover:border-slate-300 hover:bg-slate-50 hover:shadow-[0_12px_24px_rgba(21,39,81,0.10)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-eb-accent/25 active:translate-y-0 motion-reduce:transform-none"
                 >
@@ -76,8 +77,9 @@ const OpenMonthPillarCard: React.FC<Props> = ({
                 {secondaryActionLabel ? (
                   <button
                     type="button"
+                    aria-label={`${secondaryActionLabel} ${title}`}
                     onClick={onSecondaryAction}
-                    className="group inline-flex h-9 items-center justify-center gap-2 rounded-2xl bg-[rgb(var(--eb-accent))] px-3 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(21,39,81,0.10)] transition-[transform,box-shadow,opacity] duration-150 hover:-translate-y-[1px] hover:opacity-95 hover:shadow-[0_12px_24px_rgba(21,39,81,0.12)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-eb-accent/25 active:translate-y-0 motion-reduce:transform-none"
+                    className="group inline-flex h-9 items-center justify-center gap-2 rounded-2xl border border-eb-accent/25 bg-[rgb(var(--eb-accent)/0.08)] px-3 text-sm font-semibold text-eb-accent shadow-[0_8px_18px_rgba(21,39,81,0.06)] transition-[transform,background-color,border-color,box-shadow] duration-150 hover:-translate-y-[1px] hover:border-eb-accent/35 hover:bg-[rgb(var(--eb-accent)/0.12)] hover:shadow-[0_12px_24px_rgba(21,39,81,0.08)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-eb-accent/20 active:translate-y-0 motion-reduce:transform-none"
                   >
                     <span>{secondaryActionLabel}</span>
                     <ArrowRight className="h-4 w-4 transition-transform duration-150 group-hover:translate-x-0.5 motion-reduce:transform-none" />
