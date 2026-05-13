@@ -192,7 +192,7 @@ internal static class DbSeeds
         // Normal goal -> should yield MonthlyContribution > 0
         await conn.ExecuteAsync("""
             INSERT INTO SavingsGoal
-            (Id, SavingsId, Name, TargetAmount, TargetDate, AmountSaved, CreatedAt, CreatedByUserId)
+            (Id, SavingsId, Name, TargetAmount, TargetDate, AmountSaved, MonthlyContribution, CreatedAt, CreatedByUserId)
             SELECT
                 UUID_TO_BIN(UUID()),
                 s.Id,
@@ -200,6 +200,7 @@ internal static class DbSeeds
                 50000,
                 '2026-12-31',
                 10000,
+                1500,
                 UTC_TIMESTAMP(),
                 @pid
             FROM Savings s

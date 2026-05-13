@@ -5,6 +5,7 @@ public static class BudgetAuditEntityTypes
     public const string ExpenseItem = "expense-item";
     public const string IncomeItem = "income-item";
     public const string SalaryPaymentTiming = "salary-payment-timing";
+    public const string SavingsGoal = "savings-goal";
 }
 
 public static class BudgetAuditChangeTypes

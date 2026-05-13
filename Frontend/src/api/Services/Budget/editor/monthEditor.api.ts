@@ -5,6 +5,7 @@ import type {
   BudgetMonthEditorDto,
   BudgetMonthIncomeItemEditorRowDto,
   BudgetMonthExpenseItemEditorRowDto,
+  BudgetMonthSavingsGoalEditorRowDto,
   CreateBudgetMonthIncomeItemRequestDto,
   CreateBudgetMonthExpenseItemRequestDto,
   PatchBudgetMonthIncomeItemBulkRowDto,
@@ -13,6 +14,9 @@ import type {
   PatchBudgetMonthExpenseItemBulkRowDto,
   PatchBudgetMonthExpenseItemRequestDto,
   PatchBudgetMonthExpenseItemsBulkRequestDto,
+  PatchBudgetMonthSavingsGoalBulkRowDto,
+  PatchBudgetMonthSavingsGoalRequestDto,
+  PatchBudgetMonthSavingsGoalsBulkRequestDto,
 } from "@/types/budget/BudgetMonthsStatusDto";
 
 export async function getBudgetMonthEditor(
@@ -144,4 +148,51 @@ export async function deleteBudgetMonthIncomeItem(
   );
 
   unwrapEnvelopeData(res, "Could not delete month income item.");
+}
+
+export async function getBudgetMonthSavingsGoals(
+  yearMonth: string,
+): Promise<BudgetMonthSavingsGoalEditorRowDto[]> {
+  const res = await api.get<
+    ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto[]>
+  >(`/api/budgets/months/${yearMonth}/savings-goals`, {
+    headers: {
+      "Cache-Control": "no-cache",
+    },
+  });
+
+  return unwrapEnvelopeData(res, "Could not load month savings goals.");
+}
+
+export async function patchBudgetMonthSavingsGoal(
+  yearMonth: string,
+  monthSavingsGoalId: string,
+  payload: PatchBudgetMonthSavingsGoalRequestDto,
+): Promise<BudgetMonthSavingsGoalEditorRowDto> {
+  const res = await api.patch<
+    ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>
+  >(
+    `/api/budgets/months/${yearMonth}/savings-goals/${monthSavingsGoalId}`,
+    payload,
+  );
+
+  return unwrapEnvelopeData(res, "Could not update month savings goal.");
+}
+
+/**
+ * Transactional bulk patch. Sends one PATCH request to
+ * `/api/budgets/months/{yearMonth}/savings-goals`; the backend either applies
+ * every row or rolls back the whole transaction.
+ */
+export async function patchBudgetMonthSavingsGoalsBulk(
+  yearMonth: string,
+  rows: PatchBudgetMonthSavingsGoalBulkRowDto[],
+): Promise<BudgetMonthSavingsGoalEditorRowDto[]> {
+  const payload: PatchBudgetMonthSavingsGoalsBulkRequestDto = { items: rows };
+
+  const res = await api.patch<
+    ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto[]>
+  >(`/api/budgets/months/${yearMonth}/savings-goals`, payload);
+
+  return unwrapEnvelopeData(res, "Could not update month savings goals.");
 }

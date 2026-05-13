@@ -4,11 +4,14 @@ import {
   deleteBudgetMonthExpenseItem,
   deleteBudgetMonthIncomeItem,
   getBudgetMonthIncomeItems,
+  getBudgetMonthSavingsGoals,
   getBudgetMonthEditor,
   patchBudgetMonthExpenseItem,
   patchBudgetMonthExpenseItemsBulk,
   patchBudgetMonthIncomeItem,
   patchBudgetMonthIncomeItemsBulk,
+  patchBudgetMonthSavingsGoal,
+  patchBudgetMonthSavingsGoalsBulk,
 } from "@/api/Services/Budget/editor/monthEditor.api";
 import type {
   CreateBudgetMonthExpenseItemRequestDto,
@@ -17,6 +20,8 @@ import type {
   PatchBudgetMonthExpenseItemRequestDto,
   PatchBudgetMonthIncomeItemBulkRowDto,
   PatchBudgetMonthIncomeItemRequestDto,
+  PatchBudgetMonthSavingsGoalBulkRowDto,
+  PatchBudgetMonthSavingsGoalRequestDto,
 } from "@/types/budget/BudgetMonthsStatusDto";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -178,6 +183,67 @@ export function useCreateBudgetMonthExpenseItem(yearMonth: string) {
   return useMutation({
     mutationFn: (payload: CreateBudgetMonthExpenseItemRequestDto) =>
       createBudgetMonthExpenseItem(yearMonth, payload),
+    onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
+  });
+}
+
+export function useBudgetMonthSavingsGoals(
+  yearMonth: string | undefined,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: monthEditorQueryKeys.savingsGoals(yearMonth ?? ""),
+    queryFn: () => {
+      if (!yearMonth) {
+        throw new Error("Missing yearMonth.");
+      }
+
+      return getBudgetMonthSavingsGoals(yearMonth);
+    },
+    enabled: enabled && !!yearMonth,
+  });
+}
+
+export function usePatchBudgetMonthSavingsGoal(yearMonth: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      monthSavingsGoalId,
+      payload,
+    }: {
+      monthSavingsGoalId: string;
+      payload: PatchBudgetMonthSavingsGoalRequestDto;
+    }) => patchBudgetMonthSavingsGoal(yearMonth, monthSavingsGoalId, payload),
+    onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
+  });
+}
+
+/**
+ * Transactional bulk patch. Sends one PATCH request to
+ * `/api/budgets/months/{yearMonth}/savings-goals`; the backend either applies
+ * every row or rolls back the whole transaction.
+ */
+export function usePatchBudgetMonthSavingsGoalsBulk(yearMonth: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (
+      rows: Array<{
+        monthSavingsGoalId: string;
+        payload: PatchBudgetMonthSavingsGoalRequestDto;
+      }>,
+    ) => {
+      const flatRows: PatchBudgetMonthSavingsGoalBulkRowDto[] = rows.map(
+        (row) => ({
+          monthSavingsGoalId: row.monthSavingsGoalId,
+          monthlyContribution: row.payload.monthlyContribution,
+          scope: row.payload.scope,
+        }),
+      );
+
+      return patchBudgetMonthSavingsGoalsBulk(yearMonth, flatRows);
+    },
     onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
   });
 }

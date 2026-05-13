@@ -17,11 +17,11 @@ type BudgetEditorWorkspaceBarProps = {
   title: string;
   description: string;
   readOnlyBadge: string;
-  createLabel: string;
+  createLabel?: string;
   periodLabel: string;
   periodCaption: string;
   metrics: BudgetEditorWorkspaceMetric[];
-  onCreate: () => void;
+  onCreate?: () => void;
   readOnly: boolean;
 };
 
@@ -75,16 +75,18 @@ export default function BudgetEditorWorkspaceBar({
               ) : null}
             </div>
 
-            <div className="relative z-10 flex shrink-0">
-              <CtaButton
-                type="button"
-                onClick={onCreate}
-                disabled={readOnly}
-                className="w-full sm:w-auto"
-              >
-                {createLabel}
-              </CtaButton>
-            </div>
+            {createLabel && onCreate ? (
+              <div className="relative z-10 flex shrink-0">
+                <CtaButton
+                  type="button"
+                  onClick={onCreate}
+                  disabled={readOnly}
+                  className="w-full sm:w-auto"
+                >
+                  {createLabel}
+                </CtaButton>
+              </div>
+            ) : null}
           </div>
 
           <div className="flex flex-col gap-3">
