@@ -1,14 +1,22 @@
 import {
   createBudgetMonthExpenseItem,
+  createBudgetMonthIncomeItem,
   deleteBudgetMonthExpenseItem,
+  deleteBudgetMonthIncomeItem,
+  getBudgetMonthIncomeItems,
   getBudgetMonthEditor,
   patchBudgetMonthExpenseItem,
   patchBudgetMonthExpenseItemsBulk,
+  patchBudgetMonthIncomeItem,
+  patchBudgetMonthIncomeItemsBulk,
 } from "@/api/Services/Budget/editor/monthEditor.api";
 import type {
   CreateBudgetMonthExpenseItemRequestDto,
+  CreateBudgetMonthIncomeItemRequestDto,
   PatchBudgetMonthExpenseItemBulkRowDto,
   PatchBudgetMonthExpenseItemRequestDto,
+  PatchBudgetMonthIncomeItemBulkRowDto,
+  PatchBudgetMonthIncomeItemRequestDto,
 } from "@/types/budget/BudgetMonthsStatusDto";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -45,6 +53,85 @@ export function usePatchBudgetMonthExpenseItem(yearMonth: string) {
       monthExpenseItemId: string;
       payload: PatchBudgetMonthExpenseItemRequestDto;
     }) => patchBudgetMonthExpenseItem(yearMonth, monthExpenseItemId, payload),
+    onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
+  });
+}
+
+export function useBudgetMonthIncomeItems(
+  yearMonth: string | undefined,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: monthEditorQueryKeys.incomeItems(yearMonth ?? ""),
+    queryFn: () => {
+      if (!yearMonth) {
+        throw new Error("Missing yearMonth.");
+      }
+
+      return getBudgetMonthIncomeItems(yearMonth);
+    },
+    enabled: enabled && !!yearMonth,
+  });
+}
+
+export function usePatchBudgetMonthIncomeItem(yearMonth: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      monthIncomeItemId,
+      payload,
+    }: {
+      monthIncomeItemId: string;
+      payload: PatchBudgetMonthIncomeItemRequestDto;
+    }) => patchBudgetMonthIncomeItem(yearMonth, monthIncomeItemId, payload),
+    onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
+  });
+}
+
+export function usePatchBudgetMonthIncomeItemsBulk(yearMonth: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (
+      rows: Array<{
+        monthIncomeItemId: string;
+        payload: PatchBudgetMonthIncomeItemRequestDto;
+      }>,
+    ) => {
+      const flatRows: PatchBudgetMonthIncomeItemBulkRowDto[] = rows.map(
+        (row) => ({
+          monthIncomeItemId: row.monthIncomeItemId,
+          name: row.payload.name,
+          amountMonthly: row.payload.amountMonthly,
+          isActive: row.payload.isActive,
+          updateDefault: row.payload.updateDefault,
+          scope: row.payload.scope,
+        }),
+      );
+
+      return patchBudgetMonthIncomeItemsBulk(yearMonth, flatRows);
+    },
+    onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
+  });
+}
+
+export function useCreateBudgetMonthIncomeItem(yearMonth: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: CreateBudgetMonthIncomeItemRequestDto) =>
+      createBudgetMonthIncomeItem(yearMonth, payload),
+    onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
+  });
+}
+
+export function useDeleteBudgetMonthIncomeItem(yearMonth: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (monthIncomeItemId: string) =>
+      deleteBudgetMonthIncomeItem(yearMonth, monthIncomeItemId),
     onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
   });
 }

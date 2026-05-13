@@ -1,4 +1,7 @@
-import type { DashboardSummary } from "@/hooks/dashboard/dashboardSummary.types";
+import type {
+  DashboardBreakdown,
+  DashboardSummary,
+} from "@/hooks/dashboard/dashboardSummary.types";
 import { getCloseAvailabilityLabel } from "@/hooks/dashboard/getCloseAvailabilityLabel";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/lib/utils";
@@ -11,15 +14,21 @@ import OpenMonthPillarsGrid from "./openMonth/OpenMonthPillarsGrid";
 export interface ReturningDashboardSectionProps {
   onOpenPeriodEditor: () => void;
   onOpenFullExpenseEditor: () => void;
+  onOpenIncomeEditor: () => void;
+  onOpenFullIncomeEditor: () => void;
   isSwitchingMonth?: boolean;
   summary: DashboardSummary;
+  breakdown: DashboardBreakdown;
 }
 
 const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({
   onOpenPeriodEditor,
   onOpenFullExpenseEditor,
+  onOpenIncomeEditor,
+  onOpenFullIncomeEditor,
   isSwitchingMonth = false,
   summary,
+  breakdown,
 }) => {
   const locale = useAppLocale();
   const closeAvailability = getCloseAvailabilityLabel(summary.header, locale);
@@ -59,8 +68,11 @@ const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({
         >
           <OpenMonthPillarsGrid
             summary={summary}
+            breakdown={breakdown}
             onOpenPeriodEditor={onOpenPeriodEditor}
             onOpenFullExpenseEditor={onOpenFullExpenseEditor}
+            onOpenIncomeEditor={onOpenIncomeEditor}
+            onOpenFullIncomeEditor={onOpenFullIncomeEditor}
           />
         </div>
       </div>

@@ -8,12 +8,14 @@ import { tDict } from "@/utils/i18n/translate";
 type EditPeriodHeaderProps = {
   periodLabel: string;
   periodDateRangeLabel: string;
+  titleKey?: "title" | "incomeTitle";
   onClose: () => void;
 };
 
 const EditPeriodHeader: React.FC<EditPeriodHeaderProps> = ({
   periodLabel,
   periodDateRangeLabel,
+  titleKey = "title",
   onClose,
 }) => {
   const locale = useAppLocale();
@@ -32,7 +34,7 @@ const EditPeriodHeader: React.FC<EditPeriodHeaderProps> = ({
           </p>
 
           <h2 className="mt-1 text-xl font-extrabold tracking-tight text-eb-text sm:text-2xl">
-            {t("title")}
+            {t(titleKey)}
           </h2>
 
           <p className="mt-2 text-sm font-semibold text-eb-text/70">

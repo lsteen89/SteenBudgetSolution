@@ -62,6 +62,9 @@ const SettingsPage = lazy(
 const ExpensesEditorPage = lazy(
   () => import("@/Pages/private/expenses/ExpensesEditorPage"),
 );
+const IncomeEditorPage = lazy(
+  () => import("@/Pages/private/income/IncomeEditorPage"),
+);
 
 // Protected support
 const SupportPage = lazy(() => import("@/Pages/private/support/SupportPage"));
@@ -139,6 +142,10 @@ export default function AppRoutes() {
               <Route
                 path={appRoutes.expenses}
                 element={withLazy(<ExpensesEditorPage />)}
+              />
+              <Route
+                path={appRoutes.income}
+                element={withLazy(<IncomeEditorPage />)}
               />
             </Route>
           </Route>

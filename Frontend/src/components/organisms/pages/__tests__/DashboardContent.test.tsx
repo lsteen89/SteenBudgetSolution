@@ -72,8 +72,8 @@ vi.mock("@/stores/Budget/budgetMonthStore", () => ({
 }));
 
 vi.mock("@/components/organisms/dashboard/editPeriod/EditPeriodDrawer", () => ({
-  default: ({ open }: { open: boolean }) =>
-    open ? <div>Edit drawer open</div> : null,
+  default: ({ open, panel }: { open: boolean; panel?: string }) =>
+    open ? <div>Edit drawer open: {panel ?? "expenses"}</div> : null,
 }));
 
 function buildSummary(
@@ -339,6 +339,7 @@ function renderDashboardContentWithRoutes() {
           }
         />
         <Route path="/dashboard/expenses" element={<div>Expenses route</div>} />
+        <Route path="/dashboard/income" element={<div>Income route</div>} />
       </Routes>
     </MemoryRouter>,
   );
@@ -636,13 +637,73 @@ describe("DashboardContent", () => {
     expect(screen.getByText(/5 active/)).toHaveTextContent(/year/);
   });
 
+  it("shows a compact income source insight inside the income area", () => {
+    mockUseDashboardSummary.mockReturnValue({
+      ...readyResult,
+      data: {
+        ...readyResult.data,
+        breakdown: {
+          ...readyResult.data.breakdown,
+          incomeItems: [
+            {
+              key: "income:0:salary",
+              label: "Net salary",
+              amount: 42000.5,
+            },
+            {
+              key: "income:1:side:consulting",
+              label: "Consulting",
+              amount: 7000,
+            },
+            {
+              key: "income:2:member:partner",
+              label: "Partner",
+              amount: 5000,
+            },
+          ],
+        },
+      },
+    });
+
+    renderDashboardContent();
+
+    expect(screen.getByText("Income sources")).toBeInTheDocument();
+    expect(screen.getByText(/3 active/)).toHaveTextContent(/Net salary/);
+    expect(screen.getByText(/3 active/)).toHaveTextContent(/Other/);
+  });
+
+  it("does not invent an other-income value when only salary exists", () => {
+    mockUseDashboardSummary.mockReturnValue({
+      ...readyResult,
+      data: {
+        ...readyResult.data,
+        breakdown: {
+          ...readyResult.data.breakdown,
+          incomeItems: [
+            {
+              key: "income:0:salary",
+              label: "Net salary",
+              amount: 42000.5,
+            },
+          ],
+        },
+      },
+    });
+
+    renderDashboardContent();
+
+    expect(screen.getByText("Income sources")).toBeInTheDocument();
+    expect(screen.getByText(/1 active/)).toHaveTextContent(/Net salary/);
+    expect(screen.getByText(/1 active/)).not.toHaveTextContent(/Other/);
+  });
+
   it("shows quick and full edit actions in the expenses pillar", () => {
     mockUseDashboardSummary.mockReturnValue(readyResult);
 
     renderDashboardContent();
 
     expect(
-      screen.getByRole("button", { name: /quick adjust/i }),
+      screen.getByRole("button", { name: /quick adjust expenses/i }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /edit all expenses/i }),
@@ -654,9 +715,36 @@ describe("DashboardContent", () => {
 
     renderDashboardContent();
 
-    fireEvent.click(screen.getByRole("button", { name: /quick adjust/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /quick adjust expenses/i }),
+    );
 
-    expect(screen.getByText("Edit drawer open")).toBeInTheDocument();
+    expect(screen.getByText("Edit drawer open: expenses")).toBeInTheDocument();
+  });
+
+  it("shows quick and full edit actions in the income pillar", () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+
+    renderDashboardContent();
+
+    expect(
+      screen.getByRole("button", { name: /quick adjust income/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /edit all income/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("opens the income drawer from the quick income action", () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+
+    renderDashboardContent();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /quick adjust income/i }),
+    );
+
+    expect(screen.getByText("Edit drawer open: income")).toBeInTheDocument();
   });
 
   it("navigates to the full expense editor from the expenses pillar", () => {
@@ -669,22 +757,26 @@ describe("DashboardContent", () => {
     expect(screen.getByText("Expenses route")).toBeInTheDocument();
   });
 
-  it("does not expose working edit actions for income, savings or debts", () => {
+  it("navigates to the full income editor from the income pillar", () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+
+    renderDashboardContentWithRoutes();
+
+    fireEvent.click(screen.getByRole("button", { name: /edit all income/i }));
+
+    expect(screen.getByText("Income route")).toBeInTheDocument();
+  });
+
+  it("does not expose working edit actions for savings or debts", () => {
     mockUseDashboardSummary.mockReturnValue(readyResult);
 
     renderDashboardContent();
 
     expect(
-      screen.queryByRole("button", { name: /manage income/i }),
-    ).not.toBeInTheDocument();
-    expect(
       screen.queryByRole("button", { name: /manage savings/i }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /manage debts/i }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /adjust income/i }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /adjust savings/i }),
@@ -693,7 +785,7 @@ describe("DashboardContent", () => {
       screen.queryByRole("button", { name: /adjust debts/i }),
     ).not.toBeInTheDocument();
 
-    expect(screen.getAllByText("Coming soon")).toHaveLength(3);
+    expect(screen.getAllByText("Coming soon")).toHaveLength(2);
   });
 
   it("opens the close month modal from the month rail trigger with translated title", () => {
