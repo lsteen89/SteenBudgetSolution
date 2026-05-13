@@ -109,7 +109,7 @@ test("carry-over dashboard math reconciles after full close @smoke", async ({
 
   const full = await loginWithInitialDashboard(
     browser,
-    e2eUsers.closeModalSurplusCarryover,
+    e2eUsers.carryOverDashboard,
   );
 
   try {
