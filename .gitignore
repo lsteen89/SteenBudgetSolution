@@ -418,3 +418,5 @@ Frontend/playwright/.auth/
 
 #logs
 docs/ai/ai-changelog.md
+# Claude local worktrees
+.claude/worktrees/
