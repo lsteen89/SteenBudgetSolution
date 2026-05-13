@@ -340,6 +340,7 @@ function renderDashboardContentWithRoutes() {
         />
         <Route path="/dashboard/expenses" element={<div>Expenses route</div>} />
         <Route path="/dashboard/income" element={<div>Income route</div>} />
+        <Route path="/dashboard/savings" element={<div>Savings route</div>} />
       </Routes>
     </MemoryRouter>,
   );
@@ -767,25 +768,47 @@ describe("DashboardContent", () => {
     expect(screen.getByText("Income route")).toBeInTheDocument();
   });
 
-  it("does not expose working edit actions for savings or debts", () => {
+  it("exposes quick adjust and manage all actions for savings and leaves debts coming soon", () => {
     mockUseDashboardSummary.mockReturnValue(readyResult);
 
     renderDashboardContent();
 
     expect(
-      screen.queryByRole("button", { name: /manage savings/i }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: /quick adjust savings/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /manage all savings/i }),
+    ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /manage debts/i }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /adjust savings/i }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /adjust debts/i }),
     ).not.toBeInTheDocument();
 
-    expect(screen.getAllByText("Coming soon")).toHaveLength(2);
+    expect(screen.getAllByText("Coming soon")).toHaveLength(1);
+  });
+
+  it("opens the edit drawer with the savings panel from the savings pillar quick action", () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+
+    renderDashboardContent();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /quick adjust savings/i }),
+    );
+
+    expect(screen.getByText("Edit drawer open: savings")).toBeInTheDocument();
+  });
+
+  it("navigates to the full savings editor from the savings pillar secondary action", () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+
+    renderDashboardContentWithRoutes();
+
+    fireEvent.click(screen.getByRole("button", { name: /manage all savings/i }));
+
+    expect(screen.getByText("Savings route")).toBeInTheDocument();
   });
 
   it("opens the close month modal from the month rail trigger with translated title", () => {

@@ -16,6 +16,8 @@ export interface ReturningDashboardSectionProps {
   onOpenFullExpenseEditor: () => void;
   onOpenIncomeEditor: () => void;
   onOpenFullIncomeEditor: () => void;
+  onOpenSavingsEditor: () => void;
+  onOpenFullSavingsEditor: () => void;
   isSwitchingMonth?: boolean;
   summary: DashboardSummary;
   breakdown: DashboardBreakdown;
@@ -26,6 +28,8 @@ const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({
   onOpenFullExpenseEditor,
   onOpenIncomeEditor,
   onOpenFullIncomeEditor,
+  onOpenSavingsEditor,
+  onOpenFullSavingsEditor,
   isSwitchingMonth = false,
   summary,
   breakdown,
@@ -73,6 +77,8 @@ const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({
             onOpenFullExpenseEditor={onOpenFullExpenseEditor}
             onOpenIncomeEditor={onOpenIncomeEditor}
             onOpenFullIncomeEditor={onOpenFullIncomeEditor}
+            onOpenSavingsEditor={onOpenSavingsEditor}
+            onOpenFullSavingsEditor={onOpenFullSavingsEditor}
           />
         </div>
       </div>

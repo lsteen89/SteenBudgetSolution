@@ -8,9 +8,12 @@ const mockUseBudgetMonthEditor = vi.fn();
 const mockUsePatchBudgetMonthExpenseItemsBulk = vi.fn();
 const mockUseBudgetMonthIncomeItems = vi.fn();
 const mockUsePatchBudgetMonthIncomeItemsBulk = vi.fn();
+const mockUseBudgetMonthSavingsGoals = vi.fn();
+const mockUsePatchBudgetMonthSavingsGoalsBulk = vi.fn();
 const mockUseExpenseCategories = vi.fn();
 const mockMutateAsync = vi.fn();
 const mockIncomeMutateAsync = vi.fn();
+const mockSavingsMutateAsync = vi.fn();
 const mockToast = {
   success: vi.fn(),
   error: vi.fn(),
@@ -24,6 +27,10 @@ vi.mock("@hooks/budget/editPeriod/useMonthEditor", () => ({
     mockUseBudgetMonthIncomeItems(...args),
   usePatchBudgetMonthIncomeItemsBulk: (...args: unknown[]) =>
     mockUsePatchBudgetMonthIncomeItemsBulk(...args),
+  useBudgetMonthSavingsGoals: (...args: unknown[]) =>
+    mockUseBudgetMonthSavingsGoals(...args),
+  usePatchBudgetMonthSavingsGoalsBulk: (...args: unknown[]) =>
+    mockUsePatchBudgetMonthSavingsGoalsBulk(...args),
 }));
 
 vi.mock("@/hooks/budget/useExpenseCategories", () => ({
@@ -132,9 +139,12 @@ describe("EditPeriodDrawer subscription lifecycle", () => {
     mockUsePatchBudgetMonthExpenseItemsBulk.mockReset();
     mockUseBudgetMonthIncomeItems.mockReset();
     mockUsePatchBudgetMonthIncomeItemsBulk.mockReset();
+    mockUseBudgetMonthSavingsGoals.mockReset();
+    mockUsePatchBudgetMonthSavingsGoalsBulk.mockReset();
     mockUseExpenseCategories.mockReset();
     mockMutateAsync.mockReset();
     mockIncomeMutateAsync.mockReset();
+    mockSavingsMutateAsync.mockReset();
     mockToast.success.mockReset();
     mockToast.error.mockReset();
   });
@@ -281,5 +291,136 @@ describe("EditPeriodDrawer subscription lifecycle", () => {
         name: /what should this change apply to/i,
       }),
     ).not.toBeInTheDocument();
+  });
+
+  it("renders the savings panel when requested and saves with currentMonthOnly scope", async () => {
+    const savingsRowId = "77777777-7777-4777-8777-777777777777";
+    mockUseBudgetMonthSavingsGoals.mockReturnValue({
+      data: [
+        {
+          id: savingsRowId,
+          sourceSavingsGoalId: "88888888-8888-4888-8888-888888888888",
+          name: "Emergency fund",
+          targetAmount: 50000,
+          targetDate: "2026-12-31",
+          amountSaved: 10000,
+          monthlyContribution: 1500,
+          status: "active",
+          isDeleted: false,
+          isMonthOnly: false,
+          canUpdateDefault: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    });
+    mockUsePatchBudgetMonthSavingsGoalsBulk.mockReturnValue({
+      mutateAsync: mockSavingsMutateAsync.mockResolvedValue(undefined),
+      isPending: false,
+    });
+
+    render(
+      <MemoryRouter>
+        <EditPeriodDrawer
+          open
+          yearMonth="2026-04"
+          periodLabel="April 2026"
+          periodDateRangeLabel="Apr 1 - Apr 30"
+          panel="savings"
+          onClose={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Edit savings")).toBeInTheDocument();
+    expect(screen.getByText("Emergency fund")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Quick adjustments only affect April 2026. Want to change the budget plan going forward? Open planning.",
+      ),
+    ).toBeInTheDocument();
+    // Plan scope cards must not appear in the quick drawer
+    expect(
+      screen.queryByRole("radiogroup", {
+        name: /what should this change apply to/i,
+      }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Emergency fund"), {
+      target: { value: "1800" },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Save changes" })).not.toBeDisabled();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => {
+      expect(mockSavingsMutateAsync).toHaveBeenCalledWith([
+        {
+          monthSavingsGoalId: savingsRowId,
+          payload: {
+            monthlyContribution: 1800,
+            scope: "currentMonthOnly",
+          },
+        },
+      ]);
+    });
+  });
+
+  it("hides closed savings goals from the savings panel", () => {
+    mockUseBudgetMonthSavingsGoals.mockReturnValue({
+      data: [
+        {
+          id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          sourceSavingsGoalId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+          name: "Active goal",
+          targetAmount: 1000,
+          targetDate: null,
+          amountSaved: 0,
+          monthlyContribution: 100,
+          status: "active",
+          isDeleted: false,
+          isMonthOnly: false,
+          canUpdateDefault: true,
+        },
+        {
+          id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+          sourceSavingsGoalId: null,
+          name: "Already done",
+          targetAmount: 1000,
+          targetDate: null,
+          amountSaved: 1000,
+          monthlyContribution: 0,
+          status: "closed",
+          isDeleted: false,
+          isMonthOnly: true,
+          canUpdateDefault: false,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    });
+    mockUsePatchBudgetMonthSavingsGoalsBulk.mockReturnValue({
+      mutateAsync: mockSavingsMutateAsync,
+      isPending: false,
+    });
+
+    render(
+      <MemoryRouter>
+        <EditPeriodDrawer
+          open
+          yearMonth="2026-04"
+          periodLabel="April 2026"
+          periodDateRangeLabel="Apr 1 - Apr 30"
+          panel="savings"
+          onClose={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Active goal")).toBeInTheDocument();
+    expect(screen.queryByText("Already done")).not.toBeInTheDocument();
   });
 });

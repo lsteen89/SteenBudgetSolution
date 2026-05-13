@@ -8,6 +8,12 @@ export const editPeriodDrawerDict = {
     incomeMonthOnlyHelper:
       "Snabbjusteringar påverkar bara {month}. Vill du ändra budgetplanen framåt? Öppna planeringen.",
 
+    savingsTitle: "Sparande",
+    savingsDescription: "Justera månadsbelopp för dina sparmål.",
+    noSavingsGoals: "Det finns inga sparmål att snabbjustera.",
+    savingsMonthOnlyHelper:
+      "Snabbjusteringar påverkar bara {month}. Vill du ändra budgetplanen framåt? Öppna planeringen.",
+
     recurringExpensesTitle: "Rörliga kostnader",
     recurringExpensesDescription:
       "Justera månadens rörliga kostnader. Boende och fasta kostnader hanteras i planeringen.",
@@ -60,6 +66,12 @@ export const editPeriodDrawerDict = {
     incomeMonthOnlyHelper:
       "Quick adjustments only affect {month}. Want to change the budget plan going forward? Open planning.",
 
+    savingsTitle: "Savings",
+    savingsDescription: "Adjust monthly contributions for your savings goals.",
+    noSavingsGoals: "There are no savings goals to quick adjust.",
+    savingsMonthOnlyHelper:
+      "Quick adjustments only affect {month}. Want to change the budget plan going forward? Open planning.",
+
     recurringExpensesTitle: "Variable expenses",
     recurringExpensesDescription:
       "Adjust this month's variable expenses. Housing and fixed costs are managed in planning.",
@@ -109,6 +121,12 @@ export const editPeriodDrawerDict = {
     incomeDescription: "Kohanda avatud kuu tulu.",
     noIncomeItems: "Kiireks kohandamiseks pole tulukirjeid.",
     incomeMonthOnlyHelper:
+      "Kiirkohandused mõjutavad ainult perioodi {month}. Kui soovid eelarveplaani edaspidi muuta, ava planeerimine.",
+
+    savingsTitle: "Säästud",
+    savingsDescription: "Kohanda oma säästueesmärkide kuumakseid.",
+    noSavingsGoals: "Kiireks kohandamiseks pole säästueesmärke.",
+    savingsMonthOnlyHelper:
       "Kiirkohandused mõjutavad ainult perioodi {month}. Kui soovid eelarveplaani edaspidi muuta, ava planeerimine.",
 
     recurringExpensesTitle: "Muutuvad kulud",

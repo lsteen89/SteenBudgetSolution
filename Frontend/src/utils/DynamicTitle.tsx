@@ -21,6 +21,7 @@ const pathToKey: Record<string, TitleKey> = {
   "/dashboard": "dashboard",
   "/dashboard/expenses": "expenses",
   "/dashboard/income": "income",
+  "/dashboard/savings": "savings",
   "/dashboard/breakdown": "dashboardBreakdown",
   "/how-it-works": "howItWorks",
   "/email-verification-recovery": "emailConfirmationRecovery",

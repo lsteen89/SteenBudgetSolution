@@ -25,6 +25,8 @@ type Props = {
   onOpenFullExpenseEditor: () => void;
   onOpenIncomeEditor: () => void;
   onOpenFullIncomeEditor: () => void;
+  onOpenSavingsEditor: () => void;
+  onOpenFullSavingsEditor: () => void;
 };
 
 function buildIncomeInsight(
@@ -71,6 +73,8 @@ const OpenMonthPillarsGrid: React.FC<Props> = ({
   onOpenFullExpenseEditor,
   onOpenIncomeEditor,
   onOpenFullIncomeEditor,
+  onOpenSavingsEditor,
+  onOpenFullSavingsEditor,
 }) => {
   const locale = useAppLocale();
   const t = <K extends keyof typeof openMonthCommandCenterDict.sv>(key: K) =>
@@ -152,8 +156,12 @@ const OpenMonthPillarsGrid: React.FC<Props> = ({
           amount={fmt(summary.totalSavings)}
           description={summary.pillarDescriptions.savings || t("savingsHint")}
           icon={<PiggyBank className="h-5 w-5" />}
-          actionState="coming-soon"
-          stateLabel={comingSoon}
+          actionLabel={t("quickAdjustSavings")}
+          secondaryActionLabel={t("editAllSavings")}
+          actionState="available"
+          stateLabel={t("availableNow")}
+          onAction={onOpenSavingsEditor}
+          onSecondaryAction={onOpenFullSavingsEditor}
         />
         <OpenMonthPillarCard
           title={t("debtsTitle")}

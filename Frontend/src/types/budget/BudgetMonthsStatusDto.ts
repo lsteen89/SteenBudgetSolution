@@ -128,6 +128,37 @@ export type PatchBudgetMonthIncomeItemsBulkRequestDto = {
   items: PatchBudgetMonthIncomeItemBulkRowDto[];
 };
 
+export type SavingsGoalEditScope = ExpenseEditScope;
+
+export type BudgetMonthSavingsGoalEditorRowDto = {
+  id: string;
+  sourceSavingsGoalId: string | null;
+  name: string;
+  targetAmount: number | null;
+  targetDate: string | null;
+  amountSaved: number | null;
+  monthlyContribution: number;
+  status: string;
+  isDeleted: boolean;
+  isMonthOnly: boolean;
+  canUpdateDefault: boolean;
+};
+
+export type PatchBudgetMonthSavingsGoalRequestDto = {
+  monthlyContribution: number;
+  scope?: SavingsGoalEditScope | null;
+};
+
+export type PatchBudgetMonthSavingsGoalBulkRowDto = {
+  monthSavingsGoalId: string;
+  monthlyContribution: number;
+  scope?: SavingsGoalEditScope | null;
+};
+
+export type PatchBudgetMonthSavingsGoalsBulkRequestDto = {
+  items: PatchBudgetMonthSavingsGoalBulkRowDto[];
+};
+
 export type ApiErrorDto = {
   code: string;
   message: string;
