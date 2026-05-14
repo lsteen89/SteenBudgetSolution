@@ -709,7 +709,7 @@ public sealed class CloseBudgetMonthCommandHandlerTests
         var materializer = new BudgetMonthMaterializer(seedSource, materializationRepo, clock);
         var lifecycle = new BudgetMonthLifecycleService(months, materializer, clock);
         IDebtPaymentCalculator debtCalculator = new DebtPaymentCalculator();
-        IBudgetMonthlyTotalsService totals = new BudgetMonthlyTotalsService(monthDashRepo, debtCalculator);
+        IBudgetMonthlyTotalsService totals = new BudgetMonthlyTotalsService(monthDashRepo);
         var closeSnapshot = new BudgetMonthCloseSnapshotService(totals);
         var auditWriter = new BudgetAuditWriter(
             uow,

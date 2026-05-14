@@ -1,3 +1,5 @@
+using Backend.Application.Abstractions.Application.Services.Debts;
+using Backend.Application.Services.Debts;
 using Dapper;
 using MySqlConnector;
 
@@ -89,19 +91,42 @@ internal static class BudgetSeeds
 
 
 
-        await conn.ExecuteAsync("""
-            INSERT INTO Debt (Id, BudgetId, Name, Type, Balance, Apr, MonthlyFee, MinPayment, TermMonths, CreatedAt, CreatedByUserId)
-            VALUES
-            (UUID_TO_BIN(UUID()), @bid, 'Credit Card', 'revolving',    10000, 18.0, 20, 300, NULL, UTC_TIMESTAMP(), @pid),
-            (UUID_TO_BIN(UUID()), @bid, 'CSN',         'installment',   5000,  0.5, 10, NULL, 24,   UTC_TIMESTAMP(), @pid);
-        """, new { bid = budgetId, pid = persoid });
+        var creditCardPayment = ComputeDebtPayment(
+            type: "revolving", balance: 10000m, apr: 18m,
+            monthlyFee: 20m, minPayment: 300m, termMonths: null);
+        var csnPayment = ComputeDebtPayment(
+            type: "installment", balance: 5000m, apr: 0.5m,
+            monthlyFee: 10m, minPayment: null, termMonths: 24);
 
         await conn.ExecuteAsync("""
-            INSERT INTO Debt (Id, BudgetId, Name, Type, Balance, Apr, MonthlyFee, MinPayment, TermMonths, Status, ClosedAt, CreatedAt, CreatedByUserId)
+            INSERT INTO Debt (Id, BudgetId, Name, Type, Balance, Apr, MonthlyFee, MinPayment, TermMonths, MonthlyPayment, CreatedAt, CreatedByUserId)
             VALUES
-            (UUID_TO_BIN(UUID()), @bid, 'Old Closed Debt', 'installment', 9999, 1.0, 0, NULL, 12, 'closed', UTC_TIMESTAMP(), UTC_TIMESTAMP(), @pid);
-        """, new { bid = budgetId, pid = persoid });
+            (UUID_TO_BIN(UUID()), @bid, 'Credit Card', 'revolving',    10000, 18.0, 20, 300, NULL, @ccPayment, UTC_TIMESTAMP(), @pid),
+            (UUID_TO_BIN(UUID()), @bid, 'CSN',         'installment',   5000,  0.5, 10, NULL, 24,  @csnPayment, UTC_TIMESTAMP(), @pid);
+        """, new { bid = budgetId, pid = persoid, ccPayment = creditCardPayment, csnPayment = csnPayment });
+
+        var oldClosedPayment = ComputeDebtPayment(
+            type: "installment", balance: 9999m, apr: 1.0m,
+            monthlyFee: 0m, minPayment: null, termMonths: 12);
+
+        await conn.ExecuteAsync("""
+            INSERT INTO Debt (Id, BudgetId, Name, Type, Balance, Apr, MonthlyFee, MinPayment, TermMonths, MonthlyPayment, Status, ClosedAt, CreatedAt, CreatedByUserId)
+            VALUES
+            (UUID_TO_BIN(UUID()), @bid, 'Old Closed Debt', 'installment', 9999, 1.0, 0, NULL, 12, @payment, 'closed', UTC_TIMESTAMP(), UTC_TIMESTAMP(), @pid);
+        """, new { bid = budgetId, pid = persoid, payment = oldClosedPayment });
 
         return (Persoid: persoid, UserId: userId, BudgetId: budgetId);
     }
+
+    private static readonly IDebtPaymentCalculator DebtCalculator = new DebtPaymentCalculator();
+
+    private static decimal ComputeDebtPayment(
+        string type, decimal balance, decimal apr,
+        decimal? monthlyFee, decimal? minPayment, int? termMonths)
+        => DebtCalculator.CalculateMonthlyPayment(
+            new DebtSeedPaymentInput(type, balance, apr, minPayment, monthlyFee, termMonths));
+
+    private sealed record DebtSeedPaymentInput(
+        string Type, decimal Balance, decimal Apr,
+        decimal? MinPayment, decimal? MonthlyFee, int? TermMonths) : IDebtPaymentInput;
 }

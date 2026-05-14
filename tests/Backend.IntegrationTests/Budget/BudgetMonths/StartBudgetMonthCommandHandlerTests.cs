@@ -173,7 +173,7 @@ public sealed class StartBudgetMonthCommandHandlerTests
         var monthsRepo = new BudgetMonthRepository(uow, NullLogger<BudgetMonthRepository>.Instance, dbOpts);
         var monthDashRepo = new BudgetMonthDashboardRepository(uow, NullLogger<BudgetMonthDashboardRepository>.Instance, dbOpts, clock);
         var calc = new DebtPaymentCalculator();
-        var totalsSvc = new BudgetMonthlyTotalsService(monthDashRepo, calc);
+        var totalsSvc = new BudgetMonthlyTotalsService(monthDashRepo);
         var closeSnapshot = new BudgetMonthCloseSnapshotService(totalsSvc);
         var auditWriter = new BudgetAuditWriter(uow, NullLogger<BudgetAuditWriter>.Instance, dbOpts);
 

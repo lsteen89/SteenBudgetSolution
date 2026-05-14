@@ -227,7 +227,8 @@ public sealed partial class BudgetMonthRepository
         d.Apr,
         d.MonthlyFee,
         d.MinPayment,
-        CAST(d.TermMonths AS SIGNED) AS TermMonths
+        CAST(d.TermMonths AS SIGNED) AS TermMonths,
+        d.MonthlyPayment
     FROM BudgetMonthDebt d
     WHERE d.BudgetMonthId = @BudgetMonthId
       AND d.IsDeleted = 0

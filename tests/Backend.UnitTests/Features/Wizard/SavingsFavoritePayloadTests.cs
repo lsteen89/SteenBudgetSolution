@@ -163,8 +163,9 @@ public sealed class SavingsFavoritePayloadTests
         await target.ApplySavingsAsync(dto, CancellationToken.None);
 
         var readModelBuilder = new WizardPreviewReadModelBuilder(
-            new FakeTimeProvider(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)));
-        var projector = new BudgetDashboardProjector(new DebtPaymentCalculator());
+            new FakeTimeProvider(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)),
+            new DebtPaymentCalculator());
+        var projector = new BudgetDashboardProjector();
 
         BudgetDashboardDto preview = projector.Project(readModelBuilder.Build(target));
 

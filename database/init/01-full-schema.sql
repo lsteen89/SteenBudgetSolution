@@ -318,6 +318,7 @@ CREATE TABLE Debt (
     MonthlyFee      DECIMAL(18,2) NULL,
     MinPayment      DECIMAL(18,2) NULL,
     TermMonths      INT           NULL,
+    MonthlyPayment  DECIMAL(18,2) NOT NULL DEFAULT 0.00,
 
     OpenedAt        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     ClosedAt        DATETIME      NULL,

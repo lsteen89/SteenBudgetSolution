@@ -136,7 +136,8 @@ public sealed partial class BudgetMonthDashboardRepository
         Apr,
         MonthlyFee,
         MinPayment,
-        TermMonths
+        TermMonths,
+        MonthlyPayment
     FROM BudgetMonthDebt
     WHERE BudgetMonthId = @BudgetMonthId
     AND IsDeleted = 0

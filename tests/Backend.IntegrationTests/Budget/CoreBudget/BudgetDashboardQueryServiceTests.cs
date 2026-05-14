@@ -104,59 +104,6 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WhenOpenMonth_UsesInjectedDebtPaymentCalculator_SpyStub()
-    {
-        await _db.ResetAsync();
-
-        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
-        var persoid = seed.Persoid;
-        var budgetId = seed.BudgetId;
-
-        var ym = "2026-01";
-        await BudgetMonthSeeds.SeedOpenMonthAsync(
-            _db.ConnectionString,
-            budgetId,
-            ym,
-            carryOverMode: "none",
-            carryOverAmount: null,
-            createdByUserId: persoid
-        );
-
-        var clock = new FakeTimeProvider(new DateTime(2026, 01, 15, 12, 0, 0, DateTimeKind.Utc));
-        var spy = new SpyDebtPaymentCalculator(constant: 123m);
-
-        await using var sp = BuildServiceProvider(_db.ConnectionString, clock, spy);
-        await using var scope = sp.CreateAsyncScope();
-        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-
-        var result = await mediator.Send(
-            new GetBudgetDashboardMonthQuery(persoid, null),
-            CancellationToken.None);
-
-        using var _ = new AssertionScope();
-
-        result.IsFailure.Should().BeFalse();
-        var dto = result.Value!;
-        dto.Month.YearMonth.Should().Be(ym);
-        dto.LiveDashboard.Should().NotBeNull();
-
-        spy.CallCount.Should().Be(2);
-        spy.SeenTypes.Should().BeEquivalentTo(new[] { "revolving", "installment" });
-
-        var live = dto.LiveDashboard!;
-        live.BudgetId.Should().Be(budgetId);
-
-        live.Debt.Debts.Should().HaveCount(2);
-        live.Debt.Debts.Should().OnlyContain(d => d.MonthlyPayment == 123m);
-        live.Debt.TotalMonthlyPayments.Should().Be(246m);
-        live.Debt.TotalDebtBalance.Should().Be(15000m);
-
-        live.Income.TotalIncomeMonthly.Should().Be(32500m);
-        live.Expenditure.TotalExpensesMonthly.Should().Be(12000m);
-        live.Savings!.MonthlySavings.Should().Be(2500m);
-    }
-
-    [Fact]
     public async Task Handle_WhenClosedMonth_ReturnsSnapshot_AndNoLiveDashboard()
     {
         await _db.ResetAsync();
@@ -418,7 +365,7 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
             opts,
             clock);
 
-        var projector = new BudgetDashboardProjector(debtCalc);
+        var projector = new BudgetDashboardProjector();
 
         var users = new UserRepository(
             uow,
@@ -454,22 +401,6 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
         public DateTime UtcNow { get; }
     }
 
-    private sealed class SpyDebtPaymentCalculator : IDebtPaymentCalculator
-    {
-        private readonly decimal _constant;
-
-        public int CallCount { get; private set; }
-        public string[] SeenTypes { get; private set; } = Array.Empty<string>();
-
-        public SpyDebtPaymentCalculator(decimal constant) => _constant = constant;
-
-        public decimal CalculateMonthlyPayment(IDebtPaymentInput input)
-        {
-            CallCount++;
-            SeenTypes = SeenTypes.Concat(new[] { input.Type }).ToArray();
-            return _constant;
-        }
-    }
     private static async Task SetIncomePaymentTimingAsync(
     string cs,
     Guid budgetId,
@@ -563,7 +494,7 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
 
         services.AddScoped<IBudgetMonthMaterializer, BudgetMonthMaterializer>();
         services.AddScoped<IBudgetMonthLifecycleService, BudgetMonthLifecycleService>();
-        services.AddScoped<IBudgetDashboardProjector>(_ => new BudgetDashboardProjector(debtCalc));
+        services.AddScoped<IBudgetDashboardProjector>(_ => new BudgetDashboardProjector());
 
         services.AddMediatR(cfg =>
         {

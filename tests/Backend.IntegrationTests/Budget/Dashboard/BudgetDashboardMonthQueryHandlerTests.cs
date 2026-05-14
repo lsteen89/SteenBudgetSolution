@@ -343,44 +343,6 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
     }
 
     [Fact]
-    public async Task UsesInjectedDebtPaymentCalculator_SpyStub_ForLiveDashboard()
-    {
-        await _db.ResetAsync();
-
-        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
-        var persoid = seed.Persoid;
-        var userId = seed.UserId;
-        var budgetId = seed.BudgetId;
-
-        await BudgetMonthDsl.InsertOpenAsync(
-            cs: _db.ConnectionString,
-            budgetId: budgetId,
-            ym: "2026-01",
-            openedAtUtc: new DateTime(2026, 01, 01, 08, 00, 00, DateTimeKind.Utc),
-            createdByUserId: userId);
-
-        var spy = new SpyDebtPaymentCalculator(constant: 123m);
-        var clock = new FakeTimeProvider(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
-
-        await using var sp = BuildServiceProvider(_db.ConnectionString, clock, spy);
-        await using var scope = sp.CreateAsyncScope();
-        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-
-        var result = await mediator.Send(
-            new GetBudgetDashboardMonthQuery(persoid, "2026-01"),
-            CancellationToken.None);
-
-        result.IsFailure.Should().BeFalse();
-
-        spy.CallCount.Should().Be(2);
-        spy.SeenTypes.Should().BeEquivalentTo(new[] { "revolving", "installment" });
-
-        var live = result.Value!.LiveDashboard!;
-        live.Debt.Debts.Should().HaveCount(2);
-        live.Debt.Debts.Should().OnlyContain(d => d.MonthlyPayment == 123m);
-        live.Debt.TotalMonthlyPayments.Should().Be(246m);
-    }
-    [Fact]
     public async Task OpenMonth_IncludesGoalMonthlyContribution_AndAffectsTotals()
     {
         await _db.ResetAsync();
@@ -743,22 +705,6 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
         public DateTime UtcNow { get; }
     }
 
-    private sealed class SpyDebtPaymentCalculator : IDebtPaymentCalculator
-    {
-        private readonly decimal _constant;
-        public int CallCount { get; private set; }
-        public string[] SeenTypes { get; private set; } = Array.Empty<string>();
-
-        public SpyDebtPaymentCalculator(decimal constant) => _constant = constant;
-
-        public decimal CalculateMonthlyPayment(IDebtPaymentInput input)
-        {
-            CallCount++;
-            SeenTypes = SeenTypes.Concat(new[] { input.Type }).ToArray();
-            return _constant;
-        }
-    }
-
     private static async Task<Guid> InsertBaselineIncomeAsync(
         string cs,
         Guid budgetId,
@@ -887,7 +833,7 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
 
         services.AddScoped<IBudgetMonthMaterializer, BudgetMonthMaterializer>();
         services.AddScoped<IBudgetMonthLifecycleService, BudgetMonthLifecycleService>();
-        services.AddScoped<IBudgetDashboardProjector>(_ => new BudgetDashboardProjector(debtCalc));
+        services.AddScoped<IBudgetDashboardProjector>(_ => new BudgetDashboardProjector());
 
         services.AddMediatR(cfg =>
         {

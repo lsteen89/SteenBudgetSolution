@@ -107,7 +107,8 @@ public sealed partial class BudgetDashboardRepository
         Apr,
         MonthlyFee,
         MinPayment,
-        TermMonths
+        TermMonths,
+        MonthlyPayment
     FROM Debt
     WHERE BudgetId = @BudgetId
     AND Status = 'active'

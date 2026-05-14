@@ -93,13 +93,15 @@ public sealed class WizardPreviewTest
         var currentUser = new TestCurrentUserContext { Persoid = persoid };
         ITimeProvider time = new FakeTimeProvider(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
 
+        var debtCalc = new DebtPaymentCalculator();
+
         // real repos
         var monthsRepo = new BudgetMonthRepository(uow, NullLogger<BudgetMonthRepository>.Instance, dbOpts);
         var dashRepo = new BudgetDashboardRepository(uow, NullLogger<BudgetDashboardRepository>.Instance, dbOpts, time);
         var incomeRepo = new IncomeRepository(uow, NullLogger<IncomeRepository>.Instance, currentUser, dbOpts);
         var expRepo = new ExpenditureRepository(uow, NullLogger<ExpenditureRepository>.Instance, currentUser, dbOpts);
         var budgetRepo = new BudgetRepository(uow, NullLogger<BudgetRepository>.Instance, currentUser, dbOpts);
-        var debtRepo = new DebtsRepository(uow, NullLogger<DebtsRepository>.Instance, currentUser, dbOpts);
+        var debtRepo = new DebtsRepository(uow, NullLogger<DebtsRepository>.Instance, currentUser, debtCalc, dbOpts);
         var savingsRepo = new SavingsRepository(uow, NullLogger<SavingsRepository>.Instance, currentUser, dbOpts);
         var seedSource = new BudgetMonthSeedSourceRepository(uow, NullLogger<BudgetMonthSeedSourceRepository>.Instance, dbOpts);
         var materializationRepo = new BudgetMonthMaterializationRepository(uow, NullLogger<BudgetMonthMaterializationRepository>.Instance, dbOpts);
@@ -118,9 +120,8 @@ public sealed class WizardPreviewTest
         var wizardRepo = new WizardRepository(uow, NullLogger<WizardRepository>.Instance, dbOpts);
         IWizardStepOrchestrator orchestrator = new WizardStepOrchestrator(wizardRepo, processors);
         // preview pipeline
-        var previewBuilder = new WizardPreviewReadModelBuilder(time);
-        var debtCalc = new DebtPaymentCalculator();
-        var projector = new BudgetDashboardProjector(debtCalc);
+        var previewBuilder = new WizardPreviewReadModelBuilder(time, debtCalc);
+        var projector = new BudgetDashboardProjector();
         var userRepo = new UserRepository(uow, NullLogger<UserRepository>.Instance, dbOpts);
         var previewHandler = new GetWizardFinalizationPreviewQueryHandler(orchestrator, previewBuilder, projector);
 
@@ -262,7 +263,7 @@ public sealed class WizardPreviewTest
 
         services.AddScoped<IBudgetMonthMaterializer, BudgetMonthMaterializer>();
         services.AddScoped<IBudgetMonthLifecycleService, BudgetMonthLifecycleService>();
-        services.AddScoped<IBudgetDashboardProjector>(_ => new BudgetDashboardProjector(debtCalc));
+        services.AddScoped<IBudgetDashboardProjector>(_ => new BudgetDashboardProjector());
 
         services.AddMediatR(cfg =>
         {

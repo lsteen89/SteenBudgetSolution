@@ -1154,7 +1154,7 @@ public sealed class BudgetMonthExpenseItemEditorTests
             time);
 
         IDebtPaymentCalculator debtCalc = new DebtPaymentCalculator();
-        IBudgetMonthlyTotalsService totalsSvc = new BudgetMonthlyTotalsService(monthDashRepo, debtCalc);
+        IBudgetMonthlyTotalsService totalsSvc = new BudgetMonthlyTotalsService(monthDashRepo);
 
         var lifecycle = new BudgetMonthLifecycleService(
             monthsRepo,
@@ -1198,7 +1198,7 @@ public sealed class BudgetMonthExpenseItemEditorTests
             changeEventRepo,
             TimeProvider.System);
 
-        var projector = new BudgetDashboardProjector(debtCalc);
+        var projector = new BudgetDashboardProjector();
 
         var users = new UserRepository(
             uow,

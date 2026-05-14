@@ -1,3 +1,4 @@
+using Backend.Application.Abstractions.Application.Services.Debts;
 using Backend.Application.Constants;
 using Backend.Application.DTO.Budget.Months;
 using Backend.Application.Features.Budgets.Months.Recap;
@@ -1314,7 +1315,7 @@ public sealed class BudgetMonthRecapQueryHandlerTests
         var uow = new UnitOfWork(opts, NullLogger<UnitOfWork>.Instance);
         var repo = new BudgetMonthRepository(uow, NullLogger<BudgetMonthRepository>.Instance, opts);
 
-        return new GetBudgetMonthRecapQueryHandler(repo, new DebtPaymentCalculator());
+        return new GetBudgetMonthRecapQueryHandler(repo);
     }
 
     private Task InsertClosedMonthWithSnapshotAsync(
@@ -1695,6 +1696,10 @@ public sealed class BudgetMonthRecapQueryHandlerTests
             """,
             new { BudgetId = budgetId, YearMonth = yearMonth });
 
+        var monthlyPayment = new DebtPaymentCalculator()
+            .CalculateMonthlyPayment(
+                new MonthDebtSeedInput(type, balance, apr, minPayment, monthlyFee, termMonths));
+
         if (sourceDebtId is Guid sourceId)
         {
             await conn.ExecuteAsync(
@@ -1710,6 +1715,7 @@ public sealed class BudgetMonthRecapQueryHandlerTests
                     MonthlyFee,
                     MinPayment,
                     TermMonths,
+                    MonthlyPayment,
                     CreatedByUserId
                 )
                 VALUES
@@ -1723,6 +1729,7 @@ public sealed class BudgetMonthRecapQueryHandlerTests
                     @MonthlyFee,
                     @MinPayment,
                     @TermMonths,
+                    @MonthlyPayment,
                     @CreatedByUserId
                 )
                 ON DUPLICATE KEY UPDATE Id = Id;
@@ -1738,6 +1745,7 @@ public sealed class BudgetMonthRecapQueryHandlerTests
                     MonthlyFee = monthlyFee,
                     MinPayment = minPayment,
                     TermMonths = termMonths,
+                    MonthlyPayment = monthlyPayment,
                     CreatedByUserId = createdByUserId
                 });
         }
@@ -1756,6 +1764,7 @@ public sealed class BudgetMonthRecapQueryHandlerTests
                 MonthlyFee,
                 MinPayment,
                 TermMonths,
+                MonthlyPayment,
                 OpenedAt,
                 Status,
                 IsOverride,
@@ -1776,6 +1785,7 @@ public sealed class BudgetMonthRecapQueryHandlerTests
                 @MonthlyFee,
                 @MinPayment,
                 @TermMonths,
+                @MonthlyPayment,
                 UTC_TIMESTAMP(),
                 'active',
                 0,
@@ -1795,6 +1805,7 @@ public sealed class BudgetMonthRecapQueryHandlerTests
                 Apr = apr,
                 MonthlyFee = monthlyFee,
                 MinPayment = minPayment,
+                MonthlyPayment = monthlyPayment,
                 TermMonths = termMonths,
                 CreatedByUserId = createdByUserId
             });
@@ -1829,4 +1840,8 @@ public sealed class BudgetMonthRecapQueryHandlerTests
                 UserId = userId
             });
     }
+
+    private sealed record MonthDebtSeedInput(
+        string Type, decimal Balance, decimal Apr,
+        decimal? MinPayment, decimal? MonthlyFee, int? TermMonths) : IDebtPaymentInput;
 }
