@@ -35,6 +35,7 @@ using Backend.Infrastructure.Repositories.Budget.Months.Editor.ChangeEvent;
 using Backend.Infrastructure.Repositories.Budget.Months.Editor.Expense;
 using Backend.Infrastructure.Repositories.Budget.Months.Editor.Income;
 using Backend.Infrastructure.Repositories.Budget.Months.Editor.Savings;
+using Backend.Infrastructure.Repositories.Budget.Months.Editor.Debts;
 using Backend.Infrastructure.Repositories.Budget.Months.Materializer;
 using Backend.Infrastructure.Repositories.Budget.Months.Seed;
 using Backend.Infrastructure.Repositories.Email;
@@ -135,6 +136,7 @@ public static class DependencyInjection
         services.AddScoped<IBudgetMonthExpenseItemMutationRepository, BudgetMonthExpenseItemMutationRepository>();
         services.AddScoped<IBudgetMonthIncomeItemMutationRepository, BudgetMonthIncomeItemMutationRepository>();
         services.AddScoped<IBudgetMonthSavingsGoalMutationRepository, BudgetMonthSavingsGoalMutationRepository>();
+        services.AddScoped<IBudgetMonthDebtMutationRepository, BudgetMonthDebtMutationRepository>();
         services.AddScoped<IBudgetMonthChangeEventRepository, BudgetMonthChangeEventRepository>();
         services.AddScoped<IBudgetAuditWriter, BudgetAuditWriter>();
         // Wizard

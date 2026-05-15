@@ -3,9 +3,12 @@ import {
   createBudgetMonthIncomeItem,
   deleteBudgetMonthExpenseItem,
   deleteBudgetMonthIncomeItem,
+  getBudgetMonthDebts,
   getBudgetMonthIncomeItems,
   getBudgetMonthSavingsGoals,
   getBudgetMonthEditor,
+  patchBudgetMonthDebt,
+  patchBudgetMonthDebtsBulk,
   patchBudgetMonthExpenseItem,
   patchBudgetMonthExpenseItemsBulk,
   patchBudgetMonthIncomeItem,
@@ -16,6 +19,8 @@ import {
 import type {
   CreateBudgetMonthExpenseItemRequestDto,
   CreateBudgetMonthIncomeItemRequestDto,
+  PatchBudgetMonthDebtBulkRowDto,
+  PatchBudgetMonthDebtRequestDto,
   PatchBudgetMonthExpenseItemBulkRowDto,
   PatchBudgetMonthExpenseItemRequestDto,
   PatchBudgetMonthIncomeItemBulkRowDto,
@@ -254,6 +259,65 @@ export function useDeleteBudgetMonthExpenseItem(yearMonth: string) {
   return useMutation({
     mutationFn: (monthExpenseItemId: string) =>
       deleteBudgetMonthExpenseItem(yearMonth, monthExpenseItemId),
+    onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
+  });
+}
+
+export function useBudgetMonthDebts(
+  yearMonth: string | undefined,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: monthEditorQueryKeys.debtItems(yearMonth ?? ""),
+    queryFn: () => {
+      if (!yearMonth) {
+        throw new Error("Missing yearMonth.");
+      }
+
+      return getBudgetMonthDebts(yearMonth);
+    },
+    enabled: enabled && !!yearMonth,
+  });
+}
+
+export function usePatchBudgetMonthDebt(yearMonth: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      monthDebtId,
+      payload,
+    }: {
+      monthDebtId: string;
+      payload: PatchBudgetMonthDebtRequestDto;
+    }) => patchBudgetMonthDebt(yearMonth, monthDebtId, payload),
+    onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
+  });
+}
+
+/**
+ * Transactional bulk patch. Sends one PATCH request to
+ * `/api/budgets/months/{yearMonth}/debt-items`; the backend either applies
+ * every row or rolls back the whole transaction.
+ */
+export function usePatchBudgetMonthDebtsBulk(yearMonth: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (
+      rows: Array<{
+        monthDebtId: string;
+        payload: PatchBudgetMonthDebtRequestDto;
+      }>,
+    ) => {
+      const flatRows: PatchBudgetMonthDebtBulkRowDto[] = rows.map((row) => ({
+        monthDebtId: row.monthDebtId,
+        monthlyPayment: row.payload.monthlyPayment,
+        scope: row.payload.scope,
+      }));
+
+      return patchBudgetMonthDebtsBulk(yearMonth, flatRows);
+    },
     onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
   });
 }

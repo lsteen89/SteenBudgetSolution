@@ -159,6 +159,40 @@ export type PatchBudgetMonthSavingsGoalsBulkRequestDto = {
   items: PatchBudgetMonthSavingsGoalBulkRowDto[];
 };
 
+export type DebtEditScope = ExpenseEditScope;
+
+export type BudgetMonthDebtEditorRowDto = {
+  id: string;
+  sourceDebtId: string | null;
+  name: string;
+  type: string;
+  balance: number;
+  apr: number;
+  monthlyFee: number | null;
+  minPayment: number | null;
+  termMonths: number | null;
+  monthlyPayment: number;
+  status: string;
+  isDeleted: boolean;
+  isMonthOnly: boolean;
+  canUpdateDefault: boolean;
+};
+
+export type PatchBudgetMonthDebtRequestDto = {
+  monthlyPayment: number;
+  scope?: DebtEditScope | null;
+};
+
+export type PatchBudgetMonthDebtBulkRowDto = {
+  monthDebtId: string;
+  monthlyPayment: number;
+  scope?: DebtEditScope | null;
+};
+
+export type PatchBudgetMonthDebtsBulkRequestDto = {
+  items: PatchBudgetMonthDebtBulkRowDto[];
+};
+
 export type ApiErrorDto = {
   code: string;
   message: string;

@@ -3,11 +3,15 @@ import { api } from "@/api/axios";
 import { unwrapEnvelopeData } from "@/api/envelope";
 import type {
   BudgetMonthEditorDto,
+  BudgetMonthDebtEditorRowDto,
   BudgetMonthIncomeItemEditorRowDto,
   BudgetMonthExpenseItemEditorRowDto,
   BudgetMonthSavingsGoalEditorRowDto,
   CreateBudgetMonthIncomeItemRequestDto,
   CreateBudgetMonthExpenseItemRequestDto,
+  PatchBudgetMonthDebtBulkRowDto,
+  PatchBudgetMonthDebtRequestDto,
+  PatchBudgetMonthDebtsBulkRequestDto,
   PatchBudgetMonthIncomeItemBulkRowDto,
   PatchBudgetMonthIncomeItemRequestDto,
   PatchBudgetMonthIncomeItemsBulkRequestDto,
@@ -195,4 +199,48 @@ export async function patchBudgetMonthSavingsGoalsBulk(
   >(`/api/budgets/months/${yearMonth}/savings-goals`, payload);
 
   return unwrapEnvelopeData(res, "Could not update month savings goals.");
+}
+
+export async function getBudgetMonthDebts(
+  yearMonth: string,
+): Promise<BudgetMonthDebtEditorRowDto[]> {
+  const res = await api.get<
+    ApiEnvelope<BudgetMonthDebtEditorRowDto[]>
+  >(`/api/budgets/months/${yearMonth}/debt-items`, {
+    headers: {
+      "Cache-Control": "no-cache",
+    },
+  });
+
+  return unwrapEnvelopeData(res, "Could not load month debts.");
+}
+
+export async function patchBudgetMonthDebt(
+  yearMonth: string,
+  monthDebtId: string,
+  payload: PatchBudgetMonthDebtRequestDto,
+): Promise<BudgetMonthDebtEditorRowDto> {
+  const res = await api.patch<
+    ApiEnvelope<BudgetMonthDebtEditorRowDto>
+  >(`/api/budgets/months/${yearMonth}/debt-items/${monthDebtId}`, payload);
+
+  return unwrapEnvelopeData(res, "Could not update month debt.");
+}
+
+/**
+ * Transactional bulk patch. Sends one PATCH request to
+ * `/api/budgets/months/{yearMonth}/debt-items`; the backend either applies
+ * every row or rolls back the whole transaction.
+ */
+export async function patchBudgetMonthDebtsBulk(
+  yearMonth: string,
+  rows: PatchBudgetMonthDebtBulkRowDto[],
+): Promise<BudgetMonthDebtEditorRowDto[]> {
+  const payload: PatchBudgetMonthDebtsBulkRequestDto = { items: rows };
+
+  const res = await api.patch<
+    ApiEnvelope<BudgetMonthDebtEditorRowDto[]>
+  >(`/api/budgets/months/${yearMonth}/debt-items`, payload);
+
+  return unwrapEnvelopeData(res, "Could not update month debts.");
 }
