@@ -1,6 +1,4 @@
 using Backend.Application.Abstractions.Application.Services.Budget;
-using Backend.Application.Abstractions.Application.Services.Debts;
-using Backend.Application.Features.Budgets.Dashboard;
 using Backend.Application.Abstractions.Infrastructure.Data;
 
 namespace Backend.Application.Services.Budget.Compute;
@@ -8,14 +6,10 @@ namespace Backend.Application.Services.Budget.Compute;
 public sealed class BudgetMonthlyTotalsService : IBudgetMonthlyTotalsService
 {
     private readonly IBudgetMonthDashboardRepository _repo;
-    private readonly IDebtPaymentCalculator _calc;
 
-    public BudgetMonthlyTotalsService(
-        IBudgetMonthDashboardRepository repo,
-        IDebtPaymentCalculator calc)
+    public BudgetMonthlyTotalsService(IBudgetMonthDashboardRepository repo)
     {
         _repo = repo;
-        _calc = calc;
     }
 
     public async Task<MonthlyTotalsResult?> ComputeAsync(Guid budgetMonthId, CancellationToken ct)
@@ -34,11 +28,7 @@ public sealed class BudgetMonthlyTotalsService : IBudgetMonthlyTotalsService
         var goal = data.Savings?.Goals.Sum(g => g.MonthlyContribution) ?? 0m;
         var totalSavings = habit + goal;
 
-        var totalDebtPayments = data.Debt.Debts.Sum(d =>
-            _calc.CalculateMonthlyPayment(
-                new DebtForCalc(d.Type, d.Balance, d.Apr, d.MinPayment, d.MonthlyFee, d.TermMonths)
-            )
-        );
+        var totalDebtPayments = data.Debt.Debts.Sum(d => d.MonthlyPayment);
 
         return new MonthlyTotalsResult(
             BudgetMonthId: budgetMonthId,

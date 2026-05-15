@@ -221,6 +221,7 @@ public sealed partial class BudgetMonthMaterializationRepository : SqlBase, IBud
             x.MonthlyFee,
             x.MinPayment,
             x.TermMonths,
+            x.MonthlyPayment,
             x.OpenedAt,
             x.Status,
             x.ClosedAt,

@@ -116,7 +116,7 @@ public sealed partial class BudgetDashboardRepository : SqlBase, IBudgetDashboar
 
         var debtOverview = new DashboardDebtOverviewRm(
             TotalDebtBalance: totals.TotalDebtBalance,
-            TotalMonthlyPayments: debts.Sum(d => d.MinPayment ?? 0m),
+            TotalMonthlyPayments: debts.Sum(d => d.MonthlyPayment),
             RepaymentStrategy: RepaymentStrategy.Unknown,
             Debts: debts
         );

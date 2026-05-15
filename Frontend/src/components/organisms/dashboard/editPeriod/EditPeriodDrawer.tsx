@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { editPeriodDrawerDict } from "@/utils/i18n/pages/private/dashboard/cards/period/editPeriodDrawer.i18n";
 import { tDict } from "@/utils/i18n/translate";
 
+import DebtsPanel from "./debts/DebtsPanel";
 import EditPeriodHeader from "./EditPeriodHeader";
 import ExpensesPanel from "./expense/ExpensesPanel";
 import IncomePanel from "./income/IncomePanel";
@@ -15,13 +16,13 @@ type EditPeriodDrawerProps = {
   yearMonth: string;
   periodLabel: string;
   periodDateRangeLabel: string;
-  panel?: "expenses" | "income" | "savings";
+  panel?: "expenses" | "income" | "savings" | "debts";
   onClose: () => void;
 };
 
 /**
  * Modal-style drawer that hosts the period editor. Hosts the expenses, income,
- * and savings quick panels behind the same shell. Debt will plug in later.
+ * savings, and debts quick panels behind the same shell.
  */
 const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
   open,
@@ -101,7 +102,9 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
                 ? "incomeTitle"
                 : panel === "savings"
                   ? "savingsTitle"
-                  : "title"
+                  : panel === "debts"
+                    ? "debtsTitle"
+                    : "title"
             }
             onClose={onClose}
           />
@@ -115,6 +118,13 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
             />
           ) : panel === "savings" ? (
             <SavingsPanel
+              open={open}
+              yearMonth={yearMonth}
+              periodLabel={periodLabel}
+              onClose={onClose}
+            />
+          ) : panel === "debts" ? (
+            <DebtsPanel
               open={open}
               yearMonth={yearMonth}
               periodLabel={periodLabel}

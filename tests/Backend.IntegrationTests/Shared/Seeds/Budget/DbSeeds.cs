@@ -1,6 +1,8 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Backend.Application.Abstractions.Application.Services.Debts;
+using Backend.Application.Services.Debts;
 using Dapper;
 using MySqlConnector;
 
@@ -226,19 +228,58 @@ internal static class DbSeeds
             LIMIT 1;
         """, new { bid = budgetId, pid = persoid });
 
-        // Debts
-        await conn.ExecuteAsync("""
-            INSERT INTO Debt (Id, BudgetId, Name, Type, Balance, Apr, MonthlyFee, MinPayment, TermMonths, CreatedAt, CreatedByUserId)
-            VALUES
-            (UUID_TO_BIN(UUID()), UNHEX(REPLACE(@bid,'-','')), 'Credit Card', 'revolving',  10000, 18.0, 20, 300, NULL, UTC_TIMESTAMP(), UNHEX(REPLACE(@pid,'-',''))),
-            (UUID_TO_BIN(UUID()), UNHEX(REPLACE(@bid,'-','')), 'CSN',         'installment', 5000,  0.5, 10, NULL, 24,   UTC_TIMESTAMP(), UNHEX(REPLACE(@pid,'-','')));
-        """, new { bid = budgetId.ToString(), pid = persoid.ToString() } /*, tx */);
+        // Debts. MonthlyPayment is the authoritative planned payment column;
+        // seed it with the calculator output so dashboard / recap / totals
+        // tests see the same numbers they would have computed on the fly
+        // under the old (calculator-driven) read path.
+        var creditCardPayment = ComputeDebtPayment(
+            type: "revolving", balance: 10000m, apr: 18m,
+            monthlyFee: 20m, minPayment: 300m, termMonths: null);
+        var csnPayment = ComputeDebtPayment(
+            type: "installment", balance: 5000m, apr: 0.5m,
+            monthlyFee: 10m, minPayment: null, termMonths: 24);
 
-        // Closed debt example
         await conn.ExecuteAsync("""
-            INSERT INTO Debt (Id, BudgetId, Name, Type, Balance, Apr, MonthlyFee, MinPayment, TermMonths, Status, ClosedAt, CreatedAt, CreatedByUserId)
+            INSERT INTO Debt (Id, BudgetId, Name, Type, Balance, Apr, MonthlyFee, MinPayment, TermMonths, MonthlyPayment, CreatedAt, CreatedByUserId)
             VALUES
-            (UUID_TO_BIN(UUID()), UNHEX(REPLACE(@bid,'-','')), 'Old Closed Debt', 'installment', 9999, 1.0, 0, NULL, 12, 'closed', UTC_TIMESTAMP(), UTC_TIMESTAMP(), UNHEX(REPLACE(@pid,'-','')));
-        """, new { bid = budgetId.ToString(), pid = persoid.ToString() } /*, tx */);
+            (UUID_TO_BIN(UUID()), UNHEX(REPLACE(@bid,'-','')), 'Credit Card', 'revolving',  10000, 18.0, 20, 300, NULL, @ccPayment, UTC_TIMESTAMP(), UNHEX(REPLACE(@pid,'-',''))),
+            (UUID_TO_BIN(UUID()), UNHEX(REPLACE(@bid,'-','')), 'CSN',         'installment', 5000,  0.5, 10, NULL, 24,  @csnPayment, UTC_TIMESTAMP(), UNHEX(REPLACE(@pid,'-','')));
+        """, new
+        {
+            bid = budgetId.ToString(),
+            pid = persoid.ToString(),
+            ccPayment = creditCardPayment,
+            csnPayment = csnPayment
+        } /*, tx */);
+
+        // Closed debt example. Status='closed' rows are excluded from active
+        // listings, so MonthlyPayment is functionally irrelevant; seed it for
+        // schema consistency.
+        var oldClosedPayment = ComputeDebtPayment(
+            type: "installment", balance: 9999m, apr: 1.0m,
+            monthlyFee: 0m, minPayment: null, termMonths: 12);
+
+        await conn.ExecuteAsync("""
+            INSERT INTO Debt (Id, BudgetId, Name, Type, Balance, Apr, MonthlyFee, MinPayment, TermMonths, MonthlyPayment, Status, ClosedAt, CreatedAt, CreatedByUserId)
+            VALUES
+            (UUID_TO_BIN(UUID()), UNHEX(REPLACE(@bid,'-','')), 'Old Closed Debt', 'installment', 9999, 1.0, 0, NULL, 12, @payment, 'closed', UTC_TIMESTAMP(), UTC_TIMESTAMP(), UNHEX(REPLACE(@pid,'-','')));
+        """, new
+        {
+            bid = budgetId.ToString(),
+            pid = persoid.ToString(),
+            payment = oldClosedPayment
+        } /*, tx */);
     }
+
+    private static readonly IDebtPaymentCalculator DebtCalculator = new DebtPaymentCalculator();
+
+    private static decimal ComputeDebtPayment(
+        string type, decimal balance, decimal apr,
+        decimal? monthlyFee, decimal? minPayment, int? termMonths)
+        => DebtCalculator.CalculateMonthlyPayment(
+            new DebtSeedPaymentInput(type, balance, apr, minPayment, monthlyFee, termMonths));
+
+    private sealed record DebtSeedPaymentInput(
+        string Type, decimal Balance, decimal Apr,
+        decimal? MinPayment, decimal? MonthlyFee, int? TermMonths) : IDebtPaymentInput;
 }

@@ -341,6 +341,7 @@ function renderDashboardContentWithRoutes() {
         <Route path="/dashboard/expenses" element={<div>Expenses route</div>} />
         <Route path="/dashboard/income" element={<div>Income route</div>} />
         <Route path="/dashboard/savings" element={<div>Savings route</div>} />
+        <Route path="/dashboard/debts" element={<div>Debts route</div>} />
       </Routes>
     </MemoryRouter>,
   );
@@ -768,7 +769,7 @@ describe("DashboardContent", () => {
     expect(screen.getByText("Income route")).toBeInTheDocument();
   });
 
-  it("exposes quick adjust and manage all actions for savings and leaves debts coming soon", () => {
+  it("exposes quick adjust and manage all actions for savings and debts", () => {
     mockUseDashboardSummary.mockReturnValue(readyResult);
 
     renderDashboardContent();
@@ -780,13 +781,13 @@ describe("DashboardContent", () => {
       screen.getByRole("button", { name: /manage all savings/i }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /manage debts/i }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: /quick adjust debts/i }),
+    ).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /adjust debts/i }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: /manage all debts/i }),
+    ).toBeInTheDocument();
 
-    expect(screen.getAllByText("Coming soon")).toHaveLength(1);
+    expect(screen.queryByText("Coming soon")).toBeNull();
   });
 
   it("opens the edit drawer with the savings panel from the savings pillar quick action", () => {
@@ -809,6 +810,28 @@ describe("DashboardContent", () => {
     fireEvent.click(screen.getByRole("button", { name: /manage all savings/i }));
 
     expect(screen.getByText("Savings route")).toBeInTheDocument();
+  });
+
+  it("opens the edit drawer with the debts panel from the debts pillar quick action", () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+
+    renderDashboardContent();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /quick adjust debts/i }),
+    );
+
+    expect(screen.getByText("Edit drawer open: debts")).toBeInTheDocument();
+  });
+
+  it("navigates to the full debts editor from the debts pillar secondary action", () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+
+    renderDashboardContentWithRoutes();
+
+    fireEvent.click(screen.getByRole("button", { name: /manage all debts/i }));
+
+    expect(screen.getByText("Debts route")).toBeInTheDocument();
   });
 
   it("opens the close month modal from the month rail trigger with translated title", () => {

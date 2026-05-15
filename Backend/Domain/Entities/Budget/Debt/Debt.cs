@@ -14,6 +14,8 @@
         public decimal? MinPayment { get; set; } // The minimum payment required for the debt each month
         public int? TermMonths { get; set; } // The term of the debt in months, if applicable
 
+        public decimal MonthlyPayment { get; set; } // The planned monthly payment for the debt (editable; seeded from DebtPaymentCalculator on materialization)
+
         public DateTime CreatedAt { get; set; } // The date and time when the debt was created
         public DateTime? UpdatedAt { get; set; } // The date and time when the debt was last updated
 

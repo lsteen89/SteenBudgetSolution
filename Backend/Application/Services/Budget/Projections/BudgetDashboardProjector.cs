@@ -1,4 +1,3 @@
-using Backend.Application.Abstractions.Application.Services.Debts;
 using Backend.Application.DTO.Budget.Dashboard;
 using Backend.Application.Features.Budgets.Dashboard;
 using Backend.Application.Abstractions.Application.Services.Budget.Projections;
@@ -8,10 +7,6 @@ namespace Backend.Application.Services.Budget.Projections;
 
 public sealed class BudgetDashboardProjector : IBudgetDashboardProjector
 {
-    private readonly IDebtPaymentCalculator _calc;
-
-    public BudgetDashboardProjector(IDebtPaymentCalculator calc)
-        => _calc = calc;
 
     public BudgetDashboardDto Project(BudgetDashboardReadModel data, decimal carryOverAmount = 0m)
     {
@@ -80,8 +75,7 @@ public sealed class BudgetDashboardProjector : IBudgetDashboardProjector
             Type = d.Type,
             Balance = d.Balance,
             Apr = d.Apr,
-            MonthlyPayment = _calc.CalculateMonthlyPayment(
-                new DebtForCalc(d.Type, d.Balance, d.Apr, d.MinPayment, d.MonthlyFee, d.TermMonths))
+            MonthlyPayment = d.MonthlyPayment
         }).ToList();
 
     private static SavingsOverviewDto? BuildSavings(BudgetDashboardReadModel data)

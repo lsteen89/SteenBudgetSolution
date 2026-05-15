@@ -1,3 +1,4 @@
+using Backend.Application.Abstractions.Application.Services.Debts;
 using Backend.Application.Features.Budgets.Dashboard;
 using Backend.Domain.Entities.Budget.Debt;
 using Backend.Domain.Entities.Budget.Expenses;
@@ -11,10 +12,14 @@ namespace Backend.Application.Features.Wizard.FinalizationPreview.Mapper;
 public sealed class WizardPreviewReadModelBuilder : IWizardPreviewReadModelBuilder
 {
     private readonly ITimeProvider _clock;
+    private readonly IDebtPaymentCalculator _debtPaymentCalculator;
 
-    public WizardPreviewReadModelBuilder(ITimeProvider clock)
+    public WizardPreviewReadModelBuilder(
+        ITimeProvider clock,
+        IDebtPaymentCalculator debtPaymentCalculator)
     {
         _clock = clock;
+        _debtPaymentCalculator = debtPaymentCalculator;
     }
 
     public BudgetDashboardReadModel Build(PreviewBudgetTarget target)
@@ -93,12 +98,13 @@ public sealed class WizardPreviewReadModelBuilder : IWizardPreviewReadModelBuild
                 Apr: d.Apr,
                 MonthlyFee: d.MonthlyFee,
                 MinPayment: d.MinPayment,
-                TermMonths: d.TermMonths
+                TermMonths: d.TermMonths,
+                MonthlyPayment: _debtPaymentCalculator.CalculateMonthlyPayment(new PreviewDebtInput(d))
             ))
             .ToList();
 
         var totalDebtBalance = debts.Sum(x => x.Balance);
-        var totalDebtPayments = debts.Sum(x => x.MinPayment ?? 0m);
+        var totalDebtPayments = debts.Sum(x => x.MonthlyPayment);
 
         var debtRm = new DashboardDebtOverviewRm(
             TotalDebtBalance: totalDebtBalance,
@@ -204,5 +210,13 @@ public sealed class WizardPreviewReadModelBuilder : IWizardPreviewReadModelBuild
             ? name
             : categoryId.ToString();
 
-
+    private sealed record PreviewDebtInput(Debt Debt) : IDebtPaymentInput
+    {
+        public string Type => Debt.Type ?? string.Empty;
+        public decimal Balance => Debt.Balance;
+        public decimal Apr => Debt.Apr;
+        public decimal? MinPayment => Debt.MinPayment;
+        public decimal? MonthlyFee => Debt.MonthlyFee;
+        public int? TermMonths => Debt.TermMonths;
+    }
 }

@@ -91,6 +91,7 @@ public sealed partial class BudgetMonthSeedSourceRepository
         MonthlyFee,
         MinPayment,
         TermMonths,
+        MonthlyPayment,
         OpenedAt,
         Status,
         ClosedAt,

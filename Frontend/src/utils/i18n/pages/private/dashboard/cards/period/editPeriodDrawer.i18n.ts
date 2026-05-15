@@ -14,6 +14,14 @@ export const editPeriodDrawerDict = {
     savingsMonthOnlyHelper:
       "Snabbjusteringar påverkar bara {month}. Vill du ändra budgetplanen framåt? Öppna planeringen.",
 
+    debtsTitle: "Skulder",
+    debtsDescription: "Justera planerad månadsbetalning för dina skulder.",
+    noDebts: "Det finns inga skulder att snabbjustera.",
+    debtsMonthOnlyHelper:
+      "Snabbjusteringar påverkar bara {month}. Vill du ändra budgetplanen framåt? Öppna planeringen.",
+    debtsPlannedNote:
+      "Här ändras bara planerad betalning. Saldo uppdateras inte här.",
+
     recurringExpensesTitle: "Rörliga kostnader",
     recurringExpensesDescription:
       "Justera månadens rörliga kostnader. Boende och fasta kostnader hanteras i planeringen.",
@@ -72,6 +80,14 @@ export const editPeriodDrawerDict = {
     savingsMonthOnlyHelper:
       "Quick adjustments only affect {month}. Want to change the budget plan going forward? Open planning.",
 
+    debtsTitle: "Debts",
+    debtsDescription: "Adjust the planned monthly payment for your debts.",
+    noDebts: "There are no debts to quick adjust.",
+    debtsMonthOnlyHelper:
+      "Quick adjustments only affect {month}. Want to change the budget plan going forward? Open planning.",
+    debtsPlannedNote:
+      "Only the planned payment changes here. Balances are not updated by this flow.",
+
     recurringExpensesTitle: "Variable expenses",
     recurringExpensesDescription:
       "Adjust this month's variable expenses. Housing and fixed costs are managed in planning.",
@@ -128,6 +144,14 @@ export const editPeriodDrawerDict = {
     noSavingsGoals: "Kiireks kohandamiseks pole säästueesmärke.",
     savingsMonthOnlyHelper:
       "Kiirkohandused mõjutavad ainult perioodi {month}. Kui soovid eelarveplaani edaspidi muuta, ava planeerimine.",
+
+    debtsTitle: "Võlad",
+    debtsDescription: "Kohanda võlgade planeeritud kuumakset.",
+    noDebts: "Kiireks kohandamiseks pole võlgu.",
+    debtsMonthOnlyHelper:
+      "Kiirkohandused mõjutavad ainult perioodi {month}. Kui soovid eelarveplaani edaspidi muuta, ava planeerimine.",
+    debtsPlannedNote:
+      "Siin muudetakse ainult planeeritud makset. Jääki see vaade ei uuenda.",
 
     recurringExpensesTitle: "Muutuvad kulud",
     recurringExpensesDescription:

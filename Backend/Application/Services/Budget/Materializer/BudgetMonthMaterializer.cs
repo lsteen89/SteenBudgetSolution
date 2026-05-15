@@ -208,6 +208,7 @@ public sealed class BudgetMonthMaterializer : IBudgetMonthMaterializer
                     MonthlyFee: x.MonthlyFee,
                     MinPayment: x.MinPayment,
                     TermMonths: x.TermMonths,
+                    MonthlyPayment: x.MonthlyPayment,
                     OpenedAt: x.OpenedAt,
                     Status: x.Status,
                     ClosedAt: x.ClosedAt,

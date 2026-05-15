@@ -1,6 +1,7 @@
 using System.Data.Common;
 using System.Globalization;
 using System.Text.Json;
+using Backend.Application.Abstractions.Application.Services.Debts;
 using Backend.Application.Abstractions.Application.Services.Budget;
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Application.Abstractions.Infrastructure.System;
@@ -14,6 +15,7 @@ internal sealed class BudgetTimelineSeeder
     private readonly IMediator _mediator;
     private readonly IBudgetMonthLifecycleService _monthLifecycle;
     private readonly IBudgetMonthCloseSnapshotService _closeSnapshot;
+    private readonly IDebtPaymentCalculator _debtPaymentCalculator;
     private readonly ITimeProvider _clock;
 
     public BudgetTimelineSeeder(
@@ -21,12 +23,14 @@ internal sealed class BudgetTimelineSeeder
         IMediator mediator,
         IBudgetMonthLifecycleService monthLifecycle,
         IBudgetMonthCloseSnapshotService closeSnapshot,
+        IDebtPaymentCalculator debtPaymentCalculator,
         ITimeProvider clock)
     {
         _uow = uow;
         _mediator = mediator;
         _monthLifecycle = monthLifecycle;
         _closeSnapshot = closeSnapshot;
+        _debtPaymentCalculator = debtPaymentCalculator;
         _clock = clock;
     }
 
@@ -583,11 +587,19 @@ internal sealed class BudgetTimelineSeeder
 
         foreach (var debt in debts)
         {
+            var monthlyPayment = CalculateMonthlyPayment(
+                debt.Type,
+                debt.Balance,
+                debt.Apr,
+                debt.MinPayment,
+                debt.MonthlyFee,
+                debt.TermMonths);
+
             await ExecuteAsync(
                 @"INSERT INTO Debt
-                  (Id, BudgetId, Name, Type, Balance, Apr, MonthlyFee, MinPayment, TermMonths, CreatedByUserId)
+                  (Id, BudgetId, Name, Type, Balance, Apr, MonthlyFee, MinPayment, TermMonths, MonthlyPayment, CreatedByUserId)
                   VALUES
-                  (@Id, @BudgetId, @Name, @Type, @Balance, @Apr, @MonthlyFee, @MinPayment, @TermMonths, @Persoid);",
+                  (@Id, @BudgetId, @Name, @Type, @Balance, @Apr, @MonthlyFee, @MinPayment, @TermMonths, @MonthlyPayment, @Persoid);",
                 new Dictionary<string, object?>
                 {
                     ["Id"] = Guid.NewGuid(),
@@ -599,6 +611,7 @@ internal sealed class BudgetTimelineSeeder
                     ["MonthlyFee"] = debt.MonthlyFee,
                     ["MinPayment"] = debt.MinPayment,
                     ["TermMonths"] = debt.TermMonths,
+                    ["MonthlyPayment"] = monthlyPayment,
                     ["Persoid"] = persoid
                 },
                 ct);
@@ -1585,9 +1598,13 @@ internal sealed class BudgetTimelineSeeder
             SELECT
                 Id,
                 SourceDebtId,
+                Type,
                 Balance,
+                Apr,
                 MinPayment,
-                MonthlyFee
+                MonthlyFee,
+                TermMonths,
+                MonthlyPayment
             FROM BudgetMonthDebt
             WHERE BudgetMonthId = @BudgetMonthId
               AND Name = @DebtName
@@ -1600,9 +1617,13 @@ internal sealed class BudgetTimelineSeeder
 
         Guid entityId;
         Guid? sourceEntityId;
+        string debtType;
         decimal oldBalance;
+        decimal oldApr;
         decimal? oldMinPayment;
         decimal? oldMonthlyFee;
+        int? oldTermMonths;
+        decimal oldMonthlyPayment;
 
         await using (var reader = await lookup.ExecuteReaderAsync(ct))
         {
@@ -1614,23 +1635,40 @@ internal sealed class BudgetTimelineSeeder
 
             entityId = reader.GetGuid(0);
             sourceEntityId = reader.IsDBNull(1) ? null : reader.GetGuid(1);
-            oldBalance = reader.GetDecimal(2);
-            oldMinPayment = reader.IsDBNull(3) ? null : reader.GetDecimal(3);
-            oldMonthlyFee = reader.IsDBNull(4) ? null : reader.GetDecimal(4);
+            debtType = reader.GetString(2);
+            oldBalance = reader.GetDecimal(3);
+            oldApr = reader.GetDecimal(4);
+            oldMinPayment = reader.IsDBNull(5) ? null : reader.GetDecimal(5);
+            oldMonthlyFee = reader.IsDBNull(6) ? null : reader.GetDecimal(6);
+            oldTermMonths = reader.IsDBNull(7) ? null : reader.GetInt32(7);
+            oldMonthlyPayment = reader.GetDecimal(8);
         }
 
         var newBalance = balance ?? oldBalance;
         var newMinPayment = minPayment ?? oldMinPayment;
         var newMonthlyFee = monthlyFee ?? oldMonthlyFee;
+        var newMonthlyPayment = CalculateMonthlyPayment(
+            debtType,
+            newBalance,
+            oldApr,
+            newMinPayment,
+            newMonthlyFee,
+            oldTermMonths);
 
-        if (oldBalance == newBalance && oldMinPayment == newMinPayment && oldMonthlyFee == newMonthlyFee)
+        if (oldBalance == newBalance &&
+            oldMinPayment == newMinPayment &&
+            oldMonthlyFee == newMonthlyFee &&
+            oldMonthlyPayment == newMonthlyPayment)
+        {
             return;
+        }
 
         await ExecuteAsync(
             @"UPDATE BudgetMonthDebt
               SET Balance = @Balance,
                   MinPayment = @MinPayment,
                   MonthlyFee = @MonthlyFee,
+                  MonthlyPayment = @MonthlyPayment,
                   IsOverride = 1,
                   UpdatedAt = @ChangedAtUtc,
                   UpdatedByUserId = @ActorPersoid
@@ -1640,6 +1678,7 @@ internal sealed class BudgetTimelineSeeder
                 ["Balance"] = newBalance,
                 ["MinPayment"] = newMinPayment,
                 ["MonthlyFee"] = newMonthlyFee,
+                ["MonthlyPayment"] = newMonthlyPayment,
                 ["ChangedAtUtc"] = changedAtUtc,
                 ["ActorPersoid"] = actorPersoid,
                 ["EntityId"] = entityId
@@ -1659,14 +1698,16 @@ internal sealed class BudgetTimelineSeeder
                     Name = debtName,
                     Balance = oldBalance,
                     MinPayment = oldMinPayment,
-                    MonthlyFee = oldMonthlyFee
+                    MonthlyFee = oldMonthlyFee,
+                    MonthlyPayment = oldMonthlyPayment
                 },
                 after = new
                 {
                     Name = debtName,
                     Balance = newBalance,
                     MinPayment = newMinPayment,
-                    MonthlyFee = newMonthlyFee
+                    MonthlyFee = newMonthlyFee,
+                    MonthlyPayment = newMonthlyPayment
                 }
             },
             changedByUserId: actorPersoid,
@@ -1797,6 +1838,14 @@ internal sealed class BudgetTimelineSeeder
         CancellationToken ct)
     {
         var entityId = Guid.NewGuid();
+        var monthlyPayment = CalculateMonthlyPayment(
+            debt.Type,
+            debt.Balance,
+            debt.Apr,
+            debt.MinPayment,
+            debt.MonthlyFee,
+            debt.TermMonths);
+
         var sortOrder = await QueryIntAsync(
             @"SELECT COALESCE(MAX(SortOrder), -1) + 1
               FROM BudgetMonthDebt
@@ -1820,6 +1869,7 @@ internal sealed class BudgetTimelineSeeder
                   MonthlyFee,
                   MinPayment,
                   TermMonths,
+                  MonthlyPayment,
                   OpenedAt,
                   Status,
                   IsOverride,
@@ -1840,6 +1890,7 @@ internal sealed class BudgetTimelineSeeder
                   @MonthlyFee,
                   @MinPayment,
                   @TermMonths,
+                  @MonthlyPayment,
                   @ChangedAtUtc,
                   'active',
                   1,
@@ -1859,6 +1910,7 @@ internal sealed class BudgetTimelineSeeder
                 ["MonthlyFee"] = debt.MonthlyFee,
                 ["MinPayment"] = debt.MinPayment,
                 ["TermMonths"] = debt.TermMonths,
+                ["MonthlyPayment"] = monthlyPayment,
                 ["SortOrder"] = sortOrder,
                 ["ChangedAtUtc"] = changedAtUtc,
                 ["ActorPersoid"] = actorPersoid
@@ -1883,6 +1935,7 @@ internal sealed class BudgetTimelineSeeder
                     debt.MonthlyFee,
                     debt.MinPayment,
                     debt.TermMonths,
+                    MonthlyPayment = monthlyPayment,
                     IsMonthOnly = true
                 }
             },
@@ -1890,6 +1943,16 @@ internal sealed class BudgetTimelineSeeder
             changedAtUtc: changedAtUtc,
             ct: ct);
     }
+
+    private decimal CalculateMonthlyPayment(
+        string type,
+        decimal balance,
+        decimal apr,
+        decimal? minPayment,
+        decimal? monthlyFee,
+        int? termMonths)
+        => _debtPaymentCalculator.CalculateMonthlyPayment(
+            new SeedDebtPaymentInput(type, balance, apr, minPayment, monthlyFee, termMonths));
 
     private async Task<BudgetTimelineExpenseMonthRow> GetExpenseRowAsync(
         Guid budgetMonthId,
@@ -2452,3 +2515,11 @@ internal sealed record BudgetTimelineIncomeMonthRow(
     string Name,
     decimal Amount,
     bool IsActive);
+
+internal sealed record SeedDebtPaymentInput(
+    string Type,
+    decimal Balance,
+    decimal Apr,
+    decimal? MinPayment,
+    decimal? MonthlyFee,
+    int? TermMonths) : IDebtPaymentInput;

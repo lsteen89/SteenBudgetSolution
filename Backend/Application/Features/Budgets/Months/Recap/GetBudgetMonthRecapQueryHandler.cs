@@ -1,9 +1,7 @@
-using Backend.Application.Abstractions.Application.Services.Debts;
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Application.Abstractions.Messaging;
 using Backend.Application.DTO.Budget.Months;
 using Backend.Application.DTO.Budget.Months.Recap;
-using Backend.Application.Features.Budgets.Dashboard;
 using Backend.Application.Features.Budgets.Months.Helpers;
 using Backend.Application.Features.Budgets.Months.Models;
 using Backend.Domain.Errors.Budget;
@@ -15,14 +13,10 @@ public sealed class GetBudgetMonthRecapQueryHandler
     : IQueryHandler<GetBudgetMonthRecapQuery, Result<BudgetMonthRecapDto?>>
 {
     private readonly IBudgetMonthRepository _months;
-    private readonly IDebtPaymentCalculator _debtPaymentCalculator;
 
-    public GetBudgetMonthRecapQueryHandler(
-        IBudgetMonthRepository months,
-        IDebtPaymentCalculator debtPaymentCalculator)
+    public GetBudgetMonthRecapQueryHandler(IBudgetMonthRepository months)
     {
         _months = months;
-        _debtPaymentCalculator = debtPaymentCalculator;
     }
 
     public async Task<Result<BudgetMonthRecapDto?>> Handle(
@@ -455,12 +449,12 @@ public sealed class GetBudgetMonthRecapQueryHandler
             .GroupBy(x => x.SourceDebtId!.Value)
             .ToDictionary(
                 x => x.Key,
-                x => x.Sum(CalculateMonthlyPayment));
+                x => x.Sum(d => d.MonthlyPayment));
 
         var debts = currentDebts
             .Select(debt =>
             {
-                var monthlyPayment = CalculateMonthlyPayment(debt);
+                var monthlyPayment = debt.MonthlyPayment;
                 var previousPayment = hasPreviousComparableMonth &&
                                       debt.SourceDebtId is Guid sourceDebtId &&
                                       previousPaymentBySource.TryGetValue(sourceDebtId, out var amount)
@@ -495,16 +489,6 @@ public sealed class GetBudgetMonthRecapQueryHandler
             ActiveDebts: debts,
             HasPreviousComparableMonth: hasPreviousComparableMonth);
     }
-
-    private decimal CalculateMonthlyPayment(BudgetMonthDebtRm debt)
-        => _debtPaymentCalculator.CalculateMonthlyPayment(
-            new DebtForCalc(
-                debt.Type,
-                debt.Balance,
-                debt.Apr,
-                debt.MinPayment,
-                debt.MonthlyFee,
-                ToNullableInt(debt.TermMonths)));
 
     private static int? ToNullableInt(long? value)
         => value is null ? null : Convert.ToInt32(value.Value);

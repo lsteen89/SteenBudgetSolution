@@ -106,3 +106,22 @@ public static class BudgetMonthSavingsGoalEditScopes
     public static bool WritesBudgetPlan(string scope)
         => scope == CurrentMonthAndBudgetPlan || scope == BudgetPlanOnly;
 }
+
+public static class BudgetMonthDebtEditScopes
+{
+    public const string CurrentMonthOnly = "currentMonthOnly";
+    public const string CurrentMonthAndBudgetPlan = "currentMonthAndBudgetPlan";
+    public const string BudgetPlanOnly = "budgetPlanOnly";
+
+    public static bool IsSupported(string? value)
+        => value is null ||
+           value == CurrentMonthOnly ||
+           value == CurrentMonthAndBudgetPlan ||
+           value == BudgetPlanOnly;
+
+    public static bool WritesCurrentMonth(string scope)
+        => scope == CurrentMonthOnly || scope == CurrentMonthAndBudgetPlan;
+
+    public static bool WritesBudgetPlan(string scope)
+        => scope == CurrentMonthAndBudgetPlan || scope == BudgetPlanOnly;
+}

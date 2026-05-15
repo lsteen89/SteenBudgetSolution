@@ -19,4 +19,5 @@ export const appRoutes = {
   expenses: "/dashboard/expenses",
   income: "/dashboard/income",
   savings: "/dashboard/savings",
+  debts: "/dashboard/debts",
 } as const;

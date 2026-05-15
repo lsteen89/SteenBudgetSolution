@@ -151,7 +151,7 @@ public sealed class BudgetMonthLifecycleTests
         var dashRepo = new BudgetMonthDashboardRepository(uow, NullLogger<BudgetMonthDashboardRepository>.Instance, dbOpts, time);
 
         IDebtPaymentCalculator calc = new DebtPaymentCalculator();
-        IBudgetMonthlyTotalsService totalsSvc = new BudgetMonthlyTotalsService(dashRepo, calc);
+        IBudgetMonthlyTotalsService totalsSvc = new BudgetMonthlyTotalsService(dashRepo);
         var closeSnapshot = new BudgetMonthCloseSnapshotService(totalsSvc);
         var auditWriter = new BudgetAuditWriter(uow, NullLogger<BudgetAuditWriter>.Instance, dbOpts);
 
@@ -277,7 +277,7 @@ public sealed class BudgetMonthLifecycleTests
         var dashRepo = new BudgetMonthDashboardRepository(uow, NullLogger<BudgetMonthDashboardRepository>.Instance, dbOpts, time);
 
         IDebtPaymentCalculator calc = new DebtPaymentCalculator();
-        IBudgetMonthlyTotalsService totalsSvc = new BudgetMonthlyTotalsService(dashRepo, calc);
+        IBudgetMonthlyTotalsService totalsSvc = new BudgetMonthlyTotalsService(dashRepo);
         var closeSnapshot = new BudgetMonthCloseSnapshotService(totalsSvc);
         var auditWriter = new BudgetAuditWriter(uow, NullLogger<BudgetAuditWriter>.Instance, dbOpts);
 
@@ -342,7 +342,7 @@ public sealed class BudgetMonthLifecycleTests
         var dashRepo = new BudgetMonthDashboardRepository(uow, NullLogger<BudgetMonthDashboardRepository>.Instance, dbOpts, time);
 
         IDebtPaymentCalculator calc = new DebtPaymentCalculator();
-        IBudgetMonthlyTotalsService totalsSvc = new BudgetMonthlyTotalsService(dashRepo, calc);
+        IBudgetMonthlyTotalsService totalsSvc = new BudgetMonthlyTotalsService(dashRepo);
         var closeSnapshot = new BudgetMonthCloseSnapshotService(totalsSvc);
         var auditWriter = new BudgetAuditWriter(uow, NullLogger<BudgetAuditWriter>.Instance, dbOpts);
 

@@ -10,6 +10,7 @@ public sealed record BudgetMonthDebtSeedInsertModel(
     decimal? MonthlyFee,
     decimal? MinPayment,
     int? TermMonths,
+    decimal MonthlyPayment,
     DateTime OpenedAt,
     string Status,
     DateTime? ClosedAt,

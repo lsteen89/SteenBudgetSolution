@@ -38,7 +38,8 @@ public sealed record DashboardDebtRm(
     decimal Apr,
     decimal? MonthlyFee,
     decimal? MinPayment,
-    int? TermMonths
+    int? TermMonths,
+    decimal MonthlyPayment
 );
 
 public sealed record DashboardSavingsGoalRm(

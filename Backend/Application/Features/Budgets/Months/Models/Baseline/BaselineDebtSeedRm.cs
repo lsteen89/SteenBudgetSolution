@@ -9,6 +9,7 @@ public sealed record BaselineDebtSeedRm(
     decimal? MonthlyFee,
     decimal? MinPayment,
     int? TermMonths,
+    decimal MonthlyPayment,
     DateTime OpenedAt,
     string Status,
     DateTime? ClosedAt,

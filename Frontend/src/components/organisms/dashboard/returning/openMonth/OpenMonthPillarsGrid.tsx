@@ -27,6 +27,8 @@ type Props = {
   onOpenFullIncomeEditor: () => void;
   onOpenSavingsEditor: () => void;
   onOpenFullSavingsEditor: () => void;
+  onOpenDebtsEditor: () => void;
+  onOpenFullDebtsEditor: () => void;
 };
 
 function buildIncomeInsight(
@@ -75,13 +77,14 @@ const OpenMonthPillarsGrid: React.FC<Props> = ({
   onOpenFullIncomeEditor,
   onOpenSavingsEditor,
   onOpenFullSavingsEditor,
+  onOpenDebtsEditor,
+  onOpenFullDebtsEditor,
 }) => {
   const locale = useAppLocale();
   const t = <K extends keyof typeof openMonthCommandCenterDict.sv>(key: K) =>
     tDict(key, locale, openMonthCommandCenterDict);
   const fmt = (amount: number) =>
     formatMoneyV2(amount, summary.currency, locale);
-  const comingSoon = t("comingSoon");
   const hasSubscriptions =
     summary.subscriptionsCount > 0 && summary.subscriptionsTotal > 0;
   const subscriptionInsight = hasSubscriptions
@@ -168,8 +171,12 @@ const OpenMonthPillarsGrid: React.FC<Props> = ({
           amount={fmt(summary.totalDebtPayments)}
           description={summary.pillarDescriptions.debts || t("debtsHint")}
           icon={<CreditCard className="h-5 w-5" />}
-          actionState="coming-soon"
-          stateLabel={comingSoon}
+          actionLabel={t("quickAdjustDebts")}
+          secondaryActionLabel={t("editAllDebts")}
+          actionState="available"
+          stateLabel={t("availableNow")}
+          onAction={onOpenDebtsEditor}
+          onSecondaryAction={onOpenFullDebtsEditor}
         />
       </div>
     </section>
