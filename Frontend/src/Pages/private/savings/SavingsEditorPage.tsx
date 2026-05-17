@@ -1,5 +1,4 @@
 import BudgetEditorPageShell from "@/components/molecules/forms/budgetEditor/BudgetEditorPageShell";
-import BudgetEditorWorkspaceBar from "@/components/molecules/forms/budgetEditor/BudgetEditorWorkspaceBar";
 import {
   useBudgetMonthSavingsGoals,
   usePatchBudgetMonthSavingsGoal,
@@ -18,8 +17,10 @@ import { canEditMonth } from "@/utils/budget/periodEditor/canShowUpdateDefault";
 import { savingsEditorPageDict } from "@/utils/i18n/pages/private/savings/SavingsEditorPage.i18n";
 import { tDict } from "@/utils/i18n/translate";
 import { useMemo, useState } from "react";
+import SavingsGoalCardsList from "./components/SavingsGoalCardsList";
 import SavingsGoalContributionModal from "./components/SavingsGoalContributionModal";
-import SavingsGoalLedgerSection from "./components/SavingsGoalLedgerSection";
+import SavingsSoulHero from "./components/SavingsSoulHero";
+import { aggregateSavingsHero, getMonthStartDate } from "./utils/savingsSoul";
 
 export default function SavingsEditorPage() {
   const locale = useAppLocale();
@@ -64,14 +65,17 @@ export default function SavingsEditorPage() {
   );
   const readOnly = openMonth ? !canEditMonth(true, openMonth.status) : true;
   const rows = (savingsQuery.data ?? []).filter((row) => !row.isDeleted);
-  const total = rows.reduce((sum, row) => sum + row.monthlyContribution, 0);
   const periodLabel =
     dashboardAggregate?.summary.header.periodLabel ?? editableYearMonth ?? "";
-  const incomeTotal = dashboardAggregate?.summary.totalIncome ?? 0;
-  const expenseTotal = dashboardAggregate?.summary.totalExpenditure ?? 0;
-  const remainingTotal =
-    dashboardAggregate?.summary.remainingToSpend ?? incomeTotal - expenseTotal;
-  const savingsTotal = dashboardAggregate?.summary.totalSavings ?? total;
+
+  const referenceDate = useMemo(
+    () => getMonthStartDate(editableYearMonth ?? ""),
+    [editableYearMonth],
+  );
+  const heroAggregate = useMemo(
+    () => aggregateSavingsHero(rows, referenceDate),
+    [rows, referenceDate],
+  );
 
   const handleSubmit = async (values: {
     monthlyContribution: number;
@@ -104,63 +108,36 @@ export default function SavingsEditorPage() {
     return <EditorState text={t("noOpenMonth")} />;
   }
 
+  const isLoadingContent =
+    savingsQuery.isLoading || dashboardMonthQuery.isLoading;
+
   return (
     <>
       <BudgetEditorPageShell>
-        <div className="space-y-4">
-          <BudgetEditorWorkspaceBar
-            eyebrow={t("eyebrow")}
-            title={t("titleWithMonth").replace("{yearMonthLabel}", periodLabel)}
-            description={t("description").replace(
-              "{yearMonthLabel}",
-              periodLabel,
-            )}
-            readOnlyBadge={t("readOnlyBadge")}
+        <div className="space-y-5">
+          <SavingsSoulHero
             periodLabel={periodLabel}
-            periodCaption={t("period")}
+            aggregate={heroAggregate}
             readOnly={readOnly}
-            metrics={[
-              {
-                label: t("income"),
-                amount: incomeTotal,
-              },
-              {
-                prefix: "−",
-                label: t("expenses"),
-                amount: expenseTotal,
-              },
-              {
-                prefix: "−",
-                label: t("savings"),
-                amount: savingsTotal,
-              },
-              {
-                prefix: "=",
-                label: t("remaining"),
-                amount: remainingTotal,
-                tone: remainingTotal < 0 ? "danger" : "accent",
-              },
-            ]}
           />
 
-          <div className="space-y-4">
-            {savingsQuery.isLoading || dashboardMonthQuery.isLoading ? (
-              <div className="rounded-[1.75rem] border border-eb-stroke/16 bg-[rgb(var(--eb-shell)/0.18)] p-6 text-sm text-eb-text/60 backdrop-blur-[6px]">
-                {t("loadingSavings")}
-              </div>
-            ) : savingsQuery.isError ? (
-              <div className="rounded-[1.75rem] border border-eb-stroke/16 bg-[rgb(var(--eb-shell)/0.18)] p-6 text-sm text-eb-text/60 backdrop-blur-[6px]">
-                {t("loadEditorError")}
-              </div>
-            ) : (
-              <SavingsGoalLedgerSection
-                rows={rows}
-                total={total}
-                readOnly={readOnly}
-                onEdit={(row) => setModalRow(row)}
-              />
-            )}
-          </div>
+          {isLoadingContent ? (
+            <div className="rounded-[1.75rem] border border-eb-stroke/30 bg-eb-surface/70 px-5 py-6 text-sm text-eb-text/60">
+              {t("loadingSavings")}
+            </div>
+          ) : savingsQuery.isError ? (
+            <div className="rounded-[1.75rem] border border-eb-stroke/30 bg-eb-surface/70 px-5 py-6 text-sm text-eb-text/60">
+              {t("loadEditorError")}
+            </div>
+          ) : (
+            <SavingsGoalCardsList
+              rows={rows}
+              readOnly={readOnly}
+              referenceDate={referenceDate}
+              showPlannedMarkerLegend={heroAggregate.hasPlannedMarker}
+              onEdit={(row) => setModalRow(row)}
+            />
+          )}
         </div>
       </BudgetEditorPageShell>
 

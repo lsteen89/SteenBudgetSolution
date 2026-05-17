@@ -61,9 +61,29 @@ export default function SavingsGoalContributionModal({
     [amountMonthly],
   );
 
-  if (!open || !row) return null;
+  const isDirty = useMemo(() => {
+    if (!row) return false;
+    if (scope !== "currentMonthOnly") return true;
+    return parsedAmount !== row.monthlyContribution;
+  }, [parsedAmount, scope, row]);
 
   const canClose = !isSaving;
+  const canSoftClose = canClose && !isDirty;
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (!canSoftClose) return;
+      event.preventDefault();
+      event.stopPropagation();
+      onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, canSoftClose, onClose]);
+
+  if (!open || !row) return null;
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -84,8 +104,8 @@ export default function SavingsGoalContributionModal({
       <button
         type="button"
         aria-label={t("closeAriaLabel")}
-        onClick={canClose ? onClose : undefined}
-        disabled={!canClose}
+        onClick={canSoftClose ? onClose : undefined}
+        disabled={!canSoftClose}
         className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(21,39,81,0.18),rgba(21,39,81,0.52))]"
       />
       <div className="absolute inset-0 flex items-center justify-center p-4">
