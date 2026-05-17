@@ -2,6 +2,7 @@ using Backend.Application.Abstractions.Application.Services.Budget;
 using Backend.Application.Abstractions.Infrastructure.System;
 using Backend.Application.DTO.Budget.Months;
 using Backend.Application.DTO.Budget.Months.Editor.Savings;
+using Backend.Application.Features.Budgets.Months.Editor.Savings.CreateSavingsGoal;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.GetSavingsGoals;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.PatchSavingsGoal;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.PatchSavingsGoalsBulk;
@@ -257,6 +258,133 @@ public sealed class BudgetMonthSavingsGoalEditorTests
         patch.Error!.Code.Should().Be(BudgetMonthSavingsGoalErrors.CannotUpdatePlanForMonthOnlyRow.Code);
     }
 
+    [Fact]
+    public async Task CreateSavingsGoal_InsertsBaseline_AndMonthRow_AndWritesAudit()
+    {
+        await _db.ResetAsync();
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var sut = CreateSut(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+        var budgetMonthId = await EnsureMonthAsync(sut, seed.Persoid);
+
+        var create = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.CreateHandler.Handle(
+                new CreateBudgetMonthSavingsGoalCommand(
+                    Persoid: seed.Persoid,
+                    YearMonth: "2026-01",
+                    Name: "House deposit",
+                    TargetAmount: 50000m,
+                    TargetDate: new DateOnly(2027, 06, 30),
+                    AmountSaved: 1000m,
+                    MonthlyContribution: 750m),
+                CancellationToken.None));
+
+        create.IsFailure.Should().BeFalse();
+        create.Value.Should().NotBeNull();
+        create.Value!.Name.Should().Be("House deposit");
+        create.Value.TargetAmount.Should().Be(50000m);
+        create.Value.AmountSaved.Should().Be(1000m);
+        create.Value.MonthlyContribution.Should().Be(750m);
+        create.Value.Status.Should().Be("active");
+        create.Value.IsMonthOnly.Should().BeFalse();
+        create.Value.CanUpdateDefault.Should().BeTrue();
+        create.Value.SourceSavingsGoalId.Should().NotBeNull();
+
+        var monthRow = await GetMonthSavingsGoalAsync(create.Value.Id);
+        monthRow!.Name.Should().Be("House deposit");
+        monthRow.MonthlyContribution.Should().Be(750m);
+        monthRow.Status.Should().Be("active");
+
+        var baselineRow = await GetBaselineSavingsGoalAsync(create.Value.SourceSavingsGoalId!.Value);
+        baselineRow!.Name.Should().Be("House deposit");
+        baselineRow.MonthlyContribution.Should().Be(750m);
+
+        var rows = await GetRowsAsync(sut, seed.Persoid);
+        rows.Should().Contain(r => r.Id == create.Value.Id && r.Name == "House deposit");
+
+        (await CountChangeEventsAsync(budgetMonthId, "created")).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task CreateSavingsGoal_DefaultsAmountSavedToZero_WhenOmitted()
+    {
+        await _db.ResetAsync();
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var sut = CreateSut(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+        await EnsureMonthAsync(sut, seed.Persoid);
+
+        var create = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.CreateHandler.Handle(
+                new CreateBudgetMonthSavingsGoalCommand(
+                    Persoid: seed.Persoid,
+                    YearMonth: "2026-01",
+                    Name: "Travel fund",
+                    TargetAmount: 5000m,
+                    TargetDate: null,
+                    AmountSaved: null,
+                    MonthlyContribution: 0m),
+                CancellationToken.None));
+
+        create.IsFailure.Should().BeFalse();
+        create.Value!.AmountSaved.Should().Be(0m);
+        create.Value.MonthlyContribution.Should().Be(0m);
+        create.Value.TargetDate.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("closed")]
+    [InlineData("skipped")]
+    public async Task CreateSavingsGoal_IsRejected_WhenMonthIsNotOpen(string status)
+    {
+        await _db.ResetAsync();
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var sut = CreateSut(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+        await EnsureMonthAsync(sut, seed.Persoid);
+        await MarkMonthStatusAsync("2026-01", status);
+
+        var create = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.CreateHandler.Handle(
+                new CreateBudgetMonthSavingsGoalCommand(
+                    Persoid: seed.Persoid,
+                    YearMonth: "2026-01",
+                    Name: "Should not be created",
+                    TargetAmount: 1000m,
+                    TargetDate: null,
+                    AmountSaved: null,
+                    MonthlyContribution: 100m),
+                CancellationToken.None));
+
+        create.IsFailure.Should().BeTrue();
+        create.Error!.Code.Should().Be(BudgetMonth.MonthIsClosed.Code);
+    }
+
+    [Fact]
+    public async Task CreateSavingsGoal_DoesNotLeakAcrossUsers()
+    {
+        await _db.ResetAsync();
+        var ownSeed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var sut = CreateSut(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+        await EnsureMonthAsync(sut, ownSeed.Persoid);
+
+        var attackerPersoid = Guid.NewGuid();
+
+        var create = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.CreateHandler.Handle(
+                new CreateBudgetMonthSavingsGoalCommand(
+                    Persoid: attackerPersoid,
+                    YearMonth: "2026-01",
+                    Name: "Hostile goal",
+                    TargetAmount: 1000m,
+                    TargetDate: null,
+                    AmountSaved: null,
+                    MonthlyContribution: 100m),
+                CancellationToken.None));
+
+        create.IsFailure.Should().BeTrue();
+
+        var rowsForOwner = await GetRowsAsync(sut, ownSeed.Persoid);
+        rowsForOwner.Should().NotContain(r => r.Name == "Hostile goal");
+    }
+
     private async Task<Guid> EnsureMonthAsync(Sut sut, Guid persoid)
     {
         var ensure = await sut.Uow.InTx(CancellationToken.None, () =>
@@ -353,6 +481,7 @@ public sealed class BudgetMonthSavingsGoalEditorTests
         public required GetBudgetMonthSavingsGoalsQueryHandler GetHandler { get; init; }
         public required PatchBudgetMonthSavingsGoalCommandHandler PatchHandler { get; init; }
         public required PatchBudgetMonthSavingsGoalsBulkCommandHandler BulkPatchHandler { get; init; }
+        public required CreateBudgetMonthSavingsGoalCommandHandler CreateHandler { get; init; }
     }
 
     private Sut CreateSut(DateTime utcNow)
@@ -404,6 +533,11 @@ public sealed class BudgetMonthSavingsGoalEditorTests
                 changeEventRepo,
                 TimeProvider.System),
             BulkPatchHandler = new PatchBudgetMonthSavingsGoalsBulkCommandHandler(
+                lifecycle,
+                savingsRepo,
+                changeEventRepo,
+                TimeProvider.System),
+            CreateHandler = new CreateBudgetMonthSavingsGoalCommandHandler(
                 lifecycle,
                 savingsRepo,
                 changeEventRepo,

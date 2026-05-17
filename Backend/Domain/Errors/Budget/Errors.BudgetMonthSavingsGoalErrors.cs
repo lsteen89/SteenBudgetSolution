@@ -1,3 +1,4 @@
+using Backend.Domain.Common.Constants;
 using Backend.Domain.Shared;
 
 namespace Backend.Domain.Errors.Budget;
@@ -18,4 +19,10 @@ public static partial class BudgetMonthSavingsGoalErrors
 
     public static readonly Error SourcePlanNotFound =
         new("BudgetMonthSavingsGoal.SourcePlanNotFound", "The linked budget plan savings goal no longer exists.");
+
+    public static readonly Error SavingsPlanMissing =
+        new(
+            "BudgetMonthSavingsGoal.SavingsPlanMissing",
+            "The budget plan does not have a savings record yet; a savings goal cannot be created.",
+            ErrorType.Conflict);
 }

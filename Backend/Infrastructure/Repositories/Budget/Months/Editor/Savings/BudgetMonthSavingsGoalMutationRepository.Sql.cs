@@ -78,4 +78,89 @@ public sealed partial class BudgetMonthSavingsGoalMutationRepository
         UpdatedAt = @UtcNow,
         UpdatedByUserId = @ActorPersoid
     WHERE Id = @SavingsGoalId;";
+
+    private const string GetBudgetMonthSavingsForCreateSql = @"
+    SELECT
+        s.Id            AS BudgetMonthSavingsId,
+        s.SourceSavingsId
+    FROM BudgetMonthSavings s
+    WHERE s.BudgetMonthId = @BudgetMonthId
+      AND s.IsDeleted = 0
+    LIMIT 1;";
+
+    private const string InsertBaselineSavingsGoalSql = @"
+    INSERT INTO SavingsGoal
+    (
+        Id,
+        SavingsId,
+        Name,
+        TargetAmount,
+        TargetDate,
+        AmountSaved,
+        MonthlyContribution,
+        OpenedAt,
+        Status,
+        CreatedAt,
+        CreatedByUserId,
+        UpdatedAt,
+        UpdatedByUserId
+    )
+    VALUES
+    (
+        @Id,
+        @SavingsId,
+        @Name,
+        @TargetAmount,
+        @TargetDate,
+        @AmountSaved,
+        @MonthlyContribution,
+        @OpenedAt,
+        @Status,
+        @UtcNow,
+        @ActorPersoid,
+        @UtcNow,
+        @ActorPersoid
+    );";
+
+    private const string InsertMonthSavingsGoalSql = @"
+    INSERT INTO BudgetMonthSavingsGoal
+    (
+        Id,
+        BudgetMonthSavingsId,
+        SourceSavingsGoalId,
+        Name,
+        TargetAmount,
+        TargetDate,
+        AmountSaved,
+        MonthlyContribution,
+        OpenedAt,
+        Status,
+        IsOverride,
+        IsDeleted,
+        SortOrder,
+        CreatedAt,
+        CreatedByUserId,
+        UpdatedAt,
+        UpdatedByUserId
+    )
+    VALUES
+    (
+        @Id,
+        @BudgetMonthSavingsId,
+        @SourceSavingsGoalId,
+        @Name,
+        @TargetAmount,
+        @TargetDate,
+        @AmountSaved,
+        @MonthlyContribution,
+        @OpenedAt,
+        @Status,
+        1,
+        0,
+        0,
+        @UtcNow,
+        @ActorPersoid,
+        @UtcNow,
+        @ActorPersoid
+    );";
 }

@@ -28,4 +28,16 @@ public interface IBudgetMonthSavingsGoalMutationRepository
     Task UpdateBaselineSavingsGoalContributionAsync(
         UpdateBaselineSavingsGoalModel model,
         CancellationToken ct);
+
+    Task<BudgetMonthSavingsForCreateReadModel?> GetBudgetMonthSavingsForCreateAsync(
+        Guid budgetMonthId,
+        CancellationToken ct);
+
+    Task InsertBaselineSavingsGoalAsync(
+        InsertBaselineSavingsGoalModel model,
+        CancellationToken ct);
+
+    Task InsertMonthSavingsGoalAsync(
+        InsertBudgetMonthSavingsGoalModel model,
+        CancellationToken ct);
 }

@@ -14,6 +14,7 @@ using Backend.Application.Features.Budgets.Months.Editor.Income.GetIncomeItems;
 using Backend.Application.Features.Budgets.Months.Editor.Income.PatchIncomeItem;
 using Backend.Application.Features.Budgets.Months.Editor.Income.PatchIncomeItemsBulk;
 using Backend.Application.DTO.Budget.Months.Editor.Savings;
+using Backend.Application.Features.Budgets.Months.Editor.Savings.CreateSavingsGoal;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.GetSavingsGoals;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.PatchSavingsGoal;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.PatchSavingsGoalsBulk;
@@ -305,6 +306,35 @@ public sealed partial class BudgetController
         }
 
         return Ok(ApiEnvelope<IReadOnlyList<BudgetMonthSavingsGoalEditorRowDto>>.Success(result.Value));
+    }
+
+    [HttpPost("months/{yearMonth}/savings-goals")]
+    [ProducesResponseType(typeof(ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>>> CreateSavingsGoal(
+        [FromRoute] string yearMonth,
+        [FromBody] CreateBudgetMonthSavingsGoalRequestDto req,
+        CancellationToken ct)
+    {
+        var result = await _mediator.Send(
+            new CreateBudgetMonthSavingsGoalCommand(
+                Persoid: _currentUser.Persoid,
+                YearMonth: yearMonth,
+                Name: req.Name,
+                TargetAmount: req.TargetAmount,
+                TargetDate: req.TargetDate,
+                AmountSaved: req.AmountSaved,
+                MonthlyContribution: req.MonthlyContribution),
+            ct);
+
+        if (result.IsFailure || result.Value is null)
+        {
+            return Ok(ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>.Failure(
+                code: result.Error?.Code ?? "BUDGET_MONTH_SAVINGS_GOAL_CREATE_FAILED",
+                message: result.Error?.Message ?? "Could not create month savings goal."
+            ));
+        }
+
+        return Ok(ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>.Success(result.Value));
     }
 
     [HttpPatch("months/{yearMonth}/savings-goals/{monthSavingsGoalId:guid}")]
