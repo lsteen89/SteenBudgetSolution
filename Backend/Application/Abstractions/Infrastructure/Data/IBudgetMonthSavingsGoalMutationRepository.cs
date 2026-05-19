@@ -29,6 +29,18 @@ public interface IBudgetMonthSavingsGoalMutationRepository
         UpdateBaselineSavingsGoalModel model,
         CancellationToken ct);
 
+    Task UpdateMonthSavingsGoalTargetDateAsync(
+        UpdateBudgetMonthSavingsGoalTargetDateModel model,
+        CancellationToken ct);
+
+    Task UpdateBaselineSavingsGoalTargetDateAsync(
+        UpdateBaselineSavingsGoalTargetDateModel model,
+        CancellationToken ct);
+
+    Task<int> UpdateOpenLinkedMonthSavingsGoalTargetDateAsync(
+        UpdateOpenLinkedMonthSavingsGoalTargetDateModel model,
+        CancellationToken ct);
+
     Task<BudgetMonthSavingsForCreateReadModel?> GetBudgetMonthSavingsForCreateAsync(
         Guid budgetMonthId,
         CancellationToken ct);

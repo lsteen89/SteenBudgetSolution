@@ -5,8 +5,15 @@ namespace Backend.Application.Features.Budgets.Months.Editor.Savings.CreateSavin
 public sealed class CreateBudgetMonthSavingsGoalCommandValidator
     : AbstractValidator<CreateBudgetMonthSavingsGoalCommand>
 {
-    public CreateBudgetMonthSavingsGoalCommandValidator()
+    public const decimal MaxAmount = 100_000_000m;
+    public const int MaxYearsInFuture = 40;
+
+    private readonly TimeProvider _timeProvider;
+
+    public CreateBudgetMonthSavingsGoalCommandValidator(TimeProvider timeProvider)
     {
+        _timeProvider = timeProvider;
+
         RuleFor(x => x.Persoid)
             .NotEmpty();
 
@@ -22,10 +29,20 @@ public sealed class CreateBudgetMonthSavingsGoalCommandValidator
 
         RuleFor(x => x.TargetAmount)
             .GreaterThan(0m)
+            .LessThanOrEqualTo(MaxAmount)
             .PrecisionScale(12, 2, false);
+
+        RuleFor(x => x.TargetDate)
+            .Cascade(CascadeMode.Stop)
+            .NotNull().WithMessage("TargetDate is required.")
+            .Must(d => d!.Value >= TodayLocal())
+                .WithMessage("TargetDate cannot be in the past.")
+            .Must(d => d!.Value <= TodayLocal().AddYears(MaxYearsInFuture))
+                .WithMessage($"TargetDate cannot be more than {MaxYearsInFuture} years in the future.");
 
         RuleFor(x => x.AmountSaved)
             .GreaterThanOrEqualTo(0m)
+            .LessThanOrEqualTo(MaxAmount)
             .PrecisionScale(12, 2, false)
             .When(x => x.AmountSaved.HasValue);
 
@@ -36,6 +53,10 @@ public sealed class CreateBudgetMonthSavingsGoalCommandValidator
 
         RuleFor(x => x.MonthlyContribution)
             .GreaterThanOrEqualTo(0m)
+            .LessThanOrEqualTo(MaxAmount)
             .PrecisionScale(12, 2, false);
     }
+
+    private DateOnly TodayLocal()
+        => DateOnly.FromDateTime(_timeProvider.GetUtcNow().UtcDateTime);
 }

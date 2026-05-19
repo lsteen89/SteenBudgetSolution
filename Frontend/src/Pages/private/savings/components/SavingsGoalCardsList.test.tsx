@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
+import type React from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { BudgetMonthSavingsGoalEditorRowDto } from "@/types/budget/BudgetMonthsStatusDto";
 import SavingsGoalCardsList from "./SavingsGoalCardsList";
@@ -38,17 +39,26 @@ const buildRows = (count: number): BudgetMonthSavingsGoalEditorRowDto[] =>
     name: `Goal ${index + 1}`,
   }));
 
+const renderList = (
+  override: Partial<React.ComponentProps<typeof SavingsGoalCardsList>>,
+) => {
+  const defaults: React.ComponentProps<typeof SavingsGoalCardsList> = {
+    rows: [baseRow],
+    readOnly: false,
+    referenceDate: REFERENCE,
+    showPlannedMarkerLegend: true,
+    onEdit: vi.fn(),
+    draftOpen: false,
+    onOpenDraft: vi.fn(),
+    onCancelDraft: vi.fn(),
+    onSubmitDraft: vi.fn(),
+  };
+  return render(<SavingsGoalCardsList {...defaults} {...override} />);
+};
+
 describe("SavingsGoalCardsList", () => {
   it("renders the planned-marker legend when at least one goal has a plan", () => {
-    render(
-      <SavingsGoalCardsList
-        rows={[baseRow]}
-        readOnly={false}
-        referenceDate={REFERENCE}
-        showPlannedMarkerLegend
-        onEdit={vi.fn()}
-      />,
-    );
+    renderList({ rows: [baseRow], showPlannedMarkerLegend: true });
 
     const legend = screen.getByTestId("savings-progress-legend");
     expect(legend).toHaveTextContent(/saved so far/i);
@@ -57,29 +67,13 @@ describe("SavingsGoalCardsList", () => {
   });
 
   it("hides the legend when no goal has a planned marker", () => {
-    render(
-      <SavingsGoalCardsList
-        rows={[baseRow]}
-        readOnly={false}
-        referenceDate={REFERENCE}
-        showPlannedMarkerLegend={false}
-        onEdit={vi.fn()}
-      />,
-    );
+    renderList({ rows: [baseRow], showPlannedMarkerLegend: false });
 
     expect(screen.queryByTestId("savings-progress-legend")).not.toBeInTheDocument();
   });
 
   it("renders many goals without breaking and switches to compact density at 5+", () => {
-    render(
-      <SavingsGoalCardsList
-        rows={buildRows(8)}
-        readOnly={false}
-        referenceDate={REFERENCE}
-        showPlannedMarkerLegend
-        onEdit={vi.fn()}
-      />,
-    );
+    renderList({ rows: buildRows(8) });
 
     const cards = screen.getAllByTestId("savings-goal-card");
     expect(cards).toHaveLength(8);
@@ -89,15 +83,7 @@ describe("SavingsGoalCardsList", () => {
   });
 
   it("uses regular density for 1-4 goals", () => {
-    render(
-      <SavingsGoalCardsList
-        rows={buildRows(4)}
-        readOnly={false}
-        referenceDate={REFERENCE}
-        showPlannedMarkerLegend
-        onEdit={vi.fn()}
-      />,
-    );
+    renderList({ rows: buildRows(4) });
 
     const cards = screen.getAllByTestId("savings-goal-card");
     expect(cards).toHaveLength(4);
@@ -119,15 +105,10 @@ describe("SavingsGoalCardsList", () => {
     const aggregate = aggregateSavingsHero([onPaceRow], REFERENCE);
     expect(aggregate.hasPlannedMarker).toBe(false);
 
-    render(
-      <SavingsGoalCardsList
-        rows={[onPaceRow]}
-        readOnly={false}
-        referenceDate={REFERENCE}
-        showPlannedMarkerLegend={aggregate.hasPlannedMarker}
-        onEdit={vi.fn()}
-      />,
-    );
+    renderList({
+      rows: [onPaceRow],
+      showPlannedMarkerLegend: aggregate.hasPlannedMarker,
+    });
 
     expect(screen.queryByTestId("savings-progress-legend")).not.toBeInTheDocument();
   });
@@ -145,30 +126,48 @@ describe("SavingsGoalCardsList", () => {
     const aggregate = aggregateSavingsHero([aheadRow], REFERENCE);
     expect(aggregate.hasPlannedMarker).toBe(true);
 
-    render(
-      <SavingsGoalCardsList
-        rows={[aheadRow]}
-        readOnly={false}
-        referenceDate={REFERENCE}
-        showPlannedMarkerLegend={aggregate.hasPlannedMarker}
-        onEdit={vi.fn()}
-      />,
-    );
+    renderList({
+      rows: [aheadRow],
+      showPlannedMarkerLegend: aggregate.hasPlannedMarker,
+    });
 
     expect(screen.getByTestId("savings-progress-legend")).toBeInTheDocument();
   });
 
   it("renders an empty state when there are no rows", () => {
-    render(
-      <SavingsGoalCardsList
-        rows={[]}
-        readOnly={false}
-        referenceDate={REFERENCE}
-        showPlannedMarkerLegend
-        onEdit={vi.fn()}
-      />,
-    );
+    renderList({ rows: [] });
 
     expect(screen.getByTestId("savings-goal-cards-empty")).toBeInTheDocument();
+  });
+
+  it("renders an enabled add placeholder for an open month", () => {
+    renderList({ rows: [] });
+
+    const placeholder = screen.getByTestId("savings-goal-add-placeholder");
+    expect(placeholder.getAttribute("data-state")).toBe("ready");
+    expect(placeholder).not.toBeDisabled();
+  });
+
+  it("renders a disabled add placeholder when read-only (closed/skipped month)", () => {
+    renderList({ rows: [], readOnly: true });
+
+    const placeholder = screen.getByTestId("savings-goal-add-placeholder");
+    expect(placeholder.getAttribute("data-state")).toBe("disabled");
+    expect(placeholder).toBeDisabled();
+  });
+
+  it("invokes onOpenDraft when the placeholder is clicked", () => {
+    const onOpenDraft = vi.fn();
+    renderList({ rows: [], onOpenDraft });
+
+    fireEvent.click(screen.getByTestId("savings-goal-add-placeholder"));
+    expect(onOpenDraft).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders the draft card and hides the placeholder when draftOpen is true", () => {
+    renderList({ rows: [], draftOpen: true });
+
+    expect(screen.getByTestId("savings-goal-draft-card")).toBeInTheDocument();
+    expect(screen.queryByTestId("savings-goal-add-placeholder")).not.toBeInTheDocument();
   });
 });

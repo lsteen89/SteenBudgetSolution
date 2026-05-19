@@ -87,4 +87,42 @@ public sealed class PatchBudgetMonthSavingsGoalsBulkCommandValidatorTests
 
         _sut.TestValidate(cmd).ShouldNotHaveValidationErrorFor("Items[0].Scope");
     }
+
+    [Fact]
+    public void Row_With_Decimal_Within_Two_Places_Passes()
+    {
+        var cmd = new PatchBudgetMonthSavingsGoalsBulkCommand(
+            Guid.NewGuid(),
+            "2026-01",
+            new[] { Row(amount: 1234.56m) });
+
+        _sut.TestValidate(cmd).ShouldNotHaveValidationErrorFor("Items[0].MonthlyContribution");
+    }
+
+    [Fact]
+    public void Row_With_More_Than_Two_Decimals_Fails()
+    {
+        var cmd = new PatchBudgetMonthSavingsGoalsBulkCommand(
+            Guid.NewGuid(),
+            "2026-01",
+            new[] { Row(amount: 1234.567m) });
+
+        _sut.TestValidate(cmd).ShouldHaveValidationErrorFor("Items[0].MonthlyContribution");
+    }
+
+    [Fact]
+    public void Row_Amount_Above_Cap_Fails()
+    {
+        var cmd = new PatchBudgetMonthSavingsGoalsBulkCommand(
+            Guid.NewGuid(),
+            "2026-01",
+            new[]
+            {
+                Row(amount:
+                    Backend.Application.Features.Budgets.Months.Editor.Savings.CreateSavingsGoal
+                        .CreateBudgetMonthSavingsGoalCommandValidator.MaxAmount + 0.01m)
+            });
+
+        _sut.TestValidate(cmd).ShouldHaveValidationErrorFor("Items[0].MonthlyContribution");
+    }
 }

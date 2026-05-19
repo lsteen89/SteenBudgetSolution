@@ -10,5 +10,6 @@ public sealed record PatchBudgetMonthSavingsGoalCommand(
     string YearMonth,
     Guid MonthSavingsGoalId,
     decimal MonthlyContribution,
-    string? Scope = null)
+    string? Scope = null,
+    DateOnly? TargetDate = null)
     : IRequest<Result<BudgetMonthSavingsGoalEditorRowDto?>>, ITransactionalCommand;

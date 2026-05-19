@@ -351,6 +351,7 @@ public sealed partial class BudgetController
                 YearMonth: yearMonth,
                 MonthSavingsGoalId: monthSavingsGoalId,
                 MonthlyContribution: req.MonthlyContribution,
+                TargetDate: req.TargetDate,
                 Scope: req.Scope),
             ct);
 

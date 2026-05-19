@@ -9,6 +9,7 @@ import type {
   BudgetMonthSavingsGoalEditorRowDto,
   CreateBudgetMonthIncomeItemRequestDto,
   CreateBudgetMonthExpenseItemRequestDto,
+  CreateBudgetMonthSavingsGoalRequestDto,
   PatchBudgetMonthDebtBulkRowDto,
   PatchBudgetMonthDebtRequestDto,
   PatchBudgetMonthDebtsBulkRequestDto,
@@ -181,6 +182,17 @@ export async function patchBudgetMonthSavingsGoal(
   );
 
   return unwrapEnvelopeData(res, "Could not update month savings goal.");
+}
+
+export async function createBudgetMonthSavingsGoal(
+  yearMonth: string,
+  payload: CreateBudgetMonthSavingsGoalRequestDto,
+): Promise<BudgetMonthSavingsGoalEditorRowDto> {
+  const res = await api.post<
+    ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>
+  >(`/api/budgets/months/${yearMonth}/savings-goals`, payload);
+
+  return unwrapEnvelopeData(res, "Could not create month savings goal.");
 }
 
 /**

@@ -1,6 +1,7 @@
 import BudgetEditorPageShell from "@/components/molecules/forms/budgetEditor/BudgetEditorPageShell";
 import {
   useBudgetMonthSavingsGoals,
+  useCreateBudgetMonthSavingsGoal,
   usePatchBudgetMonthSavingsGoal,
 } from "@/hooks/budget/editPeriod/useMonthEditor";
 import { useBudgetDashboardMonthQuery } from "@/hooks/budget/useBudgetDashboardMonthQuery";
@@ -19,6 +20,7 @@ import { tDict } from "@/utils/i18n/translate";
 import { useMemo, useState } from "react";
 import SavingsGoalCardsList from "./components/SavingsGoalCardsList";
 import SavingsGoalContributionModal from "./components/SavingsGoalContributionModal";
+import SavingsPlanBalanceStrip from "./components/SavingsPlanBalanceStrip";
 import SavingsSoulHero from "./components/SavingsSoulHero";
 import { aggregateSavingsHero, getMonthStartDate } from "./utils/savingsSoul";
 
@@ -56,9 +58,12 @@ export default function SavingsEditorPage() {
 
   const mutationYearMonth = editableYearMonth ?? "";
   const patchMutation = usePatchBudgetMonthSavingsGoal(mutationYearMonth);
+  const createMutation = useCreateBudgetMonthSavingsGoal(mutationYearMonth);
 
   const [modalRow, setModalRow] =
     useState<BudgetMonthSavingsGoalEditorRowDto | null>(null);
+  const [draftOpen, setDraftOpen] = useState(false);
+  const [draftError, setDraftError] = useState<string | null>(null);
 
   const openMonth = monthsStatusQuery.data?.months.find(
     (month) => month.yearMonth === editableYearMonth,
@@ -77,8 +82,44 @@ export default function SavingsEditorPage() {
     [rows, referenceDate],
   );
 
+  const handleOpenDraft = () => {
+    if (readOnly) return;
+    setDraftError(null);
+    setDraftOpen(true);
+  };
+
+  const handleCancelDraft = () => {
+    if (createMutation.isPending) return;
+    setDraftError(null);
+    setDraftOpen(false);
+  };
+
+  const handleSubmitDraft = async (payload: {
+    name: string;
+    targetAmount: number;
+    targetDate: string;
+    amountSaved: number | null;
+    monthlyContribution: number;
+  }) => {
+    setDraftError(null);
+    try {
+      await createMutation.mutateAsync({
+        name: payload.name,
+        targetAmount: payload.targetAmount,
+        targetDate: payload.targetDate,
+        amountSaved: payload.amountSaved,
+        monthlyContribution: payload.monthlyContribution,
+      });
+      setDraftOpen(false);
+      toast.success(t("draftToastSuccess"));
+    } catch {
+      setDraftError(t("draftSaveError"));
+    }
+  };
+
   const handleSubmit = async (values: {
     monthlyContribution: number;
+    targetDate?: string;
     scope: SavingsGoalEditScope;
   }) => {
     if (!modalRow) return;
@@ -90,6 +131,10 @@ export default function SavingsEditorPage() {
         monthSavingsGoalId: modalRow.id,
         payload: {
           monthlyContribution: values.monthlyContribution,
+          // The modal already gates the date by scope; we forward exactly
+          // what it produced. Undefined means "leave the goal plan date
+          // untouched". The BE applier treats a null/absent date the same.
+          targetDate: values.targetDate,
           scope,
         },
       });
@@ -121,6 +166,21 @@ export default function SavingsEditorPage() {
             readOnly={readOnly}
           />
 
+          {dashboardAggregate ? (
+            <SavingsPlanBalanceStrip
+              currencyCode={dashboardAggregate.summary.currency}
+              locale={locale as AppLocale}
+              remainingToSpend={dashboardAggregate.summary.remainingToSpend}
+              incomeMonthly={dashboardAggregate.summary.totalIncome}
+              carryOverMonthly={
+                dashboardAggregate.summary.incomingCarryOverAmount
+              }
+              expensesMonthly={dashboardAggregate.summary.totalExpenditure}
+              savingsMonthly={dashboardAggregate.summary.totalSavings}
+              debtPaymentsMonthly={dashboardAggregate.summary.totalDebtPayments}
+            />
+          ) : null}
+
           {isLoadingContent ? (
             <div className="rounded-[1.75rem] border border-eb-stroke/30 bg-eb-surface/70 px-5 py-6 text-sm text-eb-text/60">
               {t("loadingSavings")}
@@ -136,6 +196,12 @@ export default function SavingsEditorPage() {
               referenceDate={referenceDate}
               showPlannedMarkerLegend={heroAggregate.hasPlannedMarker}
               onEdit={(row) => setModalRow(row)}
+              draftOpen={draftOpen && !readOnly}
+              draftSubmitting={createMutation.isPending}
+              draftError={draftError}
+              onOpenDraft={handleOpenDraft}
+              onCancelDraft={handleCancelDraft}
+              onSubmitDraft={handleSubmitDraft}
             />
           )}
         </div>
@@ -145,6 +211,7 @@ export default function SavingsEditorPage() {
         open={!!modalRow}
         row={modalRow}
         monthLabel={periodLabel}
+        remainingBudgetRoom={dashboardAggregate?.summary.remainingToSpend ?? null}
         isSaving={patchMutation.isPending}
         onClose={() => {
           if (patchMutation.isPending) return;

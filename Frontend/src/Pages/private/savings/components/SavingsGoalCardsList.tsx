@@ -5,6 +5,9 @@ import { tDict } from "@/utils/i18n/translate";
 import SavingsGoalCard, {
   type SavingsGoalCardDensity,
 } from "./SavingsGoalCard";
+import SavingsGoalDraftCard, {
+  type SavingsGoalDraftSubmitPayload,
+} from "./SavingsGoalDraftCard";
 
 const COMPACT_THRESHOLD = 5;
 
@@ -14,6 +17,12 @@ type SavingsGoalCardsListProps = {
   referenceDate: Date;
   showPlannedMarkerLegend: boolean;
   onEdit: (row: BudgetMonthSavingsGoalEditorRowDto) => void;
+  draftOpen: boolean;
+  draftSubmitting?: boolean;
+  draftError?: string | null;
+  onOpenDraft: () => void;
+  onCancelDraft: () => void;
+  onSubmitDraft: (payload: SavingsGoalDraftSubmitPayload) => Promise<void> | void;
 };
 
 export default function SavingsGoalCardsList({
@@ -22,28 +31,33 @@ export default function SavingsGoalCardsList({
   referenceDate,
   showPlannedMarkerLegend,
   onEdit,
+  draftOpen,
+  draftSubmitting = false,
+  draftError = null,
+  onOpenDraft,
+  onCancelDraft,
+  onSubmitDraft,
 }: SavingsGoalCardsListProps) {
   const locale = useAppLocale();
   const t = <K extends keyof typeof savingsEditorPageDict.sv>(key: K) =>
     tDict(key, locale, savingsEditorPageDict);
 
-  if (rows.length === 0) {
-    return (
-      <div
-        data-testid="savings-goal-cards-empty"
-        className="rounded-[1.75rem] border border-eb-stroke/30 bg-eb-surface/70 px-5 py-10 text-center text-sm text-eb-text/60"
-      >
-        {t("empty")}
-      </div>
-    );
-  }
-
+  const empty = rows.length === 0;
   const density: SavingsGoalCardDensity =
     rows.length >= COMPACT_THRESHOLD ? "compact" : "regular";
 
   return (
     <div data-testid="savings-goal-cards" className="grid gap-3">
-      {showPlannedMarkerLegend ? (
+      {empty && !draftOpen ? (
+        <div
+          data-testid="savings-goal-cards-empty"
+          className="rounded-[1.75rem] border border-eb-stroke/30 bg-eb-surface/70 px-5 py-10 text-center text-sm text-eb-text/60"
+        >
+          {t("empty")}
+        </div>
+      ) : null}
+
+      {showPlannedMarkerLegend && !empty ? (
         <ProgressMarkerLegend
           actualLabel={t("legendActual")}
           plannedLabel={t("legendPlanned")}
@@ -62,18 +76,39 @@ export default function SavingsGoalCardsList({
         />
       ))}
 
-      <button
-        type="button"
-        disabled
-        title={t("addGoalDisabledHint")}
-        aria-disabled="true"
-        className="cursor-not-allowed rounded-[1.75rem] border-[1.5px] border-dashed border-eb-stroke/70 bg-transparent px-5 py-3.5 text-left text-sm font-semibold text-eb-text/55 opacity-70"
-      >
-        <span>{t("addGoal")}</span>
-        <span className="ml-2 text-[12px] font-normal text-eb-text/45">
-          · {t("addGoalDisabledHint")}
-        </span>
-      </button>
+      {draftOpen ? (
+        <SavingsGoalDraftCard
+          isSubmitting={draftSubmitting}
+          errorMessage={draftError}
+          onCancel={onCancelDraft}
+          onSubmit={onSubmitDraft}
+        />
+      ) : readOnly ? (
+        <button
+          type="button"
+          disabled
+          aria-disabled="true"
+          title={t("addGoalDisabledHint")}
+          data-testid="savings-goal-add-placeholder"
+          data-state="disabled"
+          className="cursor-not-allowed rounded-[1.75rem] border-[1.5px] border-dashed border-eb-stroke/70 bg-transparent px-5 py-3.5 text-left text-sm font-semibold text-eb-text/55 opacity-70"
+        >
+          <span>{t("addGoal")}</span>
+          <span className="ml-2 text-[12px] font-normal text-eb-text/45">
+            · {t("addGoalDisabledHint")}
+          </span>
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={onOpenDraft}
+          data-testid="savings-goal-add-placeholder"
+          data-state="ready"
+          className="rounded-[1.75rem] border-[1.5px] border-dashed border-eb-stroke/70 bg-transparent px-5 py-3.5 text-left text-sm font-semibold text-eb-text/70 transition hover:border-eb-accent/70 hover:bg-eb-accent/5 hover:text-eb-text focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-eb-accent/30"
+        >
+          {t("addGoal")}
+        </button>
+      )}
     </div>
   );
 }

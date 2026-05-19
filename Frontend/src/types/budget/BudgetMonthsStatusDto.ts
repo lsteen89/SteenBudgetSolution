@@ -146,6 +146,8 @@ export type BudgetMonthSavingsGoalEditorRowDto = {
 
 export type PatchBudgetMonthSavingsGoalRequestDto = {
   monthlyContribution: number;
+  /** ISO yyyy-MM-dd. Omit/null means "leave the goal target date unchanged". */
+  targetDate?: string | null;
   scope?: SavingsGoalEditScope | null;
 };
 
@@ -157,6 +159,14 @@ export type PatchBudgetMonthSavingsGoalBulkRowDto = {
 
 export type PatchBudgetMonthSavingsGoalsBulkRequestDto = {
   items: PatchBudgetMonthSavingsGoalBulkRowDto[];
+};
+
+export type CreateBudgetMonthSavingsGoalRequestDto = {
+  name: string;
+  targetAmount: number;
+  targetDate: string;
+  amountSaved: number | null;
+  monthlyContribution: number;
 };
 
 export type DebtEditScope = ExpenseEditScope;

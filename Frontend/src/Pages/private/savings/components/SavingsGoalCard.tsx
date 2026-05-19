@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import type { BudgetMonthSavingsGoalEditorRowDto } from "@/types/budget/BudgetMonthsStatusDto";
 import { savingsEditorPageDict } from "@/utils/i18n/pages/private/savings/SavingsEditorPage.i18n";
 import { tDict } from "@/utils/i18n/translate";
-import { formatMoneyV2 } from "@/utils/money/moneyV2";
+import { formatMoneyV2, moneyDecimalsFor } from "@/utils/money/moneyV2";
 import {
   deriveSavingsGoal,
   mascotForGoal,
@@ -58,21 +58,21 @@ export default function SavingsGoalCard({
   const status = statusFor(derived.tone, derived.monthsLatePositive, t);
 
   const targetDateLabel = formatTargetDate(row.targetDate, locale);
-  const savedFormatted = formatMoneyV2(
-    row.amountSaved ?? 0,
-    currency,
-    locale,
-    { fractionDigits: 0 },
-  );
+  const savedValue = row.amountSaved ?? 0;
+  const savedFormatted = formatMoneyV2(savedValue, currency, locale, {
+    fractionDigits: moneyDecimalsFor(savedValue),
+  });
   const targetFormatted =
     row.targetAmount != null
-      ? formatMoneyV2(row.targetAmount, currency, locale, { fractionDigits: 0 })
+      ? formatMoneyV2(row.targetAmount, currency, locale, {
+          fractionDigits: moneyDecimalsFor(row.targetAmount),
+        })
       : null;
   const monthlyFormatted = formatMoneyV2(
     row.monthlyContribution,
     currency,
     locale,
-    { fractionDigits: 0 },
+    { fractionDigits: moneyDecimalsFor(row.monthlyContribution) },
   );
 
   const subtitle = targetDateLabel

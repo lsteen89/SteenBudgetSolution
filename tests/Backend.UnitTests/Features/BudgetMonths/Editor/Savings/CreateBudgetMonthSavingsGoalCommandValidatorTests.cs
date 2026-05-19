@@ -5,11 +5,19 @@ namespace Backend.UnitTests.Features.BudgetMonths.Editor.Savings;
 
 public sealed class CreateBudgetMonthSavingsGoalCommandValidatorTests
 {
-    private readonly CreateBudgetMonthSavingsGoalCommandValidator _sut = new();
+    private static readonly DateTime FixedUtcNow =
+        new(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc);
+
+    private static readonly DateOnly Today =
+        DateOnly.FromDateTime(FixedUtcNow);
+
+    private readonly CreateBudgetMonthSavingsGoalCommandValidator _sut =
+        new(new FixedTimeProvider(FixedUtcNow));
 
     private static CreateBudgetMonthSavingsGoalCommand Valid(
         string? name = null,
         decimal? targetAmount = null,
+        DateOnly? targetDate = null,
         decimal? amountSaved = null,
         decimal? monthlyContribution = null,
         string yearMonth = "2026-01")
@@ -18,7 +26,7 @@ public sealed class CreateBudgetMonthSavingsGoalCommandValidatorTests
             YearMonth: yearMonth,
             Name: name ?? "Emergency fund",
             TargetAmount: targetAmount ?? 10000m,
-            TargetDate: new DateOnly(2026, 12, 31),
+            TargetDate: targetDate ?? new DateOnly(2026, 12, 31),
             AmountSaved: amountSaved,
             MonthlyContribution: monthlyContribution ?? 500m);
 
@@ -70,9 +78,32 @@ public sealed class CreateBudgetMonthSavingsGoalCommandValidatorTests
     }
 
     [Fact]
+    public void TargetAmount_Above_Cap_Fails()
+    {
+        _sut.TestValidate(Valid(targetAmount: CreateBudgetMonthSavingsGoalCommandValidator.MaxAmount + 0.01m))
+            .ShouldHaveValidationErrorFor(x => x.TargetAmount);
+    }
+
+    [Fact]
+    public void TargetAmount_At_Cap_Passes()
+    {
+        _sut.TestValidate(Valid(targetAmount: CreateBudgetMonthSavingsGoalCommandValidator.MaxAmount))
+            .ShouldNotHaveAnyValidationErrors();
+    }
+
+    [Fact]
     public void Negative_AmountSaved_Fails()
     {
         _sut.TestValidate(Valid(amountSaved: -0.01m))
+            .ShouldHaveValidationErrorFor(x => x.AmountSaved);
+    }
+
+    [Fact]
+    public void AmountSaved_Above_Cap_Fails()
+    {
+        _sut.TestValidate(Valid(
+                targetAmount: CreateBudgetMonthSavingsGoalCommandValidator.MaxAmount,
+                amountSaved: CreateBudgetMonthSavingsGoalCommandValidator.MaxAmount + 0.01m))
             .ShouldHaveValidationErrorFor(x => x.AmountSaved);
     }
 
@@ -109,5 +140,49 @@ public sealed class CreateBudgetMonthSavingsGoalCommandValidatorTests
     {
         var cmd = Valid() with { Persoid = Guid.Empty };
         _sut.TestValidate(cmd).ShouldHaveValidationErrorFor(x => x.Persoid);
+    }
+
+    [Fact]
+    public void Null_TargetDate_Fails()
+    {
+        var cmd = Valid() with { TargetDate = null };
+        _sut.TestValidate(cmd).ShouldHaveValidationErrorFor(x => x.TargetDate);
+    }
+
+    [Fact]
+    public void TargetDate_In_Past_Fails()
+    {
+        _sut.TestValidate(Valid(targetDate: Today.AddDays(-1)))
+            .ShouldHaveValidationErrorFor(x => x.TargetDate);
+    }
+
+    [Fact]
+    public void TargetDate_Today_Passes()
+    {
+        _sut.TestValidate(Valid(targetDate: Today))
+            .ShouldNotHaveAnyValidationErrors();
+    }
+
+    [Fact]
+    public void TargetDate_Beyond_Max_Years_Fails()
+    {
+        var beyond = Today
+            .AddYears(CreateBudgetMonthSavingsGoalCommandValidator.MaxYearsInFuture)
+            .AddDays(1);
+
+        _sut.TestValidate(Valid(targetDate: beyond))
+            .ShouldHaveValidationErrorFor(x => x.TargetDate);
+    }
+
+    private sealed class FixedTimeProvider : TimeProvider
+    {
+        private readonly DateTimeOffset _now;
+
+        public FixedTimeProvider(DateTime utcNow)
+        {
+            _now = new DateTimeOffset(DateTime.SpecifyKind(utcNow, DateTimeKind.Utc));
+        }
+
+        public override DateTimeOffset GetUtcNow() => _now;
     }
 }

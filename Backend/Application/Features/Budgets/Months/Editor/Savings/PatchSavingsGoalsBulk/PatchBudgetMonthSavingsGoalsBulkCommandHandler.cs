@@ -103,6 +103,7 @@ public sealed class PatchBudgetMonthSavingsGoalsBulkCommandHandler
                 now,
                 row.MonthlyContribution,
                 row.Scope,
+                requestedTargetDate: null,
                 ct);
 
             if (rowResult.IsFailure || rowResult.Value is null)

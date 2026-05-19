@@ -103,6 +103,34 @@ describe("SavingsGoalCard", () => {
     expect(screen.getByText("Ahead of plan")).toBeInTheDocument();
   });
 
+  it("renders stored decimal monthly contributions without truncation", () => {
+    render(
+      <SavingsGoalCard
+        row={{ ...onTrackRow, monthlyContribution: 1234.56 }}
+        readOnly={false}
+        referenceDate={REFERENCE}
+        onEdit={vi.fn()}
+      />,
+    );
+
+    // Decimal precision survives onto both the headline and the pace line.
+    expect(screen.getAllByText(/1,234\.56/).length).toBeGreaterThan(0);
+  });
+
+  it("renders whole-krona contributions without trailing decimals", () => {
+    render(
+      <SavingsGoalCard
+        row={{ ...onTrackRow, monthlyContribution: 3000 }}
+        readOnly={false}
+        referenceDate={REFERENCE}
+        onEdit={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText(/3,000\.00/)).not.toBeInTheDocument();
+    expect(screen.getAllByText(/3,000/).length).toBeGreaterThan(0);
+  });
+
   it("renders a compact card when density='compact'", () => {
     render(
       <SavingsGoalCard

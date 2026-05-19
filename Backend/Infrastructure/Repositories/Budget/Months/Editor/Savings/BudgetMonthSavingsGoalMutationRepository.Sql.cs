@@ -79,6 +79,47 @@ public sealed partial class BudgetMonthSavingsGoalMutationRepository
         UpdatedByUserId = @ActorPersoid
     WHERE Id = @SavingsGoalId;";
 
+    /// <summary>
+    /// Plan-level field — TargetDate is the goal's plan attribute, never a per-
+    /// month override. We do not touch IsOverride here; the column is reserved
+    /// for contribution overrides.
+    /// </summary>
+    private const string UpdateMonthSavingsGoalTargetDateSql = @"
+    UPDATE BudgetMonthSavingsGoal
+    SET
+        TargetDate = @TargetDate,
+        UpdatedAt = @UtcNow,
+        UpdatedByUserId = @ActorPersoid
+    WHERE Id = @Id
+      AND BudgetMonthSavingsId = @BudgetMonthSavingsId;";
+
+    private const string UpdateBaselineSavingsGoalTargetDateSql = @"
+    UPDATE SavingsGoal
+    SET
+        TargetDate = @TargetDate,
+        UpdatedAt = @UtcNow,
+        UpdatedByUserId = @ActorPersoid
+    WHERE Id = @SavingsGoalId;";
+
+    /// <summary>
+    /// Cascade the new TargetDate to every other open BudgetMonthSavingsGoal
+    /// row that points at the same source goal. Closed/skipped months are
+    /// excluded so historical truth is preserved. The current month row is
+    /// excluded because it is updated separately.
+    /// </summary>
+    private const string UpdateOpenLinkedMonthSavingsGoalTargetDateSql = @"
+    UPDATE BudgetMonthSavingsGoal g
+    JOIN BudgetMonthSavings s ON s.Id = g.BudgetMonthSavingsId
+    JOIN BudgetMonth bm ON bm.Id = s.BudgetMonthId
+    SET
+        g.TargetDate = @TargetDate,
+        g.UpdatedAt = @UtcNow,
+        g.UpdatedByUserId = @ActorPersoid
+    WHERE g.SourceSavingsGoalId = @SourceSavingsGoalId
+      AND g.Id <> @ExcludeMonthGoalId
+      AND g.IsDeleted = 0
+      AND bm.Status = 'open';";
+
     private const string GetBudgetMonthSavingsForCreateSql = @"
     SELECT
         s.Id            AS BudgetMonthSavingsId,

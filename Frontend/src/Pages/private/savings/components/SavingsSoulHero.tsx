@@ -3,7 +3,7 @@ import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { savingsEditorPageDict } from "@/utils/i18n/pages/private/savings/SavingsEditorPage.i18n";
 import { tDict } from "@/utils/i18n/translate";
-import { formatMoneyV2 } from "@/utils/money/moneyV2";
+import { formatMoneyV2, moneyDecimalsFor } from "@/utils/money/moneyV2";
 import type { SavingsHeroAggregate } from "../utils/savingsSoul";
 
 type SavingsSoulHeroProps = {
@@ -28,10 +28,10 @@ export default function SavingsSoulHero({
     tDict(key, locale, savingsEditorPageDict);
 
   const monthlyFormatted = formatMoneyV2(aggregate.totalMonthly, currency, locale, {
-    fractionDigits: 0,
+    fractionDigits: moneyDecimalsFor(aggregate.totalMonthly),
   });
   const savedFormatted = formatMoneyV2(aggregate.totalSaved, currency, locale, {
-    fractionDigits: 0,
+    fractionDigits: moneyDecimalsFor(aggregate.totalSaved),
   });
 
   const goalCountLabel = interpolate(

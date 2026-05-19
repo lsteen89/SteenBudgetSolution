@@ -39,6 +39,8 @@ public sealed class PatchBudgetMonthSavingsGoalsBulkCommandValidator
 
             RuleFor(x => x.MonthlyContribution)
                 .GreaterThanOrEqualTo(0m)
+                .LessThanOrEqualTo(Backend.Application.Features.Budgets.Months.Editor.Savings.CreateSavingsGoal
+                    .CreateBudgetMonthSavingsGoalCommandValidator.MaxAmount)
                 .PrecisionScale(12, 2, false);
 
             RuleFor(x => x.Scope)

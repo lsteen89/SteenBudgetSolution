@@ -1,6 +1,7 @@
 import {
   createBudgetMonthExpenseItem,
   createBudgetMonthIncomeItem,
+  createBudgetMonthSavingsGoal,
   deleteBudgetMonthExpenseItem,
   deleteBudgetMonthIncomeItem,
   getBudgetMonthDebts,
@@ -19,6 +20,7 @@ import {
 import type {
   CreateBudgetMonthExpenseItemRequestDto,
   CreateBudgetMonthIncomeItemRequestDto,
+  CreateBudgetMonthSavingsGoalRequestDto,
   PatchBudgetMonthDebtBulkRowDto,
   PatchBudgetMonthDebtRequestDto,
   PatchBudgetMonthExpenseItemBulkRowDto,
@@ -249,6 +251,16 @@ export function usePatchBudgetMonthSavingsGoalsBulk(yearMonth: string) {
 
       return patchBudgetMonthSavingsGoalsBulk(yearMonth, flatRows);
     },
+    onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
+  });
+}
+
+export function useCreateBudgetMonthSavingsGoal(yearMonth: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: CreateBudgetMonthSavingsGoalRequestDto) =>
+      createBudgetMonthSavingsGoal(yearMonth, payload),
     onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
   });
 }
