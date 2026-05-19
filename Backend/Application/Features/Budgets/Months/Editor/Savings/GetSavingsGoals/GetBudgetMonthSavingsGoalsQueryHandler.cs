@@ -41,7 +41,7 @@ public sealed class GetBudgetMonthSavingsGoalsQueryHandler
 
         var rows = await _repo.GetSavingsGoalEditorRowsAsync(
             ensured.Value.BudgetMonthId,
-            includeDeleted: true,
+            includeDeleted: false,
             ct);
 
         return Result<IReadOnlyList<BudgetMonthSavingsGoalEditorRowDto>>.Success(
@@ -49,7 +49,14 @@ public sealed class GetBudgetMonthSavingsGoalsQueryHandler
     }
 
     private static BudgetMonthSavingsGoalEditorRowDto ToDto(BudgetMonthSavingsGoalEditorRowReadModel row)
-        => new(
+    {
+        var isClosed = string.Equals(row.Status, "closed", StringComparison.OrdinalIgnoreCase);
+        var canUpdateDefault =
+            row.SourceSavingsGoalId is not null &&
+            !isClosed &&
+            !row.IsDeleted;
+
+        return new BudgetMonthSavingsGoalEditorRowDto(
             Id: row.Id,
             SourceSavingsGoalId: row.SourceSavingsGoalId,
             Name: row.Name ?? "",
@@ -58,7 +65,10 @@ public sealed class GetBudgetMonthSavingsGoalsQueryHandler
             AmountSaved: row.AmountSaved,
             MonthlyContribution: row.MonthlyContribution,
             Status: row.Status,
+            ClosedReason: row.ClosedReason,
+            ClosedAt: row.ClosedAt,
             IsDeleted: row.IsDeleted,
             IsMonthOnly: row.SourceSavingsGoalId is null,
-            CanUpdateDefault: row.SourceSavingsGoalId is not null);
+            CanUpdateDefault: canUpdateDefault);
+    }
 }

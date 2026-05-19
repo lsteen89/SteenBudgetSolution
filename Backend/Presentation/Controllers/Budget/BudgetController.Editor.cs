@@ -14,10 +14,13 @@ using Backend.Application.Features.Budgets.Months.Editor.Income.GetIncomeItems;
 using Backend.Application.Features.Budgets.Months.Editor.Income.PatchIncomeItem;
 using Backend.Application.Features.Budgets.Months.Editor.Income.PatchIncomeItemsBulk;
 using Backend.Application.DTO.Budget.Months.Editor.Savings;
+using Backend.Application.Features.Budgets.Months.Editor.Savings.CancelSavingsGoal;
+using Backend.Application.Features.Budgets.Months.Editor.Savings.CompleteSavingsGoal;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.CreateSavingsGoal;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.GetSavingsGoals;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.PatchSavingsGoal;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.PatchSavingsGoalsBulk;
+using Backend.Application.Features.Budgets.Months.Editor.Savings.RemoveSavingsGoal;
 using Backend.Application.DTO.Budget.Months.Editor.Debt;
 using Backend.Application.Features.Budgets.Months.Editor.Debts.GetDebts;
 using Backend.Application.Features.Budgets.Months.Editor.Debts.PatchDebt;
@@ -396,6 +399,81 @@ public sealed partial class BudgetController
         }
 
         return Ok(ApiEnvelope<IReadOnlyList<BudgetMonthSavingsGoalEditorRowDto>>.Success(result.Value));
+    }
+
+    [HttpPost("months/{yearMonth}/savings-goals/{monthSavingsGoalId:guid}/complete")]
+    [ProducesResponseType(typeof(ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>>> CompleteSavingsGoal(
+        [FromRoute] string yearMonth,
+        [FromRoute] Guid monthSavingsGoalId,
+        CancellationToken ct)
+    {
+        var result = await _mediator.Send(
+            new CompleteBudgetMonthSavingsGoalCommand(
+                Persoid: _currentUser.Persoid,
+                YearMonth: yearMonth,
+                MonthSavingsGoalId: monthSavingsGoalId),
+            ct);
+
+        if (result.IsFailure || result.Value is null)
+        {
+            return Ok(ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>.Failure(
+                code: result.Error?.Code ?? "BUDGET_MONTH_SAVINGS_GOAL_COMPLETE_FAILED",
+                message: result.Error?.Message ?? "Could not complete savings goal."
+            ));
+        }
+
+        return Ok(ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>.Success(result.Value));
+    }
+
+    [HttpPost("months/{yearMonth}/savings-goals/{monthSavingsGoalId:guid}/cancel")]
+    [ProducesResponseType(typeof(ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>>> CancelSavingsGoal(
+        [FromRoute] string yearMonth,
+        [FromRoute] Guid monthSavingsGoalId,
+        CancellationToken ct)
+    {
+        var result = await _mediator.Send(
+            new CancelBudgetMonthSavingsGoalCommand(
+                Persoid: _currentUser.Persoid,
+                YearMonth: yearMonth,
+                MonthSavingsGoalId: monthSavingsGoalId),
+            ct);
+
+        if (result.IsFailure || result.Value is null)
+        {
+            return Ok(ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>.Failure(
+                code: result.Error?.Code ?? "BUDGET_MONTH_SAVINGS_GOAL_CANCEL_FAILED",
+                message: result.Error?.Message ?? "Could not cancel savings goal."
+            ));
+        }
+
+        return Ok(ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>.Success(result.Value));
+    }
+
+    [HttpPost("months/{yearMonth}/savings-goals/{monthSavingsGoalId:guid}/remove")]
+    [ProducesResponseType(typeof(ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>>> RemoveSavingsGoal(
+        [FromRoute] string yearMonth,
+        [FromRoute] Guid monthSavingsGoalId,
+        CancellationToken ct)
+    {
+        var result = await _mediator.Send(
+            new RemoveBudgetMonthSavingsGoalCommand(
+                Persoid: _currentUser.Persoid,
+                YearMonth: yearMonth,
+                MonthSavingsGoalId: monthSavingsGoalId),
+            ct);
+
+        if (result.IsFailure || result.Value is null)
+        {
+            return Ok(ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>.Failure(
+                code: result.Error?.Code ?? "BUDGET_MONTH_SAVINGS_GOAL_REMOVE_FAILED",
+                message: result.Error?.Message ?? "Could not remove savings goal."
+            ));
+        }
+
+        return Ok(ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>.Success(result.Value));
     }
 
     [HttpGet("months/{yearMonth}/debt-items")]

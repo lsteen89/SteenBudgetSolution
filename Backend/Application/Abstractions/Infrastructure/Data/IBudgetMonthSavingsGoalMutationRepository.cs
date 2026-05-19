@@ -52,4 +52,16 @@ public interface IBudgetMonthSavingsGoalMutationRepository
     Task InsertMonthSavingsGoalAsync(
         InsertBudgetMonthSavingsGoalModel model,
         CancellationToken ct);
+
+    Task<BudgetMonthSavingsGoalLifecycleReadModel?> GetSourceSavingsGoalLifecycleAsync(
+        Guid savingsGoalId,
+        CancellationToken ct);
+
+    Task UpdateMonthSavingsGoalLifecycleAsync(
+        UpdateBudgetMonthSavingsGoalLifecycleModel model,
+        CancellationToken ct);
+
+    Task UpdateBaselineSavingsGoalLifecycleAsync(
+        UpdateBaselineSavingsGoalLifecycleModel model,
+        CancellationToken ct);
 }

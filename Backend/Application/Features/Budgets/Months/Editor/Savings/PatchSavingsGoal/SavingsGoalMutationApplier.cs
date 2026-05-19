@@ -201,6 +201,8 @@ internal static class SavingsGoalMutationApplier
                 ? requestedMonthlyContribution
                 : existing.MonthlyContribution,
             Status: existing.Status,
+            ClosedReason: existing.ClosedReason,
+            ClosedAt: existing.ClosedAt,
             IsDeleted: existing.IsDeleted,
             IsMonthOnly: existing.SourceSavingsGoalId is null,
             CanUpdateDefault: existing.SourceSavingsGoalId is not null);

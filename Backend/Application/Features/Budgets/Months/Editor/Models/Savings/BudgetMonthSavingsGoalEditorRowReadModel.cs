@@ -10,5 +10,7 @@ public sealed class BudgetMonthSavingsGoalEditorRowReadModel
     public decimal? AmountSaved { get; init; }
     public decimal MonthlyContribution { get; init; }
     public string Status { get; init; } = string.Empty;
+    public string? ClosedReason { get; init; }
+    public DateTime? ClosedAt { get; init; }
     public bool IsDeleted { get; init; }
 }

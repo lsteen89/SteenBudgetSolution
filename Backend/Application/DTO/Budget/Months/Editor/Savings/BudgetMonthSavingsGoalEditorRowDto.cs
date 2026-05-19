@@ -9,6 +9,8 @@ public sealed record BudgetMonthSavingsGoalEditorRowDto(
     decimal? AmountSaved,
     decimal MonthlyContribution,
     string Status,
+    string? ClosedReason,
+    DateTime? ClosedAt,
     bool IsDeleted,
     bool IsMonthOnly,
     bool CanUpdateDefault);

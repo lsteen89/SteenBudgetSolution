@@ -138,6 +138,8 @@ public sealed class CreateBudgetMonthSavingsGoalCommandHandler
                 AmountSaved: amountSaved,
                 MonthlyContribution: cmd.MonthlyContribution,
                 Status: ActiveStatus,
+                ClosedReason: null,
+                ClosedAt: null,
                 IsDeleted: false,
                 IsMonthOnly: false,
                 CanUpdateDefault: true));

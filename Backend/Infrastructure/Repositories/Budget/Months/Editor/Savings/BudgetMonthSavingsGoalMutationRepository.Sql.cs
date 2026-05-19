@@ -21,13 +21,15 @@ public sealed partial class BudgetMonthSavingsGoalMutationRepository
         g.AmountSaved,
         g.MonthlyContribution,
         g.Status,
+        g.ClosedReason,
+        g.ClosedAt,
         g.IsDeleted
     FROM BudgetMonthSavingsGoal g
     JOIN BudgetMonthSavings s
         ON s.Id = g.BudgetMonthSavingsId
     WHERE s.BudgetMonthId = @BudgetMonthId
       AND s.IsDeleted = 0
-      AND (@IncludeDeleted = 1 OR g.IsDeleted = 0)
+      AND (@IncludeDeleted = 1 OR (g.IsDeleted = 0 AND g.Status = 'active'))
     ORDER BY
         g.IsDeleted ASC,
         g.SortOrder,
@@ -46,6 +48,8 @@ public sealed partial class BudgetMonthSavingsGoalMutationRepository
         g.AmountSaved,
         g.MonthlyContribution,
         g.Status,
+        g.ClosedReason,
+        g.ClosedAt,
         g.IsDeleted
     FROM BudgetMonthSavingsGoal g
     JOIN BudgetMonthSavings s
@@ -162,6 +166,55 @@ public sealed partial class BudgetMonthSavingsGoalMutationRepository
         @UtcNow,
         @ActorPersoid
     );";
+
+    /// <summary>
+    /// Snapshot of the plan-level row used to validate a source-linked
+    /// lifecycle transition. Returns null when the source goal no longer
+    /// exists (FK is ON DELETE SET NULL so callers must handle this).
+    /// </summary>
+    private const string GetSourceSavingsGoalLifecycleSql = @"
+    SELECT
+        Id,
+        Status,
+        ClosedReason,
+        ClosedAt
+    FROM SavingsGoal
+    WHERE Id = @SavingsGoalId
+    LIMIT 1;";
+
+    /// <summary>
+    /// Applies a lifecycle transition to a BudgetMonthSavingsGoal row in one
+    /// statement. Sets Status / ClosedReason / ClosedAt / IsDeleted together so
+    /// the CK_*_Status check constraint is never seen in an intermediate state.
+    /// IsOverride is intentionally left untouched — overrides describe
+    /// contribution scoping, not lifecycle membership.
+    /// </summary>
+    private const string UpdateMonthSavingsGoalLifecycleSql = @"
+    UPDATE BudgetMonthSavingsGoal
+    SET
+        Status         = @Status,
+        ClosedReason   = @ClosedReason,
+        ClosedAt       = @ClosedAt,
+        IsDeleted      = @IsDeleted,
+        UpdatedAt      = @UtcNow,
+        UpdatedByUserId = @ActorPersoid
+    WHERE Id = @Id
+      AND BudgetMonthSavingsId = @BudgetMonthSavingsId;";
+
+    /// <summary>
+    /// Applies a lifecycle transition to the plan-level SavingsGoal row.
+    /// There is no IsDeleted on the source row — 'remove' only marks the
+    /// month materialization deleted while the plan goal is simply closed.
+    /// </summary>
+    private const string UpdateBaselineSavingsGoalLifecycleSql = @"
+    UPDATE SavingsGoal
+    SET
+        Status         = @Status,
+        ClosedReason   = @ClosedReason,
+        ClosedAt       = @ClosedAt,
+        UpdatedAt      = @UtcNow,
+        UpdatedByUserId = @ActorPersoid
+    WHERE Id = @SavingsGoalId;";
 
     private const string InsertMonthSavingsGoalSql = @"
     INSERT INTO BudgetMonthSavingsGoal
