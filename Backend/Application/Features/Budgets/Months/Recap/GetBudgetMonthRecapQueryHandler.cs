@@ -75,10 +75,12 @@ public sealed class GetBudgetMonthRecapQueryHandler
         var previousSavingsGoals = previousComparableMonth is null
             ? Array.Empty<BudgetMonthSavingsGoalRm>()
             : await _months.GetSavingsGoalsAsync(previousComparableMonth.Id, ct);
+        var completedSavingsGoals = await _months.GetCompletedSavingsGoalsAsync(month.Id, ct);
         var savingsDetail = BuildSavingsDetail(
             month.SnapshotTotalSavingsMonthly.Value,
             currentSavingsGoals,
             previousSavingsGoals,
+            completedSavingsGoals,
             previousComparableMonth is not null);
         var currentDebts = await _months.GetDebtsAsync(month.Id, ct);
         var previousDebts = previousComparableMonth is null
@@ -395,6 +397,7 @@ public sealed class GetBudgetMonthRecapQueryHandler
         decimal totalSavingsMonthly,
         IReadOnlyList<BudgetMonthSavingsGoalRm> currentGoals,
         IReadOnlyList<BudgetMonthSavingsGoalRm> previousGoals,
+        IReadOnlyList<BudgetMonthCompletedSavingsGoalRm> completedGoals,
         bool hasPreviousComparableMonth)
     {
         var previousContributionBySource = previousGoals
@@ -432,9 +435,22 @@ public sealed class GetBudgetMonthRecapQueryHandler
             .ThenBy(x => x.Id, StringComparer.Ordinal)
             .ToArray();
 
+        var completedDtos = completedGoals
+            .Select(c => new BudgetMonthRecapCompletedSavingsGoalDto(
+                Id: c.Id.ToString(),
+                SourceSavingsGoalId: c.SourceSavingsGoalId?.ToString(),
+                Name: c.Name,
+                TargetAmount: c.TargetAmount,
+                AmountSaved: c.AmountSaved,
+                MonthlyContribution: c.MonthlyContribution,
+                ProjectedAmountSaved: (c.AmountSaved ?? 0m) + c.MonthlyContribution,
+                ClosedAt: c.ClosedAt))
+            .ToArray();
+
         return new BudgetMonthRecapSavingsDetailDto(
             TotalSavingsMonthly: totalSavingsMonthly,
             ActiveGoals: goals,
+            CompletedGoals: completedDtos,
             HasPreviousComparableMonth: hasPreviousComparableMonth);
     }
 

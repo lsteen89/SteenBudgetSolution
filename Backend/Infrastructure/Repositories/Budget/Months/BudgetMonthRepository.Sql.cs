@@ -217,6 +217,29 @@ public sealed partial class BudgetMonthRepository
       AND g.Status = 'active'
     ORDER BY g.SortOrder, g.CreatedAt, g.Id;";
 
+    // Savings goals that the month closed with ClosedReason='completed'.
+    // Reads strictly from BudgetMonthSavingsGoal (not the baseline plan) so
+    // the recap reflects exactly the goals that were tied off when this
+    // month was closed.
+    private const string GetCompletedSavingsGoals = @"
+    SELECT
+        g.Id,
+        g.SourceSavingsGoalId,
+        g.Name,
+        g.TargetAmount,
+        g.AmountSaved,
+        g.MonthlyContribution,
+        g.ClosedAt
+    FROM BudgetMonthSavings s
+    JOIN BudgetMonthSavingsGoal g
+        ON g.BudgetMonthSavingsId = s.Id
+    WHERE s.BudgetMonthId = @BudgetMonthId
+      AND s.IsDeleted = 0
+      AND g.IsDeleted = 0
+      AND g.Status = 'closed'
+      AND g.ClosedReason = 'completed'
+    ORDER BY g.ClosedAt, g.SortOrder, g.CreatedAt, g.Id;";
+
     private const string GetDebts = @"
     SELECT
         d.Id,

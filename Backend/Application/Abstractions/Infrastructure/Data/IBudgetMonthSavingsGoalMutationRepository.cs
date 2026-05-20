@@ -64,4 +64,23 @@ public interface IBudgetMonthSavingsGoalMutationRepository
     Task UpdateBaselineSavingsGoalLifecycleAsync(
         UpdateBaselineSavingsGoalLifecycleModel model,
         CancellationToken ct);
+
+    // Candidates for close-month completion: active, undeleted goals on the
+    // given month whose projected AmountSaved (current + this month's
+    // contribution) reaches their TargetAmount. Goals without a positive
+    // TargetAmount are excluded so we never flag an "infinite" target as met.
+    Task<IReadOnlyList<BudgetMonthSavingsGoalCompletionCandidateReadModel>>
+        GetCompletionCandidatesAsync(Guid budgetMonthId, CancellationToken ct);
+
+    // Closes any still-active month rows pointing at the given source goal,
+    // excluding the row we already handled directly. Used when close-month
+    // completes a source-linked goal so a pre-existing next open month does
+    // not silently keep the goal alive. Idempotent.
+    Task<int> CloseLinkedActiveMonthSavingsGoalsForSourceAsync(
+        Guid sourceSavingsGoalId,
+        Guid excludeMonthGoalId,
+        string closedReason,
+        DateTime closedAtUtc,
+        Guid actorPersoid,
+        CancellationToken ct);
 }

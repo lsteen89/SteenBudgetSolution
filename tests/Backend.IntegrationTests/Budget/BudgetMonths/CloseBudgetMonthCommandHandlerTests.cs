@@ -15,6 +15,8 @@ using Backend.Infrastructure.Repositories.Budget.Audit;
 using Backend.Infrastructure.Data.Sql.Helpers.UnitOfWork;
 using Backend.Infrastructure.Repositories.Budget.BudgetDashboard;
 using Backend.Infrastructure.Repositories.Budget.Months;
+using Backend.Infrastructure.Repositories.Budget.Months.Editor.ChangeEvent;
+using Backend.Infrastructure.Repositories.Budget.Months.Editor.Savings;
 using Backend.Infrastructure.Repositories.Budget.Months.Materializer;
 using Backend.Infrastructure.Repositories.Budget.Months.Seed;
 using Backend.IntegrationTests.Shared;
@@ -716,6 +718,16 @@ public sealed class CloseBudgetMonthCommandHandlerTests
             NullLogger<BudgetAuditWriter>.Instance,
             dbOpts);
 
+        var savingsRepo = new BudgetMonthSavingsGoalMutationRepository(
+            uow,
+            NullLogger<BudgetMonthSavingsGoalMutationRepository>.Instance,
+            dbOpts);
+
+        var changeEventRepo = new BudgetMonthChangeEventRepository(
+            uow,
+            NullLogger<BudgetMonthChangeEventRepository>.Instance,
+            dbOpts);
+
         var handler = new CloseBudgetMonthCommandHandler(
             months,
             lifecycle,
@@ -723,6 +735,8 @@ public sealed class CloseBudgetMonthCommandHandlerTests
             materializer,
             closeSnapshot,
             auditWriter,
+            savingsRepo,
+            changeEventRepo,
             clock);
 
         UnitOfWorkPipelineBehavior<CloseBudgetMonthCommand, Backend.Domain.Shared.Result<CloseBudgetMonthResultDto>>? behavior = null;
@@ -944,6 +958,9 @@ public sealed class CloseBudgetMonthCommandHandlerTests
 
         public Task<IReadOnlyList<Backend.Application.Features.Budgets.Months.Models.BudgetMonthSavingsGoalRm>> GetSavingsGoalsAsync(Guid budgetMonthId, CancellationToken ct)
             => _inner.GetSavingsGoalsAsync(budgetMonthId, ct);
+
+        public Task<IReadOnlyList<Backend.Application.Features.Budgets.Months.Models.BudgetMonthCompletedSavingsGoalRm>> GetCompletedSavingsGoalsAsync(Guid budgetMonthId, CancellationToken ct)
+            => _inner.GetCompletedSavingsGoalsAsync(budgetMonthId, ct);
 
         public Task<IReadOnlyList<Backend.Application.Features.Budgets.Months.Models.BudgetMonthDebtRm>> GetDebtsAsync(Guid budgetMonthId, CancellationToken ct)
             => _inner.GetDebtsAsync(budgetMonthId, ct);

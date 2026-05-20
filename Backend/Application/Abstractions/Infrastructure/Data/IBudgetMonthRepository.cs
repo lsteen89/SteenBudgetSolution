@@ -20,6 +20,9 @@ public interface IBudgetMonthRepository
     Task<IReadOnlyList<BudgetMonthExpenseCategoryTotalRm>> GetExpenseCategoryTotalsAsync(Guid budgetMonthId, CancellationToken ct);
     Task<IReadOnlyList<BudgetMonthSubscriptionRm>> GetSubscriptionsAsync(Guid budgetMonthId, CancellationToken ct);
     Task<IReadOnlyList<BudgetMonthSavingsGoalRm>> GetSavingsGoalsAsync(Guid budgetMonthId, CancellationToken ct);
+    Task<IReadOnlyList<BudgetMonthCompletedSavingsGoalRm>> GetCompletedSavingsGoalsAsync(
+        Guid budgetMonthId,
+        CancellationToken ct);
     Task<IReadOnlyList<BudgetMonthDebtRm>> GetDebtsAsync(Guid budgetMonthId, CancellationToken ct);
     Task<IncomePaymentTimingReadModel?> GetBudgetMonthIncomePaymentTimingAsync(Guid budgetMonthId, CancellationToken ct);
 

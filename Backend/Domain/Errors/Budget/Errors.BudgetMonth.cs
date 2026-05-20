@@ -75,4 +75,14 @@ public static partial class BudgetMonth
 
     public static readonly Error CarryOverRequiresPreviousMonth =
         new("BudgetMonth.CarryOverRequiresPreviousMonth", "Carry over cannot be applied without a previous month to carry over from.", ErrorType.Validation);
+
+    public static readonly Error InvalidSavingsGoalCompletionCandidate =
+        new("BudgetMonth.InvalidSavingsGoalCompletionCandidate",
+            "One or more selected savings goals are not eligible for completion in this month.",
+            ErrorType.Validation);
+
+    public static readonly Error DuplicateSavingsGoalCompletionCandidate =
+        new("BudgetMonth.DuplicateSavingsGoalCompletionCandidate",
+            "Duplicate savings goal ids in completion selection.",
+            ErrorType.Validation);
 }

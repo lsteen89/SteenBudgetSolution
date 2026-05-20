@@ -216,6 +216,50 @@ public sealed partial class BudgetMonthSavingsGoalMutationRepository
         UpdatedByUserId = @ActorPersoid
     WHERE Id = @SavingsGoalId;";
 
+    // Selects active monthly savings-goal rows whose projected AmountSaved
+    // (current + this month's contribution) reaches the TargetAmount. Read
+    // straight from BudgetMonthSavingsGoal so the projection is always
+    // anchored on month state, never the baseline plan. NULL AmountSaved is
+    // treated as 0. Goals without a positive TargetAmount are excluded.
+    private const string GetSavingsGoalCompletionCandidates = @"
+    SELECT
+        g.Id,
+        g.SourceSavingsGoalId,
+        g.Name,
+        g.TargetAmount,
+        g.AmountSaved,
+        g.MonthlyContribution
+    FROM BudgetMonthSavingsGoal g
+    JOIN BudgetMonthSavings s
+        ON s.Id = g.BudgetMonthSavingsId
+    WHERE s.BudgetMonthId = @BudgetMonthId
+      AND s.IsDeleted = 0
+      AND g.IsDeleted = 0
+      AND g.Status = 'active'
+      AND g.TargetAmount IS NOT NULL
+      AND g.TargetAmount > 0
+      AND (COALESCE(g.AmountSaved, 0) + g.MonthlyContribution) >= g.TargetAmount
+    ORDER BY g.SortOrder, g.CreatedAt, g.Id;";
+
+    // Idempotently closes still-active month rows pointing at the same source
+    // goal, excluding the row we already updated directly. Skips closed rows
+    // and rows in skipped months — both are historical and must not change.
+    private const string CloseLinkedActiveMonthSavingsGoalsForSourceSql = @"
+    UPDATE BudgetMonthSavingsGoal g
+    JOIN BudgetMonthSavings s ON s.Id = g.BudgetMonthSavingsId
+    JOIN BudgetMonth bm ON bm.Id = s.BudgetMonthId
+    SET
+        g.Status        = 'closed',
+        g.ClosedReason  = @ClosedReason,
+        g.ClosedAt      = @ClosedAt,
+        g.UpdatedAt     = @UtcNow,
+        g.UpdatedByUserId = @ActorPersoid
+    WHERE g.SourceSavingsGoalId = @SourceSavingsGoalId
+      AND g.Id <> @ExcludeMonthGoalId
+      AND g.IsDeleted = 0
+      AND g.Status = 'active'
+      AND bm.Status = 'open';";
+
     private const string InsertMonthSavingsGoalSql = @"
     INSERT INTO BudgetMonthSavingsGoal
     (

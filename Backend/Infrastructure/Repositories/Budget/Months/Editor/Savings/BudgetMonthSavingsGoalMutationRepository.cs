@@ -132,4 +132,31 @@ public sealed partial class BudgetMonthSavingsGoalMutationRepository
         UpdateBaselineSavingsGoalLifecycleModel model,
         CancellationToken ct)
         => ExecuteAsync(UpdateBaselineSavingsGoalLifecycleSql, model, ct);
+
+    public async Task<IReadOnlyList<BudgetMonthSavingsGoalCompletionCandidateReadModel>>
+        GetCompletionCandidatesAsync(Guid budgetMonthId, CancellationToken ct)
+        => await QueryAsync<BudgetMonthSavingsGoalCompletionCandidateReadModel>(
+            GetSavingsGoalCompletionCandidates,
+            new { BudgetMonthId = budgetMonthId },
+            ct);
+
+    public Task<int> CloseLinkedActiveMonthSavingsGoalsForSourceAsync(
+        Guid sourceSavingsGoalId,
+        Guid excludeMonthGoalId,
+        string closedReason,
+        DateTime closedAtUtc,
+        Guid actorPersoid,
+        CancellationToken ct)
+        => ExecuteAsync(
+            CloseLinkedActiveMonthSavingsGoalsForSourceSql,
+            new
+            {
+                SourceSavingsGoalId = sourceSavingsGoalId,
+                ExcludeMonthGoalId = excludeMonthGoalId,
+                ClosedReason = closedReason,
+                ClosedAt = closedAtUtc,
+                UtcNow = closedAtUtc,
+                ActorPersoid = actorPersoid,
+            },
+            ct);
 }

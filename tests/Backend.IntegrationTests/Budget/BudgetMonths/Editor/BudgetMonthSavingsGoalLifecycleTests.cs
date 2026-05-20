@@ -647,6 +647,10 @@ public sealed class BudgetMonthSavingsGoalLifecycleTests
             => _inner.UpdateMonthSavingsGoalLifecycleAsync(model, ct);
         public Task UpdateBaselineSavingsGoalLifecycleAsync(UpdateBaselineSavingsGoalLifecycleModel model, CancellationToken ct)
             => throw new InvalidOperationException("simulated source-write failure");
+        public Task<IReadOnlyList<BudgetMonthSavingsGoalCompletionCandidateReadModel>> GetCompletionCandidatesAsync(Guid budgetMonthId, CancellationToken ct)
+            => _inner.GetCompletionCandidatesAsync(budgetMonthId, ct);
+        public Task<int> CloseLinkedActiveMonthSavingsGoalsForSourceAsync(Guid sourceSavingsGoalId, Guid excludeMonthGoalId, string closedReason, DateTime closedAtUtc, Guid actorPersoid, CancellationToken ct)
+            => _inner.CloseLinkedActiveMonthSavingsGoalsForSourceAsync(sourceSavingsGoalId, excludeMonthGoalId, closedReason, closedAtUtc, actorPersoid, ct);
     }
 
     private Sut CreateSut(DateTime utcNow)

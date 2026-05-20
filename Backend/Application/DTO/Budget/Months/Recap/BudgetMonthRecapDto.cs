@@ -78,7 +78,24 @@ public sealed record BudgetMonthRecapSubscriptionItemDto(
 public sealed record BudgetMonthRecapSavingsDetailDto(
     decimal TotalSavingsMonthly,
     IReadOnlyList<BudgetMonthRecapSavingsGoalDto> ActiveGoals,
+    IReadOnlyList<BudgetMonthRecapCompletedSavingsGoalDto> CompletedGoals,
     bool HasPreviousComparableMonth);
+
+// Goal that reached "completed" lifecycle state during this month's close.
+// Distinct from ActiveGoals so the recap can tell the two stories
+// separately — ongoing contributions vs goals that finished.
+// AmountSaved is the raw stored progression value (not mutated at close).
+// ProjectedAmountSaved = AmountSaved + MonthlyContribution — the value
+// that qualified the goal for completion and represents what was "reached".
+public sealed record BudgetMonthRecapCompletedSavingsGoalDto(
+    string Id,
+    string? SourceSavingsGoalId,
+    string? Name,
+    decimal? TargetAmount,
+    decimal? AmountSaved,
+    decimal MonthlyContribution,
+    decimal ProjectedAmountSaved,
+    DateTime ClosedAt);
 
 public sealed record BudgetMonthRecapSavingsGoalDto(
     string Id,
