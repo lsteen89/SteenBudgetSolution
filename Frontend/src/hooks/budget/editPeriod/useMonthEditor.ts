@@ -1,4 +1,6 @@
 import {
+  cancelBudgetMonthSavingsGoal,
+  completeBudgetMonthSavingsGoal,
   createBudgetMonthExpenseItem,
   createBudgetMonthIncomeItem,
   createBudgetMonthSavingsGoal,
@@ -16,6 +18,7 @@ import {
   patchBudgetMonthIncomeItemsBulk,
   patchBudgetMonthSavingsGoal,
   patchBudgetMonthSavingsGoalsBulk,
+  removeBudgetMonthSavingsGoal,
 } from "@/api/Services/Budget/editor/monthEditor.api";
 import type {
   CreateBudgetMonthExpenseItemRequestDto,
@@ -261,6 +264,36 @@ export function useCreateBudgetMonthSavingsGoal(yearMonth: string) {
   return useMutation({
     mutationFn: (payload: CreateBudgetMonthSavingsGoalRequestDto) =>
       createBudgetMonthSavingsGoal(yearMonth, payload),
+    onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
+  });
+}
+
+export function useCompleteSavingsGoalMutation(yearMonth: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (monthSavingsGoalId: string) =>
+      completeBudgetMonthSavingsGoal(yearMonth, monthSavingsGoalId),
+    onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
+  });
+}
+
+export function useCancelSavingsGoalMutation(yearMonth: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (monthSavingsGoalId: string) =>
+      cancelBudgetMonthSavingsGoal(yearMonth, monthSavingsGoalId),
+    onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
+  });
+}
+
+export function useRemoveSavingsGoalMutation(yearMonth: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (monthSavingsGoalId: string) =>
+      removeBudgetMonthSavingsGoal(yearMonth, monthSavingsGoalId),
     onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
   });
 }

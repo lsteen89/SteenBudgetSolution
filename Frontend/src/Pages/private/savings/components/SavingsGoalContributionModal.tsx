@@ -20,6 +20,7 @@ import { tDict } from "@/utils/i18n/translate";
 import { parseMoneyInput } from "@/utils/money/moneyInput";
 import { formatMoneyV2, moneyDecimalsFor } from "@/utils/money/moneyV2";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import type { SavingsGoalLifecycleAction } from "./SavingsGoalLifecycleConfirmDialog";
 
 type SavingsGoalContributionModalProps = {
   open: boolean;
@@ -43,6 +44,7 @@ type SavingsGoalContributionModalProps = {
     targetDate?: string;
     scope: SavingsGoalEditScope;
   }) => Promise<void>;
+  onLifecycleAction?: (action: SavingsGoalLifecycleAction) => void;
 };
 
 const interpolate = (
@@ -102,6 +104,7 @@ export default function SavingsGoalContributionModal({
   isSaving = false,
   onClose,
   onSubmit,
+  onLifecycleAction,
 }: SavingsGoalContributionModalProps) {
   const locale = useAppLocale();
   const currency = useAppCurrency();
@@ -408,6 +411,44 @@ export default function SavingsGoalContributionModal({
                 disabled={isSaving}
                 testId="savings-goal-modal-scope-toggle"
               />
+
+              {typeof onLifecycleAction === "function" &&
+              row.status === "active" &&
+              !row.isDeleted ? (
+                <div className="border-t border-eb-stroke/16 pt-4">
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-eb-text/40">
+                    {t("moreActionsLabel")}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={isSaving}
+                      onClick={() => onLifecycleAction("complete")}
+                      className="h-8 rounded-xl border border-eb-stroke/30 px-3 text-[12px] font-medium text-eb-text/65 transition hover:bg-[rgb(var(--eb-shell)/0.30)] disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {t("lifecycleComplete")}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isSaving}
+                      onClick={() => onLifecycleAction("cancel")}
+                      className="h-8 rounded-xl border border-eb-stroke/30 px-3 text-[12px] font-medium text-eb-text/65 transition hover:bg-[rgb(var(--eb-shell)/0.30)] disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {t("lifecycleCancel")}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isSaving}
+                      onClick={() => onLifecycleAction("remove")}
+                      className="h-8 rounded-xl border border-[rgb(var(--eb-danger)/0.30)] px-3 text-[12px] font-medium text-[rgb(var(--eb-danger))] transition hover:bg-[rgb(var(--eb-danger)/0.06)] disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {row.isMonthOnly
+                        ? t("lifecycleRemoveMonthOnly")
+                        : t("lifecycleRemovePlan")}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </form>
           </BudgetEntryModalShell>
         </div>

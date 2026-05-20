@@ -74,6 +74,33 @@ export const savingsEditorPageDict = {
     planBalanceBreakdownRemaining: "Kvar",
     planBalanceToggleShow: "Visa fördelning",
     planBalanceToggleHide: "Dölj fördelning",
+    lifecycleMenuComplete: "Markera som uppnått",
+    lifecycleMenuCancel: "Avsluta mål",
+    lifecycleMenuRemove: "Ta bort från planen",
+    lifecycleMenuRemoveMonthOnly: "Ta bort från den här månaden",
+    lifecycleConfirmCompleteTitle: "Markera som uppnått",
+    lifecycleConfirmCompleteBody:
+      "“{name}” markeras som uppnått och flyttas ut ur aktiva sparmål.",
+    lifecycleConfirmCompleteBodyPlan:
+      "“{name}” markeras som uppnått och flyttas ut ur aktiva sparmål, både för denna månad och i planen framåt.",
+    lifecycleConfirmCancelTitle: "Avsluta mål",
+    lifecycleConfirmCancelBody:
+      "“{name}” är då inte längre del av planen. Du kan alltid skapa ett nytt mål.",
+    lifecycleConfirmRemoveTitle: "Ta bort från planen",
+    lifecycleConfirmRemoveTitleMonthOnly: "Ta bort från den här månaden",
+    lifecycleConfirmRemoveBody:
+      "“{name}” tas bort från planen. Historiken finns kvar i månadens spårning.",
+    lifecycleConfirmRemoveBodyMonthOnly:
+      "“{name}” tas bort från den här månaden. Historiken finns kvar i spårningen.",
+    lifecycleConfirmPrimaryComplete: "Markera som uppnått",
+    lifecycleConfirmPrimaryCancel: "Avsluta mål",
+    lifecycleConfirmPrimaryRemove: "Ta bort",
+    lifecycleConfirmCancelAction: "Avbryt",
+    lifecycleConfirmWorking: "Bearbetar...",
+    lifecycleToastCompleted: "Sparmålet markerades som uppnått",
+    lifecycleToastCancelled: "Sparmålet avslutades",
+    lifecycleToastRemoved: "Sparmålet togs bort",
+    lifecycleToastError: "Det gick inte att uppdatera målet. Försök igen.",
   },
   en: {
     loadingSavings: "Loading savings goals...",
@@ -150,6 +177,33 @@ export const savingsEditorPageDict = {
     planBalanceBreakdownRemaining: "Left",
     planBalanceToggleShow: "Show breakdown",
     planBalanceToggleHide: "Hide breakdown",
+    lifecycleMenuComplete: "Mark as completed",
+    lifecycleMenuCancel: "Cancel goal",
+    lifecycleMenuRemove: "Remove from plan",
+    lifecycleMenuRemoveMonthOnly: "Remove from this month",
+    lifecycleConfirmCompleteTitle: "Mark as completed",
+    lifecycleConfirmCompleteBody:
+      "“{name}” will be marked as completed and moved out of your active goals.",
+    lifecycleConfirmCompleteBodyPlan:
+      "“{name}” will be marked as completed and moved out of your active goals, for this month and in the plan going forward.",
+    lifecycleConfirmCancelTitle: "Cancel goal",
+    lifecycleConfirmCancelBody:
+      "“{name}” will no longer be part of the plan. You can always start a new goal later.",
+    lifecycleConfirmRemoveTitle: "Remove from plan",
+    lifecycleConfirmRemoveTitleMonthOnly: "Remove from this month",
+    lifecycleConfirmRemoveBody:
+      "“{name}” will be removed from the plan. The month's history stays intact.",
+    lifecycleConfirmRemoveBodyMonthOnly:
+      "“{name}” will be removed from this month. The month's history stays intact.",
+    lifecycleConfirmPrimaryComplete: "Mark as completed",
+    lifecycleConfirmPrimaryCancel: "Cancel goal",
+    lifecycleConfirmPrimaryRemove: "Remove",
+    lifecycleConfirmCancelAction: "Cancel",
+    lifecycleConfirmWorking: "Working...",
+    lifecycleToastCompleted: "Savings goal marked as completed",
+    lifecycleToastCancelled: "Savings goal cancelled",
+    lifecycleToastRemoved: "Savings goal removed",
+    lifecycleToastError: "Could not update the goal. Try again.",
   },
   et: {
     loadingSavings: "Säästueesmärkide laadimine...",
@@ -226,5 +280,32 @@ export const savingsEditorPageDict = {
     planBalanceBreakdownRemaining: "Järele",
     planBalanceToggleShow: "Näita jaotust",
     planBalanceToggleHide: "Peida jaotus",
+    lifecycleMenuComplete: "Märgi saavutatuks",
+    lifecycleMenuCancel: "Lõpeta eesmärk",
+    lifecycleMenuRemove: "Eemalda plaanist",
+    lifecycleMenuRemoveMonthOnly: "Eemalda sellest kuust",
+    lifecycleConfirmCompleteTitle: "Märgi saavutatuks",
+    lifecycleConfirmCompleteBody:
+      "„{name}“ märgitakse saavutatuks ja eemaldatakse aktiivsete eesmärkide hulgast.",
+    lifecycleConfirmCompleteBodyPlan:
+      "„{name}“ märgitakse saavutatuks ja eemaldatakse aktiivsete eesmärkide hulgast – nii sellel kuul kui ka edaspidises plaanis.",
+    lifecycleConfirmCancelTitle: "Lõpeta eesmärk",
+    lifecycleConfirmCancelBody:
+      "„{name}“ ei ole pärast seda enam osa plaanist. Uue eesmärgi saad alati hiljem luua.",
+    lifecycleConfirmRemoveTitle: "Eemalda plaanist",
+    lifecycleConfirmRemoveTitleMonthOnly: "Eemalda sellest kuust",
+    lifecycleConfirmRemoveBody:
+      "„{name}” eemaldatakse plaanist. Kuu ajalugu jääb alles.",
+    lifecycleConfirmRemoveBodyMonthOnly:
+      "„{name}” eemaldatakse sellest kuust. Kuu ajalugu jääb alles.",
+    lifecycleConfirmPrimaryComplete: "Märgi saavutatuks",
+    lifecycleConfirmPrimaryCancel: "Lõpeta eesmärk",
+    lifecycleConfirmPrimaryRemove: "Eemalda",
+    lifecycleConfirmCancelAction: "Tühista",
+    lifecycleConfirmWorking: "Töötlen...",
+    lifecycleToastCompleted: "Säästueesmärk märgiti saavutatuks",
+    lifecycleToastCancelled: "Säästueesmärk lõpetatud",
+    lifecycleToastRemoved: "Säästueesmärk eemaldatud",
+    lifecycleToastError: "Eesmärki ei õnnestunud uuendada. Proovi uuesti.",
   },
 } as const;

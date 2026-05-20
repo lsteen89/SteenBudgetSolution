@@ -2,7 +2,6 @@ import CalcBird from "@assets/Images/CalcBird.png";
 import GoalBird from "@assets/Images/GoalBird.png";
 import RichBird from "@assets/Images/RichBird.png";
 import SavingsBird from "@assets/Images/SavingsBird.png";
-import BudgetEditorRowActionsMenu from "@/components/molecules/forms/budgetEditor/BudgetEditorRowActionsMenu";
 import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/lib/utils";
@@ -189,20 +188,6 @@ export default function SavingsGoalCard({
           >
             {t("cardAdjustAction")}
           </button>
-          <div className="sm:hidden">
-            <BudgetEditorRowActionsMenu
-              readOnly={readOnly}
-              disabledAriaLabel={t("rowActionsDisabled")}
-              openAriaLabel={t("rowActionsOpen")}
-              items={[
-                {
-                  key: "edit",
-                  label: t("edit"),
-                  onSelect: () => onEdit(row),
-                },
-              ]}
-            />
-          </div>
         </div>
       </div>
     </article>

@@ -139,6 +139,8 @@ export type BudgetMonthSavingsGoalEditorRowDto = {
   amountSaved: number | null;
   monthlyContribution: number;
   status: string;
+  closedReason?: string | null;
+  closedAt?: string | null;
   isDeleted: boolean;
   isMonthOnly: boolean;
   canUpdateDefault: boolean;

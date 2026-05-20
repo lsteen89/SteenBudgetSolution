@@ -25,6 +25,11 @@ export const savingsGoalModalDict = {
     budgetImpactLabel: "Påverkan på månaden",
     budgetImpactExceeds:
       "Ändringen kräver {amount} mer per månad än det finns kvar att fördela. Du kan spara ändå och justera planen efteråt.",
+    moreActionsLabel: "Fler åtgärder",
+    lifecycleComplete: "Markera som uppnått",
+    lifecycleCancel: "Avsluta mål",
+    lifecycleRemovePlan: "Ta bort från planen",
+    lifecycleRemoveMonthOnly: "Ta bort från den här månaden",
   },
   en: {
     eyebrow: "Savings goal",
@@ -53,6 +58,11 @@ export const savingsGoalModalDict = {
     budgetImpactLabel: "Monthly impact",
     budgetImpactExceeds:
       "This change needs {amount} more per month than is left to allocate. You can still save and adjust the plan afterwards.",
+    moreActionsLabel: "More actions",
+    lifecycleComplete: "Mark as completed",
+    lifecycleCancel: "Cancel goal",
+    lifecycleRemovePlan: "Remove from plan",
+    lifecycleRemoveMonthOnly: "Remove from this month",
   },
   et: {
     eyebrow: "Säästueesmärk",
@@ -81,5 +91,10 @@ export const savingsGoalModalDict = {
     budgetImpactLabel: "Mõju kuule",
     budgetImpactExceeds:
       "See muudatus vajab {amount} rohkem kuus kui jaotamiseks järele jäänud. Saad ikkagi salvestada ja plaani hiljem kohendada.",
+    moreActionsLabel: "Rohkem toiminguid",
+    lifecycleComplete: "Märgi saavutatuks",
+    lifecycleCancel: "Lõpeta eesmärk",
+    lifecycleRemovePlan: "Eemalda plaanist",
+    lifecycleRemoveMonthOnly: "Eemalda sellest kuust",
   },
 } as const;

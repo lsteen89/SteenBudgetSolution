@@ -1,8 +1,11 @@
 import BudgetEditorPageShell from "@/components/molecules/forms/budgetEditor/BudgetEditorPageShell";
 import {
   useBudgetMonthSavingsGoals,
+  useCancelSavingsGoalMutation,
+  useCompleteSavingsGoalMutation,
   useCreateBudgetMonthSavingsGoal,
   usePatchBudgetMonthSavingsGoal,
+  useRemoveSavingsGoalMutation,
 } from "@/hooks/budget/editPeriod/useMonthEditor";
 import { useBudgetDashboardMonthQuery } from "@/hooks/budget/useBudgetDashboardMonthQuery";
 import { useBudgetMonthsStatusQuery } from "@/hooks/budget/useBudgetMonthsStatusQuery";
@@ -19,7 +22,9 @@ import { savingsEditorPageDict } from "@/utils/i18n/pages/private/savings/Saving
 import { tDict } from "@/utils/i18n/translate";
 import { useMemo, useState } from "react";
 import SavingsGoalCardsList from "./components/SavingsGoalCardsList";
+import type { SavingsGoalLifecycleAction } from "./components/SavingsGoalLifecycleConfirmDialog";
 import SavingsGoalContributionModal from "./components/SavingsGoalContributionModal";
+import SavingsGoalLifecycleConfirmDialog from "./components/SavingsGoalLifecycleConfirmDialog";
 import SavingsPlanBalanceStrip from "./components/SavingsPlanBalanceStrip";
 import SavingsSoulHero from "./components/SavingsSoulHero";
 import { aggregateSavingsHero, getMonthStartDate } from "./utils/savingsSoul";
@@ -59,11 +64,18 @@ export default function SavingsEditorPage() {
   const mutationYearMonth = editableYearMonth ?? "";
   const patchMutation = usePatchBudgetMonthSavingsGoal(mutationYearMonth);
   const createMutation = useCreateBudgetMonthSavingsGoal(mutationYearMonth);
+  const completeMutation = useCompleteSavingsGoalMutation(mutationYearMonth);
+  const cancelMutation = useCancelSavingsGoalMutation(mutationYearMonth);
+  const removeMutation = useRemoveSavingsGoalMutation(mutationYearMonth);
 
   const [modalRow, setModalRow] =
     useState<BudgetMonthSavingsGoalEditorRowDto | null>(null);
   const [draftOpen, setDraftOpen] = useState(false);
   const [draftError, setDraftError] = useState<string | null>(null);
+  const [lifecycleState, setLifecycleState] = useState<{
+    action: SavingsGoalLifecycleAction;
+    row: BudgetMonthSavingsGoalEditorRowDto;
+  } | null>(null);
 
   const openMonth = monthsStatusQuery.data?.months.find(
     (month) => month.yearMonth === editableYearMonth,
@@ -114,6 +126,44 @@ export default function SavingsEditorPage() {
       toast.success(t("draftToastSuccess"));
     } catch {
       setDraftError(t("draftSaveError"));
+    }
+  };
+
+  const handleRequestLifecycle = (action: SavingsGoalLifecycleAction) => {
+    if (!modalRow) return;
+    if (readOnly) return;
+    if (modalRow.isDeleted || modalRow.status !== "active") return;
+    setLifecycleState({ action, row: modalRow });
+  };
+
+  const isLifecycleWorking =
+    completeMutation.isPending ||
+    cancelMutation.isPending ||
+    removeMutation.isPending;
+
+  const closeLifecycleDialog = () => {
+    if (isLifecycleWorking) return;
+    setLifecycleState(null);
+  };
+
+  const handleConfirmLifecycle = async () => {
+    if (!lifecycleState) return;
+    const { action, row } = lifecycleState;
+    try {
+      if (action === "complete") {
+        await completeMutation.mutateAsync(row.id);
+        toast.success(t("lifecycleToastCompleted"));
+      } else if (action === "cancel") {
+        await cancelMutation.mutateAsync(row.id);
+        toast.success(t("lifecycleToastCancelled"));
+      } else {
+        await removeMutation.mutateAsync(row.id);
+        toast.success(t("lifecycleToastRemoved"));
+      }
+      setLifecycleState(null);
+      setModalRow(null);
+    } catch {
+      toast.error(t("lifecycleToastError"));
     }
   };
 
@@ -218,6 +268,17 @@ export default function SavingsEditorPage() {
           setModalRow(null);
         }}
         onSubmit={handleSubmit}
+        onLifecycleAction={readOnly ? undefined : handleRequestLifecycle}
+      />
+
+      <SavingsGoalLifecycleConfirmDialog
+        open={!!lifecycleState}
+        action={lifecycleState?.action ?? null}
+        goalName={lifecycleState?.row.name ?? ""}
+        isPlanLinked={!(lifecycleState?.row.isMonthOnly ?? true)}
+        isWorking={isLifecycleWorking}
+        onClose={closeLifecycleDialog}
+        onConfirm={handleConfirmLifecycle}
       />
     </>
   );

@@ -44,6 +44,18 @@ vi.mock("@/hooks/budget/editPeriod/useMonthEditor", () => ({
     mutateAsync: vi.fn(),
     isPending: false,
   }),
+  useCompleteSavingsGoalMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+  useCancelSavingsGoalMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+  useRemoveSavingsGoalMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
 }));
 
 const baseAggregate = (

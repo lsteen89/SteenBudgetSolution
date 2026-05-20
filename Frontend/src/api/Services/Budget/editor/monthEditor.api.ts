@@ -213,6 +213,45 @@ export async function patchBudgetMonthSavingsGoalsBulk(
   return unwrapEnvelopeData(res, "Could not update month savings goals.");
 }
 
+export async function completeBudgetMonthSavingsGoal(
+  yearMonth: string,
+  monthSavingsGoalId: string,
+): Promise<BudgetMonthSavingsGoalEditorRowDto> {
+  const res = await api.post<
+    ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>
+  >(
+    `/api/budgets/months/${yearMonth}/savings-goals/${monthSavingsGoalId}/complete`,
+  );
+
+  return unwrapEnvelopeData(res, "Could not complete savings goal.");
+}
+
+export async function cancelBudgetMonthSavingsGoal(
+  yearMonth: string,
+  monthSavingsGoalId: string,
+): Promise<BudgetMonthSavingsGoalEditorRowDto> {
+  const res = await api.post<
+    ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>
+  >(
+    `/api/budgets/months/${yearMonth}/savings-goals/${monthSavingsGoalId}/cancel`,
+  );
+
+  return unwrapEnvelopeData(res, "Could not cancel savings goal.");
+}
+
+export async function removeBudgetMonthSavingsGoal(
+  yearMonth: string,
+  monthSavingsGoalId: string,
+): Promise<BudgetMonthSavingsGoalEditorRowDto> {
+  const res = await api.post<
+    ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>
+  >(
+    `/api/budgets/months/${yearMonth}/savings-goals/${monthSavingsGoalId}/remove`,
+  );
+
+  return unwrapEnvelopeData(res, "Could not remove savings goal.");
+}
+
 export async function getBudgetMonthDebts(
   yearMonth: string,
 ): Promise<BudgetMonthDebtEditorRowDto[]> {

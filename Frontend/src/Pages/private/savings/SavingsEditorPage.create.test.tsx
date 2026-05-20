@@ -51,6 +51,18 @@ vi.mock("@/hooks/budget/editPeriod/useMonthEditor", () => ({
     mutateAsync: mockPatchMutateAsync,
     isPending: false,
   }),
+  useCompleteSavingsGoalMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+  useCancelSavingsGoalMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+  useRemoveSavingsGoalMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
 }));
 
 const setupMonth = (status: "open" | "closed" | "skipped") => {
