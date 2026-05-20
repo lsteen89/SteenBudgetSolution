@@ -4,7 +4,7 @@ import type { AppLocale } from "@/types/i18n/appLocale";
 import { closedMonthRecapDict } from "@/utils/i18n/pages/private/dashboard/recap/ClosedMonthRecapSection.i18n";
 import type { CurrencyCode } from "@/utils/money/currency";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
-import { Landmark, PiggyBank, ShieldCheck } from "lucide-react";
+import { CheckCircle2, Landmark, PiggyBank, ShieldCheck } from "lucide-react";
 import type { ReactNode } from "react";
 
 type RecapTKey = keyof typeof closedMonthRecapDict.sv;
@@ -363,6 +363,114 @@ export function SavingsDetailBlock({
           {t("savingsDetailEmpty")}
         </p>
       )}
+    </article>
+  );
+}
+
+export function CompletedSavingsGoalsBlock({
+  recap,
+  currency,
+  locale,
+  t,
+}: RecapDetailBlockProps) {
+  const completed = recap.savingsDetail.completedGoals;
+  if (!completed || completed.length === 0) return null;
+
+  return (
+    <article
+      aria-label={t("completedGoalsTitle")}
+      data-testid="closed-month-completed-savings-goals"
+      className="rounded-2xl border border-eb-stroke/20 bg-white/85 p-4 sm:p-5"
+    >
+      <SectionHeading
+        Icon={CheckCircle2}
+        iconBg="bg-emerald-50"
+        iconColor="text-emerald-700"
+        title={t("completedGoalsTitle")}
+        body={t("savingsDetailBody")}
+      />
+
+      <ul className="mt-4 divide-y divide-eb-stroke/12 overflow-hidden rounded-xl border border-eb-stroke/15 bg-white/70">
+        {completed.map((goal) => {
+          const goalName = goal.name?.trim() || t("savingsGoalFallback");
+          // Display uses projectedAmountSaved (the value that qualified the
+          // goal at close). Raw amountSaved is the stored progression and
+          // must not be rendered as the final amount.
+          const reached = goal.projectedAmountSaved;
+          const hasTarget = goal.targetAmount != null && goal.targetAmount > 0;
+          const progressPercent = hasTarget
+            ? Math.min(
+                100,
+                Math.round((reached / (goal.targetAmount as number)) * 100),
+              )
+            : null;
+          const summaryText = replaceToken(
+            t("completedGoalsRowSummary"),
+            "name",
+            goalName,
+          );
+
+          return (
+            <li
+              key={goal.id}
+              aria-label={replaceToken(
+                t("completedGoalsRowLabel"),
+                "name",
+                goalName,
+              )}
+              data-testid={`closed-month-completed-savings-goal-${goal.id}`}
+              className="px-4 py-3.5"
+            >
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-extrabold text-eb-text">
+                    {goalName}
+                  </p>
+                  <p className="mt-1 text-sm font-medium leading-6 text-eb-text/65">
+                    {summaryText}
+                  </p>
+                  <div className="mt-1.5 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                    <MetaItem
+                      label={t("completedGoalsReachedLabel")}
+                      value={formatSnapshotMoney(reached, currency, locale)}
+                    />
+                    {hasTarget ? (
+                      <MetaItem
+                        label={t("completedGoalsTargetLabel")}
+                        value={formatSnapshotMoney(
+                          goal.targetAmount as number,
+                          currency,
+                          locale,
+                        )}
+                      />
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+              {hasTarget && progressPercent != null ? (
+                <div className="mt-3 flex items-center gap-3">
+                  <ProgressBar
+                    current={reached}
+                    target={goal.targetAmount as number}
+                    ariaLabel={replaceToken(
+                      t("completedGoalsProgressLabel"),
+                      "percent",
+                      String(progressPercent),
+                    )}
+                  />
+                  <span className="shrink-0 text-[11px] font-bold tabular-nums text-eb-text/55">
+                    {replaceToken(
+                      t("completedGoalsProgressLabel"),
+                      "percent",
+                      String(progressPercent),
+                    )}
+                  </span>
+                </div>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
     </article>
   );
 }

@@ -65,7 +65,22 @@ export type BudgetMonthRecapSubscriptionItemDto = {
 export type BudgetMonthRecapSavingsDetailDto = {
   totalSavingsMonthly: number;
   activeGoals: BudgetMonthRecapSavingsGoalDto[];
+  completedGoals: BudgetMonthRecapCompletedSavingsGoalDto[];
   hasPreviousComparableMonth: boolean;
+};
+
+// Snapshot of a goal that finished during this closed month. Display uses
+// projectedAmountSaved (= raw amountSaved + monthlyContribution at close)
+// as the canonical "reached this month" value — raw amountSaved is the
+// stored, unmutated progression and must not be rendered as the final amount.
+export type BudgetMonthRecapCompletedSavingsGoalDto = {
+  id: string;
+  name: string | null;
+  targetAmount: number | null;
+  amountSaved: number | null;
+  monthlyContribution: number;
+  projectedAmountSaved: number;
+  closedAt: string;
 };
 
 export type BudgetMonthRecapSavingsGoalDto = {

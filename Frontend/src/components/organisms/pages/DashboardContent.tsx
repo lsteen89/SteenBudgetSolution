@@ -364,6 +364,9 @@ function LoadedDashboardContent({
             summary={closeMonthSummary}
             selectedCarryOverMode={closeMonthReview.selectedCarryOverMode}
             isSubmitting={closeMonthReview.isSubmitting}
+            completionCandidates={closeMonthReview.completionCandidates}
+            selectedCompletionGoalIds={closeMonthReview.selectedCompletionGoalIds}
+            onToggleCompletionGoal={closeMonthReview.toggleCompletionGoal}
             onClose={closeMonthReview.close}
             onConfirm={closeMonthReview.confirm}
             onSelectCarryOverMode={closeMonthReview.selectCarryOverMode}

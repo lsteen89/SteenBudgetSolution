@@ -1,5 +1,6 @@
 import DashboardErrorState from "@/components/organisms/dashboard/DashboardErrorState";
 import {
+  CompletedSavingsGoalsBlock,
   DebtDetailBlock,
   SavingsDetailBlock,
 } from "@/components/organisms/dashboard/recap/ClosedMonthRecapDetailBlocks";
@@ -718,6 +719,13 @@ export default function ClosedMonthRecapSection({
             />
 
             <SavingsDetailBlock
+              recap={recap}
+              currency={currency}
+              locale={locale}
+              t={t}
+            />
+
+            <CompletedSavingsGoalsBlock
               recap={recap}
               currency={currency}
               locale={locale}

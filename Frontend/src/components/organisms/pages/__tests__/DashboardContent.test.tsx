@@ -40,6 +40,19 @@ vi.mock("@/hooks/budget/useCloseBudgetMonthMutation", () => ({
   }),
 }));
 
+vi.mock("@/hooks/budget/useSavingsGoalCompletionCandidatesQuery", () => ({
+  useSavingsGoalCompletionCandidatesQuery: () => ({
+    data: [],
+    isPending: false,
+    isError: false,
+    error: null,
+  }),
+  savingsGoalCompletionCandidatesQueryKey: (ym?: string | null) => [
+    "savingsGoalCompletionCandidates",
+    ym ?? null,
+  ],
+}));
+
 vi.mock("@/hooks/i18n/useAppLocale", () => ({
   useAppLocale: () => mockAppLocale,
 }));
