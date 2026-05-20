@@ -36,6 +36,11 @@ vi.mock("@/hooks/dashboard/buildDashboardSummaryAggregate", () => ({
 
 vi.mock("@/hooks/budget/editPeriod/useMonthEditor", () => ({
   useBudgetMonthSavingsGoals: () => mockSavingsQuery(),
+  useBudgetMonthSavingsOldGoals: () => ({
+    isLoading: false,
+    isError: false,
+    data: [],
+  }),
   useCreateBudgetMonthSavingsGoal: () => ({
     mutateAsync: vi.fn(),
     isPending: false,

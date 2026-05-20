@@ -72,6 +72,17 @@ public interface IBudgetMonthSavingsGoalMutationRepository
     Task<IReadOnlyList<BudgetMonthSavingsGoalCompletionCandidateReadModel>>
         GetCompletionCandidatesAsync(Guid budgetMonthId, CancellationToken ct);
 
+    // Closed savings goals (ClosedReason in 'completed' or 'cancelled', not
+    // IsDeleted) for the savings editor "previous goals" archive. Budget-
+    // scoped, not month-scoped, so a goal completed in an earlier month
+    // keeps appearing under "Tidigare mål" when the user moves into a later
+    // open month. `upperBoundUtc` is the exclusive `ClosedAt` upper bound —
+    // typically the start of the month after the user's selected yearMonth
+    // — so historical views never leak goals closed later. Sorted by
+    // ClosedAt DESC so the most recently finished goal comes first.
+    Task<IReadOnlyList<BudgetMonthSavingsGoalArchiveRowReadModel>>
+        GetSavingsGoalArchiveRowsAsync(Guid budgetId, DateTime upperBoundUtc, CancellationToken ct);
+
     // Closes any still-active month rows pointing at the given source goal,
     // excluding the row we already handled directly. Used when close-month
     // completes a source-linked goal so a pre-existing next open month does

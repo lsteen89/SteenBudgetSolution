@@ -1,6 +1,7 @@
 import BudgetEditorPageShell from "@/components/molecules/forms/budgetEditor/BudgetEditorPageShell";
 import {
   useBudgetMonthSavingsGoals,
+  useBudgetMonthSavingsOldGoals,
   useCancelSavingsGoalMutation,
   useCompleteSavingsGoalMutation,
   useCreateBudgetMonthSavingsGoal,
@@ -25,6 +26,7 @@ import SavingsGoalCardsList from "./components/SavingsGoalCardsList";
 import type { SavingsGoalLifecycleAction } from "./components/SavingsGoalLifecycleConfirmDialog";
 import SavingsGoalContributionModal from "./components/SavingsGoalContributionModal";
 import SavingsGoalLifecycleConfirmDialog from "./components/SavingsGoalLifecycleConfirmDialog";
+import SavingsOldGoalsSection from "./components/SavingsOldGoalsSection";
 import SavingsPlanBalanceStrip from "./components/SavingsPlanBalanceStrip";
 import SavingsSoulHero from "./components/SavingsSoulHero";
 import { aggregateSavingsHero, getMonthStartDate } from "./utils/savingsSoul";
@@ -47,6 +49,10 @@ export default function SavingsEditorPage() {
   }, [monthsStatusQuery.data]);
 
   const savingsQuery = useBudgetMonthSavingsGoals(
+    editableYearMonth ?? undefined,
+    !!editableYearMonth,
+  );
+  const oldGoalsQuery = useBudgetMonthSavingsOldGoals(
     editableYearMonth ?? undefined,
     !!editableYearMonth,
   );
@@ -240,19 +246,22 @@ export default function SavingsEditorPage() {
               {t("loadEditorError")}
             </div>
           ) : (
-            <SavingsGoalCardsList
-              rows={rows}
-              readOnly={readOnly}
-              referenceDate={referenceDate}
-              showPlannedMarkerLegend={heroAggregate.hasPlannedMarker}
-              onEdit={(row) => setModalRow(row)}
-              draftOpen={draftOpen && !readOnly}
-              draftSubmitting={createMutation.isPending}
-              draftError={draftError}
-              onOpenDraft={handleOpenDraft}
-              onCancelDraft={handleCancelDraft}
-              onSubmitDraft={handleSubmitDraft}
-            />
+            <>
+              <SavingsGoalCardsList
+                rows={rows}
+                readOnly={readOnly}
+                referenceDate={referenceDate}
+                showPlannedMarkerLegend={heroAggregate.hasPlannedMarker}
+                onEdit={(row) => setModalRow(row)}
+                draftOpen={draftOpen && !readOnly}
+                draftSubmitting={createMutation.isPending}
+                draftError={draftError}
+                onOpenDraft={handleOpenDraft}
+                onCancelDraft={handleCancelDraft}
+                onSubmitDraft={handleSubmitDraft}
+              />
+              <SavingsOldGoalsSection rows={oldGoalsQuery.data ?? []} />
+            </>
           )}
         </div>
       </BudgetEditorPageShell>

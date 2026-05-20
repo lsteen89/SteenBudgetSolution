@@ -17,6 +17,7 @@ using Backend.Application.DTO.Budget.Months.Editor.Savings;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.CancelSavingsGoal;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.CompleteSavingsGoal;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.CreateSavingsGoal;
+using Backend.Application.Features.Budgets.Months.Editor.Savings.GetOldSavingsGoals;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.GetSavingsGoals;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.PatchSavingsGoal;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.PatchSavingsGoalsBulk;
@@ -309,6 +310,27 @@ public sealed partial class BudgetController
         }
 
         return Ok(ApiEnvelope<IReadOnlyList<BudgetMonthSavingsGoalEditorRowDto>>.Success(result.Value));
+    }
+
+    [HttpGet("months/{yearMonth}/savings-goals/old")]
+    [ProducesResponseType(typeof(ApiEnvelope<IReadOnlyList<BudgetMonthSavingsGoalArchiveRowDto>>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiEnvelope<IReadOnlyList<BudgetMonthSavingsGoalArchiveRowDto>>>> GetOldSavingsGoals(
+        [FromRoute] string yearMonth,
+        CancellationToken ct)
+    {
+        var result = await _mediator.Send(
+            new GetOldBudgetMonthSavingsGoalsQuery(_currentUser.Persoid, yearMonth),
+            ct);
+
+        if (result.IsFailure || result.Value is null)
+        {
+            return Ok(ApiEnvelope<IReadOnlyList<BudgetMonthSavingsGoalArchiveRowDto>>.Failure(
+                code: result.Error?.Code ?? "BUDGET_MONTH_SAVINGS_GOALS_OLD_NOT_FOUND",
+                message: result.Error?.Message ?? "Could not load previous month savings goals."
+            ));
+        }
+
+        return Ok(ApiEnvelope<IReadOnlyList<BudgetMonthSavingsGoalArchiveRowDto>>.Success(result.Value));
     }
 
     [HttpPost("months/{yearMonth}/savings-goals")]

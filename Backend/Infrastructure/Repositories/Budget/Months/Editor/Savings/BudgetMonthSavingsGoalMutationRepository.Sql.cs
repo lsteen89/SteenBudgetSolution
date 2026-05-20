@@ -216,6 +216,95 @@ public sealed partial class BudgetMonthSavingsGoalMutationRepository
         UpdatedByUserId = @ActorPersoid
     WHERE Id = @SavingsGoalId;";
 
+    // Read-only projection for the "previous goals" archive on the savings
+    // editor. Budget-scoped, not month-scoped: a goal completed in April must
+    // keep appearing under "Tidigare mål" when the user moves into May, but
+    // the close-month materializer (correctly) does not re-create a closed
+    // baseline in any later month. So we read from two sources and union:
+    //
+    //   * Plan-linked goals       — one canonical row per baseline SavingsGoal
+    //                               that is closed (completed / cancelled).
+    //                               SourceSavingsGoalId echoes the goal's own
+    //                               Id so the FE sees IsMonthOnly = false.
+    //   * Month-only goals        — closed BudgetMonthSavingsGoal rows with
+    //                               no plan link (SourceSavingsGoalId IS NULL)
+    //                               anywhere in the budget. These only exist
+    //                               in the month they were created in.
+    //
+    // Removed (ClosedReason = 'removed') and IsDeleted rows are stripped
+    // server-side.
+    //
+    // `AmountSavedAtClose` is derived, never raw. Close-month does NOT
+    // advance AmountSaved, so a completed goal's raw stored value
+    // under-reports what the user reached. Rule mirrors the recap contract:
+    //   completed → AmountSaved + MonthlyContribution
+    //   cancelled → AmountSaved
+    // The UI must not recompute this.
+    //
+    // `@UpperBoundUtc` is the exclusive upper bound on ClosedAt — typically
+    // the start of the month AFTER the user's selected yearMonth. This
+    // keeps the contract honest: viewing a past month never leaks goals
+    // closed later. For today's open-month-only FE this filter is a no-op.
+    //
+    // Sorted by ClosedAt DESC then Name then Id for a stable ordering across
+    // both source tables.
+    private const string GetSavingsGoalArchiveRows = @"
+    SELECT * FROM (
+        SELECT
+            sg.Id                                AS Id,
+            sg.Id                                AS SourceSavingsGoalId,
+            sg.Name                              AS Name,
+            sg.TargetAmount                      AS TargetAmount,
+            sg.TargetDate                        AS TargetDate,
+            CASE
+                WHEN sg.ClosedReason = 'completed'
+                    THEN COALESCE(sg.AmountSaved, 0) + sg.MonthlyContribution
+                ELSE sg.AmountSaved
+            END                                  AS AmountSavedAtClose,
+            sg.MonthlyContribution               AS MonthlyContribution,
+            sg.Status                            AS Status,
+            sg.ClosedReason                      AS ClosedReason,
+            sg.ClosedAt                          AS ClosedAt
+        FROM SavingsGoal sg
+        JOIN Savings s ON s.Id = sg.SavingsId
+        WHERE s.BudgetId = @BudgetId
+          AND sg.Status = 'closed'
+          AND sg.ClosedReason IN ('completed', 'cancelled')
+          AND sg.ClosedAt < @UpperBoundUtc
+
+        UNION ALL
+
+        SELECT
+            g.Id                                 AS Id,
+            NULL                                 AS SourceSavingsGoalId,
+            g.Name                               AS Name,
+            g.TargetAmount                       AS TargetAmount,
+            g.TargetDate                         AS TargetDate,
+            CASE
+                WHEN g.ClosedReason = 'completed'
+                    THEN COALESCE(g.AmountSaved, 0) + g.MonthlyContribution
+                ELSE g.AmountSaved
+            END                                  AS AmountSavedAtClose,
+            g.MonthlyContribution                AS MonthlyContribution,
+            g.Status                             AS Status,
+            g.ClosedReason                       AS ClosedReason,
+            g.ClosedAt                           AS ClosedAt
+        FROM BudgetMonthSavingsGoal g
+        JOIN BudgetMonthSavings ms ON ms.Id = g.BudgetMonthSavingsId
+        JOIN BudgetMonth bm ON bm.Id = ms.BudgetMonthId
+        WHERE bm.BudgetId = @BudgetId
+          AND g.SourceSavingsGoalId IS NULL
+          AND g.IsDeleted = 0
+          AND ms.IsDeleted = 0
+          AND g.Status = 'closed'
+          AND g.ClosedReason IN ('completed', 'cancelled')
+          AND g.ClosedAt < @UpperBoundUtc
+    ) archive
+    ORDER BY
+        ClosedAt DESC,
+        Name,
+        Id;";
+
     // Selects active monthly savings-goal rows whose projected AmountSaved
     // (current + this month's contribution) reaches the TargetAmount. Read
     // straight from BudgetMonthSavingsGoal so the projection is always
