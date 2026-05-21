@@ -65,16 +65,6 @@ public sealed partial class BudgetMonthDashboardRepository
             WHERE s.BudgetMonthId = bm.Id
             AND s.IsDeleted = 0
             LIMIT 1
-        ), 0)
-        +
-        COALESCE((
-            SELECT SUM(g.MonthlyContribution)
-            FROM BudgetMonthSavingsGoal g
-            INNER JOIN BudgetMonthSavings s ON s.Id = g.BudgetMonthSavingsId
-            WHERE s.BudgetMonthId = bm.Id
-            AND s.IsDeleted = 0
-            AND g.IsDeleted = 0
-            AND g.Status = 'active'
         ), 0) AS TotalSavingsMonthly,
 
         COALESCE((

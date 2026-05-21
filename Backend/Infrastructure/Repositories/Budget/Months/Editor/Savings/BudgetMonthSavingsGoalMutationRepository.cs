@@ -147,6 +147,14 @@ public sealed partial class BudgetMonthSavingsGoalMutationRepository
             new { BudgetId = budgetId, UpperBoundUtc = upperBoundUtc },
             ct);
 
+    public async Task<IReadOnlyList<SavingsMethodReadModel>> GetSavingsMethodsAsync(
+        Guid budgetId,
+        CancellationToken ct)
+        => await QueryAsync<SavingsMethodReadModel>(
+            GetSavingsMethodsSql,
+            new { BudgetId = budgetId },
+            ct);
+
     public Task<int> CloseLinkedActiveMonthSavingsGoalsForSourceAsync(
         Guid sourceSavingsGoalId,
         Guid excludeMonthGoalId,

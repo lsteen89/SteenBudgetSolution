@@ -1,6 +1,7 @@
 import BudgetEditorPageShell from "@/components/molecules/forms/budgetEditor/BudgetEditorPageShell";
 import {
   useBudgetMonthSavingsGoals,
+  useBudgetMonthSavingsMethods,
   useBudgetMonthSavingsOldGoals,
   useCancelSavingsGoalMutation,
   useCompleteSavingsGoalMutation,
@@ -26,6 +27,7 @@ import SavingsGoalCardsList from "./components/SavingsGoalCardsList";
 import type { SavingsGoalLifecycleAction } from "./components/SavingsGoalLifecycleConfirmDialog";
 import SavingsGoalContributionModal from "./components/SavingsGoalContributionModal";
 import SavingsGoalLifecycleConfirmDialog from "./components/SavingsGoalLifecycleConfirmDialog";
+import SavingsMethodsStrip from "./components/SavingsMethodsStrip";
 import SavingsOldGoalsSection from "./components/SavingsOldGoalsSection";
 import SavingsPlanBalanceStrip from "./components/SavingsPlanBalanceStrip";
 import SavingsSoulHero from "./components/SavingsSoulHero";
@@ -53,6 +55,10 @@ export default function SavingsEditorPage() {
     !!editableYearMonth,
   );
   const oldGoalsQuery = useBudgetMonthSavingsOldGoals(
+    editableYearMonth ?? undefined,
+    !!editableYearMonth,
+  );
+  const methodsQuery = useBudgetMonthSavingsMethods(
     editableYearMonth ?? undefined,
     !!editableYearMonth,
   );
@@ -221,6 +227,8 @@ export default function SavingsEditorPage() {
             aggregate={heroAggregate}
             readOnly={readOnly}
           />
+
+          <SavingsMethodsStrip methods={methodsQuery.data} />
 
           {dashboardAggregate ? (
             <SavingsPlanBalanceStrip

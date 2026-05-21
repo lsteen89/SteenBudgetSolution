@@ -2,6 +2,7 @@ import type { ApiEnvelope } from "@/api/api.types";
 import { api } from "@/api/axios";
 import { unwrapEnvelopeData } from "@/api/envelope";
 import type { BudgetMonthSavingsGoalArchiveRowDto } from "@/types/budget/BudgetMonthSavingsGoalArchiveRowDto";
+import type { SavingsMethodDto } from "@/types/budget/SavingsMethodDto";
 import type {
   BudgetMonthEditorDto,
   BudgetMonthDebtEditorRowDto,
@@ -185,6 +186,21 @@ export async function getBudgetMonthSavingsOldGoals(
     res,
     "Could not load previous month savings goals.",
   );
+}
+
+export async function getBudgetMonthSavingsMethods(
+  yearMonth: string,
+): Promise<SavingsMethodDto[]> {
+  const res = await api.get<ApiEnvelope<SavingsMethodDto[]>>(
+    `/api/budgets/months/${yearMonth}/savings-methods`,
+    {
+      headers: {
+        "Cache-Control": "no-cache",
+      },
+    },
+  );
+
+  return unwrapEnvelopeData(res, "Could not load month savings methods.");
 }
 
 export async function patchBudgetMonthSavingsGoal(

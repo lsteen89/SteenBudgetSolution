@@ -16,7 +16,7 @@ namespace Backend.Domain.Entities.Budget.Savings
         
         public void AddMethod(SavingsMethod method)
         {
-            if (method is null || string.IsNullOrWhiteSpace(method.Method)) return;
+            if (method is null || string.IsNullOrWhiteSpace(method.Code)) return;
             method.SavingsId = this.Id;
             this.SavingMethods.Add(method);
         }

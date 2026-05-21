@@ -19,6 +19,7 @@ using Backend.Application.Features.Budgets.Months.Editor.Savings.CompleteSavings
 using Backend.Application.Features.Budgets.Months.Editor.Savings.CreateSavingsGoal;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.GetOldSavingsGoals;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.GetSavingsGoals;
+using Backend.Application.Features.Budgets.Months.Editor.Savings.GetSavingsMethods;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.PatchSavingsGoal;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.PatchSavingsGoalsBulk;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.RemoveSavingsGoal;
@@ -331,6 +332,27 @@ public sealed partial class BudgetController
         }
 
         return Ok(ApiEnvelope<IReadOnlyList<BudgetMonthSavingsGoalArchiveRowDto>>.Success(result.Value));
+    }
+
+    [HttpGet("months/{yearMonth}/savings-methods")]
+    [ProducesResponseType(typeof(ApiEnvelope<IReadOnlyList<SavingsMethodDto>>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiEnvelope<IReadOnlyList<SavingsMethodDto>>>> GetSavingsMethods(
+        [FromRoute] string yearMonth,
+        CancellationToken ct)
+    {
+        var result = await _mediator.Send(
+            new GetBudgetMonthSavingsMethodsQuery(_currentUser.Persoid, yearMonth),
+            ct);
+
+        if (result.IsFailure || result.Value is null)
+        {
+            return Ok(ApiEnvelope<IReadOnlyList<SavingsMethodDto>>.Failure(
+                code: result.Error?.Code ?? "BUDGET_MONTH_SAVINGS_METHODS_NOT_FOUND",
+                message: result.Error?.Message ?? "Could not load month savings methods."
+            ));
+        }
+
+        return Ok(ApiEnvelope<IReadOnlyList<SavingsMethodDto>>.Success(result.Value));
     }
 
     [HttpPost("months/{yearMonth}/savings-goals")]

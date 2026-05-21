@@ -196,16 +196,11 @@ public sealed class WizardPreviewTest
         preview.Savings!.Goals.Select(g => g.MonthlyContribution)
             .Should().BeEquivalentTo(live.Savings!.Goals.Select(g => g.MonthlyContribution));
 
-        var previewTotalSavings =
-            preview.Savings.MonthlySavings + preview.Savings.Goals.Sum(g => g.MonthlyContribution);
-
-        var liveTotalSavings =
-            live.Savings.MonthlySavings + live.Savings.Goals.Sum(g => g.MonthlyContribution);
-
-        previewTotalSavings.Should().Be(liveTotalSavings);
+        preview.Savings.TotalGoalSavingsMonthly.Should().Be(live.Savings.TotalGoalSavingsMonthly);
+        preview.Savings.TotalSavingsMonthly.Should().Be(live.Savings.TotalSavingsMonthly);
 
         preview.DisposableAfterExpensesAndSavingsWithCarryMonthly
-            .Should().Be(preview.Income.TotalIncomeMonthly - preview.Expenditure.TotalExpensesMonthly - previewTotalSavings + preview.CarryOverAmountMonthly);
+            .Should().Be(preview.Income.TotalIncomeMonthly - preview.Expenditure.TotalExpensesMonthly - preview.Savings.TotalSavingsMonthly + preview.CarryOverAmountMonthly);
 
         preview.Expenditure.ByCategory
             .Select(x => (x.CategoryName, x.TotalMonthlyAmount))

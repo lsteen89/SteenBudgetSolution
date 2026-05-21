@@ -85,9 +85,8 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
 
         var live = dto.LiveDashboard!;
 
-        var habitSavings = live.Savings?.MonthlySavings ?? 0m;
-        var goalSavings = live.Savings?.Goals.Sum(g => g.MonthlyContribution) ?? 0m;
-        var totalSavings = habitSavings + goalSavings;
+        var totalSavings = live.Savings?.TotalSavingsMonthly ?? 0m;
+        live.Savings?.TotalGoalSavingsMonthly.Should().Be(1500m);
 
         live.DisposableAfterExpensesWithCarryMonthly
             .Should().Be((32500m - 12000m) + 1000m);
@@ -343,7 +342,7 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
     }
 
     [Fact]
-    public async Task OpenMonth_IncludesGoalMonthlyContribution_AndAffectsTotals()
+    public async Task OpenMonth_IncludesGoalMonthlyContribution_AsAllocationWithoutAffectingTotals()
     {
         await _db.ResetAsync();
 
@@ -411,18 +410,19 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
 
         var habit = live.Savings.MonthlySavings;
         var goals = live.Savings.Goals.Sum(g => g.MonthlyContribution);
-        var totalSavings = habit + goals;
 
         live.CarryOverAmountMonthly.Should().Be(0m);
+        live.Savings.TotalGoalSavingsMonthly.Should().Be(goals);
+        live.Savings.TotalSavingsMonthly.Should().Be(habit);
 
         live.DisposableAfterExpensesAndSavingsWithCarryMonthly
             .Should().Be(
                 live.Income.TotalIncomeMonthly
                 - live.Expenditure.TotalExpensesMonthly
-                - totalSavings
+                - live.Savings.TotalSavingsMonthly
                 + live.CarryOverAmountMonthly);
 
-        totalSavings.Should().Be(MoneyRound.Kr(totalSavings));
+        live.Savings.TotalGoalSavingsMonthly.Should().Be(MoneyRound.Kr(live.Savings.TotalGoalSavingsMonthly));
     }
     [Fact]
     public async Task OpenMonthDashboard_UsesMonthContribution_NotBaselineContribution()
@@ -510,8 +510,8 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
         goal.MonthlyContribution.Should().Be(900m);
         goal.MonthlyContribution.Should().NotBe(500m);
 
-        var totalSavings = live.Savings.MonthlySavings + live.Savings.Goals.Sum(g => g.MonthlyContribution);
-        totalSavings.Should().Be(3400m); // 2500 + 900
+        live.Savings.TotalGoalSavingsMonthly.Should().Be(900m);
+        live.Savings.TotalSavingsMonthly.Should().Be(2500m);
     }
     [Fact]
     public async Task Handle_WhenOpenMonthInCloseWindow_ReturnsCloseWindowMetadata()

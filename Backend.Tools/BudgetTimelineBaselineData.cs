@@ -77,7 +77,18 @@ internal sealed record BudgetTimelineExpenseCategorySeed(
 
 internal sealed record BudgetTimelineSavingsSeed(
     decimal MonthlySavings,
-    IReadOnlyList<BudgetTimelineSavingsGoalSeed> Goals);
+    IReadOnlyList<BudgetTimelineSavingsGoalSeed> Goals)
+{
+    // Plan-level savings methods (storage vehicles). Empty by default so
+    // existing seeds keep exercising the empty-state path on the savings
+    // editor; opt-in per profile when a richer showcase is desired.
+    public IReadOnlyList<BudgetTimelineSavingsMethodSeed> Methods { get; init; } =
+        Array.Empty<BudgetTimelineSavingsMethodSeed>();
+}
+
+internal sealed record BudgetTimelineSavingsMethodSeed(
+    string Code,
+    string? CustomLabel = null);
 
 internal sealed record BudgetTimelineSavingsGoalSeed(
     string Name,

@@ -1,5 +1,6 @@
 using System.Globalization;
 using Backend.Application.DTO.Budget.Months;
+using Backend.Domain.Entities.Budget.Savings;
 using Backend.Domain.Enums;
 
 internal static class BudgetTimelineProfiles
@@ -900,7 +901,21 @@ internal static class BudgetTimelineProfiles
                         TargetMonthOffset: 18,
                         AmountSaved: 18000m,
                         MonthlyContribution: 900m)
-                ]),
+                ])
+            {
+                // Rich showcase for the local-dev playground so the savings
+                // editor chip strip renders multiple system vehicles plus one
+                // custom row. Other profiles intentionally leave Methods empty
+                // so the empty state is still exercised elsewhere.
+                Methods =
+                [
+                    new(SavingsMethodCodes.SavingsAccount),
+                    new(SavingsMethodCodes.Isk),
+                    new(SavingsMethodCodes.Funds),
+                    new(SavingsMethodCodes.Cash),
+                    new(SavingsMethodCodes.Custom, "Avanza buffert"),
+                ]
+            },
             Debts:
             [
                 new("Credit Card", "revolving", 28000m, 19.9m, 35m, 900m, null),

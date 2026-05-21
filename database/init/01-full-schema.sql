@@ -266,21 +266,45 @@ CREATE TABLE Savings (
 ) ENGINE=InnoDB;
 
 -- SavingsMethod
+-- Plan-level storage vehicles (where savings sit), one row per method
+-- per Savings plan. MethodCode is a stable system code; CustomLabel
+-- carries the user-entered label only when MethodCode = 'custom'.
 CREATE TABLE SavingsMethod (
-    Id        BINARY(16)         NOT NULL PRIMARY KEY,
-    SavingsId BINARY(16)         NOT NULL,
-    Method    VARCHAR(50)  NOT NULL,
+    Id              BINARY(16)   NOT NULL PRIMARY KEY,
+    SavingsId       BINARY(16)   NOT NULL,
+    MethodCode      VARCHAR(50)  NOT NULL,
+    CustomLabel     VARCHAR(120) NULL,
 
-    -- Timestamps 
-    CreatedAt        DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UpdatedAt        DATETIME       NULL ON UPDATE CURRENT_TIMESTAMP,
+    -- Partial-uniqueness helpers. NULL where the constraint must not apply.
+    -- MariaDB treats NULL as not-equal in UNIQUE indexes, so we get
+    -- "one row per system code per Savings" plus "no duplicate custom
+    -- label per Savings" without blocking multiple custom rows.
+    SystemMethodKey VARCHAR(50)
+        AS (CASE WHEN MethodCode <> 'custom' THEN MethodCode ELSE NULL END) STORED,
+    CustomMethodKey VARCHAR(120)
+        AS (CASE WHEN MethodCode = 'custom' THEN LOWER(TRIM(CustomLabel)) ELSE NULL END) STORED,
+
+    -- Timestamps
+    CreatedAt       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt       DATETIME     NULL ON UPDATE CURRENT_TIMESTAMP,
 
     -- User Tracking
-    CreatedByUserId BINARY(16) NOT NULL,
-    UpdatedByUserId BINARY(16) NULL,
+    CreatedByUserId BINARY(16)   NOT NULL,
+    UpdatedByUserId BINARY(16)   NULL,
+
     CONSTRAINT FK_SavingsMethod_Savings
         FOREIGN KEY (SavingsId) REFERENCES Savings(Id)
-        ON DELETE CASCADE
+        ON DELETE CASCADE,
+    CONSTRAINT CK_SavingsMethod_Code
+        CHECK (MethodCode IN ('savings_account','isk','funds','cash','custom')),
+    CONSTRAINT CK_SavingsMethod_CustomLabel
+        CHECK (
+            (MethodCode = 'custom' AND CustomLabel IS NOT NULL AND TRIM(CustomLabel) <> '')
+            OR
+            (MethodCode <> 'custom' AND CustomLabel IS NULL)
+        ),
+    UNIQUE KEY UX_SavingsMethod_System (SavingsId, SystemMethodKey),
+    UNIQUE KEY UX_SavingsMethod_Custom (SavingsId, CustomMethodKey)
 ) ENGINE=InnoDB;
 
 CREATE TABLE SavingsGoal (

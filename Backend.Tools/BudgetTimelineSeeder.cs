@@ -569,6 +569,24 @@ internal sealed class BudgetTimelineSeeder
                 },
                 ct);
         }
+
+        foreach (var method in savings.Methods)
+        {
+            await ExecuteAsync(
+                @"INSERT INTO SavingsMethod
+                  (Id, SavingsId, MethodCode, CustomLabel, CreatedByUserId)
+                  VALUES
+                  (@Id, @SavingsId, @MethodCode, @CustomLabel, @Persoid);",
+                new Dictionary<string, object?>
+                {
+                    ["Id"] = Guid.NewGuid(),
+                    ["SavingsId"] = savingsId,
+                    ["MethodCode"] = method.Code,
+                    ["CustomLabel"] = method.CustomLabel,
+                    ["Persoid"] = persoid
+                },
+                ct);
+        }
     }
 
     private async Task EnsureBaselineDebtsAsync(

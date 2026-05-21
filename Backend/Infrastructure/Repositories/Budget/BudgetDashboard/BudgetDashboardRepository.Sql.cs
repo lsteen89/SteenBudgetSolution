@@ -46,14 +46,6 @@ public sealed partial class BudgetDashboardRepository
             FROM Savings s
             WHERE s.BudgetId = b.Id
             LIMIT 1
-        ), 0)
-        +
-        COALESCE((
-            SELECT SUM(g.MonthlyContribution)
-            FROM SavingsGoal g
-            INNER JOIN Savings s ON s.Id = g.SavingsId
-            WHERE s.BudgetId = b.Id
-            AND g.Status = 'active'
         ), 0) AS TotalSavingsMonthly,
 
         COALESCE((

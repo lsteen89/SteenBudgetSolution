@@ -12,6 +12,8 @@ export const monthEditorQueryKeys = {
     ["budget", "month-editor", yearMonth, "savings-goals"] as const,
   savingsOldGoals: (yearMonth: string) =>
     ["budget", "month-editor", yearMonth, "savings-goals", "old"] as const,
+  savingsMethods: (yearMonth: string) =>
+    ["budget", "month-editor", yearMonth, "savings-methods"] as const,
   debtItems: (yearMonth: string) =>
     ["budget", "month-editor", yearMonth, "debt-items"] as const,
 };

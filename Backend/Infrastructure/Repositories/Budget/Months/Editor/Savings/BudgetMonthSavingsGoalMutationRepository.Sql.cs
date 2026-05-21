@@ -305,6 +305,26 @@ public sealed partial class BudgetMonthSavingsGoalMutationRepository
         Name,
         Id;";
 
+    // Plan-level savings methods for the savings editor. Methods belong to
+    // `Savings` (one row per budget), never to individual goals, so the lookup
+    // is budget-scoped. Returns row identity (`Id`) so a future delete UI can
+    // target a specific row, plus the stable `MethodCode` and the optional
+    // `CustomLabel` (populated only for `custom` rows; the CHECK constraint
+    // guarantees the pairing). Ordering: system codes first by code, custom
+    // rows last alphabetically by label — stable and case-insensitive.
+    private const string GetSavingsMethodsSql = @"
+    SELECT
+        sm.Id          AS Id,
+        sm.MethodCode  AS MethodCode,
+        sm.CustomLabel AS CustomLabel
+    FROM SavingsMethod sm
+    JOIN Savings s ON s.Id = sm.SavingsId
+    WHERE s.BudgetId = @BudgetId
+    ORDER BY
+        CASE WHEN sm.MethodCode = 'custom' THEN 1 ELSE 0 END,
+        sm.MethodCode,
+        LOWER(COALESCE(sm.CustomLabel, ''));";
+
     // Selects active monthly savings-goal rows whose projected AmountSaved
     // (current + this month's contribution) reaches the TargetAmount. Read
     // straight from BudgetMonthSavingsGoal so the projection is always

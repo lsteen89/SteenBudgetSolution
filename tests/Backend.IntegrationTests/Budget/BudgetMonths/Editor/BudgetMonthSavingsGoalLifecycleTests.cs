@@ -651,6 +651,8 @@ public sealed class BudgetMonthSavingsGoalLifecycleTests
             => _inner.GetCompletionCandidatesAsync(budgetMonthId, ct);
         public Task<IReadOnlyList<BudgetMonthSavingsGoalArchiveRowReadModel>> GetSavingsGoalArchiveRowsAsync(Guid budgetId, DateTime upperBoundUtc, CancellationToken ct)
             => _inner.GetSavingsGoalArchiveRowsAsync(budgetId, upperBoundUtc, ct);
+        public Task<IReadOnlyList<SavingsMethodReadModel>> GetSavingsMethodsAsync(Guid budgetId, CancellationToken ct)
+            => _inner.GetSavingsMethodsAsync(budgetId, ct);
         public Task<int> CloseLinkedActiveMonthSavingsGoalsForSourceAsync(Guid sourceSavingsGoalId, Guid excludeMonthGoalId, string closedReason, DateTime closedAtUtc, Guid actorPersoid, CancellationToken ct)
             => _inner.CloseLinkedActiveMonthSavingsGoalsForSourceAsync(sourceSavingsGoalId, excludeMonthGoalId, closedReason, closedAtUtc, actorPersoid, ct);
     }

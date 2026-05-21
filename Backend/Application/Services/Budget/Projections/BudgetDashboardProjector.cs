@@ -16,13 +16,9 @@ public sealed class BudgetDashboardProjector : IBudgetDashboardProjector
 
         var incomeTotal = ComputeIncomeTotal(data);
         var expensesTotal = MoneyRound.Kr(data.Totals.TotalExpensesMonthly);
-        var savingsMonthly = MoneyRound.Kr(data.Savings?.MonthlySavings ?? 0m)
-            + MoneyRound.Kr(data.Savings?.Goals.Sum(g => g.MonthlyContribution) ?? 0m);
         var debtPayments = MoneyRound.Kr(debtItems.Sum(x => x.MonthlyPayment));
 
-        var habitSavingsMonthly = MoneyRound.Kr(data.Savings?.MonthlySavings ?? 0m);
-        var goalSavingsMonthly = MoneyRound.Kr(data.Savings?.Goals.Sum(g => g.MonthlyContribution) ?? 0m);
-        var totalSavingsMonthly = MoneyRound.Kr(habitSavingsMonthly + goalSavingsMonthly);
+        var totalSavingsMonthly = MoneyRound.Kr(data.Savings?.MonthlySavings ?? 0m);
 
         var disposableAfterExpenses =
             MoneyRound.Kr(incomeTotal - expensesTotal);
@@ -84,13 +80,12 @@ public sealed class BudgetDashboardProjector : IBudgetDashboardProjector
 
         var habit = MoneyRound.Kr(data.Savings.MonthlySavings);
         var goals = MoneyRound.Kr(data.Savings.Goals.Sum(g => g.MonthlyContribution));
-        var total = MoneyRound.Kr(habit + goals);
 
         return new SavingsOverviewDto
         {
             MonthlySavings = habit,
             TotalGoalSavingsMonthly = goals,
-            TotalSavingsMonthly = total,
+            TotalSavingsMonthly = habit,
             Goals = data.Savings.Goals.Select(g => new DashboardSavingsGoalDto
             {
                 Id = g.Id,

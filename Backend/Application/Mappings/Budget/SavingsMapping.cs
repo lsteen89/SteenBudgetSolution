@@ -6,19 +6,18 @@ namespace Backend.Application.Mappings.Budget
 {
     public static class SavingsMapping
     {
+        // The wizard's `savingMethods` field collects habit answers
+        // (auto/manual/invest/preferNot), not plan-level storage vehicles.
+        // Those are intentionally NOT mapped into `SavingsMethod` — that
+        // table holds savings_account/isk/funds/cash/custom only, written
+        // through the savings editor. The wizard field is accepted on the
+        // wire (so JSON deserializes) but is not persisted to SavingsMethod.
         public static Savings ToDomain(this SavingsData dto, Guid budgetId)
         {
             var savings = new Savings { BudgetId = budgetId };
 
-            if (dto.Habits is not null)
-            {
-                if (dto.Habits.SavingMethods is not null)
-                    foreach (var methodString in dto.Habits.SavingMethods)
-                        savings.AddMethod(new SavingsMethod { Method = methodString });
-
-                if (dto.Habits.MonthlySavings is not null)
-                    savings.MonthlySavings = dto.Habits.MonthlySavings.Value;
-            }
+            if (dto.Habits?.MonthlySavings is not null)
+                savings.MonthlySavings = dto.Habits.MonthlySavings.Value;
 
             if (dto.Goals is not null)
             {
@@ -31,21 +30,10 @@ namespace Backend.Application.Mappings.Budget
 
         public static void ApplyPatchFrom(this Savings target, SavingsData dto)
         {
-            // Habits substep owns habits fields
-            if (dto.Habits is not null)
-            {
-                // replace methods if provided
-                if (dto.Habits.SavingMethods is not null)
-                {
-                    target.SavingMethods.Clear();
-                    foreach (var m in dto.Habits.SavingMethods)
-                        target.AddMethod(new SavingsMethod { Method = m });
-                }
-
-                // overwrite monthly if provided (don’t default to 0)
-                if (dto.Habits.MonthlySavings is not null)
-                    target.MonthlySavings = dto.Habits.MonthlySavings.Value;
-            }
+            // See note on ToDomain — wizard habit answers are not written to
+            // SavingsMethod. The habits substep here only owns MonthlySavings.
+            if (dto.Habits?.MonthlySavings is not null)
+                target.MonthlySavings = dto.Habits.MonthlySavings.Value;
 
             // Goals substep owns goals
             if (dto.Goals is not null)

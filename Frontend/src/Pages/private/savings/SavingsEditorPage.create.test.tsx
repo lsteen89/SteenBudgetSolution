@@ -46,6 +46,11 @@ vi.mock("@/hooks/budget/editPeriod/useMonthEditor", () => ({
     isError: false,
     data: [],
   }),
+  useBudgetMonthSavingsMethods: () => ({
+    isLoading: false,
+    isError: false,
+    data: [],
+  }),
   useCreateBudgetMonthSavingsGoal: () => ({
     mutateAsync: mockCreateMutateAsync,
     get isPending() {

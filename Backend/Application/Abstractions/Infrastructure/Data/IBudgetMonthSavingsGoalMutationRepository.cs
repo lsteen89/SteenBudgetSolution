@@ -83,6 +83,15 @@ public interface IBudgetMonthSavingsGoalMutationRepository
     Task<IReadOnlyList<BudgetMonthSavingsGoalArchiveRowReadModel>>
         GetSavingsGoalArchiveRowsAsync(Guid budgetId, DateTime upperBoundUtc, CancellationToken ct);
 
+    // Plan-level savings methods (one row per method) for the user's budget.
+    // Methods belong to `Savings`, never to individual goals, so the lookup
+    // is budget-scoped. Returns `Id` (for future delete), the stable
+    // `MethodCode`, and the optional `CustomLabel` (populated only for
+    // `custom` rows). Stably ordered server-side.
+    Task<IReadOnlyList<SavingsMethodReadModel>> GetSavingsMethodsAsync(
+        Guid budgetId,
+        CancellationToken ct);
+
     // Closes any still-active month rows pointing at the given source goal,
     // excluding the row we already handled directly. Used when close-month
     // completes a source-linked goal so a pre-existing next open month does

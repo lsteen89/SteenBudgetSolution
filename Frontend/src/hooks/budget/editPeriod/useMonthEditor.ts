@@ -9,6 +9,7 @@ import {
   getBudgetMonthDebts,
   getBudgetMonthIncomeItems,
   getBudgetMonthSavingsGoals,
+  getBudgetMonthSavingsMethods,
   getBudgetMonthSavingsOldGoals,
   getBudgetMonthEditor,
   patchBudgetMonthDebt,
@@ -227,6 +228,23 @@ export function useBudgetMonthSavingsOldGoals(
       }
 
       return getBudgetMonthSavingsOldGoals(yearMonth);
+    },
+    enabled: enabled && !!yearMonth,
+  });
+}
+
+export function useBudgetMonthSavingsMethods(
+  yearMonth: string | undefined,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: monthEditorQueryKeys.savingsMethods(yearMonth ?? ""),
+    queryFn: () => {
+      if (!yearMonth) {
+        throw new Error("Missing yearMonth.");
+      }
+
+      return getBudgetMonthSavingsMethods(yearMonth);
     },
     enabled: enabled && !!yearMonth,
   });
