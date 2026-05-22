@@ -4,11 +4,14 @@ import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { savingsEditorPageDict } from "@/utils/i18n/pages/private/savings/SavingsEditorPage.i18n";
 import { tDict } from "@/utils/i18n/translate";
 import { formatMoneyV2, moneyDecimalsFor } from "@/utils/money/moneyV2";
+import type { ReactNode } from "react";
 import type { SavingsHeroAggregate } from "../utils/savingsSoul";
 
 type SavingsSoulHeroProps = {
   periodLabel: string;
   aggregate: SavingsHeroAggregate;
+  /** Steady base monthly savings (Savings.MonthlySavings), separate from goals. */
+  baseMonthly: number;
   readOnly: boolean;
 };
 
@@ -20,6 +23,7 @@ const interpolate = (
 export default function SavingsSoulHero({
   periodLabel,
   aggregate,
+  baseMonthly,
   readOnly,
 }: SavingsSoulHeroProps) {
   const locale = useAppLocale();
@@ -27,31 +31,27 @@ export default function SavingsSoulHero({
   const t = <K extends keyof typeof savingsEditorPageDict.sv>(key: K) =>
     tDict(key, locale, savingsEditorPageDict);
 
-  const monthlyFormatted = formatMoneyV2(aggregate.totalMonthly, currency, locale, {
-    fractionDigits: moneyDecimalsFor(aggregate.totalMonthly),
-  });
-  const savedFormatted = formatMoneyV2(aggregate.totalSaved, currency, locale, {
-    fractionDigits: moneyDecimalsFor(aggregate.totalSaved),
-  });
+  // The hero total is the user-facing sum the page commits to: base habit plus
+  // every active goal contribution. The balance strip derives its numbers from
+  // the same two inputs, so the two surfaces can never disagree.
+  const totalMonthly = baseMonthly + aggregate.totalMonthly;
 
-  const goalCountLabel = interpolate(
-    aggregate.goalCount === 1 ? t("heroGoalCountOne") : t("heroGoalCountOther"),
-    { count: aggregate.goalCount },
-  );
+  const fmt = (value: number) =>
+    formatMoneyV2(value, currency, locale, {
+      fractionDigits: moneyDecimalsFor(value),
+    });
 
-  const heroLines: string[] = [];
-  heroLines.push(goalCountLabel);
-  if (aggregate.totalSaved > 0) {
-    heroLines.push(interpolate(t("heroSavedSoFar"), { amount: savedFormatted }));
-  }
-  if (aggregate.nextMilestone) {
-    heroLines.push(
-      interpolate(t("heroNextMilestoneNamed"), {
-        goalName: aggregate.nextMilestone.goalName,
-        months: aggregate.nextMilestone.months,
-      }),
-    );
-  }
+  const totalFormatted = fmt(totalMonthly);
+  const baseFormatted = fmt(baseMonthly);
+  const goalsFormatted = fmt(aggregate.totalMonthly);
+  const savedFormatted = fmt(aggregate.totalSaved);
+
+  const fundedPercent =
+    aggregate.totalTarget > 0
+      ? Math.round(
+          Math.min(1, aggregate.totalSaved / aggregate.totalTarget) * 100,
+        )
+      : null;
 
   const insight = buildInsight(aggregate, t);
 
@@ -87,37 +87,84 @@ export default function SavingsSoulHero({
         />
       </div>
 
-      <div className="relative z-10 max-w-[36rem] pr-0 sm:pr-[140px] lg:pr-[160px]">
+      <div className="relative z-10 max-w-[40rem] pr-0 sm:pr-[140px] lg:pr-[160px]">
         <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-eb-text/50">
           {t("eyebrow")} · {periodLabel}
         </p>
 
         <h1 className="mt-2 text-[1.75rem] font-extrabold leading-tight tracking-tight text-eb-text sm:text-[2rem]">
-          {renderHeadline(t("heroHeadline"), monthlyFormatted)}
+          {renderHeadline(t("heroHeadline"), totalFormatted)}
         </h1>
 
-        <p className="mt-2 text-sm text-eb-text/60 sm:text-[15px]">
-          {heroLines.join(" · ")}
+        <p
+          className="mt-3 flex flex-wrap items-baseline gap-x-4 gap-y-1.5 text-sm text-eb-text/65 sm:text-[15px]"
+          data-testid="savings-hero-split"
+        >
+          {renderSplitPart(t("heroBaseHabitPart"), baseFormatted)}
+          {aggregate.goalCount > 0 ? (
+            <>
+              <SplitDot />
+              {renderSplitPart(
+                aggregate.goalCount === 1
+                  ? t("heroGoalsPartOne")
+                  : t("heroGoalsPartOther"),
+                goalsFormatted,
+                { count: aggregate.goalCount },
+              )}
+            </>
+          ) : null}
+          {aggregate.totalSaved > 0 ? (
+            <>
+              <SplitDot />
+              {renderSplitPart(t("heroSavedSoFar"), savedFormatted)}
+            </>
+          ) : null}
         </p>
 
-        {insight ? (
-          <div className="mt-4">
-            <span className="inline-flex items-center gap-2 rounded-full border border-eb-accent/25 bg-eb-accentSoft px-3 py-1.5 text-[13px] font-semibold text-[#14532d]">
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
+        {fundedPercent != null || insight ? (
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            {fundedPercent != null ? (
+              <span
+                data-testid="savings-hero-funded-pill"
+                className="inline-flex items-center gap-2 rounded-full border border-eb-stroke/70 bg-eb-surface/70 px-3 py-1.5 text-[13px] font-bold text-eb-text/75"
               >
-                <path d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
-              </svg>
-              {insight}
-            </span>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M12 7v5l3 2" />
+                </svg>
+                <span className="tabular-nums text-eb-text">
+                  {interpolate(t("heroFundedPill"), { percent: fundedPercent })}
+                </span>
+              </span>
+            ) : null}
+            {insight ? (
+              <span className="inline-flex items-center gap-2 rounded-full border border-eb-accent/25 bg-eb-accentSoft px-3 py-1.5 text-[13px] font-semibold text-[#14532d]">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
+                </svg>
+                {insight}
+              </span>
+            ) : null}
           </div>
         ) : null}
 
@@ -128,6 +175,38 @@ export default function SavingsSoulHero({
         ) : null}
       </div>
     </section>
+  );
+}
+
+function SplitDot() {
+  return (
+    <span
+      aria-hidden="true"
+      className="h-1 w-1 self-center rounded-full bg-eb-text/30"
+    />
+  );
+}
+
+/**
+ * Render a hero subtitle fragment whose `{amount}` placeholder is emphasised in
+ * the foreground colour while the surrounding label stays muted.
+ */
+function renderSplitPart(
+  template: string,
+  amount: string,
+  values?: Record<string, string | number>,
+): ReactNode {
+  const withValues = values ? interpolate(template, values) : template;
+  const [pre, ...rest] = withValues.split("{amount}");
+  const post = rest.join("{amount}");
+  return (
+    <span className="inline-flex items-baseline gap-1.5">
+      {pre}
+      <strong className="font-semibold tabular-nums text-eb-text">
+        {amount}
+      </strong>
+      {post}
+    </span>
   );
 }
 

@@ -19,7 +19,9 @@ using Backend.Application.Features.Budgets.Months.Editor.Savings.CompleteSavings
 using Backend.Application.Features.Budgets.Months.Editor.Savings.CreateSavingsGoal;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.GetOldSavingsGoals;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.GetSavingsGoals;
+using Backend.Application.Features.Budgets.Months.Editor.Savings.AddSavingsMethod;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.GetSavingsMethods;
+using Backend.Application.Features.Budgets.Months.Editor.Savings.RemoveSavingsMethod;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.PatchSavingsGoal;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.PatchSavingsGoalsBulk;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.RemoveSavingsGoal;
@@ -353,6 +355,57 @@ public sealed partial class BudgetController
         }
 
         return Ok(ApiEnvelope<IReadOnlyList<SavingsMethodDto>>.Success(result.Value));
+    }
+
+    [HttpPost("months/{yearMonth}/savings-methods")]
+    [ProducesResponseType(typeof(ApiEnvelope<SavingsMethodDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiEnvelope<SavingsMethodDto>>> AddSavingsMethod(
+        [FromRoute] string yearMonth,
+        [FromBody] AddSavingsMethodRequestDto req,
+        CancellationToken ct)
+    {
+        var result = await _mediator.Send(
+            new AddSavingsMethodCommand(
+                Persoid: _currentUser.Persoid,
+                YearMonth: yearMonth,
+                Code: req.Code,
+                CustomLabel: req.CustomLabel),
+            ct);
+
+        if (result.IsFailure || result.Value is null)
+        {
+            return Ok(ApiEnvelope<SavingsMethodDto>.Failure(
+                code: result.Error?.Code ?? "BUDGET_MONTH_SAVINGS_METHOD_ADD_FAILED",
+                message: result.Error?.Message ?? "Could not add savings method."
+            ));
+        }
+
+        return Ok(ApiEnvelope<SavingsMethodDto>.Success(result.Value));
+    }
+
+    [HttpDelete("months/{yearMonth}/savings-methods/{savingsMethodId:guid}")]
+    [ProducesResponseType(typeof(ApiEnvelope<object>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiEnvelope<object>>> RemoveSavingsMethod(
+        [FromRoute] string yearMonth,
+        [FromRoute] Guid savingsMethodId,
+        CancellationToken ct)
+    {
+        var result = await _mediator.Send(
+            new RemoveSavingsMethodCommand(
+                Persoid: _currentUser.Persoid,
+                YearMonth: yearMonth,
+                SavingsMethodId: savingsMethodId),
+            ct);
+
+        if (result.IsFailure)
+        {
+            return Ok(ApiEnvelope<object>.Failure(
+                code: result.Error?.Code ?? "BUDGET_MONTH_SAVINGS_METHOD_REMOVE_FAILED",
+                message: result.Error?.Message ?? "Could not remove savings method."
+            ));
+        }
+
+        return Ok(ApiEnvelope<object>.Success(new { deleted = result.Value }));
     }
 
     [HttpPost("months/{yearMonth}/savings-goals")]

@@ -2,7 +2,10 @@ import type { ApiEnvelope } from "@/api/api.types";
 import { api } from "@/api/axios";
 import { unwrapEnvelopeData } from "@/api/envelope";
 import type { BudgetMonthSavingsGoalArchiveRowDto } from "@/types/budget/BudgetMonthSavingsGoalArchiveRowDto";
-import type { SavingsMethodDto } from "@/types/budget/SavingsMethodDto";
+import type {
+  SavingsMethodCode,
+  SavingsMethodDto,
+} from "@/types/budget/SavingsMethodDto";
 import type {
   BudgetMonthEditorDto,
   BudgetMonthDebtEditorRowDto,
@@ -201,6 +204,29 @@ export async function getBudgetMonthSavingsMethods(
   );
 
   return unwrapEnvelopeData(res, "Could not load month savings methods.");
+}
+
+export async function addBudgetMonthSavingsMethod(
+  yearMonth: string,
+  payload: { code: SavingsMethodCode; customLabel?: string | null },
+): Promise<SavingsMethodDto> {
+  const res = await api.post<ApiEnvelope<SavingsMethodDto>>(
+    `/api/budgets/months/${yearMonth}/savings-methods`,
+    payload,
+  );
+
+  return unwrapEnvelopeData(res, "Could not add savings method.");
+}
+
+export async function removeBudgetMonthSavingsMethod(
+  yearMonth: string,
+  savingsMethodId: string,
+): Promise<void> {
+  const res = await api.delete<ApiEnvelope<unknown>>(
+    `/api/budgets/months/${yearMonth}/savings-methods/${savingsMethodId}`,
+  );
+
+  unwrapEnvelopeData(res, "Could not remove savings method.");
 }
 
 export async function patchBudgetMonthSavingsGoal(

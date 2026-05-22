@@ -1,4 +1,5 @@
 import {
+  addBudgetMonthSavingsMethod,
   cancelBudgetMonthSavingsGoal,
   completeBudgetMonthSavingsGoal,
   createBudgetMonthExpenseItem,
@@ -21,7 +22,9 @@ import {
   patchBudgetMonthSavingsGoal,
   patchBudgetMonthSavingsGoalsBulk,
   removeBudgetMonthSavingsGoal,
+  removeBudgetMonthSavingsMethod,
 } from "@/api/Services/Budget/editor/monthEditor.api";
+import type { SavingsMethodCode } from "@/types/budget/SavingsMethodDto";
 import type {
   CreateBudgetMonthExpenseItemRequestDto,
   CreateBudgetMonthIncomeItemRequestDto,
@@ -247,6 +250,34 @@ export function useBudgetMonthSavingsMethods(
       return getBudgetMonthSavingsMethods(yearMonth);
     },
     enabled: enabled && !!yearMonth,
+  });
+}
+
+export function useAddBudgetMonthSavingsMethod(yearMonth: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: {
+      code: SavingsMethodCode;
+      customLabel?: string | null;
+    }) => addBudgetMonthSavingsMethod(yearMonth, payload),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: monthEditorQueryKeys.savingsMethods(yearMonth),
+      }),
+  });
+}
+
+export function useRemoveBudgetMonthSavingsMethod(yearMonth: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (savingsMethodId: string) =>
+      removeBudgetMonthSavingsMethod(yearMonth, savingsMethodId),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: monthEditorQueryKeys.savingsMethods(yearMonth),
+      }),
   });
 }
 

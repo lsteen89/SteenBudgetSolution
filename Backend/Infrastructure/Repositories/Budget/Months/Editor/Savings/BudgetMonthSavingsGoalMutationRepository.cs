@@ -155,6 +155,28 @@ public sealed partial class BudgetMonthSavingsGoalMutationRepository
             new { BudgetId = budgetId },
             ct);
 
+    public Task<Guid?> GetSavingsIdForBudgetAsync(
+        Guid budgetId,
+        CancellationToken ct)
+        => QuerySingleOrDefaultAsync<Guid?>(
+            GetSavingsIdForBudgetSql,
+            new { BudgetId = budgetId },
+            ct);
+
+    public Task InsertSavingsMethodAsync(
+        InsertSavingsMethodModel model,
+        CancellationToken ct)
+        => ExecuteAsync(InsertSavingsMethodSql, model, ct);
+
+    public Task<int> DeleteSavingsMethodAsync(
+        Guid budgetId,
+        Guid savingsMethodId,
+        CancellationToken ct)
+        => ExecuteAsync(
+            DeleteSavingsMethodSql,
+            new { BudgetId = budgetId, SavingsMethodId = savingsMethodId },
+            ct);
+
     public Task<int> CloseLinkedActiveMonthSavingsGoalsForSourceAsync(
         Guid sourceSavingsGoalId,
         Guid excludeMonthGoalId,

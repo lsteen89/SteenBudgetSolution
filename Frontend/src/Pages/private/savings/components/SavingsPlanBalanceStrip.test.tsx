@@ -4,17 +4,19 @@ import SavingsPlanBalanceStrip, {
   type SavingsPlanBalanceStripProps,
 } from "./SavingsPlanBalanceStrip";
 
+// Kvar is derived from the six terms the strip displays:
+//   income + carry - expenses - base savings - goal savings - debts
 const renderStrip = (
   override: Partial<SavingsPlanBalanceStripProps> = {},
 ) => {
   const props: SavingsPlanBalanceStripProps = {
     currencyCode: "SEK",
     locale: "en-US",
-    remainingToSpend: 1250,
     incomeMonthly: 30000,
     carryOverMonthly: 500,
     expensesMonthly: 18000,
-    savingsMonthly: 6000,
+    baseSavingsMonthly: 4000,
+    goalSavingsMonthly: 2000,
     debtPaymentsMonthly: 5250,
     ...override,
   };
@@ -23,6 +25,7 @@ const renderStrip = (
 
 describe("SavingsPlanBalanceStrip", () => {
   it("renders the positive balance state with the 'in balance' chip", () => {
+    // 30000 + 500 - 18000 - 4000 - 2000 - 5250 = 1250
     renderStrip();
 
     const strip = screen.getByTestId("savings-plan-balance-strip");
@@ -39,7 +42,8 @@ describe("SavingsPlanBalanceStrip", () => {
   });
 
   it("renders the zero balance state with neutral copy", () => {
-    renderStrip({ remainingToSpend: 0 });
+    // Bump debts so the six terms net to exactly zero.
+    renderStrip({ debtPaymentsMonthly: 6500 });
 
     const strip = screen.getByTestId("savings-plan-balance-strip");
     expect(strip.dataset.tone).toBe("zero");
@@ -49,7 +53,8 @@ describe("SavingsPlanBalanceStrip", () => {
   });
 
   it("renders the negative balance state with calm adjustment copy (no red)", () => {
-    renderStrip({ remainingToSpend: -850 });
+    // 30000 + 500 - 18000 - 4000 - 2000 - 7350 = -850
+    renderStrip({ debtPaymentsMonthly: 7350 });
 
     const strip = screen.getByTestId("savings-plan-balance-strip");
     expect(strip.dataset.tone).toBe("negative");
@@ -69,7 +74,8 @@ describe("SavingsPlanBalanceStrip", () => {
   });
 
   it("uses decimal display when remaining has cents", () => {
-    renderStrip({ remainingToSpend: 1250.75 });
+    // 30000 + 500.75 - 18000 - 4000 - 2000 - 5250 = 1250.75
+    renderStrip({ carryOverMonthly: 500.75 });
 
     expect(
       screen.getByTestId("savings-plan-balance-headline"),
@@ -77,7 +83,7 @@ describe("SavingsPlanBalanceStrip", () => {
   });
 
   it("uses whole-krona display for whole remaining values", () => {
-    renderStrip({ remainingToSpend: 1250 });
+    renderStrip();
 
     expect(
       screen.getByTestId("savings-plan-balance-headline"),
@@ -87,17 +93,11 @@ describe("SavingsPlanBalanceStrip", () => {
     ).toHaveTextContent(/1,250/);
   });
 
-  it("renders the income+carry-in breakdown from dashboard-derived values", () => {
-    renderStrip({
-      incomeMonthly: 30000,
-      carryOverMonthly: 500,
-      expensesMonthly: 18000,
-      savingsMonthly: 6000,
-      debtPaymentsMonthly: 5250,
-      remainingToSpend: 1250,
-    });
+  it("splits savings into base and goal rows in the breakdown", () => {
+    renderStrip();
 
     const breakdown = screen.getByTestId("savings-plan-balance-breakdown");
+
     const incomeRow = within(breakdown).getByText(/Income \+ carry-in/i)
       .parentElement!;
     expect(incomeRow).toHaveTextContent(/30,500/); // 30000 + 500
@@ -106,9 +106,13 @@ describe("SavingsPlanBalanceStrip", () => {
       .parentElement!;
     expect(expensesRow).toHaveTextContent(/-?18,000/);
 
-    const savingsRow = within(breakdown).getByText(/^Savings$/i)
+    const baseRow = within(breakdown).getByText(/^Base savings$/i)
       .parentElement!;
-    expect(savingsRow).toHaveTextContent(/-?6,000/);
+    expect(baseRow).toHaveTextContent(/-?4,000/);
+
+    const goalRow = within(breakdown).getByText(/^Goal savings$/i)
+      .parentElement!;
+    expect(goalRow).toHaveTextContent(/-?2,000/);
 
     const debtsRow = within(breakdown).getByText(/^Debts$/i).parentElement!;
     expect(debtsRow).toHaveTextContent(/-?5,250/);
@@ -119,7 +123,14 @@ describe("SavingsPlanBalanceStrip", () => {
 
   it("treats tiny floating-point residue as zero, not negative", () => {
     // 0.1 + 0.2 - 0.3 = ~5.55e-17 in JS. The strip should still read 'zero'.
-    renderStrip({ remainingToSpend: 0.1 + 0.2 - 0.3 });
+    renderStrip({
+      incomeMonthly: 0.1,
+      carryOverMonthly: 0.2,
+      expensesMonthly: 0.3,
+      baseSavingsMonthly: 0,
+      goalSavingsMonthly: 0,
+      debtPaymentsMonthly: 0,
+    });
 
     const strip = screen.getByTestId("savings-plan-balance-strip");
     expect(strip.dataset.tone).toBe("zero");

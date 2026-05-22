@@ -11,12 +11,13 @@ const ZERO_TOLERANCE = 0.005; // 1/2 cent — anything tighter is just float dus
 export type SavingsPlanBalanceStripProps = {
   currencyCode: CurrencyCode;
   locale: AppLocale;
-  /** Authoritative remaining-to-spend value from the dashboard aggregate. */
-  remainingToSpend: number;
   incomeMonthly: number;
   carryOverMonthly: number;
   expensesMonthly: number;
-  savingsMonthly: number;
+  /** Steady base monthly savings (Savings.MonthlySavings). */
+  baseSavingsMonthly: number;
+  /** Sum of active goal monthly contributions. */
+  goalSavingsMonthly: number;
   debtPaymentsMonthly: number;
 };
 
@@ -30,20 +31,32 @@ const interpolate = (
 export default function SavingsPlanBalanceStrip({
   currencyCode,
   locale,
-  remainingToSpend,
   incomeMonthly,
   carryOverMonthly,
   expensesMonthly,
-  savingsMonthly,
+  baseSavingsMonthly,
+  goalSavingsMonthly,
   debtPaymentsMonthly,
 }: SavingsPlanBalanceStripProps) {
   const t = <K extends keyof typeof savingsEditorPageDict.sv>(key: K) =>
     tDict(key, locale, savingsEditorPageDict);
 
+  // The dashboard's remaining-to-spend nets out base savings, expenses and
+  // debts but NOT goal contributions — so it cannot be the source of truth for
+  // "kvar" on this page. Derive it from the six terms we display, so the
+  // breakdown always visibly adds up and the hero (base + goals) agrees.
+  const honestRemaining =
+    incomeMonthly +
+    carryOverMonthly -
+    expensesMonthly -
+    baseSavingsMonthly -
+    goalSavingsMonthly -
+    debtPaymentsMonthly;
+
   const tone: ToneKey =
-    remainingToSpend > ZERO_TOLERANCE
+    honestRemaining > ZERO_TOLERANCE
       ? "positive"
-      : remainingToSpend < -ZERO_TOLERANCE
+      : honestRemaining < -ZERO_TOLERANCE
         ? "negative"
         : "zero";
 
@@ -52,7 +65,7 @@ export default function SavingsPlanBalanceStrip({
       fractionDigits: moneyDecimalsFor(value),
     });
 
-  const absRemaining = Math.abs(remainingToSpend);
+  const absRemaining = Math.abs(honestRemaining);
   const headline =
     tone === "negative"
       ? interpolate(t("planBalanceRemainingNegative"), {
@@ -61,7 +74,7 @@ export default function SavingsPlanBalanceStrip({
       : tone === "zero"
         ? t("planBalanceRemainingZero")
         : interpolate(t("planBalanceRemainingPositive"), {
-            amount: fmt(remainingToSpend),
+            amount: fmt(honestRemaining),
           });
 
   const message =
@@ -72,7 +85,7 @@ export default function SavingsPlanBalanceStrip({
       : tone === "zero"
         ? t("planBalanceMessageZero")
         : interpolate(t("planBalanceMessagePositive"), {
-            amount: fmt(remainingToSpend),
+            amount: fmt(honestRemaining),
           });
 
   const chip =
@@ -92,9 +105,16 @@ export default function SavingsPlanBalanceStrip({
       tone: "neutral" as const,
     },
     {
-      label: t("planBalanceBreakdownSavings"),
-      value: -savingsMonthly,
+      label: t("planBalanceBreakdownBaseSavings"),
+      value: -baseSavingsMonthly,
       tone: "neutral" as const,
+      dotClassName: "bg-[rgb(var(--eb-shell-2)/0.5)]",
+    },
+    {
+      label: t("planBalanceBreakdownGoalSavings"),
+      value: -goalSavingsMonthly,
+      tone: "neutral" as const,
+      dotClassName: "bg-[rgb(var(--eb-accent))]",
     },
     {
       label: t("planBalanceBreakdownDebts"),
@@ -103,7 +123,7 @@ export default function SavingsPlanBalanceStrip({
     },
     {
       label: t("planBalanceBreakdownRemaining"),
-      value: remainingToSpend,
+      value: honestRemaining,
       tone: "highlight" as const,
     },
   ];
@@ -182,14 +202,23 @@ export default function SavingsPlanBalanceStrip({
           id="savings-plan-balance-breakdown"
           data-testid="savings-plan-balance-breakdown"
           className={cn(
-            "mt-2 grid gap-x-4 gap-y-1.5 sm:grid-cols-5 sm:mt-3",
+            "mt-2 grid gap-x-4 gap-y-1.5 sm:mt-3 sm:grid-cols-6",
             breakdownOpen ? "grid" : "hidden sm:grid",
           )}
         >
           {breakdown.map((row) => (
             <div key={row.label} className="flex flex-col">
-              <dt className="text-[11px] uppercase tracking-[0.1em] text-eb-text/45">
+              <dt className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.1em] text-eb-text/45">
                 {row.label}
+                {"dotClassName" in row && row.dotClassName ? (
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "inline-block h-[7px] w-[7px] rounded-[2px]",
+                      row.dotClassName,
+                    )}
+                  />
+                ) : null}
               </dt>
               <dd
                 className={cn(

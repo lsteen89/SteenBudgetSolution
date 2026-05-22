@@ -1,5 +1,6 @@
 import BudgetEditorPageShell from "@/components/molecules/forms/budgetEditor/BudgetEditorPageShell";
 import {
+  useAddBudgetMonthSavingsMethod,
   useBudgetMonthSavingsGoals,
   useBudgetMonthSavingsMethods,
   useBudgetMonthSavingsOldGoals,
@@ -7,6 +8,7 @@ import {
   useCompleteSavingsGoalMutation,
   useCreateBudgetMonthSavingsGoal,
   usePatchBudgetMonthSavingsGoal,
+  useRemoveBudgetMonthSavingsMethod,
   useRemoveSavingsGoalMutation,
 } from "@/hooks/budget/editPeriod/useMonthEditor";
 import { useBudgetDashboardMonthQuery } from "@/hooks/budget/useBudgetDashboardMonthQuery";
@@ -22,11 +24,17 @@ import { useToast } from "@/ui/toast/toast";
 import { canEditMonth } from "@/utils/budget/periodEditor/canShowUpdateDefault";
 import { savingsEditorPageDict } from "@/utils/i18n/pages/private/savings/SavingsEditorPage.i18n";
 import { tDict } from "@/utils/i18n/translate";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import SavingsBaseHabitDialog, {
+  type SavingsBaseHabitSavePayload,
+} from "./components/SavingsBaseHabitDialog";
+import SavingsBaseHabitRow from "./components/SavingsBaseHabitRow";
+import SavingsForecastRow from "./components/SavingsForecastRow";
 import SavingsGoalCardsList from "./components/SavingsGoalCardsList";
 import type { SavingsGoalLifecycleAction } from "./components/SavingsGoalLifecycleConfirmDialog";
 import SavingsGoalContributionModal from "./components/SavingsGoalContributionModal";
 import SavingsGoalLifecycleConfirmDialog from "./components/SavingsGoalLifecycleConfirmDialog";
+import SavingsMethodsEditor from "./components/SavingsMethodsEditor";
 import SavingsMethodsStrip from "./components/SavingsMethodsStrip";
 import SavingsOldGoalsSection from "./components/SavingsOldGoalsSection";
 import SavingsPlanBalanceStrip from "./components/SavingsPlanBalanceStrip";
@@ -79,6 +87,8 @@ export default function SavingsEditorPage() {
   const completeMutation = useCompleteSavingsGoalMutation(mutationYearMonth);
   const cancelMutation = useCancelSavingsGoalMutation(mutationYearMonth);
   const removeMutation = useRemoveSavingsGoalMutation(mutationYearMonth);
+  const addMethodMutation = useAddBudgetMonthSavingsMethod(mutationYearMonth);
+  const removeMethodMutation = useRemoveBudgetMonthSavingsMethod(mutationYearMonth);
 
   const [modalRow, setModalRow] =
     useState<BudgetMonthSavingsGoalEditorRowDto | null>(null);
@@ -88,6 +98,20 @@ export default function SavingsEditorPage() {
     action: SavingsGoalLifecycleAction;
     row: BudgetMonthSavingsGoalEditorRowDto;
   } | null>(null);
+  const [methodsEditorOpen, setMethodsEditorOpen] = useState(false);
+  const [methodsEditorError, setMethodsEditorError] = useState<string | null>(
+    null,
+  );
+  const [methodsRemovingId, setMethodsRemovingId] = useState<string | null>(
+    null,
+  );
+  const [baseHabitDialogOpen, setBaseHabitDialogOpen] = useState(false);
+  // Placeholder: no Savings.MonthlySavings editor endpoint exists yet, so an
+  // edit is held in session-local state until the savings module is wired to
+  // the backend. Reset whenever the editable month changes.
+  const [baseMonthlyOverride, setBaseMonthlyOverride] = useState<number | null>(
+    null,
+  );
 
   const openMonth = monthsStatusQuery.data?.months.find(
     (month) => month.yearMonth === editableYearMonth,
@@ -105,6 +129,24 @@ export default function SavingsEditorPage() {
     () => aggregateSavingsHero(rows, referenceDate),
     [rows, referenceDate],
   );
+
+  const baseMonthlyFromDashboard =
+    dashboardAggregate?.summary.habitSavings ?? 0;
+  const baseMonthly = baseMonthlyOverride ?? baseMonthlyFromDashboard;
+
+  useEffect(() => {
+    setBaseMonthlyOverride(null);
+  }, [editableYearMonth]);
+
+  const handleSaveBaseHabit = (payload: SavingsBaseHabitSavePayload) => {
+    // No backend endpoint exists for base monthly savings yet. Keep the edit
+    // session-local and log the intended payload so the wiring target — scope
+    // included — is explicit for the future backend slice.
+    console.info("[savings-mvp] update Savings.MonthlySavings", payload);
+    setBaseMonthlyOverride(payload.amountMonthly);
+    setBaseHabitDialogOpen(false);
+    toast.success(t("habitDialogToastSuccess"));
+  };
 
   const handleOpenDraft = () => {
     if (readOnly) return;
@@ -225,22 +267,36 @@ export default function SavingsEditorPage() {
           <SavingsSoulHero
             periodLabel={periodLabel}
             aggregate={heroAggregate}
+            baseMonthly={baseMonthly}
             readOnly={readOnly}
           />
 
-          <SavingsMethodsStrip methods={methodsQuery.data} />
+          <SavingsMethodsStrip
+            methods={methodsQuery.data}
+            readOnly={readOnly}
+            onEdit={() => {
+              setMethodsEditorError(null);
+              setMethodsEditorOpen(true);
+            }}
+          />
+
+          <SavingsBaseHabitRow
+            baseMonthly={baseMonthly}
+            readOnly={readOnly}
+            onEdit={() => setBaseHabitDialogOpen(true)}
+          />
 
           {dashboardAggregate ? (
             <SavingsPlanBalanceStrip
               currencyCode={dashboardAggregate.summary.currency}
               locale={locale as AppLocale}
-              remainingToSpend={dashboardAggregate.summary.remainingToSpend}
               incomeMonthly={dashboardAggregate.summary.totalIncome}
               carryOverMonthly={
                 dashboardAggregate.summary.incomingCarryOverAmount
               }
               expensesMonthly={dashboardAggregate.summary.totalExpenditure}
-              savingsMonthly={dashboardAggregate.summary.totalSavings}
+              baseSavingsMonthly={baseMonthly}
+              goalSavingsMonthly={heroAggregate.totalMonthly}
               debtPaymentsMonthly={dashboardAggregate.summary.totalDebtPayments}
             />
           ) : null}
@@ -267,6 +323,11 @@ export default function SavingsEditorPage() {
                 onOpenDraft={handleOpenDraft}
                 onCancelDraft={handleCancelDraft}
                 onSubmitDraft={handleSubmitDraft}
+              />
+              <SavingsForecastRow
+                referenceDate={referenceDate}
+                totalSaved={heroAggregate.totalSaved}
+                monthlyContribution={heroAggregate.totalMonthly}
               />
               <SavingsOldGoalsSection rows={oldGoalsQuery.data ?? []} />
             </>
@@ -296,6 +357,50 @@ export default function SavingsEditorPage() {
         isWorking={isLifecycleWorking}
         onClose={closeLifecycleDialog}
         onConfirm={handleConfirmLifecycle}
+      />
+
+      <SavingsMethodsEditor
+        open={methodsEditorOpen && !readOnly}
+        methods={methodsQuery.data}
+        isAdding={addMethodMutation.isPending}
+        removingId={methodsRemovingId}
+        errorMessage={methodsEditorError}
+        onAdd={async (payload) => {
+          setMethodsEditorError(null);
+          try {
+            await addMethodMutation.mutateAsync(payload);
+          } catch (err) {
+            setMethodsEditorError(t("savingsMethodsAddError"));
+            throw err;
+          }
+        }}
+        onRemove={async (savingsMethodId, label) => {
+          setMethodsEditorError(null);
+          setMethodsRemovingId(savingsMethodId);
+          try {
+            await removeMethodMutation.mutateAsync(savingsMethodId);
+            toast.success(
+              t("savingsMethodsRemovedToast").replace("{label}", label),
+            );
+          } catch (err) {
+            setMethodsEditorError(t("savingsMethodsRemoveError"));
+            throw err;
+          } finally {
+            setMethodsRemovingId(null);
+          }
+        }}
+        onClose={() => {
+          if (addMethodMutation.isPending || methodsRemovingId) return;
+          setMethodsEditorOpen(false);
+        }}
+      />
+
+      <SavingsBaseHabitDialog
+        open={baseHabitDialogOpen && !readOnly}
+        baseMonthly={baseMonthly}
+        monthLabel={periodLabel}
+        onClose={() => setBaseHabitDialogOpen(false)}
+        onSave={handleSaveBaseHabit}
       />
     </>
   );

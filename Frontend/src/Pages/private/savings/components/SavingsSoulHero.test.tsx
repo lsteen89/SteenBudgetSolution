@@ -22,48 +22,77 @@ const baseAggregate: SavingsHeroAggregate = {
 };
 
 describe("SavingsSoulHero", () => {
-  it("renders the monthly savings amount in the headline", () => {
+  it("headlines the combined base + goal monthly total", () => {
     render(
       <SavingsSoulHero
         periodLabel="May 2026"
         aggregate={baseAggregate}
+        baseMonthly={3000}
         readOnly={false}
       />,
     );
 
+    // 3000 base + 4000 goals = 7000
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
       /you're saving/i,
     );
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/4[\s,.]?000/);
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+      /7[\s,.]?000/,
+    );
   });
 
-  it("names the next projected goal when available", () => {
+  it("makes the base-vs-goals split explicit in the subtitle", () => {
+    render(
+      <SavingsSoulHero
+        periodLabel="May 2026"
+        aggregate={baseAggregate}
+        baseMonthly={3000}
+        readOnly={false}
+      />,
+    );
+
+    const split = screen.getByTestId("savings-hero-split");
+    expect(split).toHaveTextContent(/3[\s,.]?000/);
+    expect(split).toHaveTextContent(/as a habit/i);
+    expect(split).toHaveTextContent(/across 3 goals/i);
+    expect(split).toHaveTextContent(/saved so far/i);
+  });
+
+  it("shows the funded percentage pill from saved vs target", () => {
+    render(
+      <SavingsSoulHero
+        periodLabel="May 2026"
+        aggregate={baseAggregate}
+        baseMonthly={3000}
+        readOnly={false}
+      />,
+    );
+
+    // 122000 / 200000 = 61%
+    expect(
+      screen.getByTestId("savings-hero-funded-pill"),
+    ).toHaveTextContent(/61% of the plan funded/i);
+  });
+
+  it("omits the funded pill when there is no target to fund", () => {
     render(
       <SavingsSoulHero
         periodLabel="May 2026"
         aggregate={{
           ...baseAggregate,
-          nextMilestone: { goalName: "Vacation Fund", months: 15 },
+          goalCount: 0,
+          totalMonthly: 0,
+          totalSaved: 0,
+          totalTarget: 0,
         }}
+        baseMonthly={3000}
         readOnly={false}
       />,
     );
 
     expect(
-      screen.getByText(/Vacation Fund hits its target in about 15 months/i),
-    ).toBeInTheDocument();
-  });
-
-  it("omits the next-milestone line when projection is unknown", () => {
-    render(
-      <SavingsSoulHero
-        periodLabel="May 2026"
-        aggregate={{ ...baseAggregate, nextMilestone: null }}
-        readOnly={false}
-      />,
-    );
-
-    expect(screen.queryByText(/hits its target in about/i)).not.toBeInTheDocument();
+      screen.queryByTestId("savings-hero-funded-pill"),
+    ).not.toBeInTheDocument();
   });
 
   it("shows the read-only badge for closed months", () => {
@@ -71,6 +100,7 @@ describe("SavingsSoulHero", () => {
       <SavingsSoulHero
         periodLabel="Apr 2026"
         aggregate={baseAggregate}
+        baseMonthly={3000}
         readOnly
       />,
     );

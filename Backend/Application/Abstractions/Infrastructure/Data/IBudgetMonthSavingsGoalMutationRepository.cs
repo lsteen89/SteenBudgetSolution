@@ -92,6 +92,33 @@ public interface IBudgetMonthSavingsGoalMutationRepository
         Guid budgetId,
         CancellationToken ct);
 
+    // Returns the `Savings.Id` for the given budget, or null when the budget
+    // has no `Savings` row yet. Methods live on `Savings`, so add/remove
+    // handlers need this lookup before they can insert. Read-only; safe to
+    // call outside a transaction.
+    Task<Guid?> GetSavingsIdForBudgetAsync(
+        Guid budgetId,
+        CancellationToken ct);
+
+    // Inserts one plan-level savings method row. The DB CHECK / UNIQUE
+    // constraints provide the final guarantees on `(SavingsId, code)` and
+    // `(SavingsId, lower(label))` uniqueness; callers are expected to
+    // pre-check via `GetSavingsMethodsAsync` so the happy path never relies
+    // on a constraint violation.
+    Task InsertSavingsMethodAsync(
+        InsertSavingsMethodModel model,
+        CancellationToken ct);
+
+    // Deletes a plan-level savings method by row id, but only when the row
+    // belongs to the given budget — the SQL joins through `Savings.BudgetId`
+    // so a stray id from another user can never match. Returns affected row
+    // count; callers should treat 0 as a no-op rather than an error so the
+    // operation is idempotent under retries.
+    Task<int> DeleteSavingsMethodAsync(
+        Guid budgetId,
+        Guid savingsMethodId,
+        CancellationToken ct);
+
     // Closes any still-active month rows pointing at the given source goal,
     // excluding the row we already handled directly. Used when close-month
     // completes a source-linked goal so a pre-existing next open month does

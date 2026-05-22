@@ -66,15 +66,27 @@ vi.mock("@/hooks/budget/editPeriod/useMonthEditor", () => ({
     mutateAsync: vi.fn(),
     isPending: false,
   }),
+  useAddBudgetMonthSavingsMethod: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+  useRemoveBudgetMonthSavingsMethod: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
 }));
 
+// The savings page derives "kvar" from six terms:
+//   income + carry - expenses - base savings - goal savings - debts.
+// Goal savings is the sum of editor-row contributions (linkedRow = 1500), so
+// the defaults below net to 30000 + 500 - 18000 - 4500 - 1500 - 5250 = 1250.
 const baseAggregate = (
   override: Partial<{
     remainingToSpend: number;
     totalIncome: number;
     incomingCarryOverAmount: number;
     totalExpenditure: number;
-    totalSavings: number;
+    habitSavings: number;
     totalDebtPayments: number;
   }> = {},
 ) => ({
@@ -85,7 +97,7 @@ const baseAggregate = (
     totalIncome: 30000,
     incomingCarryOverAmount: 500,
     totalExpenditure: 18000,
-    totalSavings: 6000,
+    habitSavings: 4500,
     totalDebtPayments: 5250,
     ...override,
   },
@@ -163,8 +175,9 @@ describe("SavingsEditorPage plan balance strip", () => {
       screen.getByTestId("savings-plan-balance-headline"),
     ).toHaveTextContent(/1,250/);
 
+    // 30000 + 500 - 18000 - 4500 - 1500 - 7350 = -850
     mockBuildDashboardSummaryAggregate.mockImplementation(() =>
-      baseAggregate({ remainingToSpend: -850 }),
+      baseAggregate({ totalDebtPayments: 7350 }),
     );
     mockUseBudgetDashboardMonthQuery.mockReturnValue({
       isLoading: false,

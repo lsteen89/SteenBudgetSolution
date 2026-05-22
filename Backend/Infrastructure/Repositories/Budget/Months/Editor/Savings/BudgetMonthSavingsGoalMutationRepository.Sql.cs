@@ -325,6 +325,36 @@ public sealed partial class BudgetMonthSavingsGoalMutationRepository
         sm.MethodCode,
         LOWER(COALESCE(sm.CustomLabel, ''));";
 
+    // Resolves the `Savings.Id` for a budget. There is exactly one `Savings`
+    // row per `Budget` by construction, so `LIMIT 1` is correct and not a
+    // defensive guard against multiplicity.
+    private const string GetSavingsIdForBudgetSql = @"
+    SELECT s.Id
+    FROM Savings s
+    WHERE s.BudgetId = @BudgetId
+    LIMIT 1;";
+
+    // Insert one plan-level savings method row. The pair (MethodCode,
+    // CustomLabel) must satisfy the CK_SavingsMethod_CustomLabel check: for
+    // system codes CustomLabel must be NULL, and for 'custom' it must be a
+    // non-blank string. The handler enforces this before calling.
+    private const string InsertSavingsMethodSql = @"
+    INSERT INTO SavingsMethod
+        (Id, SavingsId, MethodCode, CustomLabel, CreatedAt, CreatedByUserId)
+    VALUES
+        (@Id, @SavingsId, @MethodCode, @CustomLabel, @UtcNow, @ActorPersoid);";
+
+    // Delete a plan-level savings method by id, scoped to the caller's
+    // budget. The JOIN through Savings makes the budget filter authoritative:
+    // a stray id from another user can never match, so cross-budget leak is
+    // impossible by query construction.
+    private const string DeleteSavingsMethodSql = @"
+    DELETE sm
+    FROM SavingsMethod sm
+    JOIN Savings s ON s.Id = sm.SavingsId
+    WHERE sm.Id = @SavingsMethodId
+      AND s.BudgetId = @BudgetId;";
+
     // Selects active monthly savings-goal rows whose projected AmountSaved
     // (current + this month's contribution) reaches the TargetAmount. Read
     // straight from BudgetMonthSavingsGoal so the projection is always

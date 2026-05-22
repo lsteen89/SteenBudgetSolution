@@ -115,6 +115,9 @@ export default function SavingsGoalContributionModal({
   const [targetDate, setTargetDate] = useState("");
   const [scope, setScope] = useState<SavingsGoalEditScope>("currentMonthOnly");
   const [errors, setErrors] = useState<FieldErrors>({});
+  // Contribution simulator: a what-if preview of a one-off transfer. Pure
+  // frontend math — no backend command writes a one-off transfer yet.
+  const [simAmount, setSimAmount] = useState("");
 
   const canUpdatePlan = row?.canUpdateDefault ?? false;
   const dateEditingEnabled = scope === DATE_EDIT_SCOPE;
@@ -145,6 +148,7 @@ export default function SavingsGoalContributionModal({
     setTargetDate(formatDateForInput(row.targetDate));
     setScope("currentMonthOnly");
     setErrors({});
+    setSimAmount("");
   }, [open, row]);
 
   // The date is plan-level. When the user leaves the only scope that honors
@@ -229,6 +233,31 @@ export default function SavingsGoalContributionModal({
   }, [parsedAmount, originalAmount, remainingBudgetRoom, t, currency, locale]);
 
   if (!open || !row) return null;
+
+  const fmtMoney = (value: number) =>
+    formatMoneyV2(value, currency, locale, {
+      fractionDigits: moneyDecimalsFor(value),
+    });
+
+  const simParsed = parseMoneyInput(simAmount, {
+    allowNegative: false,
+    maxDecimals: 2,
+  });
+  const simSaved = row.amountSaved ?? 0;
+  const simResultText =
+    simParsed != null && simParsed > 0
+      ? interpolate(t("simulatorResult"), {
+          amount: fmtMoney(simParsed),
+          next: fmtMoney(simSaved + simParsed),
+        })
+      : t("simulatorResultEmpty");
+
+  const snapshotSaved = fmtMoney(simSaved);
+  const snapshotTarget =
+    row.targetAmount != null ? fmtMoney(row.targetAmount) : "—";
+  const snapshotDeadline =
+    formatIsoDateForDisplay(formatDateForInput(row.targetDate), locale) ||
+    t("snapshotDeadlineOngoing");
 
   const updateAmount = (value: string) => {
     setAmountMonthly(value);
@@ -337,6 +366,24 @@ export default function SavingsGoalContributionModal({
               className="grid gap-3.5"
               noValidate
             >
+              <dl
+                data-testid="savings-goal-modal-snapshot"
+                className="grid grid-cols-3 gap-2.5"
+              >
+                <SnapshotCell
+                  label={t("snapshotSavedLabel")}
+                  value={snapshotSaved}
+                />
+                <SnapshotCell
+                  label={t("snapshotTargetLabel")}
+                  value={snapshotTarget}
+                />
+                <SnapshotCell
+                  label={t("snapshotDeadlineLabel")}
+                  value={snapshotDeadline}
+                />
+              </dl>
+
               <div className="grid gap-3.5 sm:grid-cols-2">
                 <FormField
                   label={t("amountLabel")}
@@ -412,6 +459,34 @@ export default function SavingsGoalContributionModal({
                 testId="savings-goal-modal-scope-toggle"
               />
 
+              <div className="border-t border-eb-stroke/16 pt-4">
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-eb-text/40">
+                  {t("simulatorHeading")}
+                </p>
+                <FormField
+                  label={t("simulatorAmountLabel")}
+                  htmlFor="savings-goal-sim-amount"
+                >
+                  <MoneyInput
+                    id="savings-goal-sim-amount"
+                    value={simAmount}
+                    onChange={(event) => setSimAmount(event.target.value)}
+                    disabled={isSaving}
+                  />
+                </FormField>
+                <div
+                  role="status"
+                  aria-live="polite"
+                  data-testid="savings-goal-simulator-result"
+                  className="mt-2.5 rounded-2xl border border-eb-accent/25 bg-eb-accentSoft px-3.5 py-3 text-[13px] font-semibold leading-relaxed text-[#14532d]"
+                >
+                  {simResultText}
+                </div>
+                <p className="mt-1.5 text-[11px] text-eb-text/45">
+                  {t("simulatorNote")}
+                </p>
+              </div>
+
               {typeof onLifecycleAction === "function" &&
               row.status === "active" &&
               !row.isDeleted ? (
@@ -453,6 +528,19 @@ export default function SavingsGoalContributionModal({
           </BudgetEntryModalShell>
         </div>
       </div>
+    </div>
+  );
+}
+
+function SnapshotCell({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-eb-stroke/40 bg-[rgb(var(--eb-shell)/0.18)] px-3 py-2.5">
+      <dt className="text-[10.5px] font-bold uppercase tracking-[0.1em] text-eb-text/50">
+        {label}
+      </dt>
+      <dd className="mt-1 text-[14px] font-extrabold tabular-nums text-eb-text">
+        {value}
+      </dd>
     </div>
   );
 }

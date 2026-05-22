@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import SavingsMethodsStrip from "./SavingsMethodsStrip";
 import type { SavingsMethodDto } from "@/types/budget/SavingsMethodDto";
@@ -57,11 +57,7 @@ describe("SavingsMethodsStrip", () => {
   });
 
   it("uses the localized label as the section heading", () => {
-    render(
-      <SavingsMethodsStrip
-        methods={[row({ id: "m-1", code: "isk" })]}
-      />,
-    );
+    render(<SavingsMethodsStrip methods={[row({ id: "m-1", code: "isk" })]} />);
 
     expect(screen.getByTestId("savings-methods-strip")).toHaveAttribute(
       "aria-label",
@@ -70,15 +66,54 @@ describe("SavingsMethodsStrip", () => {
     expect(screen.getByText("Saving methods")).toBeInTheDocument();
   });
 
-  it("renders nothing when the methods list is empty", () => {
-    const { container } = render(<SavingsMethodsStrip methods={[]} />);
-    expect(container).toBeEmptyDOMElement();
-    expect(screen.queryByTestId("savings-methods-strip")).not.toBeInTheDocument();
+  it("renders an empty-state strip with an add affordance when there are no methods", () => {
+    const onEdit = vi.fn();
+    render(<SavingsMethodsStrip methods={[]} onEdit={onEdit} />);
+
+    expect(screen.getByTestId("savings-methods-strip")).toBeInTheDocument();
+    expect(screen.getByText("No methods added yet")).toBeInTheDocument();
+    expect(screen.queryByTestId("savings-methods-chip")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("savings-methods-add-empty-action"));
+    expect(onEdit).toHaveBeenCalledTimes(1);
   });
 
-  it("renders nothing when the methods prop is undefined", () => {
-    const { container } = render(<SavingsMethodsStrip methods={undefined} />);
+  it("renders nothing when there are no methods and the month is read-only", () => {
+    const { container } = render(
+      <SavingsMethodsStrip methods={[]} readOnly onEdit={vi.fn()} />,
+    );
     expect(container).toBeEmptyDOMElement();
+    expect(
+      screen.queryByTestId("savings-methods-strip"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("exposes the Edit action and fires onEdit when methods exist", () => {
+    const onEdit = vi.fn();
+    render(
+      <SavingsMethodsStrip
+        methods={[row({ id: "m-1", code: "isk" })]}
+        onEdit={onEdit}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("savings-methods-edit-action"));
+    expect(onEdit).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides the Edit action in a read-only month but still shows chips", () => {
+    render(
+      <SavingsMethodsStrip
+        methods={[row({ id: "m-1", code: "isk" })]}
+        readOnly
+        onEdit={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("savings-methods-chip")).toHaveTextContent("ISK");
+    expect(
+      screen.queryByTestId("savings-methods-edit-action"),
+    ).not.toBeInTheDocument();
   });
 
   it("drops custom rows whose customLabel is missing or whitespace-only", () => {
