@@ -136,6 +136,7 @@ public static class DependencyInjection
         services.AddScoped<IBudgetMonthExpenseItemMutationRepository, BudgetMonthExpenseItemMutationRepository>();
         services.AddScoped<IBudgetMonthIncomeItemMutationRepository, BudgetMonthIncomeItemMutationRepository>();
         services.AddScoped<IBudgetMonthSavingsGoalMutationRepository, BudgetMonthSavingsGoalMutationRepository>();
+        services.AddScoped<IBudgetMonthBaseSavingsMutationRepository, BudgetMonthBaseSavingsMutationRepository>();
         services.AddScoped<IBudgetMonthDebtMutationRepository, BudgetMonthDebtMutationRepository>();
         services.AddScoped<IBudgetMonthChangeEventRepository, BudgetMonthChangeEventRepository>();
         services.AddScoped<IBudgetAuditWriter, BudgetAuditWriter>();

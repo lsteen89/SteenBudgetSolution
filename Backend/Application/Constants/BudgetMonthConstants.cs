@@ -107,6 +107,29 @@ public static class BudgetMonthSavingsGoalEditScopes
         => scope == CurrentMonthAndBudgetPlan || scope == BudgetPlanOnly;
 }
 
+// Edit scopes for the per-month base savings scalar (`BudgetMonthSavings.MonthlySavings` /
+// `Savings.MonthlySavings`). Same three-scope contract every other domain uses,
+// kept as a dedicated class so the base-savings handler/validator do not
+// accidentally couple to goal-contribution semantics.
+public static class BudgetMonthBaseSavingsEditScopes
+{
+    public const string CurrentMonthOnly = "currentMonthOnly";
+    public const string CurrentMonthAndBudgetPlan = "currentMonthAndBudgetPlan";
+    public const string BudgetPlanOnly = "budgetPlanOnly";
+
+    public static bool IsSupported(string? value)
+        => value is null ||
+           value == CurrentMonthOnly ||
+           value == CurrentMonthAndBudgetPlan ||
+           value == BudgetPlanOnly;
+
+    public static bool WritesCurrentMonth(string scope)
+        => scope == CurrentMonthOnly || scope == CurrentMonthAndBudgetPlan;
+
+    public static bool WritesBudgetPlan(string scope)
+        => scope == CurrentMonthAndBudgetPlan || scope == BudgetPlanOnly;
+}
+
 public static class BudgetMonthDebtEditScopes
 {
     public const string CurrentMonthOnly = "currentMonthOnly";

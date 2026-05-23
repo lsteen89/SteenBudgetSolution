@@ -6,6 +6,7 @@ using Backend.Application.Features.Budgets.Months.Editor.Savings.CreateSavingsGo
 using Backend.Application.Features.Budgets.Months.Editor.Savings.GetOldSavingsGoals;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.GetSavingsGoals;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.GetSavingsMethods;
+using Backend.Application.Features.Budgets.Months.Editor.Savings.PatchBaseSavings;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.PatchSavingsGoal;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.PatchSavingsGoalsBulk;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.RemoveSavingsGoal;
@@ -269,6 +270,32 @@ public sealed partial class BudgetController
         }
 
         return Ok(ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>.Success(result.Value));
+    }
+
+    [HttpPatch("months/{yearMonth}/base-savings")]
+    [ProducesResponseType(typeof(ApiEnvelope<BudgetMonthBaseSavingsEditorDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiEnvelope<BudgetMonthBaseSavingsEditorDto>>> PatchBaseSavings(
+        [FromRoute] string yearMonth,
+        [FromBody] PatchBudgetMonthBaseSavingsRequestDto req,
+        CancellationToken ct)
+    {
+        var result = await _mediator.Send(
+            new PatchBudgetMonthBaseSavingsCommand(
+                Persoid: _currentUser.Persoid,
+                YearMonth: yearMonth,
+                AmountMonthly: req.AmountMonthly,
+                Scope: req.Scope),
+            ct);
+
+        if (result.IsFailure || result.Value is null)
+        {
+            return Ok(ApiEnvelope<BudgetMonthBaseSavingsEditorDto>.Failure(
+                code: result.Error?.Code ?? "BUDGET_MONTH_BASE_SAVINGS_PATCH_FAILED",
+                message: result.Error?.Message ?? "Could not update base savings."
+            ));
+        }
+
+        return Ok(ApiEnvelope<BudgetMonthBaseSavingsEditorDto>.Success(result.Value));
     }
 
     [HttpPost("months/{yearMonth}/savings-goals/{monthSavingsGoalId:guid}/remove")]
