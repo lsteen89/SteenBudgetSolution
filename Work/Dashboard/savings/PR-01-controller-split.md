@@ -60,6 +60,25 @@ method needs (`...Editor.Queries`, `...DTO.Budget.Months.Editor`,
 > of commit `3a9d16e6`. If you find a method not in this table, stop and report
 > it — do not guess where it belongs.
 
+### Namespace gotcha — split the expense usings carefully
+
+The expense actions need **two** DTO namespaces, not one. The original
+`Editor.cs` had both:
+
+- `Backend.Application.DTO.Budget.Months.Editor` — the **request** DTOs
+  (`CreateBudgetMonthExpenseItemRequestDto`,
+  `PatchBudgetMonthExpenseItemRequestDto`,
+  `PatchBudgetMonthExpenseItemsBulkRequestDto`,
+  `PatchBudgetMonthExpenseItemBulkRowDto`) live in the parent `.Editor`
+  namespace.
+- `Backend.Application.DTO.Budget.Months.Editor.Expense` — only the **row**
+  DTO (`BudgetMonthExpenseItemEditorRowDto`) lives under `.Editor.Expense`.
+
+`BudgetController.Editor.Expenses.cs` must carry **both** usings. Inspect each
+action's `Request` / `Row` types before pruning usings — a "neat" prune that
+drops the parent `.Editor` using compiles in isolation against the row DTO and
+breaks on the request DTOs. Apply the same care to the other domain partials.
+
 ## 4. Hard constraints
 
 - **No behaviour change.** Same route templates, same HTTP verbs, same
