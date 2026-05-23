@@ -109,10 +109,6 @@ export default function SavingsEditorPage() {
   );
   const [baseHabitDialogOpen, setBaseHabitDialogOpen] = useState(false);
   const [baseHabitError, setBaseHabitError] = useState<string | null>(null);
-  // The dashboard read does not yet expose the orphan flag (PR 2.6). We learn
-  // it from the first PATCH response and remember it for subsequent opens of
-  // the dialog within this session. Reset when the editable month changes.
-  const [baseIsMonthOnly, setBaseIsMonthOnly] = useState<boolean | null>(null);
 
   const openMonth = monthsStatusQuery.data?.months.find(
     (month) => month.yearMonth === editableYearMonth,
@@ -132,20 +128,20 @@ export default function SavingsEditorPage() {
   );
 
   const baseMonthly = dashboardAggregate?.summary.habitSavings ?? 0;
+  const baseIsMonthOnly =
+    dashboardMonthQuery.data?.savings?.isMonthOnly ?? false;
 
   useEffect(() => {
-    setBaseIsMonthOnly(null);
     setBaseHabitError(null);
   }, [editableYearMonth]);
 
   const handleSaveBaseHabit = async (payload: SavingsBaseHabitSavePayload) => {
     setBaseHabitError(null);
     try {
-      const result = await baseSavingsMutation.mutateAsync({
+      await baseSavingsMutation.mutateAsync({
         amountMonthly: payload.amountMonthly,
         scope: payload.scope,
       });
-      setBaseIsMonthOnly(result.isMonthOnly);
       setBaseHabitDialogOpen(false);
       toast.success(t("habitDialogToastSuccess"));
     } catch (err) {
@@ -415,7 +411,7 @@ export default function SavingsEditorPage() {
         open={baseHabitDialogOpen && !readOnly}
         baseMonthly={baseMonthly}
         monthLabel={periodLabel}
-        isMonthOnly={baseIsMonthOnly ?? false}
+        isMonthOnly={baseIsMonthOnly}
         isSaving={baseSavingsMutation.isPending}
         errorMessage={baseHabitError}
         onClose={handleCloseBaseHabitDialog}

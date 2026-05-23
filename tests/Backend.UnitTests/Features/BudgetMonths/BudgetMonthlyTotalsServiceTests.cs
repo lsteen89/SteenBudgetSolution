@@ -37,6 +37,7 @@ public sealed class BudgetMonthlyTotalsServiceTests
                     Debts: Array.Empty<DashboardDebtRm>()),
                 Savings: new DashboardSavingsRm(
                     MonthlySavings: 2500m,
+                    IsMonthOnly: false,
                     Goals:
                     [
                         new DashboardSavingsGoalRm(

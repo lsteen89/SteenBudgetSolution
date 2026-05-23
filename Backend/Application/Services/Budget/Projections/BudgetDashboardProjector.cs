@@ -86,6 +86,7 @@ public sealed class BudgetDashboardProjector : IBudgetDashboardProjector
             MonthlySavings = habit,
             TotalGoalSavingsMonthly = goals,
             TotalSavingsMonthly = habit,
+            IsMonthOnly = data.Savings.IsMonthOnly,
             Goals = data.Savings.Goals.Select(g => new DashboardSavingsGoalDto
             {
                 Id = g.Id,

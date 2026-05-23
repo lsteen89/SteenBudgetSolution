@@ -13,6 +13,7 @@ internal sealed record DashboardTotalsRow(
 
 internal sealed record DashboardSavingsRow(
     decimal MonthlySavings,
+    bool IsMonthOnly,
     Guid? Id,
     string? Name,
     decimal? TargetAmount,

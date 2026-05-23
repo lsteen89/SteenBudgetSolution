@@ -55,7 +55,6 @@ public sealed partial class BudgetDashboardRepository : SqlBase, IBudgetDashboar
         {
             var monthly = savingsRows[0].MonthlySavings;
 
-
             var goals = savingsRows
                 .Where(r => r.Id.HasValue)
                 .Select(r => new DashboardSavingsGoalRm(
@@ -68,7 +67,10 @@ public sealed partial class BudgetDashboardRepository : SqlBase, IBudgetDashboar
                 ))
                 .ToList();
 
-            savings = new DashboardSavingsRm(monthly, goals);
+            // Baseline read: no month seed exists, so `IsMonthOnly` is always
+            // `false`. The plan-scope cards in the bassparande dialog are only
+            // shown for month-aware reads anyway.
+            savings = new DashboardSavingsRm(monthly, IsMonthOnly: false, goals);
         }
 
         var subItems = (await QueryAsync<DashboardSubscriptionRm>(

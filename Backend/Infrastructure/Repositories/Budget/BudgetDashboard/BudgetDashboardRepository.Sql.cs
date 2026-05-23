@@ -73,9 +73,13 @@ public sealed partial class BudgetDashboardRepository
     ORDER BY c.Name;
     ";
 
+    // Baseline read: the `Savings` table IS the plan, so there is no orphan
+    // concept here — `IsMonthOnly` is always `false`. Selected explicitly to
+    // keep the row shape aligned with the month-aware read.
     private const string SavingsSql = @"
     SELECT
         s.MonthlySavings,
+        FALSE AS IsMonthOnly,
         g.Id,
         g.Name,
         g.TargetAmount,

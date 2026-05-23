@@ -47,6 +47,7 @@ public sealed class BudgetDashboardProjectorTests
                 ]),
             Savings: new DashboardSavingsRm(
                 MonthlySavings: 2500m,
+                IsMonthOnly: false,
                 Goals:
                 [
                     new DashboardSavingsGoalRm(
