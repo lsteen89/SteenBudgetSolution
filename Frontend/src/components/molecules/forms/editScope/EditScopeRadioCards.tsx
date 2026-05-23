@@ -67,31 +67,29 @@ export default function EditScopeRadioCards({
           testId={testId ? `${testId}-currentMonthOnly` : undefined}
         />
 
-        {canUpdatePlan ? (
-          <>
-            <ScopeCard
-              selected={value === "currentMonthAndBudgetPlan"}
-              disabled={planDisabled}
-              onSelect={() => onChange("currentMonthAndBudgetPlan")}
-              label={t("updatePlanForward")}
-              help={t("updatePlanForwardHelp").replace("{month}", monthLabel)}
-              testId={
-                testId ? `${testId}-currentMonthAndBudgetPlan` : undefined
-              }
-            />
-            <ScopeCard
-              selected={value === "budgetPlanOnly"}
-              disabled={planDisabled}
-              onSelect={() => onChange("budgetPlanOnly")}
-              label={t("planOnlyForward")}
-              help={t("planOnlyForwardHelp")}
-              testId={testId ? `${testId}-budgetPlanOnly` : undefined}
-            />
-          </>
-        ) : disabledPlanHint ? (
-          <div className="rounded-2xl border border-eb-stroke/20 bg-[rgb(var(--eb-shell)/0.28)] px-4 py-3 text-sm text-eb-text/60">
+        <ScopeCard
+          selected={value === "currentMonthAndBudgetPlan"}
+          disabled={planDisabled}
+          onSelect={() => onChange("currentMonthAndBudgetPlan")}
+          label={t("updatePlanForward")}
+          help={t("updatePlanForwardHelp").replace("{month}", monthLabel)}
+          testId={
+            testId ? `${testId}-currentMonthAndBudgetPlan` : undefined
+          }
+        />
+        <ScopeCard
+          selected={value === "budgetPlanOnly"}
+          disabled={planDisabled}
+          onSelect={() => onChange("budgetPlanOnly")}
+          label={t("planOnlyForward")}
+          help={t("planOnlyForwardHelp")}
+          testId={testId ? `${testId}-budgetPlanOnly` : undefined}
+        />
+
+        {!canUpdatePlan && disabledPlanHint ? (
+          <p className="px-1 text-[11.5px] leading-snug text-eb-text/55">
             {disabledPlanHint}
-          </div>
+          </p>
         ) : null}
       </div>
     </div>

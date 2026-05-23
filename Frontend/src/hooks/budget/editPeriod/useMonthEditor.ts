@@ -13,6 +13,7 @@ import {
   getBudgetMonthSavingsMethods,
   getBudgetMonthSavingsOldGoals,
   getBudgetMonthEditor,
+  patchBudgetMonthBaseSavings,
   patchBudgetMonthDebt,
   patchBudgetMonthDebtsBulk,
   patchBudgetMonthExpenseItem,
@@ -29,6 +30,7 @@ import type {
   CreateBudgetMonthExpenseItemRequestDto,
   CreateBudgetMonthIncomeItemRequestDto,
   CreateBudgetMonthSavingsGoalRequestDto,
+  PatchBudgetMonthBaseSavingsRequestDto,
   PatchBudgetMonthDebtBulkRowDto,
   PatchBudgetMonthDebtRequestDto,
   PatchBudgetMonthExpenseItemBulkRowDto,
@@ -351,6 +353,16 @@ export function useCancelSavingsGoalMutation(yearMonth: string) {
   return useMutation({
     mutationFn: (monthSavingsGoalId: string) =>
       cancelBudgetMonthSavingsGoal(yearMonth, monthSavingsGoalId),
+    onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
+  });
+}
+
+export function usePatchBudgetMonthBaseSavings(yearMonth: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: PatchBudgetMonthBaseSavingsRequestDto) =>
+      patchBudgetMonthBaseSavings(yearMonth, payload),
     onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
   });
 }

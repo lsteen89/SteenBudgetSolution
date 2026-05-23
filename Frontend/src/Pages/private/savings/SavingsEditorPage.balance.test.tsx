@@ -74,6 +74,10 @@ vi.mock("@/hooks/budget/editPeriod/useMonthEditor", () => ({
     mutateAsync: vi.fn(),
     isPending: false,
   }),
+  usePatchBudgetMonthBaseSavings: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
 }));
 
 // The savings page derives "kvar" from six terms:

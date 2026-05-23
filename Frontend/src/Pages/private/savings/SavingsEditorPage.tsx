@@ -7,6 +7,7 @@ import {
   useCancelSavingsGoalMutation,
   useCompleteSavingsGoalMutation,
   useCreateBudgetMonthSavingsGoal,
+  usePatchBudgetMonthBaseSavings,
   usePatchBudgetMonthSavingsGoal,
   useRemoveBudgetMonthSavingsMethod,
   useRemoveSavingsGoalMutation,
@@ -89,6 +90,7 @@ export default function SavingsEditorPage() {
   const removeMutation = useRemoveSavingsGoalMutation(mutationYearMonth);
   const addMethodMutation = useAddBudgetMonthSavingsMethod(mutationYearMonth);
   const removeMethodMutation = useRemoveBudgetMonthSavingsMethod(mutationYearMonth);
+  const baseSavingsMutation = usePatchBudgetMonthBaseSavings(mutationYearMonth);
 
   const [modalRow, setModalRow] =
     useState<BudgetMonthSavingsGoalEditorRowDto | null>(null);
@@ -106,12 +108,11 @@ export default function SavingsEditorPage() {
     null,
   );
   const [baseHabitDialogOpen, setBaseHabitDialogOpen] = useState(false);
-  // Placeholder: no Savings.MonthlySavings editor endpoint exists yet, so an
-  // edit is held in session-local state until the savings module is wired to
-  // the backend. Reset whenever the editable month changes.
-  const [baseMonthlyOverride, setBaseMonthlyOverride] = useState<number | null>(
-    null,
-  );
+  const [baseHabitError, setBaseHabitError] = useState<string | null>(null);
+  // The dashboard read does not yet expose the orphan flag (PR 2.6). We learn
+  // it from the first PATCH response and remember it for subsequent opens of
+  // the dialog within this session. Reset when the editable month changes.
+  const [baseIsMonthOnly, setBaseIsMonthOnly] = useState<boolean | null>(null);
 
   const openMonth = monthsStatusQuery.data?.months.find(
     (month) => month.yearMonth === editableYearMonth,
@@ -130,22 +131,34 @@ export default function SavingsEditorPage() {
     [rows, referenceDate],
   );
 
-  const baseMonthlyFromDashboard =
-    dashboardAggregate?.summary.habitSavings ?? 0;
-  const baseMonthly = baseMonthlyOverride ?? baseMonthlyFromDashboard;
+  const baseMonthly = dashboardAggregate?.summary.habitSavings ?? 0;
 
   useEffect(() => {
-    setBaseMonthlyOverride(null);
+    setBaseIsMonthOnly(null);
+    setBaseHabitError(null);
   }, [editableYearMonth]);
 
-  const handleSaveBaseHabit = (payload: SavingsBaseHabitSavePayload) => {
-    // No backend endpoint exists for base monthly savings yet. Keep the edit
-    // session-local and log the intended payload so the wiring target — scope
-    // included — is explicit for the future backend slice.
-    console.info("[savings-mvp] update Savings.MonthlySavings", payload);
-    setBaseMonthlyOverride(payload.amountMonthly);
+  const handleSaveBaseHabit = async (payload: SavingsBaseHabitSavePayload) => {
+    setBaseHabitError(null);
+    try {
+      const result = await baseSavingsMutation.mutateAsync({
+        amountMonthly: payload.amountMonthly,
+        scope: payload.scope,
+      });
+      setBaseIsMonthOnly(result.isMonthOnly);
+      setBaseHabitDialogOpen(false);
+      toast.success(t("habitDialogToastSuccess"));
+    } catch (err) {
+      const message =
+        (err as { message?: string } | null)?.message ?? t("habitDialogSaveError");
+      setBaseHabitError(message);
+    }
+  };
+
+  const handleCloseBaseHabitDialog = () => {
+    if (baseSavingsMutation.isPending) return;
+    setBaseHabitError(null);
     setBaseHabitDialogOpen(false);
-    toast.success(t("habitDialogToastSuccess"));
   };
 
   const handleOpenDraft = () => {
@@ -283,7 +296,10 @@ export default function SavingsEditorPage() {
           <SavingsBaseHabitRow
             baseMonthly={baseMonthly}
             readOnly={readOnly}
-            onEdit={() => setBaseHabitDialogOpen(true)}
+            onEdit={() => {
+              setBaseHabitError(null);
+              setBaseHabitDialogOpen(true);
+            }}
           />
 
           {dashboardAggregate ? (
@@ -399,7 +415,10 @@ export default function SavingsEditorPage() {
         open={baseHabitDialogOpen && !readOnly}
         baseMonthly={baseMonthly}
         monthLabel={periodLabel}
-        onClose={() => setBaseHabitDialogOpen(false)}
+        isMonthOnly={baseIsMonthOnly ?? false}
+        isSaving={baseSavingsMutation.isPending}
+        errorMessage={baseHabitError}
+        onClose={handleCloseBaseHabitDialog}
         onSave={handleSaveBaseHabit}
       />
     </>

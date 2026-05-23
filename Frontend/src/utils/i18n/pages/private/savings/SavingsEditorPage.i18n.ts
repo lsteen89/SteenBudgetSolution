@@ -161,6 +161,9 @@ export const savingsEditorPageDict = {
     habitDialogCloseAria: "Stäng",
     habitDialogAmountRequired: "Ange ett belopp.",
     habitDialogToastSuccess: "Bassparandet uppdaterades",
+    habitDialogSaveError: "Det gick inte att spara bassparandet.",
+    habitDialogScopePlanDisabledHint:
+      "Den här månaden saknar planbasering, så bara den här månaden kan ändras.",
     planBalanceBreakdownBaseSavings: "Bassparande",
     planBalanceBreakdownGoalSavings: "Målsparande",
     forecastTitle: "Så ser planen ut framåt",
@@ -329,6 +332,9 @@ export const savingsEditorPageDict = {
     habitDialogCloseAria: "Close",
     habitDialogAmountRequired: "Enter an amount.",
     habitDialogToastSuccess: "Base savings updated",
+    habitDialogSaveError: "Could not save base savings.",
+    habitDialogScopePlanDisabledHint:
+      "This month has no plan baseline, so only this month can be changed.",
     planBalanceBreakdownBaseSavings: "Base savings",
     planBalanceBreakdownGoalSavings: "Goal savings",
     forecastTitle: "How the plan looks ahead",
@@ -497,6 +503,9 @@ export const savingsEditorPageDict = {
     habitDialogCloseAria: "Sulge",
     habitDialogAmountRequired: "Sisesta summa.",
     habitDialogToastSuccess: "Põhisäästmine uuendatud",
+    habitDialogSaveError: "Põhisäästmist ei õnnestunud salvestada.",
+    habitDialogScopePlanDisabledHint:
+      "Sellel kuul puudub plaani põhi, seega saab muuta ainult seda kuud.",
     planBalanceBreakdownBaseSavings: "Põhisäästmine",
     planBalanceBreakdownGoalSavings: "Eesmärgisäästmine",
     forecastTitle: "Kuidas plaan edasi näeb",

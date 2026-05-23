@@ -46,7 +46,10 @@ export default function SavingsBaseHabitRow({
           </span>
         </div>
         <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-          <strong className="text-[22px] font-extrabold tabular-nums text-eb-text">
+          <strong
+            data-testid="savings-base-habit-amount"
+            className="text-[22px] font-extrabold tabular-nums text-eb-text"
+          >
             {baseFormatted}
           </strong>
           <span className="text-[13px] text-eb-text/60">

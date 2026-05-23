@@ -239,15 +239,15 @@ describe("ExpenseItemModal", () => {
     );
 
     expect(
-      screen.queryByRole("radio", {
+      screen.getByRole("radio", {
         name: /update the budget plan going forward/i,
       }),
-    ).not.toBeInTheDocument();
+    ).toBeDisabled();
     expect(
-      screen.queryByRole("radio", {
+      screen.getByRole("radio", {
         name: /budget plan going forward only/i,
       }),
-    ).not.toBeInTheDocument();
+    ).toBeDisabled();
     expect(screen.getByText(/there is no budget plan to update/i))
       .toBeInTheDocument();
   });

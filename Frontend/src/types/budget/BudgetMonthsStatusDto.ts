@@ -171,6 +171,16 @@ export type CreateBudgetMonthSavingsGoalRequestDto = {
   monthlyContribution: number;
 };
 
+export type PatchBudgetMonthBaseSavingsRequestDto = {
+  amountMonthly: number;
+  scope?: ExpenseEditScope;
+};
+
+export type BudgetMonthBaseSavingsEditorDto = {
+  monthlyAmount: number;
+  isMonthOnly: boolean;
+};
+
 export type DebtEditScope = ExpenseEditScope;
 
 export type BudgetMonthDebtEditorRowDto = {

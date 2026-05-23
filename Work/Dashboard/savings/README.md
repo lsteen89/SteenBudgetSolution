@@ -45,8 +45,15 @@ and the contribution simulator are frontend-only and need no backend.
 
 | PR | File | Title | Depends on | Status |
 | --- | --- | --- | --- | --- |
-| 1 | `PR-01-controller-split.md` | Split `BudgetController.Editor.cs` by domain | — | Not started |
-| 2 | `PR-02-base-savings-editor.md` | Bassparande base-savings editor slice | PR 1 | Not started |
+| 1 | `PR-01-controller-split.md` | Split `BudgetController.Editor.cs` by domain | — | Implemented (uncommitted) |
+| 2 | `PR-02-base-savings-editor.md` | Bassparande base-savings editor slice (backend) | PR 1 | Implemented (uncommitted) |
+| 2.5 | `PR-2.5-wire-base-savings-fe.md` | Wire the Bassparande editor (frontend) | PR 2 | Not started |
+| 2.6 | `PR-2.6-expose-is-month-only-on-dashboard.md` | Expose `isMonthOnly` on the savings dashboard read | PR 2 | Not started |
+| 2.7 | `PR-2.7-balance-strip-term-testids.md` | Per-term testids on `SavingsPlanBalanceStrip` | — | Not started |
+| 3 | `PR-03-savings-e2e.md` | Playwright E2E for the savings editor | PR 2.5 + PR 2.7 (PR 2.6 strongly preferred) | Paused — see audit |
+
+See `SAVINGS-WIRING-AUDIT.md` for why PRs 2.5 / 2.6 / 2.7 were inserted
+between PR 2 and PR 3.
 
 Deferred (no PR — recorded decisions):
 

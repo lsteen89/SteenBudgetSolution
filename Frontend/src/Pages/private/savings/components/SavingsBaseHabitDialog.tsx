@@ -21,7 +21,14 @@ type SavingsBaseHabitDialogProps = {
   /** Current base monthly savings, pre-fills the amount field on open. */
   baseMonthly: number;
   monthLabel: string;
+  /**
+   * True when the open month's BudgetMonthSavings row has no SourceSavingsId
+   * (orphan). When true, the plan-scope cards render disabled and the scope
+   * defaults to `currentMonthOnly`.
+   */
+  isMonthOnly?: boolean;
   isSaving?: boolean;
+  errorMessage?: string | null;
   onClose: () => void;
   onSave: (payload: SavingsBaseHabitSavePayload) => void | Promise<void>;
 };
@@ -42,7 +49,9 @@ export default function SavingsBaseHabitDialog({
   open,
   baseMonthly,
   monthLabel,
+  isMonthOnly = false,
   isSaving = false,
+  errorMessage = null,
   onClose,
   onSave,
 }: SavingsBaseHabitDialogProps) {
@@ -59,9 +68,9 @@ export default function SavingsBaseHabitDialog({
   useEffect(() => {
     if (!open) return;
     setAmount(formatNumberForInput(baseMonthly));
-    setScope("currentMonthAndBudgetPlan");
+    setScope(isMonthOnly ? "currentMonthOnly" : "currentMonthAndBudgetPlan");
     setError(null);
-  }, [open, baseMonthly]);
+  }, [open, baseMonthly, isMonthOnly]);
 
   useEffect(() => {
     if (!open) return;
@@ -149,8 +158,10 @@ export default function SavingsBaseHabitDialog({
               <FormField
                 label={t("habitDialogAmountLabel")}
                 htmlFor="savings-base-habit-amount"
-                error={error ?? undefined}
-                hint={error ? undefined : t("habitDialogAmountHint")}
+                error={error ?? errorMessage ?? undefined}
+                hint={
+                  error || errorMessage ? undefined : t("habitDialogAmountHint")
+                }
               >
                 <MoneyInput
                   id="savings-base-habit-amount"
@@ -167,8 +178,9 @@ export default function SavingsBaseHabitDialog({
                 value={scope}
                 onChange={setScope}
                 monthLabel={monthLabel}
-                canUpdatePlan
+                canUpdatePlan={!isMonthOnly}
                 disabled={isSaving}
+                disabledPlanHint={t("habitDialogScopePlanDisabledHint")}
                 testId="savings-base-habit-scope"
               />
             </form>

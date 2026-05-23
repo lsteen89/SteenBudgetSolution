@@ -7,6 +7,7 @@ import type {
   SavingsMethodDto,
 } from "@/types/budget/SavingsMethodDto";
 import type {
+  BudgetMonthBaseSavingsEditorDto,
   BudgetMonthEditorDto,
   BudgetMonthDebtEditorRowDto,
   BudgetMonthIncomeItemEditorRowDto,
@@ -15,6 +16,7 @@ import type {
   CreateBudgetMonthIncomeItemRequestDto,
   CreateBudgetMonthExpenseItemRequestDto,
   CreateBudgetMonthSavingsGoalRequestDto,
+  PatchBudgetMonthBaseSavingsRequestDto,
   PatchBudgetMonthDebtBulkRowDto,
   PatchBudgetMonthDebtRequestDto,
   PatchBudgetMonthDebtsBulkRequestDto,
@@ -297,6 +299,18 @@ export async function cancelBudgetMonthSavingsGoal(
   );
 
   return unwrapEnvelopeData(res, "Could not cancel savings goal.");
+}
+
+export async function patchBudgetMonthBaseSavings(
+  yearMonth: string,
+  payload: PatchBudgetMonthBaseSavingsRequestDto,
+): Promise<BudgetMonthBaseSavingsEditorDto> {
+  const res = await api.patch<ApiEnvelope<BudgetMonthBaseSavingsEditorDto>>(
+    `/api/budgets/months/${yearMonth}/base-savings`,
+    payload,
+  );
+
+  return unwrapEnvelopeData(res, "Could not update base savings.");
 }
 
 export async function removeBudgetMonthSavingsGoal(
