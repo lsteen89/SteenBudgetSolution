@@ -95,33 +95,45 @@ export default function SavingsPlanBalanceStrip({
 
   const breakdown = [
     {
+      testIdKey: "income",
       label: t("planBalanceBreakdownIncome"),
-      value: incomeMonthly + carryOverMonthly,
+      value: incomeMonthly,
       tone: "neutral" as const,
     },
     {
+      testIdKey: "carryOver",
+      label: t("planBalanceBreakdownCarryOver"),
+      value: carryOverMonthly,
+      tone: "neutral" as const,
+    },
+    {
+      testIdKey: "expenses",
       label: t("planBalanceBreakdownExpenses"),
       value: -expensesMonthly,
       tone: "neutral" as const,
     },
     {
+      testIdKey: "baseSavings",
       label: t("planBalanceBreakdownBaseSavings"),
       value: -baseSavingsMonthly,
       tone: "neutral" as const,
       dotClassName: "bg-[rgb(var(--eb-shell-2)/0.5)]",
     },
     {
+      testIdKey: "goalSavings",
       label: t("planBalanceBreakdownGoalSavings"),
       value: -goalSavingsMonthly,
       tone: "neutral" as const,
       dotClassName: "bg-[rgb(var(--eb-accent))]",
     },
     {
+      testIdKey: "debtPayments",
       label: t("planBalanceBreakdownDebts"),
       value: -debtPaymentsMonthly,
       tone: "neutral" as const,
     },
     {
+      testIdKey: "remaining",
       label: t("planBalanceBreakdownRemaining"),
       value: honestRemaining,
       tone: "highlight" as const,
@@ -202,12 +214,12 @@ export default function SavingsPlanBalanceStrip({
           id="savings-plan-balance-breakdown"
           data-testid="savings-plan-balance-breakdown"
           className={cn(
-            "mt-2 grid gap-x-4 gap-y-1.5 sm:mt-3 sm:grid-cols-6",
+            "mt-2 grid gap-x-4 gap-y-1.5 sm:mt-3 sm:grid-cols-7",
             breakdownOpen ? "grid" : "hidden sm:grid",
           )}
         >
           {breakdown.map((row) => (
-            <div key={row.label} className="flex flex-col">
+            <div key={row.testIdKey} className="flex flex-col">
               <dt className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.1em] text-eb-text/45">
                 {row.label}
                 {"dotClassName" in row && row.dotClassName ? (
@@ -221,6 +233,7 @@ export default function SavingsPlanBalanceStrip({
                 ) : null}
               </dt>
               <dd
+                data-testid={`savings-plan-balance-term-${row.testIdKey}`}
                 className={cn(
                   "text-[14px] font-semibold tabular-nums",
                   row.tone === "highlight"

@@ -67,7 +67,8 @@ export const savingsEditorPageDict = {
     planBalanceMessageZero: "Planen använder hela månadens utrymme.",
     planBalanceMessageNegative:
       "Planen ligger {amount} över månadens utrymme. Justera sparande, utgifter eller skuldbetalningar om du vill få månaden i balans.",
-    planBalanceBreakdownIncome: "Inkomst + överföring",
+    planBalanceBreakdownIncome: "Inkomst",
+    planBalanceBreakdownCarryOver: "Överföring",
     planBalanceBreakdownExpenses: "Utgifter",
     planBalanceBreakdownSavings: "Sparande",
     planBalanceBreakdownDebts: "Skulder",
@@ -238,7 +239,8 @@ export const savingsEditorPageDict = {
     planBalanceMessageZero: "The plan uses the full month room.",
     planBalanceMessageNegative:
       "The plan is {amount} over this month's room. Adjust savings, expenses or debt payments to bring the month back into balance.",
-    planBalanceBreakdownIncome: "Income + carry-in",
+    planBalanceBreakdownIncome: "Income",
+    planBalanceBreakdownCarryOver: "Carry-in",
     planBalanceBreakdownExpenses: "Expenses",
     planBalanceBreakdownSavings: "Savings",
     planBalanceBreakdownDebts: "Debts",
@@ -409,7 +411,8 @@ export const savingsEditorPageDict = {
     planBalanceMessageZero: "Plaan kasutab kogu kuu ruumi.",
     planBalanceMessageNegative:
       "Plaan ületab kuu ruumi {amount} võrra. Kohenda säästmist, kulusid või võlamakseid, kui soovid kuu tasakaalus hoida.",
-    planBalanceBreakdownIncome: "Sissetulek + ülekanne",
+    planBalanceBreakdownIncome: "Sissetulek",
+    planBalanceBreakdownCarryOver: "Ülekanne",
     planBalanceBreakdownExpenses: "Kulud",
     planBalanceBreakdownSavings: "Säästmine",
     planBalanceBreakdownDebts: "Võlad",

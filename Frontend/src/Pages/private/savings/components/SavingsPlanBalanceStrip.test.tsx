@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import SavingsPlanBalanceStrip, {
   type SavingsPlanBalanceStripProps,
@@ -93,32 +93,30 @@ describe("SavingsPlanBalanceStrip", () => {
     ).toHaveTextContent(/1,250/);
   });
 
-  it("splits savings into base and goal rows in the breakdown", () => {
+  it("exposes each breakdown term via a per-term testid", () => {
     renderStrip();
 
-    const breakdown = screen.getByTestId("savings-plan-balance-breakdown");
-
-    const incomeRow = within(breakdown).getByText(/Income \+ carry-in/i)
-      .parentElement!;
-    expect(incomeRow).toHaveTextContent(/30,500/); // 30000 + 500
-
-    const expensesRow = within(breakdown).getByText(/^Expenses$/i)
-      .parentElement!;
-    expect(expensesRow).toHaveTextContent(/-?18,000/);
-
-    const baseRow = within(breakdown).getByText(/^Base savings$/i)
-      .parentElement!;
-    expect(baseRow).toHaveTextContent(/-?4,000/);
-
-    const goalRow = within(breakdown).getByText(/^Goal savings$/i)
-      .parentElement!;
-    expect(goalRow).toHaveTextContent(/-?2,000/);
-
-    const debtsRow = within(breakdown).getByText(/^Debts$/i).parentElement!;
-    expect(debtsRow).toHaveTextContent(/-?5,250/);
-
-    const leftRow = within(breakdown).getByText(/^Left$/i).parentElement!;
-    expect(leftRow).toHaveTextContent(/1,250/);
+    expect(
+      screen.getByTestId("savings-plan-balance-term-income"),
+    ).toHaveTextContent(/30,000/);
+    expect(
+      screen.getByTestId("savings-plan-balance-term-carryOver"),
+    ).toHaveTextContent(/500/);
+    expect(
+      screen.getByTestId("savings-plan-balance-term-expenses"),
+    ).toHaveTextContent(/-?18,000/);
+    expect(
+      screen.getByTestId("savings-plan-balance-term-baseSavings"),
+    ).toHaveTextContent(/-?4,000/);
+    expect(
+      screen.getByTestId("savings-plan-balance-term-goalSavings"),
+    ).toHaveTextContent(/-?2,000/);
+    expect(
+      screen.getByTestId("savings-plan-balance-term-debtPayments"),
+    ).toHaveTextContent(/-?5,250/);
+    expect(
+      screen.getByTestId("savings-plan-balance-term-remaining"),
+    ).toHaveTextContent(/1,250/);
   });
 
   it("treats tiny floating-point residue as zero, not negative", () => {
