@@ -53,9 +53,13 @@ and the contribution simulator are frontend-only and need no backend.
 | 2.8 | `PR-2.8-fix-savings-bugs.md` | Fix two pre-existing savings bugs (FE typo + BE off-by-one) | PR 2.6 | Implemented (uncommitted) |
 | 2.9 | `PR-2.9-base-habit-dialog-orphan-unit-test.md` | Unit test: Bassparande dialog disables plan-scope cards on orphan | PR 2.8 | Not started |
 | 3 | `PR-03-savings-e2e.md` | Playwright E2E for the savings editor | PR 2.5 + PR 2.7 + PR 2.8 | Mostly green — 17/19, last 2 blocked on PR 2.8 |
+| 4 | `PR-04-savings-math-contract-tests.md` | Savings-math contract tests (BE lock + cross-page E2E parity) | the goals-included supersede commit | Not started |
 
 See `SAVINGS-WIRING-AUDIT.md` for why PRs 2.5 / 2.6 / 2.7 were inserted.
 See `SAVINGS-BUGS-INVESTIGATION.md` for why PR 2.8 was added.
+PR 4 was added after the April 2026 `+950 / −3 050` contradiction
+surfaced — see the 2026-05-24 supersede entry in
+`docs/ai/ai-changelog.md`.
 
 Deferred (no PR — recorded decisions):
 

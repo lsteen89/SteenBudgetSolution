@@ -172,12 +172,17 @@ internal static class BudgetTimelineProfiles
 
     // Expected savings total snapshot at the comparable closed month (2026-03).
     //
-    // Since commit fff019ac ("fix(budget): keep goal allocations out of
-    // savings total") `TotalSavingsMonthly` is the base habit alone — goal
-    // contributions are allocation detail and no longer add on top. So the
-    // snapshot at 2026-03 equals `RecapSavingsHabit` (1000).
+    // Under the goals-included contract (supersede commit 2026-05-24, see
+    // docs/ai/ai-changelog.md) `TotalSavingsMonthly` is the base habit PLUS
+    // every active goal contribution. The middle scenario at 2026-03 carries
+    // three active goals (Emergency + House Deposit + Travel Fund) with the
+    // middle-month contributions, so the snapshot equals
+    // `RecapSavingsHabit` (1000) + 2000 + 1500 + 600 = 5100.
     private const decimal RecapExpectedSavingsTotalInComparableMonth =
-        RecapSavingsHabit;
+        RecapSavingsHabit
+        + RecapEmergencyFundContributionMiddle
+        + RecapHouseDepositContributionMiddle
+        + RecapTravelFundContribution;
 
     private const int RecapExpectedActiveSavingsGoalsInComparableMonth = 3;
     private const int RecapExpectedActiveDebtsInComparableMonth = 3;
@@ -523,13 +528,16 @@ internal static class BudgetTimelineProfiles
                 HouseholdMembers: Array.Empty<BudgetTimelineIncomeEntrySeed>()),
             Expenses:
             [
-                // Starter Rent is bumped by 1500 (from 4800) to absorb the
-                // Emergency Buffer monthly contribution that commit fff019ac
-                // moved out of TotalSavingsMonthly. Without this the snapshot
-                // final balance would land at +1500 instead of 0, and the
-                // first-closed spec (which asserts "no carry-over") would
-                // start surfacing a carry-over.
-                new(BudgetTimelineBaselineData.HousingCategoryId, "Starter Rent", 6300m),
+                // Starter Rent is back to 4800: under the goals-included
+                // contract (supersede commit 2026-05-24, see
+                // docs/ai/ai-changelog.md) the Emergency Buffer monthly
+                // contribution lands inside TotalSavingsMonthly again, so the
+                // 1500 bump that commit fff019ac added to absorb it is no
+                // longer needed. 12000 income − 6700 expenses − (1000 base +
+                // 1500 goal) savings − 2800 debt = 0 final balance, which
+                // keeps the first-closed spec's "no carry-over" assertion
+                // honest.
+                new(BudgetTimelineBaselineData.HousingCategoryId, "Starter Rent", 4800m),
                 new(BudgetTimelineBaselineData.FoodCategoryId, "Groceries", 1400m),
                 new(BudgetTimelineBaselineData.SubscriptionCategoryId, "Streaming Essentials", 300m),
                 new(BudgetTimelineBaselineData.SubscriptionCategoryId, "Cloud Backup", 200m)
@@ -621,26 +629,29 @@ internal static class BudgetTimelineProfiles
     //   - Emergency Fund and Credit Card keep source identities with deltas
     public static BudgetTimelineProfile RecapComparisonSkip { get; } = BuildRecapComparisonSkipProfile();
 
-    // Snapshot expectations recalibrated for the new TotalSavingsMonthly
-    // semantic (commit fff019ac): the habit alone, not habit + goals. Final
-    // balance grows by the goal-contribution total that's no longer
-    // double-counted.
-    //   January: 2 goals × 1000 + 500 = 1500 moved out of savings into balance
-    //   March:   3 goals × 1600 + 300 + 400 = 2300 moved out
+    // Snapshot expectations under the goals-included contract (supersede
+    // commit 2026-05-24, see docs/ai/ai-changelog.md). `TotalSavingsMonthly`
+    // is the base habit PLUS active goal contributions, and the final balance
+    // subtracts that sum.
+    //   January (baseline): savings = 2000 base + 1000 Emergency + 500 Holiday
+    //                                = 3500; final balance = 42000 − 20500
+    //                                − 3500 − 2500 = 15500.
+    //   March (middle):     savings = 2500 base + 1600 Emergency + 300
+    //                                Holiday + 400 March Buffer = 4800;
+    //                                standalone = 43500 − 19950 − 4800 − 2300
+    //                                = 16450; final balance = 15500 January
+    //                                carry-over + 16450 = 31950.
     private const decimal RecapComparisonSkipJanuaryIncome = 42000m;
     private const decimal RecapComparisonSkipJanuaryExpenses = 20500m;
-    private const decimal RecapComparisonSkipJanuarySavings = 2000m;
+    private const decimal RecapComparisonSkipJanuarySavings = 3500m;
     private const decimal RecapComparisonSkipJanuaryDebtPayments = 2500m;
-    private const decimal RecapComparisonSkipJanuaryFinalBalance = 17000m;
+    private const decimal RecapComparisonSkipJanuaryFinalBalance = 15500m;
 
     private const decimal RecapComparisonSkipMarchIncome = 43500m;
     private const decimal RecapComparisonSkipMarchExpenses = 19950m;
-    private const decimal RecapComparisonSkipMarchSavings = 2500m;
+    private const decimal RecapComparisonSkipMarchSavings = 4800m;
     private const decimal RecapComparisonSkipMarchDebtPayments = 2300m;
-    // March final balance = Jan carry-over (17 000) + March standalone (18 750).
-    // Both shifted by the goal-contribution sums (1 500 / 2 300) that commit
-    // fff019ac no longer subtracts from the final balance.
-    private const decimal RecapComparisonSkipMarchFinalBalance = 35750m;
+    private const decimal RecapComparisonSkipMarchFinalBalance = 31950m;
 
     private static BudgetTimelineProfile BuildRecapComparisonSkipProfile()
     {
@@ -852,18 +863,22 @@ internal static class BudgetTimelineProfiles
     private const string RecapSankeyPreviousOnlyCategoryName =
         "Previous Only Category With A Very Long Archived Label";
 
-    // Since commit fff019ac the savings snapshot total no longer adds goal
-    // contributions on top of the base habit. The Sankey stress profile's
-    // base habit override at 2026-03 is 80 000 (SavingsMonthlyOverride below),
-    // so the closed savings snapshot is now 80 000 — not 145 000 — and the
-    // final balance grows by the previously-double-counted 65 000 goal
-    // contribution. Carry-over follows the final balance.
+    // Under the goals-included contract (supersede commit 2026-05-24, see
+    // docs/ai/ai-changelog.md) the savings snapshot total is the base habit
+    // PLUS active goal contributions. The Sankey stress profile's base habit
+    // override at 2026-03 is 80 000 (SavingsMonthlyOverride below) and the
+    // "Long Horizon Reserve" goal contributes 65 000, so the closed savings
+    // snapshot is 145 000. The middle-month final balance and the carry-over
+    // it produces fall by the same amount that savings rises (income and
+    // expenses unchanged); the exact value is what the seeder computes
+    // end-to-end against the live snapshot rules, captured here from a clean
+    // run.
     private const decimal RecapSankeyExpectedIncomeInComparableMonth = 630000m;
     private const decimal RecapSankeyExpectedExpensesInComparableMonth = 293000m;
-    private const decimal RecapSankeyExpectedSavingsInComparableMonth = 80000m;
+    private const decimal RecapSankeyExpectedSavingsInComparableMonth = 145000m;
     private const decimal RecapSankeyExpectedDebtPaymentsInComparableMonth = 52500m;
-    private const decimal RecapSankeyExpectedFinalBalanceInComparableMonth = 503750m;
-    private const decimal RecapSankeyExpectedCarryOverFromComparableMonth = 503750m;
+    private const decimal RecapSankeyExpectedFinalBalanceInComparableMonth = 393750m;
+    private const decimal RecapSankeyExpectedCarryOverFromComparableMonth = 393750m;
 
     public static BudgetTimelineProfile RecapSankeyStress { get; } = BuildRecapSankeyStressProfile();
 

@@ -11,11 +11,12 @@ const text = {
   foodCategory: /food|mat|toit/i,
   carryOver: /carried into|följde med till|kanti üle kuusse/i,
   carryOverLabel: /carry-over|överför|üle/i,
-  // Shifted from 393 750 to 503 750 by commit fff019ac \u2014 the 65 000 goal
-  // contribution at 2026-03 no longer subtracts from the snapshot final
-  // balance (savings total is now base habit only). Carry-over follows the
-  // final balance.
-  largeFinalBalance: /503[\s\u00a0.,]*750/,
+  // Under the goals-included contract (supersede commit 2026-05-24,
+  // see docs/ai/ai-changelog.md) the 65 000 goal contribution at 2026-03
+  // subtracts from the snapshot final balance again, so the closed-month
+  // final balance and the carry-over outcome are both 393 750 (not
+  // 503 750 under the prior fff019ac base-only contract).
+  largeFinalBalance: /393[\s\u00a0.,]*750/,
 };
 
 test("closed comparable recap renders seeded Sankey/category stress data", async ({
