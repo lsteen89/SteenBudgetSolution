@@ -195,6 +195,75 @@ describe("SavingsEditorPage inline create", () => {
     );
   });
 
+  // Regression guard for the PR 2.8 Bug A typo class: `isMonthOnly` was read
+  // from the wrong dashboard path so the orphan dialog never disabled
+  // plan-scope cards on first open. If the consumer path regresses
+  // (e.g. someone re-introduces `data?.savings?.isMonthOnly` shorthand),
+  // both asserts below flip.
+  it("disables plan-scope cards in the Bassparande dialog when the open month is orphan", () => {
+    setupMonth("open");
+    mockUseBudgetDashboardMonthQuery.mockReturnValue({
+      isLoading: false,
+      data: {
+        liveDashboard: {
+          savings: {
+            monthlySavings: 1500,
+            totalGoalSavingsMonthly: 0,
+            totalSavingsMonthly: 1500,
+            isMonthOnly: true,
+            goals: [],
+          },
+        },
+      },
+    });
+
+    render(<SavingsEditorPage />);
+
+    fireEvent.click(screen.getByTestId("savings-base-habit-edit-action"));
+
+    expect(
+      screen.getByTestId("savings-base-habit-scope-currentMonthOnly"),
+    ).toBeEnabled();
+    expect(
+      screen.getByTestId("savings-base-habit-scope-currentMonthAndBudgetPlan"),
+    ).toBeDisabled();
+    expect(
+      screen.getByTestId("savings-base-habit-scope-budgetPlanOnly"),
+    ).toBeDisabled();
+  });
+
+  it("enables every scope card in the Bassparande dialog when the open month is plan-linked", () => {
+    setupMonth("open");
+    mockUseBudgetDashboardMonthQuery.mockReturnValue({
+      isLoading: false,
+      data: {
+        liveDashboard: {
+          savings: {
+            monthlySavings: 1500,
+            totalGoalSavingsMonthly: 0,
+            totalSavingsMonthly: 1500,
+            isMonthOnly: false,
+            goals: [],
+          },
+        },
+      },
+    });
+
+    render(<SavingsEditorPage />);
+
+    fireEvent.click(screen.getByTestId("savings-base-habit-edit-action"));
+
+    expect(
+      screen.getByTestId("savings-base-habit-scope-currentMonthOnly"),
+    ).toBeEnabled();
+    expect(
+      screen.getByTestId("savings-base-habit-scope-currentMonthAndBudgetPlan"),
+    ).toBeEnabled();
+    expect(
+      screen.getByTestId("savings-base-habit-scope-budgetPlanOnly"),
+    ).toBeEnabled();
+  });
+
   it("keeps the draft visible and surfaces an inline error when the mutation fails", async () => {
     setupMonth("open");
     mockCreateMutateAsync.mockRejectedValue(new Error("boom"));
