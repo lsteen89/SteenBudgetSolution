@@ -44,6 +44,13 @@ public sealed class GetOldBudgetMonthSavingsGoalsTests
         public DateTime UtcNow { get; }
     }
 
+    private sealed class FixedSystemTimeProvider : TimeProvider
+    {
+        private readonly DateTimeOffset _utcNow;
+        public FixedSystemTimeProvider(DateTime utcNow) => _utcNow = new DateTimeOffset(utcNow, TimeSpan.Zero);
+        public override DateTimeOffset GetUtcNow() => _utcNow;
+    }
+
     [Fact]
     public async Task ReturnsEmpty_WhenNoClosedGoals()
     {
@@ -124,14 +131,18 @@ public sealed class GetOldBudgetMonthSavingsGoalsTests
     {
         await _db.ResetAsync();
         var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
-        var sut = CreateSut(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+        // Clock is mid-February so it is past the synthetic Jan 20 closure
+        // below. The open-month archive bound is now wall-clock-anchored,
+        // so the clock must reflect a moment after the closures the test
+        // wants to surface — otherwise the new bound legitimately filters
+        // them out as "future" closures relative to the test clock.
+        var sut = CreateSut(new DateTime(2026, 02, 15, 08, 00, 00, DateTimeKind.Utc));
 
         // Materialize January, then close a plan-linked goal there at a
         // deterministic UTC instant (using ForceMonthClosedAsync so the
-        // ClosedAt timestamp is not "real now", which would slip past
-        // February's archive upper-bound filter in this test environment).
-        // The complete-handler itself is already covered by the lifecycle
-        // suite; this test is about the archive read.
+        // ClosedAt timestamp is not "real now"). The complete-handler
+        // itself is already covered by the lifecycle suite; this test is
+        // about the archive read.
         await EnsureMonthAsync(sut, seed.Persoid, "2026-01");
         var jan = await GetActiveRowsAsync(sut, seed.Persoid, "2026-01");
         var target = jan.First(r => r.Name == "Emergency fund");
@@ -247,11 +258,78 @@ public sealed class GetOldBudgetMonthSavingsGoalsTests
             new DateTime(2026, 03, 04, 09, 00, 00, DateTimeKind.Utc),
             isDeleted: false);
 
+        // Mark January closed so it is viewed historically. Without this
+        // step January is still the user's "open" month at the DB level,
+        // which would (correctly) use the wall-clock upper bound and let
+        // March's closure leak into January's archive. The contract this
+        // test pins is the historical-view bound — `firstOfNext(2026-01)`
+        // — which only applies when the selected month is closed/skipped.
+        await MarkMonthStatusAsync("2026-01", "closed");
+
         // Viewing January's archive must surface January's closure but not
         // March's, because the user is "as of January".
         var janArchive = await GetOldRowsAsync(sut, seed.Persoid, "2026-01");
         janArchive.Select(r => r.Name).Should().Contain("Emergency fund");
         janArchive.Select(r => r.Name).Should().NotContain("Already done");
+    }
+
+    // Bug-B regression: a goal closed today must appear in the open month's
+    // archive even when real wall-clock has crossed into the next calendar
+    // month. Pre-fix, the upper bound was first-of-next-month relative to
+    // the selected yearMonth, which silently excluded today's closures.
+    [Fact]
+    public async Task IncludesGoalsCompletedTodayWhenViewingOpenMonth()
+    {
+        await _db.ResetAsync();
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var sut = CreateSut(new DateTime(2026, 05, 23, 08, 00, 00, DateTimeKind.Utc));
+
+        // Open April with the May-23 clock — user has not yet advanced the
+        // open month, which is the exact scenario the bug exhibits.
+        await EnsureMonthAsync(sut, seed.Persoid, "2026-04");
+        var apr = await GetActiveRowsAsync(sut, seed.Persoid, "2026-04");
+        var target = apr.First(r => r.Name == "Emergency fund");
+
+        // Close at "today" (May 23) — after first-of-next-month relative to
+        // April, so the old clamp would drop this row.
+        await ForceMonthClosedAsync(
+            target.Id,
+            SavingsGoalClosedReasons.Completed,
+            new DateTime(2026, 05, 23, 07, 30, 00, DateTimeKind.Utc),
+            isDeleted: false);
+
+        var archive = await GetOldRowsAsync(sut, seed.Persoid, "2026-04");
+
+        archive.Should().Contain(r => r.Name == "Emergency fund",
+            because: "the open month's archive must include goals closed today");
+        var row = archive.First(r => r.Name == "Emergency fund");
+        row.ClosedAt.Should().Be(new DateTime(2026, 05, 23, 07, 30, 00, DateTimeKind.Utc));
+        row.ClosedReason.Should().Be(SavingsGoalClosedReasons.Completed);
+    }
+
+    // Easy-case parity for the new clamp: when the open month equals the
+    // current calendar month, the new "utcNow + 1 tick" bound must still
+    // include valid same-month closures.
+    [Fact]
+    public async Task IncludesGoalsCompletedTodayWhenOpenMonthEqualsCurrentMonth()
+    {
+        await _db.ResetAsync();
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var sut = CreateSut(new DateTime(2026, 04, 23, 08, 00, 00, DateTimeKind.Utc));
+
+        await EnsureMonthAsync(sut, seed.Persoid, "2026-04");
+        var apr = await GetActiveRowsAsync(sut, seed.Persoid, "2026-04");
+        var target = apr.First(r => r.Name == "Emergency fund");
+
+        await ForceMonthClosedAsync(
+            target.Id,
+            SavingsGoalClosedReasons.Completed,
+            new DateTime(2026, 04, 23, 07, 30, 00, DateTimeKind.Utc),
+            isDeleted: false);
+
+        var archive = await GetOldRowsAsync(sut, seed.Persoid, "2026-04");
+
+        archive.Should().Contain(r => r.Name == "Emergency fund");
     }
 
     [Fact]
@@ -450,6 +528,7 @@ public sealed class GetOldBudgetMonthSavingsGoalsTests
         var dbOpts = DbOptions(_db.ConnectionString);
         var uow = new UnitOfWork(dbOpts, NullLogger<UnitOfWork>.Instance);
         ITimeProvider time = new FakeTimeProvider(utcNow);
+        TimeProvider systemTime = new FixedSystemTimeProvider(utcNow);
 
         var monthsRepo = new BudgetMonthRepository(
             uow,
@@ -488,9 +567,9 @@ public sealed class GetOldBudgetMonthSavingsGoalsTests
             Uow = uow,
             Lifecycle = lifecycle,
             GetHandler = new GetBudgetMonthSavingsGoalsQueryHandler(lifecycle, savingsRepo),
-            GetOldHandler = new GetOldBudgetMonthSavingsGoalsQueryHandler(lifecycle, savingsRepo),
+            GetOldHandler = new GetOldBudgetMonthSavingsGoalsQueryHandler(lifecycle, savingsRepo, systemTime),
             CompleteHandler = new CompleteBudgetMonthSavingsGoalCommandHandler(
-                lifecycle, savingsRepo, changeEventRepo, TimeProvider.System),
+                lifecycle, savingsRepo, changeEventRepo, systemTime),
         };
     }
 

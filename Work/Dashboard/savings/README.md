@@ -50,10 +50,12 @@ and the contribution simulator are frontend-only and need no backend.
 | 2.5 | `PR-2.5-wire-base-savings-fe.md` | Wire the Bassparande editor (frontend) | PR 2 | Not started |
 | 2.6 | `PR-2.6-expose-is-month-only-on-dashboard.md` | Expose `isMonthOnly` on the savings dashboard read | PR 2 | Not started |
 | 2.7 | `PR-2.7-balance-strip-term-testids.md` | Per-term testids on `SavingsPlanBalanceStrip` | — | Not started |
-| 3 | `PR-03-savings-e2e.md` | Playwright E2E for the savings editor | PR 2.5 + PR 2.7 (PR 2.6 strongly preferred) | Paused — see audit |
+| 2.8 | `PR-2.8-fix-savings-bugs.md` | Fix two pre-existing savings bugs (FE typo + BE off-by-one) | PR 2.6 | Implemented (uncommitted) |
+| 2.9 | `PR-2.9-base-habit-dialog-orphan-unit-test.md` | Unit test: Bassparande dialog disables plan-scope cards on orphan | PR 2.8 | Not started |
+| 3 | `PR-03-savings-e2e.md` | Playwright E2E for the savings editor | PR 2.5 + PR 2.7 + PR 2.8 | Mostly green — 17/19, last 2 blocked on PR 2.8 |
 
-See `SAVINGS-WIRING-AUDIT.md` for why PRs 2.5 / 2.6 / 2.7 were inserted
-between PR 2 and PR 3.
+See `SAVINGS-WIRING-AUDIT.md` for why PRs 2.5 / 2.6 / 2.7 were inserted.
+See `SAVINGS-BUGS-INVESTIGATION.md` for why PR 2.8 was added.
 
 Deferred (no PR — recorded decisions):
 

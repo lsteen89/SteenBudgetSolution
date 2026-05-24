@@ -84,7 +84,10 @@ public sealed partial class BudgetMonthDashboardRepository : SqlBase, IBudgetMon
         if (savingsRows.Count > 0)
         {
             var monthly = savingsRows[0].MonthlySavings;
-            var isMonthOnly = savingsRows[0].IsMonthOnly;
+            // DashboardSavingsRow.IsMonthOnly is int (Dapper limitation —
+            // see BudgetDashboardRows.cs). Coerce to bool here so the DTO
+            // surface stays honest.
+            var isMonthOnly = savingsRows[0].IsMonthOnly != 0;
 
             var goals = savingsRows
                 .Where(r => r.Id.HasValue)

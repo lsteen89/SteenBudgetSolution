@@ -1,5 +1,6 @@
 using Backend.Application.Abstractions.Application.Services.Budget;
 using Backend.Application.Abstractions.Infrastructure.Data;
+using Backend.Application.DTO.Budget.Months;
 using Backend.Application.DTO.Budget.Months.Editor.Savings;
 using Backend.Application.Features.Budgets.Months.Editor.Models.Savings;
 using Backend.Application.Features.Budgets.Months.Helpers;
@@ -22,13 +23,16 @@ public sealed class GetOldBudgetMonthSavingsGoalsQueryHandler
 {
     private readonly IBudgetMonthLifecycleService _lifecycle;
     private readonly IBudgetMonthSavingsGoalMutationRepository _repo;
+    private readonly TimeProvider _timeProvider;
 
     public GetOldBudgetMonthSavingsGoalsQueryHandler(
         IBudgetMonthLifecycleService lifecycle,
-        IBudgetMonthSavingsGoalMutationRepository repo)
+        IBudgetMonthSavingsGoalMutationRepository repo,
+        TimeProvider timeProvider)
     {
         _lifecycle = lifecycle;
         _repo = repo;
+        _timeProvider = timeProvider;
     }
 
     public async Task<Result<IReadOnlyList<BudgetMonthSavingsGoalArchiveRowDto>>> Handle(
@@ -49,11 +53,19 @@ public sealed class GetOldBudgetMonthSavingsGoalsQueryHandler
             return Result<IReadOnlyList<BudgetMonthSavingsGoalArchiveRowDto>>.Failure(BudgetMonth.NotFound);
 
         // Budget-scoped, not month-scoped — see SQL comment for why.
-        // The upper bound is "as-of end of selected yearMonth": goals closed
-        // in a later month must not appear when viewing an earlier one, so
-        // the contract stays honest if month navigation lands in the editor.
+        // For a closed/skipped month being viewed historically, keep the
+        // honest "as-of end of selected yearMonth" upper bound so a closure
+        // in a later month does not leak into an earlier archive. For the
+        // open month the user is editing, "now" is the right upper bound —
+        // clamping to first-of-next-month silently drops goals closed today
+        // when real wall-clock has crossed into the next calendar month
+        // (closures write `nowUtc`, which can land past that bound).
         var (year, month) = YearMonthUtil.Parse(query.YearMonth);
-        var upperBoundUtc = new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Utc).AddMonths(1);
+        var isOpenMonth = string.Equals(
+            meta.Status, BudgetMonthStatuses.Open, StringComparison.OrdinalIgnoreCase);
+        var upperBoundUtc = isOpenMonth
+            ? _timeProvider.GetUtcNow().UtcDateTime.AddTicks(1)
+            : new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Utc).AddMonths(1);
 
         var rows = await _repo.GetSavingsGoalArchiveRowsAsync(
             ensured.Value.BudgetId,

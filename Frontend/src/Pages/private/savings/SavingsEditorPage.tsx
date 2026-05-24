@@ -129,7 +129,7 @@ export default function SavingsEditorPage() {
 
   const baseMonthly = dashboardAggregate?.summary.habitSavings ?? 0;
   const baseIsMonthOnly =
-    dashboardMonthQuery.data?.savings?.isMonthOnly ?? false;
+    dashboardMonthQuery.data?.liveDashboard?.savings?.isMonthOnly ?? false;
 
   useEffect(() => {
     setBaseHabitError(null);

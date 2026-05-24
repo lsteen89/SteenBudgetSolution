@@ -3,6 +3,10 @@ using Backend.Application.DTO.Budget.Months;
 using Backend.Domain.Entities.Budget.Savings;
 using Backend.Domain.Enums;
 
+// Local-only constant: the open year-month the E2E seed builds. Mirrors
+// Program.DefaultBudgetOpenYearMonth so the savings invariants can assert
+// against the open month without taking a dependency on the CLI entry point.
+
 internal static class BudgetTimelineProfiles
 {
     public static BudgetTimelineProfile Default { get; } = new(
@@ -166,13 +170,14 @@ internal static class BudgetTimelineProfiles
     private const decimal RecapTravelFundAmountSaved = 600m;
     private const decimal RecapTravelFundTarget = 12000m;
 
-    // Expected savings total snapshot at the comparable closed month (2026-03):
-    // habit + Emergency Fund + House Deposit + Travel Fund.
+    // Expected savings total snapshot at the comparable closed month (2026-03).
+    //
+    // Since commit fff019ac ("fix(budget): keep goal allocations out of
+    // savings total") `TotalSavingsMonthly` is the base habit alone — goal
+    // contributions are allocation detail and no longer add on top. So the
+    // snapshot at 2026-03 equals `RecapSavingsHabit` (1000).
     private const decimal RecapExpectedSavingsTotalInComparableMonth =
-        RecapSavingsHabit
-        + RecapEmergencyFundContributionMiddle
-        + RecapHouseDepositContributionMiddle
-        + RecapTravelFundContribution;
+        RecapSavingsHabit;
 
     private const int RecapExpectedActiveSavingsGoalsInComparableMonth = 3;
     private const int RecapExpectedActiveDebtsInComparableMonth = 3;
@@ -277,7 +282,7 @@ internal static class BudgetTimelineProfiles
                 $"Recap savings/debt seed invariant failed for {ctx.YearMonth}: " +
                 $"savings total snapshot was {savingsTotal}, " +
                 $"expected {RecapExpectedSavingsTotalInComparableMonth} " +
-                "(habit + Emergency Fund + House Deposit + Travel Fund).");
+                "(base habit only — goal contributions are allocation detail).");
         }
 
         var savingsGoalCount = await ctx.CountActiveSavingsGoalsAsync(ctx.YearMonth);
@@ -313,6 +318,185 @@ internal static class BudgetTimelineProfiles
         }
     }
 
+    // Savings editor profile (E2E)
+    //
+    // Drives the open month at 2026-04 for the Playwright savings editor suite.
+    // The open month must have:
+    //   - a non-zero base habit (Savings.MonthlySavings) so the bassparande row
+    //     and the balance-strip baseSavings term both render real numbers,
+    //   - 2-3 active savings goals with DISTINCT monthly contributions so the
+    //     Justera mål dialog has something to chew on and ordering is stable,
+    //   - 1-2 plan-level savings methods so the methods strip is not empty,
+    //   - income / expenses / debts populated so the six-term Kvar identity
+    //     (income + carry − expenses − base − goals − debts) has every term.
+    // Closed months (oldest, middle) intentionally keep the default scenario
+    // shape — the savings specs only navigate the open month.
+    public static BudgetTimelineProfile SavingsEditor { get; } = BuildSavingsEditorProfile();
+
+    private const decimal SavingsEditorBaseHabit = 1500m;
+    private const decimal SavingsEditorEmergencyContribution = 2000m;
+    private const decimal SavingsEditorVacationContribution = 1200m;
+    private const decimal SavingsEditorComputerContribution = 800m;
+
+    private static BudgetTimelineProfile BuildSavingsEditorProfile()
+    {
+        var baseline = new BudgetTimelineBaseline(
+            Income: BudgetTimelineBaselineData.Income,
+            Expenses:
+            [
+                new(BudgetTimelineBaselineData.HousingCategoryId, "Rent", 12000m),
+                new(BudgetTimelineBaselineData.FoodCategoryId, "Groceries", 3200m),
+                new(BudgetTimelineBaselineData.FixedExpenseCategoryId, "Electricity", 720m)
+            ],
+            Savings: new BudgetTimelineSavingsSeed(
+                MonthlySavings: SavingsEditorBaseHabit,
+                Goals:
+                [
+                    new BudgetTimelineSavingsGoalSeed(
+                        Name: "Emergency Fund",
+                        TargetAmount: 60000m,
+                        TargetMonthOffset: 18,
+                        AmountSaved: 20000m,
+                        MonthlyContribution: SavingsEditorEmergencyContribution),
+                    new BudgetTimelineSavingsGoalSeed(
+                        Name: "Vacation Fund",
+                        TargetAmount: 24000m,
+                        TargetMonthOffset: 12,
+                        AmountSaved: 6000m,
+                        MonthlyContribution: SavingsEditorVacationContribution),
+                    new BudgetTimelineSavingsGoalSeed(
+                        Name: "Computer Replacement",
+                        TargetAmount: 20000m,
+                        TargetMonthOffset: 10,
+                        AmountSaved: 4000m,
+                        MonthlyContribution: SavingsEditorComputerContribution)
+                ])
+            {
+                // Two system methods so the methods strip renders chips out of
+                // the box. Funds / Cash stay unused so the editor still has
+                // suggestions available for the "add via suggestion" spec.
+                Methods =
+                [
+                    new(SavingsMethodCodes.SavingsAccount),
+                    new(SavingsMethodCodes.Isk)
+                ]
+            },
+            Debts:
+            [
+                new("Credit Card", "revolving", 12000m, 19.9m, 25m, 400m, null)
+            ]);
+
+        return new BudgetTimelineProfile(
+            Name: "savings-editor",
+            Baseline: baseline,
+            Oldest: BudgetTimelineScenarioData.Empty,
+            Middle: BudgetTimelineScenarioData.Empty,
+            Open: BudgetTimelineScenarioData.Empty,
+            PostCloseInvariantsAsync: VerifySavingsEditorInvariantsAsync);
+    }
+
+    private static async Task VerifySavingsEditorInvariantsAsync(
+        BudgetTimelineSeedInvariantContext ctx)
+    {
+        // The open month is one ahead of the closed comparable month the
+        // recap invariants assert on. Compute it via the same date helpers
+        // RecapComparisonSkip uses.
+        var openYearMonth = ParseSeedYearMonth(ctx.YearMonth)
+            .AddMonths(1)
+            .ToString("yyyy-MM", CultureInfo.InvariantCulture);
+
+        var goalCount = await ctx.CountActiveSavingsGoalsAsync(openYearMonth);
+        if (goalCount != 3)
+        {
+            throw new InvalidOperationException(
+                $"Savings editor seed invariant failed for {openYearMonth}: " +
+                $"active savings goal count was {goalCount}, expected 3 " +
+                "(Emergency Fund + Vacation Fund + Computer Replacement).");
+        }
+
+        var sourceId = await ctx.GetSavingsSourceIdAsync(openYearMonth);
+        if (sourceId is null)
+        {
+            throw new InvalidOperationException(
+                $"Savings editor seed invariant failed for {openYearMonth}: " +
+                "BudgetMonthSavings.SourceSavingsId was NULL, expected a " +
+                "plan-linked savings row (orphan shape belongs to the " +
+                "savings-orphan profile).");
+        }
+    }
+
+    // Savings orphan profile (E2E)
+    //
+    // Same baseline as the savings-editor profile, but the open month's
+    // materialized BudgetMonthSavings row is forcibly orphaned (SourceSavingsId
+    // IS NULL) so the bassparande dialog renders with the plan-scope cards
+    // disabled and the PATCH endpoint rejects plan-scope writes with
+    // BaseSavings.PlanMissing.
+    public static BudgetTimelineProfile SavingsOrphan { get; } = BuildSavingsOrphanProfile();
+
+    private const decimal SavingsOrphanBaseHabit = 800m;
+
+    private static BudgetTimelineProfile BuildSavingsOrphanProfile()
+    {
+        var baseline = new BudgetTimelineBaseline(
+            Income: BudgetTimelineBaselineData.Income,
+            Expenses:
+            [
+                new(BudgetTimelineBaselineData.HousingCategoryId, "Rent", 10500m),
+                new(BudgetTimelineBaselineData.FoodCategoryId, "Groceries", 2800m)
+            ],
+            Savings: new BudgetTimelineSavingsSeed(
+                MonthlySavings: SavingsOrphanBaseHabit,
+                Goals:
+                [
+                    new BudgetTimelineSavingsGoalSeed(
+                        Name: "Starter Buffer",
+                        TargetAmount: 20000m,
+                        TargetMonthOffset: 18,
+                        AmountSaved: 2000m,
+                        MonthlyContribution: 500m)
+                ]),
+            Debts:
+            [
+                new("Phone Plan Debt", "revolving", 2400m, 0m, 0m, 200m, null)
+            ]);
+
+        // ClearSavingsSourceLink fires on the open month only — closed months
+        // keep their normal plan-linked shape so the timeline still closes
+        // cleanly. The orphan rule is asserted by the invariant below.
+        var open = BudgetTimelineScenarioData.Empty with
+        {
+            ClearSavingsSourceLink = true
+        };
+
+        return new BudgetTimelineProfile(
+            Name: "savings-orphan",
+            Baseline: baseline,
+            Oldest: BudgetTimelineScenarioData.Empty,
+            Middle: BudgetTimelineScenarioData.Empty,
+            Open: open,
+            PostCloseInvariantsAsync: VerifySavingsOrphanInvariantsAsync);
+    }
+
+    private static async Task VerifySavingsOrphanInvariantsAsync(
+        BudgetTimelineSeedInvariantContext ctx)
+    {
+        var openYearMonth = ParseSeedYearMonth(ctx.YearMonth)
+            .AddMonths(1)
+            .ToString("yyyy-MM", CultureInfo.InvariantCulture);
+
+        var sourceId = await ctx.GetSavingsSourceIdAsync(openYearMonth);
+        if (sourceId is not null)
+        {
+            throw new InvalidOperationException(
+                $"Savings orphan seed invariant failed for {openYearMonth}: " +
+                $"BudgetMonthSavings.SourceSavingsId was {sourceId}, expected NULL " +
+                "(the orphan shape is the entire reason this profile exists; " +
+                "a regression here would silently turn the orphan spec into a " +
+                "happy-path spec).");
+        }
+    }
+
     // Recap first-closed profile
     //
     // Drives the first closed month recap at 2026-01 where no previous closed
@@ -339,7 +523,13 @@ internal static class BudgetTimelineProfiles
                 HouseholdMembers: Array.Empty<BudgetTimelineIncomeEntrySeed>()),
             Expenses:
             [
-                new(BudgetTimelineBaselineData.HousingCategoryId, "Starter Rent", 4800m),
+                // Starter Rent is bumped by 1500 (from 4800) to absorb the
+                // Emergency Buffer monthly contribution that commit fff019ac
+                // moved out of TotalSavingsMonthly. Without this the snapshot
+                // final balance would land at +1500 instead of 0, and the
+                // first-closed spec (which asserts "no carry-over") would
+                // start surfacing a carry-over.
+                new(BudgetTimelineBaselineData.HousingCategoryId, "Starter Rent", 6300m),
                 new(BudgetTimelineBaselineData.FoodCategoryId, "Groceries", 1400m),
                 new(BudgetTimelineBaselineData.SubscriptionCategoryId, "Streaming Essentials", 300m),
                 new(BudgetTimelineBaselineData.SubscriptionCategoryId, "Cloud Backup", 200m)
@@ -431,17 +621,26 @@ internal static class BudgetTimelineProfiles
     //   - Emergency Fund and Credit Card keep source identities with deltas
     public static BudgetTimelineProfile RecapComparisonSkip { get; } = BuildRecapComparisonSkipProfile();
 
+    // Snapshot expectations recalibrated for the new TotalSavingsMonthly
+    // semantic (commit fff019ac): the habit alone, not habit + goals. Final
+    // balance grows by the goal-contribution total that's no longer
+    // double-counted.
+    //   January: 2 goals × 1000 + 500 = 1500 moved out of savings into balance
+    //   March:   3 goals × 1600 + 300 + 400 = 2300 moved out
     private const decimal RecapComparisonSkipJanuaryIncome = 42000m;
     private const decimal RecapComparisonSkipJanuaryExpenses = 20500m;
-    private const decimal RecapComparisonSkipJanuarySavings = 3500m;
+    private const decimal RecapComparisonSkipJanuarySavings = 2000m;
     private const decimal RecapComparisonSkipJanuaryDebtPayments = 2500m;
-    private const decimal RecapComparisonSkipJanuaryFinalBalance = 15500m;
+    private const decimal RecapComparisonSkipJanuaryFinalBalance = 17000m;
 
     private const decimal RecapComparisonSkipMarchIncome = 43500m;
     private const decimal RecapComparisonSkipMarchExpenses = 19950m;
-    private const decimal RecapComparisonSkipMarchSavings = 4800m;
+    private const decimal RecapComparisonSkipMarchSavings = 2500m;
     private const decimal RecapComparisonSkipMarchDebtPayments = 2300m;
-    private const decimal RecapComparisonSkipMarchFinalBalance = 31950m;
+    // March final balance = Jan carry-over (17 000) + March standalone (18 750).
+    // Both shifted by the goal-contribution sums (1 500 / 2 300) that commit
+    // fff019ac no longer subtracts from the final balance.
+    private const decimal RecapComparisonSkipMarchFinalBalance = 35750m;
 
     private static BudgetTimelineProfile BuildRecapComparisonSkipProfile()
     {
@@ -653,12 +852,18 @@ internal static class BudgetTimelineProfiles
     private const string RecapSankeyPreviousOnlyCategoryName =
         "Previous Only Category With A Very Long Archived Label";
 
+    // Since commit fff019ac the savings snapshot total no longer adds goal
+    // contributions on top of the base habit. The Sankey stress profile's
+    // base habit override at 2026-03 is 80 000 (SavingsMonthlyOverride below),
+    // so the closed savings snapshot is now 80 000 — not 145 000 — and the
+    // final balance grows by the previously-double-counted 65 000 goal
+    // contribution. Carry-over follows the final balance.
     private const decimal RecapSankeyExpectedIncomeInComparableMonth = 630000m;
     private const decimal RecapSankeyExpectedExpensesInComparableMonth = 293000m;
-    private const decimal RecapSankeyExpectedSavingsInComparableMonth = 145000m;
+    private const decimal RecapSankeyExpectedSavingsInComparableMonth = 80000m;
     private const decimal RecapSankeyExpectedDebtPaymentsInComparableMonth = 52500m;
-    private const decimal RecapSankeyExpectedFinalBalanceInComparableMonth = 393750m;
-    private const decimal RecapSankeyExpectedCarryOverFromComparableMonth = 393750m;
+    private const decimal RecapSankeyExpectedFinalBalanceInComparableMonth = 503750m;
+    private const decimal RecapSankeyExpectedCarryOverFromComparableMonth = 503750m;
 
     public static BudgetTimelineProfile RecapSankeyStress { get; } = BuildRecapSankeyStressProfile();
 
