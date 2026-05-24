@@ -10,7 +10,7 @@ namespace Backend.UnitTests.Features.BudgetMonths;
 public sealed class BudgetMonthlyTotalsServiceTests
 {
     [Fact]
-    public async Task ComputeAsync_UsesMonthlySavingsAsTotal_AndDoesNotAddGoalAllocations()
+    public async Task ComputeAsync_AddsGoalContributionsToTotalSavings()
     {
         var budgetMonthId = Guid.NewGuid();
         var budgetId = Guid.NewGuid();
@@ -58,7 +58,8 @@ public sealed class BudgetMonthlyTotalsServiceTests
         var result = await service.ComputeAsync(budgetMonthId, CancellationToken.None);
 
         result.Should().NotBeNull();
-        result!.TotalSavings.Should().Be(2500m);
+        // 2500 bassparande + 1500 goal contribution
+        result!.TotalSavings.Should().Be(4000m);
     }
 
     private sealed class FakeBudgetMonthDashboardRepository : IBudgetMonthDashboardRepository

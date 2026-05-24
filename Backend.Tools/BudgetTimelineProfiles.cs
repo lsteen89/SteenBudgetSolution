@@ -1025,6 +1025,12 @@ internal static class BudgetTimelineProfiles
     // developers a year-ish timeline with skipped, closed, and open states.
     public static BudgetTimelineProfile LocalDevYearHistory { get; } = BuildLocalDevYearHistoryProfile();
 
+    // NOTE: Per the goals-included savings-total contract
+    // (BudgetMonthlyTotalsService), each *Savings constant is the per-month
+    // total savings outflow: MonthlySavings + Σ goal MonthlyContribution.
+    // Goal allocations are an additional outflow on top of the bassparande
+    // base, not allocation detail of it.
+    // *FinalBalance = Income - Expenses - Savings - DebtPayments.
     private const decimal LocalDevApril2025Income = 54000m;
     private const decimal LocalDevApril2025Expenses = 30095m;
     private const decimal LocalDevApril2025Savings = 7800m;
@@ -1049,7 +1055,12 @@ internal static class BudgetTimelineProfiles
     private const decimal LocalDevMarch2026DebtPayments = 2685m;
     private const decimal LocalDevMarch2026FinalBalance = 16520m;
 
-    private const decimal LocalDevApril2026OpenFinalBalance = 950m;
+    // Goals-included contract: open month natural final balance with the
+    // current seed (3000 bassparande + 4000 goals + 2535 debts vs 53500
+    // income + 20420 carry - 67435 expenses) is -3050.
+    // AdjustMonthFinalBalanceAsync can only push down via expenses, so the
+    // forced target must match (or sit below) the natural state.
+    private const decimal LocalDevApril2026OpenFinalBalance = -3050m;
     private const decimal LocalDevDecember2025ActiveSubscriptionTotal = 466m;
 
     private static BudgetTimelineProfile BuildLocalDevYearHistoryProfile()

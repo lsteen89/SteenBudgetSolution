@@ -147,18 +147,30 @@ No backend, auth, Docker, Caddy or CI files were touched.
 
 ## 6. Open questions for the backend slice
 
-1. **`Savings.MonthlySavings` editor endpoint** — confirm the command shape and
-   the three-scope semantics (mirror the savings-goal patch handler). Decide
-   how the orphan case (`SourceSavingsId IS NULL`) is reported to the client so
-   the dialog can disable the plan scopes. *Investigation recommended.*
-2. **Base figure equality** — the frontend assumes
-   `dashboard.savings.monthlySavings` and `dashboard.savings.totalSavingsMonthly`
-   are the same base amount. Confirm, or expose one canonical field.
-3. **Kvar identity** — the balance strip assumes
-   `finalBalanceWithCarryMonthly == income + carry − expenses − base − debts`
-   (i.e. goals are the only term the dashboard omits). If the dashboard
-   `finalBalance` includes anything else, the six-term strip and the dashboard
-   page would disagree. *Worth a quick verification.*
+1. **`Savings.MonthlySavings` editor endpoint** — **Resolved.** Shipped via
+   PR 2 (`PATCH /api/budgets/months/{ym}/base-savings`) with three scopes
+   (`currentMonthOnly` / `currentMonthAndBudgetPlan` / `budgetPlanOnly`) and
+   the orphan rule (plan scopes rejected with `BaseSavings.PlanMissing`
+   when `BudgetMonthSavings.SourceSavingsId IS NULL`). FE wired in PR 2.5;
+   `isMonthOnly` exposed on the dashboard read in PR 2.6.
+2. **Base figure equality** — **Resolved (Option B contract).** The two
+   fields are intentionally **different**:
+   - `dashboard.savings.monthlySavings` is the bassparande scalar
+     (`Savings.MonthlySavings`).
+   - `dashboard.savings.totalSavingsMonthly` is the total savings outflow:
+     bassparande + Σ active goal `MonthlyContribution`.
+   Earlier commits `84d008c8` and `fff019ac` had collapsed them to the
+   same value ("keep goal allocations out of savings total"), making the
+   dashboard understate outflow and disagree with the savings page's
+   six-term strip. That contract has been superseded — see the changelog
+   entry for the supersede commit. `totalSavingsMonthly` is now goals-
+   inclusive in the projector and the snapshot totals service.
+3. **Kvar identity** — **Resolved.** Under the goals-included contract,
+   the dashboard's `finalBalance` subtracts both the bassparande base and
+   the sum of goal contributions, so the six-term strip identity
+   `kvar == income + carry − expenses − base − goals − debts` holds end-
+   to-end. Dashboard "Pengaläge" and savings-page "Kvar" agree on the
+   same user's open month.
 4. **Forecast** — keep the FE projection, or build a real endpoint? (§4.2)
 5. **One-off transfer** — is "apply" ever a real action, or does the simulator
    stay a calculator? (§4.3)

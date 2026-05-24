@@ -342,7 +342,7 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
     }
 
     [Fact]
-    public async Task OpenMonth_IncludesGoalMonthlyContribution_AsAllocationWithoutAffectingTotals()
+    public async Task OpenMonth_AddsGoalMonthlyContributionToTotalSavings_AndSubtractsItFromDisposable()
     {
         await _db.ResetAsync();
 
@@ -413,7 +413,7 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
 
         live.CarryOverAmountMonthly.Should().Be(0m);
         live.Savings.TotalGoalSavingsMonthly.Should().Be(goals);
-        live.Savings.TotalSavingsMonthly.Should().Be(habit);
+        live.Savings.TotalSavingsMonthly.Should().Be(MoneyRound.Kr(habit + goals));
 
         live.DisposableAfterExpensesAndSavingsWithCarryMonthly
             .Should().Be(
@@ -511,7 +511,8 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
         goal.MonthlyContribution.Should().NotBe(500m);
 
         live.Savings.TotalGoalSavingsMonthly.Should().Be(900m);
-        live.Savings.TotalSavingsMonthly.Should().Be(2500m);
+        // 2500 bassparande + 900 month-specific goal contribution
+        live.Savings.TotalSavingsMonthly.Should().Be(3400m);
     }
     [Fact]
     public async Task Handle_WhenOpenMonthInCloseWindow_ReturnsCloseWindowMetadata()

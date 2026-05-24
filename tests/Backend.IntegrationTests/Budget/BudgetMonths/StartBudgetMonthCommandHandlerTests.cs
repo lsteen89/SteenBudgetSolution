@@ -115,7 +115,7 @@ public sealed class StartBudgetMonthCommandHandlerTests
 
 
     [Fact]
-    public async Task CloseMonthSnapshot_DoesNotAddMonthGoalContributionToSavingsTotal()
+    public async Task CloseMonthSnapshot_AddsMonthGoalContributionToSavingsTotal()
     {
         await _db.ResetAsync();
 
@@ -242,7 +242,8 @@ public sealed class StartBudgetMonthCommandHandlerTests
         LIMIT 1;
     ", new { BudgetId = budgetId });
 
-        snapshotSavings.Should().Be(2500m);
+        // 2500 bassparande + 900 month-specific Emergency-fund goal contribution
+        snapshotSavings.Should().Be(3400m);
     }
 
     private sealed class FakeTimeProvider : ITimeProvider

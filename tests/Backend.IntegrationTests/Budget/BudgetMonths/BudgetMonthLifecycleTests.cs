@@ -229,7 +229,8 @@ public sealed class BudgetMonthLifecycleTests
         var closed = rows.Single(x => x.YearMonth == "2025-12");
         closed.SnapshotTotalIncomeMonthly.Should().Be(32500m);
         closed.SnapshotTotalExpensesMonthly.Should().Be(12000m);
-        closed.SnapshotTotalSavingsMonthly.Should().Be(2500.00m);
+        // 2500 bassparande + 1500 Emergency-fund goal contribution from the WithData seed
+        closed.SnapshotTotalSavingsMonthly.Should().Be(4000.00m);
 
         var expectedInstallment = Amortize(5000m, 0.5m, 24) + 10m;
         var expectedDebtPayments = 320m + expectedInstallment;

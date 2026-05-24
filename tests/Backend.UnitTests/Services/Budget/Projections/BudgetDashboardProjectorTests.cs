@@ -10,7 +10,7 @@ namespace Backend.UnitTests.Services.Budget.Projections;
 public sealed class BudgetDashboardProjectorTests
 {
     [Fact]
-    public void Project_UsesMonthlySavingsAsTotal_AndKeepsGoalAllocationsSeparate()
+    public void Project_AddsGoalContributionsToTotalSavings_AndSubtractsThemFromDisposable()
     {
         var projector = new BudgetDashboardProjector();
         var dto = projector.Project(new BudgetDashboardReadModel(
@@ -68,8 +68,10 @@ public sealed class BudgetDashboardProjectorTests
         dto.Savings.Should().NotBeNull();
         dto.Savings!.MonthlySavings.Should().Be(2500m);
         dto.Savings.TotalGoalSavingsMonthly.Should().Be(1500m);
-        dto.Savings.TotalSavingsMonthly.Should().Be(2500m);
-        dto.DisposableAfterExpensesAndSavingsWithCarryMonthly.Should().Be(18000m);
-        dto.FinalBalanceWithCarryMonthly.Should().Be(17700m);
+        dto.Savings.TotalSavingsMonthly.Should().Be(4000m);
+        // 32500 income - 12000 expenses - (2500 base + 1500 goal) savings
+        dto.DisposableAfterExpensesAndSavingsWithCarryMonthly.Should().Be(16500m);
+        // ...minus 300 debt payments
+        dto.FinalBalanceWithCarryMonthly.Should().Be(16200m);
     }
 }

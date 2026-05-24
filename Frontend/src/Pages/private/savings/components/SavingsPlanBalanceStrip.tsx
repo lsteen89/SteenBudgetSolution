@@ -41,10 +41,10 @@ export default function SavingsPlanBalanceStrip({
   const t = <K extends keyof typeof savingsEditorPageDict.sv>(key: K) =>
     tDict(key, locale, savingsEditorPageDict);
 
-  // The dashboard's remaining-to-spend nets out base savings, expenses and
-  // debts but NOT goal contributions — so it cannot be the source of truth for
-  // "kvar" on this page. Derive it from the six terms we display, so the
-  // breakdown always visibly adds up and the hero (base + goals) agrees.
+  // Derive remaining from the six terms we display so the breakdown is
+  // self-consistent: whatever numbers the eye adds up must equal "kvar". The
+  // dashboard's FinalBalanceWithCarry now uses the same definition (base +
+  // goals), so the two views agree by construction — this is the local proof.
   const honestRemaining =
     incomeMonthly +
     carryOverMonthly -
