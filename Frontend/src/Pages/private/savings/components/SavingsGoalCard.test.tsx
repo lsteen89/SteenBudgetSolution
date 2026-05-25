@@ -42,39 +42,53 @@ const aheadRow: BudgetMonthSavingsGoalEditorRowDto = {
   canUpdateDefault: true,
 };
 
+const actionProps = {
+  onDeposit: vi.fn(),
+  onMonthly: vi.fn(),
+  onTargetDate: vi.fn(),
+  onRename: vi.fn(),
+  onChangeTarget: vi.fn(),
+  onArchive: vi.fn(),
+  onRemove: vi.fn(),
+};
+
 describe("SavingsGoalCard", () => {
-  it("keeps a visible Adjust action on desktop and fires onEdit", () => {
-    const onEdit = vi.fn();
+  it("renders the V2 action row and fires the monthly action", () => {
+    const onMonthly = vi.fn();
     render(
       <SavingsGoalCard
         row={onTrackRow}
         readOnly={false}
         referenceDate={REFERENCE}
-        onEdit={onEdit}
+        {...actionProps}
+        onMonthly={onMonthly}
       />,
     );
 
-    const adjust = screen.getByRole("button", { name: "Adjust" });
-    expect(adjust).toBeInTheDocument();
-    fireEvent.click(adjust);
-    expect(onEdit).toHaveBeenCalledWith(onTrackRow);
+    expect(screen.getByTestId("savings-goal-action-row")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Adjust" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Monthly amount" }));
+    expect(onMonthly).toHaveBeenCalledWith(onTrackRow);
   });
 
-  it("disables the Adjust action in read-only mode", () => {
-    const onEdit = vi.fn();
+  it("disables action chips in read-only mode", () => {
+    const onMonthly = vi.fn();
     render(
       <SavingsGoalCard
         row={onTrackRow}
         readOnly
         referenceDate={REFERENCE}
-        onEdit={onEdit}
+        {...actionProps}
+        onMonthly={onMonthly}
       />,
     );
 
-    const adjust = screen.getByRole("button", { name: "Adjust" });
-    expect(adjust).toBeDisabled();
-    fireEvent.click(adjust);
-    expect(onEdit).not.toHaveBeenCalled();
+    const monthly = screen.getByRole("button", { name: "Monthly amount" });
+    expect(monthly).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(monthly);
+    expect(onMonthly).not.toHaveBeenCalled();
   });
 
   it("renders a calm 'Ongoing' status for goals without a target date", () => {
@@ -83,7 +97,7 @@ describe("SavingsGoalCard", () => {
         row={onTrackRow}
         readOnly={false}
         referenceDate={REFERENCE}
-        onEdit={vi.fn()}
+        {...actionProps}
       />,
     );
 
@@ -96,7 +110,7 @@ describe("SavingsGoalCard", () => {
         row={aheadRow}
         readOnly={false}
         referenceDate={REFERENCE}
-        onEdit={vi.fn()}
+        {...actionProps}
       />,
     );
 
@@ -109,7 +123,7 @@ describe("SavingsGoalCard", () => {
         row={{ ...onTrackRow, monthlyContribution: 1234.56 }}
         readOnly={false}
         referenceDate={REFERENCE}
-        onEdit={vi.fn()}
+        {...actionProps}
       />,
     );
 
@@ -123,7 +137,7 @@ describe("SavingsGoalCard", () => {
         row={{ ...onTrackRow, monthlyContribution: 3000 }}
         readOnly={false}
         referenceDate={REFERENCE}
-        onEdit={vi.fn()}
+        {...actionProps}
       />,
     );
 
@@ -138,7 +152,7 @@ describe("SavingsGoalCard", () => {
         readOnly={false}
         referenceDate={REFERENCE}
         density="compact"
-        onEdit={vi.fn()}
+        {...actionProps}
       />,
     );
 

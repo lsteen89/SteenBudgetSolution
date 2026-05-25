@@ -16,6 +16,7 @@ import {
   type SavingsGoalTone,
   type SavingsMascotKey,
 } from "../utils/savingsSoul";
+import SavingsGoalActionRow from "./SavingsGoalActionRow";
 
 export type SavingsGoalCardDensity = "regular" | "compact";
 
@@ -24,7 +25,13 @@ type SavingsGoalCardProps = {
   readOnly: boolean;
   referenceDate: Date;
   density?: SavingsGoalCardDensity;
-  onEdit: (row: BudgetMonthSavingsGoalEditorRowDto) => void;
+  onDeposit: (row: BudgetMonthSavingsGoalEditorRowDto) => void;
+  onMonthly: (row: BudgetMonthSavingsGoalEditorRowDto) => void;
+  onTargetDate: (row: BudgetMonthSavingsGoalEditorRowDto) => void;
+  onRename: (row: BudgetMonthSavingsGoalEditorRowDto) => void;
+  onChangeTarget: (row: BudgetMonthSavingsGoalEditorRowDto) => void;
+  onArchive: (row: BudgetMonthSavingsGoalEditorRowDto) => void;
+  onRemove: (row: BudgetMonthSavingsGoalEditorRowDto) => void;
 };
 
 const MASCOTS: Record<SavingsMascotKey, string> = {
@@ -44,7 +51,13 @@ export default function SavingsGoalCard({
   readOnly,
   referenceDate,
   density = "regular",
-  onEdit,
+  onDeposit,
+  onMonthly,
+  onTargetDate,
+  onRename,
+  onChangeTarget,
+  onArchive,
+  onRemove,
 }: SavingsGoalCardProps) {
   const isCompact = density === "compact";
   const locale = useAppLocale();
@@ -175,20 +188,18 @@ export default function SavingsGoalCard({
             {monthlyFormatted}
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            disabled={readOnly}
-            onClick={() => onEdit(row)}
-            className={cn(
-              "h-8 whitespace-nowrap rounded-full border border-eb-stroke/60 bg-eb-surface px-3.5 text-[12px] font-semibold text-eb-text/75 transition",
-              "hover:bg-white",
-              "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-eb-surface",
-            )}
-          >
-            {t("cardAdjustAction")}
-          </button>
-        </div>
+        <SavingsGoalActionRow
+          row={row}
+          readOnly={readOnly}
+          baselineSupported={row.canUpdateDefault}
+          onDeposit={() => onDeposit(row)}
+          onMonthly={() => onMonthly(row)}
+          onTargetDate={() => onTargetDate(row)}
+          onRename={() => onRename(row)}
+          onChangeTarget={() => onChangeTarget(row)}
+          onArchive={() => onArchive(row)}
+          onRemove={() => onRemove(row)}
+        />
       </div>
     </article>
   );

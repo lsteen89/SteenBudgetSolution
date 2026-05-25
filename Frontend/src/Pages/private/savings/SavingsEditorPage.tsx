@@ -33,8 +33,11 @@ import SavingsBaseHabitRow from "./components/SavingsBaseHabitRow";
 import SavingsForecastRow from "./components/SavingsForecastRow";
 import SavingsGoalCardsList from "./components/SavingsGoalCardsList";
 import type { SavingsGoalLifecycleAction } from "./components/SavingsGoalLifecycleConfirmDialog";
-import SavingsGoalContributionModal from "./components/SavingsGoalContributionModal";
 import SavingsGoalLifecycleConfirmDialog from "./components/SavingsGoalLifecycleConfirmDialog";
+import SavingsGoalMonthlyModal from "./components/SavingsGoalMonthlyModal";
+import SavingsGoalTargetDateModal, {
+  type SavingsGoalTargetDateMode,
+} from "./components/SavingsGoalTargetDateModal";
 import SavingsMethodsEditor from "./components/SavingsMethodsEditor";
 import SavingsMethodsStrip from "./components/SavingsMethodsStrip";
 import SavingsOldGoalsSection from "./components/SavingsOldGoalsSection";
@@ -92,7 +95,9 @@ export default function SavingsEditorPage() {
   const removeMethodMutation = useRemoveBudgetMonthSavingsMethod(mutationYearMonth);
   const baseSavingsMutation = usePatchBudgetMonthBaseSavings(mutationYearMonth);
 
-  const [modalRow, setModalRow] =
+  const [monthlyModalRow, setMonthlyModalRow] =
+    useState<BudgetMonthSavingsGoalEditorRowDto | null>(null);
+  const [targetDateModalRow, setTargetDateModalRow] =
     useState<BudgetMonthSavingsGoalEditorRowDto | null>(null);
   const [draftOpen, setDraftOpen] = useState(false);
   const [draftError, setDraftError] = useState<string | null>(null);
@@ -192,11 +197,13 @@ export default function SavingsEditorPage() {
     }
   };
 
-  const handleRequestLifecycle = (action: SavingsGoalLifecycleAction) => {
-    if (!modalRow) return;
+  const handleRequestLifecycle = (
+    action: SavingsGoalLifecycleAction,
+    row: BudgetMonthSavingsGoalEditorRowDto,
+  ) => {
     if (readOnly) return;
-    if (modalRow.isDeleted || modalRow.status !== "active") return;
-    setLifecycleState({ action, row: modalRow });
+    if (row.isDeleted || row.status !== "active") return;
+    setLifecycleState({ action, row });
   };
 
   const isLifecycleWorking =
@@ -224,35 +231,57 @@ export default function SavingsEditorPage() {
         toast.success(t("lifecycleToastRemoved"));
       }
       setLifecycleState(null);
-      setModalRow(null);
+      setMonthlyModalRow(null);
+      setTargetDateModalRow(null);
     } catch {
       toast.error(t("lifecycleToastError"));
     }
   };
 
-  const handleSubmit = async (values: {
+  const handleSubmitMonthly = async (values: {
     monthlyContribution: number;
-    targetDate?: string;
     scope: SavingsGoalEditScope;
   }) => {
-    if (!modalRow) return;
+    if (!monthlyModalRow) return;
     const requestedScope = values.scope;
-    const scope = modalRow.canUpdateDefault ? requestedScope : "currentMonthOnly";
+    const scope = monthlyModalRow.canUpdateDefault
+      ? requestedScope
+      : "currentMonthOnly";
 
     try {
       await patchMutation.mutateAsync({
-        monthSavingsGoalId: modalRow.id,
+        monthSavingsGoalId: monthlyModalRow.id,
         payload: {
           monthlyContribution: values.monthlyContribution,
-          // The modal already gates the date by scope; we forward exactly
-          // what it produced. Undefined means "leave the goal plan date
-          // untouched". The BE applier treats a null/absent date the same.
-          targetDate: values.targetDate,
           scope,
         },
       });
       toast.success(t("itemUpdated"));
-      setModalRow(null);
+      setMonthlyModalRow(null);
+    } catch {
+      toast.error(t("itemUpdateError"));
+    }
+  };
+
+  const handleSubmitTargetDate = async (values: {
+    monthlyContribution: number;
+    targetDate: string;
+    mode: SavingsGoalTargetDateMode;
+  }) => {
+    if (!targetDateModalRow) return;
+    if (!targetDateModalRow.canUpdateDefault) return;
+
+    try {
+      await patchMutation.mutateAsync({
+        monthSavingsGoalId: targetDateModalRow.id,
+        payload: {
+          monthlyContribution: values.monthlyContribution,
+          targetDate: values.targetDate,
+          scope: "currentMonthAndBudgetPlan",
+        },
+      });
+      toast.success(t("itemUpdated"));
+      setTargetDateModalRow(null);
     } catch {
       toast.error(t("itemUpdateError"));
     }
@@ -328,7 +357,13 @@ export default function SavingsEditorPage() {
                 readOnly={readOnly}
                 referenceDate={referenceDate}
                 showPlannedMarkerLegend={heroAggregate.hasPlannedMarker}
-                onEdit={(row) => setModalRow(row)}
+                onDeposit={() => undefined}
+                onMonthly={(row) => setMonthlyModalRow(row)}
+                onTargetDate={(row) => setTargetDateModalRow(row)}
+                onRename={() => undefined}
+                onChangeTarget={() => undefined}
+                onArchive={(row) => handleRequestLifecycle("complete", row)}
+                onRemove={(row) => handleRequestLifecycle("remove", row)}
                 draftOpen={draftOpen && !readOnly}
                 draftSubmitting={createMutation.isPending}
                 draftError={draftError}
@@ -347,18 +382,29 @@ export default function SavingsEditorPage() {
         </div>
       </BudgetEditorPageShell>
 
-      <SavingsGoalContributionModal
-        open={!!modalRow}
-        row={modalRow}
+      <SavingsGoalMonthlyModal
+        open={!!monthlyModalRow}
+        row={monthlyModalRow}
         monthLabel={periodLabel}
         remainingBudgetRoom={dashboardAggregate?.summary.remainingToSpend ?? null}
         isSaving={patchMutation.isPending}
         onClose={() => {
           if (patchMutation.isPending) return;
-          setModalRow(null);
+          setMonthlyModalRow(null);
         }}
-        onSubmit={handleSubmit}
-        onLifecycleAction={readOnly ? undefined : handleRequestLifecycle}
+        onSubmit={handleSubmitMonthly}
+      />
+
+      <SavingsGoalTargetDateModal
+        open={!!targetDateModalRow}
+        row={targetDateModalRow}
+        monthLabel={periodLabel}
+        isSaving={patchMutation.isPending}
+        onClose={() => {
+          if (patchMutation.isPending) return;
+          setTargetDateModalRow(null);
+        }}
+        onSubmit={handleSubmitTargetDate}
       />
 
       <SavingsGoalLifecycleConfirmDialog

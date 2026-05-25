@@ -16,7 +16,13 @@ type SavingsGoalCardsListProps = {
   readOnly: boolean;
   referenceDate: Date;
   showPlannedMarkerLegend: boolean;
-  onEdit: (row: BudgetMonthSavingsGoalEditorRowDto) => void;
+  onDeposit: (row: BudgetMonthSavingsGoalEditorRowDto) => void;
+  onMonthly: (row: BudgetMonthSavingsGoalEditorRowDto) => void;
+  onTargetDate: (row: BudgetMonthSavingsGoalEditorRowDto) => void;
+  onRename: (row: BudgetMonthSavingsGoalEditorRowDto) => void;
+  onChangeTarget: (row: BudgetMonthSavingsGoalEditorRowDto) => void;
+  onArchive: (row: BudgetMonthSavingsGoalEditorRowDto) => void;
+  onRemove: (row: BudgetMonthSavingsGoalEditorRowDto) => void;
   draftOpen: boolean;
   draftSubmitting?: boolean;
   draftError?: string | null;
@@ -30,7 +36,13 @@ export default function SavingsGoalCardsList({
   readOnly,
   referenceDate,
   showPlannedMarkerLegend,
-  onEdit,
+  onDeposit,
+  onMonthly,
+  onTargetDate,
+  onRename,
+  onChangeTarget,
+  onArchive,
+  onRemove,
   draftOpen,
   draftSubmitting = false,
   draftError = null,
@@ -72,7 +84,13 @@ export default function SavingsGoalCardsList({
           readOnly={readOnly}
           referenceDate={referenceDate}
           density={density}
-          onEdit={onEdit}
+          onDeposit={onDeposit}
+          onMonthly={onMonthly}
+          onTargetDate={onTargetDate}
+          onRename={onRename}
+          onChangeTarget={onChangeTarget}
+          onArchive={onArchive}
+          onRemove={onRemove}
         />
       ))}
 

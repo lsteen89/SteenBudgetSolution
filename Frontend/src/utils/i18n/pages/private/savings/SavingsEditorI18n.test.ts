@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { savingsEditorPageDict } from "./SavingsEditorPage.i18n";
-import { savingsGoalModalDict } from "./SavingsGoalModal.i18n";
+import { savingsGoalMonthlyModalDict } from "./SavingsGoalMonthlyModal.i18n";
+import { savingsGoalTargetDateModalDict } from "./SavingsGoalTargetDateModal.i18n";
 
 const expectSameKeys = (dict: { sv: object; en: object; et: object }) => {
   const reference = Object.keys(dict.sv).sort();
@@ -12,6 +13,7 @@ const expectSameKeys = (dict: { sv: object; en: object; et: object }) => {
 describe("savings editor i18n", () => {
   it("keeps sv/en/et keys aligned", () => {
     expectSameKeys(savingsEditorPageDict);
-    expectSameKeys(savingsGoalModalDict);
+    expectSameKeys(savingsGoalMonthlyModalDict);
+    expectSameKeys(savingsGoalTargetDateModalDict);
   });
 });
