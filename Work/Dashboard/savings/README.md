@@ -54,12 +54,28 @@ and the contribution simulator are frontend-only and need no backend.
 | 2.9 | `PR-2.9-base-habit-dialog-orphan-unit-test.md` | Unit test: Bassparande dialog disables plan-scope cards on orphan | PR 2.8 | Not started |
 | 3 | `PR-03-savings-e2e.md` | Playwright E2E for the savings editor | PR 2.5 + PR 2.7 + PR 2.8 | Mostly green — 17/19, last 2 blocked on PR 2.8 |
 | 4 | `PR-04-savings-math-contract-tests.md` | Savings-math contract tests (BE lock + cross-page E2E parity) | the goals-included supersede commit | Not started |
+| — | `V2-CLEANUP-AUDIT.md` | Current-state inventory & V2 cleanup plan (read alongside the overview) | — | Plan |
+| — | `PR-V2-OVERVIEW.md` | Savings V2 — goal-card refactor (overview + sequencing) | — | Plan |
+| 5 | `PR-05-be-rename-goal.md` | Rename savings goal — backend slice | PR 1 | Plan |
+| 6 | `PR-06-be-change-goal-target-amount.md` | Change savings-goal target amount — backend slice | PR 1 | Plan |
+| 7 | `PR-07-be-goal-one-time-transfer.md` | Savings-goal one-time transfer (deposit/withdraw) — backend slice | PR 1 | Plan |
+| 8 | `PR-08-fe-goal-card-action-chips.md` | Goal card → V2 action chips + focused Månadsbelopp / Måldatum modals (FE) | — | Plan |
+| 9 | `PR-09-fe-one-time-transfer-modal.md` | Engångsöverföring modal (FE) | PR 7 + PR 8 | Plan |
+| 10 | `PR-10-fe-kebab-rename-target-amount.md` | Kebab: Byt namn + Ändra målbelopp focused modals (FE) | PR 5 + PR 6 + PR 8 | Plan |
 
 See `SAVINGS-WIRING-AUDIT.md` for why PRs 2.5 / 2.6 / 2.7 were inserted.
 See `SAVINGS-BUGS-INVESTIGATION.md` for why PR 2.8 was added.
 PR 4 was added after the April 2026 `+950 / −3 050` contradiction
 surfaced — see the 2026-05-24 supersede entry in
 `docs/ai/ai-changelog.md`.
+
+PRs 5–10 follow from the V2 goal-card design in
+`explorations/savings/MVP-Savings v2.html` (Anthropic Design handoff
+bundle `yzOgWtytYMM0ps5cvK5Q5w`). Read `PR-V2-OVERVIEW.md` first — it
+covers the BE gap analysis, the rationale for splitting the existing
+`SavingsGoalContributionModal` into focused per-action modals, and the
+build order. An E2E PR (PR-11) will be drafted once PR-08 / 09 / 10 land
+in the working tree.
 
 Deferred (no PR — recorded decisions):
 

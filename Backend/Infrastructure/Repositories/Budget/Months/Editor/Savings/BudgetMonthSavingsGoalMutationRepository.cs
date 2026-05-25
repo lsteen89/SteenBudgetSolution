@@ -84,6 +84,21 @@ public sealed partial class BudgetMonthSavingsGoalMutationRepository
         CancellationToken ct)
         => ExecuteAsync(UpdateOpenLinkedMonthSavingsGoalTargetDateSql, model, ct);
 
+    public Task UpdateMonthSavingsGoalNameAsync(
+        UpdateBudgetMonthSavingsGoalNameModel model,
+        CancellationToken ct)
+        => ExecuteAsync(UpdateMonthSavingsGoalNameSql, model, ct);
+
+    public Task UpdateBaselineSavingsGoalNameAsync(
+        UpdateBaselineSavingsGoalNameModel model,
+        CancellationToken ct)
+        => ExecuteAsync(UpdateBaselineSavingsGoalNameSql, model, ct);
+
+    public Task<int> UpdateOpenLinkedMonthSavingsGoalNameAsync(
+        UpdateOpenLinkedMonthSavingsGoalNameModel model,
+        CancellationToken ct)
+        => ExecuteAsync(UpdateOpenLinkedMonthSavingsGoalNameSql, model, ct);
+
     public Task<BudgetMonthSavingsForCreateReadModel?> GetBudgetMonthSavingsForCreateAsync(
         Guid budgetMonthId,
         CancellationToken ct)

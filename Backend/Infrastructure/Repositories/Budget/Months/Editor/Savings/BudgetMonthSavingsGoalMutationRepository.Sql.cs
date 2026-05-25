@@ -124,6 +124,49 @@ public sealed partial class BudgetMonthSavingsGoalMutationRepository
       AND g.IsDeleted = 0
       AND bm.Status = 'open';";
 
+    /// <summary>
+    /// Plan-level field — Name is the goal's plan attribute. The editor
+    /// projection reads `g.Name` directly from the snapshot, so we must
+    /// rewrite it everywhere a rename should take effect. We do not touch
+    /// IsOverride here; the column is reserved for contribution overrides.
+    /// </summary>
+    private const string UpdateMonthSavingsGoalNameSql = @"
+    UPDATE BudgetMonthSavingsGoal
+    SET
+        Name = @Name,
+        UpdatedAt = @UtcNow,
+        UpdatedByUserId = @ActorPersoid
+    WHERE Id = @Id
+      AND BudgetMonthSavingsId = @BudgetMonthSavingsId;";
+
+    private const string UpdateBaselineSavingsGoalNameSql = @"
+    UPDATE SavingsGoal
+    SET
+        Name = @Name,
+        UpdatedAt = @UtcNow,
+        UpdatedByUserId = @ActorPersoid
+    WHERE Id = @SavingsGoalId;";
+
+    /// <summary>
+    /// Cascade the new Name to every other open BudgetMonthSavingsGoal row
+    /// that points at the same source goal. Closed/skipped months are
+    /// excluded so historical truth (e.g. the archive view of a goal closed
+    /// under its old name) is preserved. The current month row is excluded
+    /// because it is updated separately.
+    /// </summary>
+    private const string UpdateOpenLinkedMonthSavingsGoalNameSql = @"
+    UPDATE BudgetMonthSavingsGoal g
+    JOIN BudgetMonthSavings s ON s.Id = g.BudgetMonthSavingsId
+    JOIN BudgetMonth bm ON bm.Id = s.BudgetMonthId
+    SET
+        g.Name = @Name,
+        g.UpdatedAt = @UtcNow,
+        g.UpdatedByUserId = @ActorPersoid
+    WHERE g.SourceSavingsGoalId = @SourceSavingsGoalId
+      AND g.Id <> @ExcludeMonthGoalId
+      AND g.IsDeleted = 0
+      AND bm.Status = 'open';";
+
     private const string GetBudgetMonthSavingsForCreateSql = @"
     SELECT
         s.Id            AS BudgetMonthSavingsId,

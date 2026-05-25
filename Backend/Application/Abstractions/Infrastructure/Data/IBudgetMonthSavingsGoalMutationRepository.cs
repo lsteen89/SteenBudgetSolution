@@ -41,6 +41,22 @@ public interface IBudgetMonthSavingsGoalMutationRepository
         UpdateOpenLinkedMonthSavingsGoalTargetDateModel model,
         CancellationToken ct);
 
+    // Rename — plan-level Name change. Three writes coordinate together so
+    // the snapshot, the source plan, and every other already-materialized
+    // open month see the new name consistently. Closed/skipped months are
+    // never touched.
+    Task UpdateMonthSavingsGoalNameAsync(
+        UpdateBudgetMonthSavingsGoalNameModel model,
+        CancellationToken ct);
+
+    Task UpdateBaselineSavingsGoalNameAsync(
+        UpdateBaselineSavingsGoalNameModel model,
+        CancellationToken ct);
+
+    Task<int> UpdateOpenLinkedMonthSavingsGoalNameAsync(
+        UpdateOpenLinkedMonthSavingsGoalNameModel model,
+        CancellationToken ct);
+
     Task<BudgetMonthSavingsForCreateReadModel?> GetBudgetMonthSavingsForCreateAsync(
         Guid budgetMonthId,
         CancellationToken ct);

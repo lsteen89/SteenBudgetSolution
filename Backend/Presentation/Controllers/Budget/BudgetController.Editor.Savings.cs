@@ -10,6 +10,7 @@ using Backend.Application.Features.Budgets.Months.Editor.Savings.PatchBaseSaving
 using Backend.Application.Features.Budgets.Months.Editor.Savings.PatchSavingsGoal;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.PatchSavingsGoalsBulk;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.RemoveSavingsGoal;
+using Backend.Application.Features.Budgets.Months.Editor.Savings.RenameSavingsGoal;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.RemoveSavingsMethod;
 using Backend.Presentation.Shared;
 using Microsoft.AspNetCore.Mvc;
@@ -184,6 +185,33 @@ public sealed partial class BudgetController
             return Ok(ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>.Failure(
                 code: result.Error?.Code ?? "BUDGET_MONTH_SAVINGS_GOAL_PATCH_FAILED",
                 message: result.Error?.Message ?? "Could not update month savings goal."
+            ));
+        }
+
+        return Ok(ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>.Success(result.Value));
+    }
+
+    [HttpPatch("months/{yearMonth}/savings-goals/{monthSavingsGoalId:guid}/name")]
+    [ProducesResponseType(typeof(ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>>> RenameSavingsGoal(
+        [FromRoute] string yearMonth,
+        [FromRoute] Guid monthSavingsGoalId,
+        [FromBody] RenameBudgetMonthSavingsGoalRequestDto req,
+        CancellationToken ct)
+    {
+        var result = await _mediator.Send(
+            new RenameBudgetMonthSavingsGoalCommand(
+                Persoid: _currentUser.Persoid,
+                YearMonth: yearMonth,
+                MonthSavingsGoalId: monthSavingsGoalId,
+                Name: req?.Name ?? string.Empty),
+            ct);
+
+        if (result.IsFailure || result.Value is null)
+        {
+            return Ok(ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>.Failure(
+                code: result.Error?.Code ?? "BUDGET_MONTH_SAVINGS_GOAL_RENAME_FAILED",
+                message: result.Error?.Message ?? "Could not rename savings goal."
             ));
         }
 
