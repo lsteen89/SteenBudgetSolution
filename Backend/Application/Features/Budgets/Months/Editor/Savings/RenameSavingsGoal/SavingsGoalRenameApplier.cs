@@ -4,6 +4,7 @@ using Backend.Application.DTO.Budget.Months.Editor.Savings;
 using Backend.Application.Features.Budgets.Audit;
 using Backend.Application.Features.Budgets.Months.Editor.Models.ChangeLog;
 using Backend.Application.Features.Budgets.Months.Editor.Models.Savings;
+using Backend.Domain.Errors.Budget;
 using Backend.Domain.Shared;
 
 namespace Backend.Application.Features.Budgets.Months.Editor.Savings.RenameSavingsGoal;
@@ -41,6 +42,14 @@ internal static class SavingsGoalRenameApplier
         if (!nameChanged)
         {
             return Result<BudgetMonthSavingsGoalEditorRowDto?>.Success(BuildRowDto(existing, oldName));
+        }
+
+        if (existing.SourceSavingsGoalId is Guid baselineSourceId)
+        {
+            var baselineExists = await repo.BaselineSavingsGoalExistsAsync(baselineSourceId, ct);
+            if (!baselineExists)
+                return Result<BudgetMonthSavingsGoalEditorRowDto?>.Failure(
+                    BudgetMonthSavingsGoalErrors.SourcePlanNotFound);
         }
 
         // 1. Current-month snapshot — always writes (the row is loaded above).

@@ -148,6 +148,36 @@ public sealed class RenameBudgetMonthSavingsGoalTests
     }
 
     [Fact]
+    public async Task Rename_PlanLinkedGoal_CascadesToOtherOpenLinkedRows_ButNotClosedOrSkippedRows()
+    {
+        await _db.ResetAsync();
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var sut = CreateSut(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+        var budgetMonthId = await EnsureMonthAsync(sut, seed.Persoid);
+        var target = (await GetRowsAsync(sut, seed.Persoid))
+            .First(r => r.Name == "Emergency fund");
+        var sourceId = target.SourceSavingsGoalId!.Value;
+        var linkedRows = await InsertSyntheticLinkedMonthRowsAsync(sourceId);
+
+        var rename = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.RenameHandler.Handle(
+                new RenameBudgetMonthSavingsGoalCommand(
+                    Persoid: seed.Persoid,
+                    YearMonth: "2026-01",
+                    MonthSavingsGoalId: target.Id,
+                    Name: "Buffert"),
+                CancellationToken.None));
+
+        rename.IsFailure.Should().BeFalse();
+
+        (await GetMonthSavingsGoalAsync(linkedRows.OpenRowId))!.Name.Should().Be("Buffert");
+        (await GetMonthSavingsGoalAsync(linkedRows.ClosedRowId))!.Name.Should().Be("Emergency fund");
+        (await GetMonthSavingsGoalAsync(linkedRows.SkippedRowId))!.Name.Should().Be("Emergency fund");
+
+        (await GetLatestChangeSetAsync(budgetMonthId)).Should().Contain("\"linkedOpenMonthsUpdated\":1");
+    }
+
+    [Fact]
     public async Task Rename_NoOp_WhenNameUnchanged_WritesNothing()
     {
         await _db.ResetAsync();
@@ -342,6 +372,85 @@ public sealed class RenameBudgetMonthSavingsGoalTests
         """, new { id = monthSavingsGoalId });
     }
 
+    private async Task<LinkedRows> InsertSyntheticLinkedMonthRowsAsync(Guid sourceSavingsGoalId)
+    {
+        var persoid = Guid.NewGuid();
+        var budgetId = Guid.NewGuid();
+        var savingsId = Guid.NewGuid();
+        var openMonthId = Guid.NewGuid();
+        var closedMonthId = Guid.NewGuid();
+        var skippedMonthId = Guid.NewGuid();
+        var openSavingsId = Guid.NewGuid();
+        var closedSavingsId = Guid.NewGuid();
+        var skippedSavingsId = Guid.NewGuid();
+        var openRowId = Guid.NewGuid();
+        var closedRowId = Guid.NewGuid();
+        var skippedRowId = Guid.NewGuid();
+
+        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await conn.OpenAsync();
+
+        await conn.ExecuteAsync("""
+            INSERT INTO Users
+                (Persoid, Firstname, LastName, Email, EmailConfirmed, Password, Roles, Locked, FirstLogin, CreatedBy)
+            VALUES
+                (@Persoid, 'Linked', 'Rows', @Email, 1, '$2a$12$abcdefghijkABCDEFGHIJKlmn', 'User', 0, 0, 'it');
+
+            INSERT INTO Budget
+                (Id, Persoid, DebtRepaymentStrategy, CreatedAt, CreatedByUserId)
+            VALUES
+                (@BudgetId, @Persoid, 'snowball', UTC_TIMESTAMP(), @Persoid);
+
+            INSERT INTO Savings
+                (Id, BudgetId, MonthlySavings, CreatedAt, CreatedByUserId)
+            VALUES
+                (@SavingsId, @BudgetId, 2500, UTC_TIMESTAMP(), @Persoid);
+
+            INSERT INTO BudgetMonth
+                (Id, BudgetId, YearMonth, Status, ClosedAt, CreatedAt, CreatedByUserId)
+            VALUES
+                (@OpenMonthId, @BudgetId, '2026-02', 'open', NULL, UTC_TIMESTAMP(), @Persoid),
+                (@ClosedMonthId, @BudgetId, '2026-03', 'closed', UTC_TIMESTAMP(), UTC_TIMESTAMP(), @Persoid),
+                (@SkippedMonthId, @BudgetId, '2026-04', 'skipped', NULL, UTC_TIMESTAMP(), @Persoid);
+
+            INSERT INTO BudgetMonthSavings
+                (Id, BudgetMonthId, SourceSavingsId, MonthlySavings, IsOverride, IsDeleted, CreatedAt, CreatedByUserId)
+            VALUES
+                (@OpenSavingsId, @OpenMonthId, @SavingsId, 2500, 0, 0, UTC_TIMESTAMP(), @Persoid),
+                (@ClosedSavingsId, @ClosedMonthId, @SavingsId, 2500, 0, 0, UTC_TIMESTAMP(), @Persoid),
+                (@SkippedSavingsId, @SkippedMonthId, @SavingsId, 2500, 0, 0, UTC_TIMESTAMP(), @Persoid);
+
+            INSERT INTO BudgetMonthSavingsGoal
+                (Id, BudgetMonthSavingsId, SourceSavingsGoalId, Name, TargetAmount, TargetDate, AmountSaved,
+                 MonthlyContribution, OpenedAt, Status, IsOverride, IsDeleted, SortOrder, CreatedAt, CreatedByUserId)
+            VALUES
+                (@OpenRowId, @OpenSavingsId, @SourceSavingsGoalId, 'Emergency fund', 50000, '2026-12-31', 10000,
+                 1500, UTC_TIMESTAMP(), 'active', 0, 0, 0, UTC_TIMESTAMP(), @Persoid),
+                (@ClosedRowId, @ClosedSavingsId, @SourceSavingsGoalId, 'Emergency fund', 50000, '2026-12-31', 10000,
+                 1500, UTC_TIMESTAMP(), 'active', 0, 0, 0, UTC_TIMESTAMP(), @Persoid),
+                (@SkippedRowId, @SkippedSavingsId, @SourceSavingsGoalId, 'Emergency fund', 50000, '2026-12-31', 10000,
+                 1500, UTC_TIMESTAMP(), 'active', 0, 0, 0, UTC_TIMESTAMP(), @Persoid);
+        """, new
+        {
+            Persoid = persoid,
+            Email = $"linked+{persoid:N}@example.com",
+            BudgetId = budgetId,
+            SavingsId = savingsId,
+            OpenMonthId = openMonthId,
+            ClosedMonthId = closedMonthId,
+            SkippedMonthId = skippedMonthId,
+            OpenSavingsId = openSavingsId,
+            ClosedSavingsId = closedSavingsId,
+            SkippedSavingsId = skippedSavingsId,
+            OpenRowId = openRowId,
+            ClosedRowId = closedRowId,
+            SkippedRowId = skippedRowId,
+            SourceSavingsGoalId = sourceSavingsGoalId
+        });
+
+        return new LinkedRows(openRowId, closedRowId, skippedRowId);
+    }
+
     private async Task MarkMonthRowDeletedAsync(Guid monthSavingsGoalId)
     {
         await using var conn = new MySqlConnection(_db.ConnectionString);
@@ -401,6 +510,8 @@ public sealed class RenameBudgetMonthSavingsGoalTests
         public string Status { get; init; } = string.Empty;
         public bool IsDeleted { get; init; }
     }
+
+    private sealed record LinkedRows(Guid OpenRowId, Guid ClosedRowId, Guid SkippedRowId);
 
     private sealed class Sut
     {
