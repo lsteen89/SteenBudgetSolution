@@ -73,6 +73,20 @@ public interface IBudgetMonthSavingsGoalMutationRepository
         UpdateOpenLinkedMonthSavingsGoalTargetAmountModel model,
         CancellationToken ct);
 
+    // AmountSaved — the goal's running balance. Two writes coordinate
+    // together for a V2 one-time transfer (deposit/withdraw): the current-
+    // month snapshot always moves, and the source plan baseline moves
+    // when the snapshot is linked. Other already-materialised open months
+    // are intentionally NOT cascaded — a mid-month transfer applies only
+    // to the month the user is editing.
+    Task UpdateMonthSavingsGoalAmountSavedAsync(
+        UpdateBudgetMonthSavingsGoalAmountSavedModel model,
+        CancellationToken ct);
+
+    Task UpdateBaselineSavingsGoalAmountSavedAsync(
+        UpdateBaselineSavingsGoalAmountSavedModel model,
+        CancellationToken ct);
+
     Task<BudgetMonthSavingsForCreateReadModel?> GetBudgetMonthSavingsForCreateAsync(
         Guid budgetMonthId,
         CancellationToken ct);

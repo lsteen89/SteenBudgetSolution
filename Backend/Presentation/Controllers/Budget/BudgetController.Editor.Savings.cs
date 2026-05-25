@@ -13,6 +13,7 @@ using Backend.Application.Features.Budgets.Months.Editor.Savings.PatchSavingsGoa
 using Backend.Application.Features.Budgets.Months.Editor.Savings.RemoveSavingsGoal;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.RenameSavingsGoal;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.RemoveSavingsMethod;
+using Backend.Application.Features.Budgets.Months.Editor.Savings.TransferSavingsGoal;
 using Backend.Presentation.Shared;
 using Microsoft.AspNetCore.Mvc;
 
@@ -240,6 +241,42 @@ public sealed partial class BudgetController
             return Ok(ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>.Failure(
                 code: result.Error?.Code ?? "BUDGET_MONTH_SAVINGS_GOAL_TARGET_AMOUNT_FAILED",
                 message: result.Error?.Message ?? "Could not change savings goal target amount."
+            ));
+        }
+
+        return Ok(ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>.Success(result.Value));
+    }
+
+    /// <summary>
+    /// V2 PR-07 — one-time transfer (Sätt in / Ta ut) against a savings
+    /// goal. The endpoint is intentionally a POST (not PATCH) because it
+    /// is non-idempotent: every successful call adds a signed delta and
+    /// writes an audit row. The frontend debounces Save so a single user
+    /// gesture only fires once.
+    /// </summary>
+    [HttpPost("months/{yearMonth}/savings-goals/{monthSavingsGoalId:guid}/transfer")]
+    [ProducesResponseType(typeof(ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>>> TransferSavingsGoal(
+        [FromRoute] string yearMonth,
+        [FromRoute] Guid monthSavingsGoalId,
+        [FromBody] TransferBudgetMonthSavingsGoalRequestDto req,
+        CancellationToken ct)
+    {
+        var result = await _mediator.Send(
+            new TransferBudgetMonthSavingsGoalCommand(
+                Persoid: _currentUser.Persoid,
+                YearMonth: yearMonth,
+                MonthSavingsGoalId: monthSavingsGoalId,
+                Amount: req?.Amount ?? 0m,
+                Direction: req?.Direction ?? string.Empty,
+                Note: req?.Note),
+            ct);
+
+        if (result.IsFailure || result.Value is null)
+        {
+            return Ok(ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>.Failure(
+                code: result.Error?.Code ?? "BUDGET_MONTH_SAVINGS_GOAL_TRANSFER_FAILED",
+                message: result.Error?.Message ?? "Could not transfer to savings goal."
             ));
         }
 

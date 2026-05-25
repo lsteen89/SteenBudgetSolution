@@ -211,6 +211,30 @@ public sealed partial class BudgetMonthSavingsGoalMutationRepository
       AND g.IsDeleted = 0
       AND bm.Status = 'open';";
 
+    /// <summary>
+    /// V2 PR-07 — one-time transfer. The handler computes the new
+    /// <c>AmountSaved</c> from the existing value + signed delta and
+    /// passes it as a parameter so the statement stays deterministic
+    /// and parameterised. No <c>+=</c> arithmetic inside SQL; the
+    /// math lives in the handler where it can be unit-tested.
+    /// </summary>
+    private const string UpdateMonthSavingsGoalAmountSavedSql = @"
+    UPDATE BudgetMonthSavingsGoal
+    SET
+        AmountSaved = @AmountSaved,
+        UpdatedAt = @UtcNow,
+        UpdatedByUserId = @ActorPersoid
+    WHERE Id = @Id
+      AND BudgetMonthSavingsId = @BudgetMonthSavingsId;";
+
+    private const string UpdateBaselineSavingsGoalAmountSavedSql = @"
+    UPDATE SavingsGoal
+    SET
+        AmountSaved = @AmountSaved,
+        UpdatedAt = @UtcNow,
+        UpdatedByUserId = @ActorPersoid
+    WHERE Id = @SavingsGoalId;";
+
     private const string GetBudgetMonthSavingsForCreateSql = @"
     SELECT
         s.Id            AS BudgetMonthSavingsId,

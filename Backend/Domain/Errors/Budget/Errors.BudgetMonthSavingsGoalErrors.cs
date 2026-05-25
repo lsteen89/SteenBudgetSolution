@@ -34,4 +34,23 @@ public static partial class BudgetMonthSavingsGoalErrors
             "BudgetMonthSavingsGoal.TargetBelowSaved",
             "New target amount cannot be less than the amount already saved.",
             ErrorType.Conflict);
+
+    // V2 PR-07: a one-time withdraw cannot push AmountSaved below zero.
+    // The UI mirrors this rule inline; the BE rejection is the defensive
+    // last line. We model it as Conflict (not Validation) because the
+    // failure depends on server-side row state, not the request shape.
+    public static readonly Error WithdrawalBelowZero =
+        new(
+            "BudgetMonthSavingsGoal.WithdrawalBelowZero",
+            "Withdrawal cannot push the saved amount below zero.",
+            ErrorType.Conflict);
+
+    // V2 PR-07: an unrecognised transfer direction. Validator catches the
+    // common case (empty / typoed body); this guard is the handler-side
+    // defence for clients that bypass validation.
+    public static readonly Error UnknownTransferDirection =
+        new(
+            "BudgetMonthSavingsGoal.UnknownTransferDirection",
+            "Transfer direction must be 'deposit' or 'withdraw'.",
+            ErrorType.Validation);
 }

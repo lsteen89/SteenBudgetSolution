@@ -647,6 +647,10 @@ public sealed class BudgetMonthSavingsGoalLifecycleTests
             => _inner.UpdateBaselineSavingsGoalTargetAmountAsync(model, ct);
         public Task<int> UpdateOpenLinkedMonthSavingsGoalTargetAmountAsync(UpdateOpenLinkedMonthSavingsGoalTargetAmountModel model, CancellationToken ct)
             => _inner.UpdateOpenLinkedMonthSavingsGoalTargetAmountAsync(model, ct);
+        public Task UpdateMonthSavingsGoalAmountSavedAsync(UpdateBudgetMonthSavingsGoalAmountSavedModel model, CancellationToken ct)
+            => _inner.UpdateMonthSavingsGoalAmountSavedAsync(model, ct);
+        public Task UpdateBaselineSavingsGoalAmountSavedAsync(UpdateBaselineSavingsGoalAmountSavedModel model, CancellationToken ct)
+            => _inner.UpdateBaselineSavingsGoalAmountSavedAsync(model, ct);
         public Task<BudgetMonthSavingsForCreateReadModel?> GetBudgetMonthSavingsForCreateAsync(Guid budgetMonthId, CancellationToken ct)
             => _inner.GetBudgetMonthSavingsForCreateAsync(budgetMonthId, ct);
         public Task InsertBaselineSavingsGoalAsync(InsertBaselineSavingsGoalModel model, CancellationToken ct)
