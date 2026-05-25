@@ -1,6 +1,7 @@
 using Backend.Application.DTO.Budget.Months.Editor.Savings;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.AddSavingsMethod;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.CancelSavingsGoal;
+using Backend.Application.Features.Budgets.Months.Editor.Savings.ChangeSavingsGoalTargetAmount;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.CompleteSavingsGoal;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.CreateSavingsGoal;
 using Backend.Application.Features.Budgets.Months.Editor.Savings.GetOldSavingsGoals;
@@ -212,6 +213,33 @@ public sealed partial class BudgetController
             return Ok(ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>.Failure(
                 code: result.Error?.Code ?? "BUDGET_MONTH_SAVINGS_GOAL_RENAME_FAILED",
                 message: result.Error?.Message ?? "Could not rename savings goal."
+            ));
+        }
+
+        return Ok(ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>.Success(result.Value));
+    }
+
+    [HttpPatch("months/{yearMonth}/savings-goals/{monthSavingsGoalId:guid}/target-amount")]
+    [ProducesResponseType(typeof(ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>>> ChangeSavingsGoalTargetAmount(
+        [FromRoute] string yearMonth,
+        [FromRoute] Guid monthSavingsGoalId,
+        [FromBody] ChangeBudgetMonthSavingsGoalTargetAmountRequestDto req,
+        CancellationToken ct)
+    {
+        var result = await _mediator.Send(
+            new ChangeBudgetMonthSavingsGoalTargetAmountCommand(
+                Persoid: _currentUser.Persoid,
+                YearMonth: yearMonth,
+                MonthSavingsGoalId: monthSavingsGoalId,
+                TargetAmount: req?.TargetAmount ?? 0m),
+            ct);
+
+        if (result.IsFailure || result.Value is null)
+        {
+            return Ok(ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>.Failure(
+                code: result.Error?.Code ?? "BUDGET_MONTH_SAVINGS_GOAL_TARGET_AMOUNT_FAILED",
+                message: result.Error?.Message ?? "Could not change savings goal target amount."
             ));
         }
 

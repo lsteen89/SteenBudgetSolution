@@ -25,4 +25,13 @@ public static partial class BudgetMonthSavingsGoalErrors
             "BudgetMonthSavingsGoal.SavingsPlanMissing",
             "The budget plan does not have a savings record yet; a savings goal cannot be created.",
             ErrorType.Conflict);
+
+    // V2: a target-amount edit cannot move below the already-saved figure.
+    // The UI surfaces this inline so the BE rejection is a defensive last
+    // line, not the primary signal.
+    public static readonly Error TargetBelowSaved =
+        new(
+            "BudgetMonthSavingsGoal.TargetBelowSaved",
+            "New target amount cannot be less than the amount already saved.",
+            ErrorType.Conflict);
 }

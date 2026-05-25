@@ -57,6 +57,22 @@ public interface IBudgetMonthSavingsGoalMutationRepository
         UpdateOpenLinkedMonthSavingsGoalNameModel model,
         CancellationToken ct);
 
+    // TargetAmount — plan-level field. The editor list query reads
+    // `g.TargetAmount` straight from the snapshot, so a plan-level edit
+    // must rewrite snapshot + source plan + every other already-materialised
+    // open month. Closed/skipped months are never touched.
+    Task UpdateMonthSavingsGoalTargetAmountAsync(
+        UpdateBudgetMonthSavingsGoalTargetAmountModel model,
+        CancellationToken ct);
+
+    Task UpdateBaselineSavingsGoalTargetAmountAsync(
+        UpdateBaselineSavingsGoalTargetAmountModel model,
+        CancellationToken ct);
+
+    Task<int> UpdateOpenLinkedMonthSavingsGoalTargetAmountAsync(
+        UpdateOpenLinkedMonthSavingsGoalTargetAmountModel model,
+        CancellationToken ct);
+
     Task<BudgetMonthSavingsForCreateReadModel?> GetBudgetMonthSavingsForCreateAsync(
         Guid budgetMonthId,
         CancellationToken ct);
