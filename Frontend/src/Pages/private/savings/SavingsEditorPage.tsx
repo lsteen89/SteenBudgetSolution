@@ -11,6 +11,7 @@ import {
   usePatchBudgetMonthSavingsGoal,
   useRemoveBudgetMonthSavingsMethod,
   useRemoveSavingsGoalMutation,
+  useTransferBudgetMonthSavingsGoalMutation,
 } from "@/hooks/budget/editPeriod/useMonthEditor";
 import { useBudgetDashboardMonthQuery } from "@/hooks/budget/useBudgetDashboardMonthQuery";
 import { useBudgetMonthsStatusQuery } from "@/hooks/budget/useBudgetMonthsStatusQuery";
@@ -35,6 +36,9 @@ import SavingsGoalCardsList from "./components/SavingsGoalCardsList";
 import type { SavingsGoalLifecycleAction } from "./components/SavingsGoalLifecycleConfirmDialog";
 import SavingsGoalLifecycleConfirmDialog from "./components/SavingsGoalLifecycleConfirmDialog";
 import SavingsGoalMonthlyModal from "./components/SavingsGoalMonthlyModal";
+import SavingsGoalTransferModal, {
+  type SavingsGoalTransferSavePayload,
+} from "./components/SavingsGoalTransferModal";
 import SavingsGoalTargetDateModal, {
   type SavingsGoalTargetDateMode,
 } from "./components/SavingsGoalTargetDateModal";
@@ -44,6 +48,7 @@ import SavingsOldGoalsSection from "./components/SavingsOldGoalsSection";
 import SavingsPlanBalanceStrip from "./components/SavingsPlanBalanceStrip";
 import SavingsSoulHero from "./components/SavingsSoulHero";
 import { aggregateSavingsHero, getMonthStartDate } from "./utils/savingsSoul";
+import { transferErrorMessage } from "./utils/transferErrorMessage";
 
 export default function SavingsEditorPage() {
   const locale = useAppLocale();
@@ -94,11 +99,16 @@ export default function SavingsEditorPage() {
   const addMethodMutation = useAddBudgetMonthSavingsMethod(mutationYearMonth);
   const removeMethodMutation = useRemoveBudgetMonthSavingsMethod(mutationYearMonth);
   const baseSavingsMutation = usePatchBudgetMonthBaseSavings(mutationYearMonth);
+  const transferMutation =
+    useTransferBudgetMonthSavingsGoalMutation(mutationYearMonth);
 
   const [monthlyModalRow, setMonthlyModalRow] =
     useState<BudgetMonthSavingsGoalEditorRowDto | null>(null);
   const [targetDateModalRow, setTargetDateModalRow] =
     useState<BudgetMonthSavingsGoalEditorRowDto | null>(null);
+  const [transferModalRow, setTransferModalRow] =
+    useState<BudgetMonthSavingsGoalEditorRowDto | null>(null);
+  const [transferError, setTransferError] = useState<string | null>(null);
   const [draftOpen, setDraftOpen] = useState(false);
   const [draftError, setDraftError] = useState<string | null>(null);
   const [lifecycleState, setLifecycleState] = useState<{
@@ -263,6 +273,46 @@ export default function SavingsEditorPage() {
     }
   };
 
+  const handleOpenTransfer = (row: BudgetMonthSavingsGoalEditorRowDto) => {
+    if (readOnly) return;
+    if (row.isDeleted || row.status !== "active") return;
+    setTransferError(null);
+    setTransferModalRow(row);
+  };
+
+  const handleCloseTransfer = () => {
+    if (transferMutation.isPending) return;
+    setTransferError(null);
+    setTransferModalRow(null);
+  };
+
+  const handleSubmitTransfer = async (
+    values: SavingsGoalTransferSavePayload,
+  ) => {
+    if (!transferModalRow) return;
+    setTransferError(null);
+    try {
+      await transferMutation.mutateAsync({
+        monthSavingsGoalId: transferModalRow.id,
+        payload: {
+          amount: values.amount,
+          direction: values.direction,
+          note: values.note,
+        },
+      });
+      toast.success(
+        values.direction === "deposit"
+          ? t("transferToastDeposit")
+          : t("transferToastWithdraw"),
+      );
+      setTransferModalRow(null);
+    } catch (err) {
+      const message = transferErrorMessage(err, t);
+      setTransferError(message);
+      toast.error(message);
+    }
+  };
+
   const handleSubmitTargetDate = async (values: {
     monthlyContribution: number;
     targetDate: string;
@@ -357,7 +407,7 @@ export default function SavingsEditorPage() {
                 readOnly={readOnly}
                 referenceDate={referenceDate}
                 showPlannedMarkerLegend={heroAggregate.hasPlannedMarker}
-                onDeposit={() => undefined}
+                onDeposit={handleOpenTransfer}
                 onMonthly={(row) => setMonthlyModalRow(row)}
                 onTargetDate={(row) => setTargetDateModalRow(row)}
                 onRename={() => undefined}
@@ -381,6 +431,17 @@ export default function SavingsEditorPage() {
           )}
         </div>
       </BudgetEditorPageShell>
+
+      <SavingsGoalTransferModal
+        open={!!transferModalRow}
+        row={transferModalRow}
+        monthLabel={periodLabel}
+        methods={methodsQuery.data}
+        isSaving={transferMutation.isPending}
+        errorMessage={transferError}
+        onClose={handleCloseTransfer}
+        onSubmit={handleSubmitTransfer}
+      />
 
       <SavingsGoalMonthlyModal
         open={!!monthlyModalRow}
@@ -476,3 +537,4 @@ function EditorState({ text }: { text: string }) {
     </BudgetEditorPageShell>
   );
 }
+

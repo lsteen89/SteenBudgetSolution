@@ -14,8 +14,15 @@ type SavingsBaseHabitRowProps = {
 // The "Bassparande" row surfaces the steady base monthly savings amount that
 // onboarding writes once and nothing else currently edits. It sits between the
 // saving-methods strip and the balance strip so the page reads top-to-bottom as
-// habit → goals → month room. The Justera dialog it opens is a placeholder
-// editor until the Savings.MonthlySavings endpoint exists (see MVP report).
+// habit → goals → month room.
+//
+// TODO(savings-buffer): V2's "Sätt in extra" chip routes to the
+// SavingsGoalTransferModal in a *buffer* mode. Our data model has no buffer
+// balance — `Savings.MonthlySavings` is a monthly outflow, not a stock —
+// so the chip is intentionally absent until a `SavingsBuffer` table and a
+// `Savings.MonthlyBufferTransfer` slice exist. See
+// `Work/Dashboard/savings/PR-V2-OVERVIEW.md` §2 ("What we are NOT building")
+// and `Work/Dashboard/savings/PR-09-fe-one-time-transfer-modal.md` §6.
 export default function SavingsBaseHabitRow({
   baseMonthly,
   readOnly,

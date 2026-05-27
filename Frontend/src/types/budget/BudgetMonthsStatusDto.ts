@@ -163,6 +163,28 @@ export type PatchBudgetMonthSavingsGoalsBulkRequestDto = {
   items: PatchBudgetMonthSavingsGoalBulkRowDto[];
 };
 
+/**
+ * Direction of a one-time goal transfer. V2 keeps the wire format
+ * positive and lets the direction carry the sign — mirrors the backend
+ * `SavingsGoalTransferDirections` constants (lowercase ASCII).
+ */
+export type SavingsGoalTransferDirection = "deposit" | "withdraw";
+
+/**
+ * V2 PR-07 — body for
+ * `POST /api/budgets/months/{ym}/savings-goals/{id}/transfer`.
+ *
+ * `amount` is always positive; `direction` carries the sign. `note` is
+ * optional, ≤ 200 chars; the modal feeds the chosen counter-account into
+ * it as a structured prefix so the audit row tells the whole story
+ * without joining back to anything else.
+ */
+export type TransferBudgetMonthSavingsGoalRequestDto = {
+  amount: number;
+  direction: SavingsGoalTransferDirection;
+  note?: string | null;
+};
+
 export type CreateBudgetMonthSavingsGoalRequestDto = {
   name: string;
   targetAmount: number;

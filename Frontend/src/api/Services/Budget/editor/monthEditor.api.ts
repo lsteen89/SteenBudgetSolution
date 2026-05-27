@@ -29,6 +29,7 @@ import type {
   PatchBudgetMonthSavingsGoalBulkRowDto,
   PatchBudgetMonthSavingsGoalRequestDto,
   PatchBudgetMonthSavingsGoalsBulkRequestDto,
+  TransferBudgetMonthSavingsGoalRequestDto,
 } from "@/types/budget/BudgetMonthsStatusDto";
 
 export async function getBudgetMonthEditor(
@@ -324,6 +325,28 @@ export async function removeBudgetMonthSavingsGoal(
   );
 
   return unwrapEnvelopeData(res, "Could not remove savings goal.");
+}
+
+/**
+ * V2 PR-07 — "Engångsöverföring". Records a one-time deposit or
+ * withdrawal against a savings goal's running balance. The endpoint is
+ * intentionally POST (non-idempotent): every successful call adds a
+ * signed delta and writes an audit row. Callers must debounce Save to
+ * avoid double-submission on a single user gesture.
+ */
+export async function transferBudgetMonthSavingsGoal(
+  yearMonth: string,
+  monthSavingsGoalId: string,
+  payload: TransferBudgetMonthSavingsGoalRequestDto,
+): Promise<BudgetMonthSavingsGoalEditorRowDto> {
+  const res = await api.post<
+    ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>
+  >(
+    `/api/budgets/months/${yearMonth}/savings-goals/${monthSavingsGoalId}/transfer`,
+    payload,
+  );
+
+  return unwrapEnvelopeData(res, "Could not transfer to savings goal.");
 }
 
 export async function getBudgetMonthDebts(

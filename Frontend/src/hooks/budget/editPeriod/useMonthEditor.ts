@@ -24,6 +24,7 @@ import {
   patchBudgetMonthSavingsGoalsBulk,
   removeBudgetMonthSavingsGoal,
   removeBudgetMonthSavingsMethod,
+  transferBudgetMonthSavingsGoal,
 } from "@/api/Services/Budget/editor/monthEditor.api";
 import type { SavingsMethodCode } from "@/types/budget/SavingsMethodDto";
 import type {
@@ -39,6 +40,7 @@ import type {
   PatchBudgetMonthIncomeItemRequestDto,
   PatchBudgetMonthSavingsGoalBulkRowDto,
   PatchBudgetMonthSavingsGoalRequestDto,
+  TransferBudgetMonthSavingsGoalRequestDto,
 } from "@/types/budget/BudgetMonthsStatusDto";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -363,6 +365,30 @@ export function usePatchBudgetMonthBaseSavings(yearMonth: string) {
   return useMutation({
     mutationFn: (payload: PatchBudgetMonthBaseSavingsRequestDto) =>
       patchBudgetMonthBaseSavings(yearMonth, payload),
+    onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
+  });
+}
+
+/**
+ * V2 PR-09 — one-time goal transfer (Sätt in / Ta ut). The mutation is
+ * non-idempotent (every call writes an audit row + delta); the modal's
+ * Save button must stay disabled while the mutation is in flight. On
+ * success we invalidate the same editor surfaces as a regular goal
+ * patch so the dashboard balance strip and goals list both re-read with
+ * the new `AmountSaved` value.
+ */
+export function useTransferBudgetMonthSavingsGoalMutation(yearMonth: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      monthSavingsGoalId,
+      payload,
+    }: {
+      monthSavingsGoalId: string;
+      payload: TransferBudgetMonthSavingsGoalRequestDto;
+    }) =>
+      transferBudgetMonthSavingsGoal(yearMonth, monthSavingsGoalId, payload),
     onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
   });
 }

@@ -90,6 +90,10 @@ vi.mock("@/hooks/budget/editPeriod/useMonthEditor", () => ({
     mutateAsync: vi.fn(),
     isPending: false,
   }),
+  useTransferBudgetMonthSavingsGoalMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
 }));
 
 const linkedRow = {

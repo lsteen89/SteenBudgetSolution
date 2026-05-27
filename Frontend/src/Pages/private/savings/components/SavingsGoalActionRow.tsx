@@ -98,9 +98,8 @@ export default function SavingsGoalActionRow({
     >
       <ActionChip
         label={t("actionDeposit")}
-        title={soon}
         primary
-        disabled
+        disabled={actionsDisabled}
         onClick={onDeposit}
         icon={<Plus className="h-3.5 w-3.5" aria-hidden="true" />}
       />

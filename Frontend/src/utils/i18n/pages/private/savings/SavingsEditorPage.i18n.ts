@@ -158,6 +158,15 @@ export const savingsEditorPageDict = {
       "Det här är beloppet du sätter undan oavsett mål. Höjningar går till din sparbuffert.",
     habitRowAdjust: "Justera",
     habitRowReadOnlyHint: "Bassparande kan inte ändras i en stängd månad.",
+    transferToastDeposit: "Insättning sparad.",
+    transferToastWithdraw: "Uttag sparat.",
+    transferToastError: "Kunde inte spara överföringen. Försök igen.",
+    transferToastErrorWithdrawTooMuch:
+      "Uttaget är större än det sparade beloppet. Justera och försök igen.",
+    transferToastErrorSourcePlanMissing:
+      "Sparmålet i planen saknas. Ladda om sidan och försök igen.",
+    transferToastErrorMonthClosed:
+      "Månaden är stängd — överföringen kan inte sparas.",
     habitDialogEyebrow: "Sparande",
     habitDialogTitle: "Justera bassparande",
     habitDialogDescription:
@@ -339,6 +348,15 @@ export const savingsEditorPageDict = {
       "This is the amount you set aside regardless of goals. Increases go to your savings buffer.",
     habitRowAdjust: "Adjust",
     habitRowReadOnlyHint: "Base savings cannot be changed in a closed month.",
+    transferToastDeposit: "Deposit saved.",
+    transferToastWithdraw: "Withdrawal saved.",
+    transferToastError: "Could not save the transfer. Try again.",
+    transferToastErrorWithdrawTooMuch:
+      "Withdrawal exceeds what's saved on this goal. Lower the amount and try again.",
+    transferToastErrorSourcePlanMissing:
+      "The linked goal in the plan is gone. Reload the page and try again.",
+    transferToastErrorMonthClosed:
+      "This month is closed — the transfer can't be saved.",
     habitDialogEyebrow: "Savings",
     habitDialogTitle: "Adjust base savings",
     habitDialogDescription:
@@ -520,6 +538,15 @@ export const savingsEditorPageDict = {
       "See on summa, mille paned kõrvale eesmärkidest sõltumata. Tõstmised lähevad sinu säästupuhvrisse.",
     habitRowAdjust: "Muuda",
     habitRowReadOnlyHint: "Suletud kuus põhisäästmist muuta ei saa.",
+    transferToastDeposit: "Sissemakse salvestatud.",
+    transferToastWithdraw: "Väljavõtt salvestatud.",
+    transferToastError: "Ülekande salvestamine ebaõnnestus. Proovi uuesti.",
+    transferToastErrorWithdrawTooMuch:
+      "Väljavõtt on suurem kui kogutud summa. Vähenda summat ja proovi uuesti.",
+    transferToastErrorSourcePlanMissing:
+      "Plaani seotud eesmärki pole enam. Lae leht uuesti ja proovi uuesti.",
+    transferToastErrorMonthClosed:
+      "Kuu on suletud — ülekannet ei saa salvestada.",
     habitDialogEyebrow: "Säästmine",
     habitDialogTitle: "Kohanda põhisäästmist",
     habitDialogDescription:

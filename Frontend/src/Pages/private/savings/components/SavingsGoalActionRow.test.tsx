@@ -53,15 +53,32 @@ describe("SavingsGoalActionRow", () => {
     ]);
   });
 
-  it("does not fire disabled chip callbacks and exposes aria-disabled", () => {
+  it("fires the deposit handler on click in an active row", () => {
     const onDeposit = vi.fn();
     renderRow({ onDeposit });
 
     const deposit = screen.getByRole("button", { name: /deposit/i });
+    expect(deposit).not.toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(deposit);
+    expect(onDeposit).toHaveBeenCalledTimes(1);
+  });
+
+  it("disables the deposit chip in read-only mode", () => {
+    const onDeposit = vi.fn();
+    renderRow({ readOnly: true, onDeposit });
+
+    const deposit = screen.getByRole("button", { name: /deposit/i });
     expect(deposit).toHaveAttribute("aria-disabled", "true");
-    expect(deposit).toHaveAttribute("title", "Soon");
     fireEvent.click(deposit);
     expect(onDeposit).not.toHaveBeenCalled();
+  });
+
+  it("keeps the kebab Snart items disabled until PR-10", () => {
+    renderRow();
+    fireEvent.click(screen.getByRole("button", { name: /more/i }));
+    const rename = screen.getByRole("menuitem", { name: /rename/i });
+    expect(rename).toHaveAttribute("aria-disabled", "true");
+    expect(rename).toHaveAttribute("title", "Soon");
   });
 
   it("disables active chips in read-only mode", () => {
