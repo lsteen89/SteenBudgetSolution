@@ -1,6 +1,7 @@
 import {
   addBudgetMonthSavingsMethod,
   cancelBudgetMonthSavingsGoal,
+  changeBudgetMonthSavingsGoalTargetAmount,
   completeBudgetMonthSavingsGoal,
   createBudgetMonthExpenseItem,
   createBudgetMonthIncomeItem,
@@ -22,6 +23,7 @@ import {
   patchBudgetMonthIncomeItemsBulk,
   patchBudgetMonthSavingsGoal,
   patchBudgetMonthSavingsGoalsBulk,
+  renameBudgetMonthSavingsGoal,
   removeBudgetMonthSavingsGoal,
   removeBudgetMonthSavingsMethod,
   transferBudgetMonthSavingsGoal,
@@ -40,6 +42,8 @@ import type {
   PatchBudgetMonthIncomeItemRequestDto,
   PatchBudgetMonthSavingsGoalBulkRowDto,
   PatchBudgetMonthSavingsGoalRequestDto,
+  RenameBudgetMonthSavingsGoalRequestDto,
+  ChangeBudgetMonthSavingsGoalTargetAmountRequestDto,
   TransferBudgetMonthSavingsGoalRequestDto,
 } from "@/types/budget/BudgetMonthsStatusDto";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -365,6 +369,57 @@ export function usePatchBudgetMonthBaseSavings(yearMonth: string) {
   return useMutation({
     mutationFn: (payload: PatchBudgetMonthBaseSavingsRequestDto) =>
       patchBudgetMonthBaseSavings(yearMonth, payload),
+    onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
+  });
+}
+
+/**
+ * V2 PR-05 — rename a savings goal from the kebab menu. The BE
+ * short-circuits no-op writes (same name after trim) without an audit
+ * row, but on success we still invalidate the editor surfaces so any
+ * other open card or aggregate that joined to `Name` picks up the
+ * change without a hard reload.
+ */
+export function useRenameBudgetMonthSavingsGoalMutation(yearMonth: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      monthSavingsGoalId,
+      payload,
+    }: {
+      monthSavingsGoalId: string;
+      payload: RenameBudgetMonthSavingsGoalRequestDto;
+    }) =>
+      renameBudgetMonthSavingsGoal(yearMonth, monthSavingsGoalId, payload),
+    onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
+  });
+}
+
+/**
+ * V2 PR-06 — change a savings goal's target amount from the kebab
+ * menu. Same invalidation set as the rename mutation — both progress
+ * percentages (which use the new denominator) and the dashboard
+ * planned-marker need a re-read.
+ */
+export function useChangeBudgetMonthSavingsGoalTargetAmountMutation(
+  yearMonth: string,
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      monthSavingsGoalId,
+      payload,
+    }: {
+      monthSavingsGoalId: string;
+      payload: ChangeBudgetMonthSavingsGoalTargetAmountRequestDto;
+    }) =>
+      changeBudgetMonthSavingsGoalTargetAmount(
+        yearMonth,
+        monthSavingsGoalId,
+        payload,
+      ),
     onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
   });
 }

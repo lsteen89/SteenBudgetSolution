@@ -94,6 +94,14 @@ vi.mock("@/hooks/budget/editPeriod/useMonthEditor", () => ({
     mutateAsync: vi.fn(),
     isPending: false,
   }),
+  useRenameBudgetMonthSavingsGoalMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+  useChangeBudgetMonthSavingsGoalTargetAmountMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
 }));
 
 const linkedRow = {
@@ -170,8 +178,13 @@ describe("SavingsEditorPage goal actions", () => {
     render(<SavingsEditorPage />);
 
     fireEvent.click(screen.getByRole("button", { name: /target date/i }));
-    fireEvent.change(screen.getByLabelText("New target date"), {
-      target: { value: "2027-05" },
+    // Year + Month dropdowns now drive the picker; pick May (month index 4 →
+    // <select> value "5") 2027 to land on `2027-05-01`.
+    fireEvent.change(screen.getByTestId("savings-goal-target-month-year"), {
+      target: { value: "2027" },
+    });
+    fireEvent.change(screen.getByTestId("savings-goal-target-month-month"), {
+      target: { value: "5" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Save new date" }));
 
@@ -191,8 +204,11 @@ describe("SavingsEditorPage goal actions", () => {
     render(<SavingsEditorPage />);
 
     fireEvent.click(screen.getByRole("button", { name: /target date/i }));
-    fireEvent.change(screen.getByLabelText("New target date"), {
-      target: { value: "2027-05" },
+    fireEvent.change(screen.getByTestId("savings-goal-target-month-year"), {
+      target: { value: "2027" },
+    });
+    fireEvent.change(screen.getByTestId("savings-goal-target-month-month"), {
+      target: { value: "5" },
     });
     fireEvent.click(screen.getByRole("radio", { name: /keep monthly amount/i }));
     fireEvent.click(screen.getByRole("button", { name: "Save new date" }));

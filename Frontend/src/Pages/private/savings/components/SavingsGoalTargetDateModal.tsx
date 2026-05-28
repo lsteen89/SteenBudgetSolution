@@ -1,6 +1,5 @@
 import { CtaButton } from "@/components/atoms/buttons/CtaButton";
 import { FormField } from "@/components/atoms/forms/FormField";
-import { TextInput } from "@/components/atoms/InputField/TextInputv2";
 import BudgetEntryModalShell from "@/components/molecules/forms/budgetEditor/BudgetEntryModalShell";
 import EditScopeRadioCards from "@/components/molecules/forms/editScope/EditScopeRadioCards";
 import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
@@ -84,11 +83,54 @@ function monthsToTarget(targetDate: string, now: Date = new Date()): number {
 }
 
 function defaultFutureMonth(): string {
+  return addMonthsToToday(6);
+}
+
+/**
+ * Build a `yyyy-MM` value `monthsAhead` months past the first of the current
+ * month. Operating off the 1st avoids the classic month-arithmetic landmine
+ * where Jan 31 + 1 month rolls into March, and keeps the picker constrained
+ * to legal future months by construction.
+ */
+function addMonthsToToday(monthsAhead: number): string {
   const d = new Date();
   d.setDate(1);
-  d.setMonth(d.getMonth() + 6);
-  return d.toISOString().slice(0, 7);
+  d.setHours(0, 0, 0, 0);
+  d.setMonth(d.getMonth() + monthsAhead);
+  return formatYearMonth(d);
 }
+
+function formatYearMonth(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+}
+
+function splitYearMonth(value: string): { year: number; month: number } | null {
+  const match = /^(\d{4})-(\d{2})$/.exec(value);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  if (!Number.isFinite(year) || !Number.isFinite(month)) return null;
+  if (month < 1 || month > 12) return null;
+  return { year, month };
+}
+
+/**
+ * Localized full month names ("January", "februari", "veebruar", …). Built
+ * off a fixed date in each month so DST / locale-zero-padding quirks can't
+ * shift the index.
+ */
+function localizedMonthNames(locale: string): string[] {
+  const fmt = new Intl.DateTimeFormat(locale, { month: "long" });
+  return Array.from({ length: 12 }, (_, monthIndex) =>
+    fmt.format(new Date(2000, monthIndex, 15)),
+  );
+}
+
+const YEAR_RANGE_AHEAD = 40;
+const QUICK_OFFSETS = [3, 6, 12, 24] as const;
+type QuickOffset = (typeof QUICK_OFFSETS)[number];
 
 export default function SavingsGoalTargetDateModal({
   open,
@@ -114,6 +156,18 @@ export default function SavingsGoalTargetDateModal({
     setMode("recalcMonthly");
     setErrors({});
   }, [open, row]);
+
+  // NOTE: these two memos must live above the `!open || !row` early-return
+  // below so React sees the same hook count on every render of the component.
+  const monthNames = useMemo(() => localizedMonthNames(locale), [locale]);
+  const yearOptions = useMemo(
+    () =>
+      Array.from(
+        { length: YEAR_RANGE_AHEAD + 1 },
+        (_, i) => new Date().getFullYear() + i,
+      ),
+    [],
+  );
 
   const schemaMessages = useMemo<PatchSavingsGoalAdjustMessages>(
     () => ({
@@ -165,11 +219,10 @@ export default function SavingsGoalTargetDateModal({
     t,
   });
 
-  const maxMonth = (() => {
-    const d = new Date();
-    d.setFullYear(d.getFullYear() + 40);
-    return d.toISOString().slice(0, 7);
-  })();
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const currentMonthIndex = today.getMonth(); // 0..11
+  const maxYear = currentYear + YEAR_RANGE_AHEAD;
 
   const updateTargetMonth = (value: string) => {
     setTargetMonth(value);
@@ -177,6 +230,47 @@ export default function SavingsGoalTargetDateModal({
       setErrors((prev) => ({ ...prev, targetDate: undefined }));
     }
   };
+
+  const selectedParts = splitYearMonth(targetMonth);
+  const selectedYear = selectedParts?.year ?? currentYear;
+  const selectedMonth1 = selectedParts?.month ?? currentMonthIndex + 1; // 1..12
+
+  /**
+   * The validator treats "this month" as already in the past (`targetDateInPast`
+   * fires on `yyyy-MM-01 <= today`), so the first legal future month is
+   * `currentMonthIndex + 1`. We mirror that rule in BOTH select handlers and in
+   * the month-disabled predicate so the user simply cannot land on an illegal
+   * month from the UI — the validator becomes a belt-and-braces guard for
+   * stale / programmatic state, not the primary safety net.
+   */
+  const handleYearChange = (nextYear: number) => {
+    let nextMonth1 = selectedMonth1;
+    if (nextYear === currentYear && nextMonth1 <= currentMonthIndex + 1) {
+      nextMonth1 = currentMonthIndex + 2; // first legal future month (1-based)
+      if (nextMonth1 > 12) {
+        // we are in December — slide to January of next year
+        updateTargetMonth(`${nextYear + 1}-01`);
+        return;
+      }
+    }
+    if (nextYear > maxYear) return;
+    updateTargetMonth(
+      `${nextYear}-${String(nextMonth1).padStart(2, "0")}`,
+    );
+  };
+
+  const handleMonthChange = (nextMonth1: number) => {
+    updateTargetMonth(
+      `${selectedYear}-${String(nextMonth1).padStart(2, "0")}`,
+    );
+  };
+
+  const handleQuickPick = (offset: QuickOffset) => {
+    updateTargetMonth(addMonthsToToday(offset));
+  };
+
+  const isMonthDisabled = (monthIndex0: number): boolean =>
+    selectedYear === currentYear && monthIndex0 <= currentMonthIndex;
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -284,7 +378,7 @@ export default function SavingsGoalTargetDateModal({
 
               <FormField
                 label={t("targetDateLabel")}
-                htmlFor="savings-goal-target-month"
+                htmlFor="savings-goal-target-month-month"
                 error={errors.targetDate}
                 hint={
                   errors.targetDate
@@ -294,14 +388,33 @@ export default function SavingsGoalTargetDateModal({
                       : undefined
                 }
               >
-                <TextInput
-                  id="savings-goal-target-month"
-                  type="month"
-                  max={maxMonth}
-                  value={targetMonth}
-                  onChange={(event) => updateTargetMonth(event.target.value)}
+                <MonthYearPicker
+                  monthNames={monthNames}
+                  yearOptions={yearOptions}
+                  selectedYear={selectedYear}
+                  selectedMonth1={selectedMonth1}
                   disabled={isSaving || !canUpdatePlan}
-                  aria-disabled={!canUpdatePlan || undefined}
+                  onYearChange={handleYearChange}
+                  onMonthChange={handleMonthChange}
+                  isMonthDisabled={isMonthDisabled}
+                  labels={{
+                    year: t("yearSelectLabel"),
+                    month: t("monthSelectLabel"),
+                  }}
+                />
+                <QuickPickRow
+                  disabled={isSaving || !canUpdatePlan}
+                  legend={t("quickPickLegend")}
+                  selectedYearMonth={targetMonth}
+                  labelFor={(offset) =>
+                    interpolate(
+                      offset >= 12 ? t("quickPickYears") : t("quickPickMonths"),
+                      {
+                        value: offset >= 12 ? offset / 12 : offset,
+                      },
+                    )
+                  }
+                  onPick={handleQuickPick}
                 />
               </FormField>
 
@@ -520,6 +633,144 @@ function SnapshotDl({
       <SnapshotCell label={labels.target} value={target} />
       <SnapshotCell label={labels.deadline} value={deadline} />
     </dl>
+  );
+}
+
+function MonthYearPicker({
+  monthNames,
+  yearOptions,
+  selectedYear,
+  selectedMonth1,
+  disabled,
+  onYearChange,
+  onMonthChange,
+  isMonthDisabled,
+  labels,
+}: {
+  monthNames: string[];
+  yearOptions: number[];
+  selectedYear: number;
+  selectedMonth1: number;
+  disabled: boolean;
+  onYearChange: (year: number) => void;
+  onMonthChange: (month1: number) => void;
+  isMonthDisabled: (monthIndex0: number) => boolean;
+  labels: { year: string; month: string };
+}) {
+  const selectClasses = cn(
+    "h-11 w-full rounded-2xl border bg-white px-3 text-sm font-semibold text-eb-text",
+    "border-eb-stroke/40 focus:border-eb-accent/60 focus:outline-none focus:ring-4 focus:ring-eb-accent/15",
+    "disabled:cursor-not-allowed disabled:bg-[rgb(var(--eb-shell)/0.22)] disabled:text-eb-text/45",
+  );
+
+  return (
+    <div
+      className="grid grid-cols-[1fr_minmax(0,7rem)] gap-2"
+      data-testid="savings-goal-target-month"
+    >
+      <label className="sr-only" htmlFor="savings-goal-target-month-month">
+        {labels.month}
+      </label>
+      <select
+        id="savings-goal-target-month-month"
+        data-testid="savings-goal-target-month-month"
+        aria-label={labels.month}
+        value={selectedMonth1}
+        disabled={disabled}
+        onChange={(event) => onMonthChange(Number(event.target.value))}
+        className={selectClasses}
+      >
+        {monthNames.map((name, index) => (
+          <option
+            key={index}
+            value={index + 1}
+            disabled={isMonthDisabled(index)}
+          >
+            {name}
+          </option>
+        ))}
+      </select>
+
+      <label className="sr-only" htmlFor="savings-goal-target-month-year">
+        {labels.year}
+      </label>
+      <select
+        id="savings-goal-target-month-year"
+        data-testid="savings-goal-target-month-year"
+        aria-label={labels.year}
+        value={selectedYear}
+        disabled={disabled}
+        onChange={(event) => onYearChange(Number(event.target.value))}
+        className={cn(selectClasses, "tabular-nums")}
+      >
+        {yearOptions.map((year) => (
+          <option key={year} value={year}>
+            {year}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function QuickPickRow({
+  disabled,
+  legend,
+  selectedYearMonth,
+  labelFor,
+  onPick,
+}: {
+  disabled: boolean;
+  legend: string;
+  selectedYearMonth: string;
+  labelFor: (offset: QuickOffset) => string;
+  onPick: (offset: QuickOffset) => void;
+}) {
+  // Compute, once per render, which chip matches the current selection so the
+  // user gets visual feedback (and so screen readers can announce "Pressed").
+  // We rebuild the expected yyyy-MM for each offset rather than reverse-deriving
+  // months-from-now from the input, which keeps DST / clock-skew out of the
+  // comparison.
+  const expectedByOffset = new Map<QuickOffset, string>(
+    QUICK_OFFSETS.map((offset) => [offset, addMonthsToToday(offset)]),
+  );
+
+  return (
+    <div className="mt-2.5">
+      <div className="mb-1.5 text-[10.5px] font-bold uppercase tracking-[0.14em] text-eb-text/50">
+        {legend}
+      </div>
+      <div
+        role="group"
+        aria-label={legend}
+        data-testid="savings-goal-target-month-quick"
+        className="flex flex-wrap gap-1.5"
+      >
+        {QUICK_OFFSETS.map((offset) => {
+          const isActive = expectedByOffset.get(offset) === selectedYearMonth;
+          return (
+            <button
+              key={offset}
+              type="button"
+              aria-pressed={isActive}
+              disabled={disabled}
+              onClick={() => onPick(offset)}
+              data-testid={`savings-goal-target-month-quick-${offset}`}
+              className={cn(
+                "h-8 rounded-full border px-3 text-[12px] font-semibold transition",
+                "focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-eb-accent/20",
+                "disabled:cursor-not-allowed disabled:opacity-50",
+                isActive
+                  ? "border-[rgb(var(--eb-accent)/0.55)] bg-eb-accentSoft text-[#14532d]"
+                  : "border-eb-stroke/40 bg-white/85 text-eb-text/70 hover:bg-white",
+              )}
+            >
+              {labelFor(offset)}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

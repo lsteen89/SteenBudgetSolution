@@ -39,7 +39,6 @@ export default function SavingsGoalActionRow({
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const menuId = `savings-goal-actions-${row.id}`;
-  const soon = t("comingSoon");
   const actionsDisabled = readOnly || row.isDeleted || row.status !== "active";
 
   useEffect(() => {
@@ -141,15 +140,11 @@ export default function SavingsGoalActionRow({
           >
             <MenuItem
               label={t("actionRename")}
-              title={soon}
-              disabled
-              onClick={() => choose(onRename, true)}
+              onClick={() => choose(onRename)}
             />
             <MenuItem
               label={t("actionChangeTarget")}
-              title={soon}
-              disabled
-              onClick={() => choose(onChangeTarget, true)}
+              onClick={() => choose(onChangeTarget)}
             />
             <div className="my-1 h-px bg-eb-stroke/35" role="separator" />
             <MenuItem

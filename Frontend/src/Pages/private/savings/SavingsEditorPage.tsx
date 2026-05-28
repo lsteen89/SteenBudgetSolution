@@ -5,12 +5,14 @@ import {
   useBudgetMonthSavingsMethods,
   useBudgetMonthSavingsOldGoals,
   useCancelSavingsGoalMutation,
+  useChangeBudgetMonthSavingsGoalTargetAmountMutation,
   useCompleteSavingsGoalMutation,
   useCreateBudgetMonthSavingsGoal,
   usePatchBudgetMonthBaseSavings,
   usePatchBudgetMonthSavingsGoal,
   useRemoveBudgetMonthSavingsMethod,
   useRemoveSavingsGoalMutation,
+  useRenameBudgetMonthSavingsGoalMutation,
   useTransferBudgetMonthSavingsGoalMutation,
 } from "@/hooks/budget/editPeriod/useMonthEditor";
 import { useBudgetDashboardMonthQuery } from "@/hooks/budget/useBudgetDashboardMonthQuery";
@@ -36,6 +38,12 @@ import SavingsGoalCardsList from "./components/SavingsGoalCardsList";
 import type { SavingsGoalLifecycleAction } from "./components/SavingsGoalLifecycleConfirmDialog";
 import SavingsGoalLifecycleConfirmDialog from "./components/SavingsGoalLifecycleConfirmDialog";
 import SavingsGoalMonthlyModal from "./components/SavingsGoalMonthlyModal";
+import SavingsGoalRenameModal, {
+  type SavingsGoalRenameSavePayload,
+} from "./components/SavingsGoalRenameModal";
+import SavingsGoalTargetAmountModal, {
+  type SavingsGoalTargetAmountSavePayload,
+} from "./components/SavingsGoalTargetAmountModal";
 import SavingsGoalTransferModal, {
   type SavingsGoalTransferSavePayload,
 } from "./components/SavingsGoalTransferModal";
@@ -49,6 +57,12 @@ import SavingsPlanBalanceStrip from "./components/SavingsPlanBalanceStrip";
 import SavingsSoulHero from "./components/SavingsSoulHero";
 import { aggregateSavingsHero, getMonthStartDate } from "./utils/savingsSoul";
 import { transferErrorMessage } from "./utils/transferErrorMessage";
+import {
+  renameErrorMessage,
+  targetAmountErrorMessage,
+} from "./utils/goalEditErrorMessage";
+import { savingsGoalRenameModalDict } from "@/utils/i18n/pages/private/savings/SavingsGoalRenameModal.i18n";
+import { savingsGoalTargetAmountModalDict } from "@/utils/i18n/pages/private/savings/SavingsGoalTargetAmountModal.i18n";
 
 export default function SavingsEditorPage() {
   const locale = useAppLocale();
@@ -101,6 +115,10 @@ export default function SavingsEditorPage() {
   const baseSavingsMutation = usePatchBudgetMonthBaseSavings(mutationYearMonth);
   const transferMutation =
     useTransferBudgetMonthSavingsGoalMutation(mutationYearMonth);
+  const renameMutation =
+    useRenameBudgetMonthSavingsGoalMutation(mutationYearMonth);
+  const targetAmountMutation =
+    useChangeBudgetMonthSavingsGoalTargetAmountMutation(mutationYearMonth);
 
   const [monthlyModalRow, setMonthlyModalRow] =
     useState<BudgetMonthSavingsGoalEditorRowDto | null>(null);
@@ -109,6 +127,14 @@ export default function SavingsEditorPage() {
   const [transferModalRow, setTransferModalRow] =
     useState<BudgetMonthSavingsGoalEditorRowDto | null>(null);
   const [transferError, setTransferError] = useState<string | null>(null);
+  const [renameModalRow, setRenameModalRow] =
+    useState<BudgetMonthSavingsGoalEditorRowDto | null>(null);
+  const [renameError, setRenameError] = useState<string | null>(null);
+  const [targetAmountModalRow, setTargetAmountModalRow] =
+    useState<BudgetMonthSavingsGoalEditorRowDto | null>(null);
+  const [targetAmountError, setTargetAmountError] = useState<string | null>(
+    null,
+  );
   const [draftOpen, setDraftOpen] = useState(false);
   const [draftError, setDraftError] = useState<string | null>(null);
   const [lifecycleState, setLifecycleState] = useState<{
@@ -337,6 +363,78 @@ export default function SavingsEditorPage() {
     }
   };
 
+  const handleOpenRename = (row: BudgetMonthSavingsGoalEditorRowDto) => {
+    if (readOnly) return;
+    if (row.isDeleted || row.status !== "active") return;
+    setRenameError(null);
+    setRenameModalRow(row);
+  };
+
+  const handleCloseRename = () => {
+    if (renameMutation.isPending) return;
+    setRenameError(null);
+    setRenameModalRow(null);
+  };
+
+  const handleSubmitRename = async (
+    values: SavingsGoalRenameSavePayload,
+  ) => {
+    if (!renameModalRow) return;
+    setRenameError(null);
+    const tRename = <K extends keyof typeof savingsGoalRenameModalDict.sv>(
+      key: K,
+    ) => tDict(key, locale, savingsGoalRenameModalDict);
+    try {
+      await renameMutation.mutateAsync({
+        monthSavingsGoalId: renameModalRow.id,
+        payload: { name: values.name },
+      });
+      toast.success(tRename("toastSuccess"));
+      setRenameModalRow(null);
+    } catch (err) {
+      const message = renameErrorMessage(err, tRename);
+      setRenameError(message);
+      toast.error(message);
+    }
+  };
+
+  const handleOpenChangeTarget = (row: BudgetMonthSavingsGoalEditorRowDto) => {
+    if (readOnly) return;
+    if (row.isDeleted || row.status !== "active") return;
+    setTargetAmountError(null);
+    setTargetAmountModalRow(row);
+  };
+
+  const handleCloseChangeTarget = () => {
+    if (targetAmountMutation.isPending) return;
+    setTargetAmountError(null);
+    setTargetAmountModalRow(null);
+  };
+
+  const handleSubmitChangeTarget = async (
+    values: SavingsGoalTargetAmountSavePayload,
+  ) => {
+    if (!targetAmountModalRow) return;
+    setTargetAmountError(null);
+    const tTarget = <
+      K extends keyof typeof savingsGoalTargetAmountModalDict.sv,
+    >(
+      key: K,
+    ) => tDict(key, locale, savingsGoalTargetAmountModalDict);
+    try {
+      await targetAmountMutation.mutateAsync({
+        monthSavingsGoalId: targetAmountModalRow.id,
+        payload: { targetAmount: values.targetAmount },
+      });
+      toast.success(tTarget("toastSuccess"));
+      setTargetAmountModalRow(null);
+    } catch (err) {
+      const message = targetAmountErrorMessage(err, tTarget);
+      setTargetAmountError(message);
+      toast.error(message);
+    }
+  };
+
   if (monthsStatusQuery.isLoading) {
     return <EditorState text={t("loadingSavings")} />;
   }
@@ -410,8 +508,8 @@ export default function SavingsEditorPage() {
                 onDeposit={handleOpenTransfer}
                 onMonthly={(row) => setMonthlyModalRow(row)}
                 onTargetDate={(row) => setTargetDateModalRow(row)}
-                onRename={() => undefined}
-                onChangeTarget={() => undefined}
+                onRename={handleOpenRename}
+                onChangeTarget={handleOpenChangeTarget}
                 onArchive={(row) => handleRequestLifecycle("complete", row)}
                 onRemove={(row) => handleRequestLifecycle("remove", row)}
                 draftOpen={draftOpen && !readOnly}
@@ -466,6 +564,26 @@ export default function SavingsEditorPage() {
           setTargetDateModalRow(null);
         }}
         onSubmit={handleSubmitTargetDate}
+      />
+
+      <SavingsGoalRenameModal
+        open={!!renameModalRow}
+        row={renameModalRow}
+        monthLabel={periodLabel}
+        isSaving={renameMutation.isPending}
+        errorMessage={renameError}
+        onClose={handleCloseRename}
+        onSubmit={handleSubmitRename}
+      />
+
+      <SavingsGoalTargetAmountModal
+        open={!!targetAmountModalRow}
+        row={targetAmountModalRow}
+        monthLabel={periodLabel}
+        isSaving={targetAmountMutation.isPending}
+        errorMessage={targetAmountError}
+        onClose={handleCloseChangeTarget}
+        onSubmit={handleSubmitChangeTarget}
       />
 
       <SavingsGoalLifecycleConfirmDialog

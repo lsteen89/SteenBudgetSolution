@@ -73,12 +73,19 @@ describe("SavingsGoalActionRow", () => {
     expect(onDeposit).not.toHaveBeenCalled();
   });
 
-  it("keeps the kebab Snart items disabled until PR-10", () => {
-    renderRow();
+  it("fires the rename + change-target handlers from the kebab", () => {
+    const onRename = vi.fn();
+    const onChangeTarget = vi.fn();
+    renderRow({ onRename, onChangeTarget });
+
     fireEvent.click(screen.getByRole("button", { name: /more/i }));
-    const rename = screen.getByRole("menuitem", { name: /rename/i });
-    expect(rename).toHaveAttribute("aria-disabled", "true");
-    expect(rename).toHaveAttribute("title", "Soon");
+    fireEvent.click(screen.getByRole("menuitem", { name: /rename/i }));
+    expect(onRename).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /more/i }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /change target/i }));
+    expect(onChangeTarget).toHaveBeenCalledTimes(1);
   });
 
   it("disables active chips in read-only mode", () => {
