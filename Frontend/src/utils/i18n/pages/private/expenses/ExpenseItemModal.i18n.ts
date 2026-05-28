@@ -33,8 +33,11 @@ export const expenseItemModalDict = {
       "Aktiv betyder att denna utgift fortsätter tills du ändrar eller pausar den.",
     inactiveInfo: "Pausad betyder att utgiften sparas men inte räknas just nu.",
     statusInfoAriaLabel: "Visa mer information om status",
+    monthOnlyCreateCallout:
+      "Skapas bara för {month}. Det ändrar inte din budgetplan.",
     scopePlanDisabledHint:
-      "Den här posten gäller bara månaden. Det finns ingen budgetplan att uppdatera.",
+      "Den här raden finns bara i {month}. Ändringar av budgetplanen är inte tillgängliga.",
+    previewLabelPlanOnly: "Den här månaden – oförändrad",
     previewCurrentMonthLabel: "Den här månaden",
     previewCurrentMonthUnchanged: "Lämnas oförändrad.",
     previewBudgetPlanLabel: "Budgetplan framåt",
@@ -75,8 +78,11 @@ export const expenseItemModalDict = {
     inactiveInfo:
       "Paused means the expense stays saved, but is not counted right now.",
     statusInfoAriaLabel: "Show more information about status",
+    monthOnlyCreateCallout:
+      "Created only for {month}. It does not change your budget plan.",
     scopePlanDisabledHint:
-      "This entry only belongs to the month. There is no budget plan to update.",
+      "This row only exists in {month}. Future-plan changes are not available.",
+    previewLabelPlanOnly: "Current month — unchanged",
     previewCurrentMonthLabel: "Current month",
     previewCurrentMonthUnchanged: "Remains unchanged.",
     previewBudgetPlanLabel: "Budget plan forward",
@@ -118,8 +124,11 @@ export const expenseItemModalDict = {
     inactiveInfo:
       "Peatatud tähendab, et kulu jääb alles, kuid seda ei arvestata praegu.",
     statusInfoAriaLabel: "Näita oleku kohta rohkem infot",
+    monthOnlyCreateCallout:
+      "Loodud ainult kuule {month}. See ei muuda sinu eelarveplaani.",
     scopePlanDisabledHint:
-      "See rida kehtib ainult selle kuu kohta. Eelarveplaani ei ole vaja uuendada.",
+      "See rida on olemas ainult kuus {month}. Eelarveplaani muudatused ei ole saadaval.",
+    previewLabelPlanOnly: "See kuu – muutmata",
     previewCurrentMonthLabel: "See kuu",
     previewCurrentMonthUnchanged: "Jääb muutmata.",
     previewBudgetPlanLabel: "Eelarveplaan edaspidi",

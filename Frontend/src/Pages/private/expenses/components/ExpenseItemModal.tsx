@@ -249,18 +249,35 @@ export default function ExpenseItemModal({
     }
   };
 
-  const selectedCategoryLabel = useMemo(() => {
-    const category = categories.find((x) => x.id === selectedCategoryId);
+  const isPlanOnlyPreview = mode === "edit" && scope === "budgetPlanOnly";
+  // When the scope is `budgetPlanOnly`, the current-month row is untouched.
+  // The preview headline must reflect that — show the existing row values, not
+  // the user's pending edits — so the preview cannot be misread as "this is
+  // what the current month will look like after I save".
+  const previewSourceName =
+    isPlanOnlyPreview && row ? row.name : watchedName;
+  const previewSourceCategoryId =
+    isPlanOnlyPreview && row ? row.categoryId : selectedCategoryId;
+  const previewSourceAmount =
+    isPlanOnlyPreview && row ? row.amountMonthly : normalizedAmount;
+  const previewSourceIsActive =
+    isPlanOnlyPreview && row ? row.isActive : watchedIsActive;
+
+  const previewCategoryLabel = useMemo(() => {
+    const category = categories.find((x) => x.id === previewSourceCategoryId);
     if (!category) return "—";
 
     return labelCategory(asCategoryKey(category.code), appLocale);
-  }, [appLocale, categories, selectedCategoryId]);
-  const isPlanOnlyPreview = mode === "edit" && scope === "budgetPlanOnly";
-  const previewTitle = watchedName?.trim() || t("untitledItem");
-  const previewAmount = normalizedAmount;
-  const previewStatus = watchedIsActive
+  }, [appLocale, categories, previewSourceCategoryId]);
+
+  const previewTitle = previewSourceName?.trim() || t("untitledItem");
+  const previewAmount = previewSourceAmount;
+  const previewStatus = previewSourceIsActive
     ? t("statusActive")
     : t("statusPaused");
+  const previewLabel = isPlanOnlyPreview
+    ? t("previewLabelPlanOnly")
+    : t("previewLabel");
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key === "Escape") {
@@ -350,6 +367,26 @@ export default function ExpenseItemModal({
               noValidate
             >
               <div className="grid gap-3.5">
+                {mode === "create" ? (
+                  <div
+                    data-testid="expense-item-modal-month-only-callout"
+                    className="rounded-2xl border border-[rgb(var(--eb-accent)/0.24)] bg-[rgb(var(--eb-accent)/0.08)] px-4 py-3"
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <Info
+                        className="mt-0.5 h-4 w-4 shrink-0 text-[rgb(var(--eb-accent))]"
+                        aria-hidden="true"
+                      />
+                      <p className="text-sm leading-snug text-eb-text/75">
+                        {t("monthOnlyCreateCallout").replace(
+                          "{month}",
+                          monthLabel,
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
+
                 <FormField
                   label={t("nameLabel")}
                   htmlFor="expense-name"
@@ -504,21 +541,24 @@ export default function ExpenseItemModal({
                     onChange={setScope}
                     monthLabel={monthLabel}
                     canUpdatePlan={row?.canUpdatePlan ?? false}
-                    disabledPlanHint={t("scopePlanDisabledHint")}
+                    disabledPlanHint={t("scopePlanDisabledHint").replace(
+                      "{month}",
+                      monthLabel,
+                    )}
                     disabled={isSaving}
                     testId="expense-item-modal-scope-toggle"
                   />
                 ) : null}
 
                 <EditorPreviewCard
-                  label={t("previewLabel")}
+                  label={previewLabel}
                   title={previewTitle}
-                  subtitle={selectedCategoryLabel}
+                  subtitle={previewCategoryLabel}
                   amount={formatMoneyV2(previewAmount, currency, appLocale, {
                     fractionDigits: 2,
                   })}
                   status={previewStatus}
-                  muted={!watchedIsActive}
+                  muted={!previewSourceIsActive}
                 >
                   {isPlanOnlyPreview ? (
                     <div className="grid gap-1.5 rounded-xl border border-eb-stroke/18 bg-white/62 px-3 py-2 text-xs font-semibold text-eb-text/62 sm:grid-cols-2">
