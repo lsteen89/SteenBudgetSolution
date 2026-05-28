@@ -56,18 +56,13 @@ export default function ExpensesSoulHero({
     <section
       data-testid="expenses-soul-hero"
       className={[
-        "relative overflow-hidden rounded-[2rem]",
-        "border border-eb-stroke/20 bg-eb-surface/85",
+        "relative rounded-[2rem]",
+        "border border-eb-stroke/20 bg-eb-surface/90",
         "px-5 py-6 sm:px-8 sm:py-8",
-        "shadow-[0_10px_30px_rgba(15,23,42,0.05)] backdrop-blur",
+        "shadow-eb",
       ].join(" ")}
     >
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-        <div className="absolute -top-20 left-[8%] h-44 w-44 rounded-full bg-[rgb(var(--eb-shell)/0.28)] blur-3xl" />
-        <div className="absolute -top-24 right-[16%] h-52 w-52 rounded-full bg-[rgb(var(--eb-accent)/0.08)] blur-3xl" />
-      </div>
-
-      <div className="relative z-10 flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between sm:gap-8">
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between sm:gap-8">
         <div className="min-w-0 max-w-[40rem]">
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-eb-text/50">
             {t("eyebrow")} · {periodLabel}

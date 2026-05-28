@@ -241,52 +241,73 @@ export default function ExpensesEditorPage() {
     <>
       <BudgetEditorPageShell>
         <div className="space-y-4">
-          <ExpensesSoulHero
-            periodLabel={periodLabel}
-            summary={expenseSummary}
-            remainingAfterExpenses={remainingAfterExpenses}
-            readOnly={readOnly}
-            onCreate={() => setModalState({ open: true, mode: "create" })}
-          />
+          {/*
+           * Hero + balance strip rely on real editor rows, real category
+           * mapping, and (for the strip) real income/carry-over totals. Gate
+           * them on every input being loaded so the hero never briefly says
+           * "No active expenses" and the strip never briefly shows
+           * `0 - 0 - <expenses> = …`. While anything is still loading we show
+           * a single calm panel instead of fallback zeros.
+           */}
+          {editorQuery.isLoading ||
+          categoriesQuery.isLoading ||
+          dashboardMonthQuery.isLoading ? (
+            <div
+              data-testid="expenses-editor-loading"
+              className="rounded-[1.75rem] border border-eb-stroke/20 bg-eb-surface/85 p-6 text-sm text-eb-text/60"
+            >
+              {t("loadingExpenses")}
+            </div>
+          ) : editorQuery.isError ? (
+            <div
+              data-testid="expenses-editor-error"
+              className="rounded-[1.75rem] border border-eb-stroke/20 bg-eb-surface/85 p-6 text-sm text-eb-text/60"
+            >
+              {t("loadEditorError")}
+            </div>
+          ) : categoriesQuery.isError ? (
+            <div
+              data-testid="expenses-categories-error"
+              className="rounded-[1.75rem] border border-eb-stroke/20 bg-eb-surface/85 p-6 text-sm text-eb-text/60"
+            >
+              {t("loadCategoriesError")}
+            </div>
+          ) : (
+            <>
+              <ExpensesSoulHero
+                periodLabel={periodLabel}
+                summary={expenseSummary}
+                remainingAfterExpenses={remainingAfterExpenses}
+                readOnly={readOnly}
+                onCreate={() => setModalState({ open: true, mode: "create" })}
+              />
 
-          <ExpensesPlanBalanceStrip
-            currencyCode={currencyCode}
-            locale={locale as AppLocale}
-            incomeMonthly={incomeTotal}
-            carryOverMonthly={carryOverTotal}
-            expensesMonthly={expenseTotal}
-            summary={expenseSummary}
-          />
+              <ExpensesPlanBalanceStrip
+                currencyCode={currencyCode}
+                locale={locale as AppLocale}
+                incomeMonthly={incomeTotal}
+                carryOverMonthly={carryOverTotal}
+                expensesMonthly={expenseTotal}
+                summary={expenseSummary}
+              />
 
-          <div className="space-y-4">
-            {editorQuery.isLoading || categoriesQuery.isLoading ? (
-              <div className="rounded-[1.75rem] border border-eb-stroke/16 bg-[rgb(var(--eb-shell)/0.18)] p-6 text-sm text-eb-text/60 backdrop-blur-[6px]">
-                {t("loadingExpenses")}
+              <div className="space-y-4">
+                {groups.map((group) => (
+                  <ExpensesLedgerSection
+                    key={group.key}
+                    group={group}
+                    readOnly={readOnly}
+                    defaultOpen={true}
+                    onEdit={(row) =>
+                      setModalState({ open: true, mode: "edit", row })
+                    }
+                    onPauseToggle={handlePauseToggle}
+                    onDelete={handleDelete}
+                  />
+                ))}
               </div>
-            ) : editorQuery.isError ? (
-              <div className="rounded-[1.75rem] border border-eb-stroke/16 bg-[rgb(var(--eb-shell)/0.18)] p-6 text-sm text-eb-text/60 backdrop-blur-[6px]">
-                {t("loadEditorError")}
-              </div>
-            ) : categoriesQuery.isError ? (
-              <div className="rounded-[1.75rem] border border-eb-stroke/16 bg-[rgb(var(--eb-shell)/0.18)] p-6 text-sm text-eb-text/60 backdrop-blur-[6px]">
-                {t("loadCategoriesError")}
-              </div>
-            ) : (
-              groups.map((group) => (
-                <ExpensesLedgerSection
-                  key={group.key}
-                  group={group}
-                  readOnly={readOnly}
-                  defaultOpen={true}
-                  onEdit={(row) =>
-                    setModalState({ open: true, mode: "edit", row })
-                  }
-                  onPauseToggle={handlePauseToggle}
-                  onDelete={handleDelete}
-                />
-              ))
-            )}
-          </div>
+            </>
+          )}
         </div>
       </BudgetEditorPageShell>
 
