@@ -231,13 +231,71 @@ function buildInsight(
     return aggregate.totalMonthly > 0 ? t("insightAllOnTrack") : null;
   }
   if (aggregate.aheadCount > 0 && aggregate.behindCount === 0) {
-    return interpolate(t("insightAhead"), { count: aggregate.aheadCount });
+    const ahead = summarizeGoalNames(
+      aggregate.aheadGoalNames,
+      aggregate.aheadCount,
+    );
+    if (!ahead.goalName) {
+      return interpolate(t("insightAhead"), { count: aggregate.aheadCount });
+    }
+    return interpolate(
+      aggregate.aheadCount === 1
+        ? t("insightAheadOne")
+        : t("insightAheadOther"),
+      {
+        goalName: ahead.goalName,
+        remaining: ahead.remaining,
+        summary: ahead.summary,
+      },
+    );
   }
   if (aggregate.behindCount > 0 && aggregate.aheadCount === 0) {
-    return interpolate(t("insightBehind"), { count: aggregate.behindCount });
+    const behind = summarizeGoalNames(
+      aggregate.behindGoalNames,
+      aggregate.behindCount,
+    );
+    if (!behind.goalName) {
+      return interpolate(t("insightBehind"), { count: aggregate.behindCount });
+    }
+    return interpolate(
+      aggregate.behindCount === 1
+        ? t("insightBehindOne")
+        : t("insightBehindOther"),
+      {
+        goalName: behind.goalName,
+        remaining: behind.remaining,
+        summary: behind.summary,
+      },
+    );
   }
-  return interpolate(t("insightMixed"), {
-    ahead: aggregate.aheadCount,
-    behind: aggregate.behindCount,
+  const ahead = summarizeGoalNames(
+    aggregate.aheadGoalNames,
+    aggregate.aheadCount,
+  );
+  const behind = summarizeGoalNames(
+    aggregate.behindGoalNames,
+    aggregate.behindCount,
+  );
+  return interpolate(t("insightMixedNamed"), {
+    ahead: ahead.summary,
+    behind: behind.summary,
   });
+}
+
+function summarizeGoalNames(goalNames: string[], count: number) {
+  const firstName = goalNames[0]?.trim();
+  if (!firstName) {
+    return {
+      goalName: null,
+      remaining: Math.max(0, count - 1),
+      summary: String(count),
+    };
+  }
+
+  const remaining = Math.max(0, count - 1);
+  return {
+    goalName: firstName,
+    remaining,
+    summary: remaining > 0 ? `${firstName} + ${remaining}` : firstName,
+  };
 }

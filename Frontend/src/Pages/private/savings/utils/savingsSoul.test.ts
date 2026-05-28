@@ -122,6 +122,8 @@ describe("aggregateSavingsHero", () => {
         goalName: "Vacation Fund",
         months: 15,
       });
+      expect(past.aheadGoalNames).toEqual([]);
+      expect(past.behindGoalNames).toEqual([]);
     } finally {
       vi.useRealTimers();
     }
@@ -212,6 +214,32 @@ describe("aggregateSavingsHero", () => {
     const aggregate = aggregateSavingsHero([ongoing], reference);
     expect(aggregate.hasPlannedMarker).toBe(false);
     expect(aggregate.nextMilestone).toBeNull();
+  });
+
+  it("collects the names of goals that are ahead or behind plan", () => {
+    const rows = [
+      buildRow({
+        id: "ahead",
+        name: "House deposit",
+        targetAmount: 12000,
+        targetDate: "2027-04-01",
+        amountSaved: 10000,
+        monthlyContribution: 1000,
+      }),
+      buildRow({
+        id: "behind",
+        name: "Emergency buffer",
+        targetAmount: 12000,
+        targetDate: "2026-12-01",
+        amountSaved: 0,
+        monthlyContribution: 1000,
+      }),
+    ];
+
+    const aggregate = aggregateSavingsHero(rows, reference);
+
+    expect(aggregate.aheadGoalNames).toEqual(["House deposit"]);
+    expect(aggregate.behindGoalNames).toEqual(["Emergency buffer"]);
   });
 });
 
