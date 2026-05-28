@@ -23,10 +23,12 @@ import { tDict } from "@/utils/i18n/translate";
 import { useMemo, useState } from "react";
 import DeleteExpenseItemDialog from "./components/DeleteExpenseItemDialog";
 import ExpenseItemModal from "./components/ExpenseItemModal";
-import ExpensesEditorWorkspaceBar from "./components/ExpensesEditorWorkspaceBar";
 import ExpensesLedgerSection from "./components/ExpensesLedgerSection";
+import ExpensesPlanBalanceStrip from "./components/ExpensesPlanBalanceStrip";
+import ExpensesSoulHero from "./components/ExpensesSoulHero";
 import type { ExpenseLedgerRowVm } from "./types/expenseEditor.types";
 import { buildExpenseLedgerGroups } from "./utils/buildExpenseLedgerGroups";
+import { buildExpenseSummary } from "./utils/expenseSummary";
 
 export default function ExpensesEditorPage() {
   const toast = useToast();
@@ -205,9 +207,21 @@ export default function ExpensesEditorPage() {
     }
   };
 
+  const expenseSummary = useMemo(
+    () => buildExpenseSummary({ editor, categories }),
+    [editor, categories],
+  );
   const incomeTotal = dashboardAggregate?.summary.totalIncome ?? 0;
-  const expenseTotal = dashboardAggregate?.summary.totalExpenditure ?? 0;
-  const remainingTotal = dashboardAggregate?.summary.remainingToSpend ?? 0;
+  const carryOverTotal =
+    dashboardAggregate?.summary.incomingCarryOverAmount ?? 0;
+  // Derive the displayed expense total from the same editor rows that feed
+  // the hero meter. This guarantees the strip's "Expenses" line, the hero
+  // headline, and the meter parts all reconcile to the same number, no matter
+  // what the dashboard's totalExpenditure says.
+  const expenseTotal = expenseSummary.total;
+  const remainingAfterExpenses = incomeTotal + carryOverTotal - expenseTotal;
+  const currencyCode =
+    dashboardAggregate?.summary.currency ?? ("SEK" as const);
   const periodLabel =
     dashboardAggregate?.summary.header.periodLabel ?? editableYearMonth;
   const modalEditRow =
@@ -227,13 +241,21 @@ export default function ExpensesEditorPage() {
     <>
       <BudgetEditorPageShell>
         <div className="space-y-4">
-          <ExpensesEditorWorkspaceBar
-            yearMonthLabel={periodLabel}
-            incomeTotal={incomeTotal}
-            expenseTotal={expenseTotal}
-            remainingTotal={remainingTotal}
-            onCreate={() => setModalState({ open: true, mode: "create" })}
+          <ExpensesSoulHero
+            periodLabel={periodLabel}
+            summary={expenseSummary}
+            remainingAfterExpenses={remainingAfterExpenses}
             readOnly={readOnly}
+            onCreate={() => setModalState({ open: true, mode: "create" })}
+          />
+
+          <ExpensesPlanBalanceStrip
+            currencyCode={currencyCode}
+            locale={locale as AppLocale}
+            incomeMonthly={incomeTotal}
+            carryOverMonthly={carryOverTotal}
+            expensesMonthly={expenseTotal}
+            summary={expenseSummary}
           />
 
           <div className="space-y-4">

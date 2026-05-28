@@ -220,9 +220,13 @@ describe("ExpensesEditorPage immediate scoped edits", () => {
     expect(mockUseBudgetDashboardMonthQuery).toHaveBeenCalledWith("2026-05", {
       enabled: true,
     });
-    expect(
-      screen.getByRole("heading", { name: "Edit expenses · May 2026" }),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("expenses-soul-hero")).toBeInTheDocument();
+    expect(screen.getByTestId("expenses-hero-headline")).toHaveTextContent(
+      /expenses/i,
+    );
+    expect(screen.getByTestId("expenses-soul-hero")).toHaveTextContent(
+      "May 2026",
+    );
   });
 
   it("shows an empty state when there is no open month", () => {
