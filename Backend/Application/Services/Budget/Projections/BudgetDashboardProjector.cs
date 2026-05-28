@@ -16,13 +16,16 @@ public sealed class BudgetDashboardProjector : IBudgetDashboardProjector
 
         var incomeTotal = ComputeIncomeTotal(data);
         var expensesTotal = MoneyRound.Kr(data.Totals.TotalExpensesMonthly);
-        var savingsMonthly = MoneyRound.Kr(data.Savings?.MonthlySavings ?? 0m)
-            + MoneyRound.Kr(data.Savings?.Goals.Sum(g => g.MonthlyContribution) ?? 0m);
         var debtPayments = MoneyRound.Kr(debtItems.Sum(x => x.MonthlyPayment));
 
-        var habitSavingsMonthly = MoneyRound.Kr(data.Savings?.MonthlySavings ?? 0m);
-        var goalSavingsMonthly = MoneyRound.Kr(data.Savings?.Goals.Sum(g => g.MonthlyContribution) ?? 0m);
-        var totalSavingsMonthly = MoneyRound.Kr(habitSavingsMonthly + goalSavingsMonthly);
+        // Total monthly savings is bassparande (Savings.MonthlySavings) plus every
+        // active goal contribution. Goal allocations are real planned outflows for
+        // the month and must reduce disposable income; otherwise the dashboard's
+        // "Pengaläge" silently overstates what is left and disagrees with the
+        // savings editor (which sums all six terms).
+        var totalSavingsMonthly = MoneyRound.Kr(
+            (data.Savings?.MonthlySavings ?? 0m)
+            + (data.Savings?.Goals.Sum(g => g.MonthlyContribution) ?? 0m));
 
         var disposableAfterExpenses =
             MoneyRound.Kr(incomeTotal - expensesTotal);
@@ -91,6 +94,7 @@ public sealed class BudgetDashboardProjector : IBudgetDashboardProjector
             MonthlySavings = habit,
             TotalGoalSavingsMonthly = goals,
             TotalSavingsMonthly = total,
+            IsMonthOnly = data.Savings.IsMonthOnly,
             Goals = data.Savings.Goals.Select(g => new DashboardSavingsGoalDto
             {
                 Id = g.Id,

@@ -47,7 +47,7 @@ describe("resolvePeriodCloseUiState", () => {
       lifecycleState: "upcoming",
       canCloseMonth: false,
       closeMonthButtonLabel: null,
-      noticeText: "Closing becomes available soon.",
+      noticeText: "You can close the budget in 2 days.",
     });
   });
 
@@ -70,7 +70,7 @@ describe("resolvePeriodCloseUiState", () => {
       lifecycleState: "eligible",
       canCloseMonth: true,
       closeMonthButtonLabel: "Close Month",
-      noticeText: "This month is ready for review and close.",
+      noticeText: "Ready to review and close.",
     });
   });
 
@@ -93,7 +93,7 @@ describe("resolvePeriodCloseUiState", () => {
       lifecycleState: "overdue",
       canCloseMonth: true,
       closeMonthButtonLabel: "Close Month",
-      noticeText: "This month is still open and ready to close.",
+      noticeText: "Action required: Close month.",
     });
   });
 

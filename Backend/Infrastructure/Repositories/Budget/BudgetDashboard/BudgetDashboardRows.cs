@@ -13,6 +13,11 @@ internal sealed record DashboardTotalsRow(
 
 internal sealed record DashboardSavingsRow(
     decimal MonthlySavings,
+    // MariaDB returns `(s.SourceSavingsId IS NULL)` as Int32 (0/1). Dapper's
+    // positional record materialization refuses to convert Int32 -> bool on a
+    // constructor parameter, so we materialize the raw int and let callers
+    // coerce. `!= 0` semantics: NULL => 1 => true (orphan / month-only).
+    int IsMonthOnly,
     Guid? Id,
     string? Name,
     decimal? TargetAmount,

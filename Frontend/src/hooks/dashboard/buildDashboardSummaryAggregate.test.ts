@@ -37,6 +37,7 @@ function buildAprilDashboardDto(): BudgetDashboardMonthDto {
         monthlySavings: 3000,
         totalGoalSavingsMonthly: 4000,
         totalSavingsMonthly: 7000,
+        isMonthOnly: false,
         goals: [
           {
             id: "home-repair",

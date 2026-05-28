@@ -24,9 +24,12 @@ public sealed class BudgetMonthlyTotalsService : IBudgetMonthlyTotalsService
 
         var totalExpenses = data.Totals.TotalExpensesMonthly;
 
-        var habit = data.Savings?.MonthlySavings ?? 0m;
-        var goal = data.Savings?.Goals.Sum(g => g.MonthlyContribution) ?? 0m;
-        var totalSavings = habit + goal;
+        // Bassparande plus every active goal contribution — the same definition
+        // the dashboard projector uses. The close-month snapshot reads this value,
+        // so omitting goals would freeze an inflated FinalBalance into history.
+        var totalSavings =
+            (data.Savings?.MonthlySavings ?? 0m)
+            + (data.Savings?.Goals.Sum(g => g.MonthlyContribution) ?? 0m);
 
         var totalDebtPayments = data.Debt.Debts.Sum(d => d.MonthlyPayment);
 

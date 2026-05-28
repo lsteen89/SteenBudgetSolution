@@ -1,12 +1,20 @@
 import {
+  addBudgetMonthSavingsMethod,
+  cancelBudgetMonthSavingsGoal,
+  changeBudgetMonthSavingsGoalTargetAmount,
+  completeBudgetMonthSavingsGoal,
   createBudgetMonthExpenseItem,
   createBudgetMonthIncomeItem,
+  createBudgetMonthSavingsGoal,
   deleteBudgetMonthExpenseItem,
   deleteBudgetMonthIncomeItem,
   getBudgetMonthDebts,
   getBudgetMonthIncomeItems,
   getBudgetMonthSavingsGoals,
+  getBudgetMonthSavingsMethods,
+  getBudgetMonthSavingsOldGoals,
   getBudgetMonthEditor,
+  patchBudgetMonthBaseSavings,
   patchBudgetMonthDebt,
   patchBudgetMonthDebtsBulk,
   patchBudgetMonthExpenseItem,
@@ -15,10 +23,17 @@ import {
   patchBudgetMonthIncomeItemsBulk,
   patchBudgetMonthSavingsGoal,
   patchBudgetMonthSavingsGoalsBulk,
+  renameBudgetMonthSavingsGoal,
+  removeBudgetMonthSavingsGoal,
+  removeBudgetMonthSavingsMethod,
+  transferBudgetMonthSavingsGoal,
 } from "@/api/Services/Budget/editor/monthEditor.api";
+import type { SavingsMethodCode } from "@/types/budget/SavingsMethodDto";
 import type {
   CreateBudgetMonthExpenseItemRequestDto,
   CreateBudgetMonthIncomeItemRequestDto,
+  CreateBudgetMonthSavingsGoalRequestDto,
+  PatchBudgetMonthBaseSavingsRequestDto,
   PatchBudgetMonthDebtBulkRowDto,
   PatchBudgetMonthDebtRequestDto,
   PatchBudgetMonthExpenseItemBulkRowDto,
@@ -27,6 +42,9 @@ import type {
   PatchBudgetMonthIncomeItemRequestDto,
   PatchBudgetMonthSavingsGoalBulkRowDto,
   PatchBudgetMonthSavingsGoalRequestDto,
+  RenameBudgetMonthSavingsGoalRequestDto,
+  ChangeBudgetMonthSavingsGoalTargetAmountRequestDto,
+  TransferBudgetMonthSavingsGoalRequestDto,
 } from "@/types/budget/BudgetMonthsStatusDto";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -209,6 +227,68 @@ export function useBudgetMonthSavingsGoals(
   });
 }
 
+export function useBudgetMonthSavingsOldGoals(
+  yearMonth: string | undefined,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: monthEditorQueryKeys.savingsOldGoals(yearMonth ?? ""),
+    queryFn: () => {
+      if (!yearMonth) {
+        throw new Error("Missing yearMonth.");
+      }
+
+      return getBudgetMonthSavingsOldGoals(yearMonth);
+    },
+    enabled: enabled && !!yearMonth,
+  });
+}
+
+export function useBudgetMonthSavingsMethods(
+  yearMonth: string | undefined,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: monthEditorQueryKeys.savingsMethods(yearMonth ?? ""),
+    queryFn: () => {
+      if (!yearMonth) {
+        throw new Error("Missing yearMonth.");
+      }
+
+      return getBudgetMonthSavingsMethods(yearMonth);
+    },
+    enabled: enabled && !!yearMonth,
+  });
+}
+
+export function useAddBudgetMonthSavingsMethod(yearMonth: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: {
+      code: SavingsMethodCode;
+      customLabel?: string | null;
+    }) => addBudgetMonthSavingsMethod(yearMonth, payload),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: monthEditorQueryKeys.savingsMethods(yearMonth),
+      }),
+  });
+}
+
+export function useRemoveBudgetMonthSavingsMethod(yearMonth: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (savingsMethodId: string) =>
+      removeBudgetMonthSavingsMethod(yearMonth, savingsMethodId),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: monthEditorQueryKeys.savingsMethods(yearMonth),
+      }),
+  });
+}
+
 export function usePatchBudgetMonthSavingsGoal(yearMonth: string) {
   const queryClient = useQueryClient();
 
@@ -249,6 +329,131 @@ export function usePatchBudgetMonthSavingsGoalsBulk(yearMonth: string) {
 
       return patchBudgetMonthSavingsGoalsBulk(yearMonth, flatRows);
     },
+    onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
+  });
+}
+
+export function useCreateBudgetMonthSavingsGoal(yearMonth: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: CreateBudgetMonthSavingsGoalRequestDto) =>
+      createBudgetMonthSavingsGoal(yearMonth, payload),
+    onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
+  });
+}
+
+export function useCompleteSavingsGoalMutation(yearMonth: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (monthSavingsGoalId: string) =>
+      completeBudgetMonthSavingsGoal(yearMonth, monthSavingsGoalId),
+    onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
+  });
+}
+
+export function useCancelSavingsGoalMutation(yearMonth: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (monthSavingsGoalId: string) =>
+      cancelBudgetMonthSavingsGoal(yearMonth, monthSavingsGoalId),
+    onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
+  });
+}
+
+export function usePatchBudgetMonthBaseSavings(yearMonth: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: PatchBudgetMonthBaseSavingsRequestDto) =>
+      patchBudgetMonthBaseSavings(yearMonth, payload),
+    onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
+  });
+}
+
+/**
+ * V2 PR-05 — rename a savings goal from the kebab menu. The BE
+ * short-circuits no-op writes (same name after trim) without an audit
+ * row, but on success we still invalidate the editor surfaces so any
+ * other open card or aggregate that joined to `Name` picks up the
+ * change without a hard reload.
+ */
+export function useRenameBudgetMonthSavingsGoalMutation(yearMonth: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      monthSavingsGoalId,
+      payload,
+    }: {
+      monthSavingsGoalId: string;
+      payload: RenameBudgetMonthSavingsGoalRequestDto;
+    }) =>
+      renameBudgetMonthSavingsGoal(yearMonth, monthSavingsGoalId, payload),
+    onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
+  });
+}
+
+/**
+ * V2 PR-06 — change a savings goal's target amount from the kebab
+ * menu. Same invalidation set as the rename mutation — both progress
+ * percentages (which use the new denominator) and the dashboard
+ * planned-marker need a re-read.
+ */
+export function useChangeBudgetMonthSavingsGoalTargetAmountMutation(
+  yearMonth: string,
+) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      monthSavingsGoalId,
+      payload,
+    }: {
+      monthSavingsGoalId: string;
+      payload: ChangeBudgetMonthSavingsGoalTargetAmountRequestDto;
+    }) =>
+      changeBudgetMonthSavingsGoalTargetAmount(
+        yearMonth,
+        monthSavingsGoalId,
+        payload,
+      ),
+    onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
+  });
+}
+
+/**
+ * V2 PR-09 — one-time goal transfer (Sätt in / Ta ut). The mutation is
+ * non-idempotent (every call writes an audit row + delta); the modal's
+ * Save button must stay disabled while the mutation is in flight. On
+ * success we invalidate the same editor surfaces as a regular goal
+ * patch so the dashboard balance strip and goals list both re-read with
+ * the new `AmountSaved` value.
+ */
+export function useTransferBudgetMonthSavingsGoalMutation(yearMonth: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      monthSavingsGoalId,
+      payload,
+    }: {
+      monthSavingsGoalId: string;
+      payload: TransferBudgetMonthSavingsGoalRequestDto;
+    }) =>
+      transferBudgetMonthSavingsGoal(yearMonth, monthSavingsGoalId, payload),
+    onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
+  });
+}
+
+export function useRemoveSavingsGoalMutation(yearMonth: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (monthSavingsGoalId: string) =>
+      removeBudgetMonthSavingsGoal(yearMonth, monthSavingsGoalId),
     onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
   });
 }

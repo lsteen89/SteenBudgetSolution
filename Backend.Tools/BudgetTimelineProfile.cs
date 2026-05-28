@@ -48,7 +48,8 @@ internal sealed record BudgetTimelineSeedInvariantContext(
     Func<string, Task<int>> CountActiveSavingsGoalsAsync,
     Func<string, Task<int>> CountActiveDebtsAsync,
     Func<Task<int>> CountBudgetMonthsAsync,
-    Func<string, Task<BudgetTimelineSnapshotTotals>> GetComputedTotalsAsync);
+    Func<string, Task<BudgetTimelineSnapshotTotals>> GetComputedTotalsAsync,
+    Func<string, Task<Guid?>> GetSavingsSourceIdAsync);
 
 internal sealed record BudgetTimelineSnapshotTotals(
     decimal TotalIncomeMonthly,

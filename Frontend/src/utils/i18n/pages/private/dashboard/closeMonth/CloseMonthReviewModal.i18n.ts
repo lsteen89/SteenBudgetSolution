@@ -35,6 +35,15 @@ export const closeMonthReviewModalDict = {
     cancel: "Avbryt",
 
     closeMonthSuccessToast: "{month} visas nu efter att månaden stängts.",
+
+    completionCandidatesTitle: "Sparmål som kan bli klara",
+    completionCandidatesHelper:
+      "De här målen ser ut att kunna markeras som uppnådda när månaden stängs.",
+    completionCandidateRowHint: "Kan markeras som uppnått denna månad.",
+    completionCandidateGoalFallback: "Sparmål",
+    completionCandidateProgressLabel: "{percent}% av målet",
+    completionCandidateCheckboxLabel:
+      "Markera {name} som uppnått när månaden stängs",
   },
 
   en: {
@@ -73,6 +82,15 @@ export const closeMonthReviewModalDict = {
     cancel: "Cancel",
 
     closeMonthSuccessToast: "Month closed. You're now viewing {month}.",
+
+    completionCandidatesTitle: "Savings goals that can be marked complete",
+    completionCandidatesHelper:
+      "These goals look ready to mark as reached when the month is closed.",
+    completionCandidateRowHint: "Can be marked as reached this month.",
+    completionCandidateGoalFallback: "Savings goal",
+    completionCandidateProgressLabel: "{percent}% of goal",
+    completionCandidateCheckboxLabel:
+      "Mark {name} as reached when closing the month",
   },
 
   et: {
@@ -111,5 +129,14 @@ export const closeMonthReviewModalDict = {
     cancel: "Tühista",
 
     closeMonthSuccessToast: "Kuu on suletud. Nüüd kuvame kuud {month}.",
+
+    completionCandidatesTitle: "Säästueesmärgid, mida saab lõpetada",
+    completionCandidatesHelper:
+      "Need eesmärgid näivad olevat valmis kuu sulgemisel saavutatuks märkimiseks.",
+    completionCandidateRowHint: "Saab sel kuul saavutatuks märkida.",
+    completionCandidateGoalFallback: "Säästueesmärk",
+    completionCandidateProgressLabel: "{percent}% eesmärgist",
+    completionCandidateCheckboxLabel:
+      "Märgi {name} kuu sulgemisel saavutatuks",
   },
 } as const;

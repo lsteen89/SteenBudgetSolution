@@ -71,6 +71,7 @@ public sealed class PatchBudgetMonthSavingsGoalCommandHandler
             _timeProvider.GetUtcNow().UtcDateTime,
             cmd.MonthlyContribution,
             cmd.Scope,
+            cmd.TargetDate,
             ct);
     }
 }

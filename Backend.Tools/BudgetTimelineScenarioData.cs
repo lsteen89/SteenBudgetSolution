@@ -119,7 +119,15 @@ internal sealed record BudgetTimelineMonthScenario(
     IReadOnlyList<BudgetTimelineSavingsGoalAdjustment> SavingsGoalAdjustments,
     IReadOnlyList<BudgetTimelineDebtAdjustment> DebtAdjustments,
     IReadOnlyList<BudgetTimelineMonthSavingsGoalCreate> CreatedSavingsGoals,
-    IReadOnlyList<BudgetTimelineMonthDebtCreate> CreatedDebts);
+    IReadOnlyList<BudgetTimelineMonthDebtCreate> CreatedDebts)
+{
+    // When true, the seeder NULLs out BudgetMonthSavings.SourceSavingsId for
+    // this month after applying the rest of the scenario. This produces the
+    // "orphan" shape the Bassparande dialog uses to disable plan-scope writes
+    // (FE response carries IsMonthOnly = true). Used by the savings-editor
+    // orphan E2E profile.
+    public bool ClearSavingsSourceLink { get; init; } = false;
+}
 
 internal sealed record BudgetTimelineAmountOverride(string Name, decimal NewAmount);
 

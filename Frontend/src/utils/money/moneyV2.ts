@@ -71,6 +71,19 @@ export function formatMoneyV2(
   return safeFormatter(locale, currency, opts).format(v);
 }
 
+/**
+ * Choose `fractionDigits` so whole-krona values stay clean (no trailing zeros)
+ * while decimal values render their precision. Pass the result into
+ * `formatMoneyV2` to display stored decimals truthfully without hiding cents.
+ */
+export function moneyDecimalsFor(value: number | null | undefined): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 0;
+  // Treat very small floating-point residue (e.g. 1500.0000000001) as whole.
+  const rounded = Math.round(value);
+  if (Math.abs(value - rounded) < 1e-9) return 0;
+  return 2;
+}
+
 export function formatMoneyPartsV2(
   value: number | null | undefined,
   currency: CurrencyCode,

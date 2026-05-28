@@ -64,6 +64,11 @@ export interface SavingsOverviewDto {
     monthlySavings: number;
     totalGoalSavingsMonthly: number;
     totalSavingsMonthly: number;
+    // Mirrors `BudgetMonthSavings.SourceSavingsId IS NULL` for the open month
+    // so the bassparande dialog can disable plan-scope cards on first open
+    // without waiting for the first PATCH response. Always `false` for the
+    // baseline (non-month) dashboard read.
+    isMonthOnly: boolean;
     goals: DashboardSavingsGoalDto[];
 }
 export interface DashboardRecurringExpenseDto {

@@ -1,7 +1,13 @@
 import type { ApiEnvelope } from "@/api/api.types";
 import { api } from "@/api/axios";
 import { unwrapEnvelopeData } from "@/api/envelope";
+import type { BudgetMonthSavingsGoalArchiveRowDto } from "@/types/budget/BudgetMonthSavingsGoalArchiveRowDto";
 import type {
+  SavingsMethodCode,
+  SavingsMethodDto,
+} from "@/types/budget/SavingsMethodDto";
+import type {
+  BudgetMonthBaseSavingsEditorDto,
   BudgetMonthEditorDto,
   BudgetMonthDebtEditorRowDto,
   BudgetMonthIncomeItemEditorRowDto,
@@ -9,6 +15,8 @@ import type {
   BudgetMonthSavingsGoalEditorRowDto,
   CreateBudgetMonthIncomeItemRequestDto,
   CreateBudgetMonthExpenseItemRequestDto,
+  CreateBudgetMonthSavingsGoalRequestDto,
+  PatchBudgetMonthBaseSavingsRequestDto,
   PatchBudgetMonthDebtBulkRowDto,
   PatchBudgetMonthDebtRequestDto,
   PatchBudgetMonthDebtsBulkRequestDto,
@@ -21,6 +29,9 @@ import type {
   PatchBudgetMonthSavingsGoalBulkRowDto,
   PatchBudgetMonthSavingsGoalRequestDto,
   PatchBudgetMonthSavingsGoalsBulkRequestDto,
+  RenameBudgetMonthSavingsGoalRequestDto,
+  ChangeBudgetMonthSavingsGoalTargetAmountRequestDto,
+  TransferBudgetMonthSavingsGoalRequestDto,
 } from "@/types/budget/BudgetMonthsStatusDto";
 
 export async function getBudgetMonthEditor(
@@ -168,6 +179,61 @@ export async function getBudgetMonthSavingsGoals(
   return unwrapEnvelopeData(res, "Could not load month savings goals.");
 }
 
+export async function getBudgetMonthSavingsOldGoals(
+  yearMonth: string,
+): Promise<BudgetMonthSavingsGoalArchiveRowDto[]> {
+  const res = await api.get<
+    ApiEnvelope<BudgetMonthSavingsGoalArchiveRowDto[]>
+  >(`/api/budgets/months/${yearMonth}/savings-goals/old`, {
+    headers: {
+      "Cache-Control": "no-cache",
+    },
+  });
+
+  return unwrapEnvelopeData(
+    res,
+    "Could not load previous month savings goals.",
+  );
+}
+
+export async function getBudgetMonthSavingsMethods(
+  yearMonth: string,
+): Promise<SavingsMethodDto[]> {
+  const res = await api.get<ApiEnvelope<SavingsMethodDto[]>>(
+    `/api/budgets/months/${yearMonth}/savings-methods`,
+    {
+      headers: {
+        "Cache-Control": "no-cache",
+      },
+    },
+  );
+
+  return unwrapEnvelopeData(res, "Could not load month savings methods.");
+}
+
+export async function addBudgetMonthSavingsMethod(
+  yearMonth: string,
+  payload: { code: SavingsMethodCode; customLabel?: string | null },
+): Promise<SavingsMethodDto> {
+  const res = await api.post<ApiEnvelope<SavingsMethodDto>>(
+    `/api/budgets/months/${yearMonth}/savings-methods`,
+    payload,
+  );
+
+  return unwrapEnvelopeData(res, "Could not add savings method.");
+}
+
+export async function removeBudgetMonthSavingsMethod(
+  yearMonth: string,
+  savingsMethodId: string,
+): Promise<void> {
+  const res = await api.delete<ApiEnvelope<unknown>>(
+    `/api/budgets/months/${yearMonth}/savings-methods/${savingsMethodId}`,
+  );
+
+  unwrapEnvelopeData(res, "Could not remove savings method.");
+}
+
 export async function patchBudgetMonthSavingsGoal(
   yearMonth: string,
   monthSavingsGoalId: string,
@@ -181,6 +247,17 @@ export async function patchBudgetMonthSavingsGoal(
   );
 
   return unwrapEnvelopeData(res, "Could not update month savings goal.");
+}
+
+export async function createBudgetMonthSavingsGoal(
+  yearMonth: string,
+  payload: CreateBudgetMonthSavingsGoalRequestDto,
+): Promise<BudgetMonthSavingsGoalEditorRowDto> {
+  const res = await api.post<
+    ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>
+  >(`/api/budgets/months/${yearMonth}/savings-goals`, payload);
+
+  return unwrapEnvelopeData(res, "Could not create month savings goal.");
 }
 
 /**
@@ -199,6 +276,121 @@ export async function patchBudgetMonthSavingsGoalsBulk(
   >(`/api/budgets/months/${yearMonth}/savings-goals`, payload);
 
   return unwrapEnvelopeData(res, "Could not update month savings goals.");
+}
+
+export async function completeBudgetMonthSavingsGoal(
+  yearMonth: string,
+  monthSavingsGoalId: string,
+): Promise<BudgetMonthSavingsGoalEditorRowDto> {
+  const res = await api.post<
+    ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>
+  >(
+    `/api/budgets/months/${yearMonth}/savings-goals/${monthSavingsGoalId}/complete`,
+  );
+
+  return unwrapEnvelopeData(res, "Could not complete savings goal.");
+}
+
+export async function cancelBudgetMonthSavingsGoal(
+  yearMonth: string,
+  monthSavingsGoalId: string,
+): Promise<BudgetMonthSavingsGoalEditorRowDto> {
+  const res = await api.post<
+    ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>
+  >(
+    `/api/budgets/months/${yearMonth}/savings-goals/${monthSavingsGoalId}/cancel`,
+  );
+
+  return unwrapEnvelopeData(res, "Could not cancel savings goal.");
+}
+
+export async function patchBudgetMonthBaseSavings(
+  yearMonth: string,
+  payload: PatchBudgetMonthBaseSavingsRequestDto,
+): Promise<BudgetMonthBaseSavingsEditorDto> {
+  const res = await api.patch<ApiEnvelope<BudgetMonthBaseSavingsEditorDto>>(
+    `/api/budgets/months/${yearMonth}/base-savings`,
+    payload,
+  );
+
+  return unwrapEnvelopeData(res, "Could not update base savings.");
+}
+
+export async function removeBudgetMonthSavingsGoal(
+  yearMonth: string,
+  monthSavingsGoalId: string,
+): Promise<BudgetMonthSavingsGoalEditorRowDto> {
+  const res = await api.post<
+    ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>
+  >(
+    `/api/budgets/months/${yearMonth}/savings-goals/${monthSavingsGoalId}/remove`,
+  );
+
+  return unwrapEnvelopeData(res, "Could not remove savings goal.");
+}
+
+/**
+ * V2 PR-05 — rename a savings goal. The endpoint writes the snapshot
+ * row and (when a baseline exists) the plan-level `SavingsGoal.Name`
+ * inside one transaction; a no-op (same name after trim) returns the
+ * existing row DTO without an audit write.
+ */
+export async function renameBudgetMonthSavingsGoal(
+  yearMonth: string,
+  monthSavingsGoalId: string,
+  payload: RenameBudgetMonthSavingsGoalRequestDto,
+): Promise<BudgetMonthSavingsGoalEditorRowDto> {
+  const res = await api.patch<
+    ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>
+  >(
+    `/api/budgets/months/${yearMonth}/savings-goals/${monthSavingsGoalId}/name`,
+    payload,
+  );
+
+  return unwrapEnvelopeData(res, "Could not rename savings goal.");
+}
+
+/**
+ * V2 PR-06 — change a savings goal's target amount. The BE rejects
+ * writes that would land below the current `amountSaved` with
+ * `BudgetMonthSavingsGoal.TargetBelowSaved`; the FE enforces the same
+ * rule inline so the user is told before the round-trip.
+ */
+export async function changeBudgetMonthSavingsGoalTargetAmount(
+  yearMonth: string,
+  monthSavingsGoalId: string,
+  payload: ChangeBudgetMonthSavingsGoalTargetAmountRequestDto,
+): Promise<BudgetMonthSavingsGoalEditorRowDto> {
+  const res = await api.patch<
+    ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>
+  >(
+    `/api/budgets/months/${yearMonth}/savings-goals/${monthSavingsGoalId}/target-amount`,
+    payload,
+  );
+
+  return unwrapEnvelopeData(res, "Could not change savings goal target amount.");
+}
+
+/**
+ * V2 PR-07 — "Engångsöverföring". Records a one-time deposit or
+ * withdrawal against a savings goal's running balance. The endpoint is
+ * intentionally POST (non-idempotent): every successful call adds a
+ * signed delta and writes an audit row. Callers must debounce Save to
+ * avoid double-submission on a single user gesture.
+ */
+export async function transferBudgetMonthSavingsGoal(
+  yearMonth: string,
+  monthSavingsGoalId: string,
+  payload: TransferBudgetMonthSavingsGoalRequestDto,
+): Promise<BudgetMonthSavingsGoalEditorRowDto> {
+  const res = await api.post<
+    ApiEnvelope<BudgetMonthSavingsGoalEditorRowDto>
+  >(
+    `/api/budgets/months/${yearMonth}/savings-goals/${monthSavingsGoalId}/transfer`,
+    payload,
+  );
+
+  return unwrapEnvelopeData(res, "Could not transfer to savings goal.");
 }
 
 export async function getBudgetMonthDebts(

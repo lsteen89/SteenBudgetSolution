@@ -65,16 +65,6 @@ public sealed partial class BudgetMonthDashboardRepository
             WHERE s.BudgetMonthId = bm.Id
             AND s.IsDeleted = 0
             LIMIT 1
-        ), 0)
-        +
-        COALESCE((
-            SELECT SUM(g.MonthlyContribution)
-            FROM BudgetMonthSavingsGoal g
-            INNER JOIN BudgetMonthSavings s ON s.Id = g.BudgetMonthSavingsId
-            WHERE s.BudgetMonthId = bm.Id
-            AND s.IsDeleted = 0
-            AND g.IsDeleted = 0
-            AND g.Status = 'active'
         ), 0) AS TotalSavingsMonthly,
 
         COALESCE((
@@ -109,9 +99,13 @@ public sealed partial class BudgetMonthDashboardRepository
     GROUP BY c.Id, c.Name
     ORDER BY c.Name;";
 
+    // `IsMonthOnly` mirrors `BudgetMonthSavings.SourceSavingsId IS NULL` — orphan
+    // months reject plan-writing scopes (see PatchBudgetMonthBaseSavingsCommandHandler),
+    // so the dashboard exposes the same signal to the editor's bassparande dialog.
     private const string SavingsSql = @"
     SELECT
         s.MonthlySavings,
+        (s.SourceSavingsId IS NULL) AS IsMonthOnly,
         g.Id,
         g.Name,
         g.TargetAmount,

@@ -22,11 +22,6 @@ namespace Backend.Infrastructure.Repositories.Budget.Core
             INSERT INTO Savings (Id, BudgetId, MonthlySavings, CreatedByUserId)
             VALUES (@Id, @BudgetId, @MonthlySavings, @CreatedByUserId);";
 
-        // SavingsMethod table stores the methods used to save money.
-        const string insertMethodSql = @"
-                INSERT INTO SavingsMethod (Id, SavingsId, Method, CreatedByUserId)
-                VALUES (@Id, @SavingsId, @Method, @CreatedByUserId);";
-
         // SavingsGoal table stores specific savings goals.
         const string insertGoalSql = @"
                 INSERT INTO SavingsGoal (Id, SavingsId, Name, TargetAmount, TargetDate, AmountSaved, MonthlyContribution, CreatedByUserId)
@@ -34,6 +29,10 @@ namespace Backend.Infrastructure.Repositories.Budget.Core
 
         #endregion
 
+        // Wizard finalize path. Plan-level `SavingsMethod` rows are intentionally
+        // NOT written here — those represent storage vehicles
+        // (savings_account/isk/funds/cash/custom) and are owned by the savings
+        // editor, not the wizard's habit-style answers. See SavingsMapping.
         public async Task AddAsync(Savings savings, Guid budgetId, CancellationToken ct)
         {
             if (savings.BudgetId != budgetId)
@@ -53,19 +52,7 @@ namespace Backend.Infrastructure.Repositories.Budget.Core
 
             await ExecuteAsync(insertSavingsSql, savings, ct);
 
-            // --- 2. Prepare and Insert SavingsMethods ---
-            if (savings.SavingMethods?.Count > 0)
-            {
-                foreach (var method in savings.SavingMethods)
-                {
-                    if (method.Id == Guid.Empty) method.Id = Guid.NewGuid();
-                    method.SavingsId = savings.Id;
-                    method.CreatedByUserId = createdByUserId;
-                }
-                await ExecuteAsync(insertMethodSql, savings.SavingMethods, ct);
-            }
-
-            // --- 3. Prepare and Insert SavingsGoals ---
+            // --- Insert SavingsGoals ---
             if (savings.SavingsGoals?.Count > 0)
             {
                 foreach (var goal in savings.SavingsGoals)

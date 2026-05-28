@@ -24,6 +24,8 @@ public sealed class CloseBudgetMonthCommandHandler
     private readonly IBudgetMonthMaterializer _materializer;
     private readonly IBudgetMonthCloseSnapshotService _closeSnapshot;
     private readonly IBudgetAuditWriter _audit;
+    private readonly IBudgetMonthSavingsGoalMutationRepository _savingsGoals;
+    private readonly IBudgetMonthChangeEventRepository _changeEvents;
     private readonly ITimeProvider _clock;
 
     public CloseBudgetMonthCommandHandler(
@@ -33,6 +35,8 @@ public sealed class CloseBudgetMonthCommandHandler
         IBudgetMonthMaterializer materializer,
         IBudgetMonthCloseSnapshotService closeSnapshot,
         IBudgetAuditWriter audit,
+        IBudgetMonthSavingsGoalMutationRepository savingsGoals,
+        IBudgetMonthChangeEventRepository changeEvents,
         ITimeProvider clock)
     {
         _months = months;
@@ -41,6 +45,8 @@ public sealed class CloseBudgetMonthCommandHandler
         _materializer = materializer;
         _closeSnapshot = closeSnapshot;
         _audit = audit;
+        _savingsGoals = savingsGoals;
+        _changeEvents = changeEvents;
         _clock = clock;
     }
 
@@ -101,6 +107,25 @@ public sealed class CloseBudgetMonthCommandHandler
 
         if (closeCurrentMonthResult.IsFailure)
             return Result<CloseBudgetMonthResultDto>.Failure(closeCurrentMonthResult.Error);
+
+        // Apply user-selected savings goal completions BEFORE the next month
+        // is ensured/materialized: the materializer only pulls active
+        // baseline rows, so closing the baseline here keeps a freshly
+        // created next month from inheriting a completed goal.
+        var selectedCompletionIds = cmd.Request.CompletedSavingsGoalIds
+            ?? Array.Empty<Guid>();
+
+        var completionsResult = await CloseMonthSavingsGoalCompletionApplier.ApplyAsync(
+            _savingsGoals,
+            _changeEvents,
+            currentMonth.Id,
+            selectedCompletionIds,
+            cmd.ActorPersoid,
+            nowUtc,
+            ct);
+
+        if (completionsResult.IsFailure)
+            return Result<CloseBudgetMonthResultDto>.Failure(completionsResult.Error);
 
         await WriteLifecycleAsync(
             budgetMonthId: currentMonth.Id,

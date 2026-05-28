@@ -85,9 +85,8 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
 
         var live = dto.LiveDashboard!;
 
-        var habitSavings = live.Savings?.MonthlySavings ?? 0m;
-        var goalSavings = live.Savings?.Goals.Sum(g => g.MonthlyContribution) ?? 0m;
-        var totalSavings = habitSavings + goalSavings;
+        var totalSavings = live.Savings?.TotalSavingsMonthly ?? 0m;
+        live.Savings?.TotalGoalSavingsMonthly.Should().Be(1500m);
 
         live.DisposableAfterExpensesWithCarryMonthly
             .Should().Be((32500m - 12000m) + 1000m);
@@ -343,7 +342,7 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
     }
 
     [Fact]
-    public async Task OpenMonth_IncludesGoalMonthlyContribution_AndAffectsTotals()
+    public async Task OpenMonth_AddsGoalMonthlyContributionToTotalSavings_AndSubtractsItFromDisposable()
     {
         await _db.ResetAsync();
 
@@ -411,18 +410,19 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
 
         var habit = live.Savings.MonthlySavings;
         var goals = live.Savings.Goals.Sum(g => g.MonthlyContribution);
-        var totalSavings = habit + goals;
 
         live.CarryOverAmountMonthly.Should().Be(0m);
+        live.Savings.TotalGoalSavingsMonthly.Should().Be(goals);
+        live.Savings.TotalSavingsMonthly.Should().Be(MoneyRound.Kr(habit + goals));
 
         live.DisposableAfterExpensesAndSavingsWithCarryMonthly
             .Should().Be(
                 live.Income.TotalIncomeMonthly
                 - live.Expenditure.TotalExpensesMonthly
-                - totalSavings
+                - live.Savings.TotalSavingsMonthly
                 + live.CarryOverAmountMonthly);
 
-        totalSavings.Should().Be(MoneyRound.Kr(totalSavings));
+        live.Savings.TotalGoalSavingsMonthly.Should().Be(MoneyRound.Kr(live.Savings.TotalGoalSavingsMonthly));
     }
     [Fact]
     public async Task OpenMonthDashboard_UsesMonthContribution_NotBaselineContribution()
@@ -510,8 +510,9 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
         goal.MonthlyContribution.Should().Be(900m);
         goal.MonthlyContribution.Should().NotBe(500m);
 
-        var totalSavings = live.Savings.MonthlySavings + live.Savings.Goals.Sum(g => g.MonthlyContribution);
-        totalSavings.Should().Be(3400m); // 2500 + 900
+        live.Savings.TotalGoalSavingsMonthly.Should().Be(900m);
+        // 2500 bassparande + 900 month-specific goal contribution
+        live.Savings.TotalSavingsMonthly.Should().Be(3400m);
     }
     [Fact]
     public async Task Handle_WhenOpenMonthInCloseWindow_ReturnsCloseWindowMetadata()
@@ -585,6 +586,151 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
         (await CountMonthsForYearMonthAsync(_db.ConnectionString, budgetId, "2026-05"))
             .Should().Be(0);
         (await CountOpenMonthsAsync(_db.ConnectionString, budgetId)).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task OpenMonth_Savings_IsMonthOnlyTrue_WhenSeedHasNoSourceSavingsId()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var persoid = seed.Persoid;
+        var userId = seed.UserId;
+        var budgetId = seed.BudgetId;
+
+        var budgetMonthId = await InsertOpenMonthRowAsync(
+            _db.ConnectionString,
+            budgetId,
+            "2026-01",
+            new DateTime(2026, 01, 02, 08, 00, 00, DateTimeKind.Utc),
+            userId);
+
+        await InsertBudgetMonthSavingsAsync(
+            _db.ConnectionString,
+            budgetMonthId,
+            sourceSavingsId: null,
+            monthlySavings: 1500m,
+            userId);
+
+        var clock = new FakeTimeProvider(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+
+        await using var sp = BuildServiceProvider(_db.ConnectionString, clock, new DebtPaymentCalculator());
+        await using var scope = sp.CreateAsyncScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+        var result = await mediator.Send(
+            new GetBudgetDashboardMonthQuery(persoid, "2026-01"),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        var live = result.Value!.LiveDashboard!;
+        live.Savings.Should().NotBeNull();
+        live.Savings!.MonthlySavings.Should().Be(1500m);
+        live.Savings.IsMonthOnly.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task OpenMonth_Savings_IsMonthOnlyFalse_WhenSeedReferencesBaselineSavings()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var persoid = seed.Persoid;
+        var userId = seed.UserId;
+        var budgetId = seed.BudgetId;
+
+        var budgetMonthId = await InsertOpenMonthRowAsync(
+            _db.ConnectionString,
+            budgetId,
+            "2026-02",
+            new DateTime(2026, 02, 02, 08, 00, 00, DateTimeKind.Utc),
+            userId);
+
+        var baselineSavingsId = await GetBaselineSavingsIdAsync(_db.ConnectionString, budgetId);
+
+        await InsertBudgetMonthSavingsAsync(
+            _db.ConnectionString,
+            budgetMonthId,
+            sourceSavingsId: baselineSavingsId,
+            monthlySavings: 1500m,
+            userId);
+
+        var clock = new FakeTimeProvider(new DateTime(2026, 02, 07, 08, 00, 00, DateTimeKind.Utc));
+
+        await using var sp = BuildServiceProvider(_db.ConnectionString, clock, new DebtPaymentCalculator());
+        await using var scope = sp.CreateAsyncScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+        var result = await mediator.Send(
+            new GetBudgetDashboardMonthQuery(persoid, "2026-02"),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        var live = result.Value!.LiveDashboard!;
+        live.Savings.Should().NotBeNull();
+        live.Savings!.MonthlySavings.Should().Be(1500m);
+        live.Savings.IsMonthOnly.Should().BeFalse();
+    }
+
+    private static async Task<Guid> InsertOpenMonthRowAsync(
+        string cs,
+        Guid budgetId,
+        string yearMonth,
+        DateTime openedAtUtc,
+        Guid createdByUserId)
+    {
+        await using var conn = new MySqlConnection(cs);
+        await conn.OpenAsync();
+
+        var id = Guid.NewGuid();
+        await conn.ExecuteAsync("""
+            INSERT INTO BudgetMonth
+            (Id, BudgetId, YearMonth, Status, OpenedAt, ClosedAt, CarryOverMode, CarryOverAmount, CreatedAt, CreatedByUserId)
+            VALUES
+            (@Id, @BudgetId, @YearMonth, 'open', @OpenedAt, NULL, 'none', NULL, UTC_TIMESTAMP(), @UserId);
+        """, new
+        {
+            Id = id,
+            BudgetId = budgetId,
+            YearMonth = yearMonth,
+            OpenedAt = openedAtUtc,
+            UserId = createdByUserId
+        });
+        return id;
+    }
+
+    private static async Task<Guid> GetBaselineSavingsIdAsync(string cs, Guid budgetId)
+    {
+        await using var conn = new MySqlConnection(cs);
+        await conn.OpenAsync();
+
+        return await conn.ExecuteScalarAsync<Guid>(
+            "SELECT Id FROM Savings WHERE BudgetId = @BudgetId LIMIT 1;",
+            new { BudgetId = budgetId });
+    }
+
+    private static async Task InsertBudgetMonthSavingsAsync(
+        string cs,
+        Guid budgetMonthId,
+        Guid? sourceSavingsId,
+        decimal monthlySavings,
+        Guid createdByUserId)
+    {
+        await using var conn = new MySqlConnection(cs);
+        await conn.OpenAsync();
+
+        await conn.ExecuteAsync("""
+            INSERT INTO BudgetMonthSavings
+            (Id, BudgetMonthId, SourceSavingsId, MonthlySavings, IsOverride, IsDeleted, CreatedAt, CreatedByUserId)
+            VALUES
+            (UUID_TO_BIN(UUID()), @BudgetMonthId, @SourceSavingsId, @MonthlySavings, 0, 0, UTC_TIMESTAMP(), @UserId);
+        """, new
+        {
+            BudgetMonthId = budgetMonthId,
+            SourceSavingsId = sourceSavingsId,
+            MonthlySavings = monthlySavings,
+            UserId = createdByUserId
+        });
     }
 
     // ---- helpers ----

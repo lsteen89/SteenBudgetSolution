@@ -201,6 +201,7 @@ public sealed class WizardPreviewReadModelBuilder : IWizardPreviewReadModelBuild
 
         return new DashboardSavingsRm(
             MonthlySavings: savings.MonthlySavings,
+            IsMonthOnly: false,
             Goals: goals
         );
     }

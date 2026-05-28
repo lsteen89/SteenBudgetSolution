@@ -4,6 +4,7 @@ import {
 } from "@/api/Services/Budget/budgetService";
 import { budgetDashboardMonthQueryKey } from "@/hooks/budget/useBudgetDashboardMonthQuery";
 import { budgetMonthsStatusQueryKey } from "@/hooks/budget/useBudgetMonthsStatusQuery";
+import { savingsGoalCompletionCandidatesQueryKey } from "@/hooks/budget/useSavingsGoalCompletionCandidatesQuery";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 type CloseBudgetMonthMutationInput = {
@@ -17,13 +18,16 @@ export function useCloseBudgetMonthMutation() {
   return useMutation({
     mutationFn: ({ yearMonth, request }: CloseBudgetMonthMutationInput) =>
       closeBudgetMonth(yearMonth, request),
-    onSuccess: async () => {
+    onSuccess: async (_data, { yearMonth }) => {
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: budgetMonthsStatusQueryKey(),
         }),
         queryClient.invalidateQueries({
           queryKey: budgetDashboardMonthQueryKey(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: savingsGoalCompletionCandidatesQueryKey(yearMonth),
         }),
       ]);
     },

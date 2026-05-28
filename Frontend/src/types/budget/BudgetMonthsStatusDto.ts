@@ -139,6 +139,8 @@ export type BudgetMonthSavingsGoalEditorRowDto = {
   amountSaved: number | null;
   monthlyContribution: number;
   status: string;
+  closedReason?: string | null;
+  closedAt?: string | null;
   isDeleted: boolean;
   isMonthOnly: boolean;
   canUpdateDefault: boolean;
@@ -146,6 +148,8 @@ export type BudgetMonthSavingsGoalEditorRowDto = {
 
 export type PatchBudgetMonthSavingsGoalRequestDto = {
   monthlyContribution: number;
+  /** ISO yyyy-MM-dd. Omit/null means "leave the goal target date unchanged". */
+  targetDate?: string | null;
   scope?: SavingsGoalEditScope | null;
 };
 
@@ -157,6 +161,74 @@ export type PatchBudgetMonthSavingsGoalBulkRowDto = {
 
 export type PatchBudgetMonthSavingsGoalsBulkRequestDto = {
   items: PatchBudgetMonthSavingsGoalBulkRowDto[];
+};
+
+/**
+ * Direction of a one-time goal transfer. V2 keeps the wire format
+ * positive and lets the direction carry the sign — mirrors the backend
+ * `SavingsGoalTransferDirections` constants (lowercase ASCII).
+ */
+export type SavingsGoalTransferDirection = "deposit" | "withdraw";
+
+/**
+ * V2 PR-07 — body for
+ * `POST /api/budgets/months/{ym}/savings-goals/{id}/transfer`.
+ *
+ * `amount` is always positive; `direction` carries the sign. `note` is
+ * optional, ≤ 200 chars; the modal feeds the chosen counter-account into
+ * it as a structured prefix so the audit row tells the whole story
+ * without joining back to anything else.
+ */
+export type TransferBudgetMonthSavingsGoalRequestDto = {
+  amount: number;
+  direction: SavingsGoalTransferDirection;
+  note?: string | null;
+};
+
+/**
+ * V2 PR-05 — body for
+ * `PATCH /api/budgets/months/{ym}/savings-goals/{id}/name`.
+ *
+ * Name is plan-level: the BE writes both the snapshot row and the
+ * baseline `SavingsGoal.Name` in one transaction when a baseline
+ * exists. No scope strip — there is no meaningful "snapshot vs plan"
+ * semantics for a name. The handler trims; the FE trims defensively
+ * before submit so the dirty-check matches the BE no-op short-circuit.
+ */
+export type RenameBudgetMonthSavingsGoalRequestDto = {
+  name: string;
+};
+
+/**
+ * V2 PR-06 — body for
+ * `PATCH /api/budgets/months/{ym}/savings-goals/{id}/target-amount`.
+ *
+ * Same shape rules as the rename body: plan-level field, no scope
+ * strip, both rows written in one transaction. The BE rejects writes
+ * that would land below the goal's current `amountSaved` with
+ * `BudgetMonthSavingsGoal.TargetBelowSaved`; the FE also enforces
+ * this inline so the user is told before the round-trip.
+ */
+export type ChangeBudgetMonthSavingsGoalTargetAmountRequestDto = {
+  targetAmount: number;
+};
+
+export type CreateBudgetMonthSavingsGoalRequestDto = {
+  name: string;
+  targetAmount: number;
+  targetDate: string;
+  amountSaved: number | null;
+  monthlyContribution: number;
+};
+
+export type PatchBudgetMonthBaseSavingsRequestDto = {
+  amountMonthly: number;
+  scope?: ExpenseEditScope;
+};
+
+export type BudgetMonthBaseSavingsEditorDto = {
+  monthlyAmount: number;
+  isMonthOnly: boolean;
 };
 
 export type DebtEditScope = ExpenseEditScope;

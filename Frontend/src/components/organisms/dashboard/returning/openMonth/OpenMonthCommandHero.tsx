@@ -9,7 +9,7 @@ import { appRoutes } from "@/routes/appRoutes";
 import { openMonthCommandCenterDict } from "@/utils/i18n/pages/private/dashboard/openMonth/OpenMonthCommandCenter.i18n";
 import { tDict } from "@/utils/i18n/translate";
 import type { CurrencyCode } from "@/utils/money/currency";
-import { formatMoneyV2 } from "@/utils/money/moneyV2";
+import { formatMoneyV2, moneyDecimalsFor } from "@/utils/money/moneyV2";
 
 type Props = {
   periodLabel: string;
@@ -30,7 +30,14 @@ const OpenMonthCommandHero: React.FC<Props> = ({
 
   const isNegative = finalBalance < 0;
   const isNeutral = finalBalance === 0;
-  const moneyLabel = formatMoneyV2(Math.abs(finalBalance), currency, locale);
+  // Match the savings module's `moneyDecimalsFor` policy so the hero
+  // amount renders byte-identical to the savings page's Kvar value
+  // (whole-krona → no trailing zeros; real cents → 2 decimals). Keeps the
+  // dashboard ↔ savings parity smoke spec honest at the character level.
+  const moneyAmount = Math.abs(finalBalance);
+  const moneyLabel = formatMoneyV2(moneyAmount, currency, locale, {
+    fractionDigits: moneyDecimalsFor(moneyAmount),
+  });
   const title = isNegative
     ? t("heroTitleNegative")
     : isNeutral
@@ -75,6 +82,7 @@ const OpenMonthCommandHero: React.FC<Props> = ({
               {t("remainingLabel")}
             </p>
             <p
+              data-testid="dashboard-pengalage-amount"
               className={cn(
                 "mt-1 text-3xl font-extrabold tracking-tight tabular-nums sm:text-4xl",
                 isNegative ? "text-red-500" : "text-eb-text",

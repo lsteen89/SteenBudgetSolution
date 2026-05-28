@@ -1,0 +1,1781 @@
+<!doctype html>
+<html lang="sv">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>eBudget - Sparande</title>
+    <link rel="icon" href="../../favicon.svg" type="image/svg+xml" />
+    <style>
+      :root {
+        --eb-shell: 224 240 255;
+        --eb-shell-2: 77 185 254;
+        --eb-shell-3: 21 39 81;
+        --eb-surface: 255 255 255;
+        --eb-surface-accent: 224 240 255;
+        --eb-stroke: 199 228 255;
+        --eb-stroke-strong: 145 179 220;
+        --eb-text: 21 39 81;
+        --eb-muted: 21 39 81;
+        --eb-danger: 185 28 28;
+        --eb-accent: 34 197 94;
+        --eb-accent-soft: 220 252 231;
+        --eb-shadow: 15 23 42;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        min-height: 100%;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        overflow-x: hidden;
+        background:
+          radial-gradient(circle at 50% 0, rgb(var(--eb-shell) / 0.52), transparent 28rem),
+          radial-gradient(circle at 12% 0, rgb(var(--eb-shell) / 0.32), transparent 22rem),
+          radial-gradient(circle at 88% 0, rgb(var(--eb-shell) / 0.32), transparent 24rem),
+          linear-gradient(135deg, #e0f0ff 0%, #4db9fe 100%);
+        color: rgb(var(--eb-text));
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+      }
+
+      button,
+      input {
+        font: inherit;
+      }
+
+      button {
+        cursor: pointer;
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+      }
+
+      .app-frame {
+        min-height: 100vh;
+      }
+
+      .app-header {
+        position: sticky;
+        top: 0;
+        z-index: 40;
+        border-bottom: 1px solid rgb(255 255 255 / 0.48);
+        background: rgb(255 255 255 / 0.48);
+        box-shadow: 0 12px 32px rgb(var(--eb-shadow) / 0.08);
+        backdrop-filter: blur(18px);
+      }
+
+      .header-inner {
+        width: min(1152px, calc(100% - 32px));
+        height: 72px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .brand {
+        justify-self: start;
+        border-radius: 16px;
+        padding: 4px 8px;
+        color: rgb(var(--eb-text));
+        font-size: 18px;
+        font-weight: 900;
+        letter-spacing: 0;
+        text-decoration: none;
+      }
+
+      .brand span {
+        color: rgb(var(--eb-accent));
+      }
+
+      .pill-nav {
+        justify-self: center;
+        display: flex;
+        gap: 4px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.54);
+        border-radius: 999px;
+        background: rgb(var(--eb-surface) / 0.68);
+        padding: 4px;
+      }
+
+      .pill-nav a {
+        border-radius: 999px;
+        padding: 8px 12px;
+        color: rgb(var(--eb-text) / 0.7);
+        font-size: 14px;
+        font-weight: 700;
+        text-decoration: none;
+      }
+
+      .pill-nav a.active {
+        background: rgb(var(--eb-surface));
+        color: rgb(var(--eb-text));
+        box-shadow: 0 1px 4px rgb(var(--eb-shadow) / 0.08);
+      }
+
+      .account-button {
+        justify-self: end;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 38px;
+        height: 38px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.7);
+        border-radius: 999px;
+        background: rgb(var(--eb-surface) / 0.82);
+        color: rgb(var(--eb-text));
+        font-weight: 900;
+      }
+
+      .authed-main {
+        padding-top: 24px;
+      }
+
+      .page-container {
+        position: relative;
+        width: 100%;
+        min-height: 100dvh;
+        color: rgb(var(--eb-text));
+      }
+
+      .decor {
+        pointer-events: none;
+        position: absolute;
+        inset: 0 0 auto;
+        height: 224px;
+        overflow: hidden;
+      }
+
+      .decor span {
+        position: absolute;
+        top: -96px;
+        border-radius: 999px;
+        filter: blur(40px);
+      }
+
+      .decor .one {
+        left: 50%;
+        width: 288px;
+        height: 288px;
+        transform: translateX(-50%);
+        background: rgb(var(--eb-shell) / 0.4);
+      }
+
+      .decor .two {
+        left: 10%;
+        width: 224px;
+        height: 224px;
+        background: rgb(var(--eb-shell) / 0.26);
+      }
+
+      .decor .three {
+        right: 10%;
+        width: 256px;
+        height: 256px;
+        background: rgb(var(--eb-shell) / 0.26);
+      }
+
+      .content {
+        position: relative;
+        width: min(1152px, 100%);
+        margin: 0 auto;
+        padding: 24px 16px 48px;
+      }
+
+      .stack {
+        display: grid;
+        gap: 20px;
+      }
+
+      .hero {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid rgb(var(--eb-stroke) / 0.2);
+        border-radius: 32px;
+        background: rgb(var(--eb-surface) / 0.85);
+        padding: 24px 20px;
+        box-shadow: 0 10px 30px rgb(var(--eb-shadow) / 0.05);
+        backdrop-filter: blur(12px);
+      }
+
+      .hero-bg {
+        pointer-events: none;
+        position: absolute;
+        inset: 0;
+      }
+
+      .hero-bg::before,
+      .hero-bg::after {
+        content: "";
+        position: absolute;
+        border-radius: 999px;
+        filter: blur(48px);
+      }
+
+      .hero-bg::before {
+        top: -80px;
+        left: 10%;
+        width: 176px;
+        height: 176px;
+        background: rgb(var(--eb-shell) / 0.28);
+      }
+
+      .hero-bg::after {
+        top: -96px;
+        right: 18%;
+        width: 208px;
+        height: 208px;
+        background: rgb(var(--eb-accent) / 0.1);
+      }
+
+      .hero-mascot {
+        pointer-events: none;
+        position: absolute;
+        top: -12px;
+        right: 12px;
+        display: none;
+        width: 120px;
+        height: 120px;
+      }
+
+      .hero-mascot::before {
+        content: "";
+        position: absolute;
+        inset: -14px;
+        background: radial-gradient(
+          60% 60% at 50% 40%,
+          rgb(var(--eb-accent) / 0.18) 0%,
+          transparent 72%
+        );
+        filter: blur(12px);
+      }
+
+      .hero-mascot img {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+
+      .hero-content {
+        position: relative;
+        z-index: 1;
+        max-width: 36rem;
+      }
+
+      .eyebrow {
+        margin: 0;
+        color: rgb(var(--eb-text) / 0.5);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+      }
+
+      .hero h1 {
+        margin: 8px 0 0;
+        color: rgb(var(--eb-text));
+        font-size: 28px;
+        font-weight: 900;
+        line-height: 1.15;
+        letter-spacing: 0;
+      }
+
+      .hero h1 .accent {
+        color: rgb(var(--eb-accent));
+      }
+
+      .hero-summary {
+        margin: 8px 0 0;
+        color: rgb(var(--eb-text) / 0.6);
+        font-size: 14px;
+        line-height: 1.45;
+      }
+
+      .insight-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 16px;
+        border: 1px solid rgb(var(--eb-accent) / 0.25);
+        border-radius: 999px;
+        background: rgb(var(--eb-accent-soft));
+        padding: 6px 12px;
+        color: #14532d;
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .sparkle {
+        width: 16px;
+        height: 16px;
+      }
+
+      .methods-strip {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 12px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.4);
+        border-radius: 16px;
+        background: rgb(var(--eb-surface) / 0.8);
+        padding: 12px 16px;
+        box-shadow: 0 1px 2px rgb(var(--eb-shadow) / 0.04);
+      }
+
+      .methods-label,
+      .section-label {
+        flex: none;
+        color: rgb(var(--eb-text) / 0.5);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      .methods-divider {
+        display: none;
+        width: 1px;
+        height: 18px;
+        background: rgb(var(--eb-stroke) / 0.55);
+      }
+
+      .method-list {
+        display: flex;
+        min-width: 0;
+        flex: 1;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .method-chip {
+        display: inline-flex;
+        align-items: center;
+        height: 28px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.45);
+        border-radius: 999px;
+        background: rgb(var(--eb-shell) / 0.4);
+        padding: 0 11px;
+        color: rgb(var(--eb-text) / 0.8);
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .small-pill-button {
+        display: inline-flex;
+        flex: none;
+        align-items: center;
+        gap: 6px;
+        height: 30px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.55);
+        border-radius: 999px;
+        background: rgb(var(--eb-surface) / 0.85);
+        padding: 0 12px;
+        color: rgb(var(--eb-text) / 0.75);
+        font-size: 12.5px;
+        font-weight: 700;
+        transition:
+          background 150ms ease,
+          color 150ms ease;
+      }
+
+      .small-pill-button:hover {
+        background: rgb(var(--eb-surface));
+        color: rgb(var(--eb-text));
+      }
+
+      .balance-strip {
+        border: 1px solid rgb(var(--eb-stroke) / 0.3);
+        border-radius: 28px;
+        background: rgb(var(--eb-surface) / 0.85);
+        padding: 14px 16px;
+        box-shadow: 0 1px 2px rgb(var(--eb-shadow) / 0.04);
+      }
+
+      .balance-top {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 4px 12px;
+      }
+
+      .balance-headline {
+        margin-top: 2px;
+        color: rgb(var(--eb-text));
+        font-size: 20px;
+        font-weight: 850;
+        letter-spacing: 0;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .balance-chip,
+      .status {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 4px 10px;
+        font-size: 12px;
+        font-weight: 850;
+      }
+
+      .balance-chip {
+        background: rgb(var(--eb-shell) / 0.45);
+        color: rgb(var(--eb-text) / 0.7);
+      }
+
+      .balance-message {
+        margin: 6px 0 0;
+        color: rgb(var(--eb-text) / 0.65);
+        font-size: 13px;
+      }
+
+      .balance-breakdown {
+        display: grid;
+        gap: 6px 16px;
+        margin: 12px 0 0;
+      }
+
+      .balance-breakdown div {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .balance-breakdown dt {
+        color: rgb(var(--eb-text) / 0.45);
+        font-size: 11px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
+      .balance-breakdown dd {
+        margin: 0;
+        color: rgb(var(--eb-text) / 0.8);
+        font-size: 14px;
+        font-weight: 750;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .balance-breakdown .highlight dd {
+        color: rgb(var(--eb-text));
+      }
+
+      .goal-stack {
+        display: grid;
+        gap: 12px;
+      }
+
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px 16px;
+        padding: 0 4px;
+        color: rgb(var(--eb-text) / 0.55);
+        font-size: 12px;
+      }
+
+      .legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .legend-actual {
+        display: inline-block;
+        width: 24px;
+        height: 8px;
+        border-radius: 999px;
+        background: linear-gradient(
+          to right,
+          rgb(var(--eb-accent-soft)),
+          rgb(var(--eb-accent))
+        );
+      }
+
+      .legend-planned {
+        display: inline-block;
+        width: 3px;
+        height: 12px;
+        border-radius: 2px;
+        background: rgb(var(--eb-text) / 0.55);
+      }
+
+      .goal-card {
+        position: relative;
+        display: grid;
+        gap: 16px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.4);
+        border-radius: 28px;
+        background: rgb(var(--eb-surface));
+        padding: 16px;
+        box-shadow: 0 1px 2px rgb(var(--eb-shadow) / 0.04);
+        transition:
+          transform 150ms ease,
+          box-shadow 150ms ease;
+      }
+
+      .goal-card:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 10px 24px rgb(var(--eb-shadow) / 0.06);
+      }
+
+      .mascot-box {
+        position: relative;
+        display: none;
+        overflow: hidden;
+        flex-shrink: 0;
+        width: 88px;
+        height: 88px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.4);
+        border-radius: 20px;
+        background: rgb(var(--eb-shell) / 0.45);
+      }
+
+      .mascot-box img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        padding: 6px;
+      }
+
+      .goal-main {
+        min-width: 0;
+      }
+
+      .goal-top {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 4px 12px;
+      }
+
+      .goal-name {
+        margin: 0;
+        overflow: hidden;
+        color: rgb(var(--eb-text));
+        font-size: 16px;
+        font-weight: 850;
+        letter-spacing: 0;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .goal-subtitle {
+        margin: 2px 0 0;
+        color: rgb(var(--eb-text) / 0.55);
+        font-size: 13px;
+      }
+
+      .month-only {
+        display: inline-flex;
+        margin-left: 8px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.4);
+        border-radius: 999px;
+        background: rgb(255 255 255 / 0.5);
+        padding: 2px 8px;
+        color: rgb(var(--eb-text) / 0.55);
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .goal-total {
+        color: rgb(var(--eb-text));
+        font-size: 15px;
+        font-weight: 850;
+        text-align: right;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .goal-total span {
+        margin-left: 4px;
+        color: rgb(var(--eb-text) / 0.45);
+        font-size: 13px;
+      }
+
+      .progress {
+        position: relative;
+        height: 12px;
+        margin-top: 10px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: rgb(var(--eb-stroke) / 0.55);
+      }
+
+      .progress-fill {
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: var(--actual);
+        border-radius: inherit;
+        background: linear-gradient(
+          to right,
+          rgb(var(--eb-accent-soft)),
+          rgb(var(--eb-accent))
+        );
+      }
+
+      .planned-marker {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: var(--planned);
+        width: 2px;
+        border-radius: 2px;
+        background: rgb(var(--eb-text) / 0.55);
+      }
+
+      .actual-marker {
+        position: absolute;
+        top: -2px;
+        bottom: -2px;
+        left: var(--actual);
+        width: 2px;
+        border-radius: 2px;
+        background: rgb(var(--eb-accent));
+        box-shadow: 0 0 0 2px rgb(var(--eb-surface));
+      }
+
+      .goal-footer {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px 12px;
+        margin-top: 12px;
+      }
+
+      .status.on-track,
+      .status.ongoing {
+        background: rgb(var(--eb-shell) / 0.45);
+        color: rgb(var(--eb-text) / 0.7);
+      }
+
+      .status.ahead {
+        background: #dcfce7;
+        color: #166534;
+      }
+
+      .status.behind {
+        background: #fee2e2;
+        color: #991b1b;
+      }
+
+      .pace {
+        color: rgb(var(--eb-text) / 0.6);
+        font-size: 13px;
+      }
+
+      .monthly-box {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .monthly-label {
+        display: block;
+        color: rgb(var(--eb-text) / 0.45);
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .monthly-value {
+        display: block;
+        color: rgb(var(--eb-text));
+        font-size: 20px;
+        font-weight: 850;
+        letter-spacing: 0;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .adjust-button,
+      .secondary-button,
+      .primary-button {
+        border-radius: 999px;
+        font-weight: 750;
+        transition:
+          filter 150ms ease,
+          background 150ms ease,
+          color 150ms ease;
+      }
+
+      .adjust-button {
+        height: 32px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.6);
+        background: rgb(var(--eb-surface));
+        padding: 0 14px;
+        color: rgb(var(--eb-text) / 0.75);
+        font-size: 12px;
+      }
+
+      .adjust-button:hover {
+        background: white;
+      }
+
+      .add-goal {
+        width: 100%;
+        border: 1.5px dashed rgb(var(--eb-stroke) / 0.7);
+        border-radius: 28px;
+        background: transparent;
+        padding: 14px 20px;
+        color: rgb(var(--eb-text) / 0.7);
+        font-size: 14px;
+        font-weight: 750;
+        text-align: left;
+      }
+
+      .add-goal:hover {
+        border-color: rgb(var(--eb-accent) / 0.7);
+        background: rgb(var(--eb-accent) / 0.05);
+        color: rgb(var(--eb-text));
+      }
+
+      .draft-card {
+        display: none;
+        border: 1px solid rgb(var(--eb-stroke) / 0.4);
+        border-radius: 28px;
+        background: rgb(var(--eb-surface));
+        padding: 20px 16px;
+        box-shadow: 0 1px 2px rgb(var(--eb-shadow) / 0.04);
+      }
+
+      .draft-card.open {
+        display: block;
+      }
+
+      .draft-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 4px 12px;
+      }
+
+      .draft-head h3 {
+        margin: 0;
+        color: rgb(var(--eb-text));
+        font-size: 16px;
+        font-weight: 850;
+      }
+
+      .draft-head p {
+        margin: 0;
+        color: rgb(var(--eb-text) / 0.55);
+        font-size: 12px;
+      }
+
+      .draft-grid {
+        display: grid;
+        gap: 16px;
+        margin-top: 16px;
+      }
+
+      .field-stack {
+        display: grid;
+        gap: 16px;
+      }
+
+      .field {
+        display: grid;
+        gap: 6px;
+      }
+
+      .field label {
+        color: rgb(var(--eb-text) / 0.58);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .field input {
+        width: 100%;
+        height: 44px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.55);
+        border-radius: 16px;
+        background: rgb(var(--eb-surface));
+        padding: 0 14px;
+        color: rgb(var(--eb-text));
+        font-size: 15px;
+        font-weight: 650;
+        outline: none;
+      }
+
+      .field input:focus {
+        border-color: rgb(var(--eb-accent) / 0.7);
+        box-shadow: 0 0 0 4px rgb(var(--eb-accent) / 0.16);
+      }
+
+      .hint {
+        color: rgb(var(--eb-text) / 0.5);
+        font-size: 12px;
+      }
+
+      .monthly-estimate {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        height: 44px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.3);
+        border-radius: 16px;
+        background: rgb(var(--eb-surface) / 0.85);
+        padding: 0 16px;
+        color: rgb(var(--eb-text) / 0.4);
+        font-size: 18px;
+        font-weight: 850;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .draft-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 20px;
+      }
+
+      .secondary-button {
+        height: 40px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.6);
+        background: rgb(var(--eb-surface));
+        padding: 0 16px;
+        color: rgb(var(--eb-text) / 0.75);
+        font-size: 13px;
+      }
+
+      .primary-button {
+        height: 40px;
+        border: 0;
+        background: rgb(var(--eb-accent));
+        padding: 0 20px;
+        color: white;
+        font-size: 13px;
+        box-shadow: 0 8px 20px rgb(21 39 81 / 0.12);
+      }
+
+      .primary-button:hover {
+        filter: brightness(1.05);
+      }
+
+      .old-goals {
+        border: 1px solid rgb(var(--eb-stroke) / 0.3);
+        border-radius: 28px;
+        background: rgb(var(--eb-surface) / 0.7);
+      }
+
+      .old-toggle {
+        display: flex;
+        width: 100%;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border: 0;
+        border-radius: 28px;
+        background: transparent;
+        padding: 14px 20px;
+        color: rgb(var(--eb-text) / 0.8);
+        text-align: left;
+      }
+
+      .old-toggle:hover {
+        background: rgb(255 255 255 / 0.5);
+      }
+
+      .old-title {
+        font-size: 14px;
+        font-weight: 750;
+      }
+
+      .old-count {
+        color: rgb(var(--eb-text) / 0.55);
+        font-size: 12px;
+        font-weight: 750;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .chevron {
+        width: 16px;
+        height: 16px;
+        transition: transform 150ms ease;
+      }
+
+      .old-goals.open .chevron {
+        transform: rotate(180deg);
+      }
+
+      .old-list {
+        display: none;
+        gap: 8px;
+        margin: 0;
+        padding: 4px 12px 12px;
+        list-style: none;
+      }
+
+      .old-goals.open .old-list {
+        display: grid;
+      }
+
+      .old-row {
+        display: grid;
+        gap: 8px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.25);
+        border-radius: 16px;
+        background: rgb(255 255 255 / 0.6);
+        padding: 12px 16px;
+      }
+
+      .old-row-main {
+        min-width: 0;
+      }
+
+      .old-row-title {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 2px 8px;
+      }
+
+      .old-name {
+        overflow: hidden;
+        color: rgb(var(--eb-text));
+        font-size: 14px;
+        font-weight: 750;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .old-status {
+        display: inline-flex;
+        flex-shrink: 0;
+        align-items: center;
+        border-radius: 999px;
+        padding: 2px 8px;
+        font-size: 11px;
+        font-weight: 750;
+      }
+
+      .old-status.completed {
+        background: #dcfce7;
+        color: #166534;
+      }
+
+      .old-status.cancelled {
+        background: rgb(var(--eb-shell) / 0.45);
+        color: rgb(var(--eb-text) / 0.7);
+      }
+
+      .old-closed {
+        margin: 2px 0 0;
+        color: rgb(var(--eb-text) / 0.55);
+        font-size: 12px;
+      }
+
+      .old-money {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 2px 12px;
+        color: rgb(var(--eb-text) / 0.55);
+        font-size: 12px;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .old-money strong {
+        color: rgb(var(--eb-text) / 0.75);
+      }
+
+      .modal {
+        position: fixed;
+        inset: 0;
+        z-index: 95;
+        display: none;
+      }
+
+      .modal.open {
+        display: block;
+      }
+
+      .modal-backdrop {
+        position: absolute;
+        inset: 0;
+        border: 0;
+        background: radial-gradient(
+          circle at top,
+          rgb(21 39 81 / 0.18),
+          rgb(21 39 81 / 0.52)
+        );
+      }
+
+      .modal-scroll {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        overflow-y: auto;
+        padding: 16px;
+      }
+
+      .dialog {
+        position: relative;
+        width: min(460px, 100%);
+        overflow: hidden;
+        border: 1px solid rgb(var(--eb-stroke) / 0.4);
+        border-radius: 24px;
+        background: rgb(var(--eb-surface));
+        box-shadow:
+          0 24px 60px rgb(var(--eb-shadow) / 0.22),
+          0 2px 10px rgb(var(--eb-shadow) / 0.08);
+      }
+
+      .dialog-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 16px 20px 12px;
+      }
+
+      .dialog-head h2 {
+        margin: 0;
+        color: rgb(var(--eb-text));
+        font-size: 16px;
+        font-weight: 850;
+        letter-spacing: 0;
+      }
+
+      .dialog-head p {
+        margin: 4px 0 0;
+        color: rgb(var(--eb-text) / 0.6);
+        font-size: 12.5px;
+        line-height: 1.35;
+      }
+
+      .close-button {
+        display: inline-flex;
+        flex: none;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.5);
+        border-radius: 999px;
+        background: transparent;
+        color: rgb(var(--eb-text) / 0.6);
+      }
+
+      .dialog-section {
+        padding: 0 20px 12px;
+      }
+
+      .dialog-heading {
+        margin: 0 0 6px;
+        color: rgb(var(--eb-text) / 0.5);
+        font-size: 11px;
+        font-weight: 850;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .method-input-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 40px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.55);
+        border-radius: 12px;
+        background: rgb(var(--eb-surface));
+        padding: 0 12px;
+        box-shadow: inset 0 1px 2px rgb(var(--eb-shadow) / 0.03);
+      }
+
+      .method-input-row input {
+        min-width: 0;
+        flex: 1;
+        border: 0;
+        background: transparent;
+        color: rgb(var(--eb-text));
+        font-size: 13.5px;
+        outline: 0;
+      }
+
+      .method-input-row input::placeholder {
+        color: rgb(var(--eb-text) / 0.4);
+      }
+
+      .add-custom {
+        display: inline-flex;
+        align-items: center;
+        height: 30px;
+        border: 0;
+        border-radius: 999px;
+        background: rgb(var(--eb-text) / 0.08);
+        padding: 0 12px;
+        color: rgb(var(--eb-text) / 0.45);
+        font-size: 12.5px;
+        font-weight: 750;
+      }
+
+      .suggestions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 6px;
+      }
+
+      .suggestion {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 30px;
+        border: 1px dashed rgb(var(--eb-stroke) / 0.7);
+        border-radius: 999px;
+        background: rgb(var(--eb-surface));
+        padding: 0 12px;
+        color: rgb(var(--eb-text) / 0.75);
+        font-size: 12.5px;
+        font-weight: 750;
+      }
+
+      .dialog-divider {
+        height: 1px;
+        background: rgb(var(--eb-stroke) / 0.4);
+      }
+
+      .current-methods {
+        display: grid;
+        gap: 8px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .current-methods li {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.45);
+        border-radius: 12px;
+        background: rgb(var(--eb-surface));
+        padding: 10px 12px;
+      }
+
+      .current-methods span {
+        min-width: 0;
+        flex: 1;
+        color: rgb(var(--eb-text));
+        font-size: 13.5px;
+        font-weight: 750;
+      }
+
+      .remove-method {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        height: 28px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.55);
+        border-radius: 999px;
+        background: transparent;
+        padding: 0 10px;
+        color: rgb(var(--eb-text) / 0.6);
+        font-size: 12px;
+        font-weight: 750;
+      }
+
+      .dialog-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        border-top: 1px solid rgb(var(--eb-stroke) / 0.4);
+        background: rgb(var(--eb-shell) / 0.15);
+        padding: 12px 20px;
+      }
+
+      .dialog-footer span {
+        color: rgb(var(--eb-text) / 0.55);
+        font-size: 11.5px;
+      }
+
+      @media (min-width: 640px) {
+        .content {
+          padding: 32px 24px 48px;
+        }
+
+        .hero {
+          padding: 32px;
+        }
+
+        .hero h1 {
+          font-size: 32px;
+        }
+
+        .hero-content {
+          padding-right: 140px;
+        }
+
+        .hero-mascot {
+          display: block;
+        }
+
+        .methods-strip {
+          flex-wrap: nowrap;
+          padding-left: 20px;
+          padding-right: 20px;
+        }
+
+        .methods-divider {
+          display: block;
+        }
+
+        .balance-strip {
+          padding: 16px 20px;
+        }
+
+        .balance-breakdown {
+          grid-template-columns: repeat(5, minmax(0, 1fr));
+          margin-top: 12px;
+        }
+
+        .goal-card {
+          grid-template-columns: 88px minmax(0, 1fr) auto;
+          align-items: center;
+          padding: 20px;
+        }
+
+        .mascot-box {
+          display: block;
+        }
+
+        .monthly-box {
+          flex-direction: column;
+          align-items: flex-end;
+          justify-content: center;
+          gap: 6px;
+        }
+
+        .monthly-box > div {
+          text-align: right;
+        }
+
+        .monthly-value {
+          font-size: 22px;
+        }
+
+        .draft-card {
+          padding: 24px;
+        }
+
+        .draft-grid {
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+        }
+
+        .old-list {
+          padding-left: 16px;
+          padding-right: 16px;
+          padding-bottom: 16px;
+        }
+
+        .old-row {
+          grid-template-columns: minmax(0, 1fr) auto;
+          align-items: center;
+        }
+
+        .modal-scroll {
+          align-items: center;
+        }
+      }
+
+      @media (max-width: 900px) {
+        .header-inner {
+          grid-template-columns: 1fr auto;
+          height: auto;
+          min-height: 64px;
+          padding: 10px 0;
+        }
+
+        .pill-nav {
+          grid-column: 1 / -1;
+          justify-self: stretch;
+          overflow-x: auto;
+        }
+
+        .account-button {
+          grid-column: 2;
+          grid-row: 1;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+          transition: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-frame">
+      <header class="app-header">
+        <div class="header-inner">
+          <a class="brand" href="/dashboard" aria-label="Till dashboard">
+            e<span>B</span>udget
+          </a>
+          <nav class="pill-nav" aria-label="Appnavigation">
+            <a class="active" href="/dashboard">Dashboard</a>
+            <a href="/dashboard/breakdown">Fördelning</a>
+            <a href="/dashboard/how-it-works">Så funkar det</a>
+            <a href="/dashboard/support">Support</a>
+          </nav>
+          <button class="account-button" type="button" aria-label="Meny">L</button>
+        </div>
+      </header>
+
+      <main class="authed-main">
+        <section class="page-container">
+          <div class="decor" aria-hidden="true">
+            <span class="one"></span>
+            <span class="two"></span>
+            <span class="three"></span>
+          </div>
+
+          <section class="content">
+            <div class="stack">
+              <section class="hero" aria-labelledby="savings-title">
+                <div class="hero-bg" aria-hidden="true"></div>
+                <div class="hero-mascot" aria-hidden="true">
+                  <img src="assets/GoalBird.png" alt="" />
+                </div>
+                <div class="hero-content">
+                  <p class="eyebrow">Sparande - maj 2026</p>
+                  <h1 id="savings-title">
+                    Du sparar <span class="accent">8 750 kr</span> varje månad
+                  </h1>
+                  <p class="hero-summary">
+                    4 sparmål på gång - 146 420 kr sparat hittills - Buffert nås
+                    om cirka 4 mån
+                  </p>
+                  <span class="insight-pill">
+                    <svg class="sparkle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M9.8 15.9 9 18.8l-.8-2.9a4.5 4.5 0 0 0-3.1-3.1L2.3 12l2.8-.8a4.5 4.5 0 0 0 3.1-3.1L9 5.3l.8 2.8a4.5 4.5 0 0 0 3.1 3.1l2.8.8-2.8.8a4.5 4.5 0 0 0-3.1 3.1Z" />
+                    </svg>
+                    3 sparmål ligger före plan - fint jobbat.
+                  </span>
+                </div>
+              </section>
+
+              <section class="methods-strip" aria-label="Sparformer">
+                <span class="methods-label">Sparformer</span>
+                <span class="methods-divider" aria-hidden="true"></span>
+                <ul class="method-list">
+                  <li class="method-chip">Sparkonto</li>
+                  <li class="method-chip">ISK</li>
+                  <li class="method-chip">Fonder</li>
+                  <li class="method-chip">Kontanter</li>
+                  <li class="method-chip">Avanza buffert</li>
+                </ul>
+                <button class="small-pill-button" type="button" data-open-methods>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M4 20h4l10-10-4-4L4 16v4z" />
+                    <path d="M14 6l4 4" />
+                  </svg>
+                  Ändra
+                </button>
+              </section>
+
+              <section class="balance-strip" aria-label="Månadens utrymme">
+                <div class="balance-top">
+                  <div>
+                    <span class="section-label">Månadens utrymme</span>
+                    <div class="balance-headline">12 930 kr kvar</div>
+                  </div>
+                  <span class="balance-chip">I balans</span>
+                </div>
+                <p class="balance-message">
+                  Planen lämnar 12 930 kr kvar efter sparande, utgifter och skulder.
+                </p>
+                <dl class="balance-breakdown">
+                  <div>
+                    <dt>Inkomst + överföring</dt>
+                    <dd>54 300 kr</dd>
+                  </div>
+                  <div>
+                    <dt>Utgifter</dt>
+                    <dd>-25 120 kr</dd>
+                  </div>
+                  <div>
+                    <dt>Sparande</dt>
+                    <dd>-8 750 kr</dd>
+                  </div>
+                  <div>
+                    <dt>Skulder</dt>
+                    <dd>-7 500 kr</dd>
+                  </div>
+                  <div class="highlight">
+                    <dt>Kvar</dt>
+                    <dd>12 930 kr</dd>
+                  </div>
+                </dl>
+              </section>
+
+              <section class="goal-stack" aria-label="Sparmål">
+                <div class="legend">
+                  <span><i class="legend-actual"></i>Sparat hittills</span>
+                  <span><i class="legend-planned"></i>Planerad nivå</span>
+                  <span>Markeringen visar var målet bör ligga enligt planen.</span>
+                </div>
+
+                <article class="goal-card">
+                  <div class="mascot-box" aria-hidden="true">
+                    <img src="assets/GoalBird.png" alt="" />
+                  </div>
+                  <div class="goal-main">
+                    <div class="goal-top">
+                      <div>
+                        <h3 class="goal-name">Buffert</h3>
+                        <p class="goal-subtitle">Mål - sep. 2026</p>
+                      </div>
+                      <div class="goal-total">84 000 kr <span>/ 100 000 kr</span></div>
+                    </div>
+                    <div class="progress" style="--actual: 84%; --planned: 76%">
+                      <span class="progress-fill"></span>
+                      <span class="planned-marker" aria-hidden="true"></span>
+                      <span class="actual-marker" aria-hidden="true"></span>
+                    </div>
+                    <div class="goal-footer">
+                      <span class="status ahead">Ligger före plan</span>
+                      <span class="pace">Når målet om 4 mån - ungefär 1 mån tidigare än planen.</span>
+                    </div>
+                  </div>
+                  <div class="monthly-box">
+                    <div>
+                      <span class="monthly-label">Per månad</span>
+                      <span class="monthly-value">4 000 kr</span>
+                    </div>
+                    <button class="adjust-button" type="button">Justera</button>
+                  </div>
+                </article>
+
+                <article class="goal-card">
+                  <div class="mascot-box" aria-hidden="true">
+                    <img src="assets/SavingsBird.png" alt="" />
+                  </div>
+                  <div class="goal-main">
+                    <div class="goal-top">
+                      <div>
+                        <h3 class="goal-name">Sommarresa</h3>
+                        <p class="goal-subtitle">Mål - juli 2026</p>
+                      </div>
+                      <div class="goal-total">19 600 kr <span>/ 35 000 kr</span></div>
+                    </div>
+                    <div class="progress" style="--actual: 56%; --planned: 66%">
+                      <span class="progress-fill"></span>
+                      <span class="planned-marker" aria-hidden="true"></span>
+                      <span class="actual-marker" aria-hidden="true"></span>
+                    </div>
+                    <div class="goal-footer">
+                      <span class="status behind">Cirka 1 mån efter plan</span>
+                      <span class="pace">I nuvarande takt landar det om 7 mån - cirka 1 mån efter plan.</span>
+                    </div>
+                  </div>
+                  <div class="monthly-box">
+                    <div>
+                      <span class="monthly-label">Per månad</span>
+                      <span class="monthly-value">2 250 kr</span>
+                    </div>
+                    <button class="adjust-button" type="button">Justera</button>
+                  </div>
+                </article>
+
+                <article class="goal-card">
+                  <div class="mascot-box" aria-hidden="true">
+                    <img src="assets/CalcBird.png" alt="" />
+                  </div>
+                  <div class="goal-main">
+                    <div class="goal-top">
+                      <div>
+                        <h3 class="goal-name">Bilservice</h3>
+                        <p class="goal-subtitle">Mål - okt. 2026 <span class="month-only">Bara denna månad</span></p>
+                      </div>
+                      <div class="goal-total">17 820 kr <span>/ 22 000 kr</span></div>
+                    </div>
+                    <div class="progress" style="--actual: 81%; --planned: 70%">
+                      <span class="progress-fill"></span>
+                      <span class="planned-marker" aria-hidden="true"></span>
+                      <span class="actual-marker" aria-hidden="true"></span>
+                    </div>
+                    <div class="goal-footer">
+                      <span class="status ahead">Ligger före plan</span>
+                      <span class="pace">Når målet om 5 mån - ungefär 2 mån tidigare än planen.</span>
+                    </div>
+                  </div>
+                  <div class="monthly-box">
+                    <div>
+                      <span class="monthly-label">Per månad</span>
+                      <span class="monthly-value">1 000 kr</span>
+                    </div>
+                    <button class="adjust-button" type="button">Justera</button>
+                  </div>
+                </article>
+
+                <article class="goal-card">
+                  <div class="mascot-box" aria-hidden="true">
+                    <img src="assets/RichBird.png" alt="" />
+                  </div>
+                  <div class="goal-main">
+                    <div class="goal-top">
+                      <div>
+                        <h3 class="goal-name">Hemprojekt</h3>
+                        <p class="goal-subtitle">Mål - jan. 2027</p>
+                      </div>
+                      <div class="goal-total">25 000 kr <span>/ 46 500 kr</span></div>
+                    </div>
+                    <div class="progress" style="--actual: 54%; --planned: 54%">
+                      <span class="progress-fill"></span>
+                      <span class="planned-marker" aria-hidden="true"></span>
+                      <span class="actual-marker" aria-hidden="true"></span>
+                    </div>
+                    <div class="goal-footer">
+                      <span class="status on-track">Enligt plan</span>
+                      <span class="pace">I takt med att nå målet om 8 mån.</span>
+                    </div>
+                  </div>
+                  <div class="monthly-box">
+                    <div>
+                      <span class="monthly-label">Per månad</span>
+                      <span class="monthly-value">1 500 kr</span>
+                    </div>
+                    <button class="adjust-button" type="button">Justera</button>
+                  </div>
+                </article>
+
+                <button class="add-goal" type="button" data-open-draft>
+                  + Lägg till ett nytt sparmål
+                </button>
+
+                <form class="draft-card" data-draft-card>
+                  <div class="draft-head">
+                    <h3>Nytt sparmål</h3>
+                    <p>Läggs till i aktuell månad och planen framåt.</p>
+                  </div>
+                  <div class="draft-grid">
+                    <div class="field-stack">
+                      <div class="field">
+                        <label for="savings-draft-name">Vad sparar du till?</label>
+                        <input id="savings-draft-name" type="text" placeholder="T.ex. Resa till Island" maxlength="255" />
+                      </div>
+                      <div class="field">
+                        <label for="savings-draft-monthly">Per månad</label>
+                        <div id="savings-draft-monthly" class="monthly-estimate" aria-live="polite">-</div>
+                        <div class="hint">Anges efter att målbelopp och datum är ifyllda.</div>
+                      </div>
+                    </div>
+                    <div class="field-stack">
+                      <div class="field">
+                        <label for="savings-draft-target-amount">Målbelopp</label>
+                        <input id="savings-draft-target-amount" inputmode="decimal" placeholder="0" />
+                      </div>
+                      <div class="field">
+                        <label for="savings-draft-amount-saved">Redan sparat</label>
+                        <input id="savings-draft-amount-saved" inputmode="decimal" placeholder="0" />
+                        <div class="hint">Lämna tomt om du börjar från noll.</div>
+                      </div>
+                      <div class="field">
+                        <label for="savings-draft-target-date">Måldatum</label>
+                        <input id="savings-draft-target-date" type="date" />
+                      </div>
+                    </div>
+                  </div>
+                  <div class="draft-actions">
+                    <button class="secondary-button" type="button" data-close-draft>Avbryt</button>
+                    <button class="primary-button" type="submit">Spara mål</button>
+                  </div>
+                </form>
+              </section>
+
+              <section class="old-goals" data-old-goals>
+                <button class="old-toggle" type="button" aria-expanded="false" data-old-toggle>
+                  <span>
+                    <span class="old-title">Tidigare mål</span>
+                    <span class="old-count">(2)</span>
+                  </span>
+                  <svg class="chevron" aria-hidden="true" viewBox="0 0 20 20">
+                    <path d="M5 7.5l5 5 5-5" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                  </svg>
+                </button>
+                <ul class="old-list">
+                  <li class="old-row">
+                    <div class="old-row-main">
+                      <div class="old-row-title">
+                        <span class="old-name">Vinterjacka</span>
+                        <span class="old-status completed">Uppnått</span>
+                      </div>
+                      <p class="old-closed">Uppnått mars 2026</p>
+                    </div>
+                    <div class="old-money">
+                      <span>Mål <strong>4 500 kr</strong></span>
+                      <span>Sparat <strong>4 500 kr</strong></span>
+                    </div>
+                  </li>
+                  <li class="old-row">
+                    <div class="old-row-main">
+                      <div class="old-row-title">
+                        <span class="old-name">Extra weekendresa</span>
+                        <span class="old-status cancelled">Avslutat</span>
+                      </div>
+                      <p class="old-closed">Avslutat feb. 2026</p>
+                    </div>
+                    <div class="old-money">
+                      <span>Mål <strong>8 000 kr</strong></span>
+                      <span>Sparat <strong>2 600 kr</strong></span>
+                    </div>
+                  </li>
+                </ul>
+              </section>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <div class="modal" data-methods-modal>
+      <button class="modal-backdrop" type="button" aria-label="Stäng" data-close-methods></button>
+      <div class="modal-scroll">
+        <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="methods-title" aria-describedby="methods-helper">
+          <div class="dialog-head">
+            <div>
+              <h2 id="methods-title">Hantera sparformer</h2>
+              <p id="methods-helper">Sparformer gäller hela sparplanen, inte enskilda mål.</p>
+            </div>
+            <button class="close-button" type="button" aria-label="Stäng" data-close-methods>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M6 6l12 12M18 6L6 18" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="dialog-section">
+            <p class="dialog-heading">Lägg till</p>
+            <div class="method-input-row">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              <input type="text" placeholder="t.ex. Buffertkonto" maxlength="120" />
+              <button class="add-custom" type="button">Lägg till</button>
+            </div>
+            <p class="dialog-heading" style="margin-top: 12px">Vanliga sparformer</p>
+            <div class="suggestions">
+              <button class="suggestion" type="button">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                Sparkonto
+              </button>
+              <button class="suggestion" type="button">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                ISK
+              </button>
+              <button class="suggestion" type="button">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                Fonder
+              </button>
+            </div>
+          </div>
+
+          <div class="dialog-divider"></div>
+
+          <div class="dialog-section" style="padding-top: 14px">
+            <p class="dialog-heading">Aktuella sparformer</p>
+            <ul class="current-methods">
+              <li>
+                <span>Sparkonto</span>
+                <button class="remove-method" type="button">x Ta bort</button>
+              </li>
+              <li>
+                <span>ISK</span>
+                <button class="remove-method" type="button">x Ta bort</button>
+              </li>
+              <li>
+                <span>Avanza buffert</span>
+                <button class="remove-method" type="button">x Ta bort</button>
+              </li>
+            </ul>
+          </div>
+
+          <div class="dialog-footer">
+            <span>Ändringarna sparas automatiskt</span>
+            <button class="secondary-button" type="button" data-close-methods>Klar</button>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <script>
+      const draftCard = document.querySelector("[data-draft-card]");
+      const openDraft = document.querySelector("[data-open-draft]");
+      const closeDraft = document.querySelector("[data-close-draft]");
+      const oldGoals = document.querySelector("[data-old-goals]");
+      const oldToggle = document.querySelector("[data-old-toggle]");
+      const methodsModal = document.querySelector("[data-methods-modal]");
+      const openMethods = document.querySelector("[data-open-methods]");
+      const closeMethods = document.querySelectorAll("[data-close-methods]");
+
+      openDraft.addEventListener("click", () => {
+        draftCard.classList.add("open");
+        openDraft.style.display = "none";
+        document.getElementById("savings-draft-name").focus();
+      });
+
+      closeDraft.addEventListener("click", () => {
+        draftCard.classList.remove("open");
+        openDraft.style.display = "";
+      });
+
+      oldToggle.addEventListener("click", () => {
+        const isOpen = oldGoals.classList.toggle("open");
+        oldToggle.setAttribute("aria-expanded", String(isOpen));
+      });
+
+      openMethods.addEventListener("click", () => {
+        methodsModal.classList.add("open");
+      });
+
+      closeMethods.forEach((button) => {
+        button.addEventListener("click", () => {
+          methodsModal.classList.remove("open");
+        });
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          methodsModal.classList.remove("open");
+        }
+      });
+    </script>
+  </body>
+</html>

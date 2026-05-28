@@ -11,6 +11,11 @@ const text = {
   foodCategory: /food|mat|toit/i,
   carryOver: /carried into|följde med till|kanti üle kuusse/i,
   carryOverLabel: /carry-over|överför|üle/i,
+  // Under the goals-included contract (supersede commit 2026-05-24,
+  // see docs/ai/ai-changelog.md) the 65 000 goal contribution at 2026-03
+  // subtracts from the snapshot final balance again, so the closed-month
+  // final balance and the carry-over outcome are both 393 750 (not
+  // 503 750 under the prior fff019ac base-only contract).
   largeFinalBalance: /393[\s\u00a0.,]*750/,
 };
 

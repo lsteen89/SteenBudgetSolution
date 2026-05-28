@@ -144,7 +144,9 @@ internal sealed class BudgetTimelineSeeder
                 CountBudgetMonthsAsync: () =>
                     CountBudgetMonthsAsync(persoid, ct),
                 GetComputedTotalsAsync: ym =>
-                    GetComputedTotalsAsync(persoid, ym, ct));
+                    GetComputedTotalsAsync(persoid, ym, ct),
+                GetSavingsSourceIdAsync: ym =>
+                    GetSavingsSourceIdAsync(persoid, ym, ct));
 
             await resolvedProfile.PostCloseInvariantsAsync(invariantContext);
         }
@@ -250,7 +252,9 @@ internal sealed class BudgetTimelineSeeder
                 CountBudgetMonthsAsync: () =>
                     CountBudgetMonthsAsync(persoid, ct),
                 GetComputedTotalsAsync: ym =>
-                    GetComputedTotalsAsync(persoid, ym, ct));
+                    GetComputedTotalsAsync(persoid, ym, ct),
+                GetSavingsSourceIdAsync: ym =>
+                    GetSavingsSourceIdAsync(persoid, ym, ct));
 
             await profile.PostCloseInvariantsAsync(invariantContext);
         }
@@ -569,6 +573,24 @@ internal sealed class BudgetTimelineSeeder
                 },
                 ct);
         }
+
+        foreach (var method in savings.Methods)
+        {
+            await ExecuteAsync(
+                @"INSERT INTO SavingsMethod
+                  (Id, SavingsId, MethodCode, CustomLabel, CreatedByUserId)
+                  VALUES
+                  (@Id, @SavingsId, @MethodCode, @CustomLabel, @Persoid);",
+                new Dictionary<string, object?>
+                {
+                    ["Id"] = Guid.NewGuid(),
+                    ["SavingsId"] = savingsId,
+                    ["MethodCode"] = method.Code,
+                    ["CustomLabel"] = method.CustomLabel,
+                    ["Persoid"] = persoid
+                },
+                ct);
+        }
     }
 
     private async Task EnsureBaselineDebtsAsync(
@@ -833,6 +855,32 @@ internal sealed class BudgetTimelineSeeder
                 NextChangedAtUtc(),
                 ct);
         }
+
+        if (scenario.ClearSavingsSourceLink)
+        {
+            await ClearSavingsSourceLinkAsync(budgetMonthId, ct);
+        }
+    }
+
+    private async Task ClearSavingsSourceLinkAsync(
+        Guid budgetMonthId,
+        CancellationToken ct)
+    {
+        // Drop the FK from BudgetMonthSavings -> Savings so the materialized
+        // row looks "orphaned" to the FE. The base-savings PATCH endpoint
+        // rejects plan-scoped writes for this shape (BaseSavings.PlanMissing),
+        // and the FE dialog disables the plan-scope cards. Goals / debts /
+        // expenses are untouched.
+        await ExecuteAsync(
+            @"UPDATE BudgetMonthSavings
+              SET SourceSavingsId = NULL
+              WHERE BudgetMonthId = @BudgetMonthId
+                AND IsDeleted = 0;",
+            new Dictionary<string, object?>
+            {
+                ["BudgetMonthId"] = budgetMonthId
+            },
+            ct);
     }
 
     private async Task AdjustMonthFinalBalanceAsync(
@@ -2231,6 +2279,43 @@ internal sealed class BudgetTimelineSeeder
             TotalSavingsMonthly: snapshot.TotalSavings,
             TotalDebtPaymentsMonthly: snapshot.TotalDebtPayments,
             FinalBalanceMonthly: snapshot.FinalBalance);
+    }
+
+    private async Task<Guid?> GetSavingsSourceIdAsync(
+        Guid persoid,
+        string yearMonth,
+        CancellationToken ct)
+    {
+        // Returns BudgetMonthSavings.SourceSavingsId for the active row in the
+        // given month, or null when the row exists but is orphaned (orphan
+        // shape — IsMonthOnly = true on the dashboard DTO). Throws when the
+        // month or savings row is missing so a broken seed fails fast.
+        var conn = await _uow.GetOpenConnectionAsync(ct);
+
+        await using var cmd = conn.CreateCommand();
+        cmd.Transaction = _uow.Transaction;
+        cmd.CommandText = @"
+            SELECT bms.SourceSavingsId
+            FROM BudgetMonthSavings bms
+            JOIN BudgetMonth m ON m.Id = bms.BudgetMonthId
+            JOIN Budget b ON b.Id = m.BudgetId
+            WHERE b.Persoid = @Persoid
+              AND m.YearMonth = @YearMonth
+              AND bms.IsDeleted = 0
+            ORDER BY bms.CreatedAt ASC
+            LIMIT 1;";
+
+        AddParameter(cmd, "Persoid", persoid);
+        AddParameter(cmd, "YearMonth", yearMonth);
+
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        if (!await reader.ReadAsync(ct))
+        {
+            throw new InvalidOperationException(
+                $"Could not find BudgetMonthSavings row for month '{yearMonth}'.");
+        }
+
+        return reader.IsDBNull(0) ? null : reader.GetGuid(0);
     }
 
     private async Task<string?> GetPreviousComparableYearMonthAsync(

@@ -50,6 +50,19 @@ public sealed record BudgetMonthDebtRm(
     long? TermMonths,
     decimal MonthlyPayment);
 
+// Goal that was finished off as part of closing a month. Sourced from the
+// month's BudgetMonthSavingsGoal rows where Status='closed' AND
+// ClosedReason='completed'. Used by the closed-month recap to surface
+// "these goals reached the finish line" without exposing baseline state.
+public sealed record BudgetMonthCompletedSavingsGoalRm(
+    Guid Id,
+    Guid? SourceSavingsGoalId,
+    string? Name,
+    decimal? TargetAmount,
+    decimal? AmountSaved,
+    decimal MonthlyContribution,
+    DateTime ClosedAt);
+
 // Outcome of a carry-over decision recorded against a closed source month.
 // Sourced from the BudgetMonthLifecycleEvent (event type "carry-over-applied")
 // where RelatedBudgetMonthId points back to the closed source month.

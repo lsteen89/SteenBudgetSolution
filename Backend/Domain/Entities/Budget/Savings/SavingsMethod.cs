@@ -1,14 +1,20 @@
-﻿namespace Backend.Domain.Entities.Budget.Savings
+namespace Backend.Domain.Entities.Budget.Savings
 {
+    // Plan-level savings method (a storage vehicle: savings account, ISK, etc.).
+    // `Code` is a stable system code from `SavingsMethodCodes`. `CustomLabel`
+    // is only populated when `Code == "custom"`; for system codes it must be
+    // null. Enforced at the DB layer via CK_SavingsMethod_CustomLabel.
     public class SavingsMethod
     {
         public Guid Id { get; set; }
-        public string Method { get; set; } = string.Empty;
-        public Guid SavingsId { get; set; } // Foreign key
-        public DateTime CreatedAt { get; set; } // The date and time when the SavingsMethod was created
-        public DateTime? UpdatedAt { get; set; } // The date and time when the SavingsMethod was last updated
+        public Guid SavingsId { get; set; }
+        public string Code { get; set; } = string.Empty;
+        public string? CustomLabel { get; set; }
 
-        public Guid CreatedByUserId { get; set; } // The ID of the user who created the SavingsMethod
-        public Guid? UpdatedByUserId { get; set; } // The ID of the user who last updated the SavingsMethod
+        public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+
+        public Guid CreatedByUserId { get; set; }
+        public Guid? UpdatedByUserId { get; set; }
     }
 }

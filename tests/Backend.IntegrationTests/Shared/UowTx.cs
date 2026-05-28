@@ -15,7 +15,7 @@ internal static class UowTx
         }
         catch
         {
-            // If you have RollbackAsync, call it here. If not, letting the tx dispose is still better than committing.
+            await uow.RollbackAsync(ct);
             throw;
         }
     }

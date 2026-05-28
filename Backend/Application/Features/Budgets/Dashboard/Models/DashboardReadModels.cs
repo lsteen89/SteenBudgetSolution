@@ -55,6 +55,7 @@ public sealed record DashboardSavingsGoalRm(
 
 public sealed record DashboardSavingsRm(
     decimal MonthlySavings,
+    bool IsMonthOnly,
     IReadOnlyList<DashboardSavingsGoalRm> Goals
 );
 

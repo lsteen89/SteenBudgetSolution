@@ -7,6 +7,7 @@ import type {
 } from "@/types/budget/BudgetMonthsStatusDto";
 import type { ExpenseCategoryDto } from "@/types/budget/ExpenseCategoryDto";
 import type { BudgetMonthRecapDto } from "@/types/budget/BudgetMonthRecapDto";
+import type { SavingsGoalCompletionCandidateDto } from "@/types/budget/SavingsGoalCompletionCandidateDto";
 import type { BudgetDashboardMonthDto } from "@myTypes/budget/BudgetDashboardMonthDto";
 
 export async function fetchBudgetMonthsStatus(): Promise<BudgetMonthsStatusDto> {
@@ -40,6 +41,7 @@ export type CloseBudgetMonthCarryOverMode = "none" | "full";
 
 export type CloseBudgetMonthRequestDto = {
   carryOverMode: CloseBudgetMonthCarryOverMode;
+  completedSavingsGoalIds?: string[];
 };
 
 export type CloseBudgetMonthClosedMonthDto = {
@@ -92,6 +94,19 @@ export async function fetchBudgetMonthRecap(
   );
 
   return unwrapEnvelopeData(res, "Could not load budget month recap.");
+}
+
+export async function fetchSavingsGoalCompletionCandidates(
+  yearMonth: string,
+): Promise<SavingsGoalCompletionCandidateDto[]> {
+  const res = await api.get<ApiEnvelope<SavingsGoalCompletionCandidateDto[]>>(
+    `/api/budgets/months/${encodeURIComponent(yearMonth)}/close/savings-goal-completion-candidates`,
+  );
+
+  return unwrapEnvelopeData(
+    res,
+    "Could not load savings goal completion candidates.",
+  );
 }
 
 export async function fetchExpenseCategories(): Promise<ExpenseCategoryDto[]> {

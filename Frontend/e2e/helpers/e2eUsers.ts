@@ -57,6 +57,14 @@ export const e2eUsers = {
     email: "e2e-recap-comparison-skip@local.test",
     password: e2ePassword,
   },
+  savingsEditor: {
+    email: "e2e-savings-editor@local.test",
+    password: e2ePassword,
+  },
+  savingsOrphan: {
+    email: "e2e-savings-orphan@local.test",
+    password: e2ePassword,
+  },
 } as const;
 
 export const e2eOpenYearMonth = "2026-04";

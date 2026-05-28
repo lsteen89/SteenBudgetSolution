@@ -1,5 +1,6 @@
 using Backend.Application.DTO.Budget.Months;
 using Backend.Application.Features.Budgets.Months.CloseBudgetMonth;
+using Backend.Application.Features.Budgets.Months.CloseBudgetMonth.GetSavingsGoalCompletionCandidates;
 using Backend.Application.Features.Budgets.Months.GetBudgetMonthsStatus;
 using Backend.Application.Features.Budgets.Months.StartBudgetMonth;
 using Backend.Presentation.Shared;
@@ -55,6 +56,34 @@ public sealed partial class BudgetController
         }
 
         return Ok(ApiEnvelope<BudgetMonthsStatusDto>.Success(result.Value));
+    }
+
+    // Returns the savings goals the user can choose to mark as completed
+    // when closing the given month. Read-only — invoking this never mutates
+    // anything. Empty list is a valid response and means "nothing to offer".
+    [HttpGet("months/{yearMonth}/close/savings-goal-completion-candidates")]
+    [ProducesResponseType(
+        typeof(ApiEnvelope<IReadOnlyList<SavingsGoalCompletionCandidateDto>>),
+        StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiEnvelope<IReadOnlyList<SavingsGoalCompletionCandidateDto>>>>
+        GetCloseSavingsGoalCompletionCandidates(
+            [FromRoute] string yearMonth,
+            CancellationToken ct)
+    {
+        var result = await _mediator.Send(
+            new GetSavingsGoalCompletionCandidatesQuery(
+                Persoid: _currentUser.Persoid,
+                YearMonth: yearMonth),
+            ct);
+
+        if (result.IsFailure)
+        {
+            return Ok(ApiEnvelope<IReadOnlyList<SavingsGoalCompletionCandidateDto>>.Failure(
+                code: result.Error!.Code,
+                message: result.Error.Message));
+        }
+
+        return Ok(ApiEnvelope<IReadOnlyList<SavingsGoalCompletionCandidateDto>>.Success(result.Value!));
     }
 
     [HttpPost("months/{yearMonth}/close")]

@@ -22,6 +22,7 @@ import type {
   CloseMonthReviewState,
   CloseMonthSummary,
 } from "@/hooks/dashboard/closeMonth.types";
+import type { SavingsGoalCompletionCandidateDto } from "@/types/budget/SavingsGoalCompletionCandidateDto";
 
 type CloseMonthReviewModalProps = {
   open: boolean;
@@ -33,12 +34,17 @@ type CloseMonthReviewModalProps = {
   summary: CloseMonthSummary;
   selectedCarryOverMode: CloseMonthCarryOverMode;
   isSubmitting?: boolean;
+  completionCandidates?: SavingsGoalCompletionCandidateDto[];
+  selectedCompletionGoalIds?: Set<string>;
+  onToggleCompletionGoal?: (goalId: string) => void;
   onClose: () => void;
   onConfirm: () => Promise<void> | void;
   onSelectCarryOverMode: (mode: CloseMonthCarryOverMode) => void;
 };
 
 const NEAR_ZERO = 0.005;
+
+const EMPTY_SELECTION: ReadonlySet<string> = new Set();
 
 function formatSigned(
   value: number,
@@ -70,6 +76,9 @@ export default function CloseMonthReviewModal({
   summary,
   selectedCarryOverMode,
   isSubmitting = false,
+  completionCandidates,
+  selectedCompletionGoalIds,
+  onToggleCompletionGoal,
   onClose,
   onConfirm,
   onSelectCarryOverMode,
@@ -168,6 +177,18 @@ export default function CloseMonthReviewModal({
               <p className="text-xs leading-5 text-eb-text/55">
                 {t("adjustHint")}
               </p>
+
+              {completionCandidates && completionCandidates.length > 0 ? (
+                <CompletionCandidatesSection
+                  candidates={completionCandidates}
+                  selectedIds={selectedCompletionGoalIds ?? EMPTY_SELECTION}
+                  onToggle={onToggleCompletionGoal}
+                  isSubmitting={isSubmitting}
+                  currency={currency}
+                  locale={locale}
+                  t={t}
+                />
+              ) : null}
 
               <Disclosure
                 isOpen={isDisclosureOpen}
@@ -443,6 +464,160 @@ function SummaryRow({
         {value}
       </dd>
     </div>
+  );
+}
+
+type CompletionCandidatesSectionProps = {
+  candidates: SavingsGoalCompletionCandidateDto[];
+  selectedIds: ReadonlySet<string>;
+  onToggle?: (goalId: string) => void;
+  isSubmitting: boolean;
+  currency: CurrencyCode;
+  locale: string;
+  t: <K extends keyof typeof closeMonthReviewModalDict.sv>(key: K) => string;
+};
+
+function CompletionCandidatesSection({
+  candidates,
+  selectedIds,
+  onToggle,
+  isSubmitting,
+  currency,
+  locale,
+  t,
+}: CompletionCandidatesSectionProps) {
+  const sectionLabelId = useId();
+
+  return (
+    <section
+      data-testid="close-month-completion-candidates"
+      aria-labelledby={sectionLabelId}
+      className="rounded-2xl border border-eb-stroke/15 bg-white/85 px-4 py-3 sm:px-5"
+    >
+      <header className="space-y-0.5">
+        <h3
+          id={sectionLabelId}
+          className="text-sm font-semibold tracking-tight text-eb-text"
+        >
+          {t("completionCandidatesTitle")}
+        </h3>
+        <p className="text-xs leading-5 text-eb-text/55">
+          {t("completionCandidatesHelper")}
+        </p>
+      </header>
+      <ul className="mt-3 space-y-2">
+        {candidates.map((candidate) => (
+          <CompletionCandidateRow
+            key={candidate.id}
+            candidate={candidate}
+            isChecked={selectedIds.has(candidate.id)}
+            onToggle={onToggle}
+            isSubmitting={isSubmitting}
+            currency={currency}
+            locale={locale}
+            t={t}
+          />
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+type CompletionCandidateRowProps = {
+  candidate: SavingsGoalCompletionCandidateDto;
+  isChecked: boolean;
+  onToggle?: (goalId: string) => void;
+  isSubmitting: boolean;
+  currency: CurrencyCode;
+  locale: string;
+  t: <K extends keyof typeof closeMonthReviewModalDict.sv>(key: K) => string;
+};
+
+function CompletionCandidateRow({
+  candidate,
+  isChecked,
+  onToggle,
+  isSubmitting,
+  currency,
+  locale,
+  t,
+}: CompletionCandidateRowProps) {
+  const name =
+    candidate.name?.trim() || t("completionCandidateGoalFallback");
+  const progressRatio =
+    candidate.targetAmount > 0
+      ? Math.min(1, candidate.projectedAmountSaved / candidate.targetAmount)
+      : 1;
+  const progressPercent = Math.round(progressRatio * 100);
+  const progressLabel = t("completionCandidateProgressLabel").replace(
+    "{percent}",
+    String(progressPercent),
+  );
+  const reachedLabel = formatMoneyV2(
+    candidate.projectedAmountSaved,
+    currency,
+    locale,
+  );
+  const targetLabel = formatMoneyV2(
+    candidate.targetAmount,
+    currency,
+    locale,
+  );
+  const checkboxAriaLabel = t("completionCandidateCheckboxLabel").replace(
+    "{name}",
+    name,
+  );
+
+  return (
+    <li
+      data-testid={`close-month-completion-candidate-${candidate.id}`}
+      className={cn(
+        "rounded-xl border border-eb-stroke/15 bg-white/95 px-3 py-2.5 transition-colors",
+        isChecked ? "border-emerald-400/45 bg-emerald-500/[0.04]" : null,
+      )}
+    >
+      <label className="flex items-start gap-3">
+        <input
+          type="checkbox"
+          checked={isChecked}
+          disabled={isSubmitting}
+          onChange={() => onToggle?.(candidate.id)}
+          aria-label={checkboxAriaLabel}
+          data-testid={`close-month-completion-checkbox-${candidate.id}`}
+          className={cn(
+            "mt-0.5 h-4 w-4 shrink-0 rounded border-eb-stroke/35 text-eb-accent",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-eb-accent/35",
+          )}
+        />
+        <span className="min-w-0 flex-1">
+          <span className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+            <span className="truncate text-sm font-semibold tracking-tight text-eb-text">
+              {name}
+            </span>
+            <span className="shrink-0 text-xs font-medium tabular-nums text-eb-text/70">
+              {reachedLabel} / {targetLabel}
+            </span>
+          </span>
+          <span className="mt-0.5 block text-xs leading-5 text-eb-text/55">
+            {t("completionCandidateRowHint")}
+          </span>
+          <span
+            role="progressbar"
+            aria-label={progressLabel}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progressPercent}
+            className="mt-2 block h-1 w-full overflow-hidden rounded-full bg-eb-shell/55"
+          >
+            <span
+              aria-hidden
+              className="block h-full rounded-full bg-emerald-500/80"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </span>
+        </span>
+      </label>
+    </li>
   );
 }
 

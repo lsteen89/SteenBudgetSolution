@@ -2,12 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { toApiProblem } from "@/api/toApiProblem";
 import { useCloseBudgetMonthMutation } from "@/hooks/budget/useCloseBudgetMonthMutation";
+import { useSavingsGoalCompletionCandidatesQuery } from "@/hooks/budget/useSavingsGoalCompletionCandidatesQuery";
 import type {
   CloseMonthCarryOverMode,
   CloseMonthPendingOptions,
   CloseMonthReviewState,
   JustClosedMonthState,
 } from "@/hooks/dashboard/closeMonth.types";
+import type { SavingsGoalCompletionCandidateDto } from "@/types/budget/SavingsGoalCompletionCandidateDto";
 import type { DashboardSummary } from "@/hooks/dashboard/dashboardSummary.types";
 import { resolveCloseMonthReviewState } from "@/hooks/dashboard/resolveCloseMonthReviewState";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
@@ -79,9 +81,21 @@ export function useCloseMonthReviewController({
     useState<CloseMonthPendingOptions>({
       carryOverMode: "none",
     });
+  const [selectedCompletionGoalIds, setSelectedCompletionGoalIds] = useState<
+    Set<string>
+  >(new Set());
   const [justClosed, setJustClosed] = useState<JustClosedMonthState | null>(
     null,
   );
+
+  // Only fetch candidates while the modal is open; closes/skipped months are
+  // not eligible (the modal itself only renders on open months).
+  const completionCandidatesQuery = useSavingsGoalCompletionCandidatesQuery(
+    yearMonth ?? null,
+    { enabled: isOpen && !!yearMonth },
+  );
+  const completionCandidates: SavingsGoalCompletionCandidateDto[] =
+    completionCandidatesQuery.data ?? [];
 
   // Auto-clear the handoff when the user navigates away from the closed
   // month (e.g. via the period rail, archive, or browser back). The card is
@@ -112,6 +126,7 @@ export function useCloseMonthReviewController({
 
   const open = useCallback(() => {
     setPendingOptions({ carryOverMode: "none" });
+    setSelectedCompletionGoalIds(new Set());
     setIsOpen(true);
   }, []);
 
@@ -124,6 +139,18 @@ export function useCloseMonthReviewController({
     setPendingOptions({ carryOverMode: mode });
   }, []);
 
+  const toggleCompletionGoal = useCallback((goalId: string) => {
+    setSelectedCompletionGoalIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(goalId)) {
+        next.delete(goalId);
+      } else {
+        next.add(goalId);
+      }
+      return next;
+    });
+  }, []);
+
   const confirm = useCallback(async () => {
     if (!yearMonth || isSubmitting) return;
 
@@ -132,11 +159,21 @@ export function useCloseMonthReviewController({
       pendingOptions,
     );
 
+    // Only include IDs that are still valid candidates at submit time — a
+    // candidate might have been edited away in another tab between opening
+    // the modal and confirming. The backend re-validates either way.
+    const candidateIdSet = new Set(completionCandidates.map((c) => c.id));
+    const completedSavingsGoalIds = Array.from(selectedCompletionGoalIds)
+      .filter((id) => candidateIdSet.has(id));
+
     try {
       const result = await closeBudgetMonth({
         yearMonth,
         request: {
           carryOverMode: submittedCarryOverMode,
+          ...(completedSavingsGoalIds.length > 0
+            ? { completedSavingsGoalIds }
+            : {}),
         },
       });
 
@@ -159,10 +196,12 @@ export function useCloseMonthReviewController({
     }
   }, [
     closeBudgetMonth,
+    completionCandidates,
     isSubmitting,
     locale,
     pendingOptions,
     reviewState,
+    selectedCompletionGoalIds,
     setSelectedYearMonth,
     toast,
     yearMonth,
@@ -178,6 +217,13 @@ export function useCloseMonthReviewController({
     setJustClosed(null);
   }, []);
 
+  const completionCandidatesLoading =
+    isOpen && completionCandidatesQuery.isPending;
+  const completionCandidatesError =
+    isOpen && completionCandidatesQuery.isError
+      ? completionCandidatesQuery.error
+      : null;
+
   return {
     isOpen,
     isSubmitting,
@@ -186,6 +232,11 @@ export function useCloseMonthReviewController({
     periodMonthOnlyLabel,
     selectedCarryOverMode: pendingOptions.carryOverMode,
     justClosed,
+    completionCandidates,
+    completionCandidatesLoading,
+    completionCandidatesError,
+    selectedCompletionGoalIds,
+    toggleCompletionGoal,
     open,
     close,
     confirm,

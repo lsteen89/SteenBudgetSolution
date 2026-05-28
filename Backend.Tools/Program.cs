@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Backend.Application.Features.Authentication.Register.RegisterAndIssueSession;
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Application.Abstractions.Infrastructure.System;
@@ -191,7 +192,25 @@ E2eSeedUser[] e2eSeed =
             LastName: "RecapComparisonSkip"),
         IncludeBudget: true,
         OpenMonthTargetFinalBalance: null,
-        Profile: BudgetTimelineProfiles.RecapComparisonSkip)
+        Profile: BudgetTimelineProfiles.RecapComparisonSkip),
+    new(
+        User: new DevSeedUser(
+            Email: "e2e-savings-editor@local.test",
+            Password: DevSeedPassword,
+            FirstName: "E2E",
+            LastName: "SavingsEditor"),
+        IncludeBudget: true,
+        OpenMonthTargetFinalBalance: null,
+        Profile: BudgetTimelineProfiles.SavingsEditor),
+    new(
+        User: new DevSeedUser(
+            Email: "e2e-savings-orphan@local.test",
+            Password: DevSeedPassword,
+            FirstName: "E2E",
+            LastName: "SavingsOrphan"),
+        IncludeBudget: true,
+        OpenMonthTargetFinalBalance: null,
+        Profile: BudgetTimelineProfiles.SavingsOrphan)
 ];
 
 var isE2eSeedCommand = args.Any(arg => string.Equals(arg, SeedE2eCommandName, StringComparison.OrdinalIgnoreCase));
@@ -262,6 +281,21 @@ void ConfigureServices(IServiceCollection services, IConfiguration config)
 
     services.AddSingleton<IConfiguration>(config);
     services.AddSingleton<IHostEnvironment>(new SeedHostEnvironment(environmentName));
+
+    // Diagnostic: without a logging provider Backend.Tools swallows the
+    // application's logged exceptions (UnitOfWorkPipelineBehavior's catch logs
+    // the real error then returns a generic "Server.Error" Result). Adding a
+    // console sink so seed failures show the actual SQL / domain exception
+    // instead of the vague wrapper message.
+    services.AddLogging(builder =>
+    {
+        builder.AddSimpleConsole(options =>
+        {
+            options.SingleLine = true;
+            options.IncludeScopes = false;
+        });
+        builder.SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Information);
+    });
 
     services
         .AddApplicationServices(config)
