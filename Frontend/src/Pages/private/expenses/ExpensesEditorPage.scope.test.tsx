@@ -19,9 +19,11 @@ const mockToast = {
 
 const rentCategoryId = "11111111-1111-4111-8111-111111111111";
 const foodCategoryId = "22222222-2222-4222-8222-222222222222";
+const subscriptionCategoryId = "99999999-9999-4999-8999-999999999999";
 const rentRowId = "33333333-3333-4333-8333-333333333333";
 const foodRowId = "44444444-4444-4444-8444-444444444444";
 const insuranceRowId = "77777777-7777-4777-8777-777777777777";
+const subscriptionRowId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
 vi.mock("@/hooks/i18n/useAppLocale", () => ({
   useAppLocale: () => "en",
@@ -66,6 +68,11 @@ vi.mock("@/hooks/budget/useExpenseCategories", () => ({
     data: [
       { id: rentCategoryId, name: "Housing", code: "housing" },
       { id: foodCategoryId, name: "Food", code: "food" },
+      {
+        id: subscriptionCategoryId,
+        name: "Subscription",
+        code: "subscription",
+      },
     ],
     isLoading: false,
     isError: false,
@@ -93,6 +100,7 @@ vi.mock("./components/ExpensesLedgerSection", () => ({
     group,
     onEdit,
     onPauseToggle,
+    onLifecycleChange,
   }: {
     group: {
       key: string;
@@ -104,6 +112,7 @@ vi.mock("./components/ExpensesLedgerSection", () => ({
     };
     onEdit: (row: unknown) => void;
     onPauseToggle: (row: unknown) => void;
+    onLifecycleChange: (row: unknown, next: string) => void;
   }) => (
     <section data-testid={`ledger-${group.key}`}>
       {group.rows.map((row) => (
@@ -115,6 +124,24 @@ vi.mock("./components/ExpensesLedgerSection", () => ({
           </button>
           <button type="button" onClick={() => onPauseToggle(row)}>
             Toggle {row.name}
+          </button>
+          <button
+            type="button"
+            onClick={() => onLifecycleChange(row, "active")}
+          >
+            Resume {row.name}
+          </button>
+          <button
+            type="button"
+            onClick={() => onLifecycleChange(row, "paused")}
+          >
+            Pause subscription {row.name}
+          </button>
+          <button
+            type="button"
+            onClick={() => onLifecycleChange(row, "cancelled")}
+          >
+            Cancel subscription {row.name}
           </button>
         </div>
       ))}
@@ -168,6 +195,21 @@ function buildEditorData() {
         isDeleted: false,
         isMonthOnly: false,
         canUpdateDefault: true,
+      },
+      // Subscription row whose generic-active toggle was previously turned
+      // off. Used by the lifecycle-resume tests to verify that resuming a
+      // subscription also flips isActive back to true (bug 3).
+      {
+        id: subscriptionRowId,
+        sourceExpenseItemId: null,
+        categoryId: subscriptionCategoryId,
+        name: "Netflix",
+        amountMonthly: 129,
+        subscriptionLifecycleStatus: "paused",
+        isActive: false,
+        isDeleted: false,
+        isMonthOnly: true,
+        canUpdateDefault: false,
       },
     ],
   };
@@ -318,5 +360,64 @@ describe("ExpensesEditorPage immediate scoped edits", () => {
     expect(screen.queryByTestId("editor-sticky-footer")).not.toBeInTheDocument();
     expect(screen.getByText("Insurance")).toBeInTheDocument();
     expect(screen.getByText("200")).toBeInTheDocument();
+  });
+
+  it("resuming a paused subscription that was also generic-inactive also flips isActive back to true (bug 3)", async () => {
+    render(<ExpensesEditorPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Resume Netflix" }));
+
+    await waitFor(() => {
+      expect(mockPatchMutateAsync).toHaveBeenCalledWith({
+        monthExpenseItemId: subscriptionRowId,
+        payload: expect.objectContaining({
+          subscriptionLifecycleStatus: "active",
+          // Critical: the row's isActive was false, but resume must
+          // restore it to true so the row counts in the monthly total.
+          isActive: true,
+          scope: "currentMonthOnly",
+          updateDefault: false,
+        }),
+      });
+    });
+  });
+
+  it("pausing a subscription preserves the row's existing isActive value", async () => {
+    render(<ExpensesEditorPage />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Pause subscription Netflix" }),
+    );
+
+    await waitFor(() => {
+      expect(mockPatchMutateAsync).toHaveBeenCalledWith({
+        monthExpenseItemId: subscriptionRowId,
+        payload: expect.objectContaining({
+          subscriptionLifecycleStatus: "paused",
+          // The row was already isActive=false; pause must not silently
+          // re-enable it. Lifecycle alone is enough to keep it out of the
+          // total — touching isActive would mask the user's earlier choice.
+          isActive: false,
+        }),
+      });
+    });
+  });
+
+  it("cancelling a subscription preserves the row's existing isActive value", async () => {
+    render(<ExpensesEditorPage />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Cancel subscription Netflix" }),
+    );
+
+    await waitFor(() => {
+      expect(mockPatchMutateAsync).toHaveBeenCalledWith({
+        monthExpenseItemId: subscriptionRowId,
+        payload: expect.objectContaining({
+          subscriptionLifecycleStatus: "cancelled",
+          isActive: false,
+        }),
+      });
+    });
   });
 });

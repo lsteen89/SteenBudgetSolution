@@ -83,6 +83,10 @@ export type CreateBudgetMonthExpenseItemRequestDto = {
   name: string;
   amountMonthly: number;
   isActive: boolean;
+  // Optional & nullable so non-subscription rows can omit it. Backend rule:
+  // must be null for non-subscription rows; subscription rows default to
+  // "active" server-side when null.
+  subscriptionLifecycleStatus?: SubscriptionLifecycleStatus | null;
 };
 
 export type PatchBudgetMonthExpenseItemBulkRowDto = {

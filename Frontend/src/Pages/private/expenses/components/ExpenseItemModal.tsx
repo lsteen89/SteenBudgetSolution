@@ -17,7 +17,10 @@ import {
   type ExpenseItemSchemaMessages,
 } from "@/schemas/dashboard/monthEditor/expenseItem.schemas";
 import type { ExpenseCategoryDto } from "@/types/budget/ExpenseCategoryDto";
-import type { ExpenseEditScope } from "@/types/budget/BudgetMonthsStatusDto";
+import type {
+  ExpenseEditScope,
+  SubscriptionLifecycleStatus,
+} from "@/types/budget/BudgetMonthsStatusDto";
 import { asCategoryKey, labelCategory } from "@/utils/i18n/budget/categories";
 import { expenseItemModalDict } from "@/utils/i18n/pages/private/expenses/ExpenseItemModal.i18n";
 import { expenseItemSchemaDict } from "@/utils/i18n/pages/private/expenses/ExpenseItemSchema.i18n";
@@ -40,6 +43,12 @@ type ExpenseItemModalRow = {
   categoryId: string;
   amountMonthly: number;
   isActive: boolean;
+  /**
+   * Current lifecycle for subscription rows. `null` for non-subscription
+   * rows or subscription rows that have never been given a lifecycle value
+   * (backend treats null as "active" for materialized subscription rows).
+   */
+  subscriptionLifecycleStatus?: SubscriptionLifecycleStatus | null;
   canUpdatePlan: boolean;
   initialScope?: ExpenseEditScope;
 };
@@ -56,9 +65,16 @@ type ExpenseItemModalProps = {
     values: CreateExpenseItemApiPayload & {
       updateDefault?: boolean;
       scope?: ExpenseEditScope;
+      subscriptionLifecycleStatus?: SubscriptionLifecycleStatus | null;
     },
   ) => Promise<void>;
 };
+
+const LIFECYCLE_OPTIONS: readonly SubscriptionLifecycleStatus[] = [
+  "active",
+  "paused",
+  "cancelled",
+] as const;
 
 export default function ExpenseItemModal({
   open,
@@ -128,6 +144,11 @@ export default function ExpenseItemModal({
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [showStatusInfo, setShowStatusInfo] = useState(false);
   const [scope, setScope] = useState<ExpenseEditScope>("currentMonthOnly");
+  // Default to `active` for a fresh modal. The reset effect below realigns
+  // this with the row when editing, and the category-change effect realigns
+  // it when the user switches between subscription/non-subscription.
+  const [lifecycle, setLifecycle] =
+    useState<SubscriptionLifecycleStatus>("active");
 
   const handleRequestClose = () => {
     if (!canClose) return;
@@ -178,6 +199,10 @@ export default function ExpenseItemModal({
         isActive: row.isActive,
       });
       setScope(row.initialScope ?? "currentMonthOnly");
+      // Seed lifecycle from the row. Null lifecycle on a subscription row
+      // means the backend never wrote a value — treat it as `active` so the
+      // segmented control has a sensible default.
+      setLifecycle(row.subscriptionLifecycleStatus ?? "active");
       return;
     }
 
@@ -188,6 +213,7 @@ export default function ExpenseItemModal({
       isActive: true,
     });
     setScope("currentMonthOnly");
+    setLifecycle("active");
   }, [open, mode, row, reset, defaultCategoryId]);
 
   const nameError = errors.name?.message?.toString();
@@ -198,6 +224,25 @@ export default function ExpenseItemModal({
   const watchedName = watch("name");
   const watchedAmount = watch("amountMonthly");
   const watchedIsActive = watch("isActive");
+  const selectedCategoryKey = useMemo(() => {
+    const category = categories.find((x) => x.id === selectedCategoryId);
+    return category ? asCategoryKey(category.code) : "other";
+  }, [categories, selectedCategoryId]);
+  const isSubscriptionCategory = selectedCategoryKey === "subscription";
+
+  // When the category transitions to subscription, default the lifecycle to
+  // `active` so the visible segmented control has a sensible state. When
+  // transitioning away from subscription we leave the local state alone —
+  // it's hidden, and we explicitly submit `null` for non-subscription rows.
+  useEffect(() => {
+    if (!open) return;
+    if (!isSubscriptionCategory) return;
+    if (mode === "edit" && row?.subscriptionLifecycleStatus) {
+      // Already seeded from the row by the reset effect above.
+      return;
+    }
+    setLifecycle((prev) => prev ?? "active");
+  }, [open, isSubscriptionCategory, mode, row]);
   const normalizedAmount =
     parseMoneyInput(watchedAmount, {
       allowNegative: false,
@@ -205,17 +250,50 @@ export default function ExpenseItemModal({
     }) ?? 0;
   const nameField = register("name");
   const statusInfo = watchedIsActive ? t("activeInfo") : t("inactiveInfo");
+  // budgetPlanOnly never writes the month row, so the backend silently
+  // drops any lifecycle value sent in that scope. Make the wire payload
+  // honest: keep the lifecycle from the row (unchanged) rather than what
+  // the segmented control happens to hold. The control itself is disabled
+  // when this is true (see render below) so the user can never set a value
+  // we won't honour.
+  const lifecycleControlDisabled =
+    mode === "edit" && scope === "budgetPlanOnly";
+  // When disabled, show the value we will actually submit (the row's
+  // original lifecycle) so the radios cannot say "Paused" while the
+  // payload sends "active". Keep the underlying `lifecycle` state alone
+  // so the user's pre-disable selection comes back if they switch the
+  // scope to something that does write the month row.
+  const displayedLifecycle: SubscriptionLifecycleStatus =
+    lifecycleControlDisabled
+      ? (row?.subscriptionLifecycleStatus ?? "active")
+      : lifecycle;
   const submitForm = handleSubmit(
     async (values) => {
       const parsed = apiSchema.parse(values);
+      // Lifecycle is meaningful only for subscription rows. Backend rule:
+      // non-subscription rows must send `null`. Sending an explicit value
+      // here (rather than omitting the field) makes the rule visible in the
+      // wire payload and prevents accidental retention of a stale value
+      // when the user changes the category away from subscription.
+      const lifecycleForSubmit: SubscriptionLifecycleStatus | null =
+        !isSubscriptionCategory
+          ? null
+          : lifecycleControlDisabled
+            ? (row?.subscriptionLifecycleStatus ?? "active")
+            : lifecycle;
+
       await onSubmit(
         mode === "edit"
           ? {
               ...parsed,
               updateDefault: scope === "currentMonthAndBudgetPlan",
               scope,
+              subscriptionLifecycleStatus: lifecycleForSubmit,
             }
-          : parsed,
+          : {
+              ...parsed,
+              subscriptionLifecycleStatus: lifecycleForSubmit,
+            },
       );
     },
     () => {},
@@ -534,6 +612,70 @@ export default function ExpenseItemModal({
                     </button>
                   </div>
                 </div>
+
+                {isSubscriptionCategory ? (
+                  <fieldset
+                    data-testid="expense-item-modal-lifecycle-section"
+                    data-disabled={lifecycleControlDisabled ? "true" : "false"}
+                    className="rounded-2xl border border-eb-stroke/20 bg-eb-surface px-4 py-4"
+                  >
+                    <legend className="px-1 text-sm font-semibold text-eb-text">
+                      {t("lifecycleSectionLabel")}
+                    </legend>
+                    <p className="mt-1 text-xs text-eb-text/60">
+                      {t("lifecycleSectionDescription")}
+                    </p>
+                    <div
+                      role="radiogroup"
+                      aria-label={t("lifecycleSectionLabel")}
+                      aria-disabled={lifecycleControlDisabled}
+                      className="mt-3 grid grid-cols-3 gap-2"
+                    >
+                      {LIFECYCLE_OPTIONS.map((option) => {
+                        const selected = displayedLifecycle === option;
+                        const optionLabel =
+                          option === "active"
+                            ? t("lifecycleActive")
+                            : option === "paused"
+                              ? t("lifecyclePaused")
+                              : t("lifecycleCancelled");
+                        return (
+                          <button
+                            key={option}
+                            type="button"
+                            role="radio"
+                            aria-checked={selected}
+                            data-testid={`expense-item-modal-lifecycle-${option}`}
+                            disabled={isSaving || lifecycleControlDisabled}
+                            onClick={() => setLifecycle(option)}
+                            className={cn(
+                              "flex h-10 items-center justify-center rounded-xl border text-sm font-medium transition",
+                              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--eb-accent)/0.20)]",
+                              selected
+                                ? "border-[rgb(var(--eb-accent)/0.55)] bg-[rgb(var(--eb-accent)/0.12)] text-[rgb(var(--eb-accent))]"
+                                : "border-eb-stroke/25 bg-eb-surface text-eb-text/70 hover:bg-[rgb(var(--eb-shell)/0.25)]",
+                              "disabled:cursor-not-allowed disabled:opacity-50",
+                            )}
+                          >
+                            {optionLabel}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p
+                      data-testid="expense-item-modal-lifecycle-hint"
+                      className="mt-2 text-xs text-eb-text/55"
+                    >
+                      {lifecycleControlDisabled
+                        ? t("lifecyclePlanOnlyHint")
+                        : displayedLifecycle === "active"
+                          ? t("lifecycleActiveHint")
+                          : displayedLifecycle === "paused"
+                            ? t("lifecyclePausedHint")
+                            : t("lifecycleCancelledHint")}
+                    </p>
+                  </fieldset>
+                ) : null}
 
                 {mode === "edit" ? (
                   <EditScopeRadioCards

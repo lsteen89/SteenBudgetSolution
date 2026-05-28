@@ -12,5 +12,6 @@ public sealed record CreateBudgetMonthExpenseItemCommand(
     Guid CategoryId,
     string Name,
     decimal AmountMonthly,
-    bool IsActive)
+    bool IsActive,
+    string? SubscriptionLifecycleStatus = null)
     : IRequest<Result<BudgetMonthExpenseItemEditorRowDto?>>, ITransactionalCommand;

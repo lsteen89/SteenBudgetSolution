@@ -42,6 +42,17 @@ export const expenseItemModalDict = {
     previewCurrentMonthUnchanged: "Lämnas oförändrad.",
     previewBudgetPlanLabel: "Budgetplan framåt",
     previewBudgetPlanReceivesEdit: "Får de redigerade värdena.",
+    lifecycleSectionLabel: "Abonnemangsstatus",
+    lifecycleSectionDescription:
+      "Pausade och avslutade abonnemang räknas inte med i månadens summa.",
+    lifecycleActive: "Aktivt",
+    lifecyclePaused: "Pausat",
+    lifecycleCancelled: "Avslutat",
+    lifecycleActiveHint: "Räknas med i månadens summa.",
+    lifecyclePausedHint: "Räknas inte med – kan återupptas senare.",
+    lifecycleCancelledHint: "Räknas inte med – markerat som avslutat.",
+    lifecyclePlanOnlyHint:
+      "Abonnemangsstatus gäller bara den här månaden. Välj en annan omfattning för att ändra status.",
   },
   en: {
     nameRequired: "Name is required.",
@@ -87,6 +98,17 @@ export const expenseItemModalDict = {
     previewCurrentMonthUnchanged: "Remains unchanged.",
     previewBudgetPlanLabel: "Budget plan forward",
     previewBudgetPlanReceivesEdit: "Receives the edited values.",
+    lifecycleSectionLabel: "Subscription status",
+    lifecycleSectionDescription:
+      "Paused and cancelled subscriptions do not count in this month's total.",
+    lifecycleActive: "Active",
+    lifecyclePaused: "Paused",
+    lifecycleCancelled: "Cancelled",
+    lifecycleActiveHint: "Counts in this month's total.",
+    lifecyclePausedHint: "Does not count — can be resumed later.",
+    lifecycleCancelledHint: "Does not count — marked as ended.",
+    lifecyclePlanOnlyHint:
+      "Subscription status applies to the current month only. Choose a different scope to change it.",
   },
   et: {
     nameRequired: "Nimi on kohustuslik.",
@@ -133,5 +155,16 @@ export const expenseItemModalDict = {
     previewCurrentMonthUnchanged: "Jääb muutmata.",
     previewBudgetPlanLabel: "Eelarveplaan edaspidi",
     previewBudgetPlanReceivesEdit: "Saab muudetud väärtused.",
+    lifecycleSectionLabel: "Tellimuse olek",
+    lifecycleSectionDescription:
+      "Peatatud ja lõpetatud tellimusi selle kuu summasse ei arvestata.",
+    lifecycleActive: "Aktiivne",
+    lifecyclePaused: "Peatatud",
+    lifecycleCancelled: "Lõpetatud",
+    lifecycleActiveHint: "Arvestatakse selle kuu summasse.",
+    lifecyclePausedHint: "Ei arvestata – saab hiljem jätkata.",
+    lifecycleCancelledHint: "Ei arvestata – märgitud lõpetatuks.",
+    lifecyclePlanOnlyHint:
+      "Tellimuse olek kehtib ainult selle kuu jaoks. Olekut muutmiseks vali teine ulatus.",
   },
 } as const;

@@ -11,7 +11,10 @@ import { useExpenseCategories } from "@/hooks/budget/useExpenseCategories";
 import { buildDashboardSummaryAggregate } from "@/hooks/dashboard/buildDashboardSummaryAggregate";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import type { CreateExpenseItemApiPayload } from "@/schemas/dashboard/monthEditor/expenseItem.schemas";
-import type { ExpenseEditScope } from "@/types/budget/BudgetMonthsStatusDto";
+import type {
+  ExpenseEditScope,
+  SubscriptionLifecycleStatus,
+} from "@/types/budget/BudgetMonthsStatusDto";
 import type { AppLocale } from "@/types/i18n/appLocale";
 import { useToast } from "@/ui/toast/toast";
 import {
@@ -127,6 +130,7 @@ export default function ExpensesEditorPage() {
     values: CreateExpenseItemApiPayload & {
       updateDefault?: boolean;
       scope?: ExpenseEditScope;
+      subscriptionLifecycleStatus?: SubscriptionLifecycleStatus | null;
     },
   ) => {
     try {
@@ -142,6 +146,15 @@ export default function ExpensesEditorPage() {
           ? requestedScope
           : "currentMonthOnly";
 
+        // The modal owns lifecycle when the selected category is a
+        // subscription, and submits `null` for non-subscription categories
+        // (backend rule). Fall back to the existing row value only when the
+        // modal did not provide one (defensive — should not happen).
+        const lifecycle =
+          values.subscriptionLifecycleStatus !== undefined
+            ? values.subscriptionLifecycleStatus
+            : modalState.row.subscriptionLifecycleStatus;
+
         await patchMutation.mutateAsync({
           monthExpenseItemId: modalState.row.id,
           payload: {
@@ -149,8 +162,7 @@ export default function ExpensesEditorPage() {
             categoryId: values.categoryId,
             amountMonthly: values.amountMonthly,
             isActive: values.isActive,
-            subscriptionLifecycleStatus:
-              modalState.row.subscriptionLifecycleStatus,
+            subscriptionLifecycleStatus: lifecycle,
             updateDefault: scope === "currentMonthAndBudgetPlan",
             scope,
           },
@@ -189,6 +201,59 @@ export default function ExpensesEditorPage() {
       toast.success(row.isActive ? t("itemPaused") : t("itemResumed"));
     } catch {
       toast.error(t("itemPauseError"));
+    }
+  };
+
+  // Subscription lifecycle mutation. The row keeps its current name/category/
+  // amount — lifecycle is the primary thing changing — and the update
+  // applies to the current month only (`scope: currentMonthOnly`,
+  // `updateDefault: false`). Backend rules:
+  //   - lifecycle is valid only on subscription rows (caller guarantees this)
+  //   - paused/cancelled subs are excluded from monthly totals
+  //
+  // isActive semantics: `deriveRowState` lets `isActive === false` win over
+  // lifecycle. If a row is currently inactive (e.g. the user previously hit
+  // generic "pause") and the user picks resume/reactivate, the row would
+  // still render as inactive — confusing. Treat lifecycle=active as a
+  // restore-to-counting intent and force `isActive: true`. For paused/
+  // cancelled transitions, keep the user's existing isActive value so we
+  // don't surprise them by re-enabling a row they had toggled off.
+  const handleLifecycleChange = async (
+    row: ExpenseLedgerRowVm,
+    next: SubscriptionLifecycleStatus,
+  ) => {
+    const previous: SubscriptionLifecycleStatus =
+      row.subscriptionLifecycleStatus ?? "active";
+    const nextIsActive = next === "active" ? true : row.isActive;
+
+    try {
+      await patchMutation.mutateAsync({
+        monthExpenseItemId: row.id,
+        payload: {
+          name: row.name,
+          categoryId: row.categoryId,
+          amountMonthly: row.amountMonthly,
+          isActive: nextIsActive,
+          subscriptionLifecycleStatus: next,
+          updateDefault: false,
+          scope: "currentMonthOnly",
+        },
+      });
+
+      // Pick the toast that matches the transition rather than only the
+      // target state. Resuming from paused and reactivating from cancelled
+      // both land on `active`, but read more clearly with distinct copy.
+      if (next === "paused") {
+        toast.success(t("subscriptionPaused"));
+      } else if (next === "cancelled") {
+        toast.success(t("subscriptionCancelled"));
+      } else if (previous === "cancelled") {
+        toast.success(t("subscriptionReactivated"));
+      } else {
+        toast.success(t("subscriptionResumed"));
+      }
+    } catch {
+      toast.error(t("subscriptionUpdateError"));
     }
   };
 
@@ -232,6 +297,8 @@ export default function ExpensesEditorPage() {
           categoryId: modalState.row.categoryId,
           amountMonthly: modalState.row.amountMonthly,
           isActive: modalState.row.isActive,
+          subscriptionLifecycleStatus:
+            modalState.row.subscriptionLifecycleStatus,
           canUpdatePlan: canShowUpdateDefault(modalState.row),
           initialScope: "currentMonthOnly" as ExpenseEditScope,
         }
@@ -302,6 +369,7 @@ export default function ExpensesEditorPage() {
                       setModalState({ open: true, mode: "edit", row })
                     }
                     onPauseToggle={handlePauseToggle}
+                    onLifecycleChange={handleLifecycleChange}
                     onDelete={handleDelete}
                   />
                 ))}

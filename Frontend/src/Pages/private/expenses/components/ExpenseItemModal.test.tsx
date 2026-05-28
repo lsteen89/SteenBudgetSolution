@@ -274,6 +274,304 @@ describe("ExpenseItemModal", () => {
     });
   });
 
+  it("shows the lifecycle section only when the selected category is a subscription", () => {
+    const { rerender } = render(
+      <ExpenseItemModal
+        open={true}
+        mode="create"
+        row={null}
+        monthLabel="May 2026"
+        categories={[
+          {
+            id: "33333333-3333-4333-8333-333333333333",
+            name: "Food",
+            code: "food",
+          },
+          {
+            id: "44444444-4444-4444-8444-444444444444",
+            name: "Subscription",
+            code: "subscription",
+          },
+        ]}
+        onClose={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    // Default category is Food → no lifecycle section.
+    expect(
+      screen.queryByTestId("expense-item-modal-lifecycle-section"),
+    ).not.toBeInTheDocument();
+
+    // Switching to Subscription reveals it.
+    fireEvent.change(screen.getByLabelText("Category"), {
+      target: { value: "44444444-4444-4444-8444-444444444444" },
+    });
+
+    expect(
+      screen.getByTestId("expense-item-modal-lifecycle-section"),
+    ).toBeInTheDocument();
+
+    // And going back hides it again.
+    fireEvent.change(screen.getByLabelText("Category"), {
+      target: { value: "33333333-3333-4333-8333-333333333333" },
+    });
+    expect(
+      screen.queryByTestId("expense-item-modal-lifecycle-section"),
+    ).not.toBeInTheDocument();
+
+    rerender(<></>);
+  });
+
+  it("submits null subscriptionLifecycleStatus for non-subscription rows", async () => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <ExpenseItemModal
+        open={true}
+        mode="create"
+        row={null}
+        monthLabel="May 2026"
+        categories={[
+          {
+            id: "33333333-3333-4333-8333-333333333333",
+            name: "Food",
+            code: "food",
+          },
+        ]}
+        onClose={vi.fn()}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "Groceries" },
+    });
+    fireEvent.change(screen.getByLabelText("Amount per month"), {
+      target: { value: "300" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create entry" }));
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          subscriptionLifecycleStatus: null,
+        }),
+      );
+    });
+  });
+
+  it("preloads the lifecycle segmented control from the edited subscription row", () => {
+    render(
+      <ExpenseItemModal
+        open={true}
+        mode="edit"
+        monthLabel="May 2026"
+        row={{
+          id: "22222222-2222-4222-8222-222222222222",
+          name: "Streaming",
+          categoryId: "11111111-1111-4111-8111-111111111111",
+          amountMonthly: 129,
+          isActive: true,
+          subscriptionLifecycleStatus: "paused",
+          canUpdatePlan: true,
+        }}
+        categories={[
+          {
+            id: "11111111-1111-4111-8111-111111111111",
+            name: "Subscription",
+            code: "subscription",
+          },
+        ]}
+        onClose={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByTestId("expense-item-modal-lifecycle-paused"),
+    ).toHaveAttribute("aria-checked", "true");
+    expect(
+      screen.getByTestId("expense-item-modal-lifecycle-active"),
+    ).toHaveAttribute("aria-checked", "false");
+  });
+
+  it("submits the selected lifecycle when editing a subscription", async () => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <ExpenseItemModal
+        open={true}
+        mode="edit"
+        monthLabel="May 2026"
+        row={{
+          id: "22222222-2222-4222-8222-222222222222",
+          name: "Streaming",
+          categoryId: "11111111-1111-4111-8111-111111111111",
+          amountMonthly: 129,
+          isActive: true,
+          subscriptionLifecycleStatus: "active",
+          canUpdatePlan: true,
+        }}
+        categories={[
+          {
+            id: "11111111-1111-4111-8111-111111111111",
+            name: "Subscription",
+            code: "subscription",
+          },
+        ]}
+        onClose={vi.fn()}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("expense-item-modal-lifecycle-cancelled"));
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          subscriptionLifecycleStatus: "cancelled",
+        }),
+      );
+    });
+  });
+
+  it("treats null lifecycle on a subscription row as 'active' in the segmented control", () => {
+    render(
+      <ExpenseItemModal
+        open={true}
+        mode="edit"
+        monthLabel="May 2026"
+        row={{
+          id: "22222222-2222-4222-8222-222222222222",
+          name: "Streaming",
+          categoryId: "11111111-1111-4111-8111-111111111111",
+          amountMonthly: 129,
+          isActive: true,
+          subscriptionLifecycleStatus: null,
+          canUpdatePlan: true,
+        }}
+        categories={[
+          {
+            id: "11111111-1111-4111-8111-111111111111",
+            name: "Subscription",
+            code: "subscription",
+          },
+        ]}
+        onClose={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByTestId("expense-item-modal-lifecycle-active"),
+    ).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("disables the lifecycle control when scope is budgetPlanOnly and reverts the submitted value", async () => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <ExpenseItemModal
+        open={true}
+        mode="edit"
+        monthLabel="May 2026"
+        row={{
+          id: "22222222-2222-4222-8222-222222222222",
+          name: "Streaming",
+          categoryId: "11111111-1111-4111-8111-111111111111",
+          amountMonthly: 129,
+          isActive: true,
+          subscriptionLifecycleStatus: "active",
+          canUpdatePlan: true,
+        }}
+        categories={[
+          {
+            id: "11111111-1111-4111-8111-111111111111",
+            name: "Subscription",
+            code: "subscription",
+          },
+        ]}
+        onClose={vi.fn()}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    // First: try to change lifecycle to paused.
+    fireEvent.click(screen.getByTestId("expense-item-modal-lifecycle-paused"));
+    expect(
+      screen.getByTestId("expense-item-modal-lifecycle-paused"),
+    ).toHaveAttribute("aria-checked", "true");
+
+    // Then: pick budget-plan-only. Lifecycle radios must become disabled
+    // and the hint must explain the rule.
+    fireEvent.click(
+      screen.getByRole("radio", {
+        name: /budget plan going forward only/i,
+      }),
+    );
+
+    expect(
+      screen.getByTestId("expense-item-modal-lifecycle-active"),
+    ).toBeDisabled();
+    expect(
+      screen.getByTestId("expense-item-modal-lifecycle-paused"),
+    ).toBeDisabled();
+    expect(
+      screen.getByTestId("expense-item-modal-lifecycle-cancelled"),
+    ).toBeDisabled();
+    expect(
+      screen.getByTestId("expense-item-modal-lifecycle-hint"),
+    ).toHaveTextContent(/applies to the current month only/i);
+
+    // The visible selection must match what the wire payload will carry,
+    // not the stale pre-disable choice. The row's lifecycle is "active",
+    // so the Active radio must be the one marked checked while the
+    // control is disabled.
+    expect(
+      screen.getByTestId("expense-item-modal-lifecycle-active"),
+    ).toHaveAttribute("aria-checked", "true");
+    expect(
+      screen.getByTestId("expense-item-modal-lifecycle-paused"),
+    ).toHaveAttribute("aria-checked", "false");
+
+    // Switching back to a writing scope should restore the user's
+    // earlier "Paused" pick so they don't have to reselect it.
+    fireEvent.click(
+      screen.getByRole("radio", { name: /only for may 2026/i }),
+    );
+    expect(
+      screen.getByTestId("expense-item-modal-lifecycle-paused"),
+    ).toHaveAttribute("aria-checked", "true");
+    expect(
+      screen.getByTestId("expense-item-modal-lifecycle-active"),
+    ).toHaveAttribute("aria-checked", "false");
+
+    // And back to budgetPlanOnly to verify the submit guard from here.
+    fireEvent.click(
+      screen.getByRole("radio", {
+        name: /budget plan going forward only/i,
+      }),
+    );
+
+    // Submit. Even though the user clicked "Paused" earlier, the wire
+    // payload must carry the row's original lifecycle so the backend
+    // doesn't silently drop the user's intent. Backend writes lifecycle
+    // only when the current month is written; budgetPlanOnly does not
+    // write the current month.
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          scope: "budgetPlanOnly",
+          subscriptionLifecycleStatus: "active",
+        }),
+      );
+    });
+  });
+
   it("disables budget-plan scopes for month-only rows", () => {
     render(
       <ExpenseItemModal

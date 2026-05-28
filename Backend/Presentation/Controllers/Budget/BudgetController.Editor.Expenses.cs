@@ -95,7 +95,8 @@ public sealed partial class BudgetController
                 CategoryId: req.CategoryId,
                 Name: req.Name,
                 AmountMonthly: req.AmountMonthly,
-                IsActive: req.IsActive),
+                IsActive: req.IsActive,
+                SubscriptionLifecycleStatus: req.SubscriptionLifecycleStatus),
             ct);
 
         if (result.IsFailure || result.Value is null)

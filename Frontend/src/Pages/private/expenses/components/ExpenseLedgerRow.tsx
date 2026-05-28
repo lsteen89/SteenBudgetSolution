@@ -1,6 +1,7 @@
 import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/lib/utils";
+import type { SubscriptionLifecycleStatus } from "@/types/budget/BudgetMonthsStatusDto";
 import { expenseLedgerRowDict } from "@/utils/i18n/pages/private/expenses/ExpenseLedgerRow.i18n";
 import { tDict } from "@/utils/i18n/translate";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
@@ -16,6 +17,10 @@ type ExpensesLedgerRowProps = {
   readOnly?: boolean;
   onEdit: (row: ExpenseLedgerRowVm) => void;
   onPauseToggle: (row: ExpenseLedgerRowVm) => void;
+  onLifecycleChange: (
+    row: ExpenseLedgerRowVm,
+    next: SubscriptionLifecycleStatus,
+  ) => void;
   onDelete: (row: ExpenseLedgerRowVm) => void;
 };
 
@@ -41,6 +46,7 @@ export default function ExpensesLedgerRow({
   readOnly = false,
   onEdit,
   onPauseToggle,
+  onLifecycleChange,
   onDelete,
 }: ExpensesLedgerRowProps) {
   const locale = useAppLocale();
@@ -55,12 +61,6 @@ export default function ExpensesLedgerRow({
   const countsInTotal = row.countsInMonthlyTotal;
   const badge = stateBadgeLabel(row.state, t);
   const showMonthOnlyPill = row.sourceKind === "monthOnly";
-  // Generic pause/resume only flips isActive. For lifecycle-paused or
-  // lifecycle-cancelled subscriptions, that action would not actually resume
-  // the subscription (lifecycle stays paused/cancelled), so hide it here.
-  // PR 4 wires real subscription lifecycle controls.
-  const canPauseToggle =
-    row.state !== "subscriptionPaused" && row.state !== "subscriptionCancelled";
 
   return (
     <div
@@ -131,9 +131,11 @@ export default function ExpensesLedgerRow({
             <ExpenseRowActionsMenu
               readOnly={readOnly}
               isActive={row.isActive}
-              canPauseToggle={canPauseToggle}
+              isSubscription={row.isSubscription}
+              subscriptionLifecycleStatus={row.subscriptionLifecycleStatus}
               onEdit={() => onEdit(row)}
               onPauseToggle={() => onPauseToggle(row)}
+              onLifecycleChange={(next) => onLifecycleChange(row, next)}
               onDelete={() => onDelete(row)}
             />
           </div>
@@ -188,8 +190,11 @@ export default function ExpensesLedgerRow({
           <ExpenseRowActionsMenu
             readOnly={readOnly}
             isActive={row.isActive}
+            isSubscription={row.isSubscription}
+            subscriptionLifecycleStatus={row.subscriptionLifecycleStatus}
             onEdit={() => onEdit(row)}
             onPauseToggle={() => onPauseToggle(row)}
+            onLifecycleChange={(next) => onLifecycleChange(row, next)}
             onDelete={() => onDelete(row)}
           />
         </div>

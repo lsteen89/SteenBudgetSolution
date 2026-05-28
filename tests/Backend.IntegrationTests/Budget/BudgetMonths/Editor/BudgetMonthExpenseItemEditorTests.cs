@@ -291,6 +291,134 @@ public sealed class BudgetMonthExpenseItemEditorTests
     }
 
     [Fact]
+    public async Task CreateExpenseItem_SubscriptionRow_PersistsRequestedLifecycleStatus()
+    {
+        // Bug 1 regression guard: POST /expense-items must honour
+        // SubscriptionLifecycleStatus instead of silently forcing "active".
+        // Without this, a user who creates a "paused" subscription in the
+        // modal sees an active subscription appear in the ledger.
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var persoid = seed.Persoid;
+
+        var sut = CreateSut(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+
+        var ensure = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.Lifecycle.EnsureAccessibleMonthAsync(persoid, persoid, "2026-01", CancellationToken.None));
+
+        var budgetMonthId = ensure.Value!.BudgetMonthId;
+
+        var create = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.CreateHandler.Handle(
+                new CreateBudgetMonthExpenseItemCommand(
+                    Persoid: persoid,
+                    YearMonth: "2026-01",
+                    CategoryId: ExpenseCategories.Subscription,
+                    Name: "Spotify",
+                    AmountMonthly: 99m,
+                    IsActive: true,
+                    SubscriptionLifecycleStatus: BudgetMonthSubscriptionLifecycleStatuses.Paused),
+                CancellationToken.None));
+
+        create.IsSuccess.Should().BeTrue();
+        create.Value!.SubscriptionLifecycleStatus
+            .Should().Be(BudgetMonthSubscriptionLifecycleStatuses.Paused);
+
+        var row = await GetMonthExpenseRowAsync(budgetMonthId, create.Value.Id);
+        row.Should().NotBeNull();
+        row!.SubscriptionLifecycleStatus
+            .Should().Be(BudgetMonthSubscriptionLifecycleStatuses.Paused);
+    }
+
+    [Fact]
+    public async Task CreateExpenseItem_SubscriptionRow_DefaultsToActiveWhenLifecycleOmitted()
+    {
+        // Backwards-compat: existing callers that do not send
+        // SubscriptionLifecycleStatus must still receive the historical
+        // default of "active" so behavior does not silently regress.
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var persoid = seed.Persoid;
+
+        var sut = CreateSut(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+
+        var create = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.CreateHandler.Handle(
+                new CreateBudgetMonthExpenseItemCommand(
+                    Persoid: persoid,
+                    YearMonth: "2026-01",
+                    CategoryId: ExpenseCategories.Subscription,
+                    Name: "Netflix",
+                    AmountMonthly: 129m,
+                    IsActive: true),
+                CancellationToken.None));
+
+        create.IsSuccess.Should().BeTrue();
+        create.Value!.SubscriptionLifecycleStatus
+            .Should().Be(BudgetMonthSubscriptionLifecycleStatuses.Active);
+    }
+
+    [Fact]
+    public async Task CreateExpenseItem_NonSubscriptionRow_RejectsLifecycleValue()
+    {
+        // Matches the patch slice rule. The handler must surface a
+        // typed error rather than silently dropping the value (which
+        // would leave the user thinking they paused a non-subscription
+        // row that actually has no lifecycle field).
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var persoid = seed.Persoid;
+
+        var sut = CreateSut(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+
+        var create = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.CreateHandler.Handle(
+                new CreateBudgetMonthExpenseItemCommand(
+                    Persoid: persoid,
+                    YearMonth: "2026-01",
+                    CategoryId: ExpenseCategories.Other,
+                    Name: "Groceries",
+                    AmountMonthly: 400m,
+                    IsActive: true,
+                    SubscriptionLifecycleStatus: BudgetMonthSubscriptionLifecycleStatuses.Paused),
+                CancellationToken.None));
+
+        create.IsFailure.Should().BeTrue();
+        create.Error!.Code.Should().Be(
+            BudgetMonthExpenseItemErrors.SubscriptionLifecycleRequiresSubscriptionCategory.Code);
+    }
+
+    [Fact]
+    public async Task CreateExpenseItem_RejectsUnsupportedLifecycleValue()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var persoid = seed.Persoid;
+
+        var sut = CreateSut(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+
+        var create = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.CreateHandler.Handle(
+                new CreateBudgetMonthExpenseItemCommand(
+                    Persoid: persoid,
+                    YearMonth: "2026-01",
+                    CategoryId: ExpenseCategories.Subscription,
+                    Name: "Spotify",
+                    AmountMonthly: 99m,
+                    IsActive: true,
+                    SubscriptionLifecycleStatus: "archived"),
+                CancellationToken.None));
+
+        create.IsFailure.Should().BeTrue();
+        create.Error!.Code.Should().Be(
+            BudgetMonthExpenseItemErrors.InvalidSubscriptionLifecycleStatus.Code);
+    }
+
+    [Fact]
     public async Task PatchSubscriptionLifecycle_CanPauseCancelAndReactivateSubscriptionRow()
     {
         await _db.ResetAsync();

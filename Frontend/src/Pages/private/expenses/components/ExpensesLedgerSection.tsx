@@ -1,6 +1,7 @@
 import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/lib/utils";
+import type { SubscriptionLifecycleStatus } from "@/types/budget/BudgetMonthsStatusDto";
 import { expensesLedgerSectionDict } from "@/utils/i18n/pages/private/expenses/ExpensesLedgerSection.i18n";
 import { tDict } from "@/utils/i18n/translate";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
@@ -19,6 +20,10 @@ type ExpensesLedgerSectionProps = {
   defaultOpen?: boolean;
   onEdit: (row: ExpenseLedgerRowVm) => void;
   onPauseToggle: (row: ExpenseLedgerRowVm) => void;
+  onLifecycleChange: (
+    row: ExpenseLedgerRowVm,
+    next: SubscriptionLifecycleStatus,
+  ) => void;
   onDelete: (row: ExpenseLedgerRowVm) => void;
 };
 
@@ -35,6 +40,7 @@ export default function ExpensesLedgerSection({
   defaultOpen = true,
   onEdit,
   onPauseToggle,
+  onLifecycleChange,
   onDelete,
 }: ExpensesLedgerSectionProps) {
   const [open, setOpen] = useState(defaultOpen);
@@ -189,6 +195,7 @@ export default function ExpensesLedgerSection({
                     readOnly={readOnly}
                     onEdit={onEdit}
                     onPauseToggle={onPauseToggle}
+                    onLifecycleChange={onLifecycleChange}
                     onDelete={onDelete}
                   />
                 ))}
@@ -202,6 +209,7 @@ export default function ExpensesLedgerSection({
                     readOnly={readOnly}
                     onEdit={onEdit}
                     onPauseToggle={onPauseToggle}
+                    onLifecycleChange={onLifecycleChange}
                     onDelete={onDelete}
                   />
                 ))}
