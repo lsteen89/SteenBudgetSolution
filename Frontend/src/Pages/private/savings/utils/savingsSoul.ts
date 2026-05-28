@@ -161,6 +161,8 @@ export type SavingsHeroAggregate = {
   goalCount: number;
   aheadCount: number;
   behindCount: number;
+  aheadGoalNames: string[];
+  behindGoalNames: string[];
   hasPlannedMarker: boolean;
   nextMilestone: SavingsHeroNextMilestone | null;
 };
@@ -174,6 +176,8 @@ export const aggregateSavingsHero = (
   let totalTarget = 0;
   let aheadCount = 0;
   let behindCount = 0;
+  const aheadGoalNames: string[] = [];
+  const behindGoalNames: string[] = [];
   let hasPlannedMarker = false;
   let nextMilestone: SavingsHeroNextMilestone | null = null;
 
@@ -183,8 +187,15 @@ export const aggregateSavingsHero = (
     totalTarget += row.targetAmount ?? 0;
 
     const { tone, actualPct, expectedPct } = deriveSavingsGoal(row, referenceDate);
-    if (tone === "ahead") aheadCount += 1;
-    if (tone === "behind") behindCount += 1;
+    const goalName = row.name.trim();
+    if (tone === "ahead") {
+      aheadCount += 1;
+      if (goalName) aheadGoalNames.push(goalName);
+    }
+    if (tone === "behind") {
+      behindCount += 1;
+      if (goalName) behindGoalNames.push(goalName);
+    }
     if (shouldRenderPlannedMarker(actualPct, expectedPct)) {
       hasPlannedMarker = true;
     }
@@ -205,6 +216,8 @@ export const aggregateSavingsHero = (
     goalCount: rows.length,
     aheadCount,
     behindCount,
+    aheadGoalNames,
+    behindGoalNames,
     hasPlannedMarker,
     nextMilestone,
   };

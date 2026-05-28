@@ -17,6 +17,8 @@ const baseAggregate: SavingsHeroAggregate = {
   goalCount: 3,
   aheadCount: 0,
   behindCount: 0,
+  aheadGoalNames: [],
+  behindGoalNames: [],
   hasPlannedMarker: true,
   nextMilestone: null,
 };
@@ -71,7 +73,25 @@ describe("SavingsSoulHero", () => {
     // 122000 / 200000 = 61%
     expect(
       screen.getByTestId("savings-hero-funded-pill"),
-    ).toHaveTextContent(/61% of the plan funded/i);
+    ).toHaveTextContent(/saved so far: 61% of target amounts/i);
+  });
+
+  it("names the goal that needs adjusting", () => {
+    render(
+      <SavingsSoulHero
+        periodLabel="May 2026"
+        aggregate={{
+          ...baseAggregate,
+          aheadCount: 0,
+          behindCount: 1,
+          behindGoalNames: ["Emergency buffer"],
+        }}
+        baseMonthly={3000}
+        readOnly={false}
+      />,
+    );
+
+    expect(screen.getByText(/emergency buffer needs adjusting/i)).toBeInTheDocument();
   });
 
   it("omits the funded pill when there is no target to fund", () => {
