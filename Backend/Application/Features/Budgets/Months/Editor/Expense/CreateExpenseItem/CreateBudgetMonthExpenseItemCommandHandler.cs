@@ -127,7 +127,12 @@ public sealed class CreateBudgetMonthExpenseItemCommandHandler
                 IsActive: cmd.IsActive,
                 IsDeleted: false,
                 IsMonthOnly: true,
-                CanUpdateDefault: false));
+                CanUpdateDefault: false,
+                // Month-only rows have no linked source plan row.
+                SourceCategoryId: null,
+                SourceName: null,
+                SourceAmountMonthly: null,
+                SourceIsActive: null));
     }
 
     // Mirrors PatchBudgetMonthExpenseItemCommandHandler.ValidateRequestedLifecycleStatus

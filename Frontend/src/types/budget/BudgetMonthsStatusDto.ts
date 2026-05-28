@@ -37,6 +37,14 @@ export type BudgetMonthExpenseItemEditorRowDto = {
   isDeleted: boolean;
   isMonthOnly: boolean;
   canUpdateDefault: boolean;
+  // Source-plan values for the linked ExpenseItem row, if any. Null for
+  // month-only rows and for mutation responses (the patch/create endpoints do
+  // not re-read the plan row — refetch the editor query to refresh these
+  // fields). Used to compute plan-vs-current-month deltas honestly.
+  sourceCategoryId: string | null;
+  sourceName: string | null;
+  sourceAmountMonthly: number | null;
+  sourceIsActive: boolean | null;
 };
 
 export type BudgetMonthEditorDto = {

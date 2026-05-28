@@ -8,4 +8,11 @@ public sealed record BudgetMonthExpenseItemEditorRowReadModel(
     decimal AmountMonthly,
     string? SubscriptionLifecycleStatus,
     bool IsActive,
-    bool IsDeleted);
+    bool IsDeleted,
+    // Source-plan values for the linked ExpenseItem row, if any.
+    // Null for month-only rows (SourceExpenseItemId is null) and remain null
+    // if the source row was hard-deleted. Read-only — mutations do not use these.
+    Guid? SourceCategoryId,
+    string? SourceName,
+    decimal? SourceAmountMonthly,
+    bool? SourceIsActive);

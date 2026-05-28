@@ -10,4 +10,11 @@ public sealed record BudgetMonthExpenseItemEditorRowDto(
     bool IsActive,
     bool IsDeleted,
     bool IsMonthOnly,
-    bool CanUpdateDefault);
+    bool CanUpdateDefault,
+    // Source-plan values for the linked ExpenseItem row, if any. Null for
+    // month-only rows. Exposed read-only so the frontend can compute plan-vs-
+    // current-month deltas honestly. Mutation payloads ignore these fields.
+    Guid? SourceCategoryId,
+    string? SourceName,
+    decimal? SourceAmountMonthly,
+    bool? SourceIsActive);

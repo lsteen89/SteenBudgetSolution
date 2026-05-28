@@ -225,7 +225,15 @@ public sealed class PatchBudgetMonthExpenseItemsBulkCommandHandler
                 IsActive: writesCurrentMonth ? mergedIsActive : existing.IsActive,
                 IsDeleted: existing.IsDeleted,
                 IsMonthOnly: existing.SourceExpenseItemId is null,
-                CanUpdateDefault: existing.SourceExpenseItemId is not null));
+                CanUpdateDefault: existing.SourceExpenseItemId is not null,
+                // Mutation responses do not re-read the source plan row; the
+                // editor query is the source of truth for plan-comparison
+                // fields. Clients should refetch the editor after mutations to
+                // observe up-to-date Source* values.
+                SourceCategoryId: null,
+                SourceName: null,
+                SourceAmountMonthly: null,
+                SourceIsActive: null));
     }
 
     private static string ResolveScope(PatchBudgetMonthExpenseItemsBulkCommand.Row row)
