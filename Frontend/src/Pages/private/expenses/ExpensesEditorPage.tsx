@@ -301,6 +301,13 @@ export default function ExpensesEditorPage() {
             modalState.row.subscriptionLifecycleStatus,
           canUpdatePlan: canShowUpdateDefault(modalState.row),
           initialScope: "currentMonthOnly" as ExpenseEditScope,
+          // Source-plan values (PR 5) feed the modal's two-column current-
+          // month / budget-plan preview. Null for month-only rows, in which
+          // case the modal falls back to the single-column preview.
+          sourceName: modalState.row.sourceName,
+          sourceCategoryId: modalState.row.sourceCategoryId,
+          sourceAmountMonthly: modalState.row.sourceAmountMonthly,
+          sourceIsActive: modalState.row.sourceIsActive,
         }
       : null;
 

@@ -51,6 +51,15 @@ type ExpenseItemModalRow = {
   subscriptionLifecycleStatus?: SubscriptionLifecycleStatus | null;
   canUpdatePlan: boolean;
   initialScope?: ExpenseEditScope;
+  // Source-plan values surfaced by PR 5. `null` for month-only rows and for
+  // linked rows where the read model returned partial source data. Used to
+  // render an honest two-column current-month/budget-plan preview without
+  // guessing totals. When any of these are null the modal falls back to the
+  // simpler one-column preview.
+  sourceName?: string | null;
+  sourceCategoryId?: string | null;
+  sourceAmountMonthly?: number | null;
+  sourceIsActive?: boolean | null;
 };
 
 type ExpenseItemModalProps = {
@@ -340,6 +349,50 @@ export default function ExpenseItemModal({
     isPlanOnlyPreview && row ? row.amountMonthly : normalizedAmount;
   const previewSourceIsActive =
     isPlanOnlyPreview && row ? row.isActive : watchedIsActive;
+
+  // Plan-aware two-column preview is gated on real source-plan data (PR 5):
+  // - month-only rows have no plan column to render honestly
+  // - rows the read model returned without source values (defensive) fall
+  //   back to the one-column preview instead of guessing
+  // The block is only meaningful in edit mode — create mode is always
+  // month-only, so there is nothing to compare against.
+  const planPreviewAvailable =
+    mode === "edit" &&
+    !!row &&
+    row.sourceAmountMonthly != null &&
+    row.sourceCategoryId != null &&
+    row.sourceIsActive != null &&
+    row.sourceName != null;
+  const currentMonthReceivesEdit =
+    scope === "currentMonthOnly" || scope === "currentMonthAndBudgetPlan";
+  const budgetPlanReceivesEdit =
+    scope === "currentMonthAndBudgetPlan" || scope === "budgetPlanOnly";
+  // Per-column amounts use either the user's pending edit or the existing
+  // source/row value, depending on which column the chosen scope writes.
+  // The result is what the row will look like in each surface after save —
+  // not a guessed total.
+  const currentColumnAmount = planPreviewAvailable
+    ? currentMonthReceivesEdit
+      ? normalizedAmount
+      : (row?.amountMonthly ?? 0)
+    : 0;
+  const planColumnAmount = planPreviewAvailable
+    ? budgetPlanReceivesEdit
+      ? normalizedAmount
+      : (row?.sourceAmountMonthly ?? 0)
+    : 0;
+  const currentColumnAmountFormatted = formatMoneyV2(
+    currentColumnAmount,
+    currency,
+    appLocale,
+    { fractionDigits: 2 },
+  );
+  const planColumnAmountFormatted = formatMoneyV2(
+    planColumnAmount,
+    currency,
+    appLocale,
+    { fractionDigits: 2 },
+  );
 
   const previewCategoryLabel = useMemo(() => {
     const category = categories.find((x) => x.id === previewSourceCategoryId);
@@ -702,19 +755,45 @@ export default function ExpenseItemModal({
                   status={previewStatus}
                   muted={!previewSourceIsActive}
                 >
-                  {isPlanOnlyPreview ? (
-                    <div className="grid gap-1.5 rounded-xl border border-eb-stroke/18 bg-white/62 px-3 py-2 text-xs font-semibold text-eb-text/62 sm:grid-cols-2">
-                      <div>
-                        <span className="block text-[10px] uppercase tracking-wide text-eb-text/42">
+                  {planPreviewAvailable ? (
+                    // Two-column plan preview. Each column always renders an
+                    // explicit amount and a "remains unchanged" / "receives
+                    // the edited values" hint, so the user can see at a
+                    // glance which surface the chosen scope actually writes.
+                    // Reuses the existing previewCurrentMonthUnchanged /
+                    // previewBudgetPlanReceivesEdit strings as scope-agnostic
+                    // hints rather than budget-plan-only copy.
+                    <div
+                      data-testid="expense-item-modal-plan-preview"
+                      data-current-receives-edit={currentMonthReceivesEdit}
+                      data-plan-receives-edit={budgetPlanReceivesEdit}
+                      className="grid gap-2 rounded-xl border border-eb-stroke/18 bg-white/62 px-3 py-2.5 text-xs text-eb-text/65 sm:grid-cols-2"
+                    >
+                      <div data-testid="expense-item-modal-plan-preview-current">
+                        <span className="block text-[10px] font-semibold uppercase tracking-wide text-eb-text/42">
                           {t("previewCurrentMonthLabel")}
                         </span>
-                        <span>{t("previewCurrentMonthUnchanged")}</span>
+                        <span className="mt-1 block text-sm font-semibold tabular-nums text-eb-text">
+                          {currentColumnAmountFormatted}
+                        </span>
+                        <span className="mt-0.5 block">
+                          {currentMonthReceivesEdit
+                            ? t("previewBudgetPlanReceivesEdit")
+                            : t("previewCurrentMonthUnchanged")}
+                        </span>
                       </div>
-                      <div>
-                        <span className="block text-[10px] uppercase tracking-wide text-eb-text/42">
+                      <div data-testid="expense-item-modal-plan-preview-plan">
+                        <span className="block text-[10px] font-semibold uppercase tracking-wide text-eb-text/42">
                           {t("previewBudgetPlanLabel")}
                         </span>
-                        <span>{t("previewBudgetPlanReceivesEdit")}</span>
+                        <span className="mt-1 block text-sm font-semibold tabular-nums text-eb-text">
+                          {planColumnAmountFormatted}
+                        </span>
+                        <span className="mt-0.5 block">
+                          {budgetPlanReceivesEdit
+                            ? t("previewBudgetPlanReceivesEdit")
+                            : t("previewCurrentMonthUnchanged")}
+                        </span>
                       </div>
                     </div>
                   ) : null}

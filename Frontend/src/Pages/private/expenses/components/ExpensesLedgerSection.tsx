@@ -93,6 +93,22 @@ export default function ExpensesLedgerSection({
       ),
     });
   }
+  // Plan-vs-current divergence is a separate signal from active/inactive
+  // counts: a row can be active *and* changed from plan. Render it as its
+  // own subtle chip in the same dot-separated row so the header stays
+  // scannable. The chip is gated on real source-plan data via PR 5 —
+  // month-only rows never count.
+  if (group.changedCount > 0) {
+    inactiveCountLabels.push({
+      key: "changed",
+      label: interpolate(
+        group.changedCount === 1
+          ? t("changedCountOne")
+          : t("changedCountOther"),
+        { count: group.changedCount },
+      ),
+    });
+  }
 
   const largestLabel =
     group.largestActiveRow && group.activeCount > 1
@@ -108,6 +124,7 @@ export default function ExpensesLedgerSection({
       data-active-count={group.activeCount}
       data-inactive-count={group.inactiveCount}
       data-month-only-count={group.monthOnlyCount}
+      data-changed-count={group.changedCount}
       className="rounded-[2rem] border border-white/28 bg-white/12 p-1.5 shadow-[0_10px_30px_rgba(21,39,81,0.04)] backdrop-blur-[8px]"
     >
       <div className="overflow-hidden rounded-[1.6rem] border border-eb-stroke/10 bg-[rgb(var(--eb-surface)/0.68)]">

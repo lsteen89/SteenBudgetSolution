@@ -228,6 +228,13 @@ describe("ExpenseItemModal", () => {
           amountMonthly: 129,
           isActive: true,
           canUpdatePlan: true,
+          // PR 5/6 source-plan values. Production rows with canUpdatePlan
+          // always carry source values, so the test exercises the plan-
+          // aware preview branch the user will actually see.
+          sourceName: "Streaming",
+          sourceCategoryId: "11111111-1111-4111-8111-111111111111",
+          sourceAmountMonthly: 129,
+          sourceIsActive: true,
         }}
         categories={[
           {
@@ -272,6 +279,114 @@ describe("ExpenseItemModal", () => {
         }),
       );
     });
+  });
+
+  it("plan-aware preview shows new amount on the editing column and source amount on the unchanged column", () => {
+    render(
+      <ExpenseItemModal
+        open={true}
+        mode="edit"
+        monthLabel="May 2026"
+        row={{
+          id: "22222222-2222-4222-8222-222222222222",
+          name: "Streaming",
+          categoryId: "11111111-1111-4111-8111-111111111111",
+          amountMonthly: 129,
+          isActive: true,
+          canUpdatePlan: true,
+          sourceName: "Streaming",
+          sourceCategoryId: "11111111-1111-4111-8111-111111111111",
+          sourceAmountMonthly: 100,
+          sourceIsActive: true,
+        }}
+        categories={[
+          {
+            id: "11111111-1111-4111-8111-111111111111",
+            name: "Subscription",
+            code: "subscription",
+          },
+        ]}
+        onClose={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    // Type a new amount, stay on the default scope (currentMonthOnly).
+    fireEvent.change(screen.getByLabelText("Amount per month"), {
+      target: { value: "150" },
+    });
+
+    const currentCol = screen.getByTestId(
+      "expense-item-modal-plan-preview-current",
+    );
+    const planCol = screen.getByTestId(
+      "expense-item-modal-plan-preview-plan",
+    );
+
+    // currentMonthOnly: current column receives the edit ($150), plan
+    // column keeps the source value ($100) and is labelled unchanged.
+    expect(currentCol).toHaveTextContent("$150.00");
+    expect(currentCol).toHaveTextContent(/receives the edited values/i);
+    expect(planCol).toHaveTextContent("$100.00");
+    expect(planCol).toHaveTextContent(/remains unchanged/i);
+
+    // Switching to plan-only flips which column is unchanged.
+    fireEvent.click(
+      screen.getByRole("radio", {
+        name: /budget plan going forward only/i,
+      }),
+    );
+    expect(currentCol).toHaveTextContent("$129.00"); // row.amountMonthly
+    expect(currentCol).toHaveTextContent(/remains unchanged/i);
+    expect(planCol).toHaveTextContent("$150.00"); // user's edit
+    expect(planCol).toHaveTextContent(/receives the edited values/i);
+
+    // currentMonthAndBudgetPlan writes both surfaces.
+    fireEvent.click(
+      screen.getByRole("radio", {
+        name: /update the budget plan going forward/i,
+      }),
+    );
+    expect(currentCol).toHaveTextContent("$150.00");
+    expect(planCol).toHaveTextContent("$150.00");
+    expect(currentCol).toHaveTextContent(/receives the edited values/i);
+    expect(planCol).toHaveTextContent(/receives the edited values/i);
+  });
+
+  it("hides the plan-aware preview for month-only rows", () => {
+    render(
+      <ExpenseItemModal
+        open={true}
+        mode="edit"
+        monthLabel="May 2026"
+        row={{
+          id: "22222222-2222-4222-8222-222222222222",
+          name: "Groceries",
+          categoryId: "11111111-1111-4111-8111-111111111111",
+          amountMonthly: 300,
+          isActive: true,
+          canUpdatePlan: false,
+          // Month-only row: source values are null.
+          sourceName: null,
+          sourceCategoryId: null,
+          sourceAmountMonthly: null,
+          sourceIsActive: null,
+        }}
+        categories={[
+          {
+            id: "11111111-1111-4111-8111-111111111111",
+            name: "Food",
+            code: "food",
+          },
+        ]}
+        onClose={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.queryByTestId("expense-item-modal-plan-preview"),
+    ).not.toBeInTheDocument();
   });
 
   it("shows the lifecycle section only when the selected category is a subscription", () => {

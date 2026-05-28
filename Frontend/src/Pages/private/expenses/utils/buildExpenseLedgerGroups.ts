@@ -9,6 +9,7 @@ import type {
   ExpenseLedgerRowState,
   ExpenseLedgerRowVm,
 } from "../types/expenseEditor.types";
+import { buildExpensePlanComparison } from "./expensePlanComparison";
 
 function mapExpenseCategoryToGroup(categoryKey: string): ExpenseLedgerGroupKey {
   switch (categoryKey) {
@@ -102,6 +103,24 @@ export function buildExpenseLedgerGroups({
         ? "monthOnly"
         : "planLinked";
 
+      // Derive the plan comparison from the same row inputs the rest of the
+      // VM uses. Keep this co-located with row construction so the row VM
+      // is fully self-describing — consumers should never have to call the
+      // utility again with a different shape and risk drift.
+      const planComparison = buildExpensePlanComparison({
+        sourceExpenseItemId: x.sourceExpenseItemId,
+        name: x.name,
+        categoryId: x.categoryId,
+        amountMonthly: x.amountMonthly,
+        isActive: x.isActive,
+        subscriptionLifecycleStatus: x.subscriptionLifecycleStatus,
+        isSubscription,
+        sourceName: x.sourceName,
+        sourceCategoryId: x.sourceCategoryId,
+        sourceAmountMonthly: x.sourceAmountMonthly,
+        sourceIsActive: x.sourceIsActive,
+      });
+
       return {
         id: x.id,
         sourceExpenseItemId: x.sourceExpenseItemId,
@@ -120,6 +139,11 @@ export function buildExpenseLedgerGroups({
         state,
         countsInMonthlyTotal,
         sourceKind,
+        sourceName: x.sourceName,
+        sourceCategoryId: x.sourceCategoryId,
+        sourceAmountMonthly: x.sourceAmountMonthly,
+        sourceIsActive: x.sourceIsActive,
+        planComparison,
       };
     });
 
@@ -196,6 +220,11 @@ export function buildExpenseLedgerGroups({
       manuallyInactiveCount,
       monthOnlyCount: groupRows.filter((row) => row.sourceKind === "monthOnly")
         .length,
+      changedCount: groupRows.filter(
+        (row) =>
+          row.planComparison.hasPlanLink &&
+          row.planComparison.changedInMonth,
+      ).length,
       largestActiveRow,
     };
   });

@@ -27,6 +27,13 @@ type RowOverrides = {
   canUpdateDefault?: boolean;
   sourceExpenseItemId?: string | null;
   subscriptionLifecycleStatus?: "active" | "paused" | "cancelled" | null;
+  // PR 5 source-plan values. Tests that need a real plan comparison should
+  // pass these explicitly; legacy tests can omit them and the row will be
+  // treated as month-only by the comparison utility.
+  sourceName?: string | null;
+  sourceCategoryId?: string | null;
+  sourceAmountMonthly?: number | null;
+  sourceIsActive?: boolean | null;
 };
 
 function makeRow(overrides: RowOverrides = {}) {
@@ -41,6 +48,10 @@ function makeRow(overrides: RowOverrides = {}) {
     isDeleted: overrides.isDeleted ?? false,
     isMonthOnly: overrides.isMonthOnly ?? false,
     canUpdateDefault: overrides.canUpdateDefault ?? false,
+    sourceName: overrides.sourceName ?? null,
+    sourceCategoryId: overrides.sourceCategoryId ?? null,
+    sourceAmountMonthly: overrides.sourceAmountMonthly ?? null,
+    sourceIsActive: overrides.sourceIsActive ?? null,
   };
 }
 
@@ -93,6 +104,7 @@ describe("buildExpenseLedgerGroups", () => {
       expect(g.activeCount).toBe(0);
       expect(g.inactiveCount).toBe(0);
       expect(g.monthOnlyCount).toBe(0);
+      expect(g.changedCount).toBe(0);
       expect(g.largestActiveRow).toBeNull();
       expect(g.total).toBe(0);
     }
@@ -436,6 +448,94 @@ describe("buildExpenseLedgerGroups", () => {
     expect(fixed.cancelledCount).toBe(0);
     expect(fixed.manuallyInactiveCount).toBe(1);
     expect(fixed.inactiveCount).toBe(1);
+  });
+
+  it("threads PR 5 source-plan values and a derived planComparison onto each row", () => {
+    const groups = build([
+      makeRow({
+        id: "linked-changed",
+        categoryId: housingCategoryId,
+        amountMonthly: 1300,
+        sourceExpenseItemId: "src-a",
+        sourceName: "Rent",
+        sourceCategoryId: housingCategoryId,
+        sourceAmountMonthly: 1000,
+        sourceIsActive: true,
+      }),
+      makeRow({
+        id: "month-only",
+        categoryId: housingCategoryId,
+        amountMonthly: 250,
+        // No source fields → comparison must report `hasPlanLink: false`.
+      }),
+    ]);
+    const fixed = groupByKey(groups, "fixed");
+    const byId = new Map(fixed.rows.map((r) => [r.id, r] as const));
+
+    const linked = byId.get("linked-changed")!;
+    expect(linked.sourceAmountMonthly).toBe(1000);
+    expect(linked.planComparison.hasPlanLink).toBe(true);
+    expect(linked.planComparison.changedInMonth).toBe(true);
+    expect(linked.planComparison.amountDelta).toBe(300);
+
+    const monthOnly = byId.get("month-only")!;
+    expect(monthOnly.planComparison.hasPlanLink).toBe(false);
+    expect(monthOnly.planComparison.amountDelta).toBeNull();
+  });
+
+  it("group.changedCount counts only linked rows whose plan comparison reports a change", () => {
+    const groups = build([
+      // Unchanged linked row — must not count. Name/category/amount/active
+      // all match the source plan row.
+      makeRow({
+        id: "linked-unchanged",
+        name: "Rent",
+        categoryId: housingCategoryId,
+        amountMonthly: 1000,
+        sourceExpenseItemId: "src-a",
+        sourceName: "Rent",
+        sourceCategoryId: housingCategoryId,
+        sourceAmountMonthly: 1000,
+        sourceIsActive: true,
+      }),
+      // Changed linked row (amount differs) — counts.
+      makeRow({
+        id: "linked-changed",
+        name: "Insurance",
+        categoryId: housingCategoryId,
+        amountMonthly: 1200,
+        sourceExpenseItemId: "src-b",
+        sourceName: "Insurance",
+        sourceCategoryId: housingCategoryId,
+        sourceAmountMonthly: 900,
+        sourceIsActive: true,
+      }),
+      // Lifecycle-only current-month exclusion still strays from the source
+      // plan because the effective current-month amount becomes 0.
+      makeRow({
+        id: "linked-paused",
+        name: "Streaming",
+        categoryId: subscriptionCategoryId,
+        amountMonthly: 100,
+        subscriptionLifecycleStatus: "paused",
+        sourceExpenseItemId: "src-c",
+        sourceName: "Streaming",
+        sourceCategoryId: subscriptionCategoryId,
+        sourceAmountMonthly: 100,
+        sourceIsActive: true,
+      }),
+      // Month-only row — never counts. No plan link to diverge from.
+      makeRow({
+        id: "month-only",
+        categoryId: housingCategoryId,
+        amountMonthly: 500,
+      }),
+    ]);
+    const fixed = groupByKey(groups, "fixed");
+    const subscriptions = groupByKey(groups, "subscription");
+
+    expect(fixed.changedCount).toBe(1);
+    expect(subscriptions.changedCount).toBe(1);
   });
 
   it("'total' matches activeTotal so existing consumers keep their semantics", () => {

@@ -1,4 +1,5 @@
 import type { SubscriptionLifecycleStatus } from "@/types/budget/BudgetMonthsStatusDto";
+import type { ExpensePlanComparison } from "../utils/expensePlanComparison";
 
 export type ExpenseLedgerGroupKey = "fixed" | "variable" | "subscription";
 
@@ -54,6 +55,22 @@ export type ExpenseLedgerRowVm = {
   countsInMonthlyTotal: boolean;
   /** Whether the row exists only in the current month or is linked to a plan row. */
   sourceKind: ExpenseLedgerRowSourceKind;
+  /**
+   * Source-plan row values exposed by PR 5. `null` for month-only rows and
+   * (defensively) for linked rows where the read model returned partial
+   * source data. Kept on the VM so callers can hand them to the modal
+   * preview without re-fetching.
+   */
+  sourceName: string | null;
+  sourceCategoryId: string | null;
+  sourceAmountMonthly: number | null;
+  sourceIsActive: boolean | null;
+  /**
+   * Derived plan-vs-current-month comparison. `hasPlanLink: false` whenever
+   * `sourceKind === "monthOnly"` or source data is missing. UI components
+   * should not render plan-delta affordances when `hasPlanLink` is false.
+   */
+  planComparison: ExpensePlanComparison;
 };
 
 export type ExpenseLedgerGroupVm = {
@@ -81,6 +98,13 @@ export type ExpenseLedgerGroupVm = {
   manuallyInactiveCount: number;
   /** Count of rows in the group whose source kind is `monthOnly`. */
   monthOnlyCount: number;
+  /**
+   * Plan-linked rows in this group whose current-month values diverge from
+   * the source plan (`planComparison.changedInMonth`). Includes both
+   * currently-counting rows and inactive/paused/cancelled rows so the count
+   * mirrors the design intent ("anything that strays from the plan").
+   */
+  changedCount: number;
   /** Largest active row by amount, or null when there are no active rows. */
   largestActiveRow: ExpenseLedgerRowVm | null;
 };

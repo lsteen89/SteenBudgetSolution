@@ -62,6 +62,33 @@ export default function ExpensesLedgerRow({
   const badge = stateBadgeLabel(row.state, t);
   const showMonthOnlyPill = row.sourceKind === "monthOnly";
 
+  // Plan-comparison badge + delta meta are gated on real source-plan data
+  // (PR 5). `hasPlanLink` is false for month-only rows and for linked rows
+  // where the read model returned partial source values — never fabricate
+  // a "Changed this month" badge from frontend-only data.
+  const planComparison = row.planComparison;
+  const showChangedFromPlan =
+    planComparison.hasPlanLink && planComparison.changedInMonth;
+  // Amount delta meta only renders when there's a real numeric delta. A row
+  // with only a name/category/active change shows the badge but no money
+  // line (we don't want to print "+0 kr").
+  const deltaAmount =
+    planComparison.hasPlanLink && planComparison.amountDelta !== null
+      ? planComparison.amountDelta
+      : 0;
+  const showDeltaMeta = planComparison.hasPlanLink && deltaAmount !== 0;
+  const formattedDeltaAbs = showDeltaMeta
+    ? formatMoneyV2(Math.abs(deltaAmount), currency, locale, {
+        fractionDigits: 2,
+      })
+    : "";
+  const deltaMetaCopy = showDeltaMeta
+    ? (deltaAmount > 0
+        ? t("deltaHigherThanPlan")
+        : t("deltaLowerThanPlan")
+      ).replace("{amount}", formattedDeltaAbs)
+    : null;
+
   return (
     <div
       data-testid="expense-ledger-row"
@@ -109,7 +136,24 @@ export default function ExpensesLedgerRow({
                   {t("onlyThisMonth")}
                 </span>
               ) : null}
+              {showChangedFromPlan ? (
+                <span
+                  data-testid="expense-ledger-row-changed-badge"
+                  className="inline-flex rounded-full border border-[rgb(var(--eb-accent)/0.30)] bg-[rgb(var(--eb-accent)/0.10)] px-2.5 py-1 text-[11px] font-semibold text-[rgb(var(--eb-accent))]"
+                >
+                  {t("changedFromPlan")}
+                </span>
+              ) : null}
             </div>
+
+            {deltaMetaCopy ? (
+              <div
+                data-testid="expense-ledger-row-delta-meta"
+                className="mt-1.5 text-[11px] tabular-nums text-eb-text/55"
+              >
+                {deltaMetaCopy}
+              </div>
+            ) : null}
 
             {!countsInTotal ? (
               <div className="mt-1.5 text-[11px] text-eb-text/55">
@@ -165,16 +209,32 @@ export default function ExpensesLedgerRow({
                 {t("onlyThisMonth")}
               </span>
             ) : null}
+            {showChangedFromPlan ? (
+              <span
+                data-testid="expense-ledger-row-changed-badge-desktop"
+                className="inline-flex rounded-full border border-[rgb(var(--eb-accent)/0.30)] bg-[rgb(var(--eb-accent)/0.10)] px-2.5 py-1 text-[11px] font-semibold text-[rgb(var(--eb-accent))]"
+              >
+                {t("changedFromPlan")}
+              </span>
+            ) : null}
           </div>
         </div>
 
         <div
           className={cn(
-            "min-w-0 truncate text-sm",
+            "min-w-0 text-sm",
             countsInTotal ? "text-eb-text/58" : "text-eb-text/62",
           )}
         >
-          {row.categoryLabel}
+          <div className="truncate">{row.categoryLabel}</div>
+          {deltaMetaCopy ? (
+            <div
+              data-testid="expense-ledger-row-delta-meta-desktop"
+              className="mt-0.5 truncate text-[11px] tabular-nums text-eb-text/55"
+            >
+              {deltaMetaCopy}
+            </div>
+          ) : null}
         </div>
 
         <div
