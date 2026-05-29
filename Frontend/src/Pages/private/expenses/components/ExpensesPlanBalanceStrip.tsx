@@ -3,7 +3,7 @@ import type { AppLocale } from "@/types/i18n/appLocale";
 import { expensesPlanBalanceStripDict } from "@/utils/i18n/pages/private/expenses/ExpensesPlanBalanceStrip.i18n";
 import { tDict } from "@/utils/i18n/translate";
 import type { CurrencyCode } from "@/utils/money/currency";
-import { formatMoneyV2, moneyDecimalsFor } from "@/utils/money/moneyV2";
+import { formatMoneyV2 } from "@/utils/money/moneyV2";
 import { useState } from "react";
 
 import type { ExpenseSummary } from "../utils/expenseSummary";
@@ -57,10 +57,9 @@ export default function ExpensesPlanBalanceStrip({
         ? "negative"
         : "zero";
 
+  // Whole-krona display everywhere on the expenses page (task 2).
   const fmt = (value: number) =>
-    formatMoneyV2(value, currencyCode, locale, {
-      fractionDigits: moneyDecimalsFor(value),
-    });
+    formatMoneyV2(value, currencyCode, locale, { fractionDigits: 0 });
 
   const absRemaining = Math.abs(remainingAfterExpenses);
   const headline =
@@ -148,10 +147,12 @@ export default function ExpensesPlanBalanceStrip({
 
   const hasAnySpend = summary.total > ZERO_TOLERANCE;
 
+  // Supporting chrome between the premium hero and the working ledger:
+  // quieter surface, no lift. Tone still flips to amber when overspent.
   const containerToneClasses =
     tone === "negative"
       ? "border-amber-300/70 bg-amber-50/70"
-      : "border-eb-stroke/30 bg-eb-surface/85";
+      : "border-eb-stroke/25 bg-eb-surface/65";
   const chipToneClasses =
     tone === "negative"
       ? "bg-amber-100 text-amber-900"
@@ -165,8 +166,7 @@ export default function ExpensesPlanBalanceStrip({
       data-tone={tone}
       aria-label={t("title")}
       className={cn(
-        "rounded-[1.75rem] border px-4 py-3.5 sm:px-5 sm:py-4",
-        "shadow-[0_1px_2px_rgba(15,23,42,0.04)]",
+        "rounded-2xl border px-4 py-3 sm:px-5 sm:py-3.5",
         containerToneClasses,
       )}
     >
@@ -246,6 +246,12 @@ export default function ExpensesPlanBalanceStrip({
 
         {hasAnySpend ? (
           <div className="mt-4">
+            {/* Make it explicit that the segmented bar is the breakdown of
+              expenses (fixed + variable + subscriptions = total expenses),
+              not the "remaining" money in the card headline above. */}
+            <div className="mb-1.5 text-[11.5px] text-eb-text/55">
+              {t("meterCaption")}
+            </div>
             {/* Segmented spend bar — shape comes from the prototype:
               4px gap between segments, fully pilled outer ends, 4px inner
               corners, and a soft inset bottom shadow for depth. The outer
@@ -285,7 +291,10 @@ export default function ExpensesPlanBalanceStrip({
                 </div>
               );
             })()}
-            <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-eb-text/65">
+            {/* Labels are deliberately secondary to the bar above: small,
+              muted, with the amount only lightly emphasised so the eye reads
+              the bar first and the legend second. */}
+            <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-eb-text/55">
               {meterSegments.map((segment) =>
                 segment.amount > 0 ? (
                   <li
@@ -295,12 +304,12 @@ export default function ExpensesPlanBalanceStrip({
                     <span
                       aria-hidden="true"
                       className={cn(
-                        "inline-block h-[8px] w-[8px] rounded-[2px]",
+                        "inline-block h-[7px] w-[7px] rounded-[2px]",
                         segment.swatchClassName,
                       )}
                     />
                     <span>{segment.label}</span>
-                    <span className="font-semibold tabular-nums text-eb-text/85">
+                    <span className="font-medium tabular-nums text-eb-text/70">
                       {fmt(segment.amount)}
                     </span>
                   </li>

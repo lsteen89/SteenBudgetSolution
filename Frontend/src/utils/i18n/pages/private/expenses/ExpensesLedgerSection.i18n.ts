@@ -17,6 +17,8 @@ export const expensesLedgerSectionDict = {
     total: "Totalt",
     empty: "Inga poster i denna grupp.",
     emptyActive: "Inga aktiva poster i denna grupp.",
+    addInGroup: "Lägg till",
+    toggleGroup: "Visa eller dölj grupp",
   },
   en: {
     rowsCountOne: "{count} entry",
@@ -36,6 +38,8 @@ export const expensesLedgerSectionDict = {
     total: "Total",
     empty: "No entries in this group.",
     emptyActive: "No active entries in this group.",
+    addInGroup: "Add",
+    toggleGroup: "Show or hide group",
   },
   et: {
     rowsCountOne: "{count} rida",
@@ -55,5 +59,7 @@ export const expensesLedgerSectionDict = {
     total: "Kokku",
     empty: "Selles grupis pole ridu.",
     emptyActive: "Selles grupis pole aktiivseid ridu.",
+    addInGroup: "Lisa",
+    toggleGroup: "Näita või peida grupp",
   },
 } as const;

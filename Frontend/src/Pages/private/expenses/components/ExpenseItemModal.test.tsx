@@ -70,9 +70,8 @@ describe("ExpenseItemModal", () => {
 
     expect(amountInput).toHaveClass("text-right");
     expect(amountInput).toHaveClass("tabular-nums");
-    expect(screen.getByTestId("editor-preview-card")).toHaveTextContent(
-      "$0.00",
-    );
+    // Preview money is display money: whole units, no decimals (task 2).
+    expect(screen.getByTestId("editor-preview-card")).toHaveTextContent("$0");
   });
 
   it("does not expose the future-budget option when creating a month-only item", () => {
@@ -325,9 +324,9 @@ describe("ExpenseItemModal", () => {
 
     // currentMonthOnly: current column receives the edit ($150), plan
     // column keeps the source value ($100) and is labelled unchanged.
-    expect(currentCol).toHaveTextContent("$150.00");
+    expect(currentCol).toHaveTextContent("$150");
     expect(currentCol).toHaveTextContent(/receives the edited values/i);
-    expect(planCol).toHaveTextContent("$100.00");
+    expect(planCol).toHaveTextContent("$100");
     expect(planCol).toHaveTextContent(/remains unchanged/i);
 
     // Switching to plan-only flips which column is unchanged.
@@ -336,9 +335,9 @@ describe("ExpenseItemModal", () => {
         name: /budget plan going forward only/i,
       }),
     );
-    expect(currentCol).toHaveTextContent("$129.00"); // row.amountMonthly
+    expect(currentCol).toHaveTextContent("$129"); // row.amountMonthly
     expect(currentCol).toHaveTextContent(/remains unchanged/i);
-    expect(planCol).toHaveTextContent("$150.00"); // user's edit
+    expect(planCol).toHaveTextContent("$150"); // user's edit
     expect(planCol).toHaveTextContent(/receives the edited values/i);
 
     // currentMonthAndBudgetPlan writes both surfaces.
@@ -347,8 +346,8 @@ describe("ExpenseItemModal", () => {
         name: /update the budget plan going forward/i,
       }),
     );
-    expect(currentCol).toHaveTextContent("$150.00");
-    expect(planCol).toHaveTextContent("$150.00");
+    expect(currentCol).toHaveTextContent("$150");
+    expect(planCol).toHaveTextContent("$150");
     expect(currentCol).toHaveTextContent(/receives the edited values/i);
     expect(planCol).toHaveTextContent(/receives the edited values/i);
   });

@@ -3,18 +3,43 @@ import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { expensesSoulHeroDict } from "@/utils/i18n/pages/private/expenses/ExpensesSoulHero.i18n";
 import { tDict } from "@/utils/i18n/translate";
-import { formatMoneyV2, moneyDecimalsFor } from "@/utils/money/moneyV2";
+import { formatMoneyV2 } from "@/utils/money/moneyV2";
 import type { ReactNode } from "react";
 
 import type { ExpenseSummary } from "../utils/expenseSummary";
 
 const ZERO_TOLERANCE = 0.005;
 
+/**
+ * Month-over-month expense comparison for the hero pill.
+ *
+ * The balance card below the hero owns the "kvar efter utgifter" number, so
+ * the hero must not repeat it. Instead the pill compares this month's planned
+ * expenses with the previous month's total.
+ *
+ * - `delta` — a real previous month exists and its total is loaded.
+ * - `none`  — there is no comparable previous month yet (first month). The
+ *             hero shows a quiet neutral state instead of a number.
+ * - `null`  — comparison is unknown (e.g. previous month still loading); the
+ *             hero hides the pill rather than guess.
+ */
+export type ExpenseMonthComparison =
+  | {
+      kind: "delta";
+      direction: "more" | "less" | "level";
+      /** Absolute difference, always >= 0. */
+      deltaAbs: number;
+      /** Localised previous-month name, e.g. "april". */
+      previousLabel: string;
+    }
+  | { kind: "none" }
+  | null;
+
 type ExpensesSoulHeroProps = {
   periodLabel: string;
   summary: ExpenseSummary;
-  /** Headroom left after expenses: income + carry-over - expenses. */
-  remainingAfterExpenses: number;
+  /** Month-over-month comparison for the hero pill. */
+  comparison: ExpenseMonthComparison;
   readOnly: boolean;
   onCreate: () => void;
 };
@@ -27,7 +52,7 @@ const interpolate = (
 export default function ExpensesSoulHero({
   periodLabel,
   summary,
-  remainingAfterExpenses,
+  comparison,
   readOnly,
   onCreate,
 }: ExpensesSoulHeroProps) {
@@ -36,22 +61,37 @@ export default function ExpensesSoulHero({
   const t = <K extends keyof typeof expensesSoulHeroDict.sv>(key: K) =>
     tDict(key, locale, expensesSoulHeroDict);
 
+  // Whole-krona display everywhere on the expenses page (task 2).
   const fmt = (value: number) =>
-    formatMoneyV2(value, currency, locale, {
-      fractionDigits: moneyDecimalsFor(value),
-    });
+    formatMoneyV2(value, currency, locale, { fractionDigits: 0 });
 
   const totalFormatted = fmt(summary.total);
   const isEmpty = summary.total <= ZERO_TOLERANCE;
 
-  const remainingNegative = remainingAfterExpenses < -ZERO_TOLERANCE;
-  const remainingPillText = remainingNegative
-    ? interpolate(t("remainingNegativePill"), {
-        amount: fmt(Math.abs(remainingAfterExpenses)),
-      })
-    : interpolate(t("remainingPill"), {
-        amount: fmt(Math.max(0, remainingAfterExpenses)),
-      });
+  // Qualitative main text — the pill must read as a calm insight, never an
+  // alarm, even when the underlying delta is large. The amount, when shown,
+  // is demoted to muted secondary text below.
+  const comparisonPillText =
+    comparison === null
+      ? null
+      : comparison.kind === "none"
+        ? t("comparisonNone")
+        : interpolate(
+            comparison.direction === "more"
+              ? t("comparisonMore")
+              : comparison.direction === "less"
+                ? t("comparisonLess")
+                : t("comparisonLevel"),
+            { month: comparison.previousLabel },
+          );
+  const comparisonDirection =
+    comparison && comparison.kind === "delta" ? comparison.direction : null;
+  // Secondary, muted amount. Omitted for "level" (≈ no difference) and for
+  // the neutral no-previous-month state.
+  const comparisonAmountText =
+    comparison && comparison.kind === "delta" && comparison.direction !== "level"
+      ? fmt(comparison.deltaAbs)
+      : null;
 
   return (
     <section
@@ -61,6 +101,8 @@ export default function ExpensesSoulHero({
         "border border-eb-stroke/20 bg-eb-surface/90",
         "px-5 py-6 sm:px-8 sm:py-8",
         "shadow-eb backdrop-blur",
+        // Clear the sticky app header (h-16) on scroll-into-view / focus.
+        "scroll-mt-20 sm:scroll-mt-24",
       ].join(" ")}
     >
       {/* Decorative shell-tinted blobs — match the savings hero / prototype. */}
@@ -88,7 +130,10 @@ export default function ExpensesSoulHero({
         <img
           src={CalcBird}
           alt=""
-          className="relative h-full w-full object-contain"
+          // Subtle, slow idle float (3s, ±5px, no bounce) to match the calm
+          // "alive" feel of the savings page. `motion-safe:` keeps it off for
+          // users who prefer reduced motion; the mascot is hidden below `sm`.
+          className="relative h-full w-full object-contain motion-safe:animate-img-float"
         />
       </div>
 
@@ -145,32 +190,27 @@ export default function ExpensesSoulHero({
         ) : null}
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          <span
-            data-testid="expenses-hero-remaining-pill"
-            data-tone={remainingNegative ? "negative" : "positive"}
-            className={[
-              "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[13px] font-bold tabular-nums",
-              remainingNegative
-                ? "border-amber-300/70 bg-amber-50/80 text-amber-900"
-                : "border-eb-accent/25 bg-eb-accentSoft text-[#14532d]",
-            ].join(" ")}
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
+          {comparisonPillText ? (
+            // Calm, neutral pill. Higher spending than last month is not
+            // "bad" and lower is not "good", so the pill stays tonally
+            // neutral — only a quiet directional glyph hints at the trend.
+            <span
+              data-testid="expenses-hero-comparison-pill"
+              data-direction={comparisonDirection ?? "none"}
+              className="inline-flex items-center gap-2 rounded-full border border-eb-stroke/25 bg-eb-surface/70 px-3 py-1.5 text-[13px] font-semibold text-eb-text/70"
             >
-              <circle cx="12" cy="12" r="9" />
-              <path d="M12 7v5l3 2" />
-            </svg>
-            <span>{remainingPillText}</span>
-          </span>
+              <ComparisonGlyph direction={comparisonDirection} />
+              <span>{comparisonPillText}</span>
+              {comparisonAmountText ? (
+                <span
+                  data-testid="expenses-hero-comparison-amount"
+                  className="font-normal tabular-nums text-eb-text/40"
+                >
+                  {comparisonAmountText}
+                </span>
+              ) : null}
+            </span>
+          ) : null}
           {readOnly ? (
             <span
               data-testid="expenses-hero-read-only-pill"
@@ -201,6 +241,59 @@ export default function ExpensesSoulHero({
         ) : null}
       </div>
     </section>
+  );
+}
+
+function ComparisonGlyph({
+  direction,
+}: {
+  direction: "more" | "less" | "level" | null;
+}) {
+  const common = {
+    width: 14,
+    height: 14,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    "aria-hidden": true,
+    className: "text-eb-text/45",
+  };
+
+  if (direction === "more") {
+    // Trending up.
+    return (
+      <svg {...common}>
+        <path d="M3 17l6-6 4 4 8-8" />
+        <path d="M17 7h4v4" />
+      </svg>
+    );
+  }
+  if (direction === "less") {
+    // Trending down.
+    return (
+      <svg {...common}>
+        <path d="M3 7l6 6 4-4 8 8" />
+        <path d="M17 17h4v-4" />
+      </svg>
+    );
+  }
+  if (direction === "level") {
+    // On par — flat line.
+    return (
+      <svg {...common}>
+        <path d="M4 12h16" />
+      </svg>
+    );
+  }
+  // Neutral "comparison coming soon" — quiet clock.
+  return (
+    <svg {...common}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </svg>
   );
 }
 

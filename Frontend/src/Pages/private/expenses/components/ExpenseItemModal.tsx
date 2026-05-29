@@ -66,6 +66,12 @@ type ExpenseItemModalProps = {
   open: boolean;
   mode: ExpenseItemModalMode;
   row: ExpenseItemModalRow | null;
+  /**
+   * Preselected category for create mode, set when the user opens the modal
+   * from a group's "+ Lägg till" so the new expense starts in that group's
+   * context. Ignored in edit mode. Falls back to the first category.
+   */
+  createCategoryId?: string;
   monthLabel: string;
   categories: ExpenseCategoryDto[];
   isSaving?: boolean;
@@ -89,6 +95,7 @@ export default function ExpenseItemModal({
   open,
   mode,
   row,
+  createCategoryId,
   monthLabel,
   categories,
   isSaving = false,
@@ -99,6 +106,9 @@ export default function ExpenseItemModal({
   const appLocale = useAppLocale();
   const t = <K extends keyof typeof expenseItemModalDict.sv>(key: K) =>
     tDict(key, appLocale, expenseItemModalDict);
+  // The current-month inclusion copy names the month ("Räknas i maj 2026") so
+  // it cannot be confused with the forward-looking subscription lifecycle.
+  const withMonth = (value: string) => value.replace("{month}", monthLabel);
   const tSchema = <K extends keyof typeof expenseItemSchemaDict.sv>(key: K) =>
     tDict(key, appLocale, expenseItemSchemaDict);
   const dialogRef = useRef<HTMLDivElement | null>(null);
@@ -232,9 +242,16 @@ export default function ExpenseItemModal({
       return;
     }
 
+    // Create mode: seed the category from the group context when the modal
+    // was opened from a group's "+ Lägg till". Validate the id against the
+    // loaded categories so a stale id can never select a phantom option.
+    const seededCreateCategoryId =
+      createCategoryId && categories.some((c) => c.id === createCategoryId)
+        ? createCategoryId
+        : defaultCategoryId;
     reset({
       name: "",
-      categoryId: defaultCategoryId,
+      categoryId: seededCreateCategoryId,
       amountMonthly: "",
       isActive: true,
     });
@@ -242,7 +259,7 @@ export default function ExpenseItemModal({
     setLifecycle("active");
     initialScopeRef.current = "currentMonthOnly";
     initialLifecycleRef.current = "active";
-  }, [open, mode, row, reset, defaultCategoryId]);
+  }, [open, mode, row, reset, defaultCategoryId, createCategoryId, categories]);
 
   const nameError = errors.name?.message?.toString();
   const categoryError = errors.categoryId?.message?.toString();
@@ -400,17 +417,19 @@ export default function ExpenseItemModal({
       ? normalizedAmount
       : (row?.sourceAmountMonthly ?? 0)
     : 0;
+  // Preview amounts are display money — whole krona, no decimals (task 2).
+  // The editable MoneyInput keeps its own precision; this is read-only.
   const currentColumnAmountFormatted = formatMoneyV2(
     currentColumnAmount,
     currency,
     appLocale,
-    { fractionDigits: 2 },
+    { fractionDigits: 0 },
   );
   const planColumnAmountFormatted = formatMoneyV2(
     planColumnAmount,
     currency,
     appLocale,
-    { fractionDigits: 2 },
+    { fractionDigits: 0 },
   );
 
   const previewCategoryLabel = useMemo(() => {
@@ -601,7 +620,7 @@ export default function ExpenseItemModal({
                       <div className="flex items-center gap-2">
                         <div className="flex items-center gap-2">
                           <div className="text-sm font-semibold text-eb-text">
-                            {t("activeLabel")}
+                            {withMonth(t("activeLabel"))}
                           </div>
 
                           <button
@@ -637,7 +656,7 @@ export default function ExpenseItemModal({
                       <div className="mt-1">
                         <div className="text-sm text-eb-text/60">
                           {watchedIsActive
-                            ? t("activeDescription")
+                            ? withMonth(t("activeDescription"))
                             : t("inactiveDescription")}
                         </div>
 
@@ -659,7 +678,7 @@ export default function ExpenseItemModal({
                       type="button"
                       role="switch"
                       aria-checked={watchedIsActive}
-                      aria-label={t("activeLabel")}
+                      aria-label={withMonth(t("activeLabel"))}
                       onClick={() =>
                         setValue("isActive", !watchedIsActive, {
                           shouldDirty: true,
@@ -769,7 +788,7 @@ export default function ExpenseItemModal({
                   title={previewTitle}
                   subtitle={previewCategoryLabel}
                   amount={formatMoneyV2(previewAmount, currency, appLocale, {
-                    fractionDigits: 2,
+                    fractionDigits: 0,
                   })}
                   status={previewStatus}
                   muted={!previewSourceIsActive}

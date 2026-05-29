@@ -1,9 +1,9 @@
 export const expenseLedgerRowDict = {
   sv: {
-    paused: "Pausad",
-    cancelled: "Avstängd",
-    inactive: "Inaktiverad",
-    onlyThisMonth: "Bara denna månad",
+    paused: "Pausad denna månad",
+    cancelled: "Avslutad",
+    inactive: "Inaktiv",
+    onlyThisMonth: "Endast denna månad",
     doesNotCount: "Räknas inte i månadens total",
     changedFromPlan: "Ändrad mot planen",
     // {amount} is pre-formatted (e.g. "300 kr"), no sign.
@@ -11,8 +11,8 @@ export const expenseLedgerRowDict = {
     deltaLowerThanPlan: "{amount} mindre än planen",
   },
   en: {
-    paused: "Paused",
-    cancelled: "Cancelled",
+    paused: "Paused this month",
+    cancelled: "Ended",
     inactive: "Inactive",
     onlyThisMonth: "Only this month",
     doesNotCount: "Doesn't count in this month's total",
@@ -21,7 +21,7 @@ export const expenseLedgerRowDict = {
     deltaLowerThanPlan: "{amount} less than the plan",
   },
   et: {
-    paused: "Peatatud",
+    paused: "Peatatud sel kuul",
     cancelled: "Lõpetatud",
     inactive: "Mitteaktiivne",
     onlyThisMonth: "Ainult sellel kuul",

@@ -21,6 +21,7 @@ import {
   canEditMonth,
   canShowUpdateDefault,
 } from "@/utils/budget/periodEditor/canShowUpdateDefault";
+import { asCategoryKey } from "@/utils/i18n/budget/categories";
 import { expensesEditorPageDict } from "@/utils/i18n/pages/private/expenses/ExpensesEditorPage.i18n";
 import { tDict } from "@/utils/i18n/translate";
 import { useMemo, useState } from "react";
@@ -28,10 +29,44 @@ import DeleteExpenseItemDialog from "./components/DeleteExpenseItemDialog";
 import ExpenseItemModal from "./components/ExpenseItemModal";
 import ExpensesLedgerSection from "./components/ExpensesLedgerSection";
 import ExpensesPlanBalanceStrip from "./components/ExpensesPlanBalanceStrip";
-import ExpensesSoulHero from "./components/ExpensesSoulHero";
+import ExpensesSoulHero, {
+  type ExpenseMonthComparison,
+} from "./components/ExpensesSoulHero";
 import type { ExpenseLedgerRowVm } from "./types/expenseEditor.types";
 import { buildExpenseLedgerGroups } from "./utils/buildExpenseLedgerGroups";
 import { buildExpenseSummary } from "./utils/expenseSummary";
+
+/** Previous calendar month as `YYYY-MM`, or null when the input is malformed. */
+function toPreviousYearMonth(yearMonth: string): string | null {
+  const match = /^(\d{4})-(\d{2})$/.exec(yearMonth);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  if (!year || month < 1 || month > 12) return null;
+
+  const date = new Date(Date.UTC(year, month - 1, 1));
+  date.setUTCMonth(date.getUTCMonth() - 1);
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
+  return `${y}-${m}`;
+}
+
+/** Localised long month name for a `YYYY-MM`, e.g. "april". */
+function monthLongLabel(yearMonth: string, locale: string): string {
+  const match = /^(\d{4})-(\d{2})$/.exec(yearMonth);
+  if (!match) return yearMonth;
+  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, 1));
+  try {
+    return new Intl.DateTimeFormat(locale, {
+      month: "long",
+      timeZone: "UTC",
+    }).format(date);
+  } catch {
+    return yearMonth;
+  }
+}
+
+const COMPARISON_TOLERANCE = 0.5;
 
 export default function ExpensesEditorPage() {
   const toast = useToast();
@@ -68,6 +103,34 @@ export default function ExpensesEditorPage() {
   );
   const categoriesQuery = useExpenseCategories({ enabled: !!editableYearMonth });
 
+  // Month-over-month comparison source for the hero pill. We only fetch the
+  // previous month when it genuinely exists in the months list and is not a
+  // skipped month, so the comparison is never fabricated. Uses the existing
+  // dashboard-month endpoint; gated + retry-safe, so a missing month never
+  // spams 404s.
+  const previousYearMonth = useMemo(
+    () => (editableYearMonth ? toPreviousYearMonth(editableYearMonth) : null),
+    [editableYearMonth],
+  );
+  const hasComparablePreviousMonth = useMemo(() => {
+    if (!previousYearMonth) return false;
+    return (monthsStatusQuery.data?.months ?? []).some(
+      (m) =>
+        m.yearMonth === previousYearMonth &&
+        (m.status === "closed" || m.status === "open"),
+    );
+  }, [monthsStatusQuery.data, previousYearMonth]);
+  const previousMonthQuery = useBudgetDashboardMonthQuery(previousYearMonth, {
+    enabled: hasComparablePreviousMonth,
+  });
+  const previousAggregate = useMemo(() => {
+    if (!hasComparablePreviousMonth || !previousMonthQuery.data) return null;
+    return buildDashboardSummaryAggregate(
+      previousMonthQuery.data,
+      locale as AppLocale,
+    );
+  }, [hasComparablePreviousMonth, previousMonthQuery.data, locale]);
+
   const mutationYearMonth = editableYearMonth ?? "";
   const createMutation = useCreateBudgetMonthExpenseItem(mutationYearMonth);
   const patchMutation = usePatchBudgetMonthExpenseItem(mutationYearMonth);
@@ -75,7 +138,7 @@ export default function ExpensesEditorPage() {
 
   const [modalState, setModalState] = useState<
     | { open: false }
-    | { open: true; mode: "create" }
+    | { open: true; mode: "create"; categoryId?: string }
     | { open: true; mode: "edit"; row: ExpenseLedgerRowVm }
   >({ open: false });
   const [deleteTarget, setDeleteTarget] = useState<ExpenseLedgerRowVm | null>(
@@ -109,6 +172,28 @@ export default function ExpensesEditorPage() {
     () => buildExpenseSummary({ editor, categories }),
     [editor, categories],
   );
+
+  // Resolve a sensible category for a group-scoped "+ Lägg till" so the create
+  // modal opens already pointed at that group's context. Falls back to the
+  // first category when the group's preferred codes are not present (defensive
+  // — the seeded category set always contains these). Mirrors the
+  // category-key → group mapping used by buildExpenseLedgerGroups.
+  const categoryIdForGroup = (
+    groupKey: "fixed" | "variable" | "subscription",
+  ): string | undefined => {
+    const preferredKeys =
+      groupKey === "fixed"
+        ? ["fixed", "housing"]
+        : groupKey === "subscription"
+          ? ["subscription"]
+          : ["other", "food", "transport", "clothing"];
+
+    for (const key of preferredKeys) {
+      const match = categories.find((c) => asCategoryKey(c.code) === key);
+      if (match) return match.id;
+    }
+    return categories[0]?.id;
+  };
 
   if (monthsStatusQuery.isLoading) {
     return (
@@ -294,7 +379,39 @@ export default function ExpensesEditorPage() {
   // headline, and the meter parts all reconcile to the same number, no matter
   // what the dashboard's totalExpenditure says.
   const expenseTotal = expenseSummary.total;
-  const remainingAfterExpenses = incomeTotal + carryOverTotal - expenseTotal;
+
+  // Build the hero pill comparison. `none` when there is no comparable prior
+  // month (hero shows a quiet neutral state — e.g. the first budgeted month).
+  // `null` when the previous month exists but has no usable dashboard total
+  // yet, or is still loading — the hero hides the pill rather than comparing
+  // against an unreliable (e.g. zero / not-yet-materialized) number. Otherwise
+  // a real delta between this month's planned expenses and the previous
+  // month's total, using the live editor total so the pill stays consistent
+  // with the hero headline above it.
+  const previousExpenseTotal =
+    previousAggregate?.summary.totalExpenditure ?? null;
+  const hasUsablePreviousTotal =
+    previousExpenseTotal !== null &&
+    previousExpenseTotal > COMPARISON_TOLERANCE;
+  const heroComparison: ExpenseMonthComparison = !hasComparablePreviousMonth
+    ? { kind: "none" }
+    : hasUsablePreviousTotal && previousYearMonth
+      ? (() => {
+          const delta = expenseTotal - (previousExpenseTotal as number);
+          const direction =
+            Math.abs(delta) < COMPARISON_TOLERANCE
+              ? "level"
+              : delta > 0
+                ? "more"
+                : "less";
+          return {
+            kind: "delta" as const,
+            direction,
+            deltaAbs: Math.abs(delta),
+            previousLabel: monthLongLabel(previousYearMonth, locale),
+          };
+        })()
+      : null;
   const currencyCode =
     dashboardAggregate?.summary.currency ?? ("SEK" as const);
   const periodLabel =
@@ -361,7 +478,7 @@ export default function ExpensesEditorPage() {
               <ExpensesSoulHero
                 periodLabel={periodLabel}
                 summary={expenseSummary}
-                remainingAfterExpenses={remainingAfterExpenses}
+                comparison={heroComparison}
                 readOnly={readOnly}
                 onCreate={() => setModalState({ open: true, mode: "create" })}
               />
@@ -388,6 +505,13 @@ export default function ExpensesEditorPage() {
                     onPauseToggle={handlePauseToggle}
                     onLifecycleChange={handleLifecycleChange}
                     onDelete={handleDelete}
+                    onCreateInGroup={(g) =>
+                      setModalState({
+                        open: true,
+                        mode: "create",
+                        categoryId: categoryIdForGroup(g.key),
+                      })
+                    }
                   />
                 ))}
               </div>
@@ -400,6 +524,11 @@ export default function ExpensesEditorPage() {
         open={modalState.open}
         mode={modalState.open ? modalState.mode : "create"}
         row={modalEditRow}
+        createCategoryId={
+          modalState.open && modalState.mode === "create"
+            ? modalState.categoryId
+            : undefined
+        }
         monthLabel={periodLabel}
         categories={categories}
         isSaving={createMutation.isPending || patchMutation.isPending}
