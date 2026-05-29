@@ -1,3 +1,4 @@
+import BudgetEditorSegmentedBar from "@/components/molecules/forms/budgetEditor/BudgetEditorSegmentedBar";
 import { cn } from "@/lib/utils";
 import type { AppLocale } from "@/types/i18n/appLocale";
 import { expensesPlanBalanceStripDict } from "@/utils/i18n/pages/private/expenses/ExpensesPlanBalanceStrip.i18n";
@@ -254,43 +255,20 @@ export default function ExpensesPlanBalanceStrip({
             </div>
             {/* Segmented spend bar — shape comes from the prototype:
               4px gap between segments, fully pilled outer ends, 4px inner
-              corners, and a soft inset bottom shadow for depth. The outer
-              container is intentionally a plain flex row with `gap-1` (no
-              rounded-full / overflow-hidden) so each segment reads as a
-              discrete chunk rather than slices of one continuous bar. */}
-            {(() => {
-              const visibleSegments = meterSegments.filter(
-                (segment) => segment.amount > 0,
-              );
-              return (
-                <div
-                  data-testid="expenses-spend-meter"
-                  role="img"
-                  aria-label={t("meterTitle")}
-                  className="flex h-3.5 w-full gap-1"
-                >
-                  {visibleSegments.map((segment, index) => {
-                    const widthPct =
-                      (segment.amount / meterDenominator) * 100;
-                    const isFirst = index === 0;
-                    const isLast = index === visibleSegments.length - 1;
-                    return (
-                      <span
-                        key={segment.key}
-                        data-testid={`expenses-spend-meter-${segment.key}`}
-                        className={cn(
-                          "h-full shadow-[inset_0_-1px_0_rgb(15_23_42_/_0.06)]",
-                          isFirst ? "rounded-l-full" : "rounded-l",
-                          isLast ? "rounded-r-full" : "rounded-r",
-                          segment.barClassName,
-                        )}
-                        style={{ width: `${widthPct}%`, minWidth: "20px" }}
-                      />
-                    );
-                  })}
-                </div>
-              );
-            })()}
+              corners, and a soft inset bottom shadow for depth. The shared
+              `BudgetEditorSegmentedBar` carries the visual recipe; the
+              testid/aria-label keep the expenses contract stable. */}
+            <BudgetEditorSegmentedBar
+              segments={meterSegments.map(({ key, label, amount, barClassName }) => ({
+                key,
+                label,
+                amount,
+                barClassName,
+              }))}
+              denominator={meterDenominator}
+              ariaLabel={t("meterTitle")}
+              testId="expenses-spend-meter"
+            />
             {/* Labels are deliberately secondary to the bar above: small,
               muted, with the amount only lightly emphasised so the eye reads
               the bar first and the legend second. */}
