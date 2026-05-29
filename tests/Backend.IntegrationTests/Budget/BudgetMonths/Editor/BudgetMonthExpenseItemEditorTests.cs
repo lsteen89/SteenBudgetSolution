@@ -93,6 +93,106 @@ public sealed class BudgetMonthExpenseItemEditorTests
         result.Value.ExpenseItems.Should().NotBeEmpty();
         result.Value.ExpenseItems.Should().OnlyContain(x => x.Id != Guid.Empty);
     }
+
+    [Fact]
+    public async Task GetEditor_ReturnsSourcePlanValues_OnlyForLinkedRows()
+    {
+        // PR 5: the editor query LEFT JOINs ExpenseItem so the FE can compute
+        // honest plan-vs-current-month deltas. Linked rows expose their source
+        // values; month-only rows return nulls; soft-deleted linked rows still
+        // carry their source values (includeDeleted is true on the editor read).
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var persoid = seed.Persoid;
+
+        var sut = CreateSut(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+
+        await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.Lifecycle.EnsureAccessibleMonthAsync(persoid, persoid, "2026-01", CancellationToken.None));
+
+        // Create a month-only row alongside the seeded linked rows.
+        var monthOnly = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.CreateHandler.Handle(
+                new CreateBudgetMonthExpenseItemCommand(
+                    Persoid: persoid,
+                    YearMonth: "2026-01",
+                    CategoryId: ExpenseCategories.Other,
+                    Name: "Source check month only",
+                    AmountMonthly: 50m,
+                    IsActive: true),
+                CancellationToken.None));
+
+        monthOnly.IsSuccess.Should().BeTrue();
+
+        var editor = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.GetEditorHandler.Handle(new GetBudgetMonthEditorQuery(persoid, "2026-01"), CancellationToken.None));
+
+        editor.IsFailure.Should().BeFalse();
+        editor.Value.Should().NotBeNull();
+
+        // Linked row: source values populated from ExpenseItem.
+        var linkedRow = editor.Value!.ExpenseItems
+            .First(x => !x.IsDeleted && !x.IsMonthOnly);
+
+        var baseline = await GetBaselineExpenseRowAsync(linkedRow.SourceExpenseItemId!.Value);
+        baseline.Should().NotBeNull();
+
+        linkedRow.SourceCategoryId.Should().Be(baseline!.CategoryId);
+        linkedRow.SourceName.Should().Be(baseline.Name);
+        linkedRow.SourceAmountMonthly.Should().Be(baseline.AmountMonthly);
+        linkedRow.SourceIsActive.Should().Be(baseline.IsActive);
+
+        // Month-only row: source values are null because there is no source
+        // ExpenseItem to compare against.
+        var monthOnlyRow = editor.Value.ExpenseItems
+            .First(x => x.Id == monthOnly.Value!.Id);
+
+        monthOnlyRow.IsMonthOnly.Should().BeTrue();
+        monthOnlyRow.SourceCategoryId.Should().BeNull();
+        monthOnlyRow.SourceName.Should().BeNull();
+        monthOnlyRow.SourceAmountMonthly.Should().BeNull();
+        monthOnlyRow.SourceIsActive.Should().BeNull();
+
+        // Soft-deleted linked row: still surfaces source values because the
+        // editor read includes deleted rows.
+        var delete = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.DeleteHandler.Handle(
+                new DeleteBudgetMonthExpenseItemCommand(
+                    Persoid: persoid,
+                    YearMonth: "2026-01",
+                    MonthExpenseItemId: linkedRow.Id),
+                CancellationToken.None));
+
+        delete.IsFailure.Should().BeFalse();
+
+        var afterDelete = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.GetEditorHandler.Handle(new GetBudgetMonthEditorQuery(persoid, "2026-01"), CancellationToken.None));
+
+        var deletedRow = afterDelete.Value!.ExpenseItems
+            .First(x => x.Id == linkedRow.Id);
+
+        deletedRow.IsDeleted.Should().BeTrue();
+        deletedRow.SourceCategoryId.Should().Be(baseline.CategoryId);
+        deletedRow.SourceName.Should().Be(baseline.Name);
+        deletedRow.SourceAmountMonthly.Should().Be(baseline.AmountMonthly);
+        deletedRow.SourceIsActive.Should().Be(baseline.IsActive);
+
+        // Belt-and-suspenders: the LEFT JOIN must not disturb the existing
+        // ORDER BY IsDeleted ASC, Name ASC. With both buckets present (the
+        // soft-delete above forced a deleted row) verify the bucket boundary
+        // and that names are ascending within each bucket.
+        var allRows = afterDelete.Value!.ExpenseItems;
+        var firstDeletedIndex = allRows.ToList().FindIndex(x => x.IsDeleted);
+        firstDeletedIndex.Should().BeGreaterThan(0, "there should be at least one active row before any deleted row");
+
+        allRows.Take(firstDeletedIndex).Should().OnlyContain(x => !x.IsDeleted);
+        allRows.Skip(firstDeletedIndex).Should().OnlyContain(x => x.IsDeleted);
+
+        allRows.Where(x => !x.IsDeleted).Select(x => x.Name).Should().BeInAscendingOrder();
+        allRows.Where(x => x.IsDeleted).Select(x => x.Name).Should().BeInAscendingOrder();
+    }
+
     [Fact]
     public async Task PatchExpenseItem_UpdateDefaultFalse_UpdatesMonthRowOnly()
     {
@@ -288,6 +388,134 @@ public sealed class BudgetMonthExpenseItemEditorTests
 
         var eventCount = await CountChangeEventsAsync(budgetMonthId, "created");
         eventCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task CreateExpenseItem_SubscriptionRow_PersistsRequestedLifecycleStatus()
+    {
+        // Bug 1 regression guard: POST /expense-items must honour
+        // SubscriptionLifecycleStatus instead of silently forcing "active".
+        // Without this, a user who creates a "paused" subscription in the
+        // modal sees an active subscription appear in the ledger.
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var persoid = seed.Persoid;
+
+        var sut = CreateSut(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+
+        var ensure = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.Lifecycle.EnsureAccessibleMonthAsync(persoid, persoid, "2026-01", CancellationToken.None));
+
+        var budgetMonthId = ensure.Value!.BudgetMonthId;
+
+        var create = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.CreateHandler.Handle(
+                new CreateBudgetMonthExpenseItemCommand(
+                    Persoid: persoid,
+                    YearMonth: "2026-01",
+                    CategoryId: ExpenseCategories.Subscription,
+                    Name: "Spotify",
+                    AmountMonthly: 99m,
+                    IsActive: true,
+                    SubscriptionLifecycleStatus: BudgetMonthSubscriptionLifecycleStatuses.Paused),
+                CancellationToken.None));
+
+        create.IsSuccess.Should().BeTrue();
+        create.Value!.SubscriptionLifecycleStatus
+            .Should().Be(BudgetMonthSubscriptionLifecycleStatuses.Paused);
+
+        var row = await GetMonthExpenseRowAsync(budgetMonthId, create.Value.Id);
+        row.Should().NotBeNull();
+        row!.SubscriptionLifecycleStatus
+            .Should().Be(BudgetMonthSubscriptionLifecycleStatuses.Paused);
+    }
+
+    [Fact]
+    public async Task CreateExpenseItem_SubscriptionRow_DefaultsToActiveWhenLifecycleOmitted()
+    {
+        // Backwards-compat: existing callers that do not send
+        // SubscriptionLifecycleStatus must still receive the historical
+        // default of "active" so behavior does not silently regress.
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var persoid = seed.Persoid;
+
+        var sut = CreateSut(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+
+        var create = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.CreateHandler.Handle(
+                new CreateBudgetMonthExpenseItemCommand(
+                    Persoid: persoid,
+                    YearMonth: "2026-01",
+                    CategoryId: ExpenseCategories.Subscription,
+                    Name: "Netflix",
+                    AmountMonthly: 129m,
+                    IsActive: true),
+                CancellationToken.None));
+
+        create.IsSuccess.Should().BeTrue();
+        create.Value!.SubscriptionLifecycleStatus
+            .Should().Be(BudgetMonthSubscriptionLifecycleStatuses.Active);
+    }
+
+    [Fact]
+    public async Task CreateExpenseItem_NonSubscriptionRow_RejectsLifecycleValue()
+    {
+        // Matches the patch slice rule. The handler must surface a
+        // typed error rather than silently dropping the value (which
+        // would leave the user thinking they paused a non-subscription
+        // row that actually has no lifecycle field).
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var persoid = seed.Persoid;
+
+        var sut = CreateSut(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+
+        var create = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.CreateHandler.Handle(
+                new CreateBudgetMonthExpenseItemCommand(
+                    Persoid: persoid,
+                    YearMonth: "2026-01",
+                    CategoryId: ExpenseCategories.Other,
+                    Name: "Groceries",
+                    AmountMonthly: 400m,
+                    IsActive: true,
+                    SubscriptionLifecycleStatus: BudgetMonthSubscriptionLifecycleStatuses.Paused),
+                CancellationToken.None));
+
+        create.IsFailure.Should().BeTrue();
+        create.Error!.Code.Should().Be(
+            BudgetMonthExpenseItemErrors.SubscriptionLifecycleRequiresSubscriptionCategory.Code);
+    }
+
+    [Fact]
+    public async Task CreateExpenseItem_RejectsUnsupportedLifecycleValue()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var persoid = seed.Persoid;
+
+        var sut = CreateSut(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+
+        var create = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.CreateHandler.Handle(
+                new CreateBudgetMonthExpenseItemCommand(
+                    Persoid: persoid,
+                    YearMonth: "2026-01",
+                    CategoryId: ExpenseCategories.Subscription,
+                    Name: "Spotify",
+                    AmountMonthly: 99m,
+                    IsActive: true,
+                    SubscriptionLifecycleStatus: "archived"),
+                CancellationToken.None));
+
+        create.IsFailure.Should().BeTrue();
+        create.Error!.Code.Should().Be(
+            BudgetMonthExpenseItemErrors.InvalidSubscriptionLifecycleStatus.Code);
     }
 
     [Fact]

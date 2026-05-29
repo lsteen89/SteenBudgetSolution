@@ -37,6 +37,14 @@ export function buildCreateExpenseItemFormSchema(
       maxDecimals: 2,
     }),
     isActive: z.boolean(),
+    // Optional + nullable so existing callers that omit the field keep
+    // serialising the same payload. Backend rule: must be null for
+    // non-subscription rows; for subscription rows it defaults to "active"
+    // server-side when null. Validated via the same enum as patch.
+    subscriptionLifecycleStatus: z
+      .enum(["active", "paused", "cancelled"])
+      .nullable()
+      .optional(),
   });
 }
 
@@ -95,12 +103,14 @@ export type CreateExpenseItemFormValues = {
   categoryId: string;
   amountMonthly: string;
   isActive: boolean;
+  subscriptionLifecycleStatus?: "active" | "paused" | "cancelled" | null;
 };
 export type CreateExpenseItemApiPayload = {
   name: string;
   categoryId: string;
   amountMonthly: number;
   isActive: boolean;
+  subscriptionLifecycleStatus?: "active" | "paused" | "cancelled" | null;
 };
 
 export type PatchExpenseItemFormValues = CreateExpenseItemFormValues & {

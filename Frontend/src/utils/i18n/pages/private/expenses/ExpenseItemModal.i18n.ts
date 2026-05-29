@@ -13,8 +13,8 @@ export const expenseItemModalDict = {
     nameLabel: "Namn",
     categoryLabel: "Kategori",
     amountLabel: "Belopp per månad",
-    activeLabel: "Aktiv denna månad",
-    activeDescription: "Avmarkera för att pausa posten utan att ta bort den.",
+    activeLabel: "Räknas i {month}",
+    activeDescription: "Stäng av om posten inte ska ingå i {month}.",
     inactiveDescription:
       "Posten finns kvar men räknas inte med den här månaden.",
     previewLabel: "Förhandsvisning",
@@ -33,12 +33,26 @@ export const expenseItemModalDict = {
       "Aktiv betyder att denna utgift fortsätter tills du ändrar eller pausar den.",
     inactiveInfo: "Pausad betyder att utgiften sparas men inte räknas just nu.",
     statusInfoAriaLabel: "Visa mer information om status",
+    monthOnlyCreateCallout:
+      "Skapas bara för {month}. Det ändrar inte din budgetplan.",
     scopePlanDisabledHint:
-      "Den här posten gäller bara månaden. Det finns ingen budgetplan att uppdatera.",
+      "Den här raden finns bara i {month}. Ändringar av budgetplanen är inte tillgängliga.",
+    previewLabelPlanOnly: "Den här månaden – oförändrad",
     previewCurrentMonthLabel: "Den här månaden",
     previewCurrentMonthUnchanged: "Lämnas oförändrad.",
     previewBudgetPlanLabel: "Budgetplan framåt",
     previewBudgetPlanReceivesEdit: "Får de redigerade värdena.",
+    lifecycleSectionLabel: "Abonnemang framåt",
+    lifecycleSectionDescription:
+      "Välj om abonnemanget fortsätter, pausas eller avslutas i planen.",
+    lifecycleActive: "Aktivt",
+    lifecyclePaused: "Pausat",
+    lifecycleCancelled: "Avslutat",
+    lifecycleActiveHint: "Räknas med i månadens summa.",
+    lifecyclePausedHint: "Räknas inte med – kan återupptas senare.",
+    lifecycleCancelledHint: "Räknas inte med – markerat som avslutat.",
+    lifecyclePlanOnlyHint:
+      "Abonnemangsstatus gäller bara den här månaden. Välj en annan omfattning för att ändra status.",
   },
   en: {
     nameRequired: "Name is required.",
@@ -54,8 +68,8 @@ export const expenseItemModalDict = {
     nameLabel: "Name",
     categoryLabel: "Category",
     amountLabel: "Amount per month",
-    activeLabel: "Active this month",
-    activeDescription: "Uncheck to pause the entry without deleting it.",
+    activeLabel: "Counts in {month}",
+    activeDescription: "Turn off if this entry should not be part of {month}.",
     inactiveDescription:
       "The entry remains, but it is not counted for this month.",
     previewLabel: "Preview",
@@ -75,12 +89,26 @@ export const expenseItemModalDict = {
     inactiveInfo:
       "Paused means the expense stays saved, but is not counted right now.",
     statusInfoAriaLabel: "Show more information about status",
+    monthOnlyCreateCallout:
+      "Created only for {month}. It does not change your budget plan.",
     scopePlanDisabledHint:
-      "This entry only belongs to the month. There is no budget plan to update.",
+      "This row only exists in {month}. Future-plan changes are not available.",
+    previewLabelPlanOnly: "Current month — unchanged",
     previewCurrentMonthLabel: "Current month",
     previewCurrentMonthUnchanged: "Remains unchanged.",
     previewBudgetPlanLabel: "Budget plan forward",
     previewBudgetPlanReceivesEdit: "Receives the edited values.",
+    lifecycleSectionLabel: "Subscription going forward",
+    lifecycleSectionDescription:
+      "Choose whether the subscription continues, pauses, or ends in the plan.",
+    lifecycleActive: "Active",
+    lifecyclePaused: "Paused",
+    lifecycleCancelled: "Cancelled",
+    lifecycleActiveHint: "Counts in this month's total.",
+    lifecyclePausedHint: "Does not count — can be resumed later.",
+    lifecycleCancelledHint: "Does not count — marked as ended.",
+    lifecyclePlanOnlyHint:
+      "Subscription status applies to the current month only. Choose a different scope to change it.",
   },
   et: {
     nameRequired: "Nimi on kohustuslik.",
@@ -96,9 +124,9 @@ export const expenseItemModalDict = {
     nameLabel: "Nimi",
     categoryLabel: "Kategooria",
     amountLabel: "Summa kuus",
-    activeLabel: "Selles kuus aktiivne",
+    activeLabel: "Arvestatakse kuus {month}",
     activeDescription:
-      "Võta märge maha, et rida peatada ilma seda kustutamata.",
+      "Lülita välja, kui rida ei peaks kuusse {month} kuuluma.",
     inactiveDescription:
       "Rida jääb alles, kuid seda ei arvestata selle kuu hulka.",
     previewLabel: "Eelvaade",
@@ -118,11 +146,25 @@ export const expenseItemModalDict = {
     inactiveInfo:
       "Peatatud tähendab, et kulu jääb alles, kuid seda ei arvestata praegu.",
     statusInfoAriaLabel: "Näita oleku kohta rohkem infot",
+    monthOnlyCreateCallout:
+      "Loodud ainult kuule {month}. See ei muuda sinu eelarveplaani.",
     scopePlanDisabledHint:
-      "See rida kehtib ainult selle kuu kohta. Eelarveplaani ei ole vaja uuendada.",
+      "See rida on olemas ainult kuus {month}. Eelarveplaani muudatused ei ole saadaval.",
+    previewLabelPlanOnly: "See kuu – muutmata",
     previewCurrentMonthLabel: "See kuu",
     previewCurrentMonthUnchanged: "Jääb muutmata.",
     previewBudgetPlanLabel: "Eelarveplaan edaspidi",
     previewBudgetPlanReceivesEdit: "Saab muudetud väärtused.",
+    lifecycleSectionLabel: "Tellimus edaspidi",
+    lifecycleSectionDescription:
+      "Vali, kas tellimus jätkub, peatatakse või lõpetatakse plaanis.",
+    lifecycleActive: "Aktiivne",
+    lifecyclePaused: "Peatatud",
+    lifecycleCancelled: "Lõpetatud",
+    lifecycleActiveHint: "Arvestatakse selle kuu summasse.",
+    lifecyclePausedHint: "Ei arvestata – saab hiljem jätkata.",
+    lifecycleCancelledHint: "Ei arvestata – märgitud lõpetatuks.",
+    lifecyclePlanOnlyHint:
+      "Tellimuse olek kehtib ainult selle kuu jaoks. Olekut muutmiseks vali teine ulatus.",
   },
 } as const;

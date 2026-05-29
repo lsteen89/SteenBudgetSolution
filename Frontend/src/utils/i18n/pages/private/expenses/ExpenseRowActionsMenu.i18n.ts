@@ -5,6 +5,13 @@ export const expenseRowActionsMenuDict = {
     edit: "Redigera",
     pause: "Pausa",
     resume: "Återuppta",
+    // Lifecycle-specific labels for subscription rows. "Pausa abonnemang" /
+    // "Återuppta abonnemang" make it clear the action targets the lifecycle,
+    // not just the per-month active toggle.
+    subscriptionPause: "Pausa abonnemang",
+    subscriptionResume: "Återuppta abonnemang",
+    subscriptionCancel: "Avsluta abonnemang",
+    subscriptionReactivate: "Aktivera igen",
     delete: "Ta bort",
   },
   en: {
@@ -13,6 +20,10 @@ export const expenseRowActionsMenuDict = {
     edit: "Edit",
     pause: "Pause",
     resume: "Resume",
+    subscriptionPause: "Pause subscription",
+    subscriptionResume: "Resume subscription",
+    subscriptionCancel: "Cancel subscription",
+    subscriptionReactivate: "Reactivate subscription",
     delete: "Delete",
   },
   et: {
@@ -21,6 +32,10 @@ export const expenseRowActionsMenuDict = {
     edit: "Muuda",
     pause: "Peata",
     resume: "Jätka",
+    subscriptionPause: "Peata tellimus",
+    subscriptionResume: "Jätka tellimust",
+    subscriptionCancel: "Lõpeta tellimus",
+    subscriptionReactivate: "Aktiveeri uuesti",
     delete: "Eemalda",
   },
 } as const;

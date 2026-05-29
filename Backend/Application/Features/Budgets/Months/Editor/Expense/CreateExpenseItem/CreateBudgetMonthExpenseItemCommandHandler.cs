@@ -57,10 +57,22 @@ public sealed class CreateBudgetMonthExpenseItemCommandHandler
         if (!categoryExists)
             return Result<BudgetMonthExpenseItemEditorRowDto?>.Failure(BudgetMonthExpenseItemErrors.InvalidCategory);
 
+        var lifecycleValidation = ValidateRequestedLifecycleStatus(
+            cmd.SubscriptionLifecycleStatus,
+            cmd.CategoryId);
+        if (lifecycleValidation is not null)
+            return Result<BudgetMonthExpenseItemEditorRowDto?>.Failure(lifecycleValidation);
+
         var now = _timeProvider.GetUtcNow().UtcDateTime;
         var id = Guid.NewGuid();
         var trimmedName = cmd.Name.Trim();
-        var subscriptionLifecycleStatus = DefaultLifecycleStatusForCategory(cmd.CategoryId);
+        // For subscription rows, honour an explicit request from the caller
+        // and fall back to "active" when null. For non-subscription rows,
+        // validation above already rejected any non-null value, so this
+        // branch always produces null.
+        var subscriptionLifecycleStatus = cmd.CategoryId == ExpenseCategoryIds.Subscription
+            ? (cmd.SubscriptionLifecycleStatus ?? BudgetMonthSubscriptionLifecycleStatuses.Active)
+            : null;
 
         await _repo.InsertMonthExpenseItemAsync(
             new InsertBudgetMonthExpenseItemModel(
@@ -115,11 +127,32 @@ public sealed class CreateBudgetMonthExpenseItemCommandHandler
                 IsActive: cmd.IsActive,
                 IsDeleted: false,
                 IsMonthOnly: true,
-                CanUpdateDefault: false));
+                CanUpdateDefault: false,
+                // Month-only rows have no linked source plan row.
+                SourceCategoryId: null,
+                SourceName: null,
+                SourceAmountMonthly: null,
+                SourceIsActive: null));
     }
 
-    private static string? DefaultLifecycleStatusForCategory(Guid categoryId)
-        => categoryId == ExpenseCategoryIds.Subscription
-            ? BudgetMonthSubscriptionLifecycleStatuses.Active
-            : null;
+    // Mirrors PatchBudgetMonthExpenseItemCommandHandler.ValidateRequestedLifecycleStatus
+    // so create and patch enforce identical rules. Null is always allowed
+    // (caller did not opt in to lifecycle); a non-null value must be a
+    // supported lifecycle status and the row must be in the subscription
+    // category.
+    private static Error? ValidateRequestedLifecycleStatus(
+        string? requestedLifecycleStatus,
+        Guid categoryId)
+    {
+        if (requestedLifecycleStatus is null)
+            return null;
+
+        if (!BudgetMonthSubscriptionLifecycleStatuses.IsSupported(requestedLifecycleStatus))
+            return BudgetMonthExpenseItemErrors.InvalidSubscriptionLifecycleStatus;
+
+        if (categoryId != ExpenseCategoryIds.Subscription)
+            return BudgetMonthExpenseItemErrors.SubscriptionLifecycleRequiresSubscriptionCategory;
+
+        return null;
+    }
 }

@@ -35,6 +35,8 @@ export default function BudgetEditorRowActionsMenu({
           type="button"
           disabled
           aria-label={disabledAriaLabel}
+          data-testid="budget-editor-row-actions-trigger"
+          data-disabled="true"
           className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-eb-stroke/20 bg-[rgb(var(--eb-shell)/0.65)] text-eb-text/40"
         >
           <MoreVertical className="h-4 w-4" strokeWidth={2.25} />
@@ -49,6 +51,7 @@ export default function BudgetEditorRowActionsMenu({
         <button
           type="button"
           aria-label={openAriaLabel}
+          data-testid="budget-editor-row-actions-trigger"
           className={cn(
             "inline-flex h-10 w-10 items-center justify-center rounded-xl",
             "border border-eb-stroke/30 bg-eb-surface",
@@ -77,6 +80,7 @@ export default function BudgetEditorRowActionsMenu({
             ) : null}
             <DropdownMenuItem
               onClick={item.onSelect}
+              data-testid={`budget-editor-row-actions-item-${item.key}`}
               className={cn(
                 "cursor-pointer rounded-xl px-3 py-2.5 text-sm outline-none",
                 item.tone === "danger"

@@ -65,7 +65,11 @@ public sealed class GetBudgetMonthEditorQueryHandler
                     x.IsActive,
                     x.IsDeleted,
                     x.SourceExpenseItemId is null,
-                    x.SourceExpenseItemId is not null))
+                    x.SourceExpenseItemId is not null,
+                    x.SourceCategoryId,
+                    x.SourceName,
+                    x.SourceAmountMonthly,
+                    x.SourceIsActive))
                 .ToList()));
     }
 }
