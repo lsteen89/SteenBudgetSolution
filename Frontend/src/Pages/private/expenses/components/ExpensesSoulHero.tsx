@@ -1,3 +1,4 @@
+import CalcBird from "@assets/Images/CalcBird.png";
 import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { expensesSoulHeroDict } from "@/utils/i18n/pages/private/expenses/ExpensesSoulHero.i18n";
@@ -56,105 +57,132 @@ export default function ExpensesSoulHero({
     <section
       data-testid="expenses-soul-hero"
       className={[
-        "relative rounded-[2rem]",
+        "relative overflow-hidden rounded-[2rem]",
         "border border-eb-stroke/20 bg-eb-surface/90",
         "px-5 py-6 sm:px-8 sm:py-8",
-        "shadow-eb",
+        "shadow-eb backdrop-blur",
       ].join(" ")}
     >
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between sm:gap-8">
-        <div className="min-w-0 max-w-[40rem]">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-eb-text/50">
-            {t("eyebrow")} · {periodLabel}
-          </p>
+      {/* Decorative shell-tinted blobs — match the savings hero / prototype. */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+        <div className="absolute -top-20 left-[10%] h-44 w-44 rounded-full bg-[rgb(var(--eb-shell)/0.28)] blur-3xl" />
+        <div className="absolute -top-24 right-[18%] h-52 w-52 rounded-full bg-[rgb(var(--eb-shell-2)/0.10)] blur-3xl" />
+      </div>
 
-          <h1
-            data-testid="expenses-hero-headline"
-            className="mt-2 text-[1.75rem] font-extrabold leading-tight tracking-tight text-eb-text sm:text-[2rem]"
+      {/* CalcBird mascot, hidden on mobile. Sits in the upper-right with a
+        soft halo behind it. `pointer-events-none` so it never blocks the CTA
+        underneath. Restated from the prototype's `.hero-mascot` and the
+        production savings hero pattern. */}
+      <div
+        aria-hidden="true"
+        data-testid="expenses-hero-mascot"
+        className="pointer-events-none absolute right-3 top-[-12px] hidden h-[110px] w-[110px] sm:block lg:right-6 lg:h-[128px] lg:w-[128px]"
+      >
+        <div
+          className="absolute inset-[-14px] blur-md"
+          style={{
+            background:
+              "radial-gradient(60% 60% at 50% 40%, rgb(var(--eb-shell-2) / 0.22) 0%, transparent 72%)",
+          }}
+        />
+        <img
+          src={CalcBird}
+          alt=""
+          className="relative h-full w-full object-contain"
+        />
+      </div>
+
+      <div className="relative z-[1] max-w-[40rem] pr-0 sm:pr-[128px] lg:pr-[148px]">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-eb-text/50">
+          {t("eyebrow")} · {periodLabel}
+        </p>
+
+        <h1
+          data-testid="expenses-hero-headline"
+          className="mt-2 text-[1.75rem] font-extrabold leading-tight tracking-tight text-eb-text sm:text-[2rem]"
+        >
+          {isEmpty
+            ? t("heroEmptyHeadline")
+            : renderHeadline(t("heroHeadline"), totalFormatted)}
+        </h1>
+
+        {!isEmpty ? (
+          <p
+            data-testid="expenses-hero-split"
+            className="mt-3 flex flex-wrap items-baseline gap-x-4 gap-y-1.5 text-sm text-eb-text/65 sm:text-[15px]"
           >
-            {isEmpty
-              ? t("heroEmptyHeadline")
-              : renderHeadline(t("heroHeadline"), totalFormatted)}
-          </h1>
-
-          {!isEmpty ? (
-            <p
-              data-testid="expenses-hero-split"
-              className="mt-3 flex flex-wrap items-baseline gap-x-4 gap-y-1.5 text-sm text-eb-text/65 sm:text-[15px]"
-            >
-              {summary.fixedActiveCount > 0 ? (
-                <SplitPart
-                  template={t("splitFixed")}
-                  amount={fmt(summary.fixedTotal)}
-                  testId="expenses-hero-split-fixed"
-                />
-              ) : null}
-              {summary.variableActiveCount > 0 ? (
-                <>
-                  {summary.fixedActiveCount > 0 ? <SplitDot /> : null}
-                  <SplitPart
-                    template={t("splitVariable")}
-                    amount={fmt(summary.variableTotal)}
-                    testId="expenses-hero-split-variable"
-                  />
-                </>
-              ) : null}
-              {summary.subscriptionActiveCount > 0 ? (
-                <>
-                  {summary.fixedActiveCount > 0 ||
-                  summary.variableActiveCount > 0 ? (
-                    <SplitDot />
-                  ) : null}
-                  <SplitPart
-                    template={t("splitSubscriptions")}
-                    amount={fmt(summary.subscriptionTotal)}
-                    testId="expenses-hero-split-subscriptions"
-                  />
-                </>
-              ) : null}
-            </p>
-          ) : null}
-
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <span
-              data-testid="expenses-hero-remaining-pill"
-              data-tone={remainingNegative ? "negative" : "positive"}
-              className={[
-                "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[13px] font-bold tabular-nums",
-                remainingNegative
-                  ? "border-amber-300/70 bg-amber-50/80 text-amber-900"
-                  : "border-eb-accent/25 bg-eb-accentSoft text-[#14532d]",
-              ].join(" ")}
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <circle cx="12" cy="12" r="9" />
-                <path d="M12 7v5l3 2" />
-              </svg>
-              <span>{remainingPillText}</span>
-            </span>
-            {readOnly ? (
-              <span
-                data-testid="expenses-hero-read-only-pill"
-                className="inline-flex h-9 items-center rounded-full border border-eb-stroke/25 bg-eb-surface px-3 text-sm font-medium text-eb-text/60"
-              >
-                {t("readOnlyBadge")}
-              </span>
+            {summary.fixedActiveCount > 0 ? (
+              <SplitPart
+                template={t("splitFixed")}
+                amount={fmt(summary.fixedTotal)}
+                testId="expenses-hero-split-fixed"
+              />
             ) : null}
-          </div>
+            {summary.variableActiveCount > 0 ? (
+              <>
+                {summary.fixedActiveCount > 0 ? <SplitDot /> : null}
+                <SplitPart
+                  template={t("splitVariable")}
+                  amount={fmt(summary.variableTotal)}
+                  testId="expenses-hero-split-variable"
+                />
+              </>
+            ) : null}
+            {summary.subscriptionActiveCount > 0 ? (
+              <>
+                {summary.fixedActiveCount > 0 ||
+                summary.variableActiveCount > 0 ? (
+                  <SplitDot />
+                ) : null}
+                <SplitPart
+                  template={t("splitSubscriptions")}
+                  amount={fmt(summary.subscriptionTotal)}
+                  testId="expenses-hero-split-subscriptions"
+                />
+              </>
+            ) : null}
+          </p>
+        ) : null}
+
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <span
+            data-testid="expenses-hero-remaining-pill"
+            data-tone={remainingNegative ? "negative" : "positive"}
+            className={[
+              "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[13px] font-bold tabular-nums",
+              remainingNegative
+                ? "border-amber-300/70 bg-amber-50/80 text-amber-900"
+                : "border-eb-accent/25 bg-eb-accentSoft text-[#14532d]",
+            ].join(" ")}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 7v5l3 2" />
+            </svg>
+            <span>{remainingPillText}</span>
+          </span>
+          {readOnly ? (
+            <span
+              data-testid="expenses-hero-read-only-pill"
+              className="inline-flex h-9 items-center rounded-full border border-eb-stroke/25 bg-eb-surface px-3 text-sm font-medium text-eb-text/60"
+            >
+              {t("readOnlyBadge")}
+            </span>
+          ) : null}
         </div>
 
         {!readOnly ? (
-          <div className="flex shrink-0 sm:pt-1">
+          <div className="mt-4 flex flex-wrap items-center gap-3">
             <button
               type="button"
               onClick={onCreate}

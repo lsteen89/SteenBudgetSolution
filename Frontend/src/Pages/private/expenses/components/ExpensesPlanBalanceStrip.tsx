@@ -246,25 +246,45 @@ export default function ExpensesPlanBalanceStrip({
 
         {hasAnySpend ? (
           <div className="mt-4">
-            <div
-              data-testid="expenses-spend-meter"
-              role="img"
-              aria-label={t("meterTitle")}
-              className="flex h-1.5 w-full overflow-hidden rounded-full bg-eb-shell/30"
-            >
-              {meterSegments.map((segment) => {
-                const widthPct = (segment.amount / meterDenominator) * 100;
-                if (widthPct <= 0) return null;
-                return (
-                  <span
-                    key={segment.key}
-                    data-testid={`expenses-spend-meter-${segment.key}`}
-                    className={cn("h-full", segment.barClassName)}
-                    style={{ width: `${widthPct}%` }}
-                  />
-                );
-              })}
-            </div>
+            {/* Segmented spend bar — shape comes from the prototype:
+              4px gap between segments, fully pilled outer ends, 4px inner
+              corners, and a soft inset bottom shadow for depth. The outer
+              container is intentionally a plain flex row with `gap-1` (no
+              rounded-full / overflow-hidden) so each segment reads as a
+              discrete chunk rather than slices of one continuous bar. */}
+            {(() => {
+              const visibleSegments = meterSegments.filter(
+                (segment) => segment.amount > 0,
+              );
+              return (
+                <div
+                  data-testid="expenses-spend-meter"
+                  role="img"
+                  aria-label={t("meterTitle")}
+                  className="flex h-3.5 w-full gap-1"
+                >
+                  {visibleSegments.map((segment, index) => {
+                    const widthPct =
+                      (segment.amount / meterDenominator) * 100;
+                    const isFirst = index === 0;
+                    const isLast = index === visibleSegments.length - 1;
+                    return (
+                      <span
+                        key={segment.key}
+                        data-testid={`expenses-spend-meter-${segment.key}`}
+                        className={cn(
+                          "h-full shadow-[inset_0_-1px_0_rgb(15_23_42_/_0.06)]",
+                          isFirst ? "rounded-l-full" : "rounded-l",
+                          isLast ? "rounded-r-full" : "rounded-r",
+                          segment.barClassName,
+                        )}
+                        style={{ width: `${widthPct}%`, minWidth: "20px" }}
+                      />
+                    );
+                  })}
+                </div>
+              );
+            })()}
             <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-eb-text/65">
               {meterSegments.map((segment) =>
                 segment.amount > 0 ? (
