@@ -66,6 +66,7 @@ export default function DeleteExpenseItemDialog({
           role="dialog"
           aria-modal="true"
           aria-label={t("dialogAriaLabel")}
+          data-testid="delete-expense-item-dialog"
           className="relative w-full max-w-md rounded-[2rem] border border-eb-stroke/25 bg-[rgb(var(--eb-shell))] shadow-[0_16px_60px_rgba(21,39,81,0.16)]"
         >
           <div className="rounded-[2rem] bg-eb-surface p-6">
@@ -106,6 +107,7 @@ export default function DeleteExpenseItemDialog({
                 onClick={() => void onConfirm()}
                 disabled={isDeleting}
                 aria-busy={isDeleting}
+                data-testid="delete-expense-item-confirm"
                 className="h-11 bg-eb-danger hover:bg-eb-danger"
               >
                 {isDeleting ? t("deleting") : t("delete")}

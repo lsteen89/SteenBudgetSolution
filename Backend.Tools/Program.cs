@@ -210,7 +210,21 @@ E2eSeedUser[] e2eSeed =
             LastName: "SavingsOrphan"),
         IncludeBudget: true,
         OpenMonthTargetFinalBalance: null,
-        Profile: BudgetTimelineProfiles.SavingsOrphan)
+        Profile: BudgetTimelineProfiles.SavingsOrphan),
+    // Dedicated user for the expense editor E2E spec. Uses the Default
+    // timeline so the open 2026-04 month carries a mix of plan-linked
+    // rows (Rent / Groceries / Mobile Plan / Netflix), an inactive
+    // linked row (Transport Pass), and a month-only subscription
+    // (Cloud Storage). Spec is destructive (create / edit / pause /
+    // delete) so it must not share an account with the other suites.
+    new(
+        User: new DevSeedUser(
+            Email: "e2e-expenses-editor@local.test",
+            Password: DevSeedPassword,
+            FirstName: "E2E",
+            LastName: "ExpensesEditor"),
+        IncludeBudget: true,
+        OpenMonthTargetFinalBalance: null)
 ];
 
 var isE2eSeedCommand = args.Any(arg => string.Equals(arg, SeedE2eCommandName, StringComparison.OrdinalIgnoreCase));

@@ -95,6 +95,20 @@ export default function ExpensesEditorPage() {
       locale,
     });
   }, [editor, categories, locale]);
+  // Hoisted above the early returns to keep the hook order stable across
+  // renders. The previous placement (below the loading/error/no-open-month
+  // guards) violated the rules of hooks: when a guard fired on the first
+  // render and unfired on the next, this `useMemo` switched from "absent"
+  // to "present" and React threw
+  //   "Rendered more hooks than during the previous render."
+  // which left the page blank on cold load. Cold-load reproduction was the
+  // PR 7 E2E spec; the dev environment usually rendered fine because the
+  // months-status query was already cached from an earlier dashboard
+  // navigation, so the guard never fired in the first place.
+  const expenseSummary = useMemo(
+    () => buildExpenseSummary({ editor, categories }),
+    [editor, categories],
+  );
 
   if (monthsStatusQuery.isLoading) {
     return (
@@ -272,10 +286,6 @@ export default function ExpensesEditorPage() {
     }
   };
 
-  const expenseSummary = useMemo(
-    () => buildExpenseSummary({ editor, categories }),
-    [editor, categories],
-  );
   const incomeTotal = dashboardAggregate?.summary.totalIncome ?? 0;
   const carryOverTotal =
     dashboardAggregate?.summary.incomingCarryOverAmount ?? 0;

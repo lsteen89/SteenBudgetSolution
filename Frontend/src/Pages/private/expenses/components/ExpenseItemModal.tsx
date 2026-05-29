@@ -158,11 +158,24 @@ export default function ExpenseItemModal({
   // it when the user switches between subscription/non-subscription.
   const [lifecycle, setLifecycle] =
     useState<SubscriptionLifecycleStatus>("active");
+  // Snapshots of `scope` and `lifecycle` taken when the modal opens, so the
+  // discard-confirm guard can detect drift on these local states. React Hook
+  // Form's `isDirty` only covers fields it owns (name/category/amount/active);
+  // without these refs the user could change scope or a subscription's
+  // lifecycle, press Escape/backdrop, and silently lose the change.
+  const initialScopeRef = useRef<ExpenseEditScope>("currentMonthOnly");
+  const initialLifecycleRef =
+    useRef<SubscriptionLifecycleStatus>("active");
+
+  const isModalDirty =
+    isDirty ||
+    scope !== initialScopeRef.current ||
+    lifecycle !== initialLifecycleRef.current;
 
   const handleRequestClose = () => {
     if (!canClose) return;
 
-    if (isDirty) {
+    if (isModalDirty) {
       setShowDiscardConfirm(true);
       return;
     }
@@ -207,11 +220,15 @@ export default function ExpenseItemModal({
         amountMonthly: String(row.amountMonthly),
         isActive: row.isActive,
       });
-      setScope(row.initialScope ?? "currentMonthOnly");
+      const seededScope = row.initialScope ?? "currentMonthOnly";
       // Seed lifecycle from the row. Null lifecycle on a subscription row
       // means the backend never wrote a value — treat it as `active` so the
       // segmented control has a sensible default.
-      setLifecycle(row.subscriptionLifecycleStatus ?? "active");
+      const seededLifecycle = row.subscriptionLifecycleStatus ?? "active";
+      setScope(seededScope);
+      setLifecycle(seededLifecycle);
+      initialScopeRef.current = seededScope;
+      initialLifecycleRef.current = seededLifecycle;
       return;
     }
 
@@ -223,6 +240,8 @@ export default function ExpenseItemModal({
     });
     setScope("currentMonthOnly");
     setLifecycle("active");
+    initialScopeRef.current = "currentMonthOnly";
+    initialLifecycleRef.current = "active";
   }, [open, mode, row, reset, defaultCategoryId]);
 
   const nameError = errors.name?.message?.toString();

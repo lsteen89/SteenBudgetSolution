@@ -241,6 +241,16 @@ export default function ExpensesLedgerSection({
                         readOnly={readOnly}
                         onEdit={onEdit}
                         onPauseToggle={onPauseToggle}
+                        // Mirror the active-rows branch above. Inactive
+                        // subscription rows (paused / cancelled) live in
+                        // this section and still expose lifecycle actions
+                        // in the row menu (e.g. "Reactivate"). Dropping
+                        // `onLifecycleChange` here left the menu item's
+                        // handler calling `undefined(...)`, which threw
+                        // and prevented Radix from closing the menu, so
+                        // the user could open the resume menu and click
+                        // it but the row never reactivated.
+                        onLifecycleChange={onLifecycleChange}
                         onDelete={onDelete}
                       />
                     ))}

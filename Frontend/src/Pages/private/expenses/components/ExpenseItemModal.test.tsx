@@ -729,4 +729,116 @@ describe("ExpenseItemModal", () => {
       ),
     ).toBeInTheDocument();
   });
+
+  it("prompts to discard when only the subscription lifecycle has changed", () => {
+    const onClose = vi.fn();
+
+    render(
+      <ExpenseItemModal
+        open={true}
+        mode="edit"
+        monthLabel="May 2026"
+        row={{
+          id: "22222222-2222-4222-8222-222222222222",
+          name: "Streaming",
+          categoryId: "11111111-1111-4111-8111-111111111111",
+          amountMonthly: 129,
+          isActive: true,
+          subscriptionLifecycleStatus: "active",
+          canUpdatePlan: true,
+        }}
+        categories={[
+          {
+            id: "11111111-1111-4111-8111-111111111111",
+            name: "Subscription",
+            code: "subscription",
+          },
+        ]}
+        onClose={onClose}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    // Touch only lifecycle. RHF `isDirty` stays false because no form-owned
+    // field changed; the modal-level dirty flag must still catch this.
+    fireEvent.click(screen.getByTestId("expense-item-modal-lifecycle-paused"));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(screen.getByText("Discard changes?")).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("prompts to discard when only the edit scope has changed", () => {
+    const onClose = vi.fn();
+
+    render(
+      <ExpenseItemModal
+        open={true}
+        mode="edit"
+        monthLabel="May 2026"
+        row={{
+          id: "22222222-2222-4222-8222-222222222222",
+          name: "Groceries",
+          categoryId: "11111111-1111-4111-8111-111111111111",
+          amountMonthly: 300,
+          isActive: true,
+          canUpdatePlan: true,
+        }}
+        categories={[
+          {
+            id: "11111111-1111-4111-8111-111111111111",
+            name: "Food",
+            code: "food",
+          },
+        ]}
+        onClose={onClose}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("radio", {
+        name: /update the budget plan going forward/i,
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(screen.getByText("Discard changes?")).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("closes without a prompt when no field, scope, or lifecycle changed", () => {
+    const onClose = vi.fn();
+
+    render(
+      <ExpenseItemModal
+        open={true}
+        mode="edit"
+        monthLabel="May 2026"
+        row={{
+          id: "22222222-2222-4222-8222-222222222222",
+          name: "Streaming",
+          categoryId: "11111111-1111-4111-8111-111111111111",
+          amountMonthly: 129,
+          isActive: true,
+          subscriptionLifecycleStatus: "paused",
+          canUpdatePlan: true,
+        }}
+        categories={[
+          {
+            id: "11111111-1111-4111-8111-111111111111",
+            name: "Subscription",
+            code: "subscription",
+          },
+        ]}
+        onClose={onClose}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(screen.queryByText("Discard changes?")).not.toBeInTheDocument();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
 });
