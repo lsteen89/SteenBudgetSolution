@@ -23,25 +23,34 @@ const interpolate = (
   values: Record<string, string | number>,
 ) => template.replace(/\{(\w+)\}/g, (_, key) => String(values[key] ?? ""));
 
+type RowPillKey = "inactiveInMonth" | "monthOnly" | "changedInMonth";
+
 type RowPill = {
+  key: RowPillKey;
   text: string;
-  tone: "exception" | "info";
+  tone: "exception" | "info" | "change";
 };
 
 /**
  * Resolve the single visible pill for an income row.
  *
  * Rule (designer handover): a normal plan-linked active row is quiet. Only
- * the two allowed exception pills appear:
+ * the three allowed exception pills appear, with this exact priority when
+ * multiple states apply (PR 6, "Row State Priority"):
  *
- *   - `pillInactiveInMonth` for inactive rows (row does not count this month)
- *   - `pillMonthOnly`       for month-only rows (no linked plan row)
+ *   1. `pillInactiveInMonth` — row does not count this month. The dominant
+ *      reader signal: the row is silent in the total, so the exception goes
+ *      first and the amber "exception" tone matches the expense ledger.
+ *   2. `pillMonthOnly` — no linked plan row. Quiet info tone, since
+ *      month-only is a normal life shape, not a discrepancy.
+ *   3. `pillChangedInMonth` — plan-linked row whose amount/name/active state
+ *      diverged from the plan row. Uses a calm "change" tone (blue/navy,
+ *      via the eb-accent token) — not red. Income deltas are never styled
+ *      as destructive; red is reserved for actions like delete.
  *
- * Inactive wins over month-only when both apply — the non-counting state is
- * the dominant signal for the reader and reads in the same calm amber tone
- * the expense ledger uses for its planned-state cues. `Ändrad i {month}` is
- * intentionally not handled here — it lands in PR 6 after PR 5 exposes the
- * backend source-plan fields.
+ * `Ändrad i {month}` only renders when the backend's source-plan fields say
+ * so — see `isIncomeRowChangedFromPlan` in `buildIncomeLedgerGroups`. The
+ * frontend never invents the delta.
  */
 function resolveRowPill(
   row: IncomeLedgerRowVm,
@@ -49,13 +58,26 @@ function resolveRowPill(
   t: (key: keyof typeof incomeLedgerRowDict.sv) => string,
 ): RowPill | null {
   if (row.state === "inactive") {
-    return { text: t("pillInactiveInMonth"), tone: "exception" };
+    return {
+      key: "inactiveInMonth",
+      text: t("pillInactiveInMonth"),
+      tone: "exception",
+    };
   }
 
   if (row.sourceKind === "monthOnly") {
     return {
+      key: "monthOnly",
       text: interpolate(t("pillMonthOnly"), { month: monthLabel }),
       tone: "info",
+    };
+  }
+
+  if (row.isChangedFromPlan) {
+    return {
+      key: "changedInMonth",
+      text: interpolate(t("pillChangedInMonth"), { month: monthLabel }),
+      tone: "change",
     };
   }
 
@@ -167,14 +189,18 @@ export default function IncomeLedgerRow({
         {pill ? (
           <div
             data-testid="income-ledger-row-pill"
-            data-row-pill={
-              row.state === "inactive" ? "inactiveInMonth" : "monthOnly"
-            }
+            data-row-pill={pill.key}
             className={cn(
               "mt-1 truncate text-[12px] tabular-nums",
-              pill.tone === "exception"
-                ? "text-amber-700/80"
-                : "text-eb-text/50",
+              // Calm amber for the dominant "not counting" exception, soft
+              // muted text for normal month-only context, and a navy/accent
+              // tint for "changed in {month}". The change tone deliberately
+              // avoids red — income deltas are not destructive, and the
+              // handover reserves red strictly for actions like delete.
+              pill.tone === "exception" && "text-amber-700/80",
+              pill.tone === "info" && "text-eb-text/50",
+              pill.tone === "change" &&
+                "text-[rgb(var(--eb-accent)/0.95)]",
             )}
           >
             {pill.text}

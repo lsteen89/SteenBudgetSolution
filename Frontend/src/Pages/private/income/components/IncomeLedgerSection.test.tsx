@@ -31,6 +31,9 @@ function renderGroup({
       isDeleted: boolean;
       isMonthOnly: boolean;
       canUpdateDefault: boolean;
+      sourceName: string | null;
+      sourceAmountMonthly: number | null;
+      sourceIsActive: boolean | null;
     }>
   >;
   readOnly?: boolean;
@@ -56,9 +59,9 @@ function renderGroup({
     isDeleted: overrides.isDeleted ?? false,
     isMonthOnly: overrides.isMonthOnly ?? false,
     canUpdateDefault: overrides.canUpdateDefault ?? false,
-    sourceName: null,
-    sourceAmountMonthly: null,
-    sourceIsActive: null,
+    sourceName: overrides.sourceName ?? null,
+    sourceAmountMonthly: overrides.sourceAmountMonthly ?? null,
+    sourceIsActive: overrides.sourceIsActive ?? null,
   }));
 
   const groups = buildIncomeLedgerGroups({ rows: wireRows });
@@ -343,5 +346,119 @@ describe("IncomeLedgerSection", () => {
     expect(handlers.onCreateInGroup.mock.calls[0][0]).toMatchObject({
       key: "householdMember",
     });
+  });
+
+  it("renders a `Changed in {month}` pill when the wire amount diverges from the source plan amount", () => {
+    renderGroup({
+      kind: "sideHustle",
+      rows: [
+        {
+          id: "side-1",
+          sourceIncomeItemId: "src-1",
+          name: "Consulting",
+          amountMonthly: 3000,
+          isMonthOnly: false,
+          sourceName: "Consulting",
+          sourceAmountMonthly: 2500,
+          sourceIsActive: true,
+        },
+      ],
+    });
+
+    const pill = screen.getByTestId("income-ledger-row-pill");
+    expect(pill).toHaveAttribute("data-row-pill", "changedInMonth");
+    expect(pill).toHaveTextContent(`Changed in ${MONTH_LABEL}`);
+  });
+
+  it("renders the changed pill on a salary amount diff even when the backend returns a null source name", () => {
+    renderGroup({
+      kind: "salary",
+      rows: [
+        {
+          id: "salary-1",
+          sourceIncomeItemId: "src-salary",
+          name: "Net salary",
+          amountMonthly: 31000,
+          isMonthOnly: false,
+          // Backend's salary read intentionally returns sourceName = null.
+          sourceName: null,
+          sourceAmountMonthly: 30000,
+          sourceIsActive: true,
+        },
+      ],
+    });
+
+    const pill = screen.getByTestId("income-ledger-row-pill");
+    expect(pill).toHaveAttribute("data-row-pill", "changedInMonth");
+    expect(pill).toHaveTextContent(`Changed in ${MONTH_LABEL}`);
+  });
+
+  it("does not render the changed pill for a plan-linked row that matches its source", () => {
+    renderGroup({
+      kind: "sideHustle",
+      rows: [
+        {
+          id: "side-1",
+          sourceIncomeItemId: "src-1",
+          name: "Consulting",
+          amountMonthly: 2500,
+          isMonthOnly: false,
+          sourceName: "Consulting",
+          sourceAmountMonthly: 2500,
+          sourceIsActive: true,
+        },
+      ],
+    });
+
+    expect(screen.queryByTestId("income-ledger-row-pill")).toBeNull();
+  });
+
+  it("prefers the inactive pill over the changed pill when both states apply", () => {
+    // An inactive row with a divergent amount — the dominant signal for the
+    // reader is "this row does not count this month", so the priority order
+    // (handover §6) puts `inactiveInMonth` ahead of `changedInMonth`.
+    renderGroup({
+      kind: "sideHustle",
+      rows: [
+        {
+          id: "side-1",
+          sourceIncomeItemId: "src-1",
+          name: "Consulting",
+          amountMonthly: 3000,
+          isActive: false,
+          isMonthOnly: false,
+          sourceName: "Consulting",
+          sourceAmountMonthly: 2500,
+          sourceIsActive: true,
+        },
+      ],
+    });
+
+    const pills = screen.getAllByTestId("income-ledger-row-pill");
+    expect(pills).toHaveLength(1);
+    expect(pills[0]).toHaveAttribute("data-row-pill", "inactiveInMonth");
+  });
+
+  it("prefers the month-only pill over the changed pill for month-only rows", () => {
+    // Month-only rows can never be `changed` (no source to diverge from), but
+    // defend the precedence in case a stale source field leaks through.
+    renderGroup({
+      kind: "sideHustle",
+      rows: [
+        {
+          id: "side-1",
+          sourceIncomeItemId: null,
+          name: "One-off",
+          amountMonthly: 1200,
+          isMonthOnly: true,
+          sourceName: "Stale",
+          sourceAmountMonthly: 999,
+          sourceIsActive: true,
+        },
+      ],
+    });
+
+    const pill = screen.getByTestId("income-ledger-row-pill");
+    expect(pill).toHaveAttribute("data-row-pill", "monthOnly");
   });
 });

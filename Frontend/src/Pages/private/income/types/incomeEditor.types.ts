@@ -55,6 +55,27 @@ export type IncomeLedgerRowVm = {
   countsInMonthlyTotal: boolean;
   /** Whether the row exists only in the current month or is linked to a plan row. */
   sourceKind: IncomeLedgerRowSourceKind;
+  /**
+   * Source-plan comparison fields, passed through from the editor read DTO
+   * (see `BudgetMonthIncomeItemEditorRowDto.source*`). Null for month-only
+   * rows, for rows whose backend cannot supply a source name (salary's plan
+   * row has no name column), or when the read could not resolve the linked
+   * plan row. PR 6 consumes these to derive {@link isChangedFromPlan}; later
+   * surfaces (e.g. the editor modal's plan-side preview) can read them
+   * directly without re-joining at the call site.
+   */
+  sourceName: string | null;
+  sourceAmountMonthly: number | null;
+  sourceIsActive: boolean | null;
+  /**
+   * True when this plan-linked row differs from its source plan row on at
+   * least one of: amount, name, or active state. Stays false for month-only
+   * rows, for plan-linked rows missing source fields, and for rows that
+   * match the plan. Drives the `Ändrad i {månad}` exception pill. The
+   * comparison is intentionally conservative — see
+   * `isIncomeRowChangedFromPlan` for the exact rules.
+   */
+  isChangedFromPlan: boolean;
 };
 
 export type IncomeLedgerGroupVm = {
