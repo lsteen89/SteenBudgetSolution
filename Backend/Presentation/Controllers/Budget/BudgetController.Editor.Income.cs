@@ -46,7 +46,8 @@ public sealed partial class BudgetController
                 Kind: req.Kind,
                 Name: req.Name,
                 AmountMonthly: req.AmountMonthly,
-                IsActive: req.IsActive),
+                IsActive: req.IsActive,
+                Scope: req.Scope),
             ct);
 
         if (result.IsFailure || result.Value is null)

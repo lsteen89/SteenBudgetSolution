@@ -16,10 +16,14 @@ export const incomeItemModalDict = {
     // they pick the type here; group add (`presetKind` set from the group)
     // hides the selector and says the row will land in the open month only.
     descriptionEdit: "Justera belopp och om posten ska räknas i månaden.",
+    // Both create variants used to imply "Skapas bara i {month}" — that's
+    // only true now when the user picks the `currentMonthOnly` scope card.
+    // The scope cards themselves carry the month vs plan choice, so the
+    // subtitle drops the implication.
     descriptionCreateGlobal:
-      "Välj typ av inkomst och fyll i beloppet. Skapas bara i {month}.",
+      "Välj typ av inkomst och fyll i beloppet.",
     descriptionCreateGroup:
-      "Skapas bara i {month}. Du kan lägga till den i planen efteråt.",
+      "Fyll i belopp och välj om den ska ingå i budgetplanen.",
     closeAriaLabel: "Stäng inkomstmodal",
     kindLabel: "Typ av inkomst",
     sideHustleOption: "Sidoinkomst",
@@ -41,6 +45,24 @@ export const incomeItemModalDict = {
     scopePlanDisabledHint:
       "Inte tillgängligt — den här raden finns inte i planen.",
     monthOnlyCreate: "Gäller bara {month}. Den här posten läggs bara till i {month}.",
+    // Create-scope card copy. Locked Swedish labels per the task spec:
+    //   "Gäller bara {month}"            (currentMonthOnly)
+    //   "Lägg även till i budgetplanen framåt"  (currentMonthAndBudgetPlan)
+    // Cards default to the recurring choice because income is usually
+    // recurring; month-only should be an intentional alternative.
+    createScopeLegend: "Lägg till i",
+    createScopeCurrentMonthOnlyLabel: "Gäller bara {month}",
+    createScopeCurrentMonthOnlyHelp:
+      "Den här posten räknas bara i {month}. Budgetplanen framåt påverkas inte.",
+    createScopeCurrentMonthAndBudgetPlanLabel:
+      "Lägg även till i budgetplanen framåt",
+    createScopeCurrentMonthAndBudgetPlanHelp:
+      "Posten räknas i {month} och tas med automatiskt i kommande månader.",
+    // Preview line that reacts to the scope choice in create mode. Scope is
+    // independent of the active toggle: "Återkommande" describes the plan
+    // intent; the row above describes current-month inclusion.
+    previewScopeCurrentMonthOnly: "Bara denna månad",
+    previewScopeCurrentMonthAndBudgetPlan: "Återkommande i budgetplanen",
     nameRequired: "Namn krävs",
     amountInvalid: "Ange ett giltigt belopp",
     previewLabel: "Förhandsvisning",
@@ -58,9 +80,9 @@ export const incomeItemModalDict = {
     descriptionEdit:
       "Adjust the amount and whether this item counts this month.",
     descriptionCreateGlobal:
-      "Pick a type of income and fill in the amount. Only added to {month}.",
+      "Pick a type of income and fill in the amount.",
     descriptionCreateGroup:
-      "Only added to {month}. You can add it to the plan later.",
+      "Fill in the amount and choose whether it belongs in the budget plan.",
     closeAriaLabel: "Close income modal",
     kindLabel: "Type of income",
     sideHustleOption: "Side income",
@@ -79,6 +101,16 @@ export const incomeItemModalDict = {
     scopePlanDisabledHint:
       "Unavailable — this row does not exist in the plan.",
     monthOnlyCreate: "Only for {month}. This item is added to {month} only.",
+    createScopeLegend: "Add to",
+    createScopeCurrentMonthOnlyLabel: "Only for {month}",
+    createScopeCurrentMonthOnlyHelp:
+      "Counts in {month} only. The budget plan going forward is not changed.",
+    createScopeCurrentMonthAndBudgetPlanLabel:
+      "Also add to the budget plan going forward",
+    createScopeCurrentMonthAndBudgetPlanHelp:
+      "Counts in {month} and is included automatically in upcoming months.",
+    previewScopeCurrentMonthOnly: "This month only",
+    previewScopeCurrentMonthAndBudgetPlan: "Recurring in the budget plan",
     nameRequired: "Name is required",
     amountInvalid: "Enter a valid amount",
     previewLabel: "Preview",
@@ -96,9 +128,9 @@ export const incomeItemModalDict = {
     descriptionEdit:
       "Muuda summat ja seda, kas kirje läheb selle kuu arvestusse.",
     descriptionCreateGlobal:
-      "Vali tulu tüüp ja sisesta summa. Lisatakse ainult kuusse {month}.",
+      "Vali tulu tüüp ja sisesta summa.",
     descriptionCreateGroup:
-      "Lisatakse ainult kuusse {month}. Plaani saad selle hiljem lisada.",
+      "Sisesta summa ja vali, kas see kuulub eelarveplaani.",
     closeAriaLabel: "Sulge tulu modal",
     kindLabel: "Tulu tüüp",
     sideHustleOption: "Lisatulu",
@@ -117,6 +149,16 @@ export const incomeItemModalDict = {
     scopePlanDisabledHint:
       "Pole saadaval — seda rida pole plaanis olemas.",
     monthOnlyCreate: "Ainult {month}. Kirje lisatakse ainult kuusse {month}.",
+    createScopeLegend: "Lisa kuhu",
+    createScopeCurrentMonthOnlyLabel: "Ainult kuus {month}",
+    createScopeCurrentMonthOnlyHelp:
+      "Arvestatakse ainult kuus {month}. Edaspidist eelarveplaani see ei muuda.",
+    createScopeCurrentMonthAndBudgetPlanLabel:
+      "Lisa ka eelarveplaani edaspidi",
+    createScopeCurrentMonthAndBudgetPlanHelp:
+      "Arvestatakse kuus {month} ja kantakse automaatselt järgmistesse kuudesse.",
+    previewScopeCurrentMonthOnly: "Ainult sel kuul",
+    previewScopeCurrentMonthAndBudgetPlan: "Korduv eelarveplaanis",
     nameRequired: "Nimi on kohustuslik",
     amountInvalid: "Sisesta kehtiv summa",
     previewLabel: "Eelvaade",

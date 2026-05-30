@@ -1,4 +1,4 @@
-import type { Browser, Page, Response } from "@playwright/test";
+import type { Page, Response } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { e2eUsers } from "../helpers/e2eUsers";
 import { login } from "../helpers/login";
@@ -86,11 +86,9 @@ function expectDashboardMathToReconcile(dto: DashboardMonthDto) {
 }
 
 async function loginWithInitialDashboard(
-  browser: Browser,
+  page: Page,
   user: typeof e2eUsers.login,
 ) {
-  const context = await browser.newContext();
-  const page = await context.newPage();
   const dashboardResponsePromise = waitForDashboardResponse(page);
 
   await login(page, user);
@@ -99,68 +97,64 @@ async function loginWithInitialDashboard(
     await dashboardResponsePromise,
   );
 
-  return { context, page, dashboard };
+  return { page, dashboard };
 }
 
 test("carry-over dashboard math reconciles after full close @smoke", async ({
-  browser,
+  page,
 }, testInfo) => {
   testInfo.setTimeout(45_000);
 
   const full = await loginWithInitialDashboard(
-    browser,
+    page,
     e2eUsers.carryOverDashboard,
   );
 
-  try {
-    expect(full.dashboard.month.yearMonth).toBe("2026-04");
-    expect(full.dashboard.liveDashboard!.carryOverAmountMonthly).toBeGreaterThan(
-      0,
-    );
-    expectDashboardMathToReconcile(full.dashboard);
+  expect(full.dashboard.month.yearMonth).toBe("2026-04");
+  expect(full.dashboard.liveDashboard!.carryOverAmountMonthly).toBeGreaterThan(
+    0,
+  );
+  expectDashboardMathToReconcile(full.dashboard);
 
-    await full.page.getByTestId("close-month-cta").click();
-    const fullModal = full.page.getByTestId("close-month-modal");
-    await expect(fullModal).toBeVisible();
-    await fullModal.getByTestId("resolve-carry-over").click();
+  await full.page.getByTestId("close-month-cta").click();
+  const fullModal = full.page.getByTestId("close-month-modal");
+  await expect(fullModal).toBeVisible();
+  await fullModal.getByTestId("resolve-carry-over").click();
 
-    const closeResponsePromise = waitForCloseResponse(full.page);
-    await full.page.getByTestId("confirm-close-month").click();
+  const closeResponsePromise = waitForCloseResponse(full.page);
+  await full.page.getByTestId("confirm-close-month").click();
 
-    const fullClose = await readEnvelopeData<CloseBudgetMonthResultDto>(
-      await closeResponsePromise,
-    );
-    expect(fullClose.nextMonth).toMatchObject({
-      yearMonth: "2026-05",
-      carryOverMode: "full",
-    });
-    expect(fullClose.nextMonth.carryOverAmount).toBe(
-      fullClose.snapshotTotals.finalBalanceMonthly,
-    );
+  const fullClose = await readEnvelopeData<CloseBudgetMonthResultDto>(
+    await closeResponsePromise,
+  );
+  expect(fullClose.nextMonth).toMatchObject({
+    yearMonth: "2026-05",
+    carryOverMode: "full",
+  });
+  expect(fullClose.nextMonth.carryOverAmount).toBe(
+    fullClose.snapshotTotals.finalBalanceMonthly,
+  );
 
-    // Post-close handoff: we land on the closed April recap with the calm
-    // success card. Click its "Continue" CTA to advance to May.
-    const handoff = full.page.getByTestId("closed-month-handoff-card");
-    await expect(handoff).toBeVisible();
+  // Post-close handoff: we land on the closed April recap with the calm
+  // success card. Click its "Continue" CTA to advance to May.
+  const handoff = full.page.getByTestId("closed-month-handoff-card");
+  await expect(handoff).toBeVisible();
 
-    const mayDashboardResponsePromise = waitForDashboardResponse(
-      full.page,
-      "2026-05",
-    );
-    await handoff.getByTestId("closed-month-handoff-continue").click();
+  const mayDashboardResponsePromise = waitForDashboardResponse(
+    full.page,
+    "2026-05",
+  );
+  await handoff.getByTestId("closed-month-handoff-continue").click();
 
-    const mayDashboard = await readEnvelopeData<DashboardMonthDto>(
-      await mayDashboardResponsePromise,
-    );
-    expect(mayDashboard.month.yearMonth).toBe("2026-05");
-    expect(mayDashboard.month.carryOverAmount).toBe(
-      fullClose.nextMonth.carryOverAmount,
-    );
-    expect(mayDashboard.liveDashboard!.carryOverAmountMonthly).toBe(
-      fullClose.nextMonth.carryOverAmount,
-    );
-    expectDashboardMathToReconcile(mayDashboard);
-  } finally {
-    await full.context.close();
-  }
+  const mayDashboard = await readEnvelopeData<DashboardMonthDto>(
+    await mayDashboardResponsePromise,
+  );
+  expect(mayDashboard.month.yearMonth).toBe("2026-05");
+  expect(mayDashboard.month.carryOverAmount).toBe(
+    fullClose.nextMonth.carryOverAmount,
+  );
+  expect(mayDashboard.liveDashboard!.carryOverAmountMonthly).toBe(
+    fullClose.nextMonth.carryOverAmount,
+  );
+  expectDashboardMathToReconcile(mayDashboard);
 });

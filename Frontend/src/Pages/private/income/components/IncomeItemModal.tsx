@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import type {
   BudgetMonthIncomeItemEditorRowDto,
   BudgetMonthIncomeItemKind,
+  IncomeCreateScope,
   IncomeEditScope,
 } from "@/types/budget/BudgetMonthsStatusDto";
 import { incomeItemModalDict } from "@/utils/i18n/pages/private/income/IncomeItemModal.i18n";
@@ -18,6 +19,7 @@ import { tDict } from "@/utils/i18n/translate";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
 import { parseMoneyInput } from "@/utils/money/moneyInput";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import IncomeCreateScopeCards from "./IncomeCreateScopeCards";
 
 type IncomeItemModalProps = {
   open: boolean;
@@ -54,7 +56,13 @@ export type IncomeItemSubmitValues =
       kind: Exclude<BudgetMonthIncomeItemKind, "salary">;
       name: string;
       amountMonthly: number;
+      // Whether this counts in the CURRENT open month. Separate from
+      // `scope` on purpose — the active toggle controls month inclusion,
+      // the scope controls plan participation.
       isActive: boolean;
+      // Narrower than the edit-scope union: only `currentMonthOnly` and
+      // `currentMonthAndBudgetPlan` reach the create endpoint.
+      scope: IncomeCreateScope;
     }
   | {
       mode: "edit";
@@ -87,7 +95,17 @@ export default function IncomeItemModal({
   const [name, setName] = useState("");
   const [amountMonthly, setAmountMonthly] = useState("");
   const [isActive, setIsActive] = useState(true);
+  // Edit scope: full three-value union; defaults to `currentMonthOnly` so
+  // a stale local state never leaks plan writes on close/reopen.
   const [scope, setScope] = useState<IncomeEditScope>("currentMonthOnly");
+  // Create scope: two-value narrower union. Defaults to the recurring
+  // choice because income is usually recurring; month-only is the
+  // intentional alternative. Stored separately from `scope` so toggling
+  // between the create and edit drawers (same component, different mode)
+  // never lets one path overwrite the other's last selection.
+  const [createScope, setCreateScope] = useState<IncomeCreateScope>(
+    "currentMonthAndBudgetPlan",
+  );
   const [error, setError] = useState<string | null>(null);
 
   const isSalary = mode === "edit" && row?.kind === "salary";
@@ -117,6 +135,10 @@ export default function IncomeItemModal({
       setAmountMonthly(String(row.amountMonthly));
       setIsActive(row.isActive);
       setScope("currentMonthOnly");
+      // Reset create scope to the recurring default on every reopen so a
+      // previously-opened create drawer never carries last-selected state
+      // into a follow-up edit-then-create flow.
+      setCreateScope("currentMonthAndBudgetPlan");
       setError(null);
       return;
     }
@@ -128,10 +150,26 @@ export default function IncomeItemModal({
     setAmountMonthly("");
     setIsActive(true);
     setScope("currentMonthOnly");
+    setCreateScope("currentMonthAndBudgetPlan");
     setError(null);
   }, [mode, open, row, presetKind]);
 
   const canClose = !isSaving;
+
+  useEffect(() => {
+    if (!open || !canClose) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+
+      event.preventDefault();
+      onClose();
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [open, canClose, onClose]);
+
   const title = mode === "create" ? t("titleCreate") : t("titleEdit");
   const description =
     mode === "edit"
@@ -186,6 +224,17 @@ export default function IncomeItemModal({
   const previewStatus = previewIsActive
     ? interpolate(t("previewStatusActive"), { month: monthLabel })
     : t("previewStatusInactive");
+  // Scope-aware extra preview line, create-mode only. Reflects the user's
+  // plan-vs-month choice independently from the active toggle: e.g. a
+  // recurring row that's inactive THIS month still shows "Återkommande i
+  // budgetplanen" because the plan row will exist and pull into future
+  // months. Edit mode keeps the existing single-status preview shape.
+  const previewScopeStatus =
+    mode === "create"
+      ? createScope === "currentMonthAndBudgetPlan"
+        ? t("previewScopeCurrentMonthAndBudgetPlan")
+        : t("previewScopeCurrentMonthOnly")
+      : null;
 
   if (!open) return null;
 
@@ -203,12 +252,18 @@ export default function IncomeItemModal({
     }
 
     if (mode === "create") {
+      // `scope` is required on the create wire payload. `isActive` is the
+      // current-month inclusion choice — independent. The backend handler
+      // forces the plan row active when the scope writes the plan, so
+      // `isActive=false + currentMonthAndBudgetPlan` correctly means
+      // "skip THIS month, recur from next month".
       await onSubmit({
         mode: "create",
         kind,
         name: name.trim(),
         amountMonthly: parsedAmount,
         isActive,
+        scope: createScope,
       });
       return;
     }
@@ -232,7 +287,16 @@ export default function IncomeItemModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[90]">
+    <div
+      className="fixed inset-0 z-[90]"
+      onKeyDown={(event) => {
+        if (event.key !== "Escape" || !canClose) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+        onClose();
+      }}
+    >
       <button
         type="button"
         aria-label={t("closeAriaLabel")}
@@ -430,14 +494,31 @@ export default function IncomeItemModal({
                 ) : null}
               </div>
 
-              {/* 3. Scope (or month-only callout for create) */}
+              {/*
+                3. Scope.
+                Create mode shows the narrower two-card create scope
+                selector (no `budgetPlanOnly` — see `IncomeCreateScope`
+                type). Edit mode keeps the shared three-card edit scope
+                cards. Salary edit omits scope entirely per the handover
+                (salary has no scope cards).
+              */}
               {mode === "create" ? (
-                <div
-                  data-testid="income-item-modal-month-only-callout"
-                  className="rounded-2xl border border-eb-stroke/20 bg-[rgb(var(--eb-shell)/0.28)] px-4 py-3 text-sm text-eb-text/60"
-                >
-                  {interpolate(t("monthOnlyCreate"), { month: monthLabel })}
-                </div>
+                <IncomeCreateScopeCards
+                  value={createScope}
+                  onChange={setCreateScope}
+                  monthLabel={monthLabel}
+                  legend={t("createScopeLegend")}
+                  currentMonthOnlyLabel={t("createScopeCurrentMonthOnlyLabel")}
+                  currentMonthOnlyHelp={t("createScopeCurrentMonthOnlyHelp")}
+                  currentMonthAndBudgetPlanLabel={t(
+                    "createScopeCurrentMonthAndBudgetPlanLabel",
+                  )}
+                  currentMonthAndBudgetPlanHelp={t(
+                    "createScopeCurrentMonthAndBudgetPlanHelp",
+                  )}
+                  disabled={isSaving}
+                  testId="income-item-modal-create-scope"
+                />
               ) : isSalary ? null : (
                 <EditScopeRadioCards
                   value={scope}
@@ -450,7 +531,16 @@ export default function IncomeItemModal({
                 />
               )}
 
-              {/* 4. Live preview */}
+              {/*
+                4. Live preview.
+                In create mode the preview adds a second line below the
+                main row carrying the scope choice — so the user sees both
+                "Räknas/inte räknas i månaden" (top, driven by the active
+                toggle) and "Återkommande / Bara denna månad" (bottom,
+                driven by the scope cards) without one collapsing into
+                the other. Edit mode keeps the original single-status
+                shape.
+              */}
               <EditorPreviewCard
                 label={t("previewLabel")}
                 title={previewTitle}
@@ -458,7 +548,16 @@ export default function IncomeItemModal({
                 amount={previewAmountFormatted}
                 status={previewStatus}
                 muted={!previewIsActive}
-              />
+              >
+                {previewScopeStatus ? (
+                  <div
+                    data-testid="income-item-modal-preview-scope"
+                    className="text-xs font-semibold text-eb-text/68"
+                  >
+                    {previewScopeStatus}
+                  </div>
+                ) : null}
+              </EditorPreviewCard>
 
               {error ? (
                 <p className="text-sm font-semibold text-red-500">{error}</p>

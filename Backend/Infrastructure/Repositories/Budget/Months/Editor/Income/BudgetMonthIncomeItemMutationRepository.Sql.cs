@@ -18,18 +18,31 @@ public sealed partial class BudgetMonthIncomeItemMutationRepository
       AND IsDeleted = 0
     LIMIT 1;";
 
+    // Returns the parent BudgetMonthIncome.Id plus the budget's plan-side
+    // Income.Id (nullable: the materializer may have produced a
+    // BudgetMonthIncome row even when no Income plan row exists for the
+    // budget — plan-writing create scopes must reject that case).
+    private const string GetBudgetMonthIncomeForCreate = @"
+    SELECT
+        Id AS BudgetMonthIncomeId,
+        SourceIncomeId AS SourceIncomeId
+    FROM BudgetMonthIncome
+    WHERE BudgetMonthId = @BudgetMonthId
+      AND IsDeleted = 0
+    LIMIT 1;";
+
     private const string IncomeItemRowsProjection = @"
     SELECT
         bmi.Id,
         bmi.BudgetMonthId,
         bmi.Id AS BudgetMonthIncomeId,
         bmi.SourceIncomeId AS SourceIncomeItemId,
-        'salary' AS Kind,
-        NULL AS Name,
+        _utf8mb4'salary' COLLATE utf8mb4_unicode_ci AS Kind,
+        CAST(NULL AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS Name,
         bmi.NetSalaryMonthly AS AmountMonthly,
         TRUE AS IsActive,
         bmi.IsDeleted,
-        CAST(NULL AS CHAR) AS SourceName,
+        CAST(NULL AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_unicode_ci AS SourceName,
         srcInc.NetSalaryMonthly AS SourceAmountMonthly,
         CASE WHEN srcInc.Id IS NOT NULL THEN TRUE ELSE NULL END AS SourceIsActive
     FROM BudgetMonthIncome bmi
@@ -44,7 +57,7 @@ public sealed partial class BudgetMonthIncomeItemMutationRepository
         bmi.BudgetMonthId,
         bmi.Id AS BudgetMonthIncomeId,
         ish.SourceSideHustleId AS SourceIncomeItemId,
-        'sideHustle' AS Kind,
+        _utf8mb4'sideHustle' COLLATE utf8mb4_unicode_ci AS Kind,
         ish.Name,
         ish.IncomeMonthly AS AmountMonthly,
         ish.IsActive,
@@ -67,7 +80,7 @@ public sealed partial class BudgetMonthIncomeItemMutationRepository
         bmi.BudgetMonthId,
         bmi.Id AS BudgetMonthIncomeId,
         ihm.SourceHouseholdMemberId AS SourceIncomeItemId,
-        'householdMember' AS Kind,
+        _utf8mb4'householdMember' COLLATE utf8mb4_unicode_ci AS Kind,
         ihm.Name,
         ihm.IncomeMonthly AS AmountMonthly,
         ihm.IsActive,
@@ -245,6 +258,67 @@ public sealed partial class BudgetMonthIncomeItemMutationRepository
     FROM IncomeHouseholdMember
     WHERE Id = @IncomeItemId
     LIMIT 1;";
+
+    // Plan-row inserts used by the create handler when scope writes to the
+    // plan. `Frequency` is set to 0 to match `IncomeRepository.AddAsync`'s
+    // shape — the editor surfaces monthly amounts only, and dashboard/
+    // materialization code reads `IncomeMonthly` directly. `EndedAt` is left
+    // unset so the row is treated as currently-active by the materializer.
+    private const string InsertBaselineSideHustleIncomeItem = @"
+    INSERT INTO IncomeSideHustle
+    (
+        Id,
+        IncomeId,
+        Name,
+        IncomeMonthly,
+        Frequency,
+        IsActive,
+        CreatedAt,
+        CreatedByUserId,
+        UpdatedAt,
+        UpdatedByUserId
+    )
+    VALUES
+    (
+        @Id,
+        @IncomeId,
+        @Name,
+        @AmountMonthly,
+        0,
+        @IsActive,
+        @UtcNow,
+        @ActorPersoid,
+        @UtcNow,
+        @ActorPersoid
+    );";
+
+    private const string InsertBaselineHouseholdMemberIncomeItem = @"
+    INSERT INTO IncomeHouseholdMember
+    (
+        Id,
+        IncomeId,
+        Name,
+        IncomeMonthly,
+        Frequency,
+        IsActive,
+        CreatedAt,
+        CreatedByUserId,
+        UpdatedAt,
+        UpdatedByUserId
+    )
+    VALUES
+    (
+        @Id,
+        @IncomeId,
+        @Name,
+        @AmountMonthly,
+        0,
+        @IsActive,
+        @UtcNow,
+        @ActorPersoid,
+        @UtcNow,
+        @ActorPersoid
+    );";
 
     private const string UpdateBaselineSalaryIncomeItem = @"
     UPDATE Income

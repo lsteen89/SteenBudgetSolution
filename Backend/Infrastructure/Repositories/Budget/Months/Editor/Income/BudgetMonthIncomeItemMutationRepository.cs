@@ -58,6 +58,14 @@ public sealed partial class BudgetMonthIncomeItemMutationRepository
             new { BudgetMonthId = budgetMonthId },
             ct);
 
+    public Task<BudgetMonthIncomeForCreateReadModel?> GetBudgetMonthIncomeForCreateAsync(
+        Guid budgetMonthId,
+        CancellationToken ct)
+        => QuerySingleOrDefaultAsync<BudgetMonthIncomeForCreateReadModel>(
+            GetBudgetMonthIncomeForCreate,
+            new { BudgetMonthId = budgetMonthId },
+            ct);
+
     public async Task<Guid> InsertMonthIncomeItemAsync(
         InsertBudgetMonthIncomeItemModel model,
         CancellationToken ct)
@@ -68,6 +76,20 @@ public sealed partial class BudgetMonthIncomeItemMutationRepository
 
         await ExecuteAsync(sql, model, ct);
         return model.Id;
+    }
+
+    public Task InsertBaselineIncomeItemAsync(
+        InsertBaselineIncomeItemModel model,
+        CancellationToken ct)
+    {
+        // Salary's plan row is the parent `Income` itself — there is no
+        // child plan row to create — so the create flow rejects salary
+        // upstream and this method is only ever called for side/household.
+        var sql = model.Kind == BudgetMonthIncomeItemKinds.HouseholdMember
+            ? InsertBaselineHouseholdMemberIncomeItem
+            : InsertBaselineSideHustleIncomeItem;
+
+        return ExecuteAsync(sql, model, ct);
     }
 
     public Task UpdateMonthIncomeItemAsync(

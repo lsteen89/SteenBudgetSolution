@@ -40,7 +40,11 @@ const salaryRow = {
 };
 
 describe("IncomeItemModal", () => {
-  it("shows the month-only callout when creating, never scope cards", () => {
+  it("create mode renders the two-card scope selector and no static month-only callout", () => {
+    // The old static "Skapas bara i {month}" callout has been replaced by
+    // a real scope choice. The two-card create scope selector must always
+    // be present in create mode (regardless of group vs hero add), and
+    // the three-card edit scope selector must NOT appear in create mode.
     render(
       <IncomeItemModal
         open
@@ -53,14 +57,131 @@ describe("IncomeItemModal", () => {
     );
 
     expect(
-      screen.getByTestId("income-item-modal-month-only-callout"),
-    ).toHaveTextContent(/Only for May 2026/i);
+      screen.getByTestId("income-item-modal-create-scope"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("income-item-modal-month-only-callout"),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByTestId("income-item-modal-scope-toggle"),
     ).not.toBeInTheDocument();
   });
 
-  it("global add (no presetKind) shows the type selector with the new label", () => {
+  it("create mode defaults to currentMonthAndBudgetPlan (income is usually recurring)", () => {
+    // Default selection is the recurring choice — month-only must be an
+    // explicit, intentional alternative the user reaches for, not the
+    // accidental default.
+    render(
+      <IncomeItemModal
+        open
+        mode="create"
+        row={null}
+        monthLabel="May 2026"
+        onClose={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    const recurring = screen.getByRole("radio", {
+      name: /Also add to the budget plan going forward/i,
+    });
+    const monthOnly = screen.getByRole("radio", { name: /Only for May 2026/i });
+    expect(recurring).toHaveAttribute("aria-checked", "true");
+    expect(monthOnly).toHaveAttribute("aria-checked", "false");
+  });
+
+  it("create mode: user can switch the scope to month-only", () => {
+    render(
+      <IncomeItemModal
+        open
+        mode="create"
+        row={null}
+        monthLabel="May 2026"
+        onClose={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    const monthOnly = screen.getByRole("radio", { name: /Only for May 2026/i });
+    fireEvent.click(monthOnly);
+    expect(monthOnly).toHaveAttribute("aria-checked", "true");
+    expect(
+      screen.getByRole("radio", {
+        name: /Also add to the budget plan going forward/i,
+      }),
+    ).toHaveAttribute("aria-checked", "false");
+  });
+
+  it("create submit sends the default recurring scope", async () => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+    render(
+      <IncomeItemModal
+        open
+        mode="create"
+        row={null}
+        monthLabel="May 2026"
+        onClose={vi.fn()}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "Recurring weekend job" },
+    });
+    fireEvent.change(screen.getByLabelText("Monthly amount"), {
+      target: { value: "1200" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledWith({
+        mode: "create",
+        kind: "sideHustle",
+        name: "Recurring weekend job",
+        amountMonthly: 1200,
+        isActive: true,
+        scope: "currentMonthAndBudgetPlan",
+      });
+    });
+  });
+
+  it("create submit sends currentMonthOnly when the user picks month-only", async () => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+    render(
+      <IncomeItemModal
+        open
+        mode="create"
+        row={null}
+        monthLabel="May 2026"
+        onClose={vi.fn()}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "One-off gig" },
+    });
+    fireEvent.change(screen.getByLabelText("Monthly amount"), {
+      target: { value: "750" },
+    });
+    fireEvent.click(
+      screen.getByRole("radio", { name: /Only for May 2026/i }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mode: "create",
+          scope: "currentMonthOnly",
+        }),
+      );
+    });
+  });
+
+  it("hero-level add (no presetKind) shows the type selector with sideHustle default", () => {
+    // Hero CTA opens the drawer without a known kind. The user picks the
+    // type inside the modal; the default is `sideHustle`.
     render(
       <IncomeItemModal
         open
@@ -77,7 +198,45 @@ describe("IncomeItemModal", () => {
     expect(select.value).toBe("sideHustle");
   });
 
-  it("group add (presetKind set) hides the type selector and shows the group subtitle", () => {
+  it("hero-level add: user can switch to householdMember and it submits with that kind", async () => {
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
+    render(
+      <IncomeItemModal
+        open
+        mode="create"
+        row={null}
+        monthLabel="May 2026"
+        onClose={vi.fn()}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Type of income"), {
+      target: { value: "householdMember" },
+    });
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "Partner contribution" },
+    });
+    fireEvent.change(screen.getByLabelText("Monthly amount"), {
+      target: { value: "500" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mode: "create",
+          kind: "householdMember",
+        }),
+      );
+    });
+  });
+
+  it("section-level add (presetKind set) hides the type selector and preselects the kind", async () => {
+    // The group's `Lägg till` button passes its `kind` through as
+    // `presetKind`. The drawer must then hide the type selector — the
+    // kind is already known — and submit with that exact kind.
+    const onSubmit = vi.fn().mockResolvedValue(undefined);
     render(
       <IncomeItemModal
         open
@@ -86,19 +245,82 @@ describe("IncomeItemModal", () => {
         monthLabel="May 2026"
         presetKind="householdMember"
         onClose={vi.fn()}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    expect(screen.queryByLabelText("Type of income")).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "Sibling contribution" },
+    });
+    fireEvent.change(screen.getByLabelText("Monthly amount"), {
+      target: { value: "300" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          mode: "create",
+          kind: "householdMember",
+        }),
+      );
+    });
+  });
+
+  it("create preview shows the recurring scope line by default and switches with the scope cards", () => {
+    render(
+      <IncomeItemModal
+        open
+        mode="create"
+        row={null}
+        monthLabel="May 2026"
+        onClose={vi.fn()}
         onSubmit={vi.fn()}
       />,
     );
 
-    // Type selector is gone for group add — the kind is already known.
-    expect(screen.queryByLabelText("Type of income")).not.toBeInTheDocument();
+    const previewScope = screen.getByTestId("income-item-modal-preview-scope");
+    expect(previewScope).toHaveTextContent(/Recurring in the budget plan/i);
 
-    // Subtitle copy switches to the group variant.
+    fireEvent.click(
+      screen.getByRole("radio", { name: /Only for May 2026/i }),
+    );
+    expect(previewScope).toHaveTextContent(/This month only/i);
+  });
+
+  it("create preview keeps scope independent of the current-month active toggle", () => {
+    // Scope = "is this part of the plan?". Active toggle = "does it count
+    // in THIS month?". They must not collapse: a recurring row that's
+    // off for this month still reads as recurring in the preview.
+    render(
+      <IncomeItemModal
+        open
+        mode="create"
+        row={null}
+        monthLabel="May 2026"
+        onClose={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    // Default state: recurring + active.
     expect(
-      screen.getByText(
-        /Only added to May 2026\. You can add it to the plan later\./i,
-      ),
+      screen.getByTestId("income-item-modal-preview-scope"),
+    ).toHaveTextContent(/Recurring in the budget plan/i);
+
+    fireEvent.click(screen.getByTestId("income-item-modal-active-toggle"));
+
+    // After turning the active toggle off, the main status line moves to
+    // "Inactive this month" but the scope line stays recurring.
+    const preview = screen.getByTestId("editor-preview-card");
+    expect(
+      within(preview).getByText(/Inactive this month/i),
     ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("income-item-modal-preview-scope"),
+    ).toHaveTextContent(/Recurring in the budget plan/i);
   });
 
   it("shows scope cards for source-linked income rows", () => {

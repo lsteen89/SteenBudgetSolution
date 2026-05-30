@@ -152,6 +152,213 @@ public sealed class BudgetMonthIncomeItemEditorTests
     }
 
     [Fact]
+    public async Task CreateIncomeItem_CurrentMonthOnly_KeepsExistingMonthOnlyBehavior()
+    {
+        await _db.ResetAsync();
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var sut = CreateSut(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+        var budgetMonthId = await EnsureMonthAsync(sut, seed.Persoid);
+
+        var create = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.CreateHandler.Handle(
+                new CreateBudgetMonthIncomeItemCommand(
+                    seed.Persoid,
+                    "2026-01",
+                    BudgetMonthIncomeItemKinds.SideHustle,
+                    "Explicit current-month",
+                    400m,
+                    true,
+                    Scope: BudgetMonthIncomeEditScopes.CurrentMonthOnly),
+                CancellationToken.None));
+
+        create.IsFailure.Should().BeFalse();
+        create.Value!.IsMonthOnly.Should().BeTrue();
+        create.Value.CanUpdateDefault.Should().BeFalse();
+        create.Value.SourceIncomeItemId.Should().BeNull(
+            "currentMonthOnly must not link to a plan row");
+
+        // Audit: exactly one event, no plan row inserted into the side
+        // hustle plan table.
+        (await CountChangeEventsAsync(budgetMonthId, "created")).Should().Be(1);
+        (await CountPlanRowsAsync("IncomeSideHustle", "Explicit current-month")).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task CreateIncomeItem_CurrentMonthAndBudgetPlan_SideHustle_WritesPlanAndLinkedMonthRow()
+    {
+        await _db.ResetAsync();
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var sut = CreateSut(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+        var budgetMonthId = await EnsureMonthAsync(sut, seed.Persoid);
+
+        var create = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.CreateHandler.Handle(
+                new CreateBudgetMonthIncomeItemCommand(
+                    seed.Persoid,
+                    "2026-01",
+                    BudgetMonthIncomeItemKinds.SideHustle,
+                    "Recurring weekend job",
+                    1200m,
+                    true,
+                    Scope: BudgetMonthIncomeEditScopes.CurrentMonthAndBudgetPlan),
+                CancellationToken.None));
+
+        create.IsFailure.Should().BeFalse();
+        create.Value!.IsMonthOnly.Should().BeFalse(
+            "plan-linked rows must not render as 'Bara {månad}'");
+        create.Value.CanUpdateDefault.Should().BeTrue();
+        create.Value.SourceIncomeItemId.Should().NotBeNull(
+            "the month row must link back to the new plan row");
+        create.Value.SourceName.Should().Be("Recurring weekend job");
+        create.Value.SourceAmountMonthly.Should().Be(1200m);
+        create.Value.SourceIsActive.Should().BeTrue();
+
+        // Month row persisted as a non-deleted, active side-hustle row.
+        var monthRow = await GetMonthIncomeRowAsync(create.Value.Id, create.Value.Kind);
+        monthRow.Should().NotBeNull();
+        monthRow!.Name.Should().Be("Recurring weekend job");
+        monthRow.AmountMonthly.Should().Be(1200m);
+        monthRow.IsActive.Should().BeTrue();
+        monthRow.IsDeleted.Should().BeFalse();
+
+        // Plan row persisted under the budget's Income.Id with matching shape.
+        var planRow = await GetBaselineIncomeRowAsync(create.Value.SourceIncomeItemId!.Value, create.Value.Kind);
+        planRow.Should().NotBeNull();
+        planRow!.Name.Should().Be("Recurring weekend job");
+        planRow.AmountMonthly.Should().Be(1200m);
+        planRow.IsActive.Should().BeTrue();
+
+        // Audit: single create event, source-entity-id points to the plan row
+        // so history is reviewable without joining plan tables.
+        (await CountChangeEventsAsync(budgetMonthId, "created")).Should().Be(1);
+        (await CountChangeEventsWithSourceAsync(budgetMonthId, "created", create.Value.SourceIncomeItemId.Value))
+            .Should().Be(1);
+
+        // Re-read via the editor query: the new row must show up as a
+        // plan-linked active side-hustle and surface the source-plan fields.
+        var rows = await GetRowsAsync(sut, seed.Persoid);
+        var created = rows.Single(x => x.Id == create.Value.Id);
+        created.IsMonthOnly.Should().BeFalse();
+        created.SourceIncomeItemId.Should().Be(create.Value.SourceIncomeItemId);
+        created.SourceName.Should().Be("Recurring weekend job");
+        created.SourceAmountMonthly.Should().Be(1200m);
+        created.SourceIsActive.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CreateIncomeItem_CurrentMonthAndBudgetPlan_HouseholdMember_WritesPlanAndLinkedMonthRow()
+    {
+        await _db.ResetAsync();
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var sut = CreateSut(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+        var budgetMonthId = await EnsureMonthAsync(sut, seed.Persoid);
+
+        var create = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.CreateHandler.Handle(
+                new CreateBudgetMonthIncomeItemCommand(
+                    seed.Persoid,
+                    "2026-01",
+                    BudgetMonthIncomeItemKinds.HouseholdMember,
+                    "Roommate share",
+                    800m,
+                    true,
+                    Scope: BudgetMonthIncomeEditScopes.CurrentMonthAndBudgetPlan),
+                CancellationToken.None));
+
+        create.IsFailure.Should().BeFalse();
+        create.Value!.Kind.Should().Be(BudgetMonthIncomeItemKinds.HouseholdMember);
+        create.Value.IsMonthOnly.Should().BeFalse();
+        create.Value.CanUpdateDefault.Should().BeTrue();
+
+        // Plan row landed in IncomeHouseholdMember, not IncomeSideHustle.
+        (await CountPlanRowsAsync("IncomeHouseholdMember", "Roommate share")).Should().Be(1);
+        (await CountPlanRowsAsync("IncomeSideHustle", "Roommate share")).Should().Be(0);
+
+        (await CountChangeEventsAsync(budgetMonthId, "created")).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task CreateIncomeItem_CurrentMonthAndBudgetPlan_WithInactiveMonth_KeepsPlanRowActiveGoingForward()
+    {
+        // Contract: scope = "is this also part of the plan going forward?".
+        // The active toggle = "does it count in THIS month?". They must not
+        // collapse. When a user adds a new recurring income and unchecks
+        // "Räknas i månaden", the plan row must stay active so the
+        // materializer pulls it into next month. The current-month row is
+        // the one that records the user's "not this month" choice.
+        await _db.ResetAsync();
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var sut = CreateSut(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+        await EnsureMonthAsync(sut, seed.Persoid);
+
+        var create = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.CreateHandler.Handle(
+                new CreateBudgetMonthIncomeItemCommand(
+                    seed.Persoid,
+                    "2026-01",
+                    BudgetMonthIncomeItemKinds.SideHustle,
+                    "Recurring but skip Jan",
+                    1500m,
+                    IsActive: false,
+                    Scope: BudgetMonthIncomeEditScopes.CurrentMonthAndBudgetPlan),
+                CancellationToken.None));
+
+        create.IsFailure.Should().BeFalse();
+
+        // Response: row is linked, plan-editable, but inactive this month.
+        create.Value!.IsMonthOnly.Should().BeFalse();
+        create.Value.CanUpdateDefault.Should().BeTrue();
+        create.Value.SourceIncomeItemId.Should().NotBeNull();
+        create.Value.IsActive.Should().BeFalse(
+            "the active toggle controls current-month inclusion");
+        create.Value.SourceIsActive.Should().BeTrue(
+            "the plan row must stay active so the materializer pulls it forward");
+
+        // Month row physically inactive — confirms it won't bump the
+        // current month's income total.
+        var monthRow = await GetMonthIncomeRowAsync(create.Value.Id, create.Value.Kind);
+        monthRow.Should().NotBeNull();
+        monthRow!.IsActive.Should().BeFalse();
+        monthRow.IsDeleted.Should().BeFalse();
+
+        // Plan row physically active — confirms materializer will pull it
+        // into future months (the existing materializer filters on
+        // `IncomeSideHustle.IsActive = 1 AND EndedAt IS NULL`).
+        var planRow = await GetBaselineIncomeRowAsync(create.Value.SourceIncomeItemId!.Value, create.Value.Kind);
+        planRow.Should().NotBeNull();
+        planRow!.IsActive.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CreateIncomeItem_CurrentMonthAndBudgetPlan_IsRejected_WhenMonthIsClosed()
+    {
+        // Closed/skipped guard must still fire before any plan-row insert
+        // happens — otherwise a closed month could grow new plan rows
+        // through the create endpoint.
+        await _db.ResetAsync();
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var sut = CreateSut(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+        await EnsureMonthAsync(sut, seed.Persoid);
+        await MarkMonthStatusAsync("2026-01", "closed");
+
+        var create = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.CreateHandler.Handle(
+                new CreateBudgetMonthIncomeItemCommand(
+                    seed.Persoid,
+                    "2026-01",
+                    BudgetMonthIncomeItemKinds.SideHustle,
+                    "Should fail",
+                    100m,
+                    true,
+                    Scope: BudgetMonthIncomeEditScopes.CurrentMonthAndBudgetPlan),
+                CancellationToken.None));
+
+        create.IsFailure.Should().BeTrue();
+        create.Error!.Code.Should().Be(BudgetMonth.MonthIsClosed.Code);
+        (await CountPlanRowsAsync("IncomeSideHustle", "Should fail")).Should().Be(0);
+    }
+
+    [Fact]
     public async Task PatchIncomeItem_CurrentMonthOnly_UpdatesMonthRowOnly_AndWritesAudit()
     {
         await _db.ResetAsync();
@@ -511,6 +718,45 @@ public sealed class BudgetMonthIncomeItemEditorTests
               AND EntityType = 'income-item'
               AND ChangeType = @changeType;
         """, new { budgetMonthId, changeType });
+    }
+
+    // Used by the create-with-plan tests to confirm the audit row points at
+    // the freshly-created plan row via SourceEntityId — proving the link is
+    // reviewable from history without joining plan tables.
+    private async Task<int> CountChangeEventsWithSourceAsync(
+        Guid budgetMonthId,
+        string changeType,
+        Guid sourceEntityId)
+    {
+        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await conn.OpenAsync();
+
+        return await conn.ExecuteScalarAsync<int>("""
+            SELECT COUNT(*)
+            FROM BudgetMonthChangeEvent
+            WHERE BudgetMonthId = @budgetMonthId
+              AND EntityType = 'income-item'
+              AND ChangeType = @changeType
+              AND SourceEntityId = @sourceEntityId;
+        """, new { budgetMonthId, changeType, sourceEntityId });
+    }
+
+    // Counts rows in a plan-side income table by name. Used to assert
+    // currentMonthOnly does NOT touch plan tables, and that the
+    // currentMonthAndBudgetPlan create lands in the correct kind's table.
+    private async Task<int> CountPlanRowsAsync(string table, string name)
+    {
+        if (table is not ("IncomeSideHustle" or "IncomeHouseholdMember"))
+            throw new ArgumentException($"Unsupported plan table: {table}", nameof(table));
+
+        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await conn.OpenAsync();
+
+        // Table name is constrained above; inlining it is safe and avoids
+        // needing a switch over four near-identical SQL strings.
+        return await conn.ExecuteScalarAsync<int>(
+            $"SELECT COUNT(*) FROM {table} WHERE Name = @name;",
+            new { name });
     }
 
     private sealed class IncomeItemDbRow

@@ -173,11 +173,17 @@ export default function IncomeEditorPage() {
 
     try {
       if (values.mode === "create") {
+        // Forward the scope choice straight to the create endpoint. The
+        // backend handler is now scope-aware: `currentMonthOnly` keeps the
+        // historic month-only insert; `currentMonthAndBudgetPlan` writes a
+        // plan row first (forced active going forward) then the linked
+        // month row honoring `isActive` for current-month inclusion only.
         await createMutation.mutateAsync({
           kind: values.kind,
           name: values.name,
           amountMonthly: values.amountMonthly,
           isActive: values.isActive,
+          scope: values.scope,
         });
         toast.success(t("itemCreated"));
       } else {

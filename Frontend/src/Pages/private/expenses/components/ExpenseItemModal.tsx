@@ -116,6 +116,10 @@ export default function ExpenseItemModal({
   const previousActiveElementRef = useRef<HTMLElement | null>(null);
 
   const defaultCategoryId = categories[0]?.id ?? "";
+  const categoryIdsKey = useMemo(
+    () => categories.map((category) => category.id).join("|"),
+    [categories],
+  );
   const canClose = !isSaving;
   const schemaMessages = useMemo<ExpenseItemSchemaMessages>(
     () => ({
@@ -259,7 +263,15 @@ export default function ExpenseItemModal({
     setLifecycle("active");
     initialScopeRef.current = "currentMonthOnly";
     initialLifecycleRef.current = "active";
-  }, [open, mode, row, reset, defaultCategoryId, createCategoryId, categories]);
+  }, [
+    open,
+    mode,
+    row,
+    reset,
+    defaultCategoryId,
+    createCategoryId,
+    categoryIdsKey,
+  ]);
 
   const nameError = errors.name?.message?.toString();
   const categoryError = errors.categoryId?.message?.toString();

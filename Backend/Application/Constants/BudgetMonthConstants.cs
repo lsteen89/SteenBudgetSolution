@@ -65,6 +65,16 @@ public static class BudgetMonthIncomeEditScopes
            value == CurrentMonthAndBudgetPlan ||
            value == BudgetPlanOnly;
 
+    // Create is intentionally narrower than edit: there is no row to write to
+    // yet, so `budgetPlanOnly` would mean "create a plan row only", which is
+    // a future-plan add use case the income editor deliberately does not
+    // expose. Keep the user choice binary — only this month, or also part of
+    // the plan going forward.
+    public static bool IsSupportedCreateScope(string? value)
+        => value is null ||
+           value == CurrentMonthOnly ||
+           value == CurrentMonthAndBudgetPlan;
+
     public static bool WritesCurrentMonth(string scope)
         => scope == CurrentMonthOnly || scope == CurrentMonthAndBudgetPlan;
 

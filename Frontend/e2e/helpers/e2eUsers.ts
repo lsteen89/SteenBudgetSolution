@@ -69,6 +69,10 @@ export const e2eUsers = {
     email: "e2e-expenses-editor@local.test",
     password: e2ePassword,
   },
+  incomeEditor: {
+    email: "e2e-income-editor@local.test",
+    password: e2ePassword,
+  },
 } as const;
 
 export const e2eOpenYearMonth = "2026-04";
