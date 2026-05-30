@@ -224,6 +224,22 @@ E2eSeedUser[] e2eSeed =
             FirstName: "E2E",
             LastName: "ExpensesEditor"),
         IncludeBudget: true,
+        OpenMonthTargetFinalBalance: null),
+    // Dedicated user for the income editor E2E spec. Uses the Default
+    // timeline so the open 2026-04 month exposes:
+    //   - salary 32 000 kr (plan-linked, locked name, always-active)
+    //   - "Freelance" 2 500 kr (plan-linked side hustle)
+    //   - "Partner contribution" 1 500 kr (plan-linked household income)
+    // The spec is destructive (create / edit scope / toggle active /
+    // delete) and pauses then reactivates the household row, so it must
+    // not share an account with the expenses or savings suites.
+    new(
+        User: new DevSeedUser(
+            Email: "e2e-income-editor@local.test",
+            Password: DevSeedPassword,
+            FirstName: "E2E",
+            LastName: "IncomeEditor"),
+        IncludeBudget: true,
         OpenMonthTargetFinalBalance: null)
 ];
 

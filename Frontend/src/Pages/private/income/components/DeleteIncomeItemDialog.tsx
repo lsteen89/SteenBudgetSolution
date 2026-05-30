@@ -51,6 +51,7 @@ export default function DeleteIncomeItemDialog({
         event.stopPropagation();
         onClose();
       }}
+      data-testid="delete-income-item-dialog"
       className="fixed inset-0 z-[95] outline-none"
       aria-hidden={!open}
     >
@@ -106,6 +107,7 @@ export default function DeleteIncomeItemDialog({
                 onClick={() => void onConfirm()}
                 disabled={isDeleting}
                 aria-busy={isDeleting}
+                data-testid="delete-income-item-confirm"
                 className="h-11 bg-eb-danger hover:bg-eb-danger"
               >
                 {isDeleting ? t("deleting") : t("delete")}

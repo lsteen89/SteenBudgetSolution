@@ -61,5 +61,8 @@ public sealed class GetBudgetMonthIncomeItemsQueryHandler
             row.IsActive,
             row.IsDeleted,
             row.SourceIncomeItemId is null,
-            row.SourceIncomeItemId is not null);
+            row.SourceIncomeItemId is not null,
+            row.SourceName,
+            row.SourceAmountMonthly,
+            row.SourceIsActive);
 }

@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { editPeriodDrawerDict } from "@/utils/i18n/pages/private/dashboard/cards/period/editPeriodDrawer.i18n";
 import { openMonthCommandCenterDict } from "@/utils/i18n/pages/private/dashboard/openMonth/OpenMonthCommandCenter.i18n";
+import { incomeDistributionStripDict } from "./IncomeDistributionStrip.i18n";
 import { incomeEditorPageDict } from "./IncomeEditorPage.i18n";
 import { incomeItemModalDict } from "./IncomeItemModal.i18n";
+import { incomeLedgerRowDict } from "./IncomeLedgerRow.i18n";
+import { incomeLedgerSectionDict } from "./IncomeLedgerSection.i18n";
+import { incomeSoulHeroDict } from "./IncomeSoulHero.i18n";
 
 const expectSameKeys = (dict: {
   sv: object;
@@ -19,6 +23,10 @@ describe("income editor i18n", () => {
   it("keeps sv/en/et keys aligned", () => {
     expectSameKeys(incomeEditorPageDict);
     expectSameKeys(incomeItemModalDict);
+    expectSameKeys(incomeSoulHeroDict);
+    expectSameKeys(incomeDistributionStripDict);
+    expectSameKeys(incomeLedgerSectionDict);
+    expectSameKeys(incomeLedgerRowDict);
     expectSameKeys(editPeriodDrawerDict);
     expectSameKeys(openMonthCommandCenterDict);
   });

@@ -19,8 +19,22 @@ public interface IBudgetMonthIncomeItemMutationRepository
 
     Task<Guid?> GetBudgetMonthIncomeIdAsync(Guid budgetMonthId, CancellationToken ct);
 
+    // Returns the parent BudgetMonthIncome id plus the budget's Income
+    // (plan-side) id. Plan-writing create scopes need both: the month row
+    // attaches to the former, the new plan row attaches to the latter.
+    Task<BudgetMonthIncomeForCreateReadModel?> GetBudgetMonthIncomeForCreateAsync(
+        Guid budgetMonthId,
+        CancellationToken ct);
+
     Task<Guid> InsertMonthIncomeItemAsync(
         InsertBudgetMonthIncomeItemModel model,
+        CancellationToken ct);
+
+    // Inserts a new baseline (budget-plan) side-row keyed off the budget's
+    // Income.Id. Used only by the create handler when scope writes to the
+    // plan. Kind-aware: routes to IncomeSideHustle or IncomeHouseholdMember.
+    Task InsertBaselineIncomeItemAsync(
+        InsertBaselineIncomeItemModel model,
         CancellationToken ct);
 
     Task UpdateMonthIncomeItemAsync(

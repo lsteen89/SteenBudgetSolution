@@ -28,6 +28,13 @@ public sealed class CreateBudgetMonthIncomeItemCommandValidator
         RuleFor(x => x.AmountMonthly)
             .GreaterThanOrEqualTo(0m)
             .PrecisionScale(12, 2, false);
+
+        // Narrower than `IsSupported` on purpose: create does not expose
+        // `budgetPlanOnly` (see DTO comment). Null is allowed and resolved
+        // to `currentMonthOnly` by the handler.
+        RuleFor(x => x.Scope)
+            .Must(BudgetMonthIncomeEditScopes.IsSupportedCreateScope)
+            .WithMessage("Scope must be currentMonthOnly or currentMonthAndBudgetPlan.");
     }
 }
 

@@ -1,3 +1,5 @@
+import BudgetEditorEmptyRow from "@/components/molecules/forms/budgetEditor/BudgetEditorEmptyRow";
+import BudgetEditorInactiveDivider from "@/components/molecules/forms/budgetEditor/BudgetEditorInactiveDivider";
 import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/lib/utils";
@@ -10,7 +12,6 @@ import type {
   ExpenseLedgerGroupVm,
   ExpenseLedgerRowVm,
 } from "../types/expenseEditor.types";
-import ExpenseEditorEmptyState from "./ExpenseEditorEmptyState";
 import ExpenseLedgerRow from "./ExpenseLedgerRow";
 
 type ExpensesLedgerSectionProps = {
@@ -240,14 +241,17 @@ export default function ExpensesLedgerSection({
             <div className="border-t border-eb-stroke/10" />
 
             {group.rows.length === 0 ? (
-              <ExpenseEditorEmptyState text={t("empty")} />
+              <BudgetEditorEmptyRow text={t("empty")} />
             ) : group.activeRows.length === 0 ? (
               // All rows are inactive/paused/cancelled. Show a calm empty-state
               // for the active region, then render the inactive rows below the
               // sublabel divider for transparency.
               <>
-                <ExpenseEditorEmptyState text={t("emptyActive")} />
-                <InactiveDivider label={t("inactiveSublabel")} />
+                <BudgetEditorEmptyRow text={t("emptyActive")} />
+                <BudgetEditorInactiveDivider
+                  label={t("inactiveSublabel")}
+                  testId="expenses-ledger-inactive-divider"
+                />
                 {group.inactiveRows.map((row) => (
                   <ExpenseLedgerRow
                     key={row.id}
@@ -276,7 +280,10 @@ export default function ExpensesLedgerSection({
 
                 {group.inactiveRows.length > 0 ? (
                   <>
-                    <InactiveDivider label={t("inactiveSublabel")} />
+                    <BudgetEditorInactiveDivider
+                      label={t("inactiveSublabel")}
+                      testId="expenses-ledger-inactive-divider"
+                    />
                     {group.inactiveRows.map((row) => (
                       <ExpenseLedgerRow
                         key={row.id}
@@ -308,16 +315,3 @@ export default function ExpensesLedgerSection({
   );
 }
 
-function InactiveDivider({ label }: { label: string }) {
-  return (
-    <div
-      data-testid="expenses-ledger-inactive-divider"
-      className={cn(
-        "border-t border-eb-stroke/15 bg-[rgb(var(--eb-shell)/0.08)]",
-        "px-4 py-2 text-[11px] font-medium uppercase tracking-[0.14em] text-eb-text/50 sm:px-6",
-      )}
-    >
-      {label}
-    </div>
-  );
-}

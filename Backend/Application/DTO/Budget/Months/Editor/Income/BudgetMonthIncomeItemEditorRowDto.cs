@@ -9,5 +9,8 @@ public sealed record BudgetMonthIncomeItemEditorRowDto(
     bool IsActive,
     bool IsDeleted,
     bool IsMonthOnly,
-    bool CanUpdateDefault);
+    bool CanUpdateDefault,
+    string? SourceName = null,
+    decimal? SourceAmountMonthly = null,
+    bool? SourceIsActive = null);
 

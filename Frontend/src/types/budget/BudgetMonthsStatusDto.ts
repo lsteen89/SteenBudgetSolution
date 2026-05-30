@@ -74,6 +74,13 @@ export type BudgetMonthIncomeItemEditorRowDto = {
   isDeleted: boolean;
   isMonthOnly: boolean;
   canUpdateDefault: boolean;
+  // Source-plan comparison fields. Null when the month row is month-only,
+  // when the salary plan row has no name column, or when the editor read
+  // could not resolve the linked plan row. Consumed by PR 6 to render the
+  // "Ändrad i {månad}" exception pill.
+  sourceName: string | null;
+  sourceAmountMonthly: number | null;
+  sourceIsActive: boolean | null;
 };
 
 export type PatchBudgetMonthExpenseItemRequestDto = {
@@ -120,11 +127,20 @@ export type PatchBudgetMonthIncomeItemRequestDto = {
   scope?: IncomeEditScope | null;
 };
 
+// Create exposes only two scopes — `budgetPlanOnly` is a future-plan-only
+// add flow the income editor deliberately does not surface. Narrower than
+// `IncomeEditScope` so the typed path can't ever send the third value to
+// the create endpoint (which the backend validator rejects anyway).
+export type IncomeCreateScope = Exclude<IncomeEditScope, "budgetPlanOnly">;
+
 export type CreateBudgetMonthIncomeItemRequestDto = {
   kind: Exclude<BudgetMonthIncomeItemKind, "salary">;
   name: string;
   amountMonthly: number;
   isActive: boolean;
+  // Optional on the wire so older callers keep their existing month-only
+  // behavior. The backend resolves null/omitted to `currentMonthOnly`.
+  scope?: IncomeCreateScope | null;
 };
 
 export type PatchBudgetMonthIncomeItemBulkRowDto = {
