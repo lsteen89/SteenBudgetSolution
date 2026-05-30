@@ -56,6 +56,9 @@ function renderGroup({
     isDeleted: overrides.isDeleted ?? false,
     isMonthOnly: overrides.isMonthOnly ?? false,
     canUpdateDefault: overrides.canUpdateDefault ?? false,
+    sourceName: null,
+    sourceAmountMonthly: null,
+    sourceIsActive: null,
   }));
 
   const groups = buildIncomeLedgerGroups({ rows: wireRows });

@@ -19,6 +19,9 @@ const linkedRow = {
   isDeleted: false,
   isMonthOnly: false,
   canUpdateDefault: true,
+  sourceName: null,
+  sourceAmountMonthly: null,
+  sourceIsActive: null,
 };
 
 const salaryRow = {
@@ -31,6 +34,9 @@ const salaryRow = {
   isDeleted: false,
   isMonthOnly: false,
   canUpdateDefault: true,
+  sourceName: null,
+  sourceAmountMonthly: null,
+  sourceIsActive: null,
 };
 
 describe("IncomeItemModal", () => {

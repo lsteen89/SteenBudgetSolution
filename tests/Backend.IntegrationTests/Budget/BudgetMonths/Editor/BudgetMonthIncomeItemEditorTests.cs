@@ -63,6 +63,64 @@ public sealed class BudgetMonthIncomeItemEditorTests
     }
 
     [Fact]
+    public async Task GetIncomeItems_ExposesSourcePlanFieldsForPlanLinkedRows()
+    {
+        await _db.ResetAsync();
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var sut = CreateSut(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+
+        var rows = await GetRowsAsync(sut, seed.Persoid);
+
+        var salary = rows.Single(x => x.Kind == BudgetMonthIncomeItemKinds.Salary);
+        salary.SourceIncomeItemId.Should().NotBeNull("materialization links salary to its plan row");
+        salary.SourceName.Should().BeNull("the Income (salary) plan table has no name column");
+        salary.SourceAmountMonthly.Should().Be(30000m, "the seed sets NetSalaryMonthly to 30000");
+        salary.SourceIsActive.Should().BeTrue("salary is always active when the source row exists");
+
+        var sideHustle = rows.Single(x => x.Kind == BudgetMonthIncomeItemKinds.SideHustle);
+        sideHustle.SourceIncomeItemId.Should().NotBeNull();
+        sideHustle.SourceName.Should().Be("Side job");
+        sideHustle.SourceAmountMonthly.Should().Be(2000m);
+        sideHustle.SourceIsActive.Should().BeTrue();
+
+        var household = rows.Single(x => x.Kind == BudgetMonthIncomeItemKinds.HouseholdMember);
+        household.SourceIncomeItemId.Should().NotBeNull();
+        household.SourceName.Should().Be("Partner contribution");
+        household.SourceAmountMonthly.Should().Be(500m);
+        household.SourceIsActive.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task GetIncomeItems_ReturnsNullSourcePlanFieldsForMonthOnlyRows()
+    {
+        await _db.ResetAsync();
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var sut = CreateSut(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+        await EnsureMonthAsync(sut, seed.Persoid);
+
+        var create = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.CreateHandler.Handle(
+                new CreateBudgetMonthIncomeItemCommand(
+                    seed.Persoid,
+                    "2026-01",
+                    BudgetMonthIncomeItemKinds.SideHustle,
+                    "One-off gig",
+                    750m,
+                    true),
+                CancellationToken.None));
+        create.IsFailure.Should().BeFalse();
+
+        var rows = await GetRowsAsync(sut, seed.Persoid);
+        var monthOnly = rows.Single(x => x.Id == create.Value!.Id);
+
+        monthOnly.IsMonthOnly.Should().BeTrue();
+        monthOnly.SourceIncomeItemId.Should().BeNull();
+        monthOnly.SourceName.Should().BeNull();
+        monthOnly.SourceAmountMonthly.Should().BeNull();
+        monthOnly.SourceIsActive.Should().BeNull();
+    }
+
+    [Fact]
     public async Task CreateIncomeItem_WritesMonthOnlyRowAndAudit()
     {
         await _db.ResetAsync();

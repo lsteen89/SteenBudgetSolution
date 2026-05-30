@@ -16,6 +16,9 @@ function row(
     isDeleted: overrides.isDeleted ?? false,
     isMonthOnly: overrides.isMonthOnly ?? false,
     canUpdateDefault: overrides.canUpdateDefault ?? false,
+    sourceName: overrides.sourceName ?? null,
+    sourceAmountMonthly: overrides.sourceAmountMonthly ?? null,
+    sourceIsActive: overrides.sourceIsActive ?? null,
   };
 }
 

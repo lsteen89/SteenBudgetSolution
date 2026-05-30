@@ -28,8 +28,13 @@ public sealed partial class BudgetMonthIncomeItemMutationRepository
         NULL AS Name,
         bmi.NetSalaryMonthly AS AmountMonthly,
         TRUE AS IsActive,
-        bmi.IsDeleted
+        bmi.IsDeleted,
+        CAST(NULL AS CHAR) AS SourceName,
+        srcInc.NetSalaryMonthly AS SourceAmountMonthly,
+        CASE WHEN srcInc.Id IS NOT NULL THEN TRUE ELSE NULL END AS SourceIsActive
     FROM BudgetMonthIncome bmi
+    LEFT JOIN Income srcInc
+        ON srcInc.Id = bmi.SourceIncomeId
     WHERE bmi.BudgetMonthId = @BudgetMonthId
 
     UNION ALL
@@ -43,10 +48,15 @@ public sealed partial class BudgetMonthIncomeItemMutationRepository
         ish.Name,
         ish.IncomeMonthly AS AmountMonthly,
         ish.IsActive,
-        ish.IsDeleted
+        ish.IsDeleted,
+        srcSh.Name AS SourceName,
+        srcSh.IncomeMonthly AS SourceAmountMonthly,
+        srcSh.IsActive AS SourceIsActive
     FROM BudgetMonthIncome bmi
     JOIN BudgetMonthIncomeSideHustle ish
         ON ish.BudgetMonthIncomeId = bmi.Id
+    LEFT JOIN IncomeSideHustle srcSh
+        ON srcSh.Id = ish.SourceSideHustleId
     WHERE bmi.BudgetMonthId = @BudgetMonthId
       AND bmi.IsDeleted = 0
 
@@ -61,10 +71,15 @@ public sealed partial class BudgetMonthIncomeItemMutationRepository
         ihm.Name,
         ihm.IncomeMonthly AS AmountMonthly,
         ihm.IsActive,
-        ihm.IsDeleted
+        ihm.IsDeleted,
+        srcHh.Name AS SourceName,
+        srcHh.IncomeMonthly AS SourceAmountMonthly,
+        srcHh.IsActive AS SourceIsActive
     FROM BudgetMonthIncome bmi
     JOIN BudgetMonthIncomeHouseholdMember ihm
         ON ihm.BudgetMonthIncomeId = bmi.Id
+    LEFT JOIN IncomeHouseholdMember srcHh
+        ON srcHh.Id = ihm.SourceHouseholdMemberId
     WHERE bmi.BudgetMonthId = @BudgetMonthId
       AND bmi.IsDeleted = 0";
 
@@ -76,7 +91,10 @@ public sealed partial class BudgetMonthIncomeItemMutationRepository
         incomeRows.Name,
         incomeRows.AmountMonthly,
         incomeRows.IsActive,
-        incomeRows.IsDeleted
+        incomeRows.IsDeleted,
+        incomeRows.SourceName,
+        incomeRows.SourceAmountMonthly,
+        incomeRows.SourceIsActive
     FROM ({IncomeItemRowsProjection}) incomeRows
     WHERE (@IncludeDeleted = 1 OR incomeRows.IsDeleted = 0)
     ORDER BY
