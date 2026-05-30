@@ -4,6 +4,8 @@ import { openMonthCommandCenterDict } from "@/utils/i18n/pages/private/dashboard
 import { incomeDistributionStripDict } from "./IncomeDistributionStrip.i18n";
 import { incomeEditorPageDict } from "./IncomeEditorPage.i18n";
 import { incomeItemModalDict } from "./IncomeItemModal.i18n";
+import { incomeLedgerRowDict } from "./IncomeLedgerRow.i18n";
+import { incomeLedgerSectionDict } from "./IncomeLedgerSection.i18n";
 import { incomeSoulHeroDict } from "./IncomeSoulHero.i18n";
 
 const expectSameKeys = (dict: {
@@ -23,6 +25,8 @@ describe("income editor i18n", () => {
     expectSameKeys(incomeItemModalDict);
     expectSameKeys(incomeSoulHeroDict);
     expectSameKeys(incomeDistributionStripDict);
+    expectSameKeys(incomeLedgerSectionDict);
+    expectSameKeys(incomeLedgerRowDict);
     expectSameKeys(editPeriodDrawerDict);
     expectSameKeys(openMonthCommandCenterDict);
   });

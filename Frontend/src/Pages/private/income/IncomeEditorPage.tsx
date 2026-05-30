@@ -26,6 +26,11 @@ import IncomeLedgerSection from "./components/IncomeLedgerSection";
 import IncomeSoulHero, {
   type IncomeMonthComparison,
 } from "./components/IncomeSoulHero";
+import type {
+  IncomeLedgerGroupVm,
+  IncomeLedgerRowVm,
+} from "./types/incomeEditor.types";
+import { buildIncomeLedgerGroups } from "./utils/buildIncomeLedgerGroups";
 import { buildIncomeSummary } from "./utils/buildIncomeSummary";
 
 /** Previous calendar month as `YYYY-MM`, or null when the input is malformed. */
@@ -145,9 +150,10 @@ export default function IncomeEditorPage() {
   // aggregate terms so all visible numbers reconcile.
   const incomeSummary = useMemo(() => buildIncomeSummary({ rows }), [rows]);
 
-  // Legacy `total` kept as a defensive fallback for the ledger total during
-  // early data loading — the new hero is always built from `incomeSummary`.
-  const total = incomeSummary.total;
+  // Grouped ledger view-model. Salary first, then household income, then
+  // side income — order is locked in `buildIncomeLedgerGroups`. Inactive
+  // rows are kept in their own quiet subsection per group.
+  const groups = useMemo(() => buildIncomeLedgerGroups({ rows }), [rows]);
 
   const handleSubmit = async (values: {
     kind: "sideHustle" | "householdMember";
@@ -199,6 +205,74 @@ export default function IncomeEditorPage() {
     setDeleteTarget(row);
   };
 
+  /**
+   * Find the wire row for a ledger VM by id. The ledger renders
+   * `IncomeLedgerRowVm` (a structural superset of the wire row), but every
+   * mutation needs the canonical DTO so we look it back up. Returns null
+   * for the (very unlikely) race where a row was just removed from the
+   * editor list between render and click.
+   */
+  const findRowById = (id: string) =>
+    rows.find((candidate) => candidate.id === id) ?? null;
+
+  const handleEditRow = (rowVm: IncomeLedgerRowVm) => {
+    const wireRow = findRowById(rowVm.id);
+    if (!wireRow) return;
+    setModalState({ open: true, mode: "edit", row: wireRow });
+  };
+
+  const handleDeleteRow = (rowVm: IncomeLedgerRowVm) => {
+    // Salary cannot be deleted (backend enforces it, but the kebab also
+    // hides the action for salary). Guard defensively here so a stale UI
+    // never opens the confirmation dialog for a salary row.
+    if (rowVm.kind === "salary") return;
+    const wireRow = findRowById(rowVm.id);
+    if (!wireRow) return;
+    handleDelete(wireRow);
+  };
+
+  /**
+   * Activate or deactivate a side/household row for the current month.
+   *
+   * Always month-only — toggling a row off this month should not change the
+   * plan. The patch endpoint demands `amountMonthly` even on an active-only
+   * change, so we re-send the current amount and let the backend treat it
+   * as a no-op for the money field. Salary is always active by backend
+   * invariant; we don't expose the toggle in the row menu and guard here.
+   */
+  const handleToggleActive = async (rowVm: IncomeLedgerRowVm) => {
+    if (rowVm.kind === "salary") return;
+    const wireRow = findRowById(rowVm.id);
+    if (!wireRow) return;
+
+    try {
+      await patchMutation.mutateAsync({
+        monthIncomeItemId: wireRow.id,
+        payload: {
+          name: wireRow.name,
+          amountMonthly: wireRow.amountMonthly,
+          isActive: !wireRow.isActive,
+          updateDefault: false,
+          scope: "currentMonthOnly",
+        },
+      });
+      toast.success(t("itemUpdated"));
+    } catch {
+      toast.error(t("itemUpdateError"));
+    }
+  };
+
+  /**
+   * Group-level add. Opens the create drawer the same way the hero CTA does;
+   * PR 4 wires the drawer to preselect/hide the type selector based on the
+   * triggering group, but in PR 3 the differentiation is structural only
+   * (the button exists per group instead of one global add). The unused
+   * argument is kept on the contract because PR 4 will read `group.key`.
+   */
+  const handleCreateInGroup = (_group: IncomeLedgerGroupVm) => {
+    setModalState({ open: true, mode: "create" });
+  };
+
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
 
@@ -225,7 +299,13 @@ export default function IncomeEditorPage() {
   // distribution strip derives `Fritt kvar` from these same terms so the
   // breakdown is internally consistent. If the dashboard is still loading,
   // we render a calm loading panel below instead of fabricating zeros.
-  const incomeTotal = dashboardAggregate?.summary.totalIncome ?? total;
+  // Defensive fallback only: the render branch below already guards on
+  // `dashboardAggregate`, so this `??` is reached only in the brief window
+  // between mount and the first dashboard resolve. We use the editor's own
+  // active-rows total (same counting rule as the backend dashboard) so the
+  // fallback at least lines up with what the ledger groups will render.
+  const incomeTotal =
+    dashboardAggregate?.summary.totalIncome ?? incomeSummary.total;
   const expenseTotal = dashboardAggregate?.summary.totalExpenditure ?? 0;
   const carryOverTotal =
     dashboardAggregate?.summary.incomingCarryOverAmount ?? 0;
@@ -331,15 +411,27 @@ export default function IncomeEditorPage() {
                 previousMonthLabel={previousMonthLabel}
               />
 
-              <IncomeLedgerSection
-                rows={rows}
-                total={total}
-                readOnly={readOnly}
-                onEdit={(row) =>
-                  setModalState({ open: true, mode: "edit", row })
-                }
-                onDelete={handleDelete}
-              />
+              {/*
+                Three grouped ledger cards in locked order: Lön first, then
+                Hushållsinkomst, then Sidoinkomst. Each section owns its own
+                open/close state and group-level add affordance. The salary
+                group renders no add button (single-row group by backend
+                invariant) — `IncomeLedgerSection` reads that off the VM.
+              */}
+              <div className="space-y-3">
+                {groups.map((group) => (
+                  <IncomeLedgerSection
+                    key={group.key}
+                    group={group}
+                    monthLabel={periodLabel}
+                    readOnly={readOnly}
+                    onEdit={handleEditRow}
+                    onToggleActive={handleToggleActive}
+                    onDelete={handleDeleteRow}
+                    onCreateInGroup={handleCreateInGroup}
+                  />
+                ))}
+              </div>
             </>
           )}
         </div>
