@@ -304,7 +304,7 @@ describe("IncomeLedgerSection", () => {
     });
   });
 
-  it("hides the group-level add affordance and the row menu when read-only", () => {
+  it("hides the group-level add affordance and the row menu entirely when read-only", () => {
     renderGroup({
       kind: "sideHustle",
       rows: [{ id: "side-1", name: "Consulting", amountMonthly: 2500 }],
@@ -314,10 +314,15 @@ describe("IncomeLedgerSection", () => {
     expect(
       screen.queryByTestId("income-ledger-group-sideHustle-add"),
     ).toBeNull();
-    // The shared row-actions menu renders a disabled trigger in read-only mode.
+    // PR 3 review fix: the row kebab must be absent (not just disabled) on
+    // read-only months — the disabled trigger still looks like an
+    // affordance, which the income handover bans.
     expect(
-      screen.getByRole("button", { name: "Actions unavailable" }),
-    ).toBeDisabled();
+      screen.queryByTestId("budget-editor-row-actions-trigger"),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /actions unavailable/i }),
+    ).toBeNull();
   });
 
   it("calls onCreateInGroup with the group when the per-group add is clicked", () => {

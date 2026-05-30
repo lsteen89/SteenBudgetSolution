@@ -22,6 +22,17 @@ type IncomeItemModalProps = {
   row: BudgetMonthIncomeItemEditorRowDto | null;
   monthLabel: string;
   isSaving?: boolean;
+  /**
+   * Optional kind to preselect when opening the create drawer. Used by the
+   * per-group `Lägg till` button so a click on Sidoinkomst's add seeds the
+   * selector with `sideHustle` instead of always defaulting to it. Ignored
+   * in edit mode. PR 4 will use this same prop to hide the type selector
+   * when group-add is used; PR 3 keeps the selector visible because the
+   * presence-of-selector vs hidden-selector behavior is the drawer-redesign
+   * scope. Without this prop, global add and group add submit identical
+   * payloads — see the PR 3 review feedback.
+   */
+  presetKind?: Exclude<BudgetMonthIncomeItemKind, "salary"> | null;
   onClose: () => void;
   onSubmit: (values: {
     kind: Exclude<BudgetMonthIncomeItemKind, "salary">;
@@ -38,6 +49,7 @@ export default function IncomeItemModal({
   row,
   monthLabel,
   isSaving = false,
+  presetKind = null,
   onClose,
   onSubmit,
 }: IncomeItemModalProps) {
@@ -69,13 +81,15 @@ export default function IncomeItemModal({
       return;
     }
 
-    setKind("sideHustle");
+    // Group add seeds `presetKind`; global add does not. Falling back to
+    // `sideHustle` preserves the previous default for the hero CTA.
+    setKind(presetKind ?? "sideHustle");
     setName("");
     setAmountMonthly("");
     setIsActive(true);
     setScope("currentMonthOnly");
     setError(null);
-  }, [mode, open, row]);
+  }, [mode, open, row, presetKind]);
 
   const canClose = !isSaving;
   const title = mode === "create" ? t("titleCreate") : t("titleEdit");

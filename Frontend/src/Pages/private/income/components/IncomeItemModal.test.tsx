@@ -98,6 +98,41 @@ describe("IncomeItemModal", () => {
     ).toBeInTheDocument();
   });
 
+  it("seeds the type selector to the preset kind so group add differs from global add", () => {
+    // Global add (no presetKind) defaults to sideHustle.
+    const { unmount } = render(
+      <IncomeItemModal
+        open
+        mode="create"
+        row={null}
+        monthLabel="May 2026"
+        onClose={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+    expect(
+      (screen.getByLabelText("Type") as HTMLSelectElement).value,
+    ).toBe("sideHustle");
+    unmount();
+
+    // Group add for the household group preselects the matching kind so a
+    // direct submit produces a household-income row, not a side-income row.
+    render(
+      <IncomeItemModal
+        open
+        mode="create"
+        row={null}
+        monthLabel="May 2026"
+        presetKind="householdMember"
+        onClose={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+    expect(
+      (screen.getByLabelText("Type") as HTMLSelectElement).value,
+    ).toBe("householdMember");
+  });
+
   it("submits the selected budget-plan scope", async () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined);
 

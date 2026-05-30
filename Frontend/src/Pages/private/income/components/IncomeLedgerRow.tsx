@@ -193,12 +193,21 @@ export default function IncomeLedgerRow({
           {displayAmount}
         </div>
 
-        <BudgetEditorRowActionsMenu
-          readOnly={readOnly}
-          disabledAriaLabel={t("rowActionsDisabled")}
-          openAriaLabel={t("rowActionsOpen")}
-          items={items}
-        />
+        {/*
+          Read-only months must expose no edit affordances on the UI side
+          (not just rely on backend rejection) — see the income editor
+          handover. The shared menu primitive's `readOnly` mode still
+          renders a disabled trigger button, which still looks like an
+          affordance. For income rows we omit the menu entirely when
+          read-only so the row reads as plain information.
+        */}
+        {readOnly ? null : (
+          <BudgetEditorRowActionsMenu
+            disabledAriaLabel={t("rowActionsDisabled")}
+            openAriaLabel={t("rowActionsOpen")}
+            items={items}
+          />
+        )}
       </div>
     </div>
   );

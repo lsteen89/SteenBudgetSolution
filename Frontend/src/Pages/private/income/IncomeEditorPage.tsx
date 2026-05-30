@@ -11,6 +11,7 @@ import { buildDashboardSummaryAggregate } from "@/hooks/dashboard/buildDashboard
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import type {
   BudgetMonthIncomeItemEditorRowDto,
+  BudgetMonthIncomeItemKind,
   IncomeEditScope,
 } from "@/types/budget/BudgetMonthsStatusDto";
 import type { AppLocale } from "@/types/i18n/appLocale";
@@ -131,9 +132,20 @@ export default function IncomeEditorPage() {
   const patchMutation = usePatchBudgetMonthIncomeItem(mutationYearMonth);
   const deleteMutation = useDeleteBudgetMonthIncomeItem(mutationYearMonth);
 
+  // Modal state distinguishes "global add" (hero CTA, kind unknown) from
+  // "group add" (per-group `Lägg till`, kind preselected). The preset kind
+  // is plumbed into `IncomeItemModal` so the drawer's type selector seeds
+  // to the right option. PR 4 will use the same `presetKind` value to also
+  // hide the selector when group-add is the source; PR 3 keeps the
+  // selector visible so the user can still switch types if they clicked
+  // the wrong group.
   const [modalState, setModalState] = useState<
     | { open: false }
-    | { open: true; mode: "create" }
+    | {
+        open: true;
+        mode: "create";
+        presetKind: Exclude<BudgetMonthIncomeItemKind, "salary"> | null;
+      }
     | { open: true; mode: "edit"; row: BudgetMonthIncomeItemEditorRowDto }
   >({ open: false });
   const [deleteTarget, setDeleteTarget] =
@@ -263,14 +275,24 @@ export default function IncomeEditorPage() {
   };
 
   /**
-   * Group-level add. Opens the create drawer the same way the hero CTA does;
-   * PR 4 wires the drawer to preselect/hide the type selector based on the
-   * triggering group, but in PR 3 the differentiation is structural only
-   * (the button exists per group instead of one global add). The unused
-   * argument is kept on the contract because PR 4 will read `group.key`.
+   * Group-level add. Opens the create drawer with the group's kind passed
+   * through as `presetKind` so the modal's type selector seeds to the
+   * right option — this is what makes group add genuinely different from
+   * the global hero add. PR 4 will use the same plumbing to hide the
+   * type selector entirely when group-add is the source; PR 3 keeps it
+   * visible so the user can switch types after clicking the wrong group.
+   *
+   * Salary is never preset here: `canCreateInGroup` is false for the
+   * salary group, so the section never renders an add button for it. We
+   * still narrow the type defensively in case that contract ever
+   * regresses, since the create endpoint rejects `salary` server-side.
    */
-  const handleCreateInGroup = (_group: IncomeLedgerGroupVm) => {
-    setModalState({ open: true, mode: "create" });
+  const handleCreateInGroup = (group: IncomeLedgerGroupVm) => {
+    const presetKind =
+      group.key === "householdMember" || group.key === "sideHustle"
+        ? group.key
+        : null;
+    setModalState({ open: true, mode: "create", presetKind });
   };
 
   const handleConfirmDelete = async () => {
@@ -397,7 +419,15 @@ export default function IncomeEditorPage() {
                 freeToSpend={freeToSpend}
                 comparison={heroComparison}
                 readOnly={readOnly}
-                onCreate={() => setModalState({ open: true, mode: "create" })}
+                onCreate={() =>
+                  // Hero CTA — kind is unknown, type selector defaults to
+                  // sideHustle inside the modal.
+                  setModalState({
+                    open: true,
+                    mode: "create",
+                    presetKind: null,
+                  })
+                }
               />
 
               <IncomeDistributionStrip
@@ -442,6 +472,11 @@ export default function IncomeEditorPage() {
         mode={modalState.open ? modalState.mode : "create"}
         row={modalState.open && modalState.mode === "edit" ? modalState.row : null}
         monthLabel={periodLabel}
+        presetKind={
+          modalState.open && modalState.mode === "create"
+            ? modalState.presetKind
+            : null
+        }
         isSaving={createMutation.isPending || patchMutation.isPending}
         onClose={() => setModalState({ open: false })}
         onSubmit={handleSubmit}
