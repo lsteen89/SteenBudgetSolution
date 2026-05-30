@@ -2,8 +2,10 @@ import { CtaButton } from "@/components/atoms/buttons/CtaButton";
 import { FormField } from "@/components/atoms/forms/FormField";
 import { TextInput } from "@/components/atoms/InputField/TextInputv2";
 import BudgetEntryModalShell from "@/components/molecules/forms/budgetEditor/BudgetEntryModalShell";
+import EditorPreviewCard from "@/components/molecules/forms/budgetEditor/EditorPreviewCard";
 import MoneyInput from "@/components/molecules/forms/budgetEditor/MoneyInput";
 import EditScopeRadioCards from "@/components/molecules/forms/editScope/EditScopeRadioCards";
+import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/lib/utils";
 import type {
@@ -13,6 +15,7 @@ import type {
 } from "@/types/budget/BudgetMonthsStatusDto";
 import { incomeItemModalDict } from "@/utils/i18n/pages/private/income/IncomeItemModal.i18n";
 import { tDict } from "@/utils/i18n/translate";
+import { formatMoneyV2 } from "@/utils/money/moneyV2";
 import { parseMoneyInput } from "@/utils/money/moneyInput";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 
@@ -25,23 +28,44 @@ type IncomeItemModalProps = {
   /**
    * Optional kind to preselect when opening the create drawer. Used by the
    * per-group `Lägg till` button so a click on Sidoinkomst's add seeds the
-   * selector with `sideHustle` instead of always defaulting to it. Ignored
-   * in edit mode. PR 4 will use this same prop to hide the type selector
-   * when group-add is used; PR 3 keeps the selector visible because the
-   * presence-of-selector vs hidden-selector behavior is the drawer-redesign
-   * scope. Without this prop, global add and group add submit identical
-   * payloads — see the PR 3 review feedback.
+   * selector with `sideHustle` instead of always defaulting to it.
+   *
+   * Also drives the PR 4 distinction between global add (hero CTA, kind
+   * unknown → type selector visible) and group add (kind known → type
+   * selector hidden, subtitle copy changes accordingly). Ignored in edit
+   * mode.
    */
   presetKind?: Exclude<BudgetMonthIncomeItemKind, "salary"> | null;
   onClose: () => void;
-  onSubmit: (values: {
-    kind: Exclude<BudgetMonthIncomeItemKind, "salary">;
-    name: string;
-    amountMonthly: number;
-    isActive: boolean;
-    scope?: IncomeEditScope;
-  }) => Promise<void>;
+  /**
+   * Discriminated by `mode` so `kind` is genuinely create-only. The previous
+   * shape forced edits to invent a `kind` value (defaulting to `sideHustle`
+   * even when editing salary), which lied about the modal's contract — the
+   * patch endpoint ignores `kind` entirely. Keeping these as two distinct
+   * shapes makes the wire payload honest and lets the parent narrow on
+   * `mode` instead of carrying dead fields.
+   */
+  onSubmit: (values: IncomeItemSubmitValues) => Promise<void>;
 };
+
+export type IncomeItemSubmitValues =
+  | {
+      mode: "create";
+      kind: Exclude<BudgetMonthIncomeItemKind, "salary">;
+      name: string;
+      amountMonthly: number;
+      isActive: boolean;
+    }
+  | {
+      mode: "edit";
+      name: string;
+      amountMonthly: number;
+      isActive: boolean;
+      scope?: IncomeEditScope;
+    };
+
+const interpolate = (template: string, values: Record<string, string>) =>
+  template.replace(/\{(\w+)\}/g, (_, key) => values[key] ?? "");
 
 export default function IncomeItemModal({
   open,
@@ -54,6 +78,7 @@ export default function IncomeItemModal({
   onSubmit,
 }: IncomeItemModalProps) {
   const locale = useAppLocale();
+  const currency = useAppCurrency();
   const t = <K extends keyof typeof incomeItemModalDict.sv>(key: K) =>
     tDict(key, locale, incomeItemModalDict);
 
@@ -66,7 +91,22 @@ export default function IncomeItemModal({
   const [error, setError] = useState<string | null>(null);
 
   const isSalary = mode === "edit" && row?.kind === "salary";
-  const canUpdatePlan = row?.canUpdateDefault ?? false;
+  // Plan-writing scopes are only meaningful when the backend will actually
+  // accept them: the row must be linked to a plan source row AND the read
+  // model must say the user can update the default. Salary has no scope
+  // cards at all (the handover places salary on its own special track), so
+  // it's excluded explicitly even though the value is unused for it.
+  const canUpdatePlan =
+    mode === "edit" &&
+    !isSalary &&
+    !!row?.canUpdateDefault &&
+    row?.sourceIncomeItemId != null;
+
+  // Hide the type selector when the drawer was opened from a group's
+  // `Lägg till` (i.e. the kind is already known). Global add (hero CTA)
+  // leaves it visible so the user picks the type here. Edit mode never
+  // shows the selector — the row's kind is fixed.
+  const showKindSelector = mode === "create" && presetKind === null;
 
   useEffect(() => {
     if (!open) return;
@@ -93,6 +133,16 @@ export default function IncomeItemModal({
 
   const canClose = !isSaving;
   const title = mode === "create" ? t("titleCreate") : t("titleEdit");
+  const description =
+    mode === "edit"
+      ? t("descriptionEdit")
+      : interpolate(
+          presetKind === null
+            ? t("descriptionCreateGlobal")
+            : t("descriptionCreateGroup"),
+          { month: monthLabel },
+        );
+
   const parsedAmount = useMemo(
     () =>
       parseMoneyInput(amountMonthly, {
@@ -101,6 +151,41 @@ export default function IncomeItemModal({
       }),
     [amountMonthly],
   );
+
+  // Preview content. Honest by construction:
+  //   - title comes from the form field (salary uses the row's name, since
+  //     salary's name is locked anyway)
+  //   - subtitle is the localized kind label (Lön / Sidoinkomst / Hushållsinkomst)
+  //   - amount is the parsed input (or 0 if the user hasn't typed yet)
+  //   - status copy reflects whether the saved row will count this month
+  //
+  // We deliberately do NOT show a "Budgetplanen framåt" column here — that
+  // requires the source-plan read-model fields from PR 5. Until those land,
+  // the preview is single-column and only describes the current month so
+  // we never imply a future plan delta we can't compute.
+  const previewKind: BudgetMonthIncomeItemKind = isSalary
+    ? "salary"
+    : kind;
+  const previewSubtitle =
+    previewKind === "salary"
+      ? t("previewSubtitleSalary")
+      : previewKind === "householdMember"
+        ? t("previewSubtitleHouseholdMember")
+        : t("previewSubtitleSideHustle");
+  const previewTitle = isSalary
+    ? row?.name ?? t("previewUntitled")
+    : name.trim() || t("previewUntitled");
+  const previewAmountValue = parsedAmount ?? 0;
+  const previewAmountFormatted = formatMoneyV2(
+    previewAmountValue,
+    currency,
+    locale,
+    { fractionDigits: 0 },
+  );
+  const previewIsActive = isSalary ? true : isActive;
+  const previewStatus = previewIsActive
+    ? interpolate(t("previewStatusActive"), { month: monthLabel })
+    : t("previewStatusInactive");
 
   if (!open) return null;
 
@@ -117,12 +202,32 @@ export default function IncomeItemModal({
       return;
     }
 
+    if (mode === "create") {
+      await onSubmit({
+        mode: "create",
+        kind,
+        name: name.trim(),
+        amountMonthly: parsedAmount,
+        isActive,
+      });
+      return;
+    }
+
+    // Edit mode never carries `kind` — the patch endpoint ignores it and
+    // including it would force salary edits to either lie about the row
+    // kind or invent a non-salary value. Salary edits also omit `scope`:
+    // salary has no scope cards, so the parent's existing fallback of
+    // `currentMonthOnly` is the only correct wire value.
     await onSubmit({
-      kind,
+      mode: "edit",
+      // Salary's name is locked; submit the row's stable name back so a
+      // stale local string can never drift onto the wire.
       name: isSalary ? row?.name ?? "Net salary" : name.trim(),
       amountMonthly: parsedAmount,
+      // Salary is always active by backend invariant — never let a stale
+      // local toggle leak into the payload.
       isActive: isSalary ? true : isActive,
-      scope: mode === "edit" ? scope : undefined,
+      scope: isSalary ? undefined : scope,
     });
   };
 
@@ -143,7 +248,7 @@ export default function IncomeItemModal({
             eyebrow={t("eyebrow")}
             title={title}
             context={monthLabel}
-            description={t("description")}
+            description={description}
             closeAriaLabel={t("closeAriaLabel")}
             canClose={canClose}
             onClose={onClose}
@@ -173,13 +278,20 @@ export default function IncomeItemModal({
               </div>
             }
           >
+            {/*
+              Drawer order (handover): fields → status → scope → preview →
+              footer. The footer lives in `BudgetEntryModalShell`. Salary
+              gets the same row of fields/status but with the disabled-and-
+              explained variants; the scope step is omitted entirely.
+            */}
             <form
               id="income-item-form"
               onSubmit={submit}
               className="grid gap-3.5"
               noValidate
             >
-              {mode === "create" ? (
+              {/* 1. Fields */}
+              {showKindSelector ? (
                 <FormField label={t("kindLabel")} htmlFor="income-kind">
                   <select
                     id="income-kind"
@@ -202,83 +314,156 @@ export default function IncomeItemModal({
                 </FormField>
               ) : null}
 
-            {!isSalary ? (
-              <FormField label={t("nameLabel")} htmlFor="income-name">
-                <TextInput
-                  id="income-name"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  autoComplete="off"
+              <div className="grid gap-1.5">
+                <FormField label={t("nameLabel")} htmlFor="income-name">
+                  <TextInput
+                    id="income-name"
+                    value={isSalary ? row?.name ?? "" : name}
+                    onChange={(event) => setName(event.target.value)}
+                    // `readOnly` is the right primitive here: the input is
+                    // still focusable and screen-reader-readable, the user
+                    // can tab through and select the text, but typing does
+                    // nothing. (Earlier revision forced a blur on focus —
+                    // that broke keyboard nav by making focus appear to
+                    // vanish.) `<input readonly>` already exposes the
+                    // read-only state to AT, so no extra `aria-readonly`
+                    // is needed.
+                    readOnly={isSalary}
+                    aria-describedby={
+                      isSalary ? "income-name-hint" : undefined
+                    }
+                    autoComplete="off"
+                    className={
+                      isSalary
+                        ? "cursor-not-allowed bg-[rgb(var(--eb-shell)/0.32)] text-eb-text/65"
+                        : undefined
+                    }
+                  />
+                </FormField>
+                {isSalary ? (
+                  <p
+                    id="income-name-hint"
+                    data-testid="income-item-modal-salary-name-hint"
+                    className="px-1 text-[11.5px] leading-snug text-eb-text/55"
+                  >
+                    {t("salaryNameHint")}
+                  </p>
+                ) : null}
+              </div>
+
+              <FormField label={t("amountLabel")} htmlFor="income-amount">
+                <MoneyInput
+                  id="income-amount"
+                  value={amountMonthly}
+                  onChange={(event) => setAmountMonthly(event.target.value)}
                 />
               </FormField>
-            ) : (
-              <div className="rounded-2xl border border-eb-stroke/20 bg-[rgb(var(--eb-shell)/0.32)] px-4 py-3 text-sm text-eb-text/65">
-                {t("salaryHint")}
-              </div>
-            )}
 
-            <FormField label={t("amountLabel")} htmlFor="income-amount">
-              <MoneyInput
-                id="income-amount"
-                value={amountMonthly}
-                onChange={(event) => setAmountMonthly(event.target.value)}
-              />
-            </FormField>
-
-            {!isSalary ? (
-              <button
-                type="button"
-                role="switch"
-                aria-checked={isActive}
-                onClick={() => setIsActive((value) => !value)}
-                className={cn(
-                  "flex items-center justify-between rounded-2xl border px-4 py-3 text-left transition",
-                  isActive
-                    ? "border-[rgb(var(--eb-accent)/0.24)] bg-[rgb(var(--eb-accent)/0.08)]"
-                    : "border-amber-200/80 bg-amber-50/70",
-                )}
-              >
-                <span className="text-sm font-semibold text-eb-text">
-                  {t("activeLabel")}
-                </span>
-                <span
+              {/* 2. Active / month status */}
+              <div className="grid gap-1.5">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={previewIsActive}
+                  aria-disabled={isSalary || undefined}
+                  data-testid="income-item-modal-active-toggle"
+                  onClick={
+                    isSalary ? undefined : () => setIsActive((value) => !value)
+                  }
+                  disabled={isSalary}
+                  aria-describedby={
+                    isSalary ? "income-active-hint" : undefined
+                  }
                   className={cn(
-                    "relative inline-flex h-8 w-14 rounded-full border transition",
-                    isActive
-                      ? "border-[rgb(var(--eb-accent)/0.40)] bg-[rgb(var(--eb-accent)/0.34)]"
-                      : "border-amber-300 bg-amber-200/90",
+                    "flex items-center justify-between rounded-2xl border px-4 py-3 text-left transition",
+                    previewIsActive
+                      ? "border-[rgb(var(--eb-accent)/0.24)] bg-[rgb(var(--eb-accent)/0.08)]"
+                      : "border-amber-200/80 bg-amber-50/70",
+                    isSalary && "cursor-not-allowed opacity-80",
                   )}
                 >
-                  <span
-                    className={cn(
-                      "absolute top-1 h-6 w-6 rounded-full bg-white shadow-[0_6px_14px_rgba(21,39,81,0.20)] transition-all",
-                      isActive ? "left-7" : "left-1",
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-eb-text">
+                      {t("activeLabel")}
+                    </span>
+                    {/*
+                      Side/household rows show the generic activate/deactivate
+                      description inside the switch. Salary skips it entirely
+                      — the salary hint paragraph below already says the
+                      toggle is locked to active, so rendering
+                      "Stäng av om posten inte ska räknas denna månad."
+                      next to a locked-on switch read as contradictory copy.
+                    */}
+                    {isSalary ? null : (
+                      <span className="mt-0.5 block text-xs font-medium leading-snug text-eb-text/58">
+                        {previewIsActive
+                          ? t("activeDescription")
+                          : t("inactiveDescription")}
+                      </span>
                     )}
-                  />
-                </span>
-              </button>
-            ) : null}
-
-            {mode === "create" ? (
-              <div className="rounded-2xl border border-eb-stroke/20 bg-[rgb(var(--eb-shell)/0.28)] px-4 py-3 text-sm text-eb-text/60">
-                {t("monthOnlyCreate").replace("{month}", monthLabel)}
+                  </span>
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "relative inline-flex h-8 w-14 shrink-0 rounded-full border transition",
+                      previewIsActive
+                        ? "border-[rgb(var(--eb-accent)/0.40)] bg-[rgb(var(--eb-accent)/0.34)]"
+                        : "border-amber-300 bg-amber-200/90",
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "absolute top-1 h-6 w-6 rounded-full bg-white shadow-[0_6px_14px_rgba(21,39,81,0.20)] transition-all",
+                        previewIsActive ? "left-7" : "left-1",
+                      )}
+                    />
+                  </span>
+                </button>
+                {isSalary ? (
+                  <p
+                    id="income-active-hint"
+                    data-testid="income-item-modal-salary-active-hint"
+                    className="px-1 text-[11.5px] leading-snug text-eb-text/55"
+                  >
+                    {t("salaryActiveHint")}
+                  </p>
+                ) : null}
               </div>
-            ) : (
-              <EditScopeRadioCards
-                value={scope}
-                onChange={setScope}
-                monthLabel={monthLabel}
-                canUpdatePlan={canUpdatePlan}
-                disabledPlanHint={t("scopePlanDisabledHint")}
-                disabled={isSaving}
-                testId="income-item-modal-scope-toggle"
-              />
-            )}
 
-            {error ? (
-              <p className="text-sm font-semibold text-red-500">{error}</p>
-            ) : null}
-          </form>
+              {/* 3. Scope (or month-only callout for create) */}
+              {mode === "create" ? (
+                <div
+                  data-testid="income-item-modal-month-only-callout"
+                  className="rounded-2xl border border-eb-stroke/20 bg-[rgb(var(--eb-shell)/0.28)] px-4 py-3 text-sm text-eb-text/60"
+                >
+                  {interpolate(t("monthOnlyCreate"), { month: monthLabel })}
+                </div>
+              ) : isSalary ? null : (
+                <EditScopeRadioCards
+                  value={scope}
+                  onChange={setScope}
+                  monthLabel={monthLabel}
+                  canUpdatePlan={canUpdatePlan}
+                  disabledPlanHint={t("scopePlanDisabledHint")}
+                  disabled={isSaving}
+                  testId="income-item-modal-scope-toggle"
+                />
+              )}
+
+              {/* 4. Live preview */}
+              <EditorPreviewCard
+                label={t("previewLabel")}
+                title={previewTitle}
+                subtitle={previewSubtitle}
+                amount={previewAmountFormatted}
+                status={previewStatus}
+                muted={!previewIsActive}
+              />
+
+              {error ? (
+                <p className="text-sm font-semibold text-red-500">{error}</p>
+              ) : null}
+            </form>
           </BudgetEntryModalShell>
         </div>
       </div>

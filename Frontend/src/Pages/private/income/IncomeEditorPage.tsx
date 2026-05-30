@@ -12,7 +12,6 @@ import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import type {
   BudgetMonthIncomeItemEditorRowDto,
   BudgetMonthIncomeItemKind,
-  IncomeEditScope,
 } from "@/types/budget/BudgetMonthsStatusDto";
 import type { AppLocale } from "@/types/i18n/appLocale";
 import { useToast } from "@/ui/toast/toast";
@@ -22,7 +21,9 @@ import { tDict } from "@/utils/i18n/translate";
 import { useMemo, useState } from "react";
 import DeleteIncomeItemDialog from "./components/DeleteIncomeItemDialog";
 import IncomeDistributionStrip from "./components/IncomeDistributionStrip";
-import IncomeItemModal from "./components/IncomeItemModal";
+import IncomeItemModal, {
+  type IncomeItemSubmitValues,
+} from "./components/IncomeItemModal";
 import IncomeLedgerSection from "./components/IncomeLedgerSection";
 import IncomeSoulHero, {
   type IncomeMonthComparison,
@@ -167,17 +168,11 @@ export default function IncomeEditorPage() {
   // rows are kept in their own quiet subsection per group.
   const groups = useMemo(() => buildIncomeLedgerGroups({ rows }), [rows]);
 
-  const handleSubmit = async (values: {
-    kind: "sideHustle" | "householdMember";
-    name: string;
-    amountMonthly: number;
-    isActive: boolean;
-    scope?: IncomeEditScope;
-  }) => {
+  const handleSubmit = async (values: IncomeItemSubmitValues) => {
     if (!modalState.open) return;
 
     try {
-      if (modalState.mode === "create") {
+      if (values.mode === "create") {
         await createMutation.mutateAsync({
           kind: values.kind,
           name: values.name,
@@ -186,6 +181,12 @@ export default function IncomeEditorPage() {
         });
         toast.success(t("itemCreated"));
       } else {
+        // Edit branch never receives `kind` — the patch endpoint ignores
+        // it and the modal's discriminated submit shape drops it from the
+        // wire payload. The row's kind still drives the salary special
+        // cases (locked name, forced-active) below; that's read from the
+        // row in modal state, not the form.
+        if (modalState.mode !== "edit") return;
         const row = modalState.row;
         const requestedScope = values.scope ?? "currentMonthOnly";
         const scope = row.canUpdateDefault
