@@ -139,6 +139,10 @@ public static class DependencyInjection
         services.AddScoped<IBudgetMonthBaseSavingsMutationRepository, BudgetMonthBaseSavingsMutationRepository>();
         services.AddScoped<IBudgetMonthDebtMutationRepository, BudgetMonthDebtMutationRepository>();
         services.AddScoped<IBudgetMonthChangeEventRepository, BudgetMonthChangeEventRepository>();
+        // Debt PR 3: structured balance-adjustment history. Distinct from the
+        // generic month-change event because progress / recap reads need typed
+        // balance columns rather than JSON parsing.
+        services.AddScoped<IDebtBalanceEventRepository, DebtBalanceEventRepository>();
         services.AddScoped<IBudgetAuditWriter, BudgetAuditWriter>();
         // Wizard
         services.AddScoped<IWizardRepository, WizardRepository>();
@@ -168,6 +172,15 @@ public static class DependencyInjection
 
         // Other various services
         services.AddSingleton<ITimeProvider, Backend.Common.Services.TimeProvider>();
+        // Many handlers (~25 across debt, expense, savings, close-month,
+        // wizard, auth) inject the BCL `TimeProvider` directly rather than
+        // our `ITimeProvider` abstraction. Register `TimeProvider.System`
+        // centrally so a fresh DI graph can resolve them all in one place;
+        // each handler-level test that instantiates manually will keep
+        // passing, but production / pipeline-driven invocations now work
+        // without per-handler DI tweaks. Fully-qualified because the
+        // project namespace also exposes a `TimeProvider` type.
+        services.AddSingleton<System.TimeProvider>(System.TimeProvider.System);
         services.AddScoped<ICookieService, CookieService>();
 
         // JWT Service

@@ -98,4 +98,36 @@ public interface IBudgetMonthDebtMutationRepository
     Task UpdateBaselineDebtDetailsAsync(
         UpdateBaselineDebtDetailsModel model,
         CancellationToken ct);
+
+    // --- Debt PR 3: balance-adjustment surface ----------------------------
+
+    /// <summary>
+    /// Reads the persisted liability balance from baseline <c>Debt</c>. Returns
+    /// <c>null</c> when the baseline row does not exist. Plan-writing balance
+    /// adjustments use this to capture an honest <c>oldBalance</c> for the
+    /// audit row — the month-side value may have diverged from the plan and
+    /// cannot stand in.
+    /// </summary>
+    Task<decimal?> GetBaselineDebtBalanceAsync(
+        Guid debtId,
+        CancellationToken ct);
+
+    /// <summary>
+    /// Updates only the <c>Balance</c> column on a <c>BudgetMonthDebt</c> row.
+    /// Planned-payment and metadata columns are intentionally untouched so the
+    /// "saldo påverkas inte här" callout in the planned-payment drawer stays
+    /// truthful in the inverse direction as well.
+    /// </summary>
+    Task UpdateMonthDebtBalanceAsync(
+        UpdateBudgetMonthDebtBalanceModel model,
+        CancellationToken ct);
+
+    /// <summary>
+    /// Updates only the <c>Balance</c> column on a baseline <c>Debt</c> plan row.
+    /// Lifecycle columns (<c>Status</c>, <c>PaidOffAt</c>, …) are intentionally
+    /// untouched — a balance reaching zero is never an implicit paid-off.
+    /// </summary>
+    Task UpdateBaselineDebtBalanceAsync(
+        UpdateBaselineDebtBalanceModel model,
+        CancellationToken ct);
 }

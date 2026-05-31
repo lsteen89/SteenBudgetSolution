@@ -32,4 +32,20 @@ public static partial class BudgetMonthDebtErrors
     // (`paidOff` / `archived` / `deleted`) and no longer accepts plan-scope mutations.
     public static readonly Error SourceLifecycleClosed =
         new("BudgetMonthDebt.SourceLifecycleClosed", "Debt plan is closed and cannot be edited.");
+
+    // Debt PR 3: balance is a liability snapshot and must stay non-negative.
+    // The validator catches this first; the handler re-checks defensively, and
+    // a CHECK constraint on `DebtBalanceEvent.NewBalance` provides the last
+    // layer so an in-flight bug cannot persist a negative liability.
+    public static readonly Error BalanceNegative =
+        new("BudgetMonthDebt.BalanceNegative", "Balance must be zero or positive.");
+
+    // Debt PR 3 (review fix): an unsupported scope on the balance handler
+    // would otherwise fall through both write flags as `false` and return a
+    // misleading "success / nothing updated" response. Defensive guard
+    // mirrors the negative-balance defense above so a bypassed validator
+    // pipeline still fails loudly rather than silently no-op'ing.
+    public static readonly Error ScopeUnsupported =
+        new("BudgetMonthDebt.ScopeUnsupported",
+            "Scope must be currentMonthOnly, currentMonthAndBudgetPlan, or budgetPlanOnly.");
 }

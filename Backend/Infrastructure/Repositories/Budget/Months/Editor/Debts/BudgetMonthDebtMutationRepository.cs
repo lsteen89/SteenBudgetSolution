@@ -114,4 +114,24 @@ public sealed partial class BudgetMonthDebtMutationRepository
         UpdateBaselineDebtDetailsModel model,
         CancellationToken ct)
         => ExecuteAsync(UpdateBaselineDebtDetailsSql, model, ct);
+
+    // --- Debt PR 3: balance-adjustment surface ----------------------------
+
+    public Task<decimal?> GetBaselineDebtBalanceAsync(
+        Guid debtId,
+        CancellationToken ct)
+        => QuerySingleOrDefaultAsync<decimal?>(
+            GetBaselineDebtBalanceSql,
+            new { DebtId = debtId },
+            ct);
+
+    public Task UpdateMonthDebtBalanceAsync(
+        UpdateBudgetMonthDebtBalanceModel model,
+        CancellationToken ct)
+        => ExecuteAsync(UpdateMonthDebtBalanceSql, model, ct);
+
+    public Task UpdateBaselineDebtBalanceAsync(
+        UpdateBaselineDebtBalanceModel model,
+        CancellationToken ct)
+        => ExecuteAsync(UpdateBaselineDebtBalanceSql, model, ct);
 }

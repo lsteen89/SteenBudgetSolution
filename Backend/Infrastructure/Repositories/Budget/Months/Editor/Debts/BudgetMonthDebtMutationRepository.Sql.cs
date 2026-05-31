@@ -273,4 +273,37 @@ public sealed partial class BudgetMonthDebtMutationRepository
         UpdatedAt = @UtcNow,
         UpdatedByUserId = @ActorPersoid
     WHERE Id = @DebtId;";
+
+    // --- Debt PR 3: balance-adjustment SQL --------------------------------
+
+    private const string GetBaselineDebtBalanceSql = @"
+    SELECT Balance
+    FROM Debt
+    WHERE Id = @DebtId
+    LIMIT 1;";
+
+    // Sets `Balance` and nothing else (besides the audit columns + IsOverride).
+    // `IsOverride = 1` mirrors the planned-payment and detail patches: any
+    // manual touch of the month row diverges it from the materialized
+    // baseline, regardless of which column moved.
+    private const string UpdateMonthDebtBalanceSql = @"
+    UPDATE BudgetMonthDebt
+    SET
+        Balance = @Balance,
+        IsOverride = 1,
+        UpdatedAt = @UtcNow,
+        UpdatedByUserId = @ActorPersoid
+    WHERE Id = @Id
+      AND BudgetMonthId = @BudgetMonthId;";
+
+    // Sets `Balance` and audit columns only. Lifecycle stays put — paid-off
+    // is a PR 4 transition that may, separately, drive balance to zero by
+    // reusing the same SQL.
+    private const string UpdateBaselineDebtBalanceSql = @"
+    UPDATE Debt
+    SET
+        Balance = @Balance,
+        UpdatedAt = @UtcNow,
+        UpdatedByUserId = @ActorPersoid
+    WHERE Id = @DebtId;";
 }

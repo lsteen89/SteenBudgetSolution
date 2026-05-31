@@ -1,4 +1,5 @@
 using Backend.Application.DTO.Budget.Months.Editor.Debt;
+using Backend.Application.Features.Budgets.Months.Editor.Debts.AdjustBalance;
 using Backend.Application.Features.Budgets.Months.Editor.Debts.CreateDebt;
 using Backend.Application.Features.Budgets.Months.Editor.Debts.GetDebts;
 using Backend.Application.Features.Budgets.Months.Editor.Debts.PatchDebt;
@@ -134,6 +135,40 @@ public sealed partial class BudgetController
         }
 
         return Ok(ApiEnvelope<BudgetMonthDebtEditorRowDto>.Success(result.Value));
+    }
+
+    // Debt PR 3: structured balance-adjustment endpoint. `POST` (not `PATCH`)
+    // because each call is an append-only event in `DebtBalanceEvent`, not an
+    // idempotent state set. The route lives under the month-debt row so the
+    // existing closed-month-immutability guard applies the same way it does
+    // to the planned-payment and details patches.
+    [HttpPost("months/{yearMonth}/debt-items/{monthDebtId:guid}/balance-adjustments")]
+    [ProducesResponseType(typeof(ApiEnvelope<AdjustBudgetMonthDebtBalanceResponseDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiEnvelope<AdjustBudgetMonthDebtBalanceResponseDto>>> AdjustDebtItemBalance(
+        [FromRoute] string yearMonth,
+        [FromRoute] Guid monthDebtId,
+        [FromBody] AdjustBudgetMonthDebtBalanceRequestDto req,
+        CancellationToken ct)
+    {
+        var result = await _mediator.Send(
+            new AdjustBudgetMonthDebtBalanceCommand(
+                Persoid: _currentUser.Persoid,
+                YearMonth: yearMonth,
+                MonthDebtId: monthDebtId,
+                NewBalance: req.NewBalance,
+                Scope: req.Scope,
+                Note: req.Note),
+            ct);
+
+        if (result.IsFailure || result.Value is null)
+        {
+            return Ok(ApiEnvelope<AdjustBudgetMonthDebtBalanceResponseDto>.Failure(
+                code: result.Error?.Code ?? "BUDGET_MONTH_DEBT_BALANCE_ADJUST_FAILED",
+                message: result.Error?.Message ?? "Could not update debt balance."
+            ));
+        }
+
+        return Ok(ApiEnvelope<AdjustBudgetMonthDebtBalanceResponseDto>.Success(result.Value));
     }
 
     [HttpPatch("months/{yearMonth}/debt-items")]
