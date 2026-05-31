@@ -11,6 +11,18 @@ public sealed partial class BudgetMonthDebtMutationRepository
     WHERE bm.Id = @BudgetMonthId
     LIMIT 1;";
 
+    // Debt PR 1: surfaces `ParticipationStatus` from the month row and
+    // `SourceLifecycleStatus` from the linked `Debt` row (LEFT JOIN — month-only
+    // rows have no source and project NULL). Lifecycle and participation are
+    // intentionally separate fields; downstream PRs filter on them, the legacy
+    // `Status` column is retained for compatibility but should not drive new logic.
+    //
+    // PR 1.5: `@IncludeDeleted` now also gates `ParticipationStatus = 'removed'`
+    // so the new participation column is authoritative even when the legacy
+    // `IsDeleted` flag has not been mirrored. Default editor reads
+    // (`includeDeleted: false`) show `included` + `notIncluded` rows; diagnostic
+    // reads (`includeDeleted: true`) include legacy soft-deleted and removed
+    // rows for repair / debugging.
     private const string GetDebtEditorRows = @"
     SELECT
         d.Id,
@@ -24,10 +36,16 @@ public sealed partial class BudgetMonthDebtMutationRepository
         CAST(d.TermMonths AS SIGNED) AS TermMonths,
         d.MonthlyPayment,
         d.Status,
-        d.IsDeleted
+        d.IsDeleted,
+        d.ParticipationStatus,
+        src.Status AS SourceLifecycleStatus
     FROM BudgetMonthDebt d
+    LEFT JOIN Debt src ON src.Id = d.SourceDebtId
     WHERE d.BudgetMonthId = @BudgetMonthId
-      AND (@IncludeDeleted = 1 OR d.IsDeleted = 0)
+      AND (
+            @IncludeDeleted = 1
+            OR (d.IsDeleted = 0 AND d.ParticipationStatus <> 'removed')
+          )
     ORDER BY
         d.IsDeleted ASC,
         d.SortOrder,
@@ -49,8 +67,11 @@ public sealed partial class BudgetMonthDebtMutationRepository
         CAST(d.TermMonths AS SIGNED) AS TermMonths,
         d.MonthlyPayment,
         d.Status,
-        d.IsDeleted
+        d.IsDeleted,
+        d.ParticipationStatus,
+        src.Status AS SourceLifecycleStatus
     FROM BudgetMonthDebt d
+    LEFT JOIN Debt src ON src.Id = d.SourceDebtId
     WHERE d.BudgetMonthId = @BudgetMonthId
       AND d.Id = @MonthDebtId
     LIMIT 1;";

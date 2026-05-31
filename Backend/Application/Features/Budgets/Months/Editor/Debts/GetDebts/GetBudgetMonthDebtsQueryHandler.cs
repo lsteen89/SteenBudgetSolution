@@ -39,9 +39,13 @@ public sealed class GetBudgetMonthDebtsQueryHandler
         if (meta is null)
             return Result<IReadOnlyList<BudgetMonthDebtEditorRowDto>>.Failure(BudgetMonth.NotFound);
 
+        // PR 1.5: default editor read hides `ParticipationStatus = 'removed'`
+        // and legacy `IsDeleted = 1` rows. Diagnostic/repair callers can still
+        // opt in via the repository's `includeDeleted = true` parameter, but
+        // the production editor UI must not surface removed rows.
         var rows = await _repo.GetDebtEditorRowsAsync(
             ensured.Value.BudgetMonthId,
-            includeDeleted: true,
+            includeDeleted: false,
             ct);
 
         return Result<IReadOnlyList<BudgetMonthDebtEditorRowDto>>.Success(

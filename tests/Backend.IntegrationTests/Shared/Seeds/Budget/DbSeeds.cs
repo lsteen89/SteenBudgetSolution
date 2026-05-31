@@ -252,17 +252,18 @@ internal static class DbSeeds
             csnPayment = csnPayment
         } /*, tx */);
 
-        // Closed debt example. Status='closed' rows are excluded from active
-        // listings, so MonthlyPayment is functionally irrelevant; seed it for
-        // schema consistency.
+        // Debt PR 1: legacy `closed` lifecycle now maps to `paidOff`. Non-active
+        // sources are skipped by materialization and dashboard reads, so this
+        // row's MonthlyPayment is functionally irrelevant; seeded for schema
+        // consistency only.
         var oldClosedPayment = ComputeDebtPayment(
             type: "installment", balance: 9999m, apr: 1.0m,
             monthlyFee: 0m, minPayment: null, termMonths: 12);
 
         await conn.ExecuteAsync("""
-            INSERT INTO Debt (Id, BudgetId, Name, Type, Balance, Apr, MonthlyFee, MinPayment, TermMonths, MonthlyPayment, Status, ClosedAt, CreatedAt, CreatedByUserId)
+            INSERT INTO Debt (Id, BudgetId, Name, Type, Balance, Apr, MonthlyFee, MinPayment, TermMonths, MonthlyPayment, Status, ClosedAt, PaidOffAt, CreatedAt, CreatedByUserId)
             VALUES
-            (UUID_TO_BIN(UUID()), UNHEX(REPLACE(@bid,'-','')), 'Old Closed Debt', 'installment', 9999, 1.0, 0, NULL, 12, @payment, 'closed', UTC_TIMESTAMP(), UTC_TIMESTAMP(), UNHEX(REPLACE(@pid,'-','')));
+            (UUID_TO_BIN(UUID()), UNHEX(REPLACE(@bid,'-','')), 'Old Closed Debt', 'installment', 9999, 1.0, 0, NULL, 12, @payment, 'paidOff', UTC_TIMESTAMP(), UTC_TIMESTAMP(), UTC_TIMESTAMP(), UNHEX(REPLACE(@pid,'-','')));
         """, new
         {
             bid = budgetId.ToString(),

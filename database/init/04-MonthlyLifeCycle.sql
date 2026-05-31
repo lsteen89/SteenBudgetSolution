@@ -274,12 +274,27 @@ CREATE TABLE BudgetMonthDebt (
     TermMonths              INT           NULL,
     MonthlyPayment          DECIMAL(18,2) NOT NULL DEFAULT 0.00,
     OpenedAt                DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    -- Legacy row status, retained for backward compatibility. New month
+    -- participation logic uses ParticipationStatus below; source lifecycle
+    -- lives on `Debt.Status` and is the authoritative future-materialization gate.
     Status                  VARCHAR(20)   NOT NULL DEFAULT 'active',
     ClosedAt                DATETIME      NULL,
     ClosedReason            VARCHAR(100)  NULL,
 
     IsOverride              TINYINT(1)    NOT NULL DEFAULT 0,
+    -- Legacy soft-delete flag. Equivalent to `ParticipationStatus = 'removed'` in the
+    -- new vocabulary; both are kept in sync by the lifecycle commands (PR 4).
     IsDeleted               TINYINT(1)    NOT NULL DEFAULT 0,
+
+    -- Month participation (Debt PR 1). Distinguishes whether this row's planned
+    -- payment counts toward the month's debt outflow this month. Skip/include
+    -- and remove flows write here; source lifecycle on `Debt` is orthogonal.
+    --   included    — counts in monthly debt payment total
+    --   notIncluded — visible, planned payment excluded from monthly total, balance still owed
+    --   removed     — hidden by default and excluded from totals
+    ParticipationStatus     VARCHAR(20)   NOT NULL DEFAULT 'included',
+    ParticipationChangedAt  DATETIME      NULL,
+    ParticipationReason     VARCHAR(255)  NULL,
 
     SortOrder               INT           NOT NULL DEFAULT 0,
 
@@ -295,12 +310,15 @@ CREATE TABLE BudgetMonthDebt (
         FOREIGN KEY (SourceDebtId) REFERENCES Debt(Id) ON DELETE SET NULL,
 
     CONSTRAINT CK_BudgetMonthDebt_Status CHECK (Status IN ('active','closed')),
+    CONSTRAINT CK_BudgetMonthDebt_Participation
+        CHECK (ParticipationStatus IN ('included','notIncluded','removed')),
 
     UNIQUE KEY UX_BudgetMonthDebt_Month_Source
         (BudgetMonthId, SourceDebtId),
 
     INDEX IX_BudgetMonthDebt_BudgetMonthId (BudgetMonthId),
-    INDEX IX_BudgetMonthDebt_SourceDebtId (SourceDebtId)
+    INDEX IX_BudgetMonthDebt_SourceDebtId (SourceDebtId),
+    INDEX IX_BudgetMonthDebt_Participation (BudgetMonthId, ParticipationStatus)
 ) ENGINE=InnoDB;
 
 CREATE TABLE BudgetMonthChangeEvent (

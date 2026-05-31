@@ -345,9 +345,19 @@ CREATE TABLE Debt (
     MonthlyPayment  DECIMAL(18,2) NOT NULL DEFAULT 0.00,
 
     OpenedAt        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    -- Source lifecycle (Debt PR 1). Only `active` materializes into future months.
+    -- `paidOff` / `archived` / `deleted` are explicit lifecycle terminations.
+    -- Legacy production `closed` rows must be migrated to `paidOff` before this DDL applies.
+    Status          VARCHAR(20)   NOT NULL DEFAULT 'active',
+    -- Legacy close fields. Kept for backward compatibility; new lifecycle commands
+    -- (PR 4) write the dedicated timestamps below instead.
     ClosedAt        DATETIME      NULL,
-    Status          VARCHAR(20)   NOT NULL DEFAULT 'active', -- active|closed
     ClosedReason    VARCHAR(100)  NULL,
+    -- Lifecycle metadata (Debt PR 1). Populated by future lifecycle commands (PR 4).
+    PaidOffAt       DATETIME      NULL,
+    ArchivedAt      DATETIME      NULL,
+    DeletedAt       DATETIME      NULL,
+    LifecycleReason VARCHAR(255)  NULL,
 
     CreatedAt       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UpdatedAt       DATETIME      NULL ON UPDATE CURRENT_TIMESTAMP,
@@ -355,7 +365,7 @@ CREATE TABLE Debt (
     UpdatedByUserId BINARY(16)    NULL,
 
     CONSTRAINT FK_Debt_Budget FOREIGN KEY (BudgetId) REFERENCES Budget(Id) ON DELETE CASCADE,
-    CONSTRAINT CK_Debt_Status CHECK (Status IN ('active','closed')),
+    CONSTRAINT CK_Debt_Status CHECK (Status IN ('active','paidOff','archived','deleted')),
 
     INDEX IX_Debt_BudgetId (BudgetId),
     INDEX IX_Debt_BudgetId_Status (BudgetId, Status)

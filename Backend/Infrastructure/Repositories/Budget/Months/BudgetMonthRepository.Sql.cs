@@ -240,6 +240,10 @@ public sealed partial class BudgetMonthRepository
       AND g.ClosedReason = 'completed'
     ORDER BY g.ClosedAt, g.SortOrder, g.CreatedAt, g.Id;";
 
+    // Debt PR 1: recap compares month-over-month debt outflow, so it must use
+    // the same participation filter as the dashboard payment total — otherwise
+    // skipped rows would appear as a phantom "removed payment" delta. Source
+    // lifecycle is honored too so paid-off / archived sources stop counting.
     private const string GetDebts = @"
     SELECT
         d.Id,
@@ -253,9 +257,11 @@ public sealed partial class BudgetMonthRepository
         CAST(d.TermMonths AS SIGNED) AS TermMonths,
         d.MonthlyPayment
     FROM BudgetMonthDebt d
+    LEFT JOIN Debt src ON src.Id = d.SourceDebtId
     WHERE d.BudgetMonthId = @BudgetMonthId
       AND d.IsDeleted = 0
-      AND d.Status = 'active'
+      AND d.ParticipationStatus = 'included'
+      AND (src.Id IS NULL OR src.Status = 'active')
     ORDER BY d.SortOrder, d.Balance DESC, d.Name;";
 
     const string ExistsAnyMonths = """

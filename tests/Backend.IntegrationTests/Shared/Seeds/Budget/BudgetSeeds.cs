@@ -109,10 +109,14 @@ internal static class BudgetSeeds
             type: "installment", balance: 9999m, apr: 1.0m,
             monthlyFee: 0m, minPayment: null, termMonths: 12);
 
+        // Debt PR 1: legacy `closed` lifecycle now maps to `paidOff`. The
+        // semantics are identical for current consumers — paid-off rows are
+        // skipped by materialization (Debt.Status filter), and the editor's
+        // existing tests assert this row never appears as an active month row.
         await conn.ExecuteAsync("""
-            INSERT INTO Debt (Id, BudgetId, Name, Type, Balance, Apr, MonthlyFee, MinPayment, TermMonths, MonthlyPayment, Status, ClosedAt, CreatedAt, CreatedByUserId)
+            INSERT INTO Debt (Id, BudgetId, Name, Type, Balance, Apr, MonthlyFee, MinPayment, TermMonths, MonthlyPayment, Status, ClosedAt, PaidOffAt, CreatedAt, CreatedByUserId)
             VALUES
-            (UUID_TO_BIN(UUID()), @bid, 'Old Closed Debt', 'installment', 9999, 1.0, 0, NULL, 12, @payment, 'closed', UTC_TIMESTAMP(), UTC_TIMESTAMP(), @pid);
+            (UUID_TO_BIN(UUID()), @bid, 'Old Closed Debt', 'installment', 9999, 1.0, 0, NULL, 12, @payment, 'paidOff', UTC_TIMESTAMP(), UTC_TIMESTAMP(), UTC_TIMESTAMP(), @pid);
         """, new { bid = budgetId, pid = persoid, payment = oldClosedPayment });
 
         return (Persoid: persoid, UserId: userId, BudgetId: budgetId);

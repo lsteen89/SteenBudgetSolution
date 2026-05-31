@@ -1051,12 +1051,16 @@ public sealed class BudgetMonthLifecycleMaterializationTests
         await using var conn = new MySqlConnection(cs);
         await conn.OpenAsync();
 
+        // Debt PR 1: legacy `closed` lifecycle now maps to `paidOff`. The
+        // materializer filter is still `Status = 'active'`, so non-active sources
+        // are skipped identically to before.
         await conn.ExecuteAsync(@"
         UPDATE Debt
         SET
-            Status = 'closed',
+            Status = 'paidOff',
             ClosedAt = UTC_TIMESTAMP(),
             ClosedReason = 'test',
+            PaidOffAt = UTC_TIMESTAMP(),
             UpdatedByUserId = @ActorPersoid
         WHERE BudgetId = @BudgetId;
     ", new
