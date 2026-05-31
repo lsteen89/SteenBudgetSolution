@@ -105,4 +105,172 @@ public sealed partial class BudgetMonthDebtMutationRepository
         UpdatedAt = @UtcNow,
         UpdatedByUserId = @ActorPersoid
     WHERE Id = @DebtId;";
+
+    // --- Debt PR 2: create + edit-metadata SQL ---------------------------
+
+    // Resolves the owning `Budget.Id` for a given `BudgetMonth.Id`. The create
+    // handler needs this only when scope writes a baseline plan row, but the
+    // single-row read keeps the cheap path cheap by sitting alongside the meta
+    // query rather than overloading it.
+    private const string GetBudgetMonthForDebtCreateSql = @"
+    SELECT
+        bm.Id AS BudgetMonthId,
+        bm.BudgetId AS BudgetId
+    FROM BudgetMonth bm
+    WHERE bm.Id = @BudgetMonthId
+    LIMIT 1;";
+
+    // Status defaults to 'active' via column DDL. Setting it explicitly here so
+    // the SQL is self-documenting and stays robust to future column re-orders.
+    private const string InsertBaselineDebtSql = @"
+    INSERT INTO Debt
+    (
+        Id,
+        BudgetId,
+        Name,
+        Type,
+        Balance,
+        Apr,
+        MonthlyFee,
+        MinPayment,
+        TermMonths,
+        MonthlyPayment,
+        Status,
+        CreatedAt,
+        CreatedByUserId
+    )
+    VALUES
+    (
+        @Id,
+        @BudgetId,
+        @Name,
+        @Type,
+        @Balance,
+        @Apr,
+        @MonthlyFee,
+        @MinPayment,
+        @TermMonths,
+        @MonthlyPayment,
+        'active',
+        @UtcNow,
+        @ActorPersoid
+    );";
+
+    // Forced defaults for editor-created month rows:
+    //   Status              = 'active'    — never closed at birth
+    //   ParticipationStatus = 'included'  — counts in monthly debt totals immediately
+    //   IsOverride          = 0           — not an override of a materialized baseline
+    //   IsDeleted           = 0           — not soft-deleted
+    //   ClosedAt/ClosedReason = NULL      — lifecycle hasn't ended
+    //   ParticipationChangedAt/Reason = NULL — participation hasn't moved off the default
+    private const string InsertMonthDebtSql = @"
+    INSERT INTO BudgetMonthDebt
+    (
+        Id,
+        BudgetMonthId,
+        SourceDebtId,
+        Name,
+        Type,
+        Balance,
+        Apr,
+        MonthlyFee,
+        MinPayment,
+        TermMonths,
+        MonthlyPayment,
+        OpenedAt,
+        Status,
+        ClosedAt,
+        ClosedReason,
+        IsOverride,
+        IsDeleted,
+        ParticipationStatus,
+        ParticipationChangedAt,
+        ParticipationReason,
+        SortOrder,
+        CreatedAt,
+        CreatedByUserId
+    )
+    VALUES
+    (
+        @Id,
+        @BudgetMonthId,
+        @SourceDebtId,
+        @Name,
+        @Type,
+        @Balance,
+        @Apr,
+        @MonthlyFee,
+        @MinPayment,
+        @TermMonths,
+        @MonthlyPayment,
+        @UtcNow,
+        'active',
+        NULL,
+        NULL,
+        0,
+        0,
+        'included',
+        NULL,
+        NULL,
+        @SortOrder,
+        @UtcNow,
+        @ActorPersoid
+    );";
+
+    // Snapshot read for plan-writing detail patches. Returns enough metadata
+    // to populate the audit `sourceValuesBefore` payload honestly — i.e.
+    // straight from the plan row, never inferred from the month row.
+    private const string GetBaselineDebtSnapshotSql = @"
+    SELECT
+        Id,
+        Name,
+        Type,
+        Balance,
+        Apr,
+        MonthlyFee,
+        MinPayment,
+        CAST(TermMonths AS SIGNED) AS TermMonths,
+        MonthlyPayment,
+        Status
+    FROM Debt
+    WHERE Id = @DebtId
+    LIMIT 1;";
+
+    // Detail edit on a month row. Balance is intentionally absent — PR 3
+    // owns the balance-adjustment command. `IsOverride = 1` because any
+    // manual edit to the month row diverges it from the materialized
+    // baseline, mirroring the planned-payment update.
+    private const string UpdateMonthDebtDetailsSql = @"
+    UPDATE BudgetMonthDebt
+    SET
+        Name = @Name,
+        Type = @Type,
+        Apr = @Apr,
+        MonthlyFee = @MonthlyFee,
+        MinPayment = @MinPayment,
+        TermMonths = @TermMonths,
+        MonthlyPayment = @MonthlyPayment,
+        IsOverride = 1,
+        UpdatedAt = @UtcNow,
+        UpdatedByUserId = @ActorPersoid
+    WHERE Id = @Id
+      AND BudgetMonthId = @BudgetMonthId;";
+
+    // Detail edit on a baseline plan row. Balance, source lifecycle, and the
+    // lifecycle timestamps (PaidOffAt / ArchivedAt / DeletedAt / LifecycleReason)
+    // are intentionally absent — those are owned by PR 3 (balance) and PR 4
+    // (lifecycle commands) respectively.
+    private const string UpdateBaselineDebtDetailsSql = @"
+    UPDATE Debt
+    SET
+        Name = @Name,
+        Type = @Type,
+        Apr = @Apr,
+        MonthlyFee = @MonthlyFee,
+        MinPayment = @MinPayment,
+        TermMonths = @TermMonths,
+        MonthlyPayment = @MonthlyPayment,
+        UpdatedAt = @UtcNow,
+        UpdatedByUserId = @ActorPersoid
+    WHERE Id = @DebtId;";
 }

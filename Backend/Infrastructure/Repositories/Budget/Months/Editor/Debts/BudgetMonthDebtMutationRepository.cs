@@ -76,4 +76,42 @@ public sealed partial class BudgetMonthDebtMutationRepository
         UpdateBaselineDebtModel model,
         CancellationToken ct)
         => ExecuteAsync(UpdateBaselineDebtMonthlyPaymentSql, model, ct);
+
+    // --- Debt PR 2: create + edit-metadata surface -----------------------
+
+    public Task<BudgetMonthDebtForCreateReadModel?> GetBudgetMonthForDebtCreateAsync(
+        Guid budgetMonthId,
+        CancellationToken ct)
+        => QuerySingleOrDefaultAsync<BudgetMonthDebtForCreateReadModel>(
+            GetBudgetMonthForDebtCreateSql,
+            new { BudgetMonthId = budgetMonthId },
+            ct);
+
+    public Task InsertBaselineDebtAsync(
+        InsertBaselineDebtModel model,
+        CancellationToken ct)
+        => ExecuteAsync(InsertBaselineDebtSql, model, ct);
+
+    public Task InsertMonthDebtAsync(
+        InsertBudgetMonthDebtModel model,
+        CancellationToken ct)
+        => ExecuteAsync(InsertMonthDebtSql, model, ct);
+
+    public Task<BudgetMonthDebtBaselineSnapshotReadModel?> GetBaselineDebtSnapshotAsync(
+        Guid debtId,
+        CancellationToken ct)
+        => QuerySingleOrDefaultAsync<BudgetMonthDebtBaselineSnapshotReadModel>(
+            GetBaselineDebtSnapshotSql,
+            new { DebtId = debtId },
+            ct);
+
+    public Task UpdateMonthDebtDetailsAsync(
+        UpdateBudgetMonthDebtDetailsModel model,
+        CancellationToken ct)
+        => ExecuteAsync(UpdateMonthDebtDetailsSql, model, ct);
+
+    public Task UpdateBaselineDebtDetailsAsync(
+        UpdateBaselineDebtDetailsModel model,
+        CancellationToken ct)
+        => ExecuteAsync(UpdateBaselineDebtDetailsSql, model, ct);
 }

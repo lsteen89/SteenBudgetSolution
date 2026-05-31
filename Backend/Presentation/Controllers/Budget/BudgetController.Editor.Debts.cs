@@ -1,6 +1,8 @@
 using Backend.Application.DTO.Budget.Months.Editor.Debt;
+using Backend.Application.Features.Budgets.Months.Editor.Debts.CreateDebt;
 using Backend.Application.Features.Budgets.Months.Editor.Debts.GetDebts;
 using Backend.Application.Features.Budgets.Months.Editor.Debts.PatchDebt;
+using Backend.Application.Features.Budgets.Months.Editor.Debts.PatchDebtDetails;
 using Backend.Application.Features.Budgets.Months.Editor.Debts.PatchDebtsBulk;
 using Backend.Presentation.Shared;
 using Microsoft.AspNetCore.Mvc;
@@ -52,6 +54,82 @@ public sealed partial class BudgetController
             return Ok(ApiEnvelope<BudgetMonthDebtEditorRowDto>.Failure(
                 code: result.Error?.Code ?? "BUDGET_MONTH_DEBT_ITEM_PATCH_FAILED",
                 message: result.Error?.Message ?? "Could not update month debt."
+            ));
+        }
+
+        return Ok(ApiEnvelope<BudgetMonthDebtEditorRowDto>.Success(result.Value));
+    }
+
+    // Debt PR 2: create a debt from the editor. Three scopes are supported
+    // (currentMonthOnly / currentMonthAndBudgetPlan / budgetPlanOnly). The
+    // response wraps both halves so a `budgetPlanOnly` create can surface a
+    // source summary without claiming a current-month row.
+    [HttpPost("months/{yearMonth}/debt-items")]
+    [ProducesResponseType(typeof(ApiEnvelope<CreateBudgetMonthDebtResponseDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiEnvelope<CreateBudgetMonthDebtResponseDto>>> CreateDebtItem(
+        [FromRoute] string yearMonth,
+        [FromBody] CreateBudgetMonthDebtRequestDto req,
+        CancellationToken ct)
+    {
+        var result = await _mediator.Send(
+            new CreateBudgetMonthDebtCommand(
+                Persoid: _currentUser.Persoid,
+                YearMonth: yearMonth,
+                Name: req.Name,
+                Type: req.Type,
+                Balance: req.Balance,
+                Apr: req.Apr,
+                MonthlyFee: req.MonthlyFee,
+                MinPayment: req.MinPayment,
+                TermMonths: req.TermMonths,
+                MonthlyPayment: req.MonthlyPayment,
+                Scope: req.Scope),
+            ct);
+
+        if (result.IsFailure || result.Value is null)
+        {
+            return Ok(ApiEnvelope<CreateBudgetMonthDebtResponseDto>.Failure(
+                code: result.Error?.Code ?? "BUDGET_MONTH_DEBT_CREATE_FAILED",
+                message: result.Error?.Message ?? "Could not create debt."
+            ));
+        }
+
+        return Ok(ApiEnvelope<CreateBudgetMonthDebtResponseDto>.Success(result.Value));
+    }
+
+    // Debt PR 2: edit metadata (Name / Type / Apr / MonthlyFee / MinPayment /
+    // TermMonths / MonthlyPayment) on an existing debt row. Balance is not
+    // accepted here — PR 3's `Uppdatera saldo` endpoint owns balance changes.
+    // Scope semantics mirror the planned-payment patch (currentMonthOnly /
+    // currentMonthAndBudgetPlan / budgetPlanOnly).
+    [HttpPatch("months/{yearMonth}/debt-items/{monthDebtId:guid}/details")]
+    [ProducesResponseType(typeof(ApiEnvelope<BudgetMonthDebtEditorRowDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiEnvelope<BudgetMonthDebtEditorRowDto>>> PatchDebtItemDetails(
+        [FromRoute] string yearMonth,
+        [FromRoute] Guid monthDebtId,
+        [FromBody] PatchBudgetMonthDebtDetailsRequestDto req,
+        CancellationToken ct)
+    {
+        var result = await _mediator.Send(
+            new PatchBudgetMonthDebtDetailsCommand(
+                Persoid: _currentUser.Persoid,
+                YearMonth: yearMonth,
+                MonthDebtId: monthDebtId,
+                Name: req.Name,
+                Type: req.Type,
+                Apr: req.Apr,
+                MonthlyFee: req.MonthlyFee,
+                MinPayment: req.MinPayment,
+                TermMonths: req.TermMonths,
+                MonthlyPayment: req.MonthlyPayment,
+                Scope: req.Scope),
+            ct);
+
+        if (result.IsFailure || result.Value is null)
+        {
+            return Ok(ApiEnvelope<BudgetMonthDebtEditorRowDto>.Failure(
+                code: result.Error?.Code ?? "BUDGET_MONTH_DEBT_ITEM_PATCH_DETAILS_FAILED",
+                message: result.Error?.Message ?? "Could not update debt details."
             ));
         }
 
