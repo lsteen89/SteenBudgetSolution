@@ -130,4 +130,40 @@ public interface IBudgetMonthDebtMutationRepository
     Task UpdateBaselineDebtBalanceAsync(
         UpdateBaselineDebtBalanceModel model,
         CancellationToken ct);
+
+    // --- Debt PR 4: lifecycle / participation surface --------------------
+
+    /// <summary>
+    /// Reads the lifecycle snapshot for a baseline <c>Debt</c> row. Returns
+    /// <c>null</c> when the source no longer exists. Lifecycle commands use
+    /// this snapshot for their audit "before" payload and to gate transitions
+    /// against the current source status without re-reading the same row in
+    /// two queries.
+    /// </summary>
+    Task<DebtSourceLifecycleSnapshotReadModel?> GetSourceDebtLifecycleAsync(
+        Guid debtId,
+        CancellationToken ct);
+
+    /// <summary>
+    /// Updates a <c>BudgetMonthDebt</c> row's participation columns
+    /// (<c>ParticipationStatus</c>, <c>ParticipationChangedAt</c>,
+    /// <c>ParticipationReason</c>) and the legacy <c>IsDeleted</c> mirror.
+    /// Planned-payment, balance, and metadata columns are intentionally
+    /// untouched — skip / include must not pretend a planned payment moved.
+    /// </summary>
+    Task UpdateMonthDebtParticipationAsync(
+        UpdateBudgetMonthDebtParticipationModel model,
+        CancellationToken ct);
+
+    /// <summary>
+    /// Transitions a baseline <c>Debt</c> source-lifecycle row. The repo SQL
+    /// writes <c>Status</c>, the matching lifecycle timestamp
+    /// (<c>PaidOffAt</c> / <c>ArchivedAt</c> / <c>DeletedAt</c>) when supplied,
+    /// and <c>LifecycleReason</c>. Historical timestamps for non-matching
+    /// transitions are preserved so a restore does not erase the fact that the
+    /// row was once archived. Balance is not touched here.
+    /// </summary>
+    Task UpdateBaselineDebtLifecycleAsync(
+        UpdateBaselineDebtLifecycleModel model,
+        CancellationToken ct);
 }

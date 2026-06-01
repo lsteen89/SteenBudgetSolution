@@ -2,6 +2,11 @@ using Backend.Application.DTO.Budget.Months.Editor.Debt;
 using Backend.Application.Features.Budgets.Months.Editor.Debts.AdjustBalance;
 using Backend.Application.Features.Budgets.Months.Editor.Debts.CreateDebt;
 using Backend.Application.Features.Budgets.Months.Editor.Debts.GetDebts;
+using Backend.Application.Features.Budgets.Months.Editor.Debts.Lifecycle.Archive;
+using Backend.Application.Features.Budgets.Months.Editor.Debts.Lifecycle.MarkPaidOff;
+using Backend.Application.Features.Budgets.Months.Editor.Debts.Lifecycle.Remove;
+using Backend.Application.Features.Budgets.Months.Editor.Debts.Lifecycle.Restore;
+using Backend.Application.Features.Budgets.Months.Editor.Debts.Participation;
 using Backend.Application.Features.Budgets.Months.Editor.Debts.PatchDebt;
 using Backend.Application.Features.Budgets.Months.Editor.Debts.PatchDebtDetails;
 using Backend.Application.Features.Budgets.Months.Editor.Debts.PatchDebtsBulk;
@@ -169,6 +174,158 @@ public sealed partial class BudgetController
         }
 
         return Ok(ApiEnvelope<AdjustBudgetMonthDebtBalanceResponseDto>.Success(result.Value));
+    }
+
+    // Debt PR 4: per-month skip / include toggle. POST (not PATCH) because
+    // each call is an append-only event in `BudgetMonthChangeEvent`. Source
+    // lifecycle, planned payment, and balance are intentionally untouched.
+    [HttpPost("months/{yearMonth}/debt-items/{monthDebtId:guid}/participation")]
+    [ProducesResponseType(typeof(ApiEnvelope<BudgetMonthDebtLifecycleActionResponseDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiEnvelope<BudgetMonthDebtLifecycleActionResponseDto>>> SetDebtItemParticipation(
+        [FromRoute] string yearMonth,
+        [FromRoute] Guid monthDebtId,
+        [FromBody] SetBudgetMonthDebtParticipationRequestDto req,
+        CancellationToken ct)
+    {
+        var result = await _mediator.Send(
+            new SetBudgetMonthDebtParticipationCommand(
+                Persoid: _currentUser.Persoid,
+                YearMonth: yearMonth,
+                MonthDebtId: monthDebtId,
+                Participation: req.Participation,
+                Note: req.Note),
+            ct);
+
+        if (result.IsFailure || result.Value is null)
+        {
+            return Ok(ApiEnvelope<BudgetMonthDebtLifecycleActionResponseDto>.Failure(
+                code: result.Error?.Code ?? "BUDGET_MONTH_DEBT_PARTICIPATION_FAILED",
+                message: result.Error?.Message ?? "Could not update debt participation."
+            ));
+        }
+
+        return Ok(ApiEnvelope<BudgetMonthDebtLifecycleActionResponseDto>.Success(result.Value));
+    }
+
+    // Debt PR 4: source lifecycle `active → paidOff`. Optionally drives
+    // balance to zero through the PR 3 balance path so the two facts stay
+    // auditable as separate rows (`BudgetMonthChangeEvent` for lifecycle,
+    // `DebtBalanceEvent` for balance).
+    [HttpPost("months/{yearMonth}/debt-items/{monthDebtId:guid}/mark-paid-off")]
+    [ProducesResponseType(typeof(ApiEnvelope<BudgetMonthDebtLifecycleActionResponseDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiEnvelope<BudgetMonthDebtLifecycleActionResponseDto>>> MarkDebtItemPaidOff(
+        [FromRoute] string yearMonth,
+        [FromRoute] Guid monthDebtId,
+        [FromBody] MarkBudgetMonthDebtPaidOffRequestDto req,
+        CancellationToken ct)
+    {
+        var result = await _mediator.Send(
+            new MarkBudgetMonthDebtPaidOffCommand(
+                Persoid: _currentUser.Persoid,
+                YearMonth: yearMonth,
+                MonthDebtId: monthDebtId,
+                SetBalanceToZero: req.SetBalanceToZero,
+                Note: req.Note),
+            ct);
+
+        if (result.IsFailure || result.Value is null)
+        {
+            return Ok(ApiEnvelope<BudgetMonthDebtLifecycleActionResponseDto>.Failure(
+                code: result.Error?.Code ?? "BUDGET_MONTH_DEBT_MARK_PAID_OFF_FAILED",
+                message: result.Error?.Message ?? "Could not mark debt as paid off."
+            ));
+        }
+
+        return Ok(ApiEnvelope<BudgetMonthDebtLifecycleActionResponseDto>.Success(result.Value));
+    }
+
+    // Debt PR 4: source lifecycle `active → archived`. Reversible via
+    // restore; never deletes history; never moves balance.
+    [HttpPost("months/{yearMonth}/debt-items/{monthDebtId:guid}/archive")]
+    [ProducesResponseType(typeof(ApiEnvelope<BudgetMonthDebtLifecycleActionResponseDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiEnvelope<BudgetMonthDebtLifecycleActionResponseDto>>> ArchiveDebtItem(
+        [FromRoute] string yearMonth,
+        [FromRoute] Guid monthDebtId,
+        [FromBody] ArchiveBudgetMonthDebtRequestDto req,
+        CancellationToken ct)
+    {
+        var result = await _mediator.Send(
+            new ArchiveBudgetMonthDebtCommand(
+                Persoid: _currentUser.Persoid,
+                YearMonth: yearMonth,
+                MonthDebtId: monthDebtId,
+                Note: req.Note),
+            ct);
+
+        if (result.IsFailure || result.Value is null)
+        {
+            return Ok(ApiEnvelope<BudgetMonthDebtLifecycleActionResponseDto>.Failure(
+                code: result.Error?.Code ?? "BUDGET_MONTH_DEBT_ARCHIVE_FAILED",
+                message: result.Error?.Message ?? "Could not archive debt."
+            ));
+        }
+
+        return Ok(ApiEnvelope<BudgetMonthDebtLifecycleActionResponseDto>.Success(result.Value));
+    }
+
+    // Debt PR 4: source lifecycle `archived → active`. Optionally re-includes
+    // the current open month's row in the same transaction.
+    [HttpPost("months/{yearMonth}/debt-items/{monthDebtId:guid}/restore")]
+    [ProducesResponseType(typeof(ApiEnvelope<BudgetMonthDebtLifecycleActionResponseDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiEnvelope<BudgetMonthDebtLifecycleActionResponseDto>>> RestoreDebtItem(
+        [FromRoute] string yearMonth,
+        [FromRoute] Guid monthDebtId,
+        [FromBody] RestoreBudgetMonthDebtRequestDto req,
+        CancellationToken ct)
+    {
+        var result = await _mediator.Send(
+            new RestoreBudgetMonthDebtCommand(
+                Persoid: _currentUser.Persoid,
+                YearMonth: yearMonth,
+                MonthDebtId: monthDebtId,
+                ReIncludeCurrentMonth: req.ReIncludeCurrentMonth,
+                Note: req.Note),
+            ct);
+
+        if (result.IsFailure || result.Value is null)
+        {
+            return Ok(ApiEnvelope<BudgetMonthDebtLifecycleActionResponseDto>.Failure(
+                code: result.Error?.Code ?? "BUDGET_MONTH_DEBT_RESTORE_FAILED",
+                message: result.Error?.Message ?? "Could not restore debt."
+            ));
+        }
+
+        return Ok(ApiEnvelope<BudgetMonthDebtLifecycleActionResponseDto>.Success(result.Value));
+    }
+
+    // Debt PR 4: hide a month-only row from the editor and dashboard.
+    // Source-linked rows are rejected with a code that the FE turns into
+    // "use archive instead" copy.
+    [HttpPost("months/{yearMonth}/debt-items/{monthDebtId:guid}/remove")]
+    [ProducesResponseType(typeof(ApiEnvelope<BudgetMonthDebtLifecycleActionResponseDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiEnvelope<BudgetMonthDebtLifecycleActionResponseDto>>> RemoveDebtItem(
+        [FromRoute] string yearMonth,
+        [FromRoute] Guid monthDebtId,
+        [FromBody] RemoveBudgetMonthDebtRequestDto req,
+        CancellationToken ct)
+    {
+        var result = await _mediator.Send(
+            new RemoveBudgetMonthDebtCommand(
+                Persoid: _currentUser.Persoid,
+                YearMonth: yearMonth,
+                MonthDebtId: monthDebtId,
+                Note: req.Note),
+            ct);
+
+        if (result.IsFailure || result.Value is null)
+        {
+            return Ok(ApiEnvelope<BudgetMonthDebtLifecycleActionResponseDto>.Failure(
+                code: result.Error?.Code ?? "BUDGET_MONTH_DEBT_REMOVE_FAILED",
+                message: result.Error?.Message ?? "Could not remove debt."
+            ));
+        }
+
+        return Ok(ApiEnvelope<BudgetMonthDebtLifecycleActionResponseDto>.Success(result.Value));
     }
 
     [HttpPatch("months/{yearMonth}/debt-items")]

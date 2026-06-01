@@ -134,4 +134,24 @@ public sealed partial class BudgetMonthDebtMutationRepository
         UpdateBaselineDebtBalanceModel model,
         CancellationToken ct)
         => ExecuteAsync(UpdateBaselineDebtBalanceSql, model, ct);
+
+    // --- Debt PR 4: lifecycle / participation surface --------------------
+
+    public Task<DebtSourceLifecycleSnapshotReadModel?> GetSourceDebtLifecycleAsync(
+        Guid debtId,
+        CancellationToken ct)
+        => QuerySingleOrDefaultAsync<DebtSourceLifecycleSnapshotReadModel>(
+            GetSourceDebtLifecycleSql,
+            new { DebtId = debtId },
+            ct);
+
+    public Task UpdateMonthDebtParticipationAsync(
+        UpdateBudgetMonthDebtParticipationModel model,
+        CancellationToken ct)
+        => ExecuteAsync(UpdateMonthDebtParticipationSql, model, ct);
+
+    public Task UpdateBaselineDebtLifecycleAsync(
+        UpdateBaselineDebtLifecycleModel model,
+        CancellationToken ct)
+        => ExecuteAsync(UpdateBaselineDebtLifecycleSql, model, ct);
 }

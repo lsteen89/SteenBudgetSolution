@@ -306,4 +306,70 @@ public sealed partial class BudgetMonthDebtMutationRepository
         UpdatedAt = @UtcNow,
         UpdatedByUserId = @ActorPersoid
     WHERE Id = @DebtId;";
+
+    // --- Debt PR 4: lifecycle / participation SQL -------------------------
+
+    // Lifecycle snapshot for an existing `Debt` row. `BudgetId` is selected
+    // because mark-paid-off-with-zero needs it to write a `DebtBalanceEvent`
+    // row when the balance side fires.
+    private const string GetSourceDebtLifecycleSql = @"
+    SELECT
+        Id,
+        BudgetId,
+        Status,
+        Balance,
+        PaidOffAt,
+        ArchivedAt,
+        DeletedAt,
+        LifecycleReason
+    FROM Debt
+    WHERE Id = @DebtId
+    LIMIT 1;";
+
+    // Participation toggle. `ParticipationChangedAt` always reflects the
+    // current write so the FE can show the timestamp on "Ingår inte denna
+    // månad" without joining audit history. `IsDeleted` mirrors the new
+    // participation vocabulary so legacy reads still gate correctly:
+    //   participation = removed     → IsDeleted = 1
+    //   participation = included / notIncluded → IsDeleted = 0
+    //
+    // The legacy `Status` column is intentionally not written here; that
+    // column remains for backward compatibility but no longer drives
+    // editor logic (see DDL comment in 04-MonthlyLifeCycle.sql). Planned
+    // payment, balance, and IsOverride are also untouched — participation
+    // is metadata about whether a payment counts, not the payment itself.
+    private const string UpdateMonthDebtParticipationSql = @"
+    UPDATE BudgetMonthDebt
+    SET
+        ParticipationStatus    = @ParticipationStatus,
+        ParticipationChangedAt = @UtcNow,
+        ParticipationReason    = @ParticipationReason,
+        IsDeleted              = @IsDeletedMirror,
+        UpdatedAt              = @UtcNow,
+        UpdatedByUserId        = @ActorPersoid
+    WHERE Id = @Id
+      AND BudgetMonthId = @BudgetMonthId;";
+
+    // Lifecycle transition. The `CASE`-style assignments only overwrite the
+    // matching timestamp; a restore (Status = 'active', all timestamps NULL)
+    // intentionally writes NULL into the active fields so the FE can read
+    // "current lifecycle" from `Status` without a parallel set of stale
+    // timestamps. Historical lifecycle facts live in
+    // `BudgetMonthChangeEvent` audit rows, not here.
+    //
+    // We write timestamps unconditionally based on the model so the caller
+    // controls preservation. The handlers explicitly pass the existing
+    // historical timestamps for non-matching transitions; this keeps the
+    // SQL simple and testable.
+    private const string UpdateBaselineDebtLifecycleSql = @"
+    UPDATE Debt
+    SET
+        Status          = @Status,
+        PaidOffAt       = @PaidOffAt,
+        ArchivedAt      = @ArchivedAt,
+        DeletedAt       = @DeletedAt,
+        LifecycleReason = @LifecycleReason,
+        UpdatedAt       = @UtcNow,
+        UpdatedByUserId = @ActorPersoid
+    WHERE Id = @DebtId;";
 }
