@@ -81,12 +81,20 @@ public sealed record DebtEditorSummaryDto(
     decimal ActiveLiabilityBalanceTotal,
     decimal PaidOffBalanceTotal,
     decimal ArchivedBalanceTotal,
-    decimal RemainingAfterDebtPayments,
     int IncludedCount,
     int NotIncludedCount,
     int PaidOffCount,
     int ArchivedCount);
 ```
+
+> **Implementation note (post-PR-5):** `RemainingAfterDebtPayments` is
+> intentionally **not** on this DTO. The Debt editor frontend already
+> reads remaining-money from the dashboard query
+> (`useBudgetDashboardMonthQuery`); duplicating it on this endpoint
+> would force the read to recompute the equation across unrelated
+> domains (income / expenses / savings) and risk the two endpoints
+> disagreeing during a transactional gap. PR 6 must keep reading
+> remaining from the dashboard, not this summary.
 
 Row fields:
 

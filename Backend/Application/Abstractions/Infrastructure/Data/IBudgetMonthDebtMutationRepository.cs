@@ -166,4 +166,53 @@ public interface IBudgetMonthDebtMutationRepository
     Task UpdateBaselineDebtLifecycleAsync(
         UpdateBaselineDebtLifecycleModel model,
         CancellationToken ct);
+
+    // --- Debt PR 5: editor read model ------------------------------------
+
+    /// <summary>
+    /// Reads the richer Debt-editor row projection consumed by the PR 5
+    /// `GET /debt-editor` endpoint. Returns the month row's columns plus the
+    /// joined source <c>Debt</c> row's columns so the response DTO can emit
+    /// both halves (e.g. <c>MonthlyPayment</c> and <c>SourceMonthlyPayment</c>)
+    /// without a follow-up query. Default-hides
+    /// <c>ParticipationStatus = 'removed'</c> and legacy <c>IsDeleted = 1</c>
+    /// rows; diagnostic callers that need to see removed rows continue to use
+    /// the existing <see cref="GetDebtEditorRowsAsync"/> with
+    /// <c>includeDeleted = true</c>.
+    /// </summary>
+    Task<IReadOnlyList<BudgetMonthDebtEditorAggregateReadModel>> GetDebtEditorAggregateRowsAsync(
+        Guid budgetMonthId,
+        CancellationToken ct);
+
+    /// <summary>
+    /// Reads the top-10 most recent <c>BudgetMonthChangeEvent</c> rows for
+    /// debts in the supplied month, ordered by <c>ChangedAt DESC</c>. The
+    /// repository extracts <c>ChangeSetJson.action</c> via SQL JSON helpers
+    /// so the application never has to parse arbitrary JSON for display.
+    /// </summary>
+    Task<IReadOnlyList<DebtEditorRecentEventReadModel>> GetDebtEditorRecentEventsAsync(
+        Guid budgetMonthId,
+        CancellationToken ct);
+
+    /// <summary>
+    /// Per-source aggregate over <c>DebtBalanceEvent</c> for the supplied
+    /// source <c>DebtId</c>s. Used to assemble plan-side
+    /// <see cref="Backend.Application.DTO.Budget.Months.Editor.Debt.DebtRowProgressDto"/>
+    /// data. Returns an empty list when <paramref name="sourceDebtIds"/> is
+    /// empty so the handler does not have to special-case the no-source case.
+    /// </summary>
+    Task<IReadOnlyList<DebtBalanceEventAggregateReadModel>> GetDebtBalanceEventSourceAggregatesAsync(
+        IReadOnlyCollection<Guid> sourceDebtIds,
+        CancellationToken ct);
+
+    /// <summary>
+    /// Per-month-row aggregate over <c>DebtBalanceEvent</c> for the supplied
+    /// <c>BudgetMonthDebtId</c>s. Mirror of the source aggregate so month-only
+    /// rows that have never had a plan side can still surface progress when
+    /// balance was updated. Returns an empty list when
+    /// <paramref name="monthDebtIds"/> is empty.
+    /// </summary>
+    Task<IReadOnlyList<DebtBalanceEventAggregateReadModel>> GetDebtBalanceEventMonthAggregatesAsync(
+        IReadOnlyCollection<Guid> monthDebtIds,
+        CancellationToken ct);
 }

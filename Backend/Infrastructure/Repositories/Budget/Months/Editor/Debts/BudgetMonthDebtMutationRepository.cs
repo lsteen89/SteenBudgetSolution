@@ -154,4 +154,50 @@ public sealed partial class BudgetMonthDebtMutationRepository
         UpdateBaselineDebtLifecycleModel model,
         CancellationToken ct)
         => ExecuteAsync(UpdateBaselineDebtLifecycleSql, model, ct);
+
+    // --- Debt PR 5: editor read model ------------------------------------
+
+    public async Task<IReadOnlyList<BudgetMonthDebtEditorAggregateReadModel>> GetDebtEditorAggregateRowsAsync(
+        Guid budgetMonthId,
+        CancellationToken ct)
+        => await QueryAsync<BudgetMonthDebtEditorAggregateReadModel>(
+            GetDebtEditorAggregateRows,
+            new { BudgetMonthId = budgetMonthId },
+            ct);
+
+    public async Task<IReadOnlyList<DebtEditorRecentEventReadModel>> GetDebtEditorRecentEventsAsync(
+        Guid budgetMonthId,
+        CancellationToken ct)
+        => await QueryAsync<DebtEditorRecentEventReadModel>(
+            GetDebtEditorRecentEvents,
+            new { BudgetMonthId = budgetMonthId },
+            ct);
+
+    public async Task<IReadOnlyList<DebtBalanceEventAggregateReadModel>> GetDebtBalanceEventSourceAggregatesAsync(
+        IReadOnlyCollection<Guid> sourceDebtIds,
+        CancellationToken ct)
+    {
+        // Dapper's `IN @list` expansion throws on an empty collection, and a
+        // zero-key SELECT would always return empty anyway — short-circuit.
+        if (sourceDebtIds.Count == 0)
+            return Array.Empty<DebtBalanceEventAggregateReadModel>();
+
+        return await QueryAsync<DebtBalanceEventAggregateReadModel>(
+            GetDebtBalanceEventSourceAggregates,
+            new { SourceDebtIds = sourceDebtIds },
+            ct);
+    }
+
+    public async Task<IReadOnlyList<DebtBalanceEventAggregateReadModel>> GetDebtBalanceEventMonthAggregatesAsync(
+        IReadOnlyCollection<Guid> monthDebtIds,
+        CancellationToken ct)
+    {
+        if (monthDebtIds.Count == 0)
+            return Array.Empty<DebtBalanceEventAggregateReadModel>();
+
+        return await QueryAsync<DebtBalanceEventAggregateReadModel>(
+            GetDebtBalanceEventMonthAggregates,
+            new { MonthDebtIds = monthDebtIds },
+            ct);
+    }
 }

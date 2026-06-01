@@ -1,6 +1,7 @@
 using Backend.Application.DTO.Budget.Months.Editor.Debt;
 using Backend.Application.Features.Budgets.Months.Editor.Debts.AdjustBalance;
 using Backend.Application.Features.Budgets.Months.Editor.Debts.CreateDebt;
+using Backend.Application.Features.Budgets.Months.Editor.Debts.GetDebtEditor;
 using Backend.Application.Features.Budgets.Months.Editor.Debts.GetDebts;
 using Backend.Application.Features.Budgets.Months.Editor.Debts.Lifecycle.Archive;
 using Backend.Application.Features.Budgets.Months.Editor.Debts.Lifecycle.MarkPaidOff;
@@ -36,6 +37,33 @@ public sealed partial class BudgetController
         }
 
         return Ok(ApiEnvelope<IReadOnlyList<BudgetMonthDebtEditorRowDto>>.Success(result.Value));
+    }
+
+    // Debt PR 5: target editor read model. One endpoint that returns the
+    // full hero / summary / rows / recent-events bundle the FE needs to
+    // render the target Debt editor without re-deriving financial state on
+    // the client. The legacy `GET /debt-items` route above is retained for
+    // compatibility — PR 6 migrates to this richer endpoint and the legacy
+    // route will be removed in a follow-up once no caller depends on it.
+    [HttpGet("months/{yearMonth}/debt-editor")]
+    [ProducesResponseType(typeof(ApiEnvelope<BudgetMonthDebtEditorDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiEnvelope<BudgetMonthDebtEditorDto>>> GetDebtEditor(
+        [FromRoute] string yearMonth,
+        CancellationToken ct)
+    {
+        var result = await _mediator.Send(
+            new GetBudgetMonthDebtEditorQuery(_currentUser.Persoid, yearMonth),
+            ct);
+
+        if (result.IsFailure || result.Value is null)
+        {
+            return Ok(ApiEnvelope<BudgetMonthDebtEditorDto>.Failure(
+                code: result.Error?.Code ?? "BUDGET_MONTH_DEBT_EDITOR_NOT_FOUND",
+                message: result.Error?.Message ?? "Could not load debt editor."
+            ));
+        }
+
+        return Ok(ApiEnvelope<BudgetMonthDebtEditorDto>.Success(result.Value));
     }
 
     [HttpPatch("months/{yearMonth}/debt-items/{monthDebtId:guid}")]

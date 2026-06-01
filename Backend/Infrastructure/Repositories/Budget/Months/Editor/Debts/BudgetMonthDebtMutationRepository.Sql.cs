@@ -372,4 +372,157 @@ public sealed partial class BudgetMonthDebtMutationRepository
         UpdatedAt       = @UtcNow,
         UpdatedByUserId = @ActorPersoid
     WHERE Id = @DebtId;";
+
+    // --- Debt PR 5: editor read model ------------------------------------
+
+    // Richer projection used by the `GET /debt-editor` endpoint. Returns the
+    // month row's columns *and* the joined source `Debt` row's columns side
+    // by side so the FE can render plan vs. month deltas without a second
+    // round-trip. Month-only rows leave every `Source*` column null via the
+    // LEFT JOIN.
+    //
+    // Default read hides `ParticipationStatus = 'removed'`, legacy
+    // `IsDeleted = 1` rows, and rows whose source `Debt.Status = 'deleted'`
+    // so the editor never surfaces a row that the user has effectively
+    // wiped.
+    //
+    // Note this filter is intentionally **looser** than the dashboard's
+    // (`BudgetMonthDashboardRepository.DebtsSql` /
+    // `TotalDebtBalance`: `AND (src.Id IS NULL OR src.Status = 'active')`).
+    // The editor must still show `paidOff` and `archived` rows in their
+    // dedicated ledger groups; the dashboard does not need to. The
+    // reconciliation with the dashboard's debt term happens in the read
+    // handler's summary bucketing — `IncludedMonthlyPaymentTotal` and
+    // `ActiveLiabilityBalanceTotal` only accumulate rows in the `active`
+    // and `skipped` groups (and balance-wise, only those carry an
+    // active-liability semantic), matching the dashboard's active-source
+    // filter. The integration test
+    // `GetEditor_IncludedPaymentTotal_ReconcilesWithDashboardSql` pins the
+    // equality.
+    //
+    // The legacy `GET /debt-items` query keeps its own `@IncludeDeleted`
+    // toggle for diagnostic callers that want to see every row.
+    private const string GetDebtEditorAggregateRows = @"
+    SELECT
+        d.Id,
+        d.SourceDebtId,
+        d.Name,
+        d.Type,
+        d.SortOrder,
+
+        d.Balance,
+        d.Apr,
+        d.MonthlyFee,
+        d.MinPayment,
+        CAST(d.TermMonths AS SIGNED) AS TermMonths,
+        d.MonthlyPayment,
+
+        d.Status,
+        d.IsDeleted,
+        d.ParticipationStatus,
+
+        src.Balance         AS SourceBalance,
+        src.Apr             AS SourceApr,
+        src.MonthlyFee      AS SourceMonthlyFee,
+        src.MinPayment      AS SourceMinPayment,
+        CAST(src.TermMonths AS SIGNED) AS SourceTermMonths,
+        src.MonthlyPayment  AS SourceMonthlyPayment,
+        src.Status          AS SourceLifecycleStatus
+    FROM BudgetMonthDebt d
+    LEFT JOIN Debt src ON src.Id = d.SourceDebtId
+    WHERE d.BudgetMonthId = @BudgetMonthId
+      AND d.IsDeleted = 0
+      AND d.ParticipationStatus <> 'removed'
+      AND (src.Id IS NULL OR src.Status <> 'deleted')
+    ORDER BY
+        d.SortOrder,
+        d.Balance DESC,
+        d.Name,
+        d.Id;";
+
+    // Recent `BudgetMonthChangeEvent` rows for debts in this month. The
+    // server-side `JSON_UNQUOTE(JSON_EXTRACT(..., '$.action'))` extracts
+    // PR 4's `DebtLifecycleAuditActions` value when present so the
+    // application never has to parse arbitrary JSON for the recap timeline.
+    // Older planned-payment audit rows (`DebtMutationApplier`) do not write
+    // an `action` field; for those, the projection returns NULL and the FE
+    // renders the event using `ChangeType` alone.
+    //
+    // Hard-capped at 10 — this is a "recent activity hint" surface, not a
+    // full audit log. A future recap page will own deeper history.
+    private const string GetDebtEditorRecentEvents = @"
+    SELECT
+        e.Id,
+        e.EntityId,
+        e.SourceEntityId,
+        e.EntityType,
+        e.ChangeType,
+        JSON_UNQUOTE(JSON_EXTRACT(e.ChangeSetJson, '$.action')) AS Action,
+        e.ChangedAt
+    FROM BudgetMonthChangeEvent e
+    WHERE e.BudgetMonthId = @BudgetMonthId
+      AND e.EntityType = 'debt'
+    ORDER BY e.ChangedAt DESC, e.Id DESC
+    LIMIT 10;";
+
+    // Per-source aggregate over `DebtBalanceEvent`. `FirstOldBalance` is the
+    // `OldBalance` of the chronologically first event (the balance just
+    // before any audited adjustment) and `LastNewBalance` is the `NewBalance`
+    // of the most recent event. Subqueries are used rather than window
+    // functions for MariaDB portability — this matches the established
+    // pattern in `BudgetMonthDashboardRepository`.
+    //
+    // The handler filters this projection to only the source IDs that exist
+    // in the current month's row set, so the SQL stays plan-scoped (no extra
+    // join through `BudgetMonth`).
+    private const string GetDebtBalanceEventSourceAggregates = @"
+    SELECT
+        e.DebtId AS `Key`,
+        COUNT(*) AS EventCount,
+        (
+            SELECT e2.OldBalance
+            FROM DebtBalanceEvent e2
+            WHERE e2.DebtId = e.DebtId
+            ORDER BY e2.ChangedAt ASC, e2.Id ASC
+            LIMIT 1
+        ) AS FirstOldBalance,
+        (
+            SELECT e3.NewBalance
+            FROM DebtBalanceEvent e3
+            WHERE e3.DebtId = e.DebtId
+            ORDER BY e3.ChangedAt DESC, e3.Id DESC
+            LIMIT 1
+        ) AS LastNewBalance,
+        MIN(e.ChangedAt) AS FirstEventAt,
+        MAX(e.ChangedAt) AS LastEventAt
+    FROM DebtBalanceEvent e
+    WHERE e.DebtId IN @SourceDebtIds
+    GROUP BY e.DebtId;";
+
+    // Per-month-row aggregate. Mirror of the source aggregate above, keyed
+    // by `BudgetMonthDebtId` so month-only rows that have never had a plan
+    // side can still surface progress when balance was updated.
+    private const string GetDebtBalanceEventMonthAggregates = @"
+    SELECT
+        e.BudgetMonthDebtId AS `Key`,
+        COUNT(*) AS EventCount,
+        (
+            SELECT e2.OldBalance
+            FROM DebtBalanceEvent e2
+            WHERE e2.BudgetMonthDebtId = e.BudgetMonthDebtId
+            ORDER BY e2.ChangedAt ASC, e2.Id ASC
+            LIMIT 1
+        ) AS FirstOldBalance,
+        (
+            SELECT e3.NewBalance
+            FROM DebtBalanceEvent e3
+            WHERE e3.BudgetMonthDebtId = e.BudgetMonthDebtId
+            ORDER BY e3.ChangedAt DESC, e3.Id DESC
+            LIMIT 1
+        ) AS LastNewBalance,
+        MIN(e.ChangedAt) AS FirstEventAt,
+        MAX(e.ChangedAt) AS LastEventAt
+    FROM DebtBalanceEvent e
+    WHERE e.BudgetMonthDebtId IN @MonthDebtIds
+    GROUP BY e.BudgetMonthDebtId;";
 }
