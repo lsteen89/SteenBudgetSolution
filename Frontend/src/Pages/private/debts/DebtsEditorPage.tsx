@@ -1,7 +1,6 @@
 import BudgetEditorPageShell from "@/components/molecules/forms/budgetEditor/BudgetEditorPageShell";
-import BudgetEditorWorkspaceBar from "@/components/molecules/forms/budgetEditor/BudgetEditorWorkspaceBar";
 import {
-  useBudgetMonthDebts,
+  useBudgetMonthDebtEditor,
   usePatchBudgetMonthDebt,
 } from "@/hooks/budget/editPeriod/useMonthEditor";
 import { useBudgetDashboardMonthQuery } from "@/hooks/budget/useBudgetDashboardMonthQuery";
@@ -12,14 +11,30 @@ import type {
   BudgetMonthDebtEditorRowDto,
   DebtEditScope,
 } from "@/types/budget/BudgetMonthsStatusDto";
+import type {
+  DebtEditorRowDto,
+} from "@/types/budget/DebtEditorDto";
 import type { AppLocale } from "@/types/i18n/appLocale";
 import { useToast } from "@/ui/toast/toast";
 import { canEditMonth } from "@/utils/budget/periodEditor/canShowUpdateDefault";
 import { debtsEditorPageDict } from "@/utils/i18n/pages/private/debts/DebtsEditorPage.i18n";
 import { tDict } from "@/utils/i18n/translate";
+import { CalendarDays } from "lucide-react";
 import { useMemo, useState } from "react";
-import DebtLedgerSection from "./components/DebtLedgerSection";
+import DebtLedgerGroup from "./components/DebtLedgerGroup";
 import DebtPlannedPaymentModal from "./components/DebtPlannedPaymentModal";
+import DebtsBalanceStrip from "./components/DebtsBalanceStrip";
+import DebtsEditorEmptyState from "./components/DebtsEditorEmptyState";
+import DebtsSoulHero from "./components/DebtsSoulHero";
+import {
+  DEBT_GROUP_ORDER,
+  groupDebtRows,
+} from "./utils/debtEditorGroups";
+
+const interpolate = (
+  template: string,
+  values: Record<string, string | number>,
+) => template.replace(/\{(\w+)\}/g, (_, key) => String(values[key] ?? ""));
 
 export default function DebtsEditorPage() {
   const locale = useAppLocale();
@@ -38,7 +53,7 @@ export default function DebtsEditorPage() {
     );
   }, [monthsStatusQuery.data]);
 
-  const debtsQuery = useBudgetMonthDebts(
+  const debtEditorQuery = useBudgetMonthDebtEditor(
     editableYearMonth ?? undefined,
     !!editableYearMonth,
   );
@@ -56,24 +71,60 @@ export default function DebtsEditorPage() {
   const mutationYearMonth = editableYearMonth ?? "";
   const patchMutation = usePatchBudgetMonthDebt(mutationYearMonth);
 
+  // The planned-payment modal is the only mutation PR 6 wires. It still takes
+  // the legacy `BudgetMonthDebtEditorRowDto` shape because its body is
+  // unchanged from Stage 0; we adapt the richer PR 5 row into that shape so
+  // the modal's existing tests stay green.
   const [modalRow, setModalRow] =
     useState<BudgetMonthDebtEditorRowDto | null>(null);
 
+  const editorData = debtEditorQuery.data ?? null;
+  // Backend `isReadOnly` is the source of truth: closed/skipped months stop
+  // editing regardless of row state. We also defensively gate on the status
+  // queue in case the editor and status queries disagree mid-transition.
   const openMonth = monthsStatusQuery.data?.months.find(
     (month) => month.yearMonth === editableYearMonth,
   );
-  const readOnly = openMonth ? !canEditMonth(true, openMonth.status) : true;
-  const rows = (debtsQuery.data ?? []).filter(
-    (row) => !row.isDeleted && row.status !== "closed",
-  );
-  const total = rows.reduce((sum, row) => sum + row.monthlyPayment, 0);
+  const readOnly = editorData
+    ? editorData.isReadOnly
+    : openMonth
+      ? !canEditMonth(true, openMonth.status)
+      : true;
+
   const periodLabel =
     dashboardAggregate?.summary.header.periodLabel ?? editableYearMonth ?? "";
-  const incomeTotal = dashboardAggregate?.summary.totalIncome ?? 0;
-  const expenseTotal = dashboardAggregate?.summary.totalExpenditure ?? 0;
-  const remainingTotal =
-    dashboardAggregate?.summary.remainingToSpend ?? incomeTotal - expenseTotal;
-  const debtsTotal = dashboardAggregate?.summary.totalDebtPayments ?? total;
+
+  const remainingInBudget =
+    dashboardAggregate?.summary.remainingToSpend ?? null;
+
+  const grouped = useMemo(
+    () => (editorData ? groupDebtRows(editorData.rows) : null),
+    [editorData],
+  );
+
+  const handleEditPayment = (row: DebtEditorRowDto) => {
+    // Adapt the PR 5 row to the legacy modal contract. We only carry the
+    // fields the modal actually reads — the rest are filler so the type
+    // stays satisfied without claiming source/lifecycle data the legacy DTO
+    // does not own.
+    const legacyRow: BudgetMonthDebtEditorRowDto = {
+      id: row.id,
+      sourceDebtId: row.sourceDebtId,
+      name: row.name,
+      type: row.type,
+      balance: row.balance,
+      apr: row.apr,
+      monthlyFee: row.monthlyFee,
+      minPayment: row.minPayment,
+      termMonths: row.termMonths,
+      monthlyPayment: row.monthlyPayment,
+      status: "active",
+      isDeleted: false,
+      isMonthOnly: row.isMonthOnly,
+      canUpdateDefault: row.actions.canUpdatePlan,
+    };
+    setModalRow(legacyRow);
+  };
 
   const handleSubmit = async (values: {
     monthlyPayment: number;
@@ -106,67 +157,85 @@ export default function DebtsEditorPage() {
     return <EditorState text={t("noOpenMonth")} />;
   }
 
+  if (debtEditorQuery.isLoading || dashboardMonthQuery.isLoading) {
+    return (
+      <BudgetEditorPageShell>
+        <div className="rounded-[1.75rem] border border-eb-stroke/16 bg-[rgb(var(--eb-shell)/0.18)] p-6 text-sm text-eb-text/60 backdrop-blur-[6px]">
+          {t("loadingDebts")}
+        </div>
+      </BudgetEditorPageShell>
+    );
+  }
+
+  if (debtEditorQuery.isError || !editorData || !grouped) {
+    return (
+      <BudgetEditorPageShell>
+        <div className="rounded-[1.75rem] border border-eb-stroke/16 bg-[rgb(var(--eb-shell)/0.18)] p-6 text-sm text-eb-text/60 backdrop-blur-[6px]">
+          {t("loadEditorError")}
+        </div>
+      </BudgetEditorPageShell>
+    );
+  }
+
+  const summary = editorData.summary;
+  const activeRows = grouped.active;
+  const allGroupsEmpty = editorData.rows.length === 0;
+
   return (
     <>
       <BudgetEditorPageShell>
         <div className="space-y-4">
-          <BudgetEditorWorkspaceBar
-            eyebrow={t("eyebrow")}
-            title={t("titleWithMonth").replace("{yearMonthLabel}", periodLabel)}
-            description={t("description").replace(
-              "{yearMonthLabel}",
-              periodLabel,
-            )}
-            readOnlyBadge={t("readOnlyBadge")}
-            periodLabel={periodLabel}
-            periodCaption={t("period")}
+          <DebtsSoulHero
+            yearMonthLabel={periodLabel}
+            summary={summary}
+            activeRows={activeRows}
+            remainingInBudget={remainingInBudget}
             readOnly={readOnly}
-            metrics={[
-              {
-                label: t("income"),
-                amount: incomeTotal,
-              },
-              {
-                prefix: "−",
-                label: t("expenses"),
-                amount: expenseTotal,
-              },
-              {
-                prefix: "−",
-                label: t("debts"),
-                amount: debtsTotal,
-              },
-              {
-                prefix: "=",
-                label: t("remaining"),
-                amount: remainingTotal,
-                tone: remainingTotal < 0 ? "danger" : "accent",
-              },
-            ]}
           />
 
-          <div className="rounded-2xl border border-eb-stroke/16 bg-eb-surface p-3 text-xs text-eb-text/55">
-            {t("plannedNote")}
-          </div>
+          {!allGroupsEmpty ? (
+            <DebtsBalanceStrip
+              summary={summary}
+              activeRows={activeRows}
+              freeAfterDebts={remainingInBudget}
+            />
+          ) : null}
 
-          <div className="space-y-4">
-            {debtsQuery.isLoading || dashboardMonthQuery.isLoading ? (
-              <div className="rounded-[1.75rem] border border-eb-stroke/16 bg-[rgb(var(--eb-shell)/0.18)] p-6 text-sm text-eb-text/60 backdrop-blur-[6px]">
-                {t("loadingDebts")}
-              </div>
-            ) : debtsQuery.isError ? (
-              <div className="rounded-[1.75rem] border border-eb-stroke/16 bg-[rgb(var(--eb-shell)/0.18)] p-6 text-sm text-eb-text/60 backdrop-blur-[6px]">
-                {t("loadEditorError")}
-              </div>
-            ) : (
-              <DebtLedgerSection
-                rows={rows}
-                total={total}
-                readOnly={readOnly}
-                onEdit={(row) => setModalRow(row)}
+          {readOnly ? (
+            <p
+              data-testid="debts-readonly-banner"
+              className="m-0 flex items-start gap-2 rounded-2xl border border-eb-warning/25 bg-[rgb(217_119_6_/0.06)] px-4 py-3 text-[13px] text-[#7c4a03]"
+            >
+              <CalendarDays
+                className="mt-0.5 h-4 w-4 flex-none"
+                strokeWidth={2}
+                aria-hidden="true"
               />
-            )}
-          </div>
+              <span>
+                {interpolate(t("readOnlyBanner"), {
+                  yearMonthLabel: periodLabel,
+                })}
+              </span>
+            </p>
+          ) : null}
+
+          {allGroupsEmpty ? (
+            <DebtsEditorEmptyState readOnly={readOnly} />
+          ) : (
+            <div className="space-y-4">
+              {DEBT_GROUP_ORDER.map((copy) => (
+                <DebtLedgerGroup
+                  key={copy.group}
+                  copy={copy}
+                  rows={grouped[copy.group]}
+                  yearMonthLabel={periodLabel}
+                  readOnly={readOnly}
+                  onEditPayment={handleEditPayment}
+                  defaultOpen={copy.group !== "archived"}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </BudgetEditorPageShell>
 

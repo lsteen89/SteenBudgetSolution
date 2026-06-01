@@ -1,5 +1,15 @@
+// Debt editor i18n dictionary. PR 6 adds the target-page shell strings
+// (hero, balance strip, lifecycle groups, empty / read-only states,
+// localized disabled-reason copy) on top of the original PR 0 keys for the
+// planned-payment modal flow.
+//
+// Keep this dictionary in lockstep across `sv` / `en` / `et` — the build
+// type-checks that the `en` and `et` shapes match `sv`, so adding a new key
+// requires updating all three.
+
 export const debtsEditorPageDict = {
   sv: {
+    // ---------------------------------------------------------------- page
     loadingDebts: "Laddar skulder...",
     loadEditorError: "Kunde inte läsa in skuldredigeraren.",
     noOpenMonth: "Det finns ingen öppen månad att redigera.",
@@ -14,6 +24,39 @@ export const debtsEditorPageDict = {
     expenses: "Utgifter",
     debts: "Skulder",
     remaining: "Kvar",
+
+    // ---------------------------------------------------------------- hero
+    heroEyebrow: "Skulder · {yearMonthLabel}",
+    heroHeadline:
+      "Du planerar att betala {amount} på skulder denna månad",
+    heroHeadlineEmpty: "Du har inga aktiva skulder den här månaden",
+    heroSplitLoan: "{amount} lån",
+    heroSplitCredit: "{amount} kreditkort",
+    heroSplitInstallment: "{amount} avbetalning",
+    heroCta: "Lägg till skuld",
+    heroCtaPendingPr: "Tillgängligt när tillägg av skuld kopplas in",
+    heroSnapshotLabel: "Kvar att betala",
+    heroBudgetRemaining: "{amount} kvar i budget",
+    heroReadOnlyPill: "{yearMonthLabel} är avslutad — skrivskyddad",
+
+    // -------------------------------------------------------- balance strip
+    stripSectionLabel: "Skulder denna månad",
+    stripHeadline: "{amount} i månadsbetalningar",
+    stripMessage:
+      "Månadsbetalningarna är planerade utbetalningar den här månaden. Saldot är en ögonblicksbild av hur mycket du är skyldig — det ändras bara när du uppdaterar saldot eller registrerar en faktisk betalning, inte när du justerar en planerad månadsbetalning.",
+    stripZoneFlowLabel: "Påverkar månaden",
+    stripZoneSnapshotLabel: "Ögonblicksbild",
+    stripPaymentsLabel: "Månadsbetalningar",
+    stripFreeAfterLabel: "Kvar efter inkomst, utgifter, sparande & skulder",
+    stripBalanceLabel: "Kvar att betala — totalt",
+    stripSnapshotNote:
+      "Inkluderar skulder du hoppar över denna månad — de är fortfarande obetalda.",
+    stripMeterCaption: "Så fördelas månadsbetalningarna",
+    stripMeterLoan: "Lån",
+    stripMeterCredit: "Kreditkort",
+    stripMeterInstallment: "Avbetalning",
+
+    // --------------------------------------------------------- ledger / row
     sectionTitle: "Skulder",
     rowsCountOne: "{count} skuld",
     rowsCountOther: "{count} skulder",
@@ -32,7 +75,92 @@ export const debtsEditorPageDict = {
     readOnly: "Den här månaden är stängd och kan inte redigeras.",
     plannedNote:
       "Här ändras bara planerad månadsbetalning. Saldo uppdateras inte här.",
+
+    // --------------------------------------------------------- group labels
+    groupActiveTitle: "Betalas denna månad",
+    groupActiveInsight: "Planerade utbetalningar som ingår i månaden.",
+    groupActiveCountOne: "{count} skuld",
+    groupActiveCountOther: "{count} skulder",
+    groupSkippedTitle: "Ingår inte denna månad",
+    groupSkippedInsight:
+      "Pausade en månad. Skulden är inte stängd och saldot påverkas inte.",
+    groupSkippedCountOne: "{count} skuld · saldot kvarstår",
+    groupSkippedCountOther: "{count} skulder · saldot kvarstår",
+    groupPaidTitle: "Betald · Avslutad",
+    groupPaidInsight:
+      "Färdigbetalda skulder. De räknas inte längre i månadens betalningar.",
+    groupPaidCountOne: "{count} skuld",
+    groupPaidCountOther: "{count} skulder",
+    groupPaidSummary: "Slutbetald",
+    groupArchivedTitle: "Arkiverad",
+    groupArchivedInsight:
+      "Dolda från den vanliga planeringen. Kan återställas när som helst.",
+    groupArchivedCountOne: "{count} skuld · visas inte i planeringen",
+    groupArchivedCountOther: "{count} skulder · visas inte i planeringen",
+    groupArchivedExpand: "Visa arkiverade",
+    groupArchivedCollapse: "Dölj arkiverade",
+
+    // group head totals
+    groupTotalPlannedLabel: "Planerat · per månad",
+    groupTotalNotIncludedLabel: "Denna månad",
+    groupTotalRemainingLabel: "Kvar att betala",
+
+    // -------------------------------------------------- row column / badges
+    rowsColBalance: "Kvar att betala",
+    rowsColPayment: "Planerad · per månad",
+    rowCellBalance: "Kvar att betala",
+    rowCellPayment: "Planerad",
+    rowMetaLoanLabel: "Lån",
+    rowMetaCreditLabel: "Kreditkort",
+    rowMetaInstallmentLabel: "Avbetalning",
+    rowMetaApr: "ränta {value}",
+    rowMetaMinPayment: "minst {value}",
+    rowMetaFee: "avgift {value}/mån",
+    rowMetaPlanPayment: "planen: {value}/mån",
+    rowMetaSeparator: "·",
+    rowBadgeMonthOnly: "Bara {yearMonthLabel}",
+    rowBadgeSkipped: "Ingår inte i {yearMonthLabel}",
+    rowBadgePaid: "Betald",
+    rowEmptyPayment: "—",
+
+    // ---------------------------------------------- row action menu copy
+    rowActionEditPayment: "Redigera planerad betalning",
+    rowActionUpdateBalance: "Uppdatera saldo",
+    rowActionViewProgress: "Visa återbetalningsförlopp",
+    rowActionEditDetails: "Redigera uppgifter",
+    rowActionSkip: "Hoppa över denna månad",
+    rowActionInclude: "Inkludera denna månad",
+    rowActionMarkPaid: "Markera som betald",
+    rowActionArchive: "Arkivera",
+    rowActionRestore: "Återställ skuld",
+    rowActionRemove: "Ta bort",
+    rowActionPendingPrHint: "Tillgängligt när åtgärden kopplas in",
+
+    // ------------------------------------------ disabled-reason copy (codes)
+    reasonMonthClosed: "Månaden är avslutad — den här åtgärden är låst.",
+    reasonMonthSkipped: "Månaden är överhoppad — den här åtgärden är låst.",
+    reasonRowRemoved: "Posten är borttagen från månaden.",
+    reasonRowDeleted: "Posten är borttagen.",
+    reasonRowClosed: "Posten är låst.",
+    reasonMonthOnlyNoPlan:
+      "Den här skulden finns bara i månaden — planinställningar kan inte ändras.",
+    reasonSourceMissing: "Den kopplade planposten saknas.",
+    reasonSourcePaidOff: "Skulden är markerad som betald.",
+    reasonSourceArchived: "Skulden är arkiverad.",
+    reasonSourceDeleted: "Skulden är borttagen.",
+    reasonAlreadyIncluded: "Skulden ingår redan denna månad.",
+    reasonAlreadyNotIncluded: "Skulden ingår inte denna månad.",
+    reasonSourceLinkedHistoryExists:
+      "Skulden har historik — arkivera istället för att ta bort.",
+
+    // -------------------------------------------------------- read-only note
+    readOnlyBanner:
+      "{yearMonthLabel} är avslutad. Du kan se skuldernas historik men inte ändra något. Öppna en aktiv månad för att redigera.",
+    emptyHeading: "Inga skulder den här månaden",
+    emptyBody:
+      "När du lägger till en skuld visas den här — med saldo, ränta, planerad månadsbetalning och återbetalningsförlopp. Allt på ett lugnt och tydligt ställe.",
   },
+
   en: {
     loadingDebts: "Loading debts...",
     loadEditorError: "Could not load the debts editor.",
@@ -48,6 +176,36 @@ export const debtsEditorPageDict = {
     expenses: "Expenses",
     debts: "Debts",
     remaining: "Remaining",
+
+    heroEyebrow: "Debts · {yearMonthLabel}",
+    heroHeadline:
+      "You plan to pay {amount} toward debts this month",
+    heroHeadlineEmpty: "No active debts this month",
+    heroSplitLoan: "{amount} loan",
+    heroSplitCredit: "{amount} credit card",
+    heroSplitInstallment: "{amount} installment",
+    heroCta: "Add debt",
+    heroCtaPendingPr: "Available once add-debt wiring ships",
+    heroSnapshotLabel: "Owed balance",
+    heroBudgetRemaining: "{amount} left in budget",
+    heroReadOnlyPill: "{yearMonthLabel} is closed — read only",
+
+    stripSectionLabel: "Debts this month",
+    stripHeadline: "{amount} in monthly payments",
+    stripMessage:
+      "Monthly payments are planned outflows for this month. The owed balance is a snapshot of what you still owe — it only changes when you update the balance or record an actual payment, not when you change a planned monthly payment.",
+    stripZoneFlowLabel: "Affects the month",
+    stripZoneSnapshotLabel: "Snapshot",
+    stripPaymentsLabel: "Monthly payments",
+    stripFreeAfterLabel: "Remaining after income, expenses, savings & debts",
+    stripBalanceLabel: "Owed balance — total",
+    stripSnapshotNote:
+      "Includes debts you are skipping this month — they are still owed.",
+    stripMeterCaption: "How payments split by type",
+    stripMeterLoan: "Loan",
+    stripMeterCredit: "Credit card",
+    stripMeterInstallment: "Installment",
+
     sectionTitle: "Debts",
     rowsCountOne: "{count} debt",
     rowsCountOther: "{count} debts",
@@ -66,7 +224,86 @@ export const debtsEditorPageDict = {
     readOnly: "This month is closed and cannot be edited.",
     plannedNote:
       "Only the planned monthly payment changes here. Balances are not updated by this flow.",
+
+    groupActiveTitle: "Paid this month",
+    groupActiveInsight: "Planned outflows that count toward this month.",
+    groupActiveCountOne: "{count} debt",
+    groupActiveCountOther: "{count} debts",
+    groupSkippedTitle: "Not included this month",
+    groupSkippedInsight:
+      "Paused for a month. The debt is not closed and the balance is unchanged.",
+    groupSkippedCountOne: "{count} debt · balance remains",
+    groupSkippedCountOther: "{count} debts · balance remains",
+    groupPaidTitle: "Paid off · Completed",
+    groupPaidInsight:
+      "Fully paid debts. They no longer count in this month's payments.",
+    groupPaidCountOne: "{count} debt",
+    groupPaidCountOther: "{count} debts",
+    groupPaidSummary: "Paid off",
+    groupArchivedTitle: "Archived",
+    groupArchivedInsight:
+      "Hidden from normal planning. Can be restored at any time.",
+    groupArchivedCountOne: "{count} debt · hidden from planning",
+    groupArchivedCountOther: "{count} debts · hidden from planning",
+    groupArchivedExpand: "Show archived",
+    groupArchivedCollapse: "Hide archived",
+
+    groupTotalPlannedLabel: "Planned · per month",
+    groupTotalNotIncludedLabel: "This month",
+    groupTotalRemainingLabel: "Owed balance",
+
+    rowsColBalance: "Owed balance",
+    rowsColPayment: "Planned · per month",
+    rowCellBalance: "Owed balance",
+    rowCellPayment: "Planned",
+    rowMetaLoanLabel: "Loan",
+    rowMetaCreditLabel: "Credit card",
+    rowMetaInstallmentLabel: "Installment",
+    rowMetaApr: "rate {value}",
+    rowMetaMinPayment: "min {value}",
+    rowMetaFee: "fee {value}/mo",
+    rowMetaPlanPayment: "plan: {value}/mo",
+    rowMetaSeparator: "·",
+    rowBadgeMonthOnly: "Only {yearMonthLabel}",
+    rowBadgeSkipped: "Not in {yearMonthLabel}",
+    rowBadgePaid: "Paid off",
+    rowEmptyPayment: "—",
+
+    rowActionEditPayment: "Adjust planned payment",
+    rowActionUpdateBalance: "Update balance",
+    rowActionViewProgress: "View repayment progress",
+    rowActionEditDetails: "Edit details",
+    rowActionSkip: "Skip this month",
+    rowActionInclude: "Include this month",
+    rowActionMarkPaid: "Mark as paid off",
+    rowActionArchive: "Archive",
+    rowActionRestore: "Restore debt",
+    rowActionRemove: "Remove",
+    rowActionPendingPrHint: "Available once the action is wired",
+
+    reasonMonthClosed: "The month is closed — this action is locked.",
+    reasonMonthSkipped: "The month was skipped — this action is locked.",
+    reasonRowRemoved: "The row has been removed from this month.",
+    reasonRowDeleted: "The row has been removed.",
+    reasonRowClosed: "The row is locked.",
+    reasonMonthOnlyNoPlan:
+      "This debt only exists in the current month — plan settings cannot be changed.",
+    reasonSourceMissing: "The linked plan row is missing.",
+    reasonSourcePaidOff: "The debt is marked as paid off.",
+    reasonSourceArchived: "The debt is archived.",
+    reasonSourceDeleted: "The debt has been removed.",
+    reasonAlreadyIncluded: "The debt already counts this month.",
+    reasonAlreadyNotIncluded: "The debt does not count this month.",
+    reasonSourceLinkedHistoryExists:
+      "The debt has history — archive instead of removing.",
+
+    readOnlyBanner:
+      "{yearMonthLabel} is closed. You can review the debts history but not change anything. Open an active month to edit.",
+    emptyHeading: "No debts this month",
+    emptyBody:
+      "When you add a debt it shows up here — with balance, rate, planned monthly payment, and repayment progress. All in one calm place.",
   },
+
   et: {
     loadingDebts: "Võlgade laadimine...",
     loadEditorError: "Võlgade muutjat ei saanud laadida.",
@@ -82,6 +319,35 @@ export const debtsEditorPageDict = {
     expenses: "Kulud",
     debts: "Võlad",
     remaining: "Alles",
+
+    heroEyebrow: "Võlad · {yearMonthLabel}",
+    heroHeadline: "Plaanid sel kuul tasuda võlgu kokku {amount}",
+    heroHeadlineEmpty: "Sellel kuul aktiivseid võlgu ei ole",
+    heroSplitLoan: "{amount} laenu",
+    heroSplitCredit: "{amount} krediitkaart",
+    heroSplitInstallment: "{amount} järelmaksu",
+    heroCta: "Lisa võlg",
+    heroCtaPendingPr: "Saadaval, kui lisamise voog on ühendatud",
+    heroSnapshotLabel: "Tasumata jääk",
+    heroBudgetRemaining: "{amount} eelarvesse alles",
+    heroReadOnlyPill: "{yearMonthLabel} on suletud — ainult vaatamiseks",
+
+    stripSectionLabel: "Võlad sel kuul",
+    stripHeadline: "{amount} kuumakseteks",
+    stripMessage:
+      "Kuumaksed on sel kuul planeeritud väljaminekud. Jääk on hetkeolukord võlast — see muutub ainult siis, kui uuendad jääki või kannad sisse tegeliku makse, mitte siis, kui muudad planeeritud makset.",
+    stripZoneFlowLabel: "Mõjutab kuud",
+    stripZoneSnapshotLabel: "Hetkeolukord",
+    stripPaymentsLabel: "Kuumaksed",
+    stripFreeAfterLabel: "Alles pärast tulu, kulu, säästu ja võlgu",
+    stripBalanceLabel: "Tasumata jääk — kokku",
+    stripSnapshotNote:
+      "Sisaldab võlgu, mille sa sel kuul vahele jätad — need on endiselt tasumata.",
+    stripMeterCaption: "Kuidas maksed liikide vahel jagunevad",
+    stripMeterLoan: "Laen",
+    stripMeterCredit: "Krediitkaart",
+    stripMeterInstallment: "Järelmaks",
+
     sectionTitle: "Võlad",
     rowsCountOne: "{count} võlg",
     rowsCountOther: "{count} võlga",
@@ -100,5 +366,83 @@ export const debtsEditorPageDict = {
     readOnly: "See kuu on suletud ja seda ei saa muuta.",
     plannedNote:
       "Siin muudetakse ainult planeeritud kuumakset. Jääki see vaade ei uuenda.",
+
+    groupActiveTitle: "Tasutakse sel kuul",
+    groupActiveInsight: "Planeeritud väljaminekud, mis kuusse kuuluvad.",
+    groupActiveCountOne: "{count} võlg",
+    groupActiveCountOther: "{count} võlga",
+    groupSkippedTitle: "Ei kuulu sel kuul",
+    groupSkippedInsight:
+      "Üheks kuuks peatatud. Võlg ei ole lõpetatud ja jääk ei muutu.",
+    groupSkippedCountOne: "{count} võlg · jääk püsib",
+    groupSkippedCountOther: "{count} võlga · jääk püsib",
+    groupPaidTitle: "Tasutud · Lõpetatud",
+    groupPaidInsight:
+      "Täielikult tasutud võlad. Nad ei loe enam kuu maksetes.",
+    groupPaidCountOne: "{count} võlg",
+    groupPaidCountOther: "{count} võlga",
+    groupPaidSummary: "Tasutud",
+    groupArchivedTitle: "Arhiveeritud",
+    groupArchivedInsight:
+      "Peidetud tavaplaneerimisest. Saab igal ajal taastada.",
+    groupArchivedCountOne: "{count} võlg · planeerimises peidetud",
+    groupArchivedCountOther: "{count} võlga · planeerimises peidetud",
+    groupArchivedExpand: "Näita arhiveeritud",
+    groupArchivedCollapse: "Peida arhiveeritud",
+
+    groupTotalPlannedLabel: "Planeeritud · kuus",
+    groupTotalNotIncludedLabel: "Sel kuul",
+    groupTotalRemainingLabel: "Tasumata jääk",
+
+    rowsColBalance: "Tasumata jääk",
+    rowsColPayment: "Planeeritud · kuus",
+    rowCellBalance: "Tasumata jääk",
+    rowCellPayment: "Planeeritud",
+    rowMetaLoanLabel: "Laen",
+    rowMetaCreditLabel: "Krediitkaart",
+    rowMetaInstallmentLabel: "Järelmaks",
+    rowMetaApr: "intress {value}",
+    rowMetaMinPayment: "min {value}",
+    rowMetaFee: "tasu {value}/kuus",
+    rowMetaPlanPayment: "plaan: {value}/kuus",
+    rowMetaSeparator: "·",
+    rowBadgeMonthOnly: "Ainult {yearMonthLabel}",
+    rowBadgeSkipped: "Ei kuulu {yearMonthLabel}",
+    rowBadgePaid: "Tasutud",
+    rowEmptyPayment: "—",
+
+    rowActionEditPayment: "Kohanda planeeritud makset",
+    rowActionUpdateBalance: "Uuenda jääki",
+    rowActionViewProgress: "Vaata tasumise käiku",
+    rowActionEditDetails: "Muuda andmeid",
+    rowActionSkip: "Jäta see kuu vahele",
+    rowActionInclude: "Lisa sel kuul",
+    rowActionMarkPaid: "Märgi tasutuks",
+    rowActionArchive: "Arhiveeri",
+    rowActionRestore: "Taasta võlg",
+    rowActionRemove: "Eemalda",
+    rowActionPendingPrHint: "Saadaval, kui toiming on ühendatud",
+
+    reasonMonthClosed: "Kuu on suletud — see toiming on lukus.",
+    reasonMonthSkipped: "Kuu jäeti vahele — see toiming on lukus.",
+    reasonRowRemoved: "Rida on sellest kuust eemaldatud.",
+    reasonRowDeleted: "Rida on eemaldatud.",
+    reasonRowClosed: "Rida on lukus.",
+    reasonMonthOnlyNoPlan:
+      "See võlg on olemas ainult selles kuus — plaani sätteid ei saa muuta.",
+    reasonSourceMissing: "Seotud plaani rida on puudu.",
+    reasonSourcePaidOff: "Võlg on märgitud tasutuks.",
+    reasonSourceArchived: "Võlg on arhiveeritud.",
+    reasonSourceDeleted: "Võlg on eemaldatud.",
+    reasonAlreadyIncluded: "Võlg on juba sel kuul arvestatud.",
+    reasonAlreadyNotIncluded: "Võlg ei ole sel kuul arvestatud.",
+    reasonSourceLinkedHistoryExists:
+      "Võlal on ajalugu — eemaldamise asemel arhiveeri.",
+
+    readOnlyBanner:
+      "{yearMonthLabel} on suletud. Saad vaadata võlgade ajalugu, kuid mitte muuta. Muutmiseks ava aktiivne kuu.",
+    emptyHeading: "Sellel kuul võlgu ei ole",
+    emptyBody:
+      "Kui lisad võla, ilmub see siia — jäägi, intressi, planeeritud kuumakse ja tasumise käiguga. Kõik ühes rahulikus kohas.",
   },
 } as const;

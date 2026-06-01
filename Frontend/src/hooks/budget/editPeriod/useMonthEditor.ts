@@ -8,6 +8,7 @@ import {
   createBudgetMonthSavingsGoal,
   deleteBudgetMonthExpenseItem,
   deleteBudgetMonthIncomeItem,
+  getBudgetMonthDebtEditor,
   getBudgetMonthDebts,
   getBudgetMonthIncomeItems,
   getBudgetMonthSavingsGoals,
@@ -480,6 +481,28 @@ export function useBudgetMonthDebts(
       }
 
       return getBudgetMonthDebts(yearMonth);
+    },
+    enabled: enabled && !!yearMonth,
+  });
+}
+
+/**
+ * Debt PR 5 target editor read model. Returns hero summary, grouped rows
+ * with action permissions, optional progress, and recent events for the
+ * given month. PR 6's shell renders entirely from this hook.
+ */
+export function useBudgetMonthDebtEditor(
+  yearMonth: string | undefined,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: monthEditorQueryKeys.debtEditor(yearMonth ?? ""),
+    queryFn: () => {
+      if (!yearMonth) {
+        throw new Error("Missing yearMonth.");
+      }
+
+      return getBudgetMonthDebtEditor(yearMonth);
     },
     enabled: enabled && !!yearMonth,
   });

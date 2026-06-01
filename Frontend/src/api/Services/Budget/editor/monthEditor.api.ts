@@ -1,6 +1,7 @@
 import type { ApiEnvelope } from "@/api/api.types";
 import { api } from "@/api/axios";
 import { unwrapEnvelopeData } from "@/api/envelope";
+import type { BudgetMonthDebtEditorDto } from "@/types/budget/DebtEditorDto";
 import type { BudgetMonthSavingsGoalArchiveRowDto } from "@/types/budget/BudgetMonthSavingsGoalArchiveRowDto";
 import type {
   SavingsMethodCode,
@@ -405,6 +406,27 @@ export async function getBudgetMonthDebts(
   });
 
   return unwrapEnvelopeData(res, "Could not load month debts.");
+}
+
+/**
+ * Debt PR 5 target editor read model. One fetch returns hero summary, grouped
+ * rows with action permissions / disabled reasons, optional balance progress,
+ * and the recent-events timeline. PR 6's shell renders entirely from this
+ * payload — financial state is never re-derived on the client.
+ */
+export async function getBudgetMonthDebtEditor(
+  yearMonth: string,
+): Promise<BudgetMonthDebtEditorDto> {
+  const res = await api.get<ApiEnvelope<BudgetMonthDebtEditorDto>>(
+    `/api/budgets/months/${yearMonth}/debt-editor`,
+    {
+      headers: {
+        "Cache-Control": "no-cache",
+      },
+    },
+  );
+
+  return unwrapEnvelopeData(res, "Could not load debt editor.");
 }
 
 export async function patchBudgetMonthDebt(
