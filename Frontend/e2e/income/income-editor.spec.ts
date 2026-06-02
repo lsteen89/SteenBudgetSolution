@@ -188,16 +188,21 @@ test.describe.serial("income editor", () => {
     await page.getByTestId("income-hero-create").click();
 
     // Global add is the kind-unknown path — the type selector must be
-    // rendered, and the month-only callout must be present (create is
-    // always month-only per the handover).
+    // rendered, and the two-card create-scope selector must be present (the
+    // old static "Skapas bara i {month}" callout was replaced by a real
+    // scope choice in the income editor refactor).
     await expect(page.locator("#income-kind")).toBeVisible();
     await expect(
-      page.getByTestId("income-item-modal-month-only-callout"),
+      page.getByTestId("income-item-modal-create-scope"),
     ).toBeVisible();
 
-    // Pick sideHustle so the row lands in the side income group and the
-    // delete test below has a deterministic month-only row to remove.
+    // Pick sideHustle so the row lands in the side income group, and choose
+    // the month-only scope (create defaults to recurring) so the delete test
+    // below has a deterministic month-only row to remove.
     await page.locator("#income-kind").selectOption("sideHustle");
+    await page
+      .getByTestId("income-item-modal-create-scope-currentMonthOnly")
+      .click();
     await page.locator("#income-name").fill(GLOBAL_ADD_SIDE_NAME);
     await page.locator("#income-amount").fill("750");
 
@@ -226,14 +231,18 @@ test.describe.serial("income editor", () => {
     await page.getByTestId("income-ledger-group-householdMember-add").click();
 
     // Group add preselects the kind and hides the selector — the user
-    // chose "household" by clicking that group's add. The month-only
-    // callout still appears because create is month-only regardless of
-    // entry point.
+    // chose "household" by clicking that group's add. The two-card
+    // create-scope selector appears regardless of entry point.
     await expect(page.locator("#income-kind")).toHaveCount(0);
     await expect(
-      page.getByTestId("income-item-modal-month-only-callout"),
+      page.getByTestId("income-item-modal-create-scope"),
     ).toBeVisible();
 
+    // Choose the month-only scope (create defaults to recurring) so the
+    // later edit/delete tests have a deterministic month-only household row.
+    await page
+      .getByTestId("income-item-modal-create-scope-currentMonthOnly")
+      .click();
     await page.locator("#income-name").fill(GROUP_ADD_HOUSEHOLD_NAME);
     await page.locator("#income-amount").fill("1200");
 

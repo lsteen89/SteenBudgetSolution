@@ -80,7 +80,7 @@ export default function DebtPlannedPaymentModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[90]">
+    <div className="fixed inset-0 z-[90]" data-testid="debt-planned-payment-modal">
       <button
         type="button"
         aria-label={t("closeAriaLabel")}
