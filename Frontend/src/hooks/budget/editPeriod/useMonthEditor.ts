@@ -3,6 +3,7 @@ import {
   cancelBudgetMonthSavingsGoal,
   changeBudgetMonthSavingsGoalTargetAmount,
   completeBudgetMonthSavingsGoal,
+  createBudgetMonthDebt,
   createBudgetMonthExpenseItem,
   createBudgetMonthIncomeItem,
   createBudgetMonthSavingsGoal,
@@ -17,6 +18,7 @@ import {
   getBudgetMonthEditor,
   patchBudgetMonthBaseSavings,
   patchBudgetMonthDebt,
+  patchBudgetMonthDebtDetails,
   patchBudgetMonthDebtsBulk,
   patchBudgetMonthExpenseItem,
   patchBudgetMonthExpenseItemsBulk,
@@ -31,11 +33,13 @@ import {
 } from "@/api/Services/Budget/editor/monthEditor.api";
 import type { SavingsMethodCode } from "@/types/budget/SavingsMethodDto";
 import type {
+  CreateBudgetMonthDebtRequestDto,
   CreateBudgetMonthExpenseItemRequestDto,
   CreateBudgetMonthIncomeItemRequestDto,
   CreateBudgetMonthSavingsGoalRequestDto,
   PatchBudgetMonthBaseSavingsRequestDto,
   PatchBudgetMonthDebtBulkRowDto,
+  PatchBudgetMonthDebtDetailsRequestDto,
   PatchBudgetMonthDebtRequestDto,
   PatchBudgetMonthExpenseItemBulkRowDto,
   PatchBudgetMonthExpenseItemRequestDto,
@@ -519,6 +523,42 @@ export function usePatchBudgetMonthDebt(yearMonth: string) {
       monthDebtId: string;
       payload: PatchBudgetMonthDebtRequestDto;
     }) => patchBudgetMonthDebt(yearMonth, monthDebtId, payload),
+    onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
+  });
+}
+
+/**
+ * Debt PR 7 — `POST /api/budgets/months/{ym}/debt-items`. Success invalidates
+ * the same editor surfaces every other debt mutation uses so the debt editor
+ * read model AND the dashboard projection re-fetch and the equation stays
+ * reconciled (`income + carryOver − expenses − savings − includedDebtPayments`).
+ */
+export function useCreateBudgetMonthDebt(yearMonth: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: CreateBudgetMonthDebtRequestDto) =>
+      createBudgetMonthDebt(yearMonth, payload),
+    onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
+  });
+}
+
+/**
+ * Debt PR 7 — `PATCH .../debt-items/{id}/details`. Edits name / type / APR /
+ * fee / min / term / planned monthly payment. Balance is intentionally not
+ * accepted by this endpoint — PR 3's `Uppdatera saldo` owns it.
+ */
+export function usePatchBudgetMonthDebtDetails(yearMonth: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      monthDebtId,
+      payload,
+    }: {
+      monthDebtId: string;
+      payload: PatchBudgetMonthDebtDetailsRequestDto;
+    }) => patchBudgetMonthDebtDetails(yearMonth, monthDebtId, payload),
     onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
   });
 }

@@ -293,6 +293,63 @@ export type PatchBudgetMonthDebtsBulkRequestDto = {
   items: PatchBudgetMonthDebtBulkRowDto[];
 };
 
+// Debt PR 2 — `POST /api/budgets/months/{ym}/debt-items`. Unlike income, the
+// create endpoint accepts all three scopes: `budgetPlanOnly` is a real use
+// case for debt (a debt that starts in future planning without touching the
+// already-materialized current month). The backend resolves null/omitted to
+// `currentMonthOnly`.
+export type DebtCreateScope = DebtEditScope;
+
+export type CreateBudgetMonthDebtRequestDto = {
+  name: string;
+  type: string;
+  balance: number;
+  apr: number;
+  monthlyFee?: number | null;
+  minPayment?: number | null;
+  termMonths?: number | null;
+  monthlyPayment: number;
+  scope?: DebtCreateScope | null;
+};
+
+// Surfaces the baseline `Debt` plan row after a Debt PR 2 create that wrote
+// the plan side — either alongside a current-month row
+// (`currentMonthAndBudgetPlan`) or on its own (`budgetPlanOnly`).
+export type DebtSourceSummaryDto = {
+  sourceDebtId: string;
+  name: string;
+  type: string;
+  balance: number;
+  apr: number;
+  monthlyFee: number | null;
+  minPayment: number | null;
+  termMonths: number | null;
+  monthlyPayment: number;
+};
+
+// One of the two payload halves is always populated; both are populated when
+// the create wrote a current-month row and a baseline plan row in the same
+// transaction. The frontend should not infer the create scope from the nulls
+// — the create call already carried the user's chosen scope.
+export type CreateBudgetMonthDebtResponseDto = {
+  monthRow: BudgetMonthDebtEditorRowDto | null;
+  source: DebtSourceSummaryDto | null;
+};
+
+// Debt PR 2 — `PATCH .../debt-items/{id}/details`. Distinct from the
+// planned-payment-only PATCH route (`PatchBudgetMonthDebtRequestDto`); detail
+// edits never move balance — PR 3's `Uppdatera saldo` endpoint owns that.
+export type PatchBudgetMonthDebtDetailsRequestDto = {
+  name: string;
+  type: string;
+  apr: number;
+  monthlyFee?: number | null;
+  minPayment?: number | null;
+  termMonths?: number | null;
+  monthlyPayment: number;
+  scope?: DebtEditScope | null;
+};
+
 export type ApiErrorDto = {
   code: string;
   message: string;

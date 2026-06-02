@@ -19,8 +19,13 @@ type DebtLedgerGroupProps = {
   yearMonthLabel: string;
   /** Page-level read-only flag (closed/skipped month). */
   readOnly: boolean;
-  /** Wired only for the planned-payment action in PR 6. */
+  /** Wired in PR 6 for the planned-payment action. */
   onEditPayment: (row: DebtEditorRowDto) => void;
+  /**
+   * Debt PR 7 — passed straight through to each row so the edit-details
+   * kebab item appears when the parent has wired the drawer.
+   */
+  onEditDetails?: (row: DebtEditorRowDto) => void;
   /**
    * Override the default opening state. Used by the page to keep the archived
    * group collapsed on first render.
@@ -37,6 +42,7 @@ export default function DebtLedgerGroup({
   yearMonthLabel,
   readOnly,
   onEditPayment,
+  onEditDetails,
   defaultOpen,
 }: DebtLedgerGroupProps) {
   const locale = useAppLocale();
@@ -144,6 +150,7 @@ export default function DebtLedgerGroup({
                   yearMonthLabel={yearMonthLabel}
                   readOnly={readOnly}
                   onEditPayment={onEditPayment}
+                  onEditDetails={onEditDetails}
                 />
               ))}
             </div>

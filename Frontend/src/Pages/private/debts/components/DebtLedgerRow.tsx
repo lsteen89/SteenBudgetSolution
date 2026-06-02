@@ -24,11 +24,17 @@ type DebtLedgerRowProps = {
    */
   readOnly: boolean;
   /**
-   * Called when the user picks the planned-payment edit action. PR 6 only
-   * wires this action; everything else surfaces as disabled with localised
-   * reason copy until PR 7-9 ship.
+   * Called when the user picks the planned-payment edit action. PR 6 wired
+   * this action; PR 7 adds `onEditDetails` alongside it.
    */
   onEditPayment: (row: DebtEditorRowDto) => void;
+  /**
+   * Debt PR 7 — opens the edit-details drawer. Optional so callers that
+   * pre-date PR 7 (and existing tests) keep their existing kebab. When
+   * wired, the action surfaces only when the backend `actions.canEditDetails`
+   * flag is true.
+   */
+  onEditDetails?: (row: DebtEditorRowDto) => void;
 };
 
 const TYPE_DOT_CLASS: Record<DebtTypeBucket, string> = {
@@ -45,6 +51,7 @@ export default function DebtLedgerRow({
   yearMonthLabel,
   readOnly,
   onEditPayment,
+  onEditDetails,
 }: DebtLedgerRowProps) {
   const locale = useAppLocale();
   const currency = useAppCurrency();
@@ -149,7 +156,7 @@ export default function DebtLedgerRow({
   // BudgetEditorRowActionsMenu primitive has no concept of a clickable-yet-
   // inert item, and the design's per-lifecycle kebab variants belong to
   // PR 7-9 where each item gets real wiring.
-  const items = buildActionItems(row, t, onEditPayment);
+  const items = buildActionItems(row, t, onEditPayment, onEditDetails);
 
   const reasons = row.disabledReasons;
   const tooltipReason = primaryReason(reasons);
@@ -289,20 +296,29 @@ function buildActionItems(
   row: DebtEditorRowDto,
   t: <K extends keyof typeof debtsEditorPageDict.sv>(key: K) => string,
   onEditPayment: (row: DebtEditorRowDto) => void,
+  onEditDetails?: (row: DebtEditorRowDto) => void,
 ): BudgetEditorRowActionItem[] {
   const items: BudgetEditorRowActionItem[] = [];
 
-  // Only the planned-payment edit action is wired in PR 6. We surface it
-  // strictly when the backend says the row is editable today. Other actions
-  // (skip / include / mark-paid / archive / restore / remove / update-balance /
-  // edit-details / view-progress) are intentionally absent from this list
-  // until PR 7-9 wire their submit flows — they will join one by one as each
-  // PR lands.
+  // PR 6 wired the planned-payment action. PR 7 adds the edit-details
+  // action when the parent has provided a handler and the backend
+  // `actions.canEditDetails` flag allows it. Other actions (skip /
+  // include / mark-paid / archive / restore / remove / update-balance /
+  // view-progress) are intentionally absent from this list until PR 8-9
+  // wire their submit flows.
   if (row.actions.canEditPayment) {
     items.push({
       key: "edit-payment",
       label: t("rowActionEditPayment"),
       onSelect: () => onEditPayment(row),
+    });
+  }
+
+  if (onEditDetails && row.actions.canEditDetails) {
+    items.push({
+      key: "edit-details",
+      label: t("rowActionEditDetails"),
+      onSelect: () => onEditDetails(row),
     });
   }
 

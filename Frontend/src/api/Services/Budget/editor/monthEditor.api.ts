@@ -14,11 +14,14 @@ import type {
   BudgetMonthIncomeItemEditorRowDto,
   BudgetMonthExpenseItemEditorRowDto,
   BudgetMonthSavingsGoalEditorRowDto,
+  CreateBudgetMonthDebtRequestDto,
+  CreateBudgetMonthDebtResponseDto,
   CreateBudgetMonthIncomeItemRequestDto,
   CreateBudgetMonthExpenseItemRequestDto,
   CreateBudgetMonthSavingsGoalRequestDto,
   PatchBudgetMonthBaseSavingsRequestDto,
   PatchBudgetMonthDebtBulkRowDto,
+  PatchBudgetMonthDebtDetailsRequestDto,
   PatchBudgetMonthDebtRequestDto,
   PatchBudgetMonthDebtsBulkRequestDto,
   PatchBudgetMonthIncomeItemBulkRowDto,
@@ -439,6 +442,45 @@ export async function patchBudgetMonthDebt(
   >(`/api/budgets/months/${yearMonth}/debt-items/${monthDebtId}`, payload);
 
   return unwrapEnvelopeData(res, "Could not update month debt.");
+}
+
+/**
+ * Debt PR 2 / PR 7 — create a debt from the editor. The backend supports all
+ * three scopes (`currentMonthOnly`, `currentMonthAndBudgetPlan`,
+ * `budgetPlanOnly`) and resolves null/omitted to `currentMonthOnly`. The
+ * response wraps both halves so a `budgetPlanOnly` create can surface a
+ * source summary without a follow-up fetch.
+ */
+export async function createBudgetMonthDebt(
+  yearMonth: string,
+  payload: CreateBudgetMonthDebtRequestDto,
+): Promise<CreateBudgetMonthDebtResponseDto> {
+  const res = await api.post<
+    ApiEnvelope<CreateBudgetMonthDebtResponseDto>
+  >(`/api/budgets/months/${yearMonth}/debt-items`, payload);
+
+  return unwrapEnvelopeData(res, "Could not create debt.");
+}
+
+/**
+ * Debt PR 2 / PR 7 — edit metadata (name / type / APR / fee / min / term /
+ * planned monthly payment). Balance is intentionally not part of this
+ * contract; PR 3's `Uppdatera saldo` endpoint owns balance changes. Scope
+ * semantics mirror the planned-payment patch.
+ */
+export async function patchBudgetMonthDebtDetails(
+  yearMonth: string,
+  monthDebtId: string,
+  payload: PatchBudgetMonthDebtDetailsRequestDto,
+): Promise<BudgetMonthDebtEditorRowDto> {
+  const res = await api.patch<
+    ApiEnvelope<BudgetMonthDebtEditorRowDto>
+  >(
+    `/api/budgets/months/${yearMonth}/debt-items/${monthDebtId}/details`,
+    payload,
+  );
+
+  return unwrapEnvelopeData(res, "Could not update debt details.");
 }
 
 /**

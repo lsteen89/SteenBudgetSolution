@@ -8,14 +8,21 @@ import { Plus } from "lucide-react";
 type DebtsEditorEmptyStateProps = {
   /** Page-level read-only flag — hides the add CTA. */
   readOnly: boolean;
+  /**
+   * Debt PR 7 — opens the add-debt drawer. When omitted (older callers /
+   * tests), the CTA falls back to the PR 6 disabled placeholder.
+   */
+  onAddDebt?: () => void;
 };
 
 /**
- * Calm empty state. The single `Lägg till skuld` CTA mirrors the hero's: it
- * stays disabled in PR 6 because the add-debt FE wiring lands in PR 7.
+ * Calm empty state. The single `Lägg till skuld` CTA mirrors the hero's:
+ * PR 7 wires it through `onAddDebt`; older callers still render the
+ * disabled placeholder.
  */
 export default function DebtsEditorEmptyState({
   readOnly,
+  onAddDebt,
 }: DebtsEditorEmptyStateProps) {
   const locale = useAppLocale();
   const t = <K extends keyof typeof debtsEditorPageDict.sv>(key: K) =>
@@ -44,23 +51,40 @@ export default function DebtsEditorEmptyState({
 
       {!readOnly ? (
         <div className="mt-5 flex justify-center">
-          <button
-            type="button"
-            disabled
-            aria-disabled="true"
-            title={t("heroCtaPendingPr")}
-            data-testid="debts-empty-add"
-            data-pending-pr="PR-07"
-            className={cn(
-              "inline-flex items-center gap-2 rounded-full",
-              "bg-eb-accent/45 px-5 py-2.5 text-sm font-semibold text-white/85",
-              "shadow-eb",
-              "cursor-not-allowed",
-            )}
-          >
-            <Plus className="h-4 w-4" strokeWidth={2.4} />
-            {t("heroCta")}
-          </button>
+          {onAddDebt ? (
+            <button
+              type="button"
+              onClick={onAddDebt}
+              data-testid="debts-empty-add"
+              className={cn(
+                "inline-flex items-center gap-2 rounded-full",
+                "bg-eb-accent px-5 py-2.5 text-sm font-semibold text-white",
+                "shadow-eb transition hover:brightness-105",
+                "focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-eb-accent/30",
+              )}
+            >
+              <Plus className="h-4 w-4" strokeWidth={2.4} />
+              {t("heroCta")}
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled
+              aria-disabled="true"
+              title={t("heroCtaPendingPr")}
+              data-testid="debts-empty-add"
+              data-pending-pr="PR-07"
+              className={cn(
+                "inline-flex items-center gap-2 rounded-full",
+                "bg-eb-accent/45 px-5 py-2.5 text-sm font-semibold text-white/85",
+                "shadow-eb",
+                "cursor-not-allowed",
+              )}
+            >
+              <Plus className="h-4 w-4" strokeWidth={2.4} />
+              {t("heroCta")}
+            </button>
+          )}
         </div>
       ) : null}
     </section>

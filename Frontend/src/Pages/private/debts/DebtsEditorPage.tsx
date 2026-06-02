@@ -1,7 +1,9 @@
 import BudgetEditorPageShell from "@/components/molecules/forms/budgetEditor/BudgetEditorPageShell";
 import {
   useBudgetMonthDebtEditor,
+  useCreateBudgetMonthDebt,
   usePatchBudgetMonthDebt,
+  usePatchBudgetMonthDebtDetails,
 } from "@/hooks/budget/editPeriod/useMonthEditor";
 import { useBudgetDashboardMonthQuery } from "@/hooks/budget/useBudgetDashboardMonthQuery";
 import { useBudgetMonthsStatusQuery } from "@/hooks/budget/useBudgetMonthsStatusQuery";
@@ -21,6 +23,12 @@ import { debtsEditorPageDict } from "@/utils/i18n/pages/private/debts/DebtsEdito
 import { tDict } from "@/utils/i18n/translate";
 import { CalendarDays } from "lucide-react";
 import { useMemo, useState } from "react";
+import DebtCreateModal, {
+  type DebtCreateSubmitValues,
+} from "./components/DebtCreateModal";
+import DebtDetailsModal, {
+  type DebtDetailsSubmitValues,
+} from "./components/DebtDetailsModal";
 import DebtLedgerGroup from "./components/DebtLedgerGroup";
 import DebtPlannedPaymentModal from "./components/DebtPlannedPaymentModal";
 import DebtsBalanceStrip from "./components/DebtsBalanceStrip";
@@ -35,6 +43,22 @@ const interpolate = (
   template: string,
   values: Record<string, string | number>,
 ) => template.replace(/\{(\w+)\}/g, (_, key) => String(values[key] ?? ""));
+
+/**
+ * Pull a user-facing string out of whatever the mutation rejected with. The
+ * api envelope helper throws an `ApiProblem` (object with `message`), but we
+ * also handle plain `Error` and unknown values so the modal always renders
+ * something readable instead of `[object Object]`.
+ */
+function extractMessage(error: unknown, fallback: string): string {
+  if (error && typeof error === "object") {
+    const maybe = error as { message?: unknown };
+    if (typeof maybe.message === "string" && maybe.message.trim().length > 0) {
+      return maybe.message;
+    }
+  }
+  return fallback;
+}
 
 export default function DebtsEditorPage() {
   const locale = useAppLocale();
@@ -70,13 +94,21 @@ export default function DebtsEditorPage() {
 
   const mutationYearMonth = editableYearMonth ?? "";
   const patchMutation = usePatchBudgetMonthDebt(mutationYearMonth);
+  const createMutation = useCreateBudgetMonthDebt(mutationYearMonth);
+  const detailsMutation = usePatchBudgetMonthDebtDetails(mutationYearMonth);
 
-  // The planned-payment modal is the only mutation PR 6 wires. It still takes
-  // the legacy `BudgetMonthDebtEditorRowDto` shape because its body is
-  // unchanged from Stage 0; we adapt the richer PR 5 row into that shape so
-  // the modal's existing tests stay green.
+  // The planned-payment modal still takes the legacy `BudgetMonthDebtEditorRowDto`
+  // shape because its body is unchanged from Stage 0; we adapt the richer
+  // PR 5 row into that shape so the modal's existing tests stay green.
   const [modalRow, setModalRow] =
     useState<BudgetMonthDebtEditorRowDto | null>(null);
+  // PR 7: add and edit-details drawers. Errors are surfaced as plain
+  // messages (the parent owns the mutation, so the modal stays stateless
+  // about React-Query).
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [detailsRow, setDetailsRow] = useState<DebtEditorRowDto | null>(null);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
 
   const editorData = debtEditorQuery.data ?? null;
   // Backend `isReadOnly` is the source of truth: closed/skipped months stop
@@ -149,6 +181,63 @@ export default function DebtsEditorPage() {
     }
   };
 
+  // PR 7 — open the edit-details drawer from a row kebab. The row already
+  // carries the PR 5 read-model shape, so no adaptation is needed here.
+  const handleEditDetails = (row: DebtEditorRowDto) => {
+    setDetailsError(null);
+    setDetailsRow(row);
+  };
+
+  const handleOpenCreate = () => {
+    setCreateError(null);
+    setCreateOpen(true);
+  };
+
+  const handleCreateSubmit = async (values: DebtCreateSubmitValues) => {
+    setCreateError(null);
+    try {
+      await createMutation.mutateAsync({
+        name: values.name,
+        type: values.type,
+        balance: values.balance,
+        apr: values.apr,
+        monthlyFee: values.monthlyFee,
+        minPayment: values.minPayment,
+        termMonths: values.termMonths,
+        monthlyPayment: values.monthlyPayment,
+        scope: values.scope,
+      });
+      toast.success(t("createSuccess"));
+      setCreateOpen(false);
+    } catch (error) {
+      setCreateError(extractMessage(error, t("createError")));
+    }
+  };
+
+  const handleDetailsSubmit = async (values: DebtDetailsSubmitValues) => {
+    if (!detailsRow) return;
+    setDetailsError(null);
+    try {
+      await detailsMutation.mutateAsync({
+        monthDebtId: detailsRow.id,
+        payload: {
+          name: values.name,
+          type: values.type,
+          apr: values.apr,
+          monthlyFee: values.monthlyFee,
+          minPayment: values.minPayment,
+          termMonths: values.termMonths,
+          monthlyPayment: values.monthlyPayment,
+          scope: values.scope,
+        },
+      });
+      toast.success(t("detailsSuccess"));
+      setDetailsRow(null);
+    } catch (error) {
+      setDetailsError(extractMessage(error, t("detailsError")));
+    }
+  };
+
   if (monthsStatusQuery.isLoading) {
     return <EditorState text={t("loadingDebts")} />;
   }
@@ -191,6 +280,7 @@ export default function DebtsEditorPage() {
             activeRows={activeRows}
             remainingInBudget={remainingInBudget}
             readOnly={readOnly}
+            onAddDebt={readOnly ? undefined : handleOpenCreate}
           />
 
           {!allGroupsEmpty ? (
@@ -220,7 +310,10 @@ export default function DebtsEditorPage() {
           ) : null}
 
           {allGroupsEmpty ? (
-            <DebtsEditorEmptyState readOnly={readOnly} />
+            <DebtsEditorEmptyState
+              readOnly={readOnly}
+              onAddDebt={readOnly ? undefined : handleOpenCreate}
+            />
           ) : (
             <div className="space-y-4">
               {DEBT_GROUP_ORDER.map((copy) => (
@@ -231,6 +324,7 @@ export default function DebtsEditorPage() {
                   yearMonthLabel={periodLabel}
                   readOnly={readOnly}
                   onEditPayment={handleEditPayment}
+                  onEditDetails={readOnly ? undefined : handleEditDetails}
                   defaultOpen={copy.group !== "archived"}
                 />
               ))}
@@ -249,6 +343,33 @@ export default function DebtsEditorPage() {
           setModalRow(null);
         }}
         onSubmit={handleSubmit}
+      />
+
+      <DebtCreateModal
+        open={createOpen}
+        monthLabel={periodLabel}
+        isSaving={createMutation.isPending}
+        submitErrorMessage={createError}
+        onClose={() => {
+          if (createMutation.isPending) return;
+          setCreateOpen(false);
+          setCreateError(null);
+        }}
+        onSubmit={handleCreateSubmit}
+      />
+
+      <DebtDetailsModal
+        open={!!detailsRow}
+        row={detailsRow}
+        monthLabel={periodLabel}
+        isSaving={detailsMutation.isPending}
+        submitErrorMessage={detailsError}
+        onClose={() => {
+          if (detailsMutation.isPending) return;
+          setDetailsRow(null);
+          setDetailsError(null);
+        }}
+        onSubmit={handleDetailsSubmit}
       />
     </>
   );

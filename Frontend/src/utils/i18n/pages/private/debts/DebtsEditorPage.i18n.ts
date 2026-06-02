@@ -72,6 +72,10 @@ export const debtsEditorPageDict = {
     empty: "Du har inga skulder den här månaden.",
     itemUpdated: "Planerad betalning sparades",
     itemUpdateError: "Planerad betalning kunde inte sparas",
+    createSuccess: "Skulden lades till",
+    createError: "Skulden kunde inte sparas",
+    detailsSuccess: "Uppgifterna sparades",
+    detailsError: "Uppgifterna kunde inte sparas",
     readOnly: "Den här månaden är stängd och kan inte redigeras.",
     plannedNote:
       "Här ändras bara planerad månadsbetalning. Saldo uppdateras inte här.",
@@ -221,6 +225,10 @@ export const debtsEditorPageDict = {
     empty: "You have no debts this month.",
     itemUpdated: "Planned payment saved",
     itemUpdateError: "Could not save planned payment",
+    createSuccess: "Debt added",
+    createError: "Could not save the debt",
+    detailsSuccess: "Details saved",
+    detailsError: "Could not save the details",
     readOnly: "This month is closed and cannot be edited.",
     plannedNote:
       "Only the planned monthly payment changes here. Balances are not updated by this flow.",
@@ -363,6 +371,10 @@ export const debtsEditorPageDict = {
     empty: "Sellel kuul võlgu ei ole.",
     itemUpdated: "Planeeritud makse salvestatud",
     itemUpdateError: "Planeeritud makse salvestamine ebaõnnestus",
+    createSuccess: "Võlg lisatud",
+    createError: "Võlga ei saanud salvestada",
+    detailsSuccess: "Andmed salvestatud",
+    detailsError: "Andmeid ei saanud salvestada",
     readOnly: "See kuu on suletud ja seda ei saa muuta.",
     plannedNote:
       "Siin muudetakse ainult planeeritud kuumakset. Jääki see vaade ei uuenda.",

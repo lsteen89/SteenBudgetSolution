@@ -34,6 +34,13 @@ type DebtsSoulHeroProps = {
   remainingInBudget: number | null;
   /** True when the month is closed/skipped. Hides the CTA and shows the pill. */
   readOnly: boolean;
+  /**
+   * Debt PR 7 — opens the add-debt drawer. When omitted, the CTA renders
+   * disabled (the PR 6 placeholder behavior) so the hero remains usable
+   * during the PR 7 transition and inside tests that don't wire the add
+   * flow.
+   */
+  onAddDebt?: () => void;
 };
 
 const interpolate = (template: string, values: Record<string, string>) =>
@@ -45,6 +52,7 @@ export default function DebtsSoulHero({
   activeRows,
   remainingInBudget,
   readOnly,
+  onAddDebt,
 }: DebtsSoulHeroProps) {
   const locale = useAppLocale();
   const currency = useAppCurrency();
@@ -169,27 +177,44 @@ export default function DebtsSoulHero({
 
       {!readOnly ? (
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          {/* PR 6: the hero CTA is rendered but disabled. PR 7 wires the
-            add-debt form against the existing POST /debt-items endpoint.
-            Disabled affordance keeps the visual structure honest without
-            promising a flow the FE has not built yet. */}
-          <button
-            type="button"
-            disabled
-            aria-disabled="true"
-            title={t("heroCtaPendingPr")}
-            data-testid="debts-hero-add"
-            data-pending-pr="PR-07"
-            className={[
-              "inline-flex items-center gap-2 rounded-full",
-              "bg-eb-accent/45 px-5 py-2.5 text-sm font-semibold text-white/85",
-              "shadow-eb",
-              "cursor-not-allowed",
-            ].join(" ")}
-          >
-            <Plus className="h-4 w-4" strokeWidth={2.4} />
-            {t("heroCta")}
-          </button>
+          {/* PR 7 wires the add-debt drawer against the existing PR 2 POST
+            endpoint. When no `onAddDebt` is wired (older callers / tests),
+            the CTA falls back to the PR 6 disabled placeholder so the
+            visual structure stays honest. */}
+          {onAddDebt ? (
+            <button
+              type="button"
+              onClick={onAddDebt}
+              data-testid="debts-hero-add"
+              className={[
+                "inline-flex items-center gap-2 rounded-full",
+                "bg-eb-accent px-5 py-2.5 text-sm font-semibold text-white",
+                "shadow-eb transition hover:brightness-105",
+                "focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-eb-accent/30",
+              ].join(" ")}
+            >
+              <Plus className="h-4 w-4" strokeWidth={2.4} />
+              {t("heroCta")}
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled
+              aria-disabled="true"
+              title={t("heroCtaPendingPr")}
+              data-testid="debts-hero-add"
+              data-pending-pr="PR-07"
+              className={[
+                "inline-flex items-center gap-2 rounded-full",
+                "bg-eb-accent/45 px-5 py-2.5 text-sm font-semibold text-white/85",
+                "shadow-eb",
+                "cursor-not-allowed",
+              ].join(" ")}
+            >
+              <Plus className="h-4 w-4" strokeWidth={2.4} />
+              {t("heroCta")}
+            </button>
+          )}
         </div>
       ) : null}
     </BudgetEditorHeroShell>
