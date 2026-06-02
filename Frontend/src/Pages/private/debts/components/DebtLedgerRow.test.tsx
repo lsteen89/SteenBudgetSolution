@@ -1,4 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { DebtEditorRowDto } from "@/types/budget/DebtEditorDto";
 import DebtLedgerRow from "./DebtLedgerRow";
@@ -207,5 +208,210 @@ describe("DebtLedgerRow", () => {
     for (const trigger of triggers) {
       expect(trigger).toHaveAttribute("data-disabled", "true");
     }
+  });
+
+  // ---------------------------------------------------------------- PR 8 lifecycle
+  // Radix dropdown opens on pointer events; `userEvent` dispatches the right
+  // sequence in jsdom. Mirrors the income/expense menu-open helpers.
+  async function openFirstMenu(user: ReturnType<typeof userEvent.setup>) {
+    const triggers = screen.getAllByTestId("budget-editor-row-actions-trigger");
+    await user.click(triggers[0]);
+    await waitFor(() => {
+      expect(screen.getAllByRole("menuitem").length).toBeGreaterThan(0);
+    });
+  }
+
+  it("offers skip / mark-paid / archive on an active row when the backend permits them", async () => {
+    const user = userEvent.setup();
+    const onLifecycleAction = vi.fn();
+    render(
+      <DebtLedgerRow
+        row={baseRow({})}
+        yearMonthLabel="maj 2026"
+        readOnly={false}
+        onEditPayment={vi.fn()}
+        onLifecycleAction={onLifecycleAction}
+      />,
+    );
+
+    await openFirstMenu(user);
+    expect(
+      screen.getByRole("menuitem", { name: /hoppa över denna månad/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /markera som betald/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: /^arkivera$/i }),
+    ).toBeInTheDocument();
+    // Active rows never expose include / restore / remove.
+    expect(
+      screen.queryByRole("menuitem", { name: /inkludera/i }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("menuitem", { name: /återställ/i }),
+    ).toBeNull();
+  });
+
+  it("invokes onLifecycleAction with the chosen action and the row", async () => {
+    const user = userEvent.setup();
+    const onLifecycleAction = vi.fn();
+    const row = baseRow({});
+    render(
+      <DebtLedgerRow
+        row={row}
+        yearMonthLabel="maj 2026"
+        readOnly={false}
+        onEditPayment={vi.fn()}
+        onLifecycleAction={onLifecycleAction}
+      />,
+    );
+
+    await openFirstMenu(user);
+    await user.click(
+      screen.getByRole("menuitem", { name: /hoppa över denna månad/i }),
+    );
+    expect(onLifecycleAction).toHaveBeenCalledWith(row, "skip");
+  });
+
+  it("offers include on a skipped row that can be re-included", async () => {
+    const user = userEvent.setup();
+    const onLifecycleAction = vi.fn();
+    render(
+      <DebtLedgerRow
+        row={baseRow({
+          group: "skipped",
+          participationStatus: "notIncluded",
+          monthlyPayment: 0,
+          actions: {
+            ...baseRow({}).actions,
+            canSkipThisMonth: false,
+            canIncludeThisMonth: true,
+          },
+        })}
+        yearMonthLabel="maj 2026"
+        readOnly={false}
+        onEditPayment={vi.fn()}
+        onLifecycleAction={onLifecycleAction}
+      />,
+    );
+
+    await openFirstMenu(user);
+    expect(
+      screen.getByRole("menuitem", { name: /inkludera denna månad/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", { name: /hoppa över/i }),
+    ).toBeNull();
+  });
+
+  // Restore and remove are mutually exclusive in the backend: restore needs a
+  // source-linked archived row (`!isMonthOnly && sourceArchived`), remove needs
+  // a month-only row (`isMonthOnly`). See DebtEditorActionResolver. Each is
+  // exercised with its own realistic fixture rather than one impossible row.
+  it("offers restore (only) on a source-linked archived row", async () => {
+    const user = userEvent.setup();
+    const onLifecycleAction = vi.fn();
+    render(
+      <DebtLedgerRow
+        row={baseRow({
+          group: "archived",
+          sourceLifecycleStatus: "archived",
+          isMonthOnly: false,
+          sourceDebtId: "src-1",
+          actions: {
+            canEditPayment: false,
+            canEditDetails: false,
+            canUpdateBalance: false,
+            canSkipThisMonth: false,
+            canIncludeThisMonth: false,
+            canMarkPaidOff: false,
+            canArchive: false,
+            canRestore: true,
+            canRemove: false,
+            canUpdatePlan: false,
+          },
+        })}
+        yearMonthLabel="maj 2026"
+        readOnly={false}
+        onEditPayment={vi.fn()}
+        onLifecycleAction={onLifecycleAction}
+      />,
+    );
+
+    await openFirstMenu(user);
+    expect(
+      screen.getByRole("menuitem", { name: /återställ skuld/i }),
+    ).toBeInTheDocument();
+    // A source-linked row can never be removed — archive preserves its history.
+    expect(screen.queryByRole("menuitem", { name: /ta bort/i })).toBeNull();
+  });
+
+  it("offers remove (only) on a month-only removable row", async () => {
+    const user = userEvent.setup();
+    const onLifecycleAction = vi.fn();
+    render(
+      <DebtLedgerRow
+        row={baseRow({
+          group: "active",
+          isMonthOnly: true,
+          sourceDebtId: null,
+          sourceLifecycleStatus: null,
+          actions: {
+            canEditPayment: true,
+            canEditDetails: true,
+            canUpdateBalance: true,
+            canSkipThisMonth: true,
+            canIncludeThisMonth: false,
+            canMarkPaidOff: false,
+            canArchive: false,
+            canRestore: false,
+            canRemove: true,
+            canUpdatePlan: false,
+          },
+        })}
+        yearMonthLabel="maj 2026"
+        readOnly={false}
+        onEditPayment={vi.fn()}
+        onLifecycleAction={onLifecycleAction}
+      />,
+    );
+
+    await openFirstMenu(user);
+    expect(
+      screen.getByRole("menuitem", { name: /ta bort/i }),
+    ).toBeInTheDocument();
+    // A month-only row is never source-archived, so restore never appears.
+    expect(
+      screen.queryByRole("menuitem", { name: /återställ/i }),
+    ).toBeNull();
+    // And mark-paid / archive (source-linked only) stay absent too.
+    expect(
+      screen.queryByRole("menuitem", { name: /markera som betald/i }),
+    ).toBeNull();
+  });
+
+  it("omits lifecycle actions entirely when no onLifecycleAction handler is wired", async () => {
+    const user = userEvent.setup();
+    render(
+      <DebtLedgerRow
+        row={baseRow({})}
+        yearMonthLabel="maj 2026"
+        readOnly={false}
+        onEditPayment={vi.fn()}
+      />,
+    );
+
+    await openFirstMenu(user);
+    // Only the PR 6/7 edit actions remain; no lifecycle items leak in.
+    expect(
+      screen.queryByRole("menuitem", { name: /hoppa över/i }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("menuitem", { name: /markera som betald/i }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("menuitem", { name: /^arkivera$/i }),
+    ).toBeNull();
   });
 });

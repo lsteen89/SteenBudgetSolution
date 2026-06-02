@@ -12,6 +12,7 @@ import { ChevronDown } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import type { DebtGroupCopy } from "../utils/debtEditorGroups";
 import DebtLedgerRow from "./DebtLedgerRow";
+import type { DebtLifecycleAction } from "./DebtLifecycleConfirmDialog";
 
 type DebtLedgerGroupProps = {
   copy: DebtGroupCopy;
@@ -26,6 +27,11 @@ type DebtLedgerGroupProps = {
    * kebab item appears when the parent has wired the drawer.
    */
   onEditDetails?: (row: DebtEditorRowDto) => void;
+  /**
+   * Debt PR 8 — passed straight through to each row so the lifecycle /
+   * participation kebab items appear when the parent has wired the dialog.
+   */
+  onLifecycleAction?: (row: DebtEditorRowDto, action: DebtLifecycleAction) => void;
   /**
    * Override the default opening state. Used by the page to keep the archived
    * group collapsed on first render.
@@ -43,6 +49,7 @@ export default function DebtLedgerGroup({
   readOnly,
   onEditPayment,
   onEditDetails,
+  onLifecycleAction,
   defaultOpen,
 }: DebtLedgerGroupProps) {
   const locale = useAppLocale();
@@ -151,6 +158,7 @@ export default function DebtLedgerGroup({
                   readOnly={readOnly}
                   onEditPayment={onEditPayment}
                   onEditDetails={onEditDetails}
+                  onLifecycleAction={onLifecycleAction}
                 />
               ))}
             </div>

@@ -1,9 +1,14 @@
 import BudgetEditorPageShell from "@/components/molecules/forms/budgetEditor/BudgetEditorPageShell";
 import {
+  useArchiveBudgetMonthDebt,
   useBudgetMonthDebtEditor,
   useCreateBudgetMonthDebt,
+  useMarkBudgetMonthDebtPaidOff,
   usePatchBudgetMonthDebt,
   usePatchBudgetMonthDebtDetails,
+  useRemoveBudgetMonthDebt,
+  useRestoreBudgetMonthDebt,
+  useSetBudgetMonthDebtParticipation,
 } from "@/hooks/budget/editPeriod/useMonthEditor";
 import { useBudgetDashboardMonthQuery } from "@/hooks/budget/useBudgetDashboardMonthQuery";
 import { useBudgetMonthsStatusQuery } from "@/hooks/budget/useBudgetMonthsStatusQuery";
@@ -30,6 +35,10 @@ import DebtDetailsModal, {
   type DebtDetailsSubmitValues,
 } from "./components/DebtDetailsModal";
 import DebtLedgerGroup from "./components/DebtLedgerGroup";
+import DebtLifecycleConfirmDialog, {
+  type DebtLifecycleAction,
+  type DebtLifecycleConfirmOptions,
+} from "./components/DebtLifecycleConfirmDialog";
 import DebtPlannedPaymentModal from "./components/DebtPlannedPaymentModal";
 import DebtsBalanceStrip from "./components/DebtsBalanceStrip";
 import DebtsEditorEmptyState from "./components/DebtsEditorEmptyState";
@@ -96,6 +105,16 @@ export default function DebtsEditorPage() {
   const patchMutation = usePatchBudgetMonthDebt(mutationYearMonth);
   const createMutation = useCreateBudgetMonthDebt(mutationYearMonth);
   const detailsMutation = usePatchBudgetMonthDebtDetails(mutationYearMonth);
+  // PR 8 — lifecycle / participation mutations. Each invalidates the debt
+  // editor read model and dashboard projection on success so groups, totals,
+  // and the remaining-money equation reconcile from backend data (never
+  // optimistic).
+  const participationMutation =
+    useSetBudgetMonthDebtParticipation(mutationYearMonth);
+  const markPaidOffMutation = useMarkBudgetMonthDebtPaidOff(mutationYearMonth);
+  const archiveMutation = useArchiveBudgetMonthDebt(mutationYearMonth);
+  const restoreMutation = useRestoreBudgetMonthDebt(mutationYearMonth);
+  const removeMutation = useRemoveBudgetMonthDebt(mutationYearMonth);
 
   // The planned-payment modal still takes the legacy `BudgetMonthDebtEditorRowDto`
   // shape because its body is unchanged from Stage 0; we adapt the richer
@@ -109,6 +128,20 @@ export default function DebtsEditorPage() {
   const [createError, setCreateError] = useState<string | null>(null);
   const [detailsRow, setDetailsRow] = useState<DebtEditorRowDto | null>(null);
   const [detailsError, setDetailsError] = useState<string | null>(null);
+  // PR 8 — lifecycle confirmation dialog. Holds the row and the chosen action;
+  // the dialog itself collects the secondary choices (set-balance-to-zero /
+  // re-include) and hands them back on confirm.
+  const [lifecycleConfirm, setLifecycleConfirm] = useState<{
+    row: DebtEditorRowDto;
+    action: DebtLifecycleAction;
+  } | null>(null);
+
+  const lifecycleWorking =
+    participationMutation.isPending ||
+    markPaidOffMutation.isPending ||
+    archiveMutation.isPending ||
+    restoreMutation.isPending ||
+    removeMutation.isPending;
 
   const editorData = debtEditorQuery.data ?? null;
   // Backend `isReadOnly` is the source of truth: closed/skipped months stop
@@ -238,6 +271,82 @@ export default function DebtsEditorPage() {
     }
   };
 
+  // PR 8 — open the lifecycle confirmation dialog for the chosen action. The
+  // row already carries the PR 5 read-model shape with action permissions, so
+  // no adaptation is needed.
+  const handleLifecycleAction = (
+    row: DebtEditorRowDto,
+    action: DebtLifecycleAction,
+  ) => {
+    setLifecycleConfirm({ row, action });
+  };
+
+  const closeLifecycleConfirm = () => {
+    if (lifecycleWorking) return;
+    setLifecycleConfirm(null);
+  };
+
+  const handleLifecycleConfirm = async (
+    options: DebtLifecycleConfirmOptions,
+  ) => {
+    if (!lifecycleConfirm) return;
+    const { row, action } = lifecycleConfirm;
+    const monthDebtId = row.id;
+
+    try {
+      switch (action) {
+        case "skip":
+          await participationMutation.mutateAsync({
+            monthDebtId,
+            payload: { participation: "notIncluded" },
+          });
+          toast.success(t("lifecycleSkipSuccess"));
+          break;
+        case "include":
+          await participationMutation.mutateAsync({
+            monthDebtId,
+            payload: { participation: "included" },
+          });
+          toast.success(t("lifecycleIncludeSuccess"));
+          break;
+        case "markPaidOff":
+          await markPaidOffMutation.mutateAsync({
+            monthDebtId,
+            payload: { setBalanceToZero: options.setBalanceToZero },
+          });
+          toast.success(t("lifecyclePaidSuccess"));
+          break;
+        case "archive":
+          await archiveMutation.mutateAsync({
+            monthDebtId,
+            payload: {},
+          });
+          toast.success(t("lifecycleArchiveSuccess"));
+          break;
+        case "restore":
+          await restoreMutation.mutateAsync({
+            monthDebtId,
+            payload: { reIncludeCurrentMonth: options.reIncludeCurrentMonth },
+          });
+          toast.success(t("lifecycleRestoreSuccess"));
+          break;
+        case "remove":
+          await removeMutation.mutateAsync({
+            monthDebtId,
+            payload: {},
+          });
+          toast.success(t("lifecycleRemoveSuccess"));
+          break;
+      }
+      setLifecycleConfirm(null);
+    } catch (error) {
+      // Keep the dialog open and surface a backend-truthful message; local
+      // state is never optimistically mutated, so the row stays as the read
+      // model reported it.
+      toast.error(extractMessage(error, t("lifecycleError")));
+    }
+  };
+
   if (monthsStatusQuery.isLoading) {
     return <EditorState text={t("loadingDebts")} />;
   }
@@ -325,6 +434,9 @@ export default function DebtsEditorPage() {
                   readOnly={readOnly}
                   onEditPayment={handleEditPayment}
                   onEditDetails={readOnly ? undefined : handleEditDetails}
+                  onLifecycleAction={
+                    readOnly ? undefined : handleLifecycleAction
+                  }
                   defaultOpen={copy.group !== "archived"}
                 />
               ))}
@@ -370,6 +482,16 @@ export default function DebtsEditorPage() {
           setDetailsError(null);
         }}
         onSubmit={handleDetailsSubmit}
+      />
+
+      <DebtLifecycleConfirmDialog
+        open={!!lifecycleConfirm}
+        action={lifecycleConfirm?.action ?? null}
+        debtName={lifecycleConfirm?.row.name ?? ""}
+        yearMonthLabel={periodLabel}
+        isWorking={lifecycleWorking}
+        onConfirm={handleLifecycleConfirm}
+        onClose={closeLifecycleConfirm}
       />
     </>
   );

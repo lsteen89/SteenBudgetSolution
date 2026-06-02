@@ -140,6 +140,47 @@ export const debtsEditorPageDict = {
     rowActionRemove: "Ta bort",
     rowActionPendingPrHint: "Tillgängligt när åtgärden kopplas in",
 
+    // ----------------------------------------- lifecycle confirmation dialog
+    lifecycleConfirmCancel: "Avbryt",
+    lifecycleConfirmWorking: "Sparar...",
+    lifecycleSkipTitle: "Hoppa över denna månad?",
+    lifecycleSkipBody:
+      "{name} räknas inte i {yearMonthLabel}s betalningar. Saldot står kvar — du är fortfarande skyldig beloppet. Planen och skulden påverkas inte, och du kan inkludera den igen när som helst.",
+    lifecycleSkipPrimary: "Hoppa över",
+    lifecycleIncludeTitle: "Inkludera denna månad igen?",
+    lifecycleIncludeBody:
+      "{name} räknas igen i {yearMonthLabel}s betalningar. Saldot är oförändrat.",
+    lifecycleIncludePrimary: "Inkludera",
+    lifecyclePaidTitle: "Markera som betald?",
+    lifecyclePaidBody:
+      "{name} flyttas till Betald · Avslutad och räknas inte längre i månadens betalningar. Framtida planerade betalningar stoppas. Det här ändrar bara status — ingen faktisk betalning registreras.",
+    lifecyclePaidPrimary: "Markera som betald",
+    lifecyclePaidZeroLabel: "Sätt saldot till 0 kr",
+    lifecyclePaidZeroHint:
+      "Uppdaterar saldot som en rättelse — inte en registrerad betalning.",
+    lifecycleArchiveTitle: "Arkivera skuld?",
+    lifecycleArchiveBody:
+      "{name} döljs från den vanliga planeringen och räknas inte längre i månadens betalningar. Historiken sparas och du kan återställa skulden när som helst.",
+    lifecycleArchivePrimary: "Arkivera",
+    lifecycleRestoreTitle: "Återställ skuld?",
+    lifecycleRestoreBody:
+      "{name} blir aktiv igen och kan ingå i kommande månader. Historiken är oförändrad.",
+    lifecycleRestorePrimary: "Återställ",
+    lifecycleRestoreReincludeLabel: "Inkludera i {yearMonthLabel} igen",
+    lifecycleRestoreReincludeHint:
+      "Lägger tillbaka den planerade betalningen i {yearMonthLabel}.",
+    lifecycleRemoveTitle: "Ta bort skuld?",
+    lifecycleRemoveBody:
+      "{name} tas bort från {yearMonthLabel} och räknas inte längre i månadens betalningar. Den här posten finns bara i den här månaden, så den påverkar inte planen framåt.",
+    lifecycleRemovePrimary: "Ta bort",
+    lifecycleSkipSuccess: "Skulden hoppades över denna månad",
+    lifecycleIncludeSuccess: "Skulden inkluderades igen",
+    lifecyclePaidSuccess: "Skulden markerades som betald",
+    lifecycleArchiveSuccess: "Skulden arkiverades",
+    lifecycleRestoreSuccess: "Skulden återställdes",
+    lifecycleRemoveSuccess: "Skulden togs bort",
+    lifecycleError: "Åtgärden kunde inte slutföras",
+
     // ------------------------------------------ disabled-reason copy (codes)
     reasonMonthClosed: "Månaden är avslutad — den här åtgärden är låst.",
     reasonMonthSkipped: "Månaden är överhoppad — den här åtgärden är låst.",
@@ -289,6 +330,46 @@ export const debtsEditorPageDict = {
     rowActionRemove: "Remove",
     rowActionPendingPrHint: "Available once the action is wired",
 
+    lifecycleConfirmCancel: "Cancel",
+    lifecycleConfirmWorking: "Saving...",
+    lifecycleSkipTitle: "Skip this month?",
+    lifecycleSkipBody:
+      "{name} will not count toward {yearMonthLabel}'s payments. The balance stays — you still owe the amount. The plan and the debt are untouched, and you can include it again at any time.",
+    lifecycleSkipPrimary: "Skip",
+    lifecycleIncludeTitle: "Include this month again?",
+    lifecycleIncludeBody:
+      "{name} counts toward {yearMonthLabel}'s payments again. The balance is unchanged.",
+    lifecycleIncludePrimary: "Include",
+    lifecyclePaidTitle: "Mark as paid off?",
+    lifecyclePaidBody:
+      "{name} moves to Paid off · Completed and no longer counts in this month's payments. Future planned payments stop. This only changes the status — no actual payment is recorded.",
+    lifecyclePaidPrimary: "Mark as paid off",
+    lifecyclePaidZeroLabel: "Set the balance to 0",
+    lifecyclePaidZeroHint:
+      "Updates the balance as a correction — not a recorded payment.",
+    lifecycleArchiveTitle: "Archive debt?",
+    lifecycleArchiveBody:
+      "{name} is hidden from normal planning and no longer counts in this month's payments. The history is kept and you can restore the debt at any time.",
+    lifecycleArchivePrimary: "Archive",
+    lifecycleRestoreTitle: "Restore debt?",
+    lifecycleRestoreBody:
+      "{name} becomes active again and can be part of upcoming months. The history is unchanged.",
+    lifecycleRestorePrimary: "Restore",
+    lifecycleRestoreReincludeLabel: "Include in {yearMonthLabel} again",
+    lifecycleRestoreReincludeHint:
+      "Adds the planned payment back into {yearMonthLabel}.",
+    lifecycleRemoveTitle: "Remove debt?",
+    lifecycleRemoveBody:
+      "{name} is removed from {yearMonthLabel} and no longer counts in this month's payments. This entry only exists in this month, so it does not affect the plan going forward.",
+    lifecycleRemovePrimary: "Remove",
+    lifecycleSkipSuccess: "Debt skipped this month",
+    lifecycleIncludeSuccess: "Debt included again",
+    lifecyclePaidSuccess: "Debt marked as paid off",
+    lifecycleArchiveSuccess: "Debt archived",
+    lifecycleRestoreSuccess: "Debt restored",
+    lifecycleRemoveSuccess: "Debt removed",
+    lifecycleError: "Could not complete the action",
+
     reasonMonthClosed: "The month is closed — this action is locked.",
     reasonMonthSkipped: "The month was skipped — this action is locked.",
     reasonRowRemoved: "The row has been removed from this month.",
@@ -434,6 +515,46 @@ export const debtsEditorPageDict = {
     rowActionRestore: "Taasta võlg",
     rowActionRemove: "Eemalda",
     rowActionPendingPrHint: "Saadaval, kui toiming on ühendatud",
+
+    lifecycleConfirmCancel: "Tühista",
+    lifecycleConfirmWorking: "Salvestan...",
+    lifecycleSkipTitle: "Jätta see kuu vahele?",
+    lifecycleSkipBody:
+      "{name} ei lähe arvesse {yearMonthLabel} maksetes. Jääk püsib — sa võlgned summa endiselt. Plaan ja võlg jäävad puutumata ning saad selle igal ajal uuesti lisada.",
+    lifecycleSkipPrimary: "Jäta vahele",
+    lifecycleIncludeTitle: "Lisada see kuu uuesti?",
+    lifecycleIncludeBody:
+      "{name} läheb taas arvesse {yearMonthLabel} maksetes. Jääk on muutmata.",
+    lifecycleIncludePrimary: "Lisa",
+    lifecyclePaidTitle: "Märkida tasutuks?",
+    lifecyclePaidBody:
+      "{name} liigub kategooriasse Tasutud · Lõpetatud ega lähe enam arvesse selle kuu maksetes. Tulevased planeeritud maksed peatatakse. See muudab ainult olekut — tegelikku makset ei registreerita.",
+    lifecyclePaidPrimary: "Märgi tasutuks",
+    lifecyclePaidZeroLabel: "Määra jääk 0-le",
+    lifecyclePaidZeroHint:
+      "Uuendab jääki parandusena — mitte registreeritud maksena.",
+    lifecycleArchiveTitle: "Arhiveerida võlg?",
+    lifecycleArchiveBody:
+      "{name} peidetakse tavaplaneerimisest ega lähe enam arvesse selle kuu maksetes. Ajalugu säilib ja saad võla igal ajal taastada.",
+    lifecycleArchivePrimary: "Arhiveeri",
+    lifecycleRestoreTitle: "Taastada võlg?",
+    lifecycleRestoreBody:
+      "{name} muutub taas aktiivseks ja võib kuuluda tulevastesse kuudesse. Ajalugu on muutmata.",
+    lifecycleRestorePrimary: "Taasta",
+    lifecycleRestoreReincludeLabel: "Lisa {yearMonthLabel} uuesti",
+    lifecycleRestoreReincludeHint:
+      "Lisab planeeritud makse tagasi perioodi {yearMonthLabel}.",
+    lifecycleRemoveTitle: "Eemaldada võlg?",
+    lifecycleRemoveBody:
+      "{name} eemaldatakse perioodist {yearMonthLabel} ega lähe enam arvesse selle kuu maksetes. See kirje on olemas ainult selles kuus, seega ei mõjuta see edasist plaani.",
+    lifecycleRemovePrimary: "Eemalda",
+    lifecycleSkipSuccess: "Võlg jäeti sel kuul vahele",
+    lifecycleIncludeSuccess: "Võlg lisati uuesti",
+    lifecyclePaidSuccess: "Võlg märgiti tasutuks",
+    lifecycleArchiveSuccess: "Võlg arhiveeriti",
+    lifecycleRestoreSuccess: "Võlg taastati",
+    lifecycleRemoveSuccess: "Võlg eemaldati",
+    lifecycleError: "Toimingut ei saanud lõpule viia",
 
     reasonMonthClosed: "Kuu on suletud — see toiming on lukus.",
     reasonMonthSkipped: "Kuu jäeti vahele — see toiming on lukus.",

@@ -8,7 +8,9 @@ import type {
   SavingsMethodDto,
 } from "@/types/budget/SavingsMethodDto";
 import type {
+  ArchiveBudgetMonthDebtRequestDto,
   BudgetMonthBaseSavingsEditorDto,
+  BudgetMonthDebtLifecycleActionResponseDto,
   BudgetMonthEditorDto,
   BudgetMonthDebtEditorRowDto,
   BudgetMonthIncomeItemEditorRowDto,
@@ -20,10 +22,14 @@ import type {
   CreateBudgetMonthExpenseItemRequestDto,
   CreateBudgetMonthSavingsGoalRequestDto,
   PatchBudgetMonthBaseSavingsRequestDto,
+  MarkBudgetMonthDebtPaidOffRequestDto,
   PatchBudgetMonthDebtBulkRowDto,
   PatchBudgetMonthDebtDetailsRequestDto,
   PatchBudgetMonthDebtRequestDto,
   PatchBudgetMonthDebtsBulkRequestDto,
+  RemoveBudgetMonthDebtRequestDto,
+  RestoreBudgetMonthDebtRequestDto,
+  SetBudgetMonthDebtParticipationRequestDto,
   PatchBudgetMonthIncomeItemBulkRowDto,
   PatchBudgetMonthIncomeItemRequestDto,
   PatchBudgetMonthIncomeItemsBulkRequestDto,
@@ -499,4 +505,94 @@ export async function patchBudgetMonthDebtsBulk(
   >(`/api/budgets/months/${yearMonth}/debt-items`, payload);
 
   return unwrapEnvelopeData(res, "Could not update month debts.");
+}
+
+/**
+ * Debt PR 4 / PR 8 — skip ( `notIncluded` ) or include ( `included` ) the row
+ * this month. Source lifecycle, planned payment, and balance are untouched;
+ * only the row's contribution to this month's debt-payment total changes.
+ */
+export async function setBudgetMonthDebtParticipation(
+  yearMonth: string,
+  monthDebtId: string,
+  payload: SetBudgetMonthDebtParticipationRequestDto,
+): Promise<BudgetMonthDebtLifecycleActionResponseDto> {
+  const res = await api.post<
+    ApiEnvelope<BudgetMonthDebtLifecycleActionResponseDto>
+  >(
+    `/api/budgets/months/${yearMonth}/debt-items/${monthDebtId}/participation`,
+    payload,
+  );
+
+  return unwrapEnvelopeData(res, "Could not update debt participation.");
+}
+
+/**
+ * Debt PR 4 / PR 8 — source lifecycle `active → paidOff`. `setBalanceToZero`
+ * is opt-in; when true the backend records a separate, audited balance
+ * correction. Marking paid off never registers an actual bank payment.
+ */
+export async function markBudgetMonthDebtPaidOff(
+  yearMonth: string,
+  monthDebtId: string,
+  payload: MarkBudgetMonthDebtPaidOffRequestDto,
+): Promise<BudgetMonthDebtLifecycleActionResponseDto> {
+  const res = await api.post<
+    ApiEnvelope<BudgetMonthDebtLifecycleActionResponseDto>
+  >(
+    `/api/budgets/months/${yearMonth}/debt-items/${monthDebtId}/mark-paid-off`,
+    payload,
+  );
+
+  return unwrapEnvelopeData(res, "Could not mark debt as paid off.");
+}
+
+/**
+ * Debt PR 4 / PR 8 — source lifecycle `active → archived`. Reversible via
+ * restore; history is preserved; balance is never moved.
+ */
+export async function archiveBudgetMonthDebt(
+  yearMonth: string,
+  monthDebtId: string,
+  payload: ArchiveBudgetMonthDebtRequestDto,
+): Promise<BudgetMonthDebtLifecycleActionResponseDto> {
+  const res = await api.post<
+    ApiEnvelope<BudgetMonthDebtLifecycleActionResponseDto>
+  >(`/api/budgets/months/${yearMonth}/debt-items/${monthDebtId}/archive`, payload);
+
+  return unwrapEnvelopeData(res, "Could not archive debt.");
+}
+
+/**
+ * Debt PR 4 / PR 8 — source lifecycle `archived → active`. When
+ * `reIncludeCurrentMonth` is true the open month's row is also flipped back
+ * to `included` in the same transaction.
+ */
+export async function restoreBudgetMonthDebt(
+  yearMonth: string,
+  monthDebtId: string,
+  payload: RestoreBudgetMonthDebtRequestDto,
+): Promise<BudgetMonthDebtLifecycleActionResponseDto> {
+  const res = await api.post<
+    ApiEnvelope<BudgetMonthDebtLifecycleActionResponseDto>
+  >(`/api/budgets/months/${yearMonth}/debt-items/${monthDebtId}/restore`, payload);
+
+  return unwrapEnvelopeData(res, "Could not restore debt.");
+}
+
+/**
+ * Debt PR 4 / PR 8 — remove a month-only row from the open month. Source-linked
+ * rows are rejected by the backend (archive preserves their history instead);
+ * the FE only offers this action when the read model permits it.
+ */
+export async function removeBudgetMonthDebt(
+  yearMonth: string,
+  monthDebtId: string,
+  payload: RemoveBudgetMonthDebtRequestDto,
+): Promise<BudgetMonthDebtLifecycleActionResponseDto> {
+  const res = await api.post<
+    ApiEnvelope<BudgetMonthDebtLifecycleActionResponseDto>
+  >(`/api/budgets/months/${yearMonth}/debt-items/${monthDebtId}/remove`, payload);
+
+  return unwrapEnvelopeData(res, "Could not remove debt.");
 }

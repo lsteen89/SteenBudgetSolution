@@ -13,6 +13,7 @@ import {
   type DebtTypeBucket,
 } from "../utils/debtTypeSplit";
 import { primaryReason, reasonKeyFor } from "../utils/debtEditorReason";
+import type { DebtLifecycleAction } from "./DebtLifecycleConfirmDialog";
 
 type DebtLedgerRowProps = {
   row: DebtEditorRowDto;
@@ -35,6 +36,14 @@ type DebtLedgerRowProps = {
    * flag is true.
    */
   onEditDetails?: (row: DebtEditorRowDto) => void;
+  /**
+   * Debt PR 8 — opens the lifecycle / participation confirmation dialog for
+   * the chosen action. Optional so pre-PR-8 callers and existing tests keep
+   * the same kebab. Each lifecycle item surfaces only when the matching
+   * backend `actions.*` permission allows it — the FE never infers lifecycle
+   * state from zero payment or zero balance.
+   */
+  onLifecycleAction?: (row: DebtEditorRowDto, action: DebtLifecycleAction) => void;
 };
 
 const TYPE_DOT_CLASS: Record<DebtTypeBucket, string> = {
@@ -52,6 +61,7 @@ export default function DebtLedgerRow({
   readOnly,
   onEditPayment,
   onEditDetails,
+  onLifecycleAction,
 }: DebtLedgerRowProps) {
   const locale = useAppLocale();
   const currency = useAppCurrency();
@@ -156,7 +166,13 @@ export default function DebtLedgerRow({
   // BudgetEditorRowActionsMenu primitive has no concept of a clickable-yet-
   // inert item, and the design's per-lifecycle kebab variants belong to
   // PR 7-9 where each item gets real wiring.
-  const items = buildActionItems(row, t, onEditPayment, onEditDetails);
+  const items = buildActionItems(
+    row,
+    t,
+    onEditPayment,
+    onEditDetails,
+    onLifecycleAction,
+  );
 
   const reasons = row.disabledReasons;
   const tooltipReason = primaryReason(reasons);
@@ -297,15 +313,15 @@ function buildActionItems(
   t: <K extends keyof typeof debtsEditorPageDict.sv>(key: K) => string,
   onEditPayment: (row: DebtEditorRowDto) => void,
   onEditDetails?: (row: DebtEditorRowDto) => void,
+  onLifecycleAction?: (row: DebtEditorRowDto, action: DebtLifecycleAction) => void,
 ): BudgetEditorRowActionItem[] {
   const items: BudgetEditorRowActionItem[] = [];
 
-  // PR 6 wired the planned-payment action. PR 7 adds the edit-details
-  // action when the parent has provided a handler and the backend
-  // `actions.canEditDetails` flag allows it. Other actions (skip /
-  // include / mark-paid / archive / restore / remove / update-balance /
-  // view-progress) are intentionally absent from this list until PR 8-9
-  // wire their submit flows.
+  // PR 6 wired the planned-payment action. PR 7 adds the edit-details action.
+  // PR 8 adds the lifecycle / participation actions below. Balance update and
+  // repayment progress remain absent until PR 9. Every item is gated on its
+  // matching backend permission so the FE never offers an action the command
+  // would reject.
   if (row.actions.canEditPayment) {
     items.push({
       key: "edit-payment",
@@ -320,6 +336,61 @@ function buildActionItems(
       label: t("rowActionEditDetails"),
       onSelect: () => onEditDetails(row),
     });
+  }
+
+  if (onLifecycleAction) {
+    // Order mirrors the target mockup's per-lifecycle kebab: include leads the
+    // skipped group, skip leads the active group (they are mutually exclusive
+    // by permission), then mark-paid / archive / restore, and finally the
+    // destructive month-only remove.
+    if (row.actions.canIncludeThisMonth) {
+      items.push({
+        key: "include",
+        label: t("rowActionInclude"),
+        onSelect: () => onLifecycleAction(row, "include"),
+      });
+    }
+
+    if (row.actions.canSkipThisMonth) {
+      items.push({
+        key: "skip",
+        label: t("rowActionSkip"),
+        onSelect: () => onLifecycleAction(row, "skip"),
+      });
+    }
+
+    if (row.actions.canMarkPaidOff) {
+      items.push({
+        key: "mark-paid",
+        label: t("rowActionMarkPaid"),
+        onSelect: () => onLifecycleAction(row, "markPaidOff"),
+      });
+    }
+
+    if (row.actions.canArchive) {
+      items.push({
+        key: "archive",
+        label: t("rowActionArchive"),
+        onSelect: () => onLifecycleAction(row, "archive"),
+      });
+    }
+
+    if (row.actions.canRestore) {
+      items.push({
+        key: "restore",
+        label: t("rowActionRestore"),
+        onSelect: () => onLifecycleAction(row, "restore"),
+      });
+    }
+
+    if (row.actions.canRemove) {
+      items.push({
+        key: "remove",
+        label: t("rowActionRemove"),
+        tone: "danger",
+        onSelect: () => onLifecycleAction(row, "remove"),
+      });
+    }
   }
 
   return items;

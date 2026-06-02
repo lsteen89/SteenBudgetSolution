@@ -350,6 +350,63 @@ export type PatchBudgetMonthDebtDetailsRequestDto = {
   scope?: DebtEditScope | null;
 };
 
+// Debt PR 4 / PR 8 — lifecycle and month-participation commands. Each is a
+// `POST` (append-only audit event) and shares one response shape so the FE
+// can tell, without a follow-up GET, what changed: participation, source
+// lifecycle, and — only for a `mark-paid-off` that zeroed the balance — the
+// balance pair. `monthlyPayment` is echoed unchanged so the UI can never
+// confuse a lifecycle change with a payment edit.
+
+// Only `included` / `notIncluded` are reachable from the toggle. `removed` is
+// reached exclusively via the dedicated remove command — keep them apart so
+// skip/include can never accidentally delete a row.
+export type DebtParticipationValue = "included" | "notIncluded";
+
+export type SetBudgetMonthDebtParticipationRequestDto = {
+  participation: DebtParticipationValue;
+  note?: string | null;
+};
+
+export type MarkBudgetMonthDebtPaidOffRequestDto = {
+  // Opt-in. Marking paid off is a status decision, not proof of a real
+  // payment — so the user must explicitly ask to drive the balance to 0,
+  // which the backend records as a separate, audited balance correction.
+  setBalanceToZero: boolean;
+  note?: string | null;
+};
+
+export type ArchiveBudgetMonthDebtRequestDto = {
+  note?: string | null;
+};
+
+export type RestoreBudgetMonthDebtRequestDto = {
+  // When true the current open month's row also flips back to `included`,
+  // restoring its planned payment to the dashboard total in the same call.
+  reIncludeCurrentMonth: boolean;
+  note?: string | null;
+};
+
+export type RemoveBudgetMonthDebtRequestDto = {
+  note?: string | null;
+};
+
+export type BudgetMonthDebtLifecycleActionResponseDto = {
+  monthDebtId: string;
+  sourceDebtId: string | null;
+  action: string;
+  previousParticipationStatus: string | null;
+  participationStatus: string;
+  previousSourceLifecycleStatus: string | null;
+  sourceLifecycleStatus: string | null;
+  balanceUpdated: boolean;
+  oldMonthBalance: number | null;
+  newMonthBalance: number | null;
+  oldSourceBalance: number | null;
+  newSourceBalance: number | null;
+  monthlyPayment: number;
+  changedAt: string;
+};
+
 export type ApiErrorDto = {
   code: string;
   message: string;

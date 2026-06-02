@@ -1,5 +1,6 @@
 import {
   addBudgetMonthSavingsMethod,
+  archiveBudgetMonthDebt,
   cancelBudgetMonthSavingsGoal,
   changeBudgetMonthSavingsGoalTargetAmount,
   completeBudgetMonthSavingsGoal,
@@ -16,10 +17,14 @@ import {
   getBudgetMonthSavingsMethods,
   getBudgetMonthSavingsOldGoals,
   getBudgetMonthEditor,
+  markBudgetMonthDebtPaidOff,
   patchBudgetMonthBaseSavings,
   patchBudgetMonthDebt,
   patchBudgetMonthDebtDetails,
   patchBudgetMonthDebtsBulk,
+  removeBudgetMonthDebt,
+  restoreBudgetMonthDebt,
+  setBudgetMonthDebtParticipation,
   patchBudgetMonthExpenseItem,
   patchBudgetMonthExpenseItemsBulk,
   patchBudgetMonthIncomeItem,
@@ -33,14 +38,19 @@ import {
 } from "@/api/Services/Budget/editor/monthEditor.api";
 import type { SavingsMethodCode } from "@/types/budget/SavingsMethodDto";
 import type {
+  ArchiveBudgetMonthDebtRequestDto,
   CreateBudgetMonthDebtRequestDto,
   CreateBudgetMonthExpenseItemRequestDto,
   CreateBudgetMonthIncomeItemRequestDto,
   CreateBudgetMonthSavingsGoalRequestDto,
+  MarkBudgetMonthDebtPaidOffRequestDto,
   PatchBudgetMonthBaseSavingsRequestDto,
   PatchBudgetMonthDebtBulkRowDto,
   PatchBudgetMonthDebtDetailsRequestDto,
   PatchBudgetMonthDebtRequestDto,
+  RemoveBudgetMonthDebtRequestDto,
+  RestoreBudgetMonthDebtRequestDto,
+  SetBudgetMonthDebtParticipationRequestDto,
   PatchBudgetMonthExpenseItemBulkRowDto,
   PatchBudgetMonthExpenseItemRequestDto,
   PatchBudgetMonthIncomeItemBulkRowDto,
@@ -586,6 +596,107 @@ export function usePatchBudgetMonthDebtsBulk(yearMonth: string) {
 
       return patchBudgetMonthDebtsBulk(yearMonth, flatRows);
     },
+    onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
+  });
+}
+
+/**
+ * Debt PR 8 — skip / include this month
+ * (`POST .../debt-items/{id}/participation`). Success invalidates the debt
+ * editor read model and the dashboard projection so the equation
+ * (`… − includedDebtPayments = remaining`) reconciles from backend data —
+ * the FE never optimistically moves a payment in or out of the total.
+ */
+export function useSetBudgetMonthDebtParticipation(yearMonth: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      monthDebtId,
+      payload,
+    }: {
+      monthDebtId: string;
+      payload: SetBudgetMonthDebtParticipationRequestDto;
+    }) => setBudgetMonthDebtParticipation(yearMonth, monthDebtId, payload),
+    onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
+  });
+}
+
+/**
+ * Debt PR 8 — mark a source-linked debt paid off
+ * (`POST .../debt-items/{id}/mark-paid-off`). `setBalanceToZero` is opt-in;
+ * future materialization stops while historical rows are preserved.
+ */
+export function useMarkBudgetMonthDebtPaidOff(yearMonth: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      monthDebtId,
+      payload,
+    }: {
+      monthDebtId: string;
+      payload: MarkBudgetMonthDebtPaidOffRequestDto;
+    }) => markBudgetMonthDebtPaidOff(yearMonth, monthDebtId, payload),
+    onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
+  });
+}
+
+/**
+ * Debt PR 8 — archive a source-linked debt
+ * (`POST .../debt-items/{id}/archive`). Reversible via restore; history kept.
+ */
+export function useArchiveBudgetMonthDebt(yearMonth: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      monthDebtId,
+      payload,
+    }: {
+      monthDebtId: string;
+      payload: ArchiveBudgetMonthDebtRequestDto;
+    }) => archiveBudgetMonthDebt(yearMonth, monthDebtId, payload),
+    onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
+  });
+}
+
+/**
+ * Debt PR 8 — restore an archived debt
+ * (`POST .../debt-items/{id}/restore`). Optionally re-includes the open
+ * month's row.
+ */
+export function useRestoreBudgetMonthDebt(yearMonth: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      monthDebtId,
+      payload,
+    }: {
+      monthDebtId: string;
+      payload: RestoreBudgetMonthDebtRequestDto;
+    }) => restoreBudgetMonthDebt(yearMonth, monthDebtId, payload),
+    onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
+  });
+}
+
+/**
+ * Debt PR 8 — remove a month-only row from the open month
+ * (`POST .../debt-items/{id}/remove`). Only offered when the read model
+ * permits it (source-linked rows archive instead).
+ */
+export function useRemoveBudgetMonthDebt(yearMonth: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      monthDebtId,
+      payload,
+    }: {
+      monthDebtId: string;
+      payload: RemoveBudgetMonthDebtRequestDto;
+    }) => removeBudgetMonthDebt(yearMonth, monthDebtId, payload),
     onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
   });
 }
