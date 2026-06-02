@@ -33,6 +33,12 @@ type DebtLedgerGroupProps = {
    */
   onLifecycleAction?: (row: DebtEditorRowDto, action: DebtLifecycleAction) => void;
   /**
+   * Debt PR 9 — passed through so the `Uppdatera saldo` and repayment-progress
+   * kebab items appear when the parent has wired their flows.
+   */
+  onUpdateBalance?: (row: DebtEditorRowDto) => void;
+  onViewProgress?: (row: DebtEditorRowDto) => void;
+  /**
    * Override the default opening state. Used by the page to keep the archived
    * group collapsed on first render.
    */
@@ -50,6 +56,8 @@ export default function DebtLedgerGroup({
   onEditPayment,
   onEditDetails,
   onLifecycleAction,
+  onUpdateBalance,
+  onViewProgress,
   defaultOpen,
 }: DebtLedgerGroupProps) {
   const locale = useAppLocale();
@@ -159,6 +167,8 @@ export default function DebtLedgerGroup({
                   onEditPayment={onEditPayment}
                   onEditDetails={onEditDetails}
                   onLifecycleAction={onLifecycleAction}
+                  onUpdateBalance={onUpdateBalance}
+                  onViewProgress={onViewProgress}
                 />
               ))}
             </div>

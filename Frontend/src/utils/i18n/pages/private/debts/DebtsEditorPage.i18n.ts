@@ -76,6 +76,8 @@ export const debtsEditorPageDict = {
     createError: "Skulden kunde inte sparas",
     detailsSuccess: "Uppgifterna sparades",
     detailsError: "Uppgifterna kunde inte sparas",
+    balanceUpdated: "Saldot uppdaterades",
+    balanceUpdateError: "Saldot kunde inte uppdateras",
     readOnly: "Den här månaden är stängd och kan inte redigeras.",
     plannedNote:
       "Här ändras bara planerad månadsbetalning. Saldo uppdateras inte här.",
@@ -126,6 +128,10 @@ export const debtsEditorPageDict = {
     rowBadgeSkipped: "Ingår inte i {yearMonthLabel}",
     rowBadgePaid: "Betald",
     rowEmptyPayment: "—",
+
+    // ------------------------------------------------ inline repayment progress
+    rowProgressPaid: "{percent} % minskat",
+    rowProgressRemaining: "{remaining} kvar av {original}",
 
     // ---------------------------------------------- row action menu copy
     rowActionEditPayment: "Redigera planerad betalning",
@@ -270,6 +276,8 @@ export const debtsEditorPageDict = {
     createError: "Could not save the debt",
     detailsSuccess: "Details saved",
     detailsError: "Could not save the details",
+    balanceUpdated: "Balance updated",
+    balanceUpdateError: "Could not update the balance",
     readOnly: "This month is closed and cannot be edited.",
     plannedNote:
       "Only the planned monthly payment changes here. Balances are not updated by this flow.",
@@ -317,6 +325,9 @@ export const debtsEditorPageDict = {
     rowBadgeSkipped: "Not in {yearMonthLabel}",
     rowBadgePaid: "Paid off",
     rowEmptyPayment: "—",
+
+    rowProgressPaid: "{percent}% reduced",
+    rowProgressRemaining: "{remaining} left of {original}",
 
     rowActionEditPayment: "Adjust planned payment",
     rowActionUpdateBalance: "Update balance",
@@ -456,6 +467,8 @@ export const debtsEditorPageDict = {
     createError: "Võlga ei saanud salvestada",
     detailsSuccess: "Andmed salvestatud",
     detailsError: "Andmeid ei saanud salvestada",
+    balanceUpdated: "Jääk uuendatud",
+    balanceUpdateError: "Jääki ei saanud uuendada",
     readOnly: "See kuu on suletud ja seda ei saa muuta.",
     plannedNote:
       "Siin muudetakse ainult planeeritud kuumakset. Jääki see vaade ei uuenda.",
@@ -503,6 +516,9 @@ export const debtsEditorPageDict = {
     rowBadgeSkipped: "Ei kuulu {yearMonthLabel}",
     rowBadgePaid: "Tasutud",
     rowEmptyPayment: "—",
+
+    rowProgressPaid: "{percent}% vähenenud",
+    rowProgressRemaining: "{remaining} alles, kokku {original}",
 
     rowActionEditPayment: "Kohanda planeeritud makset",
     rowActionUpdateBalance: "Uuenda jääki",

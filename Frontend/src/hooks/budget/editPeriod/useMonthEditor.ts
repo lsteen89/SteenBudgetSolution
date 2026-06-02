@@ -1,5 +1,6 @@
 import {
   addBudgetMonthSavingsMethod,
+  adjustBudgetMonthDebtBalance,
   archiveBudgetMonthDebt,
   cancelBudgetMonthSavingsGoal,
   changeBudgetMonthSavingsGoalTargetAmount,
@@ -38,6 +39,7 @@ import {
 } from "@/api/Services/Budget/editor/monthEditor.api";
 import type { SavingsMethodCode } from "@/types/budget/SavingsMethodDto";
 import type {
+  AdjustBudgetMonthDebtBalanceRequestDto,
   ArchiveBudgetMonthDebtRequestDto,
   CreateBudgetMonthDebtRequestDto,
   CreateBudgetMonthExpenseItemRequestDto,
@@ -596,6 +598,29 @@ export function usePatchBudgetMonthDebtsBulk(yearMonth: string) {
 
       return patchBudgetMonthDebtsBulk(yearMonth, flatRows);
     },
+    onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
+  });
+}
+
+/**
+ * Debt PR 9 — `Uppdatera saldo`
+ * (`POST .../debt-items/{id}/balance-adjustments`). Success invalidates the
+ * debt editor read model and the dashboard projection. The liability-balance
+ * snapshot and any repayment progress re-read from backend data; the
+ * remaining-money equation is intentionally unaffected because a balance
+ * correction never moves the planned-payment total.
+ */
+export function useAdjustBudgetMonthDebtBalance(yearMonth: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      monthDebtId,
+      payload,
+    }: {
+      monthDebtId: string;
+      payload: AdjustBudgetMonthDebtBalanceRequestDto;
+    }) => adjustBudgetMonthDebtBalance(yearMonth, monthDebtId, payload),
     onSuccess: () => invalidateBudgetMonthEditingQueries(queryClient, yearMonth),
   });
 }

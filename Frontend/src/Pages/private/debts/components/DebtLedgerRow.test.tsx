@@ -414,4 +414,119 @@ describe("DebtLedgerRow", () => {
       screen.queryByRole("menuitem", { name: /^arkivera$/i }),
     ).toBeNull();
   });
+
+  // ---------------------------------------------------------------- PR 9 balance / progress
+  const progressFixture = () => ({
+    currentBalance: 38500,
+    firstBalance: 60000,
+    totalPaidDelta: 21500,
+    percentPaid: 36,
+    eventCount: 2,
+    firstEventAt: "2026-01-15T09:00:00Z",
+    lastEventAt: "2026-05-10T09:00:00Z",
+  });
+
+  it("offers update-balance when the backend permits it and the handler is wired", async () => {
+    const user = userEvent.setup();
+    const onUpdateBalance = vi.fn();
+    const row = baseRow({});
+    render(
+      <DebtLedgerRow
+        row={row}
+        yearMonthLabel="maj 2026"
+        readOnly={false}
+        onEditPayment={vi.fn()}
+        onUpdateBalance={onUpdateBalance}
+      />,
+    );
+
+    await openFirstMenu(user);
+    await user.click(
+      screen.getByRole("menuitem", { name: /uppdatera saldo/i }),
+    );
+    expect(onUpdateBalance).toHaveBeenCalledWith(row);
+  });
+
+  it("hides update-balance when the backend forbids it", async () => {
+    const user = userEvent.setup();
+    render(
+      <DebtLedgerRow
+        row={baseRow({
+          actions: { ...baseRow({}).actions, canUpdateBalance: false },
+        })}
+        yearMonthLabel="maj 2026"
+        readOnly={false}
+        onEditPayment={vi.fn()}
+        onUpdateBalance={vi.fn()}
+      />,
+    );
+
+    await openFirstMenu(user);
+    expect(
+      screen.queryByRole("menuitem", { name: /uppdatera saldo/i }),
+    ).toBeNull();
+  });
+
+  it("offers view-progress only when the row carries real progress data", async () => {
+    const user = userEvent.setup();
+    const onViewProgress = vi.fn();
+    const row = baseRow({ progress: progressFixture() });
+    render(
+      <DebtLedgerRow
+        row={row}
+        yearMonthLabel="maj 2026"
+        readOnly={false}
+        onEditPayment={vi.fn()}
+        onViewProgress={onViewProgress}
+      />,
+    );
+
+    await openFirstMenu(user);
+    await user.click(
+      screen.getByRole("menuitem", { name: /återbetalningsförlopp/i }),
+    );
+    expect(onViewProgress).toHaveBeenCalledWith(row);
+  });
+
+  it("hides view-progress when the row has no progress (never opens an empty view)", async () => {
+    const user = userEvent.setup();
+    render(
+      <DebtLedgerRow
+        row={baseRow({ progress: null })}
+        yearMonthLabel="maj 2026"
+        readOnly={false}
+        onEditPayment={vi.fn()}
+        onViewProgress={vi.fn()}
+      />,
+    );
+
+    await openFirstMenu(user);
+    expect(
+      screen.queryByRole("menuitem", { name: /återbetalningsförlopp/i }),
+    ).toBeNull();
+  });
+
+  it("renders the inline progress bar when progress data exists on an active row", () => {
+    render(
+      <DebtLedgerRow
+        row={baseRow({ progress: progressFixture() })}
+        yearMonthLabel="maj 2026"
+        readOnly={false}
+        onEditPayment={vi.fn()}
+      />,
+    );
+    expect(screen.getAllByTestId("debt-row-progress").length).toBeGreaterThan(0);
+  });
+
+  it("never renders an inline progress bar when progress is null", () => {
+    render(
+      <DebtLedgerRow
+        row={baseRow({ progress: null })}
+        yearMonthLabel="maj 2026"
+        readOnly={false}
+        onEditPayment={vi.fn()}
+      />,
+    );
+    expect(screen.queryByTestId("debt-row-progress")).toBeNull();
+  });
 });

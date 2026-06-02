@@ -8,6 +8,8 @@ import type {
   SavingsMethodDto,
 } from "@/types/budget/SavingsMethodDto";
 import type {
+  AdjustBudgetMonthDebtBalanceRequestDto,
+  AdjustBudgetMonthDebtBalanceResponseDto,
   ArchiveBudgetMonthDebtRequestDto,
   BudgetMonthBaseSavingsEditorDto,
   BudgetMonthDebtLifecycleActionResponseDto,
@@ -505,6 +507,30 @@ export async function patchBudgetMonthDebtsBulk(
   >(`/api/budgets/months/${yearMonth}/debt-items`, payload);
 
   return unwrapEnvelopeData(res, "Could not update month debts.");
+}
+
+/**
+ * Debt PR 3 / PR 9 — `Uppdatera saldo`. Records an absolute new liability
+ * balance against the month row (and, per scope, the linked plan row) and
+ * appends a typed `DebtBalanceEvent`. `POST` (not `PATCH`) because every call
+ * is an append-only history event, not an idempotent state set — the caller
+ * must debounce Save to avoid double submission. Planned monthly payment is
+ * never touched; the response echoes it back unchanged so the FE can assert
+ * the "saldo påverkas inte din planerade betalning" promise.
+ */
+export async function adjustBudgetMonthDebtBalance(
+  yearMonth: string,
+  monthDebtId: string,
+  payload: AdjustBudgetMonthDebtBalanceRequestDto,
+): Promise<AdjustBudgetMonthDebtBalanceResponseDto> {
+  const res = await api.post<
+    ApiEnvelope<AdjustBudgetMonthDebtBalanceResponseDto>
+  >(
+    `/api/budgets/months/${yearMonth}/debt-items/${monthDebtId}/balance-adjustments`,
+    payload,
+  );
+
+  return unwrapEnvelopeData(res, "Could not update debt balance.");
 }
 
 /**

@@ -44,6 +44,17 @@ type DebtLedgerRowProps = {
    * state from zero payment or zero balance.
    */
   onLifecycleAction?: (row: DebtEditorRowDto, action: DebtLifecycleAction) => void;
+  /**
+   * Debt PR 9 — opens the `Uppdatera saldo` drawer. Surfaces only when the
+   * backend `actions.canUpdateBalance` flag is true.
+   */
+  onUpdateBalance?: (row: DebtEditorRowDto) => void;
+  /**
+   * Debt PR 9 — opens the repayment-progress view. Surfaces only when the row
+   * carries real `progress` data from the PR 5 read model; a debt with no
+   * recorded balance events never shows the action (no fabricated progress).
+   */
+  onViewProgress?: (row: DebtEditorRowDto) => void;
 };
 
 const TYPE_DOT_CLASS: Record<DebtTypeBucket, string> = {
@@ -62,6 +73,8 @@ export default function DebtLedgerRow({
   onEditPayment,
   onEditDetails,
   onLifecycleAction,
+  onUpdateBalance,
+  onViewProgress,
 }: DebtLedgerRowProps) {
   const locale = useAppLocale();
   const currency = useAppCurrency();
@@ -172,7 +185,30 @@ export default function DebtLedgerRow({
     onEditPayment,
     onEditDetails,
     onLifecycleAction,
+    onUpdateBalance,
+    onViewProgress,
   );
+
+  // Inline repayment-progress bar. Renders only when the PR 5 read model
+  // carries real `DebtBalanceEvent`-derived progress — never synthesised from
+  // current-vs-original balance. Hidden for paid/archived rows where the
+  // remaining figure is no longer the planning focus, matching the target
+  // mockup (progress lives on active / skipped rows).
+  const showProgress =
+    row.progress !== null &&
+    row.progress.percentPaid !== null &&
+    (row.group === "active" || row.group === "skipped");
+  const progressNode = showProgress ? (
+    <RowProgressBar
+      percentPaid={row.progress!.percentPaid!}
+      currentBalance={row.progress!.currentBalance}
+      firstBalance={row.progress!.firstBalance}
+      currency={currency}
+      locale={locale}
+      paidLabelTemplate={t("rowProgressPaid")}
+      remainingLabelTemplate={t("rowProgressRemaining")}
+    />
+  ) : null;
 
   const reasons = row.disabledReasons;
   const tooltipReason = primaryReason(reasons);
@@ -214,6 +250,7 @@ export default function DebtLedgerRow({
               ))}
             </div>
             <p className="mt-1 text-[12.5px] text-eb-text/58">{metaText}</p>
+            {progressNode}
             <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
               <span className="text-[12px] text-eb-text/55">
                 {t("rowCellBalance")}:
@@ -265,6 +302,7 @@ export default function DebtLedgerRow({
             ))}
           </div>
           <p className="mt-1 text-[12.5px] text-eb-text/58">{metaText}</p>
+          {progressNode}
         </div>
 
         <div className="min-w-0">
@@ -314,19 +352,43 @@ function buildActionItems(
   onEditPayment: (row: DebtEditorRowDto) => void,
   onEditDetails?: (row: DebtEditorRowDto) => void,
   onLifecycleAction?: (row: DebtEditorRowDto, action: DebtLifecycleAction) => void,
+  onUpdateBalance?: (row: DebtEditorRowDto) => void,
+  onViewProgress?: (row: DebtEditorRowDto) => void,
 ): BudgetEditorRowActionItem[] {
   const items: BudgetEditorRowActionItem[] = [];
 
   // PR 6 wired the planned-payment action. PR 7 adds the edit-details action.
-  // PR 8 adds the lifecycle / participation actions below. Balance update and
-  // repayment progress remain absent until PR 9. Every item is gated on its
-  // matching backend permission so the FE never offers an action the command
-  // would reject.
+  // PR 8 adds the lifecycle / participation actions. PR 9 adds update-balance
+  // and view-progress. Order mirrors the target mockup's per-lifecycle kebab:
+  // payment → balance → progress → details, then the lifecycle block. Every
+  // item is gated on its matching backend permission (or, for progress, on the
+  // presence of real read-model data) so the FE never offers an action the
+  // command would reject or a progress view with nothing behind it.
   if (row.actions.canEditPayment) {
     items.push({
       key: "edit-payment",
       label: t("rowActionEditPayment"),
       onSelect: () => onEditPayment(row),
+    });
+  }
+
+  if (onUpdateBalance && row.actions.canUpdateBalance) {
+    items.push({
+      key: "update-balance",
+      label: t("rowActionUpdateBalance"),
+      onSelect: () => onUpdateBalance(row),
+    });
+  }
+
+  // Progress is gated on real `DebtBalanceEvent`-derived data, never on a
+  // permission flag — a debt with no recorded balance history simply has no
+  // progress to show, so the action stays hidden rather than opening an empty
+  // view.
+  if (onViewProgress && row.progress !== null) {
+    items.push({
+      key: "view-progress",
+      label: t("rowActionViewProgress"),
+      onSelect: () => onViewProgress(row),
     });
   }
 
@@ -394,6 +456,54 @@ function buildActionItems(
   }
 
   return items;
+}
+
+function RowProgressBar({
+  percentPaid,
+  currentBalance,
+  firstBalance,
+  currency,
+  locale,
+  paidLabelTemplate,
+  remainingLabelTemplate,
+}: {
+  percentPaid: number;
+  currentBalance: number;
+  firstBalance: number;
+  currency: ReturnType<typeof useAppCurrency>;
+  locale: string;
+  paidLabelTemplate: string;
+  remainingLabelTemplate: string;
+}) {
+  const clamped = Math.max(0, Math.min(100, Math.round(percentPaid)));
+  const paidLabel = paidLabelTemplate.replace(
+    "{percent}",
+    String(clamped),
+  );
+  const remainingLabel = remainingLabelTemplate
+    .replace(
+      "{remaining}",
+      formatMoneyV2(currentBalance, currency, locale, { fractionDigits: 0 }),
+    )
+    .replace(
+      "{original}",
+      formatMoneyV2(firstBalance, currency, locale, { fractionDigits: 0 }),
+    );
+
+  return (
+    <div data-testid="debt-row-progress" className="mt-2">
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-[rgb(var(--eb-shell-3)/0.12)]">
+        <div
+          className="h-full rounded-full bg-[rgb(var(--eb-accent))]"
+          style={{ width: `${clamped}%` }}
+        />
+      </div>
+      <div className="mt-1 flex flex-wrap items-baseline justify-between gap-x-3 text-[11.5px] text-eb-text/55">
+        <span className="font-semibold text-eb-text/70">{paidLabel}</span>
+        <span>{remainingLabel}</span>
+      </div>
+    </div>
+  );
 }
 
 function RowBadge({

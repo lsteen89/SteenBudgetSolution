@@ -1,5 +1,6 @@
 import BudgetEditorPageShell from "@/components/molecules/forms/budgetEditor/BudgetEditorPageShell";
 import {
+  useAdjustBudgetMonthDebtBalance,
   useArchiveBudgetMonthDebt,
   useBudgetMonthDebtEditor,
   useCreateBudgetMonthDebt,
@@ -28,6 +29,9 @@ import { debtsEditorPageDict } from "@/utils/i18n/pages/private/debts/DebtsEdito
 import { tDict } from "@/utils/i18n/translate";
 import { CalendarDays } from "lucide-react";
 import { useMemo, useState } from "react";
+import DebtBalanceModal, {
+  type DebtBalanceSubmitValues,
+} from "./components/DebtBalanceModal";
 import DebtCreateModal, {
   type DebtCreateSubmitValues,
 } from "./components/DebtCreateModal";
@@ -35,6 +39,7 @@ import DebtDetailsModal, {
   type DebtDetailsSubmitValues,
 } from "./components/DebtDetailsModal";
 import DebtLedgerGroup from "./components/DebtLedgerGroup";
+import DebtProgressModal from "./components/DebtProgressModal";
 import DebtLifecycleConfirmDialog, {
   type DebtLifecycleAction,
   type DebtLifecycleConfirmOptions,
@@ -109,6 +114,11 @@ export default function DebtsEditorPage() {
   // editor read model and dashboard projection on success so groups, totals,
   // and the remaining-money equation reconcile from backend data (never
   // optimistic).
+  // PR 9 — balance adjustment. Invalidates the editor read model and dashboard
+  // so the liability snapshot and progress re-read from backend data; the
+  // remaining-money equation is untouched (a correction never moves payments).
+  const adjustBalanceMutation =
+    useAdjustBudgetMonthDebtBalance(mutationYearMonth);
   const participationMutation =
     useSetBudgetMonthDebtParticipation(mutationYearMonth);
   const markPaidOffMutation = useMarkBudgetMonthDebtPaidOff(mutationYearMonth);
@@ -135,6 +145,10 @@ export default function DebtsEditorPage() {
     row: DebtEditorRowDto;
     action: DebtLifecycleAction;
   } | null>(null);
+  // PR 9 — `Uppdatera saldo` drawer and the read-only repayment-progress view.
+  const [balanceRow, setBalanceRow] = useState<DebtEditorRowDto | null>(null);
+  const [balanceError, setBalanceError] = useState<string | null>(null);
+  const [progressRow, setProgressRow] = useState<DebtEditorRowDto | null>(null);
 
   const lifecycleWorking =
     participationMutation.isPending ||
@@ -269,6 +283,39 @@ export default function DebtsEditorPage() {
     } catch (error) {
       setDetailsError(extractMessage(error, t("detailsError")));
     }
+  };
+
+  // PR 9 — open the `Uppdatera saldo` drawer. The row already carries the
+  // PR 5 read-model shape (balance, planned payment, canUpdatePlan), so no
+  // adaptation is needed.
+  const handleUpdateBalance = (row: DebtEditorRowDto) => {
+    setBalanceError(null);
+    setBalanceRow(row);
+  };
+
+  const handleBalanceSubmit = async (values: DebtBalanceSubmitValues) => {
+    if (!balanceRow) return;
+    setBalanceError(null);
+    try {
+      await adjustBalanceMutation.mutateAsync({
+        monthDebtId: balanceRow.id,
+        payload: {
+          newBalance: values.newBalance,
+          scope: values.scope,
+          note: values.note,
+        },
+      });
+      toast.success(t("balanceUpdated"));
+      setBalanceRow(null);
+    } catch (error) {
+      setBalanceError(extractMessage(error, t("balanceUpdateError")));
+    }
+  };
+
+  // PR 9 — open the read-only repayment-progress view. Only ever invoked for
+  // rows the row component already gated on real `progress` data.
+  const handleViewProgress = (row: DebtEditorRowDto) => {
+    setProgressRow(row);
   };
 
   // PR 8 — open the lifecycle confirmation dialog for the chosen action. The
@@ -437,6 +484,8 @@ export default function DebtsEditorPage() {
                   onLifecycleAction={
                     readOnly ? undefined : handleLifecycleAction
                   }
+                  onUpdateBalance={readOnly ? undefined : handleUpdateBalance}
+                  onViewProgress={handleViewProgress}
                   defaultOpen={copy.group !== "archived"}
                 />
               ))}
@@ -492,6 +541,26 @@ export default function DebtsEditorPage() {
         isWorking={lifecycleWorking}
         onConfirm={handleLifecycleConfirm}
         onClose={closeLifecycleConfirm}
+      />
+
+      <DebtBalanceModal
+        open={!!balanceRow}
+        row={balanceRow}
+        monthLabel={periodLabel}
+        isSaving={adjustBalanceMutation.isPending}
+        submitErrorMessage={balanceError}
+        onClose={() => {
+          if (adjustBalanceMutation.isPending) return;
+          setBalanceRow(null);
+          setBalanceError(null);
+        }}
+        onSubmit={handleBalanceSubmit}
+      />
+
+      <DebtProgressModal
+        open={!!progressRow}
+        row={progressRow}
+        onClose={() => setProgressRow(null)}
       />
     </>
   );
