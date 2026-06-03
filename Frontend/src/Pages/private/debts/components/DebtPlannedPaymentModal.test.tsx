@@ -5,6 +5,9 @@ import DebtPlannedPaymentModal from "./DebtPlannedPaymentModal";
 vi.mock("@/hooks/i18n/useAppLocale", () => ({
   useAppLocale: () => "en-US",
 }));
+vi.mock("@/hooks/i18n/useAppCurrency", () => ({
+  useAppCurrency: () => "SEK",
+}));
 
 const linkedRow = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -84,6 +87,59 @@ describe("DebtPlannedPaymentModal", () => {
 
     expect(
       screen.getByText("This debt only exists in the current month."),
+    ).toBeInTheDocument();
+  });
+
+  // ----------------------------------- Debt Polish PR 2: preview behavior
+
+  it("recomputes the preview when the planned payment changes so the user sees the new principal before save", () => {
+    render(
+      <DebtPlannedPaymentModal
+        open
+        row={{
+          ...linkedRow,
+          balance: 93000,
+          apr: 10.99,
+          monthlyFee: 130,
+          monthlyPayment: 1550,
+        }}
+        monthLabel="May 2026"
+        onClose={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    // PR 1 baseline: 851.73 interest, 568.27 principal at 1550 kr payment.
+    expect(
+      screen.getByTestId("debt-planned-payment-preview-interest"),
+    ).toHaveTextContent(/852/);
+    expect(
+      screen.getByTestId("debt-planned-payment-preview-principal"),
+    ).toHaveTextContent(/568/);
+
+    // Drop payment so it cannot cover interest + fee — advisory should appear.
+    fireEvent.change(screen.getByLabelText("Planned monthly payment"), {
+      target: { value: "500" },
+    });
+
+    expect(
+      screen.getByTestId("debt-planned-payment-preview-shortfall"),
+    ).toHaveTextContent(/does not cover interest and fee/i);
+  });
+
+  it("reminds the user that the balance is not changed here so the planned-payment edit cannot be mistaken for a balance update", () => {
+    render(
+      <DebtPlannedPaymentModal
+        open
+        row={linkedRow}
+        monthLabel="May 2026"
+        onClose={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText("Balance is not changed here."),
     ).toBeInTheDocument();
   });
 

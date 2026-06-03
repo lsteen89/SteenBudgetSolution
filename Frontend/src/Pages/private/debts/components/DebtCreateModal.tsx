@@ -2,15 +2,20 @@ import { CtaButton } from "@/components/atoms/buttons/CtaButton";
 import { FormField } from "@/components/atoms/forms/FormField";
 import { TextInput } from "@/components/atoms/InputField/TextInputv2";
 import BudgetEntryModalShell from "@/components/molecules/forms/budgetEditor/BudgetEntryModalShell";
+import EditorPreviewCard from "@/components/molecules/forms/budgetEditor/EditorPreviewCard";
 import MoneyInput from "@/components/molecules/forms/budgetEditor/MoneyInput";
 import EditScopeRadioCards from "@/components/molecules/forms/editScope/EditScopeRadioCards";
+import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/lib/utils";
 import type { DebtCreateScope } from "@/types/budget/BudgetMonthsStatusDto";
 import { debtCreateModalDict } from "@/utils/i18n/pages/private/debts/DebtCreateModal.i18n";
 import { tDict } from "@/utils/i18n/translate";
 import { parseMoneyInput } from "@/utils/money/moneyInput";
-import { useEffect, useState, type FormEvent } from "react";
+import { formatMoneyV2 } from "@/utils/money/moneyV2";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { calcDebtPaymentBreakdown } from "../utils/debtPaymentBreakdown";
+import DebtPaymentPreviewBody from "./DebtPaymentPreviewBody";
 
 // Backend type literals (`Backend/Application/Constants/DebtTypes.cs`). Kept
 // as a local constant union so the select can't drift from what the
@@ -68,6 +73,7 @@ export default function DebtCreateModal({
   onSubmit,
 }: DebtCreateModalProps) {
   const locale = useAppLocale();
+  const currency = useAppCurrency();
   const t = <K extends keyof typeof debtCreateModalDict.sv>(key: K) =>
     tDict(key, locale, debtCreateModalDict);
 
@@ -114,6 +120,40 @@ export default function DebtCreateModal({
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [open, isSaving, onClose]);
+
+  // Debt Polish PR 2: dirty-form preview. Parse the in-flight inputs with the
+  // same `parseMoneyInput` the submit handler uses so the preview shows the
+  // same number the backend will receive. Invalid / blank inputs degrade to 0
+  // — that lets the breakdown surface render calmly while the user is still
+  // typing instead of disappearing the moment they erase a digit.
+  const previewBreakdown = useMemo(() => {
+    const safeBalance =
+      parseMoneyInput(balance, { allowNegative: false, maxDecimals: 2 }) ?? 0;
+    const safeApr =
+      parseMoneyInput(apr, { allowNegative: false, maxDecimals: 2 }) ?? 0;
+    const safeFee =
+      monthlyFee.trim() === ""
+        ? null
+        : parseMoneyInput(monthlyFee, {
+            allowNegative: false,
+            maxDecimals: 2,
+          });
+    const safePayment =
+      parseMoneyInput(monthlyPayment, {
+        allowNegative: false,
+        maxDecimals: 2,
+      }) ?? 0;
+
+    return calcDebtPaymentBreakdown({
+      currentBalance: safeBalance,
+      annualInterestPercent: safeApr,
+      monthlyFee: safeFee,
+      plannedMonthlyPayment: safePayment,
+    });
+  }, [balance, apr, monthlyFee, monthlyPayment]);
+
+  const formatPreviewAmount = (value: number) =>
+    formatMoneyV2(value, currency, locale, { fractionDigits: 0 });
 
   if (!open) return null;
 
@@ -417,6 +457,55 @@ export default function DebtCreateModal({
                   {t("monthOnlyCallout")}
                 </div>
               ) : null}
+
+              {/* Debt Polish PR 2: dirty-form preview. Uses the FE mirror of
+                  the PR 1 backend formula (`utils/debtPaymentBreakdown.ts`)
+                  so the user sees how APR / fee / payment changes split the
+                  planned monthly payment before they save. `muted=true` when
+                  the payment cannot cover interest + fee — the same amber
+                  treatment the row breakdown uses for the live read model.
+
+                  Under `budgetPlanOnly` no current-month row is created, so
+                  the label / subtitle / projected-after copy switches to the
+                  plan-aware variants — otherwise a user picking "Budget plan
+                  forward only" would see "this month" copy that the save
+                  will not actually produce. */}
+              <EditorPreviewCard
+                label={
+                  scope === "budgetPlanOnly"
+                    ? t("previewLabelPlanOnly")
+                    : t("previewLabel")
+                }
+                title={name.trim() || t("previewUntitled")}
+                subtitle={
+                  scope === "budgetPlanOnly"
+                    ? t("previewSubtitlePlanOnly")
+                    : t("previewSubtitle")
+                }
+                amount={formatPreviewAmount(
+                  previewBreakdown.plannedMonthlyPayment,
+                )}
+                status={t("previewPlannedPaymentLabel")}
+                muted={!previewBreakdown.coversInterestAndFees}
+              >
+                <DebtPaymentPreviewBody
+                  breakdown={previewBreakdown}
+                  formatAmount={formatPreviewAmount}
+                  testIdPrefix="debt-create-preview"
+                  labels={{
+                    interestLabel: t("previewInterestLabel"),
+                    feeLabel: t("previewFeeLabel"),
+                    principalLabel: t("previewPrincipalLabel"),
+                    projectedAfterLabel:
+                      scope === "budgetPlanOnly"
+                        ? t("previewProjectedAfterLabelPlanOnly")
+                        : t("previewProjectedAfterLabel"),
+                    balanceUnchangedNote: t("previewBalanceUnchangedNote"),
+                    shortfallAdvisory: t("previewShortfallAdvisory"),
+                    shortfallAmountTemplate: t("previewShortfallAmount"),
+                  }}
+                />
+              </EditorPreviewCard>
 
               {error ? (
                 <p

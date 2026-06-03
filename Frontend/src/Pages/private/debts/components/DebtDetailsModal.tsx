@@ -2,6 +2,7 @@ import { CtaButton } from "@/components/atoms/buttons/CtaButton";
 import { FormField } from "@/components/atoms/forms/FormField";
 import { TextInput } from "@/components/atoms/InputField/TextInputv2";
 import BudgetEntryModalShell from "@/components/molecules/forms/budgetEditor/BudgetEntryModalShell";
+import EditorPreviewCard from "@/components/molecules/forms/budgetEditor/EditorPreviewCard";
 import MoneyInput from "@/components/molecules/forms/budgetEditor/MoneyInput";
 import EditScopeRadioCards from "@/components/molecules/forms/editScope/EditScopeRadioCards";
 import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
@@ -12,7 +13,9 @@ import { debtDetailsModalDict } from "@/utils/i18n/pages/private/debts/DebtDetai
 import { tDict } from "@/utils/i18n/translate";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
 import { parseMoneyInput } from "@/utils/money/moneyInput";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { calcDebtPaymentBreakdown } from "../utils/debtPaymentBreakdown";
+import DebtPaymentPreviewBody from "./DebtPaymentPreviewBody";
 
 const DEBT_TYPES = ["installment", "revolving", "bank_loan", "private"] as const;
 type DebtTypeLiteral = (typeof DEBT_TYPES)[number];
@@ -114,6 +117,61 @@ export default function DebtDetailsModal({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [open, isSaving, onClose]);
 
+  // Debt Polish PR 2: dirty-form preview. The breakdown targets the write
+  // surface the chosen scope actually writes to, using the user's edited
+  // APR / fee / payment so the preview always shows the financial
+  // consequence of the values being saved (never stale row values dressed
+  // up as a fresh preview).
+  //
+  // Balance basis by scope:
+  //   * `currentMonthOnly`            -> row.balance         (this month)
+  //   * `currentMonthAndBudgetPlan`   -> row.balance         (this month)
+  //   * `budgetPlanOnly`              -> sourceBalance ?? row.balance
+  //                                      (plan-side balance, falling back to
+  //                                      the row when the source side was
+  //                                      not surfaced in the read model)
+  //
+  // Balance is never mutated by APR / fee / payment edits regardless of
+  // scope — that invariant is enforced by the backend, and the facts strip
+  // always reflects the row's stored balance.
+  const isPlanOnlyPreview = scope === "budgetPlanOnly";
+  const previewBreakdown = useMemo(() => {
+    if (!row) {
+      return calcDebtPaymentBreakdown({
+        currentBalance: 0,
+        annualInterestPercent: 0,
+        monthlyFee: null,
+        plannedMonthlyPayment: 0,
+      });
+    }
+
+    const safeApr =
+      parseMoneyInput(apr, { allowNegative: false, maxDecimals: 2 }) ?? 0;
+    const safeFee =
+      monthlyFee.trim() === ""
+        ? null
+        : parseMoneyInput(monthlyFee, {
+            allowNegative: false,
+            maxDecimals: 2,
+          });
+    const safePayment =
+      parseMoneyInput(monthlyPayment, {
+        allowNegative: false,
+        maxDecimals: 2,
+      }) ?? 0;
+
+    const balanceBasis = isPlanOnlyPreview
+      ? row.sourceBalance ?? row.balance
+      : row.balance;
+
+    return calcDebtPaymentBreakdown({
+      currentBalance: balanceBasis,
+      annualInterestPercent: safeApr,
+      monthlyFee: safeFee,
+      plannedMonthlyPayment: safePayment,
+    });
+  }, [row, isPlanOnlyPreview, apr, monthlyFee, monthlyPayment]);
+
   if (!open || !row) return null;
 
   const canUpdatePlan = row.actions.canUpdatePlan;
@@ -121,6 +179,18 @@ export default function DebtDetailsModal({
   const balanceText = formatMoneyV2(row.balance, currency, locale, {
     fractionDigits: 0,
   });
+  const formatPreviewAmount = (value: number) =>
+    formatMoneyV2(value, currency, locale, { fractionDigits: 0 });
+
+  // Two-column scope hint mirrors the Expense pattern. We only render it when
+  // the row has source-plan data (linked, non-month-only). Month-only rows
+  // have no plan column, so the chip would be misleading.
+  const planPreviewAvailable =
+    !row.isMonthOnly && row.sourceMonthlyPayment != null;
+  const currentMonthReceivesEdit =
+    scope === "currentMonthOnly" || scope === "currentMonthAndBudgetPlan";
+  const budgetPlanReceivesEdit =
+    scope === "currentMonthAndBudgetPlan" || scope === "budgetPlanOnly";
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -412,6 +482,79 @@ export default function DebtDetailsModal({
                 disabled={isSaving}
                 testId="debt-details-modal-scope"
               />
+
+              {/* Debt Polish PR 2: scope-aware dirty-form preview. Math uses
+                  the FE mirror of the PR 1 backend formula
+                  (`utils/debtPaymentBreakdown.ts`). Under `budgetPlanOnly`
+                  the preview targets the plan side — sourceBalance + edited
+                  APR / fee / payment — so the user sees the math the save
+                  will actually produce, not the unchanged current-month
+                  numbers. The label, subtitle, and projected-after copy
+                  swap to plan-aware variants to match. */}
+              <EditorPreviewCard
+                label={
+                  isPlanOnlyPreview ? t("previewLabelPlanOnly") : t("previewLabel")
+                }
+                title={name.trim() || row.name}
+                subtitle={
+                  isPlanOnlyPreview
+                    ? t("previewSubtitlePlanOnly")
+                    : t("previewSubtitle")
+                }
+                amount={formatPreviewAmount(
+                  previewBreakdown.plannedMonthlyPayment,
+                )}
+                status={t("previewPlannedPaymentLabel")}
+                muted={!previewBreakdown.coversInterestAndFees}
+              >
+                <DebtPaymentPreviewBody
+                  breakdown={previewBreakdown}
+                  formatAmount={formatPreviewAmount}
+                  testIdPrefix="debt-details-preview"
+                  labels={{
+                    interestLabel: t("previewInterestLabel"),
+                    feeLabel: t("previewFeeLabel"),
+                    principalLabel: t("previewPrincipalLabel"),
+                    projectedAfterLabel: isPlanOnlyPreview
+                      ? t("previewProjectedAfterLabelPlanOnly")
+                      : t("previewProjectedAfterLabel"),
+                    balanceUnchangedNote: t("previewBalanceUnchangedNote"),
+                    shortfallAdvisory: t("previewShortfallAdvisory"),
+                    shortfallAmountTemplate: t("previewShortfallAmount"),
+                  }}
+                  header={
+                    planPreviewAvailable ? (
+                      <div
+                        data-testid="debt-details-preview-plan-hints"
+                        data-current-receives-edit={currentMonthReceivesEdit}
+                        data-plan-receives-edit={budgetPlanReceivesEdit}
+                        className="grid gap-2 rounded-xl border border-eb-stroke/18 bg-white/62 px-3 py-2.5 text-xs text-eb-text/65 sm:grid-cols-2"
+                      >
+                        <div data-testid="debt-details-preview-current">
+                          <span className="block text-[10px] font-semibold uppercase tracking-wide text-eb-text/42">
+                            {t("previewCurrentMonthLabel")}
+                          </span>
+                          <span className="mt-0.5 block">
+                            {currentMonthReceivesEdit
+                              ? t("previewBudgetPlanReceivesEdit")
+                              : t("previewCurrentMonthUnchanged")}
+                          </span>
+                        </div>
+                        <div data-testid="debt-details-preview-plan">
+                          <span className="block text-[10px] font-semibold uppercase tracking-wide text-eb-text/42">
+                            {t("previewBudgetPlanLabel")}
+                          </span>
+                          <span className="mt-0.5 block">
+                            {budgetPlanReceivesEdit
+                              ? t("previewBudgetPlanReceivesEdit")
+                              : t("previewCurrentMonthUnchanged")}
+                          </span>
+                        </div>
+                      </div>
+                    ) : null
+                  }
+                />
+              </EditorPreviewCard>
 
               {error ? (
                 <p

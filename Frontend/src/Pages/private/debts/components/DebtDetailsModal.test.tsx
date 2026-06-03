@@ -66,7 +66,7 @@ describe("DebtDetailsModal", () => {
 
     expect(screen.getByLabelText("Name")).toHaveValue("Privatlån");
     expect(screen.getByTestId("debt-details-type")).toHaveValue("bank_loan");
-    expect(screen.getByLabelText("Rate")).toHaveValue("6.4");
+    expect(screen.getByLabelText("Annual rate (%)")).toHaveValue("6.4");
     expect(screen.getByLabelText(/Minimum payment/)).toHaveValue("1100");
     expect(screen.getByLabelText("Planned monthly payment")).toHaveValue("1500");
 
@@ -235,6 +235,197 @@ describe("DebtDetailsModal", () => {
 
     expect(screen.getByTestId("debt-details-submit-error")).toHaveTextContent(
       "Validation failed: name is already taken.",
+    );
+  });
+
+  // ----------------------------------- Debt Polish PR 2: labels + preview
+
+  it("uses the PR 2 labels (Annual rate, Fee per month, Term (months)) so units are explicit", () => {
+    render(
+      <DebtDetailsModal
+        open
+        row={linkedRow()}
+        monthLabel="May 2026"
+        onClose={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText("Annual rate (%)")).toBeInTheDocument();
+    expect(screen.getByLabelText(/Fee per month/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Term \(months\)/)).toBeInTheDocument();
+  });
+
+  it("recomputes the preview when APR or fee change so the user sees the principal shift before save", () => {
+    render(
+      <DebtDetailsModal
+        open
+        row={linkedRow({
+          balance: 93000,
+          apr: 10.99,
+          monthlyFee: 130,
+          monthlyPayment: 1550,
+        })}
+        monthLabel="May 2026"
+        onClose={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("debt-details-preview-interest")).toHaveTextContent(
+      /852/,
+    );
+    expect(screen.getByTestId("debt-details-preview-principal")).toHaveTextContent(
+      /568/,
+    );
+
+    fireEvent.change(screen.getByLabelText("Annual rate (%)"), {
+      target: { value: "12.99" },
+    });
+    fireEvent.change(screen.getByLabelText(/Fee per month/), {
+      target: { value: "149.99" },
+    });
+
+    expect(screen.getByTestId("debt-details-preview-interest")).toHaveTextContent(
+      /1[,\s]?007/,
+    );
+    expect(screen.getByTestId("debt-details-preview-principal")).toHaveTextContent(
+      /393/,
+    );
+  });
+
+  it("shows plan-side math under budgetPlanOnly so the preview matches the values that will actually be saved", () => {
+    render(
+      <DebtDetailsModal
+        open
+        row={linkedRow({
+          balance: 93000,
+          sourceBalance: 93000,
+          apr: 10.99,
+          monthlyFee: 130,
+          monthlyPayment: 1550,
+        })}
+        monthLabel="May 2026"
+        onClose={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Annual rate (%)"), {
+      target: { value: "20" },
+    });
+    fireEvent.click(
+      screen.getByRole("radio", { name: /budget plan going forward only/i }),
+    );
+
+    // The plan side will receive the edited 20% APR. Against the plan-side
+    // balance (93,000 here), monthly interest = 93000 * 20 / 100 / 12 = 1550.
+    // The preview must reflect that — the old behavior of showing 10.99%
+    // math under a plan-only edit was a lie about what gets saved.
+    expect(screen.getByTestId("debt-details-preview-interest")).toHaveTextContent(
+      /1[,\s]?550/,
+    );
+    // Subtitle / projected-after copy swap to plan-aware variants so the
+    // preview never implies a current-month effect.
+    expect(
+      screen.getByText("How a planned month's payment splits"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Projected balance after a planned month/i),
+    ).toBeInTheDocument();
+    // The scope hint row still tells the user the current month is untouched.
+    const hints = screen.getByTestId("debt-details-preview-plan-hints");
+    expect(hints).toHaveAttribute("data-current-receives-edit", "false");
+    expect(hints).toHaveAttribute("data-plan-receives-edit", "true");
+  });
+
+  it("uses sourceBalance under budgetPlanOnly when it diverges from the current-month balance", () => {
+    // The plan-side balance may legitimately differ from the current month's
+    // balance (e.g. after an audited balance correction on one side). Under
+    // `budgetPlanOnly` the preview must compute interest against the
+    // plan-side balance, not the visible row balance.
+    render(
+      <DebtDetailsModal
+        open
+        row={linkedRow({
+          balance: 50000,
+          sourceBalance: 120000,
+          apr: 12,
+          monthlyFee: 0,
+          monthlyPayment: 2000,
+        })}
+        monthLabel="May 2026"
+        onClose={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("radio", { name: /budget plan going forward only/i }),
+    );
+
+    // 120000 * 12 / 100 / 12 = 1200 (plan-side interest), not 500 (would be
+    // current-month interest at 50000 balance).
+    expect(screen.getByTestId("debt-details-preview-interest")).toHaveTextContent(
+      /1[,\s]?200/,
+    );
+  });
+
+  it("shows the amber shortfall advisory when the edited payment cannot cover interest + fee", () => {
+    render(
+      <DebtDetailsModal
+        open
+        row={linkedRow({
+          balance: 50000,
+          apr: 24,
+          monthlyFee: 50,
+          monthlyPayment: 1500,
+        })}
+        monthLabel="May 2026"
+        onClose={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Planned monthly payment"), {
+      target: { value: "800" },
+    });
+
+    const shortfall = screen.getByTestId("debt-details-preview-shortfall");
+    expect(shortfall).toHaveTextContent(/does not cover interest and fee/i);
+    expect(shortfall).toHaveTextContent(/250/);
+  });
+
+  it("never mutates the row's balance facts when APR, fee, or payment change in the preview", () => {
+    render(
+      <DebtDetailsModal
+        open
+        row={linkedRow({
+          balance: 38500,
+          apr: 6.4,
+          monthlyFee: null,
+          monthlyPayment: 1500,
+        })}
+        monthLabel="May 2026"
+        onClose={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Annual rate (%)"), {
+      target: { value: "20" },
+    });
+    fireEvent.change(screen.getByLabelText(/Fee per month/), {
+      target: { value: "200" },
+    });
+    fireEvent.change(screen.getByLabelText("Planned monthly payment"), {
+      target: { value: "3000" },
+    });
+
+    // The "Owed balance" facts strip always reflects the row's stored value
+    // regardless of how the preview math shifts — balance never changes here.
+    expect(screen.getByTestId("debt-details-facts-balance")).toHaveTextContent(
+      /38[,\s]?500/,
     );
   });
 });

@@ -21,12 +21,12 @@ export const debtCreateModalDict = {
     typePrivate: "Privatlån",
     balanceLabel: "Saldo · kvar att betala",
     balanceHint: "Det aktuella saldot från långivaren — sätter startvärdet.",
-    aprLabel: "Ränta",
-    monthlyFeeLabel: "Månadsavgift",
-    monthlyFeeOptional: "Valfritt",
+    aprLabel: "Årsränta (%)",
+    monthlyFeeLabel: "Avgift per månad",
+    monthlyFeeOptional: "Valfritt · kr per månad",
     minPaymentLabel: "Minsta betalning",
     minPaymentHint: "Krävs för kreditkort.",
-    termMonthsLabel: "Löptid",
+    termMonthsLabel: "Löptid (månader)",
     termMonthsSuffix: "mån",
     termMonthsHint: "Krävs för avbetalning och banklån.",
     paymentLabel: "Planerad månadsbetalning",
@@ -35,6 +35,25 @@ export const debtCreateModalDict = {
 
     monthOnlyCallout:
       "Med ”Bara denna månad” skapas skulden bara i månadens planering. Den ärvs inte till kommande månader.",
+
+    // Debt Polish PR 2: dirty-form preview card. Math comes from the FE
+    // mirror of the PR 1 backend formula in `utils/debtPaymentBreakdown.ts`.
+    previewLabel: "Förhandsvisning",
+    previewLabelPlanOnly: "Förhandsvisning · Budgetplan framåt",
+    previewSubtitle: "Så fördelas månadens betalning",
+    previewSubtitlePlanOnly: "Så fördelas en planerad månads betalning",
+    previewUntitled: "Ny skuld",
+    previewPlannedPaymentLabel: "Planerad månadsbetalning",
+    previewInterestLabel: "Ränta",
+    previewFeeLabel: "Avgift",
+    previewPrincipalLabel: "Minskar skulden",
+    previewProjectedAfterLabel: "Beräknat saldo efter månaden",
+    previewProjectedAfterLabelPlanOnly:
+      "Beräknat saldo efter en planerad månad",
+    previewBalanceUnchangedNote: "Saldo påverkas inte här.",
+    previewShortfallAdvisory:
+      "Betalningen täcker inte ränta och avgift. Saldot väntas inte minska denna månad.",
+    previewShortfallAmount: "Saknas: {amount}",
 
     cancel: "Avbryt",
     save: "Lägg till skuld",
@@ -73,12 +92,12 @@ export const debtCreateModalDict = {
     typePrivate: "Private loan",
     balanceLabel: "Balance · owed",
     balanceHint: "Current balance from the lender — sets the starting value.",
-    aprLabel: "Rate",
-    monthlyFeeLabel: "Monthly fee",
-    monthlyFeeOptional: "Optional",
+    aprLabel: "Annual rate (%)",
+    monthlyFeeLabel: "Fee per month",
+    monthlyFeeOptional: "Optional · per month",
     minPaymentLabel: "Minimum payment",
     minPaymentHint: "Required for credit cards.",
-    termMonthsLabel: "Term",
+    termMonthsLabel: "Term (months)",
     termMonthsSuffix: "mo",
     termMonthsHint: "Required for installment and bank loans.",
     paymentLabel: "Planned monthly payment",
@@ -87,6 +106,23 @@ export const debtCreateModalDict = {
 
     monthOnlyCallout:
       "With \"Only this month\" the debt is created in this month's plan only. It is not carried into future months.",
+
+    previewLabel: "Preview",
+    previewLabelPlanOnly: "Preview · Budget plan forward",
+    previewSubtitle: "How this month's payment splits",
+    previewSubtitlePlanOnly: "How a planned month's payment splits",
+    previewUntitled: "New debt",
+    previewPlannedPaymentLabel: "Planned monthly payment",
+    previewInterestLabel: "Interest",
+    previewFeeLabel: "Fee",
+    previewPrincipalLabel: "Reduces balance",
+    previewProjectedAfterLabel: "Projected balance after this month",
+    previewProjectedAfterLabelPlanOnly:
+      "Projected balance after a planned month",
+    previewBalanceUnchangedNote: "Balance is not changed here.",
+    previewShortfallAdvisory:
+      "Payment does not cover interest and fee. Balance is not expected to decrease this month.",
+    previewShortfallAmount: "Missing: {amount}",
 
     cancel: "Cancel",
     save: "Add debt",
@@ -124,12 +160,12 @@ export const debtCreateModalDict = {
     typePrivate: "Erainvestori laen",
     balanceLabel: "Jääk · tasumata",
     balanceHint: "Praegune jääk laenuandjalt — määrab algväärtuse.",
-    aprLabel: "Intress",
-    monthlyFeeLabel: "Kuutasu",
-    monthlyFeeOptional: "Valikuline",
+    aprLabel: "Aastaintress (%)",
+    monthlyFeeLabel: "Tasu kuus",
+    monthlyFeeOptional: "Valikuline · kuus",
     minPaymentLabel: "Minimaalne makse",
     minPaymentHint: "Krediitkaartide puhul kohustuslik.",
-    termMonthsLabel: "Tähtaeg",
+    termMonthsLabel: "Tähtaeg (kuud)",
     termMonthsSuffix: "kuu",
     termMonthsHint: "Järelmaksu ja pangalaenu puhul kohustuslik.",
     paymentLabel: "Planeeritud kuumakse",
@@ -138,6 +174,23 @@ export const debtCreateModalDict = {
 
     monthOnlyCallout:
       "Valikuga „Ainult see kuu“ luuakse võlg ainult selle kuu plaani. Seda ei kanta järgmistesse kuudesse.",
+
+    previewLabel: "Eelvaade",
+    previewLabelPlanOnly: "Eelvaade · Eelarveplaan edaspidi",
+    previewSubtitle: "Kuidas kuumakse jaguneb",
+    previewSubtitlePlanOnly: "Kuidas planeeritud kuu makse jaguneb",
+    previewUntitled: "Uus võlg",
+    previewPlannedPaymentLabel: "Planeeritud kuumakse",
+    previewInterestLabel: "Intress",
+    previewFeeLabel: "Tasu",
+    previewPrincipalLabel: "Vähendab võlga",
+    previewProjectedAfterLabel: "Hinnanguline jääk pärast seda kuud",
+    previewProjectedAfterLabelPlanOnly:
+      "Hinnanguline jääk pärast planeeritud kuud",
+    previewBalanceUnchangedNote: "Jääki see vaade ei muuda.",
+    previewShortfallAdvisory:
+      "Makse ei kata intressi ja tasu. Jääk sel kuul tõenäoliselt ei vähene.",
+    previewShortfallAmount: "Puudu: {amount}",
 
     cancel: "Tühista",
     save: "Lisa võlg",

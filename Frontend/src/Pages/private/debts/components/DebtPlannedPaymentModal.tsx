@@ -1,8 +1,10 @@
 import { CtaButton } from "@/components/atoms/buttons/CtaButton";
 import { FormField } from "@/components/atoms/forms/FormField";
 import BudgetEntryModalShell from "@/components/molecules/forms/budgetEditor/BudgetEntryModalShell";
+import EditorPreviewCard from "@/components/molecules/forms/budgetEditor/EditorPreviewCard";
 import MoneyInput from "@/components/molecules/forms/budgetEditor/MoneyInput";
 import EditScopeRadioCards from "@/components/molecules/forms/editScope/EditScopeRadioCards";
+import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import type {
   BudgetMonthDebtEditorRowDto,
@@ -11,7 +13,10 @@ import type {
 import { debtPlannedPaymentModalDict } from "@/utils/i18n/pages/private/debts/DebtPlannedPaymentModal.i18n";
 import { tDict } from "@/utils/i18n/translate";
 import { parseMoneyInput } from "@/utils/money/moneyInput";
+import { formatMoneyV2 } from "@/utils/money/moneyV2";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { calcDebtPaymentBreakdown } from "../utils/debtPaymentBreakdown";
+import DebtPaymentPreviewBody from "./DebtPaymentPreviewBody";
 
 type DebtPlannedPaymentModalProps = {
   open: boolean;
@@ -34,6 +39,7 @@ export default function DebtPlannedPaymentModal({
   onSubmit,
 }: DebtPlannedPaymentModalProps) {
   const locale = useAppLocale();
+  const currency = useAppCurrency();
   const t = <K extends keyof typeof debtPlannedPaymentModalDict.sv>(key: K) =>
     tDict(key, locale, debtPlannedPaymentModalDict);
 
@@ -61,7 +67,33 @@ export default function DebtPlannedPaymentModal({
     [amountMonthly],
   );
 
+  // Debt Polish PR 2: dirty-form preview. Only the planned payment is editable
+  // here; the breakdown reuses the row's stored balance / APR / fee — the
+  // "Saldo påverkas inte här" promise is real and the preview reflects that.
+  // Invalid / blank inputs degrade to 0 so the card stays calm while the user
+  // is mid-edit.
+  const previewBreakdown = useMemo(() => {
+    if (!row) {
+      return calcDebtPaymentBreakdown({
+        currentBalance: 0,
+        annualInterestPercent: 0,
+        monthlyFee: null,
+        plannedMonthlyPayment: 0,
+      });
+    }
+
+    return calcDebtPaymentBreakdown({
+      currentBalance: row.balance,
+      annualInterestPercent: row.apr,
+      monthlyFee: row.monthlyFee,
+      plannedMonthlyPayment: parsedAmount ?? 0,
+    });
+  }, [row, parsedAmount]);
+
   if (!open || !row) return null;
+
+  const formatPreviewAmount = (value: number) =>
+    formatMoneyV2(value, currency, locale, { fractionDigits: 0 });
 
   const canClose = !isSaving;
 
@@ -145,6 +177,36 @@ export default function DebtPlannedPaymentModal({
                 disabled={isSaving}
                 testId="debt-modal-scope-toggle"
               />
+
+              {/* Debt Polish PR 2: dirty-form preview. Balance / APR / fee
+                  are pulled straight from the row — this modal never edits
+                  them — and the planned-payment input drives the split via
+                  the FE mirror of the PR 1 backend formula. */}
+              <EditorPreviewCard
+                label={t("previewLabel")}
+                title={row.name}
+                subtitle={t("previewSubtitle")}
+                amount={formatPreviewAmount(
+                  previewBreakdown.plannedMonthlyPayment,
+                )}
+                status={t("previewPlannedPaymentLabel")}
+                muted={!previewBreakdown.coversInterestAndFees}
+              >
+                <DebtPaymentPreviewBody
+                  breakdown={previewBreakdown}
+                  formatAmount={formatPreviewAmount}
+                  testIdPrefix="debt-planned-payment-preview"
+                  labels={{
+                    interestLabel: t("previewInterestLabel"),
+                    feeLabel: t("previewFeeLabel"),
+                    principalLabel: t("previewPrincipalLabel"),
+                    projectedAfterLabel: t("previewProjectedAfterLabel"),
+                    balanceUnchangedNote: t("previewBalanceUnchangedNote"),
+                    shortfallAdvisory: t("previewShortfallAdvisory"),
+                    shortfallAmountTemplate: t("previewShortfallAmount"),
+                  }}
+                />
+              </EditorPreviewCard>
 
               {error ? (
                 <p className="text-sm font-semibold text-red-500">{error}</p>
