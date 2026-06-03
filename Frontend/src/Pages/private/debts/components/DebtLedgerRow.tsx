@@ -210,6 +210,27 @@ export default function DebtLedgerRow({
     />
   ) : null;
 
+  // Debt Polish PR 1: backend-owned breakdown of this row's planned monthly
+  // payment. Renders for active rows where the cash outflow is actually
+  // contributing this month. Skipped / paid / archived rows hide it because
+  // no payment is applied and the surface would just be noise. This is NOT
+  // the progress bar — progress is historical, breakdown is forward-looking.
+  const showBreakdown = row.group === "active";
+  const breakdownNode = showBreakdown ? (
+    <RowPaymentBreakdown
+      breakdown={row.paymentBreakdown}
+      currency={currency}
+      locale={locale}
+      sectionLabel={t("breakdownSectionLabel")}
+      interestLabel={t("breakdownInterestLabel")}
+      feeLabel={t("breakdownFeeLabel")}
+      principalLabel={t("breakdownPrincipalLabel")}
+      projectedAfterLabel={t("breakdownProjectedAfterLabel")}
+      shortfallAdvisory={t("breakdownShortfallAdvisory")}
+      shortfallAmountTemplate={t("breakdownShortfallAmount")}
+    />
+  ) : null;
+
   const reasons = row.disabledReasons;
   const tooltipReason = primaryReason(reasons);
   const tooltipReasonKey = tooltipReason ? reasonKeyFor(tooltipReason) : null;
@@ -250,6 +271,7 @@ export default function DebtLedgerRow({
               ))}
             </div>
             <p className="mt-1 text-[12.5px] text-eb-text/58">{metaText}</p>
+            {breakdownNode}
             {progressNode}
             <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
               <span className="text-[12px] text-eb-text/55">
@@ -302,6 +324,7 @@ export default function DebtLedgerRow({
             ))}
           </div>
           <p className="mt-1 text-[12.5px] text-eb-text/58">{metaText}</p>
+          {breakdownNode}
           {progressNode}
         </div>
 
@@ -502,6 +525,113 @@ function RowProgressBar({
         <span className="font-semibold text-eb-text/70">{paidLabel}</span>
         <span>{remainingLabel}</span>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Debt Polish PR 1: renders the backend-owned payment breakdown for an
+ * active row. The numbers come straight from `paymentBreakdown` on the
+ * editor read model — no client-side recomputation.
+ *
+ * Layout intent: a calm 3-up (interest · fee · principal) cell strip,
+ * followed by the projected post-month balance on its own line. When the
+ * planned payment does not cover interest + fee, an amber advisory replaces
+ * the cells' implication-of-progress with an explicit "no reduction this
+ * month" message.
+ */
+function RowPaymentBreakdown({
+  breakdown,
+  currency,
+  locale,
+  sectionLabel,
+  interestLabel,
+  feeLabel,
+  principalLabel,
+  projectedAfterLabel,
+  shortfallAdvisory,
+  shortfallAmountTemplate,
+}: {
+  breakdown: DebtEditorRowDto["paymentBreakdown"];
+  currency: ReturnType<typeof useAppCurrency>;
+  locale: string;
+  sectionLabel: string;
+  interestLabel: string;
+  feeLabel: string;
+  principalLabel: string;
+  projectedAfterLabel: string;
+  shortfallAdvisory: string;
+  shortfallAmountTemplate: string;
+}) {
+  const fmt = (value: number) =>
+    formatMoneyV2(value, currency, locale, { fractionDigits: 0 });
+
+  return (
+    <div data-testid="debt-row-breakdown" className="mt-2.5">
+      <div className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-eb-text/45">
+        {sectionLabel}
+      </div>
+      <dl className="mt-1.5 grid grid-cols-3 gap-x-3 gap-y-1">
+        <div>
+          <dt className="text-[11px] text-eb-text/55">{interestLabel}</dt>
+          <dd
+            data-testid="debt-row-breakdown-interest"
+            className="text-[13px] font-semibold tabular-nums text-eb-text"
+          >
+            {fmt(breakdown.monthlyInterest)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-[11px] text-eb-text/55">{feeLabel}</dt>
+          <dd
+            data-testid="debt-row-breakdown-fee"
+            className="text-[13px] font-semibold tabular-nums text-eb-text"
+          >
+            {fmt(breakdown.monthlyFee)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-[11px] text-eb-text/55">{principalLabel}</dt>
+          <dd
+            data-testid="debt-row-breakdown-principal"
+            className={cn(
+              "text-[13px] font-semibold tabular-nums",
+              breakdown.principalPayment > 0
+                ? "text-[#166534]"
+                : "text-eb-text/55",
+            )}
+          >
+            {fmt(breakdown.principalPayment)}
+          </dd>
+        </div>
+      </dl>
+      {breakdown.coversInterestAndFees ? (
+        <div className="mt-1.5 text-[11.5px] text-eb-text/55">
+          <span className="font-semibold text-eb-text/70">
+            {projectedAfterLabel}:
+          </span>{" "}
+          <span
+            data-testid="debt-row-breakdown-projected"
+            className="tabular-nums text-eb-text"
+          >
+            {fmt(breakdown.projectedBalanceAfterMonth)}
+          </span>
+        </div>
+      ) : (
+        <div
+          data-testid="debt-row-breakdown-shortfall"
+          role="note"
+          className="mt-2 rounded-md border border-eb-warning/35 bg-[rgb(217_119_6_/0.08)] px-2.5 py-1.5 text-[11.5px] text-[#7c4a03]"
+        >
+          <span className="font-semibold">{shortfallAdvisory}</span>{" "}
+          <span className="tabular-nums">
+            {shortfallAmountTemplate.replace(
+              "{amount}",
+              fmt(breakdown.interestAndFeeShortfall),
+            )}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

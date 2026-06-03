@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { DebtEditorRowDto } from "@/types/budget/DebtEditorDto";
 import { DEBT_GROUP_ORDER, groupDebtRows } from "./debtEditorGroups";
+import { emptyPaymentBreakdown } from "../__fixtures__/paymentBreakdown";
 
 const baseRow = (overrides: Partial<DebtEditorRowDto>): DebtEditorRowDto => ({
   id: "row",
@@ -26,6 +27,7 @@ const baseRow = (overrides: Partial<DebtEditorRowDto>): DebtEditorRowDto => ({
   sortOrder: 0,
   group: "active",
   progress: null,
+  paymentBreakdown: emptyPaymentBreakdown,
   actions: {
     canEditPayment: true,
     canEditDetails: true,

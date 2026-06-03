@@ -131,6 +131,7 @@ public static class DependencyInjection
 
         // Calculators
         services.AddSingleton<IDebtPaymentCalculator, DebtPaymentCalculator>();
+        services.AddSingleton<IDebtMonthlyPaymentBreakdownCalculator, DebtMonthlyPaymentBreakdownCalculator>();
         // Wizard Step Data Assembler
         services.AddScoped<IWizardStepDataAssembler, WizardStepDataAssembler>();
         // Wizard Row Reducer

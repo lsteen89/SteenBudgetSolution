@@ -23,6 +23,22 @@ namespace Backend.Application.DTO.Budget.Months.Editor.Debt;
 // the disabled action flags, with the highest-level blocker (month-level)
 // always listed before row- and source-level codes. PR 8 maps codes to
 // localised copy.
+//
+// Debt Polish PR 1: `PaymentBreakdown` is the backend-owned split of the
+// payment that is actually applied this month into interest / fee /
+// principal plus a projected post-month balance. It is always present
+// (even for paid/archived rows where APR and payment are effectively 0)
+// so the FE never has to recompute the formula or guard for null shape.
+//
+// Important: `PaymentBreakdown.PlannedMonthlyPayment` is the *applied*
+// payment, which is `row.MonthlyPayment` only for `Active` rows. For
+// `Skipped` rows the stored `MonthlyPayment` is preserved (PR 5's
+// "skip never zeroes the planned amount" contract) but no cash leaves the
+// budget, so the breakdown shows interest accrual + zero principal + a
+// projected balance equal to the current balance. For `Paid` and
+// `Archived` rows the row's stored payment is typically 0 anyway.
+//
+// See `DebtMonthlyPaymentBreakdownDto` for the contract.
 public sealed record DebtEditorRowDto(
     Guid Id,
     Guid? SourceDebtId,
@@ -47,5 +63,6 @@ public sealed record DebtEditorRowDto(
     int SortOrder,
     string Group,
     DebtRowProgressDto? Progress,
+    DebtMonthlyPaymentBreakdownDto PaymentBreakdown,
     DebtRowActionsDto Actions,
     IReadOnlyList<string> DisabledReasons);

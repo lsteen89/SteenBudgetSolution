@@ -1,4 +1,5 @@
 using Backend.Application.Abstractions.Application.Services.Budget;
+using Backend.Application.Abstractions.Application.Services.Debts;
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Application.Constants;
 using Backend.Application.DTO.Budget.Months;
@@ -39,13 +40,16 @@ public sealed class GetBudgetMonthDebtEditorQueryHandler
 {
     private readonly IBudgetMonthLifecycleService _lifecycle;
     private readonly IBudgetMonthDebtMutationRepository _repo;
+    private readonly IDebtMonthlyPaymentBreakdownCalculator _breakdown;
 
     public GetBudgetMonthDebtEditorQueryHandler(
         IBudgetMonthLifecycleService lifecycle,
-        IBudgetMonthDebtMutationRepository repo)
+        IBudgetMonthDebtMutationRepository repo,
+        IDebtMonthlyPaymentBreakdownCalculator breakdown)
     {
         _lifecycle = lifecycle;
         _repo = repo;
+        _breakdown = breakdown;
     }
 
     public async Task<Result<BudgetMonthDebtEditorDto?>> Handle(
@@ -99,6 +103,13 @@ public sealed class GetBudgetMonthDebtEditorQueryHandler
         decimal activeLiabilityBalance = 0m;
         decimal paidOffBalance = 0m;
         decimal archivedBalance = 0m;
+        // Debt Polish PR 1: derived breakdown totals — explanatory only,
+        // never replace `IncludedMonthlyPaymentTotal` in the dashboard equation.
+        decimal includedInterest = 0m;
+        decimal includedFee = 0m;
+        decimal includedPrincipal = 0m;
+        decimal projectedActiveLiabilityBalance = 0m;
+        var rowsBelowInterestAndFees = 0;
         var includedCount = 0;
         var notIncludedCount = 0;
         var paidOffCount = 0;
@@ -109,6 +120,24 @@ public sealed class GetBudgetMonthDebtEditorQueryHandler
             var group = DebtEditorActionResolver.ResolveGroup(row);
             var (actions, reasons) = DebtEditorActionResolver.ResolveActions(row, isReadOnly, monthStatus);
             var progress = BuildProgress(row, sourceAggregateByKey, monthAggregateByKey);
+            // Calculate breakdown for every row, using the payment that is
+            // actually applied this month. For non-active rows
+            // (skipped / paid / archived) no payment is applied — `Skipped`
+            // intentionally keeps `MonthlyPayment` non-zero per PR 5's
+            // "skip never zeroes the planned amount" contract — so the
+            // breakdown for those rows must reflect reality: interest still
+            // accrues (a real liability cost), fee still applies, but
+            // principal is 0 and projected balance equals current balance.
+            // Pinning `plannedMonthlyPayment` to 0 here is the single
+            // source of that truth; the FE never has to re-derive it.
+            var appliedPayment = group == BudgetMonthDebtEditorGroups.Active
+                ? row.MonthlyPayment
+                : 0m;
+            var breakdown = _breakdown.Calculate(
+                currentBalance: row.Balance,
+                annualInterestPercent: row.Apr,
+                monthlyFee: row.MonthlyFee,
+                plannedMonthlyPayment: appliedPayment);
 
             rowDtos.Add(new DebtEditorRowDto(
                 Id: row.Id,
@@ -134,6 +163,7 @@ public sealed class GetBudgetMonthDebtEditorQueryHandler
                 SortOrder: row.SortOrder,
                 Group: group,
                 Progress: progress,
+                PaymentBreakdown: breakdown,
                 Actions: actions,
                 DisabledReasons: reasons));
 
@@ -143,6 +173,13 @@ public sealed class GetBudgetMonthDebtEditorQueryHandler
                 case BudgetMonthDebtEditorGroups.Active:
                     includedPayments += row.MonthlyPayment;
                     activeLiabilityBalance += row.Balance;
+                    // Breakdown totals come from `included` rows only.
+                    // Projection applies their principal reduction.
+                    includedInterest += breakdown.MonthlyInterest;
+                    includedFee += breakdown.MonthlyFee;
+                    includedPrincipal += breakdown.PrincipalPayment;
+                    projectedActiveLiabilityBalance += breakdown.ProjectedBalanceAfterMonth;
+                    if (!breakdown.CoversInterestAndFees) rowsBelowInterestAndFees++;
                     includedCount++;
                     break;
                 case BudgetMonthDebtEditorGroups.Skipped:
@@ -153,6 +190,9 @@ public sealed class GetBudgetMonthDebtEditorQueryHandler
                     // dashboard repo's `TotalDebtBalance` filter
                     // (`ParticipationStatus <> 'removed'`).
                     activeLiabilityBalance += row.Balance;
+                    // No payment is applied to skipped rows this month, so
+                    // the projected balance stays at the current balance.
+                    projectedActiveLiabilityBalance += row.Balance;
                     notIncludedCount++;
                     break;
                 case BudgetMonthDebtEditorGroups.Paid:
@@ -172,10 +212,15 @@ public sealed class GetBudgetMonthDebtEditorQueryHandler
             ActiveLiabilityBalanceTotal: activeLiabilityBalance,
             PaidOffBalanceTotal: paidOffBalance,
             ArchivedBalanceTotal: archivedBalance,
+            IncludedMonthlyInterestTotal: includedInterest,
+            IncludedMonthlyFeeTotal: includedFee,
+            IncludedPrincipalPaymentTotal: includedPrincipal,
+            ProjectedActiveLiabilityBalanceAfterMonth: projectedActiveLiabilityBalance,
             IncludedCount: includedCount,
             NotIncludedCount: notIncludedCount,
             PaidOffCount: paidOffCount,
-            ArchivedCount: archivedCount);
+            ArchivedCount: archivedCount,
+            RowsBelowInterestAndFeesCount: rowsBelowInterestAndFees);
 
         var recentEventDtos = recentEvents
             .Select(e => new DebtEditorHistoryEventDto(

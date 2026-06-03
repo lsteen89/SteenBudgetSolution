@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { DebtEditorRowDto } from "@/types/budget/DebtEditorDto";
 import DebtLedgerGroup from "./DebtLedgerGroup";
 import { DEBT_GROUP_ORDER } from "../utils/debtEditorGroups";
+import { emptyPaymentBreakdown } from "../__fixtures__/paymentBreakdown";
 
 vi.mock("@/hooks/i18n/useAppLocale", () => ({
   useAppLocale: () => "sv-SE",
@@ -35,6 +36,7 @@ const baseRow = (overrides: Partial<DebtEditorRowDto>): DebtEditorRowDto => ({
   sortOrder: 0,
   group: "active",
   progress: null,
+  paymentBreakdown: emptyPaymentBreakdown,
   actions: {
     canEditPayment: true,
     canEditDetails: true,

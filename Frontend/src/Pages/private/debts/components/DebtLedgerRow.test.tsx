@@ -3,6 +3,10 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { DebtEditorRowDto } from "@/types/budget/DebtEditorDto";
 import DebtLedgerRow from "./DebtLedgerRow";
+import {
+  emptyPaymentBreakdown,
+  paymentBreakdown,
+} from "../__fixtures__/paymentBreakdown";
 
 vi.mock("@/hooks/i18n/useAppLocale", () => ({
   useAppLocale: () => "sv-SE",
@@ -35,6 +39,7 @@ const baseRow = (overrides: Partial<DebtEditorRowDto>): DebtEditorRowDto => ({
   sortOrder: 1,
   group: "active",
   progress: null,
+  paymentBreakdown: emptyPaymentBreakdown,
   actions: {
     canEditPayment: true,
     canEditDetails: true,
@@ -528,5 +533,95 @@ describe("DebtLedgerRow", () => {
       />,
     );
     expect(screen.queryByTestId("debt-row-progress")).toBeNull();
+  });
+
+  // ----------------------------------------------- Debt Polish PR 1: breakdown
+
+  it("renders the monthly payment breakdown for an active row", () => {
+    render(
+      <DebtLedgerRow
+        row={baseRow({
+          balance: 93000,
+          apr: 10.99,
+          monthlyFee: 130,
+          monthlyPayment: 1550,
+          paymentBreakdown: paymentBreakdown({
+            plannedMonthlyPayment: 1550,
+            monthlyInterest: 851.73,
+            monthlyFee: 130,
+            principalPayment: 568.27,
+            projectedBalanceAfterMonth: 92431.73,
+            coversInterestAndFees: true,
+            interestAndFeeShortfall: 0,
+          }),
+        })}
+        yearMonthLabel="maj 2026"
+        readOnly={false}
+        onEditPayment={vi.fn()}
+      />,
+    );
+    // Each layout (mobile + desktop) renders the breakdown section.
+    const sections = screen.getAllByTestId("debt-row-breakdown");
+    expect(sections.length).toBeGreaterThan(0);
+    // Interest / fee / principal cells render directly from the DTO.
+    expect(
+      screen.getAllByTestId("debt-row-breakdown-interest")[0].textContent,
+    ).toMatch(/85[0-9]/);
+    expect(
+      screen.getAllByTestId("debt-row-breakdown-fee")[0].textContent,
+    ).toMatch(/130/);
+    expect(
+      screen.getAllByTestId("debt-row-breakdown-principal")[0].textContent,
+    ).toMatch(/56[0-9]/);
+    // Projected balance shows when the payment covers interest + fee.
+    expect(
+      screen.getAllByTestId("debt-row-breakdown-projected")[0].textContent,
+    ).toMatch(/92\s?4/);
+    // No shortfall advisory when payment covers requirement.
+    expect(screen.queryByTestId("debt-row-breakdown-shortfall")).toBeNull();
+  });
+
+  it("shows the amber shortfall advisory when the payment does not cover interest and fee", () => {
+    render(
+      <DebtLedgerRow
+        row={baseRow({
+          paymentBreakdown: paymentBreakdown({
+            plannedMonthlyPayment: 1500,
+            monthlyInterest: 2000,
+            monthlyFee: 200,
+            principalPayment: 0,
+            projectedBalanceAfterMonth: 100000,
+            coversInterestAndFees: false,
+            interestAndFeeShortfall: 700,
+          }),
+        })}
+        yearMonthLabel="maj 2026"
+        readOnly={false}
+        onEditPayment={vi.fn()}
+      />,
+    );
+    const advisories = screen.getAllByTestId("debt-row-breakdown-shortfall");
+    expect(advisories.length).toBeGreaterThan(0);
+    expect(advisories[0].textContent ?? "").toMatch(
+      /täcker inte ränta och avgift/i,
+    );
+    // When shortfall is shown, projected balance row is hidden — the advisory
+    // is the explicit "no reduction this month" surface.
+    expect(screen.queryByTestId("debt-row-breakdown-projected")).toBeNull();
+  });
+
+  it("hides the breakdown surface on skipped, paid, and archived rows", () => {
+    for (const group of ["skipped", "paid", "archived"] as const) {
+      const { unmount } = render(
+        <DebtLedgerRow
+          row={baseRow({ group })}
+          yearMonthLabel="maj 2026"
+          readOnly={false}
+          onEditPayment={vi.fn()}
+        />,
+      );
+      expect(screen.queryByTestId("debt-row-breakdown")).toBeNull();
+      unmount();
+    }
   });
 });

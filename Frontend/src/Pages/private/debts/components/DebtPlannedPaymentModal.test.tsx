@@ -50,7 +50,7 @@ describe("DebtPlannedPaymentModal", () => {
     ).toBeInTheDocument();
   });
 
-  it("hides budget-plan scopes for month-only rows", () => {
+  it("disables budget-plan scopes for month-only rows and surfaces the hint", () => {
     render(
       <DebtPlannedPaymentModal
         open
@@ -66,16 +66,22 @@ describe("DebtPlannedPaymentModal", () => {
       />,
     );
 
+    const updatePlanRadio = screen.getByRole("radio", {
+      name: /update the budget plan going forward/i,
+    });
+    const planOnlyRadio = screen.getByRole("radio", {
+      name: /budget plan going forward only/i,
+    });
+
+    expect(updatePlanRadio).toBeDisabled();
+    expect(updatePlanRadio).toHaveAttribute("aria-checked", "false");
+    expect(planOnlyRadio).toBeDisabled();
+    expect(planOnlyRadio).toHaveAttribute("aria-checked", "false");
+
     expect(
-      screen.queryByRole("radio", {
-        name: /update the budget plan going forward/i,
-      }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("radio", {
-        name: /budget plan going forward only/i,
-      }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("radio", { name: /only for may 2026/i }),
+    ).toHaveAttribute("aria-checked", "true");
+
     expect(
       screen.getByText("This debt only exists in the current month."),
     ).toBeInTheDocument();

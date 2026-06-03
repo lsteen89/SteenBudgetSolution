@@ -27,13 +27,28 @@ namespace Backend.Application.DTO.Budget.Months.Editor.Debt;
 // the equation, which violates the smallest-safe-change rule and risks the
 // two endpoints disagreeing during a transactional gap. PR 6 keeps reading
 // remaining from the dashboard.
+//
+// Debt Polish PR 1: the breakdown totals (`IncludedMonthlyInterestTotal`,
+// `IncludedMonthlyFeeTotal`, `IncludedPrincipalPaymentTotal`,
+// `ProjectedActiveLiabilityBalanceAfterMonth`,
+// `RowsBelowInterestAndFeesCount`) are derived from each included row's
+// `PaymentBreakdown` using the same backend-owned formula. They are
+// explanatory and never replace `IncludedMonthlyPaymentTotal` in the
+// dashboard equation. `ProjectedActiveLiabilityBalanceAfterMonth` projects
+// only the principal reduction from `included` rows — `notIncluded` rows
+// stay at their current balance because no payment is applied this month.
 public sealed record DebtEditorSummaryDto(
     decimal IncludedMonthlyPaymentTotal,
     decimal NotIncludedMonthlyPaymentTotal,
     decimal ActiveLiabilityBalanceTotal,
     decimal PaidOffBalanceTotal,
     decimal ArchivedBalanceTotal,
+    decimal IncludedMonthlyInterestTotal,
+    decimal IncludedMonthlyFeeTotal,
+    decimal IncludedPrincipalPaymentTotal,
+    decimal ProjectedActiveLiabilityBalanceAfterMonth,
     int IncludedCount,
     int NotIncludedCount,
     int PaidOffCount,
-    int ArchivedCount);
+    int ArchivedCount,
+    int RowsBelowInterestAndFeesCount);

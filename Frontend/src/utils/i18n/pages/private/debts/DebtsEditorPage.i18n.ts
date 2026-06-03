@@ -133,6 +133,25 @@ export const debtsEditorPageDict = {
     rowProgressPaid: "{percent} % minskat",
     rowProgressRemaining: "{remaining} kvar av {original}",
 
+    // ------------------------------------------- Debt Polish PR 1: breakdown
+    breakdownSectionLabel: "Så fördelas månadens betalning",
+    breakdownInterestLabel: "Ränta",
+    breakdownFeeLabel: "Avgift",
+    breakdownPrincipalLabel: "Minskar skulden",
+    breakdownProjectedAfterLabel: "Efter månaden",
+    breakdownShortfallAdvisory:
+      "Betalningen täcker inte ränta och avgift. Saldot väntas inte minska denna månad.",
+    breakdownShortfallAmount: "Saknas: {amount}",
+    stripBreakdownCaption: "Så fördelas månadens skuldbetalningar",
+    stripBreakdownInterestLabel: "Ränta",
+    stripBreakdownFeeLabel: "Avgift",
+    stripBreakdownPrincipalLabel: "Minskar skulden",
+    stripBreakdownProjectedLabel: "Beräknat saldo efter månaden",
+    stripBreakdownShortfallOne:
+      "{count} skuld täcker inte ränta och avgift den här månaden",
+    stripBreakdownShortfallOther:
+      "{count} skulder täcker inte ränta och avgift den här månaden",
+
     // ---------------------------------------------- row action menu copy
     rowActionEditPayment: "Redigera planerad betalning",
     rowActionUpdateBalance: "Uppdatera saldo",
@@ -329,6 +348,24 @@ export const debtsEditorPageDict = {
     rowProgressPaid: "{percent}% reduced",
     rowProgressRemaining: "{remaining} left of {original}",
 
+    breakdownSectionLabel: "How this month's payment splits",
+    breakdownInterestLabel: "Interest",
+    breakdownFeeLabel: "Fee",
+    breakdownPrincipalLabel: "Reduces balance",
+    breakdownProjectedAfterLabel: "After this month",
+    breakdownShortfallAdvisory:
+      "The payment does not cover interest and fee. The balance is not expected to shrink this month.",
+    breakdownShortfallAmount: "Missing: {amount}",
+    stripBreakdownCaption: "How this month's debt payments split",
+    stripBreakdownInterestLabel: "Interest",
+    stripBreakdownFeeLabel: "Fee",
+    stripBreakdownPrincipalLabel: "Reduces balance",
+    stripBreakdownProjectedLabel: "Projected balance after this month",
+    stripBreakdownShortfallOne:
+      "{count} debt does not cover interest and fee this month",
+    stripBreakdownShortfallOther:
+      "{count} debts do not cover interest and fee this month",
+
     rowActionEditPayment: "Adjust planned payment",
     rowActionUpdateBalance: "Update balance",
     rowActionViewProgress: "View repayment progress",
@@ -519,6 +556,24 @@ export const debtsEditorPageDict = {
 
     rowProgressPaid: "{percent}% vähenenud",
     rowProgressRemaining: "{remaining} alles, kokku {original}",
+
+    breakdownSectionLabel: "Kuidas kuumakse jaguneb",
+    breakdownInterestLabel: "Intress",
+    breakdownFeeLabel: "Tasu",
+    breakdownPrincipalLabel: "Vähendab võlga",
+    breakdownProjectedAfterLabel: "Pärast seda kuud",
+    breakdownShortfallAdvisory:
+      "Makse ei kata intressi ja tasu. Jääk ei eelda sel kuul vähenemist.",
+    breakdownShortfallAmount: "Puudu: {amount}",
+    stripBreakdownCaption: "Kuidas selle kuu võlamaksed jagunevad",
+    stripBreakdownInterestLabel: "Intress",
+    stripBreakdownFeeLabel: "Tasu",
+    stripBreakdownPrincipalLabel: "Vähendab võlga",
+    stripBreakdownProjectedLabel: "Eeldatav jääk pärast kuud",
+    stripBreakdownShortfallOne:
+      "{count} võlg ei kata sel kuul intressi ja tasu",
+    stripBreakdownShortfallOther:
+      "{count} võlga ei kata sel kuul intressi ja tasu",
 
     rowActionEditPayment: "Kohanda planeeritud makset",
     rowActionUpdateBalance: "Uuenda jääki",

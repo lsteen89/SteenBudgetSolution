@@ -10,7 +10,9 @@ using Backend.Application.Features.Budgets.Months.Editor.Debts.Lifecycle.MarkPai
 using Backend.Application.Features.Budgets.Months.Editor.Debts.Lifecycle.Remove;
 using Backend.Application.Features.Budgets.Months.Editor.Debts.Lifecycle.Restore;
 using Backend.Application.Features.Budgets.Months.Editor.Debts.Participation;
+using Backend.Application.Features.Budgets.Months.Editor.Debts.PatchDebtDetails;
 using Backend.Application.Services.Budget.Materializer;
+using Backend.Application.Services.Debts;
 using Backend.Application.BudgetMonths.Services;
 using Backend.Infrastructure.Data.Sql.Helpers.UnitOfWork;
 using Backend.Infrastructure.Repositories.Budget.BudgetDashboard;
@@ -102,6 +104,348 @@ public sealed class BudgetMonthDebtEditorReadModelTests
         editor.Summary.NotIncludedCount.Should().Be(0);
         editor.Summary.PaidOffCount.Should().Be(0);
         editor.Summary.ArchivedCount.Should().Be(0);
+    }
+
+    // ------------------------------------------- Debt Polish PR 1: breakdown
+
+    [Fact]
+    public async Task GetEditor_ActiveRow_ExposesPaymentBreakdown_AndContributesToIncludedTotals()
+    {
+        // Seed Credit Card row: balance=10 000, apr=18, fee=20, payment=320
+        // (revolving: minPayment 300 + fee 20). Backend formula gives:
+        //   interest = 10000 * 18 / 100 / 12 = 150
+        //   principal = 320 - 150 - 20 = 150
+        //   projected = 10000 - 150 = 9 850
+        await _db.ResetAsync();
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var sut = CreateSut(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+        await EnsureMonthAsync(sut, seed.Persoid);
+
+        var editor = await GetEditorAsync(sut, seed.Persoid);
+        var creditCard = editor.Rows.Single(r => r.Name == "Credit Card");
+
+        creditCard.PaymentBreakdown.PlannedMonthlyPayment.Should().Be(320m);
+        creditCard.PaymentBreakdown.MonthlyInterest.Should().Be(150m);
+        creditCard.PaymentBreakdown.MonthlyFee.Should().Be(20m);
+        creditCard.PaymentBreakdown.PrincipalPayment.Should().Be(150m);
+        creditCard.PaymentBreakdown.ProjectedBalanceAfterMonth.Should().Be(9_850m);
+        creditCard.PaymentBreakdown.CoversInterestAndFees.Should().BeTrue();
+        creditCard.PaymentBreakdown.InterestAndFeeShortfall.Should().Be(0m);
+
+        // Summary totals sum every included row's breakdown.
+        editor.Summary.IncludedMonthlyInterestTotal
+            .Should().Be(editor.Rows
+                .Where(r => r.Group == BudgetMonthDebtEditorGroups.Active)
+                .Sum(r => r.PaymentBreakdown.MonthlyInterest));
+        editor.Summary.IncludedMonthlyFeeTotal
+            .Should().Be(editor.Rows
+                .Where(r => r.Group == BudgetMonthDebtEditorGroups.Active)
+                .Sum(r => r.PaymentBreakdown.MonthlyFee));
+        editor.Summary.IncludedPrincipalPaymentTotal
+            .Should().Be(editor.Rows
+                .Where(r => r.Group == BudgetMonthDebtEditorGroups.Active)
+                .Sum(r => r.PaymentBreakdown.PrincipalPayment));
+        editor.Summary.ProjectedActiveLiabilityBalanceAfterMonth
+            .Should().Be(editor.Rows
+                .Where(r => r.Group == BudgetMonthDebtEditorGroups.Active)
+                .Sum(r => r.PaymentBreakdown.ProjectedBalanceAfterMonth));
+        editor.Summary.RowsBelowInterestAndFeesCount.Should().Be(0);
+
+        // Dashboard equation contract: the cash-outflow term stays on stored
+        // `MonthlyPayment`, not principal.
+        editor.Summary.IncludedMonthlyPaymentTotal
+            .Should().NotBe(editor.Summary.IncludedPrincipalPaymentTotal,
+                "principal is a derived view, not a substitute for the dashboard term");
+    }
+
+    [Fact]
+    public async Task GetEditor_SkippedRow_HasBreakdown_ButDoesNotContributeToIncludedBreakdownTotals()
+    {
+        await _db.ResetAsync();
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var sut = CreateSut(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+        await EnsureMonthAsync(sut, seed.Persoid);
+        var rowsBefore = await GetLegacyRowsAsync(sut, seed.Persoid);
+        var creditCard = rowsBefore.First(r => r.Name == "Credit Card");
+
+        var skip = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.ParticipationHandler.Handle(
+                new SetBudgetMonthDebtParticipationCommand(
+                    seed.Persoid, "2026-01", creditCard.Id,
+                    Participation: BudgetMonthDebtParticipationStatuses.NotIncluded,
+                    Note: null),
+                CancellationToken.None));
+        skip.IsFailure.Should().BeFalse();
+
+        var editor = await GetEditorAsync(sut, seed.Persoid);
+        var skipped = editor.Rows.Single(r => r.Id == creditCard.Id);
+
+        // Skipped rows retain their stored `MonthlyPayment` (PR 5 contract:
+        // skip never zeroes the planned amount) but no payment is applied
+        // this month. The breakdown must reflect that truthfully:
+        //   * Interest still accrues — 10000 * 18 / 100 / 12 = 150
+        //   * Fee still applies — 20
+        //   * No payment is applied → principal 0, projected = current balance
+        //   * `plannedMonthlyPayment` here is the *applied* payment (0),
+        //     not the row's stored monthlyPayment (still 320).
+        skipped.MonthlyPayment.Should().BeGreaterThan(0m, "stored amount preserved");
+        skipped.PaymentBreakdown.PlannedMonthlyPayment.Should().Be(0m);
+        skipped.PaymentBreakdown.MonthlyInterest.Should().Be(150m);
+        skipped.PaymentBreakdown.MonthlyFee.Should().Be(20m);
+        skipped.PaymentBreakdown.PrincipalPayment.Should().Be(0m);
+        skipped.PaymentBreakdown.ProjectedBalanceAfterMonth.Should().Be(skipped.Balance);
+        skipped.PaymentBreakdown.CoversInterestAndFees.Should().BeFalse();
+        skipped.PaymentBreakdown.InterestAndFeeShortfall.Should().Be(170m);
+
+        // Summary breakdown totals are sourced from `included` rows only.
+        editor.Summary.IncludedMonthlyInterestTotal
+            .Should().Be(editor.Rows
+                .Where(r => r.Group == BudgetMonthDebtEditorGroups.Active)
+                .Sum(r => r.PaymentBreakdown.MonthlyInterest));
+        editor.Summary.IncludedPrincipalPaymentTotal
+            .Should().Be(editor.Rows
+                .Where(r => r.Group == BudgetMonthDebtEditorGroups.Active)
+                .Sum(r => r.PaymentBreakdown.PrincipalPayment));
+
+        // Projected post-month balance: included rows shrink by principal,
+        // skipped rows stay at current balance because no payment is applied.
+        var expectedProjection =
+            editor.Rows.Where(r => r.Group == BudgetMonthDebtEditorGroups.Active)
+                .Sum(r => r.PaymentBreakdown.ProjectedBalanceAfterMonth)
+            + editor.Rows.Where(r => r.Group == BudgetMonthDebtEditorGroups.Skipped)
+                .Sum(r => r.Balance);
+        editor.Summary.ProjectedActiveLiabilityBalanceAfterMonth
+            .Should().Be(expectedProjection);
+    }
+
+    [Fact]
+    public async Task GetEditor_PaidAndArchivedRows_DoNotContributeToBreakdownTotals()
+    {
+        await _db.ResetAsync();
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var sut = CreateSut(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+        await EnsureMonthAsync(sut, seed.Persoid);
+        var rowsBefore = await GetLegacyRowsAsync(sut, seed.Persoid);
+        var creditCard = rowsBefore.First(r => r.Name == "Credit Card");
+
+        var paid = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.MarkPaidOffHandler.Handle(
+                new MarkBudgetMonthDebtPaidOffCommand(
+                    seed.Persoid, "2026-01", creditCard.Id,
+                    SetBalanceToZero: true, Note: null),
+                CancellationToken.None));
+        paid.IsFailure.Should().BeFalse();
+
+        var editor = await GetEditorAsync(sut, seed.Persoid);
+
+        // Only `included` (Active) rows feed the breakdown totals.
+        var includedRows = editor.Rows.Where(r => r.Group == BudgetMonthDebtEditorGroups.Active).ToList();
+        editor.Summary.IncludedMonthlyInterestTotal
+            .Should().Be(includedRows.Sum(r => r.PaymentBreakdown.MonthlyInterest));
+        editor.Summary.IncludedPrincipalPaymentTotal
+            .Should().Be(includedRows.Sum(r => r.PaymentBreakdown.PrincipalPayment));
+        editor.Summary.IncludedMonthlyFeeTotal
+            .Should().Be(includedRows.Sum(r => r.PaymentBreakdown.MonthlyFee));
+    }
+
+    [Fact]
+    public async Task GetEditor_AprAndFeeEdit_UpdatesBreakdown_AndLeavesBalanceUntouched()
+    {
+        // PO example: 93 000 balance, 1 550 payment, raising APR 10.99 → 12.99
+        // and fee 130 → 149.99 must change the breakdown (interest, principal,
+        // projected) without mutating the stored balance.
+        await _db.ResetAsync();
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var sut = CreateSut(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+        await EnsureMonthAsync(sut, seed.Persoid);
+        var rowsBefore = await GetLegacyRowsAsync(sut, seed.Persoid);
+        var creditCard = rowsBefore.First(r => r.Name == "Credit Card");
+
+        // Stage 1: align the row with the PO scenario via APR/fee/payment/balance.
+        var stage1 = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.PatchDetailsHandler.Handle(
+                new PatchBudgetMonthDebtDetailsCommand(
+                    Persoid: seed.Persoid,
+                    YearMonth: "2026-01",
+                    MonthDebtId: creditCard.Id,
+                    Name: creditCard.Name!,
+                    Type: creditCard.Type,
+                    Apr: 10.99m,
+                    MonthlyFee: 130m,
+                    MinPayment: creditCard.MinPayment,
+                    TermMonths: creditCard.TermMonths,
+                    MonthlyPayment: 1_550m,
+                    Scope: BudgetMonthDebtEditScopes.CurrentMonthOnly),
+                CancellationToken.None));
+        stage1.IsFailure.Should().BeFalse();
+        // Move the balance to 93 000 via the audited balance-adjustment path
+        // (the only legitimate way to change `Balance`).
+        var adj = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.BalanceHandler.Handle(
+                new AdjustBudgetMonthDebtBalanceCommand(
+                    seed.Persoid, "2026-01", creditCard.Id,
+                    NewBalance: 93_000m,
+                    Scope: BudgetMonthDebtEditScopes.CurrentMonthOnly,
+                    Note: "PO scenario baseline"),
+                CancellationToken.None));
+        adj.IsFailure.Should().BeFalse();
+
+        var before = await GetEditorAsync(sut, seed.Persoid);
+        var rowBefore = before.Rows.Single(r => r.Id == creditCard.Id);
+        rowBefore.Balance.Should().Be(93_000m);
+        rowBefore.PaymentBreakdown.MonthlyInterest.Should().Be(851.73m);
+        rowBefore.PaymentBreakdown.PrincipalPayment.Should().Be(568.27m);
+        rowBefore.PaymentBreakdown.ProjectedBalanceAfterMonth.Should().Be(92_431.73m);
+
+        // Stage 2: bump APR and fee. Balance must not change; only the
+        // breakdown moves.
+        var stage2 = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.PatchDetailsHandler.Handle(
+                new PatchBudgetMonthDebtDetailsCommand(
+                    Persoid: seed.Persoid,
+                    YearMonth: "2026-01",
+                    MonthDebtId: creditCard.Id,
+                    Name: creditCard.Name!,
+                    Type: creditCard.Type,
+                    Apr: 12.99m,
+                    MonthlyFee: 149.99m,
+                    MinPayment: creditCard.MinPayment,
+                    TermMonths: creditCard.TermMonths,
+                    MonthlyPayment: 1_550m,
+                    Scope: BudgetMonthDebtEditScopes.CurrentMonthOnly),
+                CancellationToken.None));
+        stage2.IsFailure.Should().BeFalse();
+
+        var after = await GetEditorAsync(sut, seed.Persoid);
+        var rowAfter = after.Rows.Single(r => r.Id == creditCard.Id);
+
+        rowAfter.Balance.Should().Be(93_000m, "APR/fee edits never mutate Balance");
+        rowAfter.Apr.Should().Be(12.99m);
+        rowAfter.MonthlyFee.Should().Be(149.99m);
+        rowAfter.PaymentBreakdown.MonthlyInterest.Should().Be(1_006.73m);
+        rowAfter.PaymentBreakdown.MonthlyFee.Should().Be(149.99m);
+        rowAfter.PaymentBreakdown.PrincipalPayment.Should().Be(393.28m);
+        rowAfter.PaymentBreakdown.ProjectedBalanceAfterMonth.Should().Be(92_606.72m);
+        rowAfter.PaymentBreakdown.CoversInterestAndFees.Should().BeTrue();
+        rowAfter.PaymentBreakdown.InterestAndFeeShortfall.Should().Be(0m);
+    }
+
+    [Fact]
+    public async Task GetEditor_BalanceAdjustment_RecomputesInterest_WithoutTouchingMonthlyPayment()
+    {
+        await _db.ResetAsync();
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var sut = CreateSut(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+        await EnsureMonthAsync(sut, seed.Persoid);
+        var rowsBefore = await GetLegacyRowsAsync(sut, seed.Persoid);
+        var creditCard = rowsBefore.First(r => r.Name == "Credit Card");
+        var paymentBefore = creditCard.MonthlyPayment;
+
+        // Drop balance from 10 000 → 5 000. APR=18, fee=20 unchanged.
+        //   new interest = 5000 * 18 / 100 / 12 = 75
+        //   principal = 320 - 75 - 20 = 225
+        //   projected = 5000 - 225 = 4 775
+        var adj = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.BalanceHandler.Handle(
+                new AdjustBudgetMonthDebtBalanceCommand(
+                    seed.Persoid, "2026-01", creditCard.Id,
+                    NewBalance: 5_000m,
+                    Scope: BudgetMonthDebtEditScopes.CurrentMonthOnly,
+                    Note: "statement update"),
+                CancellationToken.None));
+        adj.IsFailure.Should().BeFalse();
+
+        var editor = await GetEditorAsync(sut, seed.Persoid);
+        var row = editor.Rows.Single(r => r.Id == creditCard.Id);
+
+        row.Balance.Should().Be(5_000m);
+        row.MonthlyPayment.Should().Be(paymentBefore, "balance adjustment never touches the planned payment");
+        row.PaymentBreakdown.MonthlyInterest.Should().Be(75m);
+        row.PaymentBreakdown.PrincipalPayment.Should().Be(225m);
+        row.PaymentBreakdown.ProjectedBalanceAfterMonth.Should().Be(4_775m);
+    }
+
+    [Fact]
+    public async Task GetEditor_PaymentBelowInterestAndFee_RaisesShortfallAdvisory()
+    {
+        await _db.ResetAsync();
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var sut = CreateSut(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+        await EnsureMonthAsync(sut, seed.Persoid);
+        var rowsBefore = await GetLegacyRowsAsync(sut, seed.Persoid);
+        var creditCard = rowsBefore.First(r => r.Name == "Credit Card");
+
+        // Knock APR way up so the existing payment (320) cannot cover
+        // interest + fee. APR 50%, fee 20, balance 10 000:
+        //   interest = 10000 * 50 / 100 / 12 ≈ 416.67
+        //   requirement = 436.67; payment = 320 → shortfall ≈ 116.67, principal 0.
+        var patch = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.PatchDetailsHandler.Handle(
+                new PatchBudgetMonthDebtDetailsCommand(
+                    Persoid: seed.Persoid,
+                    YearMonth: "2026-01",
+                    MonthDebtId: creditCard.Id,
+                    Name: creditCard.Name!,
+                    Type: creditCard.Type,
+                    Apr: 50m,
+                    MonthlyFee: creditCard.MonthlyFee,
+                    MinPayment: creditCard.MinPayment,
+                    TermMonths: creditCard.TermMonths,
+                    MonthlyPayment: creditCard.MonthlyPayment,
+                    Scope: BudgetMonthDebtEditScopes.CurrentMonthOnly),
+                CancellationToken.None));
+        patch.IsFailure.Should().BeFalse();
+
+        var editor = await GetEditorAsync(sut, seed.Persoid);
+        var row = editor.Rows.Single(r => r.Id == creditCard.Id);
+
+        row.PaymentBreakdown.MonthlyInterest.Should().Be(416.67m);
+        row.PaymentBreakdown.PrincipalPayment.Should().Be(0m);
+        row.PaymentBreakdown.ProjectedBalanceAfterMonth.Should().Be(10_000m,
+            "shortfall means no principal was applied this month");
+        row.PaymentBreakdown.CoversInterestAndFees.Should().BeFalse();
+        row.PaymentBreakdown.InterestAndFeeShortfall.Should().Be(116.67m);
+        editor.Summary.RowsBelowInterestAndFeesCount.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public async Task GetEditor_AprAndFeeEdit_DoesNotChangeDashboardDebtTotal()
+    {
+        // The dashboard equation contract: changing APR/fee must NOT shift
+        // `IncludedMonthlyPaymentTotal` (and therefore the dashboard debt
+        // term), because the cash outflow is stored `MonthlyPayment` —
+        // principal is explanatory only.
+        await _db.ResetAsync();
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+        var sut = CreateSut(new DateTime(2026, 01, 07, 08, 00, 00, DateTimeKind.Utc));
+        var budgetMonthId = await EnsureMonthAsync(sut, seed.Persoid);
+        var rowsBefore = await GetLegacyRowsAsync(sut, seed.Persoid);
+        var creditCard = rowsBefore.First(r => r.Name == "Credit Card");
+
+        var dashboardBefore = await SumDashboardDebtPaymentsAsync(budgetMonthId);
+
+        var patch = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.PatchDetailsHandler.Handle(
+                new PatchBudgetMonthDebtDetailsCommand(
+                    Persoid: seed.Persoid,
+                    YearMonth: "2026-01",
+                    MonthDebtId: creditCard.Id,
+                    Name: creditCard.Name!,
+                    Type: creditCard.Type,
+                    Apr: 27.5m,
+                    MonthlyFee: 99.99m,
+                    MinPayment: creditCard.MinPayment,
+                    TermMonths: creditCard.TermMonths,
+                    MonthlyPayment: creditCard.MonthlyPayment,
+                    Scope: BudgetMonthDebtEditScopes.CurrentMonthOnly),
+                CancellationToken.None));
+        patch.IsFailure.Should().BeFalse();
+
+        var editor = await GetEditorAsync(sut, seed.Persoid);
+        var dashboardAfter = await SumDashboardDebtPaymentsAsync(budgetMonthId);
+
+        dashboardAfter.Should().Be(dashboardBefore, "dashboard term is stored MonthlyPayment, not principal");
+        editor.Summary.IncludedMonthlyPaymentTotal.Should().Be(dashboardAfter);
     }
 
     // -------------------------------------------------- summary reconciliation
@@ -621,6 +965,7 @@ public sealed class BudgetMonthDebtEditorReadModelTests
         public required RestoreBudgetMonthDebtCommandHandler RestoreHandler { get; init; }
         public required RemoveBudgetMonthDebtCommandHandler RemoveHandler { get; init; }
         public required AdjustBudgetMonthDebtBalanceCommandHandler BalanceHandler { get; init; }
+        public required PatchBudgetMonthDebtDetailsCommandHandler PatchDetailsHandler { get; init; }
     }
 
     private Sut CreateSut(DateTime utcNow)
@@ -648,7 +993,8 @@ public sealed class BudgetMonthDebtEditorReadModelTests
         {
             Uow = uow,
             Lifecycle = lifecycle,
-            EditorHandler = new GetBudgetMonthDebtEditorQueryHandler(lifecycle, debtsRepo),
+            EditorHandler = new GetBudgetMonthDebtEditorQueryHandler(
+                lifecycle, debtsRepo, new DebtMonthlyPaymentBreakdownCalculator()),
             LegacyGetHandler = new GetBudgetMonthDebtsQueryHandler(lifecycle, debtsRepo),
             ParticipationHandler = new SetBudgetMonthDebtParticipationCommandHandler(
                 lifecycle, debtsRepo, changeEventRepo, TimeProvider.System),
@@ -662,6 +1008,8 @@ public sealed class BudgetMonthDebtEditorReadModelTests
                 lifecycle, debtsRepo, changeEventRepo, TimeProvider.System),
             BalanceHandler = new AdjustBudgetMonthDebtBalanceCommandHandler(
                 lifecycle, debtsRepo, balanceEventRepo, changeEventRepo, TimeProvider.System),
+            PatchDetailsHandler = new PatchBudgetMonthDebtDetailsCommandHandler(
+                lifecycle, debtsRepo, changeEventRepo, TimeProvider.System),
         };
     }
 }

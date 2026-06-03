@@ -63,6 +63,31 @@ export type DebtRowProgressDto = {
   lastEventAt: string;
 };
 
+/**
+ * Backend-owned split of the planned monthly payment into interest, fee,
+ * and principal — plus a projected post-month balance and an advisory flag
+ * for shortfall. Debt Polish PR 1 keeps this math on the backend; the FE
+ * renders these values directly and never re-derives them from balance/APR.
+ *
+ * Rules to preserve at render time:
+ *   * `plannedMonthlyPayment` is what the dashboard equation already uses
+ *     (`included` rows feed `includedMonthlyPaymentTotal`). Do NOT relabel
+ *     `principalPayment` as the cash outflow.
+ *   * `currentBalance` (on the row) stays the source of truth for
+ *     "Kvar att betala". `projectedBalanceAfterMonth` is a forward view.
+ *   * `coversInterestAndFees === false` is an amber advisory: the planned
+ *     payment is not enough to make the balance shrink this month.
+ */
+export type DebtMonthlyPaymentBreakdownDto = {
+  plannedMonthlyPayment: number;
+  monthlyInterest: number;
+  monthlyFee: number;
+  principalPayment: number;
+  projectedBalanceAfterMonth: number;
+  coversInterestAndFees: boolean;
+  interestAndFeeShortfall: number;
+};
+
 export type DebtEditorRowDto = {
   id: string;
   sourceDebtId: string | null;
@@ -91,6 +116,8 @@ export type DebtEditorRowDto = {
   /** Precomputed ledger group — never re-derive on the client. */
   group: DebtEditorGroup;
   progress: DebtRowProgressDto | null;
+  /** Debt Polish PR 1: backend-owned monthly breakdown. Always present. */
+  paymentBreakdown: DebtMonthlyPaymentBreakdownDto;
   actions: DebtRowActionsDto;
   disabledReasons: DebtEditorDisabledReason[];
 };
@@ -101,10 +128,25 @@ export type DebtEditorSummaryDto = {
   activeLiabilityBalanceTotal: number;
   paidOffBalanceTotal: number;
   archivedBalanceTotal: number;
+  /**
+   * Debt Polish PR 1: derived totals across `included` rows only. Never
+   * substitute these for `includedMonthlyPaymentTotal` in the dashboard
+   * equation — they are explanatory.
+   */
+  includedMonthlyInterestTotal: number;
+  includedMonthlyFeeTotal: number;
+  includedPrincipalPaymentTotal: number;
+  /**
+   * Sum of (included rows' projectedBalanceAfterMonth) + (skipped rows'
+   * current balance, since no payment is applied this month).
+   */
+  projectedActiveLiabilityBalanceAfterMonth: number;
   includedCount: number;
   notIncludedCount: number;
   paidOffCount: number;
   archivedCount: number;
+  /** Count of `included` rows whose payment does not cover interest + fee. */
+  rowsBelowInterestAndFeesCount: number;
 };
 
 export type DebtEditorHistoryEventDto = {

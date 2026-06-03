@@ -5,6 +5,7 @@ import type {
   DebtEditorSummaryDto,
 } from "@/types/budget/DebtEditorDto";
 import DebtsBalanceStrip from "./DebtsBalanceStrip";
+import { emptyPaymentBreakdown } from "../__fixtures__/paymentBreakdown";
 
 vi.mock("@/hooks/i18n/useAppLocale", () => ({
   useAppLocale: () => "sv-SE",
@@ -19,10 +20,15 @@ const summary: DebtEditorSummaryDto = {
   activeLiabilityBalanceTotal: 262200,
   paidOffBalanceTotal: 0,
   archivedBalanceTotal: 0,
+  includedMonthlyInterestTotal: 0,
+  includedMonthlyFeeTotal: 0,
+  includedPrincipalPaymentTotal: 4500,
+  projectedActiveLiabilityBalanceAfterMonth: 257700,
   includedCount: 3,
   notIncludedCount: 1,
   paidOffCount: 1,
   archivedCount: 1,
+  rowsBelowInterestAndFeesCount: 0,
 };
 
 const row = (overrides: Partial<DebtEditorRowDto>): DebtEditorRowDto => ({
@@ -49,6 +55,7 @@ const row = (overrides: Partial<DebtEditorRowDto>): DebtEditorRowDto => ({
   sortOrder: 0,
   group: "active",
   progress: null,
+  paymentBreakdown: emptyPaymentBreakdown,
   actions: {
     canEditPayment: true,
     canEditDetails: true,
@@ -130,5 +137,110 @@ describe("DebtsBalanceStrip", () => {
     expect(
       screen.queryByTestId("debts-strip-meter-seg-installment"),
     ).not.toBeInTheDocument();
+  });
+
+  // ----------------------------------------- Debt Polish PR 1: breakdown strip
+
+  it("renders the included interest / fee / principal totals from the summary DTO", () => {
+    render(
+      <DebtsBalanceStrip
+        summary={{
+          ...summary,
+          includedMonthlyInterestTotal: 1002,
+          includedMonthlyFeeTotal: 150,
+          includedPrincipalPaymentTotal: 3348,
+          projectedActiveLiabilityBalanceAfterMonth: 258852,
+        }}
+        activeRows={[row({ type: "bank_loan", monthlyPayment: 4500 })]}
+        freeAfterDebts={18623}
+      />,
+    );
+    expect(screen.getByTestId("debts-strip-breakdown")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("debts-strip-breakdown-interest").textContent ?? "",
+    ).toMatch(/1\s?002/);
+    expect(
+      screen.getByTestId("debts-strip-breakdown-fee").textContent ?? "",
+    ).toMatch(/150/);
+    expect(
+      screen.getByTestId("debts-strip-breakdown-principal").textContent ?? "",
+    ).toMatch(/3\s?348/);
+    expect(
+      screen.getByTestId("debts-strip-breakdown-projected").textContent ?? "",
+    ).toMatch(/258\s?8/);
+    expect(
+      screen.queryByTestId("debts-strip-breakdown-shortfall"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows the shortfall summary message when included rows fall short of interest + fee", () => {
+    render(
+      <DebtsBalanceStrip
+        summary={{
+          ...summary,
+          includedMonthlyInterestTotal: 800,
+          includedMonthlyFeeTotal: 0,
+          includedPrincipalPaymentTotal: 0,
+          projectedActiveLiabilityBalanceAfterMonth: 262200,
+          rowsBelowInterestAndFeesCount: 2,
+        }}
+        activeRows={[row({ type: "bank_loan", monthlyPayment: 4500 })]}
+        freeAfterDebts={18623}
+      />,
+    );
+    const advisory = screen.getByTestId("debts-strip-breakdown-shortfall");
+    expect(advisory.textContent ?? "").toMatch(/2 skulder/);
+    expect(advisory.textContent ?? "").toMatch(
+      /täcker inte ränta och avgift/i,
+    );
+  });
+
+  it("surfaces the shortfall advisory even when the active payment total is 0 (meter is hidden, breakdown is not)", () => {
+    // Regression: the breakdown was once gated on the per-type meter,
+    // which keys off includedMonthlyPaymentTotal > 0. A zero-payment
+    // included debt with interest accruing must still raise the advisory.
+    render(
+      <DebtsBalanceStrip
+        summary={{
+          ...summary,
+          includedMonthlyPaymentTotal: 0,
+          includedMonthlyInterestTotal: 150,
+          includedMonthlyFeeTotal: 0,
+          includedPrincipalPaymentTotal: 0,
+          projectedActiveLiabilityBalanceAfterMonth:
+            summary.activeLiabilityBalanceTotal,
+          rowsBelowInterestAndFeesCount: 1,
+        }}
+        activeRows={[]}
+        freeAfterDebts={0}
+      />,
+    );
+    // Meter is hidden because per-type split is empty.
+    expect(screen.queryByTestId("debts-strip-meter")).not.toBeInTheDocument();
+    // Breakdown surface still appears with the shortfall advisory.
+    expect(screen.getByTestId("debts-strip-breakdown")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("debts-strip-breakdown-shortfall").textContent ?? "",
+    ).toMatch(/täcker inte ränta och avgift/i);
+  });
+
+  it("suppresses the breakdown surface when there is nothing meaningful to say (no interest, no fees, no shortfall)", () => {
+    render(
+      <DebtsBalanceStrip
+        summary={{
+          ...summary,
+          includedMonthlyInterestTotal: 0,
+          includedMonthlyFeeTotal: 0,
+          includedPrincipalPaymentTotal: summary.includedMonthlyPaymentTotal,
+          projectedActiveLiabilityBalanceAfterMonth:
+            summary.activeLiabilityBalanceTotal -
+            summary.includedMonthlyPaymentTotal,
+          rowsBelowInterestAndFeesCount: 0,
+        }}
+        activeRows={[row({ type: "bank_loan", monthlyPayment: 4500 })]}
+        freeAfterDebts={18623}
+      />,
+    );
+    expect(screen.queryByTestId("debts-strip-breakdown")).not.toBeInTheDocument();
   });
 });

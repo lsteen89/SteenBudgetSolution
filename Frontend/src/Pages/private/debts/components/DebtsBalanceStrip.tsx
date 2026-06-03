@@ -150,6 +150,13 @@ export default function DebtsBalanceStrip({
         </div>
       </div>
 
+      {/* Breakdown summary is gated on summary truth (interest / fee /
+          shortfall presence), not on the per-type meter. A zero-payment
+          included debt with a shortfall must still surface the advisory
+          even though the meter has nothing to split. The component
+          self-suppresses when there is nothing meaningful to say. */}
+      <DebtsStripBreakdownSummary summary={summary} fmt0={fmt0} t={t} />
+
       {showMeter ? (
         <div className="mt-3" data-testid="debts-strip-meter">
           <p className="m-0 text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-eb-text/50">
@@ -214,5 +221,109 @@ export default function DebtsBalanceStrip({
         </div>
       ) : null}
     </section>
+  );
+}
+
+/**
+ * Debt Polish PR 1: explanatory split of the included monthly payment total
+ * into interest / fee / principal, plus a projected end-of-month liability
+ * balance. Renders only when there are included rows (the meter is the
+ * gating signal — same condition). PR 3 will restyle this to lead over the
+ * per-type meter; for PR 1 it sits above the meter as a calm supplement.
+ *
+ * Math comes straight from `summary.includedMonthlyInterestTotal` etc — the
+ * backend already enforced the formula, so the FE only formats and labels.
+ */
+function DebtsStripBreakdownSummary({
+  summary,
+  fmt0,
+  t,
+}: {
+  summary: DebtEditorSummaryDto;
+  fmt0: (value: number) => string;
+  t: <K extends keyof typeof debtsEditorPageDict.sv>(key: K) => string;
+}) {
+  const interest = summary.includedMonthlyInterestTotal;
+  const fee = summary.includedMonthlyFeeTotal;
+  const principal = summary.includedPrincipalPaymentTotal;
+  const projected = summary.projectedActiveLiabilityBalanceAfterMonth;
+  const below = summary.rowsBelowInterestAndFeesCount;
+
+  // When every included row covers interest + fee perfectly *and* none of
+  // them carry APR or fee, the breakdown collapses to "principal = payment"
+  // with everything else 0. That conveys no new information, so suppress
+  // the whole block to keep the strip calm.
+  if (interest <= 0 && fee <= 0 && below === 0) return null;
+
+  return (
+    <div className="mt-3" data-testid="debts-strip-breakdown">
+      <p className="m-0 text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-eb-text/50">
+        {t("stripBreakdownCaption")}
+      </p>
+      <dl className="mt-2 grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-4">
+        <div className="flex flex-col gap-0.5">
+          <dt className="text-[11px] text-eb-text/55">
+            {t("stripBreakdownInterestLabel")}
+          </dt>
+          <dd
+            data-testid="debts-strip-breakdown-interest"
+            className="m-0 text-[14px] font-extrabold tabular-nums text-eb-text"
+          >
+            {fmt0(interest)}
+          </dd>
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <dt className="text-[11px] text-eb-text/55">
+            {t("stripBreakdownFeeLabel")}
+          </dt>
+          <dd
+            data-testid="debts-strip-breakdown-fee"
+            className="m-0 text-[14px] font-extrabold tabular-nums text-eb-text"
+          >
+            {fmt0(fee)}
+          </dd>
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <dt className="text-[11px] text-eb-text/55">
+            {t("stripBreakdownPrincipalLabel")}
+          </dt>
+          <dd
+            data-testid="debts-strip-breakdown-principal"
+            className={cn(
+              "m-0 text-[14px] font-extrabold tabular-nums",
+              principal > 0 ? "text-[#166534]" : "text-eb-text/55",
+            )}
+          >
+            {fmt0(principal)}
+          </dd>
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <dt className="text-[11px] text-eb-text/55">
+            {t("stripBreakdownProjectedLabel")}
+          </dt>
+          <dd
+            data-testid="debts-strip-breakdown-projected"
+            className="m-0 text-[14px] font-extrabold tabular-nums text-eb-text"
+          >
+            {fmt0(projected)}
+          </dd>
+        </div>
+      </dl>
+      {below > 0 ? (
+        <p
+          data-testid="debts-strip-breakdown-shortfall"
+          role="note"
+          className="mt-2 inline-flex items-start gap-1.5 rounded-md border border-eb-warning/35 bg-[rgb(217_119_6_/0.08)] px-2.5 py-1.5 text-[11.5px] font-semibold text-[#7c4a03]"
+        >
+          <Info className="mt-px h-3 w-3 flex-none opacity-80" strokeWidth={2} />
+          <span>
+            {(below === 1
+              ? t("stripBreakdownShortfallOne")
+              : t("stripBreakdownShortfallOther")
+            ).replace("{count}", String(below))}
+          </span>
+        </p>
+      ) : null}
+    </div>
   );
 }

@@ -5,6 +5,7 @@ import type {
   DebtRowProgressDto,
 } from "@/types/budget/DebtEditorDto";
 import DebtProgressModal from "./DebtProgressModal";
+import { emptyPaymentBreakdown } from "../__fixtures__/paymentBreakdown";
 
 vi.mock("@/hooks/i18n/useAppLocale", () => ({
   useAppLocale: () => "en-US",
@@ -48,6 +49,7 @@ const row = (overrides: Partial<DebtEditorRowDto> = {}): DebtEditorRowDto => ({
   sortOrder: 1,
   group: "active",
   progress: progress(),
+  paymentBreakdown: emptyPaymentBreakdown,
   actions: {
     canEditPayment: true,
     canEditDetails: true,

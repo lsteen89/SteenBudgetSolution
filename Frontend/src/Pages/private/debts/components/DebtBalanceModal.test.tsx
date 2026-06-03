@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { DebtEditorRowDto } from "@/types/budget/DebtEditorDto";
 import DebtBalanceModal from "./DebtBalanceModal";
+import { emptyPaymentBreakdown } from "../__fixtures__/paymentBreakdown";
 
 vi.mock("@/hooks/i18n/useAppLocale", () => ({
   useAppLocale: () => "en-US",
@@ -34,6 +35,7 @@ const linkedRow = (overrides: Partial<DebtEditorRowDto> = {}): DebtEditorRowDto 
   sortOrder: 1,
   group: "active",
   progress: null,
+  paymentBreakdown: emptyPaymentBreakdown,
   actions: {
     canEditPayment: true,
     canEditDetails: true,
