@@ -340,6 +340,11 @@ export default function DebtCreateModal({
                 />
               </FormField>
 
+              {/* MVP cleanup: field order promotes Planerad månadsbetalning
+                  ahead of APR / fee / min / term so the most important number
+                  in a budgeting context is not buried near the sticky footer.
+                  Order is now: name → type · balance → planned payment →
+                  APR · fee → min · term. */}
               <div className="grid gap-3 sm:grid-cols-2">
                 <FormField label={t("typeLabel")} htmlFor="debt-create-type">
                   <select
@@ -370,6 +375,18 @@ export default function DebtCreateModal({
                   />
                 </FormField>
               </div>
+
+              <FormField
+                label={t("paymentLabel")}
+                htmlFor="debt-create-payment"
+                hint={t("paymentHint")}
+              >
+                <MoneyInput
+                  id="debt-create-payment"
+                  value={monthlyPayment}
+                  onChange={(event) => setMonthlyPayment(event.target.value)}
+                />
+              </FormField>
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <FormField label={t("aprLabel")} htmlFor="debt-create-apr">
@@ -425,18 +442,6 @@ export default function DebtCreateModal({
                   />
                 </FormField>
               </div>
-
-              <FormField
-                label={t("paymentLabel")}
-                htmlFor="debt-create-payment"
-                hint={t("paymentHint")}
-              >
-                <MoneyInput
-                  id="debt-create-payment"
-                  value={monthlyPayment}
-                  onChange={(event) => setMonthlyPayment(event.target.value)}
-                />
-              </FormField>
 
               <EditScopeRadioCards
                 value={scope}

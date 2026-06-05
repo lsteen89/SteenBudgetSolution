@@ -141,28 +141,38 @@ export default function DebtsSoulHero({
         </span>
 
         {remainingInBudget !== null ? (
-          <span
-            data-testid="debts-hero-budget-pill"
-            data-tone={remainingInBudget < 0 ? "warn" : "positive"}
-            className="inline-flex items-center gap-2 rounded-full border border-eb-stroke/35 bg-eb-surface/70 px-3 py-1.5 text-[13px] font-semibold text-eb-text/72"
-          >
-            <strong
-              className={
-                remainingInBudget < 0
-                  ? "text-[#7c4a03] tabular-nums"
-                  : "text-[#166534] tabular-nums"
-              }
+          // MVP cleanup: negative remaining-money now uses the established
+          // amber warning treatment (same border / fill / text as the
+          // read-only banner and shortfall advisory) and switches the copy to
+          // "{abs amount} saknas i budgeten" so the meaning is obvious. The
+          // positive case keeps the calm neutral pill it always had.
+          remainingInBudget < 0 ? (
+            <span
+              data-testid="debts-hero-budget-pill"
+              data-tone="warn"
+              className="inline-flex items-center gap-2 rounded-full border border-eb-warning/35 bg-[rgb(217_119_6_/0.10)] px-3 py-1.5 text-[13px] font-semibold text-[#7c4a03]"
             >
-              {formatMoneyV2(remainingInBudget, currency, locale, {
-                fractionDigits: 0,
-              })}
-            </strong>
-            <span>
-              {/* split off the prefix in the template — the strong tag is
-                rendered before so we slice the leading `{amount}` token off. */}
-              {stripAmountToken(t("heroBudgetRemaining"))}
+              <strong className="tabular-nums">
+                {formatMoneyV2(Math.abs(remainingInBudget), currency, locale, {
+                  fractionDigits: 0,
+                })}
+              </strong>
+              <span>{stripAmountToken(t("heroBudgetShortfall"))}</span>
             </span>
-          </span>
+          ) : (
+            <span
+              data-testid="debts-hero-budget-pill"
+              data-tone="positive"
+              className="inline-flex items-center gap-2 rounded-full border border-eb-stroke/35 bg-eb-surface/70 px-3 py-1.5 text-[13px] font-semibold text-eb-text/72"
+            >
+              <strong className="text-[#166534] tabular-nums">
+                {formatMoneyV2(remainingInBudget, currency, locale, {
+                  fractionDigits: 0,
+                })}
+              </strong>
+              <span>{stripAmountToken(t("heroBudgetRemaining"))}</span>
+            </span>
+          )
         ) : null}
 
         {readOnly ? (

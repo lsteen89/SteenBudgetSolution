@@ -610,6 +610,158 @@ describe("DebtLedgerRow", () => {
     expect(screen.queryByTestId("debt-row-breakdown-projected")).toBeNull();
   });
 
+  // ----------------------------------------------- Debt Polish PR 3: grouped menu
+
+  it("renders the kebab in grouped order: planning → insight → this-month → lifecycle → destructive", async () => {
+    const user = userEvent.setup();
+    const row = baseRow({
+      progress: progressFixture(),
+      actions: {
+        // Every permission true so all groups surface at once and the order
+        // is unambiguous.
+        canEditPayment: true,
+        canEditDetails: true,
+        canUpdateBalance: true,
+        canSkipThisMonth: true,
+        canIncludeThisMonth: false,
+        canMarkPaidOff: true,
+        canArchive: true,
+        canRestore: false,
+        canRemove: false,
+        canUpdatePlan: true,
+      },
+    });
+    render(
+      <DebtLedgerRow
+        row={row}
+        yearMonthLabel="maj 2026"
+        readOnly={false}
+        onEditPayment={vi.fn()}
+        onEditDetails={vi.fn()}
+        onLifecycleAction={vi.fn()}
+        onUpdateBalance={vi.fn()}
+        onViewProgress={vi.fn()}
+      />,
+    );
+
+    await openFirstMenu(user);
+    const itemKeysInOrder = screen
+      .getAllByRole("menuitem")
+      .map((node) => node.getAttribute("data-testid") ?? "");
+    // Filter to one rendering (each layout doubles items in jsdom). Take the
+    // first contiguous block of unique keys.
+    const seen = new Set<string>();
+    const firstBlock: string[] = [];
+    for (const key of itemKeysInOrder) {
+      if (seen.has(key)) break;
+      seen.add(key);
+      firstBlock.push(key);
+    }
+    expect(firstBlock).toEqual([
+      "budget-editor-row-actions-item-edit-payment",
+      "budget-editor-row-actions-item-edit-details",
+      "budget-editor-row-actions-item-update-balance",
+      "budget-editor-row-actions-item-view-progress",
+      "budget-editor-row-actions-item-skip",
+      "budget-editor-row-actions-item-mark-paid",
+      "budget-editor-row-actions-item-archive",
+    ]);
+  });
+
+  it("renders a separator between groups but not within a group", async () => {
+    const user = userEvent.setup();
+    render(
+      <DebtLedgerRow
+        row={baseRow({
+          progress: progressFixture(),
+          actions: {
+            canEditPayment: true,
+            canEditDetails: true,
+            canUpdateBalance: true,
+            canSkipThisMonth: true,
+            canIncludeThisMonth: false,
+            canMarkPaidOff: true,
+            canArchive: true,
+            canRestore: false,
+            canRemove: false,
+            canUpdatePlan: true,
+          },
+        })}
+        yearMonthLabel="maj 2026"
+        readOnly={false}
+        onEditPayment={vi.fn()}
+        onEditDetails={vi.fn()}
+        onLifecycleAction={vi.fn()}
+        onUpdateBalance={vi.fn()}
+        onViewProgress={vi.fn()}
+      />,
+    );
+
+    await openFirstMenu(user);
+    // Separator appears before the first item of each *non-planning* group
+    // that follows another group: view-progress (insight), skip
+    // (this-month), mark-paid (lifecycle). No separator inside the planning
+    // group (edit-details, update-balance) and none before edit-payment.
+    expect(
+      screen.getAllByTestId(
+        "budget-editor-row-actions-separator-view-progress",
+      ).length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getAllByTestId("budget-editor-row-actions-separator-skip").length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getAllByTestId("budget-editor-row-actions-separator-mark-paid")
+        .length,
+    ).toBeGreaterThan(0);
+    // No separator between items inside the same planning group.
+    expect(
+      screen.queryByTestId("budget-editor-row-actions-separator-edit-details"),
+    ).toBeNull();
+    expect(
+      screen.queryByTestId(
+        "budget-editor-row-actions-separator-update-balance",
+      ),
+    ).toBeNull();
+  });
+
+  it("renders a separator before the destructive remove tail on a month-only row", async () => {
+    const user = userEvent.setup();
+    render(
+      <DebtLedgerRow
+        row={baseRow({
+          isMonthOnly: true,
+          sourceDebtId: null,
+          sourceLifecycleStatus: null,
+          actions: {
+            canEditPayment: true,
+            canEditDetails: true,
+            canUpdateBalance: true,
+            canSkipThisMonth: true,
+            canIncludeThisMonth: false,
+            canMarkPaidOff: false,
+            canArchive: false,
+            canRestore: false,
+            canRemove: true,
+            canUpdatePlan: false,
+          },
+        })}
+        yearMonthLabel="maj 2026"
+        readOnly={false}
+        onEditPayment={vi.fn()}
+        onEditDetails={vi.fn()}
+        onLifecycleAction={vi.fn()}
+        onUpdateBalance={vi.fn()}
+      />,
+    );
+
+    await openFirstMenu(user);
+    expect(
+      screen.getAllByTestId("budget-editor-row-actions-separator-remove")
+        .length,
+    ).toBeGreaterThan(0);
+  });
+
   it("hides the breakdown surface on skipped, paid, and archived rows", () => {
     for (const group of ["skipped", "paid", "archived"] as const) {
       const { unmount } = render(

@@ -37,6 +37,10 @@ export const debtsEditorPageDict = {
     heroCtaPendingPr: "Tillgängligt när tillägg av skuld kopplas in",
     heroSnapshotLabel: "Kvar att betala",
     heroBudgetRemaining: "{amount} kvar i budget",
+    // MVP cleanup: amber-styled shortfall variant used when remaining-money
+    // is negative. `{amount}` is rendered as an unsigned absolute value so
+    // the copy reads naturally ("2 971 kr saknas i budgeten").
+    heroBudgetShortfall: "{amount} saknas i budgeten",
     heroReadOnlyPill: "{yearMonthLabel} är avslutad — skrivskyddad",
 
     // -------------------------------------------------------- balance strip
@@ -139,6 +143,8 @@ export const debtsEditorPageDict = {
     breakdownFeeLabel: "Avgift",
     breakdownPrincipalLabel: "Minskar skulden",
     breakdownProjectedAfterLabel: "Efter månaden",
+    breakdownHelper:
+      "Månadsbetalningen delas upp i ränta, avgift och det som faktiskt minskar skulden.",
     breakdownShortfallAdvisory:
       "Betalningen täcker inte ränta och avgift. Saldot väntas inte minska denna månad.",
     breakdownShortfallAmount: "Saknas: {amount}",
@@ -258,6 +264,7 @@ export const debtsEditorPageDict = {
     heroCtaPendingPr: "Available once add-debt wiring ships",
     heroSnapshotLabel: "Owed balance",
     heroBudgetRemaining: "{amount} left in budget",
+    heroBudgetShortfall: "{amount} short in the budget",
     heroReadOnlyPill: "{yearMonthLabel} is closed — read only",
 
     stripSectionLabel: "Debts this month",
@@ -353,6 +360,8 @@ export const debtsEditorPageDict = {
     breakdownFeeLabel: "Fee",
     breakdownPrincipalLabel: "Reduces balance",
     breakdownProjectedAfterLabel: "After this month",
+    breakdownHelper:
+      "The monthly payment splits into interest, fee, and the amount that actually reduces the balance.",
     breakdownShortfallAdvisory:
       "The payment does not cover interest and fee. The balance is not expected to shrink this month.",
     breakdownShortfallAmount: "Missing: {amount}",
@@ -467,6 +476,7 @@ export const debtsEditorPageDict = {
     heroCtaPendingPr: "Saadaval, kui lisamise voog on ühendatud",
     heroSnapshotLabel: "Tasumata jääk",
     heroBudgetRemaining: "{amount} eelarvesse alles",
+    heroBudgetShortfall: "{amount} eelarves puudu",
     heroReadOnlyPill: "{yearMonthLabel} on suletud — ainult vaatamiseks",
 
     stripSectionLabel: "Võlad sel kuul",
@@ -562,6 +572,8 @@ export const debtsEditorPageDict = {
     breakdownFeeLabel: "Tasu",
     breakdownPrincipalLabel: "Vähendab võlga",
     breakdownProjectedAfterLabel: "Pärast seda kuud",
+    breakdownHelper:
+      "Kuumakse jaguneb intressiks, tasuks ja summaks, mis tegelikult võlga vähendab.",
     breakdownShortfallAdvisory:
       "Makse ei kata intressi ja tasu. Jääk ei eelda sel kuul vähenemist.",
     breakdownShortfallAmount: "Puudu: {amount}",

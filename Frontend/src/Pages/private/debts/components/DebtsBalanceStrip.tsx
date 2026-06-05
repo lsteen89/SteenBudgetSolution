@@ -260,6 +260,14 @@ function DebtsStripBreakdownSummary({
       <p className="m-0 text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-eb-text/50">
         {t("stripBreakdownCaption")}
       </p>
+      {/* MVP cleanup: explainer mirrors the row-level helper so the strip
+          summary and per-row split read as one coherent grammar. */}
+      <p
+        data-testid="debts-strip-breakdown-helper"
+        className="mt-1 text-[12px] leading-snug text-eb-text/55"
+      >
+        {t("breakdownHelper")}
+      </p>
       <dl className="mt-2 grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-4">
         <div className="flex flex-col gap-0.5">
           <dt className="text-[11px] text-eb-text/55">

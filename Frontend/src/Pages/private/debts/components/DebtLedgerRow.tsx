@@ -222,6 +222,7 @@ export default function DebtLedgerRow({
       currency={currency}
       locale={locale}
       sectionLabel={t("breakdownSectionLabel")}
+      helperText={t("breakdownHelper")}
       interestLabel={t("breakdownInterestLabel")}
       feeLabel={t("breakdownFeeLabel")}
       principalLabel={t("breakdownPrincipalLabel")}
@@ -369,6 +370,36 @@ export default function DebtLedgerRow({
   );
 }
 
+// Debt Polish PR 3: action menu is grouped to stay scannable as more
+// lifecycle / participation actions joined the kebab through PR 6-9. The
+// shared `BudgetEditorRowActionsMenu` primitive draws a separator between
+// adjacent items whose `group` differs, so the visual rhythm is:
+//
+//   Planning      Redigera planerad betalning
+//                 Redigera uppgifter
+//                 Uppdatera saldo
+//                 ─────────────────────────────
+//   Insight       Visa återbetalningsförlopp
+//                 ─────────────────────────────
+//   This month    Hoppa över denna månad
+//                 Inkludera denna månad
+//                 ─────────────────────────────
+//   Lifecycle     Markera som betald
+//                 Arkivera
+//                 Återställ skuld
+//                 ─────────────────────────────
+//   Destructive   Ta bort
+//
+// A group only contributes a separator when there is a real item before AND
+// after it — the primitive doesn't draw orphan dividers, so a row with only
+// planning actions still renders cleanly.
+type DebtActionGroup =
+  | "planning"
+  | "insight"
+  | "thisMonth"
+  | "lifecycle"
+  | "destructive";
+
 function buildActionItems(
   row: DebtEditorRowDto,
   t: <K extends keyof typeof debtsEditorPageDict.sv>(key: K) => string,
@@ -377,41 +408,20 @@ function buildActionItems(
   onLifecycleAction?: (row: DebtEditorRowDto, action: DebtLifecycleAction) => void,
   onUpdateBalance?: (row: DebtEditorRowDto) => void,
   onViewProgress?: (row: DebtEditorRowDto) => void,
-): BudgetEditorRowActionItem[] {
-  const items: BudgetEditorRowActionItem[] = [];
+): (BudgetEditorRowActionItem & { group: DebtActionGroup })[] {
+  const items: (BudgetEditorRowActionItem & { group: DebtActionGroup })[] = [];
 
-  // PR 6 wired the planned-payment action. PR 7 adds the edit-details action.
-  // PR 8 adds the lifecycle / participation actions. PR 9 adds update-balance
-  // and view-progress. Order mirrors the target mockup's per-lifecycle kebab:
-  // payment → balance → progress → details, then the lifecycle block. Every
-  // item is gated on its matching backend permission (or, for progress, on the
-  // presence of real read-model data) so the FE never offers an action the
-  // command would reject or a progress view with nothing behind it.
+  // ---------------------------------------------------------------- Planning
+  // Every item stays gated on its matching backend permission (or, for
+  // progress, on the presence of real read-model data) so the FE never
+  // offers an action the command would reject or a progress view with
+  // nothing behind it.
   if (row.actions.canEditPayment) {
     items.push({
       key: "edit-payment",
       label: t("rowActionEditPayment"),
+      group: "planning",
       onSelect: () => onEditPayment(row),
-    });
-  }
-
-  if (onUpdateBalance && row.actions.canUpdateBalance) {
-    items.push({
-      key: "update-balance",
-      label: t("rowActionUpdateBalance"),
-      onSelect: () => onUpdateBalance(row),
-    });
-  }
-
-  // Progress is gated on real `DebtBalanceEvent`-derived data, never on a
-  // permission flag — a debt with no recorded balance history simply has no
-  // progress to show, so the action stays hidden rather than opening an empty
-  // view.
-  if (onViewProgress && row.progress !== null) {
-    items.push({
-      key: "view-progress",
-      label: t("rowActionViewProgress"),
-      onSelect: () => onViewProgress(row),
     });
   }
 
@@ -419,35 +429,58 @@ function buildActionItems(
     items.push({
       key: "edit-details",
       label: t("rowActionEditDetails"),
+      group: "planning",
       onSelect: () => onEditDetails(row),
     });
   }
 
-  if (onLifecycleAction) {
-    // Order mirrors the target mockup's per-lifecycle kebab: include leads the
-    // skipped group, skip leads the active group (they are mutually exclusive
-    // by permission), then mark-paid / archive / restore, and finally the
-    // destructive month-only remove.
-    if (row.actions.canIncludeThisMonth) {
-      items.push({
-        key: "include",
-        label: t("rowActionInclude"),
-        onSelect: () => onLifecycleAction(row, "include"),
-      });
-    }
+  if (onUpdateBalance && row.actions.canUpdateBalance) {
+    items.push({
+      key: "update-balance",
+      label: t("rowActionUpdateBalance"),
+      group: "planning",
+      onSelect: () => onUpdateBalance(row),
+    });
+  }
 
+  // ---------------------------------------------------------------- Insight
+  if (onViewProgress && row.progress !== null) {
+    items.push({
+      key: "view-progress",
+      label: t("rowActionViewProgress"),
+      group: "insight",
+      onSelect: () => onViewProgress(row),
+    });
+  }
+
+  if (onLifecycleAction) {
+    // ----------------------------------------------------------- This month
+    // skip / include are mutually exclusive by permission, so only one
+    // surfaces per row. Skip leads on active rows, include on skipped rows.
     if (row.actions.canSkipThisMonth) {
       items.push({
         key: "skip",
         label: t("rowActionSkip"),
+        group: "thisMonth",
         onSelect: () => onLifecycleAction(row, "skip"),
       });
     }
 
+    if (row.actions.canIncludeThisMonth) {
+      items.push({
+        key: "include",
+        label: t("rowActionInclude"),
+        group: "thisMonth",
+        onSelect: () => onLifecycleAction(row, "include"),
+      });
+    }
+
+    // ----------------------------------------------------------- Lifecycle
     if (row.actions.canMarkPaidOff) {
       items.push({
         key: "mark-paid",
         label: t("rowActionMarkPaid"),
+        group: "lifecycle",
         onSelect: () => onLifecycleAction(row, "markPaidOff"),
       });
     }
@@ -456,6 +489,7 @@ function buildActionItems(
       items.push({
         key: "archive",
         label: t("rowActionArchive"),
+        group: "lifecycle",
         onSelect: () => onLifecycleAction(row, "archive"),
       });
     }
@@ -464,15 +498,20 @@ function buildActionItems(
       items.push({
         key: "restore",
         label: t("rowActionRestore"),
+        group: "lifecycle",
         onSelect: () => onLifecycleAction(row, "restore"),
       });
     }
 
+    // ---------------------------------------------------------- Destructive
+    // Month-only rows are the only ones the backend allows to be removed —
+    // source-linked debts archive instead so history survives.
     if (row.actions.canRemove) {
       items.push({
         key: "remove",
         label: t("rowActionRemove"),
         tone: "danger",
+        group: "destructive",
         onSelect: () => onLifecycleAction(row, "remove"),
       });
     }
@@ -545,6 +584,7 @@ function RowPaymentBreakdown({
   currency,
   locale,
   sectionLabel,
+  helperText,
   interestLabel,
   feeLabel,
   principalLabel,
@@ -556,6 +596,7 @@ function RowPaymentBreakdown({
   currency: ReturnType<typeof useAppCurrency>;
   locale: string;
   sectionLabel: string;
+  helperText: string;
   interestLabel: string;
   feeLabel: string;
   principalLabel: string;
@@ -571,6 +612,15 @@ function RowPaymentBreakdown({
       <div className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-eb-text/45">
         {sectionLabel}
       </div>
+      {/* MVP cleanup: quiet one-line explainer so users understand why the
+          breakdown adds up to the planned payment. Kept secondary — uppercase
+          section label still owns the heading. */}
+      <p
+        data-testid="debt-row-breakdown-helper"
+        className="mt-0.5 text-[11.5px] leading-snug text-eb-text/55"
+      >
+        {helperText}
+      </p>
       <dl className="mt-1.5 grid grid-cols-3 gap-x-3 gap-y-1">
         <div>
           <dt className="text-[11px] text-eb-text/55">{interestLabel}</dt>

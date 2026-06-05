@@ -105,6 +105,122 @@ describe("calcDebtPaymentBreakdown", () => {
     expect(result.interestAndFeeShortfall).toBe(0);
   });
 
+  // ----------------------------------------- MVP cleanup: explicit sum proof
+  //
+  // The MVP task ships with a worked example the user actually sees on the
+  // page:
+  //
+  //   Månadsbetalningar: 1 750 kr
+  //   Ränta            : 1 239 kr
+  //   Avgift           :   250 kr
+  //   Minskar skulden  :   261 kr
+  //
+  //   1 239 + 250 + 261 === 1 750
+  //
+  // We pin the exact scenario that produces those numbers (balance 150 000,
+  // APR 9.912 %, fee 250, planned payment 1 750) so a future drift between
+  // the displayed split and the planned-payment total is a CI failure, not
+  // a user-spotted bug.
+
+  it("displayed breakdown sums to the planned payment (1239 + 250 + 261 = 1750)", () => {
+    const inputs = {
+      currentBalance: 150_000,
+      annualInterestPercent: 9.912,
+      monthlyFee: 250,
+      plannedMonthlyPayment: 1_750,
+    };
+
+    const result = calcDebtPaymentBreakdown(inputs);
+
+    // The three displayed cells.
+    expect(result.monthlyInterest).toBe(1239);
+    expect(result.monthlyFee).toBe(250);
+    expect(result.principalPayment).toBe(261);
+
+    // The visible identity: split adds up to the planned monthly payment.
+    expect(
+      result.monthlyInterest +
+        result.monthlyFee +
+        result.principalPayment,
+    ).toBe(inputs.plannedMonthlyPayment);
+
+    // Projected balance applies *only* the principal portion to the current
+    // balance — never the gross payment.
+    expect(result.projectedBalanceAfterMonth).toBe(
+      inputs.currentBalance - result.principalPayment,
+    );
+    expect(result.projectedBalanceAfterMonth).toBe(149_739);
+
+    expect(result.coversInterestAndFees).toBe(true);
+    expect(result.interestAndFeeShortfall).toBe(0);
+  });
+
+  it("interest and fee changes shift the breakdown without mutating the input balance", () => {
+    const baseInputs = {
+      currentBalance: 150_000,
+      annualInterestPercent: 9.912,
+      monthlyFee: 250,
+      plannedMonthlyPayment: 1_750,
+    };
+
+    const base = calcDebtPaymentBreakdown(baseInputs);
+
+    // Same balance and payment, higher rate + higher fee but still inside
+    // the "covers interest + fee" range so the sum identity holds.
+    // 150 000 · 11 % / 12 = 1 375 interest; fee 275 → requirement 1 650;
+    // payment 1 750 covers, principal = 100.
+    const escalated = calcDebtPaymentBreakdown({
+      ...baseInputs,
+      annualInterestPercent: 11,
+      monthlyFee: 275,
+    });
+
+    // Interest grew with the rate.
+    expect(escalated.monthlyInterest).toBeGreaterThan(base.monthlyInterest);
+    // Fee grew with the configured value.
+    expect(escalated.monthlyFee).toBeGreaterThan(base.monthlyFee);
+    // Principal shrank because more of the same planned payment is now
+    // consumed by interest + fee.
+    expect(escalated.principalPayment).toBeLessThan(base.principalPayment);
+    // The calculator never mutates the input balance — `Kvar att betala` is
+    // an authoritative liability snapshot and stays where it was. Projected
+    // balance reflects the *smaller* principal reduction, so it ends higher
+    // than the escalated principal would suggest if we had (wrongly)
+    // applied the full payment.
+    expect(escalated.projectedBalanceAfterMonth).toBe(
+      baseInputs.currentBalance - escalated.principalPayment,
+    );
+    // Sanity: identity still holds at every step.
+    expect(
+      escalated.monthlyInterest +
+        escalated.monthlyFee +
+        escalated.principalPayment,
+    ).toBe(baseInputs.plannedMonthlyPayment);
+  });
+
+  it("payment <= interest + fee pins principal to zero and projected balance to the unchanged current balance", () => {
+    const inputs = {
+      currentBalance: 150_000,
+      annualInterestPercent: 9.912,
+      monthlyFee: 250,
+      // Below the 1 489 kr requirement — the user is short.
+      plannedMonthlyPayment: 1_000,
+    };
+
+    const result = calcDebtPaymentBreakdown(inputs);
+
+    expect(result.monthlyInterest).toBe(1239);
+    expect(result.monthlyFee).toBe(250);
+    // No principal reduction — the planned payment is consumed entirely by
+    // interest + fee (and then some).
+    expect(result.principalPayment).toBe(0);
+    // Projected balance equals the unchanged current balance — the UI must
+    // never pretend the debt decreased this month.
+    expect(result.projectedBalanceAfterMonth).toBe(inputs.currentBalance);
+    expect(result.coversInterestAndFees).toBe(false);
+    expect(result.interestAndFeeShortfall).toBe(489);
+  });
+
   it("handles non-finite inputs without throwing", () => {
     const result = calcDebtPaymentBreakdown({
       currentBalance: Number.NaN,
