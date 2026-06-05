@@ -1,25 +1,37 @@
 import type { ApiEnvelope } from "@/api/api.types";
 import { api } from "@/api/axios";
 import { unwrapEnvelopeData } from "@/api/envelope";
+import type { BudgetMonthDebtEditorDto } from "@/types/budget/DebtEditorDto";
 import type { BudgetMonthSavingsGoalArchiveRowDto } from "@/types/budget/BudgetMonthSavingsGoalArchiveRowDto";
 import type {
   SavingsMethodCode,
   SavingsMethodDto,
 } from "@/types/budget/SavingsMethodDto";
 import type {
+  AdjustBudgetMonthDebtBalanceRequestDto,
+  AdjustBudgetMonthDebtBalanceResponseDto,
+  ArchiveBudgetMonthDebtRequestDto,
   BudgetMonthBaseSavingsEditorDto,
+  BudgetMonthDebtLifecycleActionResponseDto,
   BudgetMonthEditorDto,
   BudgetMonthDebtEditorRowDto,
   BudgetMonthIncomeItemEditorRowDto,
   BudgetMonthExpenseItemEditorRowDto,
   BudgetMonthSavingsGoalEditorRowDto,
+  CreateBudgetMonthDebtRequestDto,
+  CreateBudgetMonthDebtResponseDto,
   CreateBudgetMonthIncomeItemRequestDto,
   CreateBudgetMonthExpenseItemRequestDto,
   CreateBudgetMonthSavingsGoalRequestDto,
   PatchBudgetMonthBaseSavingsRequestDto,
+  MarkBudgetMonthDebtPaidOffRequestDto,
   PatchBudgetMonthDebtBulkRowDto,
+  PatchBudgetMonthDebtDetailsRequestDto,
   PatchBudgetMonthDebtRequestDto,
   PatchBudgetMonthDebtsBulkRequestDto,
+  RemoveBudgetMonthDebtRequestDto,
+  RestoreBudgetMonthDebtRequestDto,
+  SetBudgetMonthDebtParticipationRequestDto,
   PatchBudgetMonthIncomeItemBulkRowDto,
   PatchBudgetMonthIncomeItemRequestDto,
   PatchBudgetMonthIncomeItemsBulkRequestDto,
@@ -407,6 +419,27 @@ export async function getBudgetMonthDebts(
   return unwrapEnvelopeData(res, "Could not load month debts.");
 }
 
+/**
+ * Debt PR 5 target editor read model. One fetch returns hero summary, grouped
+ * rows with action permissions / disabled reasons, optional balance progress,
+ * and the recent-events timeline. PR 6's shell renders entirely from this
+ * payload — financial state is never re-derived on the client.
+ */
+export async function getBudgetMonthDebtEditor(
+  yearMonth: string,
+): Promise<BudgetMonthDebtEditorDto> {
+  const res = await api.get<ApiEnvelope<BudgetMonthDebtEditorDto>>(
+    `/api/budgets/months/${yearMonth}/debt-editor`,
+    {
+      headers: {
+        "Cache-Control": "no-cache",
+      },
+    },
+  );
+
+  return unwrapEnvelopeData(res, "Could not load debt editor.");
+}
+
 export async function patchBudgetMonthDebt(
   yearMonth: string,
   monthDebtId: string,
@@ -417,6 +450,45 @@ export async function patchBudgetMonthDebt(
   >(`/api/budgets/months/${yearMonth}/debt-items/${monthDebtId}`, payload);
 
   return unwrapEnvelopeData(res, "Could not update month debt.");
+}
+
+/**
+ * Debt PR 2 / PR 7 — create a debt from the editor. The backend supports all
+ * three scopes (`currentMonthOnly`, `currentMonthAndBudgetPlan`,
+ * `budgetPlanOnly`) and resolves null/omitted to `currentMonthOnly`. The
+ * response wraps both halves so a `budgetPlanOnly` create can surface a
+ * source summary without a follow-up fetch.
+ */
+export async function createBudgetMonthDebt(
+  yearMonth: string,
+  payload: CreateBudgetMonthDebtRequestDto,
+): Promise<CreateBudgetMonthDebtResponseDto> {
+  const res = await api.post<
+    ApiEnvelope<CreateBudgetMonthDebtResponseDto>
+  >(`/api/budgets/months/${yearMonth}/debt-items`, payload);
+
+  return unwrapEnvelopeData(res, "Could not create debt.");
+}
+
+/**
+ * Debt PR 2 / PR 7 — edit metadata (name / type / APR / fee / min / term /
+ * planned monthly payment). Balance is intentionally not part of this
+ * contract; PR 3's `Uppdatera saldo` endpoint owns balance changes. Scope
+ * semantics mirror the planned-payment patch.
+ */
+export async function patchBudgetMonthDebtDetails(
+  yearMonth: string,
+  monthDebtId: string,
+  payload: PatchBudgetMonthDebtDetailsRequestDto,
+): Promise<BudgetMonthDebtEditorRowDto> {
+  const res = await api.patch<
+    ApiEnvelope<BudgetMonthDebtEditorRowDto>
+  >(
+    `/api/budgets/months/${yearMonth}/debt-items/${monthDebtId}/details`,
+    payload,
+  );
+
+  return unwrapEnvelopeData(res, "Could not update debt details.");
 }
 
 /**
@@ -435,4 +507,118 @@ export async function patchBudgetMonthDebtsBulk(
   >(`/api/budgets/months/${yearMonth}/debt-items`, payload);
 
   return unwrapEnvelopeData(res, "Could not update month debts.");
+}
+
+/**
+ * Debt PR 3 / PR 9 — `Uppdatera saldo`. Records an absolute new liability
+ * balance against the month row (and, per scope, the linked plan row) and
+ * appends a typed `DebtBalanceEvent`. `POST` (not `PATCH`) because every call
+ * is an append-only history event, not an idempotent state set — the caller
+ * must debounce Save to avoid double submission. Planned monthly payment is
+ * never touched; the response echoes it back unchanged so the FE can assert
+ * the "saldo påverkas inte din planerade betalning" promise.
+ */
+export async function adjustBudgetMonthDebtBalance(
+  yearMonth: string,
+  monthDebtId: string,
+  payload: AdjustBudgetMonthDebtBalanceRequestDto,
+): Promise<AdjustBudgetMonthDebtBalanceResponseDto> {
+  const res = await api.post<
+    ApiEnvelope<AdjustBudgetMonthDebtBalanceResponseDto>
+  >(
+    `/api/budgets/months/${yearMonth}/debt-items/${monthDebtId}/balance-adjustments`,
+    payload,
+  );
+
+  return unwrapEnvelopeData(res, "Could not update debt balance.");
+}
+
+/**
+ * Debt PR 4 / PR 8 — skip ( `notIncluded` ) or include ( `included` ) the row
+ * this month. Source lifecycle, planned payment, and balance are untouched;
+ * only the row's contribution to this month's debt-payment total changes.
+ */
+export async function setBudgetMonthDebtParticipation(
+  yearMonth: string,
+  monthDebtId: string,
+  payload: SetBudgetMonthDebtParticipationRequestDto,
+): Promise<BudgetMonthDebtLifecycleActionResponseDto> {
+  const res = await api.post<
+    ApiEnvelope<BudgetMonthDebtLifecycleActionResponseDto>
+  >(
+    `/api/budgets/months/${yearMonth}/debt-items/${monthDebtId}/participation`,
+    payload,
+  );
+
+  return unwrapEnvelopeData(res, "Could not update debt participation.");
+}
+
+/**
+ * Debt PR 4 / PR 8 — source lifecycle `active → paidOff`. `setBalanceToZero`
+ * is opt-in; when true the backend records a separate, audited balance
+ * correction. Marking paid off never registers an actual bank payment.
+ */
+export async function markBudgetMonthDebtPaidOff(
+  yearMonth: string,
+  monthDebtId: string,
+  payload: MarkBudgetMonthDebtPaidOffRequestDto,
+): Promise<BudgetMonthDebtLifecycleActionResponseDto> {
+  const res = await api.post<
+    ApiEnvelope<BudgetMonthDebtLifecycleActionResponseDto>
+  >(
+    `/api/budgets/months/${yearMonth}/debt-items/${monthDebtId}/mark-paid-off`,
+    payload,
+  );
+
+  return unwrapEnvelopeData(res, "Could not mark debt as paid off.");
+}
+
+/**
+ * Debt PR 4 / PR 8 — source lifecycle `active → archived`. Reversible via
+ * restore; history is preserved; balance is never moved.
+ */
+export async function archiveBudgetMonthDebt(
+  yearMonth: string,
+  monthDebtId: string,
+  payload: ArchiveBudgetMonthDebtRequestDto,
+): Promise<BudgetMonthDebtLifecycleActionResponseDto> {
+  const res = await api.post<
+    ApiEnvelope<BudgetMonthDebtLifecycleActionResponseDto>
+  >(`/api/budgets/months/${yearMonth}/debt-items/${monthDebtId}/archive`, payload);
+
+  return unwrapEnvelopeData(res, "Could not archive debt.");
+}
+
+/**
+ * Debt PR 4 / PR 8 — source lifecycle `archived → active`. When
+ * `reIncludeCurrentMonth` is true the open month's row is also flipped back
+ * to `included` in the same transaction.
+ */
+export async function restoreBudgetMonthDebt(
+  yearMonth: string,
+  monthDebtId: string,
+  payload: RestoreBudgetMonthDebtRequestDto,
+): Promise<BudgetMonthDebtLifecycleActionResponseDto> {
+  const res = await api.post<
+    ApiEnvelope<BudgetMonthDebtLifecycleActionResponseDto>
+  >(`/api/budgets/months/${yearMonth}/debt-items/${monthDebtId}/restore`, payload);
+
+  return unwrapEnvelopeData(res, "Could not restore debt.");
+}
+
+/**
+ * Debt PR 4 / PR 8 — remove a month-only row from the open month. Source-linked
+ * rows are rejected by the backend (archive preserves their history instead);
+ * the FE only offers this action when the read model permits it.
+ */
+export async function removeBudgetMonthDebt(
+  yearMonth: string,
+  monthDebtId: string,
+  payload: RemoveBudgetMonthDebtRequestDto,
+): Promise<BudgetMonthDebtLifecycleActionResponseDto> {
+  const res = await api.post<
+    ApiEnvelope<BudgetMonthDebtLifecycleActionResponseDto>
+  >(`/api/budgets/months/${yearMonth}/debt-items/${monthDebtId}/remove`, payload);
+
+  return unwrapEnvelopeData(res, "Could not remove debt.");
 }

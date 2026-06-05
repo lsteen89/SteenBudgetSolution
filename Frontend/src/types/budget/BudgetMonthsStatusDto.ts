@@ -293,6 +293,157 @@ export type PatchBudgetMonthDebtsBulkRequestDto = {
   items: PatchBudgetMonthDebtBulkRowDto[];
 };
 
+// Debt PR 2 — `POST /api/budgets/months/{ym}/debt-items`. Unlike income, the
+// create endpoint accepts all three scopes: `budgetPlanOnly` is a real use
+// case for debt (a debt that starts in future planning without touching the
+// already-materialized current month). The backend resolves null/omitted to
+// `currentMonthOnly`.
+export type DebtCreateScope = DebtEditScope;
+
+export type CreateBudgetMonthDebtRequestDto = {
+  name: string;
+  type: string;
+  balance: number;
+  apr: number;
+  monthlyFee?: number | null;
+  minPayment?: number | null;
+  termMonths?: number | null;
+  monthlyPayment: number;
+  scope?: DebtCreateScope | null;
+};
+
+// Surfaces the baseline `Debt` plan row after a Debt PR 2 create that wrote
+// the plan side — either alongside a current-month row
+// (`currentMonthAndBudgetPlan`) or on its own (`budgetPlanOnly`).
+export type DebtSourceSummaryDto = {
+  sourceDebtId: string;
+  name: string;
+  type: string;
+  balance: number;
+  apr: number;
+  monthlyFee: number | null;
+  minPayment: number | null;
+  termMonths: number | null;
+  monthlyPayment: number;
+};
+
+// One of the two payload halves is always populated; both are populated when
+// the create wrote a current-month row and a baseline plan row in the same
+// transaction. The frontend should not infer the create scope from the nulls
+// — the create call already carried the user's chosen scope.
+export type CreateBudgetMonthDebtResponseDto = {
+  monthRow: BudgetMonthDebtEditorRowDto | null;
+  source: DebtSourceSummaryDto | null;
+};
+
+// Debt PR 2 — `PATCH .../debt-items/{id}/details`. Distinct from the
+// planned-payment-only PATCH route (`PatchBudgetMonthDebtRequestDto`); detail
+// edits never move balance — PR 3's `Uppdatera saldo` endpoint owns that.
+export type PatchBudgetMonthDebtDetailsRequestDto = {
+  name: string;
+  type: string;
+  apr: number;
+  monthlyFee?: number | null;
+  minPayment?: number | null;
+  termMonths?: number | null;
+  monthlyPayment: number;
+  scope?: DebtEditScope | null;
+};
+
+// Debt PR 4 / PR 8 — lifecycle and month-participation commands. Each is a
+// `POST` (append-only audit event) and shares one response shape so the FE
+// can tell, without a follow-up GET, what changed: participation, source
+// lifecycle, and — only for a `mark-paid-off` that zeroed the balance — the
+// balance pair. `monthlyPayment` is echoed unchanged so the UI can never
+// confuse a lifecycle change with a payment edit.
+
+// Only `included` / `notIncluded` are reachable from the toggle. `removed` is
+// reached exclusively via the dedicated remove command — keep them apart so
+// skip/include can never accidentally delete a row.
+export type DebtParticipationValue = "included" | "notIncluded";
+
+export type SetBudgetMonthDebtParticipationRequestDto = {
+  participation: DebtParticipationValue;
+  note?: string | null;
+};
+
+export type MarkBudgetMonthDebtPaidOffRequestDto = {
+  // Opt-in. Marking paid off is a status decision, not proof of a real
+  // payment — so the user must explicitly ask to drive the balance to 0,
+  // which the backend records as a separate, audited balance correction.
+  setBalanceToZero: boolean;
+  note?: string | null;
+};
+
+export type ArchiveBudgetMonthDebtRequestDto = {
+  note?: string | null;
+};
+
+export type RestoreBudgetMonthDebtRequestDto = {
+  // When true the current open month's row also flips back to `included`,
+  // restoring its planned payment to the dashboard total in the same call.
+  reIncludeCurrentMonth: boolean;
+  note?: string | null;
+};
+
+export type RemoveBudgetMonthDebtRequestDto = {
+  note?: string | null;
+};
+
+export type BudgetMonthDebtLifecycleActionResponseDto = {
+  monthDebtId: string;
+  sourceDebtId: string | null;
+  action: string;
+  previousParticipationStatus: string | null;
+  participationStatus: string;
+  previousSourceLifecycleStatus: string | null;
+  sourceLifecycleStatus: string | null;
+  balanceUpdated: boolean;
+  oldMonthBalance: number | null;
+  newMonthBalance: number | null;
+  oldSourceBalance: number | null;
+  newSourceBalance: number | null;
+  monthlyPayment: number;
+  changedAt: string;
+};
+
+// Debt PR 3 / PR 9 — `Uppdatera saldo`
+// (`POST .../debt-items/{id}/balance-adjustments`). Mirrors
+// `AdjustBudgetMonthDebtBalanceRequestDto` in the backend.
+//
+// `newBalance` is the absolute new liability snapshot, never a delta — the
+// drawer is framed as a calm correction where the user types the value their
+// lender currently shows. `scope` reuses the three editor scopes; month-only
+// rows must keep it `currentMonthOnly`. `note` is the optional rättelse
+// reason (≤ 500 chars).
+export type AdjustBudgetMonthDebtBalanceRequestDto = {
+  newBalance: number;
+  scope?: DebtEditScope | null;
+  note?: string | null;
+};
+
+// Debt PR 3 / PR 9 response. Each side reports its own old/new/delta because
+// month and plan balances can legitimately diverge; the two `*Updated` flags
+// make a no-op side explicit instead of forcing a delta-vs-zero guess.
+// `monthlyPayment` is echoed unchanged so the FE can prove the planned-payment
+// value did not move — the "saldo påverkas inte" promise in the inverse
+// direction.
+export type AdjustBudgetMonthDebtBalanceResponseDto = {
+  monthDebtId: string;
+  sourceDebtId: string | null;
+  scope: string;
+  monthBalanceUpdated: boolean;
+  oldMonthBalance: number | null;
+  newMonthBalance: number | null;
+  monthDelta: number | null;
+  sourceBalanceUpdated: boolean;
+  oldSourceBalance: number | null;
+  newSourceBalance: number | null;
+  sourceDelta: number | null;
+  monthlyPayment: number;
+  changedAt: string;
+};
+
 export type ApiErrorDto = {
   code: string;
   message: string;

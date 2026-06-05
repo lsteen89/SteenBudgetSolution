@@ -240,6 +240,26 @@ E2eSeedUser[] e2eSeed =
             FirstName: "E2E",
             LastName: "IncomeEditor"),
         IncludeBudget: true,
+        OpenMonthTargetFinalBalance: null),
+    // Dedicated user for the debt editor E2E spec (Debt PR 10). Uses the
+    // Default timeline so the open 2026-04 month exposes two plan-linked
+    // active debts:
+    //   - "Credit Card" (revolving, balance 15 850 kr, min 650 kr)
+    //   - "Student Loan" (installment, balance 93 880 kr, min 1 500 kr, 72 mån)
+    // The spec is destructive and future-materialization-sensitive (it
+    // creates month-only / plan-linked debts, skips / includes, updates the
+    // balance, marks paid off, and archives / restores), so it must not share
+    // an account with the expenses, income, or savings suites. Every later
+    // lifecycle/participation state is produced through the real UI + backend
+    // refetch rather than seeded, matching the PR 10 "no optimistic fiction"
+    // contract.
+    new(
+        User: new DevSeedUser(
+            Email: "e2e-debt-editor@local.test",
+            Password: DevSeedPassword,
+            FirstName: "E2E",
+            LastName: "DebtEditor"),
+        IncludeBudget: true,
         OpenMonthTargetFinalBalance: null)
 ];
 

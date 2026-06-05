@@ -1,0 +1,1707 @@
+<!doctype html>
+<html lang="sv">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>eBudget — Inkomst (MVP)</title>
+    <link rel="icon" href="../../assets/brand/apple-touch-icon.png" />
+    <style>
+      :root {
+        --eb-shell: 224 240 255;
+        --eb-shell-2: 77 185 254;
+        --eb-shell-3: 21 39 81;
+        --eb-surface: 255 255 255;
+        --eb-surface-accent: 224 240 255;
+        --eb-stroke: 199 228 255;
+        --eb-stroke-strong: 145 179 220;
+        --eb-text: 21 39 81;
+        --eb-danger: 185 28 28;
+        --eb-accent: 34 197 94;
+        --eb-accent-soft: 220 252 231;
+        --eb-warning: 217 119 6;
+        --eb-shadow: 15 23 42;
+      }
+
+      * { box-sizing: border-box; }
+      html, body { min-height: 100%; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        overflow-x: hidden;
+        background:
+          radial-gradient(circle at 50% 0, rgb(var(--eb-shell) / 0.52), transparent 28rem),
+          radial-gradient(circle at 12% 0, rgb(var(--eb-shell) / 0.32), transparent 22rem),
+          radial-gradient(circle at 88% 0, rgb(var(--eb-shell) / 0.32), transparent 24rem),
+          linear-gradient(135deg, #e0f0ff 0%, #4db9fe 100%);
+        color: rgb(var(--eb-text));
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      button, input, select, textarea { font: inherit; }
+      button { cursor: pointer; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.92em; }
+
+      /* ============================================================ HEADER */
+      .app-frame { min-height: 100vh; }
+      .app-header {
+        position: sticky; top: 0; z-index: 40;
+        border-bottom: 1px solid rgb(255 255 255 / 0.48);
+        background: rgb(255 255 255 / 0.48);
+        box-shadow: 0 12px 32px rgb(var(--eb-shadow) / 0.08);
+        backdrop-filter: blur(18px);
+      }
+      .header-inner {
+        width: min(1152px, calc(100% - 32px));
+        height: 72px; margin: 0 auto;
+        display: grid; grid-template-columns: 1fr auto 1fr;
+        align-items: center; gap: 12px;
+      }
+      .brand {
+        justify-self: start; border-radius: 16px; padding: 4px 8px;
+        color: rgb(var(--eb-text)); font-size: 18px; font-weight: 900;
+        text-decoration: none;
+      }
+      .brand span { color: rgb(var(--eb-accent)); }
+      .pill-nav {
+        justify-self: center; display: flex; gap: 4px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.54);
+        border-radius: 999px; background: rgb(var(--eb-surface) / 0.68);
+        padding: 4px;
+      }
+      .pill-nav a {
+        border-radius: 999px; padding: 8px 12px;
+        color: rgb(var(--eb-text) / 0.7);
+        font-size: 14px; font-weight: 700; text-decoration: none;
+      }
+      .pill-nav a.active {
+        background: rgb(var(--eb-surface)); color: rgb(var(--eb-text));
+        box-shadow: 0 1px 4px rgb(var(--eb-shadow) / 0.08);
+      }
+      .account-button {
+        justify-self: end; display: inline-flex; align-items: center; justify-content: center;
+        width: 38px; height: 38px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.7);
+        border-radius: 999px; background: rgb(var(--eb-surface) / 0.82);
+        color: rgb(var(--eb-text)); font-weight: 900;
+      }
+
+      /* ============================================================ LAYOUT */
+      .authed-main { padding-top: 24px; }
+      .page-container { position: relative; width: 100%; min-height: 100dvh; }
+      .decor { pointer-events: none; position: absolute; inset: 0 0 auto; height: 224px; overflow: hidden; }
+      .decor span { position: absolute; top: -96px; border-radius: 999px; filter: blur(40px); }
+      .decor .one { left: 50%; width: 288px; height: 288px; transform: translateX(-50%); background: rgb(var(--eb-shell) / 0.4); }
+      .decor .two { left: 10%; width: 224px; height: 224px; background: rgb(var(--eb-shell) / 0.26); }
+      .decor .three { right: 10%; width: 256px; height: 256px; background: rgb(var(--eb-shell) / 0.26); }
+      .content { position: relative; width: min(1152px, 100%); margin: 0 auto; padding: 24px 16px 64px; }
+      .stack { display: grid; gap: 20px; }
+
+      .eyebrow {
+        margin: 0; color: rgb(var(--eb-text) / 0.5);
+        font-size: 11px; font-weight: 800; letter-spacing: 0.22em; text-transform: uppercase;
+      }
+      .section-label {
+        color: rgb(var(--eb-text) / 0.5);
+        font-size: 11px; font-weight: 800; letter-spacing: 0.18em; text-transform: uppercase;
+      }
+      .dialog-heading {
+        margin: 0 0 8px; color: rgb(var(--eb-text) / 0.5);
+        font-size: 11px; font-weight: 850; letter-spacing: 0.14em; text-transform: uppercase;
+      }
+
+      /* ============================================================ HERO */
+      .hero {
+        position: relative; overflow: hidden;
+        border: 1px solid rgb(var(--eb-stroke) / 0.2);
+        border-radius: 28px; background: rgb(var(--eb-surface) / 0.85);
+        padding: 15px 20px 16px;
+        box-shadow: 0 10px 30px rgb(var(--eb-shadow) / 0.05);
+        backdrop-filter: blur(12px);
+      }
+      .hero-bg { pointer-events: none; position: absolute; inset: 0; }
+      .hero-bg::before, .hero-bg::after { content: ""; position: absolute; border-radius: 999px; filter: blur(48px); }
+      .hero-bg::before { top: -80px; left: 10%; width: 176px; height: 176px; background: rgb(var(--eb-shell) / 0.28); }
+      .hero-bg::after { top: -96px; right: 18%; width: 208px; height: 208px; background: rgb(var(--eb-shell-2) / 0.10); }
+      .hero-mascot {
+        pointer-events: none; position: absolute; top: -2px; right: 14px;
+        display: none; width: 74px; height: 74px; opacity: 0.92;
+      }
+      .hero-mascot::before {
+        content: ""; position: absolute; inset: -14px;
+        background: radial-gradient(60% 60% at 50% 40%, rgb(var(--eb-shell-2) / 0.18) 0%, transparent 72%);
+        filter: blur(12px);
+      }
+      .hero-mascot img { position: relative; width: 100%; height: 100%; object-fit: contain; }
+
+      .hero-content { position: relative; z-index: 1; max-width: 44rem; }
+      .hero-top {
+        display: flex; flex-wrap: wrap; align-items: baseline;
+        gap: 4px 14px;
+      }
+      .hero h1 {
+        margin: 6px 0 0; color: rgb(var(--eb-text));
+        font-size: 22px; font-weight: 900; line-height: 1.2;
+      }
+      .hero h1 .accent { color: rgb(var(--eb-shell-3)); }
+      .hero h1 .light { color: rgb(var(--eb-text) / 0.6); font-weight: 800; }
+
+      .hero-split {
+        display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 10px 0 0;
+        color: rgb(var(--eb-text) / 0.7); font-size: 13px; line-height: 1.4;
+      }
+      .hero-split-part { display: inline-flex; align-items: baseline; gap: 6px; }
+      .hero-split strong { color: rgb(var(--eb-text)); font-weight: 800; font-variant-numeric: tabular-nums; }
+      .hero-split-sep { align-self: center; width: 4px; height: 4px; border-radius: 999px; background: rgb(var(--eb-text) / 0.3); }
+
+      .hero-pills { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+      .hero-actions {
+        display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
+        margin-top: 12px;
+      }
+      .insight-pill, .funded-pill, .readonly-pill {
+        display: inline-flex; align-items: center; gap: 8px;
+        border-radius: 999px; padding: 6px 12px;
+        font-size: 13px; font-weight: 800;
+      }
+      .insight-pill {
+        border: 1px solid rgb(var(--eb-accent) / 0.25);
+        background: rgb(var(--eb-accent-soft));
+        color: #14532d;
+      }
+      .funded-pill {
+        border: 1px solid rgb(var(--eb-stroke) / 0.7);
+        background: rgb(var(--eb-surface) / 0.7);
+        color: rgb(var(--eb-text) / 0.75);
+      }
+      .funded-pill strong { color: rgb(var(--eb-text)); font-weight: 850; }
+      .readonly-pill {
+        border: 1px solid rgb(var(--eb-warning) / 0.3);
+        background: rgb(217 119 6 / 0.08);
+        color: #7c4a03;
+      }
+      .hero-cta {
+        position: relative; z-index: 1;
+        display: inline-flex; align-items: center; gap: 8px;
+        height: 38px; padding: 0 16px;
+        border: 0; border-radius: 999px;
+        background: rgb(var(--eb-accent));
+        color: white; font-size: 13.5px; font-weight: 800;
+        box-shadow: 0 10px 22px rgb(34 197 94 / 0.22);
+        transition: filter 150ms ease, transform 150ms ease;
+      }
+      .hero-cta:hover { filter: brightness(1.05); transform: translateY(-1px); }
+      .hero-cta svg { width: 14px; height: 14px; }
+
+      /* ============================================================ BALANCE STRIP */
+      .balance-strip {
+        border: 1px solid rgb(var(--eb-stroke) / 0.3);
+        border-radius: 22px; background: rgb(var(--eb-surface) / 0.85);
+        padding: 10px 16px 12px;
+        box-shadow: 0 1px 2px rgb(var(--eb-shadow) / 0.04);
+      }
+      .balance-top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
+      .balance-headline {
+        margin-top: 2px; color: rgb(var(--eb-text));
+        font-size: 17px; font-weight: 850; font-variant-numeric: tabular-nums;
+      }
+      .balance-chip {
+        display: inline-flex; align-items: center;
+        border-radius: 999px; background: rgb(var(--eb-shell) / 0.45);
+        padding: 4px 10px;
+        color: rgb(var(--eb-text) / 0.7);
+        font-size: 12px; font-weight: 850;
+      }
+      .balance-chip.warn { background: rgb(217 119 6 / 0.12); color: #7c4a03; }
+      .balance-chip.over { background: #fee2e2; color: #991b1b; }
+      .balance-message {
+        margin: 6px 0 0;
+        color: rgb(var(--eb-text) / 0.65);
+        font-size: 13px;
+      }
+      .balance-breakdown {
+        display: grid; gap: 4px 16px; margin: 10px 0 0;
+      }
+      .balance-breakdown div { display: flex; flex-direction: column; }
+      .balance-breakdown dt {
+        color: rgb(var(--eb-text) / 0.45);
+        font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+      }
+      .balance-breakdown dd {
+        margin: 0; color: rgb(var(--eb-text) / 0.8);
+        font-size: 13.5px; font-weight: 750; font-variant-numeric: tabular-nums;
+      }
+      .balance-breakdown .highlight dd { color: rgb(var(--eb-text)); }
+      .balance-breakdown .split-exp dt::after,
+      .balance-breakdown .split-income dt::after,
+      .balance-breakdown .split-carry dt::after {
+        content: ""; display: inline-block;
+        width: 7px; height: 7px; margin-left: 6px; vertical-align: 1px;
+        border-radius: 2px;
+      }
+      .balance-breakdown .split-income dt::after { background: rgb(var(--eb-accent) / 0.7); }
+      .balance-breakdown .split-carry dt::after  { background: rgb(var(--eb-shell-2) / 0.7); }
+      .balance-breakdown .split-exp dt::after    { background: rgb(var(--eb-danger) / 0.5); }
+
+      /* spend bar visualisation under balance — clearly segmented */
+      .spend-meter { margin-top: 10px; }
+      .spend-labels {
+        display: flex; flex-wrap: wrap; gap: 8px 22px;
+        margin: 0 0 8px;
+      }
+      .spend-meter .spend-labels .lab { flex: 0 0 auto !important; min-width: 0 !important; }
+      .spend-labels .lab {
+        display: flex; flex-direction: column; min-width: 0;
+      }
+      .spend-labels .lab-name {
+        display: inline-flex; align-items: center; gap: 6px;
+        color: rgb(var(--eb-text) / 0.55);
+        font-size: 10.5px; font-weight: 800;
+        letter-spacing: 0.08em; text-transform: uppercase;
+        white-space: nowrap;
+      }
+      .spend-labels .lab-dot {
+        width: 8px; height: 8px; border-radius: 2px; flex: none;
+      }
+      .spend-labels .lab-val {
+        margin-top: 2px;
+        color: rgb(var(--eb-text));
+        font-size: 13px; font-weight: 800;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      .spend-labels .lab-val .pct {
+        margin-left: 4px;
+        color: rgb(var(--eb-text) / 0.55);
+        font-weight: 700; font-size: 12px;
+      }
+      .spend-bar {
+        display: flex; gap: 4px;
+        height: 14px;
+        border-radius: 999px;
+        background: transparent;
+      }
+      .spend-bar > .seg {
+        border-radius: 4px;
+        box-shadow: inset 0 -1px 0 rgb(var(--eb-shadow) / 0.06);
+      }
+      .spend-bar > .seg:first-child { border-top-left-radius: 999px; border-bottom-left-radius: 999px; }
+      .spend-bar > .seg:last-child  { border-top-right-radius: 999px; border-bottom-right-radius: 999px; }
+      .spend-bar > .seg.fixed    { background: rgb(var(--eb-shell-3) / 0.95); }
+      .spend-bar > .seg.variable { background: rgb(var(--eb-shell-2)); }
+      .spend-bar > .seg.subs     { background: rgb(var(--eb-accent)); }
+      /* swatch colors for the legend dots */
+      .l-fixed    { background: rgb(var(--eb-shell-3) / 0.95); }
+      .l-variable { background: rgb(var(--eb-shell-2)); }
+      .l-subs     { background: rgb(var(--eb-accent)); }
+
+      /* ============================================================ GROUP CARDS */
+      .group-card {
+        position: relative;
+        border: 1px solid rgb(var(--eb-stroke) / 0.4);
+        border-radius: 28px;
+        background: rgb(var(--eb-surface));
+        box-shadow: 0 1px 2px rgb(var(--eb-shadow) / 0.04);
+        overflow: hidden;
+      }
+      .group-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        align-items: center;
+        gap: 12px 18px;
+        padding: 16px 18px;
+        border-bottom: 1px solid rgb(var(--eb-stroke) / 0.35);
+        background:
+          linear-gradient(135deg, rgb(var(--eb-shell) / 0.32), rgb(var(--eb-surface) / 0.9));
+      }
+      .group-head .gh-titleblock { min-width: 0; display: grid; gap: 4px; }
+      .group-head .gh-title-row {
+        display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px;
+      }
+      .group-head h2 {
+        margin: 0;
+        color: rgb(var(--eb-text)); font-size: 16px; font-weight: 850;
+        letter-spacing: -0.005em;
+      }
+      .group-head .gh-meta {
+        color: rgb(var(--eb-text) / 0.6); font-size: 12.5px;
+      }
+      .group-head .gh-meta strong { color: rgb(var(--eb-text)); font-weight: 700; }
+      .group-head .gh-insight {
+        color: rgb(var(--eb-text) / 0.6); font-size: 12.5px;
+      }
+      .group-head .gh-insight strong { color: rgb(var(--eb-text)); font-weight: 700; }
+      .group-total {
+        text-align: right; white-space: nowrap;
+        color: rgb(var(--eb-text)); font-size: 18px; font-weight: 850;
+        font-variant-numeric: tabular-nums;
+      }
+      .group-total span {
+        margin-top: 2px; display: block;
+        color: rgb(var(--eb-text) / 0.5);
+        font-size: 11px; font-weight: 800;
+        letter-spacing: 0.14em; text-transform: uppercase;
+      }
+      .group-add {
+        display: inline-flex; align-items: center; gap: 6px;
+        height: 32px; padding: 0 12px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.6);
+        border-radius: 999px;
+        background: rgb(var(--eb-surface));
+        color: rgb(var(--eb-text) / 0.78);
+        font-size: 12.5px; font-weight: 750;
+        white-space: nowrap;
+        transition: background 120ms, border-color 120ms, color 120ms;
+      }
+      .group-add:hover { background: white; border-color: rgb(var(--eb-stroke-strong) / 0.6); color: rgb(var(--eb-text)); }
+      .group-add svg { width: 12px; height: 12px; }
+
+      /* Rows table */
+      .rows {
+        list-style: none; margin: 0; padding: 0;
+        display: grid;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 140px auto;
+        align-items: center;
+        gap: 12px 16px;
+        padding: 12px 18px;
+        border-bottom: 1px solid rgb(var(--eb-stroke) / 0.32);
+        transition: background 120ms;
+      }
+      .row:last-child { border-bottom: 0; }
+      .row:hover { background: rgb(var(--eb-shell) / 0.18); }
+      .row.inactive .row-amount,
+      .row.inactive .row-name,
+      .row.paused .row-amount,
+      .row.paused .row-name,
+      .row.cancelled .row-amount,
+      .row.cancelled .row-name {
+        color: rgb(var(--eb-text) / 0.5);
+      }
+      .row.inactive .row-amount,
+      .row.paused .row-amount,
+      .row.cancelled .row-amount {
+        text-decoration: line-through;
+        text-decoration-color: rgb(var(--eb-text) / 0.35);
+      }
+      .row-main { min-width: 0; }
+      .row-name-line {
+        display: flex; align-items: baseline; gap: 8px 10px;
+        flex-wrap: wrap; min-width: 0;
+      }
+      .row-name {
+        color: rgb(var(--eb-text));
+        font-size: 14.5px; font-weight: 700;
+        max-width: 100%;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      .row-meta {
+        margin: 2px 0 0;
+        color: rgb(var(--eb-text) / 0.55);
+        font-size: 12px;
+      }
+      .row-amount {
+        text-align: right;
+        color: rgb(var(--eb-text));
+        font-size: 15px; font-weight: 800;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      .row-amount .unit {
+        margin-left: 2px;
+        color: rgb(var(--eb-text) / 0.45);
+        font-weight: 700; font-size: 12px;
+      }
+      .row-actions { display: flex; align-items: center; gap: 6px; }
+
+      /* row state badges */
+      .badge {
+        display: inline-flex; align-items: center; gap: 4px;
+        height: 20px; padding: 0 8px;
+        border-radius: 999px;
+        font-size: 11px; font-weight: 800;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+      }
+      .badge.month-only {
+        background: rgb(var(--eb-shell) / 0.6);
+        color: rgb(var(--eb-text) / 0.72);
+        border: 1px solid rgb(var(--eb-stroke) / 0.5);
+      }
+      .badge.plan-linked {
+        background: rgb(var(--eb-accent-soft));
+        color: #166534;
+        border: 1px solid rgb(var(--eb-accent) / 0.25);
+      }
+      .badge.paused {
+        background: rgb(217 119 6 / 0.12);
+        color: #7c4a03;
+        border: 1px solid rgb(var(--eb-warning) / 0.25);
+      }
+      .badge.cancelled {
+        background: #fee2e2;
+        color: #991b1b;
+        border: 1px solid rgb(var(--eb-danger) / 0.18);
+      }
+      .badge.inactive {
+        background: rgb(var(--eb-text) / 0.06);
+        color: rgb(var(--eb-text) / 0.6);
+        border: 1px solid rgb(var(--eb-stroke) / 0.4);
+      }
+      .badge.dot::before {
+        content: ""; width: 6px; height: 6px; border-radius: 999px;
+        background: currentColor; opacity: 0.85;
+      }
+
+      /* lifecycle quick toggle (subscriptions inline) */
+      .lifecycle-toggle {
+        display: inline-flex;
+        padding: 2px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.6);
+        border-radius: 999px;
+        background: rgb(var(--eb-shell) / 0.2);
+      }
+      .lifecycle-toggle button {
+        height: 22px; padding: 0 8px;
+        border: 0; border-radius: 999px;
+        background: transparent;
+        color: rgb(var(--eb-text) / 0.55);
+        font-size: 11px; font-weight: 800;
+        white-space: nowrap;
+      }
+      .lifecycle-toggle button.active {
+        background: rgb(var(--eb-surface));
+        color: rgb(var(--eb-text));
+        box-shadow: 0 1px 3px rgb(var(--eb-shadow) / 0.08);
+      }
+      .lifecycle-toggle button[data-val="active"].active { color: #166534; }
+      .lifecycle-toggle button[data-val="paused"].active { color: #7c4a03; }
+      .lifecycle-toggle button[data-val="cancelled"].active { color: #991b1b; }
+
+      .row-icon-btn {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 32px; height: 32px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.6);
+        border-radius: 999px;
+        background: rgb(var(--eb-surface));
+        color: rgb(var(--eb-text) / 0.55);
+        transition: background 120ms, color 120ms, border-color 120ms;
+      }
+      .row-icon-btn:hover { background: white; color: rgb(var(--eb-text)); }
+      .row-icon-btn svg { width: 14px; height: 14px; }
+
+      /* Inactive sub-section inside a card */
+      .rows-sublabel {
+        padding: 10px 18px 6px;
+        background: rgb(var(--eb-shell) / 0.18);
+        border-top: 1px solid rgb(var(--eb-stroke) / 0.32);
+        color: rgb(var(--eb-text) / 0.5);
+        font-size: 11px; font-weight: 800;
+        letter-spacing: 0.14em; text-transform: uppercase;
+      }
+      .rows-sublabel small {
+        margin-left: 8px;
+        color: rgb(var(--eb-text) / 0.45);
+        letter-spacing: 0.02em; text-transform: none;
+        font-size: 11.5px; font-weight: 600;
+      }
+
+      /* ============================================================ KEBAB MENU */
+      .kebab-wrap { position: relative; }
+      .kebab-menu {
+        position: absolute; right: 0; top: calc(100% + 6px);
+        z-index: 20; display: none;
+        min-width: 200px; padding: 6px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.5);
+        border-radius: 14px;
+        background: rgb(var(--eb-surface));
+        box-shadow: 0 16px 40px rgb(var(--eb-shadow) / 0.18);
+      }
+      .kebab-menu.open { display: block; }
+      .kebab-menu button {
+        display: flex; width: 100%; align-items: center; gap: 8px;
+        border: 0; border-radius: 8px;
+        background: transparent;
+        padding: 8px 10px;
+        color: rgb(var(--eb-text) / 0.85);
+        font-size: 13px; font-weight: 700; text-align: left;
+      }
+      .kebab-menu button:hover { background: rgb(var(--eb-shell) / 0.4); }
+      .kebab-menu button.danger { color: rgb(var(--eb-danger)); }
+      .kebab-menu hr {
+        border: 0; border-top: 1px solid rgb(var(--eb-stroke) / 0.4); margin: 4px 0;
+      }
+      .kebab-menu svg { width: 13px; height: 13px; opacity: 0.7; }
+
+      /* ============================================================ ADD ROW */
+      .add-expense {
+        width: 100%;
+        border: 1.5px dashed rgb(var(--eb-stroke) / 0.7);
+        border-radius: 28px;
+        background: transparent;
+        padding: 16px 22px;
+        color: rgb(var(--eb-text) / 0.7);
+        font-size: 14px; font-weight: 750; text-align: left;
+        display: flex; align-items: center; gap: 10px;
+        transition: border-color 120ms, background 120ms, color 120ms;
+      }
+      .add-expense:hover {
+        border-color: rgb(var(--eb-accent) / 0.7);
+        background: rgb(var(--eb-accent) / 0.05);
+        color: rgb(var(--eb-text));
+      }
+      .add-expense .pill {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 28px; height: 28px; border-radius: 999px;
+        background: rgb(var(--eb-accent-soft));
+        color: #166534;
+      }
+      .add-expense .month-note {
+        margin-left: auto;
+        color: rgb(var(--eb-text) / 0.5);
+        font-size: 12px; font-weight: 700;
+      }
+
+      /* ============================================================ MODAL */
+      .modal { position: fixed; inset: 0; z-index: 95; display: none; }
+      .modal.open { display: block; }
+      .modal-backdrop {
+        position: absolute; inset: 0; border: 0;
+        background: radial-gradient(circle at top, rgb(21 39 81 / 0.18), rgb(21 39 81 / 0.52));
+      }
+      .modal-scroll {
+        position: absolute; inset: 0;
+        display: flex; align-items: flex-start; justify-content: center;
+        overflow-y: auto; padding: 16px;
+      }
+      .dialog {
+        position: relative; width: min(520px, 100%); overflow: hidden;
+        border: 1px solid rgb(var(--eb-stroke) / 0.4);
+        border-radius: 24px;
+        background: rgb(var(--eb-surface));
+        box-shadow:
+          0 24px 60px rgb(var(--eb-shadow) / 0.22),
+          0 2px 10px rgb(var(--eb-shadow) / 0.08);
+      }
+      .dialog-head {
+        display: flex; align-items: flex-start; justify-content: space-between;
+        gap: 12px; padding: 18px 22px 14px;
+      }
+      .dialog-head h2 { margin: 0; color: rgb(var(--eb-text)); font-size: 17px; font-weight: 850; }
+      .dialog-head p {
+        margin: 4px 0 0;
+        color: rgb(var(--eb-text) / 0.6);
+        font-size: 12.5px; line-height: 1.45;
+      }
+      .close-button {
+        display: inline-flex; flex: none; align-items: center; justify-content: center;
+        width: 28px; height: 28px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.5);
+        border-radius: 999px;
+        background: transparent;
+        color: rgb(var(--eb-text) / 0.6);
+      }
+      .dialog-section { padding: 0 22px 14px; }
+      .dialog-divider { height: 1px; background: rgb(var(--eb-stroke) / 0.4); }
+      .dialog-footer {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 8px;
+        border-top: 1px solid rgb(var(--eb-stroke) / 0.4);
+        background: rgb(var(--eb-shell) / 0.15);
+        padding: 12px 22px;
+      }
+      .dialog-footer .footer-note { color: rgb(var(--eb-text) / 0.55); font-size: 11.5px; }
+
+      /* month-only callout in dialog */
+      .month-only-callout {
+        display: flex; align-items: flex-start; gap: 10px;
+        padding: 10px 12px;
+        margin: 0 22px 14px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.5);
+        border-radius: 12px;
+        background: rgb(var(--eb-shell) / 0.28);
+      }
+      .month-only-callout svg {
+        flex: none; width: 16px; height: 16px;
+        color: rgb(var(--eb-shell-3));
+        margin-top: 2px;
+      }
+      .month-only-callout p {
+        margin: 0;
+        color: rgb(var(--eb-text) / 0.78);
+        font-size: 12.5px; line-height: 1.45;
+      }
+      .month-only-callout strong { color: rgb(var(--eb-text)); font-weight: 800; }
+
+      .field { display: grid; gap: 6px; }
+      .field + .field { margin-top: 14px; }
+      .field label { color: rgb(var(--eb-text) / 0.58); font-size: 12px; font-weight: 800; }
+      .field input, .field select {
+        width: 100%; height: 44px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.55);
+        border-radius: 16px;
+        background: rgb(var(--eb-surface));
+        padding: 0 14px;
+        color: rgb(var(--eb-text));
+        font-size: 15px; font-weight: 650;
+        outline: none;
+      }
+      .field input:focus, .field select:focus {
+        border-color: rgb(var(--eb-accent) / 0.7);
+        box-shadow: 0 0 0 4px rgb(var(--eb-accent) / 0.16);
+      }
+      .field-row {
+        display: grid; gap: 14px;
+      }
+      @media (min-width: 540px) {
+        .field-row { grid-template-columns: 1.2fr 1fr; }
+        .field-row .field + .field { margin-top: 0; }
+      }
+
+      .big-amount {
+        display: flex; align-items: baseline; gap: 8px;
+        padding: 14px 16px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.55);
+        border-radius: 16px;
+        background: rgb(var(--eb-surface));
+      }
+      .big-amount input {
+        min-width: 0; width: 100%; flex: 1;
+        border: 0; outline: 0; background: transparent;
+        color: rgb(var(--eb-text));
+        font-size: 32px; font-weight: 850;
+        font-variant-numeric: tabular-nums;
+        text-align: right; letter-spacing: -0.01em;
+        height: auto; padding: 0;
+      }
+      .big-amount .unit {
+        color: rgb(var(--eb-text) / 0.45);
+        font-size: 18px; font-weight: 800;
+      }
+
+      .field-toggle {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 10px;
+        padding: 12px 14px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.55);
+        border-radius: 14px;
+        background: rgb(var(--eb-surface));
+      }
+      .field-toggle .t-main {
+        font-size: 13.5px; font-weight: 800; color: rgb(var(--eb-text));
+      }
+      .field-toggle .t-sub {
+        margin-top: 2px;
+        font-size: 12px; color: rgb(var(--eb-text) / 0.6);
+      }
+
+      .switch {
+        position: relative; flex: none;
+        width: 42px; height: 24px;
+        border-radius: 999px;
+        background: rgb(var(--eb-text) / 0.18);
+        transition: background 150ms;
+      }
+      .switch::after {
+        content: ""; position: absolute;
+        top: 2px; left: 2px;
+        width: 20px; height: 20px; border-radius: 999px;
+        background: white;
+        box-shadow: 0 1px 3px rgb(var(--eb-shadow) / 0.2);
+        transition: transform 150ms;
+      }
+      .switch input { position: absolute; opacity: 0; pointer-events: none; }
+      .switch.on { background: rgb(var(--eb-accent) / 0.85); }
+      .switch.on::after { transform: translateX(18px); }
+
+      /* Scope radio cards */
+      .scope-list {
+        display: grid; gap: 8px;
+        margin: 0; padding: 0; list-style: none;
+      }
+      .scope-option {
+        display: grid; grid-template-columns: 18px minmax(0, 1fr);
+        gap: 10px; padding: 12px 14px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.5);
+        border-radius: 14px;
+        background: rgb(var(--eb-surface));
+        cursor: pointer;
+        transition: border-color 120ms, background 120ms;
+      }
+      .scope-option:hover { border-color: rgb(var(--eb-stroke-strong) / 0.7); }
+      .scope-option input { margin: 3px 0 0; accent-color: rgb(var(--eb-accent)); }
+      .scope-option:has(input:checked) {
+        border-color: rgb(var(--eb-accent) / 0.6);
+        background: rgb(var(--eb-accent) / 0.05);
+      }
+      .scope-option strong {
+        display: block; color: rgb(var(--eb-text));
+        font-size: 13.5px; font-weight: 800;
+      }
+      .scope-option span {
+        display: block; margin-top: 2px;
+        color: rgb(var(--eb-text) / 0.6);
+        font-size: 12px; line-height: 1.45;
+      }
+      .scope-option.disabled {
+        opacity: 0.55; cursor: not-allowed;
+        background: rgb(var(--eb-shell) / 0.2);
+      }
+      .scope-option.disabled:has(input:disabled) { background: rgb(var(--eb-shell) / 0.2); }
+      .scope-option .why {
+        display: block; margin-top: 4px;
+        color: rgb(var(--eb-text) / 0.55);
+        font-size: 11px; font-style: italic;
+      }
+
+      /* Lifecycle radio strip (subs only) */
+      .lifecycle-radio {
+        display: grid; grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+      }
+      .lifecycle-radio label {
+        display: flex; align-items: center; justify-content: center; gap: 6px;
+        height: 40px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.5);
+        border-radius: 12px;
+        background: rgb(var(--eb-surface));
+        color: rgb(var(--eb-text) / 0.7);
+        font-size: 13px; font-weight: 800;
+        cursor: pointer;
+        transition: border-color 120ms, background 120ms, color 120ms;
+      }
+      .lifecycle-radio input { position: absolute; opacity: 0; pointer-events: none; }
+      .lifecycle-radio label:has(input:checked) {
+        border-color: rgb(var(--eb-accent) / 0.5);
+        background: rgb(var(--eb-accent) / 0.06);
+        color: rgb(var(--eb-text));
+      }
+      .lifecycle-radio label[data-state="paused"]:has(input:checked) {
+        border-color: rgb(var(--eb-warning) / 0.5);
+        background: rgb(217 119 6 / 0.08);
+        color: #7c4a03;
+      }
+      .lifecycle-radio label[data-state="cancelled"]:has(input:checked) {
+        border-color: rgb(var(--eb-danger) / 0.45);
+        background: #fee2e2;
+        color: #991b1b;
+      }
+      .lifecycle-radio .dot {
+        width: 8px; height: 8px; border-radius: 999px;
+        background: currentColor; opacity: 0.85;
+      }
+
+      /* Preview / outcome */
+      .outcome {
+        display: grid; gap: 6px;
+        padding: 12px 14px; margin-top: 14px;
+        border-radius: 14px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.55);
+        background: rgb(var(--eb-shell) / 0.22);
+      }
+      .outcome .o-label {
+        color: rgb(var(--eb-text) / 0.55);
+        font-size: 11px; font-weight: 800;
+        letter-spacing: 0.12em; text-transform: uppercase;
+      }
+      .outcome .o-grid {
+        display: grid; grid-template-columns: 1fr 1fr;
+        gap: 6px 12px;
+      }
+      .outcome .o-cell {
+        display: flex; flex-direction: column; gap: 2px;
+      }
+      .outcome .o-cell .lbl {
+        color: rgb(var(--eb-text) / 0.55); font-size: 11px;
+      }
+      .outcome .o-cell .val {
+        color: rgb(var(--eb-text)); font-size: 14px; font-weight: 800;
+        font-variant-numeric: tabular-nums;
+      }
+      .outcome .o-cell .delta-up { color: #991b1b; font-size: 12px; font-weight: 800; }
+      .outcome .o-cell .delta-down { color: #166534; font-size: 12px; font-weight: 800; }
+      .outcome .o-cell .delta-neutral { color: rgb(var(--eb-text) / 0.55); font-size: 12px; font-weight: 700; }
+
+      .secondary-button, .primary-button {
+        border-radius: 999px; font-weight: 750;
+        transition: filter 150ms, background 150ms, color 150ms;
+      }
+      .secondary-button {
+        height: 40px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.6);
+        background: rgb(var(--eb-surface));
+        padding: 0 16px;
+        color: rgb(var(--eb-text) / 0.75);
+        font-size: 13px;
+      }
+      .primary-button {
+        height: 40px; border: 0;
+        background: rgb(var(--eb-accent));
+        padding: 0 20px;
+        color: white; font-size: 13px;
+        box-shadow: 0 8px 20px rgb(21 39 81 / 0.12);
+      }
+      .primary-button:hover { filter: brightness(1.05); }
+      .primary-button.danger { background: rgb(var(--eb-danger)); }
+
+      /* ============================================================ RESPONSIVE */
+      @media (min-width: 640px) {
+        .content { padding: 28px 24px 64px; }
+        .hero { padding: 18px 28px 18px; }
+        .hero h1 { font-size: 26px; }
+        .hero-content { padding-right: 92px; }
+        .hero-mascot { display: block; }
+        .balance-strip { padding: 12px 20px 14px; }
+        .balance-breakdown { grid-template-columns: repeat(5, minmax(0, 1fr)); margin-top: 12px; }
+        .row { grid-template-columns: minmax(0, 1fr) auto 180px auto; padding: 12px 20px; }
+        .row .row-badges { justify-self: start; }
+        .group-head { padding: 18px 22px; }
+        .rows-sublabel { padding-left: 22px; padding-right: 22px; }
+      }
+      @media (max-width: 900px) {
+        .header-inner {
+          grid-template-columns: 1fr auto;
+          height: auto; min-height: 64px; padding: 10px 0;
+        }
+        .pill-nav { grid-column: 1 / -1; justify-self: stretch; overflow-x: auto; }
+        .account-button { grid-column: 2; grid-row: 1; }
+      }
+      @media (max-width: 540px) {
+        .row {
+          grid-template-columns: minmax(0, 1fr) auto;
+        }
+        .row-amount { grid-column: 2; grid-row: 1; }
+        .row-actions { grid-column: 1 / -1; justify-self: end; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
+      }
+
+      /* Default: quiet plan-linked rows. Plan pill only shown when user opts in. */
+      .badge.plan-linked { display: none; }
+      body[data-show-plan="1"] .badge.plan-linked { display: inline-flex; }
+      .badge.changed {
+        background: rgb(var(--eb-shell-2) / 0.18);
+        color: rgb(var(--eb-shell-3));
+        border: 1px solid rgb(var(--eb-shell-2) / 0.35);
+      }
+
+      /* density tweak */
+      body[data-density="compact"] .row { padding-top: 8px; padding-bottom: 8px; }
+      body[data-density="compact"] .row-name { font-size: 14px; }
+      body[data-density="compact"] .row-amount { font-size: 14.5px; }
+      body[data-density="compact"] .group-head { padding-top: 14px; padding-bottom: 14px; }
+
+      /* lifecycle placement: show inline or hidden */
+      body[data-lifecycle="inline"] .lifecycle-toggle { display: inline-flex; }
+      body[data-lifecycle="menu"] .lifecycle-toggle { display: none; }
+
+      /* =================================================== INCOME ADDITIONS */
+      /* allocation bar — where income goes */
+      .spend-bar > .seg.out  { background: rgb(var(--eb-shell-3) / 0.95); }
+      .spend-bar > .seg.sav  { background: rgb(var(--eb-shell-2)); }
+      .spend-bar > .seg.debt { background: rgb(var(--eb-warning)); }
+      .spend-bar > .seg.free { background: rgb(var(--eb-accent)); }
+      .l-out  { background: rgb(var(--eb-shell-3) / 0.95); }
+      .l-sav  { background: rgb(var(--eb-shell-2)); }
+      .l-debt { background: rgb(var(--eb-warning)); }
+      .l-free { background: rgb(var(--eb-accent)); }
+      /* 6-term equation row */
+      @media (min-width: 760px) {
+        .balance-breakdown.six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+      }
+      .balance-breakdown .split-sav dt::after,
+      .balance-breakdown .split-debt dt::after,
+      .balance-breakdown .split-free dt::after {
+        content: ""; display: inline-block; width: 7px; height: 7px;
+        margin-left: 6px; vertical-align: 1px; border-radius: 2px;
+      }
+      .balance-breakdown .split-sav dt::after  { background: rgb(var(--eb-shell-2)); }
+      .balance-breakdown .split-debt dt::after { background: rgb(var(--eb-warning)); }
+      .balance-breakdown .split-free dt::after { background: rgb(var(--eb-accent)); }
+      .balance-breakdown .split-exp dt::after  { background: rgb(var(--eb-shell-3) / 0.95); }
+      .balance-breakdown .split-income dt::after,
+      .balance-breakdown .split-carry dt::after { background: rgb(var(--eb-text) / 0.3); }
+      .balance-breakdown .free dd { color: rgb(var(--eb-text)); font-weight: 850; }
+      /* income deltas: increase is GOOD (green); decrease is quiet, never red */
+      .outcome .o-cell .delta-up   { color: #166534; }
+      .outcome .o-cell .delta-down { color: rgb(var(--eb-text) / 0.6); }
+      /* positive MoM income pill reads green */
+      .funded-pill .pos { color: #166534; font-weight: 850; }
+      /* salary locked-row treatment */
+      .row.locked .row-name::after {
+        content: ""; display: inline-block; width: 11px; height: 11px;
+        margin-left: 8px; vertical-align: -1px; opacity: 0.85;
+        background: rgb(var(--eb-text) / 0.42);
+        -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Crect x='4.5' y='10.5' width='15' height='10' rx='2.2'/%3E%3Cpath d='M8 10.5V7a4 4 0 0 1 8 0v3.5'/%3E%3C/svg%3E") center/contain no-repeat;
+                mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2'%3E%3Crect x='4.5' y='10.5' width='15' height='10' rx='2.2'/%3E%3Cpath d='M8 10.5V7a4 4 0 0 1 8 0v3.5'/%3E%3C/svg%3E") center/contain no-repeat;
+      }
+      /* tweak: changed-tag visibility */
+      body[data-show-changed="0"] .badge.changed { display: none; }
+      /* tweak: inactive placement */
+      body[data-inactive="hide"] .row.inactive,
+      body[data-inactive="hide"] .rows-sublabel { display: none; }
+      /* tweak: read-only month — hide every edit affordance */
+      .readonly-pill { display: none; }
+      body[data-readonly="1"] .hero-cta,
+      body[data-readonly="1"] .group-add,
+      body[data-readonly="1"] .add-expense,
+      body[data-readonly="1"] .row-actions,
+      body[data-readonly="1"] .funded-pill { display: none !important; }
+      body[data-readonly="1"] .readonly-pill { display: inline-flex; }
+    </style>
+  </head>
+  <body data-density="comfortable" data-inactive="subsection" data-show-changed="1" data-readonly="0">
+    <template id="__bundler_thumbnail" data-bg-color="#4db9fe">
+      <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+        <rect width="1200" height="800" fill="#4db9fe"/>
+        <rect x="360" y="250" width="480" height="300" rx="48" fill="#ffffff"/>
+        <rect x="420" y="470" width="150" height="40" rx="20" fill="#152751"/>
+        <rect x="600" y="485" width="80" height="25" rx="12" fill="#4db9fe"/>
+        <rect x="710" y="490" width="50" height="20" rx="10" fill="#d97706"/>
+        <rect x="790" y="470" width="160" height="40" rx="20" fill="#22c55e"/>
+        <path d="M430 400 l60 -55 l50 45 l90 -90" fill="none" stroke="#22c55e" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M620 295 h70 v70" fill="none" stroke="#22c55e" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </template>
+    <div class="app-frame">
+      <header class="app-header">
+        <div class="header-inner">
+          <a class="brand" href="/dashboard" aria-label="Till dashboard">
+            e<span>B</span>udget
+          </a>
+          <nav class="pill-nav" aria-label="Appnavigation">
+            <a href="/dashboard">Dashboard</a>
+            <a class="active" href="/dashboard/income">Inkomst</a>
+            <a href="/dashboard/expenses">Utgifter</a>
+            <a href="/dashboard/savings">Sparande</a>
+            <a href="/dashboard/breakdown">Fördelning</a>
+          </nav>
+          <button class="account-button" type="button" aria-label="Meny">L</button>
+        </div>
+      </header>
+
+      <main class="authed-main">
+        <section class="page-container">
+          <div class="decor" aria-hidden="true">
+            <span class="one"></span>
+            <span class="two"></span>
+            <span class="three"></span>
+          </div>
+
+          <section class="content">
+            <div class="stack">
+
+              <!-- =============== HERO =============== -->
+              <section class="hero" aria-labelledby="income-title" data-screen-label="Inkomst – hero">
+                <div class="hero-bg" aria-hidden="true"></div>
+                <div class="hero-mascot" aria-hidden="true">
+                  <img src="../../assets/mascots/RichBird.png" alt="" />
+                </div>
+                <div class="hero-content">
+                  <p class="eyebrow">Inkomst · maj 2026</p>
+                  <h1 id="income-title">
+                    Du planerar <span class="accent" id="hero-total">54 300 kr</span> i inkomst
+                    <span class="light">denna månad</span>
+                  </h1>
+                  <p class="hero-split">
+                    <span class="hero-split-part"><strong>37 000 kr</strong> lön</span>
+                    <span class="hero-split-sep" aria-hidden="true"></span>
+                    <span class="hero-split-part"><strong>15 300 kr</strong> hushåll</span>
+                    <span class="hero-split-sep" aria-hidden="true"></span>
+                    <span class="hero-split-part"><strong>2 000 kr</strong> sidoinkomst</span>
+                    <span class="hero-split-sep" aria-hidden="true"></span>
+                    <span class="hero-split-part"><strong>18 623 kr</strong> fritt kvar</span>
+                  </p>
+                  <div class="hero-actions">
+                    <button class="hero-cta" type="button" data-open-editor data-mode="create">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                      Lägg till inkomst
+                    </button>
+                    <span class="funded-pill">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>
+                      <strong class="pos">+1 500 kr</strong> mot april
+                    </span>
+                    <span class="readonly-pill">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+                      Maj är avslutad — skrivskyddad
+                    </span>
+                  </div>
+                </div>
+              </section>
+
+              <!-- =============== ALLOCATION STRIP =============== -->
+              <section class="balance-strip" aria-label="Månadens fördelning">
+                <div class="balance-top">
+                  <div>
+                    <span class="section-label">Månadens fördelning</span>
+                    <div class="balance-headline"><span id="balance-left">18 623 kr</span> fritt kvar</div>
+                  </div>
+                  <span class="balance-chip" id="balance-chip">Inkomsten täcker planen</span>
+                </div>
+                <p class="balance-message" id="balance-message">
+                  Så här fördelas inkomsten den här månaden — utgifter, sparande och skulder först, resten är fritt kvar.
+                </p>
+                <dl class="balance-breakdown six">
+                  <div class="split-income">
+                    <dt>Inkomst</dt>
+                    <dd>54 300 kr</dd>
+                  </div>
+                  <div class="split-carry">
+                    <dt>Överskott från april</dt>
+                    <dd>+1 200 kr</dd>
+                  </div>
+                  <div class="split-exp">
+                    <dt>Utgifter</dt>
+                    <dd>−24 377 kr</dd>
+                  </div>
+                  <div class="split-sav">
+                    <dt>Sparande</dt>
+                    <dd>−8 000 kr</dd>
+                  </div>
+                  <div class="split-debt">
+                    <dt>Skulder</dt>
+                    <dd>−4 500 kr</dd>
+                  </div>
+                  <div class="free highlight">
+                    <dt>Fritt kvar</dt>
+                    <dd>18 623 kr</dd>
+                  </div>
+                </dl>
+                <div class="spend-meter" aria-hidden="true">
+                  <div class="spend-labels">
+                    <div class="lab" style="flex: 24377 1 0; min-width: 96px;">
+                      <span class="lab-name"><span class="lab-dot l-out"></span> Utgifter</span>
+                      <span class="lab-val">24 377 kr<span class="pct">· 44 %</span></span>
+                    </div>
+                    <div class="lab" style="flex: 8000 1 0; min-width: 88px;">
+                      <span class="lab-name"><span class="lab-dot l-sav"></span> Sparande</span>
+                      <span class="lab-val">8 000 kr<span class="pct">· 14 %</span></span>
+                    </div>
+                    <div class="lab" style="flex: 4500 1 0; min-width: 98px;">
+                      <span class="lab-name"><span class="lab-dot l-debt"></span> Skulder</span>
+                      <span class="lab-val">4 500 kr<span class="pct">· 8 %</span></span>
+                    </div>
+                    <div class="lab" style="flex: 18623 1 0; min-width: 92px;">
+                      <span class="lab-name"><span class="lab-dot l-free"></span> Fritt kvar</span>
+                      <span class="lab-val">18 623 kr<span class="pct">· 34 %</span></span>
+                    </div>
+                  </div>
+                  <div class="spend-bar">
+                    <span class="seg out"  style="flex: 24377 1 0;"></span>
+                    <span class="seg sav"  style="flex: 8000 1 0;"></span>
+                    <span class="seg debt" style="flex: 4500 1 0; min-width: 16px;"></span>
+                    <span class="seg free" style="flex: 18623 1 0;"></span>
+                  </div>
+                </div>
+              </section>
+
+              <!-- =============== GROUP: LÖN =============== -->
+              <section class="group-card" data-group="salary" data-screen-label="Inkomst – Lön">
+                <header class="group-head">
+                  <div class="gh-titleblock">
+                    <div class="gh-title-row">
+                      <h2>Lön</h2>
+                      <span class="gh-meta"><strong>1</strong> källa · aktiv</span>
+                    </div>
+                    <p class="gh-insight">Din återkommande huvudsakliga inkomst.</p>
+                  </div>
+                  <div class="group-total">37 000 kr<span>Per månad</span></div>
+                  <button class="group-add" type="button" data-open-editor data-mode="create" data-category="salary">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> Lägg till
+                  </button>
+                </header>
+                <ul class="rows">
+                  <li class="row" data-row data-id="inc-salary" data-salary="1" data-source="ii-salary" data-amount="37000">
+                    <div class="row-main">
+                      <div class="row-name-line"><span class="row-name">Lön</span></div>
+                      <p class="row-meta">Månadslön efter skatt</p>
+                    </div>
+                    <div class="row-badges"></div>
+                    <div class="row-amount">37 000<span class="unit"> kr</span></div>
+                    <div class="row-actions">
+                      <div class="kebab-wrap">
+                        <button class="row-icon-btn" type="button" data-action="more" aria-haspopup="menu" aria-expanded="false" aria-label="Mer"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+                        <div class="kebab-menu" role="menu">
+                          <button type="button" data-menu="edit" role="menuitem">Redigera</button>
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                </ul>
+              </section>
+
+              <!-- =============== GROUP: HUSHÅLLSINKOMST =============== -->
+              <section class="group-card" data-group="household" data-screen-label="Inkomst – Hushåll">
+                <header class="group-head">
+                  <div class="gh-titleblock">
+                    <div class="gh-title-row">
+                      <h2>Hushållsinkomst</h2>
+                      <span class="gh-meta"><strong>2</strong> källor · aktiva</span>
+                    </div>
+                    <p class="gh-insight">Inkomster från hushållet som räknas in i budgeten.</p>
+                  </div>
+                  <div class="group-total">15 300 kr<span>Per månad</span></div>
+                  <button class="group-add" type="button" data-open-editor data-mode="create" data-category="household">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> Lägg till
+                  </button>
+                </header>
+                <ul class="rows">
+                  <li class="row" data-row data-id="inc-partner" data-source="ii-partner" data-amount="14050">
+                    <div class="row-main">
+                      <div class="row-name-line"><span class="row-name">Lön (sambo)</span></div>
+                      <p class="row-meta">Återkommande</p>
+                    </div>
+                    <div class="row-badges"></div>
+                    <div class="row-amount">14 050<span class="unit"> kr</span></div>
+                    <div class="row-actions">
+                      <div class="kebab-wrap">
+                        <button class="row-icon-btn" type="button" data-action="more" aria-haspopup="menu" aria-expanded="false" aria-label="Mer"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+                        <div class="kebab-menu" role="menu">
+                          <button type="button" data-menu="edit">Redigera</button>
+                          <button type="button" data-menu="deactivate">Inaktivera denna månad</button>
+                          <hr/>
+                          <button type="button" class="danger" data-menu="delete">Ta bort från maj</button>
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                  <li class="row" data-row data-id="inc-child" data-source="ii-child" data-amount="1250">
+                    <div class="row-main">
+                      <div class="row-name-line"><span class="row-name">Barnbidrag</span></div>
+                      <p class="row-meta">Återkommande · utbetalas den 20:e</p>
+                    </div>
+                    <div class="row-badges"></div>
+                    <div class="row-amount">1 250<span class="unit"> kr</span></div>
+                    <div class="row-actions">
+                      <div class="kebab-wrap">
+                        <button class="row-icon-btn" type="button" data-action="more" aria-haspopup="menu" aria-expanded="false" aria-label="Mer"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+                        <div class="kebab-menu" role="menu">
+                          <button type="button" data-menu="edit">Redigera</button>
+                          <button type="button" data-menu="deactivate">Inaktivera denna månad</button>
+                          <hr/>
+                          <button type="button" class="danger" data-menu="delete">Ta bort från maj</button>
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                </ul>
+              </section>
+
+              <!-- =============== GROUP: SIDOINTÄKT =============== -->
+              <section class="group-card" data-group="side" data-screen-label="Inkomst – Sidointäkt">
+                <header class="group-head">
+                  <div class="gh-titleblock">
+                    <div class="gh-title-row">
+                      <h2>Sidoinkomst</h2>
+                      <span class="gh-meta"><strong>2</strong> aktiva · 1 inaktiv</span>
+                    </div>
+                    <p class="gh-insight">Extra inkomster som kan variera mellan månader.</p>
+                  </div>
+                  <div class="group-total">2 000 kr<span>Per månad · aktiva</span></div>
+                  <button class="group-add" type="button" data-open-editor data-mode="create" data-category="side">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> Lägg till
+                  </button>
+                </header>
+                <ul class="rows">
+                  <li class="row" data-row data-id="inc-frilans" data-source="ii-frilans" data-amount="1500">
+                    <div class="row-main">
+                      <div class="row-name-line">
+                        <span class="row-name">Frilansuppdrag</span>
+                        <span class="badge changed dot">Ändrad i maj</span>
+                      </div>
+                      <p class="row-meta">+500 kr jämfört med planen</p>
+                    </div>
+                    <div class="row-badges"></div>
+                    <div class="row-amount">1 500<span class="unit"> kr</span></div>
+                    <div class="row-actions">
+                      <div class="kebab-wrap">
+                        <button class="row-icon-btn" type="button" data-action="more" aria-haspopup="menu" aria-expanded="false" aria-label="Mer"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+                        <div class="kebab-menu" role="menu">
+                          <button type="button" data-menu="edit">Redigera</button>
+                          <button type="button" data-menu="deactivate">Inaktivera denna månad</button>
+                          <hr/>
+                          <button type="button" class="danger" data-menu="delete">Ta bort från maj</button>
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                  <li class="row" data-row data-id="inc-rent" data-source="" data-amount="500">
+                    <div class="row-main">
+                      <div class="row-name-line">
+                        <span class="row-name">Förrådsuthyrning</span>
+                        <span class="badge month-only dot">Bara maj</span>
+                      </div>
+                      <p class="row-meta">Skapad i maj — finns inte i planen</p>
+                    </div>
+                    <div class="row-badges"></div>
+                    <div class="row-amount">500<span class="unit"> kr</span></div>
+                    <div class="row-actions">
+                      <div class="kebab-wrap">
+                        <button class="row-icon-btn" type="button" data-action="more" aria-haspopup="menu" aria-expanded="false" aria-label="Mer"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+                        <div class="kebab-menu" role="menu">
+                          <button type="button" data-menu="edit">Redigera</button>
+                          <button type="button" data-menu="deactivate">Inaktivera denna månad</button>
+                          <hr/>
+                          <button type="button" class="danger" data-menu="delete">Ta bort från maj</button>
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                </ul>
+                <div class="rows-sublabel">Inaktiva<small>Räknas inte i totalen för maj</small></div>
+                <ul class="rows">
+                  <li class="row inactive" data-row data-id="inc-loppis" data-source="ii-loppis" data-amount="600" data-active="0">
+                    <div class="row-main">
+                      <div class="row-name-line">
+                        <span class="row-name">Loppisförsäljning</span>
+                        <span class="badge inactive dot">Inaktiv denna månad</span>
+                      </div>
+                      <p class="row-meta">Pausad den här månaden — finns kvar i planen</p>
+                    </div>
+                    <div class="row-badges"></div>
+                    <div class="row-amount">600<span class="unit"> kr</span></div>
+                    <div class="row-actions">
+                      <div class="kebab-wrap">
+                        <button class="row-icon-btn" type="button" data-action="more" aria-haspopup="menu" aria-expanded="false" aria-label="Mer"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+                        <div class="kebab-menu" role="menu">
+                          <button type="button" data-menu="reactivate">Aktivera för maj</button>
+                          <button type="button" data-menu="edit">Redigera</button>
+                          <hr/>
+                          <button type="button" class="danger" data-menu="delete">Ta bort från maj</button>
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                </ul>
+              </section>
+
+              <button class="add-expense" type="button" data-open-editor data-mode="create">
+                <span class="pill">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                </span>
+                Lägg till en inkomst
+                <span class="month-note">Skapas bara i maj — påverkar inte planen</span>
+              </button>
+
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <!-- ===================================================== MODAL -->
+    <div class="modal" data-editor-modal>
+      <button class="modal-backdrop" type="button" aria-label="Stäng" data-close-editor></button>
+      <div class="modal-scroll">
+        <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="editor-title">
+          <div class="dialog-head">
+            <div>
+              <h2 id="editor-title">Ny inkomst</h2>
+              <p id="editor-sub">Skapas bara i maj 2026. Du kan lägga till den i planen efteråt.</p>
+            </div>
+            <button class="close-button" type="button" aria-label="Stäng" data-close-editor>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            </button>
+          </div>
+
+          <div class="month-only-callout" id="editor-callout">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="5" width="18" height="16" rx="3"/>
+              <path d="M3 10h18M8 3v4M16 3v4"/>
+            </svg>
+            <p><strong>Gäller bara maj 2026.</strong> Den här posten läggs bara till i maj. Vill du att den ska återkomma varje månad? Redigera den efteråt och välj <em>Bara planen framåt</em>.</p>
+          </div>
+
+          <div class="dialog-section">
+            <div class="field">
+              <label for="ed-name">Namn</label>
+              <input id="ed-name" type="text" placeholder="t.ex. Frilansuppdrag" maxlength="120" />
+              <p id="ed-name-hint" style="display:none; margin: 2px 2px 0; color: rgb(var(--eb-text) / 0.55); font-size: 11.5px;">Namnet på din lön kan inte ändras.</p>
+            </div>
+            <div class="field-row" style="margin-top:14px">
+              <div class="field" id="ed-type-field">
+                <label for="ed-category">Typ av inkomst</label>
+                <select id="ed-category">
+                  <option value="salary">Lön</option>
+                  <option value="household">Hushållsinkomst</option>
+                  <option value="side" selected>Sidoinkomst</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="ed-amount">Belopp per månad</label>
+                <div class="big-amount">
+                  <input id="ed-amount" type="text" inputmode="numeric" placeholder="0" />
+                  <span class="unit">kr</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="field-toggle" style="margin-top:14px" id="ed-active-row">
+              <div>
+                <div class="t-main">Aktiv i maj</div>
+                <div class="t-sub" id="ed-active-sub">Inaktiva rader räknas inte i månadens summa.</div>
+              </div>
+              <label class="switch on" id="ed-active-switch">
+                <input type="checkbox" id="ed-active" checked />
+              </label>
+            </div>
+          </div>
+
+          <div class="dialog-divider" id="ed-scope-divider" style="display:none"></div>
+
+          <div class="dialog-section" id="ed-scope-block" style="display:none">
+            <p class="dialog-heading">Vad ska ändringen gälla?</p>
+            <ul class="scope-list">
+              <li>
+                <label class="scope-option">
+                  <input type="radio" name="ed-scope" value="currentMonthOnly" checked />
+                  <span>
+                    <strong>Bara denna månad</strong>
+                    <span>Bara maj 2026 ändras. Planen framåt rörs inte.</span>
+                  </span>
+                </label>
+              </li>
+              <li>
+                <label class="scope-option" data-needs-link>
+                  <input type="radio" name="ed-scope" value="currentMonthAndBudgetPlan" />
+                  <span>
+                    <strong>Denna månad + planen framåt</strong>
+                    <span>Uppdaterar budgetplanen från maj 2026.</span>
+                  </span>
+                </label>
+              </li>
+              <li>
+                <label class="scope-option" data-needs-link>
+                  <input type="radio" name="ed-scope" value="budgetPlanOnly" />
+                  <span>
+                    <strong>Bara planen framåt</strong>
+                    <span>Maj rörs inte — kommande månader uppdateras.</span>
+                  </span>
+                </label>
+              </li>
+            </ul>
+          </div>
+
+          <div class="dialog-section" id="ed-preview-block" style="padding-top: 0; display:none">
+            <div class="outcome" id="ed-outcome">
+              <div class="o-label">Förhandsvisning</div>
+              <div class="o-grid">
+                <div class="o-cell">
+                  <span class="lbl">Maj 2026 — total inkomst</span>
+                  <span class="val" id="ed-prev-month-val">54 300 kr</span>
+                  <span class="delta-neutral" id="ed-prev-month-delta">— oförändrat</span>
+                </div>
+                <div class="o-cell">
+                  <span class="lbl">Budgetplanen framåt</span>
+                  <span class="val" id="ed-prev-plan-val">53 800 kr</span>
+                  <span class="delta-neutral" id="ed-prev-plan-delta">— oförändrat</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="dialog-footer">
+            <span class="footer-note" id="editor-footer-note">Maj är öppen — ändringar sparas direkt.</span>
+            <div style="display:flex; gap:8px">
+              <button class="secondary-button" type="button" data-close-editor>Avbryt</button>
+              <button class="primary-button" type="button" id="ed-save-btn">Skapa</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+
+    <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+    <script type="text/babel" src="tweaks-panel.jsx"></script>
+
+    <script>
+      const $ = (sel, root = document) => root.querySelector(sel);
+      const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+      const fmt = new Intl.NumberFormat("sv-SE");
+      const num = (s) => Number(String(s).replace(/[^\d-]/g, "")) || 0;
+
+      // ---------- Kebab open/close ----------
+      $$("[data-action='more']").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          const menu = btn.nextElementSibling;
+          if (!menu || !menu.classList.contains("kebab-menu")) return;
+          const open = menu.classList.toggle("open");
+          btn.setAttribute("aria-expanded", String(open));
+          $$(".kebab-menu.open").forEach((m) => { if (m !== menu) m.classList.remove("open"); });
+          e.stopPropagation();
+        });
+      });
+      document.addEventListener("click", (e) => {
+        if (!e.target.closest(".kebab-wrap")) {
+          $$(".kebab-menu.open").forEach((m) => m.classList.remove("open"));
+          $$("[data-action='more']").forEach((b) => b.setAttribute("aria-expanded", "false"));
+        }
+      });
+
+      // ---------- Editor modal ----------
+      const modal = $("[data-editor-modal]");
+      const elName = $("#ed-name");
+      const elNameHint = $("#ed-name-hint");
+      const elCat = $("#ed-category");
+      const elTypeField = $("#ed-type-field");
+      const elAmount = $("#ed-amount");
+      const elActive = $("#ed-active");
+      const elActiveSwitch = $("#ed-active-switch");
+      const elActiveSub = $("#ed-active-sub");
+      const elActiveRow = $("#ed-active-row");
+      const elScopeBlock = $("#ed-scope-block");
+      const elScopeDivider = $("#ed-scope-divider");
+      const elPreviewBlock = $("#ed-preview-block");
+      const elCallout = $("#editor-callout");
+      const elTitle = $("#editor-title");
+      const elSub = $("#editor-sub");
+      const elSaveBtn = $("#ed-save-btn");
+      let editorState = { mode: "create", row: null, salary: false };
+
+      function setSwitch(on) {
+        elActiveSwitch.classList.toggle("on", on);
+        elActive.checked = on;
+      }
+      elActiveSwitch.addEventListener("click", (e) => {
+        e.preventDefault();
+        if (editorState.salary) return; // salary is always active
+        setSwitch(!elActive.checked);
+        recomputePreview();
+      });
+
+      function openEditor(opts = {}) {
+        editorState = { mode: opts.mode || "create", row: opts.row || null, salary: false };
+        const isEdit = editorState.mode === "edit";
+        const row = opts.row;
+        const groupEl = row ? row.closest("[data-group]") : null;
+        const group = groupEl ? groupEl.dataset.group : (opts.category || "side");
+        const isSalary = row ? (row.dataset.salary === "1" || group === "salary") : (group === "salary");
+        editorState.salary = isSalary;
+        const linked = row ? !!row.dataset.source : false;
+        const isMonthOnly = row ? !row.dataset.source : false;
+
+        elName.value = row ? row.querySelector(".row-name").textContent.trim() : "";
+        elAmount.value = row ? fmt.format(num(row.dataset.amount)) : "";
+        elCat.value = group;
+
+        // Salary: locked name + type, always active
+        elName.disabled = isSalary;
+        elCat.disabled = isSalary;
+        elNameHint.style.display = isSalary ? "block" : "none";
+        if (isSalary) {
+          setSwitch(true);
+          elActiveSub.textContent = "Din lön är alltid aktiv.";
+          elActiveRow.style.opacity = "0.6";
+          elActiveSwitch.style.pointerEvents = "none";
+        } else {
+          setSwitch(row ? !row.classList.contains("inactive") : true);
+          elActiveSub.textContent = "Inaktiva rader räknas inte i månadens summa.";
+          elActiveRow.style.opacity = "1";
+          elActiveSwitch.style.pointerEvents = "";
+        }
+
+        if (isEdit) {
+          elTitle.textContent = "Redigera inkomst";
+          elSub.textContent = linked
+            ? "Den här raden finns i din budgetplan. Välj nedan om ändringen ska gälla bara maj eller även planen framåt."
+            : "Den här raden finns bara i maj — inte i din budgetplan.";
+          elSaveBtn.textContent = "Spara";
+        } else {
+          elTitle.textContent = "Ny inkomst";
+          elSub.textContent = opts.category
+            ? "Skapas bara i maj 2026. Du kan lägga till den i planen efteråt."
+            : "Välj typ av inkomst och fyll i beloppet. Skapas bara i maj 2026.";
+          elSaveBtn.textContent = "Skapa";
+        }
+
+        // Group add knows the type (hide selector); global add lets the user choose
+        elTypeField.style.display = (!isEdit && opts.category) ? "none" : "";
+
+        elCallout.style.display = isEdit ? "none" : "flex";
+        elScopeBlock.style.display = (isEdit && !isSalary) ? "block" : "none";
+        elScopeDivider.style.display = (isEdit && !isSalary) ? "block" : "none";
+        elPreviewBlock.style.display = isEdit ? "block" : "none";
+
+        $$("[data-needs-link]", elScopeBlock).forEach((o) => {
+          const input = $("input", o);
+          if (isMonthOnly) {
+            o.classList.add("disabled");
+            input.disabled = true; input.checked = false;
+            if (!o.querySelector(".why")) {
+              const why = document.createElement("span");
+              why.className = "why";
+              why.textContent = "Inte tillgängligt — den här raden finns inte i planen.";
+              o.querySelector(":scope > span").appendChild(why);
+            }
+          } else {
+            o.classList.remove("disabled");
+            input.disabled = false;
+            const why = o.querySelector(".why"); if (why) why.remove();
+          }
+        });
+        const cm = $("input[name='ed-scope'][value='currentMonthOnly']");
+        if (cm) cm.checked = true;
+
+        recomputePreview();
+        modal.classList.add("open");
+      }
+      window.openEditor = openEditor;
+
+      $$("[data-close-editor]").forEach((b) =>
+        b.addEventListener("click", () => modal.classList.remove("open"))
+      );
+      $$("[data-open-editor]").forEach((b) =>
+        b.addEventListener("click", () => openEditor({ mode: "create", category: b.dataset.category }))
+      );
+      $$(".kebab-menu [data-menu='edit']").forEach((b) =>
+        b.addEventListener("click", () => openEditor({ mode: "edit", row: b.closest(".row") }))
+      );
+
+      elAmount.addEventListener("input", recomputePreview);
+      $$("input[name='ed-scope']").forEach((i) => i.addEventListener("change", recomputePreview));
+      elActive.addEventListener("change", recomputePreview);
+
+      const baseMonthTotal = 54300; // active income in maj
+      const basePlanTotal  = 53800; // plan income (excludes month-only förrådsuthyrning)
+
+      function recomputePreview() {
+        if (editorState.mode !== "edit") return;
+        const row = editorState.row;
+        const oldAmount = num(row.dataset.amount);
+        const newAmount = num(elAmount.value);
+        const wasActive = !row.classList.contains("inactive");
+        const willActive = elActive.checked;
+        const scope = ($("input[name='ed-scope']:checked") || {}).value || "currentMonthOnly";
+        const linked = !!row.dataset.source;
+        const oldEffect = wasActive ? oldAmount : 0;
+        const newEffect = willActive ? newAmount : 0;
+        let monthDelta = 0, planDelta = 0;
+        if (scope === "currentMonthOnly") { monthDelta = newEffect - oldEffect; }
+        else if (scope === "currentMonthAndBudgetPlan") { monthDelta = newEffect - oldEffect; if (linked) planDelta = newAmount - oldAmount; }
+        else if (scope === "budgetPlanOnly") { monthDelta = 0; if (linked) planDelta = newAmount - oldAmount; }
+        const newMonth = baseMonthTotal + monthDelta;
+        const newPlan  = basePlanTotal + planDelta;
+        $("#ed-prev-month-val").textContent = fmt.format(newMonth) + " kr";
+        $("#ed-prev-plan-val").textContent  = fmt.format(newPlan) + " kr";
+        function label(el, delta) {
+          el.className = "";
+          if (delta === 0) { el.classList.add("delta-neutral"); el.textContent = "— oförändrat"; }
+          else if (delta > 0) { el.classList.add("delta-up"); el.textContent = "+" + fmt.format(delta) + " kr"; }
+          else { el.classList.add("delta-down"); el.textContent = fmt.format(delta) + " kr"; }
+        }
+        label($("#ed-prev-month-delta"), monthDelta);
+        label($("#ed-prev-plan-delta"), planDelta);
+      }
+
+      // ---------- Save / delete (logs only) ----------
+      elSaveBtn.addEventListener("click", () => {
+        const payload = {
+          name: elName.value,
+          incomeType: elCat.value,
+          amountMonthly: num(elAmount.value),
+          isActive: elActive.checked,
+          scope: editorState.mode === "edit"
+            ? (($("input[name='ed-scope']:checked") || {}).value || "currentMonthOnly")
+            : undefined,
+        };
+        const ep = editorState.mode === "edit"
+          ? "PATCH /api/budgets/months/2026-05/income-items/" + editorState.row.dataset.id
+          : "POST /api/budgets/months/2026-05/income-items";
+        console.info("[MVP] " + ep, payload);
+        modal.classList.remove("open");
+      });
+
+      $$(".kebab-menu [data-menu='delete']").forEach((b) =>
+        b.addEventListener("click", () => {
+          const row = b.closest(".row"); row.classList.add("inactive");
+          console.info("[MVP] DELETE soft", row.dataset.id);
+        })
+      );
+      $$(".kebab-menu [data-menu='deactivate']").forEach((b) =>
+        b.addEventListener("click", () => {
+          const row = b.closest(".row"); row.classList.add("inactive");
+          console.info("[MVP] PATCH isActive=false", row.dataset.id);
+        })
+      );
+      $$(".kebab-menu [data-menu='reactivate']").forEach((b) =>
+        b.addEventListener("click", () => {
+          const row = b.closest(".row"); row.classList.remove("inactive");
+          console.info("[MVP] PATCH isActive=true", row.dataset.id);
+        })
+      );
+    </script>
+
+    <!-- ===================== TWEAKS PANEL ===================== -->
+    <div id="tweaks-root"></div>
+    <script type="text/babel" data-presets="env,react">
+      const { useEffect } = React;
+      const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+        "density": "comfortable",
+        "inactivePlacement": "subsection",
+        "showChanged": true,
+        "monthState": "open"
+      }/*EDITMODE-END*/;
+
+      function IncomeTweaks() {
+        const [t, setTweak] = window.useTweaks(TWEAK_DEFAULTS);
+        useEffect(() => {
+          document.body.dataset.density = t.density;
+          document.body.dataset.inactive = t.inactivePlacement;
+          document.body.dataset.showChanged = t.showChanged ? "1" : "0";
+          document.body.dataset.readonly = t.monthState === "readonly" ? "1" : "0";
+        }, [t.density, t.inactivePlacement, t.showChanged, t.monthState]);
+
+        return (
+          <window.TweaksPanel title="Tweaks">
+            <window.TweakSection title="Layout">
+              <window.TweakRadio
+                label="Täthet"
+                value={t.density}
+                onChange={(v) => setTweak("density", v)}
+                options={[
+                  { value: "compact", label: "Kompakt" },
+                  { value: "comfortable", label: "Bekväm" },
+                ]}
+              />
+              <window.TweakRadio
+                label="Inaktiva rader"
+                value={t.inactivePlacement}
+                onChange={(v) => setTweak("inactivePlacement", v)}
+                options={[
+                  { value: "subsection", label: "Egen sektion" },
+                  { value: "hide", label: "Dölj" },
+                ]}
+              />
+            </window.TweakSection>
+            <window.TweakSection title="Rad-status">
+              <window.TweakToggle
+                label={'Visa "Ändrad"-tagg'}
+                value={t.showChanged}
+                onChange={(v) => setTweak("showChanged", v)}
+              />
+            </window.TweakSection>
+            <window.TweakSection title="Månad">
+              <window.TweakRadio
+                label="Månadsläge"
+                value={t.monthState}
+                onChange={(v) => setTweak("monthState", v)}
+                options={[
+                  { value: "open", label: "Öppen" },
+                  { value: "readonly", label: "Skrivskyddad" },
+                ]}
+              />
+            </window.TweakSection>
+          </window.TweaksPanel>
+        );
+      }
+
+      const root = ReactDOM.createRoot(document.getElementById("tweaks-root"));
+      root.render(<IncomeTweaks />);
+    </script>
+
+  </body>
+</html>

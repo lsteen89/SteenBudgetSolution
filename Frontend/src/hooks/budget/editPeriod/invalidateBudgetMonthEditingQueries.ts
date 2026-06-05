@@ -34,6 +34,9 @@ export function invalidateBudgetMonthEditingQueries(
       queryKey: monthEditorQueryKeys.debtItems(yearMonth),
     }),
     queryClient.invalidateQueries({
+      queryKey: monthEditorQueryKeys.debtEditor(yearMonth),
+    }),
+    queryClient.invalidateQueries({
       queryKey: budgetDashboardMonthQueryKey(yearMonth),
     }),
     queryClient.invalidateQueries({

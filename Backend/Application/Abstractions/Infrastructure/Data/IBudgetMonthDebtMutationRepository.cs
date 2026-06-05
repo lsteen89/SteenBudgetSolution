@@ -39,4 +39,180 @@ public interface IBudgetMonthDebtMutationRepository
     Task UpdateBaselineDebtMonthlyPaymentAsync(
         UpdateBaselineDebtModel model,
         CancellationToken ct);
+
+    // --- Debt PR 2: create + edit-metadata surface -----------------------
+
+    /// <summary>
+    /// Resolves the owning <c>Budget.Id</c> for a given <c>BudgetMonth.Id</c>.
+    /// Returns <c>null</c> when the month does not exist. Used by the create
+    /// handler when scope writes a baseline <c>Debt</c> plan row, because
+    /// <c>Debt.BudgetId</c> is the foreign-key parent and the API only carries
+    /// <c>BudgetMonthId</c> context.
+    /// </summary>
+    Task<BudgetMonthDebtForCreateReadModel?> GetBudgetMonthForDebtCreateAsync(
+        Guid budgetMonthId,
+        CancellationToken ct);
+
+    /// <summary>
+    /// Inserts a new baseline <c>Debt</c> plan row. Source lifecycle defaults
+    /// to <c>active</c> at the SQL layer.
+    /// </summary>
+    Task InsertBaselineDebtAsync(
+        InsertBaselineDebtModel model,
+        CancellationToken ct);
+
+    /// <summary>
+    /// Inserts a new <c>BudgetMonthDebt</c> row created from the editor (Debt
+    /// PR 2). Always sets <c>Status = 'active'</c>,
+    /// <c>ParticipationStatus = 'included'</c>, and <c>IsOverride = 0</c> —
+    /// a freshly created row is neither closed, excluded, nor an override of a
+    /// materialized baseline.
+    /// </summary>
+    Task InsertMonthDebtAsync(
+        InsertBudgetMonthDebtModel model,
+        CancellationToken ct);
+
+    /// <summary>
+    /// Reads the full baseline metadata snapshot for an existing <c>Debt</c>
+    /// plan row. Plan-writing detail patches use the snapshot to capture
+    /// honest before-values in audit JSON instead of inferring them from the
+    /// (possibly diverged) month row.
+    /// </summary>
+    Task<BudgetMonthDebtBaselineSnapshotReadModel?> GetBaselineDebtSnapshotAsync(
+        Guid debtId,
+        CancellationToken ct);
+
+    /// <summary>
+    /// Updates the metadata columns on a <c>BudgetMonthDebt</c> row. Balance
+    /// is intentionally not touched here — balance is owned by PR 3's
+    /// dedicated balance-adjustment command.
+    /// </summary>
+    Task UpdateMonthDebtDetailsAsync(
+        UpdateBudgetMonthDebtDetailsModel model,
+        CancellationToken ct);
+
+    /// <summary>
+    /// Updates the metadata columns on a baseline <c>Debt</c> plan row.
+    /// Balance and lifecycle columns are intentionally not touched here.
+    /// </summary>
+    Task UpdateBaselineDebtDetailsAsync(
+        UpdateBaselineDebtDetailsModel model,
+        CancellationToken ct);
+
+    // --- Debt PR 3: balance-adjustment surface ----------------------------
+
+    /// <summary>
+    /// Reads the persisted liability balance from baseline <c>Debt</c>. Returns
+    /// <c>null</c> when the baseline row does not exist. Plan-writing balance
+    /// adjustments use this to capture an honest <c>oldBalance</c> for the
+    /// audit row — the month-side value may have diverged from the plan and
+    /// cannot stand in.
+    /// </summary>
+    Task<decimal?> GetBaselineDebtBalanceAsync(
+        Guid debtId,
+        CancellationToken ct);
+
+    /// <summary>
+    /// Updates only the <c>Balance</c> column on a <c>BudgetMonthDebt</c> row.
+    /// Planned-payment and metadata columns are intentionally untouched so the
+    /// "saldo påverkas inte här" callout in the planned-payment drawer stays
+    /// truthful in the inverse direction as well.
+    /// </summary>
+    Task UpdateMonthDebtBalanceAsync(
+        UpdateBudgetMonthDebtBalanceModel model,
+        CancellationToken ct);
+
+    /// <summary>
+    /// Updates only the <c>Balance</c> column on a baseline <c>Debt</c> plan row.
+    /// Lifecycle columns (<c>Status</c>, <c>PaidOffAt</c>, …) are intentionally
+    /// untouched — a balance reaching zero is never an implicit paid-off.
+    /// </summary>
+    Task UpdateBaselineDebtBalanceAsync(
+        UpdateBaselineDebtBalanceModel model,
+        CancellationToken ct);
+
+    // --- Debt PR 4: lifecycle / participation surface --------------------
+
+    /// <summary>
+    /// Reads the lifecycle snapshot for a baseline <c>Debt</c> row. Returns
+    /// <c>null</c> when the source no longer exists. Lifecycle commands use
+    /// this snapshot for their audit "before" payload and to gate transitions
+    /// against the current source status without re-reading the same row in
+    /// two queries.
+    /// </summary>
+    Task<DebtSourceLifecycleSnapshotReadModel?> GetSourceDebtLifecycleAsync(
+        Guid debtId,
+        CancellationToken ct);
+
+    /// <summary>
+    /// Updates a <c>BudgetMonthDebt</c> row's participation columns
+    /// (<c>ParticipationStatus</c>, <c>ParticipationChangedAt</c>,
+    /// <c>ParticipationReason</c>) and the legacy <c>IsDeleted</c> mirror.
+    /// Planned-payment, balance, and metadata columns are intentionally
+    /// untouched — skip / include must not pretend a planned payment moved.
+    /// </summary>
+    Task UpdateMonthDebtParticipationAsync(
+        UpdateBudgetMonthDebtParticipationModel model,
+        CancellationToken ct);
+
+    /// <summary>
+    /// Transitions a baseline <c>Debt</c> source-lifecycle row. The repo SQL
+    /// writes <c>Status</c>, the matching lifecycle timestamp
+    /// (<c>PaidOffAt</c> / <c>ArchivedAt</c> / <c>DeletedAt</c>) when supplied,
+    /// and <c>LifecycleReason</c>. Historical timestamps for non-matching
+    /// transitions are preserved so a restore does not erase the fact that the
+    /// row was once archived. Balance is not touched here.
+    /// </summary>
+    Task UpdateBaselineDebtLifecycleAsync(
+        UpdateBaselineDebtLifecycleModel model,
+        CancellationToken ct);
+
+    // --- Debt PR 5: editor read model ------------------------------------
+
+    /// <summary>
+    /// Reads the richer Debt-editor row projection consumed by the PR 5
+    /// `GET /debt-editor` endpoint. Returns the month row's columns plus the
+    /// joined source <c>Debt</c> row's columns so the response DTO can emit
+    /// both halves (e.g. <c>MonthlyPayment</c> and <c>SourceMonthlyPayment</c>)
+    /// without a follow-up query. Default-hides
+    /// <c>ParticipationStatus = 'removed'</c> and legacy <c>IsDeleted = 1</c>
+    /// rows; diagnostic callers that need to see removed rows continue to use
+    /// the existing <see cref="GetDebtEditorRowsAsync"/> with
+    /// <c>includeDeleted = true</c>.
+    /// </summary>
+    Task<IReadOnlyList<BudgetMonthDebtEditorAggregateReadModel>> GetDebtEditorAggregateRowsAsync(
+        Guid budgetMonthId,
+        CancellationToken ct);
+
+    /// <summary>
+    /// Reads the top-10 most recent <c>BudgetMonthChangeEvent</c> rows for
+    /// debts in the supplied month, ordered by <c>ChangedAt DESC</c>. The
+    /// repository extracts <c>ChangeSetJson.action</c> via SQL JSON helpers
+    /// so the application never has to parse arbitrary JSON for display.
+    /// </summary>
+    Task<IReadOnlyList<DebtEditorRecentEventReadModel>> GetDebtEditorRecentEventsAsync(
+        Guid budgetMonthId,
+        CancellationToken ct);
+
+    /// <summary>
+    /// Per-source aggregate over <c>DebtBalanceEvent</c> for the supplied
+    /// source <c>DebtId</c>s. Used to assemble plan-side
+    /// <see cref="Backend.Application.DTO.Budget.Months.Editor.Debt.DebtRowProgressDto"/>
+    /// data. Returns an empty list when <paramref name="sourceDebtIds"/> is
+    /// empty so the handler does not have to special-case the no-source case.
+    /// </summary>
+    Task<IReadOnlyList<DebtBalanceEventAggregateReadModel>> GetDebtBalanceEventSourceAggregatesAsync(
+        IReadOnlyCollection<Guid> sourceDebtIds,
+        CancellationToken ct);
+
+    /// <summary>
+    /// Per-month-row aggregate over <c>DebtBalanceEvent</c> for the supplied
+    /// <c>BudgetMonthDebtId</c>s. Mirror of the source aggregate so month-only
+    /// rows that have never had a plan side can still surface progress when
+    /// balance was updated. Returns an empty list when
+    /// <paramref name="monthDebtIds"/> is empty.
+    /// </summary>
+    Task<IReadOnlyList<DebtBalanceEventAggregateReadModel>> GetDebtBalanceEventMonthAggregatesAsync(
+        IReadOnlyCollection<Guid> monthDebtIds,
+        CancellationToken ct);
 }

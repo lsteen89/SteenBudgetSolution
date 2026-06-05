@@ -127,6 +127,23 @@ internal sealed record BudgetTimelineMonthScenario(
     // (FE response carries IsMonthOnly = true). Used by the savings-editor
     // orphan E2E profile.
     public bool ClearSavingsSourceLink { get; init; } = false;
+
+    // Debt lifecycle / participation / history showcase (Debt PR 1-9). Empty by
+    // default so existing profiles and scenarios are unaffected. Applied in
+    // ApplyMonthScenarioAsync after the amount/create operations so the rows
+    // they target already exist for the month.
+    public IReadOnlyList<BudgetTimelineDebtParticipationChange> DebtParticipationChanges { get; init; } =
+        Array.Empty<BudgetTimelineDebtParticipationChange>();
+
+    public IReadOnlyList<BudgetTimelineDebtLifecycleChange> DebtLifecycleChanges { get; init; } =
+        Array.Empty<BudgetTimelineDebtLifecycleChange>();
+
+    public IReadOnlyList<BudgetTimelineDebtBalanceEvent> DebtBalanceEvents { get; init; } =
+        Array.Empty<BudgetTimelineDebtBalanceEvent>();
+
+    // Savings goal lifecycle showcase (Savings PR 5-10). Empty by default.
+    public IReadOnlyList<BudgetTimelineSavingsGoalLifecycleChange> SavingsGoalLifecycleChanges { get; init; } =
+        Array.Empty<BudgetTimelineSavingsGoalLifecycleChange>();
 }
 
 internal sealed record BudgetTimelineAmountOverride(string Name, decimal NewAmount);
@@ -174,3 +191,45 @@ internal sealed record BudgetTimelineMonthDebtCreate(
     decimal? MonthlyFee = null,
     decimal? MinPayment = null,
     int? TermMonths = null);
+
+// Source-debt lifecycle transition applied within a month (typically the open
+// month, mirroring the Debt editor's "Markera som betald" / "Arkivera" actions
+// from Debt PR 4). Sets Debt.Status to a terminal state so the debt stops
+// materializing into future months, and marks the month row's participation so
+// its planned payment leaves the month's debt-payment total. Historical month
+// rows in closed months are left untouched.
+//   Action — DebtSourceLifecycleStatuses.PaidOff | DebtSourceLifecycleStatuses.Archived
+internal sealed record BudgetTimelineDebtLifecycleChange(
+    string Name,
+    string Action,
+    bool SetBalanceToZero = false,
+    string? Reason = null);
+
+// Per-month participation change for a debt row ("Hoppa över denna månad" /
+// "Inkludera" from Debt PR 4). Never touches source lifecycle or balance — the
+// balance is still owed, only the planned payment is excluded from the month.
+//   Participation — BudgetMonthDebtParticipationStatuses.NotIncluded | Included
+internal sealed record BudgetTimelineDebtParticipationChange(
+    string Name,
+    string Participation,
+    string? Reason = null);
+
+// Backdated liability-balance history for a plan-linked debt, so the Debt
+// editor's repayment-progress view (Debt PR 9) has real DebtBalanceEvent rows to
+// render. Written as plan-side audit rows (DebtId set, month columns NULL),
+// dated MonthsAgo months before the seed clock.
+internal sealed record BudgetTimelineDebtBalanceEvent(
+    string Name,
+    decimal OldBalance,
+    decimal NewBalance,
+    int MonthsAgo,
+    string? Note = null);
+
+// Source savings-goal lifecycle transition (complete / cancel) applied within a
+// month. Closes the SavingsGoal plan row and the materialized month row with the
+// matching closed reason so the Savings editor surfaces it under closed goals.
+//   Action — SavingsGoalLifecycleActions.Complete | Cancel | Remove
+internal sealed record BudgetTimelineSavingsGoalLifecycleChange(
+    string Name,
+    string Action,
+    string? Note = null);

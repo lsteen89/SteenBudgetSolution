@@ -1,0 +1,1462 @@
+<!doctype html>
+<html lang="sv">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>eBudget — Skulder (MVP)</title>
+    <link rel="icon" href="../../assets/brand/apple-touch-icon.png" />
+    <style>
+      :root {
+        --eb-shell: 224 240 255;
+        --eb-shell-2: 77 185 254;
+        --eb-shell-3: 21 39 81;
+        --eb-surface: 255 255 255;
+        --eb-surface-accent: 224 240 255;
+        --eb-stroke: 199 228 255;
+        --eb-stroke-strong: 145 179 220;
+        --eb-text: 21 39 81;
+        --eb-danger: 185 28 28;
+        --eb-accent: 34 197 94;
+        --eb-accent-soft: 220 252 231;
+        --eb-warning: 217 119 6;
+        --eb-shadow: 15 23 42;
+        /* debt type ramp — calm, all-blue family, never alarm */
+        --type-lan:  21 39 81;     /* navy  */
+        --type-kort: 77 185 254;   /* blue  */
+        --type-avb:  145 179 220;  /* slate-blue */
+      }
+
+      * { box-sizing: border-box; }
+      html, body { min-height: 100%; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        overflow-x: hidden;
+        background:
+          radial-gradient(circle at 50% 0, rgb(var(--eb-shell) / 0.52), transparent 28rem),
+          radial-gradient(circle at 12% 0, rgb(var(--eb-shell) / 0.32), transparent 22rem),
+          radial-gradient(circle at 88% 0, rgb(var(--eb-shell) / 0.32), transparent 24rem),
+          linear-gradient(135deg, #e0f0ff 0%, #4db9fe 100%);
+        color: rgb(var(--eb-text));
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      button, input, select, textarea { font: inherit; }
+      button { cursor: pointer; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.92em; }
+
+      /* ============================================================ HEADER */
+      .app-frame { min-height: 100vh; }
+      .app-header {
+        position: sticky; top: 0; z-index: 40;
+        border-bottom: 1px solid rgb(255 255 255 / 0.48);
+        background: rgb(255 255 255 / 0.48);
+        box-shadow: 0 12px 32px rgb(var(--eb-shadow) / 0.08);
+        backdrop-filter: blur(18px);
+      }
+      .header-inner {
+        width: min(1152px, calc(100% - 32px));
+        height: 72px; margin: 0 auto;
+        display: grid; grid-template-columns: 1fr auto 1fr;
+        align-items: center; gap: 12px;
+      }
+      .brand {
+        justify-self: start; border-radius: 16px; padding: 4px 8px;
+        color: rgb(var(--eb-text)); font-size: 18px; font-weight: 900;
+        text-decoration: none;
+      }
+      .brand span { color: rgb(var(--eb-accent)); }
+      .pill-nav {
+        justify-self: center; display: flex; gap: 4px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.54);
+        border-radius: 999px; background: rgb(var(--eb-surface) / 0.68);
+        padding: 4px;
+      }
+      .pill-nav a {
+        border-radius: 999px; padding: 8px 12px;
+        color: rgb(var(--eb-text) / 0.7);
+        font-size: 14px; font-weight: 700; text-decoration: none;
+        white-space: nowrap;
+      }
+      .pill-nav a.active {
+        background: rgb(var(--eb-surface)); color: rgb(var(--eb-text));
+        box-shadow: 0 1px 4px rgb(var(--eb-shadow) / 0.08);
+      }
+      .account-button {
+        justify-self: end; display: inline-flex; align-items: center; justify-content: center;
+        width: 38px; height: 38px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.7);
+        border-radius: 999px; background: rgb(var(--eb-surface) / 0.82);
+        color: rgb(var(--eb-text)); font-weight: 900;
+      }
+
+      /* ============================================================ LAYOUT */
+      .authed-main { padding-top: 24px; }
+      .page-container { position: relative; width: 100%; min-height: 100dvh; }
+      .decor { pointer-events: none; position: absolute; inset: 0 0 auto; height: 224px; overflow: hidden; }
+      .decor span { position: absolute; top: -96px; border-radius: 999px; filter: blur(40px); }
+      .decor .one { left: 50%; width: 288px; height: 288px; transform: translateX(-50%); background: rgb(var(--eb-shell) / 0.4); }
+      .decor .two { left: 10%; width: 224px; height: 224px; background: rgb(var(--eb-shell) / 0.26); }
+      .decor .three { right: 10%; width: 256px; height: 256px; background: rgb(var(--eb-shell) / 0.26); }
+      .content { position: relative; width: min(1152px, 100%); margin: 0 auto; padding: 24px 16px 64px; }
+      .stack { display: grid; gap: 20px; }
+
+      .eyebrow {
+        margin: 0; color: rgb(var(--eb-text) / 0.5);
+        font-size: 11px; font-weight: 800; letter-spacing: 0.22em; text-transform: uppercase;
+      }
+      .section-label {
+        color: rgb(var(--eb-text) / 0.5);
+        font-size: 11px; font-weight: 800; letter-spacing: 0.18em; text-transform: uppercase;
+      }
+      .dialog-heading {
+        margin: 0 0 8px; color: rgb(var(--eb-text) / 0.5);
+        font-size: 11px; font-weight: 850; letter-spacing: 0.14em; text-transform: uppercase;
+      }
+
+      /* ============================================================ HERO */
+      .hero {
+        position: relative; overflow: hidden;
+        border: 1px solid rgb(var(--eb-stroke) / 0.2);
+        border-radius: 28px; background: rgb(var(--eb-surface) / 0.85);
+        padding: 15px 20px 16px;
+        box-shadow: 0 10px 30px rgb(var(--eb-shadow) / 0.05);
+        backdrop-filter: blur(12px);
+      }
+      .hero-bg { pointer-events: none; position: absolute; inset: 0; }
+      .hero-bg::before, .hero-bg::after { content: ""; position: absolute; border-radius: 999px; filter: blur(48px); }
+      .hero-bg::before { top: -80px; left: 10%; width: 176px; height: 176px; background: rgb(var(--eb-shell) / 0.28); }
+      .hero-bg::after { top: -96px; right: 18%; width: 208px; height: 208px; background: rgb(var(--eb-shell-2) / 0.10); }
+      .hero-mascot {
+        pointer-events: none; position: absolute; top: -2px; right: 14px;
+        display: none; width: 72px; height: 72px; opacity: 0.9;
+      }
+      .hero-mascot::before {
+        content: ""; position: absolute; inset: -14px;
+        background: radial-gradient(60% 60% at 50% 40%, rgb(var(--eb-shell-2) / 0.18) 0%, transparent 72%);
+        filter: blur(12px);
+      }
+      .hero-mascot img { position: relative; width: 100%; height: 100%; object-fit: contain; }
+
+      .hero-content { position: relative; z-index: 1; max-width: 46rem; }
+      .hero h1 {
+        margin: 6px 0 0; color: rgb(var(--eb-text));
+        font-size: 22px; font-weight: 900; line-height: 1.2;
+      }
+      .hero h1 .accent { color: rgb(var(--eb-shell-3)); }
+      .hero h1 .light { color: rgb(var(--eb-text) / 0.6); font-weight: 800; }
+
+      .hero-split {
+        display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 10px 0 0;
+        color: rgb(var(--eb-text) / 0.7); font-size: 13px; line-height: 1.4;
+      }
+      .hero-split-part { display: inline-flex; align-items: baseline; gap: 6px; }
+      .hero-split strong { color: rgb(var(--eb-text)); font-weight: 800; font-variant-numeric: tabular-nums; }
+      .hero-split-sep { align-self: center; width: 4px; height: 4px; border-radius: 999px; background: rgb(var(--eb-text) / 0.3); }
+
+      .hero-actions {
+        display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+        margin-top: 13px;
+      }
+      .snapshot-pill, .funded-pill, .readonly-pill {
+        display: inline-flex; align-items: center; gap: 8px;
+        border-radius: 999px; padding: 6px 12px;
+        font-size: 13px; font-weight: 800;
+      }
+      /* balance snapshot pill in hero — clearly NOT a flow/outflow number */
+      .snapshot-pill {
+        border: 1px solid rgb(var(--eb-shell-3) / 0.22);
+        background: rgb(var(--eb-shell-3) / 0.05);
+        color: rgb(var(--eb-text) / 0.82);
+      }
+      .snapshot-pill .lbl {
+        font-size: 11px; font-weight: 800; letter-spacing: 0.04em;
+        text-transform: uppercase; color: rgb(var(--eb-text) / 0.5);
+      }
+      .snapshot-pill strong { color: rgb(var(--eb-text)); font-weight: 850; font-variant-numeric: tabular-nums; }
+      .funded-pill {
+        border: 1px solid rgb(var(--eb-stroke) / 0.7);
+        background: rgb(var(--eb-surface) / 0.7);
+        color: rgb(var(--eb-text) / 0.75);
+      }
+      .funded-pill strong { color: rgb(var(--eb-text)); font-weight: 850; }
+      .readonly-pill {
+        border: 1px solid rgb(var(--eb-warning) / 0.3);
+        background: rgb(217 119 6 / 0.08);
+        color: #7c4a03;
+      }
+
+      /* ============================================================ PAYMENT / BALANCE STRIP */
+      .balance-strip {
+        border: 1px solid rgb(var(--eb-stroke) / 0.3);
+        border-radius: 22px; background: rgb(var(--eb-surface) / 0.85);
+        padding: 10px 16px 12px;
+        box-shadow: 0 1px 2px rgb(var(--eb-shadow) / 0.04);
+      }
+      .balance-top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
+      .balance-headline {
+        margin-top: 2px; color: rgb(var(--eb-text));
+        font-size: 17px; font-weight: 850; font-variant-numeric: tabular-nums;
+      }
+      .balance-chip {
+        display: inline-flex; align-items: center; gap: 6px;
+        border-radius: 999px; background: rgb(var(--eb-accent-soft));
+        padding: 4px 10px;
+        color: #166534;
+        font-size: 12px; font-weight: 850;
+        border: 1px solid rgb(var(--eb-accent) / 0.2);
+      }
+      .balance-chip.warn { background: rgb(217 119 6 / 0.12); color: #7c4a03; border-color: rgb(var(--eb-warning) / 0.25); }
+      .balance-message {
+        margin: 6px 0 0;
+        color: rgb(var(--eb-text) / 0.65);
+        font-size: 13px;
+      }
+
+      /* two clearly-labelled zones: month-flow vs snapshot */
+      .zones { display: grid; gap: 10px; margin-top: 12px; }
+      @media (min-width: 720px) { .zones { grid-template-columns: 1.45fr 1fr; gap: 16px; } }
+      .zone {
+        border: 1px solid rgb(var(--eb-stroke) / 0.45);
+        border-radius: 16px;
+        padding: 11px 14px 12px;
+        background: rgb(var(--eb-surface) / 0.55);
+      }
+      .zone.snapshot {
+        background: rgb(var(--eb-shell-3) / 0.045);
+        border-color: rgb(var(--eb-shell-3) / 0.16);
+      }
+      .zone-label {
+        display: flex; align-items: center; gap: 7px;
+        color: rgb(var(--eb-text) / 0.5);
+        font-size: 10.5px; font-weight: 850; letter-spacing: 0.12em; text-transform: uppercase;
+      }
+      .zone-label svg { width: 13px; height: 13px; opacity: 0.7; }
+      .zone-figs { display: flex; flex-wrap: wrap; gap: 6px 26px; margin-top: 9px; }
+      .zone-fig { display: flex; flex-direction: column; gap: 2px; }
+      .zone-fig dt { color: rgb(var(--eb-text) / 0.55); font-size: 12px; }
+      .zone-fig dd {
+        margin: 0; color: rgb(var(--eb-text)); font-size: 16px; font-weight: 850;
+        font-variant-numeric: tabular-nums;
+      }
+      .zone-fig.out dd { color: rgb(var(--eb-shell-3)); }
+      .zone-fig.free dd { color: #166534; }
+      .zone-fig.bal dd { color: rgb(var(--eb-text)); font-size: 20px; }
+      .zone .snap-note {
+        margin: 8px 0 0; color: rgb(var(--eb-text) / 0.55);
+        font-size: 11.5px; line-height: 1.4;
+        display: inline-flex; align-items: flex-start; gap: 6px;
+      }
+      .zone .snap-note svg { flex: none; width: 13px; height: 13px; margin-top: 1px; opacity: 0.7; }
+
+      /* proportional payment bar — where the monthly payment goes, by type */
+      .spend-meter { margin-top: 13px; }
+      .spend-meter .meter-cap {
+        color: rgb(var(--eb-text) / 0.5);
+        font-size: 10.5px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
+        margin: 0 0 8px;
+      }
+      .spend-labels { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 0 0 8px; }
+      .spend-labels .lab { display: flex; flex-direction: column; min-width: 0; flex: 0 0 auto; }
+      .spend-labels .lab-name {
+        display: inline-flex; align-items: center; gap: 6px;
+        color: rgb(var(--eb-text) / 0.55);
+        font-size: 10.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+        white-space: nowrap;
+      }
+      .spend-labels .lab-dot { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+      .spend-labels .lab-val {
+        margin-top: 2px; color: rgb(var(--eb-text));
+        font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap;
+      }
+      .spend-labels .lab-val .pct { margin-left: 4px; color: rgb(var(--eb-text) / 0.55); font-weight: 700; font-size: 12px; }
+      .spend-bar { display: flex; gap: 4px; height: 14px; border-radius: 999px; background: transparent; }
+      .spend-bar > .seg { border-radius: 4px; box-shadow: inset 0 -1px 0 rgb(var(--eb-shadow) / 0.06); }
+      .spend-bar > .seg:first-child { border-top-left-radius: 999px; border-bottom-left-radius: 999px; }
+      .spend-bar > .seg:last-child  { border-top-right-radius: 999px; border-bottom-right-radius: 999px; }
+      .spend-bar > .seg.t-lan  { background: rgb(var(--type-lan) / 0.92); }
+      .spend-bar > .seg.t-kort { background: rgb(var(--type-kort)); }
+      .spend-bar > .seg.t-avb  { background: rgb(var(--type-avb)); }
+      .l-lan  { background: rgb(var(--type-lan) / 0.92); }
+      .l-kort { background: rgb(var(--type-kort)); }
+      .l-avb  { background: rgb(var(--type-avb)); }
+
+      /* balance prominence tweak ----------------------------------------- */
+      /* default = lead: snapshot is present but quieter (smaller balance fig) */
+      body[data-balance="lead"] .zone-fig.bal dd { font-size: 17px; }
+      body[data-balance="lead"] .zone.snapshot { background: rgb(var(--eb-shell-3) / 0.035); }
+      /* coequal = both zones equal weight */
+      body[data-balance="coequal"] .zones { grid-template-columns: 1fr 1fr; }
+      body[data-balance="coequal"] .zone.snapshot { background: rgb(var(--eb-shell-3) / 0.06); border-color: rgb(var(--eb-shell-3) / 0.22); }
+      /* card = pull snapshot out of strip into its own card below */
+      .balance-card { display: none; }
+      body[data-balance="card"] .zone.snapshot { display: none; }
+      body[data-balance="card"] .zones { grid-template-columns: 1fr; }
+      body[data-balance="card"] .balance-card { display: block; }
+      .balance-card {
+        border: 1px solid rgb(var(--eb-shell-3) / 0.16);
+        border-radius: 22px;
+        background: rgb(var(--eb-shell-3) / 0.045);
+        padding: 14px 18px 16px;
+        box-shadow: 0 1px 2px rgb(var(--eb-shadow) / 0.04);
+      }
+      .balance-card .bc-top { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; }
+      .balance-card .bc-val { color: rgb(var(--eb-text)); font-size: 28px; font-weight: 850; font-variant-numeric: tabular-nums; margin-top: 4px; }
+      .balance-card .bc-by { display: flex; flex-wrap: wrap; gap: 6px 24px; margin-top: 12px; }
+      .balance-card .bc-cell { display: flex; flex-direction: column; gap: 2px; }
+      .balance-card .bc-cell dt { display: inline-flex; align-items: center; gap: 6px; color: rgb(var(--eb-text) / 0.55); font-size: 11.5px; }
+      .balance-card .bc-cell dt .lab-dot { width: 8px; height: 8px; border-radius: 2px; }
+      .balance-card .bc-cell dd { margin: 0; color: rgb(var(--eb-text)); font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+      /* ============================================================ GROUP CARDS */
+      .group-card {
+        position: relative;
+        border: 1px solid rgb(var(--eb-stroke) / 0.4);
+        border-radius: 28px;
+        background: rgb(var(--eb-surface));
+        box-shadow: 0 1px 2px rgb(var(--eb-shadow) / 0.04);
+        overflow: hidden;
+      }
+      .group-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 8px 18px;
+        padding: 16px 18px;
+        border-bottom: 1px solid rgb(var(--eb-stroke) / 0.35);
+        background: linear-gradient(135deg, rgb(var(--eb-shell) / 0.32), rgb(var(--eb-surface) / 0.9));
+      }
+      .group-head .gh-titleblock { min-width: 0; display: grid; gap: 4px; }
+      .group-head .gh-title-row { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; }
+      .gh-type-dot { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+      .group-head h2 {
+        margin: 0; color: rgb(var(--eb-text)); font-size: 16px; font-weight: 850; letter-spacing: -0.005em;
+      }
+      .group-head .gh-meta { color: rgb(var(--eb-text) / 0.6); font-size: 12.5px; }
+      .group-head .gh-meta strong { color: rgb(var(--eb-text)); font-weight: 700; }
+      .group-head .gh-insight { color: rgb(var(--eb-text) / 0.6); font-size: 12.5px; }
+      .group-total {
+        text-align: right; white-space: nowrap;
+        color: rgb(var(--eb-text)); font-size: 18px; font-weight: 850; font-variant-numeric: tabular-nums;
+      }
+      .group-total span {
+        margin-top: 2px; display: block;
+        color: rgb(var(--eb-text) / 0.5);
+        font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase;
+      }
+      .group-total .gt-bal {
+        display: block; margin-top: 4px;
+        color: rgb(var(--eb-text) / 0.6); font-size: 12px; font-weight: 750;
+        letter-spacing: 0; text-transform: none;
+      }
+      .group-total .gt-bal b { color: rgb(var(--eb-text) / 0.85); font-weight: 800; }
+
+      /* column header strip (desktop) */
+      .rows-colhead {
+        display: none;
+        padding: 9px 20px 7px;
+        border-bottom: 1px solid rgb(var(--eb-stroke) / 0.3);
+        background: rgb(var(--eb-shell) / 0.12);
+        color: rgb(var(--eb-text) / 0.45);
+        font-size: 10px; font-weight: 850; letter-spacing: 0.1em; text-transform: uppercase;
+      }
+
+      /* Rows */
+      .rows { list-style: none; margin: 0; padding: 0; display: grid; }
+      .row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 8px 16px;
+        padding: 13px 18px;
+        border-bottom: 1px solid rgb(var(--eb-stroke) / 0.32);
+        transition: background 120ms;
+      }
+      .row:last-child { border-bottom: 0; }
+      .row:hover { background: rgb(var(--eb-shell) / 0.18); }
+      .row-main { min-width: 0; grid-column: 1; }
+      .row-name-line { display: flex; align-items: baseline; gap: 8px 10px; flex-wrap: wrap; min-width: 0; }
+      .row-name {
+        color: rgb(var(--eb-text)); font-size: 14.5px; font-weight: 700;
+        max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      }
+      .row-meta { margin: 3px 0 0; color: rgb(var(--eb-text) / 0.55); font-size: 12px; }
+      .row-meta .sep { margin: 0 6px; opacity: 0.5; }
+      /* future-state payoff line — only shown when the tweak is on */
+      .row-payoff {
+        display: none;
+        margin: 4px 0 0; gap: 6px; align-items: center;
+        color: rgb(var(--eb-text) / 0.5); font-size: 11.5px;
+      }
+      body[data-payoff="1"] .row-payoff { display: inline-flex; }
+      .row-payoff .est-tag {
+        display: inline-flex; align-items: center;
+        height: 16px; padding: 0 6px; border-radius: 999px;
+        background: rgb(var(--eb-shell-3) / 0.08); color: rgb(var(--eb-text) / 0.55);
+        font-size: 9.5px; font-weight: 850; letter-spacing: 0.06em; text-transform: uppercase;
+      }
+
+      .row-balance, .row-payment { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+      .row-balance .cell-lbl, .row-payment .cell-lbl {
+        display: inline; color: rgb(var(--eb-text) / 0.5); font-size: 11px; font-weight: 700; margin-right: 6px;
+      }
+      .row-balance .val { color: rgb(var(--eb-text) / 0.78); font-size: 14px; font-weight: 750; }
+      .row-payment .val { color: rgb(var(--eb-text)); font-size: 15px; font-weight: 850; }
+      .row-balance .unit, .row-payment .unit { margin-left: 2px; color: rgb(var(--eb-text) / 0.45); font-weight: 700; font-size: 12px; }
+      .row-actions { display: flex; align-items: center; gap: 6px; justify-self: end; }
+
+      /* row state badges */
+      .badge {
+        display: inline-flex; align-items: center; gap: 4px;
+        height: 20px; padding: 0 8px; border-radius: 999px;
+        font-size: 11px; font-weight: 800; letter-spacing: 0.02em; white-space: nowrap;
+      }
+      .badge.month-only {
+        background: rgb(var(--eb-shell) / 0.6); color: rgb(var(--eb-text) / 0.72);
+        border: 1px solid rgb(var(--eb-stroke) / 0.5);
+      }
+      .badge.changed {
+        background: rgb(var(--eb-shell-2) / 0.18); color: rgb(var(--eb-shell-3));
+        border: 1px solid rgb(var(--eb-shell-2) / 0.35);
+      }
+      .badge.below-min {
+        background: rgb(217 119 6 / 0.12); color: #7c4a03;
+        border: 1px solid rgb(var(--eb-warning) / 0.28);
+      }
+      .badge.dot::before { content: ""; width: 6px; height: 6px; border-radius: 999px; background: currentColor; opacity: 0.85; }
+
+      .row-icon-btn {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 32px; height: 32px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.6); border-radius: 999px;
+        background: rgb(var(--eb-surface)); color: rgb(var(--eb-text) / 0.55);
+        transition: background 120ms, color 120ms, border-color 120ms;
+      }
+      .row-icon-btn:hover { background: white; color: rgb(var(--eb-text)); }
+      .row-icon-btn svg { width: 14px; height: 14px; }
+
+      /* ============================================================ KEBAB MENU */
+      .kebab-wrap { position: relative; }
+      .kebab-menu {
+        position: absolute; right: 0; top: calc(100% + 6px);
+        z-index: 20; display: none;
+        min-width: 220px; padding: 6px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.5); border-radius: 14px;
+        background: rgb(var(--eb-surface));
+        box-shadow: 0 16px 40px rgb(var(--eb-shadow) / 0.18);
+      }
+      .kebab-menu.open { display: block; }
+      .kebab-menu button {
+        display: flex; width: 100%; align-items: center; gap: 8px;
+        border: 0; border-radius: 8px; background: transparent;
+        padding: 8px 10px; color: rgb(var(--eb-text) / 0.85);
+        font-size: 13px; font-weight: 700; text-align: left;
+      }
+      .kebab-menu button:hover { background: rgb(var(--eb-shell) / 0.4); }
+      .kebab-menu svg { width: 13px; height: 13px; opacity: 0.7; }
+
+      /* ============================================================ EMPTY STATE */
+      .empty-card {
+        display: none;
+        position: relative; overflow: hidden;
+        border: 1px solid rgb(var(--eb-stroke) / 0.4); border-radius: 28px;
+        background: rgb(var(--eb-surface));
+        box-shadow: 0 1px 2px rgb(var(--eb-shadow) / 0.04);
+        padding: 40px 28px 44px; text-align: center;
+      }
+      .empty-card img { width: 96px; height: 96px; object-fit: contain; opacity: 0.95; }
+      .empty-card h3 { margin: 14px 0 0; color: rgb(var(--eb-text)); font-size: 18px; font-weight: 850; }
+      .empty-card p { margin: 8px auto 0; max-width: 30rem; color: rgb(var(--eb-text) / 0.62); font-size: 13.5px; line-height: 1.5; }
+
+      /* ============================================================ FUTURE APPENDIX */
+      .future {
+        margin-top: 14px;
+        border: 1.5px dashed rgb(var(--eb-stroke-strong) / 0.6);
+        border-radius: 28px;
+        background: rgb(var(--eb-surface) / 0.5);
+        padding: 20px 20px 22px;
+      }
+      .future-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+      .future-head .ftag {
+        display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px;
+        border-radius: 999px; background: rgb(var(--eb-shell-3) / 0.08);
+        color: rgb(var(--eb-text) / 0.6); font-size: 11px; font-weight: 850;
+        letter-spacing: 0.08em; text-transform: uppercase;
+      }
+      .future-head h2 { margin: 0; color: rgb(var(--eb-text) / 0.78); font-size: 16px; font-weight: 850; }
+      .future-sub { margin: 8px 0 0; color: rgb(var(--eb-text) / 0.55); font-size: 12.5px; line-height: 1.5; max-width: 44rem; }
+      .future-grid { display: grid; gap: 10px; margin-top: 16px; }
+      @media (min-width: 640px) { .future-grid { grid-template-columns: repeat(2, 1fr); } }
+      .future-item {
+        position: relative;
+        border: 1px solid rgb(var(--eb-stroke) / 0.45); border-radius: 16px;
+        background: rgb(var(--eb-surface) / 0.7);
+        padding: 13px 14px; opacity: 0.92;
+      }
+      .future-item .fi-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+      .future-item h4 { margin: 0; color: rgb(var(--eb-text) / 0.75); font-size: 13.5px; font-weight: 800; }
+      .future-item .pending {
+        flex: none; display: inline-flex; align-items: center; height: 19px; padding: 0 8px;
+        border-radius: 999px; border: 1px solid rgb(var(--eb-stroke) / 0.6);
+        background: rgb(var(--eb-shell) / 0.3);
+        color: rgb(var(--eb-text) / 0.5); font-size: 10px; font-weight: 800;
+        letter-spacing: 0.04em; text-transform: uppercase;
+      }
+      .future-item p { margin: 6px 0 0; color: rgb(var(--eb-text) / 0.55); font-size: 12px; line-height: 1.45; }
+      .future-item .ghost-control {
+        margin-top: 11px; display: inline-flex; align-items: center; gap: 8px;
+        height: 30px; padding: 0 12px; border-radius: 999px;
+        border: 1px dashed rgb(var(--eb-stroke-strong) / 0.55);
+        background: transparent; color: rgb(var(--eb-text) / 0.4);
+        font-size: 12px; font-weight: 750; cursor: not-allowed; pointer-events: none;
+      }
+      .future-item .ghost-control svg { width: 13px; height: 13px; }
+
+      /* ============================================================ MODAL */
+      .modal { position: fixed; inset: 0; z-index: 95; display: none; }
+      .modal.open { display: block; }
+      .modal-backdrop {
+        position: absolute; inset: 0; border: 0;
+        background: radial-gradient(circle at top, rgb(21 39 81 / 0.18), rgb(21 39 81 / 0.52));
+      }
+      .modal-scroll { position: absolute; inset: 0; display: flex; align-items: flex-start; justify-content: center; overflow-y: auto; padding: 16px; }
+      .dialog {
+        position: relative; width: min(520px, 100%); overflow: hidden;
+        border: 1px solid rgb(var(--eb-stroke) / 0.4); border-radius: 24px;
+        background: rgb(var(--eb-surface));
+        box-shadow: 0 24px 60px rgb(var(--eb-shadow) / 0.22), 0 2px 10px rgb(var(--eb-shadow) / 0.08);
+      }
+      .dialog-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 18px 22px 14px; }
+      .dialog-head h2 { margin: 0; color: rgb(var(--eb-text)); font-size: 17px; font-weight: 850; }
+      .dialog-head p { margin: 4px 0 0; color: rgb(var(--eb-text) / 0.6); font-size: 12.5px; line-height: 1.45; }
+      .close-button {
+        display: inline-flex; flex: none; align-items: center; justify-content: center;
+        width: 28px; height: 28px; border: 1px solid rgb(var(--eb-stroke) / 0.5);
+        border-radius: 999px; background: transparent; color: rgb(var(--eb-text) / 0.6);
+      }
+      .dialog-section { padding: 0 22px 14px; }
+      .dialog-divider { height: 1px; background: rgb(var(--eb-stroke) / 0.4); }
+      .dialog-footer {
+        display: flex; align-items: center; justify-content: space-between; gap: 8px;
+        border-top: 1px solid rgb(var(--eb-stroke) / 0.4);
+        background: rgb(var(--eb-shell) / 0.15); padding: 12px 22px;
+      }
+      .dialog-footer .footer-note { color: rgb(var(--eb-text) / 0.55); font-size: 11.5px; }
+
+      /* read-only facts block (the debt's fixed data) */
+      .facts {
+        margin: 0 22px 14px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.5); border-radius: 14px;
+        background: rgb(var(--eb-shell) / 0.16);
+        padding: 12px 14px;
+      }
+      .facts-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+      .facts-name { color: rgb(var(--eb-text)); font-size: 14px; font-weight: 850; }
+      .facts-type { color: rgb(var(--eb-text) / 0.55); font-size: 11.5px; font-weight: 750; }
+      .facts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; margin-top: 11px; }
+      .facts-cell dt { color: rgb(var(--eb-text) / 0.5); font-size: 11px; }
+      .facts-cell dd { margin: 2px 0 0; color: rgb(var(--eb-text)); font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
+      .facts-cell.bal dd { color: rgb(var(--eb-text)); }
+      .facts-note {
+        margin: 11px 0 0; display: inline-flex; align-items: flex-start; gap: 6px;
+        color: rgb(var(--eb-text) / 0.55); font-size: 11.5px; line-height: 1.4;
+      }
+      .facts-note svg { flex: none; width: 13px; height: 13px; margin-top: 1px; opacity: 0.7; }
+
+      .field { display: grid; gap: 6px; }
+      .field label { color: rgb(var(--eb-text) / 0.58); font-size: 12px; font-weight: 800; }
+      .big-amount {
+        display: flex; align-items: baseline; gap: 8px;
+        padding: 14px 16px; border: 1px solid rgb(var(--eb-stroke) / 0.55);
+        border-radius: 16px; background: rgb(var(--eb-surface));
+        transition: border-color 150ms, box-shadow 150ms;
+      }
+      .big-amount.focus { border-color: rgb(var(--eb-accent) / 0.7); box-shadow: 0 0 0 4px rgb(var(--eb-accent) / 0.16); }
+      .big-amount.warnedge { border-color: rgb(var(--eb-warning) / 0.7); box-shadow: 0 0 0 4px rgb(217 119 6 / 0.12); }
+      .big-amount input {
+        min-width: 0; width: 100%; flex: 1; border: 0; outline: 0; background: transparent;
+        color: rgb(var(--eb-text)); font-size: 32px; font-weight: 850;
+        font-variant-numeric: tabular-nums; text-align: right; letter-spacing: -0.01em; height: auto; padding: 0;
+      }
+      .big-amount .unit { color: rgb(var(--eb-text) / 0.45); font-size: 18px; font-weight: 800; }
+      /* live min-payment guard (a real, allowed financial note) */
+      .min-hint { margin: 8px 2px 0; font-size: 12px; line-height: 1.4; display: none; }
+      .min-hint.show { display: flex; align-items: flex-start; gap: 6px; }
+      .min-hint svg { flex: none; width: 14px; height: 14px; margin-top: 1px; }
+      .min-hint.ok { color: rgb(var(--eb-text) / 0.55); }
+      .min-hint.warn { color: #7c4a03; }
+
+      .balance-callout {
+        display: flex; align-items: flex-start; gap: 10px;
+        padding: 11px 13px; margin: 14px 22px 0;
+        border: 1px solid rgb(var(--eb-shell-3) / 0.18); border-radius: 12px;
+        background: rgb(var(--eb-shell-3) / 0.05);
+      }
+      .balance-callout svg { flex: none; width: 16px; height: 16px; color: rgb(var(--eb-shell-3)); margin-top: 2px; }
+      .balance-callout p { margin: 0; color: rgb(var(--eb-text) / 0.78); font-size: 12.5px; line-height: 1.45; }
+      .balance-callout strong { color: rgb(var(--eb-text)); font-weight: 800; }
+
+      /* Scope radio cards */
+      .scope-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+      .scope-option {
+        display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 10px; padding: 12px 14px;
+        border: 1px solid rgb(var(--eb-stroke) / 0.5); border-radius: 14px; background: rgb(var(--eb-surface));
+        cursor: pointer; transition: border-color 120ms, background 120ms;
+      }
+      .scope-option:hover { border-color: rgb(var(--eb-stroke-strong) / 0.7); }
+      .scope-option input { margin: 3px 0 0; accent-color: rgb(var(--eb-accent)); }
+      .scope-option:has(input:checked) { border-color: rgb(var(--eb-accent) / 0.6); background: rgb(var(--eb-accent) / 0.05); }
+      .scope-option strong { display: block; color: rgb(var(--eb-text)); font-size: 13.5px; font-weight: 800; }
+      .scope-option span { display: block; margin-top: 2px; color: rgb(var(--eb-text) / 0.6); font-size: 12px; line-height: 1.45; }
+      .scope-option.disabled { opacity: 0.55; cursor: not-allowed; background: rgb(var(--eb-shell) / 0.2); }
+      .scope-option .why { display: block; margin-top: 4px; color: rgb(var(--eb-text) / 0.55); font-size: 11px; font-style: italic; }
+
+      /* Preview / outcome */
+      .outcome {
+        display: grid; gap: 6px; padding: 12px 14px; margin-top: 14px;
+        border-radius: 14px; border: 1px solid rgb(var(--eb-stroke) / 0.55); background: rgb(var(--eb-shell) / 0.22);
+      }
+      .outcome .o-label { color: rgb(var(--eb-text) / 0.55); font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
+      .outcome .o-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; }
+      .outcome .o-cell { display: flex; flex-direction: column; gap: 2px; }
+      .outcome .o-cell .lbl { color: rgb(var(--eb-text) / 0.55); font-size: 11px; }
+      .outcome .o-cell .val { color: rgb(var(--eb-text)); font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
+      /* debt deltas are neutral: paying more isn't "bad", paying less isn't "good" */
+      .outcome .o-cell .delta-up   { color: rgb(var(--eb-shell-3)); font-size: 12px; font-weight: 800; }
+      .outcome .o-cell .delta-down { color: rgb(var(--eb-shell-3)); font-size: 12px; font-weight: 800; }
+      .outcome .o-cell .delta-neutral { color: rgb(var(--eb-text) / 0.55); font-size: 12px; font-weight: 700; }
+      /* the "kvar i budget" cell: more debt payment => less free money (quiet, never alarm) */
+      .outcome .o-cell.free .val { color: #166534; }
+
+      .secondary-button, .primary-button { border-radius: 999px; font-weight: 750; transition: filter 150ms, background 150ms, color 150ms; }
+      .secondary-button {
+        height: 40px; border: 1px solid rgb(var(--eb-stroke) / 0.6); background: rgb(var(--eb-surface));
+        padding: 0 16px; color: rgb(var(--eb-text) / 0.75); font-size: 13px;
+      }
+      .primary-button {
+        height: 40px; border: 0; background: rgb(var(--eb-accent)); padding: 0 20px;
+        color: white; font-size: 13px; box-shadow: 0 8px 20px rgb(21 39 81 / 0.12);
+      }
+      .primary-button:hover { filter: brightness(1.05); }
+
+      /* ============================================================ RESPONSIVE */
+      @media (min-width: 640px) {
+        .content { padding: 28px 24px 64px; }
+        .hero { padding: 18px 28px 18px; }
+        .hero h1 { font-size: 26px; }
+        .hero-content { padding-right: 92px; }
+        .hero-mascot { display: block; }
+        .balance-strip { padding: 12px 20px 14px; }
+        .group-head { padding: 18px 22px; grid-template-columns: minmax(0,1fr) auto; }
+        .rows-colhead {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) 150px 168px 44px;
+          gap: 12px 16px; align-items: center;
+        }
+        .rows-colhead .ch-bal, .rows-colhead .ch-pay { text-align: right; }
+        .row {
+          grid-template-columns: minmax(0, 1fr) 150px 168px 44px;
+          padding: 13px 20px;
+        }
+        .row-main { grid-column: 1; }
+        .row-balance .cell-lbl, .row-payment .cell-lbl { display: none; }
+      }
+      @media (max-width: 900px) {
+        .header-inner { grid-template-columns: 1fr auto; height: auto; min-height: 64px; padding: 10px 0; }
+        .pill-nav { grid-column: 1 / -1; justify-self: stretch; overflow-x: auto; }
+        .account-button { grid-column: 2; grid-row: 1; }
+      }
+      @media (max-width: 639px) {
+        /* mobile: stack balance + payment under the name, each with its inline label */
+        .row { grid-template-columns: minmax(0,1fr) auto; row-gap: 4px; }
+        .row-main { grid-column: 1 / -1; grid-row: 1; }
+        .row-balance { grid-column: 1; grid-row: 2; text-align: left; }
+        .row-payment { grid-column: 2; grid-row: 2; }
+        .row-actions { grid-column: 2; grid-row: 1; align-self: start; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
+      }
+
+      /* tweak: changed-tag visibility (gated on backend comparison fields) */
+      body[data-show-changed="0"] .badge.changed { display: none; }
+      /* density */
+      body[data-density="compact"] .row { padding-top: 9px; padding-bottom: 9px; }
+      body[data-density="compact"] .row-name { font-size: 14px; }
+      body[data-density="compact"] .row-payment .val { font-size: 14.5px; }
+      body[data-density="compact"] .group-head { padding-top: 14px; padding-bottom: 14px; }
+
+      /* page state: empty + read-only */
+      .readonly-pill { display: none; }
+      body[data-state="empty"] .balance-strip,
+      body[data-state="empty"] .balance-card,
+      body[data-state="empty"] .group-card { display: none; }
+      body[data-state="empty"] .empty-card { display: block; }
+      body[data-state="empty"] .hero-actions .snapshot-pill,
+      body[data-state="empty"] .hero-actions .funded-pill { display: none; }
+
+      body[data-state="readonly"] .row-actions { display: none !important; }
+      body[data-state="readonly"] .funded-pill { display: none; }
+      body[data-state="readonly"] .readonly-pill { display: inline-flex; }
+    </style>
+  </head>
+  <body data-density="comfortable" data-balance="lead" data-payoff="0" data-show-changed="1" data-state="normal">
+    <template id="__bundler_thumbnail" data-bg-color="#4db9fe">
+      <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+        <rect width="1200" height="800" fill="#4db9fe"/>
+        <rect x="330" y="250" width="540" height="300" rx="48" fill="#ffffff"/>
+        <rect x="390" y="320" width="220" height="34" rx="17" fill="#152751"/>
+        <rect x="390" y="430" width="150" height="28" rx="14" fill="#91b3dc"/>
+        <rect x="660" y="425" width="150" height="40" rx="20" fill="#152751"/>
+        <circle cx="600" cy="400" r="0" fill="none"/>
+        <rect x="390" y="486" width="420" height="10" rx="5" fill="#e0f0ff"/>
+        <rect x="390" y="486" width="250" height="10" rx="5" fill="#4db9fe"/>
+      </svg>
+    </template>
+    <div class="app-frame">
+      <header class="app-header">
+        <div class="header-inner">
+          <a class="brand" href="/dashboard" aria-label="Till dashboard">
+            e<span>B</span>udget
+          </a>
+          <nav class="pill-nav" aria-label="Appnavigation">
+            <a href="/dashboard">Dashboard</a>
+            <a href="/dashboard/income">Inkomst</a>
+            <a href="/dashboard/expenses">Utgifter</a>
+            <a href="/dashboard/savings">Sparande</a>
+            <a class="active" href="/dashboard/debt">Skulder</a>
+            <a href="/dashboard/breakdown">Fördelning</a>
+          </nav>
+          <button class="account-button" type="button" aria-label="Meny">L</button>
+        </div>
+      </header>
+
+      <main class="authed-main">
+        <section class="page-container">
+          <div class="decor" aria-hidden="true">
+            <span class="one"></span>
+            <span class="two"></span>
+            <span class="three"></span>
+          </div>
+
+          <section class="content">
+            <div class="stack">
+
+              <!-- =============== HERO =============== -->
+              <section class="hero" aria-labelledby="debt-title" data-screen-label="Skulder – hero">
+                <div class="hero-bg" aria-hidden="true"></div>
+                <div class="hero-mascot" aria-hidden="true">
+                  <img src="../../assets/mascots/CalcBird.png" alt="" />
+                </div>
+                <div class="hero-content">
+                  <p class="eyebrow">Skulder · maj 2026</p>
+                  <h1 id="debt-title">
+                    Du planerar att betala <span class="accent">4 500 kr</span> på skulder
+                    <span class="light">denna månad</span>
+                  </h1>
+                  <p class="hero-split">
+                    <span class="hero-split-part"><strong>2 700 kr</strong> lån</span>
+                    <span class="hero-split-sep" aria-hidden="true"></span>
+                    <span class="hero-split-part"><strong>1 000 kr</strong> kreditkort</span>
+                    <span class="hero-split-sep" aria-hidden="true"></span>
+                    <span class="hero-split-part"><strong>800 kr</strong> avbetalning</span>
+                  </p>
+                  <div class="hero-actions">
+                    <span class="snapshot-pill">
+                      <span class="lbl">Kvar att betala</span>
+                      <strong>208 200 kr</strong>
+                    </span>
+                    <span class="funded-pill">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h18"/><path d="M12 3v18"/></svg>
+                      <strong>+300 kr</strong> mot april
+                    </span>
+                    <span class="readonly-pill">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+                      Maj är avslutad — skrivskyddad
+                    </span>
+                  </div>
+                </div>
+              </section>
+
+              <!-- =============== PAYMENT / BALANCE STRIP =============== -->
+              <section class="balance-strip" aria-label="Skulder denna månad">
+                <div class="balance-top">
+                  <div>
+                    <span class="section-label">Skulder denna månad</span>
+                    <div class="balance-headline"><span>4 500 kr</span> i månadsbetalningar</div>
+                  </div>
+                  <span class="balance-chip">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+                    Inom månadens budget
+                  </span>
+                </div>
+                <p class="balance-message">
+                  Skuldbetalningarna är planerade utbetalningar den här månaden. Saldot är en ögonblicksbild av hur mycket du är skyldig — det ändras inte när du justerar en månadsbetalning här.
+                </p>
+
+                <div class="zones">
+                  <!-- ZONE A — affects the month -->
+                  <div class="zone flow">
+                    <div class="zone-label">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>
+                      Påverkar månaden
+                    </div>
+                    <dl class="zone-figs">
+                      <div class="zone-fig out">
+                        <dt>Månadsbetalningar</dt>
+                        <dd>−4 500 kr</dd>
+                      </div>
+                      <div class="zone-fig free">
+                        <dt>Kvar i budget efter skulder</dt>
+                        <dd>18 623 kr</dd>
+                      </div>
+                    </dl>
+                  </div>
+                  <!-- ZONE B — snapshot, does NOT move -->
+                  <div class="zone snapshot">
+                    <div class="zone-label">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                      Ögonblicksbild
+                    </div>
+                    <dl class="zone-figs">
+                      <div class="zone-fig bal">
+                        <dt>Kvar att betala — totalt</dt>
+                        <dd>208 200 kr</dd>
+                      </div>
+                    </dl>
+                    <p class="snap-note">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>
+                      Saldot minskar inte automatiskt här. Det följer din faktiska återbetalning över tid.
+                    </p>
+                  </div>
+                </div>
+
+                <div class="spend-meter" aria-hidden="true">
+                  <p class="meter-cap">Så fördelas månadsbetalningarna</p>
+                  <div class="spend-labels">
+                    <div class="lab" style="flex: 2700 1 0; min-width: 92px;">
+                      <span class="lab-name"><span class="lab-dot l-lan"></span> Lån</span>
+                      <span class="lab-val">2 700 kr<span class="pct">· 60 %</span></span>
+                    </div>
+                    <div class="lab" style="flex: 1000 1 0; min-width: 104px;">
+                      <span class="lab-name"><span class="lab-dot l-kort"></span> Kreditkort</span>
+                      <span class="lab-val">1 000 kr<span class="pct">· 22 %</span></span>
+                    </div>
+                    <div class="lab" style="flex: 800 1 0; min-width: 104px;">
+                      <span class="lab-name"><span class="lab-dot l-avb"></span> Avbetalning</span>
+                      <span class="lab-val">800 kr<span class="pct">· 18 %</span></span>
+                    </div>
+                  </div>
+                  <div class="spend-bar">
+                    <span class="seg t-lan"  style="flex: 2700 1 0;"></span>
+                    <span class="seg t-kort" style="flex: 1000 1 0;"></span>
+                    <span class="seg t-avb"  style="flex: 800 1 0; min-width: 16px;"></span>
+                  </div>
+                </div>
+              </section>
+
+              <!-- =============== BALANCE CARD (only in data-balance="card") =============== -->
+              <section class="balance-card" aria-label="Kvar att betala">
+                <div class="bc-top">
+                  <span class="section-label">Kvar att betala — totalt</span>
+                  <span class="snap-note" style="margin:0">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>
+                    Ögonblicksbild — påverkas inte av månadsbetalningarna
+                  </span>
+                </div>
+                <div class="bc-val">208 200 kr</div>
+                <dl class="bc-by">
+                  <div class="bc-cell"><dt><span class="lab-dot l-lan"></span> Lån</dt><dd>180 500 kr</dd></div>
+                  <div class="bc-cell"><dt><span class="lab-dot l-kort"></span> Kreditkort</dt><dd>18 200 kr</dd></div>
+                  <div class="bc-cell"><dt><span class="lab-dot l-avb"></span> Avbetalning</dt><dd>9 500 kr</dd></div>
+                </dl>
+              </section>
+
+              <!-- =============== GROUP: LÅN =============== -->
+              <section class="group-card" data-group="lan" data-screen-label="Skulder – Lån">
+                <header class="group-head">
+                  <div class="gh-titleblock">
+                    <div class="gh-title-row">
+                      <span class="gh-type-dot l-lan"></span>
+                      <h2>Lån</h2>
+                      <span class="gh-meta"><strong>2</strong> skulder</span>
+                    </div>
+                    <p class="gh-insight">Återkommande lån med fast eller rörlig ränta.</p>
+                  </div>
+                  <div class="group-total">2 700 kr<span>Planerat · per månad</span>
+                    <span class="gt-bal">Kvar att betala <b>180 500 kr</b></span>
+                  </div>
+                </header>
+                <div class="rows-colhead">
+                  <span></span>
+                  <span class="ch-bal">Kvar att betala</span>
+                  <span class="ch-pay">Planerad · per månad</span>
+                  <span></span>
+                </div>
+                <ul class="rows">
+                  <li class="row" data-row data-id="debt-csn" data-source="di-csn" data-type="lan" data-balance="142000" data-payment="1200" data-min="800" data-apr="1.2" data-name="Studielån (CSN)" data-term="156">
+                    <div class="row-main">
+                      <div class="row-name-line"><span class="row-name">Studielån (CSN)</span></div>
+                      <p class="row-meta">Ränta 1,2 %<span class="sep">·</span>minst 800 kr<span class="sep">·</span>13 år kvar</p>
+                      <p class="row-payoff"><span class="est-tag">Uppskattning</span> ≈ 13 år kvar i nuvarande takt</p>
+                    </div>
+                    <div class="row-balance"><span class="cell-lbl">Kvar att betala</span><span class="val">142 000<span class="unit"> kr</span></span></div>
+                    <div class="row-payment"><span class="cell-lbl">Planerad</span><span class="val">1 200<span class="unit"> kr</span></span></div>
+                    <div class="row-actions">
+                      <div class="kebab-wrap">
+                        <button class="row-icon-btn" type="button" data-action="more" aria-haspopup="menu" aria-expanded="false" aria-label="Mer"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+                        <div class="kebab-menu" role="menu">
+                          <button type="button" data-menu="edit" role="menuitem">Redigera planerad betalning</button>
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                  <li class="row" data-row data-id="debt-privat" data-source="di-privat" data-type="lan" data-balance="38500" data-payment="1500" data-min="1100" data-apr="6.4" data-name="Privatlån" data-term="28" data-plan-payment="1200">
+                    <div class="row-main">
+                      <div class="row-name-line">
+                        <span class="row-name">Privatlån</span>
+                        <span class="badge changed dot">Ändrad i maj</span>
+                      </div>
+                      <p class="row-meta">Ränta 6,4 %<span class="sep">·</span>minst 1 100 kr<span class="sep">·</span>+300 kr mot planen</p>
+                      <p class="row-payoff"><span class="est-tag">Uppskattning</span> ≈ 2 år 4 mån kvar i nuvarande takt</p>
+                    </div>
+                    <div class="row-balance"><span class="cell-lbl">Kvar att betala</span><span class="val">38 500<span class="unit"> kr</span></span></div>
+                    <div class="row-payment"><span class="cell-lbl">Planerad</span><span class="val">1 500<span class="unit"> kr</span></span></div>
+                    <div class="row-actions">
+                      <div class="kebab-wrap">
+                        <button class="row-icon-btn" type="button" data-action="more" aria-haspopup="menu" aria-expanded="false" aria-label="Mer"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+                        <div class="kebab-menu" role="menu">
+                          <button type="button" data-menu="edit" role="menuitem">Redigera planerad betalning</button>
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                </ul>
+              </section>
+
+              <!-- =============== GROUP: KREDITKORT =============== -->
+              <section class="group-card" data-group="kort" data-screen-label="Skulder – Kreditkort">
+                <header class="group-head">
+                  <div class="gh-titleblock">
+                    <div class="gh-title-row">
+                      <span class="gh-type-dot l-kort"></span>
+                      <h2>Kreditkort</h2>
+                      <span class="gh-meta"><strong>1</strong> skuld</span>
+                    </div>
+                    <p class="gh-insight">Kortkredit — räntan räknas oftast på hela saldot.</p>
+                  </div>
+                  <div class="group-total">1 000 kr<span>Planerat · per månad</span>
+                    <span class="gt-bal">Kvar att betala <b>18 200 kr</b></span>
+                  </div>
+                </header>
+                <div class="rows-colhead">
+                  <span></span>
+                  <span class="ch-bal">Kvar att betala</span>
+                  <span class="ch-pay">Planerad · per månad</span>
+                  <span></span>
+                </div>
+                <ul class="rows">
+                  <li class="row" data-row data-id="debt-seb" data-source="di-seb" data-type="kort" data-balance="18200" data-payment="1000" data-min="600" data-apr="19.9" data-name="SEB Kreditkort" data-term="0">
+                    <div class="row-main">
+                      <div class="row-name-line"><span class="row-name">SEB Kreditkort</span></div>
+                      <p class="row-meta">Ränta 19,9 %<span class="sep">·</span>minst 600 kr</p>
+                      <p class="row-payoff"><span class="est-tag">Uppskattning</span> ≈ 1 år 8 mån kvar i nuvarande takt</p>
+                    </div>
+                    <div class="row-balance"><span class="cell-lbl">Kvar att betala</span><span class="val">18 200<span class="unit"> kr</span></span></div>
+                    <div class="row-payment"><span class="cell-lbl">Planerad</span><span class="val">1 000<span class="unit"> kr</span></span></div>
+                    <div class="row-actions">
+                      <div class="kebab-wrap">
+                        <button class="row-icon-btn" type="button" data-action="more" aria-haspopup="menu" aria-expanded="false" aria-label="Mer"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+                        <div class="kebab-menu" role="menu">
+                          <button type="button" data-menu="edit" role="menuitem">Redigera planerad betalning</button>
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                </ul>
+              </section>
+
+              <!-- =============== GROUP: AVBETALNING =============== -->
+              <section class="group-card" data-group="avb" data-screen-label="Skulder – Avbetalning">
+                <header class="group-head">
+                  <div class="gh-titleblock">
+                    <div class="gh-title-row">
+                      <span class="gh-type-dot l-avb"></span>
+                      <h2>Avbetalning</h2>
+                      <span class="gh-meta"><strong>2</strong> skulder</span>
+                    </div>
+                    <p class="gh-insight">Köp som betalas av i delbetalningar.</p>
+                  </div>
+                  <div class="group-total">800 kr<span>Planerat · per månad</span>
+                    <span class="gt-bal">Kvar att betala <b>9 500 kr</b></span>
+                  </div>
+                </header>
+                <div class="rows-colhead">
+                  <span></span>
+                  <span class="ch-bal">Kvar att betala</span>
+                  <span class="ch-pay">Planerad · per månad</span>
+                  <span></span>
+                </div>
+                <ul class="rows">
+                  <li class="row" data-row data-id="debt-klarna" data-source="di-klarna" data-type="avb" data-balance="6400" data-payment="500" data-min="400" data-apr="0" data-fee="29" data-name="Klarna – Soffa" data-term="13">
+                    <div class="row-main">
+                      <div class="row-name-line"><span class="row-name">Klarna – Soffa</span></div>
+                      <p class="row-meta">Ränta 0 %<span class="sep">·</span>avgift 29 kr/mån<span class="sep">·</span>minst 400 kr</p>
+                      <p class="row-payoff"><span class="est-tag">Uppskattning</span> ≈ 1 år 1 mån kvar i nuvarande takt</p>
+                    </div>
+                    <div class="row-balance"><span class="cell-lbl">Kvar att betala</span><span class="val">6 400<span class="unit"> kr</span></span></div>
+                    <div class="row-payment"><span class="cell-lbl">Planerad</span><span class="val">500<span class="unit"> kr</span></span></div>
+                    <div class="row-actions">
+                      <div class="kebab-wrap">
+                        <button class="row-icon-btn" type="button" data-action="more" aria-haspopup="menu" aria-expanded="false" aria-label="Mer"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+                        <div class="kebab-menu" role="menu">
+                          <button type="button" data-menu="edit" role="menuitem">Redigera planerad betalning</button>
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                  <li class="row" data-row data-id="debt-elgiganten" data-source="" data-type="avb" data-balance="3100" data-payment="300" data-min="300" data-apr="0" data-name="Elgiganten – Tvättmaskin" data-term="11">
+                    <div class="row-main">
+                      <div class="row-name-line">
+                        <span class="row-name">Elgiganten – Tvättmaskin</span>
+                        <span class="badge month-only dot">Bara maj</span>
+                      </div>
+                      <p class="row-meta">Ränta 0 %<span class="sep">·</span>minst 300 kr<span class="sep">·</span>finns inte i planen</p>
+                      <p class="row-payoff"><span class="est-tag">Uppskattning</span> ≈ 11 mån kvar i nuvarande takt</p>
+                    </div>
+                    <div class="row-balance"><span class="cell-lbl">Kvar att betala</span><span class="val">3 100<span class="unit"> kr</span></span></div>
+                    <div class="row-payment"><span class="cell-lbl">Planerad</span><span class="val">300<span class="unit"> kr</span></span></div>
+                    <div class="row-actions">
+                      <div class="kebab-wrap">
+                        <button class="row-icon-btn" type="button" data-action="more" aria-haspopup="menu" aria-expanded="false" aria-label="Mer"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+                        <div class="kebab-menu" role="menu">
+                          <button type="button" data-menu="edit" role="menuitem">Redigera planerad betalning</button>
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                </ul>
+              </section>
+
+              <!-- =============== EMPTY STATE (data-state="empty") =============== -->
+              <section class="empty-card" aria-label="Inga skulder">
+                <img src="../../assets/mascots/CalcBird.png" alt="" />
+                <h3>Inga skulder den här månaden</h3>
+                <p>När skulder ingår i din budget visas de här — med saldo, ränta och din planerade månadsbetalning. Du lägger till skulder när du planerar din budget.</p>
+              </section>
+
+              <!-- =============== FUTURE-STATE APPENDIX =============== -->
+              <section class="future" aria-label="Framtida stöd" data-screen-label="Skulder – Framtida stöd">
+                <div class="future-head">
+                  <span class="ftag">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                    Inte aktivt än
+                  </span>
+                  <h2>Framtida stöd för skulder</h2>
+                </div>
+                <p class="future-sub">
+                  De här idéerna kräver nytt stöd i backend och finns inte i mockupen ovan. De ligger här, tydligt avgränsade, så att de inte förväxlas med det som går att bygga idag. Ingen av kontrollerna nedan är aktiv.
+                </p>
+                <div class="future-grid">
+                  <div class="future-item">
+                    <div class="fi-top">
+                      <h4>Markera som betald</h4>
+                      <span class="pending">Kräver backend</span>
+                    </div>
+                    <p>Avsluta en skuld som är färdigbetald. Kräver en livscykelstatus (betald/avslutad) som inte finns idag.</p>
+                    <span class="ghost-control"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> Markera som betald</span>
+                  </div>
+                  <div class="future-item">
+                    <div class="fi-top">
+                      <h4>Återbetalningsförlopp</h4>
+                      <span class="pending">Kräver backend</span>
+                    </div>
+                    <p>Visa hur saldot minskar över tid utifrån faktiska betalningar. Kräver att saldo och faktiska betalningar lagras per månad.</p>
+                    <span class="ghost-control"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/></svg> Visa förlopp</span>
+                  </div>
+                  <div class="future-item">
+                    <div class="fi-top">
+                      <h4>Hoppa över denna månad</h4>
+                      <span class="pending">Kräver backend</span>
+                    </div>
+                    <p>Pausa en skuldbetalning för en enskild månad. Kräver ett verkligt "ingår inte denna månad"-tillstånd.</p>
+                    <span class="ghost-control"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h2v16H6zM16 4l-8 8 8 8z"/></svg> Hoppa över maj</span>
+                  </div>
+                  <div class="future-item">
+                    <div class="fi-top">
+                      <h4>Uppdatera saldo</h4>
+                      <span class="pending">Kräver backend</span>
+                    </div>
+                    <p>Rätta saldot manuellt efter en extra inbetalning. Idag är saldot fast efter onboarding och kan inte redigeras här.</p>
+                    <span class="ghost-control"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg> Uppdatera saldo</span>
+                  </div>
+                </div>
+              </section>
+
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <!-- ===================================================== MODAL -->
+    <div class="modal" data-editor-modal>
+      <button class="modal-backdrop" type="button" aria-label="Stäng" data-close-editor></button>
+      <div class="modal-scroll">
+        <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="editor-title">
+          <div class="dialog-head">
+            <div>
+              <h2 id="editor-title">Redigera planerad månadsbetalning</h2>
+              <p id="editor-sub">Ändra hur mycket du planerar att betala på den här skulden i maj 2026.</p>
+            </div>
+            <button class="close-button" type="button" aria-label="Stäng" data-close-editor>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            </button>
+          </div>
+
+          <!-- the debt's fixed facts (read-only here) -->
+          <div class="facts">
+            <div class="facts-top">
+              <span class="facts-name" id="ed-fact-name">Privatlån</span>
+              <span class="facts-type" id="ed-fact-type">Lån</span>
+            </div>
+            <dl class="facts-grid">
+              <div class="facts-cell bal">
+                <dt>Kvar att betala</dt>
+                <dd id="ed-fact-balance">38 500 kr</dd>
+              </div>
+              <div class="facts-cell">
+                <dt>Ränta</dt>
+                <dd id="ed-fact-apr">6,4 %</dd>
+              </div>
+              <div class="facts-cell">
+                <dt>Minsta betalning</dt>
+                <dd id="ed-fact-min">1 100 kr</dd>
+              </div>
+              <div class="facts-cell">
+                <dt>Nuvarande plan</dt>
+                <dd id="ed-fact-plan">1 200 kr</dd>
+              </div>
+            </dl>
+            <p class="facts-note">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="2.2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></svg>
+              De här uppgifterna ändras inte här — bara den planerade månadsbetalningen.
+            </p>
+          </div>
+
+          <div class="dialog-section">
+            <div class="field">
+              <label for="ed-amount">Planerad månadsbetalning</label>
+              <div class="big-amount" id="ed-amount-wrap">
+                <input id="ed-amount" type="text" inputmode="numeric" placeholder="0" />
+                <span class="unit">kr</span>
+              </div>
+              <p class="min-hint ok" id="ed-min-hint">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>
+                <span id="ed-min-hint-text">Minst 1 100 kr enligt villkoren.</span>
+              </p>
+            </div>
+          </div>
+
+          <div class="balance-callout">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>
+            <p><strong>Saldo påverkas inte här.</strong> Det här ändrar bara hur mycket du planerar att betala — inte hur mycket du är skyldig. Saldot på <span id="ed-callout-bal">38 500 kr</span> följer din faktiska återbetalning.</p>
+          </div>
+
+          <div class="dialog-divider" id="ed-scope-divider" style="margin-top:14px"></div>
+
+          <div class="dialog-section" id="ed-scope-block" style="padding-top:14px">
+            <p class="dialog-heading">Vad ska ändringen gälla?</p>
+            <ul class="scope-list">
+              <li>
+                <label class="scope-option">
+                  <input type="radio" name="ed-scope" value="currentMonthOnly" checked />
+                  <span>
+                    <strong>Bara denna månad</strong>
+                    <span>Bara maj 2026 ändras. Planen framåt rörs inte.</span>
+                  </span>
+                </label>
+              </li>
+              <li>
+                <label class="scope-option" data-needs-link>
+                  <input type="radio" name="ed-scope" value="currentMonthAndBudgetPlan" />
+                  <span>
+                    <strong>Denna månad + planen framåt</strong>
+                    <span>Uppdaterar budgetplanen från maj 2026.</span>
+                  </span>
+                </label>
+              </li>
+              <li>
+                <label class="scope-option" data-needs-link>
+                  <input type="radio" name="ed-scope" value="budgetPlanOnly" />
+                  <span>
+                    <strong>Bara planen framåt</strong>
+                    <span>Maj rörs inte — kommande månader uppdateras.</span>
+                  </span>
+                </label>
+              </li>
+            </ul>
+          </div>
+
+          <div class="dialog-section" id="ed-preview-block" style="padding-top: 0">
+            <div class="outcome" id="ed-outcome">
+              <div class="o-label">Förhandsvisning</div>
+              <div class="o-grid">
+                <div class="o-cell">
+                  <span class="lbl">Maj 2026 — skuldbetalningar</span>
+                  <span class="val" id="ed-prev-month-val">4 500 kr</span>
+                  <span class="delta-neutral" id="ed-prev-month-delta">— oförändrat</span>
+                </div>
+                <div class="o-cell free">
+                  <span class="lbl">Kvar i budget efter skulder</span>
+                  <span class="val" id="ed-prev-free-val">18 623 kr</span>
+                  <span class="delta-neutral" id="ed-prev-free-delta">— oförändrat</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="dialog-footer">
+            <span class="footer-note" id="editor-footer-note">Maj är öppen — ändringar sparas direkt.</span>
+            <div style="display:flex; gap:8px">
+              <button class="secondary-button" type="button" data-close-editor>Avbryt</button>
+              <button class="primary-button" type="button" id="ed-save-btn">Spara</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+    <script type="text/babel" src="tweaks-panel.jsx"></script>
+
+    <script>
+      const $ = (sel, root = document) => root.querySelector(sel);
+      const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+      const fmt = new Intl.NumberFormat("sv-SE");
+      const num = (s) => Number(String(s).replace(/[^\d-]/g, "")) || 0;
+      const kr = (n) => fmt.format(n) + " kr";
+      const pct = (n) => String(n).replace(".", ",") + " %";
+
+      // ---------- Kebab open/close ----------
+      $$("[data-action='more']").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          const menu = btn.nextElementSibling;
+          if (!menu || !menu.classList.contains("kebab-menu")) return;
+          const open = menu.classList.toggle("open");
+          btn.setAttribute("aria-expanded", String(open));
+          $$(".kebab-menu.open").forEach((m) => { if (m !== menu) m.classList.remove("open"); });
+          e.stopPropagation();
+        });
+      });
+      document.addEventListener("click", (e) => {
+        if (!e.target.closest(".kebab-wrap")) {
+          $$(".kebab-menu.open").forEach((m) => m.classList.remove("open"));
+          $$("[data-action='more']").forEach((b) => b.setAttribute("aria-expanded", "false"));
+        }
+      });
+
+      // ---------- Editor modal ----------
+      const modal = $("[data-editor-modal]");
+      const elAmount = $("#ed-amount");
+      const elAmountWrap = $("#ed-amount-wrap");
+      const elScopeBlock = $("#ed-scope-block");
+      const elScopeDivider = $("#ed-scope-divider");
+      const elTitle = $("#editor-title");
+      const elSub = $("#editor-sub");
+      const TYPE_LABEL = { lan: "Lån", kort: "Kreditkort", avb: "Avbetalning" };
+      let editorState = { row: null, min: 0, planPayment: 0, balance: 0 };
+
+      const baseMonthTotal = 4500;   // planned debt payments in maj
+      const baseFree = 18623;        // kvar i budget efter skulder (reconciles to income "fritt kvar")
+      const basePlanTotal = 3900;    // plan-linked debt payments (excludes month-only + changed delta)
+
+      function openEditor(row) {
+        const type = row.dataset.type;
+        const min = num(row.dataset.min);
+        const balance = num(row.dataset.balance);
+        const planPayment = row.dataset.planPayment ? num(row.dataset.planPayment) : num(row.dataset.payment);
+        const isMonthOnly = !row.dataset.source;
+        editorState = { row, min, planPayment, balance, type };
+
+        $("#ed-fact-name").textContent = row.dataset.name;
+        $("#ed-fact-type").textContent = TYPE_LABEL[type] || "Skuld";
+        $("#ed-fact-balance").textContent = kr(balance);
+        $("#ed-fact-apr").textContent = String(row.dataset.apr).replace(".", ",") + " %";
+        $("#ed-fact-min").textContent = min ? kr(min) : "—";
+        $("#ed-fact-plan").textContent = isMonthOnly ? "Finns inte i planen" : kr(planPayment);
+        $("#ed-callout-bal").textContent = kr(balance);
+
+        elAmount.value = fmt.format(num(row.dataset.payment));
+        elAmount.setAttribute("value", elAmount.value);
+        elSub.textContent = isMonthOnly
+          ? "Den här skulden finns bara i maj — inte i din budgetplan."
+          : "Ändra hur mycket du planerar att betala på den här skulden i maj 2026.";
+
+        // month-only rows disable the two plan-writing scopes
+        $$("[data-needs-link]", elScopeBlock).forEach((o) => {
+          const input = $("input", o);
+          if (isMonthOnly) {
+            o.classList.add("disabled");
+            input.disabled = true; input.checked = false;
+            if (!o.querySelector(".why")) {
+              const why = document.createElement("span");
+              why.className = "why";
+              why.textContent = "Inte tillgängligt — den här skulden finns inte i planen.";
+              o.querySelector(":scope > span").appendChild(why);
+            }
+          } else {
+            o.classList.remove("disabled");
+            input.disabled = false;
+            const why = o.querySelector(".why"); if (why) why.remove();
+          }
+        });
+        const cm = $("input[name='ed-scope'][value='currentMonthOnly']");
+        if (cm) cm.checked = true;
+
+        updateMinHint();
+        recomputePreview();
+        modal.classList.add("open");
+      }
+      window.openEditor = openEditor;
+
+      $$("[data-close-editor]").forEach((b) => b.addEventListener("click", () => modal.classList.remove("open")));
+      $$(".kebab-menu [data-menu='edit']").forEach((b) =>
+        b.addEventListener("click", () => openEditor(b.closest(".row")))
+      );
+
+      elAmount.addEventListener("focus", () => elAmountWrap.classList.add("focus"));
+      elAmount.addEventListener("blur", () => elAmountWrap.classList.remove("focus"));
+      elAmount.addEventListener("input", () => { elAmount.setAttribute("value", elAmount.value); updateMinHint(); recomputePreview(); });
+      $$("input[name='ed-scope']").forEach((i) => i.addEventListener("change", recomputePreview));
+
+      function updateMinHint() {
+        const hint = $("#ed-min-hint");
+        const text = $("#ed-min-hint-text");
+        const min = editorState.min;
+        const val = num(elAmount.value);
+        if (!min) { hint.className = "min-hint"; elAmountWrap.classList.remove("warnedge"); return; }
+        if (val < min) {
+          hint.className = "min-hint warn show";
+          text.textContent = "Lägre än minsta betalningen (" + kr(min) + "). Det kan ge avgifter eller ränta.";
+          elAmountWrap.classList.add("warnedge");
+        } else {
+          hint.className = "min-hint ok show";
+          text.textContent = "Minst " + kr(min) + " enligt villkoren.";
+          elAmountWrap.classList.remove("warnedge");
+        }
+      }
+
+      function recomputePreview() {
+        const row = editorState.row;
+        if (!row) return;
+        const oldAmount = num(row.dataset.payment);
+        const newAmount = num(elAmount.value);
+        const scope = ($("input[name='ed-scope']:checked") || {}).value || "currentMonthOnly";
+        const linked = !!row.dataset.source;
+        let monthDelta = 0, planDelta = 0;
+        if (scope === "currentMonthOnly") { monthDelta = newAmount - oldAmount; }
+        else if (scope === "currentMonthAndBudgetPlan") { monthDelta = newAmount - oldAmount; if (linked) planDelta = newAmount - editorState.planPayment; }
+        else if (scope === "budgetPlanOnly") { monthDelta = 0; if (linked) planDelta = newAmount - editorState.planPayment; }
+
+        const newMonth = baseMonthTotal + monthDelta;
+        const newFree = baseFree - monthDelta; // more debt payment => less free money this month
+        $("#ed-prev-month-val").textContent = kr(newMonth);
+        $("#ed-prev-free-val").textContent = kr(newFree);
+
+        // debt payment delta is neutral (navy), never green/red
+        labelNeutral($("#ed-prev-month-delta"), monthDelta);
+        // free-money delta: quiet, shows the trade-off without alarm
+        labelNeutral($("#ed-prev-free-delta"), -monthDelta);
+      }
+      function labelNeutral(el, delta) {
+        el.className = "";
+        if (delta === 0) { el.classList.add("delta-neutral"); el.textContent = "— oförändrat"; }
+        else if (delta > 0) { el.classList.add("delta-up"); el.textContent = "+" + kr(delta); }
+        else { el.classList.add("delta-down"); el.textContent = "−" + kr(Math.abs(delta)); }
+      }
+
+      $("#ed-save-btn").addEventListener("click", () => {
+        const row = editorState.row;
+        const payload = {
+          plannedMonthlyPayment: num(elAmount.value),
+          scope: (($("input[name='ed-scope']:checked") || {}).value || "currentMonthOnly"),
+        };
+        console.info("[MVP] PATCH /api/budgets/months/2026-05/debt-items/" + row.dataset.id, payload);
+        modal.classList.remove("open");
+      });
+    </script>
+
+    <!-- ===================== TWEAKS PANEL ===================== -->
+    <div id="tweaks-root"></div>
+    <script type="text/babel" data-presets="env,react">
+      const { useEffect } = React;
+      const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+        "balanceProminence": "lead",
+        "density": "comfortable",
+        "payoffLine": true,
+        "pageState": "normal"
+      }/*EDITMODE-END*/;
+
+      function DebtTweaks() {
+        const [t, setTweak] = window.useTweaks(TWEAK_DEFAULTS);
+        useEffect(() => {
+          document.body.dataset.balance = t.balanceProminence;
+          document.body.dataset.density = t.density;
+          document.body.dataset.payoff = t.payoffLine ? "1" : "0";
+          document.body.dataset.state = t.pageState;
+        }, [t.balanceProminence, t.density, t.payoffLine, t.pageState]);
+
+        return (
+          <window.TweaksPanel title="Tweaks">
+            <window.TweakSection label="Saldo">
+              <window.TweakRadio
+                label="Hur tydligt visas saldot"
+                value={t.balanceProminence}
+                onChange={(v) => setTweak("balanceProminence", v)}
+                options={[
+                  { value: "lead", label: "Betalningar leder" },
+                  { value: "coequal", label: "Jämställt" },
+                  { value: "card", label: "Eget kort" },
+                ]}
+              />
+            </window.TweakSection>
+            <window.TweakSection label="Layout">
+              <window.TweakRadio
+                label="Täthet"
+                value={t.density}
+                onChange={(v) => setTweak("density", v)}
+                options={[
+                  { value: "compact", label: "Kompakt" },
+                  { value: "comfortable", label: "Bekväm" },
+                ]}
+              />
+              <window.TweakToggle
+                label="Visa avbetalningstakt (framtida)"
+                value={t.payoffLine}
+                onChange={(v) => setTweak("payoffLine", v)}
+              />
+            </window.TweakSection>
+            <window.TweakSection label="Månad">
+              <window.TweakRadio
+                label="Sidans tillstånd"
+                value={t.pageState}
+                onChange={(v) => setTweak("pageState", v)}
+                options={[
+                  { value: "normal", label: "Normal" },
+                  { value: "empty", label: "Tomt" },
+                  { value: "readonly", label: "Skrivskyddad" },
+                ]}
+              />
+            </window.TweakSection>
+          </window.TweaksPanel>
+        );
+      }
+
+      const root = ReactDOM.createRoot(document.getElementById("tweaks-root"));
+      root.render(<DebtTweaks />);
+    </script>
+
+  </body>
+</html>

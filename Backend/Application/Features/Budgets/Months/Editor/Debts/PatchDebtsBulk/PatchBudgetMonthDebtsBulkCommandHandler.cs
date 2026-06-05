@@ -65,11 +65,14 @@ public sealed class PatchBudgetMonthDebtsBulkCommandHandler
             if (existing is null)
                 return Result<IReadOnlyList<BudgetMonthDebtEditorRowDto>>.Failure(BudgetMonthDebtErrors.NotFound);
 
-            if (existing.IsDeleted)
-                return Result<IReadOnlyList<BudgetMonthDebtEditorRowDto>>.Failure(BudgetMonthDebtErrors.RowDeleted);
-
-            if (string.Equals(existing.Status, "closed", StringComparison.OrdinalIgnoreCase))
-                return Result<IReadOnlyList<BudgetMonthDebtEditorRowDto>>.Failure(BudgetMonthDebtErrors.RowClosed);
+            // PR 1.5: shared with the single-row handler so bulk and single
+            // reject the same lifecycle / participation states. Returning here
+            // before any mutation runs preserves the bulk all-or-nothing
+            // contract — `DebtMutationApplier` is only invoked in the second
+            // loop, after every row has cleared the guard.
+            var mutability = DebtMutationGuard.EnsureMutable(existing);
+            if (mutability.IsFailure)
+                return Result<IReadOnlyList<BudgetMonthDebtEditorRowDto>>.Failure(mutability.Error!);
 
             var scope = ResolveScope(row.Scope);
             if (BudgetMonthDebtEditScopes.WritesBudgetPlan(scope))

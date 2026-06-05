@@ -1,5 +1,7 @@
 using System.Globalization;
+using Backend.Application.Constants;
 using Backend.Application.DTO.Budget.Months;
+using Backend.Application.DTO.Budget.Savings;
 using Backend.Domain.Entities.Budget.Savings;
 using Backend.Domain.Enums;
 
@@ -1070,11 +1072,13 @@ internal static class BudgetTimelineProfiles
     private const decimal LocalDevMarch2026DebtPayments = 2685m;
     private const decimal LocalDevMarch2026FinalBalance = 16520m;
 
-    // Goals-included contract: open month natural final balance with the
-    // current seed (3000 bassparande + 4000 goals + 2535 debts vs 53500
-    // income + 20420 carry - 67435 expenses) is -3050.
-    // AdjustMonthFinalBalanceAsync can only push down via expenses, so the
-    // forced target must match (or sit below) the natural state.
+    // Goals-included contract: the open month is forced to this displayed final
+    // balance via AdjustMonthFinalBalanceAsync, which can only push the balance
+    // *down* by adding an expense. The open-month lifecycle showcase only ever
+    // raises the natural balance (skipping Credit Card removes its planned
+    // payment from the month total; the paid-off / archived debts already carry a
+    // 0 planned payment), so the natural balance stays at or above this target
+    // and the adjuster always has room to push down to it.
     private const decimal LocalDevApril2026OpenFinalBalance = -3050m;
     private const decimal LocalDevDecember2025ActiveSubscriptionTotal = 466m;
 
@@ -1131,7 +1135,23 @@ internal static class BudgetTimelineProfiles
                         TargetAmount: 50000m,
                         TargetMonthOffset: 18,
                         AmountSaved: 18000m,
-                        MonthlyContribution: 900m)
+                        MonthlyContribution: 900m),
+                    // Lifecycle showcase goals. MonthlyContribution = 0 so they add
+                    // nothing to any month's savings total (and never break the
+                    // snapshot invariants); the open month closes them to populate
+                    // the Savings editor's completed / cancelled history.
+                    new BudgetTimelineSavingsGoalSeed(
+                        Name: "Wedding Fund",
+                        TargetAmount: 60000m,
+                        TargetMonthOffset: 6,
+                        AmountSaved: 60000m,
+                        MonthlyContribution: 0m),
+                    new BudgetTimelineSavingsGoalSeed(
+                        Name: "Old Car Fund",
+                        TargetAmount: 40000m,
+                        TargetMonthOffset: 14,
+                        AmountSaved: 8000m,
+                        MonthlyContribution: 0m)
                 ])
             {
                 // Rich showcase for the local-dev playground so the savings
@@ -1150,7 +1170,14 @@ internal static class BudgetTimelineProfiles
             Debts:
             [
                 new("Credit Card", "revolving", 28000m, 19.9m, 35m, 900m, null),
-                new("Car Loan", "installment", 120000m, 0m, 0m, null, 60)
+                new("Car Loan", "installment", 120000m, 0m, 0m, null, 60),
+                // Lifecycle showcase debts. Both compute a 0 planned payment
+                // (revolving with no min/fee; installment with no term) so they add
+                // nothing to any month's debt-payment total and leave the snapshot
+                // invariants untouched. The open month pays one off and archives the
+                // other to populate the Debt editor's Betald / Arkiverad groups.
+                new("Resurs Konto", "revolving", 5200m, 24.9m, 0m, 0m, null),
+                new("Klarna Avbetalning", "installment", 7400m, 0m, 0m, null, null)
             ]);
 
         var timeline = new BudgetTimelineMonthPlan[]
@@ -1510,6 +1537,41 @@ internal static class BudgetTimelineProfiles
                     [
                         new("Credit Card", Balance: 17250m, MinPayment: 750m),
                         new("Car Loan", Balance: 93000m)
+                    ],
+                    // ---- Debt / savings lifecycle showcase for the open month ----
+                    // Skip Credit Card this month: its planned payment leaves the
+                    // month total, but the balance is still owed (Ingår inte-gruppen).
+                    DebtParticipationChanges =
+                    [
+                        new("Credit Card",
+                            BudgetMonthDebtParticipationStatuses.NotIncluded,
+                            "Hoppar över denna månad – tight budget")
+                    ],
+                    // Pay one debt off (balance → 0, audited) and archive another.
+                    DebtLifecycleChanges =
+                    [
+                        new("Resurs Konto",
+                            DebtSourceLifecycleStatuses.PaidOff,
+                            SetBalanceToZero: true,
+                            Reason: "Slutbetald"),
+                        new("Klarna Avbetalning",
+                            DebtSourceLifecycleStatuses.Archived,
+                            Reason: "Pausad – tvist med handlaren")
+                    ],
+                    // Real liability-balance history for Car Loan so the repayment
+                    // progress view has DebtBalanceEvent rows to render.
+                    DebtBalanceEvents =
+                    [
+                        new("Car Loan", OldBalance: 105000m, NewBalance: 102000m, MonthsAgo: 3),
+                        new("Car Loan", OldBalance: 102000m, NewBalance: 99000m, MonthsAgo: 2),
+                        new("Car Loan", OldBalance: 99000m, NewBalance: 96000m, MonthsAgo: 1),
+                        new("Car Loan", OldBalance: 96000m, NewBalance: 93000m, MonthsAgo: 0)
+                    ],
+                    // Close the two showcase goals: one completed, one cancelled.
+                    SavingsGoalLifecycleChanges =
+                    [
+                        new("Wedding Fund", SavingsGoalLifecycleActions.Complete, "Målet nått"),
+                        new("Old Car Fund", SavingsGoalLifecycleActions.Cancel, "Behövs inte längre")
                     ]
                 },
                 BudgetMonthCarryOverModes.Full,

@@ -5,7 +5,9 @@ using Backend.Application.Abstractions.Application.Services.Debts;
 using Backend.Application.Abstractions.Application.Services.Budget;
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Application.Abstractions.Infrastructure.System;
+using Backend.Application.Constants;
 using Backend.Application.DTO.Budget.Months;
+using Backend.Application.DTO.Budget.Savings;
 using Backend.Application.Features.Budgets.Months.StartBudgetMonth;
 using MediatR;
 
@@ -853,6 +855,54 @@ internal sealed class BudgetTimelineSeeder
                 actorPersoid,
                 debt,
                 NextChangedAtUtc(),
+                ct);
+        }
+
+        // Participation changes (skip / re-include) before lifecycle so a debt
+        // that is both skipped and then paid off lands in a deterministic state.
+        foreach (var change in scenario.DebtParticipationChanges)
+        {
+            await SetDebtParticipationAsync(
+                budgetMonthId,
+                actorPersoid,
+                change.Name,
+                change.Participation,
+                change.Reason,
+                NextChangedAtUtc(),
+                ct);
+        }
+
+        foreach (var change in scenario.DebtLifecycleChanges)
+        {
+            await MarkDebtLifecycleAsync(
+                budgetMonthId,
+                actorPersoid,
+                change.Name,
+                change.Action,
+                change.SetBalanceToZero,
+                change.Reason,
+                NextChangedAtUtc(),
+                ct);
+        }
+
+        foreach (var change in scenario.SavingsGoalLifecycleChanges)
+        {
+            await SetSavingsGoalLifecycleAsync(
+                budgetMonthId,
+                actorPersoid,
+                change.Name,
+                change.Action,
+                change.Note,
+                NextChangedAtUtc(),
+                ct);
+        }
+
+        foreach (var balanceEvent in scenario.DebtBalanceEvents)
+        {
+            await InsertSeededDebtBalanceHistoryAsync(
+                budgetMonthId,
+                actorPersoid,
+                balanceEvent,
                 ct);
         }
 
@@ -1990,6 +2040,493 @@ internal sealed class BudgetTimelineSeeder
             changedByUserId: actorPersoid,
             changedAtUtc: changedAtUtc,
             ct: ct);
+    }
+
+    private async Task SetDebtParticipationAsync(
+        Guid budgetMonthId,
+        Guid actorPersoid,
+        string debtName,
+        string participation,
+        string? reason,
+        DateTime changedAtUtc,
+        CancellationToken ct)
+    {
+        if (!BudgetMonthDebtParticipationStatuses.IsSupported(participation))
+        {
+            throw new InvalidOperationException(
+                $"Unsupported debt participation '{participation}' for '{debtName}'.");
+        }
+
+        var conn = await _uow.GetOpenConnectionAsync(ct);
+
+        await using var lookup = conn.CreateCommand();
+        lookup.Transaction = _uow.Transaction;
+        lookup.CommandText = @"
+            SELECT Id, SourceDebtId, ParticipationStatus
+            FROM BudgetMonthDebt
+            WHERE BudgetMonthId = @BudgetMonthId
+              AND Name = @DebtName
+              AND IsDeleted = 0
+            ORDER BY CreatedAt
+            LIMIT 1;";
+
+        AddParameter(lookup, "BudgetMonthId", budgetMonthId);
+        AddParameter(lookup, "DebtName", debtName);
+
+        Guid entityId;
+        Guid? sourceEntityId;
+        string oldParticipation;
+
+        await using (var reader = await lookup.ExecuteReaderAsync(ct))
+        {
+            if (!await reader.ReadAsync(ct))
+            {
+                throw new InvalidOperationException(
+                    $"Could not find debt '{debtName}' in month {budgetMonthId} to change participation.");
+            }
+
+            entityId = reader.GetGuid(0);
+            sourceEntityId = reader.IsDBNull(1) ? null : reader.GetGuid(1);
+            oldParticipation = reader.GetString(2);
+        }
+
+        if (string.Equals(oldParticipation, participation, StringComparison.Ordinal))
+            return;
+
+        await ExecuteAsync(
+            @"UPDATE BudgetMonthDebt
+              SET ParticipationStatus = @Participation,
+                  ParticipationChangedAt = @ChangedAtUtc,
+                  ParticipationReason = @Reason,
+                  UpdatedAt = @ChangedAtUtc,
+                  UpdatedByUserId = @ActorPersoid
+              WHERE Id = @EntityId;",
+            new Dictionary<string, object?>
+            {
+                ["Participation"] = participation,
+                ["ChangedAtUtc"] = changedAtUtc,
+                ["Reason"] = reason,
+                ["ActorPersoid"] = actorPersoid,
+                ["EntityId"] = entityId
+            },
+            ct);
+
+        await InsertBudgetMonthChangeEventAsync(
+            budgetMonthId: budgetMonthId,
+            entityType: "debt",
+            entityId: entityId,
+            sourceEntityId: sourceEntityId,
+            changeType: "updated",
+            changeSet: new
+            {
+                participation = new
+                {
+                    before = oldParticipation,
+                    after = participation,
+                    reason
+                }
+            },
+            changedByUserId: actorPersoid,
+            changedAtUtc: changedAtUtc,
+            ct: ct);
+    }
+
+    private async Task MarkDebtLifecycleAsync(
+        Guid budgetMonthId,
+        Guid actorPersoid,
+        string debtName,
+        string action,
+        bool setBalanceToZero,
+        string? reason,
+        DateTime changedAtUtc,
+        CancellationToken ct)
+    {
+        if (action is not (DebtSourceLifecycleStatuses.PaidOff or DebtSourceLifecycleStatuses.Archived))
+        {
+            throw new InvalidOperationException(
+                $"Unsupported debt lifecycle action '{action}' for '{debtName}'. Expected 'paidOff' or 'archived'.");
+        }
+
+        var conn = await _uow.GetOpenConnectionAsync(ct);
+
+        await using var lookup = conn.CreateCommand();
+        lookup.Transaction = _uow.Transaction;
+        lookup.CommandText = @"
+            SELECT Id, SourceDebtId, Balance, ParticipationStatus
+            FROM BudgetMonthDebt
+            WHERE BudgetMonthId = @BudgetMonthId
+              AND Name = @DebtName
+              AND IsDeleted = 0
+            ORDER BY CreatedAt
+            LIMIT 1;";
+
+        AddParameter(lookup, "BudgetMonthId", budgetMonthId);
+        AddParameter(lookup, "DebtName", debtName);
+
+        Guid entityId;
+        Guid? sourceEntityId;
+        decimal oldMonthBalance;
+        string oldParticipation;
+
+        await using (var reader = await lookup.ExecuteReaderAsync(ct))
+        {
+            if (!await reader.ReadAsync(ct))
+            {
+                throw new InvalidOperationException(
+                    $"Could not find debt '{debtName}' in month {budgetMonthId} for lifecycle action '{action}'.");
+            }
+
+            entityId = reader.GetGuid(0);
+            sourceEntityId = reader.IsDBNull(1) ? null : reader.GetGuid(1);
+            oldMonthBalance = reader.GetDecimal(2);
+            oldParticipation = reader.GetString(3);
+        }
+
+        if (sourceEntityId is null)
+        {
+            throw new InvalidOperationException(
+                $"Debt '{debtName}' in month {budgetMonthId} is month-only; lifecycle action '{action}' requires a plan-linked source debt.");
+        }
+
+        var budgetId = await GetBudgetIdForMonthAsync(budgetMonthId, ct);
+
+        var oldSourceBalance = await QueryDecimalAsync(
+            "SELECT Balance FROM Debt WHERE Id = @DebtId LIMIT 1;",
+            new Dictionary<string, object?> { ["DebtId"] = sourceEntityId.Value },
+            ct);
+
+        var paidOff = action == DebtSourceLifecycleStatuses.PaidOff;
+
+        // Source lifecycle: terminal status + the matching timestamp. PaidOff
+        // optionally zeroes the liability; Archived leaves the balance owed.
+        await ExecuteAsync(
+            @"UPDATE Debt
+              SET Status = @Status,
+                  PaidOffAt = @PaidOffAt,
+                  ArchivedAt = @ArchivedAt,
+                  LifecycleReason = @Reason,
+                  Balance = @Balance,
+                  UpdatedAt = @ChangedAtUtc,
+                  UpdatedByUserId = @ActorPersoid
+              WHERE Id = @DebtId;",
+            new Dictionary<string, object?>
+            {
+                ["Status"] = action,
+                ["PaidOffAt"] = paidOff ? changedAtUtc : (object?)null,
+                ["ArchivedAt"] = paidOff ? (object?)null : changedAtUtc,
+                ["Reason"] = reason,
+                ["Balance"] = (paidOff && setBalanceToZero) ? 0m : oldSourceBalance,
+                ["ChangedAtUtc"] = changedAtUtc,
+                ["ActorPersoid"] = actorPersoid,
+                ["DebtId"] = sourceEntityId.Value
+            },
+            ct);
+
+        // Month row: drop out of the month's payment total via participation and
+        // mirror the balance when the debt was paid to zero. The row is kept so
+        // the open month's editor still shows it in the paid / archived group.
+        var newMonthBalance = (paidOff && setBalanceToZero) ? 0m : oldMonthBalance;
+
+        await ExecuteAsync(
+            @"UPDATE BudgetMonthDebt
+              SET ParticipationStatus = @Participation,
+                  ParticipationChangedAt = @ChangedAtUtc,
+                  ParticipationReason = @Reason,
+                  Balance = @Balance,
+                  IsOverride = 1,
+                  UpdatedAt = @ChangedAtUtc,
+                  UpdatedByUserId = @ActorPersoid
+              WHERE Id = @EntityId;",
+            new Dictionary<string, object?>
+            {
+                ["Participation"] = BudgetMonthDebtParticipationStatuses.NotIncluded,
+                ["ChangedAtUtc"] = changedAtUtc,
+                ["Reason"] = reason,
+                ["Balance"] = newMonthBalance,
+                ["ActorPersoid"] = actorPersoid,
+                ["EntityId"] = entityId
+            },
+            ct);
+
+        if (paidOff && setBalanceToZero)
+        {
+            if (oldSourceBalance != 0m)
+            {
+                await InsertDebtBalanceEventAsync(
+                    budgetId: budgetId,
+                    debtId: sourceEntityId.Value,
+                    budgetMonthDebtId: null,
+                    budgetMonthId: null,
+                    oldBalance: oldSourceBalance,
+                    newBalance: 0m,
+                    scope: BudgetMonthDebtEditScopes.CurrentMonthAndBudgetPlan,
+                    note: reason,
+                    changedAtUtc: changedAtUtc,
+                    changedByUserId: actorPersoid,
+                    ct: ct);
+            }
+
+            if (oldMonthBalance != 0m)
+            {
+                await InsertDebtBalanceEventAsync(
+                    budgetId: budgetId,
+                    debtId: null,
+                    budgetMonthDebtId: entityId,
+                    budgetMonthId: budgetMonthId,
+                    oldBalance: oldMonthBalance,
+                    newBalance: 0m,
+                    scope: BudgetMonthDebtEditScopes.CurrentMonthAndBudgetPlan,
+                    note: reason,
+                    changedAtUtc: changedAtUtc,
+                    changedByUserId: actorPersoid,
+                    ct: ct);
+            }
+        }
+
+        await InsertBudgetMonthChangeEventAsync(
+            budgetMonthId: budgetMonthId,
+            entityType: "debt",
+            entityId: entityId,
+            sourceEntityId: sourceEntityId,
+            changeType: "updated",
+            changeSet: new
+            {
+                lifecycle = new
+                {
+                    before = DebtSourceLifecycleStatuses.Active,
+                    after = action,
+                    reason
+                },
+                participation = new
+                {
+                    before = oldParticipation,
+                    after = BudgetMonthDebtParticipationStatuses.NotIncluded
+                },
+                balance = setBalanceToZero
+                    ? new { before = oldMonthBalance, after = newMonthBalance }
+                    : null
+            },
+            changedByUserId: actorPersoid,
+            changedAtUtc: changedAtUtc,
+            ct: ct);
+    }
+
+    private async Task SetSavingsGoalLifecycleAsync(
+        Guid budgetMonthId,
+        Guid actorPersoid,
+        string goalName,
+        string action,
+        string? note,
+        DateTime changedAtUtc,
+        CancellationToken ct)
+    {
+        var closedReason = SavingsGoalLifecycleActions.ToClosedReason(action);
+        if (closedReason is null)
+        {
+            throw new InvalidOperationException(
+                $"Unsupported savings goal lifecycle action '{action}' for '{goalName}'.");
+        }
+
+        var conn = await _uow.GetOpenConnectionAsync(ct);
+
+        await using var lookup = conn.CreateCommand();
+        lookup.Transaction = _uow.Transaction;
+        lookup.CommandText = @"
+            SELECT g.Id, g.SourceSavingsGoalId, g.Status
+            FROM BudgetMonthSavingsGoal g
+            INNER JOIN BudgetMonthSavings s ON s.Id = g.BudgetMonthSavingsId
+            WHERE s.BudgetMonthId = @BudgetMonthId
+              AND g.Name = @GoalName
+              AND g.IsDeleted = 0
+            ORDER BY g.CreatedAt
+            LIMIT 1;";
+
+        AddParameter(lookup, "BudgetMonthId", budgetMonthId);
+        AddParameter(lookup, "GoalName", goalName);
+
+        Guid entityId;
+        Guid? sourceEntityId;
+        string oldStatus;
+
+        await using (var reader = await lookup.ExecuteReaderAsync(ct))
+        {
+            if (!await reader.ReadAsync(ct))
+            {
+                throw new InvalidOperationException(
+                    $"Could not find savings goal '{goalName}' in month {budgetMonthId} for lifecycle action '{action}'.");
+            }
+
+            entityId = reader.GetGuid(0);
+            sourceEntityId = reader.IsDBNull(1) ? null : reader.GetGuid(1);
+            oldStatus = reader.GetString(2);
+        }
+
+        if (string.Equals(oldStatus, SavingsGoalStatuses.Closed, StringComparison.Ordinal))
+            return;
+
+        await ExecuteAsync(
+            @"UPDATE BudgetMonthSavingsGoal
+              SET Status = @Status,
+                  ClosedReason = @ClosedReason,
+                  ClosedAt = @ChangedAtUtc,
+                  IsOverride = 1,
+                  UpdatedAt = @ChangedAtUtc,
+                  UpdatedByUserId = @ActorPersoid
+              WHERE Id = @EntityId;",
+            new Dictionary<string, object?>
+            {
+                ["Status"] = SavingsGoalStatuses.Closed,
+                ["ClosedReason"] = closedReason,
+                ["ChangedAtUtc"] = changedAtUtc,
+                ["ActorPersoid"] = actorPersoid,
+                ["EntityId"] = entityId
+            },
+            ct);
+
+        if (sourceEntityId is not null)
+        {
+            await ExecuteAsync(
+                @"UPDATE SavingsGoal
+                  SET Status = @Status,
+                      ClosedReason = @ClosedReason,
+                      ClosedAt = @ChangedAtUtc,
+                      UpdatedAt = @ChangedAtUtc,
+                      UpdatedByUserId = @ActorPersoid
+                  WHERE Id = @GoalId;",
+                new Dictionary<string, object?>
+                {
+                    ["Status"] = SavingsGoalStatuses.Closed,
+                    ["ClosedReason"] = closedReason,
+                    ["ChangedAtUtc"] = changedAtUtc,
+                    ["ActorPersoid"] = actorPersoid,
+                    ["GoalId"] = sourceEntityId.Value
+                },
+                ct);
+        }
+
+        await InsertBudgetMonthChangeEventAsync(
+            budgetMonthId: budgetMonthId,
+            entityType: "savings-goal",
+            entityId: entityId,
+            sourceEntityId: sourceEntityId,
+            changeType: "updated",
+            changeSet: new
+            {
+                lifecycle = new
+                {
+                    before = new { status = oldStatus },
+                    after = new { status = SavingsGoalStatuses.Closed, reason = closedReason },
+                    action,
+                    note
+                }
+            },
+            changedByUserId: actorPersoid,
+            changedAtUtc: changedAtUtc,
+            ct: ct);
+    }
+
+    private async Task InsertSeededDebtBalanceHistoryAsync(
+        Guid budgetMonthId,
+        Guid actorPersoid,
+        BudgetTimelineDebtBalanceEvent balanceEvent,
+        CancellationToken ct)
+    {
+        var budgetId = await GetBudgetIdForMonthAsync(budgetMonthId, ct);
+
+        var debtId = await QueryGuidAsync(
+            @"SELECT Id FROM Debt
+              WHERE BudgetId = @BudgetId
+                AND Name = @Name
+              ORDER BY CreatedAt
+              LIMIT 1;",
+            new Dictionary<string, object?>
+            {
+                ["BudgetId"] = budgetId,
+                ["Name"] = balanceEvent.Name
+            },
+            ct);
+
+        if (debtId is null)
+        {
+            throw new InvalidOperationException(
+                $"Could not find plan debt '{balanceEvent.Name}' for budget {budgetId} to seed balance history.");
+        }
+
+        var now = new DateTime(
+            _clock.UtcNow.Year, _clock.UtcNow.Month, _clock.UtcNow.Day,
+            12, 0, 0, DateTimeKind.Utc);
+        var changedAtUtc = now.AddMonths(-balanceEvent.MonthsAgo);
+
+        await InsertDebtBalanceEventAsync(
+            budgetId: budgetId,
+            debtId: debtId.Value,
+            budgetMonthDebtId: null,
+            budgetMonthId: null,
+            oldBalance: balanceEvent.OldBalance,
+            newBalance: balanceEvent.NewBalance,
+            scope: BudgetMonthDebtEditScopes.BudgetPlanOnly,
+            note: balanceEvent.Note,
+            changedAtUtc: changedAtUtc,
+            changedByUserId: actorPersoid,
+            ct: ct);
+    }
+
+    private Task InsertDebtBalanceEventAsync(
+        Guid budgetId,
+        Guid? debtId,
+        Guid? budgetMonthDebtId,
+        Guid? budgetMonthId,
+        decimal oldBalance,
+        decimal newBalance,
+        string scope,
+        string? note,
+        DateTime changedAtUtc,
+        Guid changedByUserId,
+        CancellationToken ct)
+    {
+        return ExecuteAsync(
+            @"INSERT INTO DebtBalanceEvent
+              (
+                  Id, BudgetId, DebtId, BudgetMonthDebtId, BudgetMonthId,
+                  OldBalance, NewBalance, Delta, Scope, Note, ChangedAt, ChangedByUserId
+              )
+              VALUES
+              (
+                  @Id, @BudgetId, @DebtId, @BudgetMonthDebtId, @BudgetMonthId,
+                  @OldBalance, @NewBalance, @Delta, @Scope, @Note, @ChangedAt, @ChangedByUserId
+              );",
+            new Dictionary<string, object?>
+            {
+                ["Id"] = Guid.NewGuid(),
+                ["BudgetId"] = budgetId,
+                ["DebtId"] = debtId,
+                ["BudgetMonthDebtId"] = budgetMonthDebtId,
+                ["BudgetMonthId"] = budgetMonthId,
+                ["OldBalance"] = oldBalance,
+                ["NewBalance"] = newBalance,
+                ["Delta"] = newBalance - oldBalance,
+                ["Scope"] = scope,
+                ["Note"] = note,
+                ["ChangedAt"] = changedAtUtc,
+                ["ChangedByUserId"] = changedByUserId
+            },
+            ct);
+    }
+
+    private async Task<Guid> GetBudgetIdForMonthAsync(Guid budgetMonthId, CancellationToken ct)
+    {
+        var budgetId = await QueryGuidAsync(
+            "SELECT BudgetId FROM BudgetMonth WHERE Id = @BudgetMonthId LIMIT 1;",
+            new Dictionary<string, object?> { ["BudgetMonthId"] = budgetMonthId },
+            ct);
+
+        if (budgetId is null)
+        {
+            throw new InvalidOperationException(
+                $"Could not resolve BudgetId for month {budgetMonthId}.");
+        }
+
+        return budgetId.Value;
     }
 
     private decimal CalculateMonthlyPayment(

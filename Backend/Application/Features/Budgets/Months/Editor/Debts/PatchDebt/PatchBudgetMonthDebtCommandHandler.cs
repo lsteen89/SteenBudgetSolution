@@ -56,11 +56,12 @@ public sealed class PatchBudgetMonthDebtCommandHandler
         if (existing is null)
             return Result<BudgetMonthDebtEditorRowDto?>.Failure(BudgetMonthDebtErrors.NotFound);
 
-        if (existing.IsDeleted)
-            return Result<BudgetMonthDebtEditorRowDto?>.Failure(BudgetMonthDebtErrors.RowDeleted);
-
-        if (string.Equals(existing.Status, "closed", StringComparison.OrdinalIgnoreCase))
-            return Result<BudgetMonthDebtEditorRowDto?>.Failure(BudgetMonthDebtErrors.RowClosed);
+        // PR 1.5: pre-flight is shared with the bulk handler so the two paths
+        // cannot drift on which lifecycle / participation states reject
+        // planned-payment mutation.
+        var mutability = DebtMutationGuard.EnsureMutable(existing);
+        if (mutability.IsFailure)
+            return Result<BudgetMonthDebtEditorRowDto?>.Failure(mutability.Error!);
 
         return await DebtMutationApplier.ApplyAsync(
             _repo,

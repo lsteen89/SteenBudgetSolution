@@ -67,12 +67,20 @@ public sealed partial class BudgetMonthDashboardRepository
             LIMIT 1
         ), 0) AS TotalSavingsMonthly,
 
+        -- Debt PR 1: liability balance includes `notIncluded` rows (the user
+        -- still owes the money even when payment is skipped this month) but
+        -- excludes `removed` participation and source lifecycle terminations
+        -- (paidOff / archived / deleted) — those liabilities are no longer
+        -- carried in normal planning. `IsDeleted = 0` is retained for backward
+        -- compatibility with rows that pre-date the participation column.
         COALESCE((
             SELECT SUM(d.Balance)
             FROM BudgetMonthDebt d
+            LEFT JOIN Debt src ON src.Id = d.SourceDebtId
             WHERE d.BudgetMonthId = bm.Id
             AND d.IsDeleted = 0
-            AND d.Status = 'active'
+            AND d.ParticipationStatus <> 'removed'
+            AND (src.Id IS NULL OR src.Status = 'active')
         ), 0) AS TotalDebtBalance
 
     FROM BudgetMonth bm
@@ -121,22 +129,29 @@ public sealed partial class BudgetMonthDashboardRepository
     AND s.IsDeleted = 0
     ORDER BY g.SortOrder, g.CreatedAt, g.Id;";
 
+    // Debt PR 1: this projection feeds `BudgetMonthlyTotalsService`, which sums
+    // every returned row's `MonthlyPayment` into the month's debt-payment total.
+    // Filtering by `ParticipationStatus = 'included'` is what makes skip /
+    // not-included rows drop out of the dashboard equation without zeroing
+    // anyone's planned payment value.
     private const string DebtsSql = @"
     SELECT
-        Id,
-        Name,
-        Type,
-        Balance,
-        Apr,
-        MonthlyFee,
-        MinPayment,
-        TermMonths,
-        MonthlyPayment
-    FROM BudgetMonthDebt
-    WHERE BudgetMonthId = @BudgetMonthId
-    AND IsDeleted = 0
-    AND Status = 'active'
-    ORDER BY Balance DESC;";
+        d.Id,
+        d.Name,
+        d.Type,
+        d.Balance,
+        d.Apr,
+        d.MonthlyFee,
+        d.MinPayment,
+        d.TermMonths,
+        d.MonthlyPayment
+    FROM BudgetMonthDebt d
+    LEFT JOIN Debt src ON src.Id = d.SourceDebtId
+    WHERE d.BudgetMonthId = @BudgetMonthId
+    AND d.IsDeleted = 0
+    AND d.ParticipationStatus = 'included'
+    AND (src.Id IS NULL OR src.Status = 'active')
+    ORDER BY d.Balance DESC;";
 
     private const string RecurringExpensesSql = @"
     SELECT
