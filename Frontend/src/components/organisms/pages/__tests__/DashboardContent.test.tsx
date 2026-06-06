@@ -907,8 +907,13 @@ describe("DashboardContent", () => {
 
     const carryOverOption = screen.getByTestId("resolve-carry-over");
     const keepOption = screen.getByTestId("resolve-keep");
-    expect(carryOverOption).toHaveTextContent(/carry over to may 2026/i);
-    expect(keepOption).toHaveTextContent(/keep in april/i);
+    // Carry-over card title is "{nextMonth} gets +{amount}"; keep card title
+    // is "Stay in {monthOnly}". Each card also surfaces a kicker that mirrors
+    // the action verb so the test stays robust to copy tweaks.
+    expect(carryOverOption).toHaveTextContent(/carry over/i);
+    expect(carryOverOption).toHaveTextContent(/may 2026/i);
+    expect(keepOption).toHaveTextContent(/keep/i);
+    expect(keepOption).toHaveTextContent(/stay in april/i);
     expect(keepOption).not.toHaveTextContent(/2026/);
     expect(keepOption).toHaveAttribute("aria-checked", "true");
     expect(carryOverOption).toHaveAttribute("aria-checked", "false");

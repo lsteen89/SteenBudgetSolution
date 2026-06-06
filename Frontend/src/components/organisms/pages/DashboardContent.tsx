@@ -236,6 +236,22 @@ function LoadedDashboardContent({
   const yearMonth = summary.header.periodKey;
   const isClosedMonth = summary.header.periodStatus === "closed";
   const isSkippedMonth = summary.header.periodStatus === "skipped";
+
+  // Year of the period currently being viewed. Used to scope the chapter
+  // ribbon + year strip on the close-month modal to that year only.
+  const currentYear = yearMonth.slice(0, 4);
+  const closedMonthsInYear = archiveMonths.reduce(
+    (count, month) =>
+      month.status === "closed" && month.yearMonth.startsWith(currentYear)
+        ? count + 1
+        : count,
+    0,
+  );
+  const yearMonthList = Array.from(
+    { length: 12 },
+    (_, monthIndex) =>
+      `${currentYear}-${String(monthIndex + 1).padStart(2, "0")}`,
+  );
   const recapQuery = useBudgetMonthRecapQuery(yearMonth, {
     enabled: isClosedMonth,
   });
@@ -370,6 +386,8 @@ function LoadedDashboardContent({
             onClose={closeMonthReview.close}
             onConfirm={closeMonthReview.confirm}
             onSelectCarryOverMode={closeMonthReview.selectCarryOverMode}
+            closedMonthsInYear={closedMonthsInYear}
+            yearMonthList={yearMonthList}
           />
 
           <EditPeriodDrawer

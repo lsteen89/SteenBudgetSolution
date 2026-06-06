@@ -1,0 +1,184 @@
+<!doctype html>
+<!-- @dsCard group="Brand" name="Close month — explorations" subtitle="Modal + handoff redesign, calm dopamine" -->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Close month · explorations</title>
+  <link rel="icon" href="../../assets/brand/apple-touch-icon.png" />
+  <link rel="stylesheet" href="../../colors_and_type.css" />
+  <style>
+    html, body { margin: 0; padding: 0; }
+    body { font-family: Inter, sans-serif; }
+
+    /* helpers used inside artboards */
+    .tabular { font-variant-numeric: tabular-nums; }
+
+    /* soft confetti particle */
+    @keyframes cm-confetti-fall {
+      0%   { transform: translate3d(0, -20px, 0) rotate(0deg);   opacity: 0; }
+      8%   { opacity: 1; }
+      90%  { opacity: 1; }
+      100% { transform: translate3d(var(--cm-dx, 0), var(--cm-dy, 360px), 0) rotate(var(--cm-rot, 540deg)); opacity: 0; }
+    }
+    .cm-confetti-piece {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      width: 8px; height: 12px;
+      border-radius: 2px;
+      will-change: transform, opacity;
+      animation: cm-confetti-fall var(--cm-dur, 1800ms) cubic-bezier(.22,.61,.36,1) forwards;
+      animation-delay: var(--cm-delay, 0ms);
+      opacity: 0;
+    }
+
+    @keyframes cm-halo-breathe {
+      0%, 100% { transform: scale(1);   opacity: .55; }
+      50%      { transform: scale(1.06); opacity: .85; }
+    }
+    .cm-halo {
+      animation: cm-halo-breathe 3.4s ease-in-out infinite;
+    }
+
+    @keyframes cm-stamp-settle {
+      0%   { transform: scale(2.2) rotate(-12deg); opacity: 0; filter: blur(6px); }
+      55%  { transform: scale(0.94) rotate(-7deg); opacity: 1; filter: blur(0); }
+      75%  { transform: scale(1.02) rotate(-7deg); }
+      100% { transform: scale(1) rotate(-7deg);    opacity: 1; }
+    }
+    .cm-stamp {
+      animation: cm-stamp-settle 760ms cubic-bezier(.2,.9,.2,1) forwards;
+    }
+
+    @keyframes cm-mascot-hello {
+      0%   { transform: translateY(8px) rotate(-3deg); opacity: 0; }
+      60%  { transform: translateY(-2px) rotate(2deg); opacity: 1; }
+      100% { transform: translateY(0)    rotate(0);    opacity: 1; }
+    }
+    .cm-mascot-hello {
+      animation: cm-mascot-hello 520ms cubic-bezier(.2,.9,.2,1) both;
+    }
+
+    @keyframes cm-float {
+      0%, 100% { transform: translateY(0); }
+      50%      { transform: translateY(-6px); }
+    }
+    .cm-float { animation: cm-float 3.6s ease-in-out infinite; }
+
+    @keyframes cm-ring-sweep {
+      from { stroke-dashoffset: var(--cm-len, 360); }
+      to   { stroke-dashoffset: var(--cm-target, 0); }
+    }
+    .cm-ring-sweep {
+      animation: cm-ring-sweep 1100ms cubic-bezier(.22,.61,.36,1) forwards;
+    }
+
+    @keyframes cm-fade-up {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .cm-fade-up { animation: cm-fade-up 480ms ease-out both; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .cm-confetti-piece, .cm-halo, .cm-stamp, .cm-mascot-hello,
+      .cm-float, .cm-ring-sweep, .cm-fade-up { animation: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js"
+          integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L"
+          crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js"
+          integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm"
+          crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"
+          integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y"
+          crossorigin="anonymous"></script>
+
+  <script type="text/babel" src="design-canvas.jsx"></script>
+  <script type="text/babel" src="shared.jsx"></script>
+
+  <script type="text/babel" src="ReviewBaseline.jsx"></script>
+  <script type="text/babel" src="ReviewHero.jsx"></script>
+
+  <script type="text/babel" src="HandoffBaseline.jsx"></script>
+  <script type="text/babel" src="HandoffConfetti.jsx"></script>
+  <script type="text/babel" src="HandoffTakeover.jsx"></script>
+
+  <script type="text/babel" data-presets="env,react">
+    function App() {
+      return (
+        <DesignCanvas>
+          <DCSection
+            id="review"
+            title="Close month · review modal"
+            subtitle={
+              "Before / after of the confirmation step. The brief was \u201chit dopamine\u201d \u2014 " +
+              "the system reads as calm Nordic, so the variants quietly reward the habit " +
+              "instead of celebrating loudly. No exclamation marks, no shame on a deficit."
+            }
+          >
+            <DCArtboard
+              id="review-baseline"
+              label="Baseline · current modal"
+              width={820}
+              height={780}
+            >
+              <ReviewBaseline />
+            </DCArtboard>
+            <DCArtboard
+              id="review-hero"
+              label="Dopamine · hero remaining + chapter ribbon"
+              width={820}
+              height={780}
+            >
+              <ReviewHero />
+            </DCArtboard>
+          </DCSection>
+
+          <DCSection
+            id="handoff"
+            title="Close month · post-close handoff"
+            subtitle={
+              "The screen the user lands on the moment a month closes. " +
+              "This is where the dopamine lives \u2014 a single quiet moment of " +
+              "\u201cyou did the thing.\u201d Three takes, increasing in ambition."
+            }
+          >
+            <DCArtboard
+              id="handoff-baseline"
+              label="Baseline · current handoff card"
+              width={1100}
+              height={560}
+            >
+              <HandoffBaseline />
+            </DCArtboard>
+            <DCArtboard
+              id="handoff-confetti"
+              label="V1 · Inline · mascot + soft confetti + count-up"
+              width={1100}
+              height={560}
+            >
+              <HandoffConfetti />
+            </DCArtboard>
+            <DCArtboard
+              id="handoff-takeover"
+              label="V2 · Full takeover · chapter stamp + year strip"
+              width={1280}
+              height={820}
+            >
+              <HandoffTakeover />
+            </DCArtboard>
+          </DCSection>
+        </DesignCanvas>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>

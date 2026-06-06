@@ -197,6 +197,31 @@ body {
   }
 }
 
+/* Close-month modal — quiet breathing halo behind the hero amount. */
+@keyframes cm-hero-halo {
+  0%, 100% { opacity: 0.6; }
+  50%      { opacity: 1; }
+}
+.cm-hero-halo {
+  animation: cm-hero-halo 3.2s ease-in-out infinite;
+}
+
+/* Close-month modal — peeking mascot floats a few pixels. */
+@keyframes cm-mascot-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-4px); }
+}
+.cm-mascot-float {
+  animation: cm-mascot-float 4.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cm-hero-halo,
+  .cm-mascot-float {
+    animation: none;
+  }
+}
+
 * {
   @apply border-border;
 }
