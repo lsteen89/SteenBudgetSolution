@@ -1,5 +1,7 @@
+import CalcBird from "@assets/Images/CalcBird.png";
 import { CtaButton } from "@/components/atoms/buttons/CtaButton";
 import { secondaryActionClass } from "@/components/atoms/buttons/ctaStyles";
+import { YearChapterStrip } from "@/components/atoms/dashboard/YearChapterStrip";
 import {
   Dialog,
   DialogContent,
@@ -7,14 +9,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useCountUp } from "@/hooks/animation/useCountUp";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/lib/utils";
 import { closeMonthReviewModalDict } from "@/utils/i18n/pages/private/dashboard/closeMonth/CloseMonthReviewModal.i18n";
 import { tDict } from "@/utils/i18n/translate";
 import type { CurrencyCode } from "@/utils/money/currency";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
-import { AnimatePresence, motion } from "framer-motion";
-import { Check, ChevronDown } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { ArrowRight, Check, ChevronDown } from "lucide-react";
 import { useId, useState } from "react";
 
 import type {
@@ -40,6 +43,10 @@ type CloseMonthReviewModalProps = {
   onClose: () => void;
   onConfirm: () => Promise<void> | void;
   onSelectCarryOverMode: (mode: CloseMonthCarryOverMode) => void;
+  // Presentational extras for the chapter ribbon + year strip. Optional so
+  // older call sites and tests keep rendering without them.
+  closedMonthsInYear?: number;
+  yearMonthList?: readonly string[];
 };
 
 const NEAR_ZERO = 0.005;
@@ -82,8 +89,11 @@ export default function CloseMonthReviewModal({
   onClose,
   onConfirm,
   onSelectCarryOverMode,
+  closedMonthsInYear = 0,
+  yearMonthList,
 }: CloseMonthReviewModalProps) {
   const locale = useAppLocale();
+  const prefersReducedMotion = useReducedMotion() ?? false;
   const t = <K extends keyof typeof closeMonthReviewModalDict.sv>(key: K) =>
     tDict(key, locale, closeMonthReviewModalDict);
 
@@ -92,6 +102,7 @@ export default function CloseMonthReviewModal({
 
   const isPositiveRemaining = reviewState.state === "positiveRemaining";
   const isNegativeRemaining = reviewState.state === "negativeRemaining";
+  const isBalanced = reviewState.state === "balanced";
 
   const remainingLabel = formatMoneyV2(summary.remaining, currency, locale);
   const absoluteRemainingLabel = formatMoneyV2(
@@ -102,8 +113,18 @@ export default function CloseMonthReviewModal({
 
   const title = t("title").replace("{month}", periodLabel);
   const confirmLabel = t("confirm").replace("{month}", periodLabel);
+  const chapterRibbon = t("chapterRibbon").replace(
+    "{closed}",
+    String(closedMonthsInYear + 1),
+  );
+  const footerNote = t("footerNote").replace("{month}", periodLabel);
 
   const showIncomingCarryOver = Math.abs(summary.incomingCarryOver) >= NEAR_ZERO;
+
+  // Snap to target when reduced motion is requested or the hero is not
+  // visible. Hook still runs on every render for stable ordering.
+  const heroAnimationEnabled = open && isPositiveRemaining && !prefersReducedMotion;
+  const animatedHero = useCountUp(summary.remaining, 1100, heroAnimationEnabled);
 
   return (
     <Dialog
@@ -112,33 +133,61 @@ export default function CloseMonthReviewModal({
     >
       <DialogContent
         data-testid="close-month-modal"
+        data-reduce-motion={prefersReducedMotion ? "true" : undefined}
         className={cn(
-          "flex max-h-[calc(100dvh-4rem)] w-[min(720px,calc(100vw-2rem))] flex-col overflow-hidden",
+          "flex max-h-[calc(100dvh-3rem)] w-[min(780px,calc(100vw-2rem))] flex-col overflow-hidden",
           "rounded-3xl border-eb-stroke/20 bg-eb-surface p-0 shadow-[0_28px_80px_rgba(21,39,81,0.18)]",
         )}
       >
         <div className="flex min-h-0 flex-1 flex-col bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(244,248,255,0.96))]">
           <div className="min-h-0 flex-1 overflow-y-auto">
-            <div className="px-6 pt-6 pb-4 sm:px-8 sm:pt-7">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-eb-text/45">
-                {t("snapshotLabel")}
-              </p>
+            <ChapterRibbon
+              kicker={chapterRibbon}
+              title={title}
+              description={t("description")}
+              snapshotLabel={t("snapshotLabel")}
+              closedThrough={closedMonthsInYear}
+              yearMonthList={yearMonthList}
+              locale={locale}
+            />
 
-              <DialogHeader className="mt-2 space-y-1.5 text-left">
-                <DialogTitle className="text-[1.5rem] font-semibold tracking-tight text-eb-text sm:text-[1.625rem]">
-                  {title}
-                </DialogTitle>
-                <DialogDescription className="max-w-xl text-sm leading-6 text-eb-text/65">
-                  {t("description")}
-                </DialogDescription>
-              </DialogHeader>
-            </div>
-
-            <div className="space-y-4 px-6 pb-6 sm:px-8">
+            <div className="space-y-5 px-6 pb-6 sm:px-8">
               {isPositiveRemaining ? (
-                <SurplusDecision
-                  periodMonthOnlyLabel={periodMonthOnlyLabel}
+                <Hero
+                  variant="positive"
+                  kicker={t("heroLabel")}
+                  amountLabel={formatMoneyV2(
+                    isPositiveRemaining ? animatedHero : summary.remaining,
+                    currency,
+                    locale,
+                  )}
+                  finalAmountLabel={remainingLabel}
+                  lead={t("heroLeadPositive").replace(
+                    "{month}",
+                    periodMonthOnlyLabel,
+                  )}
+                  reduceMotion={prefersReducedMotion}
+                />
+              ) : null}
+
+              {isNegativeRemaining ? (
+                <Hero
+                  variant="negative"
+                  kicker={t("heroLabel")}
+                  amountLabel={`-${absoluteRemainingLabel}`}
+                  finalAmountLabel={`-${absoluteRemainingLabel}`}
+                  lead={t("heroLeadNegative").replace(
+                    "{month}",
+                    periodMonthOnlyLabel,
+                  )}
+                  reduceMotion={prefersReducedMotion}
+                />
+              ) : null}
+
+              {isPositiveRemaining ? (
+                <HeroDecision
                   nextPeriodLabel={nextPeriodLabel}
+                  periodMonthOnlyLabel={periodMonthOnlyLabel}
                   amountLabel={absoluteRemainingLabel}
                   selectedMode={selectedCarryOverMode}
                   onSelect={onSelectCarryOverMode}
@@ -149,7 +198,7 @@ export default function CloseMonthReviewModal({
               {isNegativeRemaining ? (
                 <p
                   data-testid="close-month-negative-notice"
-                  className="text-sm leading-6 text-eb-text/72"
+                  className="sr-only"
                 >
                   {t("negativeNotice").replace(
                     "{amount}",
@@ -158,8 +207,7 @@ export default function CloseMonthReviewModal({
                 </p>
               ) : null}
 
-              <SummaryBlock
-                title={t("summaryTitle")}
+              <StatStrip
                 labels={{
                   incomingCarryOver: t("summaryIncomingCarryOver"),
                   income: t("summaryIncome"),
@@ -172,6 +220,7 @@ export default function CloseMonthReviewModal({
                 locale={locale}
                 remainingLabel={remainingLabel}
                 showIncomingCarryOver={showIncomingCarryOver}
+                emphasizeRemaining={!isBalanced}
               />
 
               <p className="text-xs leading-5 text-eb-text/55">
@@ -200,25 +249,31 @@ export default function CloseMonthReviewModal({
             </div>
           </div>
 
-          <footer className="flex flex-col-reverse gap-3 border-t border-eb-stroke/10 bg-white/85 px-6 py-4 backdrop-blur sm:flex-row sm:justify-end sm:px-8">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isSubmitting}
-              className={secondaryActionClass}
-            >
-              {t("cancel")}
-            </button>
+          <footer className="grid gap-3 border-t border-eb-stroke/10 bg-white/85 px-6 py-4 backdrop-blur sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-8">
+            <span className="max-w-[22rem] text-xs leading-5 text-eb-text/55">
+              {footerNote}
+            </span>
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isSubmitting}
+                className={cn(secondaryActionClass, "whitespace-nowrap sm:min-w-28")}
+              >
+                {t("cancel")}
+              </button>
 
-            <CtaButton
-              type="button"
-              data-testid="confirm-close-month"
-              onClick={() => void onConfirm()}
-              disabled={isSubmitting}
-              className="bg-eb-accent hover:bg-eb-accent"
-            >
-              {confirmLabel}
-            </CtaButton>
+              <CtaButton
+                type="button"
+                data-testid="confirm-close-month"
+                onClick={() => void onConfirm()}
+                disabled={isSubmitting}
+                className="min-w-[10.5rem] whitespace-nowrap bg-eb-accent hover:bg-eb-accent"
+              >
+                <span className="whitespace-nowrap">{confirmLabel}</span>
+                <ArrowRight aria-hidden className="h-4 w-4" strokeWidth={2.2} />
+              </CtaButton>
+            </div>
           </footer>
         </div>
       </DialogContent>
@@ -226,59 +281,193 @@ export default function CloseMonthReviewModal({
   );
 }
 
-type SurplusDecisionProps = {
-  periodMonthOnlyLabel: string;
+type ChapterRibbonProps = {
+  kicker: string;
+  title: string;
+  description: string;
+  snapshotLabel: string;
+  closedThrough: number;
+  yearMonthList: readonly string[] | undefined;
+  locale: string;
+};
+
+function ChapterRibbon({
+  kicker,
+  title,
+  description,
+  snapshotLabel,
+  closedThrough,
+  yearMonthList,
+  locale,
+}: ChapterRibbonProps) {
+  return (
+    <div
+      data-testid="close-month-chapter-ribbon"
+      className={cn(
+        "border-b border-eb-stroke/15 px-6 pt-6 pr-14 pb-4 sm:px-8 sm:pr-14 sm:pt-7",
+        "bg-[linear-gradient(180deg,rgb(var(--eb-shell)/0.45),rgb(var(--eb-shell)/0.10))]",
+      )}
+    >
+      <div className="flex flex-col gap-4">
+        <DialogHeader className="min-w-0 space-y-1 text-left">
+          <p
+            data-testid="close-month-chapter-kicker"
+            className="text-[11px] font-semibold uppercase tracking-[0.22em] text-eb-text/55"
+          >
+            {kicker}
+          </p>
+          <DialogTitle className="max-w-[30rem] text-[1.75rem] font-semibold leading-tight tracking-tight text-eb-text sm:text-[2rem]">
+            {title}
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            {description}
+          </DialogDescription>
+          <span className="sr-only">{snapshotLabel}</span>
+        </DialogHeader>
+        <div className="hidden w-full max-w-[38rem] sm:block">
+          <YearChapterStrip
+            closedThrough={closedThrough}
+            yearMonthList={yearMonthList}
+            locale={locale}
+            highlight
+            size="sm"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type HeroProps = {
+  variant: "positive" | "negative";
+  kicker: string;
+  amountLabel: string;
+  finalAmountLabel: string;
+  lead: string;
+  reduceMotion: boolean;
+};
+
+function Hero({
+  variant,
+  kicker,
+  amountLabel,
+  finalAmountLabel,
+  lead,
+  reduceMotion,
+}: HeroProps) {
+  const isPositive = variant === "positive";
+  return (
+    <section
+      data-testid="close-month-hero"
+      data-variant={variant}
+      className="relative isolate overflow-hidden rounded-3xl border border-eb-stroke/15 bg-white/85 px-5 py-6 text-center sm:px-8"
+    >
+      {isPositive && !reduceMotion ? <HeroHalo /> : null}
+      {isPositive ? (
+        <img
+          src={CalcBird}
+          alt=""
+          aria-hidden
+          className={cn(
+            "pointer-events-none absolute right-6 top-6 hidden h-16 w-16 select-none object-contain md:block lg:h-20 lg:w-20",
+            "drop-shadow-[0_10px_20px_rgba(21,39,81,0.12)]",
+            reduceMotion ? null : "cm-mascot-float",
+          )}
+        />
+      ) : null}
+
+      <div className="relative flex flex-col items-center gap-2">
+        <p
+          className={cn(
+            "text-[11px] font-semibold uppercase tracking-[0.22em]",
+            isPositive ? "text-eb-accent/75" : "text-rose-700/70",
+          )}
+        >
+          {kicker}
+        </p>
+        <div
+          data-testid="close-month-hero-amount"
+          aria-live="polite"
+          className={cn(
+            "max-w-full whitespace-nowrap tabular-nums text-[2.35rem] font-extrabold leading-[1.05] tracking-tight sm:text-[3rem]",
+            isPositive ? "text-eb-accent" : "text-rose-700",
+          )}
+          // Screen readers and tests read the settled value; the visual layer
+          // shows the (possibly animating) amountLabel.
+          aria-label={finalAmountLabel}
+        >
+          {amountLabel}
+        </div>
+        <p className="mt-1 max-w-[28rem] text-sm leading-6 text-eb-text/65">
+          {lead}
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function HeroHalo() {
+  return (
+    <span
+      aria-hidden
+      className="cm-hero-halo pointer-events-none absolute left-1/2 top-8 -z-10 h-44 w-[22rem] -translate-x-1/2 rounded-full blur-[2px]"
+      style={{
+        background:
+          "radial-gradient(closest-side, rgb(var(--eb-accent) / 0.22), rgb(var(--eb-accent) / 0) 70%)",
+      }}
+    />
+  );
+}
+
+type HeroDecisionProps = {
   nextPeriodLabel: string;
+  periodMonthOnlyLabel: string;
   amountLabel: string;
   selectedMode: CloseMonthCarryOverMode;
   onSelect: (mode: CloseMonthCarryOverMode) => void;
   t: <K extends keyof typeof closeMonthReviewModalDict.sv>(key: K) => string;
 };
 
-function SurplusDecision({
-  periodMonthOnlyLabel,
+function HeroDecision({
   nextPeriodLabel,
+  periodMonthOnlyLabel,
   amountLabel,
   selectedMode,
   onSelect,
   t,
-}: SurplusDecisionProps) {
+}: HeroDecisionProps) {
   const groupLabelId = useId();
 
   return (
-    <section aria-labelledby={groupLabelId} className="space-y-2.5">
-      <div id={groupLabelId} className="space-y-0.5">
-        <p className="text-sm leading-6 text-eb-text/85">
-          {t("surplusIntroLine1").replace("{amount}", amountLabel)}
-        </p>
-        <p className="text-sm leading-6 text-eb-text/60">
-          {t("surplusIntroLine2").replace("{monthOnly}", periodMonthOnlyLabel)}
-        </p>
-      </div>
-
+    <section aria-labelledby={groupLabelId} className="space-y-2">
+      <h3 id={groupLabelId} className="sr-only">
+        {t("surplusIntroLine1").replace("{amount}", amountLabel)}
+      </h3>
       <div
         role="radiogroup"
         aria-labelledby={groupLabelId}
-        className="grid gap-2.5 sm:grid-cols-2"
+        className="grid gap-3 sm:grid-cols-2"
       >
-        <SurplusOption
+        <HeroOption
           testId="resolve-carry-over"
           mode="full"
           selectedMode={selectedMode}
           onSelect={onSelect}
-          title={t("optionCarryOverTitle").replace(
-            "{nextMonth}",
-            nextPeriodLabel,
-          )}
+          kicker={t("optionCarryOverKicker")}
+          title={t("optionCarryOverHeroTitle")
+            .replace("{nextMonth}", nextPeriodLabel)
+            .replace("{amount}", amountLabel)}
           body={t("optionCarryOverBody")}
+          illo={<MoneyForwardIllo />}
           selectedLabel={t("optionSelected")}
         />
-        <SurplusOption
+        <HeroOption
           testId="resolve-keep"
           mode="none"
           selectedMode={selectedMode}
           onSelect={onSelect}
-          title={t("optionKeepTitle").replace(
+          kicker={t("optionKeepKicker")}
+          title={t("optionKeepHeroTitle").replace(
             "{monthOnly}",
             periodMonthOnlyLabel,
           )}
@@ -286,6 +475,7 @@ function SurplusDecision({
             "{monthOnly}",
             periodMonthOnlyLabel,
           )}
+          illo={<MoneyKeepIllo />}
           selectedLabel={t("optionSelected")}
         />
       </div>
@@ -293,27 +483,30 @@ function SurplusDecision({
   );
 }
 
-type SurplusOptionProps = {
+type HeroOptionProps = {
   testId: string;
   mode: CloseMonthCarryOverMode;
   selectedMode: CloseMonthCarryOverMode;
   onSelect: (mode: CloseMonthCarryOverMode) => void;
+  kicker: string;
   title: string;
   body: string;
+  illo: React.ReactNode;
   selectedLabel: string;
 };
 
-function SurplusOption({
+function HeroOption({
   testId,
   mode,
   selectedMode,
   onSelect,
+  kicker,
   title,
   body,
+  illo,
   selectedLabel,
-}: SurplusOptionProps) {
+}: HeroOptionProps) {
   const selected = selectedMode === mode;
-
   return (
     <button
       type="button"
@@ -323,43 +516,92 @@ function SurplusOption({
       data-state={selected ? "selected" : "idle"}
       onClick={() => onSelect(mode)}
       className={cn(
-        "group relative flex h-full flex-col items-start gap-1 rounded-2xl border px-4 py-3 text-left",
-        "transition-colors duration-200 ease-out motion-reduce:transition-none",
+        "group relative flex h-full flex-col gap-2.5 rounded-2xl border px-4 py-4 text-left",
+        "transition-[transform,background-color,border-color,box-shadow] duration-200 ease-out",
+        "motion-reduce:transition-none",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-eb-accent/35",
         selected
-          ? "border-eb-accent/55 bg-emerald-500/[0.06]"
-          : "border-eb-stroke/20 bg-white/85 hover:border-eb-stroke/35 hover:bg-white",
+          ? cn(
+              "border-eb-accent/55 bg-[linear-gradient(180deg,rgba(220,252,231,0.55),rgba(220,252,231,0.18))]",
+              "shadow-[0_12px_28px_rgba(34,197,94,0.18)] -translate-y-px",
+            )
+          : "border-eb-stroke/25 bg-white/92 hover:border-eb-stroke/40 hover:bg-white",
       )}
     >
-      <div className="flex w-full items-center justify-between gap-3">
-        <span
-          className={cn(
-            "text-sm font-semibold tracking-tight transition-colors duration-200 ease-out motion-reduce:transition-none",
-            selected ? "text-eb-text" : "text-eb-text/85",
-          )}
-        >
-          {title}
-        </span>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 space-y-1">
+          <span
+            className={cn(
+              "text-[11px] font-semibold uppercase tracking-[0.22em]",
+              selected ? "text-eb-accent" : "text-eb-text/45",
+            )}
+          >
+            {kicker}
+          </span>
+          <span className="block text-[15px] font-semibold tracking-tight text-eb-text">
+            {title}
+          </span>
+        </div>
         <span
           aria-hidden
           className={cn(
-            "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors duration-200 ease-out motion-reduce:transition-none",
+            "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border",
+            "transition-colors duration-200 ease-out motion-reduce:transition-none",
             selected
               ? "border-eb-accent bg-eb-accent text-white"
-              : "border-eb-stroke/35 bg-white text-transparent",
+              : "border-eb-stroke/45 bg-white text-transparent",
           )}
         >
           <Check className="h-3 w-3" strokeWidth={3} />
         </span>
       </div>
-      <span className="text-xs leading-5 text-eb-text/60">{body}</span>
+      <p className="text-[13px] leading-[1.55] text-eb-text/65">{body}</p>
+      <div className="mt-1 self-end text-eb-text/45">{illo}</div>
       <span className="sr-only">{selected ? selectedLabel : ""}</span>
     </button>
   );
 }
 
-type SummaryBlockProps = {
-  title: string;
+function MoneyForwardIllo() {
+  return (
+    <svg
+      width="38"
+      height="20"
+      viewBox="0 0 38 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <line x1="3" y1="10" x2="32" y2="10" />
+      <polyline points="26 4 32 10 26 16" />
+      <circle cx="3" cy="10" r="2.4" fill="currentColor" stroke="none" opacity="0.55" />
+    </svg>
+  );
+}
+
+function MoneyKeepIllo() {
+  return (
+    <svg
+      width="38"
+      height="20"
+      viewBox="0 0 38 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <rect x="6" y="4" width="26" height="12" rx="3" />
+      <circle cx="19" cy="10" r="2.5" fill="currentColor" stroke="none" opacity="0.55" />
+    </svg>
+  );
+}
+
+type StatStripProps = {
   labels: {
     incomingCarryOver: string;
     income: string;
@@ -372,97 +614,100 @@ type SummaryBlockProps = {
   locale: string;
   remainingLabel: string;
   showIncomingCarryOver: boolean;
+  emphasizeRemaining: boolean;
 };
 
-function SummaryBlock({
-  title,
+function StatStrip({
   labels,
   summary,
   currency,
   locale,
   remainingLabel,
   showIncomingCarryOver,
-}: SummaryBlockProps) {
+  emphasizeRemaining,
+}: StatStripProps) {
   return (
     <section
       data-testid="close-month-summary"
-      className="rounded-2xl bg-[rgb(var(--eb-shell)/0.20)] px-5 py-3.5"
+      className={cn(
+        "grid gap-3 rounded-2xl border border-eb-stroke/20 px-4 py-3 sm:px-5",
+        "bg-[rgb(var(--eb-shell)/0.18)]",
+        showIncomingCarryOver
+          ? "grid-cols-2 md:grid-cols-5"
+          : "grid-cols-2 md:grid-cols-4",
+      )}
     >
-      <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-eb-text/55">
-        {title}
-      </h3>
-      <dl className="mt-2.5 space-y-1.5">
-        {showIncomingCarryOver ? (
-          <SummaryRow
-            testId="close-month-summary-incoming-carry-over"
-            label={labels.incomingCarryOver}
-            value={formatAutoSigned(summary.incomingCarryOver, currency, locale)}
-          />
-        ) : null}
-        <SummaryRow
-          testId="close-month-summary-income"
-          label={labels.income}
-          value={formatSigned(summary.income, "+", currency, locale)}
+      {showIncomingCarryOver ? (
+        <HeroStat
+          testId="close-month-summary-incoming-carry-over"
+          label={labels.incomingCarryOver}
+          value={formatAutoSigned(summary.incomingCarryOver, currency, locale)}
+          tone={summary.incomingCarryOver < 0 ? "negative" : "neutral"}
         />
-        <SummaryRow
-          testId="close-month-summary-expenses"
-          label={labels.expenses}
-          value={formatSigned(summary.expenses, "-", currency, locale)}
-        />
-        <SummaryRow
-          testId="close-month-summary-savings-debt"
-          label={labels.savingsAndDebt}
-          value={formatSigned(summary.savingsAndDebt, "-", currency, locale)}
-        />
-        <div className="pt-1.5">
-          <SummaryRow
-            testId="close-month-summary-remaining"
-            label={labels.remaining}
-            value={remainingLabel}
-            emphasized
-          />
-        </div>
-      </dl>
+      ) : null}
+      <HeroStat
+        testId="close-month-summary-income"
+        label={labels.income}
+        value={formatSigned(summary.income, "+", currency, locale)}
+        tone="positive"
+      />
+      <HeroStat
+        testId="close-month-summary-expenses"
+        label={labels.expenses}
+        value={formatSigned(summary.expenses, "-", currency, locale)}
+      />
+      <HeroStat
+        testId="close-month-summary-savings-debt"
+        label={labels.savingsAndDebt}
+        value={formatSigned(summary.savingsAndDebt, "-", currency, locale)}
+      />
+      <HeroStat
+        testId="close-month-summary-remaining"
+        label={labels.remaining}
+        value={remainingLabel}
+        tone={emphasizeRemaining ? "positive" : "neutral"}
+        emphasized
+      />
     </section>
   );
 }
 
-type SummaryRowProps = {
+type HeroStatProps = {
+  testId: string;
   label: string;
   value: string;
+  tone?: "positive" | "negative" | "neutral";
   emphasized?: boolean;
-  testId?: string;
 };
 
-function SummaryRow({
+function HeroStat({
+  testId,
   label,
   value,
+  tone = "neutral",
   emphasized = false,
-  testId,
-}: SummaryRowProps) {
+}: HeroStatProps) {
   return (
     <div
       data-testid={testId}
-      className="flex items-baseline justify-between gap-4"
+      className="flex min-w-0 flex-col gap-0.5"
     >
-      <dt
-        className={cn(
-          "text-sm",
-          emphasized ? "font-semibold text-eb-text" : "text-eb-text/72",
-        )}
-      >
+      <span className="min-h-[1.5rem] text-[10px] font-semibold uppercase leading-tight tracking-[0.14em] text-eb-text/55">
         {label}
-      </dt>
-      <dd
+      </span>
+      <span
         className={cn(
-          "tabular-nums tracking-tight",
-          emphasized
-            ? "text-base font-semibold text-eb-text"
-            : "text-sm font-medium text-eb-text/85",
+          "whitespace-nowrap tabular-nums tracking-tight",
+          emphasized ? "text-base font-bold" : "text-sm font-semibold",
+          tone === "positive"
+            ? "text-eb-accent"
+            : tone === "negative"
+              ? "text-rose-700"
+              : "text-eb-text",
         )}
       >
         {value}
-      </dd>
+      </span>
     </div>
   );
 }

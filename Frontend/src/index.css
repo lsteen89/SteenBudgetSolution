@@ -197,6 +197,92 @@ body {
   }
 }
 
+/* Close-month modal — quiet breathing halo behind the hero amount. */
+@keyframes cm-hero-halo {
+  0%, 100% { opacity: 0.6; }
+  50%      { opacity: 1; }
+}
+.cm-hero-halo {
+  animation: cm-hero-halo 3.2s ease-in-out infinite;
+}
+
+/* Close-month modal — peeking mascot floats a few pixels. */
+@keyframes cm-mascot-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-4px); }
+}
+.cm-mascot-float {
+  animation: cm-mascot-float 4.8s ease-in-out infinite;
+}
+
+/* Closed-month handoff takeover — gentle entrance for the whole card. */
+@keyframes cm-fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.cm-fade-up {
+  animation: cm-fade-up 360ms ease-out both;
+}
+
+/* Closed-month handoff takeover — the "Stängd · sparad" stamp settles
+   into place with a slight tilt. The final transform stays at the
+   declarative rotate (-7deg) from the inline style. */
+@keyframes cm-stamp-settle {
+  0%   { opacity: 0; transform: translateY(-6px) rotate(-2deg) scale(1.08); }
+  60%  { opacity: 1; transform: translateY(0) rotate(-9deg) scale(1.02); }
+  100% { opacity: 1; transform: translateY(0) rotate(-7deg) scale(1); }
+}
+.cm-stamp {
+  animation: cm-stamp-settle 520ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  transform: rotate(-7deg);
+}
+
+/* Closed-month handoff takeover — RichBird gives a brief "hello" wave. */
+@keyframes cm-mascot-hello {
+  0%   { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.cm-mascot-hello {
+  animation: cm-mascot-hello 380ms ease-out both;
+}
+
+/* Soft confetti — one-shot CSS animation. Pieces fall from the origin
+   to (dx, dy), rotating to (rot), over (dur) starting at (delay). */
+@keyframes cm-confetti-fall {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) rotate(0);
+  }
+  10% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--cm-dx, 0), var(--cm-dy, 0))
+      rotate(var(--cm-rot, 0));
+  }
+}
+.cm-confetti-piece {
+  display: block;
+  animation: cm-confetti-fall var(--cm-dur, 1800ms)
+    cubic-bezier(0.2, 0.7, 0.2, 1) var(--cm-delay, 0ms) both;
+  will-change: transform, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cm-hero-halo,
+  .cm-mascot-float,
+  .cm-mascot-hello,
+  .cm-stamp,
+  .cm-fade-up,
+  .cm-confetti-piece {
+    animation: none;
+  }
+  .cm-stamp {
+    transform: rotate(-7deg);
+  }
+}
+
 * {
   @apply border-border;
 }
