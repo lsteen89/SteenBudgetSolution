@@ -327,6 +327,8 @@ function LoadedDashboardContent({
           closeMonthReview.justClosed.closedYearMonth === yearMonth ? (
             <ClosedMonthHandoffCard
               closedMonthLabel={summary.header.periodLabel}
+              closedMonthOnlyLabel={closeMonthReview.periodMonthOnlyLabel}
+              closedYearLabel={yearMonth.slice(0, 4)}
               nextMonthLabel={
                 summary.header.nextPeriodLabel ??
                 closeMonthReview.nextPeriodLabel
@@ -334,6 +336,10 @@ function LoadedDashboardContent({
               finalBalance={closeMonthReview.justClosed.finalBalance}
               carryOverMode={closeMonthReview.justClosed.carryOverMode}
               carryOverAmount={closeMonthReview.justClosed.carryOverAmount}
+              monthlyIncome={summary.totalIncome}
+              monthlyExpenses={summary.totalExpenditure}
+              closedMonthsInYear={closedMonthsInYear}
+              yearMonthList={yearMonthList}
               currency={summary.currency}
               onContinue={closeMonthReview.continueToNextMonth}
               onDismiss={closeMonthReview.dismissJustClosed}

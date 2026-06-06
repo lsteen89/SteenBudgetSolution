@@ -1,6 +1,7 @@
 import CalcBird from "@assets/Images/CalcBird.png";
 import { CtaButton } from "@/components/atoms/buttons/CtaButton";
 import { secondaryActionClass } from "@/components/atoms/buttons/ctaStyles";
+import { YearChapterStrip } from "@/components/atoms/dashboard/YearChapterStrip";
 import {
   Dialog,
   DialogContent,
@@ -8,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useCountUp } from "@/hooks/animation/useCountUp";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/lib/utils";
 import { closeMonthReviewModalDict } from "@/utils/i18n/pages/private/dashboard/closeMonth/CloseMonthReviewModal.i18n";
@@ -16,7 +18,7 @@ import type { CurrencyCode } from "@/utils/money/currency";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, Check, ChevronDown } from "lucide-react";
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 
 import type {
   CloseMonthCarryOverMode,
@@ -51,36 +53,6 @@ const NEAR_ZERO = 0.005;
 
 const EMPTY_SELECTION: ReadonlySet<string> = new Set();
 
-// Localized short month name. Falls back gracefully if the locale or
-// yearMonth cannot be parsed — we never want the strip to render a `{token}`
-// leak or a bare YYYY-MM string in the pill labels.
-function shortMonthLabel(
-  yearMonth: string | undefined,
-  monthIndex: number,
-  locale: string,
-): string {
-  // Build a deterministic UTC date for the requested month. Day 15 keeps us
-  // safely inside the month across DST and timezone edges.
-  const parsedYear = Number.parseInt(yearMonth?.slice(0, 4) ?? "", 10);
-  const parsedMonth = Number.parseInt(yearMonth?.slice(5, 7) ?? "", 10);
-  const year = Number.isFinite(parsedYear) ? parsedYear : 1970;
-  const month =
-    Number.isFinite(parsedMonth) && parsedMonth >= 1 && parsedMonth <= 12
-      ? parsedMonth - 1
-      : monthIndex;
-  try {
-    const date = new Date(Date.UTC(year, month, 15));
-    return new Intl.DateTimeFormat(locale, {
-      month: "short",
-      timeZone: "UTC",
-    }).format(date);
-  } catch {
-    // Last-ditch fallback so the strip stays readable even on locales that
-    // Intl can't resolve in the current runtime.
-    return String(month + 1).padStart(2, "0");
-  }
-}
-
 function formatSigned(
   value: number,
   sign: "+" | "-",
@@ -99,31 +71,6 @@ function formatAutoSigned(
     return `-${formatMoneyV2(Math.abs(value), currency, locale)}`;
   }
   return `+${formatMoneyV2(value, currency, locale)}`;
-}
-
-// Ease-out cubic count-up driven by requestAnimationFrame. Respects
-// prefers-reduced-motion by snapping to the target immediately.
-function useCountUp(target: number, durationMs: number, enabled: boolean) {
-  const [value, setValue] = useState(enabled ? 0 : target);
-
-  useEffect(() => {
-    if (!enabled) {
-      setValue(target);
-      return;
-    }
-    let raf = 0;
-    const start = performance.now();
-    const tick = (now: number) => {
-      const t = Math.min(1, (now - start) / durationMs);
-      const eased = 1 - Math.pow(1 - t, 3);
-      setValue(target * eased);
-      if (t < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [target, durationMs, enabled]);
-
-  return value;
 }
 
 export default function CloseMonthReviewModal({
@@ -188,7 +135,7 @@ export default function CloseMonthReviewModal({
         data-testid="close-month-modal"
         data-reduce-motion={prefersReducedMotion ? "true" : undefined}
         className={cn(
-          "flex max-h-[calc(100dvh-4rem)] w-[min(720px,calc(100vw-2rem))] flex-col overflow-hidden",
+          "flex max-h-[calc(100dvh-3rem)] w-[min(780px,calc(100vw-2rem))] flex-col overflow-hidden",
           "rounded-3xl border-eb-stroke/20 bg-eb-surface p-0 shadow-[0_28px_80px_rgba(21,39,81,0.18)]",
         )}
       >
@@ -302,16 +249,16 @@ export default function CloseMonthReviewModal({
             </div>
           </div>
 
-          <footer className="flex flex-col-reverse gap-3 border-t border-eb-stroke/10 bg-white/85 px-6 py-4 backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:px-8">
-            <span className="text-xs leading-5 text-eb-text/55">
+          <footer className="grid gap-3 border-t border-eb-stroke/10 bg-white/85 px-6 py-4 backdrop-blur sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-8">
+            <span className="max-w-[22rem] text-xs leading-5 text-eb-text/55">
               {footerNote}
             </span>
-            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
               <button
                 type="button"
                 onClick={onClose}
                 disabled={isSubmitting}
-                className={secondaryActionClass}
+                className={cn(secondaryActionClass, "whitespace-nowrap sm:min-w-28")}
               >
                 {t("cancel")}
               </button>
@@ -321,9 +268,9 @@ export default function CloseMonthReviewModal({
                 data-testid="confirm-close-month"
                 onClick={() => void onConfirm()}
                 disabled={isSubmitting}
-                className="bg-eb-accent hover:bg-eb-accent"
+                className="min-w-[10.5rem] whitespace-nowrap bg-eb-accent hover:bg-eb-accent"
               >
-                <span>{confirmLabel}</span>
+                <span className="whitespace-nowrap">{confirmLabel}</span>
                 <ArrowRight aria-hidden className="h-4 w-4" strokeWidth={2.2} />
               </CtaButton>
             </div>
@@ -357,11 +304,11 @@ function ChapterRibbon({
     <div
       data-testid="close-month-chapter-ribbon"
       className={cn(
-        "border-b border-eb-stroke/15 px-6 pt-6 pb-4 sm:px-8 sm:pt-7",
+        "border-b border-eb-stroke/15 px-6 pt-6 pr-14 pb-4 sm:px-8 sm:pr-14 sm:pt-7",
         "bg-[linear-gradient(180deg,rgb(var(--eb-shell)/0.45),rgb(var(--eb-shell)/0.10))]",
       )}
     >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+      <div className="flex flex-col gap-4">
         <DialogHeader className="min-w-0 space-y-1 text-left">
           <p
             data-testid="close-month-chapter-kicker"
@@ -369,7 +316,7 @@ function ChapterRibbon({
           >
             {kicker}
           </p>
-          <DialogTitle className="text-[1.375rem] font-semibold tracking-tight text-eb-text sm:text-[1.5rem]">
+          <DialogTitle className="max-w-[30rem] text-[1.75rem] font-semibold leading-tight tracking-tight text-eb-text sm:text-[2rem]">
             {title}
           </DialogTitle>
           <DialogDescription className="sr-only">
@@ -377,7 +324,7 @@ function ChapterRibbon({
           </DialogDescription>
           <span className="sr-only">{snapshotLabel}</span>
         </DialogHeader>
-        <div className="hidden min-w-[280px] max-w-[320px] sm:block">
+        <div className="hidden w-full max-w-[38rem] sm:block">
           <YearChapterStrip
             closedThrough={closedThrough}
             yearMonthList={yearMonthList}
@@ -387,68 +334,6 @@ function ChapterRibbon({
           />
         </div>
       </div>
-    </div>
-  );
-}
-
-type YearChapterStripProps = {
-  closedThrough: number;
-  yearMonthList?: readonly string[];
-  locale: string;
-  highlight?: boolean;
-  size?: "sm" | "md";
-};
-
-function YearChapterStrip({
-  closedThrough,
-  yearMonthList,
-  locale,
-  highlight = true,
-  size = "md",
-}: YearChapterStripProps) {
-  const dotSize = size === "sm" ? 8 : 10;
-  return (
-    <div
-      role="presentation"
-      className="grid grid-cols-12 items-end gap-2"
-      data-testid="close-month-year-strip"
-    >
-      {Array.from({ length: 12 }, (_, index) => {
-        const yearMonth = yearMonthList?.[index];
-        const label = shortMonthLabel(yearMonth, index, locale);
-        const isClosed = index <= closedThrough;
-        const isJustClosed = index === closedThrough;
-        const tooltip = yearMonth ?? label;
-        return (
-          <div
-            key={`${index}-${label}`}
-            className="flex flex-col items-center gap-1.5"
-            title={tooltip}
-          >
-            <span
-              aria-hidden
-              className={cn(
-                "rounded-full transition-shadow duration-200 ease-out motion-reduce:transition-none",
-                isClosed
-                  ? "bg-eb-accent"
-                  : "border border-eb-stroke/55 bg-eb-shell/55",
-                isJustClosed && highlight
-                  ? "shadow-[0_0_0_5px_rgb(var(--eb-accent)/0.18)]"
-                  : null,
-              )}
-              style={{ width: dotSize, height: dotSize }}
-            />
-            <span
-              className={cn(
-                "text-[10px] font-semibold uppercase tracking-[0.08em]",
-                isClosed ? "text-eb-text/80" : "text-eb-text/45",
-              )}
-            >
-              {label}
-            </span>
-          </div>
-        );
-      })}
     </div>
   );
 }
@@ -475,7 +360,7 @@ function Hero({
     <section
       data-testid="close-month-hero"
       data-variant={variant}
-      className="relative isolate overflow-hidden rounded-3xl border border-eb-stroke/15 bg-white/85 px-6 pt-7 pb-6 text-center"
+      className="relative isolate overflow-hidden rounded-3xl border border-eb-stroke/15 bg-white/85 px-5 py-6 text-center sm:px-8"
     >
       {isPositive && !reduceMotion ? <HeroHalo /> : null}
       {isPositive ? (
@@ -484,8 +369,8 @@ function Hero({
           alt=""
           aria-hidden
           className={cn(
-            "pointer-events-none absolute right-3 top-3 h-20 w-20 select-none object-contain",
-            "drop-shadow-[0_10px_20px_rgba(21,39,81,0.12)] sm:h-24 sm:w-24",
+            "pointer-events-none absolute right-6 top-6 hidden h-16 w-16 select-none object-contain md:block lg:h-20 lg:w-20",
+            "drop-shadow-[0_10px_20px_rgba(21,39,81,0.12)]",
             reduceMotion ? null : "cm-mascot-float",
           )}
         />
@@ -504,7 +389,7 @@ function Hero({
           data-testid="close-month-hero-amount"
           aria-live="polite"
           className={cn(
-            "tabular-nums text-[2.6rem] font-extrabold leading-[1.05] tracking-tight sm:text-[3.25rem]",
+            "max-w-full whitespace-nowrap tabular-nums text-[2.35rem] font-extrabold leading-[1.05] tracking-tight sm:text-[3rem]",
             isPositive ? "text-eb-accent" : "text-rose-700",
           )}
           // Screen readers and tests read the settled value; the visual layer
@@ -748,8 +633,8 @@ function StatStrip({
         "grid gap-3 rounded-2xl border border-eb-stroke/20 px-4 py-3 sm:px-5",
         "bg-[rgb(var(--eb-shell)/0.18)]",
         showIncomingCarryOver
-          ? "grid-cols-2 sm:grid-cols-5"
-          : "grid-cols-2 sm:grid-cols-4",
+          ? "grid-cols-2 md:grid-cols-5"
+          : "grid-cols-2 md:grid-cols-4",
       )}
     >
       {showIncomingCarryOver ? (
@@ -807,12 +692,12 @@ function HeroStat({
       data-testid={testId}
       className="flex min-w-0 flex-col gap-0.5"
     >
-      <span className="truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-eb-text/55">
+      <span className="min-h-[1.5rem] text-[10px] font-semibold uppercase leading-tight tracking-[0.14em] text-eb-text/55">
         {label}
       </span>
       <span
         className={cn(
-          "tabular-nums tracking-tight",
+          "whitespace-nowrap tabular-nums tracking-tight",
           emphasized ? "text-base font-bold" : "text-sm font-semibold",
           tone === "positive"
             ? "text-eb-accent"

@@ -907,13 +907,13 @@ describe("DashboardContent", () => {
 
     const carryOverOption = screen.getByTestId("resolve-carry-over");
     const keepOption = screen.getByTestId("resolve-keep");
-    // Carry-over card title is "{nextMonth} gets +{amount}"; keep card title
-    // is "Stay in {monthOnly}". Each card also surfaces a kicker that mirrors
-    // the action verb so the test stays robust to copy tweaks.
+    // Carry-over card title is "{nextMonth} gets +{amount}"; keep card makes
+    // the financial consequence explicit: nothing is transferred.
     expect(carryOverOption).toHaveTextContent(/carry over/i);
     expect(carryOverOption).toHaveTextContent(/may 2026/i);
     expect(keepOption).toHaveTextContent(/keep/i);
-    expect(keepOption).toHaveTextContent(/stay in april/i);
+    expect(keepOption).toHaveTextContent(/transfer nothing/i);
+    expect(keepOption).toHaveTextContent(/not carried over/i);
     expect(keepOption).not.toHaveTextContent(/2026/);
     expect(keepOption).toHaveAttribute("aria-checked", "true");
     expect(carryOverOption).toHaveAttribute("aria-checked", "false");
@@ -1280,11 +1280,16 @@ describe("DashboardContent", () => {
 
     const handoff = await screen.findByTestId("closed-month-handoff-card");
     expect(handoff).toHaveAttribute("data-variant", "positiveFull");
+    // Headline reads "{month} is saved" in the V2 takeover; the next-month
+    // story moves into the subhead and the carry-over surplus panel.
     expect(
       within(handoff).getByTestId("closed-month-handoff-title"),
-    ).toHaveTextContent("April 2026 is closed");
+    ).toHaveTextContent("April 2026 is saved");
     expect(
       within(handoff).getByTestId("closed-month-handoff-body"),
+    ).toHaveTextContent(/May 2026/i);
+    expect(
+      within(handoff).getByTestId("closed-month-handoff-panel-surplus"),
     ).toHaveTextContent(/carried over to May 2026/i);
 
     // Continue CTA forwards to the next open month and dismisses the card.

@@ -219,6 +219,23 @@ describe("CloseMonthReviewModal — variants", () => {
     ).toBe("false");
   });
 
+  it("positiveKept: Swedish copy clarifies that nothing is carried over", () => {
+    mockedLocale = "sv";
+    renderModal({
+      periodLabel: "maj 2026",
+      periodMonthOnlyLabel: "maj",
+      nextPeriodLabel: "juni 2026",
+      reviewState: positiveState,
+      summary: positiveSummary,
+      selectedCarryOverMode: "none",
+    });
+
+    const keepOption = screen.getByTestId("resolve-keep");
+    expect(keepOption).toHaveTextContent(/överför inget/i);
+    expect(keepOption).toHaveTextContent(/förs inte över/i);
+    expect(keepOption).toHaveTextContent(/maj-vyn/i);
+  });
+
   it("balanced: no hero block, no decision cards", () => {
     renderModal({
       reviewState: balancedState,

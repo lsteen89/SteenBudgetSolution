@@ -19,11 +19,12 @@ export const closeMonthReviewModalDict = {
     optionCarryOverKicker: "För över",
     optionKeepKicker: "Behåll",
     optionCarryOverHeroTitle: "{nextMonth} får +{amount}",
-    optionKeepHeroTitle: "Stanna i {monthOnly}",
+    optionKeepHeroTitle: "Överför inget",
     optionCarryOverTitle: "För över till {nextMonth}",
     optionCarryOverBody: "Beloppet blir tillgängligt i nästa månads plan.",
     optionKeepTitle: "Behåll i {monthOnly}",
-    optionKeepBody: "Beloppet sparas som överskott i {monthOnly}-vyn.",
+    optionKeepBody:
+      "Beloppet stannar som överskott i {monthOnly}-vyn och förs inte över.",
     optionSelected: "Valt",
 
     footerNote: "Du kan alltid gå tillbaka och läsa {month} efteråt.",
@@ -79,11 +80,12 @@ export const closeMonthReviewModalDict = {
     optionCarryOverKicker: "Carry over",
     optionKeepKicker: "Keep",
     optionCarryOverHeroTitle: "{nextMonth} gets +{amount}",
-    optionKeepHeroTitle: "Stay in {monthOnly}",
+    optionKeepHeroTitle: "Transfer nothing",
     optionCarryOverTitle: "Carry over to {nextMonth}",
     optionCarryOverBody: "The amount becomes available in next month's plan.",
     optionKeepTitle: "Keep in {monthOnly}",
-    optionKeepBody: "The amount is saved as a surplus in the {monthOnly} view.",
+    optionKeepBody:
+      "The amount stays as a surplus in the {monthOnly} view and is not carried over.",
     optionSelected: "Selected",
 
     footerNote: "You can always go back and read {month} afterwards.",
@@ -139,11 +141,12 @@ export const closeMonthReviewModalDict = {
     optionCarryOverKicker: "Kanna üle",
     optionKeepKicker: "Säilita",
     optionCarryOverHeroTitle: "{nextMonth} saab +{amount}",
-    optionKeepHeroTitle: "Jää kuusse {monthOnly}",
+    optionKeepHeroTitle: "Ära kanna üle",
     optionCarryOverTitle: "Kanna üle kuusse {nextMonth}",
     optionCarryOverBody: "Summa muutub kättesaadavaks järgmise kuu plaanis.",
     optionKeepTitle: "Säilita kuus {monthOnly}",
-    optionKeepBody: "Summa salvestatakse ülejäägina kuu {monthOnly} vaates.",
+    optionKeepBody:
+      "Summa jääb ülejäägina kuu {monthOnly} vaatesse ja seda ei kanta üle.",
     optionSelected: "Valitud",
 
     footerNote: "Saad alati hiljem {month} kuuga tagasi minna ja lugeda.",
