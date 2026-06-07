@@ -772,11 +772,15 @@ describe("DashboardContent", () => {
 
     renderDashboardContent();
 
+    // P3 PillarWorkbench renders one card per pillar instead of the legacy
+    // `pillarDescriptions` lines. We assert on workbench landmarks rather
+    // than the now-unused summary copy.
     expect(screen.getByText("This month by area")).toBeInTheDocument();
-    expect(screen.getByText("Income is planned for this month.")).toBeInTheDocument();
-    expect(screen.getByText("Housing, food and transport")).toBeInTheDocument();
-    expect(screen.getByText("2 savings goals")).toBeInTheDocument();
-    expect(screen.getByText("No active debt balance")).toBeInTheDocument();
+    expect(screen.getByTestId("pillar-workbench")).toBeInTheDocument();
+    expect(screen.getByTestId("pillar-income")).toBeInTheDocument();
+    expect(screen.getByTestId("pillar-expenses")).toBeInTheDocument();
+    expect(screen.getByTestId("pillar-savings")).toBeInTheDocument();
+    expect(screen.getByTestId("pillar-debts")).toBeInTheDocument();
 
     expect(screen.queryByText("deepDiveTitle")).not.toBeInTheDocument();
     expect(screen.queryByText("deepDiveBody")).not.toBeInTheDocument();
@@ -808,8 +812,13 @@ describe("DashboardContent", () => {
 
     renderDashboardContent();
 
+    // P3 PillarWorkbench renders a single subscription chip on the expenses
+    // pillar with the planned-budget format "{count} · {monthly}/mo · {annual}/yr".
     expect(screen.getAllByText("Subscriptions").length).toBeGreaterThan(0);
-    expect(screen.getByText(/5 active/)).toHaveTextContent(/year/);
+    const chip = screen.getByTestId("pillar-expenses-subscriptions");
+    expect(chip.textContent ?? "").toMatch(/5/);
+    expect(chip.textContent ?? "").toMatch(/\/mo/);
+    expect(chip.textContent ?? "").toMatch(/\/yr/);
   });
 
   it("shows a compact income source insight inside the income area", () => {
@@ -842,9 +851,15 @@ describe("DashboardContent", () => {
 
     renderDashboardContent();
 
-    expect(screen.getByText("Income sources")).toBeInTheDocument();
-    expect(screen.getByText(/3 active/)).toHaveTextContent(/Net salary/);
-    expect(screen.getByText(/3 active/)).toHaveTextContent(/Other/);
+    // P3 PillarWorkbench renders salary / side / household as discrete
+    // signal rows instead of the legacy "Income sources" concat chip.
+    const income = screen.getByTestId("pillar-income");
+    expect(income.textContent ?? "").toMatch(/3 sources planned/);
+    expect(within(income).getByTestId("pillar-income-salary")).toBeInTheDocument();
+    expect(within(income).getByTestId("pillar-income-side")).toBeInTheDocument();
+    expect(
+      within(income).getByTestId("pillar-income-household"),
+    ).toBeInTheDocument();
   });
 
   it("does not invent an other-income value when only salary exists", () => {
@@ -867,9 +882,14 @@ describe("DashboardContent", () => {
 
     renderDashboardContent();
 
-    expect(screen.getByText("Income sources")).toBeInTheDocument();
-    expect(screen.getByText(/1 active/)).toHaveTextContent(/Net salary/);
-    expect(screen.getByText(/1 active/)).not.toHaveTextContent(/Other/);
+    const income = screen.getByTestId("pillar-income");
+    expect(income.textContent ?? "").toMatch(/1 source planned/);
+    expect(within(income).getByTestId("pillar-income-salary")).toBeInTheDocument();
+    // Side / household signal rows must not appear when no such income is planned.
+    expect(within(income).queryByTestId("pillar-income-side")).toBeNull();
+    expect(
+      within(income).queryByTestId("pillar-income-household"),
+    ).toBeNull();
   });
 
   it("shows quick and full edit actions in the expenses pillar", () => {

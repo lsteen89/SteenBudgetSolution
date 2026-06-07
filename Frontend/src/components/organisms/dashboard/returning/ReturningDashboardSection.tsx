@@ -10,7 +10,7 @@ import React from "react";
 
 import MoneyState from "./openMonth/MoneyState";
 import OpenMonthFollowUpStrip from "./openMonth/OpenMonthFollowUpStrip";
-import OpenMonthPillarsGrid from "./openMonth/OpenMonthPillarsGrid";
+import OpenMonthPillarWorkbench from "./openMonth/OpenMonthPillarWorkbench";
 
 export interface ReturningDashboardSectionProps {
   onOpenPeriodEditor: () => void;
@@ -80,9 +80,10 @@ const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({
             isSwitchingMonth && "opacity-90",
           )}
         >
-          <OpenMonthPillarsGrid
+          <OpenMonthPillarWorkbench
             summary={summary}
             breakdown={breakdown}
+            dashboardMonth={dashboardMonth}
             onOpenPeriodEditor={onOpenPeriodEditor}
             onOpenFullExpenseEditor={onOpenFullExpenseEditor}
             onOpenIncomeEditor={onOpenIncomeEditor}
