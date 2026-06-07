@@ -4,9 +4,9 @@ import EditPeriodDrawer from "@/components/organisms/dashboard/editPeriod/EditPe
 import ClosedMonthRecapSection from "@/components/organisms/dashboard/recap/ClosedMonthRecapSection";
 import SkippedMonthState from "@/components/organisms/dashboard/recap/SkippedMonthState";
 import ReturningDashboardSection from "@/components/organisms/dashboard/returning/ReturningDashboardSection";
-import PeriodControlBar, {
-  type PeriodControlBarViewModel,
-} from "@/components/organisms/dashboard/shell/PeriodControlBar";
+import MonthRail, {
+  type MonthRailViewModel,
+} from "@/components/organisms/dashboard/shell/MonthRail";
 import type { PeriodActionSlotViewModel } from "@/components/organisms/dashboard/shell/PeriodActionSlot";
 import { useBudgetMonthRecapQuery } from "@/hooks/budget/useBudgetMonthRecapQuery";
 import { useCloseMonthReviewController } from "@/hooks/dashboard/useCloseMonthReviewController";
@@ -60,13 +60,13 @@ function replaceToken(template: string, token: string, value: string) {
   return template.replace(`{${token}}`, value);
 }
 
-function buildPeriodControlBarViewModel(
+function buildMonthRailViewModel(
   summary: DashboardSummary,
   locale: AppLocale,
   options: {
     suppressContinueAction?: boolean;
   } = {},
-): PeriodControlBarViewModel {
+): MonthRailViewModel {
   const t: HeaderT = (key) => tDict(key, locale, dashboardHeaderDict);
   const header = summary.header;
   const isSkipped = header.periodStatus === "skipped";
@@ -75,7 +75,7 @@ function buildPeriodControlBarViewModel(
     header.periodStatus === "open" &&
     header.canCloseMonth &&
     !!header.closeMonthButtonLabel;
-  const currentTone: PeriodControlBarViewModel["current"]["tone"] = isSkipped
+  const currentTone: MonthRailViewModel["current"]["tone"] = isSkipped
     ? "muted"
     : isClosed
       ? "success"
@@ -95,7 +95,7 @@ function buildPeriodControlBarViewModel(
         )
       : t("periodContextNextLocked");
 
-  const ribbonItems: PeriodControlBarViewModel["ribbonItems"] = [
+  const ribbonItems: MonthRailViewModel["ribbonItems"] = [
     {
       label: isSkipped
         ? t("periodContextSkippedMeaning")
@@ -112,7 +112,7 @@ function buildPeriodControlBarViewModel(
             label: comparisonLabel,
             tone: isSkipped ? "muted" : "neutral",
             icon: "compare",
-          } satisfies PeriodControlBarViewModel["ribbonItems"][number],
+          } satisfies MonthRailViewModel["ribbonItems"][number],
         ]),
     {
       label: nextLabel,
@@ -173,6 +173,8 @@ function buildPeriodControlBarViewModel(
   }
 
   return {
+    ariaLabel: t("monthRailAriaLabel"),
+    loadingLabel: t("loadingPeriodSr"),
     current: {
       yearMonth: header.periodKey,
       label: header.periodLabel,
@@ -303,14 +305,14 @@ function LoadedDashboardContent({
 
   const closeAvailability = getCloseAvailabilityLabel(summary.header, locale);
 
-  const periodControlVm = buildPeriodControlBarViewModel(summary, locale, {
+  const monthRailVm = buildMonthRailViewModel(summary, locale, {
     suppressContinueAction: isJustClosedHandoffVisible,
   });
 
   return (
     <div className="w-full max-w-6xl space-y-5">
-      <PeriodControlBar
-        vm={periodControlVm}
+      <MonthRail
+        vm={monthRailVm}
         onGoPrevious={goToPreviousMonth}
         onGoNext={goToNextMonth}
         isSwitchingMonth={isSwitchingMonth}

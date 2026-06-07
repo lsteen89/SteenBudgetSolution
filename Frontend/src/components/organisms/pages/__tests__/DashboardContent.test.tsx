@@ -1533,7 +1533,7 @@ describe("DashboardContent", () => {
     expect(screen.getByTestId("closed-month-recap")).not.toHaveTextContent(
       /locked snapshot for april 2026/i,
     );
-    expect(screen.getByTestId("stable-month-frame")).not.toHaveTextContent(
+    expect(screen.getByTestId("month-rail")).not.toHaveTextContent(
       /comparison baseline/i,
     );
     const heroResult = screen.getByTestId("closed-month-hero-result");
@@ -2463,7 +2463,7 @@ describe("DashboardContent", () => {
     expect(screen.getByTestId("month-status-badge")).toHaveTextContent(
       "Skipped",
     );
-    expect(screen.getByTestId("stable-month-frame")).toHaveTextContent(
+    expect(screen.getByTestId("month-rail")).toHaveTextContent(
       /comparisons skip this month/i,
     );
     expect(
@@ -2740,7 +2740,7 @@ describe("DashboardContent", () => {
 
       renderDashboardContent();
 
-      const frame = screen.getByTestId("stable-month-frame");
+      const frame = screen.getByTestId("month-rail");
       expect(frame).not.toHaveTextContent(
         /the month can be closed in 17 days/i,
       );
@@ -2767,10 +2767,10 @@ describe("DashboardContent", () => {
 
     expect(screen.getByTestId("month-status-badge")).toHaveTextContent(/open/i);
     expect(screen.getByTestId("close-month-cta")).toBeInTheDocument();
-    expect(screen.getByTestId("stable-month-frame")).not.toHaveTextContent(
+    expect(screen.getByTestId("month-rail")).not.toHaveTextContent(
       /the month can be closed in/i,
     );
-    expect(screen.getByTestId("stable-month-frame")).not.toHaveTextContent(
+    expect(screen.getByTestId("month-rail")).not.toHaveTextContent(
       /ready to close/i,
     );
   });
@@ -2895,15 +2895,21 @@ describe("DashboardContent", () => {
     expect(screen.getByTestId("period-action-continue")).toBeInTheDocument();
   });
 
-  it("renders the active month label with the calm selected-segment treatment", () => {
+  it("renders the active month label with the rail anchor treatment", () => {
     mockUseDashboardSummary.mockReturnValue(readyResult);
 
     renderDashboardContent();
 
     const activeMonth = screen.getByTestId("active-month-label");
     expect(activeMonth).toHaveAttribute("data-active", "true");
-    // Subtle accent ring on the white segment surface.
-    expect(activeMonth.className).toMatch(/ring-eb-accent\/20/);
+    // The active month is the spine's page anchor: extrabold typography on
+    // the period label, with the status pill rendered inline next to it.
+    const label = activeMonth.querySelector("span");
+    expect(label).not.toBeNull();
+    expect(label!.className).toMatch(/font-extrabold/);
+    expect(
+      within(activeMonth).getByTestId("month-status-badge"),
+    ).toBeInTheDocument();
   });
 });
 
