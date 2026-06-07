@@ -383,6 +383,7 @@ function LoadedDashboardContent({
             onOpenFullSavingsEditor={() => navigate("/dashboard/savings")}
             onOpenDebtsEditor={handleOpenDebtsEditor}
             onOpenFullDebtsEditor={() => navigate("/dashboard/debts")}
+            onOpenCloseMonth={closeMonthReview.open}
             isSwitchingMonth={isSwitchingMonth}
           />
 

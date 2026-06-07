@@ -8,8 +8,9 @@ import { cn } from "@/lib/utils";
 import type { BudgetDashboardMonthDto } from "@/types/budget/BudgetDashboardMonthDto";
 import React from "react";
 
+import type { AttentionPillar } from "@/domain/budget/attentionRanking";
+import AttentionLane from "./openMonth/AttentionLane";
 import MoneyState from "./openMonth/MoneyState";
-import OpenMonthFollowUpStrip from "./openMonth/OpenMonthFollowUpStrip";
 import OpenMonthPillarWorkbench from "./openMonth/OpenMonthPillarWorkbench";
 
 export interface ReturningDashboardSectionProps {
@@ -21,6 +22,12 @@ export interface ReturningDashboardSectionProps {
   onOpenFullSavingsEditor: () => void;
   onOpenDebtsEditor: () => void;
   onOpenFullDebtsEditor: () => void;
+  /**
+   * Open the close-month review modal. Routed to from the AttentionLane's
+   * close-flow items (overdue, eligible) so the lane can trigger the same
+   * flow the MonthRail close CTA already drives.
+   */
+  onOpenCloseMonth: () => void;
   isSwitchingMonth?: boolean;
   summary: DashboardSummary;
   breakdown: DashboardBreakdown;
@@ -41,6 +48,7 @@ const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({
   onOpenFullSavingsEditor,
   onOpenDebtsEditor,
   onOpenFullDebtsEditor,
+  onOpenCloseMonth,
   isSwitchingMonth = false,
   summary,
   breakdown,
@@ -48,6 +56,44 @@ const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({
 }) => {
   const locale = useAppLocale();
   const closeAvailability = getCloseAvailabilityLabel(summary.header, locale);
+
+  // AttentionLane routes its action chips to the same drawers/editors the
+  // PillarWorkbench already uses, so we reuse those handlers verbatim. This
+  // keeps "quick adjust" and "edit all" boundaries honest — the lane never
+  // implies actions outside what the existing pillar surface supports.
+  const handleAttentionQuickDrawer = (pillar: AttentionPillar) => {
+    switch (pillar) {
+      case "income":
+        onOpenIncomeEditor();
+        return;
+      case "expenses":
+        onOpenPeriodEditor();
+        return;
+      case "savings":
+        onOpenSavingsEditor();
+        return;
+      case "debts":
+        onOpenDebtsEditor();
+        return;
+    }
+  };
+
+  const handleAttentionFullEditor = (pillar: AttentionPillar) => {
+    switch (pillar) {
+      case "income":
+        onOpenFullIncomeEditor();
+        return;
+      case "expenses":
+        onOpenFullExpenseEditor();
+        return;
+      case "savings":
+        onOpenFullSavingsEditor();
+        return;
+      case "debts":
+        onOpenFullDebtsEditor();
+        return;
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -68,9 +114,12 @@ const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({
             isSwitchingMonth && "opacity-90",
           )}
         >
-          <OpenMonthFollowUpStrip
+          <AttentionLane
             summary={summary}
             closeAvailability={closeAvailability}
+            onCloseMonth={onOpenCloseMonth}
+            onOpenQuickDrawer={handleAttentionQuickDrawer}
+            onOpenFullEditor={handleAttentionFullEditor}
           />
         </div>
 
