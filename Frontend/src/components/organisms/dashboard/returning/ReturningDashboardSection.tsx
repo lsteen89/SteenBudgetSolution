@@ -10,6 +10,7 @@ import React from "react";
 
 import type { AttentionPillar } from "@/domain/budget/attentionRanking";
 import AttentionLane from "./openMonth/AttentionLane";
+import CloseBand from "./openMonth/CloseBand";
 import MoneyState from "./openMonth/MoneyState";
 import OpenMonthPillarWorkbench from "./openMonth/OpenMonthPillarWorkbench";
 
@@ -108,6 +109,25 @@ const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({
           isSwitchingMonth && "opacity-75",
         )}
       >
+        {/*
+          CloseBand (PR5) sits between MoneyState and AttentionLane per the
+          locked Spine section order. It self-suppresses (returns null) when
+          the lifecycle is calm/normal with no countdown yet — so the calm
+          flow stays visually unchanged for healthy mid-month dashboards.
+        */}
+        <div
+          className={cn(
+            "transition-opacity duration-250 ease-out",
+            isSwitchingMonth && "opacity-90",
+          )}
+        >
+          <CloseBand
+            summary={summary}
+            closeAvailability={closeAvailability}
+            onOpenCloseMonth={onOpenCloseMonth}
+          />
+        </div>
+
         <div
           className={cn(
             "transition-opacity duration-250 ease-out",
