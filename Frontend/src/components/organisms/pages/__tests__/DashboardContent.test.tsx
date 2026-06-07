@@ -14,6 +14,18 @@ const mockUseDashboardSummary = vi.fn();
 const mockUseBudgetMonthRecapQuery = vi.fn();
 const mockMutateAsync = vi.fn();
 const mockSetSelectedYearMonth = vi.fn();
+// Spy variant of the savings-goal completion candidates query. The default
+// implementation matches the previous always-empty mock so existing tests
+// keep their behaviour; the gating test (P6) overrides nothing — it only
+// asserts on the recorded call arguments.
+const mockUseSavingsGoalCompletionCandidatesQuery = vi.fn(
+  (_yearMonth?: string | null, _options?: { enabled?: boolean }) => ({
+    data: [],
+    isPending: false,
+    isError: false,
+    error: null,
+  }),
+);
 let mockAppLocale = "en-US";
 const mockToast = {
   success: vi.fn(),
@@ -41,12 +53,10 @@ vi.mock("@/hooks/budget/useCloseBudgetMonthMutation", () => ({
 }));
 
 vi.mock("@/hooks/budget/useSavingsGoalCompletionCandidatesQuery", () => ({
-  useSavingsGoalCompletionCandidatesQuery: () => ({
-    data: [],
-    isPending: false,
-    isError: false,
-    error: null,
-  }),
+  useSavingsGoalCompletionCandidatesQuery: (
+    yearMonth?: string | null,
+    options?: { enabled?: boolean },
+  ) => mockUseSavingsGoalCompletionCandidatesQuery(yearMonth, options),
   savingsGoalCompletionCandidatesQueryKey: (ym?: string | null) => [
     "savingsGoalCompletionCandidates",
     ym ?? null,
@@ -493,6 +503,7 @@ describe("DashboardContent", () => {
     });
     mockMutateAsync.mockReset();
     mockSetSelectedYearMonth.mockReset();
+    mockUseSavingsGoalCompletionCandidatesQuery.mockClear();
     mockToast.success.mockReset();
     mockToast.error.mockReset();
     mockToast.info.mockReset();
@@ -1048,6 +1059,97 @@ describe("DashboardContent", () => {
     expect(
       screen.getByRole("button", { name: /^close april 2026$/i }),
     ).toBeInTheDocument();
+  });
+
+  // --------------------------------------------------------------------------
+  // P6 — Close-month flow integration.
+  //
+  // The MonthRail close CTA path is covered above. These tests pin down the
+  // two other entry points (CloseBand and the AttentionLane overdue close
+  // action) and the lazy fetch contract for savings-goal completion candidates
+  // — all three are part of the locked Spine close-flow story.
+  // --------------------------------------------------------------------------
+
+  it("opens the same close month modal from the CloseBand review-and-close CTA", () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+
+    renderDashboardContent();
+
+    // The CloseBand sits under MoneyState on an eligible open month. Its CTA
+    // is structurally distinct from the MonthRail "Close Month" trigger but
+    // must route through the same controller so we get one close-flow story.
+    const closeBandCta = screen.getByTestId("close-band-cta");
+    expect(closeBandCta).toHaveTextContent(/review & close/i);
+
+    fireEvent.click(closeBandCta);
+
+    expect(
+      screen.getByRole("heading", { name: "Close April 2026?" }),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("close-month-modal")).toBeInTheDocument();
+  });
+
+  it("opens the same close month modal from the AttentionLane overdue close action", () => {
+    // Drive the dashboard into an overdue lifecycle so AttentionLane raises
+    // the close-month action. CloseBand also renders in this state, but the
+    // testid scopes the click to the AttentionLane entry point.
+    const overdueSummary = buildSummary(245, "open", {
+      header: {
+        lifecycleState: "overdue",
+        canCloseMonth: true,
+        closeMonthButtonLabel: "Close Month",
+      },
+    });
+    mockUseDashboardSummary.mockReturnValue({
+      ...readyResult,
+      data: {
+        ...readyResult.data,
+        summary: overdueSummary,
+      },
+    });
+
+    renderDashboardContent();
+
+    fireEvent.click(screen.getByTestId("attention-action-overdue-close"));
+
+    expect(
+      screen.getByRole("heading", { name: "Close April 2026?" }),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("close-month-modal")).toBeInTheDocument();
+  });
+
+  it("does not request savings-goal completion candidates until the close modal opens", () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+
+    renderDashboardContent();
+
+    // Before opening: the hook is still invoked (it lives in the controller
+    // which always mounts), but `enabled` must be false so the network
+    // request never fires. This preserves the dashboard-load contract that
+    // editor/close-detail endpoints are lazy.
+    expect(
+      mockUseSavingsGoalCompletionCandidatesQuery,
+    ).toHaveBeenCalled();
+    const preOpenCalls = mockUseSavingsGoalCompletionCandidatesQuery.mock.calls;
+    expect(preOpenCalls.length).toBeGreaterThan(0);
+    for (const [, options] of preOpenCalls) {
+      expect(options).toEqual(expect.objectContaining({ enabled: false }));
+    }
+
+    mockUseSavingsGoalCompletionCandidatesQuery.mockClear();
+
+    fireEvent.click(screen.getByRole("button", { name: /close month/i }));
+
+    const postOpenCalls = mockUseSavingsGoalCompletionCandidatesQuery.mock.calls;
+    expect(postOpenCalls.length).toBeGreaterThan(0);
+    expect(
+      postOpenCalls.some(
+        ([yearMonth, options]) =>
+          yearMonth === "2026-04" &&
+          options &&
+          (options as { enabled?: boolean }).enabled === true,
+      ),
+    ).toBe(true);
   });
 
   it("does not render any 'Edit' affordances inside the close month modal", () => {
