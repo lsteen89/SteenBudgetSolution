@@ -155,6 +155,119 @@ function buildSummary(
   };
 }
 
+/**
+ * Build a minimal `BudgetDashboardMonthDto` that satisfies `buildDashboardTerms`
+ * so MoneyState can render without throwing. Numbers are internally
+ * reconciling (income - expenses - savings - debts = finalBalanceWithCarry)
+ * — tests that override `summary.finalBalance` may diverge from this DTO,
+ * which is intentional: those tests assert on FollowUpStrip / pillar copy
+ * driven by `summary`, not on MoneyState content driven by `dashboardMonth`.
+ */
+function buildDashboardMonthDto(
+  finalBalance: number,
+  status: "open" | "closed" | "skipped" = "open",
+  yearMonth = "2026-04",
+) {
+  if (status === "skipped") {
+    return {
+      currencyCode: "SEK" as const,
+      month: {
+        yearMonth,
+        status: "skipped" as const,
+        carryOverMode: "none" as const,
+        carryOverAmount: null,
+        isCloseWindowOpen: false,
+        closeWindowOpensAtUtc: null,
+        closeEligibleAtUtc: null,
+        isOverdueForClose: false,
+      },
+      liveDashboard: null,
+      snapshotTotals: null,
+    };
+  }
+
+  if (status === "closed") {
+    return {
+      currencyCode: "SEK" as const,
+      month: {
+        yearMonth,
+        status: "closed" as const,
+        carryOverMode: "none" as const,
+        carryOverAmount: null,
+        isCloseWindowOpen: false,
+        closeWindowOpensAtUtc: null,
+        closeEligibleAtUtc: null,
+        isOverdueForClose: false,
+      },
+      liveDashboard: null,
+      snapshotTotals: {
+        totalIncomeMonthly: 12000,
+        totalExpensesMonthly: 11005,
+        totalSavingsMonthly: 750,
+        totalDebtPaymentsMonthly: 0,
+        finalBalanceMonthly: finalBalance,
+      },
+    };
+  }
+
+  const expenses = 12000 - 0 - 750 - 0 - finalBalance; // keep the equation honest
+  return {
+    currencyCode: "SEK" as const,
+    month: {
+      yearMonth,
+      status: "open" as const,
+      carryOverMode: "none" as const,
+      carryOverAmount: null,
+      isCloseWindowOpen: true,
+      closeWindowOpensAtUtc: "2026-04-22T00:00:00Z",
+      closeEligibleAtUtc: "2026-04-25T00:00:00Z",
+      isOverdueForClose: false,
+    },
+    liveDashboard: {
+      budgetId: "00000000-0000-0000-0000-000000000001",
+      income: {
+        netSalaryMonthly: 12000,
+        incomePaymentDayType: null,
+        incomePaymentDay: null,
+        sideHustleMonthly: 0,
+        householdMembersMonthly: 0,
+        totalIncomeMonthly: 12000,
+        sideHustles: [],
+        householdMembers: [],
+      },
+      expenditure: {
+        totalExpensesMonthly: expenses,
+        byCategory: [],
+      },
+      savings: {
+        monthlySavings: 500,
+        totalGoalSavingsMonthly: 250,
+        totalSavingsMonthly: 750,
+        isMonthOnly: false,
+        goals: [],
+      },
+      debt: {
+        totalDebtBalance: 0,
+        totalMonthlyPayments: 0,
+        debts: [],
+        repaymentStrategy: null,
+      },
+      carryOverAmountMonthly: 0,
+      disposableAfterExpensesWithCarryMonthly: 12000 - expenses,
+      disposableAfterExpensesAndSavingsWithCarryMonthly:
+        12000 - expenses - 750,
+      finalBalanceWithCarryMonthly: finalBalance,
+      recurringExpenses: [],
+      subscriptions: {
+        totalMonthlyAmount: 0,
+        count: 0,
+        items: [],
+      },
+    },
+    snapshotTotals: null,
+  };
+}
+
 const sampleMonthsStatus = {
   openMonthYearMonth: "2026-04",
   currentYearMonth: "2026-04",
@@ -198,6 +311,12 @@ const readyResult = {
       debtItems: [],
     },
   },
+  // MoneyState (P2) reads from the raw open-month DTO so its anchor and
+  // AllocationBar stay aligned with backend-authoritative remaining. Tests
+  // that override `data.summary` may diverge from this DTO; that is fine —
+  // MoneyState is driven by `dashboardMonth`, FollowUpStrip/pillars by
+  // `data.summary`.
+  dashboardMonth: buildDashboardMonthDto(245, "open"),
   isPending: false,
   isFetching: false,
   isError: false,
@@ -536,24 +655,60 @@ describe("DashboardContent", () => {
     expect(screen.queryByText(/desktop:\s*true/i)).toBeNull();
   });
 
-  it("renders the open-month command hero", () => {
+  it("renders the open-month MoneyState anchor, equation and allocation bar", () => {
     mockUseDashboardSummary.mockReturnValue(readyResult);
 
     renderDashboardContent();
 
-    expect(
-      screen.getByRole("heading", {
-        name: "You can relax, but keep the plan current",
-      }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Open month control room")).toBeInTheDocument();
-    expect(screen.getByText("Money position")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /adjust month/i })).toBeNull();
+    const moneyState = screen.getByTestId("money-state");
+    expect(moneyState).toBeInTheDocument();
+    expect(moneyState).toHaveAttribute("data-tone", "positive");
+    expect(within(moneyState).getByText("Money state")).toBeInTheDocument();
+    expect(within(moneyState).getByText("Left this month")).toBeInTheDocument();
 
-    const analysisLink = screen.getByRole("link", {
-      name: /explore analysis & trends/i,
-    });
-    expect(analysisLink).toHaveAttribute("href", "/dashboard/breakdown");
+    // The six-term equation is rendered inline, including carry-over at 0,
+    // so the user can see why the remaining amount is what it is.
+    expect(
+      within(moneyState).getByTestId("money-state-equation"),
+    ).toBeInTheDocument();
+    expect(
+      within(moneyState).getByTestId("money-state-equation-income"),
+    ).toBeInTheDocument();
+    expect(
+      within(moneyState).getByTestId("money-state-equation-carryOver"),
+    ).toBeInTheDocument();
+    expect(
+      within(moneyState).getByTestId("money-state-equation-expenses"),
+    ).toBeInTheDocument();
+    expect(
+      within(moneyState).getByTestId("money-state-equation-savings"),
+    ).toBeInTheDocument();
+    expect(
+      within(moneyState).getByTestId("money-state-equation-debts"),
+    ).toBeInTheDocument();
+    expect(
+      within(moneyState).getByTestId("money-state-equation-remaining"),
+    ).toBeInTheDocument();
+
+    // AllocationBar (P0 molecule) is wired in.
+    expect(
+      within(moneyState).getByTestId("money-state-allocation"),
+    ).toBeInTheDocument();
+
+    // The secondary link points to the existing deeper breakdown route.
+    const breakdownLink = within(moneyState).getByTestId(
+      "money-state-breakdown-link",
+    );
+    expect(breakdownLink).toHaveAttribute("href", "/dashboard/breakdown");
+    expect(breakdownLink).toHaveTextContent(/see the full breakdown/i);
+
+    // The old hero copy and analysis CTA must not co-exist with MoneyState.
+    expect(
+      screen.queryByText("Open month control room"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /explore analysis & trends/i }),
+    ).toBeNull();
     expect(screen.queryByText("Edit drawer open")).toBeNull();
   });
 
@@ -627,8 +782,13 @@ describe("DashboardContent", () => {
     expect(screen.queryByText("deepDiveBody")).not.toBeInTheDocument();
     expect(screen.queryByText("deepDiveCta")).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /go to overview/i })).toBeNull();
+    // MoneyState (P2) owns the single secondary route into the deeper
+    // breakdown — the old hero "Explore analysis & trends" CTA is gone.
     expect(
-      screen.getAllByRole("link", { name: /explore analysis & trends/i }),
+      screen.queryByRole("link", { name: /explore analysis & trends/i }),
+    ).toBeNull();
+    expect(
+      screen.getAllByRole("link", { name: /see the full breakdown/i }),
     ).toHaveLength(1);
   });
 
@@ -2744,8 +2904,12 @@ describe("DashboardContent", () => {
       expect(frame).not.toHaveTextContent(
         /the month can be closed in 17 days/i,
       );
+      // MoneyState (P2) replaced the legacy command-hero countdown panel
+      // that used to echo the close-availability label, so the FollowUpStrip
+      // "Closing window" item is now the sole surface for the countdown
+      // copy on an open, not-yet-ready month.
       expect(screen.getAllByText(/the month can be closed in 17 days/i)).toHaveLength(
-        2,
+        1,
       );
       expect(frame).not.toHaveTextContent(/ready to close/i);
       expect(screen.queryByTestId("close-month-cta")).toBeNull();

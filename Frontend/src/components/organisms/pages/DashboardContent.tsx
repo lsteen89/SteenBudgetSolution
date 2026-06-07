@@ -20,6 +20,7 @@ import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { useBudgetMonthStore } from "@/stores/Budget/budgetMonthStore";
 import type { ApiProblem } from "@/api/api.types";
 import type { AppLocale } from "@/types/i18n/appLocale";
+import type { BudgetDashboardMonthDto } from "@/types/budget/BudgetDashboardMonthDto";
 import type { BudgetMonthListItemDto } from "@/types/budget/BudgetMonthsStatusDto";
 import { dashboardHeaderDict } from "@/utils/i18n/pages/private/dashboard/header/DashboardHeader.i18n";
 import { closeMonthReviewModalDict } from "@/utils/i18n/pages/private/dashboard/closeMonth/CloseMonthReviewModal.i18n";
@@ -214,6 +215,11 @@ type LoadedDashboardContentProps = {
   goToPreviousMonth: () => void;
   goToNextMonth: () => void;
   archiveMonths: BudgetMonthListItemDto[];
+  /**
+   * Raw open-month DTO. Closed/skipped branches do not render MoneyState, so
+   * `dashboardMonth` is only forwarded into the open-month section.
+   */
+  dashboardMonth: BudgetDashboardMonthDto;
 };
 
 function LoadedDashboardContent({
@@ -224,6 +230,7 @@ function LoadedDashboardContent({
   goToPreviousMonth,
   goToNextMonth,
   archiveMonths,
+  dashboardMonth,
 }: LoadedDashboardContentProps) {
   const [isPeriodEditorOpen, setIsPeriodEditorOpen] = useState(false);
   const [periodEditorPanel, setPeriodEditorPanel] = useState<
@@ -367,6 +374,7 @@ function LoadedDashboardContent({
           <ReturningDashboardSection
             summary={summary}
             breakdown={breakdown}
+            dashboardMonth={dashboardMonth}
             onOpenPeriodEditor={handleOpenPeriodEditor}
             onOpenFullExpenseEditor={() => navigate("/dashboard/expenses")}
             onOpenIncomeEditor={handleOpenIncomeEditor}
@@ -442,6 +450,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
     goToPreviousMonth,
     goToNextMonth,
     monthsStatus,
+    dashboardMonth,
   } = useDashboardSummary({
     enabled: shouldFetchDashboard,
   });
@@ -494,7 +503,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
     );
   }
 
-  if (!data) {
+  if (!data || !dashboardMonth) {
     return (
       <FirstTimeDashboardSection
         onStartWizard={openWizard}
@@ -508,6 +517,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
     <LoadedDashboardContent
       summary={data.summary}
       breakdown={data.breakdown}
+      dashboardMonth={dashboardMonth}
       isFetching={isFetching}
       isPending={isPending}
       goToPreviousMonth={goToPreviousMonth}

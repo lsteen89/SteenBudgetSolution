@@ -5,9 +5,10 @@ import type {
 import { getCloseAvailabilityLabel } from "@/hooks/dashboard/getCloseAvailabilityLabel";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/lib/utils";
+import type { BudgetDashboardMonthDto } from "@/types/budget/BudgetDashboardMonthDto";
 import React from "react";
 
-import OpenMonthCommandHero from "./openMonth/OpenMonthCommandHero";
+import MoneyState from "./openMonth/MoneyState";
 import OpenMonthFollowUpStrip from "./openMonth/OpenMonthFollowUpStrip";
 import OpenMonthPillarsGrid from "./openMonth/OpenMonthPillarsGrid";
 
@@ -23,6 +24,12 @@ export interface ReturningDashboardSectionProps {
   isSwitchingMonth?: boolean;
   summary: DashboardSummary;
   breakdown: DashboardBreakdown;
+  /**
+   * Raw dashboard month DTO. MoneyState consumes it directly to run the
+   * P0 six-term aggregator/reconciliation against backend-authoritative
+   * totals (rather than re-deriving them from the flattened summary).
+   */
+  dashboardMonth: BudgetDashboardMonthDto;
 }
 
 const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({
@@ -37,17 +44,16 @@ const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({
   isSwitchingMonth = false,
   summary,
   breakdown,
+  dashboardMonth,
 }) => {
   const locale = useAppLocale();
   const closeAvailability = getCloseAvailabilityLabel(summary.header, locale);
 
   return (
     <div className="space-y-6">
-      <OpenMonthCommandHero
-        periodLabel={summary.header.periodLabel}
-        finalBalance={summary.finalBalance}
+      <MoneyState
+        dashboardMonth={dashboardMonth}
         currency={summary.currency}
-        closeAvailability={closeAvailability}
       />
 
       <div
