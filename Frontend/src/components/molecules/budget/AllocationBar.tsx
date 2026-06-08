@@ -52,6 +52,48 @@ const clampNonNegative = (n: number) => (n > 0 ? n : 0);
 
 const RENDER_EPSILON = 0.005;
 
+export type AllocationSegmentKey = "expenses" | "savings" | "debts" | "free";
+
+/**
+ * Calm allocation palette — navy → blue → amber → green. Planned outflows are
+ * never danger red; that tone is reserved for the deficit runs-out marker and
+ * the unfunded tail. Shared so the bar and any legend stay colour-consistent.
+ */
+export const ALLOCATION_SEGMENT_BAR_CLASS: Record<
+  AllocationSegmentKey,
+  string
+> = {
+  expenses: "bg-eb-shell3",
+  savings: "bg-eb-shell2",
+  debts: "bg-eb-alert",
+  free: "bg-eb-accent",
+};
+
+/**
+ * The visible allocation segments for these terms, in canonical order. Mirrors
+ * exactly what {@link AllocationBar} renders (committed segments always; the
+ * free segment only on the surplus side) so a caller-rendered legend can stay
+ * in sync with the bar without duplicating the visibility rules.
+ */
+export function getVisibleAllocationSegments(
+  terms: AllocationBarTerms,
+): Array<{ key: AllocationSegmentKey; amount: number }> {
+  const expenses = clampNonNegative(round2(terms.expenses));
+  const savings = clampNonNegative(round2(terms.savings));
+  const debts = clampNonNegative(round2(terms.debts));
+  const remaining = round2(terms.remaining);
+  const isDeficit = remaining < -RENDER_EPSILON;
+  const free = isDeficit ? 0 : clampNonNegative(remaining);
+
+  const all: Array<{ key: AllocationSegmentKey; amount: number }> = [
+    { key: "expenses", amount: expenses },
+    { key: "savings", amount: savings },
+    { key: "debts", amount: debts },
+  ];
+  if (free > 0) all.push({ key: "free", amount: free });
+  return all.filter((segment) => segment.amount > 0);
+}
+
 /**
  * Dashboard allocation flow bar.
  *
@@ -127,19 +169,19 @@ export default function AllocationBar({
       key: "expenses",
       amount: expenses,
       label: labels.expenses,
-      barClassName: "bg-eb-danger/70",
+      barClassName: ALLOCATION_SEGMENT_BAR_CLASS.expenses,
     },
     {
       key: "savings",
       amount: savings,
       label: labels.savings,
-      barClassName: "bg-eb-accent/80",
+      barClassName: ALLOCATION_SEGMENT_BAR_CLASS.savings,
     },
     {
       key: "debts",
       amount: debts,
       label: labels.debts,
-      barClassName: "bg-eb-alert/80",
+      barClassName: ALLOCATION_SEGMENT_BAR_CLASS.debts,
     },
   ];
 
@@ -148,7 +190,7 @@ export default function AllocationBar({
       key: "free",
       amount: free,
       label: labels.free,
-      barClassName: "bg-eb-accentSoft",
+      barClassName: ALLOCATION_SEGMENT_BAR_CLASS.free,
     });
   }
 

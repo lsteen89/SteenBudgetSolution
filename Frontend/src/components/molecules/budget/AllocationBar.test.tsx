@@ -2,6 +2,8 @@ import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import AllocationBar, {
+  ALLOCATION_SEGMENT_BAR_CLASS,
+  getVisibleAllocationSegments,
   type AllocationBarLabels,
   type AllocationBarTerms,
 } from "./AllocationBar";
@@ -38,6 +40,50 @@ function visibleSegmentTotal(): number {
     .filter((el): el is HTMLElement => el != null)
     .reduce((sum, el) => sum + widthPercent(el), 0);
 }
+
+describe("AllocationBar — calm palette + segment helper", () => {
+  it("colours planned outflows with the calm palette, never danger red", () => {
+    renderBar({ expenses: 40, savings: 20, debts: 10, remaining: 30 });
+
+    expect(screen.getByTestId("bar-expenses").className).toContain(
+      ALLOCATION_SEGMENT_BAR_CLASS.expenses,
+    );
+    expect(screen.getByTestId("bar-expenses").className).not.toContain(
+      "bg-eb-danger",
+    );
+    expect(screen.getByTestId("bar-savings").className).toContain(
+      ALLOCATION_SEGMENT_BAR_CLASS.savings,
+    );
+    expect(screen.getByTestId("bar-debts").className).toContain(
+      ALLOCATION_SEGMENT_BAR_CLASS.debts,
+    );
+    expect(screen.getByTestId("bar-free").className).toContain(
+      ALLOCATION_SEGMENT_BAR_CLASS.free,
+    );
+  });
+
+  it("getVisibleAllocationSegments mirrors the rendered segments", () => {
+    // Surplus: all four visible.
+    expect(
+      getVisibleAllocationSegments({
+        expenses: 40,
+        savings: 20,
+        debts: 10,
+        remaining: 30,
+      }).map((s) => s.key),
+    ).toEqual(["expenses", "savings", "debts", "free"]);
+
+    // Deficit drops free; zero-width segments drop out.
+    expect(
+      getVisibleAllocationSegments({
+        expenses: 60,
+        savings: 30,
+        debts: 0,
+        remaining: -20,
+      }).map((s) => s.key),
+    ).toEqual(["expenses", "savings"]);
+  });
+});
 
 describe("AllocationBar — surplus", () => {
   it("renders expenses, savings, debts and a free segment proportional to backend remaining", () => {

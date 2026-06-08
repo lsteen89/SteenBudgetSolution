@@ -18,6 +18,7 @@ import { pillarWorkbenchDict } from "@/utils/i18n/pages/private/dashboard/openMo
 import { tDict } from "@/utils/i18n/translate";
 import { formatMoneyV2 } from "@/utils/money/moneyV2";
 
+import { DebtRow, GoalRow, MiniBar } from "./PillarRows";
 import PillarWorkbenchCard from "./PillarWorkbenchCard";
 
 /**
@@ -63,6 +64,23 @@ type IncomeGroupTotals = {
 };
 
 const EPSILON = 0.005;
+
+/** Fill percentage of `value` relative to a pillar's largest row. */
+function fillPct(value: number, max: number): number {
+  if (max <= 0) return 0;
+  return (value / max) * 100;
+}
+
+/**
+ * Localized APR number (no unit). The `%` and "APR" wording live in the i18n
+ * template; this only fixes the decimal separator so sv/et users see `10,99`
+ * rather than `10.99`. Mirrors how money values are already localized.
+ */
+function formatAprValue(apr: number, locale: string): string {
+  return new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(
+    Number.isFinite(apr) ? apr : 0,
+  );
+}
 
 function aggregateIncomeGroups(items: BreakdownItem[]): IncomeGroupTotals {
   let salary = 0;
@@ -165,6 +183,11 @@ const OpenMonthPillarWorkbench: React.FC<OpenMonthPillarWorkbenchProps> = ({
     () => aggregateIncomeGroups(breakdown.incomeItems),
     [breakdown.incomeItems],
   );
+  const incomeMax = Math.max(
+    incomeGroups.salary,
+    incomeGroups.side,
+    incomeGroups.household,
+  );
   const incomeHasAny = summary.totalIncome >= EPSILON;
   const incomeSubtitle = !incomeHasAny
     ? t("incomeSubtitleNone")
@@ -180,6 +203,8 @@ const OpenMonthPillarWorkbench: React.FC<OpenMonthPillarWorkbenchProps> = ({
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 3);
   }, [breakdown.expenseCategoryItems]);
+  // Categories are sorted amount-desc, so the first is the largest.
+  const expenseMax = topExpenseCategories[0]?.amount ?? 0;
   const expensesCategoryCount = breakdown.expenseCategoryItems.filter(
     (c) => Math.abs(c.amount) >= EPSILON,
   ).length;
@@ -215,11 +240,60 @@ const OpenMonthPillarWorkbench: React.FC<OpenMonthPillarWorkbenchProps> = ({
       ? t("savingsSubtitleNoGoals")
       : t("savingsSubtitle").replace("{percent}", String(Math.round(goalsProgress)));
 
+  // Top goals (favorites first, then most-funded), each with its own progress.
+  // Goals with no usable target render `pct === null` — amounts only, no bar
+  // fill, no divide-by-zero.
+  const topGoalRows = React.useMemo(() => {
+    const active = goals.filter((g) => {
+      const target = g.targetAmount ?? 0;
+      const saved = g.amountSaved ?? 0;
+      const monthly = g.monthlyContribution ?? 0;
+      return target > EPSILON || saved > EPSILON || monthly > EPSILON;
+    });
+    return [...active]
+      .sort((a, b) => {
+        const fav =
+          Number(Boolean(b.isFavorite)) - Number(Boolean(a.isFavorite));
+        if (fav !== 0) return fav;
+        return (b.amountSaved ?? 0) - (a.amountSaved ?? 0);
+      })
+      .slice(0, 3)
+      .map((g, index) => {
+        const target = g.targetAmount ?? 0;
+        const saved = g.amountSaved ?? 0;
+        const monthly = g.monthlyContribution ?? 0;
+        const pct =
+          target > EPSILON
+            ? Math.max(0, Math.min(100, Math.round((saved / target) * 100)))
+            : null;
+        return {
+          id: g.id ?? `goal-${index}`,
+          name: g.name?.trim() || "—",
+          isFavorite: Boolean(g.isFavorite),
+          pct,
+          saved,
+          target,
+          monthly,
+        };
+      });
+  }, [goals]);
+
   // ----- Debts ---------------------------------------------------------
   const totalDebtBalance =
     dashboardMonth.liveDashboard?.debt?.totalDebtBalance ?? 0;
   const debtsList = dashboardMonth.liveDashboard?.debt?.debts ?? [];
   const debtsCount = debtsList.length;
+  const topDebtRows = React.useMemo(
+    () =>
+      [...debtsList]
+        .sort((a, b) => (b.balance ?? 0) - (a.balance ?? 0))
+        .slice(0, 3),
+    [debtsList],
+  );
+  const maxDebtBalance = debtsList.reduce(
+    (max, d) => Math.max(max, d.balance ?? 0),
+    0,
+  );
   const debtsHasAny = summary.totalDebtPayments >= EPSILON || debtsCount > 0;
   const debtsSubtitle = !debtsHasAny
     ? t("debtsSubtitleNone")
@@ -276,24 +350,30 @@ const OpenMonthPillarWorkbench: React.FC<OpenMonthPillarWorkbenchProps> = ({
           {incomeHasAny ? (
             <>
               {incomeGroups.salary >= EPSILON ? (
-                <SignalRow
+                <MiniBar
                   testId="pillar-income-salary"
                   label={t("signalSalary")}
                   value={fmt(incomeGroups.salary)}
-                />
-              ) : null}
-              {incomeGroups.side >= EPSILON ? (
-                <SignalRow
-                  testId="pillar-income-side"
-                  label={t("signalSide")}
-                  value={fmt(incomeGroups.side)}
+                  fillPct={fillPct(incomeGroups.salary, incomeMax)}
+                  barClassName="bg-eb-accent/70"
                 />
               ) : null}
               {incomeGroups.household >= EPSILON ? (
-                <SignalRow
+                <MiniBar
                   testId="pillar-income-household"
                   label={t("signalHousehold")}
                   value={fmt(incomeGroups.household)}
+                  fillPct={fillPct(incomeGroups.household, incomeMax)}
+                  barClassName="bg-eb-accent/70"
+                />
+              ) : null}
+              {incomeGroups.side >= EPSILON ? (
+                <MiniBar
+                  testId="pillar-income-side"
+                  label={t("signalSide")}
+                  value={fmt(incomeGroups.side)}
+                  fillPct={fillPct(incomeGroups.side, incomeMax)}
+                  barClassName="bg-eb-accent/70"
                 />
               ) : null}
             </>
@@ -318,38 +398,53 @@ const OpenMonthPillarWorkbench: React.FC<OpenMonthPillarWorkbenchProps> = ({
           {expensesHasAny ? (
             <>
               {topExpenseCategories.length > 0 ? (
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-2">
                   <span className="text-[11px] font-semibold uppercase tracking-wide text-eb-text/55">
                     {t("signalTopCategories")}
                   </span>
                   {topExpenseCategories.map((cat) => (
-                    <SignalRow
+                    <MiniBar
                       key={cat.key}
                       testId={`pillar-expenses-category-${cat.key}`}
                       label={cat.label}
                       value={fmt(cat.amount)}
+                      fillPct={fillPct(cat.amount, expenseMax)}
+                      barClassName="bg-eb-shell3"
                     />
                   ))}
                 </div>
               ) : null}
-              {hasSubscriptions ? (
-                <SignalChip
-                  testId="pillar-expenses-subscriptions"
-                  label={t("signalSubscriptions")}
-                  value={t("signalSubscriptionsValue")
-                    .replace("{count}", String(summary.subscriptionsCount))
-                    .replace("{monthly}", fmt(summary.subscriptionsTotal))
-                    .replace("{annual}", fmt(summary.subscriptionsTotal * 12))}
-                />
-              ) : null}
-              {hasRecurring ? (
-                <SignalChip
-                  testId="pillar-expenses-recurring"
-                  label={t("signalRecurring")}
-                  value={t("signalRecurringValue")
-                    .replace("{count}", String(recurringCount))
-                    .replace("{monthly}", fmt(recurringTotal))}
-                />
+              {hasSubscriptions || hasRecurring ? (
+                <div
+                  className={cn(
+                    "flex flex-col gap-1.5",
+                    topExpenseCategories.length > 0 &&
+                      "mt-1 border-t border-dashed border-eb-stroke/30 pt-3",
+                  )}
+                >
+                  {hasSubscriptions ? (
+                    <SignalChip
+                      testId="pillar-expenses-subscriptions"
+                      label={t("signalSubscriptions")}
+                      value={t("signalSubscriptionsValue")
+                        .replace("{count}", String(summary.subscriptionsCount))
+                        .replace("{monthly}", fmt(summary.subscriptionsTotal))
+                        .replace(
+                          "{annual}",
+                          fmt(summary.subscriptionsTotal * 12),
+                        )}
+                    />
+                  ) : null}
+                  {hasRecurring ? (
+                    <SignalChip
+                      testId="pillar-expenses-recurring"
+                      label={t("signalRecurring")}
+                      value={t("signalRecurringValue")
+                        .replace("{count}", String(recurringCount))
+                        .replace("{monthly}", fmt(recurringTotal))}
+                    />
+                  ) : null}
+                </div>
               ) : null}
             </>
           ) : (
@@ -386,10 +481,10 @@ const OpenMonthPillarWorkbench: React.FC<OpenMonthPillarWorkbenchProps> = ({
                   value={fmt(summary.goalSavings)}
                 />
               ) : null}
-              {activeGoalsCount > 0 ? (
+              {topGoalRows.length > 0 ? (
                 <div
-                  data-testid="pillar-savings-progress"
-                  className="mt-1 flex flex-col gap-1"
+                  data-testid="pillar-savings-goals-list"
+                  className="mt-1 flex flex-col gap-2.5"
                 >
                   <div className="flex items-baseline justify-between gap-3">
                     <span className="text-[11px] font-semibold uppercase tracking-wide text-eb-text/55">
@@ -402,22 +497,33 @@ const OpenMonthPillarWorkbench: React.FC<OpenMonthPillarWorkbenchProps> = ({
                       ).replace("{count}", String(activeGoalsCount))}
                     </span>
                   </div>
-                  <div
-                    role="progressbar"
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={Math.round(goalsProgress)}
-                    aria-label={t("signalGoalsProgressAria").replace(
-                      "{percent}",
-                      String(Math.round(goalsProgress)),
-                    )}
-                    className="h-1.5 w-full overflow-hidden rounded-full bg-eb-stroke/25"
-                  >
-                    <div
-                      className="h-full rounded-full bg-eb-accent transition-[width] duration-300 motion-reduce:transition-none"
-                      style={{ width: `${goalsProgress}%` }}
+                  {topGoalRows.map((g) => (
+                    <GoalRow
+                      key={g.id}
+                      testId={`pillar-savings-goal-${g.id}`}
+                      name={g.name}
+                      isFavorite={g.isFavorite}
+                      pct={g.pct}
+                      progressAriaLabel={
+                        g.pct !== null
+                          ? t("signalGoalsProgressAria").replace(
+                              "{percent}",
+                              String(g.pct),
+                            )
+                          : undefined
+                      }
+                      sub={
+                        g.pct !== null
+                          ? t("signalGoalRowSub")
+                              .replace("{saved}", fmt(g.saved))
+                              .replace("{target}", fmt(g.target))
+                              .replace("{monthly}", fmt(g.monthly))
+                          : t("signalGoalRowSubNoTarget")
+                              .replace("{saved}", fmt(g.saved))
+                              .replace("{monthly}", fmt(g.monthly))
+                      }
                     />
-                  </div>
+                  ))}
                 </div>
               ) : null}
             </>
@@ -454,6 +560,28 @@ const OpenMonthPillarWorkbench: React.FC<OpenMonthPillarWorkbenchProps> = ({
                   label={t("signalTotalBalance")}
                   value={fmt(totalDebtBalance)}
                 />
+              ) : null}
+              {topDebtRows.length > 0 ? (
+                <div
+                  data-testid="pillar-debts-list"
+                  className="mt-1 flex flex-col gap-2.5"
+                >
+                  {topDebtRows.map((d) => (
+                    <DebtRow
+                      key={d.id}
+                      testId={`pillar-debts-row-${d.id}`}
+                      name={d.name}
+                      aprLabel={t("signalDebtApr").replace(
+                        "{apr}",
+                        formatAprValue(d.apr ?? 0, locale),
+                      )}
+                      fillPct={fillPct(d.balance ?? 0, maxDebtBalance)}
+                      sub={t("signalDebtRowSub")
+                        .replace("{balance}", fmt(d.balance ?? 0))
+                        .replace("{monthly}", fmt(d.monthlyPayment ?? 0))}
+                    />
+                  ))}
+                </div>
               ) : null}
               {strategyLabel ? (
                 <SignalChip

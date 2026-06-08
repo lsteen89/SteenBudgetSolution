@@ -288,7 +288,7 @@ describe("OpenMonthPillarWorkbench — expenses pillar", () => {
 });
 
 describe("OpenMonthPillarWorkbench — savings pillar", () => {
-  it("renders the goal progress bar with the funded percentage", () => {
+  it("renders per-goal rows with each goal's own funded percentage", () => {
     renderWorkbench({
       summary: makeSummary({
         totalSavings: 1500,
@@ -317,7 +317,7 @@ describe("OpenMonthPillarWorkbench — savings pillar", () => {
               name: "Vacation",
               targetAmount: 5000,
               targetDate: null,
-              amountSaved: 2000,
+              amountSaved: 1000,
               monthlyContribution: 500,
             },
           ],
@@ -333,8 +333,56 @@ describe("OpenMonthPillarWorkbench — savings pillar", () => {
       within(savings).getByTestId("pillar-savings-goals"),
     ).toBeInTheDocument();
 
-    const progress = within(savings).getByRole("progressbar");
-    expect(progress).toHaveAttribute("aria-valuenow", "42");
+    // Both goals render as their own row, each with its own progress bar.
+    const emergency = within(savings).getByTestId("pillar-savings-goal-g1");
+    const vacation = within(savings).getByTestId("pillar-savings-goal-g2");
+    // 4000 / 10000 = 40%, 1000 / 5000 = 20%.
+    expect(within(emergency).getByRole("progressbar")).toHaveAttribute(
+      "aria-valuenow",
+      "40",
+    );
+    expect(within(vacation).getByRole("progressbar")).toHaveAttribute(
+      "aria-valuenow",
+      "20",
+    );
+    // Sub-line shows saved-of-target context.
+    expect(emergency.textContent ?? "").toMatch(/4,000/);
+    expect(emergency.textContent ?? "").toMatch(/10,000/);
+  });
+
+  it("renders a goal without a target as amounts only (no progress bar)", () => {
+    renderWorkbench({
+      summary: makeSummary({
+        totalSavings: 800,
+        habitSavings: 0,
+        goalSavings: 800,
+        goalsProgressPercent: 0,
+      }),
+      breakdown: makeBreakdown(),
+      dashboardMonth: makeDashboardMonth({
+        savings: {
+          monthlySavings: 0,
+          totalGoalSavingsMonthly: 800,
+          totalSavingsMonthly: 800,
+          isMonthOnly: false,
+          goals: [
+            {
+              id: "g1",
+              name: "Open-ended",
+              targetAmount: 0,
+              targetDate: null,
+              amountSaved: 1200,
+              monthlyContribution: 800,
+            },
+          ],
+        },
+      }),
+    });
+
+    const row = screen.getByTestId("pillar-savings-goal-g1");
+    // No target → no progress role, no NaN width.
+    expect(within(row).queryByRole("progressbar")).not.toBeInTheDocument();
+    expect(row.textContent ?? "").toMatch(/1,200/);
   });
 
   it("clamps goal progress to 100 if backend reports an overshoot", () => {
@@ -416,6 +464,14 @@ describe("OpenMonthPillarWorkbench — debts pillar", () => {
     );
     // Subtitle reflects 2 debts in the plan.
     expect(within(debts).getByText(/2 debts in the plan/i)).toBeInTheDocument();
+
+    // Each debt renders its own row with APR and a balance sub-line.
+    const card = within(debts).getByTestId("pillar-debts-row-d1");
+    expect(card.textContent ?? "").toMatch(/18% APR/);
+    expect(card.textContent ?? "").toMatch(/50,000/);
+    expect(
+      within(debts).getByTestId("pillar-debts-row-d2"),
+    ).toBeInTheDocument();
   });
 
   it("omits the strategy chip when the backend has no strategy value", () => {

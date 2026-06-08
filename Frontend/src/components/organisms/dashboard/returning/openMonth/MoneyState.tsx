@@ -3,7 +3,10 @@ import React from "react";
 
 import { CtaLink } from "@/components/atoms/buttons/CtaLink";
 import AllocationBar, {
+  ALLOCATION_SEGMENT_BAR_CLASS,
+  getVisibleAllocationSegments,
   type AllocationBarLabels,
+  type AllocationSegmentKey,
 } from "@/components/molecules/budget/AllocationBar";
 import {
   buildDashboardTerms,
@@ -126,6 +129,22 @@ const MoneyState: React.FC<MoneyStateProps> = ({
     free: t("allocationFree"),
     unfunded: t("allocationUnfunded"),
     runsOutMarker: t("allocationRunsOut"),
+  };
+
+  const allocationTerms = {
+    expenses: terms.expenses,
+    savings: terms.savings,
+    debts: terms.debts,
+    remaining: terms.remaining,
+  };
+  // Legend mirrors exactly the segments the bar draws (helper shared with
+  // AllocationBar), so a dot/label/amount can never drift from the bar.
+  const legendSegments = getVisibleAllocationSegments(allocationTerms);
+  const segmentLabel: Record<AllocationSegmentKey, string> = {
+    expenses: allocationLabels.expenses,
+    savings: allocationLabels.savings,
+    debts: allocationLabels.debts,
+    free: allocationLabels.free,
   };
 
   // Six terms in canonical order. Carry-over keeps its slot even at 0 so the
@@ -275,14 +294,37 @@ const MoneyState: React.FC<MoneyStateProps> = ({
         <p className="text-xs font-semibold uppercase tracking-wide text-eb-text/55">
           {t("allocationCaption")}
         </p>
-        <div className="mt-2">
+        {legendSegments.length > 0 ? (
+          <ul
+            data-testid="money-state-allocation-legend"
+            className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1.5"
+          >
+            {legendSegments.map((segment) => (
+              <li
+                key={segment.key}
+                data-testid={`money-state-allocation-legend-${segment.key}`}
+                className="inline-flex items-center gap-1.5"
+              >
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "h-2.5 w-2.5 shrink-0 rounded-[3px]",
+                    ALLOCATION_SEGMENT_BAR_CLASS[segment.key],
+                  )}
+                />
+                <span className="text-[11px] font-semibold text-eb-text/60">
+                  {segmentLabel[segment.key]}
+                </span>
+                <span className="text-[11px] font-bold tabular-nums text-eb-text">
+                  {formatTermValue(segment.amount)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <div className="mt-2.5">
           <AllocationBar
-            terms={{
-              expenses: terms.expenses,
-              savings: terms.savings,
-              debts: terms.debts,
-              remaining: terms.remaining,
-            }}
+            terms={allocationTerms}
             labels={allocationLabels}
             testId="money-state-allocation"
           />

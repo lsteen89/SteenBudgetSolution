@@ -249,6 +249,62 @@ describe("MoneyState — deficit", () => {
   });
 });
 
+describe("MoneyState — allocation legend", () => {
+  it("lists a labelled, amount-bearing entry per visible segment, incl. free in surplus", () => {
+    renderMoneyState(
+      buildOpenMonthDto({
+        income: 12000,
+        expenses: 8000,
+        savings: 1000,
+        debts: 500,
+        remaining: 2500,
+      }),
+    );
+
+    const legend = screen.getByTestId("money-state-allocation-legend");
+    expect(
+      within(legend).getByTestId("money-state-allocation-legend-expenses")
+        .textContent ?? "",
+    ).toMatch(/8,000/);
+    expect(
+      within(legend).getByTestId("money-state-allocation-legend-savings")
+        .textContent ?? "",
+    ).toMatch(/1,000/);
+    expect(
+      within(legend).getByTestId("money-state-allocation-legend-debts")
+        .textContent ?? "",
+    ).toMatch(/500/);
+    expect(
+      within(legend).getByTestId("money-state-allocation-legend-free")
+        .textContent ?? "",
+    ).toMatch(/2,500/);
+  });
+
+  it("omits the free entry and zero-width segments in a deficit", () => {
+    renderMoneyState(
+      buildOpenMonthDto({
+        income: 10000,
+        expenses: 11000,
+        savings: 500,
+        debts: 0,
+        remaining: -1500,
+      }),
+    );
+
+    const legend = screen.getByTestId("money-state-allocation-legend");
+    expect(
+      within(legend).getByTestId("money-state-allocation-legend-expenses"),
+    ).toBeInTheDocument();
+    // No free in a deficit, and the zero-debt segment is dropped (not a 0 kr row).
+    expect(
+      within(legend).queryByTestId("money-state-allocation-legend-free"),
+    ).toBeNull();
+    expect(
+      within(legend).queryByTestId("money-state-allocation-legend-debts"),
+    ).toBeNull();
+  });
+});
+
 describe("MoneyState — reconciliation diagnostics", () => {
   it("logs a console warning when backend remaining and client sum disagree", () => {
     // Hand-craft a DTO where the equation says +2,000 but backend says +500.
