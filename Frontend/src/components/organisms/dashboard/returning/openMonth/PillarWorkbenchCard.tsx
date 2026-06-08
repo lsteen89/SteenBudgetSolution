@@ -3,6 +3,8 @@ import React from "react";
 
 import { cn } from "@/lib/utils";
 
+import { dashboardSurfaceNeutral } from "./dashboardSurface";
+
 /**
  * Shared shell for an open-month pillar workbench card.
  *
@@ -56,7 +58,10 @@ const PillarWorkbenchCard: React.FC<PillarWorkbenchCardProps> = ({
   return (
     <article
       data-testid={testId}
-      className="flex h-full flex-col rounded-2xl border border-eb-stroke/25 bg-eb-surface/80 px-4 py-4 shadow-eb transition-colors duration-150 hover:bg-eb-surface sm:px-5"
+      className={cn(
+        dashboardSurfaceNeutral,
+        "flex h-full flex-col px-4 py-4 transition-colors duration-150 hover:bg-eb-surface/95 sm:px-5",
+      )}
     >
       <header className="flex items-start gap-3">
         <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-eb-stroke/25 bg-[rgb(var(--eb-shell)/0.35)] text-eb-accent">

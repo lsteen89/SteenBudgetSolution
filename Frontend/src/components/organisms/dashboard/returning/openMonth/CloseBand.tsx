@@ -15,6 +15,7 @@ import type { DashboardSummary } from "@/hooks/dashboard/dashboardSummary.types"
 import type { CloseAvailability } from "@/hooks/dashboard/getCloseAvailabilityLabel";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/lib/utils";
+import { dashboardSurfaceBase } from "./dashboardSurface";
 import { closeBandDict } from "@/utils/i18n/pages/private/dashboard/openMonth/CloseBand.i18n";
 import { tDict } from "@/utils/i18n/translate";
 import { formatMoneyV2, moneyDecimalsFor } from "@/utils/money/moneyV2";
@@ -196,7 +197,8 @@ const CloseBand: React.FC<CloseBandProps> = ({
       aria-label={t("ariaLabel")}
       aria-live={state.kind === "overdue" ? "polite" : "off"}
       className={cn(
-        "rounded-3xl border px-5 py-5 shadow-eb transition-colors sm:px-6 sm:py-5",
+        dashboardSurfaceBase,
+        "border px-5 py-5 transition-colors sm:px-6 sm:py-5",
         tone.container,
         className,
       )}

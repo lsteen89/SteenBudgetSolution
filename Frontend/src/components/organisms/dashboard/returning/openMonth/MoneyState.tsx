@@ -15,6 +15,7 @@ import {
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/lib/utils";
 import { appRoutes } from "@/routes/appRoutes";
+import { dashboardSurfaceNeutral } from "./dashboardSurface";
 import type { BudgetDashboardMonthDto } from "@/types/budget/BudgetDashboardMonthDto";
 import { moneyStateDict } from "@/utils/i18n/pages/private/dashboard/openMonth/MoneyState.i18n";
 import { tDict } from "@/utils/i18n/translate";
@@ -211,8 +212,9 @@ const MoneyState: React.FC<MoneyStateProps> = ({
       data-tone={tone}
       aria-labelledby="money-state-heading"
       className={cn(
-        "overflow-hidden rounded-[2rem] border border-eb-stroke/30 bg-eb-surface px-5 py-6 shadow-eb sm:px-7 sm:py-7",
-        tone === "negative" && "border-eb-danger/30",
+        dashboardSurfaceNeutral,
+        "px-5 py-6 sm:px-7 sm:py-7",
+        tone === "negative" && "border-eb-danger/40",
         className,
       )}
     >

@@ -24,6 +24,7 @@ import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/lib/utils";
 import { appRoutes } from "@/routes/appRoutes";
 import { Link } from "react-router-dom";
+import { dashboardSurfaceNeutral } from "./dashboardSurface";
 import { attentionLaneDict } from "@/utils/i18n/pages/private/dashboard/openMonth/AttentionLane.i18n";
 import { tDict } from "@/utils/i18n/translate";
 
@@ -242,7 +243,8 @@ const AttentionLane: React.FC<AttentionLaneProps> = ({
       data-testid="attention-lane"
       aria-labelledby="attention-lane-heading"
       className={cn(
-        "rounded-3xl border border-eb-stroke/30 bg-eb-surface px-5 py-5 shadow-eb sm:px-6 sm:py-6",
+        dashboardSurfaceNeutral,
+        "px-5 py-5 sm:px-6 sm:py-6",
         className,
       )}
     >
