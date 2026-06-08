@@ -56,7 +56,7 @@ const PillarWorkbenchCard: React.FC<PillarWorkbenchCardProps> = ({
   return (
     <article
       data-testid={testId}
-      className="flex h-full flex-col rounded-2xl border border-eb-stroke/25 bg-white/75 px-4 py-4 shadow-eb transition-colors duration-150 hover:bg-white/85 sm:px-5"
+      className="flex h-full flex-col rounded-2xl border border-eb-stroke/25 bg-eb-surface/80 px-4 py-4 shadow-eb transition-colors duration-150 hover:bg-eb-surface sm:px-5"
     >
       <header className="flex items-start gap-3">
         <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-eb-stroke/25 bg-[rgb(var(--eb-shell)/0.35)] text-eb-accent">
@@ -87,9 +87,9 @@ const PillarWorkbenchCard: React.FC<PillarWorkbenchCardProps> = ({
           type="button"
           onClick={onQuickAdjust}
           className={cn(
-            "group inline-flex h-9 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900",
+            "group inline-flex h-9 items-center justify-center gap-2 rounded-2xl border border-eb-stroke/40 bg-eb-surface px-3 text-sm font-semibold text-eb-text",
             "shadow-[0_8px_18px_rgba(21,39,81,0.08)] transition-[transform,background-color,border-color,box-shadow] duration-150",
-            "hover:-translate-y-[1px] hover:border-slate-300 hover:bg-slate-50 hover:shadow-[0_12px_24px_rgba(21,39,81,0.10)]",
+            "hover:-translate-y-[1px] hover:border-eb-stroke/60 hover:bg-eb-surface/80 hover:shadow-[0_12px_24px_rgba(21,39,81,0.10)]",
             "focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-eb-accent/25 active:translate-y-0 motion-reduce:transform-none",
           )}
         >

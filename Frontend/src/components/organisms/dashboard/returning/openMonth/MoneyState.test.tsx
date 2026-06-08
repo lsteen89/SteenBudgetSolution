@@ -182,7 +182,7 @@ describe("MoneyState — surplus", () => {
 });
 
 describe("MoneyState — zero", () => {
-  it("uses zero tone and the 'every krona is planned' copy", () => {
+  it("uses zero tone and the zero-state helper copy", () => {
     renderMoneyState(
       buildOpenMonthDto({
         income: 8000,
@@ -249,6 +249,53 @@ describe("MoneyState — deficit", () => {
   });
 });
 
+describe("MoneyState — tone word (DP3)", () => {
+  it("shows the surplus tone word inline with the hero", () => {
+    renderMoneyState(
+      buildOpenMonthDto({
+        income: 12000,
+        expenses: 8000,
+        savings: 1000,
+        debts: 500,
+        remaining: 2500,
+      }),
+    );
+    expect(screen.getByTestId("money-state-tone-word")).toHaveTextContent(
+      moneyStateDict.en.toneWordPositive,
+    );
+  });
+
+  it("shows the zero tone word at exactly zero remaining", () => {
+    renderMoneyState(
+      buildOpenMonthDto({
+        income: 8000,
+        expenses: 7000,
+        savings: 1000,
+        debts: 0,
+        remaining: 0,
+      }),
+    );
+    expect(screen.getByTestId("money-state-tone-word")).toHaveTextContent(
+      moneyStateDict.en.toneWordZero,
+    );
+  });
+
+  it("shows the deficit tone word in danger tone", () => {
+    renderMoneyState(
+      buildOpenMonthDto({
+        income: 10000,
+        expenses: 11000,
+        savings: 500,
+        debts: 0,
+        remaining: -1500,
+      }),
+    );
+    expect(screen.getByTestId("money-state-tone-word")).toHaveTextContent(
+      moneyStateDict.en.toneWordNegative,
+    );
+  });
+});
+
 describe("MoneyState — allocation legend", () => {
   it("lists a labelled, amount-bearing entry per visible segment, incl. free in surplus", () => {
     renderMoneyState(
@@ -295,7 +342,7 @@ describe("MoneyState — allocation legend", () => {
     expect(
       within(legend).getByTestId("money-state-allocation-legend-expenses"),
     ).toBeInTheDocument();
-    // No free in a deficit, and the zero-debt segment is dropped (not a 0 kr row).
+    // No free in a deficit, and the zero-debt segment is dropped (not a 0-amount row).
     expect(
       within(legend).queryByTestId("money-state-allocation-legend-free"),
     ).toBeNull();

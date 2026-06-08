@@ -271,7 +271,7 @@ const CloseBand: React.FC<CloseBandProps> = ({
 
       <div
         data-testid="close-band-carry-forward"
-        className="mt-4 flex flex-col gap-1.5 rounded-2xl border border-eb-stroke/25 bg-white/55 px-4 py-3 sm:flex-row sm:items-baseline sm:gap-3"
+        className="mt-4 flex flex-col gap-1.5 rounded-2xl border border-eb-stroke/25 bg-eb-surface/60 px-4 py-3 sm:flex-row sm:items-baseline sm:gap-3"
       >
         <span className="text-[11px] font-semibold uppercase tracking-wide text-eb-text/55">
           {t("carryForwardLabel")}

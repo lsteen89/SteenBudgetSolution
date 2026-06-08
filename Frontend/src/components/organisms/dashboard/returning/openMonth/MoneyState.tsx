@@ -37,12 +37,17 @@ import { formatMoneyV2, moneyDecimalsFor } from "@/utils/money/moneyV2";
  * for diagnostics: when it drifts, we `console.warn` and keep rendering the
  * backend number.
  *
- * The inline 6-term equation makes the reasoning visible. Carry-over is
- * rendered even when zero, because the README locks it as its own equation
- * term (never folded into income).
+ * The remaining number is the page hero, with a terse tone word beside it
+ * ("free to allocate" / "fully assigned" / "short").
  *
- * The AllocationBar molecule shows the planned split across expenses,
- * savings, debts and free room (or where money runs out in a deficit).
+ * Two complementary "why" surfaces sit below it (DP3):
+ *   - The AllocationBar legend + flow bar is the primary, glanceable
+ *     explanation of where the money goes (expenses / savings / debts / free,
+ *     or where money runs out in a deficit).
+ *   - A quiet inline six-term equation is the precise footnote. It is the only
+ *     place the inflow side (income + carry-over) is shown as explicit terms,
+ *     so it stays on the page rather than behind a toggle. Carry-over keeps its
+ *     own term even at zero — never folded into income.
  *
  * Read-only / closed / skipped months are handled upstream — they bypass
  * `ReturningDashboardSection` entirely. This component therefore assumes the
@@ -120,6 +125,16 @@ const MoneyState: React.FC<MoneyStateProps> = ({
       : tone === "negative"
         ? t("helperNegative")
         : t("helperZero");
+
+  // Terse tone word shown inline next to the hero number ("free to allocate" /
+  // "fully assigned" / "short"). The helper sentence below it carries the
+  // fuller explanation; this is the at-a-glance read.
+  const toneWord =
+    tone === "positive"
+      ? t("toneWordPositive")
+      : tone === "negative"
+        ? t("toneWordNegative")
+        : t("toneWordZero");
 
   const allocationLabels: AllocationBarLabels = {
     ariaLabel: t("allocationAria"),
@@ -211,76 +226,82 @@ const MoneyState: React.FC<MoneyStateProps> = ({
         >
           {t("remainingLabel")}
         </p>
-        <p
-          data-testid="money-state-remaining"
-          className={cn(
-            "text-3xl font-extrabold tracking-tight tabular-nums sm:text-4xl",
-            remainingToneClass,
-          )}
-        >
-          {tone === "negative" ? "−" : ""}
-          {remainingLabel}
-        </p>
-        <p className="mt-1 max-w-xl text-sm leading-6 text-eb-text/70">
+        {/*
+          The remaining number is the page's primary answer, so it reads as the
+          dominant element. The tone word sits beside it on a baseline (and
+          wraps below on narrow screens) so the glanceable verdict travels with
+          the figure without crowding it.
+        */}
+        <div className="mt-0.5 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+          <p
+            data-testid="money-state-remaining"
+            className={cn(
+              "text-[2.75rem] font-extrabold leading-none tracking-tight tabular-nums sm:text-6xl",
+              remainingToneClass,
+            )}
+          >
+            {tone === "negative" ? "−" : ""}
+            {remainingLabel}
+          </p>
+          <p
+            data-testid="money-state-tone-word"
+            className={cn(
+              "text-base font-bold sm:text-lg",
+              tone === "negative" ? "text-eb-danger" : "text-eb-text/55",
+            )}
+          >
+            {toneWord}
+          </p>
+        </div>
+        <p className="mt-2 max-w-xl text-sm leading-6 text-eb-text/70">
           {helperCopy}
         </p>
       </header>
 
+      {/*
+        DP3: the six-term equation is the precise "why", demoted from a row of
+        bordered cells to one quiet inline line so it supports the flow bar
+        rather than competing with it. It stays on the page (not behind a
+        toggle, not pushed to Breakdown) because it is the only place the inflow
+        side — income and carry-over — is shown as explicit terms. Carry-over
+        keeps its own slot, never folded into income, so the reasoning reads
+        honestly even at zero. The per-term testids are part of the contract.
+      */}
       <div
         data-testid="money-state-equation"
         role="group"
         aria-label={t("equationAriaLabel")}
-        className="mt-5 flex flex-wrap items-stretch gap-2"
+        className="mt-5 flex flex-wrap items-baseline gap-x-2.5 gap-y-1 text-xs leading-5 text-eb-text/60"
       >
         {equationTerms.map((term) => (
           <React.Fragment key={term.key}>
             {term.operator ? (
-              <span
-                aria-hidden="true"
-                className="self-center text-base font-semibold text-eb-text/50"
-              >
+              <span aria-hidden="true" className="font-semibold text-eb-text/40">
                 {term.operator === "plus" ? t("equationPlus") : t("equationMinus")}
               </span>
             ) : null}
             <span
               data-testid={`money-state-equation-${term.key}`}
-              className={cn(
-                "inline-flex min-w-0 flex-col rounded-2xl border border-eb-stroke/30 bg-[rgb(var(--eb-shell)/0.35)] px-3 py-2",
-                term.key === "carryOver" &&
-                  Math.abs(term.value) < REMAINING_EPSILON &&
-                  "opacity-70",
-              )}
+              className="inline-flex items-baseline gap-1.5"
             >
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-eb-text/55">
-                {term.label}
-              </span>
-              <span className="text-sm font-semibold tabular-nums text-eb-text">
+              <span className="text-eb-text/55">{term.label}</span>
+              <span className="font-semibold tabular-nums text-eb-text/85">
                 {formatTermValue(term.value)}
               </span>
             </span>
           </React.Fragment>
         ))}
-        <span
-          aria-hidden="true"
-          className="self-center text-base font-semibold text-eb-text/50"
-        >
+        <span aria-hidden="true" className="font-semibold text-eb-text/40">
           {t("equationEquals")}
         </span>
         <span
           data-testid="money-state-equation-remaining"
-          className={cn(
-            "inline-flex min-w-0 flex-col rounded-2xl border px-3 py-2",
-            tone === "negative"
-              ? "border-eb-danger/40 bg-eb-danger/10"
-              : "border-eb-accent/30 bg-eb-accent/10",
-          )}
+          className="inline-flex items-baseline gap-1.5"
         >
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-eb-text/65">
-            {t("equationRemaining")}
-          </span>
+          <span className="text-eb-text/55">{t("equationRemaining")}</span>
           <span
             className={cn(
-              "text-sm font-extrabold tabular-nums",
+              "font-bold tabular-nums",
               tone === "negative" ? "text-eb-danger" : "text-eb-text",
             )}
           >

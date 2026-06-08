@@ -18,9 +18,13 @@ export const moneyStateDict = {
     eyebrow: "Money state",
     remainingLabel: "Left this month",
     helperPositive: "after planned income, carry-over, expenses, savings and debts.",
-    helperZero: "Every krona is planned for this month.",
+    helperZero: "All of this month's money is planned.",
     helperNegative:
       "The plan is over what is coming in. Adjust expenses, savings or debts before closing.",
+
+    toneWordPositive: "free to allocate",
+    toneWordZero: "fully assigned",
+    toneWordNegative: "short",
 
     equationAriaLabel: "How the remaining amount is calculated",
     equationIncome: "Income",
@@ -52,9 +56,13 @@ export const moneyStateDict = {
     remainingLabel: "Kvar den här månaden",
     helperPositive:
       "efter planerade inkomster, ingående överskott, utgifter, sparande och skulder.",
-    helperZero: "Varje krona är planerad den här månaden.",
+    helperZero: "Alla pengar är planerade den här månaden.",
     helperNegative:
       "Planen är över det som kommer in. Justera utgifter, sparande eller skulder innan stängning.",
+
+    toneWordPositive: "fritt att fördela",
+    toneWordZero: "allt är fördelat",
+    toneWordNegative: "underskott",
 
     equationAriaLabel: "Så räknas det kvarvarande beloppet ut",
     equationIncome: "Inkomster",
@@ -87,9 +95,13 @@ export const moneyStateDict = {
     remainingLabel: "Selle kuu jääk",
     helperPositive:
       "pärast planeeritud tulu, ülekantud jääki, kulusid, sääste ja võlgu.",
-    helperZero: "Selle kuu iga euro on planeeritud.",
+    helperZero: "Kogu selle kuu raha on planeeritud.",
     helperNegative:
       "Plaan ületab sissetulekut. Kohanda kulusid, sääste või võlgu enne sulgemist.",
+
+    toneWordPositive: "vaba jaotada",
+    toneWordZero: "kõik on jaotatud",
+    toneWordNegative: "puudujääk",
 
     equationAriaLabel: "Kuidas allesjääv summa arvutatakse",
     equationIncome: "Tulu",
