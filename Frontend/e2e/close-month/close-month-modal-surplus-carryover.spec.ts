@@ -10,12 +10,18 @@ const text = {
   skippedStatus: /^(Skipped|Hoppad över|Vahele jäetud)$/i,
   // Surplus intro line 1: "You have {amount} left to handle." / "Du har {amount} kvar att hantera." / "Sul on veel {amount} jaotada."
   positiveHeadline: /left to handle|kvar att hantera|veel .* jaotada/i,
-  // Surplus intro line 2: choose carry-over vs keep.
+  // The redesigned 12-chapter modal explains the carry-forward choice through
+  // the carry-over option card; the old `surplusIntroLine2` intro sentence
+  // ("...carry it into next month...") is no longer rendered. Match the
+  // carry-over option body, which states the amount becomes available next month.
   resolverBody:
-    /carry it into next month|följa med till|läheb järgmisesse kuusse/i,
-  // Carry-over option title — references next month.
+    /becomes available in next month|tillgängligt i nästa månads plan|kättesaadavaks järgmise kuu/i,
+  // Carry-over option label. The redesigned option card renders the kicker
+  // ("Carry over" / "För över" / "Kanna üle") + a hero title ("{month} gets
+  // +{amount}"), not the old `optionCarryOverTitle` ("Carry over to {month}").
+  // The "references next month" check is covered separately by `may2026` below.
   carryOverOptionTitle:
-    /Carry over to |För över till |Kanna üle kuusse /i,
+    /Carry over|För över|Kanna üle/i,
   deficitGuidance:
     /deficit guidance|underskottsvägledning|puudujäägi juhis/i,
   positiveFinalBalance: /1(?:[\s.,\u00a0])?250|1250/,

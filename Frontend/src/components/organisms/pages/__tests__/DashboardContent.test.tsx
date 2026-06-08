@@ -737,7 +737,7 @@ describe("DashboardContent", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("renders deterministic open-month follow-ups from existing summary data", () => {
+  it("renders the capped AttentionLane led by the deficit item for an open deficit month", () => {
     mockUseDashboardSummary.mockReturnValue({
       ...readyResult,
       data: {
@@ -771,11 +771,37 @@ describe("DashboardContent", () => {
 
     renderDashboardContent();
 
-    expect(screen.getByText("To follow up")).toBeInTheDocument();
-    expect(screen.getByText("Closing window")).toBeInTheDocument();
-    expect(screen.getByText("Money position needs review")).toBeInTheDocument();
-    expect(screen.getAllByText("Subscriptions").length).toBeGreaterThan(0);
-    expect(screen.queryByText("Debt payments are planned")).toBeNull();
+    // The legacy OpenMonthFollowUpStrip was replaced by the AttentionLane
+    // (PR4): on-device guidance, capped at 3, with an honest "how chosen"
+    // affordance. For a deficit month it must lead with the deficit item —
+    // only an overdue-close outranks it, and this month's lifecycle is
+    // "normal", so deficit is guaranteed to be in the top 3.
+    const lane = screen.getByTestId("attention-lane");
+    expect(within(lane).getByText("Worth a quick look")).toBeInTheDocument();
+
+    const laneItems = within(lane).getByTestId("attention-lane-items");
+    const renderedCount = Number(laneItems.getAttribute("data-count"));
+    expect(renderedCount).toBeGreaterThan(0);
+    expect(renderedCount).toBeLessThanOrEqual(3);
+
+    // Deficit leads, with the factual (non-shaming) copy and its quick-adjust
+    // action label.
+    const deficitItem = within(lane).getByTestId("attention-item-deficit");
+    expect(
+      within(deficitItem).getByText("Plan is over what is coming in"),
+    ).toBeInTheDocument();
+    expect(
+      within(lane).getByTestId("attention-action-deficit"),
+    ).toHaveTextContent("Adjust expenses");
+
+    // The honesty affordance is present: ranking is on-device, not advice.
+    expect(
+      within(lane).getByTestId("attention-lane-how-chosen"),
+    ).toBeInTheDocument();
+
+    // The old follow-up strip copy must not co-exist with the AttentionLane.
+    expect(screen.queryByText("To follow up")).toBeNull();
+    expect(screen.queryByText("Money position needs review")).toBeNull();
   });
 
   it("renders compact month areas without a duplicate deep-dive card", () => {

@@ -37,6 +37,17 @@ export const e2eUsers = {
     email: "e2e-close-deficit@local.test",
     password: e2ePassword,
   },
+  // Dedicated, never-mutated open-month state fixtures for the DP5 dashboard
+  // visual-polish suite (their open month stays a deficit / zero, unlike the
+  // close* users whose months get closed by close-month specs).
+  dashboardDeficit: {
+    email: "e2e-dashboard-deficit@local.test",
+    password: e2ePassword,
+  },
+  dashboardZero: {
+    email: "e2e-dashboard-zero@local.test",
+    password: e2ePassword,
+  },
   recapSubscriptions: {
     email: "e2e-recap-subscriptions@local.test",
     password: e2ePassword,
