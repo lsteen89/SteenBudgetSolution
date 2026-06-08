@@ -27,9 +27,13 @@ test("dashboard Pengaläge equals savings page Kvar @smoke", async ({
   await login(page, e2eUsers.savingsEditor);
 
   await page.goto("/dashboard");
+  // The MoneyState refactor (dashboard polish, commit 08bf7f29 "MoneyState
+  // anchor") renamed the remaining-anchor test id from
+  // `dashboard-pengalage-amount` to `money-state-remaining`. Same backend value
+  // (FinalBalanceWithCarryMonthly), same surface — only the hook id changed.
   const dashboardAmount = await readMoneyTextByTestId(
     page,
-    "dashboard-pengalage-amount",
+    "money-state-remaining",
   );
 
   await page.goto("/dashboard/savings");

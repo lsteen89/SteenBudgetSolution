@@ -14,6 +14,18 @@ const mockUseDashboardSummary = vi.fn();
 const mockUseBudgetMonthRecapQuery = vi.fn();
 const mockMutateAsync = vi.fn();
 const mockSetSelectedYearMonth = vi.fn();
+// Spy variant of the savings-goal completion candidates query. The default
+// implementation matches the previous always-empty mock so existing tests
+// keep their behaviour; the gating test (P6) overrides nothing — it only
+// asserts on the recorded call arguments.
+const mockUseSavingsGoalCompletionCandidatesQuery = vi.fn(
+  (_yearMonth?: string | null, _options?: { enabled?: boolean }) => ({
+    data: [],
+    isPending: false,
+    isError: false,
+    error: null,
+  }),
+);
 let mockAppLocale = "en-US";
 const mockToast = {
   success: vi.fn(),
@@ -41,12 +53,10 @@ vi.mock("@/hooks/budget/useCloseBudgetMonthMutation", () => ({
 }));
 
 vi.mock("@/hooks/budget/useSavingsGoalCompletionCandidatesQuery", () => ({
-  useSavingsGoalCompletionCandidatesQuery: () => ({
-    data: [],
-    isPending: false,
-    isError: false,
-    error: null,
-  }),
+  useSavingsGoalCompletionCandidatesQuery: (
+    yearMonth?: string | null,
+    options?: { enabled?: boolean },
+  ) => mockUseSavingsGoalCompletionCandidatesQuery(yearMonth, options),
   savingsGoalCompletionCandidatesQueryKey: (ym?: string | null) => [
     "savingsGoalCompletionCandidates",
     ym ?? null,
@@ -155,6 +165,119 @@ function buildSummary(
   };
 }
 
+/**
+ * Build a minimal `BudgetDashboardMonthDto` that satisfies `buildDashboardTerms`
+ * so MoneyState can render without throwing. Numbers are internally
+ * reconciling (income - expenses - savings - debts = finalBalanceWithCarry)
+ * — tests that override `summary.finalBalance` may diverge from this DTO,
+ * which is intentional: those tests assert on FollowUpStrip / pillar copy
+ * driven by `summary`, not on MoneyState content driven by `dashboardMonth`.
+ */
+function buildDashboardMonthDto(
+  finalBalance: number,
+  status: "open" | "closed" | "skipped" = "open",
+  yearMonth = "2026-04",
+) {
+  if (status === "skipped") {
+    return {
+      currencyCode: "SEK" as const,
+      month: {
+        yearMonth,
+        status: "skipped" as const,
+        carryOverMode: "none" as const,
+        carryOverAmount: null,
+        isCloseWindowOpen: false,
+        closeWindowOpensAtUtc: null,
+        closeEligibleAtUtc: null,
+        isOverdueForClose: false,
+      },
+      liveDashboard: null,
+      snapshotTotals: null,
+    };
+  }
+
+  if (status === "closed") {
+    return {
+      currencyCode: "SEK" as const,
+      month: {
+        yearMonth,
+        status: "closed" as const,
+        carryOverMode: "none" as const,
+        carryOverAmount: null,
+        isCloseWindowOpen: false,
+        closeWindowOpensAtUtc: null,
+        closeEligibleAtUtc: null,
+        isOverdueForClose: false,
+      },
+      liveDashboard: null,
+      snapshotTotals: {
+        totalIncomeMonthly: 12000,
+        totalExpensesMonthly: 11005,
+        totalSavingsMonthly: 750,
+        totalDebtPaymentsMonthly: 0,
+        finalBalanceMonthly: finalBalance,
+      },
+    };
+  }
+
+  const expenses = 12000 - 0 - 750 - 0 - finalBalance; // keep the equation honest
+  return {
+    currencyCode: "SEK" as const,
+    month: {
+      yearMonth,
+      status: "open" as const,
+      carryOverMode: "none" as const,
+      carryOverAmount: null,
+      isCloseWindowOpen: true,
+      closeWindowOpensAtUtc: "2026-04-22T00:00:00Z",
+      closeEligibleAtUtc: "2026-04-25T00:00:00Z",
+      isOverdueForClose: false,
+    },
+    liveDashboard: {
+      budgetId: "00000000-0000-0000-0000-000000000001",
+      income: {
+        netSalaryMonthly: 12000,
+        incomePaymentDayType: null,
+        incomePaymentDay: null,
+        sideHustleMonthly: 0,
+        householdMembersMonthly: 0,
+        totalIncomeMonthly: 12000,
+        sideHustles: [],
+        householdMembers: [],
+      },
+      expenditure: {
+        totalExpensesMonthly: expenses,
+        byCategory: [],
+      },
+      savings: {
+        monthlySavings: 500,
+        totalGoalSavingsMonthly: 250,
+        totalSavingsMonthly: 750,
+        isMonthOnly: false,
+        goals: [],
+      },
+      debt: {
+        totalDebtBalance: 0,
+        totalMonthlyPayments: 0,
+        debts: [],
+        repaymentStrategy: null,
+      },
+      carryOverAmountMonthly: 0,
+      disposableAfterExpensesWithCarryMonthly: 12000 - expenses,
+      disposableAfterExpensesAndSavingsWithCarryMonthly:
+        12000 - expenses - 750,
+      finalBalanceWithCarryMonthly: finalBalance,
+      recurringExpenses: [],
+      subscriptions: {
+        totalMonthlyAmount: 0,
+        count: 0,
+        items: [],
+      },
+    },
+    snapshotTotals: null,
+  };
+}
+
 const sampleMonthsStatus = {
   openMonthYearMonth: "2026-04",
   currentYearMonth: "2026-04",
@@ -198,6 +321,12 @@ const readyResult = {
       debtItems: [],
     },
   },
+  // MoneyState (P2) reads from the raw open-month DTO so its anchor and
+  // AllocationBar stay aligned with backend-authoritative remaining. Tests
+  // that override `data.summary` may diverge from this DTO; that is fine —
+  // MoneyState is driven by `dashboardMonth`, FollowUpStrip/pillars by
+  // `data.summary`.
+  dashboardMonth: buildDashboardMonthDto(245, "open"),
   isPending: false,
   isFetching: false,
   isError: false,
@@ -374,6 +503,7 @@ describe("DashboardContent", () => {
     });
     mockMutateAsync.mockReset();
     mockSetSelectedYearMonth.mockReset();
+    mockUseSavingsGoalCompletionCandidatesQuery.mockClear();
     mockToast.success.mockReset();
     mockToast.error.mockReset();
     mockToast.info.mockReset();
@@ -536,24 +666,60 @@ describe("DashboardContent", () => {
     expect(screen.queryByText(/desktop:\s*true/i)).toBeNull();
   });
 
-  it("renders the open-month command hero", () => {
+  it("renders the open-month MoneyState anchor, equation and allocation bar", () => {
     mockUseDashboardSummary.mockReturnValue(readyResult);
 
     renderDashboardContent();
 
-    expect(
-      screen.getByRole("heading", {
-        name: "You can relax, but keep the plan current",
-      }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Open month control room")).toBeInTheDocument();
-    expect(screen.getByText("Money position")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /adjust month/i })).toBeNull();
+    const moneyState = screen.getByTestId("money-state");
+    expect(moneyState).toBeInTheDocument();
+    expect(moneyState).toHaveAttribute("data-tone", "positive");
+    expect(within(moneyState).getByText("Money state")).toBeInTheDocument();
+    expect(within(moneyState).getByText("Left this month")).toBeInTheDocument();
 
-    const analysisLink = screen.getByRole("link", {
-      name: /explore analysis & trends/i,
-    });
-    expect(analysisLink).toHaveAttribute("href", "/dashboard/breakdown");
+    // The six-term equation is rendered inline, including carry-over at 0,
+    // so the user can see why the remaining amount is what it is.
+    expect(
+      within(moneyState).getByTestId("money-state-equation"),
+    ).toBeInTheDocument();
+    expect(
+      within(moneyState).getByTestId("money-state-equation-income"),
+    ).toBeInTheDocument();
+    expect(
+      within(moneyState).getByTestId("money-state-equation-carryOver"),
+    ).toBeInTheDocument();
+    expect(
+      within(moneyState).getByTestId("money-state-equation-expenses"),
+    ).toBeInTheDocument();
+    expect(
+      within(moneyState).getByTestId("money-state-equation-savings"),
+    ).toBeInTheDocument();
+    expect(
+      within(moneyState).getByTestId("money-state-equation-debts"),
+    ).toBeInTheDocument();
+    expect(
+      within(moneyState).getByTestId("money-state-equation-remaining"),
+    ).toBeInTheDocument();
+
+    // AllocationBar (P0 molecule) is wired in.
+    expect(
+      within(moneyState).getByTestId("money-state-allocation"),
+    ).toBeInTheDocument();
+
+    // The secondary link points to the existing deeper breakdown route.
+    const breakdownLink = within(moneyState).getByTestId(
+      "money-state-breakdown-link",
+    );
+    expect(breakdownLink).toHaveAttribute("href", "/dashboard/breakdown");
+    expect(breakdownLink).toHaveTextContent(/see the full breakdown/i);
+
+    // The old hero copy and analysis CTA must not co-exist with MoneyState.
+    expect(
+      screen.queryByText("Open month control room"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /explore analysis & trends/i }),
+    ).toBeNull();
     expect(screen.queryByText("Edit drawer open")).toBeNull();
   });
 
@@ -571,7 +737,7 @@ describe("DashboardContent", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("renders deterministic open-month follow-ups from existing summary data", () => {
+  it("renders the capped AttentionLane led by the deficit item for an open deficit month", () => {
     mockUseDashboardSummary.mockReturnValue({
       ...readyResult,
       data: {
@@ -605,11 +771,37 @@ describe("DashboardContent", () => {
 
     renderDashboardContent();
 
-    expect(screen.getByText("To follow up")).toBeInTheDocument();
-    expect(screen.getByText("Closing window")).toBeInTheDocument();
-    expect(screen.getByText("Money position needs review")).toBeInTheDocument();
-    expect(screen.getAllByText("Subscriptions").length).toBeGreaterThan(0);
-    expect(screen.queryByText("Debt payments are planned")).toBeNull();
+    // The legacy OpenMonthFollowUpStrip was replaced by the AttentionLane
+    // (PR4): on-device guidance, capped at 3, with an honest "how chosen"
+    // affordance. For a deficit month it must lead with the deficit item —
+    // only an overdue-close outranks it, and this month's lifecycle is
+    // "normal", so deficit is guaranteed to be in the top 3.
+    const lane = screen.getByTestId("attention-lane");
+    expect(within(lane).getByText("Worth a quick look")).toBeInTheDocument();
+
+    const laneItems = within(lane).getByTestId("attention-lane-items");
+    const renderedCount = Number(laneItems.getAttribute("data-count"));
+    expect(renderedCount).toBeGreaterThan(0);
+    expect(renderedCount).toBeLessThanOrEqual(3);
+
+    // Deficit leads, with the factual (non-shaming) copy and its quick-adjust
+    // action label.
+    const deficitItem = within(lane).getByTestId("attention-item-deficit");
+    expect(
+      within(deficitItem).getByText("Plan is over what is coming in"),
+    ).toBeInTheDocument();
+    expect(
+      within(lane).getByTestId("attention-action-deficit"),
+    ).toHaveTextContent("Adjust expenses");
+
+    // The honesty affordance is present: ranking is on-device, not advice.
+    expect(
+      within(lane).getByTestId("attention-lane-how-chosen"),
+    ).toBeInTheDocument();
+
+    // The old follow-up strip copy must not co-exist with the AttentionLane.
+    expect(screen.queryByText("To follow up")).toBeNull();
+    expect(screen.queryByText("Money position needs review")).toBeNull();
   });
 
   it("renders compact month areas without a duplicate deep-dive card", () => {
@@ -617,18 +809,27 @@ describe("DashboardContent", () => {
 
     renderDashboardContent();
 
+    // P3 PillarWorkbench renders one card per pillar instead of the legacy
+    // `pillarDescriptions` lines. We assert on workbench landmarks rather
+    // than the now-unused summary copy.
     expect(screen.getByText("This month by area")).toBeInTheDocument();
-    expect(screen.getByText("Income is planned for this month.")).toBeInTheDocument();
-    expect(screen.getByText("Housing, food and transport")).toBeInTheDocument();
-    expect(screen.getByText("2 savings goals")).toBeInTheDocument();
-    expect(screen.getByText("No active debt balance")).toBeInTheDocument();
+    expect(screen.getByTestId("pillar-workbench")).toBeInTheDocument();
+    expect(screen.getByTestId("pillar-income")).toBeInTheDocument();
+    expect(screen.getByTestId("pillar-expenses")).toBeInTheDocument();
+    expect(screen.getByTestId("pillar-savings")).toBeInTheDocument();
+    expect(screen.getByTestId("pillar-debts")).toBeInTheDocument();
 
     expect(screen.queryByText("deepDiveTitle")).not.toBeInTheDocument();
     expect(screen.queryByText("deepDiveBody")).not.toBeInTheDocument();
     expect(screen.queryByText("deepDiveCta")).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /go to overview/i })).toBeNull();
+    // MoneyState (P2) owns the single secondary route into the deeper
+    // breakdown — the old hero "Explore analysis & trends" CTA is gone.
     expect(
-      screen.getAllByRole("link", { name: /explore analysis & trends/i }),
+      screen.queryByRole("link", { name: /explore analysis & trends/i }),
+    ).toBeNull();
+    expect(
+      screen.getAllByRole("link", { name: /see the full breakdown/i }),
     ).toHaveLength(1);
   });
 
@@ -648,8 +849,13 @@ describe("DashboardContent", () => {
 
     renderDashboardContent();
 
+    // P3 PillarWorkbench renders a single subscription chip on the expenses
+    // pillar with the planned-budget format "{count} · {monthly}/mo · {annual}/yr".
     expect(screen.getAllByText("Subscriptions").length).toBeGreaterThan(0);
-    expect(screen.getByText(/5 active/)).toHaveTextContent(/year/);
+    const chip = screen.getByTestId("pillar-expenses-subscriptions");
+    expect(chip.textContent ?? "").toMatch(/5/);
+    expect(chip.textContent ?? "").toMatch(/\/mo/);
+    expect(chip.textContent ?? "").toMatch(/\/yr/);
   });
 
   it("shows a compact income source insight inside the income area", () => {
@@ -682,9 +888,15 @@ describe("DashboardContent", () => {
 
     renderDashboardContent();
 
-    expect(screen.getByText("Income sources")).toBeInTheDocument();
-    expect(screen.getByText(/3 active/)).toHaveTextContent(/Net salary/);
-    expect(screen.getByText(/3 active/)).toHaveTextContent(/Other/);
+    // P3 PillarWorkbench renders salary / side / household as discrete
+    // signal rows instead of the legacy "Income sources" concat chip.
+    const income = screen.getByTestId("pillar-income");
+    expect(income.textContent ?? "").toMatch(/3 sources planned/);
+    expect(within(income).getByTestId("pillar-income-salary")).toBeInTheDocument();
+    expect(within(income).getByTestId("pillar-income-side")).toBeInTheDocument();
+    expect(
+      within(income).getByTestId("pillar-income-household"),
+    ).toBeInTheDocument();
   });
 
   it("does not invent an other-income value when only salary exists", () => {
@@ -707,9 +919,14 @@ describe("DashboardContent", () => {
 
     renderDashboardContent();
 
-    expect(screen.getByText("Income sources")).toBeInTheDocument();
-    expect(screen.getByText(/1 active/)).toHaveTextContent(/Net salary/);
-    expect(screen.getByText(/1 active/)).not.toHaveTextContent(/Other/);
+    const income = screen.getByTestId("pillar-income");
+    expect(income.textContent ?? "").toMatch(/1 source planned/);
+    expect(within(income).getByTestId("pillar-income-salary")).toBeInTheDocument();
+    // Side / household signal rows must not appear when no such income is planned.
+    expect(within(income).queryByTestId("pillar-income-side")).toBeNull();
+    expect(
+      within(income).queryByTestId("pillar-income-household"),
+    ).toBeNull();
   });
 
   it("shows quick and full edit actions in the expenses pillar", () => {
@@ -868,6 +1085,97 @@ describe("DashboardContent", () => {
     expect(
       screen.getByRole("button", { name: /^close april 2026$/i }),
     ).toBeInTheDocument();
+  });
+
+  // --------------------------------------------------------------------------
+  // P6 — Close-month flow integration.
+  //
+  // The MonthRail close CTA path is covered above. These tests pin down the
+  // two other entry points (CloseBand and the AttentionLane overdue close
+  // action) and the lazy fetch contract for savings-goal completion candidates
+  // — all three are part of the locked Spine close-flow story.
+  // --------------------------------------------------------------------------
+
+  it("opens the same close month modal from the CloseBand review-and-close CTA", () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+
+    renderDashboardContent();
+
+    // The CloseBand sits under MoneyState on an eligible open month. Its CTA
+    // is structurally distinct from the MonthRail "Close Month" trigger but
+    // must route through the same controller so we get one close-flow story.
+    const closeBandCta = screen.getByTestId("close-band-cta");
+    expect(closeBandCta).toHaveTextContent(/review & close/i);
+
+    fireEvent.click(closeBandCta);
+
+    expect(
+      screen.getByRole("heading", { name: "Close April 2026?" }),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("close-month-modal")).toBeInTheDocument();
+  });
+
+  it("opens the same close month modal from the AttentionLane overdue close action", () => {
+    // Drive the dashboard into an overdue lifecycle so AttentionLane raises
+    // the close-month action. CloseBand also renders in this state, but the
+    // testid scopes the click to the AttentionLane entry point.
+    const overdueSummary = buildSummary(245, "open", {
+      header: {
+        lifecycleState: "overdue",
+        canCloseMonth: true,
+        closeMonthButtonLabel: "Close Month",
+      },
+    });
+    mockUseDashboardSummary.mockReturnValue({
+      ...readyResult,
+      data: {
+        ...readyResult.data,
+        summary: overdueSummary,
+      },
+    });
+
+    renderDashboardContent();
+
+    fireEvent.click(screen.getByTestId("attention-action-overdue-close"));
+
+    expect(
+      screen.getByRole("heading", { name: "Close April 2026?" }),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("close-month-modal")).toBeInTheDocument();
+  });
+
+  it("does not request savings-goal completion candidates until the close modal opens", () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+
+    renderDashboardContent();
+
+    // Before opening: the hook is still invoked (it lives in the controller
+    // which always mounts), but `enabled` must be false so the network
+    // request never fires. This preserves the dashboard-load contract that
+    // editor/close-detail endpoints are lazy.
+    expect(
+      mockUseSavingsGoalCompletionCandidatesQuery,
+    ).toHaveBeenCalled();
+    const preOpenCalls = mockUseSavingsGoalCompletionCandidatesQuery.mock.calls;
+    expect(preOpenCalls.length).toBeGreaterThan(0);
+    for (const [, options] of preOpenCalls) {
+      expect(options).toEqual(expect.objectContaining({ enabled: false }));
+    }
+
+    mockUseSavingsGoalCompletionCandidatesQuery.mockClear();
+
+    fireEvent.click(screen.getByRole("button", { name: /close month/i }));
+
+    const postOpenCalls = mockUseSavingsGoalCompletionCandidatesQuery.mock.calls;
+    expect(postOpenCalls.length).toBeGreaterThan(0);
+    expect(
+      postOpenCalls.some(
+        ([yearMonth, options]) =>
+          yearMonth === "2026-04" &&
+          options &&
+          (options as { enabled?: boolean }).enabled === true,
+      ),
+    ).toBe(true);
   });
 
   it("does not render any 'Edit' affordances inside the close month modal", () => {
@@ -1533,7 +1841,7 @@ describe("DashboardContent", () => {
     expect(screen.getByTestId("closed-month-recap")).not.toHaveTextContent(
       /locked snapshot for april 2026/i,
     );
-    expect(screen.getByTestId("stable-month-frame")).not.toHaveTextContent(
+    expect(screen.getByTestId("month-rail")).not.toHaveTextContent(
       /comparison baseline/i,
     );
     const heroResult = screen.getByTestId("closed-month-hero-result");
@@ -2463,7 +2771,7 @@ describe("DashboardContent", () => {
     expect(screen.getByTestId("month-status-badge")).toHaveTextContent(
       "Skipped",
     );
-    expect(screen.getByTestId("stable-month-frame")).toHaveTextContent(
+    expect(screen.getByTestId("month-rail")).toHaveTextContent(
       /comparisons skip this month/i,
     );
     expect(
@@ -2740,12 +3048,16 @@ describe("DashboardContent", () => {
 
       renderDashboardContent();
 
-      const frame = screen.getByTestId("stable-month-frame");
+      const frame = screen.getByTestId("month-rail");
       expect(frame).not.toHaveTextContent(
         /the month can be closed in 17 days/i,
       );
+      // MoneyState (P2) replaced the legacy command-hero countdown panel
+      // that used to echo the close-availability label, so the FollowUpStrip
+      // "Closing window" item is now the sole surface for the countdown
+      // copy on an open, not-yet-ready month.
       expect(screen.getAllByText(/the month can be closed in 17 days/i)).toHaveLength(
-        2,
+        1,
       );
       expect(frame).not.toHaveTextContent(/ready to close/i);
       expect(screen.queryByTestId("close-month-cta")).toBeNull();
@@ -2767,10 +3079,10 @@ describe("DashboardContent", () => {
 
     expect(screen.getByTestId("month-status-badge")).toHaveTextContent(/open/i);
     expect(screen.getByTestId("close-month-cta")).toBeInTheDocument();
-    expect(screen.getByTestId("stable-month-frame")).not.toHaveTextContent(
+    expect(screen.getByTestId("month-rail")).not.toHaveTextContent(
       /the month can be closed in/i,
     );
-    expect(screen.getByTestId("stable-month-frame")).not.toHaveTextContent(
+    expect(screen.getByTestId("month-rail")).not.toHaveTextContent(
       /ready to close/i,
     );
   });
@@ -2895,15 +3207,21 @@ describe("DashboardContent", () => {
     expect(screen.getByTestId("period-action-continue")).toBeInTheDocument();
   });
 
-  it("renders the active month label with the calm selected-segment treatment", () => {
+  it("renders the active month label with the rail anchor treatment", () => {
     mockUseDashboardSummary.mockReturnValue(readyResult);
 
     renderDashboardContent();
 
     const activeMonth = screen.getByTestId("active-month-label");
     expect(activeMonth).toHaveAttribute("data-active", "true");
-    // Subtle accent ring on the white segment surface.
-    expect(activeMonth.className).toMatch(/ring-eb-accent\/20/);
+    // The active month is the spine's page anchor: extrabold typography on
+    // the period label, with the status pill rendered inline next to it.
+    const label = activeMonth.querySelector("span");
+    expect(label).not.toBeNull();
+    expect(label!.className).toMatch(/font-extrabold/);
+    expect(
+      within(activeMonth).getByTestId("month-status-badge"),
+    ).toBeInTheDocument();
   });
 });
 

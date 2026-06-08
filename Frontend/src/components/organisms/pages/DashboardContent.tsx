@@ -4,9 +4,9 @@ import EditPeriodDrawer from "@/components/organisms/dashboard/editPeriod/EditPe
 import ClosedMonthRecapSection from "@/components/organisms/dashboard/recap/ClosedMonthRecapSection";
 import SkippedMonthState from "@/components/organisms/dashboard/recap/SkippedMonthState";
 import ReturningDashboardSection from "@/components/organisms/dashboard/returning/ReturningDashboardSection";
-import PeriodControlBar, {
-  type PeriodControlBarViewModel,
-} from "@/components/organisms/dashboard/shell/PeriodControlBar";
+import MonthRail, {
+  type MonthRailViewModel,
+} from "@/components/organisms/dashboard/shell/MonthRail";
 import type { PeriodActionSlotViewModel } from "@/components/organisms/dashboard/shell/PeriodActionSlot";
 import { useBudgetMonthRecapQuery } from "@/hooks/budget/useBudgetMonthRecapQuery";
 import { useCloseMonthReviewController } from "@/hooks/dashboard/useCloseMonthReviewController";
@@ -20,6 +20,7 @@ import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { useBudgetMonthStore } from "@/stores/Budget/budgetMonthStore";
 import type { ApiProblem } from "@/api/api.types";
 import type { AppLocale } from "@/types/i18n/appLocale";
+import type { BudgetDashboardMonthDto } from "@/types/budget/BudgetDashboardMonthDto";
 import type { BudgetMonthListItemDto } from "@/types/budget/BudgetMonthsStatusDto";
 import { dashboardHeaderDict } from "@/utils/i18n/pages/private/dashboard/header/DashboardHeader.i18n";
 import { closeMonthReviewModalDict } from "@/utils/i18n/pages/private/dashboard/closeMonth/CloseMonthReviewModal.i18n";
@@ -60,13 +61,13 @@ function replaceToken(template: string, token: string, value: string) {
   return template.replace(`{${token}}`, value);
 }
 
-function buildPeriodControlBarViewModel(
+function buildMonthRailViewModel(
   summary: DashboardSummary,
   locale: AppLocale,
   options: {
     suppressContinueAction?: boolean;
   } = {},
-): PeriodControlBarViewModel {
+): MonthRailViewModel {
   const t: HeaderT = (key) => tDict(key, locale, dashboardHeaderDict);
   const header = summary.header;
   const isSkipped = header.periodStatus === "skipped";
@@ -75,7 +76,7 @@ function buildPeriodControlBarViewModel(
     header.periodStatus === "open" &&
     header.canCloseMonth &&
     !!header.closeMonthButtonLabel;
-  const currentTone: PeriodControlBarViewModel["current"]["tone"] = isSkipped
+  const currentTone: MonthRailViewModel["current"]["tone"] = isSkipped
     ? "muted"
     : isClosed
       ? "success"
@@ -95,7 +96,7 @@ function buildPeriodControlBarViewModel(
         )
       : t("periodContextNextLocked");
 
-  const ribbonItems: PeriodControlBarViewModel["ribbonItems"] = [
+  const ribbonItems: MonthRailViewModel["ribbonItems"] = [
     {
       label: isSkipped
         ? t("periodContextSkippedMeaning")
@@ -112,7 +113,7 @@ function buildPeriodControlBarViewModel(
             label: comparisonLabel,
             tone: isSkipped ? "muted" : "neutral",
             icon: "compare",
-          } satisfies PeriodControlBarViewModel["ribbonItems"][number],
+          } satisfies MonthRailViewModel["ribbonItems"][number],
         ]),
     {
       label: nextLabel,
@@ -173,6 +174,8 @@ function buildPeriodControlBarViewModel(
   }
 
   return {
+    ariaLabel: t("monthRailAriaLabel"),
+    loadingLabel: t("loadingPeriodSr"),
     current: {
       yearMonth: header.periodKey,
       label: header.periodLabel,
@@ -212,6 +215,11 @@ type LoadedDashboardContentProps = {
   goToPreviousMonth: () => void;
   goToNextMonth: () => void;
   archiveMonths: BudgetMonthListItemDto[];
+  /**
+   * Raw open-month DTO. Closed/skipped branches do not render MoneyState, so
+   * `dashboardMonth` is only forwarded into the open-month section.
+   */
+  dashboardMonth: BudgetDashboardMonthDto;
 };
 
 function LoadedDashboardContent({
@@ -222,6 +230,7 @@ function LoadedDashboardContent({
   goToPreviousMonth,
   goToNextMonth,
   archiveMonths,
+  dashboardMonth,
 }: LoadedDashboardContentProps) {
   const [isPeriodEditorOpen, setIsPeriodEditorOpen] = useState(false);
   const [periodEditorPanel, setPeriodEditorPanel] = useState<
@@ -303,14 +312,14 @@ function LoadedDashboardContent({
 
   const closeAvailability = getCloseAvailabilityLabel(summary.header, locale);
 
-  const periodControlVm = buildPeriodControlBarViewModel(summary, locale, {
+  const monthRailVm = buildMonthRailViewModel(summary, locale, {
     suppressContinueAction: isJustClosedHandoffVisible,
   });
 
   return (
     <div className="w-full max-w-6xl space-y-5">
-      <PeriodControlBar
-        vm={periodControlVm}
+      <MonthRail
+        vm={monthRailVm}
         onGoPrevious={goToPreviousMonth}
         onGoNext={goToNextMonth}
         isSwitchingMonth={isSwitchingMonth}
@@ -365,6 +374,7 @@ function LoadedDashboardContent({
           <ReturningDashboardSection
             summary={summary}
             breakdown={breakdown}
+            dashboardMonth={dashboardMonth}
             onOpenPeriodEditor={handleOpenPeriodEditor}
             onOpenFullExpenseEditor={() => navigate("/dashboard/expenses")}
             onOpenIncomeEditor={handleOpenIncomeEditor}
@@ -373,6 +383,7 @@ function LoadedDashboardContent({
             onOpenFullSavingsEditor={() => navigate("/dashboard/savings")}
             onOpenDebtsEditor={handleOpenDebtsEditor}
             onOpenFullDebtsEditor={() => navigate("/dashboard/debts")}
+            onOpenCloseMonth={closeMonthReview.open}
             isSwitchingMonth={isSwitchingMonth}
           />
 
@@ -440,6 +451,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
     goToPreviousMonth,
     goToNextMonth,
     monthsStatus,
+    dashboardMonth,
   } = useDashboardSummary({
     enabled: shouldFetchDashboard,
   });
@@ -492,7 +504,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
     );
   }
 
-  if (!data) {
+  if (!data || !dashboardMonth) {
     return (
       <FirstTimeDashboardSection
         onStartWizard={openWizard}
@@ -506,6 +518,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({
     <LoadedDashboardContent
       summary={data.summary}
       breakdown={data.breakdown}
+      dashboardMonth={dashboardMonth}
       isFetching={isFetching}
       isPending={isPending}
       goToPreviousMonth={goToPreviousMonth}

@@ -148,6 +148,28 @@ E2eSeedUser[] e2eSeed =
             LastName: "Deficit"),
         IncludeBudget: true,
         OpenMonthTargetFinalBalance: -750m),
+    // Dedicated read-only dashboard-state fixtures for the DP5 visual-polish
+    // suite. Unlike close-deficit / close-modal-balanced (which close-month
+    // specs CLOSE, rolling their open month forward to a positive template),
+    // these users are mutated by no test, so their open month stays a deficit /
+    // zero and the dashboard reliably lands on it. Do NOT use them in any
+    // close / mutate flow.
+    new(
+        User: new DevSeedUser(
+            Email: "e2e-dashboard-deficit@local.test",
+            Password: DevSeedPassword,
+            FirstName: "E2E",
+            LastName: "DashboardDeficit"),
+        IncludeBudget: true,
+        OpenMonthTargetFinalBalance: -750m),
+    new(
+        User: new DevSeedUser(
+            Email: "e2e-dashboard-zero@local.test",
+            Password: DevSeedPassword,
+            FirstName: "E2E",
+            LastName: "DashboardZero"),
+        IncludeBudget: true,
+        OpenMonthTargetFinalBalance: 0m),
     new(
         User: new DevSeedUser(
             Email: "e2e-recap-subscriptions@local.test",

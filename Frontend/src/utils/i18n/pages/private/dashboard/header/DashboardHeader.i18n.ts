@@ -55,6 +55,8 @@ export const dashboardHeaderDict = {
     nextMonthLockedAria: "Nästa månad är inte tillgänglig",
     continueWithMonth: "Fortsätt med {month}",
     continueWithMonthAria: "Fortsätt till {month}",
+    monthRailAriaLabel: "Månadsrad",
+    loadingPeriodSr: "Laddar period",
   },
 
   en: {
@@ -113,6 +115,8 @@ export const dashboardHeaderDict = {
     nextMonthLockedAria: "Next month is not available",
     continueWithMonth: "Continue with {month}",
     continueWithMonthAria: "Continue with {month}",
+    monthRailAriaLabel: "Month rail",
+    loadingPeriodSr: "Loading period",
   },
 
   et: {
@@ -171,5 +175,7 @@ export const dashboardHeaderDict = {
     nextMonthLockedAria: "Järgmine kuu pole saadaval",
     continueWithMonth: "Jätka kuuga {month}",
     continueWithMonthAria: "Jätka kuuga {month}",
+    monthRailAriaLabel: "Kuude riba",
+    loadingPeriodSr: "Perioodi laadimine",
   },
 } as const;
