@@ -154,7 +154,7 @@ export default function MonthRail({
     <section
       data-testid="month-rail"
       aria-label={vm.ariaLabel}
-      className="rounded-3xl border border-eb-stroke/25 bg-white/85 px-4 py-3.5 shadow-[0_8px_24px_rgb(21_39_81_/_0.04)] backdrop-blur sm:px-5"
+      className="relative z-20 rounded-3xl border border-eb-stroke/25 bg-white/85 px-4 py-3.5 shadow-[0_8px_24px_rgb(21_39_81_/_0.04)] backdrop-blur sm:px-5"
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">

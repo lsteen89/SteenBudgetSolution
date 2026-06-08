@@ -34,17 +34,17 @@ export const HEADER_PRESETS: Record<HeaderVariant, HeaderPreset> = {
     public: {
         maxWidthClass: "max-w-6xl",
         paddingClass: "px-4 sm:px-6",
-        heightClass: "h-16",
+        heightClass: "h-[68px]",
 
         glassClass:
-            "bg-gradient-to-b from-[rgb(var(--eb-shell)/0.45)] to-[rgb(var(--eb-shell)/0.18)] " +
+            "bg-gradient-to-b from-[rgb(var(--eb-shell)/0.50)] to-[rgb(var(--eb-shell)/0.18)] " +
             "backdrop-blur-md border-b border-eb-stroke/25",
         shadowClass: "shadow-[0_10px_30px_rgba(21,39,81,0.08)]",
 
         clouds: {
-            kind: "trim",
-            opacity: 0.80,
-            translateY: "-38%",
+            kind: "backdrop",
+            opacity: 0.78,
+            translateY: "-30%",
             motion: { enabled: true, duration: 7, deltaPx: 6 },
         },
 
