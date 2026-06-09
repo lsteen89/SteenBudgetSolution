@@ -48,6 +48,13 @@ vi.mock("@hooks/budget/editPeriod/useMonthEditor", () => ({
     mockUseBudgetMonthIncomeItems(...args),
   usePatchBudgetMonthIncomeItemsBulk: (...args: unknown[]) =>
     mockUsePatchBudgetMonthIncomeItemsBulk(...args),
+  // PR D: IncomePanel exposes inline create for non-salary groups. The
+  // drawer-level test does not exercise it, but the hook must still be
+  // mocked so the panel can mount without ReferenceError.
+  useCreateBudgetMonthIncomeItem: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
   useBudgetMonthSavingsGoals: (...args: unknown[]) =>
     mockUseBudgetMonthSavingsGoals(...args),
   usePatchBudgetMonthSavingsGoalsBulk: (...args: unknown[]) =>
@@ -283,6 +290,13 @@ describe("EditPeriodDrawer subscription lifecycle", () => {
   });
 
   it("renders the income panel when requested", () => {
+    // PR D: IncomePanel resolves `readOnly` from the month meta, so the
+    // editor query has to be primed alongside the income-items query.
+    mockUseBudgetMonthEditor.mockReturnValue({
+      data: buildEditorData(),
+      isLoading: false,
+      isError: false,
+    });
     mockUseBudgetMonthIncomeItems.mockReturnValue({
       data: [
         {
@@ -325,7 +339,11 @@ describe("EditPeriodDrawer subscription lifecycle", () => {
         "Quick adjustments only affect April 2026. Want to change the budget plan going forward? Open planning.",
       ),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    // PR D adds an active/inactive toggle to non-salary income rows. The
+    // previous "no checkbox" assertion was really checking for plan-scope
+    // controls; we keep the radiogroup assertion (scope cards still must
+    // not appear in the quick drawer) and drop the incidental checkbox
+    // assertion now that the toggle is a legitimate quick-edit affordance.
     expect(
       screen.queryByRole("radiogroup", {
         name: /what should this change apply to/i,
@@ -869,6 +887,12 @@ describe("EditPeriodDrawer footer projection (PR B)", () => {
   it("excludes inactive income rows from the projection delta", async () => {
     const activeRowId = "55555555-5555-4555-8555-555555555555";
     const inactiveRowId = "66666666-6666-4666-8666-666666666666";
+    // PR D: IncomePanel reads month meta to resolve `readOnly`.
+    mockUseBudgetMonthEditor.mockReturnValue({
+      data: buildEditorData(),
+      isLoading: false,
+      isError: false,
+    });
     mockUseBudgetMonthIncomeItems.mockReturnValue({
       data: [
         {
@@ -928,6 +952,11 @@ describe("EditPeriodDrawer footer projection (PR B)", () => {
 
   it("projects a positive delta when an active income row increases", async () => {
     const activeRowId = "55555555-5555-4555-8555-555555555555";
+    mockUseBudgetMonthEditor.mockReturnValue({
+      data: buildEditorData(),
+      isLoading: false,
+      isError: false,
+    });
     mockUseBudgetMonthIncomeItems.mockReturnValue({
       data: [
         {
@@ -970,6 +999,11 @@ describe("EditPeriodDrawer footer projection (PR B)", () => {
 
   it("disables save and shows the fix-validation copy on an invalid income draft", async () => {
     const activeRowId = "55555555-5555-4555-8555-555555555555";
+    mockUseBudgetMonthEditor.mockReturnValue({
+      data: buildEditorData(),
+      isLoading: false,
+      isError: false,
+    });
     mockUseBudgetMonthIncomeItems.mockReturnValue({
       data: [
         {

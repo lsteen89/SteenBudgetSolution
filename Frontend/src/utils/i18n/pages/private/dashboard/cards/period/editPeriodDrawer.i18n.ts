@@ -8,6 +8,29 @@ export const editPeriodDrawerDict = {
     incomeMonthOnlyHelper:
       "Snabbjusteringar påverkar bara {month}. Vill du ändra budgetplanen framåt? Öppna planeringen.",
 
+    // PR D (income depth)
+    incomeGroupSalary: "Lön",
+    incomeGroupHousehold: "Hushållsinkomst",
+    incomeGroupSide: "Sidoinkomst",
+    incomeSalaryLockedLabel: "Låst",
+    incomeNoSalaryYet:
+      "Ingen lön är planerad ännu. Lägg till lön i planeringen.",
+    incomeNoHouseholdMembers:
+      "Inga hushållsinkomster för den här månaden. Lägg till en nedan.",
+    incomeNoSideIncome:
+      "Inga sidoinkomster för den här månaden. Lägg till en nedan.",
+    incomeAddToGroup: "Lägg till i {category}",
+    incomeInlineCreateHeading: "Ny inkomst i {category}",
+    incomeInlineCreateNamePlaceholder: "Namn",
+    incomeInlineCreateAmountPlaceholder: "Belopp",
+    incomeInlineCreateSubmit: "Lägg till",
+    incomeInlineCreateCancel: "Avbryt",
+    incomeInlineCreateSaving: "Lägger till...",
+    incomeNameRequired: "Namn krävs",
+    incomeNameTooLong: "Namnet är för långt",
+    incomeActiveToggleLabel: "Räkna med {name} den här månaden",
+    incomeRowInactiveHint: "Räknas inte den här månaden",
+
     savingsTitle: "Sparande",
     savingsDescription: "Justera månadsbelopp för dina sparmål.",
     noSavingsGoals: "Det finns inga sparmål att snabbjustera.",
@@ -78,6 +101,29 @@ export const editPeriodDrawerDict = {
     incomeMonthOnlyHelper:
       "Quick adjustments only affect {month}. Want to change the budget plan going forward? Open planning.",
 
+    // PR D (income depth)
+    incomeGroupSalary: "Salary",
+    incomeGroupHousehold: "Household income",
+    incomeGroupSide: "Side income",
+    incomeSalaryLockedLabel: "Locked",
+    incomeNoSalaryYet:
+      "No salary planned yet. Add salary in planning.",
+    incomeNoHouseholdMembers:
+      "No household income for this month. Add one below.",
+    incomeNoSideIncome:
+      "No side income for this month. Add one below.",
+    incomeAddToGroup: "Add to {category}",
+    incomeInlineCreateHeading: "New income in {category}",
+    incomeInlineCreateNamePlaceholder: "Name",
+    incomeInlineCreateAmountPlaceholder: "Amount",
+    incomeInlineCreateSubmit: "Add",
+    incomeInlineCreateCancel: "Cancel",
+    incomeInlineCreateSaving: "Adding...",
+    incomeNameRequired: "Name is required",
+    incomeNameTooLong: "Name is too long",
+    incomeActiveToggleLabel: "Count {name} this month",
+    incomeRowInactiveHint: "Not counted this month",
+
     savingsTitle: "Savings",
     savingsDescription: "Adjust monthly contributions for your savings goals.",
     noSavingsGoals: "There are no savings goals to quick adjust.",
@@ -146,6 +192,29 @@ export const editPeriodDrawerDict = {
     noIncomeItems: "Kiireks kohandamiseks pole tulukirjeid.",
     incomeMonthOnlyHelper:
       "Kiirkohandused mõjutavad ainult perioodi {month}. Kui soovid eelarveplaani edaspidi muuta, ava planeerimine.",
+
+    // PR D (income depth)
+    incomeGroupSalary: "Palk",
+    incomeGroupHousehold: "Leibkonna sissetulek",
+    incomeGroupSide: "Lisatulu",
+    incomeSalaryLockedLabel: "Lukus",
+    incomeNoSalaryYet:
+      "Palka pole veel planeeritud. Lisa palk planeerimises.",
+    incomeNoHouseholdMembers:
+      "Selle kuu jaoks pole leibkonna sissetulekut. Lisa allpool.",
+    incomeNoSideIncome:
+      "Selle kuu jaoks pole lisatulu. Lisa allpool.",
+    incomeAddToGroup: "Lisa kategooriasse {category}",
+    incomeInlineCreateHeading: "Uus tulu kategoorias {category}",
+    incomeInlineCreateNamePlaceholder: "Nimi",
+    incomeInlineCreateAmountPlaceholder: "Summa",
+    incomeInlineCreateSubmit: "Lisa",
+    incomeInlineCreateCancel: "Tühista",
+    incomeInlineCreateSaving: "Lisamine...",
+    incomeNameRequired: "Nimi on nõutud",
+    incomeNameTooLong: "Nimi on liiga pikk",
+    incomeActiveToggleLabel: "Arvesta {name} selle kuu jooksul",
+    incomeRowInactiveHint: "Selle kuu kohta ei arvestata",
 
     savingsTitle: "Säästud",
     savingsDescription: "Kohanda oma säästueesmärkide kuumakseid.",
