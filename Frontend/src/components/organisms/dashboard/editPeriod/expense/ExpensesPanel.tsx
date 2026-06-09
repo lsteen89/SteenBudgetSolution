@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ZodError } from "zod";
 
+import type { DashboardTerms } from "@/domain/budget/dashboardTerms";
 import { useExpenseCategories } from "@/hooks/budget/useExpenseCategories";
 import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
@@ -14,6 +15,7 @@ import {
   type ExpenseItemSchemaMessages,
 } from "@/schemas/dashboard/monthEditor/expenseItem.schemas";
 import type { SubscriptionLifecycleStatus } from "@/types/budget/BudgetMonthsStatusDto";
+import type { CurrencyCode } from "@/types/i18n/currency";
 import { useToast } from "@/ui/toast/toast";
 import { canEditMonth } from "@/utils/budget/periodEditor/canShowUpdateDefault";
 import { asCategoryKey, labelCategory } from "@/utils/i18n/budget/categories";
@@ -39,6 +41,17 @@ type ExpensesPanelProps = {
    * hidden tab. Defaults to `true` for non-tabbed callers.
    */
   isActive?: boolean;
+  /**
+   * Dashboard six-term equation for the active month. Used by the shared
+   * footer to render `free this month → projected` for the active tab.
+   * Optional so non-drawer callers keep working with the legacy summary copy.
+   */
+  dashboardTerms?: DashboardTerms;
+  /**
+   * Currency for the projection preview. Required when `dashboardTerms` is
+   * provided; falls back to the user's app currency otherwise.
+   */
+  currency?: CurrencyCode;
 };
 
 type ExpenseDraft = {
@@ -66,9 +79,12 @@ const ExpensesPanel: React.FC<ExpensesPanelProps> = ({
   periodLabel,
   onClose,
   isActive = true,
+  dashboardTerms,
+  currency: currencyProp,
 }) => {
   const locale = useAppLocale();
-  const currency = useAppCurrency();
+  const fallbackCurrency = useAppCurrency();
+  const currency = currencyProp ?? fallbackCurrency;
   const toast = useToast();
   const navigate = useNavigate();
 
@@ -539,6 +555,20 @@ const ExpensesPanel: React.FC<ExpensesPanelProps> = ({
           isSaving={isSaving}
           isDisabled={readOnly || !hasChanges || hasValidationErrors}
           summaryText={footerSummaryText}
+          projection={
+            dashboardTerms
+              ? {
+                  terms: dashboardTerms,
+                  domain: "expenses",
+                  baseDomainTotal: originalEditableTotal,
+                  draftDomainTotal: draftEditableTotal,
+                  currency,
+                  hasChanges,
+                  hasValidationErrors,
+                  readOnly,
+                }
+              : undefined
+          }
         />
       }
     />

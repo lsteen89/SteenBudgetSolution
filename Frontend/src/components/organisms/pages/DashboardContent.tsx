@@ -9,6 +9,7 @@ import MonthRail, {
 } from "@/components/organisms/dashboard/shell/MonthRail";
 import type { PeriodActionSlotViewModel } from "@/components/organisms/dashboard/shell/PeriodActionSlot";
 import { useBudgetMonthRecapQuery } from "@/hooks/budget/useBudgetMonthRecapQuery";
+import { buildDashboardTerms } from "@/domain/budget/dashboardTerms";
 import { useCloseMonthReviewController } from "@/hooks/dashboard/useCloseMonthReviewController";
 import { useDashboardSummary } from "@/hooks/dashboard/useDashboardSummary";
 import type {
@@ -28,7 +29,7 @@ import { dashboardErrorStateDict } from "@/utils/i18n/pages/private/dashboard/Da
 import { tDict } from "@/utils/i18n/translate";
 import DashboardHomeSkeleton from "@components/organisms/dashboard/DashboardHomeSkeleton";
 import FirstTimeDashboardSection from "@components/organisms/dashboard/FirstTimeDashboardSection";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardErrorState from "../dashboard/DashboardErrorState";
 
@@ -316,6 +317,16 @@ function LoadedDashboardContent({
     suppressContinueAction: isJustClosedHandoffVisible,
   });
 
+  // Quick Edit drawer projection uses the dashboard's authoritative
+  // six-term equation. The drawer only renders for open months, but we
+  // build the terms here so the open/closed/skipped status switch already
+  // narrowed `dashboardMonth` and the helpers receive a single source of
+  // truth in sync with the dashboard pillars.
+  const dashboardTermsResult = useMemo(
+    () => buildDashboardTerms(dashboardMonth),
+    [dashboardMonth],
+  );
+
   return (
     <div className="w-full max-w-6xl space-y-5">
       <MonthRail
@@ -413,6 +424,8 @@ function LoadedDashboardContent({
             periodLabel={summary.header.periodLabel}
             periodDateRangeLabel={summary.header.periodDateRangeLabel}
             panel={periodEditorPanel}
+            dashboardTerms={dashboardTermsResult.terms}
+            currency={summary.currency}
             onClose={() => {
               setIsPeriodEditorOpen(false);
             }}

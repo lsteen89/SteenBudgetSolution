@@ -2,7 +2,18 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { DashboardTerms } from "@/domain/budget/dashboardTerms";
+
 import EditPeriodDrawer from "./EditPeriodDrawer";
+
+const PROJECTION_TERMS: DashboardTerms = {
+  income: 30000,
+  carryOver: 500,
+  expenses: 18000,
+  savings: 4000,
+  debts: 2000,
+  remaining: 6500,
+};
 
 const mockUseBudgetMonthEditor = vi.fn();
 const mockUsePatchBudgetMonthExpenseItemsBulk = vi.fn();
@@ -794,6 +805,327 @@ describe("EditPeriodDrawer quick-edit tab shell", () => {
     // Other domains must not be saved by the active-tab save.
     expect(mockIncomeMutateAsync).not.toHaveBeenCalled();
     expect(mockSavingsMutateAsync).not.toHaveBeenCalled();
+    expect(mockDebtsMutateAsync).not.toHaveBeenCalled();
+  });
+});
+
+describe("EditPeriodDrawer footer projection (PR B)", () => {
+  beforeEach(() => {
+    mockUseBudgetMonthEditor.mockReset();
+    mockUsePatchBudgetMonthExpenseItemsBulk.mockReset();
+    mockUseBudgetMonthIncomeItems.mockReset();
+    mockUsePatchBudgetMonthIncomeItemsBulk.mockReset();
+    mockUseBudgetMonthSavingsGoals.mockReset();
+    mockUsePatchBudgetMonthSavingsGoalsBulk.mockReset();
+    mockUseBudgetMonthDebts.mockReset();
+    mockUsePatchBudgetMonthDebtsBulk.mockReset();
+    mockUseExpenseCategories.mockReset();
+    mockMutateAsync.mockReset();
+    mockIncomeMutateAsync.mockReset();
+    mockSavingsMutateAsync.mockReset();
+    mockDebtsMutateAsync.mockReset();
+    mockToast.success.mockReset();
+    mockToast.error.mockReset();
+  });
+
+  function renderWithProjection(
+    panel: "expenses" | "income" | "savings" | "debts",
+  ) {
+    return render(
+      <MemoryRouter>
+        <EditPeriodDrawer
+          open
+          yearMonth="2026-04"
+          periodLabel="April 2026"
+          periodDateRangeLabel="Apr 1 - Apr 30"
+          panel={panel}
+          dashboardTerms={PROJECTION_TERMS}
+          currency="SEK"
+          onClose={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+  }
+
+  it("excludes inactive income rows from the projection delta", async () => {
+    const activeRowId = "55555555-5555-4555-8555-555555555555";
+    const inactiveRowId = "66666666-6666-4666-8666-666666666666";
+    mockUseBudgetMonthIncomeItems.mockReturnValue({
+      data: [
+        {
+          id: activeRowId,
+          sourceIncomeItemId: null,
+          kind: "salary",
+          name: "Salary",
+          amountMonthly: 30000,
+          isActive: true,
+          isDeleted: false,
+          isMonthOnly: false,
+          canUpdateDefault: true,
+        },
+        {
+          id: inactiveRowId,
+          sourceIncomeItemId: null,
+          kind: "sideHustle",
+          name: "Old side gig",
+          amountMonthly: 1500,
+          isActive: false,
+          isDeleted: false,
+          isMonthOnly: false,
+          canUpdateDefault: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    });
+    mockUsePatchBudgetMonthIncomeItemsBulk.mockReturnValue({
+      mutateAsync: mockIncomeMutateAsync,
+      isPending: false,
+    });
+
+    renderWithProjection("income");
+
+    // Editing an inactive row produces a draft, but the dashboard's
+    // `totalIncome` doesn't count it — so projection must stay at base.
+    const inactiveRow = screen.getByTestId(
+      `period-income-row-${inactiveRowId}`,
+    );
+    fireEvent.change(within(inactiveRow).getByRole("textbox"), {
+      target: { value: "9000" },
+    });
+
+    await waitFor(() => {
+      const projection = screen.getByTestId("quick-edit-projection");
+      expect(projection.getAttribute("data-projection-state")).toBe(
+        "unchanged",
+      );
+    });
+
+    // No delta chip rendered — the projection did not lie.
+    expect(
+      screen.queryByTestId("quick-edit-projection-delta"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("projects a positive delta when an active income row increases", async () => {
+    const activeRowId = "55555555-5555-4555-8555-555555555555";
+    mockUseBudgetMonthIncomeItems.mockReturnValue({
+      data: [
+        {
+          id: activeRowId,
+          sourceIncomeItemId: null,
+          kind: "salary",
+          name: "Salary",
+          amountMonthly: 30000,
+          isActive: true,
+          isDeleted: false,
+          isMonthOnly: false,
+          canUpdateDefault: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    });
+    mockUsePatchBudgetMonthIncomeItemsBulk.mockReturnValue({
+      mutateAsync: mockIncomeMutateAsync,
+      isPending: false,
+    });
+
+    renderWithProjection("income");
+
+    const row = screen.getByTestId(`period-income-row-${activeRowId}`);
+    fireEvent.change(within(row).getByRole("textbox"), {
+      target: { value: "30500" },
+    });
+
+    await waitFor(() => {
+      const projection = screen.getByTestId("quick-edit-projection");
+      expect(projection.getAttribute("data-projection-state")).toBe("changed");
+    });
+
+    const delta = screen.getByTestId("quick-edit-projection-delta");
+    // +500 income → free money rises by 500. Currency text uses SEK.
+    expect(delta.textContent).toContain("+");
+    expect(delta.textContent).toContain("500");
+  });
+
+  it("disables save and shows the fix-validation copy on an invalid income draft", async () => {
+    const activeRowId = "55555555-5555-4555-8555-555555555555";
+    mockUseBudgetMonthIncomeItems.mockReturnValue({
+      data: [
+        {
+          id: activeRowId,
+          sourceIncomeItemId: null,
+          kind: "salary",
+          name: "Salary",
+          amountMonthly: 30000,
+          isActive: true,
+          isDeleted: false,
+          isMonthOnly: false,
+          canUpdateDefault: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    });
+    mockUsePatchBudgetMonthIncomeItemsBulk.mockReturnValue({
+      mutateAsync: mockIncomeMutateAsync,
+      isPending: false,
+    });
+
+    renderWithProjection("income");
+
+    const row = screen.getByTestId(`period-income-row-${activeRowId}`);
+    // sanitizeMoneyInput strips letters but leaves an empty string, which
+    // we treat as "amount required".
+    fireEvent.change(within(row).getByRole("textbox"), {
+      target: { value: "abc" },
+    });
+
+    await waitFor(() => {
+      const projection = screen.getByTestId("quick-edit-projection");
+      expect(projection.getAttribute("data-projection-state")).toBe(
+        "invalid",
+      );
+    });
+
+    expect(
+      screen.getByRole("button", { name: "Save changes" }),
+    ).toBeDisabled();
+    expect(within(row).getByRole("alert")).toBeInTheDocument();
+  });
+
+  it("disables save on an invalid savings draft and surfaces the error", async () => {
+    const savingsRowId = "77777777-7777-4777-8777-777777777777";
+    mockUseBudgetMonthSavingsGoals.mockReturnValue({
+      data: [
+        {
+          id: savingsRowId,
+          sourceSavingsGoalId: null,
+          name: "Emergency fund",
+          targetAmount: 50000,
+          targetDate: null,
+          amountSaved: 0,
+          monthlyContribution: 1500,
+          status: "active",
+          isDeleted: false,
+          isMonthOnly: false,
+          canUpdateDefault: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    });
+    mockUsePatchBudgetMonthSavingsGoalsBulk.mockReturnValue({
+      mutateAsync: mockSavingsMutateAsync,
+      isPending: false,
+    });
+
+    renderWithProjection("savings");
+
+    const row = screen.getByTestId(`period-savings-row-${savingsRowId}`);
+    fireEvent.change(within(row).getByRole("textbox"), {
+      target: { value: "abc" },
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Save changes" }),
+      ).toBeDisabled();
+    });
+
+    expect(within(row).getByRole("alert")).toBeInTheDocument();
+    expect(mockSavingsMutateAsync).not.toHaveBeenCalled();
+  });
+
+  it("does not render a debt projection (deferred to PR F)", async () => {
+    const debtRowId = "11111111-2222-4333-8444-555555555555";
+    mockUseBudgetMonthDebts.mockReturnValue({
+      data: [
+        {
+          id: debtRowId,
+          sourceDebtId: null,
+          name: "Credit card",
+          balance: 12000,
+          monthlyPayment: 800,
+          status: "active",
+          isDeleted: false,
+          isMonthOnly: false,
+          canUpdateDefault: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    });
+    mockUsePatchBudgetMonthDebtsBulk.mockReturnValue({
+      mutateAsync: mockDebtsMutateAsync,
+      isPending: false,
+    });
+
+    renderWithProjection("debts");
+
+    // The legacy debt-items read model cannot distinguish included vs.
+    // skipped rows, so we deliberately do not surface a projection here.
+    expect(
+      screen.queryByTestId("quick-edit-projection"),
+    ).not.toBeInTheDocument();
+
+    // Edit the row to confirm Save is still wired to active-tab save, but
+    // no projection appears even with a draft delta.
+    const row = screen.getByTestId(`period-debt-row-${debtRowId}`);
+    fireEvent.change(within(row).getByRole("textbox"), {
+      target: { value: "850" },
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Save changes" }),
+      ).not.toBeDisabled();
+    });
+
+    expect(
+      screen.queryByTestId("quick-edit-projection"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("disables save on an invalid debt draft and surfaces the error", async () => {
+    const debtRowId = "11111111-2222-4333-8444-555555555555";
+    mockUseBudgetMonthDebts.mockReturnValue({
+      data: [
+        {
+          id: debtRowId,
+          sourceDebtId: null,
+          name: "Credit card",
+          balance: 12000,
+          monthlyPayment: 800,
+          status: "active",
+          isDeleted: false,
+          isMonthOnly: false,
+          canUpdateDefault: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    });
+    mockUsePatchBudgetMonthDebtsBulk.mockReturnValue({
+      mutateAsync: mockDebtsMutateAsync,
+      isPending: false,
+    });
+
+    renderWithProjection("debts");
+
+    const row = screen.getByTestId(`period-debt-row-${debtRowId}`);
+    fireEvent.change(within(row).getByRole("textbox"), {
+      target: { value: "abc" },
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Save changes" }),
+      ).toBeDisabled();
+    });
+
+    expect(within(row).getByRole("alert")).toBeInTheDocument();
     expect(mockDebtsMutateAsync).not.toHaveBeenCalled();
   });
 });

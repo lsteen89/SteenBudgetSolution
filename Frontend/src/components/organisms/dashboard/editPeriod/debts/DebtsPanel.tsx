@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import type { DashboardTerms } from "@/domain/budget/dashboardTerms";
 import {
   useBudgetMonthDebts,
   usePatchBudgetMonthDebtsBulk,
@@ -8,6 +9,7 @@ import {
 import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import type { BudgetMonthDebtEditorRowDto } from "@/types/budget/BudgetMonthsStatusDto";
+import type { CurrencyCode } from "@/types/i18n/currency";
 import { useToast } from "@/ui/toast/toast";
 import { editPeriodDrawerDict } from "@/utils/i18n/pages/private/dashboard/cards/period/editPeriodDrawer.i18n";
 import { tDict } from "@/utils/i18n/translate";
@@ -29,6 +31,17 @@ type DebtsPanelProps = {
    * hidden tab. Defaults to `true` for non-tabbed callers.
    */
   isActive?: boolean;
+  /**
+   * Dashboard six-term equation for the active month. When provided, the
+   * shared footer renders a `free this month → projected` preview for the
+   * debts tab. Optional so legacy callers fall back to the summary copy.
+   */
+  dashboardTerms?: DashboardTerms;
+  /**
+   * Currency for the projection preview. Falls back to the user's app
+   * currency when omitted.
+   */
+  currency?: CurrencyCode;
 };
 
 type Draft = {
@@ -41,9 +54,12 @@ const DebtsPanel: React.FC<DebtsPanelProps> = ({
   periodLabel,
   onClose,
   isActive = true,
+  dashboardTerms,
+  currency: currencyProp,
 }) => {
   const locale = useAppLocale();
-  const currency = useAppCurrency();
+  const fallbackCurrency = useAppCurrency();
+  const currency = currencyProp ?? fallbackCurrency;
   const toast = useToast();
   const navigate = useNavigate();
   const t = <K extends keyof typeof editPeriodDrawerDict.sv>(key: K) =>
@@ -92,7 +108,51 @@ const DebtsPanel: React.FC<DebtsPanelProps> = ({
 
   const hasChanges = changedRows.length > 0;
 
+  // Per-row validation: only flag rows the user actually edited. Untouched
+  // rows are not in error even if their stored amount stringifies oddly.
+  const draftErrorsByRowId = useMemo(() => {
+    return Object.fromEntries(
+      rows.map((row) => {
+        const draft = drafts[row.id];
+        if (!draft) return [row.id, undefined];
+        if (draft.monthlyPayment === String(row.monthlyPayment)) {
+          return [row.id, undefined];
+        }
+        if (draft.monthlyPayment.trim() === "") {
+          return [row.id, t("amountRequired")];
+        }
+        const parsed = parseMoneyInput(draft.monthlyPayment, {
+          allowNegative: false,
+          maxDecimals: 2,
+        });
+        if (parsed === null) {
+          return [row.id, t("amountInvalid")];
+        }
+        return [row.id, undefined];
+      }),
+    ) as Record<string, string | undefined>;
+  }, [rows, drafts, t]);
+
+  const hasValidationErrors = useMemo(
+    () => Object.values(draftErrorsByRowId).some(Boolean),
+    [draftErrorsByRowId],
+  );
+
+  // Debt projection is deferred to PR F. The legacy `debt-items` read model
+  // returns rows without participation/included-source context, so summing
+  // them does not match the dashboard's `totalDebtPayments` whenever a row
+  // is skipped or not included. Showing a projection here would lie about
+  // free money. We fall back to the legacy summary copy until PR F switches
+  // the panel to the rich `debt-editor` read model and can sum honestly.
+
   const saveAll = async () => {
+    if (!hasChanges) return;
+
+    if (hasValidationErrors) {
+      toast.error(t("fixValidationErrors"));
+      return;
+    }
+
     const payload = changedRows.map((row) => {
       const draft = drafts[row.id] ?? {
         monthlyPayment: String(row.monthlyPayment),
@@ -157,6 +217,7 @@ const DebtsPanel: React.FC<DebtsPanelProps> = ({
                     }
                     currency={currency}
                     locale={locale}
+                    error={draftErrorsByRowId[row.id]}
                     onAmountChange={(value) =>
                       setDrafts((prev) => ({
                         ...prev,
@@ -184,9 +245,13 @@ const DebtsPanel: React.FC<DebtsPanelProps> = ({
             navigate("/dashboard/debts");
           }}
           isSaving={bulkMutation.isPending}
-          isDisabled={!hasChanges}
+          isDisabled={!hasChanges || hasValidationErrors}
           summaryText={
-            hasChanges ? t("footerSummaryEditable") : t("footerSummaryNoChanges")
+            hasValidationErrors
+              ? t("fixValidationErrors")
+              : hasChanges
+                ? t("footerSummaryEditable")
+                : t("footerSummaryNoChanges")
           }
         />
       }
@@ -199,14 +264,17 @@ function DebtsQuickRow({
   draft,
   currency,
   locale,
+  error,
   onAmountChange,
 }: {
   row: BudgetMonthDebtEditorRowDto;
   draft: Draft;
   currency: Parameters<typeof formatMoneyV2>[1];
   locale: Parameters<typeof formatMoneyV2>[2];
+  error?: string;
   onAmountChange: (value: string) => void;
 }) {
+  const errorId = error ? `debt-row-error-${row.id}` : undefined;
   return (
     <div
       data-testid={`period-debt-row-${row.id}`}
@@ -228,10 +296,25 @@ function DebtsQuickRow({
         type="text"
         inputMode="decimal"
         aria-label={row.name}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={errorId}
         value={draft.monthlyPayment}
         onChange={(event) => onAmountChange(event.target.value)}
-        className="mt-3 h-11 w-full rounded-2xl border border-eb-stroke/30 bg-[rgb(var(--eb-shell)/0.32)] px-4 text-right text-sm font-bold tabular-nums text-eb-text focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-eb-accent/20"
+        className={`mt-3 h-11 w-full rounded-2xl border bg-[rgb(var(--eb-shell)/0.32)] px-4 text-right text-sm font-bold tabular-nums text-eb-text focus-visible:outline-none focus-visible:ring-4 ${
+          error
+            ? "border-eb-danger/60 focus-visible:ring-eb-danger/25"
+            : "border-eb-stroke/30 focus-visible:ring-eb-accent/20"
+        }`}
       />
+      {error ? (
+        <div
+          id={errorId}
+          className="mt-2 text-xs font-medium text-eb-danger"
+          role="alert"
+        >
+          {error}
+        </div>
+      ) : null}
     </div>
   );
 }

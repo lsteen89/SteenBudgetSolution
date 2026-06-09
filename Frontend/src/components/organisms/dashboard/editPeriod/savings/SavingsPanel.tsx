@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import type { DashboardTerms } from "@/domain/budget/dashboardTerms";
 import {
   useBudgetMonthSavingsGoals,
   usePatchBudgetMonthSavingsGoalsBulk,
@@ -8,6 +9,7 @@ import {
 import { useAppCurrency } from "@/hooks/i18n/useAppCurrency";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import type { BudgetMonthSavingsGoalEditorRowDto } from "@/types/budget/BudgetMonthsStatusDto";
+import type { CurrencyCode } from "@/types/i18n/currency";
 import { useToast } from "@/ui/toast/toast";
 import { editPeriodDrawerDict } from "@/utils/i18n/pages/private/dashboard/cards/period/editPeriodDrawer.i18n";
 import { tDict } from "@/utils/i18n/translate";
@@ -29,6 +31,17 @@ type SavingsPanelProps = {
    * hidden tab. Defaults to `true` for non-tabbed callers.
    */
   isActive?: boolean;
+  /**
+   * Dashboard six-term equation for the active month. When provided, the
+   * shared footer renders a `free this month → projected` preview for the
+   * savings tab. Optional so legacy callers fall back to the summary copy.
+   */
+  dashboardTerms?: DashboardTerms;
+  /**
+   * Currency for the projection preview. Falls back to the user's app
+   * currency when omitted.
+   */
+  currency?: CurrencyCode;
 };
 
 type Draft = {
@@ -41,9 +54,12 @@ const SavingsPanel: React.FC<SavingsPanelProps> = ({
   periodLabel,
   onClose,
   isActive = true,
+  dashboardTerms,
+  currency: currencyProp,
 }) => {
   const locale = useAppLocale();
-  const currency = useAppCurrency();
+  const fallbackCurrency = useAppCurrency();
+  const currency = currencyProp ?? fallbackCurrency;
   const toast = useToast();
   const navigate = useNavigate();
   const t = <K extends keyof typeof editPeriodDrawerDict.sv>(key: K) =>
@@ -92,7 +108,70 @@ const SavingsPanel: React.FC<SavingsPanelProps> = ({
 
   const hasChanges = changedRows.length > 0;
 
+  // Per-row validation: only flag rows the user actually edited. Untouched
+  // rows are not in error even if their stored amount stringifies oddly,
+  // because the draft is seeded from the row's own amount.
+  const draftErrorsByRowId = useMemo(() => {
+    return Object.fromEntries(
+      rows.map((row) => {
+        const draft = drafts[row.id];
+        if (!draft) return [row.id, undefined];
+        if (draft.monthlyContribution === String(row.monthlyContribution)) {
+          return [row.id, undefined];
+        }
+        if (draft.monthlyContribution.trim() === "") {
+          return [row.id, t("amountRequired")];
+        }
+        const parsed = parseMoneyInput(draft.monthlyContribution, {
+          allowNegative: false,
+          maxDecimals: 2,
+        });
+        if (parsed === null) {
+          return [row.id, t("amountInvalid")];
+        }
+        return [row.id, undefined];
+      }),
+    ) as Record<string, string | undefined>;
+  }, [rows, drafts, t]);
+
+  const hasValidationErrors = useMemo(
+    () => Object.values(draftErrorsByRowId).some(Boolean),
+    [draftErrorsByRowId],
+  );
+
+  // Footer projection: sum over rows the panel renders. PR E will widen this
+  // to include base savings; for now the projection is honest for goal
+  // contributions only — base savings is unaffected and cancels out.
+  const baseDomainTotal = useMemo(
+    () => rows.reduce((sum, row) => sum + row.monthlyContribution, 0),
+    [rows],
+  );
+
+  const draftDomainTotal = useMemo(
+    () =>
+      rows.reduce((sum, row) => {
+        const draft = drafts[row.id];
+        const parsed =
+          draft &&
+          parseMoneyInput(draft.monthlyContribution, {
+            allowNegative: false,
+            maxDecimals: 2,
+          });
+        return (
+          sum + (typeof parsed === "number" ? parsed : row.monthlyContribution)
+        );
+      }, 0),
+    [rows, drafts],
+  );
+
   const saveAll = async () => {
+    if (!hasChanges) return;
+
+    if (hasValidationErrors) {
+      toast.error(t("fixValidationErrors"));
+      return;
+    }
+
     const payload = changedRows.map((row) => {
       const draft = drafts[row.id] ?? {
         monthlyContribution: String(row.monthlyContribution),
@@ -154,6 +233,7 @@ const SavingsPanel: React.FC<SavingsPanelProps> = ({
                     }
                     currency={currency}
                     locale={locale}
+                    error={draftErrorsByRowId[row.id]}
                     onAmountChange={(value) =>
                       setDrafts((prev) => ({
                         ...prev,
@@ -181,9 +261,26 @@ const SavingsPanel: React.FC<SavingsPanelProps> = ({
             navigate("/dashboard/savings");
           }}
           isSaving={bulkMutation.isPending}
-          isDisabled={!hasChanges}
+          isDisabled={!hasChanges || hasValidationErrors}
           summaryText={
-            hasChanges ? t("footerSummaryEditable") : t("footerSummaryNoChanges")
+            hasValidationErrors
+              ? t("fixValidationErrors")
+              : hasChanges
+                ? t("footerSummaryEditable")
+                : t("footerSummaryNoChanges")
+          }
+          projection={
+            dashboardTerms
+              ? {
+                  terms: dashboardTerms,
+                  domain: "savings",
+                  baseDomainTotal,
+                  draftDomainTotal,
+                  currency,
+                  hasChanges,
+                  hasValidationErrors,
+                }
+              : undefined
           }
         />
       }
@@ -196,14 +293,17 @@ function SavingsQuickRow({
   draft,
   currency,
   locale,
+  error,
   onAmountChange,
 }: {
   row: BudgetMonthSavingsGoalEditorRowDto;
   draft: Draft;
   currency: Parameters<typeof formatMoneyV2>[1];
   locale: Parameters<typeof formatMoneyV2>[2];
+  error?: string;
   onAmountChange: (value: string) => void;
 }) {
+  const errorId = error ? `savings-row-error-${row.id}` : undefined;
   return (
     <div
       data-testid={`period-savings-row-${row.id}`}
@@ -225,10 +325,25 @@ function SavingsQuickRow({
         type="text"
         inputMode="decimal"
         aria-label={row.name}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={errorId}
         value={draft.monthlyContribution}
         onChange={(event) => onAmountChange(event.target.value)}
-        className="mt-3 h-11 w-full rounded-2xl border border-eb-stroke/30 bg-[rgb(var(--eb-shell)/0.32)] px-4 text-right text-sm font-bold tabular-nums text-eb-text focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-eb-accent/20"
+        className={`mt-3 h-11 w-full rounded-2xl border bg-[rgb(var(--eb-shell)/0.32)] px-4 text-right text-sm font-bold tabular-nums text-eb-text focus-visible:outline-none focus-visible:ring-4 ${
+          error
+            ? "border-eb-danger/60 focus-visible:ring-eb-danger/25"
+            : "border-eb-stroke/30 focus-visible:ring-eb-accent/20"
+        }`}
       />
+      {error ? (
+        <div
+          id={errorId}
+          className="mt-2 text-xs font-medium text-eb-danger"
+          role="alert"
+        >
+          {error}
+        </div>
+      ) : null}
     </div>
   );
 }

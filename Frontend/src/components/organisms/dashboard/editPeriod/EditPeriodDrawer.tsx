@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 
+import type { DashboardTerms } from "@/domain/budget/dashboardTerms";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/lib/utils";
+import type { CurrencyCode } from "@/types/i18n/currency";
 import { editPeriodDrawerDict } from "@/utils/i18n/pages/private/dashboard/cards/period/editPeriodDrawer.i18n";
 import { quickEditTabsDict } from "@/utils/i18n/pages/private/dashboard/cards/period/quickEditTabs.i18n";
 import { tDict } from "@/utils/i18n/translate";
@@ -29,6 +31,18 @@ type EditPeriodDrawerProps = {
    * tab through this prop.
    */
   panel?: QuickEditTab;
+  /**
+   * Dashboard six-term equation for the active month. Used by the shared
+   * Quick Edit footer to render `free this month → projected` while the
+   * user edits the active tab. Optional so existing callers that have not
+   * been migrated keep working (footer falls back to legacy summary copy).
+   */
+  dashboardTerms?: DashboardTerms;
+  /**
+   * Currency for the projection preview. Required when `dashboardTerms` is
+   * provided.
+   */
+  currency?: CurrencyCode;
   onClose: () => void;
 };
 
@@ -58,6 +72,8 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
   periodLabel,
   periodDateRangeLabel,
   panel = "expenses",
+  dashboardTerms,
+  currency,
   onClose,
 }) => {
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -145,6 +161,8 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
       periodLabel,
       onClose,
       isActive,
+      dashboardTerms,
+      currency,
     };
     if (tab === "income") return <IncomePanel {...commonProps} />;
     if (tab === "savings") return <SavingsPanel {...commonProps} />;
