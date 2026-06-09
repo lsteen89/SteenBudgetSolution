@@ -36,6 +36,13 @@ export const editPeriodDrawerDict = {
     noSavingsGoals: "Det finns inga sparmål att snabbjustera.",
     savingsMonthOnlyHelper:
       "Snabbjusteringar påverkar bara {month}. Vill du ändra budgetplanen framåt? Öppna planeringen.",
+    savingsBaseTitle: "Bassparande",
+    savingsBaseDescription:
+      "Det här är ditt fasta månadssparande innan sparmålen räknas med.",
+    savingsBaseAmountLabel: "Bassparande",
+    savingsBaseMonthOnlyHint: "Den här månaden har ett eget basbelopp.",
+    savingsBaseApply: "Spara basbelopp",
+    savingsGoalsSectionTitle: "Sparmål",
 
     debtsTitle: "Skulder",
     debtsDescription: "Justera planerad månadsbetalning för dina skulder.",
@@ -44,6 +51,19 @@ export const editPeriodDrawerDict = {
       "Snabbjusteringar påverkar bara {month}. Vill du ändra budgetplanen framåt? Öppna planeringen.",
     debtsPlannedNote:
       "Här ändras bara planerad betalning. Saldo uppdateras inte här.",
+    // PR F (debt honesty): rich read model context + warnings
+    debtsPlannedPaymentLabel: "Planerad betalning",
+    debtsBalanceLabel: "Kvar att betala",
+    debtsMinPaymentLabel: "Minsta betalning",
+    debtsContextReadOnlyHint:
+      "Saldo och minsta betalning visas bara här. Saldo uppdateras under Skulder.",
+    debtsBelowMinWarning:
+      "Under minsta betalning ({amount}).",
+    debtsCoversInterestAndFeesWarning:
+      "Betalningen täcker inte ränta och avgift. Saldot väntas inte minska denna månad.",
+    debtsRowReadOnly:
+      "Den här raden kan inte redigeras just nu.",
+    debtsOpenFullEditor: "Öppna skuldsidan",
 
     recurringExpensesTitle: "Rörliga kostnader",
     recurringExpensesDescription:
@@ -129,6 +149,13 @@ export const editPeriodDrawerDict = {
     noSavingsGoals: "There are no savings goals to quick adjust.",
     savingsMonthOnlyHelper:
       "Quick adjustments only affect {month}. Want to change the budget plan going forward? Open planning.",
+    savingsBaseTitle: "Base savings",
+    savingsBaseDescription:
+      "This is your fixed monthly saving before goal contributions are added.",
+    savingsBaseAmountLabel: "Base savings",
+    savingsBaseMonthOnlyHint: "This month has its own base amount.",
+    savingsBaseApply: "Apply base savings",
+    savingsGoalsSectionTitle: "Savings goals",
 
     debtsTitle: "Debts",
     debtsDescription: "Adjust the planned monthly payment for your debts.",
@@ -137,6 +164,19 @@ export const editPeriodDrawerDict = {
       "Quick adjustments only affect {month}. Want to change the budget plan going forward? Open planning.",
     debtsPlannedNote:
       "Only the planned payment changes here. Balances are not updated by this flow.",
+    // PR F (debt honesty): rich read model context + warnings
+    debtsPlannedPaymentLabel: "Planned payment",
+    debtsBalanceLabel: "Owed balance",
+    debtsMinPaymentLabel: "Minimum payment",
+    debtsContextReadOnlyHint:
+      "Balance and minimum payment are shown for context. Update balances under Debts.",
+    debtsBelowMinWarning:
+      "Below the minimum payment ({amount}).",
+    debtsCoversInterestAndFeesWarning:
+      "Payment does not cover interest and fee. Balance is not expected to decrease this month.",
+    debtsRowReadOnly:
+      "This row can't be edited right now.",
+    debtsOpenFullEditor: "Open debts page",
 
     recurringExpensesTitle: "Variable expenses",
     recurringExpensesDescription:
@@ -221,6 +261,13 @@ export const editPeriodDrawerDict = {
     noSavingsGoals: "Kiireks kohandamiseks pole säästueesmärke.",
     savingsMonthOnlyHelper:
       "Kiirkohandused mõjutavad ainult perioodi {month}. Kui soovid eelarveplaani edaspidi muuta, ava planeerimine.",
+    savingsBaseTitle: "Põhisääst",
+    savingsBaseDescription:
+      "See on sinu püsiv igakuine sääst enne eesmärkide makseid.",
+    savingsBaseAmountLabel: "Põhisääst",
+    savingsBaseMonthOnlyHint: "Sellel kuul on eraldi põhisumma.",
+    savingsBaseApply: "Salvesta põhisumma",
+    savingsGoalsSectionTitle: "Säästueesmärgid",
 
     debtsTitle: "Võlad",
     debtsDescription: "Kohanda võlgade planeeritud kuumakset.",
@@ -229,6 +276,19 @@ export const editPeriodDrawerDict = {
       "Kiirkohandused mõjutavad ainult perioodi {month}. Kui soovid eelarveplaani edaspidi muuta, ava planeerimine.",
     debtsPlannedNote:
       "Siin muudetakse ainult planeeritud makset. Jääki see vaade ei uuenda.",
+    // PR F (debt honesty): rich read model context + warnings
+    debtsPlannedPaymentLabel: "Planeeritud makse",
+    debtsBalanceLabel: "Tasumata jääk",
+    debtsMinPaymentLabel: "Minimaalne makse",
+    debtsContextReadOnlyHint:
+      "Jääk ja minimaalne makse on siin ainult info. Jääki saab uuendada võlgade lehel.",
+    debtsBelowMinWarning:
+      "Alla miinimummakse ({amount}).",
+    debtsCoversInterestAndFeesWarning:
+      "Makse ei kata intressi ja tasu. Jääk sel kuul tõenäoliselt ei vähene.",
+    debtsRowReadOnly:
+      "Seda rida ei saa praegu muuta.",
+    debtsOpenFullEditor: "Ava võlgade leht",
 
     recurringExpensesTitle: "Muutuvad kulud",
     recurringExpensesDescription:

@@ -43,6 +43,15 @@ type EditPeriodDrawerProps = {
    * provided.
    */
   currency?: CurrencyCode;
+  /**
+   * Dashboard-backed savings habit term. The Savings tab uses this to show
+   * and edit base savings without fetching a second base-savings read model.
+   */
+  dashboardSavings?: {
+    baseSavingsMonthly: number;
+    isMonthOnly: boolean;
+    readOnly: boolean;
+  };
   onClose: () => void;
 };
 
@@ -74,6 +83,7 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
   panel = "expenses",
   dashboardTerms,
   currency,
+  dashboardSavings,
   onClose,
 }) => {
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -165,7 +175,14 @@ const EditPeriodDrawer: React.FC<EditPeriodDrawerProps> = ({
       currency,
     };
     if (tab === "income") return <IncomePanel {...commonProps} />;
-    if (tab === "savings") return <SavingsPanel {...commonProps} />;
+    if (tab === "savings") {
+      return (
+        <SavingsPanel
+          {...commonProps}
+          dashboardSavings={dashboardSavings}
+        />
+      );
+    }
     if (tab === "debts") return <DebtsPanel {...commonProps} />;
     return <ExpensesPanel {...commonProps} />;
   }

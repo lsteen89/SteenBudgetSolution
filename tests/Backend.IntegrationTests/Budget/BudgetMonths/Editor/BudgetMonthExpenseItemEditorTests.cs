@@ -584,7 +584,7 @@ public sealed class BudgetMonthExpenseItemEditorTests
     }
 
     [Fact]
-    public async Task PatchSubscriptionLifecycle_PausedAndCancelledRowsAreExcludedFromDashboardTotals()
+    public async Task PatchSubscriptionLifecycle_PausedExcludedAndCancelledCountedAsLastChargeInDashboardTotals()
     {
         await _db.ResetAsync();
 
@@ -643,7 +643,12 @@ public sealed class BudgetMonthExpenseItemEditorTests
         var afterCancel = await sut.Uow.InTx(CancellationToken.None, () =>
             sut.DashboardHandler.Handle(new GetBudgetDashboardMonthQuery(persoid, "2026-01"), CancellationToken.None));
 
-        afterCancel.Value!.LiveDashboard!.Expenditure.TotalExpensesMonthly.Should().Be(beforeExpenses);
+        // PR C (Quick Edit expenses parity) made `cancelled` count as the
+        // last charge for the current month: the dashboard SQL allowlist
+        // includes both `active` and `cancelled`. The contract is
+        // codified in `BudgetMonthDashboardRepository.sql.cs`. Paused
+        // (above) is the only lifecycle that excludes the row.
+        afterCancel.Value!.LiveDashboard!.Expenditure.TotalExpensesMonthly.Should().Be(beforeExpenses + 99m);
     }
 
     [Fact]

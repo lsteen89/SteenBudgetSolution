@@ -1013,9 +1013,13 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
         //
         // This test drops the CHECK constraint, inserts a row with the
         // unsupported status, asserts the dashboard total excludes it,
-        // then leaves the test DB to the next test's `ResetAsync` for
-        // cleanup. We do not restore the constraint mid-test because the
-        // integration fixture re-applies schema per reset.
+        // then restores the constraint at the end. The integration
+        // fixture's `ResetAsync` runs Respawner (DELETEs only) and does
+        // NOT re-apply schema DDL, so dropping the constraint here
+        // without restoring it would leak into every subsequent test in
+        // the same fixture session — e.g.
+        // `Schema_SupportsSubscriptionLifecycleStatus_AndRejectsInvalidValues`
+        // would silently start passing inserts of any string.
         await _db.ResetAsync();
 
         var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
@@ -1040,7 +1044,9 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
 
         // Drop the CHECK constraint for the duration of this test so we
         // can simulate a future-migration / partial-deploy scenario where
-        // an unsupported status string ended up in the column.
+        // an unsupported status string ended up in the column. Wrapped
+        // in try/finally so a failed assertion below still restores the
+        // constraint for the next test in the suite.
         await using (var conn = new MySqlConnection(_db.ConnectionString))
         {
             await conn.OpenAsync();
@@ -1048,30 +1054,56 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
                 "ALTER TABLE BudgetMonthExpenseItem DROP CONSTRAINT CK_BudgetMonthExpenseItem_SubscriptionLifecycleStatus;");
         }
 
-        await InsertSubscriptionExpenseAsync(
-            _db.ConnectionString, budgetId, "2026-04", userId,
-            name: "Mystery Service", amount: 500m,
-            lifecycleStatus: "trial");
+        try
+        {
+            await InsertSubscriptionExpenseAsync(
+                _db.ConnectionString, budgetId, "2026-04", userId,
+                name: "Mystery Service", amount: 500m,
+                lifecycleStatus: "trial");
 
-        var clock = new FakeTimeProvider(new DateTime(2026, 04, 07, 08, 00, 00, DateTimeKind.Utc));
+            var clock = new FakeTimeProvider(new DateTime(2026, 04, 07, 08, 00, 00, DateTimeKind.Utc));
 
-        await using var sp = BuildServiceProvider(_db.ConnectionString, clock, new DebtPaymentCalculator());
-        await using var scope = sp.CreateAsyncScope();
-        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+            await using var sp = BuildServiceProvider(_db.ConnectionString, clock, new DebtPaymentCalculator());
+            await using var scope = sp.CreateAsyncScope();
+            var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
 
-        var result = await mediator.Send(
-            new GetBudgetDashboardMonthQuery(persoid, "2026-04"),
-            CancellationToken.None);
+            var result = await mediator.Send(
+                new GetBudgetDashboardMonthQuery(persoid, "2026-04"),
+                CancellationToken.None);
 
-        result.IsSuccess.Should().BeTrue();
-        var dto = result.Value!;
+            result.IsSuccess.Should().BeTrue();
+            var dto = result.Value!;
 
-        // Only the active row contributes — the mystery 'trial' row is excluded.
-        dto.LiveDashboard!.Expenditure.TotalExpensesMonthly.Should().Be(99m);
-        dto.LiveDashboard!.Subscriptions.TotalMonthlyAmount.Should().Be(99m);
-        dto.LiveDashboard!.Subscriptions.Count.Should().Be(1);
-        dto.LiveDashboard!.Subscriptions.Items.Select(i => i.Name)
-            .Should().BeEquivalentTo(new[] { "Spotify" });
+            // Only the active row contributes — the mystery 'trial' row is excluded.
+            dto.LiveDashboard!.Expenditure.TotalExpensesMonthly.Should().Be(99m);
+            dto.LiveDashboard!.Subscriptions.TotalMonthlyAmount.Should().Be(99m);
+            dto.LiveDashboard!.Subscriptions.Count.Should().Be(1);
+            dto.LiveDashboard!.Subscriptions.Items.Select(i => i.Name)
+                .Should().BeEquivalentTo(new[] { "Spotify" });
+        }
+        finally
+        {
+            // Restore the CHECK constraint so it does not bleed into
+            // subsequent tests in the fixture session. The constraint
+            // text mirrors `database/init/04-MonthlyLifeCycle.sql`
+            // exactly — keep these two definitions in sync if either
+            // ever changes. The row we inserted under "trial" must be
+            // removed first so the re-added CHECK does not fail on
+            // pre-existing data.
+            await using var cleanup = new MySqlConnection(_db.ConnectionString);
+            await cleanup.OpenAsync();
+            await cleanup.ExecuteAsync(
+                "DELETE FROM BudgetMonthExpenseItem WHERE SubscriptionLifecycleStatus = 'trial';");
+            await cleanup.ExecuteAsync(
+                """
+                ALTER TABLE BudgetMonthExpenseItem
+                ADD CONSTRAINT CK_BudgetMonthExpenseItem_SubscriptionLifecycleStatus
+                CHECK (
+                    SubscriptionLifecycleStatus IS NULL
+                    OR SubscriptionLifecycleStatus IN ('active', 'paused', 'cancelled')
+                );
+                """);
+        }
     }
 
     private static async Task InsertSubscriptionExpenseAsync(

@@ -22,6 +22,7 @@ const mockUsePatchBudgetMonthIncomeItemsBulk = vi.fn();
 const mockUseBudgetMonthSavingsGoals = vi.fn();
 const mockUsePatchBudgetMonthSavingsGoalsBulk = vi.fn();
 const mockUseBudgetMonthDebts = vi.fn();
+const mockUseBudgetMonthDebtEditor = vi.fn();
 const mockUsePatchBudgetMonthDebtsBulk = vi.fn();
 const mockUseExpenseCategories = vi.fn();
 const mockMutateAsync = vi.fn();
@@ -61,6 +62,11 @@ vi.mock("@hooks/budget/editPeriod/useMonthEditor", () => ({
     mockUsePatchBudgetMonthSavingsGoalsBulk(...args),
   useBudgetMonthDebts: (...args: unknown[]) =>
     mockUseBudgetMonthDebts(...args),
+  // PR F: DebtsPanel now reads the rich `debt-editor` model. The legacy
+  // `useBudgetMonthDebts` mock is kept so unrelated callers (and the
+  // safety net of "panel never touches it" assertions) don't regress.
+  useBudgetMonthDebtEditor: (...args: unknown[]) =>
+    mockUseBudgetMonthDebtEditor(...args),
   usePatchBudgetMonthDebtsBulk: (...args: unknown[]) =>
     mockUsePatchBudgetMonthDebtsBulk(...args),
 }));
@@ -85,6 +91,134 @@ const subscriptionCategoryId = "9a3fe5f3-9fc4-4cc0-93d9-1a2ab9f7a5c4";
 const foodCategoryId = "5d5c51aa-9f05-4d4c-8ff1-0a61d6c9cc10";
 const subscriptionRowId = "22222222-2222-4222-8222-222222222222";
 const foodRowId = "44444444-4444-4444-8444-444444444444";
+
+/**
+ * Minimal `BudgetMonthDebtEditorDto` shape for PR F. The panel only reads
+ * `isReadOnly`, `summary.includedMonthlyPaymentTotal`, and a per-row subset
+ * (`group`, `actions.canEditPayment`, `monthlyPayment`, `balance`,
+ * `minPayment`, `paymentBreakdown.coversInterestAndFees`). The other DTO
+ * fields are filled with safe defaults so TypeScript inference inside the
+ * panel keeps working without forcing us to construct the full hero/events
+ * payload in every test.
+ */
+function buildDebtEditorRow(
+  overrides: {
+    id: string;
+    name: string;
+    monthlyPayment: number;
+    balance: number;
+    apr?: number;
+    monthlyFee?: number | null;
+    minPayment?: number | null;
+    canEditPayment?: boolean;
+    coversInterestAndFees?: boolean;
+    group?: "active" | "skipped" | "paid" | "archived";
+  },
+) {
+  const {
+    id,
+    name,
+    monthlyPayment,
+    balance,
+    apr = 0,
+    monthlyFee = null,
+    minPayment = null,
+    canEditPayment = true,
+    coversInterestAndFees = true,
+    group = "active",
+  } = overrides;
+  // The backend snapshot fields (paymentBreakdown.*) are still populated
+  // because the DTO requires them, but PR F derives the dirty-edit
+  // coversInterestAndFees advisory from `calcDebtPaymentBreakdown` against
+  // `row.apr`/`row.monthlyFee`/`row.balance` — the snapshot is stale by
+  // definition before save. Tests that exercise the advisory must set
+  // realistic apr/balance so the client-side math actually matches the
+  // intent of the test.
+  return {
+    id,
+    sourceDebtId: null,
+    name,
+    type: "creditCard",
+    balance,
+    sourceBalance: null,
+    apr,
+    sourceApr: null,
+    monthlyFee,
+    sourceMonthlyFee: null,
+    minPayment,
+    sourceMinPayment: null,
+    termMonths: null,
+    sourceTermMonths: null,
+    monthlyPayment,
+    sourceMonthlyPayment: null,
+    sourceLifecycleStatus: null,
+    participationStatus: group === "active" ? "included" : "notIncluded",
+    isMonthOnly: false,
+    isRemoved: false,
+    sortOrder: 0,
+    group,
+    progress: null,
+    paymentBreakdown: {
+      plannedMonthlyPayment: monthlyPayment,
+      monthlyInterest: 0,
+      monthlyFee: 0,
+      principalPayment: monthlyPayment,
+      projectedBalanceAfterMonth: Math.max(0, balance - monthlyPayment),
+      coversInterestAndFees,
+      interestAndFeeShortfall: 0,
+    },
+    actions: {
+      canEditPayment,
+      canEditDetails: false,
+      canUpdateBalance: false,
+      canSkipThisMonth: false,
+      canIncludeThisMonth: false,
+      canMarkPaidOff: false,
+      canArchive: false,
+      canRestore: false,
+      canRemove: false,
+      canUpdatePlan: false,
+    },
+    disabledReasons: [] as string[],
+  };
+}
+
+function buildDebtEditorDto(
+  rows: ReturnType<typeof buildDebtEditorRow>[],
+  options: { isReadOnly?: boolean } = {},
+) {
+  const includedRows = rows.filter((row) => row.group === "active");
+  const includedTotal = includedRows.reduce(
+    (sum, row) => sum + row.monthlyPayment,
+    0,
+  );
+  return {
+    yearMonth: "2026-04",
+    monthStatus: options.isReadOnly ? "closed" : "open",
+    isReadOnly: options.isReadOnly ?? false,
+    summary: {
+      includedMonthlyPaymentTotal: includedTotal,
+      notIncludedMonthlyPaymentTotal: 0,
+      activeLiabilityBalanceTotal: includedRows.reduce(
+        (sum, row) => sum + row.balance,
+        0,
+      ),
+      paidOffBalanceTotal: 0,
+      archivedBalanceTotal: 0,
+      includedMonthlyInterestTotal: 0,
+      includedMonthlyFeeTotal: 0,
+      includedPrincipalPaymentTotal: includedTotal,
+      projectedActiveLiabilityBalanceAfterMonth: 0,
+      includedCount: includedRows.length,
+      notIncludedCount: 0,
+      paidOffCount: 0,
+      archivedCount: 0,
+      rowsBelowInterestAndFeesCount: 0,
+    },
+    rows,
+    recentEvents: [] as unknown[],
+  };
+}
 
 function buildEditorData(subscriptionLifecycleStatus: "active" | "paused" | "cancelled" = "active") {
   return {
@@ -174,6 +308,7 @@ describe("EditPeriodDrawer subscription lifecycle", () => {
     mockUseBudgetMonthSavingsGoals.mockReset();
     mockUsePatchBudgetMonthSavingsGoalsBulk.mockReset();
     mockUseBudgetMonthDebts.mockReset();
+    mockUseBudgetMonthDebtEditor.mockReset();
     mockUsePatchBudgetMonthDebtsBulk.mockReset();
     mockUseExpenseCategories.mockReset();
     mockMutateAsync.mockReset();
@@ -492,6 +627,7 @@ describe("EditPeriodDrawer quick-edit tab shell", () => {
     mockUseBudgetMonthSavingsGoals.mockReset();
     mockUsePatchBudgetMonthSavingsGoalsBulk.mockReset();
     mockUseBudgetMonthDebts.mockReset();
+    mockUseBudgetMonthDebtEditor.mockReset();
     mockUsePatchBudgetMonthDebtsBulk.mockReset();
     mockUseExpenseCategories.mockReset();
     mockMutateAsync.mockReset();
@@ -681,20 +817,18 @@ describe("EditPeriodDrawer quick-edit tab shell", () => {
   it("mounts the debt panel when opened with panel='debts'", () => {
     primeAllPanels();
     const debtRowId = "11111111-2222-4333-8444-555555555555";
-    mockUseBudgetMonthDebts.mockReturnValue({
-      data: [
-        {
+    // PR F: DebtsPanel reads the rich `debt-editor` model. The legacy
+    // `useBudgetMonthDebts` hook is intentionally left unprimed so the
+    // assertion at the bottom can confirm the panel does not touch it.
+    mockUseBudgetMonthDebtEditor.mockReturnValue({
+      data: buildDebtEditorDto([
+        buildDebtEditorRow({
           id: debtRowId,
-          sourceDebtId: null,
           name: "Credit card",
-          balance: 12000,
           monthlyPayment: 800,
-          status: "active",
-          isDeleted: false,
-          isMonthOnly: false,
-          canUpdateDefault: true,
-        },
-      ],
+          balance: 12000,
+        }),
+      ]),
       isLoading: false,
       isError: false,
     });
@@ -855,6 +989,7 @@ describe("EditPeriodDrawer footer projection (PR B)", () => {
     mockUseBudgetMonthSavingsGoals.mockReset();
     mockUsePatchBudgetMonthSavingsGoalsBulk.mockReset();
     mockUseBudgetMonthDebts.mockReset();
+    mockUseBudgetMonthDebtEditor.mockReset();
     mockUsePatchBudgetMonthDebtsBulk.mockReset();
     mockUseExpenseCategories.mockReset();
     mockMutateAsync.mockReset();
@@ -1091,22 +1226,22 @@ describe("EditPeriodDrawer footer projection (PR B)", () => {
     expect(mockSavingsMutateAsync).not.toHaveBeenCalled();
   });
 
-  it("does not render a debt projection (deferred to PR F)", async () => {
+  it("projects a negative delta when an included debt's planned payment rises (PR F)", async () => {
+    // PR F lights up the debt projection: the rich `debt-editor` model
+    // exposes `summary.includedMonthlyPaymentTotal` (the term the dashboard
+    // equation already uses), so a draft delta on an included row moves
+    // free money downward by the same amount — and a skipped row's edit
+    // (not exercised here) would correctly leave the projection at base.
     const debtRowId = "11111111-2222-4333-8444-555555555555";
-    mockUseBudgetMonthDebts.mockReturnValue({
-      data: [
-        {
+    mockUseBudgetMonthDebtEditor.mockReturnValue({
+      data: buildDebtEditorDto([
+        buildDebtEditorRow({
           id: debtRowId,
-          sourceDebtId: null,
           name: "Credit card",
-          balance: 12000,
           monthlyPayment: 800,
-          status: "active",
-          isDeleted: false,
-          isMonthOnly: false,
-          canUpdateDefault: true,
-        },
-      ],
+          balance: 12000,
+        }),
+      ]),
       isLoading: false,
       isError: false,
     });
@@ -1117,46 +1252,33 @@ describe("EditPeriodDrawer footer projection (PR B)", () => {
 
     renderWithProjection("debts");
 
-    // The legacy debt-items read model cannot distinguish included vs.
-    // skipped rows, so we deliberately do not surface a projection here.
-    expect(
-      screen.queryByTestId("quick-edit-projection"),
-    ).not.toBeInTheDocument();
-
-    // Edit the row to confirm Save is still wired to active-tab save, but
-    // no projection appears even with a draft delta.
     const row = screen.getByTestId(`period-debt-row-${debtRowId}`);
     fireEvent.change(within(row).getByRole("textbox"), {
       target: { value: "850" },
     });
 
     await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: "Save changes" }),
-      ).not.toBeDisabled();
+      const projection = screen.getByTestId("quick-edit-projection");
+      expect(projection.getAttribute("data-projection-state")).toBe("changed");
     });
 
-    expect(
-      screen.queryByTestId("quick-edit-projection"),
-    ).not.toBeInTheDocument();
+    const delta = screen.getByTestId("quick-edit-projection-delta");
+    // +50 debt payment → free money falls by 50.
+    expect(delta.textContent).toContain("−");
+    expect(delta.textContent).toContain("50");
   });
 
   it("disables save on an invalid debt draft and surfaces the error", async () => {
     const debtRowId = "11111111-2222-4333-8444-555555555555";
-    mockUseBudgetMonthDebts.mockReturnValue({
-      data: [
-        {
+    mockUseBudgetMonthDebtEditor.mockReturnValue({
+      data: buildDebtEditorDto([
+        buildDebtEditorRow({
           id: debtRowId,
-          sourceDebtId: null,
           name: "Credit card",
-          balance: 12000,
           monthlyPayment: 800,
-          status: "active",
-          isDeleted: false,
-          isMonthOnly: false,
-          canUpdateDefault: true,
-        },
-      ],
+          balance: 12000,
+        }),
+      ]),
       isLoading: false,
       isError: false,
     });
@@ -1180,5 +1302,217 @@ describe("EditPeriodDrawer footer projection (PR B)", () => {
 
     expect(within(row).getByRole("alert")).toBeInTheDocument();
     expect(mockDebtsMutateAsync).not.toHaveBeenCalled();
+  });
+
+  it("renders balance + minimum payment as read-only context and warns when below min (PR F)", async () => {
+    // The quick drawer never lets the user edit balance; it must render
+    // both balance and minimum payment as fenced context. When the planned
+    // payment dips below `minPayment`, an advisory (non-blocking) warning
+    // surfaces.
+    const debtRowId = "11111111-2222-4333-8444-555555555555";
+    mockUseBudgetMonthDebtEditor.mockReturnValue({
+      data: buildDebtEditorDto([
+        buildDebtEditorRow({
+          id: debtRowId,
+          name: "Credit card",
+          monthlyPayment: 800,
+          balance: 12000,
+          minPayment: 500,
+        }),
+      ]),
+      isLoading: false,
+      isError: false,
+    });
+    mockUsePatchBudgetMonthDebtsBulk.mockReturnValue({
+      mutateAsync: mockDebtsMutateAsync,
+      isPending: false,
+    });
+
+    renderWithProjection("debts");
+
+    const context = screen.getByTestId(`period-debt-context-${debtRowId}`);
+    expect(within(context).getByText("Owed balance")).toBeInTheDocument();
+    expect(within(context).getByText("Minimum payment")).toBeInTheDocument();
+
+    // At 800 we are above the minimum of 500 — no warning yet.
+    expect(
+      screen.queryByTestId(`period-debt-warning-${debtRowId}`),
+    ).not.toBeInTheDocument();
+
+    const row = screen.getByTestId(`period-debt-row-${debtRowId}`);
+    fireEvent.change(within(row).getByRole("textbox"), {
+      target: { value: "100" },
+    });
+
+    // Below minimum → advisory warning, but save stays enabled (the
+    // backend validator owns hard rules; the UI here is informational).
+    expect(
+      await screen.findByTestId(`period-debt-warning-${debtRowId}`),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Save changes" }),
+    ).not.toBeDisabled();
+  });
+
+  it("locks the input and projection when the month is read-only (PR F)", async () => {
+    const debtRowId = "11111111-2222-4333-8444-555555555555";
+    mockUseBudgetMonthDebtEditor.mockReturnValue({
+      data: buildDebtEditorDto(
+        [
+          buildDebtEditorRow({
+            id: debtRowId,
+            name: "Credit card",
+            monthlyPayment: 800,
+            balance: 12000,
+            canEditPayment: false,
+          }),
+        ],
+        { isReadOnly: true },
+      ),
+      isLoading: false,
+      isError: false,
+    });
+    mockUsePatchBudgetMonthDebtsBulk.mockReturnValue({
+      mutateAsync: mockDebtsMutateAsync,
+      isPending: false,
+    });
+
+    renderWithProjection("debts");
+
+    const row = screen.getByTestId(`period-debt-row-${debtRowId}`);
+    expect(within(row).getByRole("textbox")).toBeDisabled();
+
+    const projection = screen.getByTestId("quick-edit-projection");
+    expect(projection.getAttribute("data-projection-state")).toBe("readOnly");
+  });
+
+  it("warns when the planned payment does not cover interest and fees (PR F)", async () => {
+    // The dirty-aware advisory folds APR + monthly fee + balance into one
+    // truth via `calcDebtPaymentBreakdown` against `row.apr`/`monthlyFee`/
+    // `balance` and the user's current draft. Snapshot: balance 10000 at
+    // 24% APR → monthly interest floor = 200. Initial payment 50 is well
+    // below the floor, so the warning fires on the as-rendered amount —
+    // and (per the test below) we never use the backend's stale
+    // `paymentBreakdown.coversInterestAndFees` snapshot.
+    const debtRowId = "11111111-2222-4333-8444-555555555555";
+    mockUseBudgetMonthDebtEditor.mockReturnValue({
+      data: buildDebtEditorDto([
+        buildDebtEditorRow({
+          id: debtRowId,
+          name: "Credit card",
+          monthlyPayment: 50,
+          balance: 10000,
+          apr: 24,
+          minPayment: 200,
+          // The snapshot is intentionally set to `true` here so the test
+          // also asserts the panel ignores the stale backend value and
+          // computes the advisory from the dirty inputs instead.
+          coversInterestAndFees: true,
+        }),
+      ]),
+      isLoading: false,
+      isError: false,
+    });
+    mockUsePatchBudgetMonthDebtsBulk.mockReturnValue({
+      mutateAsync: mockDebtsMutateAsync,
+      isPending: false,
+    });
+
+    renderWithProjection("debts");
+
+    const warning = screen.getByTestId(`period-debt-warning-${debtRowId}`);
+    expect(warning.textContent).toContain(
+      "Payment does not cover interest and fee",
+    );
+  });
+
+  it("surfaces the coversInterestAndFees warning when the user lowers payment below the floor (PR F)", async () => {
+    // Regression: the advisory must track dirty edits. Original payment
+    // (800) sits above the interest+fee floor (balance 10000 × 24% / 12
+    // = 200), so on mount no warning is shown. Lowering the input to 50
+    // drops below the floor → warning appears in real time even though
+    // the backend snapshot still says coversInterestAndFees === true.
+    const debtRowId = "11111111-2222-4333-8444-555555555555";
+    mockUseBudgetMonthDebtEditor.mockReturnValue({
+      data: buildDebtEditorDto([
+        buildDebtEditorRow({
+          id: debtRowId,
+          name: "Credit card",
+          monthlyPayment: 800,
+          balance: 10000,
+          apr: 24,
+          coversInterestAndFees: true,
+        }),
+      ]),
+      isLoading: false,
+      isError: false,
+    });
+    mockUsePatchBudgetMonthDebtsBulk.mockReturnValue({
+      mutateAsync: mockDebtsMutateAsync,
+      isPending: false,
+    });
+
+    renderWithProjection("debts");
+
+    // On mount the row covers comfortably, so no warning yet.
+    expect(
+      screen.queryByTestId(`period-debt-warning-${debtRowId}`),
+    ).not.toBeInTheDocument();
+
+    const row = screen.getByTestId(`period-debt-row-${debtRowId}`);
+    fireEvent.change(within(row).getByRole("textbox"), {
+      target: { value: "50" },
+    });
+
+    const warning = await screen.findByTestId(
+      `period-debt-warning-${debtRowId}`,
+    );
+    expect(warning.textContent).toContain(
+      "Payment does not cover interest and fee",
+    );
+  });
+
+  it("clears the coversInterestAndFees warning when the user raises payment above the floor (PR F)", async () => {
+    // Regression mirror: original payment (50) sits below the floor —
+    // the advisory shows on mount even though the backend snapshot says
+    // true (the panel computes from dirty inputs). Raising the input to
+    // 500 clears the floor (200) → warning disappears.
+    const debtRowId = "11111111-2222-4333-8444-555555555555";
+    mockUseBudgetMonthDebtEditor.mockReturnValue({
+      data: buildDebtEditorDto([
+        buildDebtEditorRow({
+          id: debtRowId,
+          name: "Credit card",
+          monthlyPayment: 50,
+          balance: 10000,
+          apr: 24,
+          coversInterestAndFees: true,
+        }),
+      ]),
+      isLoading: false,
+      isError: false,
+    });
+    mockUsePatchBudgetMonthDebtsBulk.mockReturnValue({
+      mutateAsync: mockDebtsMutateAsync,
+      isPending: false,
+    });
+
+    renderWithProjection("debts");
+
+    // On mount the draft (50) is below the floor → warning visible.
+    expect(
+      screen.getByTestId(`period-debt-warning-${debtRowId}`),
+    ).toBeInTheDocument();
+
+    const row = screen.getByTestId(`period-debt-row-${debtRowId}`);
+    fireEvent.change(within(row).getByRole("textbox"), {
+      target: { value: "500" },
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId(`period-debt-warning-${debtRowId}`),
+      ).not.toBeInTheDocument();
+    });
   });
 });

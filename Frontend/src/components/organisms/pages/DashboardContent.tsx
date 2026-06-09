@@ -426,6 +426,16 @@ function LoadedDashboardContent({
             panel={periodEditorPanel}
             dashboardTerms={dashboardTermsResult.terms}
             currency={summary.currency}
+            dashboardSavings={{
+              baseSavingsMonthly:
+                dashboardMonth.liveDashboard?.savings?.monthlySavings ??
+                summary.habitSavings,
+              isMonthOnly:
+                dashboardMonth.liveDashboard?.savings?.isMonthOnly ?? false,
+              readOnly:
+                dashboardMonth.month.status !== "open" ||
+                !dashboardMonth.month.isEditable,
+            }}
             onClose={() => {
               setIsPeriodEditorOpen(false);
             }}
