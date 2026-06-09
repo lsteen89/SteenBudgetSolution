@@ -20,6 +20,7 @@ const mockUsePatchBudgetMonthExpenseItemsBulk = vi.fn();
 const mockUseBudgetMonthIncomeItems = vi.fn();
 const mockUsePatchBudgetMonthIncomeItemsBulk = vi.fn();
 const mockUseBudgetMonthSavingsGoals = vi.fn();
+const mockUsePatchBudgetMonthBaseSavings = vi.fn();
 const mockUsePatchBudgetMonthSavingsGoalsBulk = vi.fn();
 const mockUseBudgetMonthDebts = vi.fn();
 const mockUseBudgetMonthDebtEditor = vi.fn();
@@ -27,6 +28,7 @@ const mockUsePatchBudgetMonthDebtsBulk = vi.fn();
 const mockUseExpenseCategories = vi.fn();
 const mockMutateAsync = vi.fn();
 const mockIncomeMutateAsync = vi.fn();
+const mockBaseSavingsMutateAsync = vi.fn();
 const mockSavingsMutateAsync = vi.fn();
 const mockDebtsMutateAsync = vi.fn();
 const mockToast = {
@@ -58,6 +60,11 @@ vi.mock("@hooks/budget/editPeriod/useMonthEditor", () => ({
   }),
   useBudgetMonthSavingsGoals: (...args: unknown[]) =>
     mockUseBudgetMonthSavingsGoals(...args),
+  // PR E: SavingsPanel applies base savings through a separate inline
+  // mutation. Drawer-level tests mostly exercise goal saves, but the hook
+  // must be present for the savings panel to mount.
+  usePatchBudgetMonthBaseSavings: (...args: unknown[]) =>
+    mockUsePatchBudgetMonthBaseSavings(...args),
   usePatchBudgetMonthSavingsGoalsBulk: (...args: unknown[]) =>
     mockUsePatchBudgetMonthSavingsGoalsBulk(...args),
   useBudgetMonthDebts: (...args: unknown[]) =>
@@ -306,6 +313,11 @@ describe("EditPeriodDrawer subscription lifecycle", () => {
     mockUseBudgetMonthIncomeItems.mockReset();
     mockUsePatchBudgetMonthIncomeItemsBulk.mockReset();
     mockUseBudgetMonthSavingsGoals.mockReset();
+    mockUsePatchBudgetMonthBaseSavings.mockReset();
+    mockUsePatchBudgetMonthBaseSavings.mockReturnValue({
+      mutateAsync: mockBaseSavingsMutateAsync,
+      isPending: false,
+    });
     mockUsePatchBudgetMonthSavingsGoalsBulk.mockReset();
     mockUseBudgetMonthDebts.mockReset();
     mockUseBudgetMonthDebtEditor.mockReset();
@@ -313,6 +325,7 @@ describe("EditPeriodDrawer subscription lifecycle", () => {
     mockUseExpenseCategories.mockReset();
     mockMutateAsync.mockReset();
     mockIncomeMutateAsync.mockReset();
+    mockBaseSavingsMutateAsync.mockReset();
     mockSavingsMutateAsync.mockReset();
     mockDebtsMutateAsync.mockReset();
     mockToast.success.mockReset();
@@ -625,6 +638,11 @@ describe("EditPeriodDrawer quick-edit tab shell", () => {
     mockUseBudgetMonthIncomeItems.mockReset();
     mockUsePatchBudgetMonthIncomeItemsBulk.mockReset();
     mockUseBudgetMonthSavingsGoals.mockReset();
+    mockUsePatchBudgetMonthBaseSavings.mockReset();
+    mockUsePatchBudgetMonthBaseSavings.mockReturnValue({
+      mutateAsync: mockBaseSavingsMutateAsync,
+      isPending: false,
+    });
     mockUsePatchBudgetMonthSavingsGoalsBulk.mockReset();
     mockUseBudgetMonthDebts.mockReset();
     mockUseBudgetMonthDebtEditor.mockReset();
@@ -632,6 +650,7 @@ describe("EditPeriodDrawer quick-edit tab shell", () => {
     mockUseExpenseCategories.mockReset();
     mockMutateAsync.mockReset();
     mockIncomeMutateAsync.mockReset();
+    mockBaseSavingsMutateAsync.mockReset();
     mockSavingsMutateAsync.mockReset();
     mockDebtsMutateAsync.mockReset();
     mockToast.success.mockReset();
@@ -987,6 +1006,11 @@ describe("EditPeriodDrawer footer projection (PR B)", () => {
     mockUseBudgetMonthIncomeItems.mockReset();
     mockUsePatchBudgetMonthIncomeItemsBulk.mockReset();
     mockUseBudgetMonthSavingsGoals.mockReset();
+    mockUsePatchBudgetMonthBaseSavings.mockReset();
+    mockUsePatchBudgetMonthBaseSavings.mockReturnValue({
+      mutateAsync: mockBaseSavingsMutateAsync,
+      isPending: false,
+    });
     mockUsePatchBudgetMonthSavingsGoalsBulk.mockReset();
     mockUseBudgetMonthDebts.mockReset();
     mockUseBudgetMonthDebtEditor.mockReset();
@@ -994,6 +1018,7 @@ describe("EditPeriodDrawer footer projection (PR B)", () => {
     mockUseExpenseCategories.mockReset();
     mockMutateAsync.mockReset();
     mockIncomeMutateAsync.mockReset();
+    mockBaseSavingsMutateAsync.mockReset();
     mockSavingsMutateAsync.mockReset();
     mockDebtsMutateAsync.mockReset();
     mockToast.success.mockReset();
