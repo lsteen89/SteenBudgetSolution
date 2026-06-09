@@ -32,6 +32,13 @@ type ExpensesPanelProps = {
   yearMonth: string;
   periodLabel: string;
   onClose: () => void;
+  /**
+   * Whether this panel is the active tab inside the Quick Edit drawer.
+   * Drafts persist across tab switches because the panel stays mounted;
+   * the query is disabled when inactive so we do not refetch behind a
+   * hidden tab. Defaults to `true` for non-tabbed callers.
+   */
+  isActive?: boolean;
 };
 
 type ExpenseDraft = {
@@ -58,6 +65,7 @@ const ExpensesPanel: React.FC<ExpensesPanelProps> = ({
   yearMonth,
   periodLabel,
   onClose,
+  isActive = true,
 }) => {
   const locale = useAppLocale();
   const currency = useAppCurrency();
@@ -69,8 +77,9 @@ const ExpensesPanel: React.FC<ExpensesPanelProps> = ({
   const tSchema = <K extends keyof typeof expenseItemSchemaDict.sv>(key: K) =>
     tDict(key, locale, expenseItemSchemaDict);
 
-  const editorQuery = useBudgetMonthEditor(yearMonth, open);
-  const categoriesQuery = useExpenseCategories({ enabled: open });
+  const queryEnabled = open && isActive;
+  const editorQuery = useBudgetMonthEditor(yearMonth, queryEnabled);
+  const categoriesQuery = useExpenseCategories({ enabled: queryEnabled });
   const bulkPatchMutation = usePatchBudgetMonthExpenseItemsBulk(yearMonth);
 
   const [drafts, setDrafts] = useState<Record<string, ExpenseDraft>>({});

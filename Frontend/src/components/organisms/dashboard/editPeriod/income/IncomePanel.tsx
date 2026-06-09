@@ -22,6 +22,14 @@ type IncomePanelProps = {
   yearMonth: string;
   periodLabel: string;
   onClose: () => void;
+  /**
+   * Whether this panel is the active tab inside the Quick Edit drawer.
+   * The panel stays mounted while inactive so drafts survive a tab switch,
+   * but its query is disabled when inactive so we do not pay for refetches
+   * the user is not looking at. Defaults to `true` for callers that mount
+   * the panel directly (non-tabbed contexts).
+   */
+  isActive?: boolean;
 };
 
 type Draft = {
@@ -33,6 +41,7 @@ const IncomePanel: React.FC<IncomePanelProps> = ({
   yearMonth,
   periodLabel,
   onClose,
+  isActive = true,
 }) => {
   const locale = useAppLocale();
   const currency = useAppCurrency();
@@ -40,7 +49,7 @@ const IncomePanel: React.FC<IncomePanelProps> = ({
   const navigate = useNavigate();
   const t = <K extends keyof typeof editPeriodDrawerDict.sv>(key: K) =>
     tDict(key, locale, editPeriodDrawerDict);
-  const query = useBudgetMonthIncomeItems(yearMonth, open);
+  const query = useBudgetMonthIncomeItems(yearMonth, open && isActive);
   const bulkMutation = usePatchBudgetMonthIncomeItemsBulk(yearMonth);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
 

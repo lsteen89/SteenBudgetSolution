@@ -10,10 +10,13 @@ const mockUseBudgetMonthIncomeItems = vi.fn();
 const mockUsePatchBudgetMonthIncomeItemsBulk = vi.fn();
 const mockUseBudgetMonthSavingsGoals = vi.fn();
 const mockUsePatchBudgetMonthSavingsGoalsBulk = vi.fn();
+const mockUseBudgetMonthDebts = vi.fn();
+const mockUsePatchBudgetMonthDebtsBulk = vi.fn();
 const mockUseExpenseCategories = vi.fn();
 const mockMutateAsync = vi.fn();
 const mockIncomeMutateAsync = vi.fn();
 const mockSavingsMutateAsync = vi.fn();
+const mockDebtsMutateAsync = vi.fn();
 const mockToast = {
   success: vi.fn(),
   error: vi.fn(),
@@ -31,6 +34,10 @@ vi.mock("@hooks/budget/editPeriod/useMonthEditor", () => ({
     mockUseBudgetMonthSavingsGoals(...args),
   usePatchBudgetMonthSavingsGoalsBulk: (...args: unknown[]) =>
     mockUsePatchBudgetMonthSavingsGoalsBulk(...args),
+  useBudgetMonthDebts: (...args: unknown[]) =>
+    mockUseBudgetMonthDebts(...args),
+  usePatchBudgetMonthDebtsBulk: (...args: unknown[]) =>
+    mockUsePatchBudgetMonthDebtsBulk(...args),
 }));
 
 vi.mock("@/hooks/budget/useExpenseCategories", () => ({
@@ -141,10 +148,13 @@ describe("EditPeriodDrawer subscription lifecycle", () => {
     mockUsePatchBudgetMonthIncomeItemsBulk.mockReset();
     mockUseBudgetMonthSavingsGoals.mockReset();
     mockUsePatchBudgetMonthSavingsGoalsBulk.mockReset();
+    mockUseBudgetMonthDebts.mockReset();
+    mockUsePatchBudgetMonthDebtsBulk.mockReset();
     mockUseExpenseCategories.mockReset();
     mockMutateAsync.mockReset();
     mockIncomeMutateAsync.mockReset();
     mockSavingsMutateAsync.mockReset();
+    mockDebtsMutateAsync.mockReset();
     mockToast.success.mockReset();
     mockToast.error.mockReset();
   });
@@ -422,5 +432,368 @@ describe("EditPeriodDrawer subscription lifecycle", () => {
 
     expect(screen.getByText("Active goal")).toBeInTheDocument();
     expect(screen.queryByText("Already done")).not.toBeInTheDocument();
+  });
+});
+
+describe("EditPeriodDrawer quick-edit tab shell", () => {
+  beforeEach(() => {
+    mockUseBudgetMonthEditor.mockReset();
+    mockUsePatchBudgetMonthExpenseItemsBulk.mockReset();
+    mockUseBudgetMonthIncomeItems.mockReset();
+    mockUsePatchBudgetMonthIncomeItemsBulk.mockReset();
+    mockUseBudgetMonthSavingsGoals.mockReset();
+    mockUsePatchBudgetMonthSavingsGoalsBulk.mockReset();
+    mockUseBudgetMonthDebts.mockReset();
+    mockUsePatchBudgetMonthDebtsBulk.mockReset();
+    mockUseExpenseCategories.mockReset();
+    mockMutateAsync.mockReset();
+    mockIncomeMutateAsync.mockReset();
+    mockSavingsMutateAsync.mockReset();
+    mockDebtsMutateAsync.mockReset();
+    mockToast.success.mockReset();
+    mockToast.error.mockReset();
+  });
+
+  function primeAllPanels() {
+    mockUseBudgetMonthEditor.mockReturnValue({
+      data: buildEditorData(),
+      isLoading: false,
+      isError: false,
+    });
+    mockUseExpenseCategories.mockReturnValue({
+      data: [
+        {
+          id: subscriptionCategoryId,
+          name: "Subscription",
+          code: "subscription",
+        },
+        {
+          id: foodCategoryId,
+          name: "Food",
+          code: "food",
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    });
+    mockUsePatchBudgetMonthExpenseItemsBulk.mockReturnValue({
+      mutateAsync: mockMutateAsync,
+      isPending: false,
+    });
+    mockUseBudgetMonthIncomeItems.mockReturnValue({
+      data: [
+        {
+          id: "55555555-5555-4555-8555-555555555555",
+          sourceIncomeItemId: "66666666-6666-4666-8666-666666666666",
+          kind: "sideHustle",
+          name: "Consulting",
+          amountMonthly: 1500,
+          isActive: true,
+          isDeleted: false,
+          isMonthOnly: false,
+          canUpdateDefault: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    });
+    mockUsePatchBudgetMonthIncomeItemsBulk.mockReturnValue({
+      mutateAsync: mockIncomeMutateAsync,
+      isPending: false,
+    });
+    mockUseBudgetMonthSavingsGoals.mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+    });
+    mockUsePatchBudgetMonthSavingsGoalsBulk.mockReturnValue({
+      mutateAsync: mockSavingsMutateAsync,
+      isPending: false,
+    });
+  }
+
+  function renderShell(
+    panel: "expenses" | "income" | "savings" | "debts" = "expenses",
+  ) {
+    return render(
+      <MemoryRouter>
+        <EditPeriodDrawer
+          open
+          yearMonth="2026-04"
+          periodLabel="April 2026"
+          periodDateRangeLabel="Apr 1 - Apr 30"
+          panel={panel}
+          onClose={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+  }
+
+  it("renders all four tabs with the requested one selected", () => {
+    primeAllPanels();
+    renderShell("expenses");
+
+    expect(
+      screen.getByRole("tablist", { name: "Quick editor tabs" }),
+    ).toBeInTheDocument();
+
+    expect(screen.getByRole("tab", { name: "Income" })).toHaveAttribute(
+      "aria-selected",
+      "false",
+    );
+    expect(screen.getByRole("tab", { name: "Expenses" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByRole("tab", { name: "Savings" })).toHaveAttribute(
+      "aria-selected",
+      "false",
+    );
+    expect(screen.getByRole("tab", { name: "Debts" })).toHaveAttribute(
+      "aria-selected",
+      "false",
+    );
+  });
+
+  it("makes the active-tab-only save contract explicit in the shell", () => {
+    primeAllPanels();
+    renderShell("expenses");
+
+    expect(
+      screen.getByText(
+        "Saving applies to the active tab only. Switch tabs to adjust another area.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("does not mount inactive tab panels until they are visited", () => {
+    primeAllPanels();
+    renderShell("expenses");
+
+    // Active tab fetches its editor data immediately.
+    expect(mockUseBudgetMonthEditor).toHaveBeenCalled();
+
+    // Inactive tabs must not pay the cost of their queries before the user
+    // visits them. This is the lazy-load contract for PR A.
+    expect(mockUseBudgetMonthIncomeItems).not.toHaveBeenCalled();
+    expect(mockUseBudgetMonthSavingsGoals).not.toHaveBeenCalled();
+  });
+
+  it("switches the title and mounts the income panel when its tab is clicked", () => {
+    primeAllPanels();
+    renderShell("expenses");
+
+    expect(
+      screen.getByRole("heading", { name: "Edit expenses" }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Income" }));
+
+    expect(
+      screen.getByRole("heading", { name: "Edit income" }),
+    ).toBeInTheDocument();
+    expect(mockUseBudgetMonthIncomeItems).toHaveBeenCalled();
+    expect(screen.getByRole("tab", { name: "Income" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByRole("tab", { name: "Expenses" })).toHaveAttribute(
+      "aria-selected",
+      "false",
+    );
+  });
+
+  it("preserves an expense draft after switching tabs and back", async () => {
+    primeAllPanels();
+    renderShell("expenses");
+
+    const foodRow = screen.getByTestId(`period-expense-row-${foodRowId}`);
+    const amountInput = within(foodRow).getByRole("textbox");
+    fireEvent.change(amountInput, { target: { value: "999" } });
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Save changes" }),
+      ).not.toBeDisabled();
+    });
+
+    // Bounce through another tab and back.
+    fireEvent.click(screen.getByRole("tab", { name: "Income" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Expenses" }));
+
+    const foodRowAfter = screen.getByTestId(`period-expense-row-${foodRowId}`);
+    expect(within(foodRowAfter).getByRole("textbox")).toHaveValue("999");
+
+    // Save is still enabled because the draft survived the tab bounce.
+    expect(
+      screen.getByRole("button", { name: "Save changes" }),
+    ).not.toBeDisabled();
+  });
+
+  it("mounts the debt panel when opened with panel='debts'", () => {
+    primeAllPanels();
+    const debtRowId = "11111111-2222-4333-8444-555555555555";
+    mockUseBudgetMonthDebts.mockReturnValue({
+      data: [
+        {
+          id: debtRowId,
+          sourceDebtId: null,
+          name: "Credit card",
+          balance: 12000,
+          monthlyPayment: 800,
+          status: "active",
+          isDeleted: false,
+          isMonthOnly: false,
+          canUpdateDefault: true,
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    });
+    mockUsePatchBudgetMonthDebtsBulk.mockReturnValue({
+      mutateAsync: mockDebtsMutateAsync,
+      isPending: false,
+    });
+
+    renderShell("debts");
+
+    expect(
+      screen.getByRole("heading", { name: "Edit debts" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Credit card")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Debts" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    // Sibling panels are not mounted on initial open.
+    expect(mockUseBudgetMonthEditor).not.toHaveBeenCalled();
+    expect(mockUseBudgetMonthIncomeItems).not.toHaveBeenCalled();
+    expect(mockUseBudgetMonthSavingsGoals).not.toHaveBeenCalled();
+  });
+
+  it("disables the query of a visited tab once another tab becomes active", () => {
+    primeAllPanels();
+    renderShell("expenses");
+
+    // Visit income — its query gets enabled while it is the active tab.
+    fireEvent.click(screen.getByRole("tab", { name: "Income" }));
+    const enabledArg = (
+      mockUseBudgetMonthIncomeItems.mock.calls.at(-1) ?? []
+    )[1];
+    expect(enabledArg).toBe(true);
+
+    // Switch back to Expenses. Income panel stays mounted (drafts kept)
+    // but its query must report disabled going forward.
+    fireEvent.click(screen.getByRole("tab", { name: "Expenses" }));
+
+    const lastIncomeCall = mockUseBudgetMonthIncomeItems.mock.calls.at(-1);
+    expect(lastIncomeCall).toBeDefined();
+    expect(lastIncomeCall?.[1]).toBe(false);
+  });
+
+  it("syncs to the new tab synchronously when reopened on a different pillar", () => {
+    primeAllPanels();
+
+    const { rerender } = render(
+      <MemoryRouter>
+        <EditPeriodDrawer
+          open
+          yearMonth="2026-04"
+          periodLabel="April 2026"
+          periodDateRangeLabel="Apr 1 - Apr 30"
+          panel="expenses"
+          onClose={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    // Close the drawer (parent flips `open` first).
+    rerender(
+      <MemoryRouter>
+        <EditPeriodDrawer
+          open={false}
+          yearMonth="2026-04"
+          periodLabel="April 2026"
+          periodDateRangeLabel="Apr 1 - Apr 30"
+          panel="expenses"
+          onClose={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    // Now measure only the reopen render's hook traffic.
+    mockUseBudgetMonthEditor.mockClear();
+    mockUseBudgetMonthIncomeItems.mockClear();
+    mockUseBudgetMonthSavingsGoals.mockClear();
+
+    // Parent reopens on a different pillar.
+    rerender(
+      <MemoryRouter>
+        <EditPeriodDrawer
+          open
+          yearMonth="2026-04"
+          periodLabel="April 2026"
+          periodDateRangeLabel="Apr 1 - Apr 30"
+          panel="savings"
+          onClose={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+
+    // The savings tab is selected from the very first render of the reopen.
+    expect(
+      screen.getByRole("heading", { name: "Edit savings" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Savings" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+
+    // No stale expense fetch on the reopen render: the previous tab must
+    // not re-subscribe even transiently. Income was never visited so it
+    // stays silent too.
+    expect(mockUseBudgetMonthEditor).not.toHaveBeenCalled();
+    expect(mockUseBudgetMonthIncomeItems).not.toHaveBeenCalled();
+
+    // Savings is now mounted and enabled.
+    const lastSavingsCall =
+      mockUseBudgetMonthSavingsGoals.mock.calls.at(-1) ?? [];
+    expect(lastSavingsCall[1]).toBe(true);
+  });
+
+  it("saves only the active tab's domain even when other tabs are visited", async () => {
+    primeAllPanels();
+    mockMutateAsync.mockResolvedValue(undefined);
+
+    renderShell("expenses");
+
+    // Visit Income and Savings to mount their drafts.
+    fireEvent.click(screen.getByRole("tab", { name: "Income" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Savings" }));
+
+    // Back to Expenses, make a change, save.
+    fireEvent.click(screen.getByRole("tab", { name: "Expenses" }));
+
+    const foodRow = screen.getByTestId(`period-expense-row-${foodRowId}`);
+    fireEvent.change(within(foodRow).getByRole("textbox"), {
+      target: { value: "777" },
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Save changes" }),
+      ).not.toBeDisabled();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => {
+      expect(mockMutateAsync).toHaveBeenCalledTimes(1);
+    });
+
+    // Other domains must not be saved by the active-tab save.
+    expect(mockIncomeMutateAsync).not.toHaveBeenCalled();
+    expect(mockSavingsMutateAsync).not.toHaveBeenCalled();
+    expect(mockDebtsMutateAsync).not.toHaveBeenCalled();
   });
 });

@@ -22,6 +22,13 @@ type DebtsPanelProps = {
   yearMonth: string;
   periodLabel: string;
   onClose: () => void;
+  /**
+   * Whether this panel is the active tab inside the Quick Edit drawer.
+   * Drafts persist across tab switches because the panel stays mounted;
+   * the query is disabled when inactive so we do not refetch behind a
+   * hidden tab. Defaults to `true` for non-tabbed callers.
+   */
+  isActive?: boolean;
 };
 
 type Draft = {
@@ -33,6 +40,7 @@ const DebtsPanel: React.FC<DebtsPanelProps> = ({
   yearMonth,
   periodLabel,
   onClose,
+  isActive = true,
 }) => {
   const locale = useAppLocale();
   const currency = useAppCurrency();
@@ -40,7 +48,7 @@ const DebtsPanel: React.FC<DebtsPanelProps> = ({
   const navigate = useNavigate();
   const t = <K extends keyof typeof editPeriodDrawerDict.sv>(key: K) =>
     tDict(key, locale, editPeriodDrawerDict);
-  const query = useBudgetMonthDebts(yearMonth, open);
+  const query = useBudgetMonthDebts(yearMonth, open && isActive);
   const bulkMutation = usePatchBudgetMonthDebtsBulk(yearMonth);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
 
