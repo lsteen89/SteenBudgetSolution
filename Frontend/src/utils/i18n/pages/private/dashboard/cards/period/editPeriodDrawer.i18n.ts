@@ -8,11 +8,41 @@ export const editPeriodDrawerDict = {
     incomeMonthOnlyHelper:
       "Snabbjusteringar påverkar bara {month}. Vill du ändra budgetplanen framåt? Öppna planeringen.",
 
+    // PR D (income depth)
+    incomeGroupSalary: "Lön",
+    incomeGroupHousehold: "Hushållsinkomst",
+    incomeGroupSide: "Sidoinkomst",
+    incomeSalaryLockedLabel: "Låst",
+    incomeNoSalaryYet:
+      "Ingen lön är planerad ännu. Lägg till lön i planeringen.",
+    incomeNoHouseholdMembers:
+      "Inga hushållsinkomster för den här månaden. Lägg till en nedan.",
+    incomeNoSideIncome:
+      "Inga sidoinkomster för den här månaden. Lägg till en nedan.",
+    incomeAddToGroup: "Lägg till i {category}",
+    incomeInlineCreateHeading: "Ny inkomst i {category}",
+    incomeInlineCreateNamePlaceholder: "Namn",
+    incomeInlineCreateAmountPlaceholder: "Belopp",
+    incomeInlineCreateSubmit: "Lägg till",
+    incomeInlineCreateCancel: "Avbryt",
+    incomeInlineCreateSaving: "Lägger till...",
+    incomeNameRequired: "Namn krävs",
+    incomeNameTooLong: "Namnet är för långt",
+    incomeActiveToggleLabel: "Räkna med {name} den här månaden",
+    incomeRowInactiveHint: "Räknas inte den här månaden",
+
     savingsTitle: "Sparande",
     savingsDescription: "Justera månadsbelopp för dina sparmål.",
     noSavingsGoals: "Det finns inga sparmål att snabbjustera.",
     savingsMonthOnlyHelper:
       "Snabbjusteringar påverkar bara {month}. Vill du ändra budgetplanen framåt? Öppna planeringen.",
+    savingsBaseTitle: "Bassparande",
+    savingsBaseDescription:
+      "Det här är ditt fasta månadssparande innan sparmålen räknas med.",
+    savingsBaseAmountLabel: "Bassparande",
+    savingsBaseMonthOnlyHint: "Den här månaden har ett eget basbelopp.",
+    savingsBaseApply: "Spara basbelopp",
+    savingsGoalsSectionTitle: "Sparmål",
 
     debtsTitle: "Skulder",
     debtsDescription: "Justera planerad månadsbetalning för dina skulder.",
@@ -21,6 +51,19 @@ export const editPeriodDrawerDict = {
       "Snabbjusteringar påverkar bara {month}. Vill du ändra budgetplanen framåt? Öppna planeringen.",
     debtsPlannedNote:
       "Här ändras bara planerad betalning. Saldo uppdateras inte här.",
+    // PR F (debt honesty): rich read model context + warnings
+    debtsPlannedPaymentLabel: "Planerad betalning",
+    debtsBalanceLabel: "Kvar att betala",
+    debtsMinPaymentLabel: "Minsta betalning",
+    debtsContextReadOnlyHint:
+      "Saldo och minsta betalning visas bara här. Saldo uppdateras under Skulder.",
+    debtsBelowMinWarning:
+      "Under minsta betalning ({amount}).",
+    debtsCoversInterestAndFeesWarning:
+      "Betalningen täcker inte ränta och avgift. Saldot väntas inte minska denna månad.",
+    debtsRowReadOnly:
+      "Den här raden kan inte redigeras just nu.",
+    debtsOpenFullEditor: "Öppna skuldsidan",
 
     recurringExpensesTitle: "Rörliga kostnader",
     recurringExpensesDescription:
@@ -63,6 +106,10 @@ export const editPeriodDrawerDict = {
     amountInvalid: "Ogiltigt belopp",
     categoryRequired: "Kategori krävs",
     fixValidationErrors: "Rätta valideringsfel innan du sparar",
+    addExpenseToGroup: "Lägg till i {category}",
+    inlineCreateHeading: "Ny rad i {category}",
+    createSuccess: "Raden har lagts till",
+    createErrorGeneric: "Det gick inte att lägga till raden",
   },
 
   en: {
@@ -74,11 +121,41 @@ export const editPeriodDrawerDict = {
     incomeMonthOnlyHelper:
       "Quick adjustments only affect {month}. Want to change the budget plan going forward? Open planning.",
 
+    // PR D (income depth)
+    incomeGroupSalary: "Salary",
+    incomeGroupHousehold: "Household income",
+    incomeGroupSide: "Side income",
+    incomeSalaryLockedLabel: "Locked",
+    incomeNoSalaryYet:
+      "No salary planned yet. Add salary in planning.",
+    incomeNoHouseholdMembers:
+      "No household income for this month. Add one below.",
+    incomeNoSideIncome:
+      "No side income for this month. Add one below.",
+    incomeAddToGroup: "Add to {category}",
+    incomeInlineCreateHeading: "New income in {category}",
+    incomeInlineCreateNamePlaceholder: "Name",
+    incomeInlineCreateAmountPlaceholder: "Amount",
+    incomeInlineCreateSubmit: "Add",
+    incomeInlineCreateCancel: "Cancel",
+    incomeInlineCreateSaving: "Adding...",
+    incomeNameRequired: "Name is required",
+    incomeNameTooLong: "Name is too long",
+    incomeActiveToggleLabel: "Count {name} this month",
+    incomeRowInactiveHint: "Not counted this month",
+
     savingsTitle: "Savings",
     savingsDescription: "Adjust monthly contributions for your savings goals.",
     noSavingsGoals: "There are no savings goals to quick adjust.",
     savingsMonthOnlyHelper:
       "Quick adjustments only affect {month}. Want to change the budget plan going forward? Open planning.",
+    savingsBaseTitle: "Base savings",
+    savingsBaseDescription:
+      "This is your fixed monthly saving before goal contributions are added.",
+    savingsBaseAmountLabel: "Base savings",
+    savingsBaseMonthOnlyHint: "This month has its own base amount.",
+    savingsBaseApply: "Apply base savings",
+    savingsGoalsSectionTitle: "Savings goals",
 
     debtsTitle: "Debts",
     debtsDescription: "Adjust the planned monthly payment for your debts.",
@@ -87,6 +164,19 @@ export const editPeriodDrawerDict = {
       "Quick adjustments only affect {month}. Want to change the budget plan going forward? Open planning.",
     debtsPlannedNote:
       "Only the planned payment changes here. Balances are not updated by this flow.",
+    // PR F (debt honesty): rich read model context + warnings
+    debtsPlannedPaymentLabel: "Planned payment",
+    debtsBalanceLabel: "Owed balance",
+    debtsMinPaymentLabel: "Minimum payment",
+    debtsContextReadOnlyHint:
+      "Balance and minimum payment are shown for context. Update balances under Debts.",
+    debtsBelowMinWarning:
+      "Below the minimum payment ({amount}).",
+    debtsCoversInterestAndFeesWarning:
+      "Payment does not cover interest and fee. Balance is not expected to decrease this month.",
+    debtsRowReadOnly:
+      "This row can't be edited right now.",
+    debtsOpenFullEditor: "Open debts page",
 
     recurringExpensesTitle: "Variable expenses",
     recurringExpensesDescription:
@@ -128,6 +218,10 @@ export const editPeriodDrawerDict = {
     amountInvalid: "Invalid amount",
     categoryRequired: "Category is required",
     fixValidationErrors: "Fix validation errors before saving",
+    addExpenseToGroup: "Add to {category}",
+    inlineCreateHeading: "New row in {category}",
+    createSuccess: "Row added",
+    createErrorGeneric: "Could not add the row",
   },
 
   et: {
@@ -139,11 +233,41 @@ export const editPeriodDrawerDict = {
     incomeMonthOnlyHelper:
       "Kiirkohandused mõjutavad ainult perioodi {month}. Kui soovid eelarveplaani edaspidi muuta, ava planeerimine.",
 
+    // PR D (income depth)
+    incomeGroupSalary: "Palk",
+    incomeGroupHousehold: "Leibkonna sissetulek",
+    incomeGroupSide: "Lisatulu",
+    incomeSalaryLockedLabel: "Lukus",
+    incomeNoSalaryYet:
+      "Palka pole veel planeeritud. Lisa palk planeerimises.",
+    incomeNoHouseholdMembers:
+      "Selle kuu jaoks pole leibkonna sissetulekut. Lisa allpool.",
+    incomeNoSideIncome:
+      "Selle kuu jaoks pole lisatulu. Lisa allpool.",
+    incomeAddToGroup: "Lisa kategooriasse {category}",
+    incomeInlineCreateHeading: "Uus tulu kategoorias {category}",
+    incomeInlineCreateNamePlaceholder: "Nimi",
+    incomeInlineCreateAmountPlaceholder: "Summa",
+    incomeInlineCreateSubmit: "Lisa",
+    incomeInlineCreateCancel: "Tühista",
+    incomeInlineCreateSaving: "Lisamine...",
+    incomeNameRequired: "Nimi on nõutud",
+    incomeNameTooLong: "Nimi on liiga pikk",
+    incomeActiveToggleLabel: "Arvesta {name} selle kuu jooksul",
+    incomeRowInactiveHint: "Selle kuu kohta ei arvestata",
+
     savingsTitle: "Säästud",
     savingsDescription: "Kohanda oma säästueesmärkide kuumakseid.",
     noSavingsGoals: "Kiireks kohandamiseks pole säästueesmärke.",
     savingsMonthOnlyHelper:
       "Kiirkohandused mõjutavad ainult perioodi {month}. Kui soovid eelarveplaani edaspidi muuta, ava planeerimine.",
+    savingsBaseTitle: "Põhisääst",
+    savingsBaseDescription:
+      "See on sinu püsiv igakuine sääst enne eesmärkide makseid.",
+    savingsBaseAmountLabel: "Põhisääst",
+    savingsBaseMonthOnlyHint: "Sellel kuul on eraldi põhisumma.",
+    savingsBaseApply: "Salvesta põhisumma",
+    savingsGoalsSectionTitle: "Säästueesmärgid",
 
     debtsTitle: "Võlad",
     debtsDescription: "Kohanda võlgade planeeritud kuumakset.",
@@ -152,6 +276,19 @@ export const editPeriodDrawerDict = {
       "Kiirkohandused mõjutavad ainult perioodi {month}. Kui soovid eelarveplaani edaspidi muuta, ava planeerimine.",
     debtsPlannedNote:
       "Siin muudetakse ainult planeeritud makset. Jääki see vaade ei uuenda.",
+    // PR F (debt honesty): rich read model context + warnings
+    debtsPlannedPaymentLabel: "Planeeritud makse",
+    debtsBalanceLabel: "Tasumata jääk",
+    debtsMinPaymentLabel: "Minimaalne makse",
+    debtsContextReadOnlyHint:
+      "Jääk ja minimaalne makse on siin ainult info. Jääki saab uuendada võlgade lehel.",
+    debtsBelowMinWarning:
+      "Alla miinimummakse ({amount}).",
+    debtsCoversInterestAndFeesWarning:
+      "Makse ei kata intressi ja tasu. Jääk sel kuul tõenäoliselt ei vähene.",
+    debtsRowReadOnly:
+      "Seda rida ei saa praegu muuta.",
+    debtsOpenFullEditor: "Ava võlgade leht",
 
     recurringExpensesTitle: "Muutuvad kulud",
     recurringExpensesDescription:
@@ -194,5 +331,9 @@ export const editPeriodDrawerDict = {
     amountInvalid: "Vigane summa",
     categoryRequired: "Kategooria on nõutud",
     fixValidationErrors: "Paranda validerimisvead enne salvestamist",
+    addExpenseToGroup: "Lisa kategooriasse {category}",
+    inlineCreateHeading: "Uus rida kategoorias {category}",
+    createSuccess: "Rida lisatud",
+    createErrorGeneric: "Rida ei õnnestunud lisada",
   },
 } as const;

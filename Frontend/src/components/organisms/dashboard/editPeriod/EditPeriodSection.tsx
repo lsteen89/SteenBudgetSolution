@@ -2,7 +2,10 @@ import { cn } from "@/lib/utils";
 import React from "react";
 
 type EditPeriodSectionProps = {
-  title: string;
+  // `ReactNode` so callers can compose a title with adjacent affordances
+  // (PR D's salary group renders a "Locked" pill next to the title text).
+  // Plain string titles continue to work — the shared `h2` styles them.
+  title: React.ReactNode;
   description?: string;
   children: React.ReactNode;
   className?: string;

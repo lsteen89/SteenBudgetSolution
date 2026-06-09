@@ -119,3 +119,47 @@ test("dashboard renders from a single read and lazy-loads the quick-adjust drawe
   const editorResponse = await editorResponsePromise;
   expect(editorResponse.ok()).toBeTruthy();
 });
+
+test("quick-adjust drawer saves one current-month expense edit @smoke", async ({
+  page,
+}) => {
+  await login(page, surplusUser);
+  await waitForPolishedDashboard(page);
+
+  await page
+    .getByTestId("pillar-expenses")
+    .getByRole("button", {
+      name: /quick adjust expenses|snabbjustera utgifter|kiirkohanda kulusid/i,
+    })
+    .click();
+
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(page.getByRole("tab", { name: /expenses|utgifter|kulud/i }))
+    .toHaveAttribute("aria-selected", "true");
+
+  const firstExpenseInput = page
+    .locator('[data-testid^="period-expense-row-"]')
+    .locator("input:not(:disabled)")
+    .first();
+
+  await expect(firstExpenseInput).toBeVisible();
+  await firstExpenseInput.fill("1234");
+
+  const patchResponsePromise = page.waitForResponse(
+    (response) =>
+      /\/api\/budgets\/months\/[^/]+\/expense-items(?:\?|$)/.test(
+        response.url(),
+      ) &&
+      response.request().method() === "PATCH",
+  );
+
+  await page
+    .getByRole("button", {
+      name: /save changes|spara ändringar|salvesta muudatused/i,
+    })
+    .click();
+
+  const patchResponse = await patchResponsePromise;
+  expect(patchResponse.ok()).toBeTruthy();
+  await expect(page.getByRole("dialog")).toBeHidden();
+});

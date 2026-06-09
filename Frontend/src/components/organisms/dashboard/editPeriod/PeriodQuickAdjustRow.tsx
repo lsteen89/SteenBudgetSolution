@@ -86,8 +86,15 @@ const PeriodQuickAdjustRow: React.FC<PeriodQuickAdjustRowProps> = ({
     onAmountChange(cleaned);
   };
 
-  const isLifecycleNonCounting =
-    showLifecycleControl && subscriptionLifecycleStatus !== "active";
+  // Subscription lifecycle has three states and they no longer all "do the
+  // same thing visually": paused does not count this month (input disabled,
+  // amber banner), cancelled does count as a final charge this month (input
+  // stays editable, neutral last-charge banner), active is the happy path.
+  const isLifecyclePaused =
+    showLifecycleControl && subscriptionLifecycleStatus === "paused";
+  const isLifecycleCancelled =
+    showLifecycleControl && subscriptionLifecycleStatus === "cancelled";
+  const isLifecycleNonCounting = isLifecyclePaused;
 
   return (
     <div
@@ -95,9 +102,11 @@ const PeriodQuickAdjustRow: React.FC<PeriodQuickAdjustRowProps> = ({
       data-subscription-lifecycle={showLifecycleControl ? subscriptionLifecycleStatus : undefined}
       className={cn(
         "rounded-2xl border px-4 py-3 transition-colors",
-        isLifecycleNonCounting
+        isLifecyclePaused
           ? "border-amber-200/70 bg-amber-50/50"
-          : "border-eb-stroke/20 bg-eb-surface",
+          : isLifecycleCancelled
+            ? "border-amber-200/60 bg-amber-50/30"
+            : "border-eb-stroke/20 bg-eb-surface",
       )}
     >
       <div className="flex flex-col gap-3">
@@ -170,9 +179,17 @@ const PeriodQuickAdjustRow: React.FC<PeriodQuickAdjustRowProps> = ({
                 );
               })}
             </div>
-            {isLifecycleNonCounting ? (
+            {isLifecyclePaused ? (
               <div className="rounded-xl border border-amber-200/70 bg-white/65 px-3 py-2 text-xs font-semibold text-amber-800">
                 {t("notCountedThisMonth")}
+              </div>
+            ) : null}
+            {isLifecycleCancelled ? (
+              <div
+                className="rounded-xl border border-amber-200/60 bg-white/70 px-3 py-2 text-xs font-semibold text-amber-800"
+                data-testid={`subscription-last-charge-${row.id}`}
+              >
+                {t("lastChargeThisMonth")}
               </div>
             ) : null}
           </div>
