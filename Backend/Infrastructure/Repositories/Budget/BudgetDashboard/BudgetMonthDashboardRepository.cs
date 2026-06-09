@@ -44,7 +44,8 @@ public sealed partial class BudgetMonthDashboardRepository : SqlBase, IBudgetMon
             new
             {
                 BudgetMonthId = budgetMonthId,
-                ActiveSubscriptionLifecycleStatus = BudgetMonthSubscriptionLifecycleStatuses.Active
+                ActiveSubscriptionLifecycleStatus = BudgetMonthSubscriptionLifecycleStatuses.Active,
+                CancelledSubscriptionLifecycleStatus = BudgetMonthSubscriptionLifecycleStatuses.Cancelled
             },
             ct);
 
@@ -56,7 +57,8 @@ public sealed partial class BudgetMonthDashboardRepository : SqlBase, IBudgetMon
             new
             {
                 BudgetMonthId = budgetMonthId,
-                ActiveSubscriptionLifecycleStatus = BudgetMonthSubscriptionLifecycleStatuses.Active
+                ActiveSubscriptionLifecycleStatus = BudgetMonthSubscriptionLifecycleStatuses.Active,
+                CancelledSubscriptionLifecycleStatus = BudgetMonthSubscriptionLifecycleStatuses.Cancelled
             },
             ct);
 
@@ -66,7 +68,8 @@ public sealed partial class BudgetMonthDashboardRepository : SqlBase, IBudgetMon
             {
                 BudgetMonthId = budgetMonthId,
                 SubscriptionCategoryId = ExpenseCategoryIds.Subscription,
-                ActiveSubscriptionLifecycleStatus = BudgetMonthSubscriptionLifecycleStatuses.Active
+                ActiveSubscriptionLifecycleStatus = BudgetMonthSubscriptionLifecycleStatuses.Active,
+                CancelledSubscriptionLifecycleStatus = BudgetMonthSubscriptionLifecycleStatuses.Cancelled
             },
             ct);
 
@@ -110,7 +113,8 @@ public sealed partial class BudgetMonthDashboardRepository : SqlBase, IBudgetMon
             {
                 BudgetMonthId = budgetMonthId,
                 SubscriptionCategoryId = ExpenseCategoryIds.Subscription,
-                ActiveSubscriptionLifecycleStatus = BudgetMonthSubscriptionLifecycleStatuses.Active
+                ActiveSubscriptionLifecycleStatus = BudgetMonthSubscriptionLifecycleStatuses.Active,
+                CancelledSubscriptionLifecycleStatus = BudgetMonthSubscriptionLifecycleStatuses.Cancelled
             },
             ct)).ToList();
 
@@ -120,7 +124,8 @@ public sealed partial class BudgetMonthDashboardRepository : SqlBase, IBudgetMon
             {
                 BudgetMonthId = budgetMonthId,
                 SubscriptionCategoryId = ExpenseCategoryIds.Subscription,
-                ActiveSubscriptionLifecycleStatus = BudgetMonthSubscriptionLifecycleStatuses.Active
+                ActiveSubscriptionLifecycleStatus = BudgetMonthSubscriptionLifecycleStatuses.Active,
+                CancelledSubscriptionLifecycleStatus = BudgetMonthSubscriptionLifecycleStatuses.Cancelled
             },
             ct);
 

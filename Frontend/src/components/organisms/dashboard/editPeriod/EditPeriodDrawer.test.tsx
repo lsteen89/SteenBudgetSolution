@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -37,6 +37,13 @@ vi.mock("@hooks/budget/editPeriod/useMonthEditor", () => ({
   useBudgetMonthEditor: (...args: unknown[]) => mockUseBudgetMonthEditor(...args),
   usePatchBudgetMonthExpenseItemsBulk: (...args: unknown[]) =>
     mockUsePatchBudgetMonthExpenseItemsBulk(...args),
+  // PR C: ExpensesPanel now opens an inline create form per category group.
+  // The drawer-level test doesn't exercise it, but the hook must still be
+  // mocked so the panel can mount without ReferenceError.
+  useCreateBudgetMonthExpenseItem: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
   useBudgetMonthIncomeItems: (...args: unknown[]) =>
     mockUseBudgetMonthIncomeItems(...args),
   usePatchBudgetMonthIncomeItemsBulk: (...args: unknown[]) =>
@@ -200,14 +207,26 @@ describe("EditPeriodDrawer subscription lifecycle", () => {
     ).toBeNull();
   });
 
-  it("shows not-counted copy for paused and cancelled subscriptions", () => {
+  it("distinguishes paused (not counted) from cancelled (last charge) subscriptions", () => {
+    // PR C: paused → "Not counted this month" (excluded from the month total).
+    //       cancelled → "Last charge this month" (counts as a final charge).
+    // The amount input stays editable on cancelled because the user may want
+    // to record a different last-charge amount; paused disables the input.
     renderDrawer("paused");
 
     expect(screen.getByText("Not counted this month")).toBeInTheDocument();
+    expect(screen.queryByText("Last charge this month")).not.toBeInTheDocument();
+
+    // Explicit cleanup before the second render so the new tree is the
+    // only DOM under test. Without this the previous drawer's "Not counted
+    // this month" banner stays mounted and a failing cancelled assertion
+    // could be masked by the stale paused banner.
+    cleanup();
 
     renderDrawer("cancelled");
 
-    expect(screen.getAllByText("Not counted this month")).toHaveLength(2);
+    expect(screen.getByText("Last charge this month")).toBeInTheDocument();
+    expect(screen.queryByText("Not counted this month")).not.toBeInTheDocument();
   });
 
   it("sends lifecycle status in the patch payload", async () => {

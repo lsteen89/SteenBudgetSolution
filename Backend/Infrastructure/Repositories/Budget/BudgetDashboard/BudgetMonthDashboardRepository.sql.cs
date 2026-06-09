@@ -47,6 +47,18 @@ public sealed partial class BudgetMonthDashboardRepository
             AND ihm.IsActive = 1
         ), 0) AS HouseholdMembersMonthly,
 
+        -- Subscription lifecycle semantics for monthly totals — explicit
+        -- allowlist (NOT `<> paused`) so a future or invalid status value
+        -- cannot silently slip into the financial total without an explicit
+        -- code change here and a passing test for it.
+        --   active     → counts (normal monthly charge)
+        --   cancelled  → counts (last charge happens this month)
+        --   paused     → excluded (no charge this month)
+        --   anything else (e.g. a hypothetical 'trial' / 'pending') →
+        --     excluded by default. Adding it must be a deliberate edit
+        --     to the IN-list below.
+        -- Non-subscription rows have NULL lifecycle and always count when
+        -- they are not soft-deleted and `IsActive = 1`.
         COALESCE((
             SELECT SUM(e.AmountMonthly)
             FROM BudgetMonthExpenseItem e
@@ -55,7 +67,10 @@ public sealed partial class BudgetMonthDashboardRepository
             AND e.IsActive = 1
             AND (
                 e.SubscriptionLifecycleStatus IS NULL
-                OR e.SubscriptionLifecycleStatus = @ActiveSubscriptionLifecycleStatus
+                OR e.SubscriptionLifecycleStatus IN (
+                    @ActiveSubscriptionLifecycleStatus,
+                    @CancelledSubscriptionLifecycleStatus
+                )
             )
         ), 0) AS TotalExpensesMonthly,
 
@@ -102,7 +117,10 @@ public sealed partial class BudgetMonthDashboardRepository
     AND e.IsActive = 1
     AND (
         e.SubscriptionLifecycleStatus IS NULL
-        OR e.SubscriptionLifecycleStatus = @ActiveSubscriptionLifecycleStatus
+        OR e.SubscriptionLifecycleStatus IN (
+            @ActiveSubscriptionLifecycleStatus,
+            @CancelledSubscriptionLifecycleStatus
+        )
     )
     GROUP BY c.Id, c.Name
     ORDER BY c.Name;";
@@ -167,7 +185,10 @@ public sealed partial class BudgetMonthDashboardRepository
     AND e.IsActive = 1
     AND (
         e.SubscriptionLifecycleStatus IS NULL
-        OR e.SubscriptionLifecycleStatus = @ActiveSubscriptionLifecycleStatus
+        OR e.SubscriptionLifecycleStatus IN (
+            @ActiveSubscriptionLifecycleStatus,
+            @CancelledSubscriptionLifecycleStatus
+        )
     )
     AND e.AmountMonthly > 0
     AND e.CategoryId <> @SubscriptionCategoryId
@@ -185,7 +206,10 @@ public sealed partial class BudgetMonthDashboardRepository
     AND e.IsActive = 1
     AND (
         e.SubscriptionLifecycleStatus IS NULL
-        OR e.SubscriptionLifecycleStatus = @ActiveSubscriptionLifecycleStatus
+        OR e.SubscriptionLifecycleStatus IN (
+            @ActiveSubscriptionLifecycleStatus,
+            @CancelledSubscriptionLifecycleStatus
+        )
     )
     AND e.AmountMonthly > 0
     AND e.CategoryId = @SubscriptionCategoryId
@@ -199,7 +223,10 @@ public sealed partial class BudgetMonthDashboardRepository
     AND e.IsActive = 1
     AND (
         e.SubscriptionLifecycleStatus IS NULL
-        OR e.SubscriptionLifecycleStatus = @ActiveSubscriptionLifecycleStatus
+        OR e.SubscriptionLifecycleStatus IN (
+            @ActiveSubscriptionLifecycleStatus,
+            @CancelledSubscriptionLifecycleStatus
+        )
     )
     AND e.AmountMonthly > 0
     AND e.CategoryId = @SubscriptionCategoryId;";

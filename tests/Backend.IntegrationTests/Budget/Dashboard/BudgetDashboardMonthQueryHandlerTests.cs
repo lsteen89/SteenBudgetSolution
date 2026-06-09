@@ -30,6 +30,7 @@ using Backend.Application.Abstractions.Application.Services.Budget.Projections;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Backend.Application.Common.Behaviors;
+using Backend.Application.Constants;
 using Backend.Application.Services.Budget.Materializer;
 
 namespace Backend.IntegrationTests.Budget.Dashboard;
@@ -926,6 +927,220 @@ public sealed class BudgetDashboardMonthQueryHandlerTests
             IncomePaymentDay = incomePaymentDay,
             ActorPersoid = actorPersoid
         });
+    }
+
+    [Fact]
+    public async Task OpenMonth_TotalExpensesMonthly_IncludesActiveAndCancelledSubs_ExcludesPaused()
+    {
+        // PR C contract: the dashboard's monthly expense total treats
+        // subscription lifecycle as
+        //   active     → counts (recurring charge this month)
+        //   cancelled  → counts (last charge happens this month)
+        //   paused     → excluded (no charge this month)
+        // The Quick Edit drawer's footer projection mirrors this rule, so any
+        // drift between SQL and the FE projection would lie to the user about
+        // what saving will produce on the dashboard.
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+        var persoid = seed.Persoid;
+        var userId = seed.UserId;
+        var budgetId = seed.BudgetId;
+
+        var openedAt = new DateTime(2026, 03, 01, 08, 00, 00, DateTimeKind.Utc);
+        await BudgetMonthDsl.InsertOpenMonthAsync(
+            cs: _db.ConnectionString,
+            budgetId: budgetId,
+            ym: "2026-03",
+            carryOverAmount: 0m,
+            createdByUserId: userId,
+            openedAtUtc: openedAt);
+
+        await InsertSubscriptionExpenseAsync(
+            _db.ConnectionString, budgetId, "2026-03", userId,
+            name: "Netflix", amount: 100m,
+            lifecycleStatus: BudgetMonthSubscriptionLifecycleStatuses.Active);
+        await InsertSubscriptionExpenseAsync(
+            _db.ConnectionString, budgetId, "2026-03", userId,
+            name: "Spotify", amount: 50m,
+            lifecycleStatus: BudgetMonthSubscriptionLifecycleStatuses.Paused);
+        await InsertSubscriptionExpenseAsync(
+            _db.ConnectionString, budgetId, "2026-03", userId,
+            name: "HBO", amount: 30m,
+            lifecycleStatus: BudgetMonthSubscriptionLifecycleStatuses.Cancelled);
+
+        var clock = new FakeTimeProvider(new DateTime(2026, 03, 07, 08, 00, 00, DateTimeKind.Utc));
+
+        await using var sp = BuildServiceProvider(_db.ConnectionString, clock, new DebtPaymentCalculator());
+        await using var scope = sp.CreateAsyncScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+        var result = await mediator.Send(
+            new GetBudgetDashboardMonthQuery(persoid, "2026-03"),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        var dto = result.Value!;
+        dto.LiveDashboard.Should().NotBeNull();
+
+        // active (100) + cancelled (30) = 130. Paused (50) excluded.
+        dto.LiveDashboard!.Expenditure.TotalExpensesMonthly.Should().Be(130m);
+
+        // The subscription strip (count, total, items) must mirror the same
+        // rule so the dashboard cards do not contradict each other.
+        var subs = dto.LiveDashboard!.Subscriptions;
+        subs.TotalMonthlyAmount.Should().Be(130m);
+        subs.Count.Should().Be(2);
+        subs.Items.Select(i => i.Name).Should().BeEquivalentTo(new[] { "Netflix", "HBO" });
+    }
+
+    [Fact]
+    public async Task OpenMonth_TotalExpensesMonthly_ExcludesUnknownLifecycleValues()
+    {
+        // v2 hardening (review fix #3): the dashboard SQL switched from
+        // `<> 'paused'` to an explicit `IN ('active', 'cancelled')` allowlist
+        // precisely so a future or invalid lifecycle value cannot silently
+        // count toward the financial total without a deliberate code change.
+        //
+        // The `BudgetMonthExpenseItem` table already has a CHECK constraint
+        // (`CK_BudgetMonthExpenseItem_SubscriptionLifecycleStatus`) that
+        // blocks unknown values on writes today. The dashboard SQL
+        // allowlist is a defense-in-depth layer for the case where a
+        // schema migration adds a new status to the CHECK list (e.g.
+        // 'trial' / 'pending') without simultaneously updating the
+        // dashboard SQL — without it, the new status would silently
+        // affect financial totals.
+        //
+        // This test drops the CHECK constraint, inserts a row with the
+        // unsupported status, asserts the dashboard total excludes it,
+        // then leaves the test DB to the next test's `ResetAsync` for
+        // cleanup. We do not restore the constraint mid-test because the
+        // integration fixture re-applies schema per reset.
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.Minimal);
+        var persoid = seed.Persoid;
+        var userId = seed.UserId;
+        var budgetId = seed.BudgetId;
+
+        await BudgetMonthDsl.InsertOpenMonthAsync(
+            cs: _db.ConnectionString,
+            budgetId: budgetId,
+            ym: "2026-04",
+            carryOverAmount: 0m,
+            createdByUserId: userId,
+            openedAtUtc: new DateTime(2026, 04, 01, 08, 00, 00, DateTimeKind.Utc));
+
+        // Insert one known-good active sub so we can detect a regression
+        // where the allowlist accidentally excludes the supported values.
+        await InsertSubscriptionExpenseAsync(
+            _db.ConnectionString, budgetId, "2026-04", userId,
+            name: "Spotify", amount: 99m,
+            lifecycleStatus: BudgetMonthSubscriptionLifecycleStatuses.Active);
+
+        // Drop the CHECK constraint for the duration of this test so we
+        // can simulate a future-migration / partial-deploy scenario where
+        // an unsupported status string ended up in the column.
+        await using (var conn = new MySqlConnection(_db.ConnectionString))
+        {
+            await conn.OpenAsync();
+            await conn.ExecuteAsync(
+                "ALTER TABLE BudgetMonthExpenseItem DROP CONSTRAINT CK_BudgetMonthExpenseItem_SubscriptionLifecycleStatus;");
+        }
+
+        await InsertSubscriptionExpenseAsync(
+            _db.ConnectionString, budgetId, "2026-04", userId,
+            name: "Mystery Service", amount: 500m,
+            lifecycleStatus: "trial");
+
+        var clock = new FakeTimeProvider(new DateTime(2026, 04, 07, 08, 00, 00, DateTimeKind.Utc));
+
+        await using var sp = BuildServiceProvider(_db.ConnectionString, clock, new DebtPaymentCalculator());
+        await using var scope = sp.CreateAsyncScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+        var result = await mediator.Send(
+            new GetBudgetDashboardMonthQuery(persoid, "2026-04"),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        var dto = result.Value!;
+
+        // Only the active row contributes — the mystery 'trial' row is excluded.
+        dto.LiveDashboard!.Expenditure.TotalExpensesMonthly.Should().Be(99m);
+        dto.LiveDashboard!.Subscriptions.TotalMonthlyAmount.Should().Be(99m);
+        dto.LiveDashboard!.Subscriptions.Count.Should().Be(1);
+        dto.LiveDashboard!.Subscriptions.Items.Select(i => i.Name)
+            .Should().BeEquivalentTo(new[] { "Spotify" });
+    }
+
+    private static async Task InsertSubscriptionExpenseAsync(
+        string cs,
+        Guid budgetId,
+        string yearMonth,
+        Guid createdByUserId,
+        string name,
+        decimal amount,
+        string lifecycleStatus)
+    {
+        await using var conn = new MySqlConnection(cs);
+        await conn.OpenAsync();
+        await DbSeeds.EnsureDefaultExpenseCategoriesAsync(conn);
+
+        var budgetMonthId = await conn.QuerySingleAsync<Guid>(
+            """
+            SELECT Id
+            FROM BudgetMonth
+            WHERE BudgetId = @BudgetId
+              AND YearMonth = @YearMonth
+            LIMIT 1;
+            """,
+            new { BudgetId = budgetId, YearMonth = yearMonth });
+
+        await conn.ExecuteAsync(
+            """
+            INSERT INTO BudgetMonthExpenseItem
+            (
+                Id,
+                BudgetMonthId,
+                SourceExpenseItemId,
+                CategoryId,
+                Name,
+                AmountMonthly,
+                SubscriptionLifecycleStatus,
+                IsActive,
+                IsOverride,
+                IsDeleted,
+                SortOrder,
+                CreatedAt,
+                CreatedByUserId
+            )
+            VALUES
+            (
+                UUID_TO_BIN(UUID()),
+                @BudgetMonthId,
+                NULL,
+                @CategoryId,
+                @Name,
+                @AmountMonthly,
+                @SubscriptionLifecycleStatus,
+                1,
+                0,
+                0,
+                0,
+                UTC_TIMESTAMP(),
+                @CreatedByUserId
+            );
+            """,
+            new
+            {
+                BudgetMonthId = budgetMonthId,
+                CategoryId = ExpenseCategoryIds.Subscription,
+                Name = name,
+                AmountMonthly = amount,
+                SubscriptionLifecycleStatus = lifecycleStatus,
+                CreatedByUserId = createdByUserId
+            });
     }
 
     private static ServiceProvider BuildServiceProvider(

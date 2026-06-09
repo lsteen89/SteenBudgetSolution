@@ -63,6 +63,10 @@ export const editPeriodDrawerDict = {
     amountInvalid: "Ogiltigt belopp",
     categoryRequired: "Kategori krävs",
     fixValidationErrors: "Rätta valideringsfel innan du sparar",
+    addExpenseToGroup: "Lägg till i {category}",
+    inlineCreateHeading: "Ny rad i {category}",
+    createSuccess: "Raden har lagts till",
+    createErrorGeneric: "Det gick inte att lägga till raden",
   },
 
   en: {
@@ -128,6 +132,10 @@ export const editPeriodDrawerDict = {
     amountInvalid: "Invalid amount",
     categoryRequired: "Category is required",
     fixValidationErrors: "Fix validation errors before saving",
+    addExpenseToGroup: "Add to {category}",
+    inlineCreateHeading: "New row in {category}",
+    createSuccess: "Row added",
+    createErrorGeneric: "Could not add the row",
   },
 
   et: {
@@ -194,5 +202,9 @@ export const editPeriodDrawerDict = {
     amountInvalid: "Vigane summa",
     categoryRequired: "Kategooria on nõutud",
     fixValidationErrors: "Paranda validerimisvead enne salvestamist",
+    addExpenseToGroup: "Lisa kategooriasse {category}",
+    inlineCreateHeading: "Uus rida kategoorias {category}",
+    createSuccess: "Rida lisatud",
+    createErrorGeneric: "Rida ei õnnestunud lisada",
   },
 } as const;
