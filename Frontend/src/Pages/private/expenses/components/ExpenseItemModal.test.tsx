@@ -637,7 +637,7 @@ describe("ExpenseItemModal", () => {
     ).toBeDisabled();
     expect(
       screen.getByTestId("expense-item-modal-lifecycle-hint"),
-    ).toHaveTextContent(/applies to the current month only/i);
+    ).toHaveTextContent(/only applies to May 2026/i);
 
     // The visible selection must match what the wire payload will carry,
     // not the stale pre-disable choice. The row's lifecycle is "active",

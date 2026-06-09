@@ -73,6 +73,8 @@ export default function ExpensesEditorPage() {
   const locale = useAppLocale();
   const t = <K extends keyof typeof expensesEditorPageDict.sv>(key: K) =>
     tDict(key, locale, expensesEditorPageDict);
+  const withMonth = (value: string, monthLabel: string) =>
+    value.replace("{month}", monthLabel);
 
   const monthsStatusQuery = useBudgetMonthsStatusQuery();
   const editableYearMonth = useMemo(() => {
@@ -297,7 +299,9 @@ export default function ExpensesEditorPage() {
         },
       });
 
-      toast.success(row.isActive ? t("itemPaused") : t("itemResumed"));
+      toast.success(
+        withMonth(row.isActive ? t("itemPaused") : t("itemResumed"), periodLabel),
+      );
     } catch {
       toast.error(t("itemPauseError"));
     }
@@ -343,13 +347,13 @@ export default function ExpensesEditorPage() {
       // target state. Resuming from paused and reactivating from cancelled
       // both land on `active`, but read more clearly with distinct copy.
       if (next === "paused") {
-        toast.success(t("subscriptionPaused"));
+        toast.success(withMonth(t("subscriptionPaused"), periodLabel));
       } else if (next === "cancelled") {
-        toast.success(t("subscriptionCancelled"));
+        toast.success(withMonth(t("subscriptionCancelled"), periodLabel));
       } else if (previous === "cancelled") {
-        toast.success(t("subscriptionReactivated"));
+        toast.success(withMonth(t("subscriptionReactivated"), periodLabel));
       } else {
-        toast.success(t("subscriptionResumed"));
+        toast.success(withMonth(t("subscriptionResumed"), periodLabel));
       }
     } catch {
       toast.error(t("subscriptionUpdateError"));
@@ -498,6 +502,7 @@ export default function ExpensesEditorPage() {
                     key={group.key}
                     group={group}
                     readOnly={readOnly}
+                    monthLabel={periodLabel}
                     defaultOpen={true}
                     onEdit={(row) =>
                       setModalState({ open: true, mode: "edit", row })

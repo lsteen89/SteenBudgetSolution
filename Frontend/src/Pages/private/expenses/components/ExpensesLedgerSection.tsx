@@ -17,6 +17,7 @@ import ExpenseLedgerRow from "./ExpenseLedgerRow";
 type ExpensesLedgerSectionProps = {
   group: ExpenseLedgerGroupVm;
   readOnly: boolean;
+  monthLabel: string;
   defaultOpen?: boolean;
   onEdit: (row: ExpenseLedgerRowVm) => void;
   onPauseToggle: (row: ExpenseLedgerRowVm) => void;
@@ -39,6 +40,7 @@ const interpolate = (
 export default function ExpensesLedgerSection({
   group,
   readOnly,
+  monthLabel,
   defaultOpen = true,
   onEdit,
   onPauseToggle,
@@ -257,6 +259,7 @@ export default function ExpensesLedgerSection({
                     key={row.id}
                     row={row}
                     readOnly={readOnly}
+                    monthLabel={monthLabel}
                     onEdit={onEdit}
                     onPauseToggle={onPauseToggle}
                     onLifecycleChange={onLifecycleChange}
@@ -271,6 +274,7 @@ export default function ExpensesLedgerSection({
                     key={row.id}
                     row={row}
                     readOnly={readOnly}
+                    monthLabel={monthLabel}
                     onEdit={onEdit}
                     onPauseToggle={onPauseToggle}
                     onLifecycleChange={onLifecycleChange}
@@ -289,6 +293,7 @@ export default function ExpensesLedgerSection({
                         key={row.id}
                         row={row}
                         readOnly={readOnly}
+                        monthLabel={monthLabel}
                         onEdit={onEdit}
                         onPauseToggle={onPauseToggle}
                         // Mirror the active-rows branch above. Inactive
@@ -314,4 +319,3 @@ export default function ExpensesLedgerSection({
     </section>
   );
 }
-
