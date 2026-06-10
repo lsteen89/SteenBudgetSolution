@@ -12,6 +12,7 @@ export const appRoutes = {
   emailConfirmation: "/email-confirmation",
   dashboard: "/dashboard",
   dashboardBreakdown: "/dashboard/breakdown",
+  dashboardNextMonth: "/dashboard/next-month",
   dashboardHowItWorks: "/dashboard/how-it-works",
   dashboardSupport: "/dashboard/support",
   dashboardSettings: "/dashboard/settings",

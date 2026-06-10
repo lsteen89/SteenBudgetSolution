@@ -8,6 +8,7 @@ import type {
 import type { ExpenseCategoryDto } from "@/types/budget/ExpenseCategoryDto";
 import type { BudgetMonthRecapDto } from "@/types/budget/BudgetMonthRecapDto";
 import type { SavingsGoalCompletionCandidateDto } from "@/types/budget/SavingsGoalCompletionCandidateDto";
+import type { NextMonthPreviewDto } from "@/types/budget/NextMonthPreviewDto";
 import type { BudgetDashboardMonthDto } from "@myTypes/budget/BudgetDashboardMonthDto";
 
 export async function fetchBudgetMonthsStatus(): Promise<BudgetMonthsStatusDto> {
@@ -84,6 +85,20 @@ export async function fetchBudgetDashboardMonth(
   );
 
   return unwrapEnvelopeData(res, "Could not load budget dashboard.");
+}
+
+// Read-only next-month preview projected from the budget plan. The backend
+// guarantees this never inserts or materialises a BudgetMonth. A non-open
+// from-month comes back as `state: "unavailable"` (a successful envelope with
+// `dashboard: null`) rather than a failure — only an invalid year-month fails.
+export async function fetchNextMonthPreview(
+  fromYearMonth: string,
+): Promise<NextMonthPreviewDto> {
+  const res = await api.get<ApiEnvelope<NextMonthPreviewDto>>(
+    `/api/budgets/months/${encodeURIComponent(fromYearMonth)}/next-preview`,
+  );
+
+  return unwrapEnvelopeData(res, "Could not load next-month preview.");
 }
 
 export async function fetchBudgetMonthRecap(
