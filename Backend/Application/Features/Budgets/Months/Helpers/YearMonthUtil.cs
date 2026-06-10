@@ -77,4 +77,17 @@ public static class YearMonthUtil
         var (y, m) = Parse(yearMonth);
         return $"{y:D4}-{m:D2}";
     }
+
+    /// <summary>
+    /// Returns the YYYY-MM that is <paramref name="months"/> calendar months
+    /// after <paramref name="yearMonth"/>. Accepts negative offsets. Throws if
+    /// <paramref name="yearMonth"/> is invalid.
+    /// </summary>
+    public static string AddMonths(string yearMonth, int months)
+    {
+        var (y, m) = Parse(yearMonth);
+        return new DateTime(y, m, 1, 0, 0, 0, DateTimeKind.Utc)
+            .AddMonths(months)
+            .ToString("yyyy-MM", CultureInfo.InvariantCulture);
+    }
 }

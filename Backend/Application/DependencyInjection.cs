@@ -27,6 +27,7 @@ using Backend.Application.Services.Debts;
 using Backend.Application.Services.Security;
 using Backend.Application.BudgetMonths.Services;
 using Backend.Application.Services.Budget.Materializer;
+using Backend.Application.Features.Budgets.Months.NextPreview;
 
 // Features
 using Backend.Application.Features.Wizard.Finalization.Orchestration;
@@ -120,6 +121,8 @@ public static class DependencyInjection
         services.AddScoped<IBudgetDashboardProjector, BudgetDashboardProjector>();
         services.AddScoped<IBudgetMonthLifecycleService, BudgetMonthLifecycleService>();
         services.AddScoped<IBudgetMonthMaterializer, BudgetMonthMaterializer>();
+        // Read-only next-month preview: plan rows -> dashboard read model (no materialisation).
+        services.AddScoped<INextMonthPreviewReadModelBuilder, NextMonthPreviewReadModelBuilder>();
         #endregion
         // Security
         services.AddSingleton<ISeedingGate, EnvSeedingGate>();

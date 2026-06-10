@@ -1,5 +1,7 @@
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Application.Features.Budgets.Months.Models.Baseline;
+using Backend.Application.Mappings.Budget;
+using Backend.Domain.Entities.Budget.Debt;
 using Backend.Infrastructure.Data.BaseClass;
 using Backend.Domain.Abstractions;
 using Microsoft.Extensions.Options;
@@ -58,4 +60,14 @@ public sealed partial class BudgetMonthSeedSourceRepository : SqlBase, IBudgetMo
             GetActiveDebtsSql,
             new { BudgetId = budgetId },
             ct)).ToList();
+
+    public async Task<RepaymentStrategy> GetRepaymentStrategyAsync(Guid budgetId, CancellationToken ct)
+    {
+        var raw = await ExecuteScalarAsync<string?>(
+            GetRepaymentStrategySql,
+            new { BudgetId = budgetId },
+            ct);
+
+        return RepaymentStrategyParsing.Parse(raw);
+    }
 }

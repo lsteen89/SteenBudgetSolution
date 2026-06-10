@@ -2,6 +2,7 @@ using Backend.Application.DTO.Budget.Months;
 using Backend.Application.Features.Budgets.Months.CloseBudgetMonth;
 using Backend.Application.Features.Budgets.Months.CloseBudgetMonth.GetSavingsGoalCompletionCandidates;
 using Backend.Application.Features.Budgets.Months.GetBudgetMonthsStatus;
+using Backend.Application.Features.Budgets.Months.NextPreview;
 using Backend.Application.Features.Budgets.Months.StartBudgetMonth;
 using Backend.Presentation.Shared;
 using Microsoft.AspNetCore.Mvc;
@@ -25,6 +26,30 @@ public sealed partial class BudgetController
         }
 
         return Ok(ApiEnvelope<BudgetMonthsStatusDto>.Success(result.Value));
+    }
+
+    // Read-only next-month preview projected from the budget plan. Never
+    // inserts or materialises a BudgetMonth — see GetNextMonthPreviewQueryHandler.
+    // The preview is derived from the user's open month; any other from-month
+    // returns an "unavailable" state rather than a fabricated projection.
+    [HttpGet("months/{fromYearMonth}/next-preview")]
+    [ProducesResponseType(typeof(ApiEnvelope<NextMonthPreviewDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiEnvelope<NextMonthPreviewDto>>> GetNextMonthPreview(
+        [FromRoute] string fromYearMonth,
+        CancellationToken ct)
+    {
+        var result = await _mediator.Send(
+            new GetNextMonthPreviewQuery(_currentUser.Persoid, fromYearMonth),
+            ct);
+
+        if (result.IsFailure)
+        {
+            return Ok(ApiEnvelope<NextMonthPreviewDto>.Failure(
+                code: result.Error!.Code,
+                message: result.Error.Message));
+        }
+
+        return Ok(ApiEnvelope<NextMonthPreviewDto>.Success(result.Value!));
     }
 
     [HttpPost("months/start")]
