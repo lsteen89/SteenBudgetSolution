@@ -4,6 +4,7 @@ import {
   LoaderCircle,
   Lock,
   SkipForward,
+  Sparkles,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -56,6 +57,15 @@ export type MonthRailViewModel = {
     label: string;
     disabled?: boolean;
     ariaLabel?: string;
+    /**
+     * How the Next button navigates. `"persisted"` (the default when omitted)
+     * moves to the adjacent persisted month via `onGoNext`. `"preview"` means
+     * there is no persisted next month yet but a read-only next-month preview
+     * is available — `onGoNext` routes to `/dashboard/next-month`, and the
+     * button shows a distinct affordance so it never reads as ordinary
+     * persisted-month navigation.
+     */
+    mode?: "persisted" | "preview";
   };
   ribbonItems: PeriodStatusRibbonItem[];
   action: PeriodActionSlotViewModel;
@@ -146,6 +156,7 @@ export default function MonthRail({
   const previousAriaLabel =
     vm.previous?.ariaLabel ?? previousLabel ?? "Previous month";
   const nextAriaLabel = vm.next?.ariaLabel ?? nextLabel ?? "Next month";
+  const isPreviewNext = vm.next?.mode === "preview";
 
   const showArchive =
     !!vm.archive && !!onSelectMonth && Array.isArray(archiveMonths);
@@ -207,16 +218,27 @@ export default function MonthRail({
           <button
             type="button"
             data-testid="month-nav-next"
+            data-next-mode={vm.next?.mode ?? "persisted"}
             onClick={onGoNext}
             disabled={vm.next?.disabled || isSwitchingMonth}
-            className={cn(navButtonBase, navButtonDisabled, "text-sm font-semibold")}
+            className={cn(
+              navButtonBase,
+              navButtonDisabled,
+              "text-sm font-semibold",
+              isPreviewNext &&
+                "border-eb-accent/40 text-eb-accent hover:text-eb-accent",
+            )}
             aria-label={nextAriaLabel}
             title={nextLabel}
           >
             <span className="hidden max-w-[8rem] truncate sm:inline">
               {nextLabel}
             </span>
-            <ChevronRight className="h-4 w-4 shrink-0" aria-hidden="true" />
+            {isPreviewNext ? (
+              <Sparkles className="h-4 w-4 shrink-0" aria-hidden="true" />
+            ) : (
+              <ChevronRight className="h-4 w-4 shrink-0" aria-hidden="true" />
+            )}
           </button>
 
           {showArchive ? (

@@ -208,6 +208,47 @@ describe("MonthRail — switching month", () => {
   });
 });
 
+describe("MonthRail — next month preview", () => {
+  it("renders a preview-distinct Next affordance that stays enabled and fires onGoNext", () => {
+    const onGoNext = vi.fn();
+    render(
+      <MonthRail
+        vm={makeVm({
+          next: {
+            label: "July 2026",
+            disabled: false,
+            ariaLabel: "Review next month (preview): July 2026",
+            mode: "preview",
+          },
+        })}
+        onGoNext={onGoNext}
+      />,
+    );
+
+    const nextBtn = screen.getByTestId("month-nav-next");
+    // The preview button is distinct from persisted navigation: it advertises
+    // its preview mode and its accessible name says "preview", not "go to".
+    expect(nextBtn).toHaveAttribute("data-next-mode", "preview");
+    expect(nextBtn).toHaveAttribute(
+      "aria-label",
+      "Review next month (preview): July 2026",
+    );
+    expect(nextBtn).not.toBeDisabled();
+
+    fireEvent.click(nextBtn);
+    expect(onGoNext).toHaveBeenCalledTimes(1);
+  });
+
+  it("defaults the Next button to persisted mode when no mode is set", () => {
+    render(<MonthRail vm={makeVm()} />);
+
+    expect(screen.getByTestId("month-nav-next")).toHaveAttribute(
+      "data-next-mode",
+      "persisted",
+    );
+  });
+});
+
 describe("MonthRail — nav availability", () => {
   it("reflects view-model disabled flags on prev/next buttons", () => {
     render(

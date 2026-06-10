@@ -13,13 +13,17 @@ import DashboardErrorState from "@/components/organisms/dashboard/DashboardError
 import ContentWrapper from "@components/layout/ContentWrapper";
 import PageContainer from "@components/layout/PageContainer";
 import { buildTermsFromLiveDashboard } from "@/domain/budget/dashboardTerms";
+import {
+  classifyRemaining,
+  isEmptyPlanDashboard,
+  ymLabel,
+} from "@/domain/budget/nextMonthPreview";
 import { useBudgetMonthsStatusQuery } from "@/hooks/budget/useBudgetMonthsStatusQuery";
 import { useNextMonthPreviewQuery } from "@/hooks/budget/useNextMonthPreviewQuery";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/lib/utils";
 import { appRoutes } from "@/routes/appRoutes";
 import { useAuthStore } from "@/stores/Auth/authStore";
-import type { BudgetDashboardDto } from "@/types/budget/BudgetDashboardDto";
 import type { NextMonthPreviewDto } from "@/types/budget/NextMonthPreviewDto";
 import { toApiProblem } from "@/api/toApiProblem";
 import { toUserMessage } from "@/utils/i18n/apiErrors/toUserMessage";
@@ -28,45 +32,6 @@ import { nextMonthPreviewDict } from "@/utils/i18n/pages/private/dashboard/pages
 import { tDict } from "@/utils/i18n/translate";
 import type { CurrencyCode } from "@/utils/money/currency";
 import { formatMoneyV2, moneyDecimalsFor } from "@/utils/money/moneyV2";
-
-const REMAINING_EPSILON = 0.005;
-
-type RemainingTone = "positive" | "zero" | "negative";
-
-function classifyRemaining(remaining: number): RemainingTone {
-  if (remaining > REMAINING_EPSILON) return "positive";
-  if (remaining < -REMAINING_EPSILON) return "negative";
-  return "zero";
-}
-
-function ymLabel(ym: string, locale: string): string {
-  const [y, m] = ym.split("-").map(Number);
-  const d = new Date(y, (m ?? 1) - 1, 1);
-  return d.toLocaleDateString(locale, { year: "numeric", month: "long" });
-}
-
-const num0 = (v: unknown) =>
-  typeof v === "number" && Number.isFinite(v) ? v : 0;
-
-/**
- * No meaningful budget plan to project: all four plan components are zero.
- * Such a DTO still comes back as `state: "preview"`, so without this guard the
- * success path would render a "0 kr / fully assigned" money state as if it
- * were a real projection. Carry-over is deliberately excluded — it is derived
- * from this month, not the plan, so it never makes an empty plan look funded.
- */
-function isEmptyPlanDashboard(d: BudgetDashboardDto): boolean {
-  const income = num0(d.income?.totalIncomeMonthly);
-  const expenses = num0(d.expenditure?.totalExpensesMonthly);
-  const savings = num0(d.savings?.totalSavingsMonthly);
-  const debts = num0(d.debt?.totalMonthlyPayments);
-  return (
-    Math.abs(income) < REMAINING_EPSILON &&
-    Math.abs(expenses) < REMAINING_EPSILON &&
-    Math.abs(savings) < REMAINING_EPSILON &&
-    Math.abs(debts) < REMAINING_EPSILON
-  );
-}
 
 const NextMonthPreviewPage: React.FC = () => {
   const locale = useAppLocale();

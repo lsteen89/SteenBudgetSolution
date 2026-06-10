@@ -14,6 +14,10 @@ const mockUseDashboardSummary = vi.fn();
 const mockUseBudgetMonthRecapQuery = vi.fn();
 const mockMutateAsync = vi.fn();
 const mockSetSelectedYearMonth = vi.fn();
+// Controllable next-month preview query. Defaults to "unavailable" (set in
+// beforeEach) so the rail Next button keeps its persisted-only behaviour; the
+// preview-aware-Next tests (PR4) override it per case.
+const mockUseNextMonthPreviewQuery = vi.fn();
 // Spy variant of the savings-goal completion candidates query. The default
 // implementation matches the previous always-empty mock so existing tests
 // keep their behaviour; the gating test (P6) overrides nothing — it only
@@ -59,6 +63,19 @@ vi.mock("@/hooks/budget/useSavingsGoalCompletionCandidatesQuery", () => ({
   ) => mockUseSavingsGoalCompletionCandidatesQuery(yearMonth, options),
   savingsGoalCompletionCandidatesQueryKey: (ym?: string | null) => [
     "savingsGoalCompletionCandidates",
+    ym ?? null,
+  ],
+}));
+
+// PlanningRow (PR3) and the preview-aware MonthRail Next button (PR4) both read
+// the next-month preview through this hook. Route it through a controllable spy
+// so tests stay off react-query; the shared query key means both consumers get
+// one fetch in the real app.
+vi.mock("@/hooks/budget/useNextMonthPreviewQuery", () => ({
+  useNextMonthPreviewQuery: (...args: unknown[]) =>
+    mockUseNextMonthPreviewQuery(...args),
+  nextMonthPreviewQueryKey: (ym: string | null) => [
+    "nextMonthPreview",
     ym ?? null,
   ],
 }));
@@ -454,6 +471,27 @@ function mockClosedMonthDashboard(recap = buildClosedRecap()) {
   });
 }
 
+// A real "preview" DTO from the next-preview endpoint. The dashboard reuses the
+// open-month live-dashboard shape (non-empty plan) so `selectNextMonthRemaining`
+// returns a real number — i.e. a preview is genuinely available.
+function buildPreviewDto() {
+  return {
+    fromYearMonth: "2026-04",
+    previewYearMonth: "2026-05",
+    state: "preview" as const,
+    basis: "budgetPlan" as const,
+    currencyCode: "SEK" as const,
+    carryOver: {
+      mode: "estimatedFull" as const,
+      amount: 245,
+      source: "currentMonthLiveFinalBalance" as const,
+      isFinal: false as const,
+    },
+    dashboard: buildDashboardMonthDto(245, "open").liveDashboard,
+    limitations: [],
+  };
+}
+
 function renderDashboardContent() {
   render(
     <MemoryRouter>
@@ -484,6 +522,10 @@ function renderDashboardContentWithRoutes() {
         <Route path="/dashboard/income" element={<div>Income route</div>} />
         <Route path="/dashboard/savings" element={<div>Savings route</div>} />
         <Route path="/dashboard/debts" element={<div>Debts route</div>} />
+        <Route
+          path="/dashboard/next-month"
+          element={<div>Next month preview route</div>}
+        />
       </Routes>
     </MemoryRouter>,
   );
@@ -503,6 +545,12 @@ describe("DashboardContent", () => {
     });
     mockMutateAsync.mockReset();
     mockSetSelectedYearMonth.mockReset();
+    mockUseNextMonthPreviewQuery.mockReset();
+    mockUseNextMonthPreviewQuery.mockReturnValue({
+      data: undefined,
+      isPending: false,
+      isError: false,
+    });
     mockUseSavingsGoalCompletionCandidatesQuery.mockClear();
     mockToast.success.mockReset();
     mockToast.error.mockReset();
@@ -1062,6 +1110,82 @@ describe("DashboardContent", () => {
     fireEvent.click(screen.getByRole("button", { name: /manage all debts/i }));
 
     expect(screen.getByText("Debts route")).toBeInTheDocument();
+  });
+
+  // --------------------------------------------------------------------------
+  // PR4 — Preview-aware Next button.
+  //
+  // On the active open month with no persisted next month, the rail Next button
+  // routes to the read-only preview when one is available; otherwise it stays
+  // disabled. A persisted next month always uses normal month navigation. The
+  // preview is fetched through the same hook/key as PlanningRow, so no extra
+  // request is made and `/dashboard?yearMonth={next}` is never called.
+  // --------------------------------------------------------------------------
+
+  it("routes the rail Next button to the next-month preview when the open month has no persisted next and a preview is available", () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+    mockUseNextMonthPreviewQuery.mockReturnValue({
+      data: buildPreviewDto(),
+      isPending: false,
+      isError: false,
+    });
+
+    renderDashboardContentWithRoutes();
+
+    const nextBtn = screen.getByTestId("month-nav-next");
+    expect(nextBtn).not.toBeDisabled();
+    expect(nextBtn).toHaveAttribute("data-next-mode", "preview");
+
+    fireEvent.click(nextBtn);
+
+    expect(screen.getByText("Next month preview route")).toBeInTheDocument();
+    // Reaching the preview must never switch the dashboard to the next month
+    // (which would hit /dashboard?yearMonth={next} and risk materialisation).
+    expect(mockSetSelectedYearMonth).not.toHaveBeenCalledWith("2026-05");
+  });
+
+  it("keeps the rail Next button disabled on the open month when no preview is available", () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+    // Default preview mock returns "unavailable" (data: undefined).
+
+    renderDashboardContent();
+
+    const nextBtn = screen.getByTestId("month-nav-next");
+    expect(nextBtn).toBeDisabled();
+    expect(nextBtn).toHaveAttribute("data-next-mode", "persisted");
+  });
+
+  it("uses persisted month navigation for the rail Next button when a persisted next month exists", () => {
+    const goToNextMonth = vi.fn();
+    const summaryWithNext = buildSummary(245, "open", {
+      header: {
+        canGoNext: true,
+        nextPeriodLabel: "May 2026",
+        nextPeriodKey: "2026-05",
+      },
+    });
+    mockUseDashboardSummary.mockReturnValue({
+      ...readyResult,
+      goToNextMonth,
+      data: { ...readyResult.data, summary: summaryWithNext },
+    });
+    // Even if a preview were available, a persisted next month always wins.
+    mockUseNextMonthPreviewQuery.mockReturnValue({
+      data: buildPreviewDto(),
+      isPending: false,
+      isError: false,
+    });
+
+    renderDashboardContentWithRoutes();
+
+    const nextBtn = screen.getByTestId("month-nav-next");
+    expect(nextBtn).not.toBeDisabled();
+    expect(nextBtn).toHaveAttribute("data-next-mode", "persisted");
+
+    fireEvent.click(nextBtn);
+
+    expect(goToNextMonth).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText("Next month preview route")).toBeNull();
   });
 
   it("opens the close month modal from the month rail trigger with translated title", () => {

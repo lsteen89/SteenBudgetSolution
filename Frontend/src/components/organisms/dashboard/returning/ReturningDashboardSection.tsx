@@ -13,6 +13,7 @@ import AttentionLane from "./openMonth/AttentionLane";
 import CloseBand from "./openMonth/CloseBand";
 import MoneyState from "./openMonth/MoneyState";
 import OpenMonthPillarWorkbench from "./openMonth/OpenMonthPillarWorkbench";
+import PlanningRow from "./openMonth/PlanningRow";
 
 export interface ReturningDashboardSectionProps {
   onOpenPeriodEditor: () => void;
@@ -109,6 +110,26 @@ const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({
           isSwitchingMonth && "opacity-75",
         )}
       >
+        {/*
+          PlanningRow (next-month MVP PR3) teaches the budget model — this
+          month → next month → budget plan — directly under the MoneyState
+          hero. It carries the single "Review next month" CTA to the read-only
+          preview page. The AttentionLane below is intentionally untouched.
+        */}
+        <div
+          className={cn(
+            "transition-opacity duration-250 ease-out",
+            isSwitchingMonth && "opacity-90",
+          )}
+        >
+          <PlanningRow
+            fromYearMonth={summary.header.periodKey}
+            remainingToSpend={summary.remainingToSpend}
+            periodLabel={summary.header.periodLabel}
+            currency={summary.currency}
+          />
+        </div>
+
         {/*
           CloseBand (PR5) sits between MoneyState and AttentionLane per the
           locked Spine section order. It self-suppresses (returns null) when
