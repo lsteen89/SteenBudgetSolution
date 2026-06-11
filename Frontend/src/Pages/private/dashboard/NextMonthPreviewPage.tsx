@@ -301,7 +301,6 @@ function MoneyStateSurface({
     savings: t("allocationSavings"),
     debts: t("allocationDebts"),
     free: t("allocationFree"),
-    unfunded: t("allocationUnfunded"),
     runsOutMarker: t("allocationRunsOut"),
   };
 

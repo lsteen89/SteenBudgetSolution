@@ -136,11 +136,32 @@ describe("MoneyState — surplus", () => {
     // AllocationBar is present and not in deficit treatment.
     expect(screen.getByTestId("money-state-allocation")).toBeInTheDocument();
     expect(
-      screen.queryByTestId("money-state-allocation-unfunded"),
+      screen.queryByTestId("money-state-allocation-runs-out"),
     ).toBeNull();
   });
 
-  it("renders every equation term, including carry-over at zero", () => {
+  it("renders the Open month kicker with the month's date range", () => {
+    renderMoneyState(
+      buildOpenMonthDto({
+        income: 10000,
+        expenses: 7000,
+        savings: 500,
+        debts: 0,
+        remaining: 2500,
+      }),
+    );
+
+    const kicker = screen.getByTestId("money-state-kicker");
+    expect(kicker.textContent ?? "").toContain(
+      moneyStateDict.en.kickerOpenMonth,
+    );
+    // yearMonth is 2026-04 → the en-US range mentions April and both endpoints.
+    expect(kicker.textContent ?? "").toMatch(/April/);
+    expect(kicker.textContent ?? "").toMatch(/1/);
+    expect(kicker.textContent ?? "").toMatch(/30/);
+  });
+
+  it("does not render the six-term equation row (V2 PR2)", () => {
     renderMoneyState(
       buildOpenMonthDto({
         income: 10000,
@@ -152,32 +173,7 @@ describe("MoneyState — surplus", () => {
       }),
     );
 
-    const equation = screen.getByTestId("money-state-equation");
-    const incomeChip = within(equation).getByTestId(
-      "money-state-equation-income",
-    );
-    const carryOverChip = within(equation).getByTestId(
-      "money-state-equation-carryOver",
-    );
-    const expensesChip = within(equation).getByTestId(
-      "money-state-equation-expenses",
-    );
-    const savingsChip = within(equation).getByTestId(
-      "money-state-equation-savings",
-    );
-    const debtsChip = within(equation).getByTestId(
-      "money-state-equation-debts",
-    );
-    const remainingChip = within(equation).getByTestId(
-      "money-state-equation-remaining",
-    );
-
-    expect(incomeChip.textContent ?? "").toMatch(/10,000/);
-    expect(carryOverChip.textContent ?? "").toMatch(/0/);
-    expect(expensesChip.textContent ?? "").toMatch(/7,000/);
-    expect(savingsChip.textContent ?? "").toMatch(/500/);
-    expect(debtsChip.textContent ?? "").toMatch(/0/);
-    expect(remainingChip.textContent ?? "").toMatch(/2,500/);
+    expect(screen.queryByTestId("money-state-equation")).toBeNull();
   });
 });
 
@@ -201,10 +197,7 @@ describe("MoneyState — zero", () => {
     expect(
       screen.getByText(moneyStateDict.en.helperZero),
     ).toBeInTheDocument();
-    // No deficit marker / unfunded overlay at exactly zero.
-    expect(
-      screen.queryByTestId("money-state-allocation-unfunded"),
-    ).toBeNull();
+    // No deficit marker at exactly zero.
     expect(
       screen.queryByTestId("money-state-allocation-runs-out"),
     ).toBeNull();
@@ -239,13 +232,13 @@ describe("MoneyState — deficit", () => {
       screen.getByText(moneyStateDict.en.helperNegative),
     ).toBeInTheDocument();
 
-    // The AllocationBar surfaces the unfunded overlay + runs-out marker.
-    expect(
-      screen.getByTestId("money-state-allocation-unfunded"),
-    ).toBeInTheDocument();
+    // The AllocationBar surfaces the thin danger runs-out marker.
     expect(
       screen.getByTestId("money-state-allocation-runs-out"),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("money-state-allocation-unfunded"),
+    ).toBeNull();
   });
 });
 
@@ -349,6 +342,26 @@ describe("MoneyState — allocation legend", () => {
     expect(
       within(legend).queryByTestId("money-state-allocation-legend-debts"),
     ).toBeNull();
+  });
+});
+
+describe("MoneyState — breakdown ghost action", () => {
+  it("routes to the breakdown page from the allocation header, with the short label", () => {
+    renderMoneyState(
+      buildOpenMonthDto({
+        income: 12000,
+        expenses: 8000,
+        savings: 1000,
+        debts: 500,
+        remaining: 2500,
+      }),
+    );
+
+    const link = screen.getByTestId("money-state-breakdown-link");
+    expect(link).toHaveAttribute("href", "/dashboard/breakdown");
+    expect(link).toHaveTextContent(moneyStateDict.en.breakdownLink);
+    // The old large footer CTA copy is gone.
+    expect(screen.queryByText("See the full breakdown")).toBeNull();
   });
 });
 

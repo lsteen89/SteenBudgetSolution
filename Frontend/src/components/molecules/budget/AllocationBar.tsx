@@ -14,8 +14,6 @@ export type AllocationBarLabels = {
   debts: string;
   /** Label for the surplus segment when commitments fit inside available money. */
   free: string;
-  /** Label for the unfunded-tail overlay in a deficit. */
-  unfunded: string;
   /** Aria description for the "money runs out" marker in a deficit. */
   runsOutMarker: string;
 };
@@ -56,8 +54,8 @@ export type AllocationSegmentKey = "expenses" | "savings" | "debts" | "free";
 
 /**
  * Calm allocation palette — navy → blue → amber → green. Planned outflows are
- * never danger red; that tone is reserved for the deficit runs-out marker and
- * the unfunded tail. Shared so the bar and any legend stay colour-consistent.
+ * never danger red; that tone is reserved for the deficit runs-out marker.
+ * Shared so the bar and any legend stay colour-consistent.
  */
 export const ALLOCATION_SEGMENT_BAR_CLASS: Record<
   AllocationSegmentKey,
@@ -95,29 +93,28 @@ export function getVisibleAllocationSegments(
 }
 
 /**
- * Dashboard allocation flow bar.
+ * Dashboard allocation flow bar (V2 blueprint grammar).
  *
- * Visualises how this month's available money is split across expenses,
- * savings, debts, and free remaining money. The split is anchored to
- * backend-authoritative `terms.remaining` so the bar never disagrees with
- * the surrounding MoneyState anchor.
+ * Renders the split as discrete rectangular segments — 16px tall, separated
+ * by explicit gaps, each with a small 4px radius — rather than one rounded
+ * progress pill. Segments size proportionally via `flex-grow` (the amount is
+ * the grow factor), with a small min-width so tiny-but-real amounts stay
+ * visible. The split is anchored to backend-authoritative `terms.remaining`
+ * so the bar never disagrees with the surrounding MoneyState anchor.
  *
  * - **Surplus / balanced** (`remaining >= 0`):
- *   four proportional segments — expenses, savings, debts, free — fill the
- *   bar against an implicit inflow of `committed + remaining`. Segment
- *   widths sum to 100%.
+ *   up to four proportional segments — expenses, savings, debts, free —
+ *   share the track against an implicit inflow of `committed + remaining`.
  *
  * - **Deficit** (`remaining < 0`):
- *   the three committed segments fill the bar against a `committed`
- *   denominator (segment widths still sum to 100%). An unfunded-tail
- *   overlay covers the portion of the bar past where money runs out, and a
- *   marker shows that point. The overlay is layered on top of the segments
- *   — no segment ever overflows 100%.
+ *   the three committed segments share the track against the `committed`
+ *   denominator, and a thin danger marker shows where the month's money
+ *   runs out — the committed span past it is what the plan does not fund.
  *
  * When the implicit inflow is non-positive (catastrophic deficit — backend
  * remaining is negative beyond the committed total), the runs-out marker
- * sits at 0% and the unfunded overlay covers the entire bar; the committed
- * segments stay visible underneath to show what was committed.
+ * sits at 0%; the committed segments stay visible to show what was
+ * committed.
  *
  * The bar is safe to render regardless of `DashboardTermsResult.reconciles`
  * — it follows backend remaining either way. Reconciliation drift should
@@ -143,18 +140,6 @@ export default function AllocationBar({
   const inflow = isDeficit
     ? clampNonNegative(committed + remaining)
     : committed + free;
-
-  // Denominator is whichever side actually fills the bar. Segment widths
-  // therefore sum to <= 100% in every mode, including catastrophic deficit.
-  const denominator = isDeficit
-    ? Math.max(committed, 1)
-    : Math.max(inflow, 1);
-
-  const widthPct = (amount: number) => {
-    if (amount <= 0) return 0;
-    const pct = (amount / denominator) * 100;
-    return Math.max(0, Math.min(100, pct));
-  };
 
   const runsOutAtPct =
     isDeficit && committed > 0 ? (inflow / committed) * 100 : null;
@@ -201,48 +186,36 @@ export default function AllocationBar({
       data-testid={testId}
       role="img"
       aria-label={labels.ariaLabel}
-      className={cn(
-        "relative h-3.5 w-full overflow-hidden rounded-full bg-eb-stroke/40",
-        className,
-      )}
+      className={cn("relative w-full", className)}
     >
-      <div className="absolute inset-0 flex">
-        {visible.map((segment, index) => {
-          const isFirst = index === 0;
-          const isLast = index === visible.length - 1;
-          return (
-            <span
-              key={segment.key}
-              data-testid={`${testId}-${segment.key}`}
-              aria-label={segment.label}
-              className={cn(
-                "h-full shadow-[inset_-1px_0_0_rgb(255_255_255_/_0.55),inset_0_-1px_0_rgb(15_23_42_/_0.06)]",
-                isFirst && "rounded-l-full",
-                isLast && "rounded-r-full",
-                segment.barClassName,
-              )}
-              style={{ width: `${widthPct(segment.amount)}%` }}
-            />
-          );
-        })}
+      <div className="flex h-4 gap-[3px]">
+        {visible.map((segment) => (
+          <span
+            key={segment.key}
+            data-testid={`${testId}-${segment.key}`}
+            aria-label={segment.label}
+            className={cn(
+              "h-full min-w-[8px] rounded-[4px]",
+              "shadow-[inset_0_-1px_0_rgb(15_23_42_/_0.06)]",
+              segment.barClassName,
+            )}
+            style={{ flexGrow: segment.amount, flexBasis: 0 }}
+          />
+        ))}
+        {visible.length === 0 ? (
+          <span
+            aria-hidden="true"
+            className="h-full flex-1 rounded-[4px] bg-eb-stroke/30"
+          />
+        ) : null}
       </div>
-
-      {isDeficit && runsOutAtPct !== null ? (
-        <span
-          data-testid={`${testId}-unfunded`}
-          role="presentation"
-          aria-label={labels.unfunded}
-          className="pointer-events-none absolute top-0 bottom-0 bg-eb-danger/15 [background-image:repeating-linear-gradient(45deg,rgb(var(--eb-danger)/0.55)_0_6px,transparent_6px_12px)]"
-          style={{ left: `${runsOutAtPct}%`, right: 0 }}
-        />
-      ) : null}
 
       {isDeficit && runsOutAtPct !== null ? (
         <span
           data-testid={`${testId}-runs-out`}
           role="separator"
           aria-label={labels.runsOutMarker}
-          className="pointer-events-none absolute -top-1 -bottom-1 w-px bg-eb-text/80"
+          className="pointer-events-none absolute -top-1 -bottom-1 w-0.5 rounded-full bg-eb-danger"
           style={{ left: `${runsOutAtPct}%` }}
         />
       ) : null}

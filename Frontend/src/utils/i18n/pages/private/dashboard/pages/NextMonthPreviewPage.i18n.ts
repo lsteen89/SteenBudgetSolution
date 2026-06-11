@@ -42,7 +42,6 @@ export const nextMonthPreviewDict = {
     allocationSavings: "Sparande",
     allocationDebts: "Skulder",
     allocationFree: "Fritt",
-    allocationUnfunded: "Saknar täckning",
     allocationRunsOut: "Här tar pengarna slut",
 
     // carry-over assumption — {month} and {amount} are interpolated
@@ -125,7 +124,6 @@ export const nextMonthPreviewDict = {
     allocationSavings: "Savings",
     allocationDebts: "Debts",
     allocationFree: "Free",
-    allocationUnfunded: "Unfunded",
     allocationRunsOut: "Money runs out here",
 
     carryAssumption:
@@ -203,7 +201,6 @@ export const nextMonthPreviewDict = {
     allocationSavings: "Sääst",
     allocationDebts: "Võlad",
     allocationFree: "Vaba",
-    allocationUnfunded: "Katteta",
     allocationRunsOut: "Siin saab raha otsa",
 
     carryAssumption:

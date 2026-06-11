@@ -714,7 +714,7 @@ describe("DashboardContent", () => {
     expect(screen.queryByText(/desktop:\s*true/i)).toBeNull();
   });
 
-  it("renders the open-month MoneyState anchor, equation and allocation bar", () => {
+  it("renders the open-month MoneyState anchor and allocation bar (V2 PR2 contract)", () => {
     mockUseDashboardSummary.mockReturnValue(readyResult);
 
     renderDashboardContent();
@@ -722,44 +722,31 @@ describe("DashboardContent", () => {
     const moneyState = screen.getByTestId("money-state");
     expect(moneyState).toBeInTheDocument();
     expect(moneyState).toHaveAttribute("data-tone", "positive");
-    expect(within(moneyState).getByText("Money state")).toBeInTheDocument();
-    expect(within(moneyState).getByText("Left this month")).toBeInTheDocument();
 
-    // The six-term equation is rendered inline, including carry-over at 0,
-    // so the user can see why the remaining amount is what it is.
+    // The hero opens with the "Open month · {date range}" kicker; the old
+    // eyebrow pill and "Left this month" label are gone.
     expect(
-      within(moneyState).getByTestId("money-state-equation"),
-    ).toBeInTheDocument();
-    expect(
-      within(moneyState).getByTestId("money-state-equation-income"),
-    ).toBeInTheDocument();
-    expect(
-      within(moneyState).getByTestId("money-state-equation-carryOver"),
-    ).toBeInTheDocument();
-    expect(
-      within(moneyState).getByTestId("money-state-equation-expenses"),
-    ).toBeInTheDocument();
-    expect(
-      within(moneyState).getByTestId("money-state-equation-savings"),
-    ).toBeInTheDocument();
-    expect(
-      within(moneyState).getByTestId("money-state-equation-debts"),
-    ).toBeInTheDocument();
-    expect(
-      within(moneyState).getByTestId("money-state-equation-remaining"),
-    ).toBeInTheDocument();
+      within(moneyState).getByTestId("money-state-kicker").textContent ?? "",
+    ).toContain("Open month");
+    expect(within(moneyState).queryByText("Money state")).toBeNull();
+    expect(within(moneyState).queryByText("Left this month")).toBeNull();
+
+    // The six-term equation row is no longer rendered (V2 PR2) — the flow
+    // bar + legend is the single visible "why".
+    expect(within(moneyState).queryByTestId("money-state-equation")).toBeNull();
 
     // AllocationBar (P0 molecule) is wired in.
     expect(
       within(moneyState).getByTestId("money-state-allocation"),
     ).toBeInTheDocument();
 
-    // The secondary link points to the existing deeper breakdown route.
+    // The ghost action in the allocation header points to the existing
+    // deeper breakdown route.
     const breakdownLink = within(moneyState).getByTestId(
       "money-state-breakdown-link",
     );
     expect(breakdownLink).toHaveAttribute("href", "/dashboard/breakdown");
-    expect(breakdownLink).toHaveTextContent(/see the full breakdown/i);
+    expect(breakdownLink).toHaveTextContent(/breakdown/i);
 
     // The old hero copy and analysis CTA must not co-exist with MoneyState.
     expect(
@@ -877,7 +864,7 @@ describe("DashboardContent", () => {
       screen.queryByRole("link", { name: /explore analysis & trends/i }),
     ).toBeNull();
     expect(
-      screen.getAllByRole("link", { name: /see the full breakdown/i }),
+      screen.getAllByRole("link", { name: "Breakdown" }),
     ).toHaveLength(1);
   });
 

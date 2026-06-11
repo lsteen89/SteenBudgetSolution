@@ -2,21 +2,22 @@
  * i18n dictionary for the open-month MoneyState anchor.
  *
  * Owned strings:
- * - Section eyebrow + remaining label.
- * - Surplus / zero / deficit explanatory copy. Honest, never shameful.
- * - Six-term equation labels (income, carry-over, expenses, savings, debts,
- *   remaining) and operator/equals symbols so RTL/locale-specific punctuation
- *   stays in the dictionary rather than being hard-coded in the component.
- * - AllocationBar labels (aria + segment labels passed through).
- * - Secondary link copy pointing to the existing /dashboard/breakdown route.
+ * - The "Open month" kicker (rendered as `Open month · {date range}`; the
+ *   date range itself is locale-formatted by the component).
+ * - Surplus / zero / deficit tone words + explanatory copy. Honest, never
+ *   shameful.
+ * - AllocationBar labels (aria + segment labels passed through) and the
+ *   allocation section caption.
+ * - The small ghost "Breakdown" action in the allocation header, pointing to
+ *   the existing /dashboard/breakdown route.
  *
- * Carry-over is its own equation term and is rendered even when zero so the
- * user can see why the number is what it is.
+ * The six-term equation is no longer rendered (V2 PR2) — reconciliation
+ * remains a console diagnostic in the component, so no equation strings live
+ * here anymore.
  */
 export const moneyStateDict = {
   en: {
-    eyebrow: "Money state",
-    remainingLabel: "Left this month",
+    kickerOpenMonth: "Open month",
     helperPositive: "after planned income, carry-over, expenses, savings and debts.",
     helperZero: "All of this month's money is planned.",
     helperNegative:
@@ -26,34 +27,19 @@ export const moneyStateDict = {
     toneWordZero: "fully assigned",
     toneWordNegative: "short",
 
-    equationAriaLabel: "How the remaining amount is calculated",
-    equationIncome: "Income",
-    equationCarryOver: "Carry-over",
-    equationExpenses: "Expenses",
-    equationSavings: "Savings",
-    equationDebts: "Debts",
-    equationRemaining: "Left",
-    equationPlus: "+",
-    equationMinus: "−",
-    equationEquals: "=",
-
-    allocationCaption: "How this month's money is allocated",
+    allocationCaption: "Where the month goes",
     allocationAria: "Planned allocation across expenses, savings, debts and free room",
     allocationExpenses: "Expenses",
     allocationSavings: "Savings",
     allocationDebts: "Debts",
     allocationFree: "Free",
-    allocationUnfunded: "Unfunded by the plan",
     allocationRunsOut: "Where money runs out",
 
-    breakdownLink: "See the full breakdown",
-    breakdownHint:
-      "Categories, recurring costs, subscriptions, goals and debts.",
+    breakdownLink: "Breakdown",
   },
 
   sv: {
-    eyebrow: "Pengaläge",
-    remainingLabel: "Kvar den här månaden",
+    kickerOpenMonth: "Öppen månad",
     helperPositive:
       "efter planerade inkomster, ingående överskott, utgifter, sparande och skulder.",
     helperZero: "Alla pengar är planerade den här månaden.",
@@ -64,35 +50,20 @@ export const moneyStateDict = {
     toneWordZero: "allt är fördelat",
     toneWordNegative: "underskott",
 
-    equationAriaLabel: "Så räknas det kvarvarande beloppet ut",
-    equationIncome: "Inkomster",
-    equationCarryOver: "Överskott in",
-    equationExpenses: "Utgifter",
-    equationSavings: "Sparande",
-    equationDebts: "Skulder",
-    equationRemaining: "Kvar",
-    equationPlus: "+",
-    equationMinus: "−",
-    equationEquals: "=",
-
-    allocationCaption: "Så är månadens pengar planerade",
+    allocationCaption: "Vart månadens pengar går",
     allocationAria:
       "Planerad fördelning på utgifter, sparande, skulder och fritt utrymme",
     allocationExpenses: "Utgifter",
     allocationSavings: "Sparande",
     allocationDebts: "Skulder",
     allocationFree: "Fritt",
-    allocationUnfunded: "Saknar täckning i planen",
     allocationRunsOut: "Här tar pengarna slut",
 
-    breakdownLink: "Se hela fördelningen",
-    breakdownHint:
-      "Kategorier, återkommande kostnader, prenumerationer, mål och skulder.",
+    breakdownLink: "Fördelning",
   },
 
   et: {
-    eyebrow: "Rahaseis",
-    remainingLabel: "Selle kuu jääk",
+    kickerOpenMonth: "Avatud kuu",
     helperPositive:
       "pärast planeeritud tulu, ülekantud jääki, kulusid, sääste ja võlgu.",
     helperZero: "Kogu selle kuu raha on planeeritud.",
@@ -103,29 +74,15 @@ export const moneyStateDict = {
     toneWordZero: "kõik on jaotatud",
     toneWordNegative: "puudujääk",
 
-    equationAriaLabel: "Kuidas allesjääv summa arvutatakse",
-    equationIncome: "Tulu",
-    equationCarryOver: "Ülekantud jääk",
-    equationExpenses: "Kulud",
-    equationSavings: "Säästud",
-    equationDebts: "Võlad",
-    equationRemaining: "Jääk",
-    equationPlus: "+",
-    equationMinus: "−",
-    equationEquals: "=",
-
-    allocationCaption: "Kuidas selle kuu raha on jagatud",
+    allocationCaption: "Kuhu selle kuu raha läheb",
     allocationAria:
       "Planeeritud jaotus kulude, säästude, võlgade ja vaba ruumi vahel",
     allocationExpenses: "Kulud",
     allocationSavings: "Säästud",
     allocationDebts: "Võlad",
     allocationFree: "Vaba",
-    allocationUnfunded: "Plaan ei kata seda osa",
     allocationRunsOut: "Siin raha lõpeb",
 
-    breakdownLink: "Vaata kogu jaotust",
-    breakdownHint:
-      "Kategooriad, püsikulud, tellimused, eesmärgid ja võlad.",
+    breakdownLink: "Jaotus",
   },
 } as const;
