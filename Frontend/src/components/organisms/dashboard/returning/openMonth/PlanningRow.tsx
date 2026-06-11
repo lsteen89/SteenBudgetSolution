@@ -2,7 +2,6 @@ import { ArrowRight, Layers } from "lucide-react";
 import React from "react";
 import { Link } from "react-router-dom";
 
-import { Pill } from "@/components/atoms/badges/Pill";
 import { CtaLink } from "@/components/atoms/buttons/CtaLink";
 import {
   classifyRemaining,
@@ -14,6 +13,7 @@ import { useNextMonthPreviewQuery } from "@/hooks/budget/useNextMonthPreviewQuer
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/lib/utils";
 import { appRoutes } from "@/routes/appRoutes";
+import { DashboardPill, ModelCard } from "./DashboardPrimitives";
 import { planningRowDict } from "@/utils/i18n/pages/private/dashboard/openMonth/PlanningRow.i18n";
 import { tDict } from "@/utils/i18n/translate";
 import type { CurrencyCode } from "@/utils/money/currency";
@@ -49,40 +49,6 @@ export interface PlanningRowProps {
 }
 
 type DictKey = keyof typeof planningRowDict.sv;
-
-function ModelCard({
-  accent = false,
-  kicker,
-  testId,
-  children,
-}: {
-  accent?: boolean;
-  kicker: string;
-  testId: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div
-      data-testid={testId}
-      className={cn(
-        "flex flex-col rounded-2xl px-4 py-4",
-        accent
-          ? "border-[1.5px] border-eb-accent/45 bg-eb-surface/90 shadow-eb"
-          : "border border-eb-stroke/40 bg-eb-surface/70",
-      )}
-    >
-      <span
-        className={cn(
-          "text-[10.5px] font-extrabold uppercase tracking-[0.16em]",
-          accent ? "text-eb-accent" : "text-eb-text/45",
-        )}
-      >
-        {kicker}
-      </span>
-      {children}
-    </div>
-  );
-}
 
 const PlanningRow: React.FC<PlanningRowProps> = ({
   fromYearMonth,
@@ -133,7 +99,7 @@ const PlanningRow: React.FC<PlanningRowProps> = ({
           <span className="text-base font-extrabold capitalize text-eb-text">
             {periodLabel}
           </span>
-          <Pill className="h-6 px-2 text-[11px]">{t("openBadge")}</Pill>
+          <DashboardPill size="sm">{t("openBadge")}</DashboardPill>
         </div>
         <div className="mt-1.5 flex items-baseline gap-1.5">
           <span
@@ -171,9 +137,9 @@ const PlanningRow: React.FC<PlanningRowProps> = ({
             {nextLabel}
           </span>
           {!isPreviewLoading && (
-            <Pill className="h-6 px-2 text-[11px]">
+            <DashboardPill size="sm" tone={hasPreviewNumber ? "surface" : "neutral"}>
               {hasPreviewNumber ? t("previewBadge") : t("notOpenedBadge")}
-            </Pill>
+            </DashboardPill>
           )}
         </div>
 
