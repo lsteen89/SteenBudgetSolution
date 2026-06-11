@@ -5,6 +5,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import ExpensesEditorPage from "./ExpensesEditorPage";
 
@@ -256,7 +257,7 @@ describe("ExpensesEditorPage immediate scoped edits", () => {
   });
 
   it("resolves the editable open month without selected month state", () => {
-    render(<ExpensesEditorPage />);
+    render(<MemoryRouter><ExpensesEditorPage /></MemoryRouter>);
 
     expect(mockUseBudgetMonthEditor).toHaveBeenCalledWith("2026-05", true);
     expect(mockUseBudgetDashboardMonthQuery).toHaveBeenCalledWith("2026-05", {
@@ -284,13 +285,13 @@ describe("ExpensesEditorPage immediate scoped edits", () => {
       isError: false,
     });
 
-    render(<ExpensesEditorPage />);
+    render(<MemoryRouter><ExpensesEditorPage /></MemoryRouter>);
 
     expect(screen.getByText("No open month to edit.")).toBeInTheDocument();
   });
 
   it("saves modal edits immediately with row-specific scope and no page-level save", async () => {
-    render(<ExpensesEditorPage />);
+    render(<MemoryRouter><ExpensesEditorPage /></MemoryRouter>);
 
     fireEvent.click(screen.getByRole("button", { name: "Edit Rent" }));
     expect(
@@ -363,7 +364,7 @@ describe("ExpensesEditorPage immediate scoped edits", () => {
   });
 
   it("resuming a paused subscription that was also generic-inactive also flips isActive back to true (bug 3)", async () => {
-    render(<ExpensesEditorPage />);
+    render(<MemoryRouter><ExpensesEditorPage /></MemoryRouter>);
 
     fireEvent.click(screen.getByRole("button", { name: "Resume Netflix" }));
 
@@ -383,7 +384,7 @@ describe("ExpensesEditorPage immediate scoped edits", () => {
   });
 
   it("pausing a subscription preserves the row's existing isActive value", async () => {
-    render(<ExpensesEditorPage />);
+    render(<MemoryRouter><ExpensesEditorPage /></MemoryRouter>);
 
     fireEvent.click(
       screen.getByRole("button", { name: "Pause subscription Netflix" }),
@@ -404,7 +405,7 @@ describe("ExpensesEditorPage immediate scoped edits", () => {
   });
 
   it("cancelling a subscription preserves the row's existing isActive value", async () => {
-    render(<ExpensesEditorPage />);
+    render(<MemoryRouter><ExpensesEditorPage /></MemoryRouter>);
 
     fireEvent.click(
       screen.getByRole("button", { name: "Cancel subscription Netflix" }),

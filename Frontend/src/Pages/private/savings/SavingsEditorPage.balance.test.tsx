@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import SavingsEditorPage from "./SavingsEditorPage";
 
@@ -164,7 +165,7 @@ afterEach(() => {
 
 describe("SavingsEditorPage plan balance strip", () => {
   it("renders the plan balance strip with aggregate-derived values", () => {
-    render(<SavingsEditorPage />);
+    render(<MemoryRouter><SavingsEditorPage /></MemoryRouter>);
 
     const strip = screen.getByTestId("savings-plan-balance-strip");
     expect(strip.dataset.tone).toBe("positive");
@@ -174,7 +175,7 @@ describe("SavingsEditorPage plan balance strip", () => {
   });
 
   it("does not leave a permanent per-goal warning after refetch", () => {
-    render(<SavingsEditorPage />);
+    render(<MemoryRouter><SavingsEditorPage /></MemoryRouter>);
 
     // The per-edit soft warning lives inside the modal (not rendered until
     // a row is being edited). The saved card must not carry a permanent
@@ -186,7 +187,7 @@ describe("SavingsEditorPage plan balance strip", () => {
   });
 
   it("reflects updated aggregate values after a refetch", async () => {
-    const { rerender } = render(<SavingsEditorPage />);
+    const { rerender } = render(<MemoryRouter><SavingsEditorPage /></MemoryRouter>);
     expect(
       screen.getByTestId("savings-plan-balance-headline"),
     ).toHaveTextContent(/1,250/);
@@ -200,7 +201,7 @@ describe("SavingsEditorPage plan balance strip", () => {
       data: { whatever: "refetched" },
     });
 
-    rerender(<SavingsEditorPage />);
+    rerender(<MemoryRouter><SavingsEditorPage /></MemoryRouter>);
 
     await waitFor(() => {
       const strip = screen.getByTestId("savings-plan-balance-strip");

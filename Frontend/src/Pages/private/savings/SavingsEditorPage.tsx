@@ -1,4 +1,6 @@
 import BudgetEditorPageShell from "@/components/molecules/forms/budgetEditor/BudgetEditorPageShell";
+import SelectedMonthBanner from "@/components/molecules/forms/budgetEditor/SelectedMonthBanner";
+import { useEditorSelectedMonth } from "@/hooks/budget/editPeriod/useEditorSelectedMonth";
 import {
   useAddBudgetMonthSavingsMethod,
   useBudgetMonthSavingsGoals,
@@ -25,7 +27,6 @@ import type {
 } from "@/types/budget/BudgetMonthsStatusDto";
 import type { AppLocale } from "@/types/i18n/appLocale";
 import { useToast } from "@/ui/toast/toast";
-import { canEditMonth } from "@/utils/budget/periodEditor/canShowUpdateDefault";
 import { savingsEditorPageDict } from "@/utils/i18n/pages/private/savings/SavingsEditorPage.i18n";
 import { tDict } from "@/utils/i18n/translate";
 import { useEffect, useMemo, useState } from "react";
@@ -71,15 +72,11 @@ export default function SavingsEditorPage() {
     tDict(key, locale, savingsEditorPageDict);
   const monthsStatusQuery = useBudgetMonthsStatusQuery();
 
-  const editableYearMonth = useMemo(() => {
-    const status = monthsStatusQuery.data;
-    if (!status) return null;
-    return (
-      status.openMonthYearMonth ??
-      status.months.find((month) => month.status === "open")?.yearMonth ??
-      null
-    );
-  }, [monthsStatusQuery.data]);
+  // The month this page reads and writes: the open month by default, or the
+  // explicit `?yearMonth=` selection (open/planned editable; closed/skipped
+  // read-only; unknown selections refuse below instead of falling back).
+  const selectedMonth = useEditorSelectedMonth();
+  const editableYearMonth = selectedMonth.yearMonth;
 
   const savingsQuery = useBudgetMonthSavingsGoals(
     editableYearMonth ?? undefined,
@@ -151,10 +148,7 @@ export default function SavingsEditorPage() {
   const [baseHabitDialogOpen, setBaseHabitDialogOpen] = useState(false);
   const [baseHabitError, setBaseHabitError] = useState<string | null>(null);
 
-  const openMonth = monthsStatusQuery.data?.months.find(
-    (month) => month.yearMonth === editableYearMonth,
-  );
-  const readOnly = openMonth ? !canEditMonth(true, openMonth.status) : true;
+  const readOnly = !selectedMonth.isEditable;
   const rows = (savingsQuery.data ?? []).filter((row) => !row.isDeleted);
   const periodLabel =
     dashboardAggregate?.summary.header.periodLabel ?? editableYearMonth ?? "";
@@ -439,6 +433,13 @@ export default function SavingsEditorPage() {
     return <EditorState text={t("loadingSavings")} />;
   }
 
+  // An explicit ?yearMonth= that is malformed or not a persisted month must
+  // refuse clearly — silently editing the open month instead would mutate a
+  // month the user never chose.
+  if (selectedMonth.isInvalidSelection) {
+    return <EditorState text={t("monthNotFound")} />;
+  }
+
   if (!editableYearMonth) {
     return <EditorState text={t("noOpenMonth")} />;
   }
@@ -450,56 +451,77 @@ export default function SavingsEditorPage() {
     <>
       <BudgetEditorPageShell>
         <div className="space-y-5">
-          <SavingsSoulHero
-            periodLabel={periodLabel}
-            aggregate={heroAggregate}
-            baseMonthly={baseMonthly}
-            readOnly={readOnly}
-          />
-
-          <SavingsMethodsStrip
-            methods={methodsQuery.data}
-            readOnly={readOnly}
-            onEdit={() => {
-              setMethodsEditorError(null);
-              setMethodsEditorOpen(true);
-            }}
-          />
-
-          <SavingsBaseHabitRow
-            baseMonthly={baseMonthly}
-            readOnly={readOnly}
-            onEdit={() => {
-              setBaseHabitError(null);
-              setBaseHabitDialogOpen(true);
-            }}
-          />
-
-          {dashboardAggregate ? (
-            <SavingsPlanBalanceStrip
-              currencyCode={dashboardAggregate.summary.currency}
-              locale={locale as AppLocale}
-              incomeMonthly={dashboardAggregate.summary.totalIncome}
-              carryOverMonthly={
-                dashboardAggregate.summary.incomingCarryOverAmount
-              }
-              expensesMonthly={dashboardAggregate.summary.totalExpenditure}
-              baseSavingsMonthly={baseMonthly}
-              goalSavingsMonthly={heroAggregate.totalMonthly}
-              debtPaymentsMonthly={dashboardAggregate.summary.totalDebtPayments}
+          {selectedMonth.status && (
+            <SelectedMonthBanner
+              yearMonth={editableYearMonth}
+              status={selectedMonth.status}
+              isOffOpenMonth={selectedMonth.isOffOpenMonth}
             />
-          ) : null}
-
+          )}
+          {/*
+           * Honesty gate: the hero's base amount, the methods strip, the base
+           * habit row, and the balance strip all depend on the savings rows
+           * AND the dashboard aggregate being real. Rendering them while
+           * either query is loading or failed would fall back to `0 kr` base
+           * savings and an empty goal list — for a selected planned month
+           * that reads as "this month has no savings", which is fabricated.
+           */}
           {isLoadingContent ? (
-            <div className="rounded-[1.75rem] border border-eb-stroke/30 bg-eb-surface/70 px-5 py-6 text-sm text-eb-text/60">
+            <div
+              data-testid="savings-editor-loading"
+              className="rounded-[1.75rem] border border-eb-stroke/30 bg-eb-surface/70 px-5 py-6 text-sm text-eb-text/60"
+            >
               {t("loadingSavings")}
             </div>
-          ) : savingsQuery.isError ? (
-            <div className="rounded-[1.75rem] border border-eb-stroke/30 bg-eb-surface/70 px-5 py-6 text-sm text-eb-text/60">
+          ) : savingsQuery.isError ||
+            dashboardMonthQuery.isError ||
+            !dashboardAggregate ? (
+            <div
+              data-testid="savings-editor-error"
+              className="rounded-[1.75rem] border border-eb-stroke/30 bg-eb-surface/70 px-5 py-6 text-sm text-eb-text/60"
+            >
               {t("loadEditorError")}
             </div>
           ) : (
             <>
+              <SavingsSoulHero
+                periodLabel={periodLabel}
+                aggregate={heroAggregate}
+                baseMonthly={baseMonthly}
+                readOnly={readOnly}
+              />
+
+              <SavingsMethodsStrip
+                methods={methodsQuery.data}
+                readOnly={readOnly}
+                onEdit={() => {
+                  setMethodsEditorError(null);
+                  setMethodsEditorOpen(true);
+                }}
+              />
+
+              <SavingsBaseHabitRow
+                baseMonthly={baseMonthly}
+                readOnly={readOnly}
+                onEdit={() => {
+                  setBaseHabitError(null);
+                  setBaseHabitDialogOpen(true);
+                }}
+              />
+
+              <SavingsPlanBalanceStrip
+                currencyCode={dashboardAggregate.summary.currency}
+                locale={locale as AppLocale}
+                incomeMonthly={dashboardAggregate.summary.totalIncome}
+                carryOverMonthly={
+                  dashboardAggregate.summary.incomingCarryOverAmount
+                }
+                expensesMonthly={dashboardAggregate.summary.totalExpenditure}
+                baseSavingsMonthly={baseMonthly}
+                goalSavingsMonthly={heroAggregate.totalMonthly}
+                debtPaymentsMonthly={dashboardAggregate.summary.totalDebtPayments}
+              />
+
               <SavingsGoalCardsList
                 rows={rows}
                 readOnly={readOnly}

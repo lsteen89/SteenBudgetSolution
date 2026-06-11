@@ -1,4 +1,6 @@
 import BudgetEditorPageShell from "@/components/molecules/forms/budgetEditor/BudgetEditorPageShell";
+import SelectedMonthBanner from "@/components/molecules/forms/budgetEditor/SelectedMonthBanner";
+import { useEditorSelectedMonth } from "@/hooks/budget/editPeriod/useEditorSelectedMonth";
 import {
   useBudgetMonthIncomeItems,
   useCreateBudgetMonthIncomeItem,
@@ -15,7 +17,6 @@ import type {
 } from "@/types/budget/BudgetMonthsStatusDto";
 import type { AppLocale } from "@/types/i18n/appLocale";
 import { useToast } from "@/ui/toast/toast";
-import { canEditMonth } from "@/utils/budget/periodEditor/canShowUpdateDefault";
 import { incomeEditorPageDict } from "@/utils/i18n/pages/private/income/IncomeEditorPage.i18n";
 import { tDict } from "@/utils/i18n/translate";
 import { useMemo, useState } from "react";
@@ -74,15 +75,11 @@ export default function IncomeEditorPage() {
     tDict(key, locale, incomeEditorPageDict);
   const monthsStatusQuery = useBudgetMonthsStatusQuery();
 
-  const editableYearMonth = useMemo(() => {
-    const status = monthsStatusQuery.data;
-    if (!status) return null;
-    return (
-      status.openMonthYearMonth ??
-      status.months.find((month) => month.status === "open")?.yearMonth ??
-      null
-    );
-  }, [monthsStatusQuery.data]);
+  // The month this page reads and writes: the open month by default, or the
+  // explicit `?yearMonth=` selection (open/planned editable; closed/skipped
+  // read-only; unknown selections refuse below instead of falling back).
+  const selectedMonth = useEditorSelectedMonth();
+  const editableYearMonth = selectedMonth.yearMonth;
 
   const incomeQuery = useBudgetMonthIncomeItems(
     editableYearMonth ?? undefined,
@@ -152,10 +149,7 @@ export default function IncomeEditorPage() {
   const [deleteTarget, setDeleteTarget] =
     useState<BudgetMonthIncomeItemEditorRowDto | null>(null);
 
-  const openMonth = monthsStatusQuery.data?.months.find(
-    (month) => month.yearMonth === editableYearMonth,
-  );
-  const readOnly = openMonth ? !canEditMonth(true, openMonth.status) : true;
+  const readOnly = !selectedMonth.isEditable;
   const rows = (incomeQuery.data ?? []).filter((row) => !row.isDeleted);
 
   // Per-kind income split for the hero. Active-only counting matches the
@@ -318,6 +312,13 @@ export default function IncomeEditorPage() {
     return <EditorState text={t("loadingIncome")} />;
   }
 
+  // An explicit ?yearMonth= that is malformed or not a persisted month must
+  // refuse clearly — silently editing the open month instead would mutate a
+  // month the user never chose.
+  if (selectedMonth.isInvalidSelection) {
+    return <EditorState text={t("monthNotFound")} />;
+  }
+
   if (!editableYearMonth) {
     return <EditorState text={t("noOpenMonth")} />;
   }
@@ -388,6 +389,13 @@ export default function IncomeEditorPage() {
     <>
       <BudgetEditorPageShell>
         <div className="space-y-4">
+          {selectedMonth.status && (
+            <SelectedMonthBanner
+              yearMonth={editableYearMonth}
+              status={selectedMonth.status}
+              isOffOpenMonth={selectedMonth.isOffOpenMonth}
+            />
+          )}
           {/*
            * Hero + distribution strip rely on real income rows AND real
            * dashboard totals. Gate them on both queries so the hero never

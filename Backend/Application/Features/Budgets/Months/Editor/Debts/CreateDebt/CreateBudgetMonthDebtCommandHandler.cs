@@ -86,7 +86,7 @@ public sealed class CreateBudgetMonthDebtCommandHandler
         if (monthMeta is null)
             return Result<CreateBudgetMonthDebtResponseDto?>.Failure(BudgetMonth.NotFound);
 
-        if (!string.Equals(monthMeta.Status, BudgetMonthStatuses.Open, StringComparison.OrdinalIgnoreCase))
+        if (!BudgetMonthEditability.IsEditable(monthMeta.Status))
             return Result<CreateBudgetMonthDebtResponseDto?>.Failure(BudgetMonth.MonthIsClosed);
 
         var now = _timeProvider.GetUtcNow().UtcDateTime;

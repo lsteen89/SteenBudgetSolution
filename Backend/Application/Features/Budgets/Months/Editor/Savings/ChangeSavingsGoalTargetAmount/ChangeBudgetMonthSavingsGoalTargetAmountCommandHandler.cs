@@ -55,7 +55,7 @@ public sealed class ChangeBudgetMonthSavingsGoalTargetAmountCommandHandler
         if (monthMeta is null)
             return Result<BudgetMonthSavingsGoalEditorRowDto?>.Failure(BudgetMonthSavingsGoalErrors.NotFound);
 
-        if (!string.Equals(monthMeta.Status, BudgetMonthStatuses.Open, StringComparison.OrdinalIgnoreCase))
+        if (!BudgetMonthEditability.IsEditable(monthMeta.Status))
             return Result<BudgetMonthSavingsGoalEditorRowDto?>.Failure(BudgetMonth.MonthIsClosed);
 
         var existing = await _repo.GetSavingsGoalForMutationAsync(

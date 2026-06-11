@@ -50,7 +50,7 @@ public sealed class PatchBudgetMonthExpenseItemCommandHandler
         if (monthMeta is null)
             return Result<BudgetMonthExpenseItemEditorRowDto?>.Failure(BudgetMonthExpenseItemErrors.NotFound);
 
-        if (!string.Equals(monthMeta.Status, "open", StringComparison.OrdinalIgnoreCase))
+        if (!BudgetMonthEditability.IsEditable(monthMeta.Status))
             return Result<BudgetMonthExpenseItemEditorRowDto?>.Failure(BudgetMonth.MonthIsClosed);
 
         var existing = await _repo.GetExpenseItemForMutationAsync(

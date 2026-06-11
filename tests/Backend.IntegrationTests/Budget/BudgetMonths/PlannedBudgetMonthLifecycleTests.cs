@@ -5,6 +5,7 @@ using Backend.Application.BudgetMonths.Services;
 using Backend.Application.DTO.Budget.Months;
 using Backend.Application.Features.Budgets.Audit;
 using Backend.Application.Features.Budgets.Months.CloseBudgetMonth;
+using Backend.Application.Features.Budgets.Months.Editor.Savings.PatchBaseSavings;
 using Backend.Application.Features.Budgets.Months.PlanNextMonth;
 using Backend.Application.Features.Budgets.Months.StartBudgetMonth;
 using Backend.Application.Services.Budget.Compute;
@@ -346,6 +347,80 @@ public sealed class PlannedBudgetMonthLifecycleTests
     }
 
     // ------------------------------------------------------------------
+    // Editor mutations (PR 6: planned months are editable; closed are not)
+    // ------------------------------------------------------------------
+
+    [Fact]
+    public async Task PlannedMonth_AcceptsMonthOnlyEditorMutation_WithoutTouchingBudgetPlan()
+    {
+        await _db.ResetAsync();
+
+        var seed = await SeedOpenMonthAsync("2026-04");
+        var sut = CreateSut(new FakeTimeProvider(new DateTime(2026, 04, 10, 12, 0, 0, DateTimeKind.Utc)));
+
+        var planResult = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.PlanHandler.Handle(
+                new PlanNextMonthCommand(seed.Persoid, seed.UserId, "2026-04"),
+                CancellationToken.None));
+        planResult.IsSuccess.Should().BeTrue();
+
+        var baselineBefore = await GetBaselineMonthlySavingsAsync(seed.BudgetId);
+
+        var patchResult = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.PatchBaseSavingsHandler.Handle(
+                new PatchBudgetMonthBaseSavingsCommand(
+                    seed.Persoid,
+                    "2026-05",
+                    AmountMonthly: 3100m,
+                    Scope: "currentMonthOnly"),
+                CancellationToken.None));
+
+        patchResult.IsSuccess.Should().BeTrue();
+        patchResult.Value!.MonthlyAmount.Should().Be(3100m);
+
+        var planned = await GetMonthRowAsync(seed.BudgetId, "2026-05");
+        planned!.Status.Should().Be(BudgetMonthStatuses.Planned);
+        (await GetMonthBaseSavingsAsync(planned.Id)).Should().Be(3100m);
+
+        // Month-only scope must not write the budget-plan foundation row.
+        (await GetBaselineMonthlySavingsAsync(seed.BudgetId)).Should().Be(baselineBefore);
+    }
+
+    [Fact]
+    public async Task ClosedMonth_StillRejectsEditorMutation()
+    {
+        await _db.ResetAsync();
+
+        var seed = await DbSeeds.SeedBudgetAsync(_db.ConnectionString, BudgetSeedScenario.WithData);
+
+        await BudgetMonthDsl.InsertAsync(
+            cs: _db.ConnectionString,
+            budgetId: seed.BudgetId,
+            yearMonth: "2026-03",
+            status: BudgetMonthStatuses.Closed,
+            openedAtUtc: new DateTime(2026, 03, 01, 9, 0, 0, DateTimeKind.Utc),
+            createdByUserId: seed.UserId,
+            closedAtUtc: new DateTime(2026, 03, 31, 9, 0, 0, DateTimeKind.Utc),
+            carryOverMode: BudgetMonthCarryOverModes.None,
+            carryOverAmount: null);
+
+        var sut = CreateSut(new FakeTimeProvider(new DateTime(2026, 04, 10, 12, 0, 0, DateTimeKind.Utc)));
+
+        var patchResult = await sut.Uow.InTx(CancellationToken.None, () =>
+            sut.PatchBaseSavingsHandler.Handle(
+                new PatchBudgetMonthBaseSavingsCommand(
+                    seed.Persoid,
+                    "2026-03",
+                    AmountMonthly: 3100m,
+                    Scope: "currentMonthOnly"),
+                CancellationToken.None));
+
+        patchResult.IsFailure.Should().BeTrue();
+        patchResult.Error.Code.Should().Be(
+            Backend.Domain.Errors.Budget.BudgetMonth.MonthIsClosed.Code);
+    }
+
+    // ------------------------------------------------------------------
     // Start-month guard
     // ------------------------------------------------------------------
 
@@ -435,6 +510,17 @@ public sealed class PlannedBudgetMonthLifecycleTests
 
         var planHandler = new PlanNextMonthCommandHandler(months, materializer, auditWriter, clock);
 
+        var baseSavingsRepo = new BudgetMonthBaseSavingsMutationRepository(
+            uow,
+            NullLogger<BudgetMonthBaseSavingsMutationRepository>.Instance,
+            dbOpts);
+
+        var patchBaseSavingsHandler = new PatchBudgetMonthBaseSavingsCommandHandler(
+            lifecycle,
+            baseSavingsRepo,
+            changeEventRepo,
+            TimeProvider.System);
+
         var closeHandler = new CloseBudgetMonthCommandHandler(
             months,
             lifecycle,
@@ -460,7 +546,8 @@ public sealed class PlannedBudgetMonthLifecycleTests
             PlanHandler = planHandler,
             CloseHandler = closeHandler,
             StartHandler = startHandler,
-            Materializer = materializer
+            Materializer = materializer,
+            PatchBaseSavingsHandler = patchBaseSavingsHandler
         };
     }
 
@@ -556,6 +643,26 @@ public sealed class PlannedBudgetMonthLifecycleTests
         return await conn.ExecuteScalarAsync<int>(
             "SELECT COUNT(*) FROM BudgetMonthIncome WHERE BudgetMonthId = @budgetMonthId;",
             new { budgetMonthId });
+    }
+
+    private async Task<decimal> GetMonthBaseSavingsAsync(Guid budgetMonthId)
+    {
+        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await conn.OpenAsync();
+
+        return await conn.ExecuteScalarAsync<decimal>(
+            "SELECT MonthlySavings FROM BudgetMonthSavings WHERE BudgetMonthId = @budgetMonthId;",
+            new { budgetMonthId });
+    }
+
+    private async Task<decimal?> GetBaselineMonthlySavingsAsync(Guid budgetId)
+    {
+        await using var conn = new MySqlConnection(_db.ConnectionString);
+        await conn.OpenAsync();
+
+        return await conn.ExecuteScalarAsync<decimal?>(
+            "SELECT MonthlySavings FROM Savings WHERE BudgetId = @budgetId LIMIT 1;",
+            new { budgetId });
     }
 
     private async Task<int> CountMonthSavingsRowsAsync(Guid budgetMonthId)
@@ -710,6 +817,7 @@ public sealed class PlannedBudgetMonthLifecycleTests
         public required CloseBudgetMonthCommandHandler CloseHandler { get; init; }
         public required StartBudgetMonthCommandHandler StartHandler { get; init; }
         public required BudgetMonthMaterializer Materializer { get; init; }
+        public required PatchBudgetMonthBaseSavingsCommandHandler PatchBaseSavingsHandler { get; init; }
     }
 
     private sealed class BudgetMonthRow

@@ -63,7 +63,7 @@ public sealed class PatchBudgetMonthExpenseItemsBulkCommandHandler
         if (monthMeta is null)
             return Result<IReadOnlyList<BudgetMonthExpenseItemEditorRowDto>>.Failure(BudgetMonthExpenseItemErrors.NotFound);
 
-        if (!string.Equals(monthMeta.Status, "open", StringComparison.OrdinalIgnoreCase))
+        if (!BudgetMonthEditability.IsEditable(monthMeta.Status))
             return Result<IReadOnlyList<BudgetMonthExpenseItemEditorRowDto>>.Failure(BudgetMonth.MonthIsClosed);
 
         var now = _timeProvider.GetUtcNow().UtcDateTime;

@@ -2,6 +2,7 @@ export const expensesEditorPageDict = {
   sv: {
     noMonthSelected: "Ingen månad vald.",
     noOpenMonth: "Ingen öppen månad att redigera.",
+    monthNotFound: "Den valda månaden finns inte i din budget.",
     itemCreated: "Post skapad.",
     itemUpdated: "Post uppdaterad.",
     itemStaged: "Ändring tillagd.",
@@ -44,6 +45,7 @@ export const expensesEditorPageDict = {
   en: {
     noMonthSelected: "No month selected.",
     noOpenMonth: "No open month to edit.",
+    monthNotFound: "The selected month does not exist in your budget.",
     itemCreated: "Entry created.",
     itemUpdated: "Entry updated.",
     itemStaged: "Change added.",
@@ -87,6 +89,7 @@ export const expensesEditorPageDict = {
   et: {
     noMonthSelected: "Ühtegi kuud pole valitud.",
     noOpenMonth: "Pole avatud kuud, mida muuta.",
+    monthNotFound: "Valitud kuud sinu eelarves ei ole.",
     itemCreated: "Rida loodud.",
     itemUpdated: "Rida uuendatud.",
     itemStaged: "Muudatus lisatud.",

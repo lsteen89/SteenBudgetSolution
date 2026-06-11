@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import SavingsEditorPage from "./SavingsEditorPage";
 
@@ -138,7 +139,7 @@ afterEach(() => {
 describe("SavingsEditorPage inline create", () => {
   it("renders the enabled placeholder for an open month", () => {
     setupMonth("open");
-    render(<SavingsEditorPage />);
+    render(<MemoryRouter><SavingsEditorPage /></MemoryRouter>);
 
     const placeholder = screen.getByTestId("savings-goal-add-placeholder");
     expect(placeholder.getAttribute("data-state")).toBe("ready");
@@ -148,7 +149,7 @@ describe("SavingsEditorPage inline create", () => {
     "does not expose a create affordance when the only month is %s",
     (status) => {
       setupMonth(status);
-      render(<SavingsEditorPage />);
+      render(<MemoryRouter><SavingsEditorPage /></MemoryRouter>);
 
       expect(
         screen.queryByTestId("savings-goal-add-placeholder"),
@@ -161,7 +162,7 @@ describe("SavingsEditorPage inline create", () => {
 
   it("opens the draft card when the placeholder is clicked", () => {
     setupMonth("open");
-    render(<SavingsEditorPage />);
+    render(<MemoryRouter><SavingsEditorPage /></MemoryRouter>);
 
     fireEvent.click(screen.getByTestId("savings-goal-add-placeholder"));
 
@@ -177,7 +178,7 @@ describe("SavingsEditorPage inline create", () => {
     vi.useRealTimers();
     vi.setSystemTime(new Date(2026, 4, 19, 12, 0, 0));
 
-    render(<SavingsEditorPage />);
+    render(<MemoryRouter><SavingsEditorPage /></MemoryRouter>);
 
     fireEvent.click(screen.getByTestId("savings-goal-add-placeholder"));
 
@@ -229,7 +230,7 @@ describe("SavingsEditorPage inline create", () => {
       },
     });
 
-    render(<SavingsEditorPage />);
+    render(<MemoryRouter><SavingsEditorPage /></MemoryRouter>);
 
     fireEvent.click(screen.getByTestId("savings-base-habit-edit-action"));
 
@@ -261,7 +262,7 @@ describe("SavingsEditorPage inline create", () => {
       },
     });
 
-    render(<SavingsEditorPage />);
+    render(<MemoryRouter><SavingsEditorPage /></MemoryRouter>);
 
     fireEvent.click(screen.getByTestId("savings-base-habit-edit-action"));
 
@@ -282,7 +283,7 @@ describe("SavingsEditorPage inline create", () => {
     vi.useRealTimers();
     vi.setSystemTime(new Date(2026, 4, 19, 12, 0, 0));
 
-    render(<SavingsEditorPage />);
+    render(<MemoryRouter><SavingsEditorPage /></MemoryRouter>);
 
     fireEvent.click(screen.getByTestId("savings-goal-add-placeholder"));
     fireEvent.change(screen.getByLabelText(/What are you saving for/i), {

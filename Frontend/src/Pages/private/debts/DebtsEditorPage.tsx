@@ -1,4 +1,6 @@
 import BudgetEditorPageShell from "@/components/molecules/forms/budgetEditor/BudgetEditorPageShell";
+import SelectedMonthBanner from "@/components/molecules/forms/budgetEditor/SelectedMonthBanner";
+import { useEditorSelectedMonth } from "@/hooks/budget/editPeriod/useEditorSelectedMonth";
 import {
   useAdjustBudgetMonthDebtBalance,
   useArchiveBudgetMonthDebt,
@@ -24,7 +26,7 @@ import type {
 } from "@/types/budget/DebtEditorDto";
 import type { AppLocale } from "@/types/i18n/appLocale";
 import { useToast } from "@/ui/toast/toast";
-import { canEditMonth } from "@/utils/budget/periodEditor/canShowUpdateDefault";
+import { canEditSelectedMonth } from "@/utils/budget/periodEditor/canShowUpdateDefault";
 import { debtsEditorPageDict } from "@/utils/i18n/pages/private/debts/DebtsEditorPage.i18n";
 import { tDict } from "@/utils/i18n/translate";
 import { CalendarDays } from "lucide-react";
@@ -81,15 +83,11 @@ export default function DebtsEditorPage() {
     tDict(key, locale, debtsEditorPageDict);
   const monthsStatusQuery = useBudgetMonthsStatusQuery();
 
-  const editableYearMonth = useMemo(() => {
-    const status = monthsStatusQuery.data;
-    if (!status) return null;
-    return (
-      status.openMonthYearMonth ??
-      status.months.find((month) => month.status === "open")?.yearMonth ??
-      null
-    );
-  }, [monthsStatusQuery.data]);
+  // The month this page reads and writes: the open month by default, or the
+  // explicit `?yearMonth=` selection (open/planned editable; closed/skipped
+  // read-only; unknown selections refuse below instead of falling back).
+  const selectedMonth = useEditorSelectedMonth();
+  const editableYearMonth = selectedMonth.yearMonth;
 
   const debtEditorQuery = useBudgetMonthDebtEditor(
     editableYearMonth ?? undefined,
@@ -161,13 +159,10 @@ export default function DebtsEditorPage() {
   // Backend `isReadOnly` is the source of truth: closed/skipped months stop
   // editing regardless of row state. We also defensively gate on the status
   // queue in case the editor and status queries disagree mid-transition.
-  const openMonth = monthsStatusQuery.data?.months.find(
-    (month) => month.yearMonth === editableYearMonth,
-  );
   const readOnly = editorData
     ? editorData.isReadOnly
-    : openMonth
-      ? !canEditMonth(true, openMonth.status)
+    : selectedMonth.status
+      ? !canEditSelectedMonth(true, selectedMonth.status)
       : true;
 
   const periodLabel =
@@ -398,6 +393,13 @@ export default function DebtsEditorPage() {
     return <EditorState text={t("loadingDebts")} />;
   }
 
+  // An explicit ?yearMonth= that is malformed or not a persisted month must
+  // refuse clearly — silently editing the open month instead would mutate a
+  // month the user never chose.
+  if (selectedMonth.isInvalidSelection) {
+    return <EditorState text={t("monthNotFound")} />;
+  }
+
   if (!editableYearMonth) {
     return <EditorState text={t("noOpenMonth")} />;
   }
@@ -430,6 +432,13 @@ export default function DebtsEditorPage() {
     <>
       <BudgetEditorPageShell>
         <div className="space-y-4">
+          {selectedMonth.status && (
+            <SelectedMonthBanner
+              yearMonth={editableYearMonth}
+              status={selectedMonth.status}
+              isOffOpenMonth={selectedMonth.isOffOpenMonth}
+            />
+          )}
           <DebtsSoulHero
             yearMonthLabel={periodLabel}
             summary={summary}

@@ -45,13 +45,13 @@ public static class SavingsGoalLifecycleApplier
         return Result.Success();
     }
 
-    // Lifecycle mutations only run against the current open month. Closed and
-    // skipped months are historical and must not be changed by a complete /
-    // cancel / remove. Callers pass the month status they already resolved
-    // from BudgetMonth.Status.
+    // Lifecycle mutations only run against editable months (open or planned).
+    // Closed and skipped months are historical and must not be changed by a
+    // complete / cancel / remove. Callers pass the month status they already
+    // resolved from BudgetMonth.Status.
     public static Result EnsureMonthAllowsLifecycle(string monthStatus)
     {
-        if (string.Equals(monthStatus, BudgetMonthStatuses.Open, StringComparison.OrdinalIgnoreCase))
+        if (BudgetMonthEditability.IsEditable(monthStatus))
             return Result.Success();
 
         return Result.Failure(SavingsGoalLifecycleErrors.MonthNotOpen);

@@ -1,4 +1,4 @@
-export type BudgetMonthStatus = "open" | "closed" | "skipped";
+export type BudgetMonthStatus = "open" | "planned" | "closed" | "skipped";
 export type CarryOverMode = "none" | "full" | "custom";
 export type SubscriptionLifecycleStatus = "active" | "paused" | "cancelled";
 

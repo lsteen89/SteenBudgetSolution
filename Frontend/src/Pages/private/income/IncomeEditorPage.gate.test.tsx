@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import IncomeEditorPage from "./IncomeEditorPage";
@@ -122,7 +123,7 @@ describe("IncomeEditorPage honesty gates", () => {
       isError: true,
     });
 
-    render(<IncomeEditorPage />);
+    render(<MemoryRouter><IncomeEditorPage /></MemoryRouter>);
 
     expect(screen.getByTestId("income-editor-error")).toBeInTheDocument();
     expect(screen.queryByTestId("income-soul-hero")).not.toBeInTheDocument();
@@ -145,7 +146,7 @@ describe("IncomeEditorPage honesty gates", () => {
       isError: false,
     });
 
-    render(<IncomeEditorPage />);
+    render(<MemoryRouter><IncomeEditorPage /></MemoryRouter>);
 
     expect(screen.getByTestId("income-editor-error")).toBeInTheDocument();
     expect(screen.queryByTestId("income-soul-hero")).not.toBeInTheDocument();
@@ -172,7 +173,7 @@ describe("IncomeEditorPage honesty gates", () => {
       },
     });
 
-    render(<IncomeEditorPage />);
+    render(<MemoryRouter><IncomeEditorPage /></MemoryRouter>);
 
     expect(screen.getByTestId("income-soul-hero")).toBeInTheDocument();
     expect(

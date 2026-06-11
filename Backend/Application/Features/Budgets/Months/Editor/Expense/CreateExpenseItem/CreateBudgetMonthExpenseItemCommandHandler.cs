@@ -50,7 +50,7 @@ public sealed class CreateBudgetMonthExpenseItemCommandHandler
         if (monthMeta is null)
             return Result<BudgetMonthExpenseItemEditorRowDto?>.Failure(BudgetMonth.NotFound);
 
-        if (!string.Equals(monthMeta.Status, "open", StringComparison.OrdinalIgnoreCase))
+        if (!BudgetMonthEditability.IsEditable(monthMeta.Status))
             return Result<BudgetMonthExpenseItemEditorRowDto?>.Failure(BudgetMonth.MonthIsClosed);
 
         var categoryExists = await _repo.ExpenseCategoryExistsAsync(cmd.CategoryId, ct);

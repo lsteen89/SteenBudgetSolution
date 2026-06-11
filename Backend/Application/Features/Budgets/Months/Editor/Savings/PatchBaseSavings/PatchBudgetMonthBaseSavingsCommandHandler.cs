@@ -62,7 +62,7 @@ public sealed class PatchBudgetMonthBaseSavingsCommandHandler
         if (monthMeta is null)
             return Result<BudgetMonthBaseSavingsEditorDto?>.Failure(BudgetMonth.NotFound);
 
-        if (!string.Equals(monthMeta.Status, BudgetMonthStatuses.Open, StringComparison.OrdinalIgnoreCase))
+        if (!BudgetMonthEditability.IsEditable(monthMeta.Status))
             return Result<BudgetMonthBaseSavingsEditorDto?>.Failure(BudgetMonth.MonthIsClosed);
 
         var existing = await _repo.GetBudgetMonthBaseSavingsForEditAsync(
