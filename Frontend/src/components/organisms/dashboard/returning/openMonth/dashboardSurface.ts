@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 /**
  * DP4 — one glass surface language for the open-month dashboard cards.
  *
- * Every card on the open-month dashboard (MoneyState, AttentionLane, the
+ * Every card on the open-month dashboard (MoneyState, the insight cards, the
  * pillar cards, and the tone-tinted CloseBand) shares one surface recipe so
  * the page reads as a single coherent stack rather than four slightly
  * different panels. Before DP4 the cards drifted on radius (32 / 24 / 16px),
@@ -37,7 +37,7 @@ export const dashboardSurfaceBase =
 /**
  * Neutral glass surface: the structural base plus a stroke border, a
  * translucent eb-surface fill, and a quiet top-down sheen so the card reads
- * as layered glass instead of a flat panel. Used by MoneyState, AttentionLane,
+ * as layered glass instead of a flat panel. Used by MoneyState, the insight cards,
  * and the pillar cards.
  *
  * Compose per-card extras (padding, deficit border) after this with `cn(...)`;

@@ -772,7 +772,7 @@ describe("DashboardContent", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("renders the capped AttentionLane led by the deficit item for an open deficit month", () => {
+  it("renders the capped insight/action cards led by the deficit card for an open deficit month", () => {
     mockUseDashboardSummary.mockReturnValue({
       ...readyResult,
       data: {
@@ -806,35 +806,35 @@ describe("DashboardContent", () => {
 
     renderDashboardContent();
 
-    // The legacy OpenMonthFollowUpStrip was replaced by the AttentionLane
-    // (PR4): on-device guidance, capped at 3, with an honest "how chosen"
-    // affordance. For a deficit month it must lead with the deficit item —
-    // only an overdue-close outranks it, and this month's lifecycle is
-    // "normal", so deficit is guaranteed to be in the top 3.
-    const lane = screen.getByTestId("attention-lane");
-    expect(within(lane).getByText("Worth a quick look")).toBeInTheDocument();
+    // The AttentionLane was replaced by StandaloneInsightActionCards (V2
+    // PR4): same on-device ranking, capped at 3, but rendered as compact
+    // cards without the explanatory section framing. For a deficit month it
+    // must lead with the deficit card — only an overdue-close outranks it,
+    // and this month's lifecycle is "normal", so deficit is guaranteed to be
+    // in the top 3.
+    const cards = screen.getByTestId("insight-action-cards");
 
-    const laneItems = within(lane).getByTestId("attention-lane-items");
-    const renderedCount = Number(laneItems.getAttribute("data-count"));
+    const cardItems = within(cards).getByTestId("insight-action-cards-items");
+    const renderedCount = Number(cardItems.getAttribute("data-count"));
     expect(renderedCount).toBeGreaterThan(0);
     expect(renderedCount).toBeLessThanOrEqual(3);
 
     // Deficit leads, with the factual (non-shaming) copy and its quick-adjust
     // action label.
-    const deficitItem = within(lane).getByTestId("attention-item-deficit");
+    const deficitItem = within(cards).getByTestId("attention-item-deficit");
     expect(
       within(deficitItem).getByText("Plan is over what is coming in"),
     ).toBeInTheDocument();
     expect(
-      within(lane).getByTestId("attention-action-deficit"),
+      within(cards).getByTestId("attention-action-deficit"),
     ).toHaveTextContent("Adjust expenses");
 
-    // The honesty affordance is present: ranking is on-device, not advice.
-    expect(
-      within(lane).getByTestId("attention-lane-how-chosen"),
-    ).toBeInTheDocument();
+    // The old explanatory framing must be gone from the main dashboard.
+    expect(screen.queryByText("Worth a quick look")).toBeNull();
+    expect(screen.queryByText("How these are chosen")).toBeNull();
+    expect(screen.queryByTestId("attention-lane-how-chosen")).toBeNull();
 
-    // The old follow-up strip copy must not co-exist with the AttentionLane.
+    // The old follow-up strip copy must not co-exist with the cards.
     expect(screen.queryByText("To follow up")).toBeNull();
     expect(screen.queryByText("Money position needs review")).toBeNull();
   });
@@ -1202,7 +1202,7 @@ describe("DashboardContent", () => {
   // P6 — Close-month flow integration.
   //
   // The MonthRail close CTA path is covered above. These tests pin down the
-  // two other entry points (CloseBand and the AttentionLane overdue close
+  // two other entry points (CloseBand and the insight-card overdue close
   // action) and the lazy fetch contract for savings-goal completion candidates
   // — all three are part of the locked Spine close-flow story.
   // --------------------------------------------------------------------------
@@ -1226,10 +1226,10 @@ describe("DashboardContent", () => {
     expect(screen.getByTestId("close-month-modal")).toBeInTheDocument();
   });
 
-  it("opens the same close month modal from the AttentionLane overdue close action", () => {
-    // Drive the dashboard into an overdue lifecycle so AttentionLane raises
-    // the close-month action. CloseBand also renders in this state, but the
-    // testid scopes the click to the AttentionLane entry point.
+  it("opens the same close month modal from the insight-card overdue close action", () => {
+    // Drive the dashboard into an overdue lifecycle so the insight cards
+    // raise the close-month action. CloseBand also renders in this state, but
+    // the testid scopes the click to the insight-card entry point.
     const overdueSummary = buildSummary(245, "open", {
       header: {
         lifecycleState: "overdue",

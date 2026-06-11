@@ -2,6 +2,11 @@
 @.agents/instructions/backend.instructions.md
 @.agents/instructions/frontend-ui.instructions.md
 
+## 0. Non negotionable
+
+- **CaveMan skill always.**
+  Always ensure that the /caveman skill is active. If the user has not turned it on, then its the FIRST thing you do.
+
 # Claude Code — Operating Rules
 
 - Diagnose before changing. Inspect the relevant slice, identify root cause, then edit. Do not jump straight to code.

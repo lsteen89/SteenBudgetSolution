@@ -6,7 +6,7 @@ import type { CloseAvailability } from "@/hooks/dashboard/getCloseAvailabilityLa
 /**
  * Pure resolver for the open-month CloseBand state (PR5).
  *
- * The CloseBand sits between MoneyState and AttentionLane in the Spine
+ * The CloseBand sits between MoneyState and the insight/action cards in the Spine
  * dashboard. It is the only place on the dashboard that gives the close-month
  * lifecycle its own dedicated, calm-but-clear visual block. Its visibility and
  * tone are derived from inputs the dashboard already has:
@@ -29,7 +29,7 @@ import type { CloseAvailability } from "@/hooks/dashboard/getCloseAvailabilityLa
  *      offer a no-op close. An overdue lifecycle with `canCloseMonth=false`
  *      is an inconsistent backend state — we still surface the danger
  *      treatment but hide the CTA rather than offering one the backend will
- *      reject (mirrors the AttentionLane precedent).
+ *      reject (mirrors the insight-card precedent).
  *   3. `lifecycleState === "eligible"` (or `closeAvailability.kind === "ready"`)
  *      → `eligible`. Accent treatment, CTA gated on `canCloseMonth`.
  *   4. `lifecycleState === "upcoming"` AND `closeAvailability.kind ===

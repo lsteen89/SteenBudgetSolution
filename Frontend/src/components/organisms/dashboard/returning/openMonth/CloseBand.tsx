@@ -23,10 +23,10 @@ import { formatMoneyV2, moneyDecimalsFor } from "@/utils/money/moneyV2";
 /**
  * CloseBand (PR5) — the conditional close-month band.
  *
- * Sits between MoneyState and AttentionLane in the Spine dashboard. It is the
+ * Sits between MoneyState and the insight/action cards in the Spine dashboard. It is the
  * dedicated visual home for "where is this month in its close lifecycle, and
  * what would the next month inherit if I closed now?" — without duplicating
- * the MonthRail ribbon or the AttentionLane close cards.
+ * the MonthRail ribbon or the insight-card close actions.
  *
  * State is resolved by the pure {@link resolveCloseBandState} helper:
  *
@@ -44,7 +44,7 @@ import { formatMoneyV2, moneyDecimalsFor } from "@/utils/money/moneyV2";
  * The CTA is gated on backend `canCloseMonth`. If the lifecycle reports
  * overdue/eligible but the backend refuses to close, we still show the
  * danger/accent treatment but hide the CTA so the user never clicks into a
- * no-op. This mirrors the AttentionLane precedent.
+ * no-op. This mirrors the insight-card precedent.
  *
  * Read-only / closed / skipped months never reach this component in
  * production — the dashboard renders SkippedMonthState or the recap branch.

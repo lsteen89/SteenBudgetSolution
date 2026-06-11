@@ -10,6 +10,11 @@ The files below define how to operate. Project facts live in `PROJECT.md`; this 
 
 ---
 
+## 0. Non negotionable
+
+- **CaveMan skill always.**
+  Always ensure that the /caveman skill is active. If the user has not turned it on, then its the FIRST thing you do.
+
 ## 1. Operating principles
 
 - **Diagnose first, change second.** Inspect the relevant code path, identify the likely root cause or required implementation points, explain the intended change, then modify.
