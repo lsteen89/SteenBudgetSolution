@@ -109,24 +109,30 @@ public sealed class GetBudgetDashboardMonthQueryHandler
             ));
         }
 
-        // Only open months reach here.
+        // Only open and planned months reach here. Both are materialized, so
+        // both can render a live dashboard from their month rows.
         var data = await _monthDashRepo.GetDashboardDataForMonthAsync(month.Id, ct);
         if (data is null)
             return Result<BudgetDashboardMonthDto?>.Success(null);
 
-        var closeWindow = BudgetMonthCloseWindowCalculator.Calculate(
-            month.YearMonth,
-            data.Totals.IncomePaymentDayType,
-            data.Totals.IncomePaymentDay,
-            _clock.UtcNow);
-
-        meta = meta with
+        // Close readiness only applies to the open month. A planned month
+        // must never advertise a close window — closing is what promotes it.
+        if (month.Status == BudgetMonthStatuses.Open)
         {
-            IsCloseWindowOpen = closeWindow.IsCloseWindowOpen,
-            CloseWindowOpensAtUtc = closeWindow.CloseWindowOpensAtUtc,
-            CloseEligibleAtUtc = closeWindow.CloseEligibleAtUtc,
-            IsOverdueForClose = closeWindow.IsOverdueForClose
-        };
+            var closeWindow = BudgetMonthCloseWindowCalculator.Calculate(
+                month.YearMonth,
+                data.Totals.IncomePaymentDayType,
+                data.Totals.IncomePaymentDay,
+                _clock.UtcNow);
+
+            meta = meta with
+            {
+                IsCloseWindowOpen = closeWindow.IsCloseWindowOpen,
+                CloseWindowOpensAtUtc = closeWindow.CloseWindowOpensAtUtc,
+                CloseEligibleAtUtc = closeWindow.CloseEligibleAtUtc,
+                IsOverdueForClose = closeWindow.IsOverdueForClose
+            };
+        }
 
         var carry = month.CarryOverAmount ?? 0m;
         var live = _projector.Project(data, carry);

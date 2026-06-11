@@ -3,6 +3,7 @@ using Backend.Application.Features.Budgets.Months.CloseBudgetMonth;
 using Backend.Application.Features.Budgets.Months.CloseBudgetMonth.GetSavingsGoalCompletionCandidates;
 using Backend.Application.Features.Budgets.Months.GetBudgetMonthsStatus;
 using Backend.Application.Features.Budgets.Months.NextPreview;
+using Backend.Application.Features.Budgets.Months.PlanNextMonth;
 using Backend.Application.Features.Budgets.Months.StartBudgetMonth;
 using Backend.Presentation.Shared;
 using Microsoft.AspNetCore.Mvc;
@@ -50,6 +51,31 @@ public sealed partial class BudgetController
         }
 
         return Ok(ApiEnvelope<NextMonthPreviewDto>.Success(result.Value!));
+    }
+
+    // Creates the planned (pre-opened) next month from the budget plan so it
+    // can be edited ahead of the current month closing. The from-month must be
+    // the open month and stays open; the close flow later promotes the planned
+    // month to open and applies the final carry-over.
+    [HttpPost("months/{fromYearMonth}/next-planned")]
+    [ProducesResponseType(typeof(ApiEnvelope<PlanNextMonthResultDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiEnvelope<PlanNextMonthResultDto>>> PlanNextMonth(
+        [FromRoute] string fromYearMonth,
+        CancellationToken ct)
+    {
+        var result = await _mediator.Send(new PlanNextMonthCommand(
+            Persoid: _currentUser.Persoid,
+            ActorPersoid: _currentUser.Persoid,
+            FromYearMonth: fromYearMonth), ct);
+
+        if (result.IsFailure)
+        {
+            return Ok(ApiEnvelope<PlanNextMonthResultDto>.Failure(
+                code: result.Error!.Code,
+                message: result.Error.Message));
+        }
+
+        return Ok(ApiEnvelope<PlanNextMonthResultDto>.Success(result.Value!));
     }
 
     [HttpPost("months/start")]

@@ -29,6 +29,9 @@ public sealed partial class BudgetMonthRepository : SqlBase, IBudgetMonthReposit
     public async Task<IReadOnlyList<BudgetMonthListRm>> GetOpenMonthsAsync(Guid budgetId, CancellationToken ct)
         => await QueryAsync<BudgetMonthListRm>(GetOpenMonths, new { BudgetId = budgetId }, ct);
 
+    public async Task<IReadOnlyList<BudgetMonthListRm>> GetPlannedMonthsAsync(Guid budgetId, CancellationToken ct)
+        => await QueryAsync<BudgetMonthListRm>(GetPlannedMonths, new { BudgetId = budgetId }, ct);
+
     public Task InsertOpenMonthIdempotentAsync(
         Guid id,
         Guid budgetId,
@@ -63,6 +66,35 @@ public sealed partial class BudgetMonthRepository : SqlBase, IBudgetMonthReposit
             BudgetId = budgetId,
             YearMonth = yearMonth,
             Status = BudgetMonthStatuses.Skipped,
+            NowUtc = nowUtc,
+            UserId = userId
+        }, ct);
+
+    public Task InsertPlannedMonthIdempotentAsync(
+        Guid id,
+        Guid budgetId,
+        string yearMonth,
+        Guid userId,
+        DateTime nowUtc,
+        CancellationToken ct)
+        => ExecuteAsync(InsertPlannedMonthIdempotent, new
+        {
+            Id = id,
+            BudgetId = budgetId,
+            YearMonth = yearMonth,
+            Status = BudgetMonthStatuses.Planned,
+            NowUtc = nowUtc,
+            UserId = userId
+        }, ct);
+
+    public Task<int> PromotePlannedMonthToOpenAsync(
+        Guid budgetMonthId,
+        Guid userId,
+        DateTime nowUtc,
+        CancellationToken ct)
+        => ExecuteAsync(PromotePlannedMonthToOpen, new
+        {
+            BudgetMonthId = budgetMonthId,
             NowUtc = nowUtc,
             UserId = userId
         }, ct);

@@ -3,6 +3,9 @@ namespace Backend.Application.DTO.Budget.Months;
 public static class BudgetMonthStatuses
 {
     public const string Open = "open";
+    // Materialized next month that is editable ahead of time but not yet the
+    // active month. Promoted to `open` when the current month closes.
+    public const string Planned = "planned";
     public const string Closed = "closed";
     public const string Skipped = "skipped";
 }

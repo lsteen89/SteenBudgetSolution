@@ -8,7 +8,7 @@ CREATE TABLE BudgetMonth (
     BudgetId                BINARY(16)    NOT NULL,
 
     YearMonth               CHAR(7)       NOT NULL, -- "YYYY-MM"
-    Status                  VARCHAR(10)   NOT NULL DEFAULT 'open',   -- open|closed|skipped
+    Status                  VARCHAR(10)   NOT NULL DEFAULT 'open',   -- open|planned|closed|skipped
 
     OpenedAt                DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
     ClosedAt                DATETIME      NULL,
@@ -29,6 +29,11 @@ CREATE TABLE BudgetMonth (
     OpenBudgetId            BINARY(16)    GENERATED ALWAYS AS (
         CASE WHEN Status = 'open' THEN BudgetId ELSE NULL END
     ) STORED,
+    -- One planned (pre-opened next) month max per budget, enforced the same
+    -- way as the one-open-month invariant above.
+    PlannedBudgetId         BINARY(16)    GENERATED ALWAYS AS (
+        CASE WHEN Status = 'planned' THEN BudgetId ELSE NULL END
+    ) STORED,
 
     CONSTRAINT FK_BudgetMonth_Budget
         FOREIGN KEY (BudgetId) REFERENCES Budget(Id) ON DELETE CASCADE,
@@ -37,7 +42,7 @@ CREATE TABLE BudgetMonth (
         CHECK (YearMonth REGEXP '^[0-9]{4}-(0[1-9]|1[0-2])$'),
 
     CONSTRAINT CK_BudgetMonth_Status
-        CHECK (Status IN ('open','closed','skipped')),
+        CHECK (Status IN ('open','planned','closed','skipped')),
 
     CONSTRAINT CK_BudgetMonth_CarryOverMode
         CHECK (CarryOverMode IN ('none','full','custom')),
@@ -54,6 +59,7 @@ CREATE TABLE BudgetMonth (
 
     UNIQUE KEY UX_BudgetMonth_BudgetId_YearMonth (BudgetId, YearMonth),
     UNIQUE KEY UX_BudgetMonth_OneOpenPerBudget (OpenBudgetId),
+    UNIQUE KEY UX_BudgetMonth_OnePlannedPerBudget (PlannedBudgetId),
     KEY IX_BudgetMonth_BudgetId_Status (BudgetId, Status)
 ) ENGINE=InnoDB;
 

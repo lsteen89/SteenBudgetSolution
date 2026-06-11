@@ -10,6 +10,7 @@ public interface IBudgetMonthRepository
 
     Task<IReadOnlyList<BudgetMonthListRm>> GetMonthsAsync(Guid budgetId, CancellationToken ct);
     Task<IReadOnlyList<BudgetMonthListRm>> GetOpenMonthsAsync(Guid budgetId, CancellationToken ct);
+    Task<IReadOnlyList<BudgetMonthListRm>> GetPlannedMonthsAsync(Guid budgetId, CancellationToken ct);
 
     Task<BudgetMonthLookupRm?> GetByBudgetIdAndYearMonthAsync(Guid budgetId, string yearMonth, CancellationToken ct);
     Task<BudgetMonthDetailsRm?> GetMonthAsync(Guid budgetId, string yearMonth, CancellationToken ct);
@@ -42,6 +43,20 @@ public interface IBudgetMonthRepository
         Guid id,
         Guid budgetId,
         string yearMonth,
+        Guid userId,
+        DateTime nowUtc,
+        CancellationToken ct);
+
+    Task InsertPlannedMonthIdempotentAsync(
+        Guid id,
+        Guid budgetId,
+        string yearMonth,
+        Guid userId,
+        DateTime nowUtc,
+        CancellationToken ct);
+
+    Task<int> PromotePlannedMonthToOpenAsync(
+        Guid budgetMonthId,
         Guid userId,
         DateTime nowUtc,
         CancellationToken ct);

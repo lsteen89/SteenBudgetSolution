@@ -41,6 +41,21 @@ public sealed partial class BudgetMonthRepository
     AND bm.Status = 'open'
     ORDER BY bm.OpenedAt DESC;";
 
+    private const string GetPlannedMonths = @"
+    SELECT
+        bm.Id,
+        bm.BudgetId,
+        bm.YearMonth,
+        bm.Status,
+        bm.OpenedAt,
+        bm.ClosedAt,
+        bm.CarryOverMode,
+        bm.CarryOverAmount
+    FROM BudgetMonth bm
+    WHERE bm.BudgetId = @BudgetId
+    AND bm.Status = 'planned'
+    ORDER BY bm.YearMonth;";
+
     // IMPORTANT:
     // - Uses UX(BudgetId, YearMonth) for idempotency
     // - If row exists, do nothing (keeps existing row untouched)
@@ -61,6 +76,40 @@ public sealed partial class BudgetMonthRepository
     )
     ON DUPLICATE KEY UPDATE
         UpdatedAt = UpdatedAt;";
+
+    // Planned months are created with carry-over mode 'none'; the final
+    // carry-over is applied when the open month closes and the planned month
+    // is promoted. OpenedAt records creation time; promotion refreshes it.
+    private const string InsertPlannedMonthIdempotent = @"
+    INSERT INTO BudgetMonth
+    (
+        Id, BudgetId, YearMonth, Status,
+        OpenedAt, ClosedAt,
+        CarryOverMode, CarryOverAmount,
+        CreatedAt, UpdatedAt, CreatedByUserId, UpdatedByUserId
+    )
+    VALUES
+    (
+        @Id, @BudgetId, @YearMonth, @Status,
+        @NowUtc, NULL,
+        'none', NULL,
+        @NowUtc, NULL, @UserId, NULL
+    )
+    ON DUPLICATE KEY UPDATE
+        UpdatedAt = UpdatedAt;";
+
+    // Promotion only succeeds while the row is still planned, and the
+    // generated OpenBudgetId column's unique key guarantees at the database
+    // level that promotion cannot produce a second open month.
+    private const string PromotePlannedMonthToOpen = @"
+    UPDATE BudgetMonth
+    SET
+        Status          = 'open',
+        OpenedAt        = @NowUtc,
+        UpdatedAt       = @NowUtc,
+        UpdatedByUserId = @UserId
+    WHERE Id = @BudgetMonthId
+      AND Status = 'planned';";
 
     private const string InsertSkippedMonthIdempotent = @"
     INSERT INTO BudgetMonth

@@ -76,6 +76,13 @@ public sealed class StartBudgetMonthCommandHandler
         if (openMonths.Count > 1)
             return Result<BudgetMonthsStatusDto?>.Failure(BudgetMonth.OpenMonthExists);
 
+        // A planned next month is promoted by the close flow only. Allowing
+        // start-month here could open a month that breaks the planned-month
+        // adjacency (planned = open + 1) or orphan the planned row entirely.
+        var plannedMonths = await _months.GetPlannedMonthsAsync(budgetId.Value, ct);
+        if (plannedMonths.Count > 0)
+            return Result<BudgetMonthsStatusDto?>.Failure(BudgetMonth.PlannedMonthBlocksStart);
+
         var open = openMonths.SingleOrDefault();
         if (open is null && req.CarryOverMode != BudgetMonthCarryOverModes.None)
             return Result<BudgetMonthsStatusDto?>.Failure(BudgetMonth.CarryOverRequiresPreviousMonth);

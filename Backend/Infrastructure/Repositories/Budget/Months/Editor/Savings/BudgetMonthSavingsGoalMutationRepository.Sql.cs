@@ -493,7 +493,11 @@ public sealed partial class BudgetMonthSavingsGoalMutationRepository
 
     // Idempotently closes still-active month rows pointing at the same source
     // goal, excluding the row we already updated directly. Skips closed rows
-    // and rows in skipped months — both are historical and must not change.
+    // and rows in closed/skipped months — those are historical and must not
+    // change. Open and planned months are both forward-looking: a planned
+    // next month carries materialized goal rows that must stop charging once
+    // the source goal completes, or the promoted month would silently keep
+    // the completed goal's contribution.
     private const string CloseLinkedActiveMonthSavingsGoalsForSourceSql = @"
     UPDATE BudgetMonthSavingsGoal g
     JOIN BudgetMonthSavings s ON s.Id = g.BudgetMonthSavingsId
@@ -508,7 +512,7 @@ public sealed partial class BudgetMonthSavingsGoalMutationRepository
       AND g.Id <> @ExcludeMonthGoalId
       AND g.IsDeleted = 0
       AND g.Status = 'active'
-      AND bm.Status = 'open';";
+      AND bm.Status IN ('open','planned');";
 
     private const string InsertMonthSavingsGoalSql = @"
     INSERT INTO BudgetMonthSavingsGoal
