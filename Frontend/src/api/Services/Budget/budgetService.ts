@@ -9,6 +9,7 @@ import type { ExpenseCategoryDto } from "@/types/budget/ExpenseCategoryDto";
 import type { BudgetMonthRecapDto } from "@/types/budget/BudgetMonthRecapDto";
 import type { SavingsGoalCompletionCandidateDto } from "@/types/budget/SavingsGoalCompletionCandidateDto";
 import type { NextMonthPreviewDto } from "@/types/budget/NextMonthPreviewDto";
+import type { PlanNextMonthResultDto } from "@/types/budget/PlanNextMonthResultDto";
 import type { BudgetDashboardMonthDto } from "@myTypes/budget/BudgetDashboardMonthDto";
 
 export async function fetchBudgetMonthsStatus(): Promise<BudgetMonthsStatusDto> {
@@ -99,6 +100,16 @@ export async function fetchNextMonthPreview(
   );
 
   return unwrapEnvelopeData(res, "Could not load next-month preview.");
+}
+
+export async function planNextMonth(
+  fromYearMonth: string,
+): Promise<PlanNextMonthResultDto> {
+  const res = await api.post<ApiEnvelope<PlanNextMonthResultDto>>(
+    `/api/budgets/months/${encodeURIComponent(fromYearMonth)}/next-planned`,
+  );
+
+  return unwrapEnvelopeData(res, "Could not create planned next month.");
 }
 
 export async function fetchBudgetMonthRecap(

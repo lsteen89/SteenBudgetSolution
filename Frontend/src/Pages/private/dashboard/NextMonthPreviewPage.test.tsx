@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -9,6 +10,8 @@ import type { NextMonthPreviewDto } from "@/types/budget/NextMonthPreviewDto";
 
 const mockUseBudgetMonthsStatusQuery = vi.fn();
 const mockUseNextMonthPreviewQuery = vi.fn();
+const mockUseBudgetDashboardMonthQuery = vi.fn();
+const mockUsePlanNextMonthMutation = vi.fn();
 
 vi.mock("@/hooks/i18n/useAppLocale", () => ({
   useAppLocale: () => "en",
@@ -28,6 +31,19 @@ vi.mock("@/hooks/budget/useNextMonthPreviewQuery", () => ({
     mockUseNextMonthPreviewQuery(...args),
 }));
 
+vi.mock("@/hooks/budget/useBudgetDashboardMonthQuery", () => ({
+  useBudgetDashboardMonthQuery: (...args: unknown[]) =>
+    mockUseBudgetDashboardMonthQuery(...args),
+  budgetDashboardMonthQueryKey: (ym?: string | null) => [
+    "budgetDashboardMonth",
+    ym ?? null,
+  ],
+}));
+
+vi.mock("@/hooks/budget/usePlanNextMonthMutation", () => ({
+  usePlanNextMonthMutation: () => mockUsePlanNextMonthMutation(),
+}));
+
 function statusWithOpenMonth(openMonth: string | null = "2026-05") {
   return {
     data: {
@@ -40,6 +56,59 @@ function statusWithOpenMonth(openMonth: string | null = "2026-05") {
     isPending: false,
     isError: false,
     error: null,
+    refetch: vi.fn(),
+  };
+}
+
+type MonthStatusLiteral = "open" | "planned" | "closed" | "skipped";
+
+function statusWithNextMonth(nextStatus: MonthStatusLiteral) {
+  return {
+    data: {
+      openMonthYearMonth: "2026-05",
+      currentYearMonth: "2026-05",
+      gapMonthsCount: 0,
+      months: [
+        { yearMonth: "2026-05", status: "open", openedAt: "", closedAt: null },
+        {
+          yearMonth: "2026-06",
+          status: nextStatus,
+          openedAt: "",
+          closedAt: null,
+        },
+      ],
+      suggestedAction: "none" as const,
+    },
+    isPending: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+  };
+}
+
+function dashboardMonthState(
+  dashboard: NextMonthPreviewDto["dashboard"],
+  extra: Partial<{ isPending: boolean; isError: boolean; error: unknown }> = {},
+) {
+  return {
+    data: {
+      currencyCode: "SEK",
+      month: {
+        yearMonth: "2026-06",
+        status: "planned",
+        carryOverMode: "full",
+        carryOverAmount: 18623,
+        isCloseWindowOpen: false,
+        closeWindowOpensAtUtc: null,
+        closeEligibleAtUtc: null,
+        isOverdueForClose: false,
+      },
+      liveDashboard: dashboard,
+      snapshotTotals: null,
+    },
+    isPending: extra.isPending ?? false,
+    isError: extra.isError ?? false,
+    error: extra.error ?? null,
     refetch: vi.fn(),
   };
 }
@@ -124,6 +193,22 @@ function renderPage() {
 beforeEach(() => {
   mockUseBudgetMonthsStatusQuery.mockReset();
   mockUseNextMonthPreviewQuery.mockReset();
+  mockUseBudgetDashboardMonthQuery.mockReset();
+  mockUsePlanNextMonthMutation.mockReset();
+
+  // Defaults: the planned dashboard read is idle (preview/unavailable states
+  // never use it) and the plan-next mutation is a no-op spy.
+  mockUseBudgetDashboardMonthQuery.mockReturnValue({
+    data: undefined,
+    isPending: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+  });
+  mockUsePlanNextMonthMutation.mockReturnValue({
+    mutate: vi.fn(),
+    isPending: false,
+  });
 });
 
 describe("NextMonthPreviewPage", () => {
@@ -152,7 +237,7 @@ describe("NextMonthPreviewPage", () => {
     expect(carry).toHaveTextContent(/may 2026/i);
   });
 
-  it("never edits — no edit/quick-adjust controls appear", () => {
+  it("preview offers only the start-planning action — no figure or month editing", () => {
     mockUseBudgetMonthsStatusQuery.mockReturnValue(statusWithOpenMonth());
     mockUseNextMonthPreviewQuery.mockReturnValue(
       previewQueryState(previewSuccess()),
@@ -160,11 +245,162 @@ describe("NextMonthPreviewPage", () => {
 
     renderPage();
 
-    // The only interactive element is the calm "back to overview" link.
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    // The preview is read-only money: the only action is the lifecycle
+    // "start planning" CTA — there are no per-pillar edit controls (those
+    // belong to the planned state) and no scoped edit-actions block.
+    expect(
+      screen.getByRole("button", { name: /start planning next month/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("next-month-edit-actions"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("next-month-edit-income"),
+    ).not.toBeInTheDocument();
+
+    // Navigation is still just the calm "back to overview" link.
     const links = screen.getAllByRole("link");
     expect(links).toHaveLength(1);
     expect(links[0]).toHaveTextContent(/back to overview/i);
+  });
+
+  it("starts planning the next month from the open from-month", async () => {
+    const user = userEvent.setup();
+    const mutate = vi.fn();
+    mockUsePlanNextMonthMutation.mockReturnValue({ mutate, isPending: false });
+    mockUseBudgetMonthsStatusQuery.mockReturnValue(
+      statusWithOpenMonth("2026-05"),
+    );
+    mockUseNextMonthPreviewQuery.mockReturnValue(
+      previewQueryState(previewSuccess()),
+    );
+
+    renderPage();
+
+    await user.click(
+      screen.getByRole("button", { name: /start planning next month/i }),
+    );
+
+    // Planning is keyed off the open from-month — never a fabricated month.
+    expect(mutate).toHaveBeenCalledWith("2026-05");
+  });
+
+  it("renders the planned money state and scoped edit actions when next month is planned", () => {
+    mockUseBudgetMonthsStatusQuery.mockReturnValue(
+      statusWithNextMonth("planned"),
+    );
+    // Planned numbers come from the materialized planned month, not the plan
+    // projection — so the preview hook stays disabled in this state.
+    mockUseNextMonthPreviewQuery.mockReturnValue(previewQueryState(undefined));
+    mockUseBudgetDashboardMonthQuery.mockReturnValue(
+      dashboardMonthState(previewSuccess().dashboard),
+    );
+
+    renderPage();
+
+    // Planned, not preview: distinct title + planned money state.
+    const title = screen.getByTestId("next-month-planned-title");
+    expect(title).toHaveTextContent(/june 2026/i);
+    expect(title).toHaveTextContent(/planned/i);
+    expect(screen.getByTestId("next-month-planned-remaining")).toHaveTextContent(
+      /34[\s,.]?623/,
+    );
+
+    // The planned dashboard is read for the planned month, enabled.
+    expect(mockUseBudgetDashboardMonthQuery).toHaveBeenCalledWith(
+      "2026-06",
+      expect.objectContaining({ enabled: true }),
+    );
+
+    // Scoped edit actions route into the PR-6 selected-month editors with the
+    // planned ?yearMonth=, defaulting to next-month-only scope.
+    expect(screen.getByTestId("next-month-edit-actions")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("next-month-edit-income").getAttribute("href"),
+    ).toContain("/dashboard/income?yearMonth=2026-06");
+    expect(
+      screen.getByTestId("next-month-edit-expenses").getAttribute("href"),
+    ).toContain("/dashboard/expenses?yearMonth=2026-06");
+    expect(
+      screen.getByTestId("next-month-edit-savings").getAttribute("href"),
+    ).toContain("/dashboard/savings?yearMonth=2026-06");
+    expect(
+      screen.getByTestId("next-month-edit-debts").getAttribute("href"),
+    ).toContain("/dashboard/debts?yearMonth=2026-06");
+
+    // Scope is unmistakable: month-only vs plan-forward are separate chips.
+    expect(screen.getByText("Applies only to June 2026")).toBeInTheDocument();
+    expect(screen.getByText("Budget plan forward")).toBeInTheDocument();
+  });
+
+  it("keeps a zero-total planned month editable — never the empty-plan state", () => {
+    // A planned month is a real materialized month: it can validly start at
+    // zero and must stay editable. The empty-plan guard is for the preview
+    // projection only, so an all-zero planned month must NOT hide its actions.
+    const zeroDashboard = {
+      budgetId: "b1",
+      income: {
+        netSalaryMonthly: 0,
+        incomePaymentDayType: null,
+        incomePaymentDay: null,
+        sideHustleMonthly: 0,
+        householdMembersMonthly: 0,
+        totalIncomeMonthly: 0,
+        sideHustles: [],
+        householdMembers: [],
+      },
+      expenditure: { totalExpensesMonthly: 0, byCategory: [] },
+      savings: {
+        monthlySavings: 0,
+        totalGoalSavingsMonthly: 0,
+        totalSavingsMonthly: 0,
+        isMonthOnly: false,
+        goals: [],
+      },
+      debt: {
+        totalDebtBalance: 0,
+        totalMonthlyPayments: 0,
+        debts: [],
+        repaymentStrategy: null,
+      },
+      carryOverAmountMonthly: 0,
+      disposableAfterExpensesWithCarryMonthly: 0,
+      disposableAfterExpensesAndSavingsWithCarryMonthly: 0,
+      finalBalanceWithCarryMonthly: 0,
+      recurringExpenses: [],
+      subscriptions: { totalMonthlyAmount: 0, count: 0, items: [] },
+    } as unknown as NextMonthPreviewDto["dashboard"];
+
+    mockUseBudgetMonthsStatusQuery.mockReturnValue(
+      statusWithNextMonth("planned"),
+    );
+    mockUseNextMonthPreviewQuery.mockReturnValue(previewQueryState(undefined));
+    mockUseBudgetDashboardMonthQuery.mockReturnValue(
+      dashboardMonthState(zeroDashboard),
+    );
+
+    renderPage();
+
+    expect(screen.getByTestId("next-month-edit-actions")).toBeInTheDocument();
+    expect(screen.getByTestId("next-month-edit-income")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("next-month-preview-empty"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("redirects to the dashboard when the next month is already a persisted open month", () => {
+    mockUseBudgetMonthsStatusQuery.mockReturnValue(statusWithNextMonth("open"));
+    mockUseNextMonthPreviewQuery.mockReturnValue(previewQueryState(undefined));
+
+    renderPage();
+
+    // Defensive redirect — the page never invents open-month navigation.
+    expect(
+      screen.queryByTestId("next-month-preview-page"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("next-month-edit-actions"),
+    ).not.toBeInTheDocument();
   });
 
   it("calls the preview hook with the open month from /months/status", () => {

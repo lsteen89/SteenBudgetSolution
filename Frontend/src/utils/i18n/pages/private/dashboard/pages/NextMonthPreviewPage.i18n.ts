@@ -5,6 +5,8 @@ export const nextMonthPreviewDict = {
     // header
     kicker: "Nästa månad",
     previewBadge: "Förhandsvisning",
+    plannedBadge: "Planerad",
+    openBadge: "Öppen",
     // appended after the month label, e.g. "juni 2026 · Förhandsvisning"
     titleSeparator: "·",
     intro:
@@ -48,6 +50,28 @@ export const nextMonthPreviewDict = {
       "Bygger på att {month} stängs med {amount} kvar. Beloppen fastställs när månaden stängs.",
     basisNote: "Projicerat från din budgetplan, utan att något ändrats.",
 
+    // planning actions
+    startPlanningTitle: "Vill du justera nästa månad?",
+    startPlanningBody:
+      "Skapa en planerad månad för att ändra bara nästa månad innan den öppnas.",
+    startPlanningAction: "Börja planera nästa månad",
+    startPlanningPending: "Skapar planerad månad",
+    plannedIntro:
+      "Den här månaden är planerad och kan redigeras innan den blir aktiv.",
+    editActionsTitle: "Redigera planerad månad",
+    editNextMonthOnlyTitle: "Redigera bara nästa månad",
+    editNextMonthOnlyBody:
+      "Öppnar fulla redigeraren för den planerade månaden. Ändringar gäller bara den månaden om du inte väljer plan framåt i redigeraren.",
+    updatePlanForwardTitle: "Uppdatera budgetplanen framåt",
+    updatePlanForwardBody:
+      "Budgetplanen ändras inte här. Välj plan framåt inne i redigeraren bara när ändringen ska gälla kommande månader.",
+    monthOnlyScope: "Gäller bara {month}",
+    planForwardScope: "Budgetplanen framåt",
+    editIncome: "Inkomster",
+    editExpenses: "Utgifter",
+    editSavings: "Sparande",
+    editDebts: "Skulder",
+
     // unavailable
     unavailableTitle: "Ingen förhandsvisning ännu",
     unavailableBody:
@@ -68,6 +92,8 @@ export const nextMonthPreviewDict = {
 
     kicker: "Next month",
     previewBadge: "Preview",
+    plannedBadge: "Planned",
+    openBadge: "Open",
     titleSeparator: "·",
     intro:
       "This is not your active month. Here is what next month looks like if your budget plan doesn't change.",
@@ -106,6 +132,27 @@ export const nextMonthPreviewDict = {
       "Based on {month} closing with {amount} left. Amounts are finalised when the month closes.",
     basisNote: "Projected from your budget plan with nothing changed.",
 
+    startPlanningTitle: "Want to adjust next month?",
+    startPlanningBody:
+      "Create a planned month to edit next month only before it becomes active.",
+    startPlanningAction: "Start planning next month",
+    startPlanningPending: "Creating planned month",
+    plannedIntro:
+      "This month is planned and can be edited before it becomes active.",
+    editActionsTitle: "Edit planned month",
+    editNextMonthOnlyTitle: "Edit next month only",
+    editNextMonthOnlyBody:
+      "Opens the full editor for the planned month. Changes apply only to that month unless you choose a plan-forward scope in the editor.",
+    updatePlanForwardTitle: "Update budget plan forward",
+    updatePlanForwardBody:
+      "The budget plan does not change here. Choose a plan-forward scope inside the editor only when the change should affect future months.",
+    monthOnlyScope: "Applies only to {month}",
+    planForwardScope: "Budget plan forward",
+    editIncome: "Income",
+    editExpenses: "Expenses",
+    editSavings: "Savings",
+    editDebts: "Debts",
+
     unavailableTitle: "No preview yet",
     unavailableBody:
       "The next-month preview is available once you have an open month to project from.",
@@ -123,6 +170,8 @@ export const nextMonthPreviewDict = {
 
     kicker: "Järgmine kuu",
     previewBadge: "Eelvaade",
+    plannedBadge: "Planeeritud",
+    openBadge: "Avatud",
     titleSeparator: "·",
     intro:
       "See ei ole sinu aktiivne kuu. Nii näeb järgmine kuu välja, kui eelarveplaan ei muutu.",
@@ -160,6 +209,27 @@ export const nextMonthPreviewDict = {
     carryAssumption:
       "Põhineb sellel, et {month} suletakse jäägiga {amount}. Summad kinnitatakse kuu sulgemisel.",
     basisNote: "Projitseeritud sinu eelarveplaani põhjal, midagi muutmata.",
+
+    startPlanningTitle: "Tahad järgmist kuud kohandada?",
+    startPlanningBody:
+      "Loo planeeritud kuu, et muuta ainult järgmist kuud enne selle aktiivseks muutumist.",
+    startPlanningAction: "Alusta järgmise kuu planeerimist",
+    startPlanningPending: "Planeeritud kuu loomine",
+    plannedIntro:
+      "See kuu on planeeritud ja seda saab enne aktiivseks muutumist muuta.",
+    editActionsTitle: "Muuda planeeritud kuud",
+    editNextMonthOnlyTitle: "Muuda ainult järgmist kuud",
+    editNextMonthOnlyBody:
+      "Avab täieliku redaktori planeeritud kuu jaoks. Muudatused kehtivad ainult sellele kuule, kui sa redaktoris ei vali plaani-edasi ulatust.",
+    updatePlanForwardTitle: "Uuenda eelarveplaani edasi",
+    updatePlanForwardBody:
+      "Eelarveplaan siin ei muutu. Vali redaktoris plaani-edasi ulatus ainult siis, kui muudatus peab mõjutama tulevasi kuid.",
+    monthOnlyScope: "Kehtib ainult kuule {month}",
+    planForwardScope: "Eelarveplaan edasi",
+    editIncome: "Sissetulekud",
+    editExpenses: "Kulud",
+    editSavings: "Sääst",
+    editDebts: "Võlad",
 
     unavailableTitle: "Eelvaadet veel pole",
     unavailableBody:

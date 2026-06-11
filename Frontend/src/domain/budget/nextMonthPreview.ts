@@ -1,5 +1,6 @@
 import { buildTermsFromLiveDashboard } from "@/domain/budget/dashboardTerms";
 import type { BudgetDashboardDto } from "@/types/budget/BudgetDashboardDto";
+import type { BudgetMonthListItemDto } from "@/types/budget/BudgetMonthsStatusDto";
 import type { NextMonthPreviewDto } from "@/types/budget/NextMonthPreviewDto";
 
 /**
@@ -78,4 +79,63 @@ export function selectNextMonthRemaining(
   if (!preview || preview.state !== "preview" || !preview.dashboard) return null;
   if (isEmptyPlanDashboard(preview.dashboard)) return null;
   return buildTermsFromLiveDashboard(preview.dashboard).terms.remaining;
+}
+
+export type NextMonthPageState =
+  | {
+      kind: "unavailable";
+      fromYearMonth: null;
+      targetYearMonth: null;
+      targetMonth: null;
+    }
+  | {
+      kind: "preview" | "planned" | "open";
+      fromYearMonth: string;
+      targetYearMonth: string;
+      targetMonth: BudgetMonthListItemDto | null;
+    };
+
+export function deriveNextMonthPageState(input: {
+  openMonthYearMonth: string | null | undefined;
+  months: BudgetMonthListItemDto[] | null | undefined;
+}): NextMonthPageState {
+  const fromYearMonth = input.openMonthYearMonth ?? null;
+
+  if (!fromYearMonth) {
+    return {
+      kind: "unavailable",
+      fromYearMonth: null,
+      targetYearMonth: null,
+      targetMonth: null,
+    };
+  }
+
+  const targetYearMonth = nextYearMonth(fromYearMonth);
+  const targetMonth =
+    input.months?.find((month) => month.yearMonth === targetYearMonth) ?? null;
+
+  if (targetMonth?.status === "planned") {
+    return {
+      kind: "planned",
+      fromYearMonth,
+      targetYearMonth,
+      targetMonth,
+    };
+  }
+
+  if (targetMonth?.status === "open") {
+    return {
+      kind: "open",
+      fromYearMonth,
+      targetYearMonth,
+      targetMonth,
+    };
+  }
+
+  return {
+    kind: "preview",
+    fromYearMonth,
+    targetYearMonth,
+    targetMonth: null,
+  };
 }

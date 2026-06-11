@@ -1,6 +1,6 @@
 import React from "react";
-import { ArrowLeft } from "lucide-react";
-import { Link } from "react-router-dom";
+import { ArrowLeft, ArrowRight } from "lucide-react";
+import { Link, Navigate } from "react-router-dom";
 
 import AllocationBar, {
   ALLOCATION_SEGMENT_BAR_CLASS,
@@ -9,22 +9,26 @@ import AllocationBar, {
   type AllocationSegmentKey,
 } from "@/components/molecules/budget/AllocationBar";
 import { Pill } from "@/components/atoms/badges/Pill";
+import { CtaButton } from "@/components/atoms/buttons/CtaButton";
 import DashboardErrorState from "@/components/organisms/dashboard/DashboardErrorState";
 import ContentWrapper from "@components/layout/ContentWrapper";
 import PageContainer from "@components/layout/PageContainer";
 import { buildTermsFromLiveDashboard } from "@/domain/budget/dashboardTerms";
 import {
   classifyRemaining,
+  deriveNextMonthPageState,
   isEmptyPlanDashboard,
   ymLabel,
 } from "@/domain/budget/nextMonthPreview";
+import { useBudgetDashboardMonthQuery } from "@/hooks/budget/useBudgetDashboardMonthQuery";
 import { useBudgetMonthsStatusQuery } from "@/hooks/budget/useBudgetMonthsStatusQuery";
 import { useNextMonthPreviewQuery } from "@/hooks/budget/useNextMonthPreviewQuery";
+import { usePlanNextMonthMutation } from "@/hooks/budget/usePlanNextMonthMutation";
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/lib/utils";
 import { appRoutes } from "@/routes/appRoutes";
 import { useAuthStore } from "@/stores/Auth/authStore";
-import type { NextMonthPreviewDto } from "@/types/budget/NextMonthPreviewDto";
+import type { BudgetDashboardDto } from "@/types/budget/BudgetDashboardDto";
 import { toApiProblem } from "@/api/toApiProblem";
 import { toUserMessage } from "@/utils/i18n/apiErrors/toUserMessage";
 import { dashboardErrorStateDict } from "@/utils/i18n/pages/private/dashboard/DashboardErrorState.i18n";
@@ -33,10 +37,13 @@ import { tDict } from "@/utils/i18n/translate";
 import type { CurrencyCode } from "@/utils/money/currency";
 import { formatMoneyV2, moneyDecimalsFor } from "@/utils/money/moneyV2";
 
+type Translate = <K extends keyof typeof nextMonthPreviewDict.sv>(
+  k: K,
+) => string;
+
 const NextMonthPreviewPage: React.FC = () => {
   const locale = useAppLocale();
-  const t = <K extends keyof typeof nextMonthPreviewDict.sv>(k: K): string =>
-    tDict(k, locale, nextMonthPreviewDict);
+  const t: Translate = (k) => tDict(k, locale, nextMonthPreviewDict);
   const tError = <K extends keyof typeof dashboardErrorStateDict.sv>(
     k: K,
   ): string => tDict(k, locale, dashboardErrorStateDict);
@@ -44,11 +51,31 @@ const NextMonthPreviewPage: React.FC = () => {
   const firstLogin = useAuthStore((s) => s.user?.firstLogin);
 
   const monthsQ = useBudgetMonthsStatusQuery({ enabled: !firstLogin });
-  const openMonth = monthsQ.data?.openMonthYearMonth ?? null;
+  const status = monthsQ.data ?? null;
 
-  const previewQ = useNextMonthPreviewQuery(openMonth, {
-    enabled: !firstLogin && !!openMonth,
+  // The page derives its real state — preview or planned — from the persisted
+  // months. `open` is a defensive case only (a real next month already exists);
+  // we redirect rather than invent next-month navigation. `unavailable` covers
+  // "no open month to project from".
+  const pageState = deriveNextMonthPageState({
+    openMonthYearMonth: status?.openMonthYearMonth,
+    months: status?.months,
   });
+  const isPreview = pageState.kind === "preview";
+  const isPlanned = pageState.kind === "planned";
+
+  // Both data hooks run unconditionally with enabled gates so hook order stays
+  // stable across states. Preview reads the budget-plan projection; planned
+  // reads the materialized planned month (its edited rows, never the plan
+  // projection) through the same dashboard endpoint the live month uses.
+  const previewQ = useNextMonthPreviewQuery(pageState.fromYearMonth, {
+    enabled: !firstLogin && isPreview,
+  });
+  const plannedDashQ = useBudgetDashboardMonthQuery(
+    isPlanned ? pageState.targetYearMonth : null,
+    { enabled: !firstLogin && isPlanned },
+  );
+  const planMutation = usePlanNextMonthMutation();
 
   const shell = (children: React.ReactNode) => (
     <PageContainer className="md:px-20 items-center min-h-screen overflow-y-auto h-full">
@@ -106,51 +133,92 @@ const NextMonthPreviewPage: React.FC = () => {
   const emptyPlan = () =>
     infoPanel("next-month-preview-empty", t("emptyTitle"), t("emptyBody"));
 
-  if (firstLogin) {
-    return unavailable();
-  }
-
-  // Months status must resolve before we know the from-month.
-  if (monthsQ.isPending) {
-    return shell(<PreviewSkeleton />);
-  }
-  if (monthsQ.isError) {
-    return shell(
+  const errorPanel = (
+    message: string,
+    onRetry: () => void,
+  ): React.ReactNode =>
+    shell(
       <DashboardErrorState
         title={t("errorTitle")}
-        message={
-          monthsQ.error
-            ? toUserMessage(toApiProblem(monthsQ.error), locale)
-            : t("errorFallback")
-        }
-        onRetry={monthsQ.refetch}
+        message={message}
+        onRetry={onRetry}
         retryLabel={tError("retry")}
         reloadLabel={tError("reload")}
       />,
     );
-  }
 
-  // No open month to project from — honest unavailable state, never a fake number.
-  if (!openMonth) {
+  if (firstLogin) {
     return unavailable();
   }
 
+  // Months status must resolve before we know the from-month and page state.
+  if (monthsQ.isPending) {
+    return shell(<PreviewSkeleton />);
+  }
+  if (monthsQ.isError) {
+    return errorPanel(
+      monthsQ.error
+        ? toUserMessage(toApiProblem(monthsQ.error), locale)
+        : t("errorFallback"),
+      monthsQ.refetch,
+    );
+  }
+
+  // No open month to project from — honest unavailable state, never a fake number.
+  if (pageState.kind === "unavailable") {
+    return unavailable();
+  }
+
+  // Defensive only: a real persisted next month already exists. The next-month
+  // page is for preview/planned; send the user to the dashboard to navigate
+  // persisted months rather than inventing routing here.
+  if (pageState.kind === "open") {
+    return <Navigate to={appRoutes.dashboard} replace />;
+  }
+
+  if (pageState.kind === "planned") {
+    if (plannedDashQ.isPending) {
+      return shell(<PreviewSkeleton />);
+    }
+    if (plannedDashQ.isError) {
+      return errorPanel(
+        plannedDashQ.error
+          ? toUserMessage(toApiProblem(plannedDashQ.error), locale)
+          : t("errorFallback"),
+        plannedDashQ.refetch,
+      );
+    }
+
+    // A planned month is a real materialized month, not a projection: zero
+    // rows/totals are a valid starting point the user must still be able to
+    // edit. The empty-plan guard is for the preview projection only — never
+    // apply it here, or an all-zero planned month would hide its edit actions.
+    const dashboard = plannedDashQ.data?.liveDashboard ?? null;
+    if (!dashboard) {
+      return unavailable();
+    }
+
+    return shell(
+      <PlannedContent
+        dashboard={dashboard}
+        currency={plannedDashQ.data!.currencyCode}
+        targetYearMonth={pageState.targetYearMonth}
+        locale={locale}
+        t={t}
+      />,
+    );
+  }
+
+  // preview
   if (previewQ.isPending) {
     return shell(<PreviewSkeleton />);
   }
   if (previewQ.isError) {
-    return shell(
-      <DashboardErrorState
-        title={t("errorTitle")}
-        message={
-          previewQ.error
-            ? toUserMessage(toApiProblem(previewQ.error), locale)
-            : t("errorFallback")
-        }
-        onRetry={previewQ.refetch}
-        retryLabel={tError("retry")}
-        reloadLabel={tError("reload")}
-      />,
+    return errorPanel(
+      previewQ.error
+        ? toUserMessage(toApiProblem(previewQ.error), locale)
+        : t("errorFallback"),
+      previewQ.refetch,
     );
   }
 
@@ -165,25 +233,46 @@ const NextMonthPreviewPage: React.FC = () => {
     return emptyPlan();
   }
 
-  return shell(<PreviewContent preview={preview} locale={locale} t={t} />);
+  return shell(
+    <PreviewContent
+      dashboard={preview.dashboard}
+      currency={preview.currencyCode}
+      previewYearMonth={preview.previewYearMonth}
+      fromYearMonth={preview.fromYearMonth}
+      showCarryAssumption={preview.carryOver.mode === "estimatedFull"}
+      carryAmount={preview.carryOver.amount}
+      locale={locale}
+      t={t}
+      onStartPlanning={() => planMutation.mutate(preview.fromYearMonth)}
+      planning={planMutation.isPending}
+    />,
+  );
 };
 
-function PreviewContent({
-  preview,
+/**
+ * The backend-authoritative six-term money state — the same equation grammar as
+ * the live dashboard's MoneyState, fed by the shared `buildTermsFromLiveDashboard`.
+ * Remaining is read straight from the backend projection; nothing is computed
+ * for display. Reused by both the preview and the planned states.
+ */
+function MoneyStateSurface({
+  dashboard,
+  currency,
   locale,
   t,
+  testIdBase,
+  footer,
 }: {
-  preview: NextMonthPreviewDto;
+  dashboard: BudgetDashboardDto;
+  currency: CurrencyCode;
   locale: string;
-  t: <K extends keyof typeof nextMonthPreviewDict.sv>(k: K) => string;
+  t: Translate;
+  testIdBase: string;
+  footer?: React.ReactNode;
 }) {
-  const currency = preview.currencyCode as CurrencyCode;
-  // dashboard is guaranteed non-null for state === "preview" (checked by caller).
-  const { terms } = buildTermsFromLiveDashboard(preview.dashboard!);
-
+  const { terms } = buildTermsFromLiveDashboard(dashboard);
   const tone = classifyRemaining(terms.remaining);
-  const previewLabel = ymLabel(preview.previewYearMonth, locale);
-  const fromLabel = ymLabel(preview.fromYearMonth, locale);
+  const labelId = `${testIdBase}-remaining-label`;
 
   const fmt = (value: number) => {
     const abs = Math.abs(value);
@@ -263,10 +352,165 @@ function PreviewContent({
     },
   ];
 
-  const showCarryAssumption = preview.carryOver.mode === "estimatedFull";
+  return (
+    <section
+      data-testid={testIdBase}
+      data-tone={tone}
+      aria-labelledby={labelId}
+      className={cn(
+        "relative overflow-hidden rounded-3xl shadow-eb",
+        "border border-eb-stroke/40 bg-eb-surface/85",
+        "bg-[linear-gradient(180deg,rgb(var(--eb-shell)/0.18),transparent_46%)]",
+        "supports-[backdrop-filter]:backdrop-blur-md supports-[backdrop-filter]:bg-eb-surface/70",
+        "px-5 py-6 sm:px-7 sm:py-7",
+        tone === "negative" && "border-eb-danger/40",
+      )}
+    >
+      <p
+        id={labelId}
+        className="text-xs font-semibold uppercase tracking-wide text-eb-text/55"
+      >
+        {t("remainingLabel")}
+      </p>
+      <div className="mt-0.5 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+        <p
+          data-testid={`${testIdBase}-remaining`}
+          className={cn(
+            "text-[2.5rem] font-extrabold leading-none tracking-tight tabular-nums sm:text-5xl",
+            tone === "negative" ? "text-eb-danger" : "text-eb-text",
+          )}
+        >
+          {tone === "negative" ? "−" : ""}
+          {fmt(terms.remaining)}
+        </p>
+        <p
+          className={cn(
+            "text-base font-bold sm:text-lg",
+            tone === "negative" ? "text-eb-danger" : "text-eb-text/55",
+          )}
+        >
+          {toneWord}
+        </p>
+      </div>
+      <p className="mt-2 max-w-xl text-sm leading-6 text-eb-text/70">
+        {helperCopy}
+      </p>
+
+      <div
+        data-testid={`${testIdBase}-equation`}
+        role="group"
+        aria-label={t("equationAria")}
+        className="mt-5 flex flex-wrap items-baseline gap-x-2.5 gap-y-1 text-xs leading-5 text-eb-text/60"
+      >
+        {equationTerms.map((term) => (
+          <React.Fragment key={term.key}>
+            {term.operator ? (
+              <span aria-hidden="true" className="font-semibold text-eb-text/40">
+                {term.operator === "plus" ? t("equationPlus") : t("equationMinus")}
+              </span>
+            ) : null}
+            <span className="inline-flex items-baseline gap-1.5">
+              <span className="text-eb-text/55">{term.label}</span>
+              <span className="font-semibold tabular-nums text-eb-text/85">
+                {fmt(term.value)}
+              </span>
+            </span>
+          </React.Fragment>
+        ))}
+        <span aria-hidden="true" className="font-semibold text-eb-text/40">
+          {t("equationEquals")}
+        </span>
+        <span className="inline-flex items-baseline gap-1.5">
+          <span className="text-eb-text/55">{t("equationRemaining")}</span>
+          <span
+            className={cn(
+              "font-bold tabular-nums",
+              tone === "negative" ? "text-eb-danger" : "text-eb-text",
+            )}
+          >
+            {tone === "negative" ? "−" : ""}
+            {fmt(terms.remaining)}
+          </span>
+        </span>
+      </div>
+
+      <div className="mt-6">
+        <p className="text-xs font-semibold uppercase tracking-wide text-eb-text/55">
+          {t("allocationCaption")}
+        </p>
+        {legendSegments.length > 0 ? (
+          <ul className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1.5">
+            {legendSegments.map((segment) => (
+              <li key={segment.key} className="inline-flex items-center gap-1.5">
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "h-2.5 w-2.5 shrink-0 rounded-[3px]",
+                    ALLOCATION_SEGMENT_BAR_CLASS[segment.key],
+                  )}
+                />
+                <span className="text-[11px] font-semibold text-eb-text/60">
+                  {segmentLabel[segment.key]}
+                </span>
+                <span className="text-[11px] font-bold tabular-nums text-eb-text">
+                  {fmt(segment.amount)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <div className="mt-2.5">
+          <AllocationBar
+            terms={allocationTerms}
+            labels={allocationLabels}
+            testId={`${testIdBase}-allocation`}
+          />
+        </div>
+      </div>
+
+      {footer ? (
+        <div className="mt-6 space-y-1.5 border-t border-eb-stroke/40 pt-4 text-xs leading-5 text-eb-text/55">
+          {footer}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function PreviewContent({
+  dashboard,
+  currency,
+  previewYearMonth,
+  fromYearMonth,
+  showCarryAssumption,
+  carryAmount,
+  locale,
+  t,
+  onStartPlanning,
+  planning,
+}: {
+  dashboard: BudgetDashboardDto;
+  currency: CurrencyCode;
+  previewYearMonth: string;
+  fromYearMonth: string;
+  showCarryAssumption: boolean;
+  carryAmount: number;
+  locale: string;
+  t: Translate;
+  onStartPlanning: () => void;
+  planning: boolean;
+}) {
+  const previewLabel = ymLabel(previewYearMonth, locale);
+  const fromLabel = ymLabel(fromYearMonth, locale);
+
   const carryCopy = t("carryAssumption")
     .replace("{month}", fromLabel)
-    .replace("{amount}", fmt(preview.carryOver.amount));
+    .replace(
+      "{amount}",
+      formatMoneyV2(Math.abs(carryAmount), currency, locale, {
+        fractionDigits: moneyDecimalsFor(Math.abs(carryAmount)),
+      }),
+    );
 
   return (
     <>
@@ -288,134 +532,174 @@ function PreviewContent({
         </p>
       </header>
 
+      <MoneyStateSurface
+        dashboard={dashboard}
+        currency={currency}
+        locale={locale}
+        t={t}
+        testIdBase="next-month-preview"
+        footer={
+          <>
+            <p>{t("basisNote")}</p>
+            {showCarryAssumption ? (
+              <p data-testid="next-month-preview-carry-assumption">
+                {carryCopy}
+              </p>
+            ) : null}
+          </>
+        }
+      />
+
+      {/*
+        Creating the planned month is the one lifecycle action offered from the
+        read-only preview. It edits nothing here — it materializes next month so
+        it can be edited ahead of time, after which the page renders the planned
+        state with its scoped edit actions.
+      */}
       <section
-        data-testid="next-month-preview"
-        data-tone={tone}
-        aria-labelledby="next-month-preview-remaining-label"
+        data-testid="next-month-start-planning"
         className={cn(
-          "relative overflow-hidden rounded-3xl shadow-eb",
-          "border border-eb-stroke/40 bg-eb-surface/85",
-          "bg-[linear-gradient(180deg,rgb(var(--eb-shell)/0.18),transparent_46%)]",
-          "supports-[backdrop-filter]:backdrop-blur-md supports-[backdrop-filter]:bg-eb-surface/70",
-          "px-5 py-6 sm:px-7 sm:py-7",
-          tone === "negative" && "border-eb-danger/40",
+          "rounded-3xl border border-eb-stroke/40 bg-eb-surface/70",
+          "px-5 py-5 sm:px-7 sm:py-6",
         )}
       >
-        <p
-          id="next-month-preview-remaining-label"
-          className="text-xs font-semibold uppercase tracking-wide text-eb-text/55"
+        <h2 className="text-base font-extrabold tracking-tight text-eb-text">
+          {t("startPlanningTitle")}
+        </h2>
+        <p className="mt-1.5 max-w-prose text-sm leading-6 text-eb-text/70">
+          {t("startPlanningBody")}
+        </p>
+        <CtaButton
+          className="mt-4 h-11 px-5"
+          onClick={onStartPlanning}
+          disabled={planning}
         >
-          {t("remainingLabel")}
-        </p>
-        <div className="mt-0.5 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-          <p
-            data-testid="next-month-preview-remaining"
-            className={cn(
-              "text-[2.5rem] font-extrabold leading-none tracking-tight tabular-nums sm:text-5xl",
-              tone === "negative" ? "text-eb-danger" : "text-eb-text",
-            )}
-          >
-            {tone === "negative" ? "−" : ""}
-            {fmt(terms.remaining)}
-          </p>
-          <p
-            className={cn(
-              "text-base font-bold sm:text-lg",
-              tone === "negative" ? "text-eb-danger" : "text-eb-text/55",
-            )}
-          >
-            {toneWord}
-          </p>
-        </div>
-        <p className="mt-2 max-w-xl text-sm leading-6 text-eb-text/70">
-          {helperCopy}
-        </p>
+          {planning ? t("startPlanningPending") : t("startPlanningAction")}
+        </CtaButton>
+      </section>
+    </>
+  );
+}
 
-        {/*
-          Same six-term equation grammar as the live dashboard's MoneyState,
-          fed by the shared `buildTermsFromLiveDashboard`. Remaining is the
-          backend-authoritative projection — nothing is computed for display.
-        */}
-        <div
-          data-testid="next-month-preview-equation"
-          role="group"
-          aria-label={t("equationAria")}
-          className="mt-5 flex flex-wrap items-baseline gap-x-2.5 gap-y-1 text-xs leading-5 text-eb-text/60"
-        >
-          {equationTerms.map((term) => (
-            <React.Fragment key={term.key}>
-              {term.operator ? (
-                <span aria-hidden="true" className="font-semibold text-eb-text/40">
-                  {term.operator === "plus" ? t("equationPlus") : t("equationMinus")}
-                </span>
-              ) : null}
-              <span className="inline-flex items-baseline gap-1.5">
-                <span className="text-eb-text/55">{term.label}</span>
-                <span className="font-semibold tabular-nums text-eb-text/85">
-                  {fmt(term.value)}
-                </span>
-              </span>
-            </React.Fragment>
-          ))}
-          <span aria-hidden="true" className="font-semibold text-eb-text/40">
-            {t("equationEquals")}
+function PlannedContent({
+  dashboard,
+  currency,
+  targetYearMonth,
+  locale,
+  t,
+}: {
+  dashboard: BudgetDashboardDto;
+  currency: CurrencyCode;
+  targetYearMonth: string;
+  locale: string;
+  t: Translate;
+}) {
+  const plannedLabel = ymLabel(targetYearMonth, locale);
+  const monthOnlyScope = t("monthOnlyScope").replace("{month}", plannedLabel);
+  const qs = `?yearMonth=${encodeURIComponent(targetYearMonth)}`;
+
+  const pillars: Array<{ key: string; label: string; to: string }> = [
+    { key: "income", label: t("editIncome"), to: `${appRoutes.income}${qs}` },
+    {
+      key: "expenses",
+      label: t("editExpenses"),
+      to: `${appRoutes.expenses}${qs}`,
+    },
+    { key: "savings", label: t("editSavings"), to: `${appRoutes.savings}${qs}` },
+    { key: "debts", label: t("editDebts"), to: `${appRoutes.debts}${qs}` },
+  ];
+
+  return (
+    <>
+      <header className="space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wide text-eb-text/55">
+            {t("kicker")}
           </span>
-          <span className="inline-flex items-baseline gap-1.5">
-            <span className="text-eb-text/55">{t("equationRemaining")}</span>
-            <span
-              className={cn(
-                "font-bold tabular-nums",
-                tone === "negative" ? "text-eb-danger" : "text-eb-text",
-              )}
-            >
-              {tone === "negative" ? "−" : ""}
-              {fmt(terms.remaining)}
+          <Pill className="h-7 px-2.5 text-xs">{t("plannedBadge")}</Pill>
+        </div>
+        <h1
+          data-testid="next-month-planned-title"
+          className="text-2xl font-extrabold capitalize tracking-tight text-eb-text sm:text-3xl"
+        >
+          {plannedLabel} {t("titleSeparator")} {t("plannedBadge")}
+        </h1>
+        <p className="max-w-prose text-sm leading-6 text-eb-text/70">
+          {t("plannedIntro")}
+        </p>
+      </header>
+
+      <MoneyStateSurface
+        dashboard={dashboard}
+        currency={currency}
+        locale={locale}
+        t={t}
+        testIdBase="next-month-planned"
+      />
+
+      {/*
+        Scope is the load-bearing risk here: "edit next month only" must never
+        be confused with "change the budget plan forward". The default editor
+        scope for the planned month is month-only; plan-forward is a deliberate
+        per-row choice inside the editor, surfaced as a separate explanation —
+        never as the same action.
+      */}
+      <section
+        data-testid="next-month-edit-actions"
+        className={cn(
+          "rounded-3xl border border-eb-stroke/40 bg-eb-surface/70",
+          "px-5 py-5 sm:px-7 sm:py-6",
+        )}
+      >
+        <h2 className="text-base font-extrabold tracking-tight text-eb-text">
+          {t("editActionsTitle")}
+        </h2>
+
+        <div className="mt-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-bold text-eb-text">
+              {t("editNextMonthOnlyTitle")}
             </span>
-          </span>
-        </div>
-
-        <div className="mt-6">
-          <p className="text-xs font-semibold uppercase tracking-wide text-eb-text/55">
-            {t("allocationCaption")}
-          </p>
-          {legendSegments.length > 0 ? (
-            <ul className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1.5">
-              {legendSegments.map((segment) => (
-                <li
-                  key={segment.key}
-                  className="inline-flex items-center gap-1.5"
-                >
-                  <span
-                    aria-hidden="true"
-                    className={cn(
-                      "h-2.5 w-2.5 shrink-0 rounded-[3px]",
-                      ALLOCATION_SEGMENT_BAR_CLASS[segment.key],
-                    )}
-                  />
-                  <span className="text-[11px] font-semibold text-eb-text/60">
-                    {segmentLabel[segment.key]}
-                  </span>
-                  <span className="text-[11px] font-bold tabular-nums text-eb-text">
-                    {fmt(segment.amount)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          <div className="mt-2.5">
-            <AllocationBar
-              terms={allocationTerms}
-              labels={allocationLabels}
-              testId="next-month-preview-allocation"
-            />
+            <Pill className="h-6 px-2 text-[11px] font-semibold">
+              {monthOnlyScope}
+            </Pill>
           </div>
+          <p className="mt-1.5 max-w-prose text-sm leading-6 text-eb-text/65">
+            {t("editNextMonthOnlyBody")}
+          </p>
+          <ul className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {pillars.map((pillar) => (
+              <li key={pillar.key}>
+                <Link
+                  to={pillar.to}
+                  data-testid={`next-month-edit-${pillar.key}`}
+                  className={cn(
+                    "flex items-center justify-between gap-2 rounded-2xl",
+                    "border border-eb-stroke/40 bg-eb-surface/80 px-3.5 py-3",
+                    "text-sm font-semibold text-eb-text",
+                    "hover:border-eb-accent/45 hover:bg-eb-surface transition",
+                  )}
+                >
+                  {pillar.label}
+                  <ArrowRight className="h-4 w-4 text-eb-text/45" />
+                </Link>
+              </li>
+            ))}
+          </ul>
         </div>
 
-        <div className="mt-6 space-y-1.5 border-t border-eb-stroke/40 pt-4 text-xs leading-5 text-eb-text/55">
-          <p>{t("basisNote")}</p>
-          {showCarryAssumption ? (
-            <p data-testid="next-month-preview-carry-assumption">{carryCopy}</p>
-          ) : null}
+        <div className="mt-5 border-t border-eb-stroke/40 pt-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-bold text-eb-text">
+              {t("updatePlanForwardTitle")}
+            </span>
+            <Pill className="h-6 px-2 text-[11px] font-semibold">
+              {t("planForwardScope")}
+            </Pill>
+          </div>
+          <p className="mt-1.5 max-w-prose text-sm leading-6 text-eb-text/65">
+            {t("updatePlanForwardBody")}
+          </p>
         </div>
       </section>
     </>
