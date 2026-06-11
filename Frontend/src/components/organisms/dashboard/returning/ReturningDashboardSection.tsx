@@ -12,6 +12,7 @@ import type { AttentionPillar } from "@/domain/budget/attentionRanking";
 import AttentionLane from "./openMonth/AttentionLane";
 import CloseBand from "./openMonth/CloseBand";
 import MoneyState from "./openMonth/MoneyState";
+import NextMonthPreviewDetail from "./openMonth/NextMonthPreviewDetail";
 import OpenMonthPillarWorkbench from "./openMonth/OpenMonthPillarWorkbench";
 import PlanningRow from "./openMonth/PlanningRow";
 
@@ -129,6 +130,24 @@ const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({
             currency={summary.currency}
           />
         </div>
+
+        {/*
+          NextMonthPreviewDetail (PR3) expands the planning row's Next-month
+          teaser when the backend preview has an honest projection. It shares
+          the planning row's query (same key, deduped by react-query) and
+          self-suppresses (returns null) when the preview is unavailable or
+          the budget plan is empty — never a fabricated number. No wrapper div:
+          a suppressed detail must not leave an empty space-y gap behind.
+        */}
+        <NextMonthPreviewDetail
+          fromYearMonth={summary.header.periodKey}
+          dashboardMonth={dashboardMonth}
+          currency={summary.currency}
+          className={cn(
+            "transition-opacity duration-250 ease-out",
+            isSwitchingMonth && "opacity-90",
+          )}
+        />
 
         {/*
           CloseBand (PR5) sits between MoneyState and AttentionLane per the

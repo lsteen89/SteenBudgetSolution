@@ -1,4 +1,5 @@
 import { buildTermsFromLiveDashboard } from "@/domain/budget/dashboardTerms";
+import type { DashboardTerms } from "@/domain/budget/dashboardTerms";
 import type { BudgetDashboardDto } from "@/types/budget/BudgetDashboardDto";
 import type { BudgetMonthListItemDto } from "@/types/budget/BudgetMonthsStatusDto";
 import type { NextMonthPreviewDto } from "@/types/budget/NextMonthPreviewDto";
@@ -79,6 +80,59 @@ export function selectNextMonthRemaining(
   if (!preview || preview.state !== "preview" || !preview.dashboard) return null;
   if (isEmptyPlanDashboard(preview.dashboard)) return null;
   return buildTermsFromLiveDashboard(preview.dashboard).terms.remaining;
+}
+
+/** The five equation terms compared between this month and the preview. */
+export type NextMonthDeltaKey =
+  | "income"
+  | "carryOver"
+  | "expenses"
+  | "savings"
+  | "debts";
+
+export interface NextMonthDelta {
+  key: NextMonthDeltaKey;
+  /** This month's backend value for the term. */
+  current: number;
+  /** Next month's backend preview value for the term. */
+  next: number;
+  /** Raw movement of the term: `next − current`. */
+  delta: number;
+  /** True when the movement is inside the zero band and can be hidden. */
+  isZero: boolean;
+}
+
+const NEXT_MONTH_DELTA_KEYS: readonly NextMonthDeltaKey[] = [
+  "income",
+  "carryOver",
+  "expenses",
+  "savings",
+  "debts",
+];
+
+const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+
+/**
+ * Per-term comparison between this month's terms and the preview's terms —
+ * both backend-built via {@link buildTermsFromLiveDashboard}. This is pure
+ * subtraction of two backend values per term; it never projects or invents a
+ * next-month number. `remaining` is deliberately not a delta row: the preview
+ * detail shows it as its own backend-owned headline figure.
+ */
+export function buildNextMonthDeltas(
+  current: DashboardTerms,
+  next: DashboardTerms,
+): NextMonthDelta[] {
+  return NEXT_MONTH_DELTA_KEYS.map((key) => {
+    const delta = round2(next[key] - current[key]);
+    return {
+      key,
+      current: current[key],
+      next: next[key],
+      delta,
+      isZero: Math.abs(delta) < REMAINING_EPSILON,
+    };
+  });
 }
 
 export type NextMonthPageState =
