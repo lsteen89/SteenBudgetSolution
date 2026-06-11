@@ -99,7 +99,9 @@ const PlanningRow: React.FC<PlanningRowProps> = ({
           <span className="text-base font-extrabold capitalize text-eb-text">
             {periodLabel}
           </span>
-          <DashboardPill size="sm">{t("openBadge")}</DashboardPill>
+          <DashboardPill size="sm" tone="accent">
+            {t("openBadge")}
+          </DashboardPill>
         </div>
         <div className="mt-1.5 flex items-baseline gap-1.5">
           <span
