@@ -70,7 +70,7 @@ body {
     --wizard-muted: 21 39 81;
     /* <-- IMPORTANT: use text hue for muted, then opacity in Tailwind */
 
-    --wizard-warning: 185 28 28;
+    --wizard-danger: 185 28 28;
 
     --wizard-accent: 34 197 94;
     --wizard-accent-soft: 220 252 231;
@@ -92,15 +92,13 @@ body {
     /* Muted: same hue, use opacity in CSS/Tailwind */
     --eb-muted: var(--wizard-text);
 
-    --eb-danger: var(--wizard-warning);
-    --eb-alert: var(--wizard-warning);
+    /* Semantics: keep naming honest — danger is red, warning is amber */
+    --eb-danger: var(--wizard-danger);
+    --eb-warning: 234 179 8;
 
     --eb-accent: var(--wizard-accent);
     --eb-accent-soft: var(--wizard-accent-soft);
     --eb-accent-foreground: var(--wizard-accent-foreground);
-
-    /* Semantics: keep naming honest */
-    --eb-danger: var(--wizard-warning);
 
     /* Shadow tint (tropical-blue-950 vibe) */
     --eb-shadow: 15 23 42;
@@ -321,8 +319,8 @@ body {
     background: var(--wizard-overlay);
   }
 
-  .ring-wizard-warning {
-    --tw-ring-color: rgb(var(--wizard-warning) / 0.35);
+  .ring-wizard-danger {
+    --tw-ring-color: rgb(var(--wizard-danger) / 0.35);
   }
 }
 input[type="number"]::-webkit-outer-spin-button,

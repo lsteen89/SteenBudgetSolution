@@ -236,7 +236,7 @@ const SubStepSubscriptions: React.FC = () => {
 
             {typeof formState.errors.subscriptions?.customSubscriptions
               ?.message === "string" && (
-              <p className="mt-2 text-center text-sm font-semibold text-wizard-warning">
+              <p className="mt-2 text-center text-sm font-semibold text-wizard-danger">
                 {formState.errors.subscriptions.customSubscriptions.message}
               </p>
             )}

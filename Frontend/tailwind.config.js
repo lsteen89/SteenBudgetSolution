@@ -62,7 +62,7 @@ module.exports = {
           accent: "rgb(var(--eb-accent) / <alpha-value>)",
           accentSoft: "rgb(var(--eb-accent-soft) / <alpha-value>)",
           danger: "rgb(var(--eb-danger) / <alpha-value>)",
-          alert: "rgb(var(--eb-alert) / <alpha-value>)",
+          warning: "rgb(var(--eb-warning) / <alpha-value>)",
           shadow: "rgb(var(--eb-shadow) / <alpha-value>)",
         },
 
@@ -89,7 +89,7 @@ module.exports = {
           accentSoft: "rgb(var(--wizard-accent-soft) / <alpha-value>)",
           accentFg: "rgb(var(--wizard-accent-foreground) / <alpha-value>)",
 
-          warning: "rgb(var(--wizard-warning) / <alpha-value>)",
+          danger: "rgb(var(--wizard-danger) / <alpha-value>)",
         },
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",

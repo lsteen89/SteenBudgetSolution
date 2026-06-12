@@ -57,7 +57,7 @@ type DictKey = keyof typeof standaloneInsightActionCardsDict.sv;
  * positive emerald, informational shell-neutral. */
 const SEVERITY_ICON_WRAP: Record<AttentionSeverity, string> = {
   critical: "bg-eb-danger/10 text-eb-danger",
-  attention: "bg-amber-500/15 text-amber-800",
+  attention: "bg-eb-warning/15 text-amber-800",
   info: "bg-[rgb(var(--eb-shell)/0.35)] text-eb-text/60",
   positive: "bg-eb-accentSoft text-emerald-800",
 };

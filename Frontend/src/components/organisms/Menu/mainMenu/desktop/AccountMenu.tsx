@@ -94,7 +94,7 @@ export default function AccountMenu({ className, labels }: Props) {
 
         <DropdownMenuItem
           onClick={onLogout}
-          className="rounded-xl text-[rgb(var(--eb-alert,239_68_68)/0.95)] focus:text-[rgb(var(--eb-alert,239_68_68)/0.95)]"
+          className="rounded-xl text-[rgb(var(--eb-danger,239_68_68)/0.95)] focus:text-[rgb(var(--eb-danger,239_68_68)/0.95)]"
         >
           <LogOut className="mr-2 h-4 w-4" />
           {labels.logout}

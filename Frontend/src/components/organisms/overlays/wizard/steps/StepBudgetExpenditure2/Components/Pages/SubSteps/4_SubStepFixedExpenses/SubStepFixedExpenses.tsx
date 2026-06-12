@@ -223,7 +223,7 @@ const SubStepFixedExpenses: React.FC = () => {
 
             {typeof formState.errors.fixedExpenses?.customExpenses?.message ===
               "string" && (
-              <p className="mt-3 text-xs font-semibold text-wizard-warning text-center">
+              <p className="mt-3 text-xs font-semibold text-wizard-danger text-center">
                 {formState.errors.fixedExpenses.customExpenses.message}
               </p>
             )}

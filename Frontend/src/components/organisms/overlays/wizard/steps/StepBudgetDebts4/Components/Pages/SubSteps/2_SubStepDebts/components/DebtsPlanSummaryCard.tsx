@@ -100,7 +100,7 @@ function getBadge(
   }
 
   return {
-    icon: <AlertTriangle className="h-4 w-4 text-wizard-warning" />,
+    icon: <AlertTriangle className="h-4 w-4 text-wizard-danger" />,
     text: t("badgeMissingTemplate").replace("{count}", String(incompleteCount)),
   };
 }

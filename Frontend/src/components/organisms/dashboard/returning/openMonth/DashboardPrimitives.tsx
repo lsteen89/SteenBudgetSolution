@@ -77,7 +77,7 @@ export type DashboardPillTone =
 const PILL_TONE_CLASSES: Record<DashboardPillTone, string> = {
   neutral: "border-eb-stroke/35 bg-[rgb(var(--eb-shell)/0.4)] text-eb-text/75",
   accent: "border-eb-accent/30 bg-eb-accentSoft text-emerald-800",
-  warn: "border-amber-500/40 bg-amber-500/15 text-amber-800",
+  warn: "border-eb-warning/40 bg-eb-warning/15 text-amber-800",
   danger: "border-eb-danger/25 bg-eb-danger/10 text-eb-danger",
   surface: "border-eb-stroke/50 bg-eb-surface/80 text-eb-text/70",
 };

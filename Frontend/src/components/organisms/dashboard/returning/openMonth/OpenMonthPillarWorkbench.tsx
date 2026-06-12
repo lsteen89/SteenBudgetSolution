@@ -65,6 +65,9 @@ type IncomeGroupTotals = {
 
 const EPSILON = 0.005;
 
+/** Expense category bar palette, largest first (blueprint: navy → blue → blue/60). */
+const EXPENSE_BAR_CLASSES = ["bg-eb-shell3", "bg-eb-shell2", "bg-eb-shell2/60"];
+
 /** Fill percentage of `value` relative to a pillar's largest row. */
 function fillPct(value: number, max: number): number {
   if (max <= 0) return 0;
@@ -321,19 +324,19 @@ const OpenMonthPillarWorkbench: React.FC<OpenMonthPillarWorkbenchProps> = ({
       aria-labelledby="pillar-workbench-heading"
       className="space-y-3"
     >
-      <header className="flex flex-col gap-1">
+      <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-0.5">
         <h2
           id="pillar-workbench-heading"
-          className="text-sm font-bold text-eb-text"
+          className="text-[11px] font-bold uppercase tracking-[0.2em] text-eb-text/45"
         >
           {t("sectionEyebrow")}
         </h2>
-        <p className="max-w-2xl text-xs leading-5 text-eb-text/55">
+        <p className="max-w-2xl text-[11.5px] leading-4 text-eb-text/45">
           {t("sectionHint")}
         </p>
       </header>
 
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2">
         {/* ----- Income ----- */}
         <PillarWorkbenchCard
           testId="pillar-income"
@@ -355,7 +358,7 @@ const OpenMonthPillarWorkbench: React.FC<OpenMonthPillarWorkbenchProps> = ({
                   label={t("signalSalary")}
                   value={fmt(incomeGroups.salary)}
                   fillPct={fillPct(incomeGroups.salary, incomeMax)}
-                  barClassName="bg-eb-accent/70"
+                  barClassName="bg-eb-shell3"
                 />
               ) : null}
               {incomeGroups.household >= EPSILON ? (
@@ -364,7 +367,7 @@ const OpenMonthPillarWorkbench: React.FC<OpenMonthPillarWorkbenchProps> = ({
                   label={t("signalHousehold")}
                   value={fmt(incomeGroups.household)}
                   fillPct={fillPct(incomeGroups.household, incomeMax)}
-                  barClassName="bg-eb-accent/70"
+                  barClassName="bg-eb-shell2"
                 />
               ) : null}
               {incomeGroups.side >= EPSILON ? (
@@ -373,7 +376,7 @@ const OpenMonthPillarWorkbench: React.FC<OpenMonthPillarWorkbenchProps> = ({
                   label={t("signalSide")}
                   value={fmt(incomeGroups.side)}
                   fillPct={fillPct(incomeGroups.side, incomeMax)}
-                  barClassName="bg-eb-accent/70"
+                  barClassName="bg-eb-accent"
                 />
               ) : null}
             </>
@@ -402,14 +405,14 @@ const OpenMonthPillarWorkbench: React.FC<OpenMonthPillarWorkbenchProps> = ({
                   <span className="text-[11px] font-semibold uppercase tracking-wide text-eb-text/55">
                     {t("signalTopCategories")}
                   </span>
-                  {topExpenseCategories.map((cat) => (
+                  {topExpenseCategories.map((cat, index) => (
                     <MiniBar
                       key={cat.key}
                       testId={`pillar-expenses-category-${cat.key}`}
                       label={cat.label}
                       value={fmt(cat.amount)}
                       fillPct={fillPct(cat.amount, expenseMax)}
-                      barClassName="bg-eb-shell3"
+                      barClassName={EXPENSE_BAR_CLASSES[index] ?? "bg-eb-shell2/60"}
                     />
                   ))}
                 </div>

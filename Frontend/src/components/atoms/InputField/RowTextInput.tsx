@@ -52,7 +52,7 @@ const RowTextInput = forwardRef<HTMLInputElement, RowTextInputProps>(
             !shouldShowError &&
             "border-wizard-stroke/25 hover:border-wizard-stroke/35 focus:border-wizard-stroke/40 focus:ring-wizard-accent/30",
             shouldShowError &&
-            "border-wizard-warning/70 focus:border-wizard-warning/70 focus:ring-wizard-warning/25"
+            "border-wizard-danger/70 focus:border-wizard-danger/70 focus:ring-wizard-danger/25"
         );
 
         return (
@@ -72,7 +72,7 @@ const RowTextInput = forwardRef<HTMLInputElement, RowTextInputProps>(
 
                 <div className="mt-1 min-h-[16px]">
                     {shouldShowError ? (
-                        <span className="ml-1 block text-xs font-semibold text-wizard-warning">
+                        <span className="ml-1 block text-xs font-semibold text-wizard-danger">
                             {error}
                         </span>
                     ) : null}

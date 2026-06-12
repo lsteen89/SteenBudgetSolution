@@ -111,7 +111,7 @@ const IcedCustomItemRow: React.FC<Props> = ({
             "bg-wizard-surface border border-wizard-stroke/20",
             "text-wizard-text/60 shadow-sm shadow-black/5",
             "transition-colors",
-            "hover:border-wizard-warning/30 hover:bg-wizard-warning/10 hover:text-wizard-warning",
+            "hover:border-wizard-danger/30 hover:bg-wizard-danger/10 hover:text-wizard-danger",
             "focus:outline-none focus-visible:ring-2 focus-visible:ring-wizard-stroke/45",
           )}
         >
@@ -191,7 +191,7 @@ const IcedCustomItemRow: React.FC<Props> = ({
               "bg-wizard-surface border border-wizard-stroke/20",
               "text-wizard-text/60 shadow-sm shadow-black/5",
               "transition-colors",
-              "hover:border-wizard-warning/30 hover:bg-wizard-warning/10 hover:text-wizard-warning",
+              "hover:border-wizard-danger/30 hover:bg-wizard-danger/10 hover:text-wizard-danger",
               "focus:outline-none focus-visible:ring-2 focus-visible:ring-wizard-stroke/45",
             )}
           >

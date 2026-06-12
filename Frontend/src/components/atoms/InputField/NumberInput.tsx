@@ -106,7 +106,7 @@ const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
               ].join(" "),
               resolvedSuffix ? "pr-16" : "",
               hasError
-                ? "border-wizard-warning/70 focus:border-wizard-warning/70 focus:ring-wizard-warning/25"
+                ? "border-wizard-danger/70 focus:border-wizard-danger/70 focus:ring-wizard-danger/25"
                 : "border-wizard-stroke/20 hover:border-wizard-stroke/35 focus:border-wizard-stroke/40 focus:ring-wizard-stroke/45"
             )}
           />
@@ -127,7 +127,7 @@ const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
         </div>
 
         {error && (
-          <span className="ml-2 animate-in fade-in slide-in-from-top-1 text-xs font-bold text-wizard-warning">
+          <span className="ml-2 animate-in fade-in slide-in-from-top-1 text-xs font-bold text-wizard-danger">
             {error}
           </span>
         )}

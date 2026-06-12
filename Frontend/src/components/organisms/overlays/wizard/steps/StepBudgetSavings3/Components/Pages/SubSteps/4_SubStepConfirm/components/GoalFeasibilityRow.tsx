@@ -132,7 +132,7 @@ export default function GoalFeasibilityRow({
               className={cn(
                 "mt-1 text-xs leading-snug sm:mt-2 sm:text-sm",
                 tone === "done" && "text-wizard-accent",
-                tone === "missing" && "text-wizard-warning",
+                tone === "missing" && "text-wizard-danger",
                 tone === "good" && "text-wizard-text/75",
                 tone === "ok" && "text-wizard-text/70",
                 tone === "slow" && "text-wizard-text/65",

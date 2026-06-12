@@ -63,7 +63,7 @@ export const ALLOCATION_SEGMENT_BAR_CLASS: Record<
 > = {
   expenses: "bg-eb-shell3",
   savings: "bg-eb-shell2",
-  debts: "bg-eb-alert",
+  debts: "bg-eb-warning",
   free: "bg-eb-accent",
 };
 
