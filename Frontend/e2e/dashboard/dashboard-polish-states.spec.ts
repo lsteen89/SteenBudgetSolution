@@ -33,11 +33,16 @@ async function waitForOpenDashboard(page: Page): Promise<void> {
   await expect(page.getByTestId("pillar-workbench")).toBeVisible();
 }
 
-/** The four open-month polished surfaces. None may appear on a read-only month. */
+/** The open-month V2 surfaces. None may appear on a read-only month. */
 async function expectNoOpenMonthSurfaces(page: Page): Promise<void> {
   await expect(page.getByTestId("money-state")).toHaveCount(0);
   await expect(page.getByTestId("pillar-workbench")).toHaveCount(0);
-  await expect(page.getByTestId("attention-lane")).toHaveCount(0);
+  // V2 PR4 replaced the attention lane with the insight/action cards.
+  await expect(page.getByTestId("insight-action-cards")).toHaveCount(0);
+  // V2 PR3 surfaces — planning row and the DTO-gated preview detail are
+  // open-month-only; neither may leak into closed/skipped months.
+  await expect(page.getByTestId("planning-row")).toHaveCount(0);
+  await expect(page.getByTestId("next-month-preview-detail")).toHaveCount(0);
   await expect(page.getByTestId("close-band")).toHaveCount(0);
   await expect(page.getByTestId("close-month-cta")).toHaveCount(0);
 }
@@ -61,13 +66,19 @@ test("open-normal month renders the polished surface on desktop", async ({
     path: testInfo.outputPath("dashboard-open-desktop.png"),
     fullPage: true,
   });
+  // The app scrolls inside PageContainer (overflow-y-auto), so fullPage only
+  // paints the first viewport — capture the lower workbench as an element
+  // shot so the visual artifact actually shows it.
+  await page.getByTestId("pillar-workbench").screenshot({
+    path: testInfo.outputPath("dashboard-open-desktop-workbench.png"),
+  });
 });
 
 // Uses the dedicated `dashboardDeficit` fixture, whose open month stays a
 // deficit because no close-month spec mutates it. (The shared `closeDeficit`
 // user can't be used here: close-month specs close its month, rolling the open
 // month forward to a positive template.)
-test("deficit month reads as short with a runs-out marker and unfunded tail", async ({
+test("deficit month reads as short with a runs-out marker", async ({
   page,
 }, testInfo) => {
   await login(page, e2eUsers.dashboardDeficit);
@@ -79,14 +90,17 @@ test("deficit month reads as short with a runs-out marker and unfunded tail", as
   // The anchor renders the magnitude behind a real minus sign (U+2212).
   await expect(page.getByTestId("money-state-remaining")).toContainText("−");
 
-  // Deficit honesty: the bar marks where the plan runs out and hatches the
-  // unfunded remainder. Both are part of the AllocationBar contract.
+  // Deficit honesty (V2 flow bar): a thin danger marker shows where the
+  // month's money runs out — the committed span past it is unfunded. The
+  // V2 blueprint dropped the separate hatched unfunded segment.
   await expect(page.getByTestId("money-state-allocation-runs-out")).toBeAttached();
-  await expect(page.getByTestId("money-state-allocation-unfunded")).toBeAttached();
 
   await page.screenshot({
     path: testInfo.outputPath("dashboard-deficit-desktop.png"),
     fullPage: true,
+  });
+  await page.getByTestId("money-state").screenshot({
+    path: testInfo.outputPath("dashboard-deficit-money-state.png"),
   });
 });
 

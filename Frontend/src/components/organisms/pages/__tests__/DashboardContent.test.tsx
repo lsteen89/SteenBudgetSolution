@@ -2872,13 +2872,17 @@ describe("DashboardContent", () => {
     );
 
     expect(screen.getByTestId("skipped-month-state")).toBeInTheDocument();
-    expect(screen.getByTestId("month-nav-previous")).toHaveTextContent(
+    expect(screen.getByTestId("month-nav-previous")).toHaveAttribute(
+      "title",
       "March 2026",
     );
     expect(screen.getByTestId("active-month-label")).toHaveTextContent(
       "April 2026",
     );
-    expect(screen.getByTestId("month-nav-next")).toHaveTextContent("May 2026");
+    expect(screen.getByTestId("month-nav-next")).toHaveAttribute(
+      "title",
+      "May 2026",
+    );
     expect(screen.getByTestId("month-status-badge")).toHaveTextContent(
       "Skipped",
     );

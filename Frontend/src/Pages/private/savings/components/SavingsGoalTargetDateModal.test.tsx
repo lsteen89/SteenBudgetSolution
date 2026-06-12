@@ -25,7 +25,9 @@ const linkedRow: BudgetMonthSavingsGoalEditorRowDto = {
 };
 
 beforeEach(() => {
-  vi.useFakeTimers();
+  // Fake only Date so the recompute math is deterministic; timers stay real
+  // so waitFor and userEvent work without advancing fake clocks.
+  vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date(2026, 4, 19, 12, 0, 0));
 });
 
@@ -48,7 +50,6 @@ function pickYear(year: number) {
 
 describe("SavingsGoalTargetDateModal", () => {
   it("submits a recomputed monthly amount in recalcMonthly mode", async () => {
-    vi.useRealTimers();
     const onSubmit = vi.fn().mockResolvedValue(undefined);
     render(
       <SavingsGoalTargetDateModal
@@ -74,7 +75,6 @@ describe("SavingsGoalTargetDateModal", () => {
   });
 
   it("submits the unchanged monthly amount in keepMonthly mode", async () => {
-    vi.useRealTimers();
     const onSubmit = vi.fn().mockResolvedValue(undefined);
     render(
       <SavingsGoalTargetDateModal
@@ -127,7 +127,6 @@ describe("SavingsGoalTargetDateModal", () => {
   });
 
   it("quick-pick chips set the target month deterministically", async () => {
-    vi.useRealTimers();
     const onSubmit = vi.fn().mockResolvedValue(undefined);
     render(
       <SavingsGoalTargetDateModal

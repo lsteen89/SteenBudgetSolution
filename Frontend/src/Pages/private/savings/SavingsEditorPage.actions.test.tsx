@@ -120,7 +120,9 @@ const linkedRow = {
 };
 
 beforeEach(() => {
-  vi.useFakeTimers();
+  // Fake only Date so the recompute math is deterministic; timers stay real
+  // so waitFor and userEvent work without advancing fake clocks.
+  vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date(2026, 4, 19, 12, 0, 0));
 
   mockSavingsQuery.mockReturnValue({
@@ -152,7 +154,6 @@ afterEach(() => {
 
 describe("SavingsEditorPage goal actions", () => {
   it("saves Månadsbelopp with monthlyContribution and scope only", async () => {
-    vi.useRealTimers();
     render(<MemoryRouter><SavingsEditorPage /></MemoryRouter>);
 
     fireEvent.click(screen.getByRole("button", { name: /monthly amount/i }));
@@ -175,7 +176,6 @@ describe("SavingsEditorPage goal actions", () => {
   });
 
   it("saves Måldatum in recalcMonthly mode with recomputed monthlyContribution", async () => {
-    vi.useRealTimers();
     render(<MemoryRouter><SavingsEditorPage /></MemoryRouter>);
 
     fireEvent.click(screen.getByRole("button", { name: /target date/i }));
@@ -201,7 +201,6 @@ describe("SavingsEditorPage goal actions", () => {
   });
 
   it("saves Måldatum in keepMonthly mode with unchanged monthlyContribution", async () => {
-    vi.useRealTimers();
     render(<MemoryRouter><SavingsEditorPage /></MemoryRouter>);
 
     fireEvent.click(screen.getByRole("button", { name: /target date/i }));
@@ -226,7 +225,6 @@ describe("SavingsEditorPage goal actions", () => {
   });
 
   it("archives a goal through the kebab confirm dialog", async () => {
-    vi.useRealTimers();
     render(<MemoryRouter><SavingsEditorPage /></MemoryRouter>);
 
     fireEvent.click(screen.getByRole("button", { name: /more/i }));
@@ -237,7 +235,6 @@ describe("SavingsEditorPage goal actions", () => {
   });
 
   it("removes a goal through the kebab confirm dialog", async () => {
-    vi.useRealTimers();
     render(<MemoryRouter><SavingsEditorPage /></MemoryRouter>);
 
     fireEvent.click(screen.getByRole("button", { name: /more/i }));
