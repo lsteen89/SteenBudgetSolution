@@ -23,6 +23,7 @@ function renderMenu(
 
   render(
     <ExpenseRowActionsMenu
+      monthLabel="May 2026"
       isActive={true}
       isSubscription={false}
       subscriptionLifecycleStatus={null}
@@ -47,25 +48,25 @@ async function openMenu(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe("ExpenseRowActionsMenu (rendering)", () => {
-  it("shows Edit, Pause, and Delete by default for an active non-subscription row", async () => {
+  it("shows Edit, month-specific Pause, and Delete by default for an active non-subscription row", async () => {
     const { user } = renderMenu({ isActive: true, isSubscription: false });
     await openMenu(user);
 
     expect(screen.getByRole("menuitem", { name: /edit/i })).toBeInTheDocument();
     expect(
-      screen.getByRole("menuitem", { name: /^pause$/i }),
+      screen.getByRole("menuitem", { name: /pause in may 2026/i }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("menuitem", { name: /delete/i }),
     ).toBeInTheDocument();
   });
 
-  it("flips the pause label to Resume when the non-subscription row is inactive", async () => {
+  it("flips the pause label to month-specific Resume when the non-subscription row is inactive", async () => {
     const { user } = renderMenu({ isActive: false, isSubscription: false });
     await openMenu(user);
 
     expect(
-      screen.getByRole("menuitem", { name: /resume/i }),
+      screen.getByRole("menuitem", { name: /resume in may 2026/i }),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("menuitem", { name: /^pause$/i }),
@@ -80,10 +81,12 @@ describe("ExpenseRowActionsMenu (rendering)", () => {
     await openMenu(user);
 
     expect(
-      screen.getByRole("menuitem", { name: /pause subscription/i }),
+      screen.getByRole("menuitem", {
+        name: /pause subscription in may 2026/i,
+      }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("menuitem", { name: /cancel subscription/i }),
+      screen.getByRole("menuitem", { name: /end in may 2026/i }),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("menuitem", { name: /^pause$/i }),
@@ -98,10 +101,12 @@ describe("ExpenseRowActionsMenu (rendering)", () => {
     await openMenu(user);
 
     expect(
-      screen.getByRole("menuitem", { name: /resume subscription/i }),
+      screen.getByRole("menuitem", {
+        name: /resume subscription in may 2026/i,
+      }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("menuitem", { name: /cancel subscription/i }),
+      screen.getByRole("menuitem", { name: /end in may 2026/i }),
     ).toBeInTheDocument();
   });
 
@@ -113,7 +118,7 @@ describe("ExpenseRowActionsMenu (rendering)", () => {
     await openMenu(user);
 
     expect(
-      screen.getByRole("menuitem", { name: /reactivate subscription/i }),
+      screen.getByRole("menuitem", { name: /reactivate in may 2026/i }),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("menuitem", { name: /pause subscription/i }),
@@ -134,7 +139,7 @@ describe("ExpenseRowActionsMenu (rendering)", () => {
     await openMenu(handlers.user);
 
     await handlers.user.click(
-      screen.getByRole("menuitem", { name: /^pause$/i }),
+      screen.getByRole("menuitem", { name: /pause in may 2026/i }),
     );
     expect(handlers.onPauseToggle).toHaveBeenCalledTimes(1);
     expect(handlers.onLifecycleChange).not.toHaveBeenCalled();
@@ -150,7 +155,9 @@ describe("ExpenseRowActionsMenu (rendering)", () => {
     await openMenu(handlers.user);
 
     await handlers.user.click(
-      screen.getByRole("menuitem", { name: /pause subscription/i }),
+      screen.getByRole("menuitem", {
+        name: /pause subscription in may 2026/i,
+      }),
     );
     expect(handlers.onLifecycleChange).toHaveBeenCalledWith("paused");
     expect(handlers.onPauseToggle).not.toHaveBeenCalled();
@@ -164,7 +171,7 @@ describe("ExpenseRowActionsMenu (rendering)", () => {
     await openMenu(handlers.user);
 
     await handlers.user.click(
-      screen.getByRole("menuitem", { name: /cancel subscription/i }),
+      screen.getByRole("menuitem", { name: /end in may 2026/i }),
     );
     expect(handlers.onLifecycleChange).toHaveBeenCalledWith("cancelled");
   });
@@ -177,7 +184,7 @@ describe("ExpenseRowActionsMenu (rendering)", () => {
     await openMenu(handlers.user);
 
     await handlers.user.click(
-      screen.getByRole("menuitem", { name: /reactivate subscription/i }),
+      screen.getByRole("menuitem", { name: /reactivate in may 2026/i }),
     );
     expect(handlers.onLifecycleChange).toHaveBeenCalledWith("active");
   });
@@ -201,6 +208,7 @@ describe("buildExpenseRowActions", () => {
   ) {
     return {
       labels,
+      monthLabel: "May 2026",
       isActive: true,
       isSubscription: false,
       subscriptionLifecycleStatus: null,

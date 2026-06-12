@@ -14,14 +14,18 @@ const labels: AllocationBarLabels = {
   savings: "Savings",
   debts: "Debts",
   free: "Free",
-  unfunded: "Unfunded",
   runsOutMarker: "Runs out",
 };
 
-function widthPercent(el: HTMLElement): number {
-  const raw = el.style.width;
-  expect(raw).toMatch(/%$/);
-  return Number(raw.slice(0, -1));
+/**
+ * Segments size proportionally via `flex-grow` (the grow factor IS the
+ * amount), so proportion assertions read the grow value rather than a width
+ * percentage.
+ */
+function flexGrowOf(el: HTMLElement): number {
+  const raw = el.style.flexGrow;
+  expect(raw).not.toBe("");
+  return Number(raw);
 }
 
 function leftPercent(el: HTMLElement): number {
@@ -32,13 +36,6 @@ function leftPercent(el: HTMLElement): number {
 
 function renderBar(terms: AllocationBarTerms) {
   return render(<AllocationBar terms={terms} labels={labels} testId="bar" />);
-}
-
-function visibleSegmentTotal(): number {
-  return ["bar-expenses", "bar-savings", "bar-debts", "bar-free"]
-    .map((id) => screen.queryByTestId(id))
-    .filter((el): el is HTMLElement => el != null)
-    .reduce((sum, el) => sum + widthPercent(el), 0);
 }
 
 describe("AllocationBar — calm palette + segment helper", () => {
@@ -85,29 +82,44 @@ describe("AllocationBar — calm palette + segment helper", () => {
   });
 });
 
-describe("AllocationBar — surplus", () => {
-  it("renders expenses, savings, debts and a free segment proportional to backend remaining", () => {
-    // committed = 70, backend remaining = 30 → implicit inflow 100.
+describe("AllocationBar — segmented blueprint grammar (V2 PR2)", () => {
+  it("renders discrete rectangular segments, not one rounded pill track", () => {
     renderBar({ expenses: 40, savings: 20, debts: 10, remaining: 30 });
 
-    expect(widthPercent(screen.getByTestId("bar-expenses"))).toBeCloseTo(40, 3);
-    expect(widthPercent(screen.getByTestId("bar-savings"))).toBeCloseTo(20, 3);
-    expect(widthPercent(screen.getByTestId("bar-debts"))).toBeCloseTo(10, 3);
-    expect(widthPercent(screen.getByTestId("bar-free"))).toBeCloseTo(30, 3);
-    expect(visibleSegmentTotal()).toBeCloseTo(100, 3);
+    // No pill-style single track: neither the container nor the segments use
+    // full rounding, and there is no full-track background to overflow-clip.
+    const bar = screen.getByTestId("bar");
+    expect(bar.className).not.toContain("rounded-full");
+    expect(bar.className).not.toContain("overflow-hidden");
+
+    for (const id of ["bar-expenses", "bar-savings", "bar-debts", "bar-free"]) {
+      const segment = screen.getByTestId(id);
+      expect(segment.className).toContain("rounded-[4px]");
+      expect(segment.className).not.toContain("rounded-l-full");
+      expect(segment.className).not.toContain("rounded-r-full");
+    }
+  });
+});
+
+describe("AllocationBar — surplus", () => {
+  it("renders expenses, savings, debts and a free segment proportional to backend remaining", () => {
+    // committed = 70, backend remaining = 30 → grow factors are the amounts.
+    renderBar({ expenses: 40, savings: 20, debts: 10, remaining: 30 });
+
+    expect(flexGrowOf(screen.getByTestId("bar-expenses"))).toBeCloseTo(40, 3);
+    expect(flexGrowOf(screen.getByTestId("bar-savings"))).toBeCloseTo(20, 3);
+    expect(flexGrowOf(screen.getByTestId("bar-debts"))).toBeCloseTo(10, 3);
+    expect(flexGrowOf(screen.getByTestId("bar-free"))).toBeCloseTo(30, 3);
     expect(screen.queryByTestId("bar-runs-out")).toBeNull();
-    expect(screen.queryByTestId("bar-unfunded")).toBeNull();
   });
 
-  it("hides zero-amount segments and pills the visible outer ends", () => {
+  it("hides zero-amount segments", () => {
     renderBar({ expenses: 60, savings: 0, debts: 0, remaining: 40 });
 
     expect(screen.queryByTestId("bar-savings")).toBeNull();
     expect(screen.queryByTestId("bar-debts")).toBeNull();
-    const expenses = screen.getByTestId("bar-expenses");
-    const free = screen.getByTestId("bar-free");
-    expect(expenses.className).toContain("rounded-l-full");
-    expect(free.className).toContain("rounded-r-full");
+    expect(screen.getByTestId("bar-expenses")).toBeInTheDocument();
+    expect(screen.getByTestId("bar-free")).toBeInTheDocument();
   });
 });
 
@@ -120,45 +132,44 @@ describe("AllocationBar — zero", () => {
     expect(within(bar).queryByTestId("bar-savings")).toBeNull();
     expect(within(bar).queryByTestId("bar-debts")).toBeNull();
     expect(within(bar).queryByTestId("bar-free")).toBeNull();
-    expect(within(bar).queryByTestId("bar-unfunded")).toBeNull();
     expect(within(bar).queryByTestId("bar-runs-out")).toBeNull();
   });
 
   it("renders a zero-remaining month as a fully committed bar with no free tail", () => {
     renderBar({ expenses: 70, savings: 20, debts: 10, remaining: 0 });
 
-    expect(widthPercent(screen.getByTestId("bar-expenses"))).toBeCloseTo(70, 3);
-    expect(widthPercent(screen.getByTestId("bar-savings"))).toBeCloseTo(20, 3);
-    expect(widthPercent(screen.getByTestId("bar-debts"))).toBeCloseTo(10, 3);
+    expect(flexGrowOf(screen.getByTestId("bar-expenses"))).toBeCloseTo(70, 3);
+    expect(flexGrowOf(screen.getByTestId("bar-savings"))).toBeCloseTo(20, 3);
+    expect(flexGrowOf(screen.getByTestId("bar-debts"))).toBeCloseTo(10, 3);
     expect(screen.queryByTestId("bar-free")).toBeNull();
-    expect(screen.queryByTestId("bar-unfunded")).toBeNull();
     expect(screen.queryByTestId("bar-runs-out")).toBeNull();
-    expect(visibleSegmentTotal()).toBeCloseTo(100, 3);
   });
 });
 
 describe("AllocationBar — deficit", () => {
-  it("never overflows: committed segments still sum to <= 100% in deficit", () => {
+  it("shows committed segments only, with no free segment", () => {
     // committed = 100, backend remaining = -20 → inflow 80.
     renderBar({ expenses: 60, savings: 30, debts: 10, remaining: -20 });
 
-    expect(widthPercent(screen.getByTestId("bar-expenses"))).toBeCloseTo(60, 3);
-    expect(widthPercent(screen.getByTestId("bar-savings"))).toBeCloseTo(30, 3);
-    expect(widthPercent(screen.getByTestId("bar-debts"))).toBeCloseTo(10, 3);
-    expect(visibleSegmentTotal()).toBeLessThanOrEqual(100 + 1e-3);
+    expect(flexGrowOf(screen.getByTestId("bar-expenses"))).toBeCloseTo(60, 3);
+    expect(flexGrowOf(screen.getByTestId("bar-savings"))).toBeCloseTo(30, 3);
+    expect(flexGrowOf(screen.getByTestId("bar-debts"))).toBeCloseTo(10, 3);
     expect(screen.queryByTestId("bar-free")).toBeNull();
   });
 
-  it("renders the unfunded tail as an overlay anchored at the runs-out point", () => {
+  it("anchors the runs-out marker where the month's money ends, with no striped overlay", () => {
     renderBar({ expenses: 60, savings: 30, debts: 10, remaining: -20 });
 
-    const unfunded = screen.getByTestId("bar-unfunded");
-    const runsOut = screen.getByTestId("bar-runs-out");
+    // inflow / committed = 80 / 100 → marker anchors at 80%.
+    expect(leftPercent(screen.getByTestId("bar-runs-out"))).toBeCloseTo(80, 3);
+    expect(screen.queryByTestId("bar-unfunded")).toBeNull();
+  });
 
-    // inflow / committed = 80 / 100 → marker and overlay anchor at 80%.
-    expect(leftPercent(unfunded)).toBeCloseTo(80, 3);
-    expect(unfunded.style.right).toBe("0px");
-    expect(leftPercent(runsOut)).toBeCloseTo(80, 3);
+  it("draws the runs-out marker as a thin danger line", () => {
+    renderBar({ expenses: 60, savings: 30, debts: 10, remaining: -20 });
+
+    const runsOut = screen.getByTestId("bar-runs-out");
+    expect(runsOut.className).toContain("bg-eb-danger");
   });
 
   it("anchors the runs-out marker at 0% when implicit inflow is non-positive", () => {
@@ -166,9 +177,7 @@ describe("AllocationBar — deficit", () => {
     renderBar({ expenses: 80, savings: 0, debts: 0, remaining: -150 });
 
     expect(leftPercent(screen.getByTestId("bar-runs-out"))).toBeCloseTo(0, 3);
-    expect(leftPercent(screen.getByTestId("bar-unfunded"))).toBeCloseTo(0, 3);
-    expect(widthPercent(screen.getByTestId("bar-expenses"))).toBeCloseTo(100, 3);
-    expect(visibleSegmentTotal()).toBeLessThanOrEqual(100 + 1e-3);
+    expect(flexGrowOf(screen.getByTestId("bar-expenses"))).toBeCloseTo(80, 3);
   });
 });
 
@@ -186,17 +195,12 @@ describe("AllocationBar — backend authority", () => {
       remaining: 7000,
     });
 
-    // Surplus mode: free segment present, no overlay, no marker.
+    // Surplus mode: free segment present, no marker.
     expect(screen.getByTestId("bar-free")).toBeInTheDocument();
-    expect(screen.queryByTestId("bar-unfunded")).toBeNull();
     expect(screen.queryByTestId("bar-runs-out")).toBeNull();
 
-    // Implicit inflow = committed + remaining = 31000.
-    expect(widthPercent(screen.getByTestId("bar-free"))).toBeCloseTo(
-      (7000 / 31000) * 100,
-      3,
-    );
-    expect(visibleSegmentTotal()).toBeCloseTo(100, 3);
+    // The free grow factor is backend remaining itself.
+    expect(flexGrowOf(screen.getByTestId("bar-free"))).toBeCloseTo(7000, 3);
   });
 
   it("shows a deficit when backend remaining is negative even if commitments look small", () => {
@@ -209,7 +213,7 @@ describe("AllocationBar — backend authority", () => {
       remaining: -50,
     });
 
-    expect(screen.getByTestId("bar-unfunded")).toBeInTheDocument();
+    expect(screen.getByTestId("bar-runs-out")).toBeInTheDocument();
     expect(screen.queryByTestId("bar-free")).toBeNull();
     const expectedPct = (50 / 100) * 100;
     expect(leftPercent(screen.getByTestId("bar-runs-out"))).toBeCloseTo(

@@ -3,6 +3,7 @@ using Backend.Domain.Shared;
 using MediatR;
 using Backend.Application.Abstractions.Application.Services.Budget;
 using Backend.Application.Abstractions.Infrastructure.Data;
+using Backend.Application.DTO.Budget.Months;
 using Backend.Application.Features.Budgets.Audit;
 using Backend.Domain.Errors.Budget;
 using Backend.Application.Features.Budgets.Months.Editor.Models.ChangeLog;
@@ -46,7 +47,7 @@ public sealed class DeleteBudgetMonthExpenseItemCommandHandler
         if (monthMeta is null)
             return Result.Failure(BudgetMonth.NotFound);
 
-        if (!string.Equals(monthMeta.Status, "open", StringComparison.OrdinalIgnoreCase))
+        if (!BudgetMonthEditability.IsEditable(monthMeta.Status))
             return Result.Failure(BudgetMonth.MonthIsClosed);
 
         var existing = await _repo.GetExpenseItemForMutationAsync(

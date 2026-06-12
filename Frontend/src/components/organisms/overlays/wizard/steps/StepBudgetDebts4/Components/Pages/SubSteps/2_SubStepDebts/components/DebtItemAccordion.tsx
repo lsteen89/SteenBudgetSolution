@@ -90,8 +90,8 @@ export default function DebtItemAccordion({ index, onRemove }: Props) {
           <span
             className="
               inline-flex w-fit shrink-0 items-center
-              rounded-full border border-wizard-warning/25 bg-wizard-warning/10
-              px-2 py-0.5 text-[11px] font-semibold text-wizard-warning
+              rounded-full border border-wizard-danger/25 bg-wizard-danger/10
+              px-2 py-0.5 text-[11px] font-semibold text-wizard-danger
             "
           >
             {t("missingInfo")}
@@ -163,7 +163,7 @@ export default function DebtItemAccordion({ index, onRemove }: Props) {
             "bg-wizard-surface border border-wizard-stroke/20",
             "text-wizard-text/60 shadow-sm shadow-black/5",
             "transition-colors cursor-pointer select-none",
-            "hover:border-wizard-warning/30 hover:bg-wizard-warning/10 hover:text-wizard-warning",
+            "hover:border-wizard-danger/30 hover:bg-wizard-danger/10 hover:text-wizard-danger",
             "focus:outline-none focus-visible:ring-2 focus-visible:ring-wizard-stroke/45",
           )}
         >

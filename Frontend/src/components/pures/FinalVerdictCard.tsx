@@ -20,9 +20,9 @@ interface FinalVerdictCardProps {
 function tone(kind: "good" | "tight" | "bad") {
   if (kind === "bad") {
     return {
-      amount: "text-wizard-warning",
-      glow: "bg-wizard-warning/10",
-      border: "border-wizard-warning/20",
+      amount: "text-wizard-danger",
+      glow: "bg-wizard-danger/10",
+      border: "border-wizard-danger/20",
     };
   }
   if (kind === "tight") {

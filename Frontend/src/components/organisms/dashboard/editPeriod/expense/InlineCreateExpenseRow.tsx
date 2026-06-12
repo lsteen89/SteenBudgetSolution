@@ -129,7 +129,7 @@ const InlineCreateExpenseRow: React.FC<InlineCreateExpenseRowProps> = ({
             className="h-11 w-full rounded-2xl border border-eb-stroke/30 bg-eb-surface px-3 text-sm text-eb-text focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-eb-accent/25"
           />
           {form.formState.errors.name ? (
-            <p className="mt-1 text-xs font-medium text-wizard-warning">
+            <p className="mt-1 text-xs font-medium text-wizard-danger">
               {form.formState.errors.name.message}
             </p>
           ) : null}
@@ -149,7 +149,7 @@ const InlineCreateExpenseRow: React.FC<InlineCreateExpenseRowProps> = ({
             className="h-11 w-full rounded-2xl border border-eb-stroke/30 bg-eb-surface px-3 text-right text-sm tabular-nums text-eb-text focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-eb-accent/25"
           />
           {form.formState.errors.amountMonthly ? (
-            <p className="mt-1 text-xs font-medium text-wizard-warning">
+            <p className="mt-1 text-xs font-medium text-wizard-danger">
               {form.formState.errors.amountMonthly.message}
             </p>
           ) : null}

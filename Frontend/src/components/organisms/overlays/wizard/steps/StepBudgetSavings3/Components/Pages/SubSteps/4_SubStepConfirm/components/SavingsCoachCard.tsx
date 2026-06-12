@@ -111,14 +111,14 @@ export default function SavingsCoachCard({
   const toneStyles =
     ui.tone === "danger"
       ? {
-          icon: "text-wizard-warning",
-          chip: "border-wizard-warning/25 bg-wizard-warning/10 text-wizard-warning",
-          rail: "bg-wizard-warning/10 border-wizard-warning/20",
+          icon: "text-wizard-danger",
+          chip: "border-wizard-danger/25 bg-wizard-danger/10 text-wizard-danger",
+          rail: "bg-wizard-danger/10 border-wizard-danger/20",
         }
       : ui.tone === "warn"
         ? {
-            icon: "text-wizard-warning",
-            chip: "border-wizard-warning/20 bg-wizard-warning/10 text-wizard-text",
+            icon: "text-wizard-danger",
+            chip: "border-wizard-danger/20 bg-wizard-danger/10 text-wizard-text",
             rail: "bg-wizard-shell/45 border-wizard-stroke/20",
           }
         : {

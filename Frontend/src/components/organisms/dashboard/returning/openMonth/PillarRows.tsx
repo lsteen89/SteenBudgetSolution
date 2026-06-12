@@ -17,8 +17,8 @@ import { cn } from "@/lib/utils";
  * assistive tech.
  *
  * Colours use the calm allocation palette (navy / blue / amber / green) via
- * `eb-*` tokens — never danger red for planned outflows. The caller picks the
- * bar colour per pillar through `barClassName`.
+ * `eb-*` tokens plus stock Tailwind amber — never danger red for planned
+ * outflows. The caller picks the bar colour per pillar through `barClassName`.
  */
 
 /** Clamp any computed width to a safe 0–100 range (guards NaN / Infinity). */
@@ -29,7 +29,8 @@ function clampPct(value: number): number {
   return value;
 }
 
-const BAR_TRACK = "h-1.5 w-full overflow-hidden rounded-full bg-eb-stroke/25";
+const BAR_TRACK =
+  "h-1.5 w-full overflow-hidden rounded-full bg-[rgb(var(--eb-shell)/0.3)]";
 const BAR_FILL =
   "h-full rounded-full transition-[width] duration-300 motion-reduce:transition-none";
 
@@ -149,8 +150,12 @@ export const DebtRow: React.FC<{
       </span>
     </div>
     <div aria-hidden="true" className={BAR_TRACK}>
+      {/*
+        Amber per the allocation palette (planned debt is advisory, not an
+        error).
+      */}
       <div
-        className={cn(BAR_FILL, "bg-eb-alert")}
+        className={cn(BAR_FILL, "bg-eb-warning")}
         style={{ width: `${clampPct(fillPct)}%` }}
       />
     </div>

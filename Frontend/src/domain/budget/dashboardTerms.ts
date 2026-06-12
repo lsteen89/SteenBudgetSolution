@@ -1,3 +1,4 @@
+import type { BudgetDashboardDto } from "@/types/budget/BudgetDashboardDto";
 import type { BudgetDashboardMonthDto } from "@/types/budget/BudgetDashboardMonthDto";
 
 /**
@@ -77,6 +78,20 @@ function buildOpenTerms(dto: BudgetDashboardMonthDto): DashboardTermsResult {
     );
   }
 
+  return buildTermsFromLiveDashboard(live);
+}
+
+/**
+ * Build the six money terms from a live `BudgetDashboardDto` — the same
+ * projection shape produced for an open month and for the read-only
+ * next-month preview (`NextMonthPreviewDto.dashboard`). Keeping this one
+ * mapping shared means the preview equation and the live dashboard equation
+ * can never drift: both anchor `remaining` on the backend-authoritative
+ * `finalBalanceWithCarryMonthly` and expose the same reconciliation result.
+ */
+export function buildTermsFromLiveDashboard(
+  live: BudgetDashboardDto,
+): DashboardTermsResult {
   const income = round2(num0(live.income?.totalIncomeMonthly));
   const carryOver = round2(num0(live.carryOverAmountMonthly));
   const expenses = round2(num0(live.expenditure?.totalExpensesMonthly));

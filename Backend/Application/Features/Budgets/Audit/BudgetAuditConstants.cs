@@ -24,4 +24,6 @@ public static class BudgetMonthLifecycleEventTypes
     public const string Skipped = "skipped";
     public const string NextMonthCreated = "next-month-created";
     public const string CarryOverApplied = "carry-over-applied";
+    public const string PlannedMonthCreated = "planned-month-created";
+    public const string PlannedMonthPromoted = "planned-month-promoted";
 }

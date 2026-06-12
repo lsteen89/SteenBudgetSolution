@@ -104,12 +104,12 @@ export default function DebtStrategyPicker({
         <div
           className={cn(
             "mt-4 flex items-start gap-2 rounded-2xl p-3",
-            "bg-wizard-warning/10 border border-wizard-warning/25",
+            "bg-wizard-danger/10 border border-wizard-danger/25",
           )}
           role="alert"
         >
-          <AlertTriangle className="mt-0.5 h-4 w-4 text-wizard-warning shrink-0" />
-          <p className="text-sm font-semibold text-wizard-warning">{error}</p>
+          <AlertTriangle className="mt-0.5 h-4 w-4 text-wizard-danger shrink-0" />
+          <p className="text-sm font-semibold text-wizard-danger">{error}</p>
         </div>
       )}
     </div>

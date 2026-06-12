@@ -3,8 +3,23 @@ namespace Backend.Application.DTO.Budget.Months;
 public static class BudgetMonthStatuses
 {
     public const string Open = "open";
+    // Materialized next month that is editable ahead of time but not yet the
+    // active month. Promoted to `open` when the current month closes.
+    public const string Planned = "planned";
     public const string Closed = "closed";
     public const string Skipped = "skipped";
+}
+
+// Single source of truth for which month statuses accept editor mutations.
+// Open and planned months are forward-looking and mutable through the month
+// editors; closed and skipped months are historical and read-only. The quick
+// drawer is intentionally narrower (current open month only) and does not use
+// this rule.
+public static class BudgetMonthEditability
+{
+    public static bool IsEditable(string? status)
+        => string.Equals(status, BudgetMonthStatuses.Open, StringComparison.OrdinalIgnoreCase)
+        || string.Equals(status, BudgetMonthStatuses.Planned, StringComparison.OrdinalIgnoreCase);
 }
 
 public static class BudgetMonthCarryOverModes

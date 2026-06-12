@@ -8,9 +8,9 @@ import type { CloseAvailability } from "@/hooks/dashboard/getCloseAvailabilityLa
  * Client-derived attention ranking for the open-month dashboard (PR4).
  *
  * The ranking is intentionally **on-device guidance**, not backend-authored
- * financial advice (handover § "Hard Constraints" item 7). The dashboard
- * surfaces this honestly through the AttentionLane's "How these are chosen"
- * affordance.
+ * financial advice (handover § "Hard Constraints" item 7). The card copy in
+ * StandaloneInsightActionCards stays factual about planned numbers and never
+ * presents itself as backend-owned advice.
  *
  * Inputs are pure: the existing `DashboardSummary` plus the existing
  * `CloseAvailability` resolver. No extra reads are performed. No transaction,

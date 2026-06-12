@@ -104,7 +104,7 @@ export function WizardRadioCardGroup<T extends Primitive>({
             })}
 
             {error ? (
-                <p className="pt-1 text-sm font-semibold text-wizard-warning" role="alert">
+                <p className="pt-1 text-sm font-semibold text-wizard-danger" role="alert">
                     {error}
                 </p>
             ) : null}

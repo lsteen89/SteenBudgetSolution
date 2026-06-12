@@ -14,9 +14,9 @@ function aprTone(
     return {
       label: t("aprHigh"),
       cls: cn(
-        "text-wizard-warning",
-        "bg-wizard-warning/10",
-        "border-wizard-warning/25",
+        "text-wizard-danger",
+        "bg-wizard-danger/10",
+        "border-wizard-danger/25",
       ),
     };
   }

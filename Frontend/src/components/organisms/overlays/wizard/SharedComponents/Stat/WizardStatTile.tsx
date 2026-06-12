@@ -27,7 +27,7 @@ export default function WizardStatTile({
                     "mt-1 text-sm font-semibold",
                     tone === "neutral" && "text-wizard-text/85",
                     tone === "muted" && "text-wizard-text/55",
-                    tone === "warn" && "text-wizard-warning",
+                    tone === "warn" && "text-wizard-danger",
                 )}
             >
                 {value}

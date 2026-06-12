@@ -108,7 +108,7 @@ const WizardHeaderComponent = ({
             "bg-wizard-surface/70 hover:bg-wizard-surface",
             "border border-wizard-stroke/40",
             "flex items-center justify-center",
-            "text-wizard-warning/80 hover:text-wizard-warning",
+            "text-wizard-danger/80 hover:text-wizard-danger",
             "transition",
             "focus:outline-none focus-visible:ring-2 focus-visible:ring-wizard-accent/25",
             "before:absolute before:inset-[-10px] before:content-['']",

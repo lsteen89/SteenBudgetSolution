@@ -4,6 +4,7 @@ import {
   LoaderCircle,
   Lock,
   SkipForward,
+  Sparkles,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -56,6 +57,15 @@ export type MonthRailViewModel = {
     label: string;
     disabled?: boolean;
     ariaLabel?: string;
+    /**
+     * How the Next button navigates. `"persisted"` (the default when omitted)
+     * moves to the adjacent persisted month via `onGoNext`. `"preview"` means
+     * there is no persisted next month yet but a read-only next-month preview
+     * is available — `onGoNext` routes to `/dashboard/next-month`, and the
+     * button shows a distinct affordance so it never reads as ordinary
+     * persisted-month navigation.
+     */
+    mode?: "persisted" | "preview";
   };
   ribbonItems: PeriodStatusRibbonItem[];
   action: PeriodActionSlotViewModel;
@@ -75,7 +85,7 @@ type MonthRailProps = {
 };
 
 const navButtonBase =
-  "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-eb-stroke/25 bg-white/70 text-eb-text/70 transition-[background-color,color,box-shadow,transform] duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-eb-accent/25 hover:bg-white hover:text-eb-text hover:shadow-[0_8px_18px_rgb(21_39_81_/_0.06)] active:scale-[0.98] sm:w-auto sm:gap-2 sm:px-3";
+  "relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border border-eb-stroke/50 bg-eb-surface/70 text-eb-text/70 transition-[background-color,color,box-shadow,transform] duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-eb-accent/25 hover:bg-white hover:text-eb-text hover:shadow-[0_8px_18px_rgb(21_39_81_/_0.06)] active:scale-[0.98]";
 
 const navButtonDisabled =
   "disabled:cursor-not-allowed disabled:border-eb-stroke/15 disabled:bg-[rgb(var(--eb-shell)/0.25)] disabled:text-eb-text/35 disabled:shadow-none disabled:hover:bg-[rgb(var(--eb-shell)/0.25)] disabled:hover:text-eb-text/35";
@@ -122,12 +132,15 @@ function CurrentStatusIcon({ vm }: { vm: MonthRailViewModel }) {
  *  - lifecycle ribbon items rendered underneath
  *
  * Visual evolution from the prior bar:
- *  - flatter chrome (hairline border, lighter shadow) so the rail reads as a
- *    horizon line, not a competing card;
+ *  - no card shell — the rail sits directly on the page gradient as a true
+ *    horizon line so it never competes with the MoneyState surface below;
  *  - the period label is promoted to a true page anchor (`text-base sm:text-lg`
  *    extrabold) with the status pill inline;
- *  - prev / next become ghost icon buttons that flank the period block, label
- *    visible on desktop and collapsed on mobile;
+ *  - prev / next are a compact pair of icon-only buttons (labels stay as
+ *    title/aria-label) ahead of the period block;
+ *  - preview-capable Next keeps the chevron as its primary icon and adds a
+ *    small accent sparkle marker, so preview reads as "next, but special"
+ *    rather than a different action;
  *  - the ribbon is kept but tightened so the rail does not bloat vertically.
  */
 export default function MonthRail({
@@ -146,6 +159,7 @@ export default function MonthRail({
   const previousAriaLabel =
     vm.previous?.ariaLabel ?? previousLabel ?? "Previous month";
   const nextAriaLabel = vm.next?.ariaLabel ?? nextLabel ?? "Next month";
+  const isPreviewNext = vm.next?.mode === "preview";
 
   const showArchive =
     !!vm.archive && !!onSelectMonth && Array.isArray(archiveMonths);
@@ -154,24 +168,50 @@ export default function MonthRail({
     <section
       data-testid="month-rail"
       aria-label={vm.ariaLabel}
-      className="relative z-20 rounded-3xl border border-eb-stroke/25 bg-white/85 px-4 py-3.5 shadow-[0_8px_24px_rgb(21_39_81_/_0.04)] backdrop-blur sm:px-5"
+      className="relative z-20"
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
-          <button
-            type="button"
-            data-testid="month-nav-previous"
-            onClick={onGoPrevious}
-            disabled={vm.previous?.disabled || isSwitchingMonth}
-            className={cn(navButtonBase, navButtonDisabled, "text-sm font-semibold")}
-            aria-label={previousAriaLabel}
-            title={previousLabel}
-          >
-            <ChevronLeft className="h-4 w-4 shrink-0" aria-hidden="true" />
-            <span className="hidden max-w-[8rem] truncate sm:inline">
-              {previousLabel}
-            </span>
-          </button>
+          <div className="flex shrink-0 items-center gap-1">
+            <button
+              type="button"
+              data-testid="month-nav-previous"
+              onClick={onGoPrevious}
+              disabled={vm.previous?.disabled || isSwitchingMonth}
+              className={cn(navButtonBase, navButtonDisabled)}
+              aria-label={previousAriaLabel}
+              title={previousLabel}
+            >
+              <ChevronLeft className="h-4 w-4 shrink-0" aria-hidden="true" />
+            </button>
+
+            <button
+              type="button"
+              data-testid="month-nav-next"
+              data-next-mode={vm.next?.mode ?? "persisted"}
+              onClick={onGoNext}
+              disabled={vm.next?.disabled || isSwitchingMonth}
+              className={cn(
+                navButtonBase,
+                navButtonDisabled,
+                isPreviewNext &&
+                  "border-eb-accent/40 bg-eb-accentSoft/80 text-emerald-800 hover:bg-eb-accentSoft hover:text-emerald-800",
+              )}
+              aria-label={nextAriaLabel}
+              title={nextLabel}
+            >
+              <ChevronRight className="h-4 w-4 shrink-0" aria-hidden="true" />
+              {isPreviewNext ? (
+                <span
+                  data-testid="month-nav-next-preview-marker"
+                  aria-hidden="true"
+                  className="absolute -right-1 -top-1 inline-flex h-3 w-3 items-center justify-center rounded-full bg-eb-accent text-white"
+                >
+                  <Sparkles className="h-2 w-2" />
+                </span>
+              ) : null}
+            </button>
+          </div>
 
           <div
             data-testid="active-month-label"
@@ -203,21 +243,6 @@ export default function MonthRail({
               </span>
             )}
           </div>
-
-          <button
-            type="button"
-            data-testid="month-nav-next"
-            onClick={onGoNext}
-            disabled={vm.next?.disabled || isSwitchingMonth}
-            className={cn(navButtonBase, navButtonDisabled, "text-sm font-semibold")}
-            aria-label={nextAriaLabel}
-            title={nextLabel}
-          >
-            <span className="hidden max-w-[8rem] truncate sm:inline">
-              {nextLabel}
-            </span>
-            <ChevronRight className="h-4 w-4 shrink-0" aria-hidden="true" />
-          </button>
 
           {showArchive ? (
             <MonthArchivePopover

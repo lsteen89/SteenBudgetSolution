@@ -1,6 +1,7 @@
 using Backend.Application.Abstractions.Infrastructure.Data;
 using Backend.Domain.Shared;
 using MediatR;
+using Backend.Application.DTO.Budget.Months;
 using Backend.Application.DTO.Budget.Months.Editor.Expense;
 using Backend.Application.Abstractions.Application.Services.Budget;
 using Backend.Application.DTO.Budget.Months.Editor;
@@ -52,7 +53,7 @@ public sealed class GetBudgetMonthEditorQueryHandler
                     meta.BudgetMonthId,
                     meta.YearMonth,
                     meta.Status,
-                    string.Equals(meta.Status, "open", StringComparison.OrdinalIgnoreCase),
+                    BudgetMonthEditability.IsEditable(meta.Status),
                     meta.CarryOverAmount,
                     meta.CarryOverMode),
                 rows.Select(x => new BudgetMonthExpenseItemEditorRowDto(

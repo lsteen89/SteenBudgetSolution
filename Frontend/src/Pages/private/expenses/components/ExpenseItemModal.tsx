@@ -723,14 +723,14 @@ export default function ExpenseItemModal({
                     className="rounded-2xl border border-eb-stroke/20 bg-eb-surface px-4 py-4"
                   >
                     <legend className="px-1 text-sm font-semibold text-eb-text">
-                      {t("lifecycleSectionLabel")}
+                      {withMonth(t("lifecycleSectionLabel"))}
                     </legend>
                     <p className="mt-1 text-xs text-eb-text/60">
-                      {t("lifecycleSectionDescription")}
+                      {withMonth(t("lifecycleSectionDescription"))}
                     </p>
                     <div
                       role="radiogroup"
-                      aria-label={t("lifecycleSectionLabel")}
+                      aria-label={withMonth(t("lifecycleSectionLabel"))}
                       aria-disabled={lifecycleControlDisabled}
                       className="mt-3 grid grid-cols-3 gap-2"
                     >
@@ -770,12 +770,12 @@ export default function ExpenseItemModal({
                       className="mt-2 text-xs text-eb-text/55"
                     >
                       {lifecycleControlDisabled
-                        ? t("lifecyclePlanOnlyHint")
+                        ? withMonth(t("lifecyclePlanOnlyHint"))
                         : displayedLifecycle === "active"
-                          ? t("lifecycleActiveHint")
+                          ? withMonth(t("lifecycleActiveHint"))
                           : displayedLifecycle === "paused"
-                            ? t("lifecyclePausedHint")
-                            : t("lifecycleCancelledHint")}
+                            ? withMonth(t("lifecyclePausedHint"))
+                            : withMonth(t("lifecycleCancelledHint"))}
                     </p>
                   </fieldset>
                 ) : null}

@@ -354,7 +354,7 @@ function FooterSummary({
           <span
             className={`
               text-xl font-extrabold
-              ${ok ? "text-wizard-accent" : "text-wizard-warning"}
+              ${ok ? "text-wizard-accent" : "text-wizard-danger"}
             `}
           >
             {money0(Math.abs(afterSavings))}

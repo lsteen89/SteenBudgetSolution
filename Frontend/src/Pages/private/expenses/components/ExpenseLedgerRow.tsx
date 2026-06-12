@@ -11,6 +11,7 @@ import ExpenseRowActionsMenu from "./ExpenseRowActionsMenu";
 type ExpensesLedgerRowProps = {
   row: ExpenseLedgerRowVm;
   readOnly?: boolean;
+  monthLabel: string;
   onEdit: (row: ExpenseLedgerRowVm) => void;
   onPauseToggle: (row: ExpenseLedgerRowVm) => void;
   onLifecycleChange: (
@@ -45,14 +46,17 @@ function buildRowStatus(
   row: ExpenseLedgerRowVm,
   t: (key: keyof typeof expenseLedgerRowDict.sv) => string,
   formatDeltaAbs: (value: number) => string,
+  monthLabel: string,
 ): RowStatus {
+  const withMonth = (value: string) => value.replace("{month}", monthLabel);
+
   switch (row.state) {
     case "inactive":
-      return { text: t("inactive"), tone: "exception" };
+      return { text: withMonth(t("inactive")), tone: "exception" };
     case "subscriptionPaused":
-      return { text: t("paused"), tone: "exception" };
+      return { text: withMonth(t("paused")), tone: "exception" };
     case "subscriptionCancelled":
-      return { text: t("cancelled"), tone: "exception" };
+      return { text: withMonth(t("cancelled")), tone: "exception" };
     case "active":
     default:
       break;
@@ -61,7 +65,7 @@ function buildRowStatus(
   const segments: string[] = [];
 
   if (row.sourceKind === "monthOnly") {
-    segments.push(t("onlyThisMonth"));
+    segments.push(withMonth(t("onlyThisMonth")));
   }
 
   // Plan-comparison is gated on real source-plan data (PR 5). hasPlanLink is
@@ -91,6 +95,7 @@ function buildRowStatus(
 export default function ExpensesLedgerRow({
   row,
   readOnly = false,
+  monthLabel,
   onEdit,
   onPauseToggle,
   onLifecycleChange,
@@ -110,7 +115,7 @@ export default function ExpensesLedgerRow({
     formatMoneyV2(value, currency, locale, { fractionDigits: 0 });
 
   const countsInTotal = row.countsInMonthlyTotal;
-  const status = buildRowStatus(row, t, formatDeltaAbs);
+  const status = buildRowStatus(row, t, formatDeltaAbs, monthLabel);
 
   return (
     <div
@@ -178,6 +183,7 @@ export default function ExpensesLedgerRow({
 
         <ExpenseRowActionsMenu
           readOnly={readOnly}
+          monthLabel={monthLabel}
           isActive={row.isActive}
           isSubscription={row.isSubscription}
           subscriptionLifecycleStatus={row.subscriptionLifecycleStatus}

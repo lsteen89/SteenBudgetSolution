@@ -14,6 +14,10 @@ const mockUseDashboardSummary = vi.fn();
 const mockUseBudgetMonthRecapQuery = vi.fn();
 const mockMutateAsync = vi.fn();
 const mockSetSelectedYearMonth = vi.fn();
+// Controllable next-month preview query. Defaults to "unavailable" (set in
+// beforeEach) so the rail Next button keeps its persisted-only behaviour; the
+// preview-aware-Next tests (PR4) override it per case.
+const mockUseNextMonthPreviewQuery = vi.fn();
 // Spy variant of the savings-goal completion candidates query. The default
 // implementation matches the previous always-empty mock so existing tests
 // keep their behaviour; the gating test (P6) overrides nothing — it only
@@ -59,6 +63,19 @@ vi.mock("@/hooks/budget/useSavingsGoalCompletionCandidatesQuery", () => ({
   ) => mockUseSavingsGoalCompletionCandidatesQuery(yearMonth, options),
   savingsGoalCompletionCandidatesQueryKey: (ym?: string | null) => [
     "savingsGoalCompletionCandidates",
+    ym ?? null,
+  ],
+}));
+
+// PlanningRow (PR3) and the preview-aware MonthRail Next button (PR4) both read
+// the next-month preview through this hook. Route it through a controllable spy
+// so tests stay off react-query; the shared query key means both consumers get
+// one fetch in the real app.
+vi.mock("@/hooks/budget/useNextMonthPreviewQuery", () => ({
+  useNextMonthPreviewQuery: (...args: unknown[]) =>
+    mockUseNextMonthPreviewQuery(...args),
+  nextMonthPreviewQueryKey: (ym: string | null) => [
+    "nextMonthPreview",
     ym ?? null,
   ],
 }));
@@ -454,6 +471,27 @@ function mockClosedMonthDashboard(recap = buildClosedRecap()) {
   });
 }
 
+// A real "preview" DTO from the next-preview endpoint. The dashboard reuses the
+// open-month live-dashboard shape (non-empty plan) so `selectNextMonthRemaining`
+// returns a real number — i.e. a preview is genuinely available.
+function buildPreviewDto() {
+  return {
+    fromYearMonth: "2026-04",
+    previewYearMonth: "2026-05",
+    state: "preview" as const,
+    basis: "budgetPlan" as const,
+    currencyCode: "SEK" as const,
+    carryOver: {
+      mode: "estimatedFull" as const,
+      amount: 245,
+      source: "currentMonthLiveFinalBalance" as const,
+      isFinal: false as const,
+    },
+    dashboard: buildDashboardMonthDto(245, "open").liveDashboard,
+    limitations: [],
+  };
+}
+
 function renderDashboardContent() {
   render(
     <MemoryRouter>
@@ -484,6 +522,10 @@ function renderDashboardContentWithRoutes() {
         <Route path="/dashboard/income" element={<div>Income route</div>} />
         <Route path="/dashboard/savings" element={<div>Savings route</div>} />
         <Route path="/dashboard/debts" element={<div>Debts route</div>} />
+        <Route
+          path="/dashboard/next-month"
+          element={<div>Next month preview route</div>}
+        />
       </Routes>
     </MemoryRouter>,
   );
@@ -503,6 +545,12 @@ describe("DashboardContent", () => {
     });
     mockMutateAsync.mockReset();
     mockSetSelectedYearMonth.mockReset();
+    mockUseNextMonthPreviewQuery.mockReset();
+    mockUseNextMonthPreviewQuery.mockReturnValue({
+      data: undefined,
+      isPending: false,
+      isError: false,
+    });
     mockUseSavingsGoalCompletionCandidatesQuery.mockClear();
     mockToast.success.mockReset();
     mockToast.error.mockReset();
@@ -666,7 +714,7 @@ describe("DashboardContent", () => {
     expect(screen.queryByText(/desktop:\s*true/i)).toBeNull();
   });
 
-  it("renders the open-month MoneyState anchor, equation and allocation bar", () => {
+  it("renders the open-month MoneyState anchor and allocation bar (V2 PR2 contract)", () => {
     mockUseDashboardSummary.mockReturnValue(readyResult);
 
     renderDashboardContent();
@@ -674,44 +722,31 @@ describe("DashboardContent", () => {
     const moneyState = screen.getByTestId("money-state");
     expect(moneyState).toBeInTheDocument();
     expect(moneyState).toHaveAttribute("data-tone", "positive");
-    expect(within(moneyState).getByText("Money state")).toBeInTheDocument();
-    expect(within(moneyState).getByText("Left this month")).toBeInTheDocument();
 
-    // The six-term equation is rendered inline, including carry-over at 0,
-    // so the user can see why the remaining amount is what it is.
+    // The hero opens with the "Open month · {date range}" kicker; the old
+    // eyebrow pill and "Left this month" label are gone.
     expect(
-      within(moneyState).getByTestId("money-state-equation"),
-    ).toBeInTheDocument();
-    expect(
-      within(moneyState).getByTestId("money-state-equation-income"),
-    ).toBeInTheDocument();
-    expect(
-      within(moneyState).getByTestId("money-state-equation-carryOver"),
-    ).toBeInTheDocument();
-    expect(
-      within(moneyState).getByTestId("money-state-equation-expenses"),
-    ).toBeInTheDocument();
-    expect(
-      within(moneyState).getByTestId("money-state-equation-savings"),
-    ).toBeInTheDocument();
-    expect(
-      within(moneyState).getByTestId("money-state-equation-debts"),
-    ).toBeInTheDocument();
-    expect(
-      within(moneyState).getByTestId("money-state-equation-remaining"),
-    ).toBeInTheDocument();
+      within(moneyState).getByTestId("money-state-kicker").textContent ?? "",
+    ).toContain("Open month");
+    expect(within(moneyState).queryByText("Money state")).toBeNull();
+    expect(within(moneyState).queryByText("Left this month")).toBeNull();
+
+    // The six-term equation row is no longer rendered (V2 PR2) — the flow
+    // bar + legend is the single visible "why".
+    expect(within(moneyState).queryByTestId("money-state-equation")).toBeNull();
 
     // AllocationBar (P0 molecule) is wired in.
     expect(
       within(moneyState).getByTestId("money-state-allocation"),
     ).toBeInTheDocument();
 
-    // The secondary link points to the existing deeper breakdown route.
+    // The ghost action in the allocation header points to the existing
+    // deeper breakdown route.
     const breakdownLink = within(moneyState).getByTestId(
       "money-state-breakdown-link",
     );
     expect(breakdownLink).toHaveAttribute("href", "/dashboard/breakdown");
-    expect(breakdownLink).toHaveTextContent(/see the full breakdown/i);
+    expect(breakdownLink).toHaveTextContent(/breakdown/i);
 
     // The old hero copy and analysis CTA must not co-exist with MoneyState.
     expect(
@@ -737,7 +772,7 @@ describe("DashboardContent", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("renders the capped AttentionLane led by the deficit item for an open deficit month", () => {
+  it("renders the capped insight/action cards led by the deficit card for an open deficit month", () => {
     mockUseDashboardSummary.mockReturnValue({
       ...readyResult,
       data: {
@@ -771,35 +806,35 @@ describe("DashboardContent", () => {
 
     renderDashboardContent();
 
-    // The legacy OpenMonthFollowUpStrip was replaced by the AttentionLane
-    // (PR4): on-device guidance, capped at 3, with an honest "how chosen"
-    // affordance. For a deficit month it must lead with the deficit item —
-    // only an overdue-close outranks it, and this month's lifecycle is
-    // "normal", so deficit is guaranteed to be in the top 3.
-    const lane = screen.getByTestId("attention-lane");
-    expect(within(lane).getByText("Worth a quick look")).toBeInTheDocument();
+    // The AttentionLane was replaced by StandaloneInsightActionCards (V2
+    // PR4): same on-device ranking, capped at 3, but rendered as compact
+    // cards without the explanatory section framing. For a deficit month it
+    // must lead with the deficit card — only an overdue-close outranks it,
+    // and this month's lifecycle is "normal", so deficit is guaranteed to be
+    // in the top 3.
+    const cards = screen.getByTestId("insight-action-cards");
 
-    const laneItems = within(lane).getByTestId("attention-lane-items");
-    const renderedCount = Number(laneItems.getAttribute("data-count"));
+    const cardItems = within(cards).getByTestId("insight-action-cards-items");
+    const renderedCount = Number(cardItems.getAttribute("data-count"));
     expect(renderedCount).toBeGreaterThan(0);
     expect(renderedCount).toBeLessThanOrEqual(3);
 
     // Deficit leads, with the factual (non-shaming) copy and its quick-adjust
     // action label.
-    const deficitItem = within(lane).getByTestId("attention-item-deficit");
+    const deficitItem = within(cards).getByTestId("attention-item-deficit");
     expect(
       within(deficitItem).getByText("Plan is over what is coming in"),
     ).toBeInTheDocument();
     expect(
-      within(lane).getByTestId("attention-action-deficit"),
+      within(cards).getByTestId("attention-action-deficit"),
     ).toHaveTextContent("Adjust expenses");
 
-    // The honesty affordance is present: ranking is on-device, not advice.
-    expect(
-      within(lane).getByTestId("attention-lane-how-chosen"),
-    ).toBeInTheDocument();
+    // The old explanatory framing must be gone from the main dashboard.
+    expect(screen.queryByText("Worth a quick look")).toBeNull();
+    expect(screen.queryByText("How these are chosen")).toBeNull();
+    expect(screen.queryByTestId("attention-lane-how-chosen")).toBeNull();
 
-    // The old follow-up strip copy must not co-exist with the AttentionLane.
+    // The old follow-up strip copy must not co-exist with the cards.
     expect(screen.queryByText("To follow up")).toBeNull();
     expect(screen.queryByText("Money position needs review")).toBeNull();
   });
@@ -829,7 +864,7 @@ describe("DashboardContent", () => {
       screen.queryByRole("link", { name: /explore analysis & trends/i }),
     ).toBeNull();
     expect(
-      screen.getAllByRole("link", { name: /see the full breakdown/i }),
+      screen.getAllByRole("link", { name: "Breakdown" }),
     ).toHaveLength(1);
   });
 
@@ -1064,6 +1099,82 @@ describe("DashboardContent", () => {
     expect(screen.getByText("Debts route")).toBeInTheDocument();
   });
 
+  // --------------------------------------------------------------------------
+  // PR4 — Preview-aware Next button.
+  //
+  // On the active open month with no persisted next month, the rail Next button
+  // routes to the read-only preview when one is available; otherwise it stays
+  // disabled. A persisted next month always uses normal month navigation. The
+  // preview is fetched through the same hook/key as PlanningRow, so no extra
+  // request is made and `/dashboard?yearMonth={next}` is never called.
+  // --------------------------------------------------------------------------
+
+  it("routes the rail Next button to the next-month preview when the open month has no persisted next and a preview is available", () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+    mockUseNextMonthPreviewQuery.mockReturnValue({
+      data: buildPreviewDto(),
+      isPending: false,
+      isError: false,
+    });
+
+    renderDashboardContentWithRoutes();
+
+    const nextBtn = screen.getByTestId("month-nav-next");
+    expect(nextBtn).not.toBeDisabled();
+    expect(nextBtn).toHaveAttribute("data-next-mode", "preview");
+
+    fireEvent.click(nextBtn);
+
+    expect(screen.getByText("Next month preview route")).toBeInTheDocument();
+    // Reaching the preview must never switch the dashboard to the next month
+    // (which would hit /dashboard?yearMonth={next} and risk materialisation).
+    expect(mockSetSelectedYearMonth).not.toHaveBeenCalledWith("2026-05");
+  });
+
+  it("keeps the rail Next button disabled on the open month when no preview is available", () => {
+    mockUseDashboardSummary.mockReturnValue(readyResult);
+    // Default preview mock returns "unavailable" (data: undefined).
+
+    renderDashboardContent();
+
+    const nextBtn = screen.getByTestId("month-nav-next");
+    expect(nextBtn).toBeDisabled();
+    expect(nextBtn).toHaveAttribute("data-next-mode", "persisted");
+  });
+
+  it("uses persisted month navigation for the rail Next button when a persisted next month exists", () => {
+    const goToNextMonth = vi.fn();
+    const summaryWithNext = buildSummary(245, "open", {
+      header: {
+        canGoNext: true,
+        nextPeriodLabel: "May 2026",
+        nextPeriodKey: "2026-05",
+      },
+    });
+    mockUseDashboardSummary.mockReturnValue({
+      ...readyResult,
+      goToNextMonth,
+      data: { ...readyResult.data, summary: summaryWithNext },
+    });
+    // Even if a preview were available, a persisted next month always wins.
+    mockUseNextMonthPreviewQuery.mockReturnValue({
+      data: buildPreviewDto(),
+      isPending: false,
+      isError: false,
+    });
+
+    renderDashboardContentWithRoutes();
+
+    const nextBtn = screen.getByTestId("month-nav-next");
+    expect(nextBtn).not.toBeDisabled();
+    expect(nextBtn).toHaveAttribute("data-next-mode", "persisted");
+
+    fireEvent.click(nextBtn);
+
+    expect(goToNextMonth).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText("Next month preview route")).toBeNull();
+  });
+
   it("opens the close month modal from the month rail trigger with translated title", () => {
     mockUseDashboardSummary.mockReturnValue(readyResult);
 
@@ -1091,7 +1202,7 @@ describe("DashboardContent", () => {
   // P6 — Close-month flow integration.
   //
   // The MonthRail close CTA path is covered above. These tests pin down the
-  // two other entry points (CloseBand and the AttentionLane overdue close
+  // two other entry points (CloseBand and the insight-card overdue close
   // action) and the lazy fetch contract for savings-goal completion candidates
   // — all three are part of the locked Spine close-flow story.
   // --------------------------------------------------------------------------
@@ -1115,10 +1226,10 @@ describe("DashboardContent", () => {
     expect(screen.getByTestId("close-month-modal")).toBeInTheDocument();
   });
 
-  it("opens the same close month modal from the AttentionLane overdue close action", () => {
-    // Drive the dashboard into an overdue lifecycle so AttentionLane raises
-    // the close-month action. CloseBand also renders in this state, but the
-    // testid scopes the click to the AttentionLane entry point.
+  it("opens the same close month modal from the insight-card overdue close action", () => {
+    // Drive the dashboard into an overdue lifecycle so the insight cards
+    // raise the close-month action. CloseBand also renders in this state, but
+    // the testid scopes the click to the insight-card entry point.
     const overdueSummary = buildSummary(245, "open", {
       header: {
         lifecycleState: "overdue",
@@ -2761,13 +2872,17 @@ describe("DashboardContent", () => {
     );
 
     expect(screen.getByTestId("skipped-month-state")).toBeInTheDocument();
-    expect(screen.getByTestId("month-nav-previous")).toHaveTextContent(
+    expect(screen.getByTestId("month-nav-previous")).toHaveAttribute(
+      "title",
       "March 2026",
     );
     expect(screen.getByTestId("active-month-label")).toHaveTextContent(
       "April 2026",
     );
-    expect(screen.getByTestId("month-nav-next")).toHaveTextContent("May 2026");
+    expect(screen.getByTestId("month-nav-next")).toHaveAttribute(
+      "title",
+      "May 2026",
+    );
     expect(screen.getByTestId("month-status-badge")).toHaveTextContent(
       "Skipped",
     );

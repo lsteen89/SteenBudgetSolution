@@ -184,7 +184,7 @@ export default function SavingsHabitsCard<TMethod extends string>({
           <div className="mt-2 min-h-[20px]">
             {monthlySavingsError ? (
               <p
-                className="text-sm font-semibold text-wizard-warning"
+                className="text-sm font-semibold text-wizard-danger"
                 role="alert"
               >
                 {monthlySavingsError}
@@ -244,7 +244,7 @@ export default function SavingsHabitsCard<TMethod extends string>({
 
                 {savingMethodsError ? (
                   <p
-                    className="mt-2 text-sm font-semibold text-wizard-warning"
+                    className="mt-2 text-sm font-semibold text-wizard-danger"
                     role="alert"
                   >
                     {savingMethodsError}

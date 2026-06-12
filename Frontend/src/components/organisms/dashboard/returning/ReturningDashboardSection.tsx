@@ -9,10 +9,12 @@ import type { BudgetDashboardMonthDto } from "@/types/budget/BudgetDashboardMont
 import React from "react";
 
 import type { AttentionPillar } from "@/domain/budget/attentionRanking";
-import AttentionLane from "./openMonth/AttentionLane";
 import CloseBand from "./openMonth/CloseBand";
 import MoneyState from "./openMonth/MoneyState";
+import NextMonthPreviewDetail from "./openMonth/NextMonthPreviewDetail";
 import OpenMonthPillarWorkbench from "./openMonth/OpenMonthPillarWorkbench";
+import PlanningRow from "./openMonth/PlanningRow";
+import StandaloneInsightActionCards from "./openMonth/StandaloneInsightActionCards";
 
 export interface ReturningDashboardSectionProps {
   onOpenPeriodEditor: () => void;
@@ -24,8 +26,8 @@ export interface ReturningDashboardSectionProps {
   onOpenDebtsEditor: () => void;
   onOpenFullDebtsEditor: () => void;
   /**
-   * Open the close-month review modal. Routed to from the AttentionLane's
-   * close-flow items (overdue, eligible) so the lane can trigger the same
+   * Open the close-month review modal. Routed to from the insight cards'
+   * close-flow items (overdue, eligible) so the cards can trigger the same
    * flow the MonthRail close CTA already drives.
    */
   onOpenCloseMonth: () => void;
@@ -58,10 +60,10 @@ const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({
   const locale = useAppLocale();
   const closeAvailability = getCloseAvailabilityLabel(summary.header, locale);
 
-  // AttentionLane routes its action chips to the same drawers/editors the
+  // The insight/action cards route to the same drawers/editors the
   // PillarWorkbench already uses, so we reuse those handlers verbatim. This
-  // keeps "quick adjust" and "edit all" boundaries honest — the lane never
-  // implies actions outside what the existing pillar surface supports.
+  // keeps "quick adjust" and "edit all" boundaries honest — the cards never
+  // imply actions outside what the existing pillar surface supports.
   const handleAttentionQuickDrawer = (pillar: AttentionPillar) => {
     switch (pillar) {
       case "income":
@@ -110,7 +112,45 @@ const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({
         )}
       >
         {/*
-          CloseBand (PR5) sits between MoneyState and AttentionLane per the
+          PlanningRow (next-month MVP PR3) teaches the budget model — this
+          month → next month → budget plan — directly under the MoneyState
+          hero. It carries the single "Review next month" CTA to the read-only
+          preview page.
+        */}
+        <div
+          className={cn(
+            "transition-opacity duration-250 ease-out",
+            isSwitchingMonth && "opacity-90",
+          )}
+        >
+          <PlanningRow
+            fromYearMonth={summary.header.periodKey}
+            remainingToSpend={summary.remainingToSpend}
+            periodLabel={summary.header.periodLabel}
+            currency={summary.currency}
+          />
+        </div>
+
+        {/*
+          NextMonthPreviewDetail (PR3) expands the planning row's Next-month
+          teaser when the backend preview has an honest projection. It shares
+          the planning row's query (same key, deduped by react-query) and
+          self-suppresses (returns null) when the preview is unavailable or
+          the budget plan is empty — never a fabricated number. No wrapper div:
+          a suppressed detail must not leave an empty space-y gap behind.
+        */}
+        <NextMonthPreviewDetail
+          fromYearMonth={summary.header.periodKey}
+          dashboardMonth={dashboardMonth}
+          currency={summary.currency}
+          className={cn(
+            "transition-opacity duration-250 ease-out",
+            isSwitchingMonth && "opacity-90",
+          )}
+        />
+
+        {/*
+          CloseBand (PR5) sits between MoneyState and the insight cards per the
           locked Spine section order. It self-suppresses (returns null) when
           the lifecycle is calm/normal with no countdown yet — so the calm
           flow stays visually unchanged for healthy mid-month dashboards.
@@ -128,20 +168,24 @@ const ReturningDashboardSection: React.FC<ReturningDashboardSectionProps> = ({
           />
         </div>
 
-        <div
+        {/*
+          StandaloneInsightActionCards (V2 PR4) replaces the AttentionLane's
+          explanatory section with the blueprint's compact card row: max three
+          derived cards, no section framing, no "how chosen" help system.
+          Same ranking, same handlers — only the surface changed.
+        */}
+        <StandaloneInsightActionCards
+          summary={summary}
+          closeAvailability={closeAvailability}
+          onCloseMonth={onOpenCloseMonth}
+          onOpenQuickDrawer={handleAttentionQuickDrawer}
+          onOpenFullEditor={handleAttentionFullEditor}
           className={cn(
             "transition-opacity duration-250 ease-out",
             isSwitchingMonth && "opacity-90",
           )}
-        >
-          <AttentionLane
-            summary={summary}
-            closeAvailability={closeAvailability}
-            onCloseMonth={onOpenCloseMonth}
-            onOpenQuickDrawer={handleAttentionQuickDrawer}
-            onOpenFullEditor={handleAttentionFullEditor}
-          />
-        </div>
+        />
+
 
         <div
           className={cn(

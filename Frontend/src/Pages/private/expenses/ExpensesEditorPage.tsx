@@ -1,4 +1,6 @@
 import BudgetEditorPageShell from "@/components/molecules/forms/budgetEditor/BudgetEditorPageShell";
+import SelectedMonthBanner from "@/components/molecules/forms/budgetEditor/SelectedMonthBanner";
+import { useEditorSelectedMonth } from "@/hooks/budget/editPeriod/useEditorSelectedMonth";
 import {
   useBudgetMonthEditor,
   useCreateBudgetMonthExpenseItem,
@@ -18,7 +20,7 @@ import type {
 import type { AppLocale } from "@/types/i18n/appLocale";
 import { useToast } from "@/ui/toast/toast";
 import {
-  canEditMonth,
+  canEditSelectedMonth,
   canShowUpdateDefault,
 } from "@/utils/budget/periodEditor/canShowUpdateDefault";
 import { asCategoryKey } from "@/utils/i18n/budget/categories";
@@ -73,18 +75,15 @@ export default function ExpensesEditorPage() {
   const locale = useAppLocale();
   const t = <K extends keyof typeof expensesEditorPageDict.sv>(key: K) =>
     tDict(key, locale, expensesEditorPageDict);
+  const withMonth = (value: string, monthLabel: string) =>
+    value.replace("{month}", monthLabel);
 
   const monthsStatusQuery = useBudgetMonthsStatusQuery();
-  const editableYearMonth = useMemo(() => {
-    const status = monthsStatusQuery.data;
-    if (!status) return null;
-
-    return (
-      status.openMonthYearMonth ??
-      status.months.find((month) => month.status === "open")?.yearMonth ??
-      null
-    );
-  }, [monthsStatusQuery.data]);
+  // The month this page reads and writes: the open month by default, or the
+  // explicit `?yearMonth=` selection (open/planned editable; closed/skipped
+  // read-only; unknown selections refuse below instead of falling back).
+  const selectedMonth = useEditorSelectedMonth();
+  const editableYearMonth = selectedMonth.yearMonth;
 
   const dashboardMonthQuery = useBudgetDashboardMonthQuery(editableYearMonth, {
     enabled: !!editableYearMonth,
@@ -148,7 +147,9 @@ export default function ExpensesEditorPage() {
   const editor = editorQuery.data;
   const categories = categoriesQuery.data ?? [];
   const month = editor?.month ?? null;
-  const readOnly = month ? !canEditMonth(month.isEditable, month.status) : true;
+  const readOnly = month
+    ? !canEditSelectedMonth(month.isEditable, month.status)
+    : true;
   const groups = useMemo(() => {
     if (!editor) return [];
 
@@ -210,6 +211,19 @@ export default function ExpensesEditorPage() {
       <BudgetEditorPageShell>
         <div className="rounded-2xl border border-eb-stroke/25 bg-eb-surface p-6 text-sm text-eb-text/60">
           {t("loadEditorError")}
+        </div>
+      </BudgetEditorPageShell>
+    );
+  }
+
+  // An explicit ?yearMonth= that is malformed or not a persisted month must
+  // refuse clearly — silently editing the open month instead would mutate a
+  // month the user never chose.
+  if (selectedMonth.isInvalidSelection) {
+    return (
+      <BudgetEditorPageShell>
+        <div className="rounded-2xl border border-eb-stroke/25 bg-eb-surface p-6 text-sm text-eb-text/60">
+          {t("monthNotFound")}
         </div>
       </BudgetEditorPageShell>
     );
@@ -297,7 +311,9 @@ export default function ExpensesEditorPage() {
         },
       });
 
-      toast.success(row.isActive ? t("itemPaused") : t("itemResumed"));
+      toast.success(
+        withMonth(row.isActive ? t("itemPaused") : t("itemResumed"), periodLabel),
+      );
     } catch {
       toast.error(t("itemPauseError"));
     }
@@ -343,13 +359,13 @@ export default function ExpensesEditorPage() {
       // target state. Resuming from paused and reactivating from cancelled
       // both land on `active`, but read more clearly with distinct copy.
       if (next === "paused") {
-        toast.success(t("subscriptionPaused"));
+        toast.success(withMonth(t("subscriptionPaused"), periodLabel));
       } else if (next === "cancelled") {
-        toast.success(t("subscriptionCancelled"));
+        toast.success(withMonth(t("subscriptionCancelled"), periodLabel));
       } else if (previous === "cancelled") {
-        toast.success(t("subscriptionReactivated"));
+        toast.success(withMonth(t("subscriptionReactivated"), periodLabel));
       } else {
-        toast.success(t("subscriptionResumed"));
+        toast.success(withMonth(t("subscriptionResumed"), periodLabel));
       }
     } catch {
       toast.error(t("subscriptionUpdateError"));
@@ -442,6 +458,13 @@ export default function ExpensesEditorPage() {
     <>
       <BudgetEditorPageShell>
         <div className="space-y-4">
+          {selectedMonth.status && (
+            <SelectedMonthBanner
+              yearMonth={editableYearMonth}
+              status={selectedMonth.status}
+              isOffOpenMonth={selectedMonth.isOffOpenMonth}
+            />
+          )}
           {/*
            * Hero + balance strip rely on real editor rows, real category
            * mapping, and (for the strip) real income/carry-over totals. Gate
@@ -473,6 +496,18 @@ export default function ExpensesEditorPage() {
             >
               {t("loadCategoriesError")}
             </div>
+          ) : dashboardMonthQuery.isError || !dashboardAggregate ? (
+            // Honesty gate: the balance strip's income and carry-over terms
+            // come from the dashboard aggregate. If that endpoint errored or
+            // produced nothing, rendering with the `?? 0` fallbacks would
+            // fake `Income 0 / Carry-over 0` against real expenses — wrong
+            // for the open month and worse for a selected planned month.
+            <div
+              data-testid="expenses-dashboard-error"
+              className="rounded-[1.75rem] border border-eb-stroke/20 bg-eb-surface/85 p-6 text-sm text-eb-text/60"
+            >
+              {t("loadEditorError")}
+            </div>
           ) : (
             <>
               <ExpensesSoulHero
@@ -498,6 +533,7 @@ export default function ExpensesEditorPage() {
                     key={group.key}
                     group={group}
                     readOnly={readOnly}
+                    monthLabel={periodLabel}
                     defaultOpen={true}
                     onEdit={(row) =>
                       setModalState({ open: true, mode: "edit", row })

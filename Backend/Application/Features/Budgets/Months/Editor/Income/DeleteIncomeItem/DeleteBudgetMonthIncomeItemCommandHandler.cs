@@ -45,7 +45,7 @@ public sealed class DeleteBudgetMonthIncomeItemCommandHandler
         if (monthMeta is null)
             return Result.Failure(BudgetMonth.NotFound);
 
-        if (!string.Equals(monthMeta.Status, BudgetMonthStatuses.Open, StringComparison.OrdinalIgnoreCase))
+        if (!BudgetMonthEditability.IsEditable(monthMeta.Status))
             return Result.Failure(BudgetMonth.MonthIsClosed);
 
         var existing = await _repo.GetIncomeItemForMutationAsync(

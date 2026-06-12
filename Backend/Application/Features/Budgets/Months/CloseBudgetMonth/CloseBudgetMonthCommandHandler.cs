@@ -287,30 +287,32 @@ public sealed class CloseBudgetMonthCommandHandler
     {
         var existingNextMonth = await _months.GetMonthAsync(budgetId, nextYearMonth, ct);
 
-        if (existingNextMonth is not null && existingNextMonth.Status != BudgetMonthStatuses.Open)
-            return Result<BudgetMonthDetailsRm>.Failure(BudgetMonth.NextMonthMustBeOpen);
-
-        var ensuredNext = await _lifecycle.EnsureAccessibleMonthAsync(
-            cmd.Persoid,
-            cmd.ActorPersoid,
-            nextYearMonth,
-            ct);
-
-        if (ensuredNext.IsFailure || ensuredNext.Value is null)
-            return Result<BudgetMonthDetailsRm>.Failure(ensuredNext.Error);
-
-        var nextMonth = await _months.GetMonthAsync(budgetId, nextYearMonth, ct);
-        if (nextMonth is null)
-            return Result<BudgetMonthDetailsRm>.Failure(BudgetMonth.NextMonthEnsureFailed);
-
-        if (nextMonth.Status != BudgetMonthStatuses.Open)
-            return Result<BudgetMonthDetailsRm>.Failure(BudgetMonth.NextMonthMustBeOpen);
-
-        if (ensuredNext.Value.WasCreated)
+        if (existingNextMonth is not null
+            && existingNextMonth.Status != BudgetMonthStatuses.Open
+            && existingNextMonth.Status != BudgetMonthStatuses.Planned)
         {
+            return Result<BudgetMonthDetailsRm>.Failure(BudgetMonth.NextMonthMustBeOpen);
+        }
+
+        if (existingNextMonth is not null && existingNextMonth.Status == BudgetMonthStatuses.Planned)
+        {
+            // Promote the planned next month instead of creating one. No
+            // re-materialization happens here: the planned month rows were
+            // materialized at planning time and may carry user edits that
+            // must survive promotion. The current month is already closed at
+            // this point, so the one-open-month unique key admits the switch.
+            var promotedRows = await _months.PromotePlannedMonthToOpenAsync(
+                existingNextMonth.Id,
+                cmd.ActorPersoid,
+                nowUtc,
+                ct);
+
+            if (promotedRows == 0)
+                return Result<BudgetMonthDetailsRm>.Failure(BudgetMonth.PlannedMonthPromotionFailed);
+
             await WriteLifecycleAsync(
-                budgetMonthId: nextMonth.Id,
-                eventType: BudgetMonthLifecycleEventTypes.NextMonthCreated,
+                budgetMonthId: existingNextMonth.Id,
+                eventType: BudgetMonthLifecycleEventTypes.PlannedMonthPromoted,
                 relatedBudgetMonthId: currentMonth.Id,
                 carryOverMode: null,
                 carryOverAmount: null,
@@ -323,6 +325,42 @@ public sealed class CloseBudgetMonthCommandHandler
                 occurredAt: nowUtc,
                 ct: ct);
         }
+        else
+        {
+            var ensuredNext = await _lifecycle.EnsureAccessibleMonthAsync(
+                cmd.Persoid,
+                cmd.ActorPersoid,
+                nextYearMonth,
+                ct);
+
+            if (ensuredNext.IsFailure || ensuredNext.Value is null)
+                return Result<BudgetMonthDetailsRm>.Failure(ensuredNext.Error);
+
+            if (ensuredNext.Value.WasCreated)
+            {
+                await WriteLifecycleAsync(
+                    budgetMonthId: ensuredNext.Value.BudgetMonthId,
+                    eventType: BudgetMonthLifecycleEventTypes.NextMonthCreated,
+                    relatedBudgetMonthId: currentMonth.Id,
+                    carryOverMode: null,
+                    carryOverAmount: null,
+                    metadataJson: JsonSerializer.Serialize(new
+                    {
+                        sourceYearMonth = currentMonth.YearMonth,
+                        targetYearMonth = nextYearMonth
+                    }),
+                    actorPersoid: cmd.ActorPersoid,
+                    occurredAt: nowUtc,
+                    ct: ct);
+            }
+        }
+
+        var nextMonth = await _months.GetMonthAsync(budgetId, nextYearMonth, ct);
+        if (nextMonth is null)
+            return Result<BudgetMonthDetailsRm>.Failure(BudgetMonth.NextMonthEnsureFailed);
+
+        if (nextMonth.Status != BudgetMonthStatuses.Open)
+            return Result<BudgetMonthDetailsRm>.Failure(BudgetMonth.NextMonthMustBeOpen);
 
         var receivingCarryOverAmount = ResolveReceivingCarryOverAmount(
             carryOverMode,

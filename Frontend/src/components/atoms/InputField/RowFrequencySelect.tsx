@@ -81,7 +81,7 @@ const RowFrequencySelect = forwardRef<
       !showError &&
         "border-wizard-stroke/25 hover:border-wizard-stroke/35 focus:border-wizard-stroke/40 focus:ring-wizard-accent/30",
       showError &&
-        "border-wizard-warning/70 focus:border-wizard-warning/70 focus:ring-wizard-warning/25",
+        "border-wizard-danger/70 focus:border-wizard-danger/70 focus:ring-wizard-danger/25",
     );
 
     const placeholderTone = value === "" ? "text-wizard-text/40" : "";
@@ -119,14 +119,14 @@ const RowFrequencySelect = forwardRef<
           <ChevronDown
             className={cn(
               "pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4",
-              showError ? "text-wizard-warning/80" : "text-wizard-text/55",
+              showError ? "text-wizard-danger/80" : "text-wizard-text/55",
             )}
           />
         </div>
 
         <div className="mt-1 min-h-[16px]">
           {showError ? (
-            <span className="ml-1 block text-xs font-semibold text-wizard-warning">
+            <span className="ml-1 block text-xs font-semibold text-wizard-danger">
               {error}
             </span>
           ) : null}

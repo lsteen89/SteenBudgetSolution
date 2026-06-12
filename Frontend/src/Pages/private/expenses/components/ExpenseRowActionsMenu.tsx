@@ -29,6 +29,7 @@ export type ExpenseRowActionsMenuAction =
 
 type BuildArgs = {
   labels: ExpenseRowActionsMenuLabels;
+  monthLabel: string;
   isActive: boolean;
   isSubscription: boolean;
   subscriptionLifecycleStatus: SubscriptionLifecycleStatus | null;
@@ -51,6 +52,7 @@ type BuildArgs = {
  */
 export function buildExpenseRowActions({
   labels,
+  monthLabel,
   isActive,
   isSubscription,
   subscriptionLifecycleStatus,
@@ -59,6 +61,7 @@ export function buildExpenseRowActions({
   onPauseToggle,
   onLifecycleChange,
 }: BuildArgs): Array<BudgetEditorRowActionItem & { key: ExpenseRowActionsMenuAction }> {
+  const withMonth = (value: string) => value.replace("{month}", monthLabel);
   const items: Array<
     BudgetEditorRowActionItem & { key: ExpenseRowActionsMenuAction }
   > = [
@@ -75,30 +78,30 @@ export function buildExpenseRowActions({
     if (effectiveLifecycle === "active") {
       items.push({
         key: "subscriptionPause",
-        label: labels.subscriptionPause,
+        label: withMonth(labels.subscriptionPause),
         onSelect: () => onLifecycleChange("paused"),
       });
       items.push({
         key: "subscriptionCancel",
-        label: labels.subscriptionCancel,
+        label: withMonth(labels.subscriptionCancel),
         onSelect: () => onLifecycleChange("cancelled"),
       });
     } else if (effectiveLifecycle === "paused") {
       items.push({
         key: "subscriptionResume",
-        label: labels.subscriptionResume,
+        label: withMonth(labels.subscriptionResume),
         onSelect: () => onLifecycleChange("active"),
       });
       items.push({
         key: "subscriptionCancel",
-        label: labels.subscriptionCancel,
+        label: withMonth(labels.subscriptionCancel),
         onSelect: () => onLifecycleChange("cancelled"),
       });
     } else {
       // cancelled — no point offering pause; only reactivate.
       items.push({
         key: "subscriptionReactivate",
-        label: labels.subscriptionReactivate,
+        label: withMonth(labels.subscriptionReactivate),
         onSelect: () => onLifecycleChange("active"),
       });
     }
@@ -106,7 +109,7 @@ export function buildExpenseRowActions({
     // Non-subscription rows keep the simple isActive toggle.
     items.push({
       key: isActive ? "pause" : "resume",
-      label: isActive ? labels.pause : labels.resume,
+      label: withMonth(isActive ? labels.pause : labels.resume),
       onSelect: onPauseToggle,
     });
   }
@@ -123,6 +126,7 @@ export function buildExpenseRowActions({
 
 type ExpenseRowActionsMenuProps = {
   readOnly?: boolean;
+  monthLabel: string;
   isActive: boolean;
   isSubscription: boolean;
   subscriptionLifecycleStatus: SubscriptionLifecycleStatus | null;
@@ -134,6 +138,7 @@ type ExpenseRowActionsMenuProps = {
 
 export default function ExpenseRowActionsMenu({
   readOnly = false,
+  monthLabel,
   isActive,
   isSubscription,
   subscriptionLifecycleStatus,
@@ -157,6 +162,7 @@ export default function ExpenseRowActionsMenu({
       subscriptionCancel: t("subscriptionCancel"),
       subscriptionReactivate: t("subscriptionReactivate"),
     },
+    monthLabel,
     isActive,
     isSubscription,
     subscriptionLifecycleStatus,

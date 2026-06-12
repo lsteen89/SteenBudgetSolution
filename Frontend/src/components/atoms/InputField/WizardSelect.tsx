@@ -55,9 +55,9 @@ const WizardSelect = forwardRef<HTMLSelectElement, WizardSelectProps>(
 
         const stateClasses = error
             ? cn(
-                "border-wizard-warning/70",
-                "focus:border-wizard-warning/70",
-                "focus:ring-wizard-warning/25"
+                "border-wizard-danger/70",
+                "focus:border-wizard-danger/70",
+                "focus:ring-wizard-danger/25"
             )
             : cn(
                 "border-wizard-stroke/20",
@@ -122,7 +122,7 @@ const WizardSelect = forwardRef<HTMLSelectElement, WizardSelectProps>(
                 {/* stable height like RowNumberInput */}
                 <div className="mt-1 min-h-[16px]">
                     {error ? (
-                        <span className="ml-2 block text-xs font-bold text-wizard-warning">
+                        <span className="ml-2 block text-xs font-bold text-wizard-danger">
                             {error}
                         </span>
                     ) : null}

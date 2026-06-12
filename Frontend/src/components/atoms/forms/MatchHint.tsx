@@ -23,7 +23,7 @@ export function MatchHint({
     <div
       className={cn(
         "mt-1 inline-flex items-center gap-2 text-xs font-semibold",
-        ok ? "text-eb-accent" : "text-eb-alert",
+        ok ? "text-eb-accent" : "text-eb-danger",
         className
       )}
     >

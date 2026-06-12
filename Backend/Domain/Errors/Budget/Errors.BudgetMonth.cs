@@ -76,6 +76,31 @@ public static partial class BudgetMonth
     public static readonly Error CarryOverRequiresPreviousMonth =
         new("BudgetMonth.CarryOverRequiresPreviousMonth", "Carry over cannot be applied without a previous month to carry over from.", ErrorType.Validation);
 
+    public static readonly Error PlannedMonthRequiresOpenFromMonth =
+        new("BudgetMonth.PlannedMonthRequiresOpenFromMonth",
+            "Next month can only be planned from the currently open month.",
+            ErrorType.Conflict);
+
+    public static readonly Error PlannedMonthAlreadyExists =
+        new("BudgetMonth.PlannedMonthAlreadyExists",
+            "A planned month already exists for this budget.",
+            ErrorType.Conflict);
+
+    public static readonly Error PlannedNextMonthUnavailable =
+        new("BudgetMonth.PlannedNextMonthUnavailable",
+            "The next month already exists and cannot be planned.",
+            ErrorType.Conflict);
+
+    public static readonly Error PlannedMonthPromotionFailed =
+        new("BudgetMonth.PlannedMonthPromotionFailed",
+            "The planned next month could not be promoted to open.",
+            ErrorType.Conflict);
+
+    public static readonly Error PlannedMonthBlocksStart =
+        new("BudgetMonth.PlannedMonthBlocksStart",
+            "A planned next month exists. Close the open month to promote it instead of starting a new month.",
+            ErrorType.Conflict);
+
     public static readonly Error InvalidSavingsGoalCompletionCandidate =
         new("BudgetMonth.InvalidSavingsGoalCompletionCandidate",
             "One or more selected savings goals are not eligible for completion in this month.",

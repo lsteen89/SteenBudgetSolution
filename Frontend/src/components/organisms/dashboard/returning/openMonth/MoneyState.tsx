@@ -1,7 +1,7 @@
 import { ArrowRight } from "lucide-react";
 import React from "react";
+import { Link } from "react-router-dom";
 
-import { CtaLink } from "@/components/atoms/buttons/CtaLink";
 import AllocationBar, {
   ALLOCATION_SEGMENT_BAR_CLASS,
   getVisibleAllocationSegments,
@@ -15,6 +15,7 @@ import {
 import { useAppLocale } from "@/hooks/i18n/useAppLocale";
 import { cn } from "@/lib/utils";
 import { appRoutes } from "@/routes/appRoutes";
+import { dashboardGhostActionClass } from "./DashboardPrimitives";
 import { dashboardSurfaceNeutral } from "./dashboardSurface";
 import type { BudgetDashboardMonthDto } from "@/types/budget/BudgetDashboardMonthDto";
 import { moneyStateDict } from "@/utils/i18n/pages/private/dashboard/openMonth/MoneyState.i18n";
@@ -36,19 +37,14 @@ import { formatMoneyV2, moneyDecimalsFor } from "@/utils/money/moneyV2";
  * UI silently disagree with the backend on what the user has left. The
  * client-side sum is exposed only through `DashboardTermsResult.reconciles`
  * for diagnostics: when it drifts, we `console.warn` and keep rendering the
- * backend number.
+ * backend number. The six-term equation itself is no longer rendered (V2
+ * PR2); the flow bar + legend is the single visible "why".
  *
  * The remaining number is the page hero, with a terse tone word beside it
- * ("free to allocate" / "fully assigned" / "short").
- *
- * Two complementary "why" surfaces sit below it (DP3):
- *   - The AllocationBar legend + flow bar is the primary, glanceable
- *     explanation of where the money goes (expenses / savings / debts / free,
- *     or where money runs out in a deficit).
- *   - A quiet inline six-term equation is the precise footnote. It is the only
- *     place the inflow side (income + carry-over) is shown as explicit terms,
- *     so it stays on the page rather than behind a toggle. Carry-over keeps its
- *     own term even at zero — never folded into income.
+ * ("free to allocate" / "fully assigned" / "short"), under an
+ * `Open month · {date range}` kicker. Below a divider, the allocation
+ * section pairs the legend + segmented flow bar with a small ghost
+ * "Breakdown" action to the full breakdown page.
  *
  * Read-only / closed / skipped months are handled upstream — they bypass
  * `ReturningDashboardSection` entirely. This component therefore assumes the
@@ -73,6 +69,21 @@ function classifyRemaining(remaining: number): RemainingTone {
   if (remaining > REMAINING_EPSILON) return "positive";
   if (remaining < -REMAINING_EPSILON) return "negative";
   return "zero";
+}
+
+/**
+ * Locale-formatted first–last date range for a `YYYY-MM` key, e.g.
+ * "1–31 maj" (sv) / "May 1 – 31" (en-US). Label-only — never used for money.
+ */
+function ymDateRange(ym: string, locale: string): string {
+  const [y, m] = ym.split("-").map(Number);
+  if (!y || !m) return "";
+  const first = new Date(y, m - 1, 1);
+  const last = new Date(y, m, 0);
+  return new Intl.DateTimeFormat(locale, {
+    day: "numeric",
+    month: "long",
+  }).formatRange(first, last);
 }
 
 const MoneyState: React.FC<MoneyStateProps> = ({
@@ -137,13 +148,14 @@ const MoneyState: React.FC<MoneyStateProps> = ({
         ? t("toneWordNegative")
         : t("toneWordZero");
 
+  const dateRange = ymDateRange(dashboardMonth.month.yearMonth, locale);
+
   const allocationLabels: AllocationBarLabels = {
     ariaLabel: t("allocationAria"),
     expenses: t("allocationExpenses"),
     savings: t("allocationSavings"),
     debts: t("allocationDebts"),
     free: t("allocationFree"),
-    unfunded: t("allocationUnfunded"),
     runsOutMarker: t("allocationRunsOut"),
   };
 
@@ -163,48 +175,8 @@ const MoneyState: React.FC<MoneyStateProps> = ({
     free: allocationLabels.free,
   };
 
-  // Six terms in canonical order. Carry-over keeps its slot even at 0 so the
-  // equation reads honestly. The first term has no operator; subsequent
-  // operators are dictated by the equation, not by sign of the term.
-  const equationTerms: Array<{
-    key: string;
-    label: string;
-    value: number;
-    operator: "plus" | "minus" | null;
-  }> = [
-    { key: "income", label: t("equationIncome"), value: terms.income, operator: null },
-    {
-      key: "carryOver",
-      label: t("equationCarryOver"),
-      value: terms.carryOver,
-      operator: "plus",
-    },
-    {
-      key: "expenses",
-      label: t("equationExpenses"),
-      value: terms.expenses,
-      operator: "minus",
-    },
-    {
-      key: "savings",
-      label: t("equationSavings"),
-      value: terms.savings,
-      operator: "minus",
-    },
-    {
-      key: "debts",
-      label: t("equationDebts"),
-      value: terms.debts,
-      operator: "minus",
-    },
-  ];
-
   const remainingToneClass =
-    tone === "negative"
-      ? "text-eb-danger"
-      : tone === "zero"
-        ? "text-eb-text"
-        : "text-eb-text";
+    tone === "negative" ? "text-eb-danger" : "text-eb-text";
 
   return (
     <section
@@ -218,15 +190,14 @@ const MoneyState: React.FC<MoneyStateProps> = ({
         className,
       )}
     >
-      <header className="flex flex-col gap-1.5">
-        <span className="inline-flex w-fit items-center rounded-full border border-eb-stroke/30 bg-[rgb(var(--eb-shell)/0.45)] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-eb-text/65">
-          {t("eyebrow")}
-        </span>
+      <header className="flex flex-col">
         <p
           id="money-state-heading"
-          className="mt-1 text-xs font-semibold uppercase tracking-wide text-eb-text/55"
+          data-testid="money-state-kicker"
+          className="text-[11px] font-bold uppercase tracking-[0.2em] text-eb-text/45"
         >
-          {t("remainingLabel")}
+          {t("kickerOpenMonth")}
+          {dateRange ? <> &middot; {dateRange}</> : null}
         </p>
         {/*
           The remaining number is the page's primary answer, so it reads as the
@@ -234,7 +205,7 @@ const MoneyState: React.FC<MoneyStateProps> = ({
           wraps below on narrow screens) so the glanceable verdict travels with
           the figure without crowding it.
         */}
-        <div className="mt-0.5 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+        <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
           <p
             data-testid="money-state-remaining"
             className={cn(
@@ -260,63 +231,20 @@ const MoneyState: React.FC<MoneyStateProps> = ({
         </p>
       </header>
 
-      {/*
-        DP3: the six-term equation is the precise "why", demoted from a row of
-        bordered cells to one quiet inline line so it supports the flow bar
-        rather than competing with it. It stays on the page (not behind a
-        toggle, not pushed to Breakdown) because it is the only place the inflow
-        side — income and carry-over — is shown as explicit terms. Carry-over
-        keeps its own slot, never folded into income, so the reasoning reads
-        honestly even at zero. The per-term testids are part of the contract.
-      */}
-      <div
-        data-testid="money-state-equation"
-        role="group"
-        aria-label={t("equationAriaLabel")}
-        className="mt-5 flex flex-wrap items-baseline gap-x-2.5 gap-y-1 text-xs leading-5 text-eb-text/60"
-      >
-        {equationTerms.map((term) => (
-          <React.Fragment key={term.key}>
-            {term.operator ? (
-              <span aria-hidden="true" className="font-semibold text-eb-text/40">
-                {term.operator === "plus" ? t("equationPlus") : t("equationMinus")}
-              </span>
-            ) : null}
-            <span
-              data-testid={`money-state-equation-${term.key}`}
-              className="inline-flex items-baseline gap-1.5"
-            >
-              <span className="text-eb-text/55">{term.label}</span>
-              <span className="font-semibold tabular-nums text-eb-text/85">
-                {formatTermValue(term.value)}
-              </span>
-            </span>
-          </React.Fragment>
-        ))}
-        <span aria-hidden="true" className="font-semibold text-eb-text/40">
-          {t("equationEquals")}
-        </span>
-        <span
-          data-testid="money-state-equation-remaining"
-          className="inline-flex items-baseline gap-1.5"
-        >
-          <span className="text-eb-text/55">{t("equationRemaining")}</span>
-          <span
-            className={cn(
-              "font-bold tabular-nums",
-              tone === "negative" ? "text-eb-danger" : "text-eb-text",
-            )}
+      <div className="mt-4 border-t border-eb-stroke/40 pt-4">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-eb-text/45">
+            {t("allocationCaption")}
+          </p>
+          <Link
+            to={appRoutes.dashboardBreakdown}
+            data-testid="money-state-breakdown-link"
+            className={dashboardGhostActionClass}
           >
-            {tone === "negative" ? "−" : ""}
-            {formatTermValue(terms.remaining)}
-          </span>
-        </span>
-      </div>
-
-      <div className="mt-6">
-        <p className="text-xs font-semibold uppercase tracking-wide text-eb-text/55">
-          {t("allocationCaption")}
-        </p>
+            <span>{t("breakdownLink")}</span>
+            <ArrowRight aria-hidden="true" className="h-3.5 w-3.5" />
+          </Link>
+        </div>
         {legendSegments.length > 0 ? (
           <ul
             data-testid="money-state-allocation-legend"
@@ -353,20 +281,6 @@ const MoneyState: React.FC<MoneyStateProps> = ({
           />
         </div>
       </div>
-
-      <footer className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <p className="max-w-md text-xs leading-5 text-eb-text/55">
-          {t("breakdownHint")}
-        </p>
-        <CtaLink
-          to={appRoutes.dashboardBreakdown}
-          data-testid="money-state-breakdown-link"
-          className="h-11 justify-center rounded-2xl px-4 sm:w-auto"
-        >
-          <span>{t("breakdownLink")}</span>
-          <ArrowRight className="h-4 w-4" />
-        </CtaLink>
-      </footer>
     </section>
   );
 };

@@ -4,7 +4,7 @@ function VerdictChip({ kind, title }: { kind: "good" | "tight" | "bad"; title: s
             ? "bg-wizard-accent/10 border-wizard-accent/20 text-wizard-accent"
             : kind === "tight"
                 ? "bg-yellow-400/10 border-yellow-400/20 text-yellow-600"
-                : "bg-rose-400/10 border-rose-400/20 text-wizard-warning";
+                : "bg-rose-400/10 border-rose-400/20 text-wizard-danger";
 
     return (
         <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs border ${cls}`}>

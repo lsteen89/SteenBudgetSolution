@@ -362,6 +362,12 @@ export function buildDashboardSummaryAggregate(
   switch (dto.month.status) {
     case "open":
       return buildOpenMonthAggregate(dto, locale);
+    case "planned":
+      // A planned month is materialized ahead of time and served with a live
+      // dashboard exactly like an open month. The backend suppresses its
+      // close-window flags and resolvePeriodCloseUiState returns the quiet
+      // no-CTA state for every non-open status, so no close affordance leaks.
+      return buildOpenMonthAggregate(dto, locale);
     case "closed":
       return buildClosedMonthAggregate(dto, locale);
     case "skipped":

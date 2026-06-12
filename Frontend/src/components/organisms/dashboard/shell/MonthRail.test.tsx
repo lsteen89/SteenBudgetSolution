@@ -208,6 +208,71 @@ describe("MonthRail — switching month", () => {
   });
 });
 
+describe("MonthRail — next month preview", () => {
+  it("renders a preview-distinct Next affordance that stays enabled and fires onGoNext", () => {
+    const onGoNext = vi.fn();
+    render(
+      <MonthRail
+        vm={makeVm({
+          next: {
+            label: "July 2026",
+            disabled: false,
+            ariaLabel: "Review next month (preview): July 2026",
+            mode: "preview",
+          },
+        })}
+        onGoNext={onGoNext}
+      />,
+    );
+
+    const nextBtn = screen.getByTestId("month-nav-next");
+    // The preview button is distinct from persisted navigation: it advertises
+    // its preview mode and its accessible name says "preview", not "go to".
+    expect(nextBtn).toHaveAttribute("data-next-mode", "preview");
+    expect(nextBtn).toHaveAttribute(
+      "aria-label",
+      "Review next month (preview): July 2026",
+    );
+    expect(nextBtn).not.toBeDisabled();
+
+    fireEvent.click(nextBtn);
+    expect(onGoNext).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders the chevron as primary icon plus a small preview marker", () => {
+    render(
+      <MonthRail
+        vm={makeVm({
+          next: {
+            label: "July 2026",
+            disabled: false,
+            ariaLabel: "Review next month (preview): July 2026",
+            mode: "preview",
+          },
+        })}
+      />,
+    );
+
+    // Chevron stays the primary icon — preview adds a marker, it does not
+    // replace navigation iconography with a Sparkles-only button.
+    expect(
+      screen.getByTestId("month-nav-next-preview-marker"),
+    ).toBeInTheDocument();
+  });
+
+  it("defaults the Next button to persisted mode without a preview marker", () => {
+    render(<MonthRail vm={makeVm()} />);
+
+    expect(screen.getByTestId("month-nav-next")).toHaveAttribute(
+      "data-next-mode",
+      "persisted",
+    );
+    expect(
+      screen.queryByTestId("month-nav-next-preview-marker"),
+    ).toBeNull();
+  });
+});
+
 describe("MonthRail — nav availability", () => {
   it("reflects view-model disabled flags on prev/next buttons", () => {
     render(
@@ -229,5 +294,46 @@ describe("MonthRail — nav availability", () => {
 
     expect(screen.getByTestId("month-nav-previous")).toBeDisabled();
     expect(screen.getByTestId("month-nav-next")).toBeDisabled();
+  });
+
+  it("does not fire onGoNext when the next button is disabled", () => {
+    const onGoNext = vi.fn();
+    render(
+      <MonthRail
+        vm={makeVm({
+          next: {
+            label: "Next",
+            disabled: true,
+            ariaLabel: "Next month is not available",
+          },
+        })}
+        onGoNext={onGoNext}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("month-nav-next"));
+    expect(onGoNext).not.toHaveBeenCalled();
+  });
+});
+
+describe("MonthRail — archive", () => {
+  it("keeps the archive trigger accessible in the compact rail", () => {
+    render(
+      <MonthRail
+        vm={makeVm({
+          archive: {
+            triggerLabel: "Archive",
+            emptyLabel: "No months yet",
+            statusLabels: { open: "Open", closed: "Closed", skipped: "Skipped" },
+          },
+        })}
+        archiveMonths={[]}
+        onSelectMonth={vi.fn()}
+      />,
+    );
+
+    const trigger = screen.getByTestId("month-archive-trigger");
+    expect(trigger).toBeInTheDocument();
+    expect(trigger).not.toBeDisabled();
   });
 });

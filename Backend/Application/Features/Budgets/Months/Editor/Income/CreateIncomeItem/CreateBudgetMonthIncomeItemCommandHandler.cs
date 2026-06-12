@@ -62,7 +62,7 @@ public sealed class CreateBudgetMonthIncomeItemCommandHandler
         if (monthMeta is null)
             return Result<BudgetMonthIncomeItemEditorRowDto?>.Failure(BudgetMonth.NotFound);
 
-        if (!string.Equals(monthMeta.Status, BudgetMonthStatuses.Open, StringComparison.OrdinalIgnoreCase))
+        if (!BudgetMonthEditability.IsEditable(monthMeta.Status))
             return Result<BudgetMonthIncomeItemEditorRowDto?>.Failure(BudgetMonth.MonthIsClosed);
 
         // For month-only create the existing one-query lookup (BudgetMonthIncome.Id)

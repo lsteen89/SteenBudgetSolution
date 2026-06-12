@@ -307,9 +307,9 @@ export default function LoginPage() {
                   <div
                     role="alert"
                     aria-live="polite"
-                    className="rounded-2xl border border-eb-alert/30 bg-eb-alert/10 px-4 py-3"
+                    className="rounded-2xl border border-eb-danger/30 bg-eb-danger/10 px-4 py-3"
                   >
-                    <p className="text-sm font-semibold text-eb-alert">
+                    <p className="text-sm font-semibold text-eb-danger">
                       {toUserMessage(rootProblem, locale)}
                     </p>
                   </div>
@@ -335,7 +335,7 @@ export default function LoginPage() {
                       className="rounded-2xl border border-eb-stroke/30 bg-eb-surface/70 px-3 py-3"
                     />
                     {errors.HumanToken?.message ? (
-                      <p className="text-sm text-eb-alert">
+                      <p className="text-sm text-eb-danger">
                         {errors.HumanToken.message}
                       </p>
                     ) : null}

@@ -73,7 +73,7 @@ public sealed class PatchBudgetMonthDebtDetailsCommandHandler
         if (monthMeta is null)
             return Result<BudgetMonthDebtEditorRowDto?>.Failure(BudgetMonthDebtErrors.NotFound);
 
-        if (!string.Equals(monthMeta.Status, BudgetMonthStatuses.Open, StringComparison.OrdinalIgnoreCase))
+        if (!BudgetMonthEditability.IsEditable(monthMeta.Status))
             return Result<BudgetMonthDebtEditorRowDto?>.Failure(BudgetMonth.MonthIsClosed);
 
         var existing = await _repo.GetDebtForMutationAsync(

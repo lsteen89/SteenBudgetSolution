@@ -45,6 +45,7 @@ export const dashboardHeaderDict = {
     periodContextOverdueComparison: "Stäng för att spara jämförelsebas",
     periodContextNextAvailable: "Fortsätt med {month}.",
     periodContextNextLocked: "Nästa månad öppnas efter stängning",
+    periodContextNextPreview: "Nästa månad: förhandsvisning tillgänglig",
 
     monthArchiveTrigger: "Månadsarkiv",
     monthArchiveTriggerLong: "Hoppa till månad",
@@ -53,6 +54,7 @@ export const dashboardHeaderDict = {
     nextMonthAria: "Gå till nästa månad: {month}",
     previousMonthLockedAria: "Föregående månad är inte tillgänglig",
     nextMonthLockedAria: "Nästa månad är inte tillgänglig",
+    nextMonthPreviewAria: "Granska nästa månad (förhandsvisning): {month}",
     continueWithMonth: "Fortsätt med {month}",
     continueWithMonthAria: "Fortsätt till {month}",
     monthRailAriaLabel: "Månadsrad",
@@ -105,6 +107,7 @@ export const dashboardHeaderDict = {
     periodContextOverdueComparison: "Close to save the comparison baseline",
     periodContextNextAvailable: "Continue with {month}.",
     periodContextNextLocked: "Next month opens after closing",
+    periodContextNextPreview: "Next month: preview available",
 
     monthArchiveTrigger: "Month archive",
     monthArchiveTriggerLong: "Jump to month",
@@ -113,6 +116,7 @@ export const dashboardHeaderDict = {
     nextMonthAria: "Go to next month: {month}",
     previousMonthLockedAria: "Previous month is not available",
     nextMonthLockedAria: "Next month is not available",
+    nextMonthPreviewAria: "Review next month (preview): {month}",
     continueWithMonth: "Continue with {month}",
     continueWithMonthAria: "Continue with {month}",
     monthRailAriaLabel: "Month rail",
@@ -165,6 +169,7 @@ export const dashboardHeaderDict = {
     periodContextOverdueComparison: "Sulge võrdlusaluse salvestamiseks",
     periodContextNextAvailable: "Jätka kuuga {month}.",
     periodContextNextLocked: "Järgmine kuu avaneb pärast sulgemist",
+    periodContextNextPreview: "Järgmine kuu: eelvaade saadaval",
 
     monthArchiveTrigger: "Kuude arhiiv",
     monthArchiveTriggerLong: "Hüppa kuule",
@@ -173,6 +178,7 @@ export const dashboardHeaderDict = {
     nextMonthAria: "Mine järgmisele kuule: {month}",
     previousMonthLockedAria: "Eelmine kuu pole saadaval",
     nextMonthLockedAria: "Järgmine kuu pole saadaval",
+    nextMonthPreviewAria: "Vaata järgmist kuud (eelvaade): {month}",
     continueWithMonth: "Jätka kuuga {month}",
     continueWithMonthAria: "Jätka kuuga {month}",
     monthRailAriaLabel: "Kuude riba",

@@ -56,6 +56,9 @@ const Dashboard = lazy(() => import("@/Pages/private/dashboard/dashboardhome"));
 const DashboardBreakdownPage = lazy(
   () => import("@/Pages/private/dashboard/DashboardBreakdownPage"),
 );
+const NextMonthPreviewPage = lazy(
+  () => import("@/Pages/private/dashboard/NextMonthPreviewPage"),
+);
 const SettingsPage = lazy(
   () => import("@/Pages/private/settings/SettingsPage"),
 );
@@ -132,6 +135,10 @@ export default function AppRoutes() {
               <Route
                 path={appRoutes.dashboardBreakdown}
                 element={withLazy(<DashboardBreakdownPage />)}
+              />
+              <Route
+                path={appRoutes.dashboardNextMonth}
+                element={withLazy(<NextMonthPreviewPage />)}
               />
               <Route
                 path={appRoutes.dashboardHowItWorks}

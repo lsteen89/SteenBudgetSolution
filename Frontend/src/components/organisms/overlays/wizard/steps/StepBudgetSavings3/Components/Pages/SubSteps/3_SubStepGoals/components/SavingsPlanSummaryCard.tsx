@@ -117,7 +117,7 @@ function getBadge(
 
     case "deficit":
       return {
-        icon: <AlertTriangle className="h-4 w-4 text-wizard-warning" />,
+        icon: <AlertTriangle className="h-4 w-4 text-wizard-danger" />,
         text: t("badgeGapTemplate").replace("{amount}", money0(Math.abs(diff))),
       };
 

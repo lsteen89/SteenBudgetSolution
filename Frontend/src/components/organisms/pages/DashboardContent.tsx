@@ -9,7 +9,14 @@ import MonthRail, {
 } from "@/components/organisms/dashboard/shell/MonthRail";
 import type { PeriodActionSlotViewModel } from "@/components/organisms/dashboard/shell/PeriodActionSlot";
 import { useBudgetMonthRecapQuery } from "@/hooks/budget/useBudgetMonthRecapQuery";
+import { useNextMonthPreviewQuery } from "@/hooks/budget/useNextMonthPreviewQuery";
 import { buildDashboardTerms } from "@/domain/budget/dashboardTerms";
+import {
+  nextYearMonth,
+  selectNextMonthRemaining,
+  ymLabel,
+} from "@/domain/budget/nextMonthPreview";
+import { appRoutes } from "@/routes/appRoutes";
 import { useCloseMonthReviewController } from "@/hooks/dashboard/useCloseMonthReviewController";
 import { useDashboardSummary } from "@/hooks/dashboard/useDashboardSummary";
 import type {
@@ -67,10 +74,18 @@ function buildMonthRailViewModel(
   locale: AppLocale,
   options: {
     suppressContinueAction?: boolean;
+    /**
+     * Set when the viewed month is the active open month, it has no persisted
+     * next month, and a read-only next-month preview is available. Turns the
+     * otherwise-locked Next button into a preview-capable action that routes to
+     * `/dashboard/next-month` (handled by the caller's `onGoNext`).
+     */
+    previewNext?: { monthLabel: string } | null;
   } = {},
 ): MonthRailViewModel {
   const t: HeaderT = (key) => tDict(key, locale, dashboardHeaderDict);
   const header = summary.header;
+  const previewNextActive = !!options.previewNext && !header.canGoNext;
   const isSkipped = header.periodStatus === "skipped";
   const isClosed = header.periodStatus === "closed";
   const showCloseAction =
@@ -117,8 +132,8 @@ function buildMonthRailViewModel(
           } satisfies MonthRailViewModel["ribbonItems"][number],
         ]),
     {
-      label: nextLabel,
-      tone: header.canGoNext ? "neutral" : "muted",
+      label: previewNextActive ? t("periodContextNextPreview") : nextLabel,
+      tone: header.canGoNext || previewNextActive ? "neutral" : "muted",
       icon: "next",
     },
   ];
@@ -189,11 +204,22 @@ function buildMonthRailViewModel(
       disabled: !header.canGoPrevious,
       ariaLabel: previousAriaLabel,
     },
-    next: {
-      label: nextNavLabel,
-      disabled: !header.canGoNext,
-      ariaLabel: nextAriaLabel,
-    },
+    next: previewNextActive
+      ? {
+          label: options.previewNext!.monthLabel,
+          disabled: false,
+          ariaLabel: replaceToken(
+            t("nextMonthPreviewAria"),
+            "month",
+            options.previewNext!.monthLabel,
+          ),
+          mode: "preview",
+        }
+      : {
+          label: nextNavLabel,
+          disabled: !header.canGoNext,
+          ariaLabel: nextAriaLabel,
+        },
     ribbonItems,
     action,
     archive: {
@@ -313,8 +339,46 @@ function LoadedDashboardContent({
 
   const closeAvailability = getCloseAvailabilityLabel(summary.header, locale);
 
+  // Preview-aware Next (PR4). The MonthRail Next button only knows persisted
+  // months: when the active open month has no persisted next month, it is
+  // normally disabled. If a read-only next-month preview is available, route
+  // Next to `/dashboard/next-month` instead of disabling it.
+  //
+  // The query is gated to the active open month with no persisted next, and
+  // shares its cache key with the PlanningRow card's preview fetch — so this
+  // adds no extra request. Availability is the same honest gate the preview
+  // page and planning card use (`selectNextMonthRemaining` is null when there
+  // is no eligible preview or the budget plan is empty). The from-month for
+  // the preview is never the next month, so no `/dashboard?yearMonth={next}`
+  // request is ever made.
+  const isViewingOpenMonth = summary.header.periodStatus === "open";
+  const hasPersistedNext = summary.header.canGoNext;
+  const previewFromYearMonth =
+    isViewingOpenMonth && !hasPersistedNext ? yearMonth : null;
+  const nextMonthPreviewQuery = useNextMonthPreviewQuery(previewFromYearMonth, {
+    enabled: !!previewFromYearMonth,
+  });
+  const previewNextActive =
+    !!previewFromYearMonth &&
+    selectNextMonthRemaining(nextMonthPreviewQuery.data) !== null;
+  const previewNextMonthLabel = previewFromYearMonth
+    ? ymLabel(
+        nextMonthPreviewQuery.data?.previewYearMonth ??
+          nextYearMonth(previewFromYearMonth),
+        locale,
+      )
+    : null;
+
+  const handleGoNext = previewNextActive
+    ? () => navigate(appRoutes.dashboardNextMonth)
+    : goToNextMonth;
+
   const monthRailVm = buildMonthRailViewModel(summary, locale, {
     suppressContinueAction: isJustClosedHandoffVisible,
+    previewNext:
+      previewNextActive && previewNextMonthLabel
+        ? { monthLabel: previewNextMonthLabel }
+        : null,
   });
 
   // Quick Edit drawer projection uses the dashboard's authoritative
@@ -332,7 +396,7 @@ function LoadedDashboardContent({
       <MonthRail
         vm={monthRailVm}
         onGoPrevious={goToPreviousMonth}
-        onGoNext={goToNextMonth}
+        onGoNext={handleGoNext}
         isSwitchingMonth={isSwitchingMonth}
         onCloseMonth={closeMonthReview.open}
         onContinueAction={setSelectedYearMonth}

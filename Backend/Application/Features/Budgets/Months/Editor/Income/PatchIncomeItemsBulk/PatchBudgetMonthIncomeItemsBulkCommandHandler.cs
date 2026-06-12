@@ -48,7 +48,7 @@ public sealed class PatchBudgetMonthIncomeItemsBulkCommandHandler
         if (monthMeta is null)
             return Result<IReadOnlyList<BudgetMonthIncomeItemEditorRowDto>>.Failure(BudgetMonthIncomeItemErrors.NotFound);
 
-        if (!string.Equals(monthMeta.Status, BudgetMonthStatuses.Open, StringComparison.OrdinalIgnoreCase))
+        if (!BudgetMonthEditability.IsEditable(monthMeta.Status))
             return Result<IReadOnlyList<BudgetMonthIncomeItemEditorRowDto>>.Failure(BudgetMonth.MonthIsClosed);
 
         var now = _timeProvider.GetUtcNow().UtcDateTime;

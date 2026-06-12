@@ -49,7 +49,7 @@ public sealed class PatchBudgetMonthIncomeItemCommandHandler
         if (monthMeta is null)
             return Result<BudgetMonthIncomeItemEditorRowDto?>.Failure(BudgetMonthIncomeItemErrors.NotFound);
 
-        if (!string.Equals(monthMeta.Status, BudgetMonthStatuses.Open, StringComparison.OrdinalIgnoreCase))
+        if (!BudgetMonthEditability.IsEditable(monthMeta.Status))
             return Result<BudgetMonthIncomeItemEditorRowDto?>.Failure(BudgetMonth.MonthIsClosed);
 
         var existing = await _repo.GetIncomeItemForMutationAsync(

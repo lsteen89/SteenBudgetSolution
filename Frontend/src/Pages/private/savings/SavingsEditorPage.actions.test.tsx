@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import SavingsEditorPage from "./SavingsEditorPage";
 
@@ -119,7 +120,9 @@ const linkedRow = {
 };
 
 beforeEach(() => {
-  vi.useFakeTimers();
+  // Fake only Date so the recompute math is deterministic; timers stay real
+  // so waitFor and userEvent work without advancing fake clocks.
+  vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date(2026, 4, 19, 12, 0, 0));
 
   mockSavingsQuery.mockReturnValue({
@@ -151,8 +154,7 @@ afterEach(() => {
 
 describe("SavingsEditorPage goal actions", () => {
   it("saves Månadsbelopp with monthlyContribution and scope only", async () => {
-    vi.useRealTimers();
-    render(<SavingsEditorPage />);
+    render(<MemoryRouter><SavingsEditorPage /></MemoryRouter>);
 
     fireEvent.click(screen.getByRole("button", { name: /monthly amount/i }));
     fireEvent.change(screen.getByLabelText("Monthly amount"), {
@@ -174,8 +176,7 @@ describe("SavingsEditorPage goal actions", () => {
   });
 
   it("saves Måldatum in recalcMonthly mode with recomputed monthlyContribution", async () => {
-    vi.useRealTimers();
-    render(<SavingsEditorPage />);
+    render(<MemoryRouter><SavingsEditorPage /></MemoryRouter>);
 
     fireEvent.click(screen.getByRole("button", { name: /target date/i }));
     // Year + Month dropdowns now drive the picker; pick May (month index 4 →
@@ -200,8 +201,7 @@ describe("SavingsEditorPage goal actions", () => {
   });
 
   it("saves Måldatum in keepMonthly mode with unchanged monthlyContribution", async () => {
-    vi.useRealTimers();
-    render(<SavingsEditorPage />);
+    render(<MemoryRouter><SavingsEditorPage /></MemoryRouter>);
 
     fireEvent.click(screen.getByRole("button", { name: /target date/i }));
     fireEvent.change(screen.getByTestId("savings-goal-target-month-year"), {
@@ -225,8 +225,7 @@ describe("SavingsEditorPage goal actions", () => {
   });
 
   it("archives a goal through the kebab confirm dialog", async () => {
-    vi.useRealTimers();
-    render(<SavingsEditorPage />);
+    render(<MemoryRouter><SavingsEditorPage /></MemoryRouter>);
 
     fireEvent.click(screen.getByRole("button", { name: /more/i }));
     fireEvent.click(screen.getByRole("menuitem", { name: /archive goal/i }));
@@ -236,8 +235,7 @@ describe("SavingsEditorPage goal actions", () => {
   });
 
   it("removes a goal through the kebab confirm dialog", async () => {
-    vi.useRealTimers();
-    render(<SavingsEditorPage />);
+    render(<MemoryRouter><SavingsEditorPage /></MemoryRouter>);
 
     fireEvent.click(screen.getByRole("button", { name: /more/i }));
     fireEvent.click(screen.getByRole("menuitem", { name: /remove goal/i }));

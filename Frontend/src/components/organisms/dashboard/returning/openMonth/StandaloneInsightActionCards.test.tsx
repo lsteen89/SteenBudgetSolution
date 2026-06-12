@@ -2,7 +2,7 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
-import AttentionLane from "./AttentionLane";
+import StandaloneInsightActionCards from "./StandaloneInsightActionCards";
 import type {
   DashboardPeriodHeaderSummary,
   DashboardSummary,
@@ -71,7 +71,7 @@ function buildSummary(overrides: Partial<DashboardSummary> = {}): DashboardSumma
 
 const closeAvailabilityNone: CloseAvailability = { kind: "none" };
 
-function renderLane(props?: {
+function renderCards(props?: {
   summary?: DashboardSummary;
   closeAvailability?: CloseAvailability;
   onCloseMonth?: () => void;
@@ -84,7 +84,7 @@ function renderLane(props?: {
 
   render(
     <MemoryRouter>
-      <AttentionLane
+      <StandaloneInsightActionCards
         summary={props?.summary ?? buildSummary()}
         closeAvailability={props?.closeAvailability ?? closeAvailabilityNone}
         onCloseMonth={onCloseMonth}
@@ -97,8 +97,15 @@ function renderLane(props?: {
   return { onCloseMonth, onOpenQuickDrawer, onOpenFullEditor };
 }
 
-describe("AttentionLane", () => {
-  it("renders at most 3 items", () => {
+function renderedItemIds(): string[] {
+  const list = screen.getByTestId("insight-action-cards-items");
+  return within(list)
+    .getAllByRole("listitem")
+    .map((li) => li.getAttribute("data-testid") ?? "");
+}
+
+describe("StandaloneInsightActionCards", () => {
+  it("renders at most 3 cards", () => {
     const summary = buildSummary({
       header: buildHeader({ lifecycleState: "overdue", canCloseMonth: true }),
       finalBalance: -1500,
@@ -107,71 +114,126 @@ describe("AttentionLane", () => {
       subscriptionsTotal: 500,
       subscriptionsCount: 2,
     });
-    renderLane({ summary });
+    renderCards({ summary });
 
-    const list = screen.getByTestId("attention-lane-items");
+    const list = screen.getByTestId("insight-action-cards-items");
     expect(Number(list.getAttribute("data-count"))).toBeLessThanOrEqual(3);
     expect(within(list).getAllByRole("listitem").length).toBeLessThanOrEqual(3);
   });
 
+  it("leads with the deficit card for a normal-lifecycle deficit month", () => {
+    const summary = buildSummary({
+      finalBalance: -1500,
+      totalSavings: 0,
+      subscriptionsTotal: 500,
+      subscriptionsCount: 2,
+    });
+    renderCards({ summary });
+
+    expect(renderedItemIds()[0]).toBe("attention-item-deficit");
+  });
+
+  it("puts overdue close before the deficit card when both apply", () => {
+    const summary = buildSummary({
+      header: buildHeader({ lifecycleState: "overdue", canCloseMonth: true }),
+      finalBalance: -1500,
+    });
+    renderCards({ summary });
+
+    const ids = renderedItemIds();
+    expect(ids[0]).toBe("attention-item-overdue-close");
+    expect(ids[1]).toBe("attention-item-deficit");
+  });
+
+  it("leads with the eligible-close card when the close window is open", () => {
+    const summary = buildSummary({
+      header: buildHeader({ lifecycleState: "eligible", canCloseMonth: true }),
+    });
+    renderCards({ summary });
+
+    expect(renderedItemIds()[0]).toBe("attention-item-eligible-close");
+  });
+
+  it("surfaces the large-surplus card for a healthy surplus month", () => {
+    const summary = buildSummary({
+      finalBalance: 6000,
+      remainingToSpend: 6000,
+      totalIncome: 30000,
+    });
+    renderCards({ summary });
+
+    const card = screen.getByTestId("attention-item-large-surplus");
+    expect(card.getAttribute("data-severity")).toBe("positive");
+  });
+
   it("renders the calm stable-plan card when nothing else qualifies", () => {
-    renderLane();
+    renderCards();
     const card = screen.getByTestId("attention-item-stable-plan");
     expect(card).toBeInTheDocument();
     expect(card.getAttribute("data-severity")).toBe("positive");
-    // Only the stable-plan item should be present in this calm state.
-    const list = screen.getByTestId("attention-lane-items");
+    const list = screen.getByTestId("insight-action-cards-items");
     expect(Number(list.getAttribute("data-count"))).toBe(1);
   });
 
-  it("routes the overdue close item to the close-month handler", () => {
+  it("routes the overdue close card to the close-month handler", () => {
     const summary = buildSummary({
       header: buildHeader({ lifecycleState: "overdue", canCloseMonth: true }),
     });
-    const { onCloseMonth } = renderLane({ summary });
+    const { onCloseMonth } = renderCards({ summary });
 
     fireEvent.click(screen.getByTestId("attention-action-overdue-close"));
     expect(onCloseMonth).toHaveBeenCalledTimes(1);
   });
 
-  it("routes the deficit item to the expenses quick drawer", () => {
+  it("routes the deficit card to the expenses quick drawer", () => {
     const summary = buildSummary({ finalBalance: -1500 });
-    const { onOpenQuickDrawer } = renderLane({ summary });
+    const { onOpenQuickDrawer } = renderCards({ summary });
 
     fireEvent.click(screen.getByTestId("attention-action-deficit"));
     expect(onOpenQuickDrawer).toHaveBeenCalledWith("expenses");
   });
 
-  it("routes the no-savings item to the savings quick drawer", () => {
+  it("routes the no-savings card to the savings quick drawer", () => {
     const summary = buildSummary({ totalSavings: 0, totalIncome: 25000 });
-    const { onOpenQuickDrawer } = renderLane({ summary });
+    const { onOpenQuickDrawer } = renderCards({ summary });
 
     fireEvent.click(screen.getByTestId("attention-action-no-savings-plan"));
     expect(onOpenQuickDrawer).toHaveBeenCalledWith("savings");
   });
 
-  it("exposes the 'How these are chosen' disclosure with on-device wording", () => {
-    renderLane();
-    const disclosure = screen.getByTestId("attention-lane-how-chosen");
-    expect(disclosure).toBeInTheDocument();
-    // The disclosure body must clearly say it's on-device, not backend advice.
-    expect(disclosure.textContent ?? "").toMatch(/on-device/i);
-    expect(disclosure.textContent ?? "").toMatch(/not backend advice/i);
+  it("renders the breakdown action as a router link, not a button handler", () => {
+    // The calm/stable state routes to the breakdown page.
+    renderCards();
+    const link = screen.getByTestId("attention-action-stable-plan");
+    expect(link.tagName).toBe("A");
+    expect(link.getAttribute("href")).toBe("/dashboard/breakdown");
   });
 
-  it("uses critical severity for the deficit item", () => {
+  it("uses critical severity for the deficit card", () => {
     const summary = buildSummary({ finalBalance: -1500 });
-    renderLane({ summary });
+    renderCards({ summary });
 
     const deficit = screen.getByTestId("attention-item-deficit");
     expect(deficit.getAttribute("data-severity")).toBe("critical");
   });
 
-  it("renders the breakdown link as a router link, not a button handler", () => {
-    // Force the lane into the calm/stable state which routes to breakdown.
-    renderLane();
-    const link = screen.getByTestId("attention-action-stable-plan");
-    expect(link.tagName).toBe("A");
-    expect(link.getAttribute("href")).toBe("/dashboard/breakdown");
+  it("renders no explanatory framing or 'how chosen' disclosure", () => {
+    renderCards();
+
+    // The V2 blueprint replaced the lane's help-system framing with bare cards.
+    expect(screen.queryByText("Worth a quick look")).toBeNull();
+    expect(screen.queryByText("Attention")).toBeNull();
+    expect(screen.queryByText("How these are chosen")).toBeNull();
+    expect(screen.queryByTestId("attention-lane-how-chosen")).toBeNull();
+    expect(screen.queryByRole("heading")).toBeNull();
+  });
+
+  it("renders nothing for a non-open month", () => {
+    const summary = buildSummary({
+      header: buildHeader({ periodStatus: "closed" }),
+    });
+    renderCards({ summary });
+
+    expect(screen.queryByTestId("insight-action-cards")).toBeNull();
   });
 });

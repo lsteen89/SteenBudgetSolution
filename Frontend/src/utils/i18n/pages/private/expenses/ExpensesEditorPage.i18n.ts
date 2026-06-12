@@ -2,19 +2,25 @@ export const expensesEditorPageDict = {
   sv: {
     noMonthSelected: "Ingen månad vald.",
     noOpenMonth: "Ingen öppen månad att redigera.",
+    monthNotFound: "Den valda månaden finns inte i din budget.",
     itemCreated: "Post skapad.",
     itemUpdated: "Post uppdaterad.",
     itemStaged: "Ändring tillagd.",
     itemsSaved: "Ändringar sparade.",
     itemCreateError: "Kunde inte skapa posten.",
     itemUpdateError: "Kunde inte uppdatera posten.",
-    itemPaused: "Post pausad.",
-    itemResumed: "Post återupptagen.",
+    itemPaused: "Post pausad i {month}. Budgetplanen framåt ändras inte.",
+    itemResumed:
+      "Post återupptagen i {month}. Budgetplanen framåt ändras inte.",
     itemPauseError: "Kunde inte uppdatera posten.",
-    subscriptionPaused: "Abonnemang pausat.",
-    subscriptionResumed: "Abonnemang återupptaget.",
-    subscriptionCancelled: "Abonnemang avslutat.",
-    subscriptionReactivated: "Abonnemang aktiverat igen.",
+    subscriptionPaused:
+      "Abonnemang pausat i {month}. Budgetplanen framåt ändras inte.",
+    subscriptionResumed:
+      "Abonnemang återupptaget i {month}. Budgetplanen framåt ändras inte.",
+    subscriptionCancelled:
+      "Abonnemang avslutat i {month}. Budgetplanen framåt ändras inte.",
+    subscriptionReactivated:
+      "Abonnemang aktiverat igen i {month}. Budgetplanen framåt ändras inte.",
     subscriptionUpdateError: "Kunde inte uppdatera abonnemanget.",
     itemDeleted: "Post borttagen.",
     itemDeleteError: "Kunde inte ta bort posten.",
@@ -39,19 +45,24 @@ export const expensesEditorPageDict = {
   en: {
     noMonthSelected: "No month selected.",
     noOpenMonth: "No open month to edit.",
+    monthNotFound: "The selected month does not exist in your budget.",
     itemCreated: "Entry created.",
     itemUpdated: "Entry updated.",
     itemStaged: "Change added.",
     itemsSaved: "Changes saved.",
     itemCreateError: "Could not create expense item.",
     itemUpdateError: "Could not update expense item.",
-    itemPaused: "Entry paused.",
-    itemResumed: "Entry resumed.",
+    itemPaused: "Entry paused in {month}. The budget plan is unchanged.",
+    itemResumed: "Entry resumed in {month}. The budget plan is unchanged.",
     itemPauseError: "Could not update expense item.",
-    subscriptionPaused: "Subscription paused.",
-    subscriptionResumed: "Subscription resumed.",
-    subscriptionCancelled: "Subscription cancelled.",
-    subscriptionReactivated: "Subscription reactivated.",
+    subscriptionPaused:
+      "Subscription paused in {month}. The budget plan is unchanged.",
+    subscriptionResumed:
+      "Subscription resumed in {month}. The budget plan is unchanged.",
+    subscriptionCancelled:
+      "Subscription ended in {month}. The budget plan is unchanged.",
+    subscriptionReactivated:
+      "Subscription reactivated in {month}. The budget plan is unchanged.",
     subscriptionUpdateError: "Could not update subscription.",
     itemDeleted: "Entry deleted.",
     itemDeleteError: "Could not delete expense item.",
@@ -78,19 +89,24 @@ export const expensesEditorPageDict = {
   et: {
     noMonthSelected: "Ühtegi kuud pole valitud.",
     noOpenMonth: "Pole avatud kuud, mida muuta.",
+    monthNotFound: "Valitud kuud sinu eelarves ei ole.",
     itemCreated: "Rida loodud.",
     itemUpdated: "Rida uuendatud.",
     itemStaged: "Muudatus lisatud.",
     itemsSaved: "Muudatused salvestatud.",
     itemCreateError: "Kulu rea loomine ebaõnnestus.",
     itemUpdateError: "Kulu rea uuendamine ebaõnnestus.",
-    itemPaused: "Rida peatatud.",
-    itemResumed: "Rida taastatud.",
+    itemPaused: "Rida peatatud kuus {month}. Eelarveplaan edaspidi ei muutu.",
+    itemResumed: "Rida taastatud kuus {month}. Eelarveplaan edaspidi ei muutu.",
     itemPauseError: "Kulu rea uuendamine ebaõnnestus.",
-    subscriptionPaused: "Tellimus peatatud.",
-    subscriptionResumed: "Tellimus taastatud.",
-    subscriptionCancelled: "Tellimus lõpetatud.",
-    subscriptionReactivated: "Tellimus uuesti aktiveeritud.",
+    subscriptionPaused:
+      "Tellimus peatatud kuus {month}. Eelarveplaan edaspidi ei muutu.",
+    subscriptionResumed:
+      "Tellimus taastatud kuus {month}. Eelarveplaan edaspidi ei muutu.",
+    subscriptionCancelled:
+      "Tellimus lõpetatud kuus {month}. Eelarveplaan edaspidi ei muutu.",
+    subscriptionReactivated:
+      "Tellimus uuesti aktiveeritud kuus {month}. Eelarveplaan edaspidi ei muutu.",
     subscriptionUpdateError: "Tellimuse uuendamine ebaõnnestus.",
     itemDeleted: "Rida eemaldatud.",
     itemDeleteError: "Kulu rea eemaldamine ebaõnnestus.",

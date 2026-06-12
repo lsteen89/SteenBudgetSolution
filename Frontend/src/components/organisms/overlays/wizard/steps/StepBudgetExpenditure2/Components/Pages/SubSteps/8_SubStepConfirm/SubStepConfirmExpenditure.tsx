@@ -240,7 +240,7 @@ const SubStepConfirmExpenditure: React.FC<Props> = ({ preview }) => {
                   "text-xl font-extrabold",
                   vm.remaining >= 0
                     ? "text-darkLimeGreen"
-                    : "text-wizard-warning",
+                    : "text-wizard-danger",
                 )}
               >
                 {money0(Math.abs(vm.remaining))}
@@ -248,7 +248,7 @@ const SubStepConfirmExpenditure: React.FC<Props> = ({ preview }) => {
             </div>
 
             {vm.remaining < 0 ? (
-              <p className="mt-1 text-xs text-wizard-warning/80">
+              <p className="mt-1 text-xs text-wizard-danger/80">
                 {t("deficitHint")}
               </p>
             ) : null}

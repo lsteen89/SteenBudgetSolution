@@ -89,7 +89,7 @@ const CreateExpenseItemCard: React.FC<CreateExpenseItemCardProps> = ({
           placeholder={t("namePlaceholder")}
         />
         {form.formState.errors.name ? (
-          <p className="text-xs font-medium text-wizard-warning">
+          <p className="text-xs font-medium text-wizard-danger">
             {form.formState.errors.name.message}
           </p>
         ) : null}
@@ -105,7 +105,7 @@ const CreateExpenseItemCard: React.FC<CreateExpenseItemCardProps> = ({
           ))}
         </select>
         {form.formState.errors.categoryId ? (
-          <p className="text-xs font-medium text-wizard-warning">
+          <p className="text-xs font-medium text-wizard-danger">
             {form.formState.errors.categoryId.message}
           </p>
         ) : null}
@@ -116,7 +116,7 @@ const CreateExpenseItemCard: React.FC<CreateExpenseItemCardProps> = ({
           placeholder={t("amountPlaceholder")}
         />
         {form.formState.errors.amountMonthly ? (
-          <p className="text-xs font-medium text-wizard-warning">
+          <p className="text-xs font-medium text-wizard-danger">
             {form.formState.errors.amountMonthly.message}
           </p>
         ) : null}

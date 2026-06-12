@@ -72,7 +72,7 @@ public sealed class GetBudgetMonthDebtEditorQueryHandler
             return Result<BudgetMonthDebtEditorDto?>.Failure(BudgetMonth.NotFound);
 
         var monthStatus = meta.Status;
-        var isReadOnly = !string.Equals(monthStatus, BudgetMonthStatuses.Open, StringComparison.OrdinalIgnoreCase);
+        var isReadOnly = !BudgetMonthEditability.IsEditable(monthStatus);
 
         var rows = await _repo.GetDebtEditorAggregateRowsAsync(budgetMonthId, ct);
 

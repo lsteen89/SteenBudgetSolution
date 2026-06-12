@@ -940,6 +940,9 @@ public sealed class CloseBudgetMonthCommandHandlerTests
         public Task<IReadOnlyList<Backend.Application.Features.Budgets.Months.Models.BudgetMonthListRm>> GetOpenMonthsAsync(Guid budgetId, CancellationToken ct)
             => _inner.GetOpenMonthsAsync(budgetId, ct);
 
+        public Task<IReadOnlyList<Backend.Application.Features.Budgets.Months.Models.BudgetMonthListRm>> GetPlannedMonthsAsync(Guid budgetId, CancellationToken ct)
+            => _inner.GetPlannedMonthsAsync(budgetId, ct);
+
         public Task<Backend.Application.Features.Budgets.Months.Models.BudgetMonthLookupRm?> GetByBudgetIdAndYearMonthAsync(Guid budgetId, string yearMonth, CancellationToken ct)
             => _inner.GetByBudgetIdAndYearMonthAsync(budgetId, yearMonth, ct);
 
@@ -978,6 +981,12 @@ public sealed class CloseBudgetMonthCommandHandlerTests
 
         public Task InsertSkippedMonthIdempotentAsync(Guid id, Guid budgetId, string yearMonth, Guid userId, DateTime nowUtc, CancellationToken ct)
             => _inner.InsertSkippedMonthIdempotentAsync(id, budgetId, yearMonth, userId, nowUtc, ct);
+
+        public Task InsertPlannedMonthIdempotentAsync(Guid id, Guid budgetId, string yearMonth, Guid userId, DateTime nowUtc, CancellationToken ct)
+            => _inner.InsertPlannedMonthIdempotentAsync(id, budgetId, yearMonth, userId, nowUtc, ct);
+
+        public Task<int> PromotePlannedMonthToOpenAsync(Guid budgetMonthId, Guid userId, DateTime nowUtc, CancellationToken ct)
+            => _inner.PromotePlannedMonthToOpenAsync(budgetMonthId, userId, nowUtc, ct);
 
         public Task<int> CloseOpenMonthWithSnapshotAsync(Guid budgetMonthId, Guid userId, DateTime nowUtc, decimal totalIncome, decimal totalExpenses, decimal totalSavings, decimal totalDebtPayments, decimal finalBalance, CancellationToken ct)
             => _inner.CloseOpenMonthWithSnapshotAsync(

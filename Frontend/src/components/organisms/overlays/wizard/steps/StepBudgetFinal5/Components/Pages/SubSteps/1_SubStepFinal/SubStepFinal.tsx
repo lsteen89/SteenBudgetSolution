@@ -279,7 +279,7 @@ export default function SubStepFinal({
         </WizardAccordionRoot>
 
         {finalizationError && (
-          <p className="text-wizard-warning text-sm">{finalizationError}</p>
+          <p className="text-wizard-danger text-sm">{finalizationError}</p>
         )}
 
         <FinalizeCta

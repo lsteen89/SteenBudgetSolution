@@ -107,7 +107,7 @@ function CashflowBreakdown({
             <span
               className={cn(
                 "text-xs font-semibold",
-                isOk ? "text-wizard-accent" : "text-wizard-warning",
+                isOk ? "text-wizard-accent" : "text-wizard-danger",
               )}
             >
               {isOk ? "+" : "−"}
@@ -116,7 +116,7 @@ function CashflowBreakdown({
             <span
               className={cn(
                 "text-xl font-extrabold",
-                isOk ? "text-wizard-accent" : "text-wizard-warning",
+                isOk ? "text-wizard-accent" : "text-wizard-danger",
               )}
             >
               {money0(Math.abs(ui.finalBalance))}

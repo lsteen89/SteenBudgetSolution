@@ -46,7 +46,7 @@ internal static class BudgetMonthSavingsGoalLifecycleHandler
         // Mirrors the gate used by Patch/Create — closed and skipped months
         // surface the same BudgetMonth.MonthIsClosed code so the frontend has
         // one place to react to "month is locked" across all editors.
-        if (!string.Equals(monthMeta.Status, BudgetMonthStatuses.Open, StringComparison.OrdinalIgnoreCase))
+        if (!BudgetMonthEditability.IsEditable(monthMeta.Status))
             return Result<BudgetMonthSavingsGoalEditorRowDto?>.Failure(BudgetMonth.MonthIsClosed);
 
         var existing = await repo.GetSavingsGoalForMutationAsync(budgetMonthId, monthSavingsGoalId, ct);

@@ -100,4 +100,10 @@ public sealed partial class BudgetMonthSeedSourceRepository
     WHERE BudgetId = @BudgetId
     AND Status = 'active'
     ORDER BY CreatedAt, Id;";
+
+    private const string GetRepaymentStrategySql = @"
+    SELECT DebtRepaymentStrategy
+    FROM Budget
+    WHERE Id = @BudgetId
+    LIMIT 1;";
 }

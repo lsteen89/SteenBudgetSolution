@@ -115,7 +115,7 @@ public sealed class AdjustBudgetMonthDebtBalanceCommandHandler
         if (monthMeta is null)
             return Result<AdjustBudgetMonthDebtBalanceResponseDto?>.Failure(BudgetMonthDebtErrors.NotFound);
 
-        if (!string.Equals(monthMeta.Status, BudgetMonthStatuses.Open, StringComparison.OrdinalIgnoreCase))
+        if (!BudgetMonthEditability.IsEditable(monthMeta.Status))
             return Result<AdjustBudgetMonthDebtBalanceResponseDto?>.Failure(BudgetMonth.MonthIsClosed);
 
         var existing = await _repo.GetDebtForMutationAsync(

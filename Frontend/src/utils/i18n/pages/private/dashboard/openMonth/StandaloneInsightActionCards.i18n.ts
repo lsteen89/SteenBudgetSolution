@@ -1,31 +1,23 @@
 /**
- * i18n dictionary for the open-month AttentionLane (PR4).
+ * i18n dictionary for the open-month StandaloneInsightActionCards (V2 PR4).
  *
  * Copy rules:
- *  - Items are on-device guidance, not backend advice. The "How these are
- *    chosen" affordance must say so clearly in every language.
- *  - Deficit copy is factual and calm; no shame language (handover § "Hard
- *    Constraints" item 8).
+ *  - Cards are on-device guidance derived from planned numbers — copy must
+ *    stay factual and never present itself as backend-owned advice.
+ *  - Deficit copy is factual and calm; no shame language.
  *  - Surplus copy is actionable, not celebratory noise.
  *  - No transaction, burn-rate, spend-progress, or due-date language —
  *    everything here describes planned budget signals.
- *  - Action labels describe where the button goes (close flow, quick drawer
+ *  - Action labels describe where the action goes (close flow, quick drawer
  *    for a pillar, full editor route, or the breakdown analysis page).
+ *
+ * The V2 blueprint removed the lane's explanatory framing (section title,
+ * eyebrow, hint, "How these are chosen" disclosure) — only the per-card copy
+ * and an accessible section label remain.
  */
-export const attentionLaneDict = {
+export const standaloneInsightActionCardsDict = {
   en: {
-    sectionTitle: "Worth a quick look",
-    sectionEyebrow: "Attention",
-    sectionHint:
-      "A short list of items derived from this month's planned numbers.",
-
-    howChosenLabel: "How these are chosen",
-    howChosenBody:
-      "These items are on-device checks against your planned numbers — they are not backend advice. We surface up to three signals that affect how this month closes: lifecycle pressure (overdue or eligible to close), money state (deficit or unallocated surplus), and planned commitments like savings, subscriptions, debt payments and recurring expenses.",
-
-    emptyTitle: "Plan looks stable",
-    emptyBody:
-      "Nothing needs urgent attention right now. The breakdown view shows the full picture if you want to dig deeper.",
+    sectionAriaLabel: "Insights for this month",
 
     itemOverdueTitle: "Month is past its close window",
     itemOverdueBody:
@@ -82,18 +74,7 @@ export const attentionLaneDict = {
   },
 
   sv: {
-    sectionTitle: "Värt en snabb koll",
-    sectionEyebrow: "Uppmärksamhet",
-    sectionHint:
-      "En kort lista som bygger på månadens planerade siffror.",
-
-    howChosenLabel: "Så väljs de här",
-    howChosenBody:
-      "De här punkterna är kontroller som görs lokalt i appen mot dina planerade siffror — det är inga råd från servern. Vi visar upp till tre signaler som påverkar hur månaden stängs: livscykel (försenad eller redo att stänga), pengaläge (underskott eller oplacerat överskott) och planerade åtaganden som sparande, prenumerationer, skulder och återkommande utgifter.",
-
-    emptyTitle: "Planen ser stabil ut",
-    emptyBody:
-      "Inget akut just nu. Översikten visar hela bilden om du vill gå djupare.",
+    sectionAriaLabel: "Insikter för månaden",
 
     itemOverdueTitle: "Månaden har passerat stängningsfönstret",
     itemOverdueBody:
@@ -150,18 +131,7 @@ export const attentionLaneDict = {
   },
 
   et: {
-    sectionTitle: "Tasub kiirelt vaadata",
-    sectionEyebrow: "Tähelepanu",
-    sectionHint:
-      "Lühike loend, mis põhineb selle kuu planeeritud arvudel.",
-
-    howChosenLabel: "Kuidas need valitakse",
-    howChosenBody:
-      "Need punktid on rakenduses tehtud kontrollid sinu planeeritud arvude põhjal — need ei ole serveri nõuanded. Näitame kuni kolme signaali, mis mõjutavad selle kuu sulgemist: elutsükkel (hilinenud või sulgemiseks valmis), rahaseis (puudujääk või jaotamata ülejääk) ja planeeritud kohustused nagu säästud, tellimused, võlamaksed ja püsikulud.",
-
-    emptyTitle: "Plaan näib stabiilne",
-    emptyBody:
-      "Praegu ei vaja miski kiiret tähelepanu. Ülevaade näitab kogu pilti, kui soovid süveneda.",
+    sectionAriaLabel: "Selle kuu tähelepanekud",
 
     itemOverdueTitle: "Kuu on sulgemisaknast üle",
     itemOverdueBody:
