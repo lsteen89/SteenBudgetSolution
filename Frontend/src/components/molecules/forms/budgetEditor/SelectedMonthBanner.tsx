@@ -51,7 +51,7 @@ export default function SelectedMonthBanner({
       className={
         readOnly
           ? "flex items-center gap-2.5 rounded-2xl border border-eb-stroke/40 bg-eb-shell/15 px-4 py-3 text-sm text-eb-text/70"
-          : "flex items-center gap-2.5 rounded-2xl border border-eb-accent/35 bg-eb-accent-soft/40 px-4 py-3 text-sm text-eb-text/80"
+          : "flex items-center gap-2.5 rounded-2xl border border-eb-accent/35 bg-eb-accentSoft/40 px-4 py-3 text-sm text-eb-text/80"
       }
     >
       <Icon size={16} aria-hidden className="shrink-0 text-eb-text/55" />
