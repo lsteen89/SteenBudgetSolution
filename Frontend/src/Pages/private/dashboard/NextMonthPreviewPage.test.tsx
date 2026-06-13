@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import NextMonthPreviewPage from "./NextMonthPreviewPage";
@@ -182,10 +182,16 @@ function previewQueryState(
   };
 }
 
-function renderPage() {
+function LocationProbe() {
+  const location = useLocation();
+  return <span data-testid="location-probe">{location.pathname}</span>;
+}
+
+function renderPage(initialPath = "/dashboard/next-month") {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[initialPath]}>
       <NextMonthPreviewPage />
+      <LocationProbe />
     </MemoryRouter>,
   );
 }
@@ -316,6 +322,13 @@ describe("NextMonthPreviewPage", () => {
     expect(mockUseBudgetDashboardMonthQuery).toHaveBeenCalledWith(
       "2026-06",
       expect.objectContaining({ enabled: true }),
+    );
+
+    // Planned state reads the materialized month, never the plan projection:
+    // the preview query stays disabled so it is not the active data source.
+    expect(mockUseNextMonthPreviewQuery).toHaveBeenCalledWith(
+      "2026-05",
+      expect.objectContaining({ enabled: false }),
     );
 
     // Scoped edit actions route into the PR-6 selected-month editors with the
@@ -625,6 +638,65 @@ describe("NextMonthPreviewPage", () => {
     const ribbon = screen.getByTestId("next-month-planned-success");
     expect(ribbon).toHaveTextContent(/june 2026 is planned/i);
     expect(ribbon).toHaveTextContent(/adjust the month before it opens/i);
+
+    // The success banner is a deterministic, programmatic focus target: after
+    // the create transition, focus lands on it so keyboard and screen-reader
+    // users are taken straight to the confirmation and the edit hub below it.
+    expect(ribbon).toHaveAttribute("tabindex", "-1");
+    expect(ribbon).toHaveAttribute(
+      "aria-labelledby",
+      "next-month-planned-success-title",
+    );
+    expect(ribbon).toHaveFocus();
+  });
+
+  it("does not steal focus when revisiting an already-planned month", () => {
+    // No success this session (default mutation mock): the calm planned state
+    // must not yank focus to the body on a direct revisit.
+    mockUseBudgetMonthsStatusQuery.mockReturnValue(
+      statusWithNextMonth("planned"),
+    );
+    mockUseNextMonthPreviewQuery.mockReturnValue(previewQueryState(undefined));
+    mockUseBudgetDashboardMonthQuery.mockReturnValue(
+      dashboardMonthState(previewSuccess().dashboard),
+    );
+
+    renderPage();
+
+    expect(
+      screen.queryByTestId("next-month-planned-success"),
+    ).not.toBeInTheDocument();
+    // Focus is left on the document body — nothing was programmatically grabbed.
+    expect(document.body).toHaveFocus();
+  });
+
+  it("keeps the route on /dashboard/next-month after a successful create", () => {
+    mockUseBudgetMonthsStatusQuery.mockReturnValue(
+      statusWithNextMonth("planned"),
+    );
+    mockUseNextMonthPreviewQuery.mockReturnValue(previewQueryState(undefined));
+    mockUseBudgetDashboardMonthQuery.mockReturnValue(
+      dashboardMonthState(previewSuccess().dashboard),
+    );
+    mockUsePlanNextMonthMutation.mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+      isSuccess: true,
+    });
+
+    renderPage();
+
+    // Rendering the planned+success state does not navigate or reload: the
+    // page stays mounted at /dashboard/next-month. (The click→mutation path
+    // itself is covered by the "starts planning" test; this guards only that
+    // reaching success never swaps the route out from under the user.)
+    expect(screen.getByTestId("location-probe")).toHaveTextContent(
+      "/dashboard/next-month",
+    );
+    expect(screen.getByTestId("next-month-preview-page")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("next-month-planned-success"),
+    ).toBeInTheDocument();
   });
 
   it("hides the success ribbon for an already-planned month", () => {

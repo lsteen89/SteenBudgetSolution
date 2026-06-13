@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -1429,6 +1429,28 @@ function PlannedContent({
   t: Translate;
   justPlanned: boolean;
 }) {
+  const successRef = useRef<HTMLElement>(null);
+
+  // After this page creates the planned month, move focus to the success
+  // banner so keyboard and screen-reader users land on the confirmation and
+  // the edit hub right below it — instead of being left at the page top.
+  // Gated on `justPlanned`: a direct visit to an already-planned month must
+  // never steal focus. Reduced-motion users get an instant jump, not a scroll.
+  useEffect(() => {
+    if (!justPlanned) return;
+    const node = successRef.current;
+    if (!node) return;
+
+    node.focus({ preventScroll: true });
+
+    const reduceMotion =
+      window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
+    node.scrollIntoView({
+      behavior: reduceMotion ? "auto" : "smooth",
+      block: "start",
+    });
+  }, [justPlanned]);
+
   const plannedLabel = ymLabel(targetYearMonth, locale);
   const plannedLabelCap =
     plannedLabel.charAt(0).toUpperCase() + plannedLabel.slice(1);
@@ -1471,17 +1493,25 @@ function PlannedContent({
       */}
       {justPlanned ? (
         <section
+          ref={successRef}
+          tabIndex={-1}
           data-testid="next-month-planned-success"
           role="status"
+          aria-labelledby="next-month-planned-success-title"
           className={cn(
             "flex items-start gap-3 rounded-3xl shadow-eb",
             "border border-eb-accent/40 bg-eb-accentSoft/60",
             "px-5 py-4 sm:px-7",
+            "scroll-mt-6 outline-none",
+            "focus-visible:ring-2 focus-visible:ring-eb-accent/55 focus-visible:ring-offset-2 focus-visible:ring-offset-eb-surface",
           )}
         >
           <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-eb-accent" />
           <div>
-            <p className="text-sm font-extrabold tracking-tight text-eb-text">
+            <p
+              id="next-month-planned-success-title"
+              className="text-sm font-extrabold tracking-tight text-eb-text"
+            >
               {successTitle}
             </p>
             <p className="mt-0.5 text-sm leading-6 text-eb-text/70">
