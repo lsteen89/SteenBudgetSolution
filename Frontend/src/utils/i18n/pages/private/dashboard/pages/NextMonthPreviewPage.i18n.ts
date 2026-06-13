@@ -55,6 +55,12 @@ export const nextMonthPreviewDict = {
       "Skapa en planerad månad för att ändra bara nästa månad innan den öppnas.",
     startPlanningAction: "Börja planera nästa månad",
     startPlanningPending: "Skapar planerad månad",
+    startPlanningRetry: "Försök igen",
+    startPlanningError:
+      "Kunde inte skapa den planerade månaden. Försök igen.",
+    // success ribbon after the planned month is created — {month} interpolated
+    plannedSuccessTitle: "{month} är planerad",
+    plannedSuccessBody: "Du kan nu justera månaden innan den öppnas.",
     plannedIntro:
       "Den här månaden är planerad och kan redigeras innan den blir aktiv.",
     editActionsTitle: "Redigera planerad månad",
@@ -135,6 +141,12 @@ export const nextMonthPreviewDict = {
       "Create a planned month to edit next month only before it becomes active.",
     startPlanningAction: "Start planning next month",
     startPlanningPending: "Creating planned month",
+    startPlanningRetry: "Try again",
+    startPlanningError:
+      "Couldn’t create the planned month. Please try again.",
+    // success ribbon after the planned month is created — {month} interpolated
+    plannedSuccessTitle: "{month} is planned",
+    plannedSuccessBody: "You can now adjust the month before it opens.",
     plannedIntro:
       "This month is planned and can be edited before it becomes active.",
     editActionsTitle: "Edit planned month",
@@ -212,6 +224,12 @@ export const nextMonthPreviewDict = {
       "Loo planeeritud kuu, et muuta ainult järgmist kuud enne selle aktiivseks muutumist.",
     startPlanningAction: "Alusta järgmise kuu planeerimist",
     startPlanningPending: "Planeeritud kuu loomine",
+    startPlanningRetry: "Proovi uuesti",
+    startPlanningError:
+      "Planeeritud kuu loomine ebaõnnestus. Proovi uuesti.",
+    // success ribbon after the planned month is created — {month} interpolated
+    plannedSuccessTitle: "{month} on planeeritud",
+    plannedSuccessBody: "Saad kuud nüüd enne avanemist kohandada.",
     plannedIntro:
       "See kuu on planeeritud ja seda saab enne aktiivseks muutumist muuta.",
     editActionsTitle: "Muuda planeeritud kuud",

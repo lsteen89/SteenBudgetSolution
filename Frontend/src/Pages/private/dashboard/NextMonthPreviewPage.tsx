@@ -1,5 +1,5 @@
 import React from "react";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
 import { Link, Navigate } from "react-router-dom";
 
 import AllocationBar, {
@@ -205,6 +205,7 @@ const NextMonthPreviewPage: React.FC = () => {
         targetYearMonth={pageState.targetYearMonth}
         locale={locale}
         t={t}
+        justPlanned={planMutation.isSuccess}
       />,
     );
   }
@@ -245,6 +246,13 @@ const NextMonthPreviewPage: React.FC = () => {
       t={t}
       onStartPlanning={() => planMutation.mutate(preview.fromYearMonth)}
       planning={planMutation.isPending}
+      planError={
+        planMutation.isError
+          ? planMutation.error
+            ? toUserMessage(toApiProblem(planMutation.error), locale)
+            : t("startPlanningError")
+          : null
+      }
     />,
   );
 };
@@ -487,6 +495,7 @@ function PreviewContent({
   t,
   onStartPlanning,
   planning,
+  planError,
 }: {
   dashboard: BudgetDashboardDto;
   currency: CurrencyCode;
@@ -498,6 +507,7 @@ function PreviewContent({
   t: Translate;
   onStartPlanning: () => void;
   planning: boolean;
+  planError: string | null;
 }) {
   const previewLabel = ymLabel(previewYearMonth, locale);
   const fromLabel = ymLabel(fromYearMonth, locale);
@@ -568,12 +578,34 @@ function PreviewContent({
         <p className="mt-1.5 max-w-prose text-sm leading-6 text-eb-text/70">
           {t("startPlanningBody")}
         </p>
+        {/*
+          Creating the planned month is a real lifecycle mutation, so a failed
+          create must never be silent. We stay in the preview state, surface the
+          backend reason near the action, and leave the CTA enabled so the same
+          button retries.
+        */}
+        {planError ? (
+          <p
+            data-testid="next-month-start-planning-error"
+            role="alert"
+            className={cn(
+              "mt-3 rounded-2xl border border-eb-danger/40 bg-eb-danger/10",
+              "px-3.5 py-2.5 text-sm leading-6 text-eb-danger",
+            )}
+          >
+            {planError}
+          </p>
+        ) : null}
         <CtaButton
           className="mt-4 h-11 px-5"
           onClick={onStartPlanning}
           disabled={planning}
         >
-          {planning ? t("startPlanningPending") : t("startPlanningAction")}
+          {planning
+            ? t("startPlanningPending")
+            : planError
+              ? t("startPlanningRetry")
+              : t("startPlanningAction")}
         </CtaButton>
       </section>
     </>
@@ -586,14 +618,22 @@ function PlannedContent({
   targetYearMonth,
   locale,
   t,
+  justPlanned,
 }: {
   dashboard: BudgetDashboardDto;
   currency: CurrencyCode;
   targetYearMonth: string;
   locale: string;
   t: Translate;
+  justPlanned: boolean;
 }) {
   const plannedLabel = ymLabel(targetYearMonth, locale);
+  const plannedLabelCap =
+    plannedLabel.charAt(0).toUpperCase() + plannedLabel.slice(1);
+  const successTitle = t("plannedSuccessTitle").replace(
+    "{month}",
+    plannedLabelCap,
+  );
   const monthOnlyScope = t("monthOnlyScope").replace("{month}", plannedLabel);
   const qs = `?yearMonth=${encodeURIComponent(targetYearMonth)}`;
 
@@ -627,6 +667,33 @@ function PlannedContent({
           {t("plannedIntro")}
         </p>
       </header>
+
+      {/*
+        Quiet success moment, only right after this page created the planned
+        month (the mutation resolved this session). Revisiting an already-planned
+        month remounts with no success flag, so the ribbon stays out of the way.
+      */}
+      {justPlanned ? (
+        <section
+          data-testid="next-month-planned-success"
+          role="status"
+          className={cn(
+            "flex items-start gap-3 rounded-3xl shadow-eb",
+            "border border-eb-accent/40 bg-eb-accentSoft/60",
+            "px-5 py-4 sm:px-7",
+          )}
+        >
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-eb-accent" />
+          <div>
+            <p className="text-sm font-extrabold tracking-tight text-eb-text">
+              {successTitle}
+            </p>
+            <p className="mt-0.5 text-sm leading-6 text-eb-text/70">
+              {t("plannedSuccessBody")}
+            </p>
+          </div>
+        </section>
+      ) : null}
 
       <MoneyStateSurface
         dashboard={dashboard}

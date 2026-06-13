@@ -547,4 +547,92 @@ describe("NextMonthPreviewPage", () => {
       screen.getByRole("heading", { name: /load the preview/i }),
     ).toBeInTheDocument();
   });
+
+  it("disables the start-planning CTA while the create mutation is pending", () => {
+    mockUseBudgetMonthsStatusQuery.mockReturnValue(statusWithOpenMonth());
+    mockUseNextMonthPreviewQuery.mockReturnValue(
+      previewQueryState(previewSuccess()),
+    );
+    mockUsePlanNextMonthMutation.mockReturnValue({
+      mutate: vi.fn(),
+      isPending: true,
+    });
+
+    renderPage();
+
+    // Pending cannot double-submit: the CTA is disabled and shows progress.
+    const cta = screen.getByRole("button", {
+      name: /creating planned month/i,
+    });
+    expect(cta).toBeDisabled();
+  });
+
+  it("surfaces a retryable error when the create mutation fails", async () => {
+    const user = userEvent.setup();
+    const mutate = vi.fn();
+    mockUseBudgetMonthsStatusQuery.mockReturnValue(
+      statusWithOpenMonth("2026-05"),
+    );
+    mockUseNextMonthPreviewQuery.mockReturnValue(
+      previewQueryState(previewSuccess()),
+    );
+    mockUsePlanNextMonthMutation.mockReturnValue({
+      mutate,
+      isPending: false,
+      isError: true,
+      error: new Error("create failed"),
+      isSuccess: false,
+    });
+
+    renderPage();
+
+    // A failed lifecycle mutation is never silent: stay in preview, show an
+    // alert near the action, and turn the CTA into an explicit retry.
+    expect(
+      screen.getByTestId("next-month-start-planning-error"),
+    ).toBeInTheDocument();
+    const retry = screen.getByRole("button", { name: /try again/i });
+    await user.click(retry);
+    expect(mutate).toHaveBeenCalledWith("2026-05");
+  });
+
+  it("shows the success ribbon right after the planned month is created", () => {
+    mockUseBudgetMonthsStatusQuery.mockReturnValue(
+      statusWithNextMonth("planned"),
+    );
+    mockUseNextMonthPreviewQuery.mockReturnValue(previewQueryState(undefined));
+    mockUseBudgetDashboardMonthQuery.mockReturnValue(
+      dashboardMonthState(previewSuccess().dashboard),
+    );
+    mockUsePlanNextMonthMutation.mockReturnValue({
+      mutate: vi.fn(),
+      isPending: false,
+      isSuccess: true,
+    });
+
+    renderPage();
+
+    const ribbon = screen.getByTestId("next-month-planned-success");
+    expect(ribbon).toHaveTextContent(/june 2026 is planned/i);
+    expect(ribbon).toHaveTextContent(/adjust the month before it opens/i);
+  });
+
+  it("hides the success ribbon for an already-planned month", () => {
+    mockUseBudgetMonthsStatusQuery.mockReturnValue(
+      statusWithNextMonth("planned"),
+    );
+    mockUseNextMonthPreviewQuery.mockReturnValue(previewQueryState(undefined));
+    mockUseBudgetDashboardMonthQuery.mockReturnValue(
+      dashboardMonthState(previewSuccess().dashboard),
+    );
+    // Default mutation mock: isSuccess is falsy — nothing was created here, so
+    // the calm planned state shows no success moment, only the edit hub.
+
+    renderPage();
+
+    expect(
+      screen.queryByTestId("next-month-planned-success"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByTestId("next-month-edit-actions")).toBeInTheDocument();
+  });
 });
