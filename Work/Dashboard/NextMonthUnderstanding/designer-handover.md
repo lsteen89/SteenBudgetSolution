@@ -1,226 +1,276 @@
-# Designer Handover
+# Designer Handoff - `/dashboard/next-month`
 
-## User Problem
+## Purpose
 
-Users need to understand the budget model without reading documentation:
-
-```text
-Budget plan -> this month -> next month
-```
-
-Today the dashboard shows the current/open month well, but it does not make the relationship between current month, next month, and budget plan obvious enough.
-
-The goal is not a full redesign. The goal is a clearer next-month path and less explanatory noise.
-
-## Chosen Dashboard Direction
-
-Keep the current month as the main hero.
-
-Add a compact next-month planning layer and a three-card model underneath:
-
-1. This month
-2. Next month
-3. Budget plan
-
-The dashboard should teach the model through layout and labels. Avoid long helper paragraphs.
-
-## Three-Card Model
-
-### Card A: This Month
-
-Purpose:
-
-- confirm what the user is looking at now;
-- reinforce that this is the active/open month;
-- link to current allocation/breakdown.
-
-Content candidates:
-
-- `Denna månad`
-- month label, e.g. `maj 2026`
-- status pill, e.g. `Öppen`
-- remaining/free amount if available
-- action: `Se fördelningen`
-
-### Card B: Next Month
-
-Purpose:
-
-- make the next planning step obvious;
-- carry the primary CTA.
-
-Content candidates:
-
-- `Nästa månad`
-- month label, e.g. `juni 2026`
-- state:
-  - `Förhandsvisning` if preview;
-  - `Öppen` or normal status if already persisted/opened;
-  - `Inte öppnad` if preview backend is unavailable.
-- projected free amount only if backend provides preview data.
-- primary action: `Granska nästa månad`.
-
-This is the most important new card.
-
-### Card C: Budget Plan
-
-Purpose:
-
-- name the recurring source of future months.
-
-Content candidates:
-
-- `Budgetplan`
-- `Din vanliga månadsplan`
-- optional totals only if backend provides plan summary.
-- action: `Redigera budgetplan` only if route/actions truly support plan editing.
-
-## Next-Month CTA
-
-Primary action:
-
-- Swedish: `Granska nästa månad`
-- English: `Review next month`
-
-This CTA and the active Next button should route to the same page:
+We are building the dedicated next-month planning page:
 
 ```text
 /dashboard/next-month
 ```
 
-If the backend preview is not ready, the CTA should not show fake numbers. It may show a disabled/unavailable state or route to a page that clearly says preview is unavailable.
-
-## Active Next Button Behavior
-
-Current technical behavior:
-
-- Next is disabled because month navigation only uses persisted months from `/api/budgets/months/status`.
-- Unopened next month is not in that list.
-
-Desired behavior after backend support:
-
-- On active/open current month, Next routes to next-month preview.
-- If next month already exists as a persisted month, Next routes to that real month.
-
-Design implication:
-
-- The Next button needs a preview-capable state, not just disabled/enabled.
-- Preview navigation and persisted month navigation should feel related but not misleading.
-
-## Required States
-
-### Current Open, Next Not Opened
-
-Dashboard:
-
-- current hero remains active;
-- next card says preview;
-- CTA: `Granska nästa månad`;
-- Next button routes to preview page.
-
-Preview page:
-
-- label: `Juni 2026 · Förhandsvisning`;
-- clear that this is not active month yet;
-- show backend preview values when available.
-
-### Current Open, Next Persisted
-
-Dashboard:
-
-- next card should not call it only preview;
-- CTA may become `Gå till nästa månad`.
-
-Technical warning:
-
-- current backend does not generally support current and next both being open.
-- if next is persisted after close/start, current is likely no longer open.
-
-### Current Closed/Read-Only
-
-Dashboard:
-
-- no edit affordances;
-- recap stays historical;
-- navigation to adjacent persisted months remains.
-
-### Preview Unsupported
-
-Dashboard:
-
-- no fake numbers;
-- short factual unavailable copy.
-
-Preview page:
-
-- can show “preview needs backend support” state for implementation staging, but not for MVP user-facing launch if avoidable.
-
-### Month-Only Rows
-
-Design must mark scope clearly:
-
-- `Gäller bara juni`
-- no plan-forward action if row is month-only.
-
-## Technical Truths / Limitations
-
-- There is no safe backend next-month preview endpoint today.
-- Existing dashboard endpoint may create/materialize a month. It must not be used for preview.
-- Existing editor pages edit `openMonthYearMonth`; they do not edit preview or selected future months.
-- Quick drawer is current-month-only.
-- Budget plan totals are not currently available as a dashboard summary.
-- Carry-over before close is estimated, not final.
-- Editing unopened next month only needs backend lifecycle/model work first.
-
-## Copy Guidance
-
-Use:
-
-- `Denna månad`
-- `Nästa månad`
-- `Budgetplan`
-- `Granska nästa månad`
-- `Gå till nästa månad`
-- `Förhandsvisning`
-- `Gäller bara juni`
-- `Uppdatera budgetplanen framåt`
-- `Endast budgetplanen framåt`
-
-Carry-over copy:
+The page should help the user understand and act on this model:
 
 ```text
-Bygger på att maj stängs med 18 623 kr kvar. Beloppen fastställs när månaden stängs.
+This month -> next month -> budget plan
 ```
+
+Current branch already has a technical baseline. Treat it as working material,
+not final design. The designer may change frontend structure and backend
+contracts if needed. We want the best page possible, but it must still feel like
+eBudget: calm, premium, trustworthy, financial, and consistent with the existing
+app shell.
+
+## Current Product Shape
+
+The page has two real user states:
+
+- **Preview**: next month does not exist yet. The page shows a read-only
+  projection from the budget plan.
+- **Planned**: user has created a planned next month. The page shows a real
+  materialized month that can be edited before it becomes active.
+
+The page also handles:
+
+- unavailable state: no open month to project from;
+- empty budget-plan state;
+- loading state;
+- API error state;
+- defensive redirect if the next month is already open.
+
+## Current UX Flow
+
+From the open-month dashboard:
+
+1. User sees the open-month hero.
+2. Under it, `PlanningRow` shows three cards:
+   - This month
+   - Next month
+   - Budget plan
+3. The Next month card routes to `/dashboard/next-month`.
+4. If backend preview is available, the dashboard also shows inline
+   `NextMonthPreviewDetail`.
+5. Full page shows the preview.
+6. User can press "Start planning next month".
+7. Backend creates a planned month.
+8. Same page switches to planned state and exposes edit links for income,
+   expenses, savings, and debts.
+
+## What Exists Now
+
+### Frontend
+
+- Route:
+  - `Frontend/src/routes/appRoutes.ts`
+  - `dashboardNextMonth: "/dashboard/next-month"`
+- Router:
+  - `Frontend/src/layout/AppRoutes.tsx`
+- Full page:
+  - `Frontend/src/Pages/private/dashboard/NextMonthPreviewPage.tsx`
+- Dashboard entry surfaces:
+  - `Frontend/src/components/organisms/dashboard/returning/openMonth/PlanningRow.tsx`
+  - `Frontend/src/components/organisms/dashboard/returning/openMonth/NextMonthPreviewDetail.tsx`
+- Shared preview logic:
+  - `Frontend/src/domain/budget/nextMonthPreview.ts`
+- API hooks:
+  - `Frontend/src/hooks/budget/useNextMonthPreviewQuery.ts`
+  - `Frontend/src/hooks/budget/usePlanNextMonthMutation.ts`
+- DTOs:
+  - `Frontend/src/types/budget/NextMonthPreviewDto.ts`
+  - `Frontend/src/types/budget/PlanNextMonthResultDto.ts`
+- Copy:
+  - `Frontend/src/utils/i18n/pages/private/dashboard/pages/NextMonthPreviewPage.i18n.ts`
+  - `Frontend/src/utils/i18n/pages/private/dashboard/openMonth/PlanningRow.i18n.ts`
+  - `Frontend/src/utils/i18n/pages/private/dashboard/openMonth/NextMonthPreviewDetail.i18n.ts`
+
+### Backend
+
+- Read-only preview endpoint:
+
+```http
+GET /api/budgets/months/{fromYearMonth}/next-preview
+```
+
+- Create planned month endpoint:
+
+```http
+POST /api/budgets/months/{fromYearMonth}/next-planned
+```
+
+- Controller:
+  - `Backend/Presentation/Controllers/Budget/BudgetController.MonthLifecycle.cs`
+- Preview feature:
+  - `Backend/Application/Features/Budgets/Months/NextPreview/*`
+- Planned-month feature:
+  - `Backend/Application/Features/Budgets/Months/PlanNextMonth/*`
+- Backend DTOs:
+  - `Backend/Application/DTO/Budget/Months/NextMonthPreviewDto.cs`
+  - `Backend/Application/DTO/Budget/Months/PlanNextMonthResultDto.cs`
+
+## Data Truths
+
+The preview page must not fake money.
+
+- Preview numbers come from backend `NextMonthPreviewDto.dashboard`.
+- Frontend may format, classify, and compare backend numbers, but must not
+  invent next-month totals.
+- Preview is projected from the budget plan.
+- Preview carry-over is an estimate from the current open month's live final
+  balance, floored at zero.
+- Estimated carry-over is not final until the current month closes.
+- Planned month is different from preview: it is a real materialized month with
+  editable rows.
+- Closing the current month later promotes the planned month to open and applies
+  final carry-over.
+
+## Design Freedom
+
+Designer is allowed to change backend if needed.
+
+That includes:
+
+- DTO shape;
+- endpoint response fields;
+- extra explanation fields;
+- state labels;
+- richer read models for design clarity;
+- additional backend-owned comparison data;
+- better planned-month metadata.
+
+Do not treat the current API as sacred. If the best page needs better backend
+data, change the backend properly instead of bending the UI around missing
+data.
+
+Hard rule: backend changes must preserve financial correctness, one-open-month
+invariant, and no fake frontend math.
+
+## eBudget Visual Rules
+
+This page must look like eBudget.
+
+Use the existing app language:
+
+- calm blue shell/background;
+- `--eb-*` tokens;
+- existing surface/shadow grammar (`shadow-eb`, `bg-eb-surface`,
+  `border-eb-stroke`, `text-eb-text`, `text-eb-muted`);
+- restrained accent usage;
+- clear money hierarchy;
+- refined but quiet cards/sections;
+- no marketing-page hero;
+- no random new palette;
+- no noisy gradients, gimmicks, glass overload, or SaaS-template dashboard soup.
+
+Cards can be polished harder, but they must still belong beside the current
+dashboard, MonthRail, and editor pages.
+
+## Current Design Problems To Solve
+
+The technical flow exists, but the page likely needs design work:
+
+- Preview and planned states need stronger hierarchy.
+- The transition from "preview" to "planned" should feel intentional.
+- Money equation, allocation bar, and carry-over assumption need clearer visual
+  grouping.
+- "Start planning next month" is important, but should not feel dangerous or
+  vague.
+- Planned edit actions need better distinction between:
+  - edit this planned month only;
+  - update budget plan forward.
+- Page should feel like a focused planning workspace, not a generic summary
+  card stack.
+- Empty/unavailable/error states should be polished enough for production, not
+  placeholder panels.
+
+## Suggested Page Composition
+
+Strong direction, not a locked wireframe:
+
+1. Header
+   - "Next month"
+   - month label
+   - state pill: Preview or Planned
+   - short state-specific explanation
+
+2. Main money surface
+   - free-to-allocate headline
+   - equation: income + carry-over - expenses - savings - debts = remaining
+   - allocation bar
+   - carry-over assumption if applicable
+
+3. Decision/action area
+   - Preview state: create planned month
+   - Planned state: edit next-month-only pillars
+
+4. Scope explanation
+   - concise distinction between planned-month edits and budget-plan-forward
+     edits
+   - no implementation terms
+
+5. Supporting comparison
+   - optional: how next month differs from this month
+   - only if backend or existing DTO gives honest values
+
+## Copy Direction
+
+Good product words:
+
+- This month
+- Next month
+- Budget plan
+- Preview
+- Planned
+- Free to allocate
+- Start planning next month
+- Edit next month only
+- Update budget plan forward
+- Applies only to {month}
+- Based on {month} closing with {amount} left
 
 Avoid:
 
-- default
 - baseline
-- source
 - entity
-- override
+- source rows
+- materialized
+- mutation
 - fake precision
-- shame/guilt language
-- banking/transaction/spend-progress language
+- guilt/shame language
+- bank/spending-tracker wording
+- long educational paragraphs
 
-## What The Designer Should Decide
+## Guardrails
 
-- Exact visual placement of the three cards relative to MoneyState and AttentionLane.
-- Whether the next-month preview card is above or below the three-card row.
-- The visual difference between:
-  - preview/unopened next month;
-  - actual persisted next month;
-  - unavailable preview.
-- Empty states for no budget-plan data.
-- How much carry-over assumption should be visible on the card versus preview page.
-- Whether `Budgetplan` card should link to one editor, a plan landing page, or no action until route support exists.
+Do not:
 
-## What The Designer Must Not Invent
+- show next-month money without backend data;
+- hide that preview carry-over is estimated;
+- imply preview rows are already editable;
+- make current-month quick edit modify future months;
+- imply "next month only" and "budget plan forward" are the same action;
+- create multiple open months;
+- redesign nav/account/menu/shell as part of this page;
+- add unrelated dashboard features.
 
-- Do not show next-month money values without backend preview data.
-- Do not imply unopened next month already exists as editable month rows.
-- Do not make quick drawer edit future months.
-- Do not call plan-forward edits “next month only.”
-- Do not introduce long educational copy blocks.
-- Do not use implementation terms in UI.
+## Open Design Questions
 
+- Should preview and planned share the same layout, or should planned feel more
+  like an editor launchpad?
+- How prominent should estimated carry-over be?
+- Should "Start planning next month" be a primary CTA, a contained workflow
+  panel, or a lower-risk secondary action?
+- Should comparison against this month be always visible, collapsible, or moved
+  back to dashboard-only?
+- What should the planned-state edit hub look like so scope is obvious without
+  excessive text?
+- Does backend need to send richer labels/reasons for deltas so the UI can
+  explain *why* next month differs?
+
+## Designer Target
+
+Make `/dashboard/next-month` feel like the natural next step from the open-month
+dashboard: calm, clear, financially honest, and eBudget-native.
+
+If the current implementation blocks a better design, change it. Frontend and
+backend are both available. But do not break the product truth: money comes from
+backend, preview is not final, planned month is real, and eBudget visual
+identity stays intact.

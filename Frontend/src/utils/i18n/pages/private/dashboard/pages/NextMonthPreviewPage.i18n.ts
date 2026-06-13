@@ -5,6 +5,7 @@ export const nextMonthPreviewDict = {
     // header
     kicker: "Nästa månad",
     previewBadge: "Förhandsvisning",
+    previewNothingSaved: "Förhandsvisning — inget sparat",
     plannedBadge: "Planerad",
     openBadge: "Öppen",
     // appended after the month label, e.g. "juni 2026 · Förhandsvisning"
@@ -14,6 +15,10 @@ export const nextMonthPreviewDict = {
 
     // money state
     remainingLabel: "Fritt att fördela",
+    freeInMonth: "Fritt att fördela i {month}",
+    shortInMonth: "Underskott i {month}",
+    fromBudgetPlan: "Från budgetplanen",
+    estimatedAbbr: "est.",
     toneWordPositive: "fritt att fördela",
     toneWordZero: "allt är fördelat",
     toneWordNegative: "underskott",
@@ -49,14 +54,60 @@ export const nextMonthPreviewDict = {
       "Bygger på att {month} stängs med {amount} kvar. Beloppen fastställs när månaden stängs.",
     basisNote: "Projicerat från din budgetplan, utan att något ändrats.",
 
+    comparisonKicker: "Jämfört med {month}",
+    comparisonTitle: "Varför {month} ser annorlunda ut",
+    comparisonCount: "{count} ändringar",
+    termsCount: "5 delar",
+    comparisonNoChanges: "Inga större skillnader mot den öppna månaden.",
+    delta_income: "Inkomster ändras i nästa månads plan.",
+    delta_carryOver: "Överfört belopp är fortfarande uppskattat.",
+    delta_expenses: "Utgifter skiljer sig från den öppna månaden.",
+    delta_savings: "Sparande skiljer sig från den öppna månaden.",
+    delta_debts: "Skuldbetalningar skiljer sig från den öppna månaden.",
+
+    lifecycleKicker: "Så blir {month} verklig",
+    lifecyclePreviewTitle: "Förhandsvisning",
+    lifecyclePreviewBody: "Projicerad från budgetplanen. Skrivskyddad, inget sparat.",
+    lifecyclePlannedTitle: "Planerad",
+    lifecyclePlannedBody: "En riktig {month} som kan justeras innan den öppnas.",
+    lifecycleOpenTitle: "Öppen",
+    lifecycleOpenBody:
+      "När {from} stängs tar {month} över och överfört belopp blir slutligt.",
+
     // planning actions
-    startPlanningTitle: "Vill du justera nästa månad?",
+    startPlanningKicker: "När du är redo",
+    startPlanningTitle: "Börja planera {month}",
     startPlanningBody:
-      "Skapa en planerad månad för att ändra bara nästa månad innan den öppnas.",
+      "Skapa en planerad version av {month} så att du kan justera den innan {from} stängs. {from} är fortsatt öppen.",
+    startPlanningDeficitBody:
+      "Just nu saknar {month} {amount}. Skapa en planerad version så att du kan justera den innan {from} stängs. {from} är fortsatt öppen.",
+    startStepCreate: "Skapar en planerad {month} från budgetplanen",
+    startStepAdjust:
+      "Justera inkomster, utgifter, sparande och skulder bara för {month}",
+    startStepOpen: "{month} är fortsatt öppen och stängs senare som vanligt",
     startPlanningAction: "Börja planera nästa månad",
     startPlanningPending: "Skapar planerad månad",
+    startPlanningRetry: "Försök igen",
+    startPlanningError:
+      "Kunde inte skapa den planerade månaden. Försök igen.",
+    startPlanningSafeNote:
+      "Inga pengar flyttas. Det här skapar bara {month} för redigering.",
+    forwardNoteTitle: "Behöver ändringen gälla varje månad?",
+    forwardNoteBody:
+      "Öppna rätt redigerare och välj budgetplanen framåt på raden du ändrar. Stängda månader ändras aldrig.",
+    confirmClose: "Stäng",
+    confirmTitle: "Skapa planerad {month}?",
+    confirmBody:
+      "Det här skapar en redigerbar planerad månad från budgetplanen. {from} är fortsatt öppen. Slutligt överfört belopp sätts när {from} stängs.",
+    confirmCancel: "Inte nu",
+    confirmPending: "Skapar",
+    confirmAction: "Skapa planerad månad",
+    // success ribbon after the planned month is created — {month} interpolated
+    plannedSuccessTitle: "{month} är planerad",
+    plannedSuccessBody: "Du kan nu justera månaden innan den öppnas.",
     plannedIntro:
       "Den här månaden är planerad och kan redigeras innan den blir aktiv.",
+    editActionsKicker: "Planera månaden",
     editActionsTitle: "Redigera planerad månad",
     editNextMonthOnlyTitle: "Redigera bara nästa månad",
     editNextMonthOnlyBody:
@@ -70,6 +121,8 @@ export const nextMonthPreviewDict = {
     editExpenses: "Utgifter",
     editSavings: "Sparande",
     editDebts: "Skulder",
+    editRowMeta: "Öppnar full redigerare för planerad månad",
+    editRowAction: "Öppna",
 
     // unavailable
     unavailableTitle: "Ingen förhandsvisning ännu",
@@ -91,6 +144,7 @@ export const nextMonthPreviewDict = {
 
     kicker: "Next month",
     previewBadge: "Preview",
+    previewNothingSaved: "Preview — nothing saved",
     plannedBadge: "Planned",
     openBadge: "Open",
     titleSeparator: "·",
@@ -98,6 +152,10 @@ export const nextMonthPreviewDict = {
       "This is not your active month. Here is what next month looks like if your budget plan doesn't change.",
 
     remainingLabel: "Free to allocate",
+    freeInMonth: "Free to allocate in {month}",
+    shortInMonth: "Short in {month}",
+    fromBudgetPlan: "From your budget plan",
+    estimatedAbbr: "est.",
     toneWordPositive: "free to allocate",
     toneWordZero: "fully assigned",
     toneWordNegative: "short",
@@ -130,13 +188,59 @@ export const nextMonthPreviewDict = {
       "Based on {month} closing with {amount} left. Amounts are finalised when the month closes.",
     basisNote: "Projected from your budget plan with nothing changed.",
 
-    startPlanningTitle: "Want to adjust next month?",
+    comparisonKicker: "Compared with {month}",
+    comparisonTitle: "Why {month} looks different",
+    comparisonCount: "{count} changes",
+    termsCount: "5 terms",
+    comparisonNoChanges: "No material difference from the open month.",
+    delta_income: "Income changes in next month's plan.",
+    delta_carryOver: "Carry-over is still estimated.",
+    delta_expenses: "Expenses differ from the open month.",
+    delta_savings: "Savings differ from the open month.",
+    delta_debts: "Debt payments differ from the open month.",
+
+    lifecycleKicker: "How {month} becomes real",
+    lifecyclePreviewTitle: "Preview",
+    lifecyclePreviewBody: "Projected from your budget plan. Read-only, nothing saved.",
+    lifecyclePlannedTitle: "Planned",
+    lifecyclePlannedBody: "A real {month} you can adjust before it opens.",
+    lifecycleOpenTitle: "Open",
+    lifecycleOpenBody:
+      "When you close {from}, {month} takes over and carry-over becomes final.",
+
+    startPlanningKicker: "When you're ready",
+    startPlanningTitle: "Start planning {month}",
     startPlanningBody:
-      "Create a planned month to edit next month only before it becomes active.",
+      "Create a planned version of {month} so you can adjust it before {from} closes. {from} stays open.",
+    startPlanningDeficitBody:
+      "Right now {month} is short by {amount}. Create a planned version so you can adjust it before {from} closes. {from} stays open.",
+    startStepCreate: "Creates a planned {month} from your budget plan",
+    startStepAdjust:
+      "Adjust income, expenses, savings and debts just for {month}",
+    startStepOpen: "{month} stays open and closes later as usual",
     startPlanningAction: "Start planning next month",
     startPlanningPending: "Creating planned month",
+    startPlanningRetry: "Try again",
+    startPlanningError:
+      "Couldn’t create the planned month. Please try again.",
+    startPlanningSafeNote:
+      "Nothing is moved. This only creates {month} for editing.",
+    forwardNoteTitle: "Need this change every month?",
+    forwardNoteBody:
+      "Open the relevant editor and choose budget plan forward on the row you change. Closed months are never changed.",
+    confirmClose: "Close",
+    confirmTitle: "Create planned {month}?",
+    confirmBody:
+      "This creates an editable planned month from your budget plan. {from} stays open. Final carry-over is applied when {from} closes.",
+    confirmCancel: "Not now",
+    confirmPending: "Creating",
+    confirmAction: "Create planned month",
+    // success ribbon after the planned month is created — {month} interpolated
+    plannedSuccessTitle: "{month} is planned",
+    plannedSuccessBody: "You can now adjust the month before it opens.",
     plannedIntro:
       "This month is planned and can be edited before it becomes active.",
+    editActionsKicker: "Plan the month",
     editActionsTitle: "Edit planned month",
     editNextMonthOnlyTitle: "Edit next month only",
     editNextMonthOnlyBody:
@@ -150,6 +254,8 @@ export const nextMonthPreviewDict = {
     editExpenses: "Expenses",
     editSavings: "Savings",
     editDebts: "Debts",
+    editRowMeta: "Opens full editor for planned month",
+    editRowAction: "Open",
 
     unavailableTitle: "No preview yet",
     unavailableBody:
@@ -168,6 +274,7 @@ export const nextMonthPreviewDict = {
 
     kicker: "Järgmine kuu",
     previewBadge: "Eelvaade",
+    previewNothingSaved: "Eelvaade — midagi pole salvestatud",
     plannedBadge: "Planeeritud",
     openBadge: "Avatud",
     titleSeparator: "·",
@@ -175,6 +282,10 @@ export const nextMonthPreviewDict = {
       "See ei ole sinu aktiivne kuu. Nii näeb järgmine kuu välja, kui eelarveplaan ei muutu.",
 
     remainingLabel: "Vaba jaotamiseks",
+    freeInMonth: "Vaba jaotamiseks kuus {month}",
+    shortInMonth: "Puudujääk kuus {month}",
+    fromBudgetPlan: "Eelarveplaanist",
+    estimatedAbbr: "hinn.",
     toneWordPositive: "vaba jaotamiseks",
     toneWordZero: "kõik on jaotatud",
     toneWordNegative: "puudujääk",
@@ -207,13 +318,60 @@ export const nextMonthPreviewDict = {
       "Põhineb sellel, et {month} suletakse jäägiga {amount}. Summad kinnitatakse kuu sulgemisel.",
     basisNote: "Projitseeritud sinu eelarveplaani põhjal, midagi muutmata.",
 
-    startPlanningTitle: "Tahad järgmist kuud kohandada?",
+    comparisonKicker: "Võrreldes kuuga {month}",
+    comparisonTitle: "Miks {month} näeb teistsugune välja",
+    comparisonCount: "{count} muudatust",
+    termsCount: "5 osa",
+    comparisonNoChanges: "Avatud kuuga võrreldes suuri erinevusi pole.",
+    delta_income: "Sissetulek muutub järgmise kuu plaanis.",
+    delta_carryOver: "Ülekanne on veel hinnanguline.",
+    delta_expenses: "Kulud erinevad avatud kuust.",
+    delta_savings: "Sääst erineb avatud kuust.",
+    delta_debts: "Võlamaksed erinevad avatud kuust.",
+
+    lifecycleKicker: "Kuidas {month} päriselt avaneb",
+    lifecyclePreviewTitle: "Eelvaade",
+    lifecyclePreviewBody:
+      "Projitseeritud eelarveplaanist. Ainult vaatamiseks, midagi pole salvestatud.",
+    lifecyclePlannedTitle: "Planeeritud",
+    lifecyclePlannedBody: "Päris {month}, mida saad enne avamist kohandada.",
+    lifecycleOpenTitle: "Avatud",
+    lifecycleOpenBody:
+      "Kui {from} suletakse, võtab {month} üle ja ülekanne muutub lõplikuks.",
+
+    startPlanningKicker: "Kui oled valmis",
+    startPlanningTitle: "Alusta planeerimist: {month}",
     startPlanningBody:
-      "Loo planeeritud kuu, et muuta ainult järgmist kuud enne selle aktiivseks muutumist.",
+      "Loo planeeritud versioon kuust {month}, et seda enne kuu {from} sulgemist kohandada. {from} jääb avatuks.",
+    startPlanningDeficitBody:
+      "{month} on praegu puudujäägis summaga {amount}. Loo planeeritud versioon, et seda enne kuu {from} sulgemist kohandada. {from} jääb avatuks.",
+    startStepCreate: "Loob planeeritud kuu {month} sinu eelarveplaanist",
+    startStepAdjust:
+      "Kohanda sissetulekuid, kulusid, säästu ja võlgu ainult kuuks {month}",
+    startStepOpen: "{month} jääb avatuks ja suletakse hiljem tavapäraselt",
     startPlanningAction: "Alusta järgmise kuu planeerimist",
     startPlanningPending: "Planeeritud kuu loomine",
+    startPlanningRetry: "Proovi uuesti",
+    startPlanningError:
+      "Planeeritud kuu loomine ebaõnnestus. Proovi uuesti.",
+    startPlanningSafeNote:
+      "Midagi ei liigutata. See loob ainult kuu {month} redigeerimiseks.",
+    forwardNoteTitle: "Kas muudatus peab kehtima iga kuu?",
+    forwardNoteBody:
+      "Ava õige redaktor ja vali muudetaval real eelarveplaan edasi. Suletud kuid ei muudeta kunagi.",
+    confirmClose: "Sulge",
+    confirmTitle: "Luua planeeritud {month}?",
+    confirmBody:
+      "See loob eelarveplaanist redigeeritava planeeritud kuu. {from} jääb avatuks. Lõplik ülekanne rakendatakse siis, kui {from} suletakse.",
+    confirmCancel: "Mitte praegu",
+    confirmPending: "Loomine",
+    confirmAction: "Loo planeeritud kuu",
+    // success ribbon after the planned month is created — {month} interpolated
+    plannedSuccessTitle: "{month} on planeeritud",
+    plannedSuccessBody: "Saad kuud nüüd enne avanemist kohandada.",
     plannedIntro:
       "See kuu on planeeritud ja seda saab enne aktiivseks muutumist muuta.",
+    editActionsKicker: "Planeeri kuu",
     editActionsTitle: "Muuda planeeritud kuud",
     editNextMonthOnlyTitle: "Muuda ainult järgmist kuud",
     editNextMonthOnlyBody:
@@ -227,6 +385,8 @@ export const nextMonthPreviewDict = {
     editExpenses: "Kulud",
     editSavings: "Sääst",
     editDebts: "Võlad",
+    editRowMeta: "Avab planeeritud kuu täieliku redaktori",
+    editRowAction: "Ava",
 
     unavailableTitle: "Eelvaadet veel pole",
     unavailableBody:
