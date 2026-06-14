@@ -1060,11 +1060,13 @@ internal static class BudgetTimelineProfiles
     private const decimal LocalDevJune2025DebtPayments = 3185m;
     private const decimal LocalDevJune2025FinalBalance = 20920m;
 
+    // Cancelled subscriptions count in the closed-month expense snapshot as a
+    // final charge, while active subscription totals exclude them.
     private const decimal LocalDevDecember2025Income = 54000m;
-    private const decimal LocalDevDecember2025Expenses = 46696m;
+    private const decimal LocalDevDecember2025Expenses = 46895m;
     private const decimal LocalDevDecember2025Savings = 4500m;
     private const decimal LocalDevDecember2025DebtPayments = 3185m;
-    private const decimal LocalDevDecember2025FinalBalance = -381m;
+    private const decimal LocalDevDecember2025FinalBalance = -580m;
 
     private const decimal LocalDevMarch2026Income = 56500m;
     private const decimal LocalDevMarch2026Expenses = 30095m;

@@ -274,7 +274,7 @@ jobs:
         working-directory: Frontend
         env:
           VITE_APP_API_URL: ${{ vars.VITE_APP_API_URL }}
-          VITE_APP_RECAPTCHA_SITE_KEY: ${{ vars.VITE_APP_RECAPTCHA_SITE_KEY }}
+          VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY }}
         run: |
           npm ci
           npm run build

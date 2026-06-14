@@ -65,8 +65,6 @@ export default function Registration() {
 
   const { applyAuth } = useAuth();
 
-  const humanToken = watch("humanToken");
-
   const turnstileRef = React.useRef<TurnstileWidgetHandle>(null);
   const clearHumanToken = React.useCallback(() => {
     setValue("humanToken", "", {
@@ -360,7 +358,7 @@ export default function Registration() {
                   <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
                     <CtaButton
                       type="submit"
-                      disabled={isSubmitting || !humanToken}
+                      disabled={isSubmitting}
                       aria-busy={isSubmitting}
                       className="w-full sm:w-auto"
                     >
