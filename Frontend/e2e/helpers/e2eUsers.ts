@@ -88,6 +88,14 @@ export const e2eUsers = {
     email: "e2e-debt-editor@local.test",
     password: e2ePassword,
   },
+  // Dedicated, mutating fixture for the next-month preview -> plan smoke. Its
+  // open 2026-04 month carries a non-empty budget plan and no 2026-05 month,
+  // so the page starts in "preview" and the spec materialises the planned
+  // month without colliding with any other suite.
+  nextMonthPlan: {
+    email: "e2e-next-month-plan@local.test",
+    password: e2ePassword,
+  },
 } as const;
 
 export const e2eOpenYearMonth = "2026-04";

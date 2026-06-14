@@ -703,7 +703,7 @@ function RowBadge({
         tone === "skip" &&
           "border-eb-warning/35 bg-[rgb(217_119_6_/0.10)] text-[#7c4a03]",
         tone === "done" &&
-          "border-eb-accent/30 bg-eb-accent-soft text-[#166534]",
+          "border-eb-accent/30 bg-eb-accentSoft text-[#166534]",
       )}
     >
       {children}
