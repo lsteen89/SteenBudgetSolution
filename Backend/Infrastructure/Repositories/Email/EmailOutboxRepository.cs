@@ -54,7 +54,7 @@ SELECT
   Id, Kind, ToEmail, Subject, BodyHtml, Attempts
 FROM EmailOutbox
 WHERE LockedBy = @WorkerId
-  AND LockedUntilUtc = @LockUntil
+  AND LockedUntilUtc > @NowUtc
   AND SentAtUtc IS NULL
 ORDER BY Id ASC
 LIMIT @Take;
@@ -73,7 +73,7 @@ LIMIT @Take;
         var rows = await QueryAsync<EmailOutboxItem>(fetchSql, new
         {
             WorkerId = workerId,
-            LockUntil = lockUntil,
+            NowUtc = nowUtc,
             Take = take
         }, ct);
 
