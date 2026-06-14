@@ -1038,6 +1038,7 @@ function StartPlanningPanel({
       ) : null}
 
       <CtaButton
+        data-testid="next-month-start-planning-action"
         className="mt-4 h-11 w-full px-5"
         onClick={planError ? onRetryPlanning : onStartPlanning}
         disabled={planning}
@@ -1140,6 +1141,7 @@ function ConfirmPlanningModal({
             {t("confirmCancel")}
           </button>
           <CtaButton
+            data-testid="next-month-confirm-create"
             className="h-11 flex-[1.4] px-4"
             onClick={onConfirm}
             disabled={planning}

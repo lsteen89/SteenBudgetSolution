@@ -282,6 +282,20 @@ E2eSeedUser[] e2eSeed =
             FirstName: "E2E",
             LastName: "DebtEditor"),
         IncludeBudget: true,
+        OpenMonthTargetFinalBalance: null),
+    // Dedicated user for the next-month preview -> plan smoke spec. Uses the
+    // Default timeline so the open 2026-04 month exposes a non-empty budget
+    // plan (preview projects a real money state rather than the empty-plan
+    // setup card) and no 2026-05 month exists yet (so the page lands in the
+    // "preview" state). The spec is mutating — it materialises the planned
+    // 2026-05 month — so it must not share an account with any other suite.
+    new(
+        User: new DevSeedUser(
+            Email: "e2e-next-month-plan@local.test",
+            Password: DevSeedPassword,
+            FirstName: "E2E",
+            LastName: "NextMonthPlan"),
+        IncludeBudget: true,
         OpenMonthTargetFinalBalance: null)
 ];
 
